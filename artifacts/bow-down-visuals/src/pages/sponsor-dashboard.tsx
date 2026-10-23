@@ -76,7 +76,10 @@ export default function SponsorDashboard() {
   const [postedDeals, setPostedDeals] = useState<PostedDeal[]>([]);
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
-  const [totalEarnedCents, setTotalEarnedCents] = useState(0);
+  /* Null until the dashboard actually loads: the banner must never
+     paint a fake $0.00 / 0 / 0 during loading or after a failure
+     (Stack-28 #25 / A3-F3). */
+  const [totalEarnedCents, setTotalEarnedCents] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -132,28 +135,31 @@ export default function SponsorDashboard() {
           </div>
         </div>
 
-        {/* earnings banner */}
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {/* earnings banner — numbers ONLY on a successful load
+            (Stack-28 #25 / A3-F3): while loading the banner shows
+            placeholders, and on failure it shows an error note — never
+            a confident $0.00 / 0 / 0 above the real error card. */}
+        <div className="mt-8 grid gap-4 md:grid-cols-3" data-testid="sponsor-banner">
           <div className={`${isLight ? "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Banknote className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("sponsorDashboard.earnedAsCreator")}
             </p>
-            <p className="mt-2 font-display text-3xl font-black text-primary">{moneyCents(totalEarnedCents)}</p>
-            <p className="mt-1 text-xs text-white/40">{t("sponsorDashboard.earnedHint")}</p>
+            <p className="mt-2 font-display text-3xl font-black text-primary">{loading || error || totalEarnedCents === null ? "—" : moneyCents(totalEarnedCents)}</p>
+            <p className="mt-1 text-xs text-white/40">{error ? "Couldn't load your earnings — try again below." : loading ? "Loading…" : t("sponsorDashboard.earnedHint")}</p>
           </div>
           <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Briefcase className="h-3.5 w-3.5 text-primary/70" aria-hidden="true" /> {t("sponsorDashboard.dealsPosted")}
             </p>
-            <p className="mt-2 font-display text-3xl font-black text-white">{postedDeals.length}</p>
-            <p className="mt-1 text-xs text-white/40">{t("sponsorDashboard.openNow", { count: postedDeals.filter((d) => d.status === "active").length })}</p>
+            <p className="mt-2 font-display text-3xl font-black text-white">{loading || error ? "—" : postedDeals.length}</p>
+            <p className="mt-1 text-xs text-white/40">{loading || error ? "—" : t("sponsorDashboard.openNow", { count: postedDeals.filter((d) => d.status === "active").length })}</p>
           </div>
           <div className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <PenLine className="h-3.5 w-3.5 text-primary/70" aria-hidden="true" /> {t("sponsorDashboard.applicationsSent")}
             </p>
-            <p className="mt-2 font-display text-3xl font-black text-white">{applications.length}</p>
-            <p className="mt-1 text-xs text-white/40">{t("sponsorDashboard.acceptedCount", { count: applications.filter((a) => a.application_status === "accepted").length })}</p>
+            <p className="mt-2 font-display text-3xl font-black text-white">{loading || error ? "—" : applications.length}</p>
+            <p className="mt-1 text-xs text-white/40">{loading || error ? "—" : t("sponsorDashboard.acceptedCount", { count: applications.filter((a) => a.application_status === "accepted").length })}</p>
           </div>
         </div>
 

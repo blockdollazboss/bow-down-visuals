@@ -68,3 +68,20 @@ describe("#24 referrals: no infinite spinner, own data not waterfall-blocked (A3
     expect(errorAt).toBeGreaterThan(contestAt);
   });
 });
+
+describe("#25 sponsor-dashboard: banner never paints fake zeros (A3-F3)", () => {
+  const page = src("../pages/sponsor-dashboard.tsx");
+  it("totalEarned starts null — there is no 0 to paint before the load lands", () => {
+    expect(page).toContain("useState<number | null>(null)");
+    expect(page).not.toContain("setTotalEarnedCents] = useState(0)");
+  });
+  it("every banner number is gated on a successful load (loading/error → placeholder)", () => {
+    expect(page).toContain('loading || error || totalEarnedCents === null ? "—" : moneyCents(totalEarnedCents)');
+    expect(page).toContain('loading || error ? "—" : postedDeals.length');
+    expect(page).toContain('loading || error ? "—" : applications.length');
+  });
+  it("failure shows an error note in the banner, and the tab body's error+retry stays alive below it", () => {
+    expect(page).toContain("Couldn't load your earnings — try again below.");
+    expect(page).toContain("setRetryNonce((n) => n + 1)");
+  });
+});
