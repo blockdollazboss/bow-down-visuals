@@ -921,6 +921,16 @@ html, body {
 .light .bg-\[\#161616\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#1a1408\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#1a1405\]:not([data-dark-lock]):not([data-dark-lock] *),
+/* Stack-28 (A4-D1): the Audio Studio DAW rails — ArrangementStudio's
+   sticky track-header column + <option>s and PianoRoll's sticky key
+   rail are bg-[#171208], and arrangement clip blocks are bg-[#241b08].
+   Neither hex was in any table and neither file branches isLight, so
+   the rails stayed near-black in light while their labels remapped
+   to dark ink — dark-on-dark, unreadable, on /audio-studio and in the
+   in-world AudioDesk alike. Both hexes join this marble group; the
+   authored dark rendering is untouched. */
+.light .bg-\[\#171208\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#241b08\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#141004\]:not([data-dark-lock]):not([data-dark-lock] *) {
   background-color: #FFFFFF;
 }
