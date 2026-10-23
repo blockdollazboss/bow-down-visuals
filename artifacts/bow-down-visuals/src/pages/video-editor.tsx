@@ -2072,19 +2072,19 @@ export default function VideoEditor() {
                 onClick={() => setShowTemplatePicker(true)}
                 size="sm"
                 variant="ghost"
-                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30"
+                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30"
                 title={t("videoEditor.changeTemplateTitle")}
                 data-testid="btn-template-picker"
               >
                 <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
               </Button>
-              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
                 <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
               </Button>
-              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
                 <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
               </Button>
-              <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
+              <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
                 <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
               </Button>
               {/* ── Simple / Pro editor mode switch — drives the site-wide
@@ -2107,7 +2107,7 @@ export default function VideoEditor() {
                   role="radio"
                   aria-checked={isSimple}
                   onClick={() => setMode("simple")}
-                  className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                  className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                   data-testid="editor-mode-simple"
                 >
                   {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
@@ -2118,7 +2118,7 @@ export default function VideoEditor() {
                     role="radio"
                     aria-checked={!isSimple}
                     onClick={() => setMode("advanced")}
-                    className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                    className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                     data-testid="editor-mode-pro"
                   >
                     {t("videoEditor.modePro", { defaultValue: "Advanced" })}
@@ -2126,7 +2126,7 @@ export default function VideoEditor() {
                 ) : (
                   <Link
                     href="/dashboard"
-                    className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
+                    className="flex items-center gap-1 px-2.5 h-10 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
                     title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks at Creator Level 4 (Shot Caller) — stars are earned from your work" })}
                     data-testid="editor-mode-pro-locked"
                   >
@@ -2148,13 +2148,13 @@ export default function VideoEditor() {
                 />
                 <span className="text-xs vv-ink-50 hidden lg:inline">{t("videoEditor.autosave")}</span>
               </label>
-              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-8" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
+              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-10" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
                 <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
               </Button>
-              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8" data-testid="btn-save-editor">
+              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
               </Button>
-              <Button onClick={() => setTab("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-8" data-testid="btn-export-topbar">
+              <Button onClick={() => setTab("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-10" data-testid="btn-export-topbar">
                 <Download className="h-3.5 w-3.5" /> {t("videoEditor.export")}
               </Button>
             </div>
@@ -4959,7 +4959,7 @@ function MasterPreviewPlayer({
   }, [showCompareToggle, compareOn]);
 
   /* ── Cinema transport button styles ── */
-  const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30 transition-colors shrink-0";
+  const tBtnSm = "flex items-center justify-center h-10 w-10 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30 transition-colors shrink-0";
 
   return (
     <>
@@ -5533,7 +5533,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Loop */}
           <button type="button" onClick={() => setLoop((v) => !v)} disabled={!hasScenes}
-            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
+            className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
               loop
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30"
@@ -5563,7 +5563,7 @@ function MasterPreviewPlayer({
           </button>
           {/* PiP — one button, manual only; Auto PiP toggled via settings row below */}
           <button type="button" onClick={() => void togglePiP()}
-            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
+            className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-colors shrink-0 ${
               pipActive
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/10"
@@ -5577,7 +5577,7 @@ function MasterPreviewPlayer({
         <div className="flex items-center gap-1.5 mt-1">
           {/* Play / Pause — hero button */}
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-            className="flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
+            className="flex items-center justify-center h-10 w-10 rounded-lg bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
             title={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
@@ -5614,7 +5614,7 @@ function MasterPreviewPlayer({
           />
           {/* Fullscreen — launches from the pinned player */}
           <button type="button" onClick={toggleFullscreen}
-            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
+            className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-colors shrink-0 ${
               isFullscreen
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/10"
