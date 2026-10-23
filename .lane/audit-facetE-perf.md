@@ -1,0 +1,17 @@
+# AUDIT FACET E — Performance (verbatim findings, worker 75552d18)
+- E-1 HEADLINE: FrameGovernor (quality.ts:134-228, EMA alpha .12, 55ms hi/24ms lo, 3s dwell, 45s up-lock) runs BUT HallScene.tier is disconnected: governor's onTier callback at world.tsx:2296-2299 is a void closure; applyQualityTier called only once at construction (hall-scene.ts:807-823) with the device-hint tier. Adaptive ladder is dead code in the real page.
+- E-2: applyQualityTier(hall-scene.ts:4488-4553) reads only pixel-ratio caps + its own shadow-size table; rung anisotropy/reflectorRes/particles/fogScale ignored by scene.
+- E-3: Double pixel-ratio governance: scene constructor + world.tsx rAF loop both setPixelRatio every frame with different caps (world.tsx hardcodes 1.5@60fps target) — neither owns PR alone.
+- E-4: Instancing = 13 InstancedMeshes (district fence kits only). Offenders per-mesh: columns 276 (46/district x6 pieces), braziers 24 (2 meshes), street lights 24 (5 meshes), trough+blob 120 meshes, market stalls 60, chair+lamp pairs Ateliers, gates (3 meshes x10 + arch x5).
+- E-5: Geometry shared per-district-file (12 module-level clones) but not across districts; materials re-created per mesh (ateliers 27 place() calls each new MeshStandardMaterial).
+- E-6: No THREE.LOD anywhere. Backdrop ring (16 towers, 8 domes, colonnade segments, 65-115m, in fog) full geo; braziers 6 meshes everywhere; monument reliefs; hall chandelier.
+- E-7: Rivers 2x144-seg tubes + 2x160-dash LineLoops never simplified; dash array allocated per district (~320 Vector3).
+- E-8: Reflector clipBias set on grounds reflector only (0.003), not on plaza mirror; grounds reflector clip plane excludes mirror but not vice versa.
+- E-9: Grounds reflector renders at full window size on low rung (~7.8MB for nominal 512 target); rung reflectorRes (1024/512/256) read by nothing.
+- E-10: Texture set 9 colour maps 1600x1600 (~39MB decoded), no rung step-down; anisotropy applied in bulk pass EXCEPT 17 ceremony-gate material maps that miss it.
+- E-11: Front Row gold-marble seats load map with no aniso pass (applySurfaceAnisotropy covers hall-material registry only).
+- E-12: Static shadow freeze defeated by moving shadow-casters lights: flickering brazier flame light castShadow=true (re-render ~every 0.1s), moon drift (needsUpdate), swaying seat lights.
+- E-13: One 5710-tri moon shadow caster for site; per-room shadow cameras re-render casters up to 15 rooms (freeze mitigates).
+- E-14: Figures 6 draw calls each (skin/shell/portrait/plate/shadow/label), cap 30 -> ~360 calls; canvas textures (portrait+label) uploaded eagerly for every figure incl. off-screen; no impostor/pool.
+- E-15: updateFigureDepths allocates fresh sorted array every frame (main+alt registries, ~2/s during play).
+- E-16: world-client processRemoteMoves allocates a fresh Map every frame; unmeasured.
