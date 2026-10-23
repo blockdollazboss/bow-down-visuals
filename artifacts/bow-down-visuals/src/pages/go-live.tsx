@@ -78,20 +78,32 @@ function GoLiveMain() {
   }, [getAccessToken]);
 
   const load = useCallback(async () => {
-    const headers = await authed();
-    const [sRes, stRes] = await Promise.all([
-      fetch("/api/discord/status", { headers }),
-      fetch("/api/discord/streams", { headers }),
-    ]);
-    if (sRes.ok) {
-      const s: DiscordStatus = await sRes.json();
-      setStatus(s);
-      setMentionEveryone(s.mention_everyone);
+    /* Per-source settle (S27-44): Discord status and the stream list
+       are independent — a rejected fetch for one must not discard the
+       other (the old Promise.all had no rejection handling at all, so
+       one network failure killed both). */
+    let headers: Record<string, string>;
+    try {
+      headers = await authed();
+    } catch {
+      return;
     }
-    if (stRes.ok) {
-      const d = await stRes.json();
-      setStreams(d.streams ?? []);
-    }
+    const loadStatus = async () => {
+      const sRes = await fetch("/api/discord/status", { headers });
+      if (sRes.ok) {
+        const s: DiscordStatus = await sRes.json();
+        setStatus(s);
+        setMentionEveryone(s.mention_everyone);
+      }
+    };
+    const loadStreams = async () => {
+      const stRes = await fetch("/api/discord/streams", { headers });
+      if (stRes.ok) {
+        const d = await stRes.json();
+        setStreams(d.streams ?? []);
+      }
+    };
+    await Promise.allSettled([loadStatus(), loadStreams()]);
   }, [authed]);
 
   useEffect(() => { load(); }, [load]);
@@ -200,11 +212,15 @@ function GoLiveMain() {
         </Link>
 
         <div className="relative">
-          <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-[#fbbf24]">
+          <p className={`mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
             <Radio className="h-3 w-3" aria-hidden="true" /> {t("goLive.kicker", { defaultValue: "Stream mission control" })}
           </p>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight">
-            <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">{t("goLive.pageTitle")}</span>
+          <h1 className="font-display text-3xl md:text-4xl font-black tracking-tight">
+            {isLight ? (
+              <span className="text-[#7A5A12]">{t("goLive.pageTitle")}</span>
+            ) : (
+              <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">{t("goLive.pageTitle")}</span>
+            )}
           </h1>
           <p className="text-white/50 text-sm mt-2 max-w-xl">
             {t("goLive.hypeBefore")}<span className="text-amber-300 font-semibold">{t("goLive.hypeFree")}</span>{t("goLive.hypeAfter")}
@@ -227,7 +243,7 @@ function GoLiveMain() {
         <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+              <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
                 <Radio className="h-3.5 w-3.5" />
                 {t("goLive.streamAnnouncement")}
               </p>
@@ -319,7 +335,7 @@ function GoLiveMain() {
         {/* ── Schedule ── */}
         <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-4">
           <div>
-            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+            <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
               <CalendarPlus className="h-3.5 w-3.5" />
               {t("goLive.scheduleStreamKicker", { defaultValue: "Plan ahead" })}
             </p>
@@ -390,7 +406,7 @@ function GoLiveMain() {
         {recent.length > 0 && (
           <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-3">
             <div>
-              <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#fbbf24]">
+              <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {t("goLive.recentStreamsKicker", { defaultValue: "History" })}
               </p>

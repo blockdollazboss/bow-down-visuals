@@ -275,40 +275,42 @@ export default function Publish() {
     setDraftsLoading(true);
     try {
       const headers = await authHeaders();
-      const [tr, vr] = await Promise.all([
-        fetch("/api/publish/tracks", { headers }),
-        fetch("/api/publish/videos", { headers }),
-      ]);
-      const items: DraftItem[] = [];
-      if (tr.ok) {
+      /* Per-source settle (S27-44): tracks and videos are independent
+         draft sources — a rejected fetch for one must not discard the
+         other's drafts (the old Promise.all lost both on one reject). */
+      const loadTracks = async (): Promise<DraftItem[]> => {
+        const tr = await fetch("/api/publish/tracks", { headers });
+        if (!tr.ok) return [];
         const j = await tr.json() as { tracks?: Record<string, unknown>[] };
-        for (const t of j.tracks ?? []) {
-          items.push({
-            id: String(t.id), kind: "audio", title: String(t.title ?? "Untitled"),
-            is_published: t.is_published === true, media_url: String(t.audio_url ?? ""),
-            artwork_url: (t.artwork_url as string) ?? null, genre: (t.genre as string) ?? null,
-            tags: (t.tags as string[]) ?? null, isrc: (t.isrc as string) ?? null,
-            duration_sec: (t.duration_sec as number) ?? null,
-            download_price_cents: (t.download_price_cents as number) ?? null,
-            profile_id: String(t.profile_id ?? ""),
-          });
-        }
-      }
-      if (vr.ok) {
+        return (j.tracks ?? []).map((t) => ({
+          id: String(t.id), kind: "audio" as const, title: String(t.title ?? "Untitled"),
+          is_published: t.is_published === true, media_url: String(t.audio_url ?? ""),
+          artwork_url: (t.artwork_url as string) ?? null, genre: (t.genre as string) ?? null,
+          tags: (t.tags as string[]) ?? null, isrc: (t.isrc as string) ?? null,
+          duration_sec: (t.duration_sec as number) ?? null,
+          download_price_cents: (t.download_price_cents as number) ?? null,
+          profile_id: String(t.profile_id ?? ""),
+        }));
+      };
+      const loadVideos = async (): Promise<DraftItem[]> => {
+        const vr = await fetch("/api/publish/videos", { headers });
+        if (!vr.ok) return [];
         const j = await vr.json() as { videos?: Record<string, unknown>[] };
-        for (const v of j.videos ?? []) {
-          items.push({
-            id: String(v.id), kind: "video", title: String(v.title ?? "Untitled"),
-            is_published: v.is_published === true, media_url: String(v.video_url ?? ""),
-            artwork_url: (v.thumbnail_url as string) ?? null,
-            description: (v.description as string) ?? null,
-            duration_sec: (v.duration_sec as number) ?? null,
-            season: (v.season as number) ?? null, episode: (v.episode as number) ?? null,
-            profile_id: String(v.profile_id ?? ""),
-          });
-        }
-      }
-      setDrafts(items);
+        return (j.videos ?? []).map((v) => ({
+          id: String(v.id), kind: "video" as const, title: String(v.title ?? "Untitled"),
+          is_published: v.is_published === true, media_url: String(v.video_url ?? ""),
+          artwork_url: (v.thumbnail_url as string) ?? null,
+          description: (v.description as string) ?? null,
+          duration_sec: (v.duration_sec as number) ?? null,
+          season: (v.season as number) ?? null, episode: (v.episode as number) ?? null,
+          profile_id: String(v.profile_id ?? ""),
+        }));
+      };
+      const [tracksSettled, videosSettled] = await Promise.allSettled([loadTracks(), loadVideos()]);
+      setDrafts([
+        ...(tracksSettled.status === "fulfilled" ? tracksSettled.value : []),
+        ...(videosSettled.status === "fulfilled" ? videosSettled.value : []),
+      ]);
     } catch {
       /* drafts are a bonus — form still works */
     } finally {

@@ -82,30 +82,34 @@ export interface PinnableItem {
 }
 
 export async function fetchMyPinnableItems(slug: string): Promise<PinnableItem[]> {
-  const [tracksRes, videosRes] = await Promise.all([
-    fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/media?kind=track&limit=50`),
-    fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/media?kind=video&limit=50`),
-  ]);
-  const tracks = await json<{ items: Array<Record<string, unknown>> }>(tracksRes);
-  const videos = await json<{ items: Array<Record<string, unknown>> }>(videosRes);
-  const out: PinnableItem[] = [];
-  for (const t of tracks.items ?? []) {
-    out.push({
-      kind: "track",
-      id: String(t["id"] ?? ""),
-      title: String(t["title"] ?? "Untitled"),
-      artworkUrl: (t["artwork_url"] as string | null) ?? null,
-    });
+  /* Per-kind settle (S27-46): tracks and videos are independent
+     sources — one kind failing (HTTP error OR a rejected fetch) must
+     not empty the other kind's items. Only when BOTH kinds fail does
+     this throw, so the picker's own error state still shows. */
+  const loadKind = async (kind: "track" | "video"): Promise<PinnableItem[]> => {
+    const res = await fetch(
+      `/api/creator-profiles/${encodeURIComponent(slug)}/media?kind=${kind}&limit=50`,
+    );
+    const data = await json<{ items: Array<Record<string, unknown>> }>(res);
+    const out: PinnableItem[] = [];
+    for (const row of data.items ?? []) {
+      out.push({
+        kind,
+        id: String(row["id"] ?? ""),
+        title: String(row["title"] ?? "Untitled"),
+        artworkUrl: ((kind === "track" ? row["artwork_url"] : row["thumbnail_url"]) as string | null) ?? null,
+      });
+    }
+    return out.filter((i) => i.id);
+  };
+  const [tracks, videos] = await Promise.allSettled([loadKind("track"), loadKind("video")]);
+  if (tracks.status === "rejected" && videos.status === "rejected") {
+    throw tracks.reason instanceof Error ? tracks.reason : new Error("Couldn't load your media.");
   }
-  for (const v of videos.items ?? []) {
-    out.push({
-      kind: "video",
-      id: String(v["id"] ?? ""),
-      title: String(v["title"] ?? "Untitled"),
-      artworkUrl: (v["thumbnail_url"] as string | null) ?? null,
-    });
-  }
-  return out.filter((i) => i.id);
+  return [
+    ...(tracks.status === "fulfilled" ? tracks.value : []),
+    ...(videos.status === "fulfilled" ? videos.value : []),
+  ];
 }
 
 /* ── Fan collections ───────────────────────────────────────────────────── */
