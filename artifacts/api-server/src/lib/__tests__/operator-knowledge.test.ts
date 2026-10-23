@@ -781,8 +781,9 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
    page's usePageTitle meta — is the correction; the audit behind it
    verified every World fact the base touches against the shipped
    world code, and these pins hold them: spawn, board locations,
-   caps, guest rules, and the honesty line on the Phase-2 districts,
-   which exist only as closed gates and must never be sold as open. */
+   caps, guest rules, and the honesty line on the districts. (The
+   district pin below was deliberately revisited after the owner's
+   Stack-100 order built all six districts open — see its comment.) */
 describe("operator knowledge — Stack-26 open-world corrections", () => {
   const API_SRC = path.resolve(HERE, "..", "..");
 
@@ -820,7 +821,14 @@ describe("operator knowledge — Stack-26 open-world corrections", () => {
     expect(courtyardId).toBe("world:courtyard");
     const start = layout.indexOf("[COURTYARD_ID]:");
     expect(start).toBeGreaterThan(-1);
-    const block = layout.slice(start, start + 800);
+    /* The overhaul's item-36 restructure grew the courtyard block
+       well past the old 800-char window — its grounds commentary
+       alone runs longer — and pushed the spawn line outside it.
+       The assertions below are unchanged; the window now covers
+       the whole block, sliced to the next top-level room entry. */
+    const nextRoom = layout.indexOf("\n  [", start + 1);
+    expect(nextRoom).toBeGreaterThan(start);
+    const block = layout.slice(start, nextRoom);
     expect(block).toMatch(/name:\s*"The King's Plaza"/);
     expect(block).toMatch(/spawn:\s*\{\s*x:\s*0,\s*z:\s*31\.5\s*\}/);
 
@@ -872,29 +880,46 @@ describe("operator knowledge — Stack-26 open-world corrections", () => {
     expect(worldEntry().access).toBe("public");
   });
 
-  /* The six Phase-2 districts are signposts with a gold bar across —
-     "closed-for-now" in the scene builder — and no palace room bears
-     a district name. The base names none of them, so the operator
-     cannot sell a gate as a place. If a district ever opens, this pin
-     is the one that should be revisited — deliberately. */
-  it("the six Phase-2 districts are closed gates, and the base does not sell them as open", () => {
-    const scene = read(path.join(FE_SRC, "lib", "world", "hall-scene.ts"));
-    const gates = [...scene.matchAll(/districtGate\("([^"]+)"/g)].map((m) => m[1]);
-    expect(gates).toEqual([
+  /* DELIBERATELY REVISITED — the pin this replaces said, in its own
+     words: "If a district ever opens, this pin is the one that
+     should be revisited — deliberately." The owner ordered all six
+     districts built and open (Stack-100 order, Oct 22, 2026;
+     overhaul items 31–36 delivered them), so this pin now holds the
+     delivered reality instead of the Phase-1 interim: each district
+     is a real room in the palace layout, each threshold an open
+     gate in a real wall gap, the closed districtGate( kit and its
+     "closed-for-now" bar gone from the scene builder — the same
+     facts the overhaul's own district-gates tests pin. The
+     honesty half survives unchanged in spirit: the base names none
+     of the districts, so the operator cannot describe them in any
+     way the code contradicts. */
+  it("the six districts are built and open, and the base does not contradict the code about them", () => {
+    const layout = read(path.join(FE_SRC, "lib", "world", "palace-layout.ts"));
+    for (const name of ["Stage Grounds", "Listening Gardens", "Creation Row", "The Ateliers", "The Boardwalk", "Creator Heights"]) {
+      expect(layout).toContain(`name: "${name}"`);
+    }
+
+    const gatesFile = read(path.join(FE_SRC, "lib", "world", "district-gates.ts"));
+    const openGates = [...gatesFile.matchAll(/\{\s*name: "([^"]+)", kind: "gate",[^\n]*open: true/g)].map((m) => m[1]);
+    expect(openGates).toEqual([
       "STAGE GROUNDS",
       "THE BOARDWALK",
-      "LISTENING GARDENS",
       "CREATION ROW",
       "THE ATELIERS",
+      "LISTENING GARDENS",
       "CREATOR HEIGHTS",
     ]);
-    expect(scene).toContain("closed-for-now");
+    expect(gatesFile).not.toMatch(/\{\s*name: "[^"]+", kind: "marker"/);
 
-    const layout = read(path.join(FE_SRC, "lib", "world", "palace-layout.ts"));
+    const scene = read(path.join(FE_SRC, "lib", "world", "hall-scene.ts"));
+    expect(scene).toContain("DISTRICT_THRESHOLDS");
+    expect(scene).not.toContain("districtGate(");
+    expect(scene).not.toContain("closed-for-now");
+
     const desc = worldEntry().description ?? "";
     for (const name of ["Stage Grounds", "The Boardwalk", "Listening Gardens", "Creation Row", "The Ateliers", "Creator Heights"]) {
-      expect(layout).not.toContain(name);
       expect(desc).not.toContain(name);
     }
+    expect(desc.toLowerCase()).not.toContain("closed");
   });
 });
