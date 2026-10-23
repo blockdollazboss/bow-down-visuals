@@ -57,6 +57,26 @@ html, body {
   overflow-x: clip;
 }
 
+/* ─── Stack-28 #58 — FLOATING CHROME CORNER BUDGET (390px-first) ───
+   Every fixed shell element owns ONE slot; no two slots overlap at 390px.
+   TOP-LEFT COLUMN (stacked, x from left edge):
+     slot T1 (top 16px, h 44px): language switcher at left 16px
+       (FloatingLanguageSwitcher, home/settings only) and the theme
+       toggle's DEFAULT slot beside it at left 72px (FloatingThemeToggle;
+       user-dragged saved positions override the default, by design).
+     slot T2 (top 68px / top-[4.25rem]): Enter-the-World pill, left 16px
+       (lib/world-entry ENTER_WORLD_CLASSNAME) — starts below T1's 60px floor.
+   BOTTOM:
+     slot B0 (bottom 0, h ≈64px, z-60): StreamingPlayerBar (mobile mini
+       player) owns the full-width bottom strip.
+     slot B1 (bottom 96px / bottom-24, left 20px, 48px, z-9999, mobile
+       only): MobileSidebarTrigger — clears B0 by ≥32px.
+     slot B2 (right 20px, bottom ≥112px, z-9995): Thy Cheat Code chat
+       drawer — its width is capped at calc(100vw - 6rem) so at 390px its
+       left edge (≥76px) clears B1's left rail (ends at 68px).
+   New floating chrome must take a free slot here or extend this budget —
+   never stack into an occupied corner. */
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
