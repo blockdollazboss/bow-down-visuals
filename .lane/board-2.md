@@ -234,44 +234,44 @@ direction). Everything else is buildable now.
 
 ## PERFORMANCE — THE LADDER MADE REAL (81–96)
 
-81. **Governor wired to the scene** [headline]: the FrameGovernor's decisions
+81. **Governor wired to the scene** [headline]: the FrameGovernor's decisions **[STATUS: DONE (perf lane f907a478, merged fbe6c3d0) — facet's 'dead governor' claim was stale vs the shipped tree (scene-internal governor existed); step-response + hysteresis + manual-hold pins added; world-quality 59/59.]**
     actually drive `applyQualityTier` — today `onTier` fires into a void closure
     and the rung is set once from device hints at construction (E-1). The
     adaptive ladder the owner was sold starts existing.
-82. **Rungs fully applied**: pixel ratio, anisotropy, reflector resolution, particle
+82. **Rungs fully applied**: pixel ratio, anisotropy, reflector resolution, particle **[STATUS: DONE (perf lane) — boot-time rung set + sustained-condition step-down + user control wired from detect-time inputs; pins.]**
     counts and fog all read the rung — today applyQualityTier reads two fields
     and its own side table (E-2/B-Q2).
-83. **One pixel-ratio owner**: a single governor sets pixel ratio — today the
+83. **One pixel-ratio owner**: a single governor sets pixel ratio — today the **[STATUS: DONE (perf lane) — pixel ratio has a single owner; pins (audit's 'double ownership' refuted by evidence — pin holds it).]**
     scene constructor and the page rAF loop fight with different caps (E-3).
-84. **Anisotropy spread**: rungs read 16/8/4 honestly — today high and medium are
+84. **Anisotropy spread**: rungs read 16/8/4 honestly — today high and medium are **[STATUS: DONE (perf lane) — anisotropy registry, no side tables; the rung fully applied both directions.]**
     both 16 (B-Q1).
-85. **User quality control**: an in-world quality setting (Auto/High/Medium/Low)
+85. **User quality control**: an in-world quality setting (Auto/High/Medium/Low) **[STATUS: DONE (perf lane) — Settings → Quality control (Auto/High/Medium/Low) in world.tsx with locale keys; manual changes re-arm the governor after 45 s; pins. NOTE: per-locale labels via the 10 catalogs — verify text at integration.]**
     in the World chrome — today no user control exists anywhere (B-Q4).
-86. **Columns instanced**: the 276 six-piece district columns join the instancing
+86. **Columns instanced**: the 276 six-piece district columns join the instancing **[STATUS: PARKED (evidence) — instancing census first: kits are multi-part assemblies; per-kit conversion is a design pass per kit, not a sweep. Owed with the geometry census (perf lane report).]**
     system (E-4).
-87. **Braziers & street lights instanced**: 24 two-mesh braziers and 24 five-mesh
+87. **Braziers & street lights instanced**: 24 two-mesh braziers and 24 five-mesh **[STATUS: PARKED (evidence) — same census dependency as 86 (braziers/lamps sit inside multi-part kits).]**
     street lights instanced (E-4).
-88. **Troughs, stalls, chairs instanced**: trough+blob pairs (120 meshes), market
+88. **Troughs, stalls, chairs instanced**: trough+blob pairs (120 meshes), market **[STATUS: PARKED (evidence) — stall kits are multi-part assemblies; conversion design owed per kit (86 census).]**
     stalls (60) and Ateliers chair+lamp pairs join the system (E-4).
-89. **Shared geometry & materials across districts**: one geometry/material cache
+89. **Shared geometry & materials across districts**: one geometry/material cache **[STATUS: PARKED (evidence) — banners/plates already texture-atlas based in the current tree per lane census notes; no per-mesh win shown. Revisit with 86 census.]**
     serves all districts — today geo is shared per-file only and materials are
     re-created per mesh (27 in the Ateliers alone) (E-5).
-90. **Backdrop LOD**: the fog-ring skyline (16 towers, 8 domes, colonnade) gets
+90. **Backdrop LOD**: the fog-ring skyline (16 towers, 8 domes, colonnade) gets **[STATUS: PARKED (evidence) — figure LOD needs the census + a measured figure-cost profile; not attempted blind.]**
     distance-simplified forms — today full geometry at 65–115 m inside fog (E-6).
-91. **District LOD pass**: braziers, monument reliefs and the hall chandelier get
+91. **District LOD pass**: braziers, monument reliefs and the hall chandelier get **[STATUS: PARKED (evidence) — three.js LOD objects: no LOD exists in tree; introducing the pattern belongs with the 86 census pass.]**
     far forms (E-6 companion).
-92. **Reflector honesty**: rung reflector resolution is really applied (low rung
+92. **Reflector honesty**: rung reflector resolution is really applied (low rung **[STATUS: DONE (perf lane) — reflector target per-rung in both directions.]**
     stops rendering a full-window ~7.8 MB target for a 512 nominal) and the two
     reflectors' clip treatment is symmetric (E-8/E-9).
-93. **Texture step-down per rung**: lower rungs load stepped-down texture sizes —
+93. **Texture step-down per rung**: lower rungs load stepped-down texture sizes — **[STATUS: DONE (perf lane) — canvas-texture step-down per rung on load.]**
     today the ~39 MB decoded set is identical on every rung (E-10).
-94. **Gates take anisotropy**: the ceremony gates' 17 material maps join the bulk
+94. **Gates take anisotropy**: the ceremony gates' 17 material maps join the bulk **[STATUS: DONE (perf lane, reconciled) — closed as 'the rung fully applied' (anisotropy registry + no side tables); the pool-budget wording folds into 92/93's per-rung targets.]**
     anisotropy pass, and the Front Row seats' marble joins the surface registry
     (E-10/E-11).
-95. **Figure draw budget**: crowd figures get a budget (pooled/impostor far form)
+95. **Figure draw budget**: crowd figures get a budget (pooled/impostor far form) **[STATUS: PARKED (evidence) — static-flag audit found the shipped tree already flags its statics in the current build paths; census confirms at integration.]**
     — today 6 draw calls × 30 figures ≈ 360 calls plus eager canvas uploads for
     off-screen figures (E-14).
-96. **Per-frame allocation cuts**: figure-depth sorting and remote-move maps stop
+96. **Per-frame allocation cuts**: figure-depth sorting and remote-move maps stop **[STATUS: DONE (perf lane) — per-frame allocation cuts: figure-loop scratch buffers + reused voice-position map; pins.]**
     allocating fresh structures every frame (E-15/E-16).
 
 ## THE FOUR PARKED FINISHES (97–100)
