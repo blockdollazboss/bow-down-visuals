@@ -48,6 +48,17 @@ import {
   parseBioPages,
   bioPageStatusLine,
   parseBioAnalytics,
+  BIO_PAGE_THEMES,
+  BIO_PUBLISH_COST_VISUAL_BUCS,
+  bioDraftFromPage,
+  bioPublishBlocker,
+  buildBioSavePayload,
+  emptyBioDraft,
+  isBioAllowedUrl,
+  parseBioPageFull,
+  parseBioPublishResult,
+  validateBioDraft,
+  type BioPageDraft,
   buildPromoGeneratorPayload,
   parsePromoResult,
   buildPromoCardsPayload,
@@ -288,6 +299,97 @@ describe("promote desk — bio pages + analytics", () => {
     });
     expect(parseBioAnalytics({ ok: true })).toBeNull();
     expect(parseBioAnalytics({ views: 0 })).toEqual({ views: 0, totalClicks: 0, clicksLast7d: 0 });
+  });
+});
+
+describe("promote desk — link-in-bio full editing (#59)", () => {
+  const FULL = {
+    pages: [
+      {
+        id: "b1",
+        slug: "king",
+        displayName: "King Shark",
+        headline: "Bow down",
+        bio: "Creator.",
+        avatarUrl: "https://cdn.example/me.png",
+        links: [{ title: "Shop", url: "/shop", icon: "shopping-bag" }],
+        socials: { instagram: "https://instagram.com/king", tiktok: "" },
+        theme: "midnight-gold",
+        featured: [{ label: "Latest", url: "/track/1", kind: "track" }],
+        tipJarUrl: null,
+        isPublished: false,
+        viewCount: 9,
+        url: "https://bowdownvisuals.com/bio/king",
+        updatedAt: "2026-10-01T00:00:00Z",
+      },
+    ],
+  };
+
+  it("parses the full editable page from both the list and a save response", () => {
+    const full = parseBioPageFull(FULL)!;
+    expect(full.theme).toBe("midnight-gold");
+    expect(full.links).toEqual([{ title: "Shop", url: "/shop", icon: "shopping-bag" }]);
+    expect(full.socials.instagram).toBe("https://instagram.com/king");
+    expect(full.socials.youtube).toBe("");
+    expect(full.featuredCount).toBe(1);
+    const saved = parseBioPageFull({ ok: true, page: FULL.pages[0] })!;
+    expect(saved.id).toBe("b1");
+    expect(parseBioPageFull({ pages: [] })).toBeNull();
+    expect(parseBioPageFull(null)).toBeNull();
+  });
+
+  it("draft round-trips through the save payload in the route's own shape", () => {
+    const draft = bioDraftFromPage(parseBioPageFull(FULL)!);
+    const payload = buildBioSavePayload(draft);
+    expect(payload).toMatchObject({
+      displayName: "King Shark",
+      slug: "king",
+      theme: "midnight-gold",
+      avatarUrl: "https://cdn.example/me.png",
+      links: [{ title: "Shop", url: "/shop", icon: "shopping-bag" }],
+    });
+    expect((payload["socials"] as Record<string, string>).instagram).toBe("https://instagram.com/king");
+    // Blank rows drop; an empty slug is omitted entirely.
+    const blank = buildBioSavePayload({ ...emptyBioDraft(), displayName: "New", links: [{ title: "", url: "", icon: "link" }] });
+    expect(blank["links"]).toEqual([]);
+    expect("slug" in blank).toBe(false);
+  });
+
+  it("validation mirrors the route: name, slug shape, allowed URLs, publish blockers", () => {
+    const base: BioPageDraft = {
+      ...emptyBioDraft(),
+      displayName: "King",
+      slug: "king",
+      links: [{ title: "Shop", url: "/shop", icon: "link" }],
+    };
+    expect(validateBioDraft(base)).toBeNull();
+    expect(validateBioDraft({ ...base, displayName: " " })).toContain("display name");
+    expect(validateBioDraft({ ...base, slug: "Bad Slug!" })).toContain("slug");
+    expect(validateBioDraft({ ...base, links: [{ title: "X", url: "javascript:alert(1)", icon: "link" }] })).toContain("real link");
+    expect(validateBioDraft({ ...base, links: [{ title: "", url: "https://x.example", icon: "link" }] })).toContain("title");
+    expect(isBioAllowedUrl("/shop")).toBe(true);
+    expect(isBioAllowedUrl("//evil.example")).toBe(false);
+    expect(isBioAllowedUrl("mailto:hi@example.com")).toBe(true);
+    expect(bioPublishBlocker({ ...base, links: [] })).toContain("at least one link");
+    expect(bioPublishBlocker(base)).toBeNull();
+    expect(BIO_PUBLISH_COST_VISUAL_BUCS).toBe(100);
+    expect(BIO_PAGE_THEMES.map((t) => t.key)).toEqual(["gold-royal", "midnight-gold", "onyx-minimal"]);
+  });
+
+  it("publish result parses; the editor rides the real rails (source pins)", () => {
+    expect(parseBioPublishResult({ ok: true, url: "https://bowdownvisuals.com/bio/king", slug: "king" })).toEqual({
+      url: "https://bowdownvisuals.com/bio/king",
+      slug: "king",
+    });
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('data-testid="world-bio-editor"');
+    expect(desk).toContain('data-testid="world-bio-publish"');
+    expect(desk).toContain("confirmedFetch(`/api/bio-publish/${page.id}`");
+    expect(desk).toContain("`/api/bio-pages/${page.id}/unpublish`");
+    expect(desk).toContain('data-testid="world-bio-link-add"');
+    expect(desk).toContain('data-testid="world-bio-theme"');
+    expect(desk).toContain('data-testid="world-bio-slug"');
+    expect(desk).toContain('data-testid="world-bio-avatar"');
   });
 });
 
@@ -574,14 +676,17 @@ describe("parity follow-on log — thorough, each bench named", () => {
   it("covers every bench the task names for this lane", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     for (const required of [
-      "bio-page-layout-theme-editors",
       "press-kit-layout-editing",
       "branding-jewelry-bench",
       "coach-full-page-depth",
-      "bio-page-publish-management",
     ]) {
       expect(ids, required).toContain(required);
     }
+    // Link-in-bio graduated (Stack-100 #59): links/themes/slug/avatar
+    // editing, create, the 100 VB publish and unpublish are native at
+    // the Promote Desk, so both bio follow-ons leave the log.
+    expect(ids).not.toContain("bio-page-layout-theme-editors");
+    expect(ids).not.toContain("bio-page-publish-management");
     // The Release wizard graduated (Stack-100 #53/#54): create/edit,
     // metadata, splits, UPC/barcode, submit and the smartlink surface
     // are native at the Promote Room's Release Desk, so it leaves the
@@ -601,18 +706,22 @@ describe("parity follow-on log — thorough, each bench named", () => {
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
       expect(f.note.length, f.id).toBeGreaterThan(20);
     }
-    // The promo-cards gap is logged as a gap, not hidden.
-    expect(BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note).toContain("GAP");
   });
 
-  it("promo-card per-card actions are built, so the follow-on is resolved — and the list note tells the endpoint truth", () => {
+  it("promo-card actions AND the full history graduated (Stack-100 #60), so both follow-ons are resolved", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     expect(ids).not.toContain("promo-card-actions");
-    const listNote = BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note;
-    /* The endpoint exists (website history ships from it); the
-       remaining gap is only that this desk doesn't read it yet. */
-    expect(listNote).toContain("GET /api/promo-cards");
-    expect(listNote).not.toContain("no GET endpoint");
+    /* The desk now reads GET /api/promo-cards itself — the full
+       history shelf stands in-world, so the list follow-on leaves
+       the log like every graduated item before it. */
+    expect(ids).not.toContain("promo-cards-list-endpoint");
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('fetch("/api/promo-cards"');
+    expect(desk).toContain("normalizePromoCardHistory");
+    expect(desk).toContain('data-testid="world-promote-card-history"');
+    expect(desk).toContain('data-testid="world-promote-history-card"');
+    expect(desk).toContain('data-testid="world-promote-history-delete"');
+    expect(desk).toContain("removePromoCard(h.cards, c.id)");
   });
 });
 

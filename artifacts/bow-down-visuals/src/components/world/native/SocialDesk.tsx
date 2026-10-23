@@ -10,6 +10,8 @@ import {
   NativeCard, NativeLoadingState, NativeEmptyState, NativeErrorState,
 } from "@/components/world/native";
 import type { FeedPost } from "@/lib/social-api";
+import { PostAssistBlock } from "./PostAssist";
+import { appendAssistDraft } from "@/lib/world/post-assist";
 import {
   DM_CONVERSATIONS_PATH, DM_START_PATH, DM_ATTACHMENT_UPLOAD_PATH,
   dmMessagesPath, dmSendPath, dmRequestActionPath, profileResolvePath,
@@ -1547,6 +1549,73 @@ function ReplyDraftsBench({
   );
 }
 
+/* ─── The feed composer (with Post Assist, #58) ──────────────────────
+   The Hall's own post box: write, or let "Write It For Me" draft
+   into the box (POST /api/posts/assist, 100 VB, confirmed), then
+   post on the feed's own rail (POST /api/posts, free). The assist
+   never posts — the member's tap on Post does. */
+function FeedComposerCard({
+  isLight, authHeaders, onPosted,
+}: {
+  isLight: boolean;
+  authHeaders: () => Promise<Record<string, string>>;
+  onPosted: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+
+  async function post() {
+    if (posting || !postBodyReady(body)) return;
+    setPosting(true);
+    setNote(null);
+    try {
+      await apiJson(authHeaders, POSTS_PATH, { method: "POST", body: { body: body.trim() } });
+      setBody("");
+      setNote("Posted — it's live on the board below.");
+      onPosted();
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "The post didn't land — try again.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <NativeCard isLight={isLight} title="Write a post">
+      <div data-testid="world-feed-composer">
+        <PostAssistBlock isLight={isLight} onDraft={(draft) => setBody((b) => appendAssistDraft(b, draft))} />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Say it to the Hall…"
+          rows={3}
+          maxLength={500}
+          className={`${inputCls(isLight)} mt-2`}
+          data-testid="world-feed-composer-body"
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className={`text-[11px] ${muted}`}>{body.length}/500 — posting is free.</span>
+          <button
+            type="button"
+            onClick={() => void post()}
+            disabled={posting || !postBodyReady(body)}
+            className={`${goldBtn} ml-auto`}
+            data-testid="world-feed-composer-post"
+          >
+            {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Post to the board
+          </button>
+        </div>
+        {note && (
+          <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
+        )}
+      </div>
+    </NativeCard>
+  );
+}
+
 export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
   const authHeaders = useAuthHeaders();
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
@@ -1716,6 +1785,12 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
           </p>
         )}
       </NativeCard>
+
+      {/* The feed composer — your own words, posted straight to the
+          board (POST /api/posts), with Post Assist ("Write It For
+          Me", #58) drafting into it on the website composer's rail.
+          Members only: guests read the board, they don't post. */}
+      {!isGuest && <FeedComposerCard isLight={isLight} authHeaders={authHeaders} onPosted={() => setTick((n) => n + 1)} />}
 
       {/* Pin a post — draft with the generate-community-post family,
           then pin the chosen words to the board (POST /api/posts). */}

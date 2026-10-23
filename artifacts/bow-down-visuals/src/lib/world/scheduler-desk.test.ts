@@ -11,7 +11,17 @@ import { describe, expect, it } from "vitest";
 import {
   SCHEDULER_BEST_TIME_COST_VISUAL_BUCS,
   SCHEDULER_POST_COST_VISUAL_BUCS,
+  SOCIAL_CONNECT_PLATFORMS,
   accountsForPlatform,
+  buildReschedulePayload,
+  calendarMonthCells,
+  calendarMonthLabel,
+  calendarPostsByDay,
+  calendarToday,
+  composeWhenForDay,
+  parseSchedulerAccountStates,
+  parseSocialAuthUrl,
+  planDeskReschedule,
   bestTimeSlotWhen,
   buildBestTimePayload,
   buildSchedulerCreatePayload,
@@ -259,5 +269,97 @@ describe("the desk component rides the real rails (source pins)", () => {
     expect(shared).not.toContain("scheduleHref");
     expect(thumb).toContain('data-testid="world-thumbnail-schedule"');
     expect(thumb).toContain("schedulePrefillForMedia(winner");
+  });
+});
+
+describe("full surface (#57) — calendar, reschedule, connect", () => {
+  const post = (over: Partial<import("./scheduler-desk").SchedulerDeskPost> = {}) => ({
+    id: "p1",
+    caption: "Drop day",
+    hashtags: "",
+    platforms: ["instagram" as const],
+    accountIds: {},
+    mediaUrl: "https://cdn.example/clip.mp4",
+    mediaType: "video" as const,
+    scheduledAt: "2026-10-24T18:30:00.000Z",
+    status: "scheduled",
+    creditsCharged: 100,
+    ...over,
+  });
+
+  it("groups only scheduled posts by local day, in time order", () => {
+    const byDay = calendarPostsByDay([
+      post({ id: "late", scheduledAt: new Date(2026, 9, 24, 20, 0).toISOString() }),
+      post({ id: "early", scheduledAt: new Date(2026, 9, 24, 9, 0).toISOString() }),
+      post({ id: "draft", status: "draft", scheduledAt: null }),
+      post({ id: "other", scheduledAt: new Date(2026, 9, 25, 9, 0).toISOString() }),
+    ]);
+    const key24 = [...byDay.keys()].find((k) => k.endsWith("-24"))!;
+    expect(byDay.get(key24)?.map((p) => p.id)).toEqual(["early", "late"]);
+    expect([...byDay.values()].flat().some((p) => p.id === "draft")).toBe(false);
+  });
+
+  it("month cells carry leading blanks and real dates; label names the month", () => {
+    const cells = calendarMonthCells(2026, 9); // October 2026 starts on a Thursday
+    expect(cells.filter((c) => c.date === null)).toHaveLength(4);
+    expect(cells.find((c) => c.date)?.date).toBe("2026-10-01");
+    expect(cells.filter((c) => c.date !== null)).toHaveLength(31);
+    expect(calendarMonthLabel(2026, 9)).toBe("October 2026");
+    expect(calendarToday(new Date(2026, 9, 22, 15, 0).getTime())).toBe("2026-10-22");
+    expect(composeWhenForDay("2026-10-25")).toBe("2026-10-25T12:00");
+  });
+
+  it("reschedule plans mirror the 2D calendar: move keeps time of day, same-day noops, past refuses", () => {
+    const now = new Date(2026, 9, 22, 12, 0).getTime();
+    const p = post({ scheduledAt: new Date(2026, 9, 24, 18, 30).toISOString() });
+    const move = planDeskReschedule(p, "2026-10-26", now);
+    expect(move.kind).toBe("move");
+    if (move.kind === "move") {
+      const d = new Date(move.scheduledAt);
+      expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()]).toEqual([2026, 9, 26, 18, 30]);
+      expect(buildReschedulePayload(move.scheduledAt)).toEqual({ scheduledAt: move.scheduledAt });
+    }
+    expect(planDeskReschedule(p, "2026-10-24", now).kind).toBe("noop");
+    expect(planDeskReschedule(p, "2026-10-21", now).kind).toBe("past");
+    expect(planDeskReschedule(post({ scheduledAt: null }), "2026-10-26", now).kind).toBe("invalid");
+  });
+
+  it("account states read connected / expired / none from the raw payload — never conflated", () => {
+    const states = parseSchedulerAccountStates({
+      accounts: [
+        { platform: "instagram", username: "@king", expired: false },
+        { platform: "tiktok", username: "@old", expired: true },
+      ],
+    });
+    expect(states.find((s) => s.platform === "instagram")?.state).toBe("connected");
+    expect(states.find((s) => s.platform === "tiktok")?.state).toBe("expired");
+    expect(states.find((s) => s.platform === "facebook")?.state).toBe("none");
+    expect(parseSchedulerAccountStates(null).every((s) => s.state === "none")).toBe(true);
+  });
+
+  it("connect rails are the website's auth-url paths; the auth URL parses defensively", () => {
+    expect(SOCIAL_CONNECT_PLATFORMS.map((p) => p.authPath)).toEqual([
+      "/api/social/instagram/auth-url",
+      "/api/social/tiktok/auth-url",
+      "/api/social/facebook/auth-url",
+    ]);
+    expect(parseSocialAuthUrl({ authUrl: "https://oauth.example/start" })).toBe("https://oauth.example/start");
+    expect(parseSocialAuthUrl({})).toBeNull();
+    expect(parseSocialAuthUrl(null)).toBeNull();
+  });
+
+  it("the desk renders the calendar, drag/move and connect surfaces (source pins)", () => {
+    const desk = readFileSync(
+      new URL("../../components/world/native/SchedulerDesk.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(desk).toContain('data-testid="world-scheduler-calendar"');
+    expect(desk).toContain('data-testid="world-scheduler-cal-chip"');
+    expect(desk).toContain("draggable");
+    expect(desk).toContain('data-testid="world-scheduler-post-move"');
+    expect(desk).toContain('data-testid="world-scheduler-accounts"');
+    expect(desk).toContain("window.location.href = url");
+    expect(desk).toContain("`/api/social/accounts/${account.id}`");
+    expect(desk).toContain("buildReschedulePayload(plan.scheduledAt)");
   });
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Pencil, Sparkles, Trash2, X } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, Link2, Link2Off, MoveRight, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { prettyDateTime, countdownLabel } from "@/lib/scheduler";
@@ -25,7 +25,18 @@ import {
   resolveAccountId,
   sortSchedulerDeskPosts,
   validateSchedulerCompose,
+  SOCIAL_CONNECT_PLATFORMS,
+  buildReschedulePayload,
+  calendarMonthCells,
+  calendarMonthLabel,
+  calendarPostsByDay,
+  calendarToday,
+  composeWhenForDay,
+  parseSchedulerAccountStates,
+  parseSocialAuthUrl,
+  planDeskReschedule,
   type BestTimeSlot,
+  type PostingAccountState,
   type SchedulerAccount,
   type SchedulerComposeDraft,
   type SchedulerDeskPost,
@@ -453,11 +464,21 @@ export function SchedulerDeskSection({
   const [posts, setPosts] = useState<SchedulerDeskPost[] | null>(null);
   const [postsFailed, setPostsFailed] = useState(false);
   const [accounts, setAccounts] = useState<SchedulerAccount[]>([]);
+  const [accountStates, setAccountStates] = useState<PostingAccountState[]>([]);
   const [accountsFailed, setAccountsFailed] = useState(false);
   const [editing, setEditing] = useState<SchedulerDeskPost | null>(null);
   const [initialDraft, setInitialDraft] = useState<SchedulerComposeDraft>(() => emptySchedulerCompose(prefill));
   const [listNote, setListNote] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  /* Full surface (#57): the month calendar + drag/move reschedule. */
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const n = new Date();
+    return { y: n.getFullYear(), m: n.getMonth() };
+  });
+  const [dragPostId, setDragPostId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const [moveDate, setMoveDate] = useState<Record<string, string>>({});
+  const [connecting, setConnecting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -470,7 +491,9 @@ export function SchedulerDeskSection({
       setPosts(parseSchedulerDeskPosts(await postsRes.json().catch(() => null)));
       setPostsFailed(false);
       if (accountsRes.ok) {
-        setAccounts(parseSchedulerAccounts(await accountsRes.json().catch(() => null)));
+        const raw: unknown = await accountsRes.json().catch(() => null);
+        setAccounts(parseSchedulerAccounts(raw));
+        setAccountStates(parseSchedulerAccountStates(raw));
         setAccountsFailed(false);
       } else {
         setAccountsFailed(true);
@@ -528,13 +551,279 @@ export function SchedulerDeskSection({
     }
   };
 
+  /* ── Reschedule (#57): drag a calendar chip onto a day, or use a
+     row's explicit Move control — both plan through the 2D
+     calendar's planReschedule and write through the same PATCH
+     rail. The move is optimistic with rollback, exactly like the
+     website calendar: the grid never shows a time the server
+     doesn't hold. ── */
+  const reschedule = async (post: SchedulerDeskPost, targetDate: string) => {
+    const plan = planDeskReschedule(post, targetDate, Date.now());
+    if (plan.kind === "noop") {
+      setListNote("That post already sits on that day.");
+      return;
+    }
+    if (plan.kind === "past") {
+      setListNote("That move lands in the past — pick a day whose time is still ahead.");
+      return;
+    }
+    if (plan.kind === "invalid" || !post.scheduledAt) {
+      setListNote("That post has no scheduled time to move.");
+      return;
+    }
+    const original = post.scheduledAt;
+    setListNote(null);
+    setPosts((prev) => (prev ?? []).map((p) => (p.id === post.id ? { ...p, scheduledAt: plan.scheduledAt } : p)));
+    try {
+      const res = await fetch(`/api/scheduler/posts/${post.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(buildReschedulePayload(plan.scheduledAt)),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error("patch");
+      const saved = parseSchedulerPostResponse(data);
+      if (saved) {
+        setPosts((prev) => (prev ?? []).map((p) => (p.id === post.id ? saved : p)));
+      }
+      setListNote(`Moved — now ${prettyDateTime(plan.scheduledAt)}.`);
+    } catch {
+      setPosts((prev) => (prev ?? []).map((p) => (p.id === post.id ? { ...p, scheduledAt: original } : p)));
+      setListNote("That move didn't land — the post is back at its original time.");
+    }
+  };
+
+  /* ── Connect / disconnect posting accounts (#57): the website's
+     own rails — GET the platform's auth-url, then the provider's
+     full-page OAuth redirect (its requirement, same as Settings);
+     disconnect is DELETE /api/social/accounts/:id. ── */
+  const connect = async (authPath: string, label: string) => {
+    if (connecting) return;
+    setConnecting(label);
+    setListNote(null);
+    try {
+      const res = await fetch(authPath, { headers: await authHeaders() });
+      const data: unknown = await res.json().catch(() => ({}));
+      const url = parseSocialAuthUrl(data);
+      if (!res.ok || !url) {
+        const d = data as { message?: string };
+        setListNote(d.message ?? `${label} auto-post isn't configured yet — posting stays ready for the accounts you have.`);
+        setConnecting(null);
+        return;
+      }
+      window.location.href = url;
+    } catch {
+      setListNote(`Couldn't start the ${label} connect — try again.`);
+      setConnecting(null);
+    }
+  };
+
+  const disconnect = async (account: SchedulerAccount) => {
+    if (typeof window !== "undefined" && !window.confirm(`Disconnect ${account.label}? Scheduled posts for it will need another account.`)) return;
+    setListNote(null);
+    try {
+      const res = await fetch(`/api/social/accounts/${account.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("disconnect");
+      setListNote(`Disconnected ${account.label}.`);
+      setTick((n) => n + 1);
+    } catch {
+      setListNote("That disconnect didn't land — try again.");
+    }
+  };
+
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const sorted = posts ? sortSchedulerDeskPosts(posts) : [];
+  const byDay = posts ? calendarPostsByDay(posts) : new Map<string, SchedulerDeskPost[]>();
+  const todayStr = calendarToday(Date.now());
 
   return (
     <NativeCard isLight={isLight} title="Scheduler — your calendar">
       <div className="space-y-3" data-testid="world-scheduler-desk">
+        {/* Posting accounts (#57) — connect/disconnect on the
+            website's own rails, states read from the same account
+            list the composer picks from. */}
+        <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-scheduler-accounts">
+          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+            Posting accounts
+          </p>
+          {accountsFailed ? (
+            <p className={`mt-1.5 text-xs ${muted}`}>Your posting accounts wouldn't load — your connections may still be fine. The list below retries on its own next visit.</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {SOCIAL_CONNECT_PLATFORMS.map((cfg) => {
+                const state = accountStates.find((s) => s.platform === cfg.key);
+                const mine = accountsForPlatform(accounts, cfg.key);
+                return (
+                  <div key={cfg.key} className="flex flex-wrap items-center gap-2" data-testid={`world-scheduler-account-state-${cfg.key}`}>
+                    <span className={`text-xs font-bold ${strong}`}>{cfg.label}</span>
+                    <span className={`text-xs ${muted}`}>
+                      {state?.state === "connected"
+                        ? `Connected${state.accountLabel ? ` — ${state.accountLabel}` : ""}`
+                        : state?.state === "expired"
+                          ? `Connection expired${state.accountLabel ? ` — ${state.accountLabel}` : ""}`
+                          : "Not connected"}
+                    </span>
+                    {state?.state !== "connected" ? (
+                      <button
+                        type="button"
+                        data-testid={`world-scheduler-connect-${cfg.key}`}
+                        disabled={connecting !== null}
+                        onClick={() => void connect(cfg.authPath, cfg.label)}
+                        className={chipBtn(isLight, false)}
+                      >
+                        <Link2 className="h-3.5 w-3.5" /> {connecting === cfg.label ? "Opening…" : state?.state === "expired" ? "Reconnect" : "Connect"}
+                      </button>
+                    ) : null}
+                    {mine.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        data-testid={`world-scheduler-disconnect-${cfg.key}`}
+                        onClick={() => void disconnect(a)}
+                        className={chipBtn(isLight, false)}
+                      >
+                        <Link2Off className="h-3.5 w-3.5" /> Disconnect {a.label}
+                      </button>
+                    ))}
+                    {state?.state === "none" ? <span className={`text-[11px] ${muted}`}>{cfg.blurb}</span> : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className={`mt-2 text-[11px] ${muted}`}>
+            Connecting opens the platform's own sign-in (a full-page trip, like the website's Settings) and brings you back connected.
+          </p>
+        </div>
+
+        {/* Month calendar (#57) — drag a post chip onto a new day,
+            or tap a day to start a post there. */}
+        <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-scheduler-calendar">
+          <div className="mb-2 flex items-center justify-between">
+            <p className={`text-sm font-black ${strong}`}>{calendarMonthLabel(monthCursor.y, monthCursor.m)}</p>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                aria-label="Previous month"
+                data-testid="world-scheduler-cal-prev"
+                onClick={() => {
+                  const d = new Date(monthCursor.y, monthCursor.m - 1, 1);
+                  setMonthCursor({ y: d.getFullYear(), m: d.getMonth() });
+                }}
+                className={chipBtn(isLight, false)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                data-testid="world-scheduler-cal-today"
+                onClick={() => {
+                  const n = new Date();
+                  setMonthCursor({ y: n.getFullYear(), m: n.getMonth() });
+                }}
+                className={chipBtn(isLight, false)}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                aria-label="Next month"
+                data-testid="world-scheduler-cal-next"
+                onClick={() => {
+                  const d = new Date(monthCursor.y, monthCursor.m + 1, 1);
+                  setMonthCursor({ y: d.getFullYear(), m: d.getMonth() });
+                }}
+                className={chipBtn(isLight, false)}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              <div key={d} className={`pb-0.5 text-center text-[10px] font-bold uppercase tracking-widest ${muted}`}>{d}</div>
+            ))}
+            {calendarMonthCells(monthCursor.y, monthCursor.m).map((cell, i) => {
+              if (!cell.date) return <div key={`blank-${i}`} className="min-h-[52px]" />;
+              const dayPosts = byDay.get(cell.date) ?? [];
+              const isPast = cell.date < todayStr;
+              const isToday = cell.date === todayStr;
+              const isOver = dragOverDay === cell.date;
+              return (
+                <div
+                  key={cell.date}
+                  data-testid="world-scheduler-cal-day"
+                  onClick={() => {
+                    if (isPast) return;
+                    setEditing(null);
+                    setInitialDraft({ ...emptySchedulerCompose(), whenLocal: composeWhenForDay(cell.date!) });
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverDay(cell.date);
+                  }}
+                  onDragLeave={() => setDragOverDay(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverDay(null);
+                    const post = (posts ?? []).find((p) => p.id === dragPostId);
+                    setDragPostId(null);
+                    if (post && !isPast) void reschedule(post, cell.date!);
+                  }}
+                  className={`min-h-[52px] rounded-lg border p-1 transition ${
+                    isOver
+                      ? "border-[#d4af37] bg-[#d4af37]/15"
+                      : isToday
+                        ? isLight
+                          ? "border-[#C9A84C] bg-white/50"
+                          : "border-[#d4af37]/60 bg-white/5"
+                        : isLight
+                          ? "border-[#C9A84C]/25"
+                          : "border-white/10"
+                  } ${isPast ? "opacity-50" : "cursor-pointer"}`}
+                >
+                  <div className={`text-[10px] font-bold ${isToday ? "text-[#d4af37]" : muted}`}>{Number(cell.date.slice(8))}</div>
+                  <div className="mt-0.5 space-y-0.5">
+                    {dayPosts.slice(0, 2).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        draggable
+                        data-testid="world-scheduler-cal-chip"
+                        onDragStart={(e) => {
+                          e.stopPropagation();
+                          setDragPostId(p.id);
+                        }}
+                        onDragEnd={() => setDragPostId(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditing(p);
+                          setInitialDraft(composeFromPost(p));
+                        }}
+                        className={`block w-full truncate rounded px-1 py-0.5 text-left text-[9px] font-bold ${isLight ? "bg-[#d4af37]/25 text-[#2a1e07]" : "bg-[#d4af37]/20 text-[#e8c86a]"} ${dragPostId === p.id ? "opacity-40" : ""}`}
+                        title={p.scheduledAt ? prettyDateTime(p.scheduledAt) : p.caption}
+                      >
+                        {p.scheduledAt
+                          ? new Date(p.scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                          : ""}{" "}
+                        {p.caption || "Post"}
+                      </button>
+                    ))}
+                    {dayPosts.length > 2 ? <div className={`px-1 text-[9px] ${muted}`}>+{dayPosts.length - 2} more</div> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className={`mt-2 text-[11px] ${muted}`}>
+            Drag a post onto a new day to move it (same time of day), tap a post to edit it, or tap a day to start a post there. On touch screens, a scheduled post's Move control in the list below does the same move.
+          </p>
+        </div>
+
         {postsFailed ? (
           <NativeErrorState
             isLight={isLight}
@@ -589,6 +878,28 @@ export function SchedulerDeskSection({
                     >
                       <Trash2 className="h-3.5 w-3.5" /> {p.status === "scheduled" ? "Cancel" : "Delete"}
                     </button>
+                    {p.status === "scheduled" ? (
+                      <span className="inline-flex items-center gap-1.5" data-testid="world-scheduler-post-move">
+                        <input
+                          type="date"
+                          aria-label="Move to day"
+                          data-testid="world-scheduler-move-date"
+                          className={inputCls(isLight)}
+                          style={{ colorScheme: isLight ? "light" : "dark", width: "auto", padding: "4px 8px" }}
+                          value={moveDate[p.id] ?? ""}
+                          onChange={(e) => setMoveDate((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        />
+                        <button
+                          type="button"
+                          data-testid="world-scheduler-move-go"
+                          disabled={!moveDate[p.id]}
+                          onClick={() => moveDate[p.id] && void reschedule(p, moveDate[p.id]!)}
+                          className={chipBtn(isLight, false)}
+                        >
+                          <MoveRight className="h-3.5 w-3.5" /> Move
+                        </button>
+                      </span>
+                    ) : null}
                   </>
                 ) : null}
               </div>

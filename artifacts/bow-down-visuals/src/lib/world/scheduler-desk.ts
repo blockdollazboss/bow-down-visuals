@@ -365,3 +365,167 @@ export function parseBestTimeResult(data: unknown): { slots: BestTimeSlot[]; not
 export function bestTimeSlotWhen(slot: BestTimeSlot): string {
   return `${slot.date}T${slot.time}`;
 }
+
+/* ─── Full surface (Stack-100 #57): calendar + connect ──────────────
+   Wave 1 shipped compose/edit/cancel + best-time. The 2D scheduler's
+   remaining surface is the month calendar (with drag-reschedule on
+   the page's own planReschedule rail — PATCH { scheduledAt }) and
+   the posting-accounts strip (connect via the platform OAuth
+   auth-url rails, disconnect via DELETE /api/social/accounts/:id).
+   The pure helpers below reuse the 2D page's own lib/scheduler
+   shaping so the in-world calendar can never disagree with it. */
+
+import {
+  monthGridDays,
+  planReschedule,
+  postingAccountStates,
+  toLocalDate,
+  type PostingAccountState,
+  type ScheduledPostShape,
+} from "@/lib/scheduler";
+
+export type { PostingAccountState };
+
+/** Per-platform connection state from the raw /social/accounts
+ *  payload — the 2D strip's own derivation (connected / expired /
+ *  none), so an expired connection never reads as never-connected. */
+export function parseSchedulerAccountStates(data: unknown): PostingAccountState[] {
+  const rows = asRecord(data)["accounts"];
+  const likes = (Array.isArray(rows) ? rows : []).map((raw) => {
+    const r = asRecord(raw);
+    return {
+      platform: typeof r["platform"] === "string" ? r["platform"] : "",
+      username: str(r["username"]),
+      pageName: str(r["pageName"]),
+      usernameMasked: str(r["usernameMasked"]),
+      expired: r["expired"] === true,
+    };
+  });
+  return postingAccountStates(likes);
+}
+
+export interface SocialConnectPlatform {
+  key: SchedulerPlatformKey;
+  label: string;
+  /** GET → { authUrl } — the OAuth start rail the 2D Settings panel
+   *  uses; connecting is a full-page redirect by the providers'
+   *  own requirement, exactly as on the website. */
+  authPath: string;
+  blurb: string;
+}
+
+export const SOCIAL_CONNECT_PLATFORMS: ReadonlyArray<SocialConnectPlatform> = [
+  {
+    key: "instagram",
+    label: "Instagram",
+    authPath: "/api/social/instagram/auth-url",
+    blurb: "Needs a Business or Creator account linked to a Facebook Page.",
+  },
+  {
+    key: "tiktok",
+    label: "TikTok",
+    authPath: "/api/social/tiktok/auth-url",
+    blurb: "Any TikTok account works — uploads land in your TikTok drafts, never auto-posted.",
+  },
+  {
+    key: "facebook",
+    label: "Facebook",
+    authPath: "/api/social/facebook/auth-url",
+    blurb: "Connect your Facebook Pages — exports post as Reels.",
+  },
+];
+
+/** The OAuth start URL out of an auth-url response, or null. */
+export function parseSocialAuthUrl(data: unknown): string | null {
+  return str(asRecord(data)["authUrl"]);
+}
+
+/* ─── Calendar ────────────────────────────────────────────────────── */
+
+/** The desk post as the 2D calendar's shape (only the fields the
+ *  calendar helpers read are load-bearing; the rest are honest
+ *  defaults from this desk's own parse). */
+export function toCalendarShape(p: SchedulerDeskPost): ScheduledPostShape {
+  return {
+    id: p.id,
+    status: (["draft", "scheduled", "publishing", "posted", "failed", "canceled"].includes(p.status)
+      ? p.status
+      : "scheduled") as ScheduledPostShape["status"],
+    mediaUrl: p.mediaUrl,
+    mediaType: p.mediaType,
+    caption: p.caption,
+    hashtags: p.hashtags,
+    platforms: [...p.platforms],
+    accountIds: { ...p.accountIds },
+    scheduledAt: p.scheduledAt,
+    postedAt: null,
+    attempts: 0,
+    lastError: null,
+    creditsCharged: p.creditsCharged,
+    releaseId: null,
+    results: [],
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+/** Scheduled posts grouped by local day (YYYY-MM-DD), each day's
+ *  posts in time order — the 2D calendar's own grouping. */
+export function calendarPostsByDay(posts: SchedulerDeskPost[]): Map<string, SchedulerDeskPost[]> {
+  const map = new Map<string, SchedulerDeskPost[]>();
+  for (const p of posts) {
+    if (p.status !== "scheduled" || !p.scheduledAt) continue;
+    const key = toLocalDate(new Date(p.scheduledAt));
+    const list = map.get(key) ?? [];
+    list.push(p);
+    map.set(key, list);
+  }
+  for (const list of map.values()) {
+    list.sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""));
+  }
+  return map;
+}
+
+/** Month grid cells (leading blanks + YYYY-MM-DD days). */
+export function calendarMonthCells(year: number, month: number): Array<{ date: string | null }> {
+  return monthGridDays(year, month);
+}
+
+export function calendarMonthLabel(year: number, month: number): string {
+  return new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+/** Today as a local YYYY-MM-DD (the grid's own frame). */
+export function calendarToday(nowMs: number): string {
+  return toLocalDate(new Date(nowMs));
+}
+
+export type DeskReschedulePlan =
+  | { kind: "move"; scheduledAt: string }
+  | { kind: "noop" }
+  | { kind: "past" }
+  | { kind: "invalid" };
+
+/** Drag/move planning — the 2D calendar's planReschedule, verbatim
+ *  semantics: same-day is a noop, a target landing under a minute
+ *  out is "past", anything else moves KEEPING the time of day. */
+export function planDeskReschedule(
+  post: SchedulerDeskPost,
+  targetDate: string,
+  nowMs: number,
+): DeskReschedulePlan {
+  const plan = planReschedule(toCalendarShape(post), targetDate, nowMs);
+  if (plan.kind === "move") return { kind: "move", scheduledAt: plan.scheduledAt };
+  return { kind: plan.kind };
+}
+
+/** PATCH body for a reschedule — the rail's own minimal shape. */
+export function buildReschedulePayload(scheduledAt: string): Record<string, unknown> {
+  return { scheduledAt };
+}
+
+/** A day-cell tap seeds the composer at midday local on that day —
+ *  a starting time the member then adjusts in the When field. */
+export function composeWhenForDay(date: string): string {
+  return `${date}T12:00`;
+}

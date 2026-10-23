@@ -1,14 +1,24 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { CalendarClock, Camera, Check, Crown, Download, FolderPlus, Layers, Megaphone, Newspaper, Palette, Plus, RefreshCw, Share2, Sparkles } from "lucide-react";
+import { CalendarClock, Camera, Check, Crown, Download, FolderPlus, Layers, Link2, Megaphone, Newspaper, Palette, Pencil, Plus, RefreshCw, Rocket, Share2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { downloadImage } from "@/lib/download-image";
-import { promoCardFileName, promoCardSharePayload } from "@/lib/promo-card-history";
+import {
+  normalizePromoCardHistory,
+  promoCardDateLabel,
+  promoCardFileName,
+  promoCardSharePayload,
+  promoCardShareText,
+  removePromoCard,
+  type PromoCardHistoryItem,
+} from "@/lib/promo-card-history";
 import { NativeCard } from "./NativeCard";
 import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
+import { PostAssistBlock } from "./PostAssist";
+import { UgcAdsStation } from "./UgcAdsStation";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
 import { NativeBoard } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
@@ -62,6 +72,19 @@ import {
   parseBioPages,
   bioPageStatusLine,
   parseBioAnalytics,
+  BIO_MAX_LINKS,
+  BIO_PAGE_THEMES,
+  BIO_PUBLISH_COST_VISUAL_BUCS,
+  BIO_SOCIAL_FIELDS,
+  bioDraftFromPage,
+  bioPublishBlocker,
+  buildBioSavePayload,
+  emptyBioDraft,
+  parseBioPageFull,
+  parseBioPublishResult,
+  validateBioDraft,
+  type BioPageDraft,
+  type BioPageFull,
   buildPromoGeneratorPayload,
   parsePromoResult,
   PROMO_CONTENT_TYPES,
@@ -1290,6 +1313,270 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
   );
 }
 
+/* ─── Link-in-bio editor (Stack-100 #59) ─────────────────────────────
+   The Promote Desk's bio section, finished: create, edit (links,
+   themes, slug, avatar, socials, tip jar), publish and unpublish all
+   complete HERE on the bio-pages routes' own rails. Drafting and
+   saving are free; publishing is the registry's 100 Visual Bucs and
+   rides the credit confirmation (confirmedFetch) exactly like the
+   website builder. The editor loads the full page itself
+   (GET /api/bio-pages/me) — the desk header above stays a summary. */
+
+function BioPageEditor({ isLight, onChanged }: { isLight: boolean; onChanged?: () => void }) {
+  const authHeaders = useAuthHeaders();
+  const { refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const [page, setPage] = useState<BioPageFull | null | undefined>(undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [draft, setDraft] = useState<BioPageDraft>(() => emptyBioDraft());
+  const [seededFor, setSeededFor] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState<"save" | "publish" | "unpublish" | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bio-pages/me", { headers: await authHeaders() });
+      if (!res.ok) throw new Error("bio");
+      const full = parseBioPageFull((await res.json()) as unknown);
+      setPage(full);
+      setLoadFailed(false);
+      if (full && seededFor !== full.id) {
+        setDraft(bioDraftFromPage(full));
+        setSeededFor(full.id);
+      }
+      if (!full && seededFor !== "new") {
+        setDraft(emptyBioDraft());
+        setSeededFor("new");
+        setEditing(true);
+      }
+    } catch {
+      setLoadFailed(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seededFor]);
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+  const noteCls = `text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`;
+  const set = (patch: Partial<BioPageDraft>) => setDraft((d) => ({ ...d, ...patch }));
+
+  const save = async () => {
+    if (busy) return;
+    const problem = validateBioDraft(draft);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setBusy("save");
+    setError(null);
+    setNote(null);
+    try {
+      const creating = !page;
+      const res = await fetch(creating ? "/api/bio-pages" : `/api/bio-pages/${page!.id}`, {
+        method: creating ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(buildBioSavePayload(draft)),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = data as { error?: string };
+        setError(d.error ?? "That save didn't land — try again.");
+        return;
+      }
+      const saved = parseBioPageFull(data);
+      if (saved) {
+        setPage(saved);
+        setSeededFor(saved.id);
+        setDraft(bioDraftFromPage(saved));
+      }
+      setNote(creating ? "Your page is created — a draft for now. Publish it below when the links are right." : "Saved — your page carries the new words.");
+      setEditing(false);
+      onChanged?.();
+    } catch {
+      setError("The bio desk didn't answer. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const publish = async () => {
+    if (busy || !page) return;
+    const blocker = bioPublishBlocker(draft);
+    if (blocker) {
+      setError(blocker);
+      setEditing(true);
+      return;
+    }
+    setBusy("publish");
+    setError(null);
+    setNote(null);
+    try {
+      const res = await confirmedFetch(`/api/bio-publish/${page.id}`, { method: "POST" });
+      if (!res) return; // confirmation declined — nothing charged, nothing published
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = data as { error?: string; message?: string };
+        setError(
+          res.status === 402
+            ? "Out of Visual Bucs — top up and publishing is ready again."
+            : res.status === 409
+              ? "This page is already published."
+              : (d.message ?? d.error ?? "Publishing didn't land — a failed publish is refunded. Try again."),
+        );
+        return;
+      }
+      const { url } = parseBioPublishResult(data);
+      setPage({ ...page, isPublished: true, url: url ?? page.url });
+      setNote(`Live! Your page is up${url ? ` at ${url}` : ""} — share it everywhere.`);
+      refreshProfile();
+      onChanged?.();
+    } catch {
+      setError("Publishing didn't answer — a failed publish is refunded. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const unpublish = async () => {
+    if (busy || !page) return;
+    setBusy("unpublish");
+    setError(null);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/bio-pages/${page.id}/unpublish`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("unpublish");
+      setPage({ ...page, isPublished: false });
+      setNote("Taken offline — the page is a draft again, and republishing costs the standard publish price.");
+      onChanged?.();
+    } catch {
+      setError("That didn't land — your page is still as it was. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (loadFailed) {
+    return (
+      <div className="mt-3" data-testid="world-bio-editor">
+        <NativeErrorState
+          isLight={isLight}
+          message="The page editor wouldn't open — your page itself is safe on the real rails."
+          onRetry={() => void load()}
+        />
+      </div>
+    );
+  }
+  if (page === undefined) {
+    return (
+      <div className="mt-3" data-testid="world-bio-editor">
+        <NativeLoadingState isLight={isLight} message="Opening the page editor…" />
+      </div>
+    );
+  }
+
+  const linkRowCls = inputCls(isLight);
+
+  return (
+    <div className="mt-3 space-y-2" data-testid="world-bio-editor">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+          <Link2 className="mr-1 inline h-3.5 w-3.5" />
+          {page ? "Edit your page" : "Start your page — free"}
+        </p>
+        {page && !editing ? (
+          <button type="button" data-testid="world-bio-edit-open" onClick={() => setEditing(true)} className={`${goldBtn} ml-auto`}>
+            <Pencil className="h-4 w-4" /> Edit links, theme &amp; address
+          </button>
+        ) : null}
+        {page?.isPublished ? (
+          <button type="button" data-testid="world-bio-unpublish" onClick={() => void unpublish()} disabled={busy !== null} className={`${goldBtn} ml-auto`}>
+            {busy === "unpublish" ? "Taking offline…" : "Take it offline — free"}
+          </button>
+        ) : page ? (
+          <button type="button" data-testid="world-bio-publish" onClick={() => void publish()} disabled={busy !== null} className={`${goldBtn} ml-auto`}>
+            <Rocket className="h-4 w-4" /> {busy === "publish" ? "Publishing…" : `Publish — ${BIO_PUBLISH_COST_VISUAL_BUCS} Visual Bucs`}
+          </button>
+        ) : null}
+      </div>
+
+      {editing || !page ? (
+        <div className="space-y-2" data-testid="world-bio-form">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input aria-label="Display name" data-testid="world-bio-name" className={linkRowCls} placeholder="Display name *" value={draft.displayName} onChange={(e) => set({ displayName: e.target.value })} maxLength={80} />
+            <input aria-label="Headline" className={linkRowCls} placeholder="Headline" value={draft.headline} onChange={(e) => set({ headline: e.target.value })} maxLength={120} />
+          </div>
+          <textarea aria-label="About line" className={linkRowCls} rows={2} placeholder="A line or two about you" value={draft.bio} onChange={(e) => set({ bio: e.target.value })} maxLength={600} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input aria-label="Avatar image link" data-testid="world-bio-avatar" className={linkRowCls} placeholder="Avatar image link (https://…)" value={draft.avatarUrl} onChange={(e) => set({ avatarUrl: e.target.value })} maxLength={800} />
+            <label className="block">
+              <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Page address — bowdownvisuals.com/bio/</span>
+              <input aria-label="Page address (slug)" data-testid="world-bio-slug" className={linkRowCls} placeholder="your-name" value={draft.slug} onChange={(e) => set({ slug: e.target.value })} maxLength={40} />
+            </label>
+          </div>
+          <label className="block">
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Theme</span>
+            <select aria-label="Page theme" data-testid="world-bio-theme" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.theme} onChange={(e) => set({ theme: e.target.value })}>
+              {BIO_PAGE_THEMES.map((t) => (
+                <option key={t.key} value={t.key}>{t.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="space-y-1.5" data-testid="world-bio-links">
+            <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Links</p>
+            {draft.links.map((link, i) => (
+              <div key={i} className="flex gap-1.5" data-testid="world-bio-link-row">
+                <input aria-label={`Link ${i + 1} title`} className={linkRowCls} style={{ flex: "0 0 34%" }} placeholder="Title" value={link.title} onChange={(e) => set({ links: draft.links.map((l, j) => (j === i ? { ...l, title: e.target.value } : l)) })} maxLength={60} />
+                <input aria-label={`Link ${i + 1} address`} className={linkRowCls} placeholder="https://…" value={link.url} onChange={(e) => set({ links: draft.links.map((l, j) => (j === i ? { ...l, url: e.target.value } : l)) })} maxLength={800} />
+                <button type="button" aria-label={`Remove link ${i + 1}`} data-testid="world-bio-link-remove" onClick={() => set({ links: draft.links.filter((_, j) => j !== i) })} className={goldBtn} style={{ padding: "0 10px" }}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {draft.links.length < BIO_MAX_LINKS ? (
+              <button type="button" data-testid="world-bio-link-add" onClick={() => set({ links: [...draft.links, { title: "", url: "", icon: "link" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a link
+              </button>
+            ) : null}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2" data-testid="world-bio-socials">
+            {BIO_SOCIAL_FIELDS.map((f) => (
+              <input key={f.key} aria-label={`${f.label} link`} className={linkRowCls} placeholder={`${f.label} link`} value={draft.socials[f.key]} onChange={(e) => set({ socials: { ...draft.socials, [f.key]: e.target.value } })} maxLength={800} />
+            ))}
+          </div>
+          <input aria-label="Tip jar link" className={linkRowCls} placeholder="Tip jar link (optional)" value={draft.tipJarUrl} onChange={(e) => set({ tipJarUrl: e.target.value })} maxLength={800} />
+
+          {error ? <p className={noteCls} data-testid="world-bio-error">{error}</p> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" data-testid="world-bio-save" onClick={() => void save()} disabled={busy !== null} className={goldBtn}>
+              <Check className="h-4 w-4" /> {busy === "save" ? "Saving…" : page ? "Save changes — free" : "Create my page — free"}
+            </button>
+            {page ? (
+              <button type="button" onClick={() => { setEditing(false); setDraft(bioDraftFromPage(page)); setError(null); }} className={`text-xs font-bold ${muted}`}>
+                Done editing
+              </button>
+            ) : null}
+            <span className={`text-xs ${muted}`}>Saving is free — publishing is {BIO_PUBLISH_COST_VISUAL_BUCS} Visual Bucs, asked before it charges.</span>
+          </div>
+        </div>
+      ) : null}
+      {note ? <p className={`text-xs font-semibold ${isLight ? "text-emerald-800" : "text-emerald-300"}`} data-testid="world-bio-note">{note}</p> : null}
+      {!editing && error ? <p className={noteCls}>{error}</p> : null}
+    </div>
+  );
+}
+
 /* ═══ 3. Promote Desk ════════════════════════════════════════════════ */
 
 type SectionState<T> = { status: "loading" | "failed" | "ready"; data: T | null };
@@ -1319,9 +1606,9 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
 
-  /* Promo cards gallery (this sitting's pack; every pack is recorded
-     server-side and the full shelf is the website's history — see
-     the lib follow-on note). */
+  /* Promo cards gallery (this sitting's pack) + the FULL history
+     shelf below it (Stack-100 #60): every pack ever made, read from
+     GET /api/promo-cards — the website history's own endpoint. */
   const [cardTitle, setCardTitle] = useState("");
   const [cardArtist, setCardArtist] = useState("");
   const [cardStyle, setCardStyle] = useState<string>("out-now");
@@ -1331,6 +1618,19 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [cardsNote, setCardsNote] = useState<string | null>(null);
   const [cardActionNote, setCardActionNote] = useState<string | null>(null);
   const [sharedCardKey, setSharedCardKey] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ status: "loading" | "failed" | "ready"; cards: PromoCardHistoryItem[]; hasMore: boolean }>({
+    status: "loading",
+    cards: [],
+    hasMore: false,
+  });
+  const [historyTick, setHistoryTick] = useState(0);
+  const [historyNote, setHistoryNote] = useState<string | null>(null);
+  const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
+
+  /* Post Assist (#58) — the drafted caption, ready to hand to the
+     Scheduler compose below. */
+  const [assistDraft, setAssistDraft] = useState("");
+  const [assistNote, setAssistNote] = useState<string | null>(null);
 
   /* Coach row. */
   const [coachBusy, setCoachBusy] = useState(false);
@@ -1443,6 +1743,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
       setCardCaption(suggestedCaption);
       setCardActionNote(null);
       setSharedCardKey(null);
+      setHistoryTick((n) => n + 1); // the new pack joins the history shelf
       refreshProfile();
     } catch {
       setCardsNote("The card desk didn't answer. Try again.");
@@ -1531,6 +1832,67 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
     setTick((n) => n + 1);
   };
 
+  /* ── Promo-card full history (#60) ─────────────────────────────── */
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/promo-cards", { headers: await authHeaders() });
+        if (!res.ok) throw new Error("history");
+        const page = normalizePromoCardHistory((await res.json()) as unknown);
+        if (!cancelled) setHistory({ status: "ready", cards: page.cards, hasMore: page.hasMore });
+      } catch {
+        if (!cancelled) setHistory((h) => ({ ...h, status: "failed" }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest, historyTick]);
+
+  const shareHistoryCard = async (c: PromoCardHistoryItem) => {
+    const text = promoCardShareText(c);
+    const channel = typeof navigator !== "undefined" && "share" in navigator ? "native" : "copy";
+    try {
+      if (channel === "native") {
+        await navigator.share({ title: c.releaseTitle, text, url: c.url });
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${c.url}`);
+        setHistoryNote("Share link copied.");
+      }
+    } catch {
+      return; // dismissed share sheet — nothing tracked, nothing said
+    }
+    setSharedCardKey(c.url);
+    try {
+      await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(promoCardSharePayload(c, channel)),
+      });
+    } catch { /* tracking is a passenger, never the driver */ }
+  };
+
+  const deleteHistoryCard = async (c: PromoCardHistoryItem) => {
+    setHistoryNote(null);
+    try {
+      const res = await fetch(`/api/promo-cards/${c.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("delete");
+      /* The row leaves the shelf ONLY on the server's confirmed
+         delete (the promo-card-history seam's own rule). */
+      setHistory((h) => ({ ...h, cards: removePromoCard(h.cards, c.id) }));
+      setConfirmDeleteCardId(null);
+      setHistoryNote("Removed from your history.");
+    } catch {
+      setHistoryNote("That card couldn't be removed — it's still on your shelf. Try again.");
+    }
+  };
+
   return (
     <div className="space-y-3" data-testid="world-business-promote-desk">
       <SectionShell
@@ -1542,11 +1904,14 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         onRetry={retryAll}
       >
         {bio.data === null ? (
-          <NativeEmptyState
-            isLight={isLight}
-            message="No link-in-bio page yet."
-            detail="Start one on the website bench (the footer below) and its status and numbers will stand on this desk."
-          />
+          <div className="space-y-2">
+            <NativeEmptyState
+              isLight={isLight}
+              message="No link-in-bio page yet."
+              detail="Start one right here — drafting is free, and publishing is 100 Visual Bucs when you're ready."
+            />
+            <BioPageEditor isLight={isLight} onChanged={retryAll} />
+          </div>
         ) : (
           <div className="space-y-2">
             <p className={`text-sm font-black ${strong}`}>{bio.data.page.displayName}</p>
@@ -1568,6 +1933,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
             ) : (
               <p className={`text-xs ${muted}`}>The numbers strip didn't load this time — the page itself is fine.</p>
             )}
+            <BioPageEditor isLight={isLight} onChanged={retryAll} />
           </div>
         )}
       </SectionShell>
@@ -1614,6 +1980,51 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
             ) : undefined
           }
         />
+      </NativeCard>
+
+      {/* Post Assist — "Write It For Me" (#58): the feed composer's
+          drafting hand, here in the Promote Room. The draft becomes
+          a caption the in-world Scheduler below posts — the flow
+          finishes in this room. */}
+      <NativeCard isLight={isLight} title="Post Assist — Write It For Me">
+        <PostAssistBlock isLight={isLight} onDraft={(draft) => { setAssistDraft(draft); setAssistNote(null); }} />
+        {assistDraft ? (
+          <div className="mt-2 space-y-2" data-testid="world-promote-assist-draft">
+            <textarea
+              aria-label="Your drafted post"
+              className={inputCls(isLight)}
+              rows={3}
+              maxLength={500}
+              value={assistDraft}
+              onChange={(e) => setAssistDraft(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                data-testid="world-promote-assist-schedule"
+                onClick={() => {
+                  setCardPrefill({ mediaUrl: "", mediaType: "video", caption: assistDraft });
+                  setCardPrefillNonce((n) => n + 1);
+                  setAssistNote("Loaded as the caption in the Scheduler below — add the post's video or image, pick a platform and a time, right here.");
+                }}
+                className={goldBtn}
+              >
+                <CalendarClock className="h-4 w-4" /> Load into the Scheduler
+              </button>
+              <button
+                type="button"
+                data-testid="world-promote-assist-copy"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(assistDraft).then(() => setAssistNote("Copied — paste it anywhere."));
+                }}
+                className={goldBtn}
+              >
+                <Share2 className="h-4 w-4" /> Copy the words
+              </button>
+            </div>
+            {assistNote ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{assistNote}</p> : null}
+          </div>
+        ) : null}
       </NativeCard>
 
       <NativeCard isLight={isLight} title="Promo cards">
@@ -1697,9 +2108,97 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           <NativeEmptyState
             isLight={isLight}
             message="No promo cards on the stand yet."
-            detail="Cards you make here are recorded to your promo card history (the full shelf lives on the website's Promote page); this gallery holds the pack you make in this sitting."
+            detail="Cards you make here are recorded to your promo card history — the full shelf stands right below; this gallery holds the pack you make in this sitting."
           />
         )}
+
+        {/* Full history (#60) — every recorded pack, not just this
+            sitting's, with the website panel's own per-card actions
+            plus delete, on the history endpoint's rails. */}
+        <div className={`mt-4 border-t border-dashed pt-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-promote-card-history">
+          <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+            Your promo card history
+          </p>
+          {history.status === "loading" ? (
+            <NativeLoadingState isLight={isLight} message="Opening your card shelf…" />
+          ) : history.status === "failed" ? (
+            <NativeErrorState
+              isLight={isLight}
+              message="Your card history wouldn't open — every card is safe on the real rails."
+              onRetry={() => setHistoryTick((n) => n + 1)}
+            />
+          ) : history.cards.length === 0 ? (
+            <p className={`mt-2 text-xs ${muted}`}>Nothing recorded yet — the first pack you make takes its place here and stays.</p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-3">
+              {history.cards.map((c) => (
+                <figure key={c.id} className="w-44" data-testid="world-promote-history-card">
+                  <img src={c.url} alt="" className="w-44 rounded-xl border border-[#d4af37]/40 object-cover" />
+                  <figcaption className={`mt-1 text-center text-[11px] font-semibold ${muted}`}>
+                    {c.releaseTitle}
+                    {c.artistName ? ` — ${c.artistName}` : ""} · {c.style} · {c.size}
+                    {promoCardDateLabel(c.createdAt) ? ` · ${promoCardDateLabel(c.createdAt)}` : ""}
+                  </figcaption>
+                  <div className="mt-1.5 grid grid-cols-2 gap-1">
+                    <button type="button" data-testid="world-promote-history-download" onClick={() => void downloadImage(c.url, promoCardFileName(c))} className={cardChipCls}>
+                      <Download className="h-3.5 w-3.5" /> Download
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="world-promote-history-schedule"
+                      onClick={() => {
+                        setCardPrefill({ mediaUrl: c.url, mediaType: "image", caption: promoCardShareText(c) });
+                        setCardPrefillNonce((n) => n + 1);
+                        setHistoryNote("Your card is loaded in the Scheduler below — pick a platform and a time, right here.");
+                      }}
+                      className={cardChipCls}
+                    >
+                      <CalendarClock className="h-3.5 w-3.5" /> Schedule
+                    </button>
+                    <button type="button" data-testid="world-promote-history-share" onClick={() => void shareHistoryCard(c)} className={cardChipCls}>
+                      <Share2 className="h-3.5 w-3.5" /> {sharedCardKey === c.url ? "Shared" : "Share"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="world-promote-history-assets"
+                      onClick={() => {
+                        addAsset({
+                          kind: "image",
+                          url: c.url,
+                          label: `Promo card — ${c.style} (${c.size})`,
+                          detail: c.artistName ? `${c.releaseTitle} — ${c.artistName}` : c.releaseTitle,
+                          meta: { sourceAsset: "promo-cards", handoff: "promo-cards", style: c.style, size: c.size },
+                        });
+                        setHistoryNote("Added to your project assets.");
+                      }}
+                      className={cardChipCls}
+                    >
+                      <FolderPlus className="h-3.5 w-3.5" /> Add to assets
+                    </button>
+                    {confirmDeleteCardId === c.id ? (
+                      <>
+                        <button type="button" data-testid="world-promote-history-delete-confirm" onClick={() => void deleteHistoryCard(c)} className={cardChipCls}>
+                          <Trash2 className="h-3.5 w-3.5" /> Confirm delete
+                        </button>
+                        <button type="button" onClick={() => setConfirmDeleteCardId(null)} className={cardChipCls}>
+                          Keep
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" data-testid="world-promote-history-delete" onClick={() => setConfirmDeleteCardId(c.id)} className={cardChipCls}>
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
+                    )}
+                  </div>
+                </figure>
+              ))}
+            </div>
+          )}
+          {history.status === "ready" && history.hasMore ? (
+            <p className={`mt-2 text-[11px] ${muted}`}>More cards sit beyond this shelf's first page — the newest {history.cards.length} stand here.</p>
+          ) : null}
+          {historyNote ? <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{historyNote}</p> : null}
+        </div>
       </NativeCard>
 
       {/* The Scheduler, finished in-world (Stack-100 #45): compose,
@@ -1710,6 +2209,12 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           the full distribution wizard + the smartlink surface
           complete here on the /distribute page's own rails. */}
       <ReleaseDeskSection isLight={isLight} />
+
+      {/* UGC Product Ads, docked in Promote (Stack-100 #56): the
+          maker (script / persona 100 VB / ad video 400 VB /
+          pin-to-product) and the briefs board complete here on the
+          website panel's own seam and rails. */}
+      <UgcAdsStation isLight={isLight} />
 
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
