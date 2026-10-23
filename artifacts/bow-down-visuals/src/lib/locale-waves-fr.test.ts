@@ -249,6 +249,104 @@ const W2_LEGIT: ReadonlySet<string> = new Set([
   "waitlist.messageLabel"
 ]);
 
+const W3_NAMESPACES = ["avatarPresenter", "bgStudio", "captionStyler", "captionTemplates", "cartoonStudio", "clipMaker", "colorGrade", "deverb", "fillerRemover", "harmony", "headshotStudio", "logoMaker", "lrcExport", "makeVideo", "mixMaster", "photoEnhance", "photoShoot", "songAndVideo", "speedRamp", "thumbnail", "thumbnailMaker", "thumbnailStudio", "thumbnailTest", "thumbnails", "upscale", "videoTemplatesPage", "watermarkRemoval"] as const;
+const W3_LEGIT: ReadonlySet<string> = new Set([
+  "avatarPresenter.avatarLabel",
+  "captionStyler.positionLabel",
+  "captionStyler.styles.hormozi.label",
+  "cartoonStudio.styleAnimeName",
+  "clipMaker.secondsLabel",
+  "clipMaker.vibeHypeLabel",
+  "colorGrade.saturation",
+  "deverb.abOriginal",
+  "deverb.labelOriginal",
+  "deverb.pause",
+  "fillerRemover.kindSilence",
+  "harmony.buttonCost",
+  "harmony.modeAiShort",
+  "harmony.partsLine",
+  "harmony.vb",
+  "headshotStudio.presetNames.stage",
+  "headshotStudio.presetNames.street",
+  "headshotStudio.presetNames.studio",
+  "headshotStudio.styleLabel",
+  "headshotStudio.visualBucs",
+  "logoMaker.modelPremium",
+  "logoMaker.modelStandard",
+  "logoMaker.styleGaming",
+  "logoMaker.styleLabel",
+  "logoMaker.vb",
+  "lrcExport.aiCost",
+  "lrcExport.pause",
+  "lrcExport.tapButton",
+  "makeVideo.clipFallback",
+  "makeVideo.genreAfrobeats",
+  "makeVideo.genreCountry",
+  "makeVideo.genreDancehall",
+  "makeVideo.genreDrill",
+  "makeVideo.genreGospel",
+  "makeVideo.genreLabel",
+  "makeVideo.genrePop",
+  "makeVideo.genreRB",
+  "makeVideo.genreRock",
+  "makeVideo.genreTrap",
+  "makeVideo.platformTiktok",
+  "makeVideo.priceBadge",
+  "makeVideo.refundedNoticeSuffix",
+  "makeVideo.step3Short",
+  "makeVideo.summaryGenre",
+  "makeVideo.summaryStyle",
+  "makeVideo.unknownStep",
+  "makeVideo.videoStyleBrooklynDrill",
+  "mixMaster.genres.afrobeat.label",
+  "mixMaster.genres.edm.label",
+  "mixMaster.genres.gospel.label",
+  "mixMaster.genres.hip-hop.label",
+  "mixMaster.genres.lofi.label",
+  "mixMaster.genres.podcast.label",
+  "mixMaster.genres.pop.label",
+  "mixMaster.genres.rnb.label",
+  "mixMaster.genres.rock.label",
+  "mixMaster.genres.trap.label",
+  "mixMaster.loudness.club.label",
+  "mixMaster.loudness.radio.label",
+  "mixMaster.loudness.streaming.label",
+  "mixMaster.stemTypes.beat",
+  "mixMaster.stemTypes.fx",
+  "mixMaster.stemTypes.other",
+  "mixMaster.tabMixStems",
+  "photoEnhance.featureName",
+  "photoShoot.scenePacks.tags.pressKit",
+  "songAndVideo.cleanOption",
+  "songAndVideo.costBadge",
+  "songAndVideo.fieldGenre",
+  "songAndVideo.genreAfrobeats",
+  "songAndVideo.genreCountry",
+  "songAndVideo.genreDancehall",
+  "songAndVideo.genreDrill",
+  "songAndVideo.genreGospel",
+  "songAndVideo.genrePop",
+  "songAndVideo.genreRB",
+  "songAndVideo.genreRock",
+  "songAndVideo.genreTrap",
+  "songAndVideo.summaryGenre",
+  "speedRamp.slowmo.simple",
+  "thumbnail.artStyleAnime",
+  "thumbnail.artStyleVintage",
+  "thumbnail.platformAppleMusic",
+  "thumbnail.platformSoundCloud",
+  "thumbnail.platformSpotify",
+  "thumbnail.platformYouTube",
+  "thumbnailMaker.formatLabel",
+  "thumbnailMaker.portraitBlurb",
+  "thumbnailMaker.portraitLabel",
+  "thumbnailMaker.styleGamingName",
+  "thumbnailMaker.styleVlogName",
+  "upscale.tabImageShort",
+  "upscale.target1080p",
+  "upscale.target4k"
+]);
+
 function waveKeys(namespaces: readonly string[]): string[] {
   return Object.keys(EN).filter((k) => namespaces.includes(k.split(".")[0]));
 }
@@ -289,6 +387,26 @@ describe("fr-W2 (Stack-28 #82)", () => {
   it("placeholders match en exactly for every wave key", () => {
     const shape = (v: unknown) => (typeof v === "string" ? v.split("{").slice(1).map((s) => "{" + s.split("}")[0] + "}").sort() : []);
     const bad = waveKeys(W2_NAMESPACES).filter((k) => JSON.stringify(shape(FR[k])) !== JSON.stringify(shape(EN[k])));
+    expect(bad).toEqual([]);
+  });
+});
+
+describe("fr-W3 (Stack-28 #91)", () => {
+  it("every en key in the wave namespaces is present in fr", () => {
+    const missing = waveKeys(W3_NAMESPACES).filter((k) => !(k in FR) || FR[k] === "" || FR[k] === undefined);
+    expect(missing).toEqual([]);
+  });
+  it("no identical-to-en values remain outside the legit allowlist", () => {
+    const real = waveKeys(W3_NAMESPACES).filter((k) => FR[k] === EN[k] && !W3_LEGIT.has(k));
+    expect(real).toEqual([]);
+  });
+  it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
+    const stale = [...W3_LEGIT].filter((k) => FR[k] !== EN[k]);
+    expect(stale).toEqual([]);
+  });
+  it("placeholders match en exactly for every wave key", () => {
+    const shape = (v: unknown) => (typeof v === "string" ? v.split("{").slice(1).map((s) => "{" + s.split("}")[0] + "}").sort() : []);
+    const bad = waveKeys(W3_NAMESPACES).filter((k) => JSON.stringify(shape(FR[k])) !== JSON.stringify(shape(EN[k])));
     expect(bad).toEqual([]);
   });
 });
