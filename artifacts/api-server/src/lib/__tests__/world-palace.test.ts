@@ -921,3 +921,108 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     palace.dispose();
   });
 });
+describe("grounds height tables (Stack-100 #2 item 49) — the server mirrors the client plan", () => {
+  /* The client authors these heights as step zones in its floor
+   * plan (palace-layout.ts PLAZA_STEPS / district steps, derived
+   * from palace-grounds + district placement data); the FE pins
+   * the same numbers from its side (palace-layout.test.ts), so
+   * the two tables can never drift apart silently. */
+  it("pins the plaza's full table: lawns, hall steps, terraces, monument tiers", () => {
+    const def = PALACE_ROOM_DEFS.find((d) => d.roomId === PLAZA);
+    expect(def?.grounds).toEqual([
+      { minX: -27.0, maxX: -6.5, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+      { minX: 6.5, maxX: 13.5, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+      { minX: -5.6, maxX: -2.1, minZ: 13.0, maxZ: 13.72, height: 0.12 },
+      { minX: -5.6, maxX: -2.1, minZ: 13.72, maxZ: 14.44, height: 0.24 },
+      { minX: -5.6, maxX: -2.1, minZ: 14.44, maxZ: 15.16, height: 0.36 },
+      { minX: -5.6, maxX: -2.1, minZ: 15.16, maxZ: 16.4, height: 0.36 },
+      { minX: 2.1, maxX: 5.6, minZ: 13.0, maxZ: 13.72, height: 0.12 },
+      { minX: 2.1, maxX: 5.6, minZ: 13.72, maxZ: 14.44, height: 0.24 },
+      { minX: 2.1, maxX: 5.6, minZ: 14.44, maxZ: 15.16, height: 0.36 },
+      { minX: 2.1, maxX: 5.6, minZ: 15.16, maxZ: 16.4, height: 0.36 },
+      { minX: -26.733333333333334, maxX: -26.0, minZ: 13.4, maxZ: 16.6, height: 0.3 },
+      { minX: -27.46666666666667, maxX: -26.733333333333334, minZ: 13.4, maxZ: 16.6, height: 0.62 },
+      { minX: -28.200000000000003, maxX: -27.46666666666667, minZ: 13.4, maxZ: 16.6, height: 0.95 },
+      { minX: 26.0, maxX: 26.733333333333334, minZ: 17.0, maxZ: 20.2, height: 0.3 },
+      { minX: 26.733333333333334, maxX: 27.46666666666667, minZ: 17.0, maxZ: 20.2, height: 0.62 },
+      { minX: 27.46666666666667, maxX: 28.200000000000003, minZ: 17.0, maxZ: 20.2, height: 0.95 },
+      { minX: -2.15, maxX: 2.15, minZ: 17.55, maxZ: 21.849999999999998, height: 0.24 },
+      { minX: -1.75, maxX: 1.75, minZ: 17.95, maxZ: 21.45, height: 0.48 },
+      { minX: -1.35, maxX: 1.35, minZ: 18.349999999999998, maxZ: 21.05, height: 0.7 },
+    ]);
+  });
+
+  it("pins the district tables; every other room is flat", () => {
+    const groundsOf = (roomId: string) =>
+      PALACE_ROOM_DEFS.find((d) => d.roomId === roomId)?.grounds;
+    expect(groundsOf("world:stage-grounds")).toEqual([
+      { minX: -49.0, maxX: -32.0, minZ: 15.5, maxZ: 30.5, height: 0.05 },
+    ]);
+    expect(groundsOf("world:listening-gardens")).toEqual([
+      { minX: -34.5, maxX: -17.5, minZ: 39.5, maxZ: 54.5, height: 0.05 },
+    ]);
+    expect(groundsOf("world:boardwalk")).toEqual([
+      { minX: -12.65, maxX: 27.85, minZ: 34.35, maxZ: 59.65, height: 0.03 },
+    ]);
+    /* The east terrace mass stands inside the Heights' bounds —
+     * mirrored there too (see the def's note). */
+    expect(groundsOf("world:creator-heights")).toEqual([
+      { minX: 26.0, maxX: 26.733333333333334, minZ: 17.0, maxZ: 20.2, height: 0.3 },
+      { minX: 26.733333333333334, maxX: 27.46666666666667, minZ: 17.0, maxZ: 20.2, height: 0.62 },
+      { minX: 27.46666666666667, maxX: 28.200000000000003, minZ: 17.0, maxZ: 20.2, height: 0.95 },
+    ]);
+    const withTables = new Set([
+      PLAZA,
+      "world:stage-grounds",
+      "world:listening-gardens",
+      "world:boardwalk",
+      "world:creator-heights",
+    ]);
+    for (const def of PALACE_ROOM_DEFS) {
+      if (!withTables.has(def.roomId)) expect(def.grounds).toBeUndefined();
+    }
+  });
+
+  it("the built rooms read the table at probe points", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const plaza = palace.plazaRoom;
+    expect(plaza.groundHeightAt(0, 31.5)).toBe(0); // the promenade spawn
+    expect(plaza.groundHeightAt(-16.75, 19.2)).toBe(0.05); // west lawn heart
+    expect(plaza.groundHeightAt(10.0, 19.2)).toBe(0.05); // the clipped east lawn
+    expect(plaza.groundHeightAt(3.85, 15.8)).toBe(0.36); // hall-step platform, east flank
+    expect(plaza.groundHeightAt(-3.85, 13.3)).toBe(0.12); // first tread, west flank
+    expect(plaza.groundHeightAt(-27.8, 15.0)).toBe(0.95); // west terrace top tier
+    expect(plaza.groundHeightAt(0, 21.2)).toBe(0.48); // monument tier 2
+    expect(plaza.groundHeightAt(0, 20.9)).toBe(0.7); // monument tier 3
+    expect(palace.room("world:creator-heights")!.groundHeightAt(27.8, 18.6)).toBe(0.95);
+    expect(palace.room("world:boardwalk")!.groundHeightAt(0, 36.2)).toBe(0.03);
+  });
+
+  it("the plaza spawn stands at 0 (the promenade), a lawn walker at 0.05", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const a = fakeSocket();
+    enter(palace, a, "Alpha");
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0);
+    /* Alpha strolls onto the west lawn and claims its height. */
+    frame(palace, a, { type: "move", x: -16.75, z: 19.2, y: 0.05, rotY: 0 }, 10_000);
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0.05);
+    /* A flying claim over the lawn snaps back to the grass. */
+    frame(palace, a, { type: "move", x: -16.75, z: 19.2, y: 4, rotY: 0 }, 10_200);
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0.05);
+    /* A terrace climber's honest 0.95 stands; a leap to 3 snaps to the tier. */
+    frame(palace, a, { type: "move", x: -27.8, z: 15.0, y: 0.95, rotY: 0 }, 10_400);
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0.95);
+    frame(palace, a, { type: "move", x: -27.8, z: 15.0, y: 3, rotY: 0 }, 10_600);
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0.95);
+  });
+
+  it("a doorway transfer onto the Boardwalk settles at deck height (item 53)", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    frame(palace, b, { type: "room.enter", roomId: "world:boardwalk", x: 0, z: 36.2 });
+    const welcome = b.sent.filter((m) => m.type === "welcome").pop();
+    expect(welcome.you.y).toBe(0.03);
+    expect(palace.room("world:boardwalk")!.peerFor(b)!.y).toBe(0.03);
+  });
+});

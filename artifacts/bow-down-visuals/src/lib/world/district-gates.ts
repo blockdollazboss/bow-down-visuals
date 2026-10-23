@@ -70,9 +70,30 @@
 
 export type DistrictThresholdKind = "gate" | "marker";
 
+/** A gate's own identity (Stack-100 #2 gates round): the shipped
+ *  kit stamped all six thresholds from one variation roll — same
+ *  caps, same header, nothing to tell one district's door from
+ *  another's. Each gate now carries its district's accent (the
+ *  open leaves' cloth), its cap variant, how wide its leaves
+ *  stand open, and which side the district lies on (so the leaves
+ *  open TOWARD the district, never across the passage). */
+export interface GateIdentity {
+  /** The open leaves' cloth colour — the district's accent. */
+  accent: number;
+  /** Gate cap + header gold variant. */
+  capVariant: "bright" | "dark";
+  /** How far the open leaves stand swung, degrees (50–85). */
+  leafAngleDeg: number;
+  /** Sign of the district's direction along the wall normal:
+   *  for an axis-"x" gate the normal is Z; for axis-"z", X. */
+  districtDir: 1 | -1;
+}
+
 export interface DistrictThreshold {
   name: string;
   kind: DistrictThresholdKind;
+  /** The gate's per-district identity (gates round). */
+  identity: GateIdentity;
   x: number;
   z: number;
   /** The wall the threshold belongs to: "x" = a wall running
@@ -113,17 +134,17 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
   /* The Stage Grounds are BUILT (item 31): this gate is OPEN —
    * a true passage through the west wall's real gap into the
    * stage quarter beyond. No bar; the sub-plate reads OPEN. */
-  { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
+  { name: "STAGE GROUNDS", kind: "gate", identity: { accent: 0x7a2430, capVariant: "bright", leafAngleDeg: 68, districtDir: -1 }, x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
   /* The Boardwalk is BUILT (item 35): the south wall's barred
    * gate is OPEN — its bar is off, a true passage through the
    * wall's real gap into the waterfront quarter beyond. No bar;
    * the sub-plate reads OPEN. */
-  { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
+  { name: "THE BOARDWALK", kind: "gate", identity: { accent: 0x1f4a5a, capVariant: "dark", leafAngleDeg: 74, districtDir: 1 }, x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   /* The Creation Row is BUILT (item 33): the east pair's north
    * marker is reclassified — this gate is OPEN, a true passage
    * through a REAL new gap in the east wall on the marker's own
    * line (z 14.5). No bar; the sub-plate reads OPEN. */
-  { name: "CREATION ROW", kind: "gate", x: 28.2, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
+  { name: "CREATION ROW", kind: "gate", identity: { accent: 0x8a5a18, capVariant: "bright", leafAngleDeg: 60, districtDir: 1 }, x: 28.2, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
   /* The Ateliers are BUILT (item 34): the east wall's remaining
    * marker is reclassified — this gate is OPEN, a true passage
    * through a REAL new gap in the east wall's south run. It
@@ -131,19 +152,36 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
    * that line is Creation Row's built quarter; the Ateliers
    * stand south of the Row, and z 30.5 is the line that opens
    * into them. No bar; the sub-plate reads OPEN. */
-  { name: "THE ATELIERS", kind: "gate", x: 28.2, z: 30.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
+  { name: "THE ATELIERS", kind: "gate", identity: { accent: 0x4a2a5a, capVariant: "dark", leafAngleDeg: 64, districtDir: 1 }, x: 28.2, z: 30.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
   /* The Listening Gardens are BUILT (item 32): the promenade
    * marker is reclassified — this gate is OPEN, a true passage
    * through a REAL new gap in the south wall on the marker's own
    * line (x −26). No bar; the sub-plate reads OPEN. */
-  { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
+  { name: "LISTENING GARDENS", kind: "gate", identity: { accent: 0x2a5a2e, capVariant: "bright", leafAngleDeg: 78, districtDir: 1 }, x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   /* Creator Heights is BUILT (item 36): the last marker is
    * reclassified — this gate is OPEN, a true passage through a
    * REAL new gap in the enclave's own west wall, standing on
    * the marker's exact spot (13.5, 24.6) on its own line
    * (x 13.5). No bar; the sub-plate reads OPEN. */
-  { name: "CREATOR HEIGHTS", kind: "gate", x: 13.5, z: 24.6, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
+  { name: "CREATOR HEIGHTS", kind: "gate", identity: { accent: 0x6a1f3a, capVariant: "dark", leafAngleDeg: 58, districtDir: 1 }, x: 13.5, z: 24.6, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
 ];
+
+/** One open leaf's yaw (radians) for a gate: the leaf extending
+ *  in the +axis direction from its post (`extendingPlus`) and its
+ *  mirror both swing TOWARD the district side — an open gate's
+ *  leaves rest against the wall inside the district, never
+ *  across the passage and never out over the plaza. Derived from
+ *  the gate's axis + identity alone, so the scene and the tests
+ *  read the same truth. */
+export function gateLeafYaw(def: DistrictThreshold, extendingPlus: boolean): number {
+  const angle = (def.identity.leafAngleDeg * Math.PI) / 180;
+  const dir = def.identity.districtDir;
+  // Axis "x": a +x-extending leaf turns −dir to swing toward the
+  // district's Z side. Axis "z": a +z-extending leaf turns +dir
+  // to swing toward the district's X side. Mirrors negate.
+  const base = def.axis === "x" ? -dir * angle : dir * angle;
+  return extendingPlus ? base : -base;
+}
 
 /** The wall gaps the true gates stand in — the testable form of
  *  "a gate either stands at a real opening". Mirrors the lowWall

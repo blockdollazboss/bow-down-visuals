@@ -177,15 +177,24 @@ export interface FacadeWindowStyle {
   /** Emissive strength: lit at night, a whisper by day. */
   emissiveIntensity: number;
   roughness: number;
+  /* Stack-100 #2 item 8: how metallic the glass answers, and how
+   * hard the sky environment reflects in it. The shipped day
+   * glass was a flat pale plane (roughness .15 but metalness
+   * pinned at 0.1 in the scene with the DEFAULT env intensity):
+   * in close-up it read as paper, not glass. Day glass now
+   * answers like glass — low roughness, real metalness, the sky
+   * env turned UP — so the golden-hour sky stands in the panes. */
+  metalness: number;
+  envMapIntensity: number;
 }
 
 /** The window glass per look (the direction: DARK = lit windows,
  *  DAY = pale warm glass, low emissive). */
 export function facadeWindowStyle(theme: HallTheme): FacadeWindowStyle {
   if (theme === "dark") {
-    return { color: 0x2a1a08, emissive: 0xffa64d, emissiveIntensity: 2.4, roughness: 0.4 };
+    return { color: 0x2a1a08, emissive: 0xffa64d, emissiveIntensity: 2.4, roughness: 0.4, metalness: 0.1, envMapIntensity: 0.7 };
   }
-  return { color: 0xf7ead0, emissive: 0xffe9bb, emissiveIntensity: 0.3, roughness: 0.15 };
+  return { color: 0xf7ead0, emissive: 0xffe9bb, emissiveIntensity: 0.3, roughness: 0.08, metalness: 0.45, envMapIntensity: 1.5 };
 }
 
 /** The cornice: a stone ledge crowning the skin at the wall line,

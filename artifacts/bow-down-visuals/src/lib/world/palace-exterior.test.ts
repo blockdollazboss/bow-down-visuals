@@ -143,6 +143,13 @@ describe("pilasters, windows, banners (item 1)", () => {
     const day = facadeWindowStyle("light");
     expect(night.emissiveIntensity).toBeGreaterThan(1.5);
     expect(day.emissiveIntensity).toBeLessThan(0.5);
+    /* Item 8 (Stack-100 #2): day glass answers like glass — the
+     * sky env reflects in it (metalness + env intensity up,
+     * roughness down); night stays a lit pane, not a mirror. */
+    expect(day.metalness).toBeGreaterThan(night.metalness);
+    expect(day.envMapIntensity).toBeGreaterThan(1);
+    expect(day.envMapIntensity).toBeGreaterThan(night.envMapIntensity);
+    expect(day.roughness).toBeLessThan(night.roughness);
     expect(night.emissive).toBe(0xffa64d);
   });
 

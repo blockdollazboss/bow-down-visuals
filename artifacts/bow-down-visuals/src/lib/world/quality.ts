@@ -59,10 +59,31 @@ export interface QualityRung {
   shadows: boolean;
   /** Directional shadow map size (0 when shadows are off). */
   shadowMapSize: number;
+  /** Shadow softness (Stack-100 #2 item 14): the PCF radius the
+   *  shadow-casting lights carry on this rung. The ladder's
+   *  softness table is 2/3/4 (low/medium/high) — before this the
+   *  radius was an unthemed constant the rung never spoke of. */
+  shadowRadius: number;
+  /** Local shadow-casting lights (Stack-100 #2 item 13 [PICK],
+   *  conservative top-rung version): on HIGH only, the brazier
+   *  point lights (plaza + hall dais — ONE light class) also cast
+   *  shadows, so the night plaza's firelight throws real shade.
+   *  Under the frozen-map discipline the cost is paid only when
+   *  the map refreshes (aim/look/step), never per frame. Lower
+   *  rungs keep the shipped truth: braziers light, the directional
+   *  casts. */
+  localShadowLights: boolean;
   /** Construction-time MSAA (see header note). */
   antialias: boolean;
   /** Texture anisotropy cap (further capped by the device max). */
   anisotropy: number;
+  /** Texture decode step-down (Stack-100 #2 item 93): the world
+   *  texture set is canvas-downscaled by this factor AS IT LOADS —
+   *  the same source files, no extra assets. Like MSAA it is a
+   *  load-time fact: a texture already decoded keeps its size until
+   *  it reloads (theme rebuild / next entry); textures loaded after
+   *  a ladder step use the new rung's factor. 1 = full size. */
+  textureScale: number;
   /** Fraction of ambient particles (dust motes) drawn, 0..1. */
   particleScale: number;
   /** LOD: dressing beyond this distance (m) is hidden; detail
@@ -83,9 +104,16 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     reflectorSize: 1024,
     reflectorGlimpseEveryN: 1,
     shadows: true,
-    shadowMapSize: 2048,
+    /* 4096 on the top rung (Stack-100 #2 item 15's texel half):
+     * the frozen map is rendered on refresh only, so the top
+     * rung buys texel density (4096 over the plaza's 72 m fit ≈
+     * 1.8 cm/texel) with memory, not frame time. */
+    shadowMapSize: 4096,
+    shadowRadius: 4,
+    localShadowLights: true,
     antialias: true,
     anisotropy: 16,
+    textureScale: 1,
     particleScale: 1,
     lodDrawDistance: 120,
     brazierLights: true,
@@ -98,8 +126,11 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     reflectorGlimpseEveryN: 2,
     shadows: true,
     shadowMapSize: 1024,
+    shadowRadius: 3,
+    localShadowLights: false,
     antialias: true,
     anisotropy: 8,
+    textureScale: 0.5,
     particleScale: 0.6,
     lodDrawDistance: 90,
     brazierLights: true,
@@ -112,8 +143,11 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     reflectorGlimpseEveryN: 1,
     shadows: false,
     shadowMapSize: 0,
+    shadowRadius: 2,
+    localShadowLights: false,
     antialias: false,
     anisotropy: 4,
+    textureScale: 0.25,
     particleScale: 0.3,
     lodDrawDistance: 60,
     brazierLights: true,
@@ -123,6 +157,48 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
 
 export function rungFor(tier: QualityTier): QualityRung {
   return QUALITY_RUNGS[tier];
+}
+
+/* ── Animated-caster shadow refresh (Stack-100 #2 item 18) ──────
+ * The shadow map is FROZEN (rendered on aim/look/step only) —
+ * honest for architecture, a lie for the few casters that MOVE:
+ * the swaying banners and the spinning prize wheel. Their frozen
+ * shadows rest at the build pose while the cloth swings. The
+ * fix is a slow-cadence refresh: when animated casters exist and
+ * shadows are on, the map re-renders once every
+ * SHADOW_REFRESH_FRAMES frames (~4 s at 60 fps) — the sway's
+ * period is ~7 s, so the shadow tracks the cloth in a few honest
+ * steps instead of never. Static scenes pay nothing. */
+export const SHADOW_REFRESH_FRAMES = 240;
+
+export function shadowRefreshDue(frameIndex: number, animatedCasters: number, shadowsOn: boolean): boolean {
+  if (!shadowsOn || animatedCasters <= 0) return false;
+  if (!Number.isFinite(frameIndex) || frameIndex <= 0) return false;
+  return frameIndex % SHADOW_REFRESH_FRAMES === 0;
+}
+
+/**
+ * The stepped-down decode size for one texture at a rung's
+ * textureScale (item 93). Pure math so the ladder's promise is
+ * testable without a canvas: scale ≥ 1 (or junk input) returns the
+ * source size untouched; otherwise each axis scales and clamps to
+ * a 2 px floor (the tileable-variant precedent in pbr-materials).
+ * Memory falls with the SQUARE of the scale: medium decodes the
+ * set at ~1/4 the pixels, low at ~1/16.
+ */
+export function steppedTextureSize(
+  width: number,
+  height: number,
+  scale: number,
+): { width: number; height: number } {
+  const w = Number.isFinite(width) && width > 0 ? Math.round(width) : 0;
+  const h = Number.isFinite(height) && height > 0 ? Math.round(height) : 0;
+  const s = Number.isFinite(scale) && scale > 0 ? Math.min(1, scale) : 1;
+  if (s >= 1 || w === 0 || h === 0) return { width: w, height: h };
+  return {
+    width: Math.max(2, Math.round(w * s)),
+    height: Math.max(2, Math.round(h * s)),
+  };
 }
 
 /** One rung down (toward low); null when already at the floor. */

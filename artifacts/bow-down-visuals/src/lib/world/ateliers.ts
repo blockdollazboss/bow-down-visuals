@@ -334,6 +334,101 @@ export const ATELIERS_BANNER_POLES: ReadonlyArray<{ x: number; z: number }> = [
 ];
 export const ATELIERS_BANNER_POLE = { h: 4.2, blockHalf: 0.2 } as const;
 
+/* ── Stack-100 #2: mannequins + fabric bolts (items 31–33) ────────
+ * The facet audit asked for mannequins and fabric bolts in the
+ * bays; the shipped tree had neither (the audit described them
+ * as present and defective — they were absent). This batch
+ * builds them properly:
+ *   31 — one dress-form mannequin per bay, standing in the bay's
+ *        mouth beside the worktable, SOLID from this same data
+ *        (the station point itself invited a punch-through
+ *        before there was anything to punch through).
+ *   32 — the head is a real HEAD FORM: a smooth matte head on a
+ *        neck, proportioned like a tailor's form — never a
+ *        textured sphere borrowed from another figure.
+ *   33 — fabric bolts on every worktable: three per table with
+ *        varied lengths, radii and colours, and ONE unrolled
+ *        cascade bolt at the first bay's table edge, its cloth
+ *        draping to the floor. */
+
+export const MANNEQUIN = {
+  /** Blocked half-extent around the form's stand. */
+  blockHalf: 0.32,
+  /** The stand's pole top / the torso's centre height. */
+  torsoY: 1.28,
+  /** The head form: a smooth head (radii in metres), on a neck. */
+  headRx: 0.105,
+  headRy: 0.135,
+  headRz: 0.115,
+  headY: 1.78,
+} as const;
+
+export interface AtelierMannequin { x: number; z: number; side: 1 | -1 }
+
+/** One mannequin per bay, in the bay's mouth west of its
+ *  worktable — derived from the bays, never hand-placed. */
+export const ATELIER_MANNEQUINS: readonly AtelierMannequin[] = ATELIER_BAYS.map((bay) => ({
+  x: bay.x - 1.15,
+  z: bay.z + bay.side * 0.55,
+  side: bay.side,
+}));
+
+export interface FabricBolt {
+  x: number;
+  z: number;
+  /** Bolt length along the table (X). */
+  len: number;
+  /** Roll radius. */
+  r: number;
+  /** Cloth colour (the look-independent cloth palette). */
+  color: number;
+  /** Height the roll's centre rides at (on its table). */
+  y: number;
+}
+
+/** The cloth palette the bolts cycle through — deep jewel tones
+ *  in the Living Night Palace's register. */
+export const FABRIC_BOLT_COLORS: readonly number[] = [
+  0x7a1f2b, 0x1f3a6e, 0x2e5d33, 0xb08a3e, 0x5b2a6e, 0x8a4b2a,
+];
+
+/** Three bolts per worktable, varied in length, radius and
+ *  colour — derived from the bay tables, so a bolt can never
+ *  drift off the table it dresses. */
+export const ATELIER_FABRIC_BOLTS: readonly FabricBolt[] = ATELIER_BAYS.flatMap((bay, bi) => {
+  const table = bayTable(bay);
+  return [0, 1, 2].map((k) => {
+    const r = 0.085 + ((bi + k) % 3) * 0.02;
+    return {
+      x: table.cx - 0.7 + k * 0.62,
+      z: table.cz,
+      len: [1.45, 1.05, 1.25][(bi + k) % 3]!,
+      r,
+      color: FABRIC_BOLT_COLORS[(bi * 3 + k) % FABRIC_BOLT_COLORS.length]!,
+      y: BAY_KIT.tableH + r,
+    };
+  });
+});
+
+/** The one unrolled cascade: a bolt standing at the first bay's
+ *  table edge, its cloth falling in a drape to the floor. */
+export const ATELIER_CASCADE = (() => {
+  const bay = ATELIER_BAYS[0]!;
+  const table = bayTable(bay);
+  return {
+    boltX: table.cx + 1.25,
+    boltZ: table.cz,
+    boltR: 0.11,
+    color: FABRIC_BOLT_COLORS[0]!,
+    /** The drape: a cloth fall from the table's open edge to
+     *  the floor, on the bay's mouth side. */
+    drapeX: table.cx + 1.25,
+    drapeZ: table.cz + bay.side * (BAY_KIT.tableD / 2 + 0.16),
+    drapeW: 0.72,
+    drapeH: BAY_KIT.tableH,
+  } as const;
+})();
+
 /* ── The batch's collision, derived ───────────────────────────────
  * Every solid above, as blocked rects — palace-layout registers
  * this list as the room's `blocked`, so the quarter's walls,
@@ -360,6 +455,7 @@ export const ATELIERS_BLOCKED: readonly PalaceRect[] = [
   ...ATELIERS_PLANTERS.map(rectOf),
   ...ATELIERS_LAMPS.map((l) => rectAround(l.x, l.z, LAMP.blockHalf, LAMP.blockHalf)),
   ...ATELIERS_BANNER_POLES.map((p) => rectAround(p.x, p.z, ATELIERS_BANNER_POLE.blockHalf, ATELIERS_BANNER_POLE.blockHalf)),
+  ...ATELIER_MANNEQUINS.map((m) => rectAround(m.x, m.z, MANNEQUIN.blockHalf, MANNEQUIN.blockHalf)),
 ];
 
 /** The district's camera-tall solids (item 44's rule): the wall

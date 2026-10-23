@@ -118,11 +118,13 @@ import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/statio
 import {
   COURTYARD_ID,
   GAME_ROOMS_ID,
+  HEIGHTS_ID,
   MUSIC_HALL_ID,
   isCreatorRoomId,
   creatorSlugFromRoomId,
   registerCreatorRoomLayout,
 } from "@/lib/world/palace-layout";
+import { heightsRosterFromDirectory } from "@/lib/world/creator-heights";
 import {
   creatorRoomId,
   fetchCreatorRoomDetail,
@@ -152,6 +154,7 @@ import {
   createBrowserPeerConnection,
   createBrowserVoiceSink,
   createLocalLevelTap,
+  createVoiceConnectionSummarizer,
   summarizeVoiceConnections,
   voiceConnectionHeadline,
   type VoicePeerConnectionState,
@@ -177,6 +180,7 @@ import {
   gainPolicyForMode,
   loadVoiceMode,
   nextVoiceMode,
+  prevVoiceMode,
   storeVoiceMode,
   VOICE_MODES,
   type VoiceMode,
@@ -468,6 +472,10 @@ export default function WorldPage() {
      Members only — this state only ever exists inside a voice
      session, which guests can't start. */
   const [voiceConnStates, setVoiceConnStates] = useState<Map<string, VoicePeerConnectionState>>(new Map());
+  /* Item 66: the connection summary is rolled up through a memoizing
+     summarizer — unchanged snapshots (join/partway churn, unrelated
+     re-renders) reuse the same summary object instead of recomputing. */
+  const voiceSummarizerRef = useRef(createVoiceConnectionSummarizer());
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
@@ -1158,6 +1166,13 @@ export default function WorldPage() {
     }));
   }, [directory, monumentEvents, monumentLeaderboard, status]);
 
+  /* Stack-100 #2 item 20: the Heights residence plates letter
+     the room's live roster — the directory's members for the
+     Heights room, re-lettered by the scene when they change. */
+  useEffect(() => {
+    sceneRef.current?.setHeightsRoster(heightsRosterFromDirectory(directory, HEIGHTS_ID));
+  }, [directory, status]);
+
   /* Front Row honors: while a show runs, the seat arc shows before
      the stage, and the performer's Front Row members (their public
      court) wear the brighter ring + plate line. Visual honor only —
@@ -1550,7 +1565,7 @@ export default function WorldPage() {
       const bootMode = loadVoiceMode();
       if (bootMode === "off") client.setVoiceOff(true);
       if (bootMode === "deafen") client.setVoiceDeaf(true);
-      scene.onPose = (x, z, rotY) => client.sendMove(x, z, rotY);
+      scene.onPose = (x, z, rotY, y) => client.sendMove(x, z, rotY, y);
       /* A doorway crossing: the scene already flipped its own room
          (the body is through the door); the presence follows by
          transfer, landing at the crossing point. */
@@ -1564,6 +1579,11 @@ export default function WorldPage() {
          the voice mode; Y flips the view. */
       scene.onPadToggleVoice = () => {
         if (!cancelled) setVoiceMode(nextVoiceMode(voiceSwitchRef.current.mode));
+      };
+      /* LT steps the same voice ring backward, through the same
+         page control A steps forward (item 59). */
+      scene.onPadVoiceBack = () => {
+        if (!cancelled) setVoiceMode(prevVoiceMode(voiceSwitchRef.current.mode));
       };
       scene.onPadToggleView = () => {
         if (!cancelled) toggleViewMode();
@@ -2006,16 +2026,35 @@ export default function WorldPage() {
       }
       screenPoll = setInterval(loadScreen, 45_000);
 
-      /* Proximity voice follows the avatars. */
+      /* Proximity voice follows the avatars. Item 96: the tick used
+       * to allocate a fresh Map and a fresh position object per
+       * peer every 250 ms for the whole session. The map and the
+       * per-peer position objects are reused across ticks (the
+       * voice mesh reads the map synchronously and keeps nothing),
+       * with cached objects pruned as peers leave or go voiceless. */
+      const voicePositions = new Map<string, { x: number; z: number }>();
+      const voicePositionCache = new Map<string, { x: number; z: number }>();
       volumeTick = setInterval(() => {
         const mesh = meshRef.current;
         if (!mesh || !client.self) return;
-        const positions = new Map<string, { x: number; z: number }>();
+        voicePositions.clear();
         for (const peer of client.peers.values()) {
-          if (peer.voice) positions.set(peer.peerId, { x: peer.x, z: peer.z });
+          if (!peer.voice) continue;
+          let pos = voicePositionCache.get(peer.peerId);
+          if (!pos) {
+            pos = { x: peer.x, z: peer.z };
+            voicePositionCache.set(peer.peerId, pos);
+          } else {
+            pos.x = peer.x;
+            pos.z = peer.z;
+          }
+          voicePositions.set(peer.peerId, pos);
+        }
+        for (const peerId of voicePositionCache.keys()) {
+          if (!voicePositions.has(peerId)) voicePositionCache.delete(peerId);
         }
         const pose = scene.localPose();
-        mesh.updateVolumes({ x: pose.x, z: pose.z }, positions);
+        mesh.updateVolumes({ x: pose.x, z: pose.z }, voicePositions);
       }, 250);
 
       /* Character lips: each character figure's mouth follows its
@@ -2229,9 +2268,13 @@ export default function WorldPage() {
           : "border-white/15 text-white/75 hover:text-white"
     }`;
   /* The voice connection truth for the footer (item 100): rolled up
-     from the mesh's per-pair states — never assumed from "in voice". */
-  const voiceConnSummary = summarizeVoiceConnections(voiceConnStates);
-  const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary);
+     from the mesh's per-pair states — never assumed from "in voice".
+     Item 66: through the memoizing summarizer, so a render where no
+     pair's state changed reuses the previous summary object. Item 63:
+     the headline also reads the room's live occupant count, so the
+     honest "quiet" caption renders in mixed rooms too. */
+  const voiceConnSummary = voiceSummarizerRef.current(voiceConnStates);
+  const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary, peopleCount);
   /* The voice modes in the words the control speaks them. */
   const voiceModeLabels: Record<VoiceMode, string> = {
     off: "Off",
@@ -3494,9 +3537,9 @@ export default function WorldPage() {
             const editorStation = STATION_BY_ID.get("visual-vibes-editor");
             if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
           }}
-          onOpenStation={(stationId) => {
+          onOpenStation={(stationId, payload) => {
             const station = STATION_BY_ID.get(stationId);
-            if (station) setPanelTarget({ kind: "station", station });
+            if (station) setPanelTarget({ kind: "station", station, payload: payload ?? null });
           }}
           onEnterRoom={(roomId) => {
             /* The Palace Calendar's walk (3.9): a creator room is
@@ -3772,8 +3815,10 @@ export default function WorldPage() {
                     the footer says how the mesh is actually doing —
                     connecting, connected, or plainly failed with the
                     reason and a retry — instead of silent dead air.
-                    Alone in voice there is nobody to connect to, so
-                    no chip shows at all. */}
+                    Item 63: alone in voice (nobody to connect to) is
+                    a room state too — the chip shows the honest quiet
+                    caption at any occupant count, mixed rooms
+                    included, instead of showing nothing. */}
                 {voiceSwitch.inVoice && voiceConnHeadline && (
                   <span
                     data-testid="world-voice-conn-state"

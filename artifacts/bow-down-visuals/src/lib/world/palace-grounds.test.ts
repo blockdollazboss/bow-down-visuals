@@ -12,17 +12,23 @@
  *     exactly item 16's, while plinth/crown/urns outgrew the old
  *     build — and its blocked rect grew in the same batch;
  *   - elevation masses flank the walk paths, never enter them,
- *     and are honestly blocked from the same data;
+ *     and stand at their authored heights from the same data
+ *     (blocked in round 1; climbable step zones since the
+ *     Stack-100 #2 finish of item 38);
  *   - the backdrop stands beyond every walk rect, inside the
  *     camera's far plane from the plaza's viewpoints.
  */
 import { describe, it, expect } from "vitest";
 import {
   COURTYARD_ID,
+  MONUMENT_CORE_BLOCKED,
   PALACE_LAYOUT,
   PLAZA_BLOCKED,
   PLAZA_TALL_BLOCKED,
+  groundHeightAt,
+  isStandable,
   isWalkable,
+  pointInRect,
   type PalaceRect,
 } from "./palace-layout";
 import {
@@ -49,6 +55,10 @@ import {
   backdropGroundRects,
   backdropWindowStyle,
 } from "./palace-grounds";
+import { readFileSync } from "node:fs";
+import { LAWN_METRES_PER_TILE } from "./pbr-materials";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const overlaps = (a: PalaceRect, b: PalaceRect) =>
   a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ;
@@ -163,12 +173,26 @@ describe("monument scale & sculpture (item 17)", () => {
     expect(MONUMENT_BLOCKED.maxX).toBeGreaterThanOrEqual(MONUMENT.cx + half);
     expect(MONUMENT_BLOCKED.minZ).toBeLessThanOrEqual(MONUMENT.cz - half);
     expect(MONUMENT_BLOCKED.maxZ).toBeGreaterThanOrEqual(MONUMENT.cz + half);
-    expect(PLAZA_BLOCKED).toContainEqual(MONUMENT_BLOCKED);
+    /* DELIBERATELY moved by Stack-100 #2 (climbable-Y finish):
+     * MONUMENT_BLOCKED is the CAMERA's footprint now
+     * (PLAZA_TALL_BLOCKED keeps it whole); the walker's blocked
+     * list carries only the stele/drum CORE — the three tiers
+     * around it are climbable step zones (palace-layout
+     * MONUMENT_STEPS at the tiers' own topYs). */
     expect(PLAZA_TALL_BLOCKED).toContainEqual(MONUMENT_BLOCKED);
+    expect(PLAZA_BLOCKED).toContainEqual(MONUMENT_CORE_BLOCKED);
+    expect(PLAZA_BLOCKED).not.toContainEqual(MONUMENT_BLOCKED);
     // The board station + a reader's stance stay on open plaza.
     expect(isWalkable(0, 22.6)).toBe(true);
     expect(isWalkable(0, 22.15)).toBe(true);
     expect(isWalkable(0, 19.7)).toBe(false);
+    // The tiers stand at their authored heights, ring by ring.
+    expect(groundHeightAt(0, 21.6)).toBe(MONUMENT.tier1.topY);
+    expect(groundHeightAt(0, 21.2)).toBe(MONUMENT.tier2.topY);
+    expect(groundHeightAt(0, 20.9)).toBe(MONUMENT.tier3.topY);
+    expect(isStandable(0, 20.9)).toBe(true);
+    // …but the core inside them is no standing ground at all.
+    expect(isStandable(0, 19.7)).toBe(false);
     // The urns stand ON tier 2 (pedestal footprint inside its top).
     expect(Math.abs(MONUMENT.urns.at) + 0.17).toBeLessThanOrEqual(MONUMENT.tier2.size / 2);
     expect(MONUMENT.urns.urnBaseY).toBeCloseTo(MONUMENT.tier2.topY + MONUMENT.urns.pedestalH, 6);
@@ -181,13 +205,23 @@ describe("elevation (item 38)", () => {
     expect(HALL_STEPS.sideX0).toBeGreaterThan(1.8);
     for (const b of HALL_STEPS_BLOCKED) {
       expect(Math.min(Math.abs(b.minX), Math.abs(b.maxX))).toBeGreaterThanOrEqual(1.8);
-      expect(PLAZA_BLOCKED).toContainEqual(b);
-      expect(isWalkable((b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2)).toBe(false);
+      /* DELIBERATELY moved by Stack-100 #2 (climbable-Y finish):
+       * HALL_STEPS_BLOCKED is the masses' footprint RECORD, no
+       * longer a walk gate — the steps are climbable zones
+       * (palace-layout HALL_STEP_ZONES), so the footprint is NOT
+       * in PLAZA_BLOCKED and its centre STANDS at tread height,
+       * verified box-by-box below. */
+      expect(PLAZA_BLOCKED).not.toContainEqual(b);
     }
     // The path between them, and the arch approach, stay walkable.
     expect(isWalkable(0, 14)).toBe(true);
     expect(isWalkable(0, 13)).toBe(true);
-    // Every built step box lands inside a blocked rect.
+    // Every built step box lands inside the footprint record, and
+    // its centre stands at exactly the box's own top height —
+    // EXCEPT where a real solid stands on the box: a plaza-life
+    // table set occupies each platform's centre, and a solid
+    // inside a zone always wins (the zone yields, the top is
+    // not standing ground there).
     for (const s of hallStepRuns()) {
       const r: PalaceRect = {
         minX: s.cx - s.w / 2, maxX: s.cx + s.w / 2, minZ: s.cz - s.d / 2, maxZ: s.cz + s.d / 2,
@@ -197,17 +231,53 @@ describe("elevation (item 38)", () => {
       );
       expect(covered).toBe(true);
       expect(s.cy + s.h / 2).toBeLessThanOrEqual(HALL_STEPS.platformTopY + 1e-9);
+      if (PLAZA_BLOCKED.some((b) => pointInRect(s.cx, s.cz, b))) {
+        expect(isStandable(s.cx, s.cz)).toBe(false);
+        expect(groundHeightAt(s.cx, s.cz)).toBe(0);
+      } else {
+        expect(isStandable(s.cx, s.cz)).toBe(true);
+        expect(groundHeightAt(s.cx, s.cz)).toBeCloseTo(s.cy + s.h / 2, 9);
+      }
     }
+    // The occupied centres are exactly the two platform boxes.
+    const occupied = hallStepRuns().filter((s) =>
+      PLAZA_BLOCKED.some((b) => pointInRect(s.cx, s.cz, b)),
+    );
+    expect(occupied).toHaveLength(2);
+    expect(occupied.every((s) => Math.abs(s.cz - 15.78) < 0.01)).toBe(true);
     // Three rises a side, marching up toward the façade.
     const west = hallStepRuns().filter((s) => s.cx < 0);
     expect(west.length).toBe(4); // 3 treads + the platform
   });
 
   it("the terraces mass the grounds' edges, rising toward the walls, honestly blocked", () => {
+    /* Renamed truth (Stack-100 #2, climbable-Y finish): the
+     * terraces still mass the edges and rise toward the walls,
+     * but they are honestly CLIMBABLE now, not blocked —
+     * TERRACE_BLOCKED is the footprint record; palace-layout's
+     * TERRACE_ZONES carry the tiers as standing ground. Each
+     * tier's own centre stands at its authored top. */
     for (const b of TERRACE_BLOCKED) {
-      expect(PLAZA_BLOCKED).toContainEqual(b);
-      expect(isWalkable((b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2)).toBe(false);
+      expect(PLAZA_BLOCKED).not.toContainEqual(b);
     }
+    for (const s of terraceRuns()) {
+      /* Same solid-wins rule: the planter at (−27.3, 15.8) stands
+       * on the west mass's tier 1 — its centre is solid, not
+       * standing ground, and reads floor height. Every other
+       * tier centre stands at its authored top. */
+      if (PLAZA_BLOCKED.some((b) => pointInRect(s.cx, s.cz, b))) {
+        expect(isStandable(s.cx, s.cz)).toBe(false);
+        expect(groundHeightAt(s.cx, s.cz)).toBe(0);
+      } else {
+        expect(isStandable(s.cx, s.cz)).toBe(true);
+        expect(groundHeightAt(s.cx, s.cz)).toBeCloseTo(s.cy + s.h / 2, 9);
+      }
+    }
+    const occupiedTerraces = terraceRuns().filter((s) =>
+      PLAZA_BLOCKED.some((b) => pointInRect(s.cx, s.cz, b)),
+    );
+    expect(occupiedTerraces).toHaveLength(1);
+    expect(occupiedTerraces[0]!.cx).toBeCloseTo(-27.1, 6);
     const east = terraceRuns().filter((s) => s.cx > 0).sort((a, b) => a.cx - b.cx);
     expect(east.length).toBe(3);
     // Tops ascend as the mass approaches the east wall.
@@ -275,5 +345,20 @@ describe("backdrop ring (item 5)", () => {
     expect(day.emissiveIntensity).toBeLessThan(0.5);
     expect(night.emissive).toBe(0xffa64d); // the façade's own lit-glass gold
     expect(BACKDROP_GARDENS.length).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("Plaza grounds — Stack-100 #2 finishing (items 46–47)", () => {
+  it("item 46 verified: the lawns wear the shipped lawn texture at per-metre repeats — plaza, stage and gardens alike", () => {
+    expect(LAWN_METRES_PER_TILE).toBeGreaterThan(0);
+    expect(sceneSrc).toContain('lawnFor: sizedUrl("lawn", look.lawnTextureUrl, LAWN_METRES_PER_TILE');
+    /* Every lawn surface in the scene is built through lawnFor
+     * (sized by the panel's own metres), never a flat colour. */
+    expect(sceneSrc.match(/mats\.lawnFor\(/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("item 47: the plaza trough crowns are shaped planting clusters (cone + mounds), not single blobs", () => {
+    expect(sceneSrc).toContain("ConeGeometry(0.26, 0.62, 10)");
+    expect(sceneSrc).toContain("shaped planting, not a blob");
   });
 });

@@ -215,23 +215,55 @@ export interface PbrKindParams {
   aoStrength: number;
   /** Lowest AO value (recesses shade, they never go black). */
   aoFloor: number;
+  /* Stack-100 #2 materials round 2: the heightfield itself is
+   * per-kind now — how deep a vein/joint sits and how much broad
+   * undulation the field carries are properties of the SURFACE,
+   * not one global carve. Paving joints bite deepest; a lawn's
+   * mow-tone barely dents; polished marble keeps the original
+   * carve exactly (veinDepth 0.5 / undulation 0.3). */
+  /** Depth a vein/joint recess sits below the field (0..1). */
+  veinDepth: number;
+  /** Broad low-pass undulation weight in the heightfield. */
+  undulation: number;
 }
 
 export const PBR_KIND_PARAMS: Record<PbrKind, PbrKindParams> = {
-  marble: { baseRoughness: 0.34, veinRoughnessBoost: 0.3, normalStrength: 2.4, aoStrength: 1.7, aoFloor: 0.55 },
-  "marble-rough": { baseRoughness: 0.52, veinRoughnessBoost: 0.18, normalStrength: 1.7, aoStrength: 1.4, aoFloor: 0.6 },
-  "marble-floor": { baseRoughness: 0.1, veinRoughnessBoost: 0.2, normalStrength: 1.8, aoStrength: 1.5, aoFloor: 0.6 },
-  fabric: { baseRoughness: 0.78, veinRoughnessBoost: 0.12, normalStrength: 1.3, aoStrength: 1.1, aoFloor: 0.65 },
+  marble: { baseRoughness: 0.34, veinRoughnessBoost: 0.3, normalStrength: 2.4, aoStrength: 1.7, aoFloor: 0.55, veinDepth: 0.5, undulation: 0.3 },
+  "marble-rough": { baseRoughness: 0.52, veinRoughnessBoost: 0.18, normalStrength: 1.7, aoStrength: 1.4, aoFloor: 0.6, veinDepth: 0.45, undulation: 0.3 },
+  "marble-floor": { baseRoughness: 0.1, veinRoughnessBoost: 0.2, normalStrength: 1.8, aoStrength: 1.5, aoFloor: 0.6, veinDepth: 0.5, undulation: 0.26 },
+  fabric: { baseRoughness: 0.78, veinRoughnessBoost: 0.12, normalStrength: 1.3, aoStrength: 1.1, aoFloor: 0.65, veinDepth: 0.35, undulation: 0.2 },
   /* Paving: matte stone setts — the "veins" here are the joints
    * between setts, which the vein-aware heightfield reads as
    * recesses exactly as it should: joints sit lower and rougher. */
-  paving: { baseRoughness: 0.82, veinRoughnessBoost: 0.16, normalStrength: 2.0, aoStrength: 1.5, aoFloor: 0.6 },
+  paving: { baseRoughness: 0.82, veinRoughnessBoost: 0.16, normalStrength: 2.0, aoStrength: 1.5, aoFloor: 0.6, veinDepth: 0.65, undulation: 0.3 },
   /* Lawn: grass is matte end to end; the relief is a soft mow-tone
    * undulation, never a groove. */
-  lawn: { baseRoughness: 0.95, veinRoughnessBoost: 0.04, normalStrength: 1.1, aoStrength: 0.9, aoFloor: 0.7 },
+  lawn: { baseRoughness: 0.95, veinRoughnessBoost: 0.04, normalStrength: 1.1, aoStrength: 0.9, aoFloor: 0.7, veinDepth: 0.22, undulation: 0.18 },
   /* Ashlar stone: cut blocks, mid-matte, joints recessed. */
-  stone: { baseRoughness: 0.68, veinRoughnessBoost: 0.2, normalStrength: 1.9, aoStrength: 1.5, aoFloor: 0.6 },
+  stone: { baseRoughness: 0.68, veinRoughnessBoost: 0.2, normalStrength: 1.9, aoStrength: 1.5, aoFloor: 0.6, veinDepth: 0.55, undulation: 0.3 },
 };
+
+/** The relief table (board item 9, finished in round 2): the
+ *  material-level normal scales the scene applies, named in ONE
+ *  place — before round 2 these were magic numbers repeated at
+ *  every material build (0.6 surfaces, 0.5 fabric, 0.35 gold,
+ *  ad-hoc water values that disagreed site to site). */
+export const MATERIAL_NORMAL_SCALES = {
+  /** Derived-PBR stone/marble surfaces. */
+  surface: 0.6,
+  /** Throne fabric / brocade. */
+  fabric: 0.5,
+  /** Brushed gold (the streak normal is subtle by design). */
+  gold: 0.35,
+  /** Water ripple normals (round 2: one value for every basin). */
+  water: 0.18,
+} as const;
+
+/** One tile of the brushed-gold source covers this many metres
+ *  (round 2: gold repeats derive per-metre like every other
+ *  surface — a gate cap and a monument band no longer share one
+ *  fixed 2×2 repeat regardless of their size). */
+export const GOLD_METRES_PER_TILE = 1.5;
 
 /** Vein-aware heightfield from a colour image.
  *
@@ -243,7 +275,12 @@ export const PBR_KIND_PARAMS: Record<PbrKind, PbrKindParams> = {
  *  a gentle broad undulation from the low-pass luminance. This is
  *  the opposite of the old bumpMap=colour trick, under which a
  *  dark vein on cream EMBOSSED as a ridge of JPEG noise. */
-export function heightFromColour(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {
+export function heightFromColour(
+  rgba: Uint8ClampedArray,
+  width: number,
+  height: number,
+  carve: { veinDepth: number; undulation: number } = { veinDepth: 0.5, undulation: 0.3 },
+): Float32Array {
   const lum = luminanceOf(rgba, width, height);
   const blurRadius = Math.max(2, Math.round(width / 48));
   const local = boxBlurWrapped(lum, width, height, blurRadius);
@@ -253,7 +290,7 @@ export function heightFromColour(rgba: Uint8ClampedArray, width: number, height:
     // Veins are thin and high-contrast: x5 saturates a real vein
     // while broad shading (deviation ~0.02) barely registers.
     const vein = clamp01(deviation * 5);
-    out[i] = clamp01(0.62 + (local[i]! - 0.5) * 0.3 - vein * 0.5);
+    out[i] = clamp01(0.62 + (local[i]! - 0.5) * carve.undulation - vein * carve.veinDepth);
   }
   return out;
 }
@@ -350,7 +387,7 @@ export interface DerivedPbrMaps {
 export function derivePbrMaps(rgba: Uint8ClampedArray, width: number, height: number, kind: PbrKind): DerivedPbrMaps {
   const params = PBR_KIND_PARAMS[kind];
   const color = makeTileable(rgba, width, height);
-  const heightField = heightFromColour(color, width, height);
+  const heightField = heightFromColour(color, width, height, params);
   return {
     color,
     normal: normalFromHeight(heightField, width, height, params.normalStrength),
@@ -433,12 +470,63 @@ export function brushedMetalMaps(
   return { normal: normalFromHeight(height, size, size, 0.55), roughness, height };
 }
 
+/* ── Ripple normals (Stack-100 #2 water round 2) ──────────────────
+ * The water surfaces wore a colour map and nothing else: their
+ * "shimmer" was a sliding picture. A tileable ripple normal map
+ * — a periodic sum of travelling sine waves, integrated through
+ * the same normalFromHeight the stone uses — lets the ONE water
+ * model (plaza-life's waterSurfaceAt) bend light for real: the
+ * scene counter-scrolls this layer against the colour layer. */
+
+/** A tileable ripple heightfield: three periodic wave trains at
+ *  palace-water wavelengths. Every frequency is an integer count
+ *  per tile, so the field wraps exactly — no seam, ever. */
+export function rippleHeightField(size: number): Float32Array {
+  const out = new Float32Array(size * size);
+  const waves: Array<{ fx: number; fy: number; amp: number; phase: number }> = [
+    { fx: 3, fy: 1, amp: 0.4, phase: 0.0 },
+    { fx: -2, fy: 4, amp: 0.3, phase: 1.7 },
+    { fx: 5, fy: -3, amp: 0.2, phase: 3.9 },
+    { fx: 1, fy: 7, amp: 0.12, phase: 5.3 },
+  ];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let h = 0.5;
+      for (const w of waves) {
+        h += w.amp * 0.25 * Math.sin(((x * w.fx + y * w.fy) / size) * Math.PI * 2 + w.phase);
+      }
+      out[y * size + x] = clamp01(h);
+    }
+  }
+  return out;
+}
+
+const RIPPLE_NORMAL_SIZE = 256;
+let rippleNormalTex: THREE.DataTexture | null = null;
+
+/** The shared ripple normal DataTexture (generated once). Scene
+ *  water materials clone it per surface — a clone shares the
+ *  pixels but carries its own offset, which is exactly what the
+ *  water model animates. */
+export function rippleNormalTexture(): THREE.DataTexture {
+  if (rippleNormalTex) return rippleNormalTex;
+  const height = rippleHeightField(RIPPLE_NORMAL_SIZE);
+  const normal = normalFromHeight(height, RIPPLE_NORMAL_SIZE, RIPPLE_NORMAL_SIZE, 1.4);
+  const tex = new THREE.DataTexture(normal, RIPPLE_NORMAL_SIZE, RIPPLE_NORMAL_SIZE);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.needsUpdate = true;
+  rippleNormalTex = tex;
+  return tex;
+}
+
 /* ── three.js-facing half ───────────────────────────────────────────
  * Derived DataTextures are created as 1×1 placeholders carrying the
  * kind's neutral values (so a material is honest before its source
  * lands), registered per (url, kind, repeat), and filled in by
  * enhanceLoadedTexture when the colour source for that URL loads.
- * Pixel derivation runs ONCE per (url, kind) at ≤512² — the maps
+ * Pixel derivation runs ONCE per (url, kind) at the kind's
+ * derivation cap (512² ordinary, 1024² hero kinds) — the maps
  * repeat, they don't need the colour map's full resolution. */
 
 export interface DerivedPbrTextures {
@@ -532,6 +620,22 @@ export function brushedGoldTextures(
   return entry;
 }
 
+/** Derivation resolution (round 2): derived maps are computed
+ *  at ≤512² for ordinary surfaces — they repeat, they don't need
+ *  more. The HERO kinds (the plaza's paving and the façade's
+ *  ashlar stone — the two highest-traffic surfaces, board item
+ *  12's named pair) derive at ≤1024²: their joints are the relief
+ *  the whole plaza reads at grazing angles. The colour sources
+ *  themselves already ship at the generator's native maximum
+ *  (1600², texture-manifest.md) — no upscale anywhere. */
+export const DERIVATION_MAX_PX = 512;
+export const HERO_DERIVATION_MAX_PX = 1024;
+export const HERO_PBR_KINDS: ReadonlySet<PbrKind> = new Set(["paving", "stone"]);
+
+export function derivationMaxPxFor(kind: PbrKind): number {
+  return HERO_PBR_KINDS.has(kind) ? HERO_DERIVATION_MAX_PX : DERIVATION_MAX_PX;
+}
+
 /** Called from hall-scene's texture loader when a colour source
  *  lands: swap the texture's image for its tileable variant and
  *  fill every registered derived-map set for the URL. Runs the
@@ -561,30 +665,28 @@ export function enhanceLoadedTexture(url: string, tex: THREE.Texture): void {
     tileCanvas = canvas;
     tileableCanvases.set(url, canvas);
 
-    // Derived pixels at ≤512², once per registered kind.
+    // Derived pixels once per registered kind, at the kind's
+    // derivation cap (512 ordinary, 1024 hero — derivationMaxPxFor).
     const kinds = new Set<PbrKind>();
     for (const entry of derivedEntries.values()) if (entry.url === url) kinds.add(entry.kind);
-    if (kinds.size > 0) {
-      const dScale = Math.min(1, 512 / Math.max(w, h));
+    for (const kind of kinds) {
+      const dScale = Math.min(1, derivationMaxPxFor(kind) / Math.max(w, h));
       const dw = Math.max(2, Math.round(w * dScale));
       const dh = Math.max(2, Math.round(h * dScale));
       const dCanvas = document.createElement("canvas");
       dCanvas.width = dw;
       dCanvas.height = dh;
       const dg = dCanvas.getContext("2d");
-      if (dg) {
-        dg.drawImage(canvas, 0, 0, dw, dh);
-        const dPixels = dg.getImageData(0, 0, dw, dh).data;
-        for (const kind of kinds) {
-          const maps = derivePbrMaps(dPixels, dw, dh, kind);
-          derivedPixels.set(`${url}|${kind}`, maps);
-          for (const entry of derivedEntries.values()) {
-            if (entry.url === url && entry.kind === kind) {
-              fillDataTexture(entry.normalMap, maps.normal, dw, dh);
-              fillDataTexture(entry.roughnessMap, maps.roughness, dw, dh);
-              fillDataTexture(entry.aoMap, maps.ao, dw, dh);
-            }
-          }
+      if (!dg) continue;
+      dg.drawImage(canvas, 0, 0, dw, dh);
+      const dPixels = dg.getImageData(0, 0, dw, dh).data;
+      const maps = derivePbrMaps(dPixels, dw, dh, kind);
+      derivedPixels.set(`${url}|${kind}`, maps);
+      for (const entry of derivedEntries.values()) {
+        if (entry.url === url && entry.kind === kind) {
+          fillDataTexture(entry.normalMap, maps.normal, dw, dh);
+          fillDataTexture(entry.roughnessMap, maps.roughness, dw, dh);
+          fillDataTexture(entry.aoMap, maps.ao, dw, dh);
         }
       }
     }

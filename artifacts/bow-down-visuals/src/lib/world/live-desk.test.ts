@@ -53,10 +53,20 @@ describe("#85 studio rails — the 2D studio's verbatim doors", () => {
   });
 
   it("normalizes the status payload the studio reads (configured, transport, live stream)", () => {
+    /* Item 98 pin change (justified): LiveStatusView.liveStream now
+       also carries startedAt — the server-written broadcast start
+       the shared status read publishes (see live-desk.ts). The old
+       exact-shape expectation predates the field. */
+    expect(normalizeLiveStatus({
+      configured: true, transport: "own",
+      live_stream: { id: "s1", title: "Show", viewer_count: 7, started_at: "2026-10-23T19:00:00.000Z" },
+    })).toEqual({ configured: true, transport: "own", liveStream: { id: "s1", title: "Show", viewerCount: 7, startedAt: "2026-10-23T19:00:00.000Z" } });
+    /* A status payload without started_at reads startedAt: null —
+       unknown, never a fabricated client-side start. */
     expect(normalizeLiveStatus({
       configured: true, transport: "own",
       live_stream: { id: "s1", title: "Show", viewer_count: 7 },
-    })).toEqual({ configured: true, transport: "own", liveStream: { id: "s1", title: "Show", viewerCount: 7 } });
+    }).liveStream?.startedAt).toBeNull();
     expect(normalizeLiveStatus({ configured: false, transport: "weird", live_stream: null }))
       .toEqual({ configured: false, transport: null, liveStream: null });
     expect(normalizeLiveStatus(null)).toEqual({ configured: false, transport: null, liveStream: null });
@@ -72,6 +82,25 @@ describe("#85 studio rails — the 2D studio's verbatim doors", () => {
     expect(ingestKeyShownOnce("sk_live_123")).toBe(true);
     expect(ingestKeyShownOnce(null)).toBe(false);
     expect(ingestKeyShownOnce("")).toBe(false);
+  });
+
+  it("stream key honesty (Stack-100 #2 item 79): the key is labelled untested until a broadcast connects", () => {
+    /* No handshake test exists on this surface, so the desk must
+       say the key is untested rather than implying "ready". */
+    expect(deskSrc).toContain('data-testid="world-live-ingest-untested"');
+    expect(deskSrc).toContain("This key is untested");
+    expect(deskSrc).toContain("ingest?.enabled && ingest.has_key");
+  });
+
+  it("live counts are server truth only (Stack-100 #2 item 70): no local increment anywhere in the desk", () => {
+    /* Facet D-H3 claimed the active-count header increments locally
+       on join. The shipped desk reads viewer counts exclusively
+       from server DTOs (normalizeLiveStatus / normalizeWatchStream
+       / the studio's viewer_count poll) — this pin keeps any local
+       +1 from ever creeping back in. */
+    expect(deskSrc).not.toMatch(/viewerCount\s*\+\s*1/);
+    expect(deskSrc).not.toMatch(/setViewers\(\s*\(?\s*v\s*\)?\s*=>\s*v\s*\+/);
+    expect(deskSrc).not.toMatch(/setViewers\([^)]*\+\s*1/);
   });
 
   it("loyalty menus are LoyaltySettingsPanel's fixed menus verbatim", () => {

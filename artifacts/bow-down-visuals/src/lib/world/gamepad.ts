@@ -15,6 +15,14 @@
  *   buttons[10] L3 (stick click) ┘ → hurry/sprint (held)
  *   buttons[0]  A / Cross    → step the voice mode (edge):
  *                              Off → Proximity → Lobby → Deafen → Off
+ *   buttons[6]  LT / L2      → step the voice mode BACKWARD (edge):
+ *                              the A button's reverse, so the two
+ *                              shoulders of the voice ring walk it
+ *                              both ways (Off ← Proximity ← Lobby ←
+ *                              Deafen ← Off). LT was the pad's one
+ *                              dead trigger until Stack-100 #2
+ *                              item 59 — every other indexed button
+ *                              already had a job.
  *   buttons[3]  Y / Triangle → toggle first/third person (edge)
  *   buttons[4]  LB / L1      → station interact (edge): open the
  *                              door you're standing at. Every face
@@ -43,6 +51,8 @@ export interface GamepadEdges {
   voice: boolean;
   view: boolean;
   interact: boolean;
+  /** LT held at the last poll (the voice-back edge state). */
+  lt: boolean;
   /** Action buttons held at the last poll, by action id. */
   actions: Partial<Record<WorldActionId, boolean>>;
 }
@@ -58,6 +68,9 @@ export interface GamepadIntent {
   sprint: boolean;
   /** Edge-triggered: true only on the frame the button goes down. */
   toggleVoice: boolean;
+  /** Edge-triggered: LT went down this frame — step the voice
+   *  mode BACKWARD (the A button's reverse). */
+  voiceBack: boolean;
   toggleView: boolean;
   /** Edge-triggered: LB went down this frame — the station
    *  interact (open the door at the showing prompt). */
@@ -74,12 +87,13 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   lookY: 0,
   sprint: false,
   toggleVoice: false,
+  voiceBack: false,
   toggleView: false,
   interact: false,
   action: null,
 };
 
-export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false, interact: false, actions: {} };
+export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false, interact: false, lt: false, actions: {} };
 
 /** Action buttons in priority order — if two go down on the same
  *  frame, the first in this list is the performance. */
@@ -140,6 +154,7 @@ export function pollGamepad(
     voice: pressed(pad, 0),
     view: pressed(pad, 3),
     interact: pressed(pad, 4),
+    lt: pressed(pad, 6),
     actions: actionEdges,
   };
   return {
@@ -150,6 +165,7 @@ export function pollGamepad(
       lookY,
       sprint: pressed(pad, 7) || pressed(pad, 10),
       toggleVoice: edges.voice && !prev.voice,
+      voiceBack: edges.lt && !prev.lt,
       toggleView: edges.view && !prev.view,
       interact: edges.interact && !prev.interact,
       action,

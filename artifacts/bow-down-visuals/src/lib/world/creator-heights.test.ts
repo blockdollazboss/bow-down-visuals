@@ -58,6 +58,7 @@ import {
   FRONT_KIT,
   HEIGHTS_BENCHES,
   HEIGHTS_BLOCKED,
+  HEIGHTS_DESK,
   HEIGHTS_FRONT_DOORS,
   HEIGHTS_FRONT_POSTS,
   HEIGHTS_FRONTS,
@@ -67,12 +68,20 @@ import {
   HEIGHTS_PLANTERS,
   HEIGHTS_PLANTER_CROWNS,
   HEIGHTS_BANNER_POLES,
+  HEIGHTS_PLATE,
+  HEIGHTS_PLATES,
+  HEIGHTS_RUNNER,
   HEIGHTS_TALL_BLOCKED,
   HEIGHTS_TERRACES,
   HEIGHTS_TERRACE_CROWNS,
   HEIGHTS_TERRACE_STEPS,
+  HEIGHTS_THRESHOLD,
   HEIGHTS_WALK,
   HEIGHTS_WALL_RUNS,
+  heightsPlateLine,
+  heightsPlateLines,
+  heightsRosterFromDirectory,
+  heightsRosterSignature,
 } from "./creator-heights";
 import { BACKDROP_GARDENS, backdropGroundRects, pavingSlabsFor } from "./palace-grounds";
 
@@ -282,6 +291,81 @@ describe("Creator Heights — honest collision (item 36)", () => {
     expect(cameraPointFree(HEIGHTS_ID, HEIGHTS_FRONT_POSTS[0]!.x, HEIGHTS_FRONT_POSTS[0]!.z)).toBe(false);
     expect(cameraPointFree(HEIGHTS_ID, 20.85, 20.8)).toBe(true);
     expect(cameraPointFree(HEIGHTS_ID, 14.6, 24.6)).toBe(true);
+  });
+});
+
+describe("Creator Heights — Stack-100 #2 finishing (items 20–26)", () => {
+  it("item 22 verified: the court already carries benches and lamps, built and blocked", () => {
+    expect(HEIGHTS_BENCHES.length).toBeGreaterThanOrEqual(3);
+    expect(HEIGHTS_LAMPS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("item 20: one roster plate per front, centred over its door, above the door head and under the canopy", () => {
+    expect(HEIGHTS_PLATES).toHaveLength(HEIGHTS_FRONTS.length);
+    HEIGHTS_PLATES.forEach((p, i) => {
+      const door = HEIGHTS_FRONT_DOORS[i]!;
+      expect(p.x).toBe(door.cx);
+      expect(p.z).toBeGreaterThan(door.cz);
+      expect(HEIGHTS_PLATE.y - HEIGHTS_PLATE.h / 2).toBeGreaterThanOrEqual(FRONT_KIT.doorH);
+      expect(HEIGHTS_PLATE.y + HEIGHTS_PLATE.h / 2).toBeLessThanOrEqual(FRONT_KIT.canopyY - 0.04);
+    });
+  });
+
+  it("item 20: plate lines letter real names, VACANT when a front has no resident, trimmed to the plate", () => {
+    expect(heightsPlateLines([])).toEqual(["VACANT", "VACANT", "VACANT"]);
+    expect(heightsPlateLines(["Ada Lovelace"])).toEqual(["Ada Lovelace", "VACANT", "VACANT"]);
+    expect(heightsPlateLine(["  Grace   Hopper "], 0)).toBe("Grace Hopper");
+    expect(heightsPlateLine(["Averyveryverylongname"], 0)).toHaveLength(18);
+    expect(heightsPlateLine(["A", "B", "C", "D"], 2)).toBe("C");
+    expect(heightsRosterSignature(["Ada"])).not.toBe(heightsRosterSignature(["Grace"]));
+    expect(heightsRosterSignature(["Ada"])).toBe(heightsRosterSignature(["Ada"]));
+  });
+
+  it("item 20: the roster comes from the directory's Heights entry — the monument's own read", () => {
+    const directory = [
+      { id: "world:courtyard", members: ["Someone Else"] },
+      { id: HEIGHTS_ID, members: ["Ada Lovelace", "Grace Hopper"] },
+    ];
+    expect(heightsRosterFromDirectory(directory, HEIGHTS_ID)).toEqual(["Ada Lovelace", "Grace Hopper"]);
+    expect(heightsRosterFromDirectory([], HEIGHTS_ID)).toEqual([]);
+    expect(heightsRosterFromDirectory(directory, "world:nowhere")).toEqual([]);
+  });
+
+  it("item 21: the front desk and its chair are solid from the same data; the dressing rides the counter", () => {
+    expect(isWalkable(HEIGHTS_DESK.cx, HEIGHTS_DESK.cz)).toBe(false);
+    expect(isWalkable(HEIGHTS_DESK.chair.x, HEIGHTS_DESK.chair.z)).toBe(false);
+    for (const dx of [HEIGHTS_DESK.bellDx, HEIGHTS_DESK.lampDx, HEIGHTS_DESK.papersDx]) {
+      expect(Math.abs(dx)).toBeLessThan(HEIGHTS_DESK.w / 2);
+    }
+    /* The desk keeps the court's working ground open. */
+    expect(isWalkable(20.85, 20.8)).toBe(true); // the Slate
+    expect(isWalkable(20.85, 21.8)).toBe(true); // the court's heart
+  });
+
+  it("item 23: wall-bay planters complete the circuit — a bed on the east wall's southern bay too, crowns on beds", () => {
+    /* Corrected at integration (coordinator): the item's first
+     * cut added TWO east beds; the northern one stood at
+     * (27.5, 18.6) — on the plaza terrace mass (tiers 0.62/0.95),
+     * where a floor-level bed sits buried and its blocked rect
+     * fenced off climbable tiers. It was removed; the northern
+     * bay is dressed by the pre-existing corner bed at the
+     * mass's foot. What stands: west bed, corner bed, and the
+     * southern east-bay bed at (27.5, 22.2). */
+    expect(HEIGHTS_PLANTERS.length).toBe(3);
+    const eastBeds = HEIGHTS_PLANTERS.filter((p) => p.cx > 27);
+    expect(eastBeds.length).toBeGreaterThanOrEqual(1);
+    for (const b of eastBeds) expect(isWalkable(b.cx, b.cz)).toBe(false);
+  });
+
+  it("items 25–26: the runner and the arrival threshold are flat inlay — the gate passage still walks", () => {
+    expect(HEIGHTS_RUNNER.cz).toBe(24.6);
+    expect(isWalkable(HEIGHTS_THRESHOLD.band.x, HEIGHTS_THRESHOLD.band.z)).toBe(true);
+    expect(isWalkable(16.0, 24.6)).toBe(true); // on the runner, on the walkway
+    for (const r of HEIGHTS_BLOCKED) {
+      const isBand = Math.abs(r.minX - (HEIGHTS_THRESHOLD.band.x - HEIGHTS_THRESHOLD.band.w / 2)) < 1e-9
+        && Math.abs(r.minZ - (HEIGHTS_THRESHOLD.band.z - HEIGHTS_THRESHOLD.band.d / 2)) < 1e-9;
+      expect(isBand).toBe(false);
+    }
   });
 });
 

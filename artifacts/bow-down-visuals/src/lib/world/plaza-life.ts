@@ -160,15 +160,92 @@ export const POOL_BLOCKED: PalaceRect = rectAround(POOL.cx, POOL.cz, POOL.w / 2,
 /** The water surface's animation at one moment: a slow two-axis
  *  texture scroll (the shimmer) — offsets wrap in 0..1 so the
  *  scroll loops seamlessly over any span. Under reduced motion
- *  the scene never applies it and the surface rests still. */
-export function waterSurfaceAt(tSec: number): { offsetX: number; offsetY: number; jetPulse: number } {
+ *  the scene never applies it and the surface rests still.
+ *
+ *  Stack-100 #2 water round 2: the ONE water model now also
+ *  drives the ripple NORMAL layer (a counter-scrolling normal
+ *  map, so the surface bends light instead of only sliding a
+ *  picture), the fountain jet's HEIGHT pulse, the falling
+ *  sheet's breathing opacity, and the impact ripple where the
+ *  fall lands (an expanding ring that fades as it grows). Every
+ *  water body in the world — plaza pool, gardens rill + basin,
+ *  boardwalk basin, backdrop moat — reads this same model. */
+export interface WaterSurfaceState {
+  offsetX: number;
+  offsetY: number;
+  /** Ripple-normal layer offsets: counter-scroll against the
+   *  colour layer so the two never lock into one sliding sheet. */
+  normalOffsetX: number;
+  normalOffsetY: number;
+  /** The fountain jet's girth pulse (±10%). */
+  jetPulse: number;
+  /** The fountain jet's HEIGHT pulse (±6%, phase-shifted from
+   *  the girth so the jet breathes instead of throbbing). */
+  jetHeightPulse: number;
+  /** The falling sheet's opacity (0..1 of its built opacity). */
+  fallOpacity: number;
+  /** Impact ripple: phase 0..1 of one expansion cycle. */
+  ripplePhase: number;
+  /** Impact ripple ring scale at this phase (0.35 → 0.95). */
+  rippleScale: number;
+  /** Impact ripple opacity: strongest at birth, gone at full size. */
+  rippleOpacity: number;
+}
+
+export function waterSurfaceAt(tSec: number): WaterSurfaceState {
+  const ripplePhase = (tSec * 0.45) % 1;
   return {
     offsetX: (tSec * 0.008) % 1,
     offsetY: (tSec * 0.0053) % 1,
+    normalOffsetX: (1 - (tSec * 0.013) % 1) % 1,
+    normalOffsetY: (tSec * 0.0091) % 1,
     /* The fountain jet's breathing: ±10% around its true height. */
     jetPulse: 1 + 0.1 * Math.sin(tSec * 2.1),
+    jetHeightPulse: 1 + 0.06 * Math.sin(tSec * 2.1 + 0.7),
+    fallOpacity: 0.82 + 0.18 * Math.sin(tSec * 1.3 + 0.4),
+    ripplePhase,
+    rippleScale: 0.35 + 0.6 * ripplePhase,
+    rippleOpacity: 0.5 * (1 - ripplePhase),
   };
 }
+
+/* ── The wet edge (Stack-100 #2 item 6) ──────────────────────────
+ * Where water meets stone the shipped world drew a hard CG
+ * line. The wet edge is a narrow dark band laid on the water at
+ * the rim — stone that stays wet reads darker and glossier than
+ * dry stone, and the eye accepts the join. One treatment for
+ * every rectangular basin (pool, rill, boardwalk basin) and a
+ * ring for the round gardens basin: same width, same opacity,
+ * built from this one record. */
+export const WET_EDGE = {
+  /** Band width measured inward from the rim (m). */
+  width: 0.22,
+  /** Band opacity over the water (a stain, not a stripe). */
+  opacity: 0.32,
+  /** Hover above the water surface (m) — no z-fighting. */
+  lift: 0.004,
+  color: 0x0a1418,
+} as const;
+
+/** The plaza fountain's falling sheet + impact ripple geometry
+ *  (Stack-100 #2 item 7): the plaza fountain had a jet and no
+ *  fall — water rose and vanished. The sheet is a translucent
+ *  cone from the basin's rim down to the pool's surface, and the
+ *  ripple is a flat ring on the pool around the column, expanded
+ *  and faded by waterSurfaceAt. The gardens fountain already had
+ *  its fall (districts item 36); this is the plaza twin. */
+export const FOUNTAIN_FALL = {
+  /** Sheet top radius (at the basin rim) / bottom radius (at the pool). */
+  topR: 0.78,
+  bottomR: 1.18,
+  /** Sheet spans basin rim → pool water surface. */
+  topY: FOUNTAIN.basinTopY - 0.06,
+  bottomY: POOL.waterY + 0.02,
+  /** Impact ripple ring radii (unit ring, scaled by the model). */
+  rippleInnerR: 0.92,
+  rippleOuterR: 1.0,
+  rippleY: POOL.waterY + 0.012,
+} as const;
 
 /** The water's tint per look: the art lane's one water file
  *  (water-dark.jpg) is the dark look's still dusk water; by day

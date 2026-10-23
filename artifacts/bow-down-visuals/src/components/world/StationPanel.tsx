@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
+import type { PanelPayload } from "@/lib/world/panel-payload";
 import {
   resolveStationPanel,
   editorStepthroughSearch,
@@ -91,8 +92,17 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
    phishing-hygiene refusal). */
 
 /** What the panel is showing: a station. (The bare-page target
- *  kind died with the in-panel router at Step 8.) */
-export type StationPanelTarget = { kind: "station"; station: PalaceStation };
+ *  kind died with the in-panel router at Step 8.) The optional
+ *  payload (Stack-100 #2 item 97, lib/world/panel-payload) is the
+ *  handoff context a panel swap carries — a template/state
+ *  reference the opening desk defensively parses for its own
+ *  station id and prefills from; absent or garbage, the desk
+ *  opens blank exactly as it always has. */
+export type StationPanelTarget = {
+  kind: "station";
+  station: PalaceStation;
+  payload?: PanelPayload | null;
+};
 
 export interface StationPanelProps {
   target: StationPanelTarget;
@@ -140,8 +150,10 @@ export interface StationPanelProps {
    *  registry id — the Quest Board's "Go do it" rides this to the
    *  desk that performs the quest (the same panel-swap the Create
    *  desks' editor chip uses, generalized). Optional — hosts
-   *  without it leave quest actions as explicit transfers. */
-  onOpenStation?: (stationId: string) => void;
+   *  without it leave quest actions as explicit transfers. The
+   *  optional payload (Stack-100 #2 item 97) carries a handoff's
+   *  template/state reference into the opening desk. */
+  onOpenStation?: (stationId: string, payload?: PanelPayload | null) => void;
   /** The Palace Calendar's walk (3.9): carry the walker into the
    *  named room — a palace room id, or a creator room
    *  ("creator:<slug>", which the page walks through its doorway
@@ -1755,6 +1767,7 @@ export default function StationPanel(props: StationPanelProps) {
                 onJukeboxAdd={props.onJukeboxAdd}
                 onOpenEditor={props.onOpenEditorStation}
                 shelfPlayer={shelfPlayer}
+                panelPayload={target.payload ?? null}
               />
             ) : resolution.pattern === "shop" ? (
               <ShopStand station={station} isLight={isLight} isGuest={isGuest} />

@@ -1108,13 +1108,18 @@ export class WorldClient {
   }
 
   /** Position sync — throttled; the latest pose always wins the next
-   *  window, so a fast turn never gets stuck a beat behind. */
-  sendMove(x: number, z: number, rotY: number): void {
+   *  window, so a fast turn never gets stuck a beat behind. `y` is
+   *  the figure's height above the room floor (Stack-100 #2 item
+   *  48): a real field since the climbable-Y finish — the scene
+   *  eases it over the layout's step zones and the server
+   *  validates it against its mirrored grounds table — where in
+   *  the flat era it travelled as a constant 0. */
+  sendMove(x: number, z: number, rotY: number, y: number): void {
     if (this.status !== "inside" || !this.socket) return;
     const t = this.now();
     if (t - this.lastMoveSentAt < MOVE_SEND_INTERVAL_MS) return;
     this.lastMoveSentAt = t;
-    this.send({ type: "move", x, y: 0, z, rotY });
+    this.send({ type: "move", x, y, z, rotY });
   }
 
   /** Room text. Returns false without sending when it can't land

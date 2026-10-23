@@ -218,3 +218,46 @@ describe("device memory", () => {
     expect(() => storeCharacterVoiceEnabled(false, broken)).not.toThrow();
   });
 });
+
+/* ── Item 65 (Stack-100 #2) — voice labels are SINGLE-SOURCED ───────
+   Facet C-V3 claimed a parallel `SHAPE_LABELS` array (pitch/rate
+   labels duplicated beside the shape data). Verified STALE against
+   the shipped tree: no such array exists here or anywhere in git
+   history — every profile carries its own `label`, the stored form
+   drops it, and the presets are DERIVED from the profiles via
+   storedFormOf. These pins keep it that way: a future parallel
+   label table fails here instead of drifting silently. */
+describe("item 65 — labels live on the profiles, nowhere else", () => {
+  it("every house profile carries its own non-empty label", () => {
+    for (const p of [NEUTRAL_VOICE_PROFILE, GUARD_MALE_VOICE_PROFILE, GUARD_FEMALE_VOICE_PROFILE]) {
+      expect(typeof p.label).toBe("string");
+      expect(p.label.length).toBeGreaterThan(0);
+      /* Resolution returns the profile itself — the label the hall
+         speaks is the one on the data it describes. */
+      expect(resolveCharacterVoiceProfile({ characterId: null, presenceKey: null })).toBe(NEUTRAL_VOICE_PROFILE);
+    }
+    expect(GUARD_MALE_VOICE_PROFILE.label).toContain("male palace guard");
+    expect(GUARD_FEMALE_VOICE_PROFILE.label).toContain("female palace guard");
+  });
+
+  it("the stored (vault) form carries NO label — labels are never duplicated into a second shape", () => {
+    for (const p of [GUARD_MALE_VOICE_PROFILE, GUARD_FEMALE_VOICE_PROFILE]) {
+      const stored = storedFormOf(p);
+      expect(Object.keys(stored).sort()).toEqual(["eq", "formantGainDb", "formantRatio", "pitchSemitones"]);
+      expect(stored).not.toHaveProperty("label");
+    }
+    /* A vault character's label is derived at realization time from
+       the character itself — profileFromStored is the single place
+       a stored shape gains words. */
+    const realized = profileFromStored("vault-1", "Nova", DEEP_VOICE_PRESET);
+    expect(realized.label).toBe("Nova");
+    expect(realized.pitchSemitones).toBe(GUARD_MALE_VOICE_PROFILE.pitchSemitones);
+  });
+
+  it("the module source has no parallel label array (no SHAPE_LABELS, no *_LABELS table)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("./character-voice.ts", import.meta.url), "utf8");
+    expect(src).not.toContain("SHAPE_LABELS");
+    expect(src).not.toMatch(/_LABELS\s*[:=]/);
+  });
+});

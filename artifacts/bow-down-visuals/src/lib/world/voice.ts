@@ -149,12 +149,50 @@ export function summarizeVoiceConnections(
   return { total, connected, connecting, failed, failedPeerIds, state };
 }
 
+/**
+ * A memoizing summarizer (Stack-100 #2 item 66): the mesh emits a
+ * fresh snapshot Map on every peer change and the page re-renders
+ * for many unrelated reasons, so rolling the summary up from
+ * scratch on every snapshot/render — including join/partway states
+ * where nothing changed — is wasted work and, worse, a NEW summary
+ * object each time, which defeats any downstream memo on it. This
+ * summarizer returns the SAME summary object while the snapshot's
+ * contents are unchanged (same peers, same states), and recomputes
+ * only when they actually differ. Contents are compared, not Map
+ * identity — the page copies the mesh's Map into state.
+ */
+export function createVoiceConnectionSummarizer(): (
+  states: ReadonlyMap<string, VoicePeerConnectionState>,
+) => VoiceConnectionSummary {
+  let lastKey: string | null = null;
+  let lastSummary: VoiceConnectionSummary | null = null;
+  return (states) => {
+    let key = "";
+    for (const [peerId, s] of states) key += `${peerId}=${s};`;
+    if (lastSummary !== null && key === lastKey) return lastSummary;
+    lastKey = key;
+    lastSummary = summarizeVoiceConnections(states);
+    return lastSummary;
+  };
+}
+
 /** The headline the voice UI shows for a summary — plain words, no
- *  dead air dressed up as success. Empty state reads as no headline. */
-export function voiceConnectionHeadline(summary: VoiceConnectionSummary): string {
+ *  dead air dressed up as success. Without room context the empty
+ *  state reads as no headline. WITH the room's occupant count
+ *  (Stack-100 #2 item 63) the empty state is the room's honest
+ *  quiet signal: you are in voice and nobody else is, so the room
+ *  is voice-quiet — and that renders BY ROOM STATE at any occupant
+ *  count (alone, or in a mixed room of 2+ where everyone else is
+ *  text-only), never only when a room has exactly one member. */
+export function voiceConnectionHeadline(
+  summary: VoiceConnectionSummary,
+  roomOccupants?: number,
+): string {
   switch (summary.state) {
     case "empty":
-      return "";
+      return typeof roomOccupants === "number"
+        ? "Quiet in here — you're the only one in voice right now"
+        : "";
     case "connected":
       return "Voice connected";
     case "connecting":

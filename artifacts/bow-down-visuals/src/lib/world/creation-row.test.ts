@@ -47,6 +47,7 @@ import {
   ROW_CRATES,
   ROW_INTERIOR,
   ROW_LAMPS,
+  ROW_STALLS,
   ROW_PIERS,
   ROW_PLANTERS,
   ROW_PLANTER_CROWNS,
@@ -60,6 +61,10 @@ import {
   ROW_WALL_RUNS,
 } from "./creation-row";
 import { pavingSlabsFor, backdropGroundRects } from "./palace-grounds";
+import { readFileSync } from "node:fs";
+import { propVariation } from "./prop-variation";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const room = PALACE_LAYOUT[CREATION_ROW_ID]!;
 
@@ -229,5 +234,29 @@ describe("Creation Row — the outdoor ground system (item 33)", () => {
       expect(overlaps(r, ROW_INTERIOR), JSON.stringify(r)).toBe(false);
       expect(overlaps(r, ROW_WALK), JSON.stringify(r)).toBe(false);
     }
+  });
+});
+
+describe("Creation Row — Stack-100 #2 finishing (items 34–35)", () => {
+  it("item 34: the lamps spread the street's whole run — no three share a 3 m span", () => {
+    const xs = ROW_LAMPS.map((l) => l.x).sort((a, b) => a - b);
+    expect(xs[xs.length - 1]! - xs[0]!).toBeGreaterThanOrEqual(18);
+    for (let i = 0; i + 2 < xs.length; i++) {
+      expect(xs[i + 2]! - xs[i]!).toBeGreaterThan(3);
+    }
+    /* Both street edges are lit along the run. */
+    expect(ROW_LAMPS.some((l) => l.z < 14.5)).toBe(true);
+    expect(ROW_LAMPS.some((l) => l.z > 14.5)).toBe(true);
+  });
+
+  it("item 35: stall variety lives in the variation system — deterministic, square, skin-only", () => {
+    const a = propVariation("stall", 0);
+    expect(propVariation("stall", 0)).toEqual(a);
+    expect(a.rotY).toBe(0);
+    expect(Math.abs(a.scale - 1)).toBeLessThanOrEqual(0.03);
+    const tints = new Set(ROW_STALLS.map((_, i) => propVariation("stall", i).hueShift));
+    expect(tints.size).toBeGreaterThan(1);
+    expect(sceneSrc).toContain('propVariation("stall", si + (0))');
+    expect(sceneSrc).toContain('propVariation("stall", si + (100))');
   });
 });

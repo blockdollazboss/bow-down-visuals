@@ -24,7 +24,17 @@ import {
   brushedMetalMaps,
   derivedPbrTextures,
   brushedGoldTextures,
+  rippleHeightField,
+  rippleNormalTexture,
+  MATERIAL_NORMAL_SCALES,
+  GOLD_METRES_PER_TILE,
+  DERIVATION_MAX_PX,
+  HERO_DERIVATION_MAX_PX,
+  derivationMaxPxFor,
 } from "./pbr-materials";
+import { readFileSync } from "node:fs";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const W = 64;
 const H = 64;
@@ -236,6 +246,74 @@ describe("brushed gold (item 12)", () => {
   });
 });
 
+describe("materials round 2 (Stack-100 #2 items 9–12)", () => {
+  it("per-kind height logic: joints bite deepest, lawn barely dents, marble keeps the original carve", () => {
+    expect(PBR_KIND_PARAMS.paving.veinDepth).toBeGreaterThan(PBR_KIND_PARAMS.marble.veinDepth);
+    expect(PBR_KIND_PARAMS.stone.veinDepth).toBeGreaterThan(PBR_KIND_PARAMS.marble.veinDepth);
+    expect(PBR_KIND_PARAMS.lawn.veinDepth).toBeLessThan(PBR_KIND_PARAMS.marble.veinDepth);
+    expect(PBR_KIND_PARAMS.marble.veinDepth).toBe(0.5);
+    expect(PBR_KIND_PARAMS.marble.undulation).toBe(0.3);
+    // Same image, different kind → different heightfields now.
+    const hp = derivePbrMaps(creamVein, W, H, "paving");
+    const hm = derivePbrMaps(creamVein, W, H, "marble");
+    const vein = 32 * W + 32;
+    expect(hp.heightField[vein]!).toBeLessThan(hm.heightField[vein]!);
+  });
+
+  it("the relief table is ONE table and the scene reads it (no scattered normal-scale magic)", () => {
+    expect(MATERIAL_NORMAL_SCALES.surface).toBe(0.6);
+    expect(MATERIAL_NORMAL_SCALES.fabric).toBe(0.5);
+    expect(MATERIAL_NORMAL_SCALES.gold).toBe(0.35);
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.surface");
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.fabric");
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.gold");
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.water");
+  });
+
+  it("the stone kind is actually used: stoneFor derives as stone ( facet B-M2 companion )", () => {
+    expect(sceneSrc).toContain('FACADE_STONE_METRES_PER_TILE, "stone"');
+    expect(sceneSrc).not.toContain('FACADE_STONE_METRES_PER_TILE, "marble-rough"');
+  });
+
+  it("derivation caps: hero kinds (paving, stone) derive at 1024, the rest at 512", () => {
+    expect(derivationMaxPxFor("paving")).toBe(HERO_DERIVATION_MAX_PX);
+    expect(derivationMaxPxFor("stone")).toBe(HERO_DERIVATION_MAX_PX);
+    expect(derivationMaxPxFor("marble")).toBe(DERIVATION_MAX_PX);
+    expect(derivationMaxPxFor("lawn")).toBe(DERIVATION_MAX_PX);
+    expect(HERO_DERIVATION_MAX_PX).toBe(1024);
+    expect(DERIVATION_MAX_PX).toBe(512);
+  });
+
+  it("gold repeats are per-metre: goldFor exists and derives its repeat from surface size", () => {
+    expect(GOLD_METRES_PER_TILE).toBeGreaterThan(0);
+    expect(sceneSrc).toContain("goldFor: goldSized(\"bright\")");
+    expect(sceneSrc).toContain("repeatForSize(widthM, heightM, GOLD_METRES_PER_TILE)");
+    // Different sizes hit different brushed texture repeats.
+    const a = brushedGoldTextures("bright", 1, 1);
+    const b = brushedGoldTextures("bright", 4, 2);
+    expect(a.normalMap.repeat.x).toBe(1);
+    expect(b.normalMap.repeat.x).toBe(4);
+  });
+
+  it("env intensity is per-material, not one global (facet B-M3 verified stale — pinned)", () => {
+    // makeMaterials assigns distinct envMapIntensity per surface
+    // family: lawn .3, paving .45, stone/fabric .5, walls .55,
+    // marble .7, deep gold .9, bright gold 1.35.
+    const body = sceneSrc.slice(sceneSrc.indexOf("private makeMaterials"), sceneSrc.indexOf("private buildLook"));
+    for (const v of ["0.3", "0.45", "0.5", "0.55", "0.7", "0.9", "1.35"]) {
+      expect(body).toContain(`envMapIntensity: ${v}`);
+    }
+    expect(body).toContain("envMapIntensity: 1.35");
+  });
+
+  it("no bumpMap/bumpScale anywhere (facet B-M1 verified stale — relief is derived normals)", () => {
+    expect(sceneSrc).not.toContain("bumpScale");
+    // The only "bumpMap" in the scene is a comment saying there is none.
+    expect(sceneSrc).not.toContain("bumpMap: pbr");
+    expect(sceneSrc).not.toContain("bumpMap: hallTexture");
+  });
+});
+
 describe("three-facing texture registry", () => {
   it("derived placeholders are honest neutrals before the source lands", () => {
     const pbr = derivedPbrTextures("/world/textures/marble-cream.jpg", "marble", 3, 3);
@@ -257,5 +335,30 @@ describe("three-facing texture registry", () => {
     expect(gold.roughnessMap.image.height).toBe(256);
     expect(gold.normalMap.wrapS).toBe(THREE.RepeatWrapping);
     expect(gold.normalMap.repeat.x).toBe(2);
+  });
+
+  it("ripple normals (Stack-100 #2 water round 2): tileable field, real normals, shared texture", () => {
+    const h = rippleHeightField(64);
+    // Periodic by construction (integer wave counts per tile):
+    // the step ACROSS the seam is an ordinary interior step.
+    let seam = 0;
+    let interior = 0;
+    for (let y = 0; y < 64; y++) {
+      seam = Math.max(seam, Math.abs(h[y * 64]! - h[y * 64 + 63]!));
+      for (let x = 0; x < 63; x++) interior = Math.max(interior, Math.abs(h[y * 64 + x + 1]! - h[y * 64 + x]!));
+    }
+    expect(seam).toBeLessThanOrEqual(interior * 1.01);
+    // It actually undulates (a flat field would be a dead surface).
+    const vals = [...h];
+    expect(Math.max(...vals) - Math.min(...vals)).toBeGreaterThan(0.1);
+    const tex = rippleNormalTexture();
+    expect(tex.image.width).toBe(256);
+    expect(tex.wrapS).toBe(THREE.RepeatWrapping);
+    expect(rippleNormalTexture()).toBe(tex); // generated once, shared
+    // Normals lean off neutral somewhere (the waves tilt them).
+    const data = tex.image.data as Uint8ClampedArray;
+    let leaned = 0;
+    for (let i = 0; i < data.length; i += 4) if (data[i] !== 128 || data[i + 1] !== 128) leaned++;
+    expect(leaned).toBeGreaterThan(1000);
   });
 });

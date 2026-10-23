@@ -9,7 +9,7 @@
  * swap the looks, drop the sun, or move the big screen off centre.
  */
 import { describe, it, expect } from "vitest";
-import { HALL_LOOKS, HALL_SCREEN, hallLookFor, normalizeHallTheme } from "./hall-looks";
+import { HALL_LOOKS, HALL_SCREEN, LOOK_FADE_MS, hallLookFor, lookFadeProgress, normalizeHallTheme } from "./hall-looks";
 
 function luminance(hex: number): number {
   const r = (hex >> 16) & 0xff;
@@ -95,5 +95,23 @@ describe("the big screen", () => {
     expect(HALL_SCREEN.centerX).toBe(0);
     expect(HALL_SCREEN.width).toBeGreaterThan(10);
     expect(HALL_SCREEN.z).toBeLessThan(-17);
+  });
+
+  it("day/night crossfade (Stack-100 #2): a smoothstep over LOOK_FADE_MS, clamped both ends", () => {
+    expect(LOOK_FADE_MS).toBeGreaterThanOrEqual(500);
+    expect(LOOK_FADE_MS).toBeLessThanOrEqual(1500);
+    expect(lookFadeProgress(0)).toBe(0);
+    expect(lookFadeProgress(-50)).toBe(0);
+    expect(lookFadeProgress(LOOK_FADE_MS)).toBe(1);
+    expect(lookFadeProgress(LOOK_FADE_MS * 3)).toBe(1);
+    const mid = lookFadeProgress(LOOK_FADE_MS / 2);
+    expect(mid).toBeCloseTo(0.5, 6);
+    // Monotonic — the ease never runs backwards.
+    let prev = 0;
+    for (let ms = 0; ms <= LOOK_FADE_MS; ms += LOOK_FADE_MS / 10) {
+      const p = lookFadeProgress(ms);
+      expect(p).toBeGreaterThanOrEqual(prev);
+      prev = p;
+    }
   });
 });
