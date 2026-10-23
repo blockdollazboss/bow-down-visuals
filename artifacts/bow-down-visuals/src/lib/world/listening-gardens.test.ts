@@ -60,6 +60,10 @@ import {
   RILL_BLOCKED,
 } from "./listening-gardens";
 import { pavingSlabsFor, backdropGroundRects, lawnPlantingSpots } from "./palace-grounds";
+import { readFileSync } from "node:fs";
+import { GARDENS_FOUNTAIN, GARDENS_FOUNTAIN_BLOCKED } from "./listening-gardens";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const room = PALACE_LAYOUT[LISTENING_GARDENS_ID]!;
 
@@ -233,5 +237,33 @@ describe("Listening Gardens — the outdoor ground system (item 32)", () => {
       expect(overlaps(r, GARDENS_INTERIOR), JSON.stringify(r)).toBe(false);
       expect(overlaps(r, GARDENS_WALK), JSON.stringify(r)).toBe(false);
     }
+  });
+});
+
+describe("Listening Gardens — Stack-100 #2 finishing (items 36–38)", () => {
+  it("item 36: a real fountain stands at the rill's centre — basin, jet and falling water, solid from its own data", () => {
+    expect(GARDENS_FOUNTAIN.cx).toBe(RILL.cx);
+    expect(GARDENS_FOUNTAIN.cz).toBe(RILL.cz);
+    expect(GARDENS_FOUNTAIN.waterY).toBeLessThan(GARDENS_FOUNTAIN.rimH);
+    expect(GARDENS_FOUNTAIN.jetTopY).toBeGreaterThan(GARDENS_FOUNTAIN.jetBaseY);
+    expect(isWalkable(GARDENS_FOUNTAIN.cx, GARDENS_FOUNTAIN.cz)).toBe(false);
+    expect(GARDENS_BLOCKED).toContainEqual(GARDENS_FOUNTAIN_BLOCKED);
+    /* The rill's benches keep their seats clear of the basin. */
+    for (const b of RILL_BENCHES) {
+      const dx = Math.abs(b.x - GARDENS_FOUNTAIN.cx);
+      expect(dx).toBeGreaterThan(GARDENS_FOUNTAIN.blockHalf);
+    }
+    expect(sceneSrc).toContain("GARDENS_FOUNTAIN");
+    expect(sceneSrc).toContain("anim.waters.push({ tex: waterTex, jet })");
+  });
+
+  it("items 37–38: no floating audio discs and no sunk river exist in this district to fix — the rill is the water, surfaced and blocked", () => {
+    /* Facet-vs-tree check: the gardens' only water is the rill
+     * (plus the item-36 fountain) — its surface sits ABOVE the
+     * lawn on a rim, and its footprint is blocked. There are no
+     * audio-node discs in the district's data or scene build. */
+    expect(RILL.waterY).toBeGreaterThan(0);
+    expect(RILL_BLOCKED.maxX - RILL_BLOCKED.minX).toBeCloseTo(RILL.w, 6);
+    expect(isWalkable(RILL.cx, RILL.cz)).toBe(false);
   });
 });

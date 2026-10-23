@@ -167,6 +167,7 @@ import {
   GARDENS_INTERIOR, GARDENS_WALL_RUNS, GARDENS_PIERS, PARTERRE_LAWN, RILL,
   RILL_BENCHES, GARDEN_HEDGES, NOOK_BENCHES, PAVILION, PAVILION_POSTS,
   GARDENS_ENTRY_PATH, GARDENS_LAMPS, GARDENS_BANNER_POLES, GARDENS_BANNER_POLE,
+  GARDENS_FOUNTAIN,
 } from "./listening-gardens";
 import {
   ROW_INTERIOR, ROW_WALL_RUNS, ROW_PIERS, ROW_STREET, ROW_STALLS, STALL_KIT,
@@ -4855,6 +4856,76 @@ export class KingsHallScene {
       water.position.set(RILL.cx, RILL.waterY + PARTERRE_LAWN.topY, RILL.cz);
       g.add(water);
       anim.waters.push({ tex: waterTex, jet: null });
+    }
+
+    /* Stack-100 #2 item 36: the gardens' fountain — a round
+     * stone basin at the rill's centre (the plaza pool
+     * fountain's construction, turned round): a rim ring with a
+     * gold trim, animated water just under its lip (a cloned
+     * texture the tick scrolls), a centre column, an upper
+     * bowl, a rising jet the tick pulses, and a falling-water
+     * cone from the bowl back to the basin. Soundless motion;
+     * the whole footprint is GARDENS_FOUNTAIN_BLOCKED. */
+    {
+      const f = GARDENS_FOUNTAIN;
+      const baseY = PARTERRE_LAWN.topY;
+      const rim = new THREE.Mesh(
+        new THREE.CylinderGeometry(f.rimR, f.rimR * 1.04, f.rimH, 28, 1, true),
+        mats.stoneFor(3, 0.4),
+      );
+      rim.position.set(f.cx, baseY + f.rimH / 2, f.cz);
+      rim.castShadow = shadows;
+      rim.receiveShadow = shadows;
+      g.add(rim);
+      const rimTop = new THREE.Mesh(new THREE.TorusGeometry(f.rimR - 0.04, 0.045, 8, 36), mats.goldDark);
+      rimTop.rotation.x = Math.PI / 2;
+      rimTop.position.set(f.cx, baseY + f.rimH, f.cz);
+      g.add(rimTop);
+      const tint = poolWaterTint(look.theme);
+      const waterTex = hallTexture(look.waterTextureUrl, 1, 1).clone();
+      waterTex.needsUpdate = true;
+      const water = new THREE.Mesh(
+        new THREE.CircleGeometry(f.rimR - 0.08, 28),
+        new THREE.MeshStandardMaterial({
+          map: waterTex, color: tint.color, roughness: tint.roughness,
+          metalness: 0.35, envMapIntensity: 0.9,
+        }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(f.cx, baseY + f.waterY, f.cz);
+      g.add(water);
+      const column = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.18, f.columnTopY - 0.2, 12), mats.stoneFor(0.4, 0.8),
+      );
+      column.position.set(f.cx, baseY + (f.columnTopY - 0.2) / 2 + 0.1, f.cz);
+      column.castShadow = shadows;
+      g.add(column);
+      const bowl = new THREE.Mesh(
+        new THREE.CylinderGeometry(f.bowlR, f.bowlR * 0.72, 0.16, 20), mats.stoneFor(1.2, 0.4),
+      );
+      bowl.position.set(f.cx, baseY + f.columnTopY, f.cz);
+      bowl.castShadow = shadows;
+      g.add(bowl);
+      const jetMat = new THREE.MeshBasicMaterial({
+        color: look.theme === "dark" ? 0x9fc4d8 : 0xeaf6ff, transparent: true,
+        opacity: 0.5, depthWrite: false, side: THREE.DoubleSide,
+      });
+      const jet = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.14, f.jetTopY - f.jetBaseY, 10, 1, true), jetMat,
+      );
+      jet.position.set(f.cx, baseY + (f.jetBaseY + f.jetTopY) / 2, f.cz);
+      jet.renderOrder = 4;
+      g.add(jet);
+      /* The falling water: a translucent cone sheet from the
+       * bowl's rim back down to the basin's surface. */
+      const fall = new THREE.Mesh(
+        new THREE.CylinderGeometry(f.bowlR * 0.92, f.bowlR * 1.5, f.columnTopY - f.waterY - 0.05, 20, 1, true),
+        jetMat,
+      );
+      fall.position.set(f.cx, baseY + (f.columnTopY + f.waterY) / 2, f.cz);
+      fall.renderOrder = 4;
+      g.add(fall);
+      anim.waters.push({ tex: waterTex, jet });
     }
 
     /* The hedged listening nooks: clipped hedge runs (instanced
