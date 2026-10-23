@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "ebadb3ae7e45fe3274c9bcec7f8faf7f6c3e3ed4",
+  "baseCommit": "c1f1640ee9fcbae9db13d39231b8b767496a3157",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -14451,7 +14451,7 @@
       ],
       "prices": [],
       "nextSteps": [],
-      "description": "Step into the King's Hall: one shared hall with a stage, a big screen, and your people in it.",
+      "description": "Step into the King's Plaza: the palace's front square — the hall's stage and big screen, and your people, are all right here.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/world.tsx usePageTitle meta description"
     }
   ],
