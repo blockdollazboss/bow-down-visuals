@@ -1,5 +1,5 @@
 /**
- * locale-waves-es.test.ts — Spanish (es) Stack-28 locale waves W1–W3
+ * locale-waves-es.test.ts — Spanish (es) Stack-28 locale waves W1–W4
  * (board items 72 / 81 / 90; audit a7-locale.md §5.3).
  *
  * Each wave closes a set of whole namespaces: every en key of a wave
@@ -347,6 +347,153 @@ describe("es W3 (Stack-28 #90) — namespaces closed whole", () => {
   });
   it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
     for (const k of W3_LEGIT) {
+      expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
+      expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
+    }
+  });
+});
+
+const W4_NAMESPACES = ["mastering", "samples", "vocalPolish", "vocalTune", "songRework", "producerTag", "audioStudio", "stems", "singingVoice", "bgReplace", "beatMaker", "aiAudio", "makeSong", "songs", "sounds", "sfx", "beats", "translate", "vocalRemoval", "audioCleanup", "voiceover", "scheduler"] as const;
+const W4_LEGIT: ReadonlySet<string> = new Set([
+  "aiAudio.tabs.beats",
+  "aiAudio.tabs.samples",
+  "audioCleanup.abOriginal",
+  "audioStudio.tabs.deverb",
+  "audioStudio.tabs.hum",
+  "audioStudio.tabs.loudness",
+  "audioStudio.tabs.master",
+  "audioStudio.tabs.podcast",
+  "audioStudio.tabs.sounds",
+  "audioStudio.tabs.stems",
+  "audioStudio.tabs.voiceover",
+  "beatMaker.beatMeta",
+  "beatMaker.bpmLabel",
+  "beatMaker.bpmValue",
+  "beatMaker.duration1m",
+  "beatMaker.duration2m",
+  "beatMaker.duration3m",
+  "beatMaker.presetAfrobeats",
+  "beatMaker.presetBoomBap",
+  "beatMaker.presetDrill",
+  "beatMaker.presetHouse",
+  "beatMaker.presetTrap",
+  "beatMaker.swingValue",
+  "beatMaker.titlePlaceholder",
+  "beatMaker.track808",
+  "beatMaker.trackCrash",
+  "beatMaker.trackPerc",
+  "beatMaker.trackShaker",
+  "beats.bpmLabel",
+  "beats.tierPremiumLabel",
+  "beats.titlePlaceholder",
+  "bgReplace.ai.presetsTab",
+  "makeSong.genreAfrobeats",
+  "makeSong.genreCountry",
+  "makeSong.genreDancehall",
+  "makeSong.genreDrill",
+  "makeSong.genreHipHop",
+  "makeSong.genrePop",
+  "makeSong.genreRB",
+  "makeSong.genreRock",
+  "makeSong.genreTrap",
+  "makeSong.priceBadge",
+  "mastering.downloadMp3",
+  "mastering.downloadWav",
+  "mastering.presets.club.label",
+  "mastering.presets.lofi.label",
+  "mastering.presets.radio.label",
+  "mastering.presets.streaming.label",
+  "producerTag.presets.chipmunk",
+  "producerTag.presets.hype",
+  "producerTag.presets.radio",
+  "producerTag.tabLabel",
+  "producerTag.title",
+  "samples.bpm",
+  "samples.credits",
+  "samples.genres.afrobeats",
+  "samples.genres.drill",
+  "samples.genres.drum-and-bass",
+  "samples.genres.hip-hop",
+  "samples.genres.house",
+  "samples.genres.lofi",
+  "samples.genres.pop",
+  "samples.genres.rnb",
+  "samples.genres.techno",
+  "samples.genres.trap",
+  "samples.tempo",
+  "scheduler.bestTime.benchmark",
+  "scheduler.bestTime.bucs",
+  "scheduler.bestTime.cost",
+  "scheduler.communityPosts.badge",
+  "scheduler.communityPosts.platformLabels.instagram",
+  "scheduler.communityPosts.platformLabels.threads",
+  "scheduler.communityPosts.platformLabels.x",
+  "scheduler.communityPosts.platformLabels.youtube-community",
+  "scheduler.composer.hashtags",
+  "scheduler.composer.video",
+  "scheduler.niches.fitness",
+  "scheduler.niches.gaming",
+  "scheduler.platforms.facebook.label",
+  "scheduler.platforms.instagram.label",
+  "scheduler.platforms.instagram.sub",
+  "scheduler.platforms.tiktok.label",
+  "scheduler.tabs.plan",
+  "scheduler.titlePrefix",
+  "scheduler.titleSuffix",
+  "sfx.categoryFoley",
+  "sfx.categoryRisers",
+  "sfx.categoryWhooshes",
+  "sfx.packButton",
+  "sfx.titleAccent",
+  "singingVoice.abOriginal",
+  "songRework.remixCta",
+  "songRework.remixTitle",
+  "songs.remixButton",
+  "songs.sourceCover",
+  "songs.sourceMashup",
+  "songs.sourceRemix",
+  "songs.sourceSongRemix",
+  "sounds.nicheFitness",
+  "sounds.platformReels",
+  "sounds.platformShorts",
+  "sounds.platformTiktok",
+  "stems.hubAssetDefaultName",
+  "stems.instrumentalHubAssetLabel",
+  "stems.midi",
+  "stems.modeInstrumental",
+  "stems.solo",
+  "stems.soloButton",
+  "stems.stemPiano",
+  "stems.wav",
+  "translate.billableMinutes",
+  "translate.creditsLabel",
+  "translate.perMinuteCost",
+  "translate.videoDownload",
+  "vocalPolish.abOriginal",
+  "vocalPolish.buttonCost",
+  "vocalPolish.keyShiftValue",
+  "vocalPolish.strengthValue",
+  "vocalPolish.tempoLabel",
+  "vocalPolish.tempoValue",
+  "vocalPolish.title",
+  "vocalRemoval.instrumental",
+  "vocalTune.abOriginal",
+  "vocalTune.semitones",
+  "vocalTune.title",
+  "voiceover.creditsEstimate",
+]);
+describe("es W4 (Stack-28 appendix) — namespaces closed whole", () => {
+  const keys = Object.keys(EN).filter((k) => W4_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
+  it("every en key of the wave namespaces is present and non-empty in es", () => {
+    const bad = keys.filter((k) => !(k in ES) || !nonEmpty(ES[k]));
+    expect(bad, `es W4 missing/empty: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("no es value is identical to en outside the legit allowlist", () => {
+    const bad = keys.filter((k) => k in ES && JSON.stringify(ES[k]) === JSON.stringify(EN[k]) && !W4_LEGIT.has(k));
+    expect(bad, `es W4 untranslated residue: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const k of W4_LEGIT) {
       expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
       expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
     }
