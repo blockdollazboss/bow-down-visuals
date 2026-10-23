@@ -286,6 +286,24 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "create" },
     websitePath: "/thumbnail-studio",
   },
+  {
+    /* Stack-100 item 97 (closing part): Hook Studio's native desk —
+       hooks, captions, the virality pre-flight and CTAs on the
+       /hooks page's own rails (/api/hook-studio, /api/generate-cta).
+       It stands on the Create Wing's north wall between the
+       Thumbnail Desk and the Visual Vibes door, clear of both
+       prompts (2.56m+ from the editor door). Building it is what
+       lets Daily Drop hook/caption templates "Use" in-world. */
+    id: "hook-desk",
+    roomId: CREATE_WING_ID,
+    name: "Hook Desk",
+    tagline: "Hooks, captions and CTAs that stop the scroll — Hook Studio, in-world.",
+    x: 19,
+    z: -6,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/hooks",
+  },
 
   /* ── Treasury ────────────────────────────────────────────────── */
   {

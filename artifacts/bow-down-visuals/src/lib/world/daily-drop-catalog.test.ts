@@ -113,9 +113,19 @@ describe("dailyDropStationForKind (item 97: Use opens the native desk)", () => {
     }
   });
 
-  it("hook and caption drops have no native desk yet — no fake door", () => {
-    expect(dailyDropStationForKind("hook")).toBeNull();
-    expect(dailyDropStationForKind("caption")).toBeNull();
+  it("hook and caption drops open the Hook Desk — item 97 closed in full", () => {
+    /* The closing part of item 97: Hook Studio's native desk
+       (the Hook Desk, Create Wing) is the tool both hrefs name —
+       /hooks and /hooks?tab=captions — so neither kind transfers
+       to the website any more. ALL four kinds are native now. */
+    expect(dailyDropStationForKind("hook")).toBe("hook-desk");
+    expect(dailyDropStationForKind("caption")).toBe("hook-desk");
+    for (const kind of ["thumbnail", "caption", "video", "hook"] as DailyDropKind[]) {
+      expect(dailyDropStationForKind(kind), kind).not.toBeNull();
+    }
+    const station = STATION_BY_ID.get("hook-desk")!;
+    expect(station.roomId).toBe("world:create-wing");
+    expect(station.websitePath).toBe("/hooks");
   });
 });
 
@@ -151,13 +161,13 @@ describe("the Treasury dock (source pins)", () => {
     expect(catalogSrc).toContain("DAILY_DROP_UNARCHIVE_PATH");
   });
 
-  it("USE opens the matching native desk in-world (item 97); the href transfer remains only for kinds with no native desk", () => {
+  it("USE opens the matching native desk in-world (item 97, all four kinds native)", () => {
     /* The desk match is decided by the pure seam, and the row calls
        the page's panel swap with it — no ejection to the website. */
     expect(catalogSrc).toContain("dailyDropStationForKind(entry.kind)");
     expect(catalogSrc).toContain("onClick={() => onOpenStation(stationId)}");
-    /* Hook/caption rows (no native desk) still carry the honest
-       explicit transfer — the def's href in a new tab. */
+    /* The href transfer remains only as the fallback for when no
+       panel swap is wired — every kind maps to a desk now. */
     expect(catalogSrc).toContain("href={entry.href}");
     expect(catalogSrc).toContain('target="_blank"');
     expect(catalogSrc).toContain("world-daily-drop-use-");

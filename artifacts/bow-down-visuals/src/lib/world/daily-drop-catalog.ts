@@ -8,8 +8,8 @@
    href, today's flag, and the member's own archived flags — so the
    Treasury can list the whole slate: USE any template (in-world it
    opens the matching native desk — dailyDropStationForKind, item
-   97; the href remains the website rail and the in-world fallback
-   for kinds with no native desk) and ARCHIVE the ones a member
+   97, all four kinds native since the Hook Desk landed; the href
+   remains the website rail) and ARCHIVE the ones a member
    doesn't want in their active list (per-member state, reversible,
    migration 0161).
 
@@ -99,16 +99,19 @@ export function splitDailyDropCatalog(drops: DailyDropCatalogEntry[]): {
 }
 
 /** The native in-world desk a drop's "Use" opens (stack-100 item
- *  97): the walker stays in the world and the matching desk's panel
- *  opens, instead of the raw website href ejecting them to the 2D
- *  tool. The match is by kind — the same tool the href names:
+ *  97, closed in full): the walker stays in the world and the
+ *  matching desk's panel opens, instead of the raw website href
+ *  ejecting them to the 2D tool. The match is by kind — the same
+ *  tool the href names:
  *  - thumbnail → the Thumbnail Desk (the Create Wing's native
  *    thumbnail bench — singles, variations, A/B, CTR).
  *  - video → the Visual Vibes Editor door (video templates live in
  *    the editor in-world, per the parity map).
- *  - hook / caption → null: Hook Studio has NO native desk yet, so
- *    there is no honest in-world target — those rows keep the
- *    explicit website transfer rather than a fake door. */
+ *  - hook / caption → the Hook Desk (the Create Wing's native
+ *    Hook Studio desk — hooks and captions on /api/hook-studio,
+ *    the exact tool both hrefs name: /hooks and
+ *    /hooks?tab=captions). Hook/caption mapped to null while Hook
+ *    Studio had no native desk; the desk's build closes that. */
 export function dailyDropStationForKind(kind: DailyDropKind): string | null {
   switch (kind) {
     case "thumbnail":
@@ -117,7 +120,7 @@ export function dailyDropStationForKind(kind: DailyDropKind): string | null {
       return "visual-vibes-editor";
     case "hook":
     case "caption":
-      return null;
+      return "hook-desk";
   }
 }
 
