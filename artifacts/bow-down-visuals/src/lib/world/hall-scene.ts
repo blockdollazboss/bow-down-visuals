@@ -109,6 +109,15 @@ import {
   clampToRoom,
 } from "./palace-layout";
 import { stationsInRoom } from "./stations";
+import { propVariation } from "./prop-variation";
+import { DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
+import {
+  createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
+} from "./night-life";
+import {
+  EMPTY_MONUMENT_BOARD, MONUMENT_PLATE_H, MONUMENT_PLATE_W, drawMonumentBoardPlate,
+  monumentBoardSignature, type MonumentBoardData, type MonumentPlateCtx,
+} from "./monument-board";
 import {
   ACTION_BY_ID,
   actionClearedByMove,
@@ -389,82 +398,39 @@ function doorPlateTexture(text: string): THREE.CanvasTexture {
   return tex;
 }
 
-/* ── The Kingdom Board monument plate (Open World Phase 1) ─────────
-   The stele at the plaza's heart wears a tall engraved plate in the
-   door plates' tradition: a crown mark, the board's name, and ruled
-   lines standing in for the word around the palace. It is a SIGN,
-   not a data display — the live board opens in the station panel
-   when a walker uses the board station at the monument's base.
+/* ── The Kingdom Board monument plate (Open World Phase 1,
+   lettered for real in overhaul stage B, item 16) ─────────────
+   The stele at the plaza's heart wears a tall engraved plate in
+   the door plates' tradition — but the words on it are the
+   board's REAL headlines now (monument-board.ts): who's here,
+   today at the palace, and the week's standings, shaped from the
+   same reads the Kingdom Board station panel shows. The live
+   board still opens in the station panel at the monument's base.
    Themed like the hall itself: gold on dark marble in the dark
-   look, dark bronze on cream in the light look. Cached per theme. */
+   look, dark bronze on cream in the light look. Cached per
+   (theme, data signature) — the page hands fresh data through
+   setMonumentBoardData and the plate repaints only when the
+   words actually change. */
 const kingdomBoardPlateCache = new Map<string, THREE.CanvasTexture>();
 
+/* The board data the monument currently letters — module state
+ * like the creator-room registration: the scene's shells (rebuilt
+ * per theme) and the page's data seam read the same words. */
+let monumentBoardCurrent: MonumentBoardData = EMPTY_MONUMENT_BOARD;
+
 function kingdomBoardPlateTexture(theme: HallTheme): THREE.CanvasTexture {
-  const hit = kingdomBoardPlateCache.get(theme);
+  const key = `${theme}|${monumentBoardSignature(monumentBoardCurrent)}`;
+  const hit = kingdomBoardPlateCache.get(key);
   if (hit) return hit;
-  const light = theme === "light";
   const c = document.createElement("canvas");
-  c.width = 640;
-  c.height = 896;
+  c.width = MONUMENT_PLATE_W;
+  c.height = MONUMENT_PLATE_H;
   const g = c.getContext("2d")!;
-  const grad = g.createLinearGradient(0, 0, 0, 896);
-  if (light) {
-    grad.addColorStop(0, "#f7ecd0");
-    grad.addColorStop(0.5, "#f0e2bd");
-    grad.addColorStop(1, "#e6d3a4");
-  } else {
-    grad.addColorStop(0, "#2b1f0c");
-    grad.addColorStop(0.5, "#1c1408");
-    grad.addColorStop(1, "#120d05");
-  }
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 640, 896);
-  const ink = light ? "#4a3410" : "#e8c86a";
-  const accent = light ? "#8a6a1f" : "#d4af37";
-  g.strokeStyle = light ? "rgba(138,106,31,0.9)" : "rgba(212,175,55,0.9)";
-  g.lineWidth = 6;
-  g.strokeRect(18, 18, 604, 860);
-  g.strokeStyle = light ? "rgba(138,106,31,0.35)" : "rgba(212,175,55,0.35)";
-  g.lineWidth = 2;
-  g.strokeRect(34, 34, 572, 828);
-  // The crown mark: three points on a band, drawn plain.
-  g.fillStyle = accent;
-  g.beginPath();
-  g.moveTo(230, 196);
-  g.lineTo(230, 118);
-  g.lineTo(278, 162);
-  g.lineTo(320, 100);
-  g.lineTo(362, 162);
-  g.lineTo(410, 118);
-  g.lineTo(410, 196);
-  g.closePath();
-  g.fill();
-  g.fillRect(230, 208, 180, 14);
-  for (const cx of [230, 320, 410]) {
-    g.beginPath();
-    g.arc(cx, cx === 320 ? 92 : 110, 11, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.fillStyle = ink;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.font = "700 64px Georgia, 'Times New Roman', serif";
-  g.fillText("THE KINGDOM", 320, 300);
-  g.fillText("BOARD", 320, 376);
-  g.fillStyle = accent;
-  g.font = "600 27px Georgia, serif";
-  g.fillText("T H E   W O R D   A R O U N D   T H E   P A L A C E", 320, 448);
-  // Engraved lines — the board's postings, ruled, never lettered:
-  // the live words belong to the station panel.
-  g.fillStyle = light ? "rgba(74,52,16,0.45)" : "rgba(232,200,106,0.42)";
-  const lineWidths = [440, 380, 420, 300, 400, 340];
-  lineWidths.forEach((w, i) => {
-    g.fillRect(320 - w / 2, 516 + i * 52, w, 7);
-  });
+  drawMonumentBoardPlate(g as unknown as MonumentPlateCtx, theme, monumentBoardCurrent);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  kingdomBoardPlateCache.set(theme, tex);
+  tex.anisotropy = Math.min(16, maxTextureAnisotropy);
+  kingdomBoardPlateCache.set(key, tex);
   return tex;
 }
 
@@ -1079,9 +1045,15 @@ interface LookAnim {
   flickerLights: Array<{ light: THREE.PointLight; base: number; phase: number }>;
   dust: THREE.Points | null;
   smokes: Array<{ mesh: THREE.Mesh; baseX: number; phase: number; speed: number }>;
+  /* Night life (item 27): ember fields over the braziers — a
+   * Points cloud per brazier plus its deterministic field. */
+  embers: Array<{ points: THREE.Points; field: EmberParticle[] }>;
+  /* Lantern glows on the district thresholds (item 27): they
+   * breathe on lanternGlowScale, not the flame scale curve. */
+  lanternGlows: Array<{ sprite: THREE.Sprite; base: number; phase: number }>;
 }
 
-const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [] };
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [] };
 
 /* ── The scene ──────────────────────────────────────────────────────── */
 
@@ -1182,6 +1154,10 @@ export class KingsHallScene {
   /** The performer's Front Row (profile slugs) while a show is on —
    *  their figures wear the brighter ring + plate line. */
   private frontRowSlugs = new Set<string>();
+  /** The monument faces' materials (item 16): every look build
+   *  re-registers them, and setMonumentBoardData re-maps them
+   *  when the board's words change. */
+  private monumentFaceMats: THREE.MeshBasicMaterial[] = [];
   /** The honored seat arc before the stage, shown while a show runs. */
   private stageSeats: THREE.Group | null = null;
   /** The house guards' art (both approved slots): each loads once
@@ -1405,7 +1381,8 @@ export class KingsHallScene {
 
   private buildLook(group: THREE.Group, look: HallLook): void {
     const mats = this.makeMaterials(look);
-    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [] };
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [] };
+    this.monumentFaceMats = [];
     this.buildFloor(group, look, mats);
     this.buildWalls(group, look, mats, anim);
     this.buildCeiling(group, look, mats);
@@ -2155,6 +2132,7 @@ export class KingsHallScene {
       glow.position.y = 1.15;
       brazier.add(glow);
       group.add(brazier);
+      this.addEmbers(group, anim, x, 0.82, -11.3, `${x},-11.3`);
       if (QUALITY[this.quality].candleLights) {
         const light = new THREE.PointLight(0xff9040, 26, 13, 1.9);
         light.position.set(x, 1.35, -11.3);
@@ -2162,6 +2140,43 @@ export class KingsHallScene {
         anim.flickerLights.push({ light, base: 26, phase: Math.random() * 20 });
       }
     }
+  }
+
+  /* ── Night life (item 27) ─────────────────────────────────────
+     Embers over a brazier's coals: one Points cloud per brazier,
+     its field deterministic in the brazier's position (night-life
+     .ts), its count taken from the quality ladder's own spirit —
+     the helper is only called in the dark look, and on the low
+     rung (no candle point lights) the count is 0 and no cloud is
+     built at all. Positions are poured per frame in tick(). */
+  private addEmbers(parent: THREE.Group, anim: LookAnim, x: number, y: number, z: number, seedKey: string): void {
+    const count = emberCountForTier(this.quality);
+    if (count <= 0) return;
+    const field = createEmberField(count, seedKey);
+    const positions = new Float32Array(count * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const points = new THREE.Points(geo, new THREE.PointsMaterial({
+      map: flameTexture(), size: 0.075, transparent: true, opacity: 0.9, color: 0xffa050,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    }));
+    points.position.set(x, y, z);
+    points.renderOrder = 5;
+    parent.add(points);
+    anim.embers.push({ points, field });
+  }
+
+  /** A lantern glow sprite (item 27): a soft additive halo that
+   *  breathes on lanternGlowScale in tick(). Dark look only —
+   *  callers gate on look.candles. */
+  private addLanternGlow(parent: THREE.Group, anim: LookAnim, x: number, y: number, z: number, base: number, phase: number): void {
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: flameTexture(), transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    glow.scale.set(base, base, 1);
+    glow.position.set(x, y, z);
+    parent.add(glow);
+    anim.lanternGlows.push({ sprite: glow, base, phase });
   }
 
   /** Fake god-rays slanting from the window wall (Look A), with a
@@ -2800,27 +2815,44 @@ export class KingsHallScene {
     // Columns where the walls turn: plinth, marble shaft, gold cap —
     // the hall's column language at garden scale, moved to the
     // plaza's new corners (with a mid-wall column on each long side).
-    const column = (x: number, z: number) => {
+    // Variation (item 18): each column takes its deterministic
+    // jitter — a breath of scale, its own marble tint (a cloned
+    // material), and one of three cap treatments — so the six stop
+    // reading as one column stamped six times. They stand ON the
+    // wall line, so they never yaw (prop-variation's envelope).
+    const column = (x: number, z: number, index: number) => {
+      const v = propVariation("column", index);
       const col = new THREE.Group();
       col.position.set(x, 0, z);
+      col.scale.set(v.scale, v.scaleY, v.scale);
       const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 0.9), mats.marble);
       plinth.position.y = 1.13;
       col.add(plinth);
-      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.6, 0.62), mats.marble);
+      const shaftMat = mats.marble.clone();
+      shaftMat.color.offsetHSL(v.hueShift, 0, v.lightnessShift);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.6, 0.62), shaftMat);
       shaft.position.y = 2.54;
       shaft.castShadow = QUALITY[this.quality].shadows;
       col.add(shaft);
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 0.18, 0.86),
+        v.variant === 2 ? mats.goldDark : mats.gold,
+      );
       cap.position.y = 3.93;
       col.add(cap);
+      if (v.variant === 1) {
+        const capStep = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.09, 0.72), mats.goldDark);
+        capStep.position.y = 3.79;
+        col.add(capStep);
+      }
       g.add(col);
     };
-    column(-28.2, interior.minZ + 0.2);
-    column(28.2, interior.minZ + 0.2);
-    column(-28.2, interior.maxZ - 0.2);
-    column(2.35, interior.maxZ);
-    column(-28.2, 23.2);
-    column(28.2, 19.2);
+    column(-28.2, interior.minZ + 0.2, 0);
+    column(28.2, interior.minZ + 0.2, 1);
+    column(-28.2, interior.maxZ - 0.2, 2);
+    column(2.35, interior.maxZ, 3);
+    column(-28.2, 23.2, 4);
+    column(28.2, 19.2, 5);
 
     /* Lawn panels on the east and west grounds — flat green fields
      * flanking the marble heart of the plaza (the centre,
@@ -2858,14 +2890,18 @@ export class KingsHallScene {
     pathRun(21.4, 34.0);
 
     /* ── The Kingdom Board monument (0, 19.7), plaza centre ──────
-     * A stepped marble plinth, a gold-trimmed stele ~3.2 m tall
-     * wearing the board's engraved plate on its south face, gold
-     * finials at the plinth corners, and a gold ring inlay in the
-     * ground around it. A sign, not a data display — the live
-     * board opens in the station panel at the board station (its
-     * marker stands on the open plaza just south of the plinth,
-     * built by buildStationMarkers like every station). No mirror,
-     * no lights of its own. */
+     * A stepped marble plinth, a gold-trimmed stele ~3.2 m tall,
+     * gold finials at the plinth corners, and a gold ring inlay in
+     * the ground around it. The stele's plate drum — a square
+     * marble housing at reading height — wears the board's
+     * lettered plate on ALL FOUR faces (item 16): the words are
+     * the board's real headlines (monument-board.ts), the same
+     * canvas whichever way a walker approaches, repainted through
+     * setMonumentBoardData when the board's reads change. The
+     * live board itself still opens in the station panel at the
+     * board station (its marker stands on the open plaza just
+     * south of the plinth, built by buildStationMarkers like
+     * every station). No mirror, no lights of its own. */
     {
       const monument = new THREE.Group();
       monument.position.set(0, 0, 19.7);
@@ -2892,12 +2928,30 @@ export class KingsHallScene {
       crownCap.rotation.y = Math.PI / 4;
       crownCap.position.y = 3.94;
       monument.add(crownCap);
-      const face = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.4, 1.96),
-        new THREE.MeshBasicMaterial({ map: kingdomBoardPlateTexture(look.theme), toneMapped: false }),
-      );
-      face.position.set(0, 2.09, 0.22);
-      monument.add(face);
+      /* The plate drum: a square housing around the stele at
+       * reading height, so the plate has four equal faces to
+       * live on (the stele's own section, 1.6 × 0.42, could only
+       * ever letter two). One shared texture — the board reads
+       * the same from every approach — re-mapped in place by
+       * setMonumentBoardData when the words change. */
+      const drum = new THREE.Mesh(new THREE.BoxGeometry(1.74, 2.1, 1.74), mats.marble);
+      drum.position.y = 2.09;
+      drum.castShadow = QUALITY[this.quality].shadows;
+      monument.add(drum);
+      const plateTex = kingdomBoardPlateTexture(look.theme);
+      for (const [fx, fz, rotY] of [
+        [0, 0.88, 0],
+        [0, -0.88, Math.PI],
+        [0.88, 0, Math.PI / 2],
+        [-0.88, 0, -Math.PI / 2],
+      ] as Array<[number, number, number]>) {
+        const faceMat = new THREE.MeshBasicMaterial({ map: plateTex, toneMapped: false });
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.96), faceMat);
+        face.position.set(fx, 2.09, fz);
+        face.rotation.y = rotY;
+        monument.add(face);
+        this.monumentFaceMats.push(faceMat);
+      }
       for (const fx of [-1.5, 1.5]) {
         for (const fz of [-1.5, 1.5]) {
           const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), mats.gold);
@@ -2916,20 +2970,46 @@ export class KingsHallScene {
     // Planters along the side walls and down the promenade: marble
     // troughs, green crowns — the original construction, spread to
     // the plaza's new scale (nine in all). Geometries are shared.
+    // Variation (item 18): every trough and crown takes its
+    // deterministic jitter from prop-variation.ts — crowns turn
+    // freely, stretch tall or squat, and wear their own tinted
+    // leaf material; troughs breathe in scale and take one of
+    // three rim treatments (plain, gold trim, dark trim). The
+    // ninth planter is not a clone of the first, on any visit.
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true });
     const troughGeoZ = new THREE.BoxGeometry(0.72, 0.55, 2.0);
     const troughGeoX = new THREE.BoxGeometry(2.0, 0.55, 0.72);
     const crownGeo = new THREE.IcosahedronGeometry(0.44, 1);
+    let planterIndex = 0;
     const planter = (x: number, z: number, alongZ: boolean) => {
+      const index = planterIndex++;
+      const tv = propVariation("trough", index);
       const trough = new THREE.Mesh(alongZ ? troughGeoZ : troughGeoX, mats.marble);
       trough.position.set(x, 0.275, z);
+      trough.rotation.y = tv.rotY;
+      trough.scale.setScalar(tv.scale);
       g.add(trough);
-      for (const off of [-0.5, 0.5]) {
-        const crown = new THREE.Mesh(crownGeo, leafMat);
+      if (tv.variant !== 0) {
+        const trim = new THREE.Mesh(
+          alongZ ? new THREE.BoxGeometry(0.78, 0.05, 2.06) : new THREE.BoxGeometry(2.06, 0.05, 0.78),
+          tv.variant === 1 ? mats.gold : mats.goldDark,
+        );
+        trim.position.set(x, 0.56, z);
+        trim.rotation.y = tv.rotY;
+        trim.scale.setScalar(tv.scale);
+        g.add(trim);
+      }
+      [-0.5, 0.5].forEach((off, ci) => {
+        const cv = propVariation("crown", index * 2 + ci);
+        const crownMat = leafMat.clone();
+        crownMat.color.offsetHSL(cv.hueShift, 0, cv.lightnessShift);
+        const crown = new THREE.Mesh(crownGeo, crownMat);
         crown.position.set(alongZ ? x : x + off, 0.82, alongZ ? z + off : z);
+        crown.rotation.y = cv.rotY;
+        crown.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
         crown.castShadow = QUALITY[this.quality].shadows;
         g.add(crown);
-      }
+      });
     };
     planter(-27.3, 15.8, true);
     planter(-27.3, 22.6, true);
@@ -2977,6 +3057,7 @@ export class KingsHallScene {
         glow.position.y = 1.15;
         brazier.add(glow);
         g.add(brazier);
+        this.addEmbers(g, anim, bx, 0.82, bz, `${bx},${bz}`);
         if (QUALITY[this.quality].candleLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
           light.position.set(bx, 1.35, bz);
@@ -2986,51 +3067,103 @@ export class KingsHallScene {
       }
     }
 
-    /* ── District gates (visual only, Phase-2 teasers) ───────────
-     * Each gate: two marble posts taller than the low wall with
-     * gold caps and a gold header, its name plate in the house
-     * style, and a gold bar across at 0.55 m so it reads
-     * closed-for-now. The west and south gates stand in true wall
-     * gaps; the east gates stand proud of the east wall (their
-     * bars ride the wall's plaza face); the Gardens and Heights
-     * gates are freestanding signpost pairs. */
+    /* ── District thresholds (Phase-1 teasers, made honest in
+     * stage B item 37; the classification lives in
+     * district-gates.ts) ────────────────────────────────────────
+     * Two builds only:
+     *   GATE — at a REAL gap in a real wall: two marble posts
+     *   taller than the low wall with gold caps and a gold header,
+     *   its name plate seated ON the header (never floating), a
+     *   COMING plate under it, and a gold bar across at 0.55 m so
+     *   the closure is the visible truth — the walk rects end at
+     *   the wall, so nothing could walk through anyway. After
+     *   dark the gate carries a lantern glow (item 27).
+     *   MARKER — a named district signpost, NOT a doorway: a
+     *   plinth, one grounded post, the name plate mounted ON the
+     *   post, a COMING plate under it, a lantern glow after dark.
+     *   No span, no header, no bar — nothing implies a passage.
+     *   The east pair stand on the open floor in front of the wall
+     *   they used to be painted onto; the promenade pair keep
+     *   their Phase-1 spots as signposts.
+     * Both builds take their per-instance variation from
+     * prop-variation.ts (item 18): the pair of posts of one gate
+     * share ONE variation (a gate is one object, not two rolls). */
     const gatePostGeo = new THREE.BoxGeometry(0.32, 1.9, 0.32);
     const gateCapGeo = new THREE.BoxGeometry(0.46, 0.12, 0.46);
-    const districtGate = (
-      name: string, x: number, z: number, axis: "x" | "z", plateRotY: number,
-      barDx = 0, barDz = 0,
-    ) => {
-      for (const s of [-1.1, 1.1]) {
-        const px = axis === "x" ? x + s : x;
-        const pz = axis === "x" ? z : z + s;
-        const post = new THREE.Mesh(gatePostGeo, mats.marble);
-        post.position.set(px, 0.95, pz);
+    const buildDistrictGate = (def: DistrictThreshold, index: number) => {
+      const { name, x, z, axis, plateRotY } = def;
+      const v = propVariation("gate", index);
+      for (const sd of [-1.1, 1.1]) {
+        const px = axis === "x" ? x + sd : x;
+        const pz = axis === "x" ? z : z + sd;
+        const postMat = mats.marble.clone();
+        postMat.color.offsetHSL(v.hueShift, 0, v.lightnessShift);
+        const post = new THREE.Mesh(gatePostGeo, postMat);
+        post.position.set(px, 0.95 * v.scaleY, pz);
+        post.scale.y = v.scaleY;
         post.castShadow = QUALITY[this.quality].shadows;
         g.add(post);
-        const cap = new THREE.Mesh(gateCapGeo, mats.gold);
-        cap.position.set(px, 1.96, pz);
+        const cap = new THREE.Mesh(gateCapGeo, v.variant === 2 ? mats.goldDark : mats.gold);
+        cap.position.set(px, 1.9 * v.scaleY + 0.06, pz);
         g.add(cap);
       }
       const header = new THREE.Mesh(
         axis === "x" ? new THREE.BoxGeometry(2.52, 0.12, 0.3) : new THREE.BoxGeometry(0.3, 0.12, 2.52),
         mats.gold,
       );
-      header.position.set(x, 1.8, z);
+      header.position.set(x, 1.8 * v.scaleY, z);
       g.add(header);
       const bar = new THREE.Mesh(
         axis === "x" ? new THREE.BoxGeometry(2.2, 0.07, 0.07) : new THREE.BoxGeometry(0.07, 0.07, 2.2),
         mats.gold,
       );
-      bar.position.set(x + barDx, 0.55, z + barDz);
+      bar.position.set(x + (def.barDx ?? 0), 0.55, z + (def.barDz ?? 0));
       g.add(bar);
-      this.doorPlate(g, name, x, 2.33, z, plateRotY, 2.6);
+      /* The plate SEATS on the header: plate height at width 2.6
+       * is 0.57, so its centre sits header-top + half-height —
+       * grounded, not floating at the old 2.33. */
+      this.doorPlate(g, name, x, 1.86 * v.scaleY + 0.285, z, plateRotY, 2.6);
+      this.doorPlate(g, DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3);
+      if (look.candles) {
+        const lx = axis === "x" ? x : x + (def.barDx ?? 0);
+        const lz = axis === "x" ? z + (def.barDz ?? 0) : z;
+        this.addLanternGlow(g, anim, lx, 1.62, lz, 1.15, index * 1.7);
+      }
     };
-    districtGate("STAGE GROUNDS", -28.2, 19.5, "z", Math.PI / 2, 0.22, 0);
-    districtGate("THE BOARDWALK", 0, 34.0, "x", Math.PI);
-    districtGate("LISTENING GARDENS", -26, 33.8, "x", Math.PI);
-    districtGate("CREATION ROW", 28.2, 14.5, "z", -Math.PI / 2, -0.22, 0);
-    districtGate("THE ATELIERS", 28.2, 22.5, "z", -Math.PI / 2, -0.22, 0);
-    districtGate("CREATOR HEIGHTS", 13.5, 24.6, "x", Math.PI);
+    const buildDistrictMarker = (def: DistrictThreshold, index: number) => {
+      const { name, x, z, plateRotY } = def;
+      const v = propVariation("gate", index);
+      const marker = new THREE.Group();
+      marker.position.set(x, 0, z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.14, 0.78), mats.marble);
+      plinth.position.y = 0.07;
+      marker.add(plinth);
+      const postMat = mats.marble.clone();
+      postMat.color.offsetHSL(v.hueShift, 0, v.lightnessShift);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.78, 0.2), postMat);
+      post.position.y = 0.14 + 0.89;
+      post.castShadow = QUALITY[this.quality].shadows;
+      marker.add(post);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), v.variant === 2 ? mats.goldDark : mats.gold);
+      finial.position.y = 2.0;
+      marker.add(finial);
+      g.add(marker);
+      /* The plates are mounted ON the post (their centres ride
+       * the post's own span, just proud of its face toward the
+       * walkers) — a signpost you read, not a door you try. The
+       * offset follows the plate's facing direction. */
+      const fx = Math.sin(plateRotY) * 0.12;
+      const fz = Math.cos(plateRotY) * 0.12;
+      this.doorPlate(g, name, x + fx, 1.62, z + fz, plateRotY, 2.2);
+      this.doorPlate(g, DISTRICT_SUBPLATE, x + fx, 1.14, z + fz, plateRotY, 1.1);
+      if (look.candles) {
+        this.addLanternGlow(g, anim, x + fx * 2, 1.86, z + fz * 2, 0.95, index * 2.3);
+      }
+    };
+    DISTRICT_THRESHOLDS.forEach((def, i) => {
+      if (def.kind === "gate") buildDistrictGate(def, i);
+      else buildDistrictMarker(def, i);
+    });
 
     // The way back, labeled from the courtyard side of the arch.
     this.doorPlate(g, "THE KING'S HALL", 0, PALACE_DOOR_HEIGHT + 0.66, 12.52, 0, 4.2);
@@ -3173,6 +3306,20 @@ export class KingsHallScene {
   }
 
   /** The performer's Front Row, by profile slug. Empty = no show. */
+  /** The Kingdom Board monument's data seam (item 16): the page
+   *  hands the board's real headlines — the same reads the
+   *  Kingdom Board station panel makes — and the plate on all
+   *  four faces repaints when (and only when) the words change. */
+  setMonumentBoardData(data: MonumentBoardData): void {
+    if (monumentBoardSignature(data) === monumentBoardSignature(monumentBoardCurrent)) return;
+    monumentBoardCurrent = data;
+    const tex = kingdomBoardPlateTexture(this.theme);
+    for (const mat of this.monumentFaceMats) {
+      mat.map = tex;
+      mat.needsUpdate = true;
+    }
+  }
+
   setFrontRowSlugs(slugs: ReadonlySet<string>): void {
     this.frontRowSlugs = new Set(slugs);
   }
@@ -3859,6 +4006,18 @@ export class KingsHallScene {
     for (const s of anim.smokes) {
       s.mesh.rotation.y += dt * 0.03 * s.speed;
       s.mesh.position.x = s.baseX + Math.sin(t * 0.05 + s.phase) * 0.7;
+    }
+    for (const e of anim.embers) {
+      const attr = e.points.geometry.getAttribute("position") as THREE.BufferAttribute;
+      for (let i = 0; i < e.field.length; i++) {
+        const o = emberOffsetAt(e.field[i]!, t);
+        attr.setXYZ(i, o.x, o.y, o.z);
+      }
+      attr.needsUpdate = true;
+    }
+    for (const l of anim.lanternGlows) {
+      const sc = lanternGlowScale(l.base, t, l.phase);
+      l.sprite.scale.set(sc, sc, 1);
     }
 
     // Report my pose when it meaningfully changed (client throttles).
