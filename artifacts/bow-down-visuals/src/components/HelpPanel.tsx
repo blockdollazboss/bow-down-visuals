@@ -20,8 +20,11 @@ const SONG_COST_MIN = getCreditCost("/api/generate-music-audio")?.cost ?? 400;
 const SONG_COST_MAX = 1_200;
 const VIDEO_PLAN_COST = getCreditCost("/api/generate-video-plan")?.cost ?? 200;
 const PROMO_COST = getCreditCost("/api/generate-promo-clips")?.cost ?? 100;
-const THUMBNAIL_COST_MIN = getCreditCost("/api/generate-thumbnail")?.cost ?? 100;
-const THUMBNAIL_COST_MAX = getCreditCost("/api/thumbnail-generator")?.cost ?? 200;
+// Thumbnails span the two thumbnail rails: /api/thumbnail-generator at
+// 200 and the single-shot /api/generate-thumbnail at its delivered 300
+// (Stack-28 item 5) — so the honest range is 200–300.
+const THUMBNAIL_COST_MIN = getCreditCost("/api/thumbnail-generator")?.cost ?? 200;
+const THUMBNAIL_COST_MAX = getCreditCost("/api/generate-thumbnail")?.cost ?? 300;
 const VIDEO_CLIP_COST = getCreditCost("/api/generate-runway-clip")?.cost ?? 400;
 const PRICE_SENTENCES =
   `Songs cost ${fmtVb(SONG_COST_MIN)}–${fmtVb(SONG_COST_MAX)} Visual Bucs by length, ` +

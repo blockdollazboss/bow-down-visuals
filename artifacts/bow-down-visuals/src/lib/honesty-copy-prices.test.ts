@@ -90,7 +90,10 @@ describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
   it("registry figures the panel derives from are the rail-true ones", () => {
     expect(getCreditCost("/api/generate-video-plan")?.cost).toBe(200);
     expect(getCreditCost("/api/generate-promo-clips")?.cost).toBe(100);
-    expect(getCreditCost("/api/generate-thumbnail")?.cost).toBe(100);
+    // Stack-28 #5 (A2-08) pin correction: this line pinned 100, but the
+    // rail charges TEXT 100 + IMAGE 200 = 300 on delivery and pre-checks
+    // 300 — 100 was the failure-path price. Pin now holds the rail truth.
+    expect(getCreditCost("/api/generate-thumbnail")?.cost).toBe(300);
     expect(getCreditCost("/api/thumbnail-generator")?.cost).toBe(200);
     expect(getCreditCost("/api/generate-runway-clip")?.cost).toBe(400);
     // S27-73: the "/api/generate-video" registry entry was removed — that

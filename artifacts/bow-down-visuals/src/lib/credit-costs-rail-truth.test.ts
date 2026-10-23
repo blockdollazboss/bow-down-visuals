@@ -147,6 +147,18 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     });
   }
 
+  // Stack-28 item 5 (A2-08): the single-shot thumbnail registry said 100,
+  // but the rail charges TEXT_CREDIT_COST (100) + IMAGE_CREDIT_COST (200)
+  // = 300 on delivery and its 402 pre-check requires 300 up front.
+  // Registry now displays the delivered 300, pinned against both parts.
+  it("single-shot thumbnail: registry == TEXT_CREDIT_COST + IMAGE_CREDIT_COST (300)", () => {
+    const text = deriveServerConstant("routes/generate/thumbnail.ts", "TEXT_CREDIT_COST");
+    const image = deriveServerConstant("routes/generate/thumbnail.ts", "IMAGE_CREDIT_COST");
+    expect(text).toBe(100);
+    expect(image).toBe(200);
+    expect(CREDIT_COSTS["/api/generate-thumbnail"]?.cost).toBe(text + image);
+  });
+
   for (const spec of FREE_RAILS) {
     it(`${spec.endpoint}: handler charges nothing and the registry displays 0`, () => {
       const src = readApi(spec.file);

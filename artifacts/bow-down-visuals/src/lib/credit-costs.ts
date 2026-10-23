@@ -141,7 +141,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // pack-download charges nothing, so it stays off this registry.
   "/api/wallpapers/render": { cost: 0, feature: "Wallpaper Render (branded — free)" },
   "/api/wallpapers/screensaver-render": { cost: 400, feature: "Screensaver Loop Render" },
-  "/api/generate-thumbnail": { cost: 100, feature: "Generate Thumbnail" },
+  // Single-shot thumbnail: the rail (routes/generate/thumbnail.ts)
+  // charges TEXT_CREDIT_COST 100 + IMAGE_CREDIT_COST 200 = 300 when the
+  // image lands, and its 402 pre-check requires the full 300 up front.
+  // The registry records the delivered 300 (Stack-28 item 5, A2-08) —
+  // the old 100 was the failure-path price only.
+  "/api/generate-thumbnail": { cost: 300, feature: "Generate Thumbnail" },
   "/api/thumbnail-generator": { cost: 200, feature: "Generate Thumbnail" },
   "/api/thumbnail-test": { cost: 200, feature: "Thumbnail A/B Test" },
   "/api/thumbnail-test/improve": { cost: 200, feature: "Thumbnail A/B Apply Suggestions" },
