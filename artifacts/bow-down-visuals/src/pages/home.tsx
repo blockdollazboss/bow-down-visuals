@@ -143,7 +143,7 @@ const FAQS = [
   },
   {
     q: "What does a full release cost?",
-    a: "A song (400 VB) + a music video (400 VB) + promo clips (400 VB) + a hook pack (100 VB) = 1,300 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack.",
+    a: "A song (400 VB) + a music video (400 VB) + promo clips (100 VB) + a hook pack (100 VB) = 1,000 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack.",
   },
   {
     q: "Do I need experience to use it?",

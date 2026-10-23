@@ -281,7 +281,7 @@
         "q": "Como funcionam os Visual Bucs?"
       },
       {
-        "a": "Uma música (400 VB) + um clipe (400 VB) + clipes promocionais (400 VB) + um pacote de ganchos (100 VB) = 1.300 Visual Bucs. Todo o pipeline do lançamento — da música à promoção — por menos que o custo de um pacote.",
+        "a": "Uma música (400 VB) + um clipe (400 VB) + clipes promocionais (100 VB) + um pacote de ganchos (100 VB) = 1.000 Visual Bucs. Todo o pipeline do lançamento — da música à promoção — por menos que o custo de um pacote.",
         "q": "Quanto custa um lançamento completo?"
       },
       {
@@ -463,7 +463,7 @@
         "tagline": "O lançamento",
         "tools": [
           {
-            "cost": "400 VB",
+            "cost": "100 VB",
             "description": "Clipes que param a rolagem para TikTok, Reels e Shorts.",
             "title": "Clipes Promocionais"
           },

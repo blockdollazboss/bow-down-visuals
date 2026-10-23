@@ -118,6 +118,31 @@ describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
   });
 });
 
+describe("Stack-28 #6 homepage Promo Clips price (100, bundle 1,000)", () => {
+  // A2-07: the homepage grid + FAQ quoted promo clips at 400 VB and a
+  // 1,300 VB bundle; the rail charges 100 (routes/generate/promo.ts
+  // CREDIT_COST), so the true bundle is 400+400+100+100 = 1,000.
+  it("rail charges 100 and the registry agrees", () => {
+    const rail = deriveServerConstant("routes/generate/promo.ts", "CREDIT_COST");
+    expect(rail).toBe(100);
+    expect(getCreditCost("/api/generate-promo-clips")?.cost).toBe(rail);
+  });
+
+  it("en catalog grid + FAQ and the hardcoded home.tsx FAQ carry 100 / 1,000", () => {
+    const en = JSON.parse(readFileSync(new URL("../locales/en.json", import.meta.url), "utf8")) as {
+      home: { studio: { tools: { title: string; cost: string }[] }[]; faqs: { a: string }[] };
+    };
+    const promo = en.home.studio.flatMap((c) => c.tools).find((t) => t.title === "Promo Clips");
+    expect(promo?.cost).toBe("100 VB");
+    const faq = en.home.faqs.map((f) => f.a).find((a) => a.includes("hook pack"));
+    expect(faq).toContain("promo clips (100 VB)");
+    expect(faq).toContain("= 1,000 Visual Bucs");
+    const home = readFileSync(new URL("../pages/home.tsx", import.meta.url), "utf8");
+    expect(home).toContain("promo clips (100 VB) + a hook pack (100 VB) = 1,000 Visual Bucs");
+    expect(home).not.toContain("promo clips (400 VB)");
+  });
+});
+
 describe("S27-25 FinalVideoExport never displays a raw provider name", () => {
   it("scene list and check table render the neutral sceneClip label for any provider", () => {
     const src = readComponent("FinalVideoExport.tsx");
