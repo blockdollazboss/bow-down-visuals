@@ -122,7 +122,7 @@ direction). Everything else is buildable now.
 39. **Stage Grounds arrival gate dressed**: arch/proscenium dressing at the district **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     threshold to match the proscenium it leads to — today a plain lintel in open
     floor (A SG-1).
-40. **Fence kit variety**: the six identical instanced fence kits gain per-district **[STATUS: OPEN — not built by districts lane; assigned to sky-light lane]** **[STATUS: PARKED (sky-light evidence) — lions / fountain dams / compass rose do not exist as built solids anywhere in the tree; pool + fountain are already inside PLAZA_BLOCKED. Nothing to collide with; inventing statues is out of scope.]**
+40. **Fence kit variety**: the six identical instanced fence kits gain per-district **[STATUS: PARKED (final audit reconciliation) — the item's collision half (facet A's plaza-props framing) is void: the lions / fountain dams / compass rose it named do not exist as built solids anywhere in the tree (sky-light evidence), and the pool + fountain that do exist are already inside PLAZA_BLOCKED. The fence-variety dressing half was not built by either lane it passed through (districts → sky-light) and is carried parked with it — inventing statues to collide with is out of scope.]**
     variation (cap/finial/colourway) — today one cloned kit is the world's only
     instancing and its strongest clone cue (A G-1).
 41. **Room trim identity**: the identical gold trim line on all 14 rooms gains **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
@@ -325,6 +325,10 @@ direction). Everything else is buildable now.
     rail is ready (C-V1; turn-evaluation.md upgrade path).
 
 ---
+
+---
+
+**FINAL AUDIT + JOINED VERIFICATION (coordinator, on the fully merged stack28/world tree):** all 100 items carry a status above — **61 DONE (built) · 24 VERIFIED-IN-TREE / PINNED (facet claim stale, regression-pinned) · 15 PARKED with evidence** (3, 37, 38, 40, 42, 43, 44, 45, 86, 87, 88, 89, 90, 91, 95) — plus two named sub-part parks inside otherwise-done items (4's daylight motes; 12's 2K upscale, which exceeds the texture generator's native 1600²). Merge-integrity catch of the stack: the movement-core merge be8d0c41 predated the lane's last two commits; the missing client scene half was found by the movement-feel lane and merged at b23251c3 — items 48–55 are complete only from that commit. Joined verification, sequential --maxWorkers=1, numbers ONLY from finished logs in this worktree's .lane/: **FE typecheck exit 0** (final-fe-typecheck.log) · **API typecheck exit 0** (final-api-typecheck.log) · **FE FULL suite 314 files / 4,251 tests ALL PASS** (final-fe-full-2.log; a first attempt was SIGTERM'd by the box at 273 files with zero failures — environment, rerun clean) · **API FULL suite 409 files / 5,147 tests ALL PASS** (final-api-full.log). Baseline was FE 307/4,070 + API 408/5,122 → net +7 FE files/+181 FE tests, +1 API file/+25 API tests, zero regressions. No migrations added (next free stays 0205), no price/charge changes, no file deletions, no push.
 
 **Counts:** 100 items — Graphics 12 · Light/Shadow 7 · Heights 7 · Boardwalk 4 ·
 Ateliers 3 · Creation Row 2 · Gardens 3 · Stage/Plaza/Hall 9 · Climbable-Y 8 ·
