@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stack-28 #53 — Video Editor mobile section sheet (Gate-1 preview mockup)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: #17130b;
+    color: #f3ead2;
+    padding: 28px 16px 48px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 24px; letter-spacing: .02em; color: #e8c96a; }
+  .sub { font-family: Verdana, sans-serif; font-size: 13px; line-height: 1.6; color: #cfc39f; margin: 10px 0 6px; }
+  .flow { font-family: Verdana, sans-serif; font-size: 12.5px; line-height: 1.7; color: #efe6c8; background: rgba(201,168,76,.08); border: 1px solid rgba(201,168,76,.35); border-radius: 12px; padding: 12px 16px; margin: 14px 0 24px; }
+  .flow b { color: #e8c96a; }
+  .phones { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+  .phone-col { width: 390px; }
+  .phone-label { font-family: Verdana, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; text-align: center; color: #e8c96a; margin-bottom: 10px; }
+  .phone {
+    width: 390px; height: 780px; border-radius: 36px; overflow: hidden; position: relative;
+    border: 3px solid rgba(201,168,76,.55); box-shadow: 0 24px 60px rgba(0,0,0,.6);
+    font-family: Verdana, sans-serif;
+  }
+
+  /* ---------- shared editor chrome ---------- */
+  .topbar { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid; }
+  .topbar .proj { font-size: 12px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; }
+  .btn { font-size: 11px; font-weight: 700; border-radius: 8px; padding: 9px 10px; border: 1px solid; white-space: nowrap; }
+  .btn-gold { background: #c9a84c; color: #141005; border-color: #c9a84c; }
+  .stage { display: flex; height: 728px; }
+  .rail { width: 68px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; border-right: 1px solid; overflow: hidden; }
+  .rail.r { border-right: none; border-left: 1px solid; }
+  .rail button {
+    width: 56px; border-radius: 10px; border: 1px solid transparent; background: transparent;
+    padding: 8px 2px 7px; font-size: 11px; font-weight: 700; line-height: 1.15; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .rail .ic { font-size: 16px; line-height: 1; }
+  .canvas { flex: 1; background: #000; position: relative; display: flex; flex-direction: column; }
+  .preview { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .preview .frame {
+    width: 62%; aspect-ratio: 9/16; max-height: 78%; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 30px;
+  }
+  .preview .cap { position: absolute; bottom: 16%; left: 0; right: 0; text-align: center; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 6px #000; }
+  .panels-row { text-align: center; font-size: 11px; padding: 7px 0; letter-spacing: .08em; }
+  .dock { border-top: 1px solid; padding: 10px 12px 12px; }
+  .transport { display: flex; align-items: center; gap: 6px; justify-content: center; }
+  .tbtn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid; display: flex; align-items: center; justify-content: center; font-size: 14px; background: transparent; cursor: pointer; }
+  .tbtn.play { width: 44px; height: 44px; border-radius: 50%; background: #c9a84c; color: #141005; border-color: #c9a84c; font-size: 16px; }
+  .scrub { height: 6px; border-radius: 3px; margin: 10px 2px 8px; position: relative; }
+  .scrub::after { content: ""; position: absolute; left: 34%; top: -4px; width: 3px; height: 14px; background: #c9a84c; border-radius: 2px; }
+  .tracks { display: flex; gap: 4px; }
+  .clip { height: 26px; border-radius: 6px; flex: 1; border: 1px solid; }
+
+  /* ---------- the mobile sheet (as built: bottom sheet, 84% of screen height) ---------- */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.8); }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 84%;
+    border-top: 1px solid; border-radius: 18px 18px 0 0; display: flex; flex-direction: column;
+    box-shadow: 0 -18px 50px rgba(0,0,0,.5);
+  }
+  .sheet-head { height: 48px; flex-shrink: 0; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid; }
+  .sheet-head .t { font-size: 12px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; flex: 1; }
+  .sheet-head .x { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; }
+  .sheet-body { flex: 1; overflow: hidden; padding: 16px; }
+  .tool-kicker { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #c9a84c; }
+  .tool-title { font-size: 19px; font-weight: 900; margin: 4px 0 4px; font-family: Georgia, serif; }
+  .tool-sub { font-size: 12px; line-height: 1.55; opacity: .75; margin-bottom: 14px; }
+  .sect-label { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .6; margin: 14px 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 11.5px; font-weight: 700; padding: 8px 11px; border-radius: 999px; border: 1px solid; cursor: pointer; }
+  .capline { display: flex; gap: 8px; align-items: center; border: 1px solid; border-radius: 10px; padding: 9px 11px; margin-bottom: 7px; }
+  .capline .time { font-size: 11px; font-weight: 700; color: #c9a84c; white-space: nowrap; }
+  .capline .txt { font-size: 12.5px; flex: 1; }
+  .cta { margin-top: 16px; width: 100%; padding: 13px; border-radius: 12px; border: none; background: #c9a84c; color: #141005; font-size: 13px; font-weight: 900; cursor: pointer; }
+  .note { font-family: Verdana, sans-serif; font-size: 11.5px; line-height: 1.6; text-align: center; opacity: .85; margin-top: 10px; }
+
+  /* ---------- DARK theme (golden black marble) ---------- */
+  .dark .phone, .phone.dark { background: linear-gradient(135deg, #0a0a0a 0%, #141414 35%, #1d1d1d 65%, #262626 100%); color: #fff6e6; }
+  .dark .topbar { border-color: rgba(201,168,76,.2); background: linear-gradient(165deg, #0c0c0c, #1e1e1e); }
+  .dark .btn { color: #fff6e6; border-color: rgba(201,168,76,.25); background: transparent; }
+  .dark .rail { background: linear-gradient(180deg, #080808, #101010); border-color: rgba(201,168,76,.2); }
+  .dark .rail button { color: rgba(255,246,230,.55); }
+  .dark .rail button.on { background: rgba(201,168,76,.15); color: #c9a84c; border-color: rgba(201,168,76,.3); }
+  .dark .preview .frame { background: linear-gradient(160deg, #241b08, #0c0c0c); border: 1px solid rgba(201,168,76,.35); }
+  .dark .panels-row { color: rgba(255,246,230,.35); border-top: 1px solid rgba(201,168,76,.12); border-bottom: 1px solid rgba(201,168,76,.12); }
+  .dark .dock { border-color: rgba(201,168,76,.2); background: #0c0c0c; }
+  .dark .tbtn { color: #fff6e6; border-color: rgba(201,168,76,.25); }
+  .dark .scrub { background: rgba(255,255,255,.14); }
+  .dark .clip { background: rgba(201,168,76,.16); border-color: rgba(201,168,76,.3); }
+  .dark .clip.b { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); }
+  .dark .sheet { background: linear-gradient(165deg, #0c0c0c 0%, #151515 55%, #1e1e1e 100%); border-color: rgba(201,168,76,.2); }
+  .dark .sheet-head { border-color: rgba(201,168,76,.2); }
+  .dark .sheet-head .x { background: rgba(255,255,255,.05); }
+  .dark .chip { color: #fff6e6; border-color: rgba(201,168,76,.3); background: rgba(255,255,255,.03); }
+  .dark .chip.on { background: rgba(201,168,76,.18); color: #e8c96a; border-color: #c9a84c; }
+  .dark .capline { border-color: rgba(201,168,76,.18); background: rgba(255,255,255,.02); }
+
+  /* ---------- LIGHT theme (golden white marble + cream) ---------- */
+  .light .phone, .phone.light { background: linear-gradient(135deg, #fffdf8 0%, #faf5e9 32%, #f3ecda 64%, #ede3c8 100%); color: #2a2118; }
+  .light .topbar { border-color: rgba(146,110,44,.3); background: linear-gradient(165deg, #fffdf9, #f0e6cf); }
+  .light .btn { color: #2a2118; border-color: rgba(146,110,44,.3); background: transparent; }
+  .light .rail { background: linear-gradient(180deg, #fcf8ee, #f4edd9); border-color: rgba(146,110,44,.3); }
+  .light .rail button { color: rgba(42,33,24,.55); }
+  .light .rail button.on { background: rgba(201,168,76,.16); color: #8a6d1f; border-color: rgba(146,110,44,.4); }
+  .light .preview .frame { background: linear-gradient(160deg, #2a2118, #0c0c0c); border: 1px solid rgba(146,110,44,.45); color: #f3ead2; }
+  .light .panels-row { color: rgba(42,33,24,.4); border-top: 1px solid rgba(146,110,44,.18); border-bottom: 1px solid rgba(146,110,44,.18); }
+  .light .dock { border-color: rgba(146,110,44,.3); background: #f8f2e4; }
+  .light .tbtn { color: #2a2118; border-color: rgba(146,110,44,.3); }
+  .light .scrub { background: rgba(120,90,40,.22); }
+  .light .clip { background: rgba(201,168,76,.22); border-color: rgba(146,110,44,.35); }
+  .light .clip.b { background: rgba(120,90,40,.08); border-color: rgba(146,110,44,.2); }
+  .light .sheet { background: linear-gradient(165deg, #fffdf9 0%, #f8f2e4 55%, #f0e6cf 100%); border-color: rgba(146,110,44,.3); }
+  .light .sheet-head { border-color: rgba(146,110,44,.3); }
+  .light .sheet-head .x { background: rgba(120,90,40,.08); }
+  .light .chip { color: #2a2118; border-color: rgba(146,110,44,.35); background: rgba(120,90,40,.04); }
+  .light .chip.on { background: rgba(201,168,76,.2); color: #7c5f16; border-color: #c9a84c; }
+  .light .capline { border-color: rgba(146,110,44,.22); background: rgba(120,90,40,.03); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Video Editor on a phone — every section reachable</h1>
+  <p class="sub">Stack-28 item 53 · Gate-1 preview mockup of the built behaviour, drawn at 390px wide.
+  This is a mockup (plain HTML, no live data) of what the code now does — same labels, same layout decisions as the build.</p>
+  <div class="flow">
+    <b>The fix:</b> on a phone, tapping any section button on the side rails now opens that section as a
+    <b>bottom sheet</b> over the canvas (shown open on <b>Text / Captions</b> below).
+    All 29 sections work this way — Media, Templates, Audio, Timeline, Effects, Branding, Promo Clips, Export and the rest —
+    using the exact same panels the desktop editor shows. Tap the <b>✕</b>, tap outside the sheet, or press back
+    and you are <b>back on the canvas</b>; the play / transport bar at the bottom is untouched and stays where it was.
+    On a bigger screen nothing changes — the desktop editor looks exactly as before.
+  </div>
+
+  <div class="phones">
+
+    <!-- ================= DARK ================= -->
+    <div class="phone-col dark">
+      <div class="phone-label">Dark theme — sheet open</div>
+      <div class="phone dark">
+        <div class="topbar"><span class="proj">My Music Video</span><span class="btn">Auto Captions</span><span class="btn">Save</span><span class="btn btn-gold">Export</span></div>
+        <div class="stage">
+          <div class="rail">
+            <button><span class="ic">▤</span>Pre-Pro</button>
+            <button><span class="ic">▦</span>Media</button>
+            <button><span class="ic">▧</span>Templates</button>
+            <button><span class="ic">♪</span>Audio</button>
+            <button><span class="ic">☰</span>Timeline</button>
+            <button class="on"><span class="ic">T</span>Text</button>
+            <button><span class="ic">✦</span>Effects</button>
+            <button><span class="ic">⬢</span>Brand</button>
+          </div>
+          <div class="canvas">
+            <div class="preview"><div class="frame">▶</div><div class="cap">“Bow down — this is my moment”</div></div>
+            <div class="panels-row">PANELS&nbsp; ○ ○ ○ ○ ○</div>
+            <div class="dock">
+              <div class="transport">
+                <button class="tbtn">⏮</button><button class="tbtn">−10s</button>
+                <button class="tbtn play">▶</button>
+                <button class="tbtn">+10s</button><button class="tbtn">⏭</button>
+              </div>
+              <div class="scrub"></div>
+              <div class="tracks"><div class="clip"></div><div class="clip b"></div><div class="clip"></div></div>
+            </div>
+          </div>
+          <div class="rail r">
+            <button><span class="ic">▦</span>Promo</button>
+            <button><span class="ic">♪</span>Lyric</button>
+            <button><span class="ic">▣</span>Thumbs</button>
+            <button><span class="ic">⇄</span>Repurpose</button>
+            <button><span class="ic">✂</span>Recipes</button>
+            <button><span class="ic">⬇</span>Export</button>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="sheet-head"><span class="t">Text</span><span class="x">✕</span></div>
+          <div class="sheet-body">
+            <div class="tool-kicker">Text</div>
+            <div class="tool-title">Captions</div>
+            <div class="tool-sub">Write, style and time the words on your video. The sheet scrolls — everything in this section fits the phone.</div>
+            <div class="sect-label">Caption style</div>
+            <div class="chips"><span class="chip on">Classic</span><span class="chip">Bold Pop</span><span class="chip">Karaoke</span><span class="chip">Minimal</span><span class="chip">Neon</span></div>
+            <div class="sect-label">Your caption lines</div>
+            <div class="capline"><span class="time">0:00</span><span class="txt">Bow down — this is my moment</span><span>✎</span></div>
+            <div class="capline"><span class="time">0:04</span><span class="txt">Every frame fit for a king</span><span>✎</span></div>
+            <div class="capline"><span class="time">0:09</span><span class="txt">Watch the crown shine</span><span>✎</span></div>
+            <button class="cta">Auto Captions</button>
+          </div>
+        </div>
+      </div>
+      <p class="note">Sheet covers the lower 84% of the screen. The editor, canvas and transport bar stay mounted underneath — close the sheet and you are right back where you were.</p>
+    </div>
+
+    <!-- ================= LIGHT ================= -->
+    <div class="phone-col light">
+      <div class="phone-label">Light theme — sheet open</div>
+      <div class="phone light">
+        <div class="topbar"><span class="proj">My Music Video</span><span class="btn">Auto Captions</span><span class="btn">Save</span><span class="btn btn-gold">Export</span></div>
+        <div class="stage">
+          <div class="rail">
+            <button><span class="ic">▤</span>Pre-Pro</button>
+            <button><span class="ic">▦</span>Media</button>
+            <button><span class="ic">▧</span>Templates</button>
+            <button><span class="ic">♪</span>Audio</button>
+            <button><span class="ic">☰</span>Timeline</button>
+            <button class="on"><span class="ic">T</span>Text</button>
+            <button><span class="ic">✦</span>Effects</button>
+            <button><span class="ic">⬢</span>Brand</button>
+          </div>
+          <div class="canvas">
+            <div class="preview"><div class="frame">▶</div><div class="cap">“Bow down — this is my moment”</div></div>
+            <div class="panels-row">PANELS&nbsp; ○ ○ ○ ○ ○</div>
+            <div class="dock">
+              <div class="transport">
+                <button class="tbtn">⏮</button><button class="tbtn">−10s</button>
+                <button class="tbtn play">▶</button>
+                <button class="tbtn">+10s</button><button class="tbtn">⏭</button>
+              </div>
+              <div class="scrub"></div>
+              <div class="tracks"><div class="clip"></div><div class="clip b"></div><div class="clip"></div></div>
+            </div>
+          </div>
+          <div class="rail r">
+            <button><span class="ic">▦</span>Promo</button>
+            <button><span class="ic">♪</span>Lyric</button>
+            <button><span class="ic">▣</span>Thumbs</button>
+            <button><span class="ic">⇄</span>Repurpose</button>
+            <button><span class="ic">✂</span>Recipes</button>
+            <button><span class="ic">⬇</span>Export</button>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="sheet-head"><span class="t">Text</span><span class="x">✕</span></div>
+          <div class="sheet-body">
+            <div class="tool-kicker">Text</div>
+            <div class="tool-title">Captions</div>
+            <div class="tool-sub">Write, style and time the words on your video. The sheet scrolls — everything in this section fits the phone.</div>
+            <div class="sect-label">Caption style</div>
+            <div class="chips"><span class="chip on">Classic</span><span class="chip">Bold Pop</span><span class="chip">Karaoke</span><span class="chip">Minimal</span><span class="chip">Neon</span></div>
+            <div class="sect-label">Your caption lines</div>
+            <div class="capline"><span class="time">0:00</span><span class="txt">Bow down — this is my moment</span><span>✎</span></div>
+            <div class="capline"><span class="time">0:04</span><span class="txt">Every frame fit for a king</span><span>✎</span></div>
+            <div class="capline"><span class="time">0:09</span><span class="txt">Watch the crown shine</span><span>✎</span></div>
+            <button class="cta">Auto Captions</button>
+          </div>
+        </div>
+      </div>
+      <p class="note">Golden white marble in light, golden black marble in dark — the editor's own colours, carried into the sheet so it feels like the same room, not a pop-up from another app.</p>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

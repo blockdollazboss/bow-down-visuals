@@ -191,18 +191,19 @@ describe("ar-W2 (Stack-28 #79) retention/invite + video namespaces fully transla
    name, platform names (Spotify/YouTube/Apple Music/SoundCloud), format
    labels (MP3 (320k), WAV (24-bit), 1080p Full HD, 4K Ultra HD), the
    Hormozi style name (proper noun), and placeholder-only strings.
-   REMAINING in this wave (not pinned here): thumbnailTest — its only gap
-   is the filesSkipped plural family (2 en keys). Completing it raises
-   ar's carried-family count 33 → 34, which breaks the hard-pinned count
-   in i18n-plural-categories.test.ts ("ar carries all 33 families");
-   that file is outside this lane's ownership, so the family stays
-   untranslated until its owner bumps the pin to 34. */
+   thumbnailTest completed by the coordinator at integration: its only
+   gap was the filesSkipped plural family (2 en keys → six ar CLDR forms);
+   the lane held it because completing it raises ar's carried-family
+   count 33 → 34 against the hard pin in i18n-plural-categories.test.ts
+   (outside lane ownership). The coordinator landed the six forms and
+   corrected that pin to 34 in the same integration commit, so
+   thumbnailTest is pinned here with the rest of W3. */
 const W3_NS = [
   "bgStudio", "headshotStudio", "colorGrade", "photoEnhance", "speedRamp",
   "captionTemplates", "videoTemplatesPage", "photoShoot", "upscale",
   "avatarPresenter", "thumbnailStudio", "thumbnailMaker", "makeVideo",
   "songAndVideo", "thumbnail", "thumbnails", "clipMaker",
-  "watermarkRemoval", "logoMaker", "captionStyler", "harmony", "mixMaster",
+  "watermarkRemoval", "logoMaker", "captionStyler", "thumbnailTest", "harmony", "mixMaster",
   "deverb", "fillerRemover", "lrcExport", "mastering", "samples",
 ];
 const W3_ALLOW = new Set([
