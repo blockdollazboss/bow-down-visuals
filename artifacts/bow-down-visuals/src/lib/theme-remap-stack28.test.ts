@@ -80,3 +80,29 @@ describe("item 37 — border remap gaps closed (A4-E1/E2)", () => {
     expect(css.slice(anchor, anchor + 400)).toContain("{ border-color: #EDE3CB; }");
   });
 });
+
+describe("item 38 — pale 100/200 variants deepen to their 700 steps (A4-D3)", () => {
+  it.each([
+    ["text-emerald-100\\/80", "rgb(4 120 87 / 0.88)"],
+    ["text-emerald-100\\/60", "rgb(4 120 87 / 0.78)"],
+    ["text-red-100\\/80", "rgb(185 28 28 / 0.88)"],
+    ["text-green-100\\/85", "rgb(21 128 61 / 0.9)"],
+    ["text-sky-200\\/90", "rgb(3 105 161 / 0.92)"],
+    ["text-sky-200\\/70", "rgb(3 105 161 / 0.82)"],
+    ["text-emerald-200\\/90", "rgb(4 120 87 / 0.92)"],
+    ["text-emerald-200\\/80", "rgb(4 120 87 / 0.88)"],
+    ["text-blue-200\\/80", "rgb(29 78 216 / 0.88)"],
+  ])("%s has a guarded .light rule", (cls, value) => {
+    expect(css).toContain(`.light .${cls}${GUARDED} { color: ${value}; }`);
+  });
+
+  it("text-blue-200 (no rule at all before) deepens to blue-700", () => {
+    expect(css).toContain(`.light .text-blue-200${GUARDED} { color: #1D4ED8; }`);
+  });
+
+  it("the base steps the variants hang off are still covered", () => {
+    expect(css).toContain(`.light .text-emerald-200${GUARDED} { color: #047857; }`);
+    expect(css).toContain(`.light .text-sky-200${GUARDED} { color: #0369A1; }`);
+    expect(css).toContain(`.light .text-red-100${GUARDED}`);
+  });
+});

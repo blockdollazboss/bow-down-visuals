@@ -480,6 +480,26 @@ html, body {
 .light .text-amber-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.88); }
 .light .text-amber-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.82); }
 .light .text-amber-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.78); }
+/* Stack-28 (A4-D3): the pale 100/200 opacity variants never got the
+   deepening their base steps have — claim-success body + fine print
+   (emerald-100/80, /60 on storefront-product), per-section error copy
+   (red-100/80) and the purchase-success banner (green-100/85) in
+   live-shopping, the Labels-tab disclaimer (sky-200/90), SyncTab's
+   "placed" prompt (emerald-200/90), discovery earnings suffixes
+   (emerald-200/80) and the scheduler's "publishing" chip (blue-200,
+   which had NO rule at all) all washed out on ivory/faint tints.
+   Each deepens to its family's readable 700 step, stepped like the
+   existing 200-family rungs. */
+.light .text-emerald-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.88); }
+.light .text-emerald-100\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.78); }
+.light .text-red-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.88); }
+.light .text-green-100\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.9); }
+.light .text-sky-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(3 105 161 / 0.92); }
+.light .text-sky-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(3 105 161 / 0.82); }
+.light .text-emerald-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.92); }
+.light .text-emerald-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.88); }
+.light .text-blue-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #1D4ED8; }
+.light .text-blue-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.88); }
 .light .text-sky-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0284C7; }
 .light .text-cyan-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0891B2; }
 .light .text-violet-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #7C3AED; }
