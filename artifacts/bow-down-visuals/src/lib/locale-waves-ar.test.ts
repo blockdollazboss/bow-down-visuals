@@ -292,3 +292,78 @@ describe("ar-W4 (Stack-28 #97) audio + scheduler/projects namespaces fully trans
     checkWave(W4_NS, W4_ALLOW);
   });
 });
+
+/* ar-W5 (Stack-28 appendix) — link-in-bio / nfc / privacy + promo-tool
+   namespaces. Legit identicals: brand/platform names, env-var names,
+   URLs/example identifiers, pure formats, house feature names. */
+const W5_NS = ["myClips", "hooks", "mediaDetector", "randomizer", "scriptWriter", "library", "artistVault", "catalogVault", "streamPack", "viralityCheck", "importPage", "audit", "titles", "email-list", "interviewPrep", "trends", "chooseArtist", "retention", "generations", "analytics", "setlist", "linkInBio", "weekly_contest", "discord-bot", "shoutouts", "community", "collabs", "goLive", "contests", "team", "extension", "shows", "tour", "nfcCards", "privacy"];
+const W5_ALLOW = new Set([
+  "linkInBio.tipJar.placeholder",
+  "linkInBio.links.urlPlaceholder",
+  "linkInBio.profile.avatarUrlPlaceholder",
+  "myClips.extractAudioCost",
+  "analytics.creditsPerRun",
+  "artistVault.creditsCount",
+  "audit.handlePlaceholder",
+  "audit.platformInstagram",
+  "audit.platformTikTok",
+  "audit.platformYouTube",
+  "discord-bot.discord",
+  "discord-bot.discord_bot_shared_secret",
+  "discord-bot.discord_bot_token",
+  "discord-bot.discord_client_id",
+  "email-list.100_visual_bucs",
+  "email-list.join_2",
+  "email-list.thy_cheat_code",
+  "extension.bdv",
+  "extension.chrome_extensions",
+  "goLive.gamePlaceholder",
+  "goLive.streamTitlePlaceholder",
+  "hooks.heroTitleA",
+  "hooks.pfHashtagsPlaceholder",
+  "hooks.scoreOutOf",
+  "importPage.kbSize",
+  "importPage.mbSize",
+  "importPage.urlPlaceholder",
+  "interviewPrep.artistNamePh",
+  "interviewPrep.audienceSizePh",
+  "interviewPrep.of100",
+  "library.headingA",
+  "nfcCards.qrSvg",
+  "privacy.section4Item1Label",
+  "privacy.section4Item2Label",
+  "privacy.section4Item3Label",
+  "randomizer.crossLink.name",
+  "retention.awayDigest.bowRace",
+  "retention.quests_progress",
+  "scriptWriter.platformTiktok",
+  "scriptWriter.platformYoutube",
+  "setlist.durationPlaceholder",
+  "shoutouts.displayNamePlaceholder",
+  "shoutouts.emailPlaceholder",
+  "team.fundPlaceholder",
+  "team.inviteEmailPlaceholder",
+  "titles.platformInstagram",
+  "titles.platformTikTok",
+  "titles.platformYouTube",
+  "trends.platformInstagram",
+  "trends.platformTiktok",
+  "trends.platformYoutube",
+  "viralityCheck.crossLinkHookStudio",
+  "viralityCheck.hashtagsPlaceholder",
+  "viralityCheck.platformInstagram",
+  "viralityCheck.platformTiktok",
+  "viralityCheck.platformX",
+  "viralityCheck.platformYoutube",
+]);
+
+describe("ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces fully translated", () => {
+  it("wave is closed", () => {
+    checkWave(W5_NS, W5_ALLOW);
+  });
+  it("carries mediaDetector.filesSkipped plurals whole (ar six forms)", () => {
+    for (const suffix of ["_zero", "_one", "_two", "_few", "_many", "_other"]) {
+      expect(typeof AR[`mediaDetector.filesSkipped${suffix}`], `filesSkipped${suffix}`).toBe("string");
+    }
+  });
+});

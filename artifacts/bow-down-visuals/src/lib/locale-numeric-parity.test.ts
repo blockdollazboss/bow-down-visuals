@@ -166,7 +166,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
       "wave8.hookRewriter.sub", "wave9.templates.previewHeadingOne",
     ]],
     ["LEGIT: counts spelled (واحد / dual forms) + ألف unit word — verified value-equal", [
-      "beats.tierBasicBlurb", "beats.tierPremiumBlurb",
+      "beats.tierBasicBlurb", "beats.tierPremiumBlurb", "mediaDetector.filesSkipped_one",
     ]],
     ["LEGIT: 2M spelled as the dual of million (مليوني) — verified value-equal", [
       "sponsorDealDetail.winsPlaceholder",

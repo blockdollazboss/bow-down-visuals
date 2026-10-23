@@ -1393,7 +1393,7 @@
     "profileCount": "{{count}} من الملفات",
     "profileSaved": "تم {{action}} ملف الفنان بنجاح!",
     "profilesSubtitle": "احفظ مظهر فنانك وأسلوبه وألوانه وعلامته مرة واحدة — ثم حمّله في أي أداة للحفاظ على ثبات كل مشاهدك.",
-    "profilesTitle": "Creative Vault",
+    "profilesTitle": "الخزنة الإبداعية",
     "referenceVideo": "الفيديو المرجعي",
     "referenceVideoBlurb": "صورة حية لـ{{name}}. أينما اخترت هذه الشخصية، يُشغَّل الفيديو تلقائياً بدلاً من الصورة الثابتة.",
     "removeOutfitAria": "إزالة الإطلالة من خزانة الملابس",
@@ -1508,7 +1508,17 @@
     "identityUrlRequired": "أضف رابط صورة صالحًا (https://…) للصورة.",
     "identityRemoveTitle": "يزيل من المجموعة فقط — ملف الصورة يبقى",
     "identityRemoveAria": "إزالة الصورة من مجموعة الهوية",
-    "identityUploadAria": "رفع صورة هوية"
+    "identityUploadAria": "رفع صورة هوية",
+    "worldVoiceSection": "صوت العالم",
+    "worldVoiceHint": "كيف يبدو صوت هذه الشخصية عندما تتحدث بها في العالم. طبيعي = صوتك الخاص.",
+    "voicePresetDeep": "عميق",
+    "voicePresetNatural": "طبيعي",
+    "voicePresetBright": "مشرق",
+    "voiceAdvanced": "متقدم",
+    "voicePitch": "حدة الصوت",
+    "voiceFormant": "حجم الجسم",
+    "voiceBody": "الرنين",
+    "emptyProfilesTitle": "خزنتك فارغة"
   },
   "audioCleanup": {
     "pageTitle": "تنظيف الصوت",
@@ -2241,7 +2251,9 @@
     "spotlightBadge": "#{{n}} في دائرة الضوء",
     "startCreating": "ابدأ الإبداع مع هذا الفنان",
     "subtitle": "اختر فنانك — الأضواء، الكاميرا، وسنطابق مظهرهم وصوتهم وعلامتهم عبر كل ما تنشئه.",
-    "title": "من أمام الكاميرا؟"
+    "title": "من أمام الكاميرا؟",
+    "dragHint": "اسحب أي فنان إلى خانة تسليط الضوء لاختيار من يلمع أين.",
+    "startCreatingWith": "ابدأ الإنشاء مع {{name}}"
   },
   "clipMaker": {
     "analyzeNote": "يفرّغ الذكاء الاصطناعي تسجيل VOD الخاص بك ويجد لحظات {{vibe}} التي تستحق القص. تدفع فقط عند العثور على أبرز اللحظات.",
@@ -2440,7 +2452,9 @@
     "wantsLabel": "يريد: ",
     "watchOutFor": "انتبه من",
     "whyItWorks": "لماذا ينجح",
-    "youBadge": "أنت"
+    "youBadge": "أنت",
+    "brandDealsLink": "صفقات العلامات",
+    "collabExplainer": "شراكات من مبدع إلى مبدع — اعثر على متعاونين، لا رعاة. تطارد أموال العلامات بدلًا من ذلك؟ راجع "
   },
   "commentReplies": {
     "batchSubline": "{{date}} — «{{preview}}…»",
@@ -2554,7 +2568,11 @@
         "label": "تنبيه معجب متفانٍ",
         "desc": "أحد أبرز داعميك ظهر — قل شكراً"
       }
-    }
+    },
+    "replies": {
+      "scheduleLink": "خطط للمنشورات في المجدول"
+    },
+    "messagesLink": "افتح الرسائل المباشرة ←"
   },
   "contact": {
     "connectionError": "خطأ في الاتصال. حاول مجدداً.",
@@ -2636,7 +2654,9 @@
     "entries_the_draw_is_seeded_and_l": "المشاركات. السحب مُبذَّر ومسجّل —\n                        انشر التدقيق ليتمكن معجبوك من التحقق من نزاهته.",
     "verify_at_least_one_entry_first": "وثّق مشاركة واحدة على الأقل أولاً.",
     "ai_generated_gold_black_announce": "رسم توضيحي ذهبي/أسود مولّد بالذكاء الاصطناعي لإعلان الفائز مع معرّف الفائز — 100 Visual Bucs.",
-    "download": "تحميل"
+    "download": "تحميل",
+    "winnersCircle": "دائرة الفائزين",
+    "share": "مشاركة"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "الصق العقد الكامل هنا — انسخه من PDF أو المستند الذي أرسلوه لك. كلما كان أكمل، كان التحليل أفضل.",
@@ -3345,7 +3365,8 @@
       "video": "فيديو",
       "song": "أغنية",
       "voice": "صوت"
-    }
+    },
+    "download": "تنزيل"
   },
   "goLive": {
     "pageTitle": "ابدأ البث",
@@ -3455,6 +3476,15 @@
       },
       "preflight": {
         "label": "فحص الفيروسية قبل النشر"
+      },
+      "cta": {
+        "label": "مولّد CTA"
+      },
+      "titles": {
+        "label": "العناوين"
+      },
+      "dice": {
+        "label": "النرد"
       }
     },
     "videoType": {
@@ -3529,7 +3559,60 @@
     "errNeedTitle": "امنح فيديوك عنواناً أولاً — هذا أول ما يفحصه فحص ما قبل النشر.",
     "errHooksFailed": "فشل إنشاء الخطافات — حاول مجدداً.",
     "errCaptionsFailed": "فشل إنشاء النصوص المرافقة — حاول مجدداً.",
-    "errScoringFailed": "فشل التقييم — حاول مجدداً."
+    "errScoringFailed": "فشل التقييم — حاول مجدداً.",
+    "ctaSub": "كل فيديو يحتاج إلى دعوة قوية لاتخاذ إجراء. اختر هدفك وسنكتب 10 دعوات محسّنة للتحويل، مرتبة من الأقوى أولًا.",
+    "ctaTopicLabel": "ما موضوع الفيديو؟",
+    "ctaTopicPlaceholder": "مثال: أغنيتي الجديدة \"Golden Tide\" تنطلق يوم الجمعة",
+    "ctaGoalLabel": "ما الذي يجب أن يفعله المشاهدون؟",
+    "ctaGoal": {
+      "subscribe": {
+        "label": "اشتراك"
+      },
+      "comment": {
+        "label": "تعليق"
+      },
+      "share": {
+        "label": "مشاركة"
+      },
+      "follow": {
+        "label": "متابعة"
+      },
+      "buy": {
+        "label": "شراء"
+      },
+      "stream": {
+        "label": "استماع"
+      }
+    },
+    "creditNoteCta": "50 Visual Bucs لكل إنشاء · مدعوم بـ Thy Cheat Code",
+    "generateCtas": "إنشاء الدعوات",
+    "cookingCtas": "جارٍ كتابة دعواتك…",
+    "yourCtas": "دعواتك — مرتبة حسب القوة",
+    "ctaPlacement": {
+      "opener": {
+        "label": "الافتتاحية"
+      },
+      "mid-roll": {
+        "label": "منتصف الفيديو"
+      },
+      "closer": {
+        "label": "الختامية"
+      },
+      "pinned-comment": {
+        "label": "تعليق مثبّت"
+      }
+    },
+    "ctaStrengthLabel": "القوة",
+    "addToScript": "إضافة إلى النص",
+    "addedToScript": "في نصك",
+    "ctaHandoffTip": "اضغط «إضافة إلى النص» لإسقاط دعوة في مشروع الهب الخاص بك — يلتقطها كاتب النصوص والتعليق الصوتي من هناك.",
+    "errNeedVideoTopic": "أخبرنا أولًا ما موضوع الفيديو.",
+    "errCtasFailed": "تعذر إنشاء الدعوات — حاول مرة أخرى.",
+    "fullIntelligenceCheck": "فحص ذكاء كامل",
+    "sendToScriptWriter": "إرسال إلى كاتب النصوص",
+    "captions": {
+      "needBurnedIn": "تحتاج إلى تعليقات مدمجة في الفيديو؟"
+    }
   },
   "hub": {
     "removeAssetAria": "إزالة {{label}}",
@@ -3624,7 +3707,8 @@
     "title": "مستورد الوسائط",
     "urlPlaceholder": "https://www.youtube.com/watch?v=…",
     "video": "فيديو",
-    "worksWith": "يعمل مع {{platforms}} وروابط مباشرة لملفات الصوت/الفيديو (MP3 وMP4 وWAV، …). ملفات حتى 500 MB."
+    "worksWith": "يعمل مع {{platforms}} وروابط مباشرة لملفات الصوت/الفيديو (MP3 وMP4 وWAV، …). ملفات حتى 500 MB.",
+    "viewLibrary": "مقاطعي"
   },
   "interviewPrep": {
     "answerLabel": "إجابتك — قلها كما لو كنت على المايك",
@@ -5052,7 +5136,17 @@
     "regenerate": "إعادة التوليد ({{cost}} Visual Bucs)",
     "retry": "إعادة المحاولة",
     "themeLabel": "السمة",
-    "yourPack": "حزمتك"
+    "yourPack": "حزمتك",
+    "goLive": "الحزمة جاهزة — أعدّ بثك في البث المباشر",
+    "libraryTitle": "مكتبة حزم البث الخاصة بك",
+    "libraryNote": "كل رسم تنشئه يُحفظ هنا. أضف ما تريده إلى استوديو البث المباشر — سينتظر في صينية حزم البث بالاستوديو، جاهزًا للإسقاط في مشهد.",
+    "libraryEmpty": "لا شيء محفوظ بعد — أنشئ حزمة أعلاه وستهبط هنا.",
+    "libraryLoading": "جارٍ تحميل مكتبتك…",
+    "libraryError": "تعذر تحميل مكتبتك.",
+    "libraryActionFailed": "لم يُحفظ هذا التغيير — حاول مرة أخرى.",
+    "addToStudio": "إضافة إلى الاستوديو الخاص بي",
+    "inStudio": "في الاستوديو الخاص بي",
+    "removeFromStudio": "إزالة"
   },
   "team": {
     "accept": "قبول",
@@ -5174,7 +5268,26 @@
     "toneLabel": "النبرة",
     "topicLabel": "عن ماذا يدور الفيديو؟",
     "topicPlaceholder": "مثال: كيف أنتجت أول إيقاع لي في ليلة واحدة",
-    "writeScriptButton": "اكتب سكريبتي · {{cost}} Visual Bucs"
+    "writeScriptButton": "اكتب سكريبتي · {{cost}} Visual Bucs",
+    "teleprompterLaunch": "▶ تشغيل الملقّن",
+    "teleprompterClose": "إغلاق الملقّن",
+    "teleprompterPlay": "تشغيل",
+    "teleprompterPause": "إيقاف مؤقت",
+    "teleprompterRestart": "إعادة من البداية",
+    "teleprompterWpm": "السرعة",
+    "teleprompterWpmValue": "{{wpm}} كلمة/دقيقة",
+    "teleprompterFontSmaller": "نص أصغر",
+    "teleprompterFontLarger": "نص أكبر",
+    "teleprompterMirror": "انعكاس لأجهزة الملقّن",
+    "teleprompterFullscreen": "ملء الشاشة",
+    "teleprompterWords": "{{count}} كلمة",
+    "teleprompterReadTime": "~{{min}} دقيقة قراءة",
+    "teleprompterHint": "مسافة = تشغيل/إيقاف · ↑↓ = السرعة · +/− = حجم النص · Esc = إغلاق · انقر النص = إيقاف",
+    "hookHintLabel": "خطاف فائز من خطة المحتوى الخاصة بك",
+    "hookHintBlurb": "ابدأ بهذا السطر — تمت هندسته لحلقة الانتشار.",
+    "dismiss": "تجاهل",
+    "sendToScheduler": "المجدول",
+    "sendToVoiceover": "التعليق الصوتي"
   },
   "setlist": {
     "addButton": "إضافة",
@@ -5461,7 +5574,9 @@
     "viewDeliveredVideo": "عرض الفيديو المسلَّم",
     "yourNameLabel": "اسمك",
     "yourNamePlaceholder": "لمن هذا الإهداء؟",
-    "yourShoutoutPage": "صفحة إهداءاتك"
+    "yourShoutoutPage": "صفحة إهداءاتك",
+    "paidTitle": "اكتمل الدفع — تم حجز الصيحة!",
+    "paidDesc": "صيحتك مدفوعة ومقبولة. سيسجلها المبدع ويرسلها إليك ضمن وقت التسليم الخاص به."
   },
   "shows": {
     "artistNameLabel": "اسمك الفني",
@@ -5517,7 +5632,8 @@
     "windowNext30Days": "الـ30 يوماً القادمة",
     "windowNext6Months": "الـ6 أشهر القادمة",
     "windowNext90Days": "الـ90 يوماً القادمة",
-    "yourStages": "مسارحك"
+    "yourStages": "مسارحك",
+    "setlistLink": "ابنِ قائمة أغانيك ←"
   },
   "signup": {
     "agreeAnd": "و",
@@ -6158,7 +6274,8 @@
     "topicLabel": "موضوع الفيديو",
     "topicPlaceholder": "مثل «أغنيتي الجديدة عن السهر حتى الثالثة فجراً» أو «كواليس أول جلسة استوديو لي»",
     "topicRequired": "أخبرنا عن موضوع الفيديو أولاً.",
-    "topicSub": "موضوع واحد يدخل، تغليف كامل يخرج."
+    "topicSub": "موضوع واحد يدخل، تغليف كامل يخرج.",
+    "sendToScheduler": "إرسال إلى المجدول"
   },
   "tour": {
     "addDateFree": "إضافة موعد جولة · مجاني",
@@ -6232,7 +6349,8 @@
     "uncheckAria": "إلغاء تحديد {{label}}",
     "venueLabel": "القاعة",
     "venuePlaceholder": "مثال: The Masquerade",
-    "yourDates": "مواعيدك"
+    "yourDates": "مواعيدك",
+    "setlistLink": "ابنِ قائمة أغانيك ←"
   },
   "translate": {
     "badge": "مترجم الفيديو بالذكاء الاصطناعي",
@@ -7939,35 +8057,41 @@
     }
   },
   "mediaDetector": {
-    "badge": "AI Media Detector",
-    "titleStart": "Real or",
-    "titleAi": "AI?",
-    "titleEnd": "Know for sure.",
-    "subtitle": "Upload an image, video, or audio file — or paste a link — and get a forensic AI assessment: verdict, confidence score, and the exact tells it found.",
-    "costPerCheck": "{{cost}} Visual Bucs per check.",
-    "dropHint": "Drop files here or click to upload",
-    "fileTypes": "Images, video, audio — up to 25MB each. Batch supported.",
-    "urlPlaceholder": "…or paste an image URL",
-    "add": "Add",
-    "queueStatus": "{{count}} files · {{done}} checked",
-    "clearAll": "Clear all",
-    "checkAll": "Check all ({{cost}} Visual Bucs)",
-    "remove": "Remove",
-    "analyze": "Analyze · {{cost}} Visual Bucs",
-    "analyzing": "Analyzing for AI tells…",
-    "analyzingVideo": "Extracting frames, then analyzing…",
-    "retry": "Retry",
-    "emptyTitle": "Nothing to check yet",
-    "emptySubtitle": "Upload a file or paste a URL to run your first detection.",
-    "verdictAi": "Likely AI-Generated",
-    "verdictHuman": "Likely Human-Created",
-    "verdictUncertain": "Uncertain",
-    "detectedSignals": "Detected signals",
-    "pointsToAi": "points to AI",
-    "pointsToHuman": "points to human",
-    "errorOutOfCredits": "Out of Visual Bucs.",
-    "errorDetectionFailed": "Detection failed. Try again.",
-    "errorDetectionFailedShort": "Detection failed."
+    "badge": "كاشف الوسائط بالذكاء الاصطناعي",
+    "titleStart": "حقيقي أم",
+    "titleAi": "ذكاء اصطناعي؟",
+    "titleEnd": "اعرف على وجه اليقين.",
+    "subtitle": "ارفع صورة أو فيديو أو ملفًا صوتيًا — أو الصق رابطًا — واحصل على تقييم جنائي بالذكاء الاصطناعي: الحكم ودرجة الثقة والعلامات الدقيقة التي وجدها.",
+    "costPerCheck": "{{cost}} Visual Bucs لكل فحص.",
+    "dropHint": "أسقط الملفات هنا أو انقر للرفع",
+    "fileTypes": "صور وفيديو وصوت — حتى 25MB لكل منها. الدُفعات مدعومة.",
+    "urlPlaceholder": "…أو الصق رابط صورة",
+    "add": "إضافة",
+    "queueStatus": "{{count}} ملف · تم فحص {{done}}",
+    "clearAll": "مسح الكل",
+    "checkAll": "فحص الكل ({{cost}} Visual Bucs)",
+    "remove": "إزالة",
+    "analyze": "تحليل · {{cost}} Visual Bucs",
+    "analyzing": "جارٍ التحليل بحثًا عن علامات الذكاء الاصطناعي…",
+    "analyzingVideo": "جارٍ استخراج الإطارات، ثم التحليل…",
+    "retry": "إعادة المحاولة",
+    "emptyTitle": "لا شيء للفحص بعد",
+    "emptySubtitle": "ارفع ملفًا أو الصق رابطًا لتشغيل أول كشف.",
+    "verdictAi": "على الأرجح مولّد بالذكاء الاصطناعي",
+    "verdictHuman": "على الأرجح من صنع إنسان",
+    "verdictUncertain": "غير مؤكد",
+    "detectedSignals": "الإشارات المكتشفة",
+    "pointsToAi": "تشير إلى الذكاء الاصطناعي",
+    "pointsToHuman": "تشير إلى الإنسان",
+    "errorOutOfCredits": "نفدت Visual Bucs.",
+    "errorDetectionFailed": "فشل الكشف. حاول مرة أخرى.",
+    "errorDetectionFailedShort": "فشل الكشف.",
+    "filesSkipped_one": "تم تخطي ملف واحد — نوع غير مدعوم أو أكبر من 25 MB.",
+    "filesSkipped_other": "تم تخطي {{count}} ملف — نوع غير مدعوم أو أكبر من 25 MB.",
+    "filesSkipped_zero": "لم يتم تخطي أي ملف — نوع غير مدعوم أو أكبر من 25 MB.",
+    "filesSkipped_two": "تم تخطي ملفين — نوع غير مدعوم أو أكبر من 25 MB.",
+    "filesSkipped_few": "تم تخطي {{count}} ملفات — نوع غير مدعوم أو أكبر من 25 MB.",
+    "filesSkipped_many": "تم تخطي {{count}} ملفًا — نوع غير مدعوم أو أكبر من 25 MB."
   },
   "playlistPitch": {
     "copied": "تم النسخ",
@@ -8272,51 +8396,51 @@
     }
   },
   "randomizer": {
-    "badge": "Thy Cheat Code's dice",
-    "titlePrefix": "Content",
-    "titleSuffix": "Randomizer",
-    "hero": "Stuck staring at a blank page? Roll the dice for a free spark — or let Thy Cheat Code AI cook up five fresh, made-for-you ideas for 100 Visual Bucs.",
-    "categoriesLabel": "Randomizer categories",
+    "badge": "نرد Thy Cheat Code",
+    "titlePrefix": "عشوائي",
+    "titleSuffix": "المحتوى",
+    "hero": "عالق تحدق في صفحة فارغة؟ ارمِ النرد لشرارة مجانية — أو دع Thy Cheat Code AI يطبخ خمس أفكار جديدة مصنوعة لك مقابل 100 Visual Bucs.",
+    "categoriesLabel": "فئات العشوائي",
     "categories": {
       "video-ideas": {
-        "label": "Video Ideas",
-        "blurb": "Fresh concepts for your next music video or content drop."
+        "label": "أفكار الفيديو",
+        "blurb": "مفاهيم جديدة لفيديوك الموسيقي أو إصدار المحتوى القادم."
       },
       "hooks": {
-        "label": "Hooks",
-        "blurb": "First-3-second openers that stop the scroll."
+        "label": "الخطافات",
+        "blurb": "افتتاحيات أول 3 ثوانٍ توقف التمرير."
       },
       "thumbnails": {
-        "label": "Thumbnails",
-        "blurb": "High-click-through concepts for YouTube and beyond."
+        "label": "الصور المصغرة",
+        "blurb": "مفاهيم عالية النقر ليوتيوب وما بعده."
       },
       "song-concepts": {
-        "label": "Song Concepts",
-        "blurb": "Themes and angles worth writing your next track about."
+        "label": "مفاهيم الأغاني",
+        "blurb": "موضوعات وزوايا تستحق كتابة مقطوعتك القادمة عنها."
       },
       "niche-picker": {
-        "label": "Niche Picker",
-        "blurb": "Positioning angles you could own as a creator."
+        "label": "مختار المجال",
+        "blurb": "زوايا تموضع يمكنك امتلاكها كمبدع."
       },
       "challenges": {
-        "label": "Challenges",
-        "blurb": "Forcing functions for output and growth."
+        "label": "التحديات",
+        "blurb": "وظائف إجبارية للإنتاج والنمو."
       }
     },
-    "rollDice": "Roll the dice",
-    "freeForever": "Free forever — roll as much as you want",
-    "yourRoll": "Your roll",
-    "orDeeper": "or go deeper",
-    "cooking": "Cooking up ideas…",
+    "rollDice": "ارمِ النرد",
+    "freeForever": "مجاني إلى الأبد — ارمِ بقدر ما تريد",
+    "yourRoll": "رميتك",
+    "orDeeper": "أو تعمّق أكثر",
+    "cooking": "جارٍ طبخ الأفكار…",
     "generateAi": "Generate 5 fresh with AI",
-    "signInToGenerate": "Sign in to generate with AI",
+    "signInToGenerate": "سجل الدخول للإنشاء بالذكاء الاصطناعي",
     "costPerRoll": "{{cost}} Visual Buc per AI roll · powered by Thy Cheat Code",
-    "freshFromAi": "Fresh from the AI",
+    "freshFromAi": "طازج من الذكاء الاصطناعي",
     "reroll": "Re-roll ({{cost}} Visual Buc)",
     "crossLink": {
-      "p1": "Like an idea? Ask",
+      "p1": "أعجبتك فكرة؟ اسأل",
       "name": "Thy Cheat Code",
-      "p2": "in the chat bubble to turn it into a full plan."
+      "p2": "في فقاعة الدردشة لتحويلها إلى خطة كاملة."
     },
     "error": {
       "aiRollFailed": "AI roll failed — try again."
@@ -9216,57 +9340,57 @@
     }
   },
   "privacy": {
-    "contactSupport": "Contact / Support",
-    "lastUpdated": "Last updated: September 2026",
-    "pageDescription": "How Bow Down Visuals handles your data.",
-    "pageTitle": "Privacy Policy",
-    "section10ContactLink": "Contact page",
-    "section10Intro": "Privacy questions? Email",
-    "section10Middle": "or visit our",
-    "section10Title": "10. Contact",
-    "section1Body": "Bow Down Visuals operates a digital creator platform that provides AI-powered Visual Bucs for generating videos, music, images, voiceovers, lip-synced videos, lyrics, captions, thumbnails, promo clips, and related digital content. This policy explains how we collect, use, and protect your information.",
-    "section1Title": "1. Who We Are",
-    "section2Item1Body": "email address and password (hashed) when you register, or basic profile information from Google if you sign in with Google",
-    "section2Item1Label": "Account info:",
-    "section2Item2Body": "handled entirely by Stripe — we never store raw card data",
-    "section2Item2Label": "Billing info:",
-    "section2Item3Body": "Visual Buc usage, tool interactions, and generated content prompts",
-    "section2Item3Label": "Usage data:",
-    "section2Item4Body": "info you enter to personalize AI outputs (artist name, genre, style preferences)",
-    "section2Item4Label": "Artist profile data:",
-    "section2Item5Body": "referral codes used at signup and referral rewards earned",
-    "section2Item5Label": "Referral data:",
-    "section2Item6Body": "browser type, IP address, and session data for security and performance",
-    "section2Item6Label": "Technical data:",
-    "section2Title": "2. Information We Collect",
-    "section3Item1": "To operate and improve the platform",
-    "section3Item2": "To process payments and manage subscriptions",
-    "section3Item3": "To personalize AI-generated outputs to your artist profile",
-    "section3Item4": "To send account-related emails (receipts, security alerts)",
-    "section3Item5": "To comply with legal obligations",
-    "section3Title": "3. How We Use Your Information",
-    "section4Intro": "We do not sell your personal data. We share data only with:",
-    "section4Item1Body": "payment processing",
+    "contactSupport": "الاتصال / الدعم",
+    "lastUpdated": "آخر تحديث: سبتمبر 2026",
+    "pageDescription": "كيف تتعامل Bow Down Visuals مع بياناتك.",
+    "pageTitle": "سياسة الخصوصية",
+    "section10ContactLink": "صفحة الاتصال",
+    "section10Intro": "أسئلة حول الخصوصية؟ راسلنا عبر البريد",
+    "section10Middle": "أو زر",
+    "section10Title": "10. الاتصال",
+    "section1Body": "تدير Bow Down Visuals منصة رقمية للمبدعين توفر Visual Bucs مدعومة بالذكاء الاصطناعي لإنشاء مقاطع الفيديو والموسيقى والصور والتعليقات الصوتية ومقاطع مزامنة الشفاه وكلمات الأغاني والتعليقات التوضيحية والصور المصغرة والمقاطع الترويجية والمحتوى الرقمي ذي الصلة. توضح هذه السياسة كيفية جمع معلوماتك واستخدامها وحمايتها.",
+    "section1Title": "1. من نحن",
+    "section2Item1Body": "عنوان البريد الإلكتروني وكلمة المرور (مجزأة) عند التسجيل، أو معلومات الملف الأساسية من Google إذا سجلت الدخول بـ Google",
+    "section2Item1Label": "معلومات الحساب:",
+    "section2Item2Body": "تتم معالجتها بالكامل بواسطة Stripe — لا نخزن أبدًا بيانات البطاقة الخام",
+    "section2Item2Label": "معلومات الفوترة:",
+    "section2Item3Body": "استخدام Visual Bucs وتفاعلات الأدوات ومطالبات المحتوى المُنشأ",
+    "section2Item3Label": "بيانات الاستخدام:",
+    "section2Item4Body": "المعلومات التي تدخلها لتخصيص مخرجات الذكاء الاصطناعي (اسم الفنان، النوع، تفضيلات النمط)",
+    "section2Item4Label": "بيانات ملف الفنان:",
+    "section2Item5Body": "رموز الإحالة المستخدمة عند التسجيل ومكافآت الإحالة المكتسبة",
+    "section2Item5Label": "بيانات الإحالة:",
+    "section2Item6Body": "نوع المتصفح وعنوان IP وبيانات الجلسة للأمان والأداء",
+    "section2Item6Label": "البيانات التقنية:",
+    "section2Title": "2. المعلومات التي نجمعها",
+    "section3Item1": "لتشغيل المنصة وتحسينها",
+    "section3Item2": "لمعالجة المدفوعات وإدارة الاشتراكات",
+    "section3Item3": "لتخصيص المخرجات المولدة بالذكاء الاصطناعي لملف الفنان الخاص بك",
+    "section3Item4": "لإرسال رسائل البريد المتعلقة بالحساب (الإيصالات، تنبيهات الأمان)",
+    "section3Item5": "للامتثال للالتزامات القانونية",
+    "section3Title": "3. كيف نستخدم معلوماتك",
+    "section4Intro": "نحن لا نبيع بياناتك الشخصية. نشارك البيانات فقط مع:",
+    "section4Item1Body": "معالجة المدفوعات",
     "section4Item1Label": "Stripe",
-    "section4Item2Body": "database and authentication",
+    "section4Item2Body": "قاعدة البيانات والمصادقة",
     "section4Item2Label": "Supabase",
-    "section4Item3Body": "if you sign in with Google (subject to Google's privacy policy)",
+    "section4Item3Body": "إذا سجلت الدخول بـ Google (خاضع لسياسة خصوصية Google)",
     "section4Item3Label": "Google",
-    "section4Item4Body": "to fulfill generation requests (prompts may be processed by third-party AI APIs)",
-    "section4Item4Label": "AI providers",
-    "section4Item5": "Law enforcement when required by applicable law",
-    "section4Title": "4. Data Sharing",
-    "section5Body": "We use session cookies necessary for authentication. We do not run third-party ad trackers. Analytics, if used, are limited to aggregate usage data.",
-    "section5Title": "5. Cookies & Tracking",
-    "section6Body": "We retain your account data for as long as your account is active. You may request deletion at any time by contacting us. Billing records are retained as required by law.",
-    "section6Title": "6. Data Retention",
-    "section7Intro": "Depending on your location, you may have the right to access, correct, or delete your personal data. To exercise any of these rights, contact us at",
-    "section7Title": "7. Your Rights",
-    "section8Body": "We use industry-standard security measures including encrypted connections (HTTPS), hashed passwords, and row-level security on our database. No system is 100% secure; use a strong unique password for your account.",
-    "section8Title": "8. Security",
-    "section9Body": "We may update this policy from time to time. We'll notify you of material changes via email or an in-app notice.",
-    "section9Title": "9. Changes to This Policy",
-    "title": "Privacy Policy"
+    "section4Item4Body": "لتنفيذ طلبات الإنشاء (قد تتم معالجة المطالبات بواسطة واجهات ذكاء اصطناعي خارجية)",
+    "section4Item4Label": "مقدمو الذكاء الاصطناعي",
+    "section4Item5": "جهات إنفاذ القانون عندما يقتضي القانون المعمول به ذلك",
+    "section4Title": "4. مشاركة البيانات",
+    "section5Body": "نستخدم ملفات تعريف ارتباط للجلسة ضرورية للمصادقة. لا نشغّل متعقبات إعلانات خارجية. التحليلات، إن استُخدمت، تقتصر على بيانات الاستخدام المجمّعة.",
+    "section5Title": "5. ملفات تعريف الارتباط والتتبع",
+    "section6Body": "نحتفظ ببيانات حسابك طالما بقي حسابك نشطًا. يمكنك طلب الحذف في أي وقت عن طريق الاتصال بنا. يتم الاحتفاظ بسجلات الفوترة كما يقتضيه القانون.",
+    "section6Title": "6. الاحتفاظ بالبيانات",
+    "section7Intro": "بناءً على موقعك، قد يكون لديك الحق في الوصول إلى بياناتك الشخصية أو تصحيحها أو حذفها. لممارسة أي من هذه الحقوق، اتصل بنا على",
+    "section7Title": "7. حقوقك",
+    "section8Body": "نستخدم تدابير أمان قياسية في الصناعة تشمل الاتصالات المشفرة (HTTPS) وكلمات المرور المجزأة وأمانًا على مستوى الصفوف في قاعدة البيانات لدينا. لا يوجد نظام آمن بنسبة 100%؛ استخدم كلمة مرور قوية وفريدة لحسابك.",
+    "section8Title": "8. الأمان",
+    "section9Body": "قد نحدّث هذه السياسة من وقت لآخر. سنعلمك بالتغييرات الجوهرية عبر البريد الإلكتروني أو إشعار داخل التطبيق.",
+    "section9Title": "9. التغييرات على هذه السياسة",
+    "title": "سياسة الخصوصية"
   },
   "promo-clip": {
     "pageTitle": "Promo Clip Maker",
@@ -10173,117 +10297,124 @@
     "nfcSmartCards": "NFC Smart Cards"
   },
   "nfcCards": {
-    "orderFailed": "Order failed",
-    "orderFailedRetry": "Order failed — try again.",
-    "saveFailed": "Save failed",
-    "heroBadge": "NFC Smart Business Cards",
-    "heroTitle": "Your business card,",
-    "heroTitleAccent": "but it taps.",
-    "heroDescription": "A premium physical card with an NFC chip inside. Tap it on any phone and your digital card opens instantly — links, booking, socials, everything. Update it anytime without reprinting.",
-    "how1t": "1. Design your card",
-    "how1d": "Pick a style, add your name, links and photo.",
-    "how2t": "2. We encode it",
-    "how2d": "Your NFC chip + QR are programmed to your digital card.",
-    "how3t": "3. Tap & connect",
-    "how3d": "Ships to you. Tap phones, scan QRs, land clients.",
-    "reservedTitle": "Card reserved!",
-    "reservedDescription": "Your digital card is already live. We'll reach out to confirm production and collect payment — nothing charged today.",
-    "viewDigitalCard": "View your digital card",
-    "alreadyReserved": "This reservation was already placed — no duplicate was created.",
-    "orderAnother": "Order another card",
-    "buildYourCard": "Build your card",
-    "quantity": "Quantity",
-    "total": "Total",
-    "detailsHint": "This is what people see when they tap your card. You can edit it anytime.",
-    "displayNamePlaceholder": "Display name *",
-    "titlePlaceholder": "Title — e.g. Realtor, Barber, Photographer",
-    "bioPlaceholder": "Short bio",
-    "linksLabel": "Links (Instagram, booking, website…)",
-    "linkLabelPlaceholder": "Label",
-    "addLink": "Add link",
-    "fullNamePlaceholder": "Full name *",
-    "phonePlaceholder": "Phone",
-    "emailPlaceholder": "Email *",
-    "streetPlaceholder": "Street address *",
-    "cityPlaceholder": "City *",
-    "statePlaceholder": "State *",
-    "zipPlaceholder": "ZIP *",
-    "shippingPrivacy": "Your details are only used to make and ship your card.",
-    "reviewStyle": "Style",
-    "reviewQuantity": "Quantity",
-    "reviewDigitalCardFor": "Digital card for",
-    "reviewShipTo": "Ship to",
-    "reviewTotal": "Total due at confirmation",
-    "reserveFreeNote": "Reserving is free — nothing is charged today. We'll confirm your card with our production partner, then collect payment before it ships.",
-    "back": "Back",
-    "continue": "Continue",
-    "reserving": "Reserving…",
-    "reserveFree": "Reserve my card — free",
-    "signInPromptPrefix": "You'll be asked to",
-    "signIn": "sign in",
-    "signInPromptSuffix": "to reserve your card.",
-    "mySmartCards": "My smart cards",
-    "noCardsYet": "No cards yet — build your first one above.",
-    "taps": "{{count}} taps",
-    "editCard": "Edit card",
+    "orderFailed": "فشل الطلب",
+    "orderFailedRetry": "فشل الطلب — حاول مرة أخرى.",
+    "saveFailed": "فشل الحفظ",
+    "heroBadge": "بطاقات أعمال ذكية NFC",
+    "heroTitle": "بطاقة عملك،",
+    "heroTitleAccent": "لكنها تلمس.",
+    "heroDescription": "بطاقة فعلية فاخرة بداخلها شريحة NFC. المس بها أي هاتف فتفتح بطاقتك الرقمية فورًا — الروابط والحجز والتواصل، كل شيء. حدّثها في أي وقت دون إعادة طباعة.",
+    "how1t": "1. صمم بطاقتك",
+    "how1d": "اختر نمطًا، أضف اسمك وروابطك وصورتك.",
+    "how2t": "2. نحن نبرمجها",
+    "how2d": "تتم برمجة شريحة NFC ورمز QR على بطاقتك الرقمية.",
+    "how3t": "3. المس وتواصل",
+    "how3d": "تصلك بالشحن. المس الهواتف، امسح رموز QR، واكسب العملاء.",
+    "reservedTitle": "تم حجز البطاقة!",
+    "reservedDescription": "بطاقتك الرقمية مباشرة بالفعل. سنتواصل معك لتأكيد الإنتاج وتحصيل الدفع — لن يتم خصم شيء اليوم.",
+    "viewDigitalCard": "عرض بطاقتك الرقمية",
+    "alreadyReserved": "تم إتمام هذا الحجز بالفعل — لم يتم إنشاء نسخة مكررة.",
+    "orderAnother": "اطلب بطاقة أخرى",
+    "buildYourCard": "ابنِ بطاقتك",
+    "quantity": "الكمية",
+    "total": "الإجمالي",
+    "detailsHint": "هذا ما يراه الناس عندما يلمسون بطاقتك. يمكنك تعديله في أي وقت.",
+    "displayNamePlaceholder": "اسم العرض *",
+    "titlePlaceholder": "المسمى — مثال: وسيط عقاري، حلاق، مصور",
+    "bioPlaceholder": "نبذة قصيرة",
+    "linksLabel": "الروابط (Instagram، الحجز، الموقع…)",
+    "linkLabelPlaceholder": "التسمية",
+    "addLink": "إضافة رابط",
+    "fullNamePlaceholder": "الاسم الكامل *",
+    "phonePlaceholder": "الهاتف",
+    "emailPlaceholder": "البريد الإلكتروني *",
+    "streetPlaceholder": "عنوان الشارع *",
+    "cityPlaceholder": "المدينة *",
+    "statePlaceholder": "الولاية *",
+    "zipPlaceholder": "الرمز البريدي *",
+    "shippingPrivacy": "تُستخدم بياناتك فقط لصنع بطاقتك وشحنها.",
+    "reviewStyle": "النمط",
+    "reviewQuantity": "الكمية",
+    "reviewDigitalCardFor": "البطاقة الرقمية لـ",
+    "reviewShipTo": "الشحن إلى",
+    "reviewTotal": "الإجمالي المستحق عند التأكيد",
+    "reserveFreeNote": "الحجز مجاني — لن يتم خصم شيء اليوم. سنؤكد بطاقتك مع شريك الإنتاج لدينا، ثم نحصّل الدفع قبل شحنها.",
+    "back": "رجوع",
+    "continue": "متابعة",
+    "reserving": "جارٍ الحجز…",
+    "reserveFree": "احجز بطاقتي — مجانًا",
+    "signInPromptPrefix": "سيُطلب منك",
+    "signIn": "تسجيل الدخول",
+    "signInPromptSuffix": "لحجز بطاقتك.",
+    "mySmartCards": "بطاقاتي الذكية",
+    "noCardsYet": "لا توجد بطاقات بعد — ابنِ أول بطاقة أعلاه.",
+    "taps": "{{count}} لمسة",
+    "editCard": "تعديل البطاقة",
     "qrSvg": "QR SVG",
-    "preview": "Preview",
-    "orderHistory": "Order history",
-    "questions": "Questions",
-    "faq1q": "How does the tap work?",
-    "faq1a": "Every card has an NTAG213 NFC chip inside. Tap it against any modern phone and your digital card opens instantly — no app needed. Older phones can scan the QR printed on the back instead.",
-    "faq2q": "Can I change my links after ordering?",
-    "faq2a": "Yes — that's the whole point. Your card points to your digital profile, which you can edit anytime: links, title, bio, photo. The physical card never goes out of date.",
-    "faq3q": "When do I pay?",
-    "faq3a": "You reserve today with no charge. Once we confirm your card with our production partner, we'll collect payment and your card ships straight to you.",
-    "faq4q": "How long until I get my card?",
-    "faq4a": "Cards are made to order. Expect production plus shipping to take 2–3 weeks once payment is confirmed. We'll keep you posted at every step.",
-    "faq5q": "Can I reorder or get cards for my team?",
-    "faq5a": "Yes — order any quantity, and each card gets its own digital profile. Team packs are perfect for realtors, barbershops, salons, and agencies.",
-    "editDigitalCard": "Edit digital card",
-    "displayName": "Display name",
-    "title": "Title",
-    "bio": "Bio",
-    "cancel": "Cancel",
-    "save": "Save"
+    "preview": "معاينة",
+    "orderHistory": "سجل الطلبات",
+    "questions": "الأسئلة",
+    "faq1q": "كيف يعمل اللمس؟",
+    "faq1a": "تحتوي كل بطاقة على شريحة NTAG213 NFC بداخلها. المس بها أي هاتف حديث فتفتح بطاقتك الرقمية فورًا — لا حاجة لتطبيق. الهواتف الأقدم يمكنها مسح رمز QR المطبوع على الظهر بدلًا من ذلك.",
+    "faq2q": "هل يمكنني تغيير روابطي بعد الطلب؟",
+    "faq2a": "نعم — هذا هو الهدف كله. تشير بطاقتك إلى ملفك الرقمي، الذي يمكنك تعديله في أي وقت: الروابط والمسمى والنبذة والصورة. البطاقة الفعلية لا تصبح قديمة أبدًا.",
+    "faq3q": "متى أدفع؟",
+    "faq3a": "تحجز اليوم دون أي خصم. بمجرد تأكيد بطاقتك مع شريك الإنتاج لدينا، نحصّل الدفع وتُشحن بطاقتك إليك مباشرة.",
+    "faq4q": "كم من الوقت حتى تصلني بطاقتي؟",
+    "faq4a": "تُصنع البطاقات عند الطلب. توقّع أن يستغرق الإنتاج والشحن من 2 إلى 3 أسابيع بعد تأكيد الدفع. سنبقيك على اطلاع في كل خطوة.",
+    "faq5q": "هل يمكنني إعادة الطلب أو الحصول على بطاقات لفريقي؟",
+    "faq5a": "نعم — اطلب أي كمية، وتحصل كل بطاقة على ملفها الرقمي الخاص. حزم الفرق مثالية للوسطاء العقاريين وصالونات الحلاقة والتجميل والوكالات.",
+    "editDigitalCard": "تعديل البطاقة الرقمية",
+    "displayName": "اسم العرض",
+    "title": "المسمى",
+    "bio": "النبذة",
+    "cancel": "إلغاء",
+    "save": "حفظ"
   },
   "myClips": {
-    "pageTitle": "My Clips",
-    "pageDescription": "Your generated promo clips library.",
-    "title": "My Generated Clips",
-    "generateNew": "Generate New Clip",
-    "backToProjects": "Back to My Projects",
-    "noClips": "No clips yet",
-    "noClipsHint": "Generated scene clips auto-save here. Generate your first clip from the Scene Studio.",
-    "videoForSong": "Video for My Song",
-    "use": "Use",
-    "clipReady": "Clip Ready",
-    "ready": "Ready",
-    "done": "Done",
-    "attachToScene": "Attach to Project Scene",
-    "noCharge": "No Visual Bucs charged",
-    "noProjects": "No projects with scenes found",
+    "pageTitle": "مقاطعي",
+    "pageDescription": "مكتبة مقاطعك الترويجية المُنشأة.",
+    "title": "مقاطعي المُنشأة",
+    "generateNew": "إنشاء مقطع جديد",
+    "backToProjects": "عودة إلى مشاريعي",
+    "noClips": "لا توجد مقاطع بعد",
+    "noClipsHint": "تُحفظ مقاطع المشاهد المُنشأة تلقائيًا هنا. أنشئ مقطعك الأول من استوديو المشاهد.",
+    "videoForSong": "فيديو لأغنيتي",
+    "use": "استخدام",
+    "clipReady": "المقطع جاهز",
+    "ready": "جاهز",
+    "done": "تم",
+    "attachToScene": "إرفاق بمشهد المشروع",
+    "noCharge": "لم يتم خصم Visual Bucs",
+    "noProjects": "لم يتم العثور على مشاريع بمشاهد",
     "noProjectsHint": "افتح Visual Vibes وأعد بناء المشاهد أولاً.",
-    "project": "Project",
-    "noScenes": "No scenes saved yet",
+    "project": "المشروع",
+    "noScenes": "لا توجد مشاهد محفوظة بعد",
     "noScenesHint": "افتح Visual Vibes، وحمّل مشاهدك، ثم عُد وأرفق هذا المقطع.",
     "openEditor": "افتح Visual Vibes",
-    "scene": "Scene",
-    "hasClip": "Has clip",
-    "cancel": "Cancel",
-    "attaching": "Attaching…",
-    "attachClip": "Attach Clip",
-    "deleteConfirm": "Delete?",
-    "yes": "Yes",
-    "copied": "Copied",
-    "copyUrl": "Copy URL",
-    "clipAttached": "Clip attached — Clip Ready!",
+    "scene": "المشهد",
+    "hasClip": "لديه مقطع",
+    "cancel": "إلغاء",
+    "attaching": "جارٍ الإرفاق…",
+    "attachClip": "إرفاق المقطع",
+    "deleteConfirm": "حذف؟",
+    "yes": "نعم",
+    "copied": "تم النسخ",
+    "copyUrl": "نسخ الرابط",
+    "clipAttached": "تم إرفاق المقطع — المقطع جاهز!",
     "attachedDesc": "تم الإرفاق بالمشهد {{index}}{{section}}. افتح Visual Vibes لرؤيته.",
-    "clipDeleted": "Clip deleted",
-    "errorLoadProjects": "Could not load projects",
-    "errorAttach": "Could not attach clip",
-    "errorAttachFailed": "Attach failed",
-    "errorDelete": "Delete failed"
+    "clipDeleted": "تم حذف المقطع",
+    "errorLoadProjects": "تعذر تحميل المشاريع",
+    "errorAttach": "تعذر إرفاق المقطع",
+    "errorAttachFailed": "فشل الإرفاق",
+    "errorDelete": "فشل الحذف",
+    "extractAudio": "استخراج الصوت",
+    "extractAudioCost": "50 Visual Bucs",
+    "extractAudioDone": "تم استخراج الصوت",
+    "extractAudioFailed": "فشل استخراج الصوت",
+    "extractAudioRefunded": "تم رد المبلغ إليك تلقائيًا.",
+    "extracting": "جارٍ الاستخراج…",
+    "downloadMp3": "تنزيل MP3"
   },
   "contentIntelligence": {
     "heroBadge": "ذكاء المحتوى",
@@ -11269,7 +11400,22 @@
     }
   },
   "library": {
-    "pageTitle": "المكتبة"
+    "pageTitle": "المكتبة",
+    "pageDescription": "قوالب وإعدادات مسبقة وخطوط للمبدعين.",
+    "kicker": "ترسانتك الإبداعية",
+    "headingA": "Thy",
+    "headingB": "المكتبة",
+    "sub": "قوالب وإعدادات مسبقة وخطوط تتصل مباشرة بأدواتك. اختر واحدًا، اضغط استخدام، وواصل الإنشاء.",
+    "searchPlaceholder": "ابحث في القوالب والإعدادات والخطوط…",
+    "tabTemplates": "القوالب",
+    "tabPresets": "الإعدادات المسبقة",
+    "tabFonts": "الخطوط",
+    "recentlyUsed": "المستخدمة مؤخرًا",
+    "use": "استخدام",
+    "useFont": "نسخ الخط",
+    "copied": "تم النسخ!",
+    "browse": "تصفح المكتبة",
+    "noResults": "لم يتم العثور على شيء — جرّب بحثًا آخر."
   },
   "retention": {
     "streak_title": "سلسلة الإنشاء",
@@ -14170,5 +14316,151 @@
     "working": "جارٍ العمل…",
     "bpmUnknown": "—",
     "modeSimple": "Turbo"
+  },
+  "weekly_contest": {
+    "aria": "مسابقة المبدعين الأسبوعية",
+    "label": "مسابقة المبدعين الأسبوعية",
+    "drops_in": "تنطلق في",
+    "ends_in": "تنتهي في",
+    "entries": "{{count}} مشاركة",
+    "enter_now": "شارك الآن",
+    "view_entries": "عرض المشاركات",
+    "enter_hint": "انشر الفيديو الخاص بك ويتم إدخاله تلقائيًا — يحصل الفائزون على أجرهم بـ Visual Bucs من مجموع جوائز هذا الأسبوع {{cap}}.",
+    "judging_title": "التحكيم جارٍ — كل صوت يحرّك التاج",
+    "judging_sub": "أُغلقت المشاركات لـ \"{{title}}\". اجمع الأصوات لمفضلتك — تاج المجتمع يقرر.",
+    "winners_in": "الفائزون في",
+    "vote_now": "صوّت للتاج",
+    "winners_dropped": "أُعلن الفائزون للتو",
+    "winners_sub": "\"{{title}}\" توج — الجوائز مدفوعة بـ Visual Bucs.",
+    "a_creator": "مبدع",
+    "see_winners": "راجع دائرة الفائزين",
+    "hall_of_fame": "قاعة المشاهير",
+    "next_drop": "المسابقة القادمة تنطلق يوم الاثنين",
+    "next_drop_sub": "موضوع واحد. أسبوع واحد. {{cap}} على المحك. التالي: \"{{theme}}\" (#{{hashtag}}).",
+    "admin_nudge": "المشرف: مسابقة هذا الأسبوع ليست مباشرة بعد. نقرة واحدة تطلق \"{{theme}}\" مع مجموع الجوائز {{cap}}.",
+    "launching": "جارٍ الإطلاق…",
+    "launch_week": "أطلق مسابقة هذا الأسبوع",
+    "while_you_wait": "أثناء الانتظار: تصفح قاعة المشاهير",
+    "last_week": "تيجان الأسبوع الماضي",
+    "see_all": "عرض الكل"
+  },
+  "catalogVault": {
+    "title": "خزنة الكتالوج",
+    "copy": "اترك إرثًا. دفعة واحدة بقيمة 200 Visual Bucs تبقي صفحة الحفظ المسبق لهذا الإصدار ومدخل المعرض والأصول مباشرة على Bow Down Visuals — بشكل دائم. لا تجديدات، لا إزالات.",
+    "guarantee1": "صفحة الحفظ المسبق تبقى مباشرة إلى الأبد",
+    "guarantee2": "مدخل المعرض لا ينتهي أبدًا",
+    "guarantee3": "الأعمال الفنية + أصول الصوت محفوظة",
+    "vaultButton": "خزّن إلى الأبد · 200 Visual Bucs",
+    "vaulting": "جارٍ التخزين…",
+    "vaultFailed": "تعذر تخزين هذا الإصدار — حاول مرة أخرى.",
+    "vaulted": "تم التخزين",
+    "vaultedCopy": "\"{{title}}\" مخزّن — صفحة الحفظ المسبق ومدخل المعرض والأصول تبقى مباشرة على Bow Down Visuals بشكل دائم."
+  },
+  "linkInBio": {
+    "tab": "الرابط في البايو",
+    "hero": {
+      "badge": "الرابط في البايو",
+      "title": "صفحة واحدة.",
+      "titleAccent": "كل روابطك.",
+      "subtitle": "ابنِ صفحة رابط في البايو فاخرة بالذهبي لمعجبيك. الصياغة مجانية — النشر يكلف {{cost}} Visual Bucs."
+    },
+    "profile": {
+      "title": "ترويسة الملف الشخصي",
+      "prefill": "تعبئة مسبقة من خزنة الفنان",
+      "prefillDone": "تمت التعبئة من الخزنة",
+      "noVaults": "لا توجد خزنات فنان بعد — أنشئ واحدة في خزنة الفنان للتعبئة الفورية.",
+      "displayName": "اسم العرض",
+      "displayNamePlaceholder": "اسمك الفني",
+      "headline": "العنوان الرئيسي",
+      "headlinePlaceholder": "مغنٍّ · كاتب أغانٍ · راوي قصص",
+      "bio": "النبذة",
+      "bioPlaceholder": "سطران يجعلان المعجب يضغط متابعة.",
+      "avatarUrl": "رابط صورة الأفاتار",
+      "avatarUrlPlaceholder": "https://…",
+      "slug": "معرّف الصفحة",
+      "slugHint": "رابطك العام: bowdownvisuals.com/bio/{{slug}}",
+      "slugInvalid": "يجب أن يكون المعرّف أحرفًا صغيرة وأرقامًا وشرطات."
+    },
+    "theme": {
+      "title": "السمة",
+      "goldRoyal": "الذهبي الملكي",
+      "goldRoyalBlurb": "أسود + ذهبي متوهج — مظهر Bow Down المميز",
+      "midnightGold": "ذهبي منتصف الليل",
+      "midnightGoldBlurb": "أزرق-أسود عميق مع لمسات ذهبية دافئة",
+      "onyxMinimal": "العقيق البسيط",
+      "onyxMinimalBlurb": "أسود نقي، خطوط ذهبية رفيعة — نظيف للغاية"
+    },
+    "links": {
+      "title": "الروابط",
+      "add": "إضافة رابط",
+      "titlePlaceholder": "عنوان الرابط (مثال: أغنية جديدة)",
+      "urlPlaceholder": "https://…",
+      "icon": "الأيقونة",
+      "moveUp": "نقل لأعلى",
+      "moveDown": "نقل لأسفل",
+      "remove": "إزالة الرابط",
+      "empty": "لا توجد روابط بعد — أضف أول رابط أعلاه.",
+      "needOne": "أضف رابطًا واحدًا على الأقل قبل النشر."
+    },
+    "socials": {
+      "title": "أيقونات التواصل",
+      "hint": "الصق روابط الملفات الشخصية — تظهر الأيقونات على صفحتك."
+    },
+    "featured": {
+      "title": "المحتوى المميز",
+      "hint": "اسحب أعمالًا بارزة من مشروع الهب الخاص بك — يهبط المعجبون مباشرة على معرضك ومقاطعك.",
+      "fromHub": "من مشروع الهب",
+      "noAssets": "لا توجد أصول في مشروع الهب بعد — أنشئ شيئًا أولًا.",
+      "added": "تمت الإضافة",
+      "add": "إضافة",
+      "empty": "لا شيء مميز بعد. سلّط الضوء على أغنية أو فيديو أو صورة مصغرة.",
+      "remove": "إزالة"
+    },
+    "tipJar": {
+      "title": "صندوق الإكراميات",
+      "hint": "اربط صفحة الإكراميات الخاصة بك لكي يظهر المعجبون محبتهم (مثال: /tips/your-handle).",
+      "placeholder": "https://bowdownvisuals.com/tips/your-handle"
+    },
+    "actions": {
+      "saveDraft": "حفظ المسودة",
+      "saving": "جارٍ الحفظ…",
+      "publish": "نشر · {{cost}} Visual Bucs",
+      "publishing": "جارٍ النشر…",
+      "unpublish": "إلغاء النشر",
+      "unpublishing": "جارٍ إلغاء النشر…",
+      "viewPage": "عرض الصفحة المباشرة",
+      "share": "مشاركة",
+      "copied": "تم النسخ!",
+      "copyLink": "نسخ الرابط",
+      "draftSaved": "تم حفظ المسودة.",
+      "published": "صفحتك مباشرة الآن!",
+      "unpublished": "تم إلغاء نشر الصفحة.",
+      "alreadyPublished": "هذه الصفحة منشورة بالفعل.",
+      "statusLive": "مباشرة — أي شخص لديه الرابط يمكنه رؤية هذه الصفحة",
+      "statusDraft": "مسودة — أنت فقط من يمكنه رؤية هذه الصفحة",
+      "outOfCredits": "لا توجد Visual Bucs كافية للنشر — اشحن لتصبح مباشرًا."
+    },
+    "analytics": {
+      "title": "تحليلات النقرات",
+      "views": "مشاهدات الصفحة",
+      "clicks": "إجمالي نقرات الروابط",
+      "last7d": "النقرات (7 أيام)",
+      "perLink": "النقرات لكل رابط",
+      "noData": "لا توجد نقرات بعد — شارك صفحتك وراقب هذا يضيء."
+    },
+    "errors": {
+      "loadFailed": "تعذر تحميل صفحات البايو الخاصة بك.",
+      "saveFailed": "تعذر حفظ المسودة.",
+      "publishFailed": "تعذر نشر الصفحة.",
+      "needName": "أضف اسم عرض أولًا."
+    },
+    "public": {
+      "title": "الرابط في البايو",
+      "description": "صفحات رابط في البايو للمبدعين مبنية بـ Bow Down Visuals.",
+      "notFound": "الصفحة غير موجودة",
+      "notFoundDetail": "صفحة الرابط في البايو هذه غير موجودة أو تم إيقافها.",
+      "share": "مشاركة هذه الصفحة"
+    },
+    "preview": "معاينة"
   }
 }

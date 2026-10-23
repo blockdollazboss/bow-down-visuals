@@ -147,9 +147,9 @@ describe("arabic renders — catalog-wide, no English fallback", () => {
     [100, "other"],
   ];
 
-  it("ar carries all 34 families present on the joined tree (20 at this lane's base + the 12 plural-split families + pressRelease.generateRelease filled by the press-kit lane + thumbnailTest.filesSkipped completed by the ar-W3 wave, coordinator-landed at Stack-28 integration), each in all six forms", () => {
+  it("ar carries all 35 families present on the joined tree (20 at this lane's base + the 12 plural-split families + pressRelease.generateRelease filled by the press-kit lane + thumbnailTest.filesSkipped completed by the ar-W3 wave, coordinator-landed at Stack-28 integration + mediaDetector.filesSkipped completed by the ar-W5 appendix wave), each in all six forms", () => {
     const arFams = FAMILIES.filter((f) => presentIn("ar", f));
-    expect(arFams.length).toBe(34);
+    expect(arFams.length).toBe(35);
     for (const fam of arFams) {
       for (const sfx of CLDR) {
         expect(typeof CATS.ar[`${fam}_${sfx}`], `ar missing ${fam}_${sfx}`).toBe("string");
