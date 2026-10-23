@@ -27,6 +27,7 @@
  */
 
 import { HALL_STEPS_BLOCKED, MONUMENT_BLOCKED, TERRACE_BLOCKED } from "./palace-grounds";
+import { PLAZA_LIFE_BLOCKED } from "./plaza-life";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -269,6 +270,12 @@ export const PLAZA_BLOCKED: PalaceRect[] = [
    * (palace-grounds) the scene builds the masses from. */
   ...HALL_STEPS_BLOCKED,
   ...TERRACE_BLOCKED,
+  /* Stage C batch C3 (items 28/29/30): the plaza life — the
+   * reflecting pool, the lamp standards, the benches, table sets,
+   * urns and market stalls — derived from plaza-life's placement
+   * data in the same commit that builds the bodies. The item-40
+   * spawn dressing is flat inlay and deliberately NOT here. */
+  ...PLAZA_LIFE_BLOCKED,
 ];
 
 /** The plaza's camera-tall solids (item 44): the monument (stele

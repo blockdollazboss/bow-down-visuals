@@ -155,6 +155,12 @@ import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
 import {
+  POOL, FOUNTAIN, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
+  PLAZA_TABLE_SETS, PLAZA_URNS, URN, PLAZA_STALLS, STALL, SPAWN_DRESSING,
+  bannerSwayAt, createPollenField, pollenCountForScale, pollenPositionAt,
+  waterSurfaceAt, poolWaterTint, type PollenMote,
+} from "./plaza-life";
+import {
   EMPTY_MONUMENT_BOARD, MONUMENT_PLATE_H, MONUMENT_PLATE_W, drawMonumentBoardPlate,
   monumentBoardSignature, type MonumentBoardData, type MonumentPlateCtx,
 } from "./monument-board";
@@ -1207,9 +1213,18 @@ interface LookAnim {
   /* The day sky's drifting clouds (item 3): sprites riding the
    * visible sky dome, drifted on sky-env's wrapped cloudDriftX. */
   clouds: Array<{ sprite: THREE.Sprite; def: SkyCloudDef }>;
+  /* Plaza life (Stage C batch C3): the façade banners' sway
+   * pivots (item 26 — light look only, never registered under
+   * reduced motion), the daylight pollen field (item 26), and the
+   * pool's water surface + fountain jet (item 28 — registered in
+   * both looks; the tick applies their motion only when reduced
+   * motion is off). */
+  bannerSways: Array<{ pivot: THREE.Group; phase: number }>;
+  pollen: { points: THREE.Points; field: PollenMote[] } | null;
+  waters: Array<{ tex: THREE.Texture; jet: THREE.Mesh | null }>;
 }
 
-const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [] };
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
 
 /* ── The scene ──────────────────────────────────────────────────────── */
 
@@ -1588,7 +1603,7 @@ export class KingsHallScene {
 
   private buildLook(group: THREE.Group, look: HallLook): void {
     const mats = this.makeMaterials(look);
-    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [] };
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [] };
     this.monumentFaceMats = [];
     this.lodItems = [];
     /* The hall's own build rides in ONE subgroup (item 23 portal
@@ -1618,7 +1633,7 @@ export class KingsHallScene {
      * façade is the thing being looked at) and never inside a
      * room shell (room-culled from indoors, exactly when the
      * roofline must still read from a raised camera). */
-    this.buildPalaceExterior(group, look, mats);
+    this.buildPalaceExterior(group, look, mats, anim);
     this.buildBackdropGrounds(group, look);
     this.buildVisibleSky(group, look, anim);
     this.lookAnim = anim;
@@ -1665,7 +1680,7 @@ export class KingsHallScene {
    *  its arch and its door logic are untouched: the skin abuts the
    *  back wall's outer face and every ground-level piece stays
    *  inside the plaza walk line (palace-exterior's pinned laws). */
-  private buildPalaceExterior(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+  private buildPalaceExterior(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
     const shadows = QUALITY[this.quality].shadows;
     const box = (b: ExteriorBox, mat: THREE.Material, cast = false): THREE.Mesh => {
@@ -1772,23 +1787,33 @@ export class KingsHallScene {
       finial.position.set(PEDIMENT.centerX, PEDIMENT.finialY, PEDIMENT.z + 0.08);
       g.add(finial);
     }
-    // Banners flanking the arch — static cloth panels in the
-    // look's throne fabric with gold rod + hem bar (the waving
-    // life is item 26's, later).
-    for (const banner of FACADE_BANNERS) {
+    // Banners flanking the arch — cloth panels in the look's
+    // throne fabric with gold rod + hem bar, hung from a pivot at
+    // the rod so the panel + hem swing as one cloth. Item 26:
+    // in the LIGHT look the pivots register a gentle sway in
+    // tick() (plaza-life's bannerSwayAt); in the dark look — and
+    // under reduced motion in either look — they hang still,
+    // exactly as C1 built them.
+    FACADE_BANNERS.forEach((banner, bi) => {
       const panelH = BANNER.topY - BANNER.bottomY;
+      const pivot = new THREE.Group();
+      pivot.position.set(banner.x, BANNER.rodY, BANNER.z);
       const panel = new THREE.Mesh(new THREE.BoxGeometry(BANNER.w, panelH, 0.045), mats.fabric);
-      panel.position.set(banner.x, BANNER.bottomY + panelH / 2, BANNER.z);
+      panel.position.y = BANNER.bottomY + panelH / 2 - BANNER.rodY;
       panel.castShadow = shadows;
-      g.add(panel);
+      pivot.add(panel);
+      const hem = new THREE.Mesh(new THREE.BoxGeometry(BANNER.w, 0.07, 0.07), mats.gold);
+      hem.position.y = BANNER.bottomY - BANNER.rodY;
+      pivot.add(hem);
+      g.add(pivot);
       const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, BANNER.w + 0.34, 8), mats.gold);
       rod.rotation.z = Math.PI / 2;
       rod.position.set(banner.x, BANNER.rodY, BANNER.z);
       g.add(rod);
-      const hem = new THREE.Mesh(new THREE.BoxGeometry(BANNER.w, 0.07, 0.07), mats.gold);
-      hem.position.set(banner.x, BANNER.bottomY, BANNER.z);
-      g.add(hem);
-    }
+      if (look.theme === "light" && !this.reducedMotion) {
+        anim.bannerSways.push({ pivot, phase: bi * 1.9 });
+      }
+    });
 
     /* ── Item 2: roofline & silhouette ── */
     for (const slab of ROOF_SLABS) box(slab, mats.stoneFor(slab.w, slab.d));
@@ -4052,6 +4077,11 @@ export class KingsHallScene {
     // The way back, labeled from the courtyard side of the arch.
     this.doorPlate(g, "THE KING'S HALL", 0, PALACE_DOOR_HEIGHT + 0.66, 12.52, 0, 4.2);
 
+    /* Plaza life (Stage C batch C3, plaza-life.ts): the pool +
+     * fountain, the lamp standards, the furniture set, the
+     * daylight pollen and the spawn arrival dressing. */
+    this.buildPlazaLife(g, look, mats, anim);
+
     // The courtyard's door-stations along the colonnade.
     this.buildStationMarkers(g, mats, COURTYARD_ID);
     this.buildCreatorRoomsArch(g, mats);
@@ -4059,6 +4089,328 @@ export class KingsHallScene {
     group.add(g);
     this.shellGroups.set(COURTYARD_ID, g);
   }
+  /** Plaza life (Stage C batch C3), built entirely from
+   *  plaza-life.ts placement data — the same data palace-layout
+   *  derives PLAZA_LIFE_BLOCKED from, so every body built here is
+   *  solid there. Draw discipline: repeated pieces instance
+   *  (lamp posts/heads, bench parts, urn parts, table tops); the
+   *  two stalls and the pool are one-offs. Light discipline: ZERO
+   *  new real lights — the lamps glow by emissive glass + the
+   *  item-27 lantern-glow sprites after dark. */
+  private buildPlazaLife(g: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const shadows = QUALITY[this.quality].shadows;
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; rotY?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(0, p.rotY ?? 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = shadows;
+      g.add(im);
+      return im;
+    };
+
+    /* ── Item 28: the reflecting pool + fountain ───────────────
+     * A stone rim ring (four runs) proud of the paving, the water
+     * surface held just under its lip wearing the look's water
+     * texture (cloned, so its shimmer scroll never drags the
+     * backdrop moat's surface with it), and the fountain at its
+     * heart: basin, column, upper bowl, and a translucent jet
+     * cone the tick pulses. The whole footprint is POOL_BLOCKED
+     * in the layout — a walker rounds the rim, never wades. */
+    {
+      const rimMat = mats.stoneFor(POOL.w, POOL.rimH);
+      const rimRuns: Array<{ w: number; d: number; x: number; z: number }> = [
+        { w: POOL.w, d: POOL.rimLip, x: POOL.cx, z: POOL.cz - POOL.d / 2 + POOL.rimLip / 2 },
+        { w: POOL.w, d: POOL.rimLip, x: POOL.cx, z: POOL.cz + POOL.d / 2 - POOL.rimLip / 2 },
+        { w: POOL.rimLip, d: POOL.d - POOL.rimLip * 2, x: POOL.cx - POOL.w / 2 + POOL.rimLip / 2, z: POOL.cz },
+        { w: POOL.rimLip, d: POOL.d - POOL.rimLip * 2, x: POOL.cx + POOL.w / 2 - POOL.rimLip / 2, z: POOL.cz },
+      ];
+      for (const r of rimRuns) {
+        const rim = new THREE.Mesh(new THREE.BoxGeometry(r.w, POOL.rimH, r.d), rimMat);
+        rim.position.set(r.x, POOL.rimH / 2, r.z);
+        rim.castShadow = shadows;
+        rim.receiveShadow = shadows;
+        g.add(rim);
+      }
+      /* A gold trim line along the rim's outer top edge. */
+      const trim = new THREE.Mesh(
+        new THREE.BoxGeometry(POOL.w + 0.06, 0.04, POOL.d + 0.06), mats.goldDark,
+      );
+      trim.position.set(POOL.cx, POOL.rimH - 0.02, POOL.cz);
+      g.add(trim);
+      const tint = poolWaterTint(look.theme);
+      const waterTex = hallTexture(look.waterTextureUrl, 3, 1.25).clone();
+      waterTex.needsUpdate = true;
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(POOL.w - POOL.rimLip * 2, POOL.d - POOL.rimLip * 2),
+        new THREE.MeshStandardMaterial({
+          map: waterTex, color: tint.color, roughness: tint.roughness,
+          metalness: 0.35, envMapIntensity: 0.9,
+        }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(POOL.cx, POOL.waterY, POOL.cz);
+      g.add(water);
+      /* The fountain: a marble basin on a short column at the
+       * pool's heart, a smaller upper bowl, and the jet — a
+       * translucent cone whose pulse is the water's life. */
+      const basin = new THREE.Mesh(new THREE.CylinderGeometry(FOUNTAIN.basinR, FOUNTAIN.basinR * 0.8, 0.22, 18), mats.facadeMarbleFor(1.7, 0.5));
+      basin.position.set(FOUNTAIN.x, FOUNTAIN.basinTopY - 0.11, FOUNTAIN.z);
+      basin.castShadow = shadows;
+      g.add(basin);
+      const column = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.2, FOUNTAIN.basinTopY - 0.22, 12), mats.facadeMarbleFor(0.4, 0.8));
+      column.position.set(FOUNTAIN.x, (FOUNTAIN.basinTopY - 0.22) / 2, FOUNTAIN.z);
+      g.add(column);
+      const jet = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.17, FOUNTAIN.jetTopY - FOUNTAIN.jetBaseY, 10, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: look.theme === "dark" ? 0x9fc4d8 : 0xeaf6ff, transparent: true,
+          opacity: 0.5, depthWrite: false, side: THREE.DoubleSide,
+        }),
+      );
+      jet.position.set(FOUNTAIN.x, (FOUNTAIN.jetBaseY + FOUNTAIN.jetTopY) / 2, FOUNTAIN.z);
+      jet.renderOrder = 4;
+      g.add(jet);
+      anim.waters.push({ tex: waterTex, jet });
+    }
+
+    /* ── Item 29: lamp standards ───────────────────────────────
+     * Instanced stone posts on plinths, instanced gold cage
+     * frames, one instanced emissive glass set — and after dark
+     * each head carries an item-27 lantern-glow sprite. No real
+     * lights: the night rig's real points stay the braziers'. */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.42, 0.18, 0.42), mats.stoneFor(0.5, 0.2),
+        PLAZA_LAMPS.map((l) => ({ x: l.x, y: 0.09, z: l.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.055, 0.085, LAMP.postH, 10), mats.darkMetal,
+        PLAZA_LAMPS.map((l) => ({ x: l.x, y: 0.18 + LAMP.postH / 2, z: l.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.3, 0.36, 0.3), mats.gold,
+        PLAZA_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY, z: l.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      const glass = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.21, 0.27, 0.21),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        PLAZA_LAMPS.length,
+      );
+      PLAZA_LAMPS.forEach((l, i) => {
+        dummy.position.set(l.x, LAMP.headY, l.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        glass.setMatrixAt(i, dummy.matrix);
+      });
+      glass.instanceMatrix.needsUpdate = true;
+      g.add(glass);
+      instanced(
+        new THREE.ConeGeometry(0.3, 0.22, 4), mats.goldDark,
+        PLAZA_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY + 0.29, z: l.z, rotY: Math.PI / 4 })),
+      );
+      if (look.candles) {
+        PLAZA_LAMPS.forEach((l, i) => {
+          this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.31);
+        });
+      }
+    }
+
+    /* ── Item 30: benches, table sets, urns, stalls ─────────── */
+    {
+      /* Benches: instanced seats, backs and legs — the back
+       * stands on the side AWAY from what the bench faces (the
+       * monument pair faces south/north by their row; the pool
+       * pair faces the water). Facing is encoded by rotY: the
+       * alongX benches north of the monument face it (+z), the
+       * south row faces it too (−z), the pool pair face ±x. */
+      const benchPose = PLAZA_BENCHES.map((b) => {
+        if (b.alongZ) return { ...b, rotY: b.x < POOL.cx ? 0 : Math.PI, faceX: true };
+        return { ...b, rotY: b.z < 19.7 ? 0 : Math.PI, faceX: false };
+      });
+      const seatPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      const backPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      const legPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      for (const b of benchPose) {
+        const backOff = 0.24;
+        const alongX = !b.faceX;
+        const backSign = b.rotY === 0 ? -1 : 1;
+        seatPlaces.push({ x: b.x, y: BENCH.seatY, z: b.z, rotY: b.faceX ? Math.PI / 2 : 0 });
+        backPlaces.push({
+          x: b.faceX ? b.x + backSign * backOff : b.x,
+          y: BENCH.seatY + 0.28,
+          z: b.faceX ? b.z : b.z + backSign * backOff,
+          rotY: b.faceX ? Math.PI / 2 : 0,
+        });
+        for (const endOff of [-0.8, 0.8]) {
+          legPlaces.push({
+            x: alongX ? b.x + endOff : b.x,
+            y: BENCH.seatY / 2,
+            z: alongX ? b.z : b.z + endOff,
+            rotY: b.faceX ? Math.PI / 2 : 0,
+          });
+        }
+      }
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.09, BENCH.depth), mats.stoneFor(2, 0.4), seatPlaces);
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.5, 0.08), mats.stoneFor(2, 0.5), backPlaces);
+      instanced(new THREE.BoxGeometry(0.09, BENCH.seatY, BENCH.depth - 0.1), mats.darkMetal, legPlaces);
+
+      /* Table sets: an instanced marble top + pedestal per set,
+       * two stone stools flanking each (instanced too). */
+      instanced(
+        new THREE.CylinderGeometry(0.55, 0.55, 0.07, 16), mats.facadeMarbleFor(1.1, 0.2),
+        PLAZA_TABLE_SETS.map((t) => ({ x: t.x, y: 0.74, z: t.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.07, 0.12, 0.7, 10), mats.darkMetal,
+        PLAZA_TABLE_SETS.map((t) => ({ x: t.x, y: 0.37, z: t.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.24, 0.24, 0.42, 12), mats.stoneFor(0.5, 0.4),
+        PLAZA_TABLE_SETS.flatMap((t) => [
+          { x: t.x - 0.85, y: 0.21, z: t.z },
+          { x: t.x + 0.85, y: 0.21, z: t.z },
+        ]),
+      );
+
+      /* Urns: the monument's finial language at plaza scale —
+       * instanced pedestals, bellies (item-18 finial variation
+       * lives in the per-instance scale/rotation) and lips. */
+      const urnVar = PLAZA_URNS.map((_, i) => propVariation("finial", 700 + i));
+      const belly = new THREE.InstancedMesh(
+        new THREE.SphereGeometry(0.21, 12, 10), mats.gold, PLAZA_URNS.length,
+      );
+      PLAZA_URNS.forEach((u, i) => {
+        const v = urnVar[i]!;
+        dummy.position.set(u.x, URN.pedestalH + 0.22, u.z);
+        dummy.rotation.set(0, v.rotY, 0);
+        dummy.scale.set(v.scale, v.scale * v.scaleY * 1.25, v.scale);
+        dummy.updateMatrix();
+        belly.setMatrixAt(i, dummy.matrix);
+      });
+      belly.instanceMatrix.needsUpdate = true;
+      belly.castShadow = shadows;
+      g.add(belly);
+      instanced(
+        new THREE.BoxGeometry(0.36, URN.pedestalH, 0.36), mats.facadeMarbleFor(0.4, URN.pedestalH),
+        PLAZA_URNS.map((u) => ({ x: u.x, y: URN.pedestalH / 2, z: u.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.16, 0.11, 0.08, 10), mats.gold,
+        PLAZA_URNS.map((u) => ({ x: u.x, y: URN.topY - 0.12, z: u.z })),
+      );
+
+      /* Market stalls: counter, four posts, a sloped fabric
+       * canopy with a gold trim edge — two builds, each a small
+       * group in the gate kit's spirit. */
+      for (const s of PLAZA_STALLS) {
+        const stall = new THREE.Group();
+        stall.position.set(s.x, 0, s.z);
+        const counter = new THREE.Mesh(new THREE.BoxGeometry(STALL.w, 0.08, STALL.d), mats.stoneFor(2.6, 0.4));
+        counter.position.y = STALL.counterY;
+        counter.castShadow = shadows;
+        stall.add(counter);
+        const skirt = new THREE.Mesh(new THREE.BoxGeometry(STALL.w, STALL.counterY, STALL.d - 0.15), mats.darkMetal);
+        skirt.position.y = STALL.counterY / 2;
+        stall.add(skirt);
+        for (const px of [-STALL.w / 2 + 0.1, STALL.w / 2 - 0.1]) {
+          for (const pz of [-STALL.d / 2 + 0.08, STALL.d / 2 - 0.08]) {
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, STALL.canopyY, 8), mats.darkMetal);
+            post.position.set(px, STALL.canopyY / 2, pz);
+            stall.add(post);
+          }
+        }
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL.w + 0.3, 0.05, STALL.d + 0.45), mats.fabric);
+        canopy.position.y = STALL.canopyY + 0.12;
+        canopy.rotation.x = -0.13;
+        canopy.castShadow = shadows;
+        stall.add(canopy);
+        const trimBar = new THREE.Mesh(new THREE.BoxGeometry(STALL.w + 0.3, 0.05, 0.06), mats.gold);
+        trimBar.position.set(0, STALL.canopyY + 0.03, (STALL.d + 0.45) / 2);
+        stall.add(trimBar);
+        g.add(stall);
+      }
+    }
+
+    /* ── Item 40: the spawn arrival dressing ───────────────────
+     * Flat inlay only (no collision by design): a gold medallion
+     * centred on the spawn stance, a fine inner ring, threshold
+     * stones flanking the spine, and the gold threshold band
+     * across it — the first-look axis runs medallion → monument
+     * → arch → façade from exactly where the walker lands. */
+    {
+      const medallion = new THREE.Mesh(
+        new THREE.RingGeometry(SPAWN_DRESSING.medallionInnerR, SPAWN_DRESSING.medallionOuterR, 48), mats.gold,
+      );
+      medallion.rotation.x = -Math.PI / 2;
+      medallion.position.set(SPAWN_DRESSING.cx, 0.018, SPAWN_DRESSING.cz);
+      medallion.renderOrder = 3;
+      g.add(medallion);
+      const inner = new THREE.Mesh(
+        new THREE.RingGeometry(SPAWN_DRESSING.innerRingInnerR, SPAWN_DRESSING.innerRingOuterR, 32), mats.goldDark,
+      );
+      inner.rotation.x = -Math.PI / 2;
+      inner.position.set(SPAWN_DRESSING.cx, 0.018, SPAWN_DRESSING.cz);
+      inner.renderOrder = 3;
+      g.add(inner);
+      const band = new THREE.Mesh(
+        new THREE.BoxGeometry(SPAWN_DRESSING.band.w, 0.014, SPAWN_DRESSING.band.d), mats.goldDark,
+      );
+      band.position.set(SPAWN_DRESSING.cx, 0.02, SPAWN_DRESSING.band.cz);
+      g.add(band);
+      for (const st of SPAWN_DRESSING.stones) {
+        const stone = new THREE.Mesh(
+          new THREE.BoxGeometry(SPAWN_DRESSING.stoneW, 0.03, SPAWN_DRESSING.stoneD), mats.stoneFor(1, 0.2),
+        );
+        stone.position.set(st.x, 0.015, st.z);
+        stone.receiveShadow = shadows;
+        g.add(stone);
+      }
+    }
+
+    /* ── Item 26: daylight pollen ──────────────────────────────
+     * A Points field over the courtyard air, day look only, at
+     * the ladder's particle scale — and never built at all under
+     * reduced motion (the field rests by not existing). */
+    if (look.theme === "light" && !this.reducedMotion) {
+      const count = pollenCountForScale(QUALITY[this.quality].particleScale);
+      if (count > 0) {
+        const field = createPollenField(count, "courtyard");
+        const positions = new Float32Array(count * 3);
+        field.forEach((m, i) => {
+          const p = pollenPositionAt(m, 0);
+          positions[i * 3] = p.x;
+          positions[i * 3 + 1] = p.y;
+          positions[i * 3 + 2] = p.z;
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        const points = new THREE.Points(geo, new THREE.PointsMaterial({
+          map: hazeTexture(), size: 0.07, transparent: true, opacity: 0.55, color: 0xfff2c4,
+          blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+        }));
+        points.renderOrder = 5;
+        points.frustumCulled = false;
+        g.add(points);
+        anim.pollen = { points, field };
+      }
+    }
+  }
+
   /** The Creator Rooms arch (Ring 2, 3.5): the grand arch on the
    *  far colonnade, OPEN — the seal and the shut slabs of the
    *  sealed years are gone, the double doors stand swung inward
@@ -5062,6 +5414,32 @@ export class KingsHallScene {
     }
     for (const c of anim.clouds) {
       c.sprite.position.x = cloudDriftX(c.def, t);
+    }
+    /* Plaza life (Stage C batch C3): banner sway + pollen drift
+     * (item 26 — registered only in the light look and never
+     * under reduced motion, so these loops are empty otherwise),
+     * and the pool water's shimmer + fountain pulse (item 28 —
+     * applied only when reduced motion is off; the surface rests
+     * still otherwise). */
+    for (const b of anim.bannerSways) {
+      const sway = bannerSwayAt(t, b.phase);
+      b.pivot.rotation.x = sway.rotX;
+      b.pivot.rotation.z = sway.rotZ;
+    }
+    if (anim.pollen) {
+      const attr = anim.pollen.points.geometry.getAttribute("position") as THREE.BufferAttribute;
+      for (let i = 0; i < anim.pollen.field.length; i++) {
+        const p = pollenPositionAt(anim.pollen.field[i]!, t);
+        attr.setXYZ(i, p.x, p.y, p.z);
+      }
+      attr.needsUpdate = true;
+    }
+    if (!this.reducedMotion) {
+      const ws = waterSurfaceAt(t);
+      for (const w of anim.waters) {
+        w.tex.offset.set(ws.offsetX, ws.offsetY);
+        if (w.jet) w.jet.scale.set(ws.jetPulse, 1, ws.jetPulse);
+      }
     }
 
     // Report my pose when it meaningfully changed (client throttles).
