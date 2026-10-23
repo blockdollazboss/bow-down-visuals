@@ -424,7 +424,7 @@ describe("the second ring (palace follow-on)", () => {
     expect(s.sent.filter((m) => m.type === "screen.state")).toEqual([]);
   });
 
-  it("the jukebox resolver reaches the Music Hall only", async () => {
+  it("the jukebox lives in the Music Hall only — and every room can offer it a song (item 47)", async () => {
     const palace = new WorldPalace(new RoomHub(), {
       resolveJukeboxTrack: async (_userId, trackId) =>
         trackId === "track:good"
@@ -440,19 +440,27 @@ describe("the second ring (palace follow-on)", () => {
     });
     const s = fakeSocket();
     enter(palace, s, "Alpha");
-    // In the hall, a jukebox frame is not the hall's to answer.
+    /* From the front door, a jukebox.add is not this room's to
+     * answer — no state comes back here — but the offer FORWARDS
+     * to the Music Hall, whose one authority puts the song on
+     * (previously the frame died on the closed door). */
     frame(palace, s, { type: "jukebox.add", trackId: "track:good" });
     await new Promise((r) => setTimeout(r, 10));
     expect(s.sent.filter((m) => m.type === "jukebox.state")).toEqual([]);
-    // Through the music door, the same frame puts the song on.
+    const music = palace.room(MUSIC)!;
+    expect(music.jukeboxBroadcast().current?.entry.track.id).toBe("track:good");
+    /* Through the music door, the forwarded song is already on;
+     * a local add queues behind it like any other. */
     frame(palace, s, { type: "room.enter", roomId: MUSIC, x: -16, z: -2 });
     const musicWelcome = s.sent.filter((m) => m.type === "welcome").pop();
-    expect(musicWelcome.jukebox).toEqual({ current: null, queue: [] });
+    expect(musicWelcome.jukebox.current.entry.track.id).toBe("track:good");
+    expect(musicWelcome.jukebox.queue).toEqual([]);
     frame(palace, s, { type: "jukebox.add", trackId: "track:good" });
     await new Promise((r) => setTimeout(r, 10));
     const state = s.sent.filter((m) => m.type === "jukebox.state").pop();
     expect(state.jukebox.current.entry.track.id).toBe("track:good");
     expect(state.jukebox.current.playback.playing).toBe(true);
+    expect(state.jukebox.queue).toHaveLength(1);
   });
 });
 

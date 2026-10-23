@@ -24,6 +24,7 @@ import {
   type WorldIdentity,
   type WorldJukeboxTrackRef,
 } from "../world-room";
+import { WorldPalace } from "../world-palace";
 
 interface FakeSocket extends WsClientSocket {
   sent: any[];
@@ -286,5 +287,117 @@ describe("the jukebox", () => {
     expect(room.jukeboxBroadcast(T0 + 1000).current?.entry.track.id).toBe("track:long");
     room.detach(b); // the room empties — the box resets
     expect(room.jukeboxBroadcast(T0 + 1000)).toEqual({ current: null, queue: [] });
+  });
+});
+
+describe("the jukebox, asked from another room (item 47)", () => {
+  /** A Create Wing room wired to a Music Hall room the way
+   *  WorldPalace wires them: the wing has no jukebox of its own,
+   *  its asks forward to the hall's one authority. */
+  function wingAndHall() {
+    const hall = jukeboxRoom();
+    const wing = new WorldRoom(
+      new RoomHub(),
+      {},
+      {
+        roomId: "world:create-wing",
+        name: "Create Wing",
+        bounds: { minX: 13.0, maxX: 27.8, minZ: -8.4, maxZ: 2.9 },
+        spawn: { x: 16.5, z: -2 },
+      },
+    );
+    wing.onJukeboxForward = (add, now) => hall.acceptForwardedJukeboxAdd(add, now);
+    return { hall, wing };
+  }
+
+  it("a Song Desk publish in the Create Wing lands on the Music Hall jukebox", async () => {
+    const { hall, wing } = wingAndHall();
+    const a = fakeSocket();
+    wing.attach(a, member("Alpha"));
+    frame(wing, a, { type: "jukebox.add", trackId: "track:short" });
+    await flush();
+    const jb = hall.jukeboxBroadcast(T0);
+    expect(jb.current?.entry.track.id).toBe("track:short");
+    expect(jb.current?.entry.addedByName).toBe("Alpha");
+    expect(jb.current?.playback.playing).toBe(true);
+    // The cross-room entry carries the adder's account id, so the
+    // transport hand is theirs when they walk into the Music Hall.
+    expect(jb.current?.entry.addedByUserId).toBe("user-Alpha");
+    // Nothing was denied, and the wing itself runs no box.
+    expect(a.sent.filter((m) => m.type === "jukebox.denied")).toEqual([]);
+    expect(a.sent.find((m) => m.type === "welcome").jukebox).toBeUndefined();
+  });
+
+  it("a forwarded add queues behind the song on now, in order", async () => {
+    const { hall, wing } = wingAndHall();
+    const inHall = fakeSocket();
+    hall.attach(inHall, member("Beta"));
+    frame(hall, inHall, { type: "jukebox.add", trackId: "track:long" });
+    await flush();
+    const a = fakeSocket();
+    wing.attach(a, member("Alpha"));
+    frame(wing, a, { type: "jukebox.add", trackId: "track:short" });
+    await flush();
+    const jb = hall.jukeboxBroadcast(T0);
+    expect(jb.current?.entry.track.id).toBe("track:long");
+    expect(jb.queue.map((e) => e.track.id)).toEqual(["track:short"]);
+  });
+
+  it("denials travel back to the room the asker stands in", async () => {
+    const { hall, wing } = wingAndHall();
+    const g = fakeSocket();
+    wing.attach(g, guest);
+    frame(wing, g, { type: "jukebox.add", trackId: "track:short" });
+    await flush();
+    expect(g.sent.filter((m) => m.type === "jukebox.denied").pop()?.reason).toBe("guests");
+
+    const a = fakeSocket();
+    wing.attach(a, member("Alpha"));
+    frame(wing, a, { type: "jukebox.add", trackId: "track:forged" });
+    await flush();
+    expect(a.sent.filter((m) => m.type === "jukebox.denied").pop()?.reason).toBe("unplayable");
+    expect(hall.jukeboxBroadcast(T0)).toEqual({ current: null, queue: [] });
+  });
+
+  it("the forwarded adder drives the transport from inside the Music Hall, even on a fresh peer", async () => {
+    /* Real-clock base: attach() stamps its welcome from Date.now(),
+       so a fake epoch would advance the box past the song — the
+       production palace runs one clock throughout, and so does this
+       scenario. */
+    const R0 = Date.now();
+    const { hall, wing } = wingAndHall();
+    const a = fakeSocket();
+    wing.attach(a, member("Alpha"));
+    frame(wing, a, { type: "jukebox.add", trackId: "track:long" }, R0);
+    await flush();
+    // Alpha walks over (a new attach = a new peerId) and pauses her
+    // own song: account authority, not peerId luck.
+    const walked = fakeSocket();
+    hall.attach(walked, member("Alpha"));
+    frame(hall, walked, { type: "jukebox.playpause", playing: false }, R0 + 4000);
+    expect(walked.sent.filter((m) => m.type === "jukebox.denied")).toEqual([]);
+    expect(hall.jukeboxBroadcast(R0 + 4000).current?.playback).toEqual({
+      playing: false,
+      positionSec: 4,
+    });
+    // A stranger's hand is still refused.
+    const b = fakeSocket();
+    hall.attach(b, member("Beta"));
+    frame(hall, b, { type: "jukebox.playpause", playing: true }, R0 + 5000);
+    expect(b.sent.filter((m) => m.type === "jukebox.denied").pop()?.reason).toBe("not-yours");
+  });
+
+  it("the palace wires the forwarding itself: a Create Wing frame lands in its Music Hall", async () => {
+    const palace = new WorldPalace(new RoomHub(), {
+      resolveJukeboxTrack: async (_userId, trackId) => TRACKS[trackId] ?? null,
+    });
+    const wing = palace.room("world:create-wing")!;
+    const hall = palace.room("world:music-hall")!;
+    const a = fakeSocket();
+    wing.attach(a, member("Alpha"));
+    palace.handleFrame(a, JSON.stringify({ type: "jukebox.add", trackId: "track:short" }), T0);
+    await flush();
+    expect(hall.jukeboxBroadcast(T0).current?.entry.track.id).toBe("track:short");
+    expect(hall.jukeboxBroadcast(T0).current?.entry.addedByUserId).toBe("user-Alpha");
   });
 });

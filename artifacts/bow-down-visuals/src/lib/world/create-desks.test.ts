@@ -415,7 +415,8 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(items.some((i) => i.includes("4-variation Thumbnail Maker mode (200 VB) and the A/B thumbnail test benches (v1 is"))).toBe(false);
     expect(items.some((i) => i.includes("Full preset panels"))).toBe(false);
     /* Remaining, narrowed: arrangement timeline, harmony AI mode, .lrc/cover
-       action-row extras, jukebox-from-Create-Wing, thumbnail improve rail. */
+       action-row extras, thumbnail improve rail. (Jukebox-from-the-Create-Wing
+       retired by stack-100 item 47: palace-wide queueing landed server-side.) */
     expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(true);
     expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(true);
     expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(true);

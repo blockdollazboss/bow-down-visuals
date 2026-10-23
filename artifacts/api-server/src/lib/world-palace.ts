@@ -362,6 +362,19 @@ export class WorldPalace {
     }
     this.hallRoom = this.rooms.get(WORLD_ROOM_ID)!;
     this.plazaRoom = this.rooms.get(WORLD_PLAZA_ROOM_ID)!;
+    /* The jukebox authority fix (stack-100 item 47): the palace's
+     * one jukebox stands in the Music Hall, but a song is published
+     * at the Song Desk in the Create Wing — every other room hands
+     * its jukebox.add frames to the Music Hall room, which runs
+     * them through the same authority as a local add. */
+    const jukeboxRoom = this.rooms.get("world:music-hall");
+    if (jukeboxRoom) {
+      for (const room of this.rooms.values()) {
+        if (room !== jukeboxRoom) {
+          room.onJukeboxForward = (add, now) => jukeboxRoom.acceptForwardedJukeboxAdd(add, now);
+        }
+      }
+    }
     this.dropClaimer = deps.claimWorldDrop;
     this.tutorialNotifier = deps.noteTutorialAction;
   }
@@ -392,6 +405,13 @@ export class WorldPalace {
     );
     room.onChange = () => this.broadcastDirectory();
     room.onAnnounce = (announce) => this.announce(announce);
+    /* Creator rooms forward their jukebox asks too (item 47) —
+     * the Portrait Card's Play seam fires jukebox.add from the
+     * host's room, and the palace jukebox is the only box there is. */
+    const jukeboxRoom = this.rooms.get("world:music-hall");
+    if (jukeboxRoom) {
+      room.onJukeboxForward = (add, now) => jukeboxRoom.acceptForwardedJukeboxAdd(add, now);
+    }
     this.rooms.set(roomId, room);
     this.creatorRooms.set(slug, { room, displayName });
     return room;
