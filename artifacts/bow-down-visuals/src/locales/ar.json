@@ -2049,6 +2049,9 @@
       },
       "wallpapers": {
         "label": "الخلفيات والسمات"
+      },
+      "headshots": {
+        "label": "صور الرأس"
       }
     },
     "title": "عدة العلامة التجارية"
@@ -2375,7 +2378,30 @@
     "titleStart": "Thy",
     "videosPerWeek": "فيديوهات في الأسبوع",
     "whereDoYouPost": "أين تنشر؟",
-    "yourNiche": "مجالك"
+    "yourNiche": "مجالك",
+    "copyPlan": "نسخ الخطة",
+    "tabMoneyTracker": "متتبع الأموال",
+    "tabGroupPlan": "الخطة",
+    "tabGroupTrack": "التتبع",
+    "tabGroupEarn": "الكسب",
+    "tabGroupSell": "البيع",
+    "tabGroupGrow": "النمو",
+    "tabPlan": "خطة الأموال",
+    "tabNiche": "محلّل المجال",
+    "tabBrandDeals": "صفقات العلامات",
+    "tabShoutouts": "الصيحات",
+    "tabTips": "الإكراميات",
+    "tabBeats": "بيع الإيقاعات",
+    "tabMemberships": "العضويات",
+    "tabDistribute": "التوزيع",
+    "tabStorefronts": "واجهات المتاجر",
+    "tabMyShop": "متجري",
+    "tabPressKit": "ملف الصحافة",
+    "tabEmailList": "قائمة البريد",
+    "tabCollabs": "التعاونات",
+    "tabContests": "المسابقات",
+    "tabReferrals": "الإحالات",
+    "tabTeam": "الفريق"
   },
   "collabs": {
     "accept": "قبول",
@@ -2753,7 +2779,8 @@
         "label": "ألبوم / EP",
         "hint": "مجموعة أعمال مُصدَرة معًا"
       }
-    }
+    },
+    "download_draft": "تنزيل المسودة"
   },
   "cover-art": {
     "ai_cover_art_generator": "مولّد أغلفة الأغاني بالذكاء الاصطناعي",
@@ -2785,7 +2812,8 @@
       }
     },
     "typography_direction": "اتجاه الطباعة",
-    "your_cover_art_appears_here_ente": "يظهر غلافك هنا — أدخل عنوان أغنية واسم فنان للبدء."
+    "your_cover_art_appears_here_ente": "يظهر غلافك هنا — أدخل عنوان أغنية واسم فنان للبدء.",
+    "useSong": "استخدام الأغنية"
   },
   "create-simple": {
     "e_g_a_song_about_grinding_for_ye": "مثال: أغنية عن الكدح لسنوات قبل أن تتحقق الانطلاقة أخيرًا...",
@@ -2812,8 +2840,30 @@
     "title": "إنشاء",
     "modes": {
       "wallpapers": "الخلفيات والسمات",
-      "wallpapersBlurb": "خلفيات وشاشات توقف وسمات متطابقة"
-    }
+      "wallpapersBlurb": "خلفيات وشاشات توقف وسمات متطابقة",
+      "songVideo": "أغنية + فيديو",
+      "songVideoBlurb": "مسار بالإضافة إلى صور، في تدفق واحد",
+      "song": "أغنية",
+      "songBlurb": "أغنية IA من موجّه",
+      "video": "فيديو",
+      "videoBlurb": "مقاطع مبنية لصوتك",
+      "hub": "مركز الإنشاء",
+      "hubBlurb": "كل أداة، لوحة تحكم واحدة",
+      "cartoon": "كرتون",
+      "cartoonBlurb": "استوديو كرتون متحرك",
+      "coverArt": "غلاف فني",
+      "coverArtBlurb": "غلاف فني يبرز",
+      "dreamCollab": "تعاون الأحلام",
+      "dreamCollabBlurb": "أنشئ مع فنانين IA",
+      "linkToHit": "من رابط إلى نجاح",
+      "linkToHitBlurb": "حوّل أي رابط إلى نجاح",
+      "coverMotion": "غلاف متحرك",
+      "coverMotionBlurb": "أحيِ الغلاف الفني"
+    },
+    "pageTitle": "إنشاء",
+    "pageDescription": "ابدأ أي شيء: أغنية + فيديو، أغنية، فيديو، أو مركز الإنشاء الموجه.",
+    "subtitle": "استوديو واحد، عشر طرق للبدء. اختر مسارًا — كل قطعة منتهية تتدفق إلى خطوتها التالية الطبيعية.",
+    "backToDashboard": "العودة إلى لوحة التحكم"
   },
   "credit-history": {
     "dashboard": "لوحة التحكم",
@@ -4302,7 +4352,8 @@
     "removeLocationTitle": "إزالة الموقع",
     "save": "حفظ",
     "subtitle": "احفظ أماكن فيديوهاتك الموسيقية — قاعات العروش والمسارح والشوارع والسماء. اخترها بصرياً عند بناء المشاهد بدل كتابة الوصف.",
-    "uploadImage": "رفع صورة"
+    "uploadImage": "رفع صورة",
+    "useInCoverArt": "الاستخدام في الغلاف الفني"
   },
   "logoMaker": {
     "back": "رجوع",
@@ -7686,57 +7737,58 @@
     "masterAnother": "ماستر مسار آخر"
   },
   "release": {
-    "badge": "Thy Cheat Code's release tools",
-    "titlePrefix": "Release",
-    "titleSuffix": "Checklist",
-    "hero": "Drop day is won in the weeks before it. AI builds your week-by-week battle plan — distribution, playlists, teasers, press, pre-saves — then you check it off as you execute.",
-    "whatDropping": "What are you dropping?",
+    "badge": "أدوات إصدار Thy Cheat Code",
+    "titlePrefix": "إصدار",
+    "titleSuffix": "قائمة التحقق",
+    "hero": "يُكسب يوم الإصدار في الأسابيع التي تسبقه. يبني الذكاء الاصطناعي خطة معركتك أسبوعًا بأسبوع — التوزيع، قوائم التشغيل، التشويقات، الصحافة، الحفظ المسبق — ثم تضع علامة عليها أثناء التنفيذ.",
+    "whatDropping": "ما الذي ستنزله؟",
     "types": {
       "single": {
-        "label": "Single",
-        "blurb": "One track, one moment"
+        "label": "أغنية منفردة",
+        "blurb": "مسار واحد، لحظة واحدة"
       },
       "ep": {
         "label": "EP",
-        "blurb": "3–6 tracks"
+        "blurb": "3–6 مسارات"
       },
       "album": {
-        "label": "Album",
-        "blurb": "7+ tracks, a era"
+        "label": "ألبوم",
+        "blurb": "7+ مسارات، حقبة"
       }
     },
-    "releaseTitle": "Release title",
-    "titlePlaceholder": "e.g. Bow Down Anthem",
-    "genreVibe": "Genre / vibe",
-    "optional": "(optional)",
-    "genrePlaceholder": "e.g. hip-hop, R&B…",
-    "releaseDate": "Release date",
-    "building": "Building your battle plan…",
-    "buildPlan": "Build my release plan",
-    "signInToBuild": "Sign in to build your release plan",
-    "costNote": "{{cost}} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code",
-    "tasksDone": "{{done}} of {{total}} tasks done",
-    "preSaveTitle": "Pre-save power move",
-    "rebuild": "Rebuild plan ({{cost}} Visual Bucs)",
+    "releaseTitle": "عنوان الإصدار",
+    "titlePlaceholder": "مثال: Bow Down Anthem",
+    "genreVibe": "النوع / الأجواء",
+    "optional": "(اختياري)",
+    "genrePlaceholder": "مثال: هيب هوب، R&B…",
+    "releaseDate": "تاريخ الإصدار",
+    "building": "جارٍ بناء خطة معركتك…",
+    "buildPlan": "ابنِ خطة إصداري",
+    "signInToBuild": "سجّل دخولك لبناء خطة إصدارك",
+    "costNote": "{{cost}} Visual Bucs لكل خطة AI · وضع علامة على المهام مجاني · بقوة Thy Cheat Code",
+    "tasksDone": "تم إنجاز {{done}} من {{total}} مهمة",
+    "preSaveTitle": "حركة قوة الحفظ المسبق",
+    "rebuild": "إعادة بناء الخطة ({{cost}} Visual Bucs)",
     "tools": {
-      "playlist-pitcher": "Open Playlist Pitcher",
-      "content-scheduler": "Open Content Scheduler",
-      "press-kit": "Open Press Kit Builder",
-      "cover-art": "Open Cover Art Generator",
-      "email-list": "Open Email List Builder"
+      "playlist-pitcher": "فتح عارض قوائم التشغيل",
+      "content-scheduler": "فتح مجدول المحتوى",
+      "press-kit": "فتح منشئ ملف الصحافة",
+      "cover-art": "فتح مولّد الغلاف الفني",
+      "email-list": "فتح منشئ قائمة البريد"
     },
     "crossLinks": {
-      "p1": "Executing your plan? Pitch playlists with the",
-      "playlistPitcher": "Playlist Pitcher",
-      "p2": "and schedule your teasers with the",
-      "scheduler": "Content Scheduler",
-      "p3": "."
+      "p1": "تنفّذ خطتك؟ اعرض قوائم التشغيل بـ",
+      "playlistPitcher": "عارض قوائم التشغيل",
+      "p2": "وجدول تشويقاتك بـ",
+      "scheduler": "مجدول المحتوى",
+      "p3": ".",
+      "distribute": "وزّعه"
     },
     "error": {
-      "noTitle": "Give your release a title first — the plan is built around it.",
-      "noDate": "Pick a release date so the checklist can count backwards from it.",
-      "pastDate": "Release date must be in the future — a checklist for the past helps nobody.",
-      "planFailed": "Release plan failed — try again."
+      "noTitle": "أعطِ إصدارك عنوانًا أولًا — تُبنى الخطة حوله.",
+      "noDate": "اختر تاريخ إصدار حتى تتمكن قائمة التحقق من العد التنازلي منه.",
+      "pastDate": "يجب أن يكون تاريخ الإصدار في المستقبل — قائمة تحقق للماضي لا تفيد أحدًا.",
+      "planFailed": "فشلت خطة الإصدار — حاول مرة أخرى."
     }
   },
   "outreach": {
@@ -8955,17 +9007,55 @@
     }
   },
   "presave": {
-    "artworkAlt": "{{title}} artwork",
-    "badge": "Pre-save",
-    "drops": "Drops {{date}}",
+    "artworkAlt": "غلاف \"{{title}}\"",
+    "badge": "حفظ مسبق",
+    "drops": "ينزل {{date}}",
     "errors": {
-      "loadFailed": "Couldn't load this release.",
-      "notFound": "This pre-save link doesn't exist."
+      "loadFailed": "تعذر تحميل هذا الإصدار.",
+      "notFound": "رابط الحفظ المسبق هذا غير موجود."
     },
-    "footer": "Released with Thy Cheat Code — the content creator cheat code.",
-    "loading": "Loading release…",
-    "platformsTitle": "Available everywhere on release day",
-    "tracklistTitle": "قائمة المقطوعات"
+    "footer": "تم الإصدار مع Thy Cheat Code — كود غش منشئ المحتوى.",
+    "loading": "جارٍ تحميل الإصدار…",
+    "platformsTitle": "متاح في كل مكان في يوم الإصدار",
+    "tracklistTitle": "قائمة المقطوعات",
+    "badgeOut": "متاح الآن",
+    "dropsSoon": "تاريخ الإصدار قريبًا",
+    "outNow": "متاح الآن — اذهب واستمع إليه!",
+    "cdDays": "أيام",
+    "cdHours": "ساعات",
+    "cdMins": "دقائق",
+    "cdSecs": "ثوانٍ",
+    "fansCount": "معجب حفظ مسبقًا",
+    "sharesCount": "مشاركات",
+    "followCta": "احفظ مسبقًا + احصل على إشعار في يوم الإصدار",
+    "followCtaOut": "انضم إلى قائمة المعجبين للحصول على التحديثات",
+    "followBlurb": "اترك بريدك الإلكتروني — نضيفك إلى قائمة معجبي الفنان (مجاني).",
+    "emailPlaceholder": "بريدك الإلكتروني",
+    "namePlaceholder": "اسمك (اختياري)",
+    "followBtn": "احفظني مسبقًا",
+    "followBtnOut": "انضم إلى القائمة",
+    "saving": "جارٍ الحفظ…",
+    "followed": "أنت في القائمة! سيراسلك {{artist}} في يوم الإصدار.",
+    "alreadyFollowing": "أنت بالفعل في قائمة {{artist}} — نراك في يوم الإصدار!",
+    "notifyNote": "ستصلك رسالة واحدة عندما تنزل الموسيقى. بدون إزعاج، أبدًا.",
+    "invalidEmail": "أدخل عنوان بريد إلكتروني صالحًا.",
+    "followFailed": "تعذر حفظ الحفظ المسبق — حاول مرة أخرى.",
+    "platformsCta": "تابعه في يوم الإصدار",
+    "streamNowOn": "استمع إليه الآن",
+    "streamOn": "الاستماع على {{platform}}",
+    "followOn": "احصل عليه على {{platform}}",
+    "shareTitle": "انشر الكلمة",
+    "shareToUnlock": "شارك لفتح محتوى إضافي",
+    "unlockBlurb": "شارك هذا الإصدار في أي مكان وافتح محتوى إضافيًا حصريًا من الفنان.",
+    "openBonus": "افتح محتواك الإضافي",
+    "shareText": "\"{{title}}\" لـ{{artist}} ينزل قريبًا — احفظه مسبقًا",
+    "shareTextOut": "\"{{title}}\" لـ{{artist}} متاح الآن — اذهب واستمع إليه",
+    "copyLink": "نسخ الرابط",
+    "copied": "تم النسخ!",
+    "postToX": "النشر على X",
+    "shareRelease": "مشاركة هذا الإصدار",
+    "artistCta": "هل أنت الفنان؟",
+    "promoteRelease": "روّج لهذا الإصدار ←"
   },
   "press-kit": {
     "backToDashboard": "العودة إلى لوحة التحكم",
@@ -9135,23 +9225,23 @@
     }
   },
   "press-public": {
-    "backHome": "Back to home",
-    "cheatCodeTagline": "— the content creator cheat code.",
-    "downloadPdf": "Download as PDF",
-    "epkLabel": "Electronic Press Kit",
-    "madeWith": "Made with",
-    "notFoundMessage": "This press kit doesn't exist or isn't public.",
-    "notFoundTitle": "Press kit not found",
-    "photoAlt": "{{name}} photo {{index}}",
+    "backHome": "العودة إلى الرئيسية",
+    "cheatCodeTagline": "— كود غش منشئ المحتوى.",
+    "downloadPdf": "تنزيل كـPDF",
+    "epkLabel": "ملف الصحافة الإلكتروني",
+    "madeWith": "صُنع بـ",
+    "notFoundMessage": "ملف الصحافة هذا غير موجود أو غير عام.",
+    "notFoundTitle": "ملف الصحافة غير موجود",
+    "photoAlt": "صورة {{name}} {{index}}",
     "sections": {
-      "achievements": "Achievements",
-      "bio": "Bio",
-      "bookingContact": "Booking & Contact",
-      "photos": "Photos",
-      "press": "Press",
-      "topTracks": "Top tracks"
+      "achievements": "الإنجازات",
+      "bio": "السيرة",
+      "bookingContact": "الحجز والتواصل",
+      "photos": "الصور",
+      "press": "الصحافة",
+      "topTracks": "أفضل المسارات"
     },
-    "website": "Website"
+    "website": "الموقع"
   },
   "pricing": {
     "betaNotice": {
@@ -9579,71 +9669,75 @@
     "needTextCaptions": "تحتاج تعليقات نصية؟"
   },
   "promote": {
-    "copyLabel": "Copy {{label}}",
-    "copy": "Copy",
-    "copied": "Copied",
+    "copyLabel": "نسخ {{label}}",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
     "hero": {
       "badge": "Promo Content Generator",
       "title": "النص الترويجي",
       "titleAccent": "",
-      "subtitle": "Pick a feature, pick a format and tone — get ready-to-post copy with hashtags and CTAs. {{cost}} Visual Buc per generation.",
-      "back": "Back to all features"
+      "subtitle": "اختر ميزة، واختر تنسيقًا ونبرة — احصل على نص جاهز للنشر مع وسوم ودعوات لاتخاذ إجراء. {{cost}} Visual Buc لكل توليد.",
+      "back": "العودة إلى كل الميزات"
     },
     "form": {
-      "feature": "Feature to promote",
-      "contentType": "Content type",
-      "tone": "Tone",
-      "angle": "Angle to emphasize",
-      "optional": "(optional)",
-      "focusPlaceholder": "e.g. the 1-Visual Buc price, how fast it is, perfect for new artists…"
+      "feature": "الميزة المراد ترويجها",
+      "contentType": "نوع المحتوى",
+      "tone": "النبرة",
+      "angle": "الزاوية المراد إبرازها",
+      "optional": "(اختياري)",
+      "focusPlaceholder": "مثال: سعر 1 Visual Buc، سرعته، مثالي للفنانين الجدد…"
     },
     "contentTypes": {
       "twitter": {
-        "label": "X Post",
-        "blurb": "Punchy post built for reposts"
+        "label": "منشور X",
+        "blurb": "منشور قوي مصمم لإعادة النشر"
       },
       "instagram": {
-        "label": "IG Caption",
-        "blurb": "Engaging caption + hashtags"
+        "label": "تعليق IG",
+        "blurb": "تعليق جذاب + وسوم"
       },
       "tiktok": {
-        "label": "TikTok Script",
-        "blurb": "Hook + beats, spoken style"
+        "label": "نص TikTok",
+        "blurb": "خطاف + إيقاعات، بأسلوب منطوق"
       },
       "email": {
-        "label": "Email Blast",
-        "blurb": "Subject line + short body"
+        "label": "رسالة بريد جماعية",
+        "blurb": "سطر موضوع + نص قصير"
       },
       "banner": {
-        "label": "Banner Headlines",
-        "blurb": "5 scroll-stoppers"
+        "label": "عناوين بانر",
+        "blurb": "5 عناوين توقف التمرير"
       },
       "ad": {
-        "label": "Ad Copy",
-        "blurb": "Headlines + primary text"
+        "label": "نص إعلاني",
+        "blurb": "عناوين + نص أساسي"
       }
     },
     "tones": {
-      "hype": "Hype",
-      "professional": "Professional",
-      "funny": "Funny",
-      "luxury": "Luxury"
+      "hype": "حماس",
+      "professional": "احترافي",
+      "funny": "مضحك",
+      "luxury": "فاخر"
     },
     "signIn": {
-      "message": "Sign in to generate promo content.",
-      "cta": "Sign In"
+      "message": "سجّل دخولك لتوليد محتوى ترويجي.",
+      "cta": "تسجيل الدخول"
     },
-    "generate": "Generate promo · {{cost}} Visual Buc",
-    "generating": "Writing your promo…",
-    "errorGenerationFailed": "Promo generation failed — try again.",
+    "generate": "توليد الترويج · {{cost}} Visual Buc",
+    "generating": "جارٍ كتابة ترويجك…",
+    "errorGenerationFailed": "فشل توليد الترويج — حاول مرة أخرى.",
     "results": {
-      "titlePrefix": "Your promo for",
-      "regenerate": "Regenerate",
-      "headline": "Headline",
-      "copy": "Copy",
-      "alternate": "Alternate {{n}}",
-      "cta": "Call to action",
-      "hashtags": "Hashtags"
+      "titlePrefix": "ترويجك لـ",
+      "regenerate": "إعادة التوليد",
+      "headline": "العنوان",
+      "copy": "النص",
+      "alternate": "بديل {{n}}",
+      "cta": "دعوة لاتخاذ إجراء",
+      "hashtags": "الوسوم"
+    },
+    "tabs": {
+      "promoCopy": "النص الترويجي",
+      "linkInBio": "رابط في السيرة"
     }
   },
   "scheduler": {
@@ -10277,24 +10371,24 @@
     "privateNote": "رابط مراجعة خاص — يمكن فقط للأشخاص الذين يملكون هذا الرابط مشاهدته."
   },
   "notFound": {
-    "pageTitle": "Page Not Found",
-    "pageDescription": "This page doesn't exist — let's get you back to creating.",
-    "heading": "Lost in the vault?",
-    "description": "This page drifted off the map. The crown's still here, though — let's get you back to the studio.",
-    "backToHome": "Back to Home",
+    "pageTitle": "الصفحة غير موجودة",
+    "pageDescription": "هذه الصفحة غير موجودة — لنعدك إلى الإنشاء.",
+    "heading": "ضائع في الخزنة؟",
+    "description": "انحرفت هذه الصفحة عن الخريطة. لكن التاج ما زال هنا — لنعدك إلى الاستوديو.",
+    "backToHome": "العودة إلى الرئيسية",
     "myProjects": "Thy Vision"
   },
   "nfcCardProfile": {
-    "shareTitle": "Digital business card",
-    "notActive": "This card isn't active",
-    "notActiveDetail": "The link may be mistyped, or the owner deactivated this digital card.",
-    "backToSite": "← Back to Bow Down Visuals",
-    "tapToConnect": "Tap to connect",
-    "saveContact": "Save Contact",
-    "share": "Share",
-    "copied": "Copied!",
-    "poweredBy": "Powered by",
-    "nfcSmartCards": "NFC Smart Cards"
+    "shareTitle": "بطاقة عمل رقمية",
+    "notActive": "هذه البطاقة غير نشطة",
+    "notActiveDetail": "ربما أُدخل الرابط خطأ، أو عطّل المالك هذه البطاقة الرقمية.",
+    "backToSite": "→ العودة إلى Bow Down Visuals",
+    "tapToConnect": "انقر للاتصال",
+    "saveContact": "حفظ جهة الاتصال",
+    "share": "مشاركة",
+    "copied": "تم النسخ!",
+    "poweredBy": "مشغّل بـ",
+    "nfcSmartCards": "بطاقات NFC الذكية"
   },
   "nfcCards": {
     "orderFailed": "فشل الطلب",
@@ -12046,7 +12140,7 @@
     "suggestedPriceNote": "سعر مقترح — حدّد سعرك الحقيقي أعلاه قبل الموافقة.",
     "taglineLabel": "الشعار",
     "taglinePh": "سول ليلي لقلوب ثقيلة",
-    "title": "Move Home",
+    "title": "نقل المنزل",
     "updatesExistingNote": "(ملفك الموجود — الموافقة تحدّثه)",
     "verticalEducation": "تعليم",
     "verticalFilm": "سينما",
@@ -14462,5 +14556,169 @@
       "share": "مشاركة هذه الصفحة"
     },
     "preview": "معاينة"
+  },
+  "qrLogin": {
+    "title": "امسح لتسجيل الدخول",
+    "generating": "جارٍ إنشاء رمز QR...",
+    "scanInstructions": "امسح بكاميرا هاتفك. يجب أن تكون مسجلًا دخولك على هاتفك للموافقة.",
+    "expiresIn": "ينتهي الرمز خلال 5 دقائق",
+    "approved": "تمت الموافقة! جارٍ تسجيل دخولك...",
+    "expired": "انتهى الرمز",
+    "generateNew": "إنشاء رمز جديد",
+    "failed": "فشل إنشاء الرمز. حاول مرة أخرى.",
+    "retry": "إعادة المحاولة"
+  },
+  "milestones": {
+    "loadFailed": "تعذر تحميل الإنجازات.",
+    "invalidCount": "أدخل عدد استماع صالحًا.",
+    "logFailed": "تعذر تسجيل ذلك الإنجاز.",
+    "logged": "تم تسجيل الإنجاز.",
+    "loggedWithAward": "تم تسجيل الإنجاز — تم فتح {{award}}!",
+    "importFailed": "فشل الاستيراد.",
+    "imported": "تم استيراد {{imported}}، وتم تخطي {{skipped}}.",
+    "nextUp": "التالي: {{label}}",
+    "streams": "استماع",
+    "loggedFrom": "عبر {{source}}",
+    "manual": "يدوي",
+    "celebrateCaption": "\"{{title}}\" وصل للتو إلى {{streams}} استماع — ساعدوني في الاحتفال!",
+    "artistPlaceholder": "اسم الفنان",
+    "card": "بطاقة الإنجاز",
+    "cardTitle": "تنزيل بطاقة الإنجاز",
+    "celebrate": "احتفل",
+    "chooseFile": "اختر ملف CSV",
+    "countPlaceholder": "عدد الاستماع",
+    "csvHelp": "CSV بأعمدة المسار والفنان والاستماع.",
+    "empty": "لا إنجازات بعد. سجّل فوزك الأول.",
+    "history": "السجل",
+    "honesty": "أرقام حقيقية فقط — كود الغش لا يزيّف الاستماع.",
+    "importButton": "استيراد",
+    "importCsv": "استيراد CSV",
+    "importing": "جارٍ الاستيراد…",
+    "loading": "جارٍ التحميل…",
+    "logButton": "تسجيل إنجاز",
+    "logTitle": "تسجيل إنجاز",
+    "logging": "جارٍ التسجيل…",
+    "maxTier": "تم الوصول إلى أعلى مستوى",
+    "signIn": "سجّل دخولك لتتبع الإنجازات.",
+    "signInCta": "تسجيل الدخول",
+    "trackPlaceholder": "عنوان المسار",
+    "unranked": "غير مصنّف",
+    "yourRace": "سباقك",
+    "bragButton": "تباهَ",
+    "bragButtonWith": "تباهَ بـ{{headline}}",
+    "bragPrompt": "حققت {{label}} — تباهَ بذلك",
+    "bragTitle": "تباهَ بذلك",
+    "bragHeadline": "{{headline}} — تم حسمه.",
+    "bragRendering": "جارٍ رسم بطاقة التباهي…",
+    "bragAlt": "بطاقة تباهي بالإنجاز: {{headline}}",
+    "bragCaptionLabel": "التعليق",
+    "bragPostToFeed": "النشر في موجز BDV",
+    "bragPosting": "جارٍ النشر…",
+    "bragPostedShort": "تم النشر",
+    "bragPosted": "تم النشر في خطك الزمني",
+    "bragViewFeed": "عرض الموجز",
+    "bragShare": "مشاركة",
+    "bragShareTitle": "إنجازي",
+    "bragCopyCaption": "نسخ التعليق",
+    "bragCopied": "تم النسخ",
+    "bragDownload": "تنزيل PNG",
+    "bragDownloaded": "تم تنزيل البطاقة — تبدو أسطورية.",
+    "bragDesktopFallback": "تم نسخ التعليق وتنزيل البطاقة — أرفقها بمنشورك على X / IG / TikTok.",
+    "bragFootnote": "كل بطاقة تحمل Made with Bow Down Visuals + رابط تسجيل — فوزك يجند معجبك التالي.",
+    "bragClose": "إغلاق",
+    "bragRenderFailed": "تعذر رسم البطاقة — حاول مرة أخرى.",
+    "bragUploadFailed": "تعذر رفع البطاقة — حاول مرة أخرى.",
+    "bragPostFailed": "تعذر النشر — حاول مرة أخرى.",
+    "bragShareFailed": "تعذر فتح ورقة المشاركة — حاول مرة أخرى.",
+    "trophyShelf": "رف الجوائز",
+    "trophyShelfSub": "إنجازات تم فتحها مع Bow Down Visuals"
+  },
+  "stabilize": {
+    "title": "التثبيت",
+    "subtitle": "نعّم اللقطات المهتزة — vidstab بمرحلتين، بنقرة واحدة",
+    "priceBadge": "{cost} VB / تثبيت",
+    "noClipsTitle": "لا مقاطع للتثبيت",
+    "noClipsBody": "أضف مقطع فيديو إلى مشهد أولًا، ثم نعّم الاهتزازات.",
+    "clipToStabilize": "المقطع المراد تثبيته",
+    "fineTune": "ضبط دقيق (اختياري)",
+    "resetDefaults": "إعادة تعيين الافتراضيات",
+    "shakeHandling": "معالجة الاهتزاز",
+    "shakeHelp": "الأعلى يعالج اهتزازًا أكبر.",
+    "shakeHigh": "أقصى معالجة للاهتزاز",
+    "shakeMid": "معالجة اهتزاز متوازنة",
+    "shakeLow": "لمسة خفيفة",
+    "smoothness": "النعومة",
+    "smoothHelp": "أنعم، لكن يقصّ أكثر.",
+    "smoothHigh": "ناعم كالزبدة (قصّ أكثر)",
+    "smoothMid": "نعومة متوازنة",
+    "smoothLow": "تنعيم خفيف",
+    "stabilizeButton": "التثبيت · {cost} VB",
+    "stabilizingButton": "جارٍ التثبيت…",
+    "stabilizingNote": "قد يستغرق التثبيت بمرحلتين دقيقة.",
+    "resultTitle": "تم التثبيت",
+    "useInEditor": "الاستخدام في المحرر",
+    "attaching": "جارٍ الإرفاق…",
+    "useInExport": "الاستخدام في التصدير",
+    "download": "تنزيل",
+    "successToast": "تم تثبيت المقطع",
+    "successToastDesc": "مقطعك المنعّم جاهز.",
+    "timelineToast": "تمت الإضافة إلى الخط الزمني",
+    "timelineToastDesc": "استبدل المقطع المثبّت مقطع المشهد.",
+    "errorGeneric": "فشل التثبيت — حاول مرة أخرى."
+  },
+  "lufs": {
+    "waveformUnavailable": "الموجة الصوتية غير متاحة",
+    "errorJobNotFound": "المهمة غير موجودة — ربما انتهت صلاحيتها.",
+    "errorNormalizeFailed": "فشلت المعايرة — تم رد أموالك.",
+    "analyzeError": "تعذر تحليل هذا الملف. جرّب ملفًا صوتيًا آخر.",
+    "errorNetwork": "عطل في الشبكة — حاول مرة أخرى.",
+    "errorAudioType": "اختر ملفًا صوتيًا (MP3، WAV، M4A، AAC، OGG، FLAC).",
+    "errorFileTooLarge": "ذلك الملف أكبر من 50 MB. قصّه أو اختر ملفًا أصغر.",
+    "errorStartFailed": "تعذر بدء المعايرة. حاول مرة أخرى.",
+    "meterDecodeError": "تعذر فك تشفير هذا الملف للقياس المباشر.",
+    "title": "مقياس جهارة LUFS",
+    "subtitle": "قِس الجهارة الحقيقية، ثم عاير إلى أهداف البث — {cost} VB لكل معايرة. التحليل مجاني.",
+    "honestIntro": "تُقاس الجهارة بـLUFS — كم يبدو مسارك مرتفعًا فعليًا، وليس فقط مستوى ذروته.",
+    "honestStrong": "التحليل مجاني؛ المعايرة تعيد قياس الناتج حتى تكون الأرقام حقيقية.",
+    "dropPrompt": "أسقط الصوت هنا أو انقر للرفع",
+    "dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — حتى 50 MB",
+    "changeFile": "تغيير الملف",
+    "statIntegrated": "المتكامل",
+    "statLra": "نطاق الجهارة",
+    "statTruePeak": "الذروة الحقيقية",
+    "eburLabel": "لحظي / قصير المدى (مقاس على الخادم)",
+    "momentary": "لحظي",
+    "shortTerm": "قصير المدى",
+    "eburHint": "الحد الأقصى / المتوسط عبر المسار بأكمله.",
+    "liveMeterTitle": "مقياس مباشر (المتصفح)",
+    "liveMeterNote": "تقدير مباشر مرجّح K أثناء تشغيل الملف — بدون بوابة، للإحساس. الرقم المتكامل من الخادم أعلاه هو المعتمد.",
+    "liveMeterStop": "إيقاف",
+    "liveMeterPlay": "تشغيل المقياس المباشر",
+    "targetLabel": "هدف المعايرة",
+    "formatLabel": "تنسيق الإخراج",
+    "formatWav": "WAV (16-bit)",
+    "formatMp3": "MP3 (320k)",
+    "normalizeButton": "المعايرة إلى {target} LUFS · {cost} VB",
+    "creditsRemaining": "تبقّى {n} Visual Bucs",
+    "statusUploading": "جارٍ الرفع…",
+    "statusQueued": "في الانتظار — تعمل المهمة على الخادم، آمن ترك هذه التبويبة.",
+    "statusProcessing": "جارٍ المعايرة إلى {target} LUFS…",
+    "progressNote": "معايرة جهارة بمرحلتين: قياس، تصحيح، ثم إعادة قياس الناتج.",
+    "analyzing": "جارٍ قياس الجهارة…",
+    "normalizeComplete": "تمت المعايرة إلى {target} LUFS",
+    "before": "قبل",
+    "after": "بعد",
+    "abOriginal": "الأصلي",
+    "abNormalized": "المعايَر",
+    "pause": "إيقاف مؤقت",
+    "play": "تشغيل",
+    "labelOriginal": "الأصلي",
+    "labelNormalized": "المعايَر",
+    "abHint": "بدّل بين الاثنين — يتم الاحتفاظ بموضع التشغيل.",
+    "downloadButton": "تنزيل",
+    "newButton": "ملف جديد",
+    "handoffTitle": "الخطوة التالية",
+    "handoffMaster": "إرسال إلى تبويبة الماستر ←",
+    "handoffDistribute": "وزّعه ←"
   }
 }
