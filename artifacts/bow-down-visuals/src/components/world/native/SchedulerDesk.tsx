@@ -23,6 +23,7 @@ import {
   parseSchedulerDeskPosts,
   parseSchedulerPostResponse,
   resolveAccountId,
+  schedulerSavedReceipt,
   sortSchedulerDeskPosts,
   validateSchedulerCompose,
   SOCIAL_CONNECT_PLATFORMS,
@@ -188,13 +189,11 @@ function SchedulerComposeForm(props: ComposeFormProps) {
       }
       const post = parseSchedulerPostResponse(data);
       refreshProfile();
-      setSavedLine(
-        post?.status === "scheduled" && post.scheduledAt
-          ? `Scheduled — ${prettyDateTime(post.scheduledAt)}. It's on your calendar below, and you can edit or cancel it right here.`
-          : willSchedule
-            ? "Scheduled — it's on your calendar below, and you can edit or cancel it right here."
-            : "Saved as a draft — free. Give it a time whenever you're ready and it joins the calendar.",
-      );
+      /* Item 71: the receipt names the post (title), its time and
+         its channels — built by the desk lib so the words are the
+         server's post when it parsed, the just-saved draft when
+         it didn't. */
+      setSavedLine(schedulerSavedReceipt(post, draft, willSchedule));
       props.onSaved(post, editing ? "updated" : "created");
       if (!editing) setDraft(emptySchedulerCompose());
     } catch {

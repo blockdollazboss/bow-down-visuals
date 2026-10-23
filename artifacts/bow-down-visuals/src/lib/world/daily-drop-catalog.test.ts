@@ -165,7 +165,10 @@ describe("the Treasury dock (source pins)", () => {
     /* The desk match is decided by the pure seam, and the row calls
        the page's panel swap with it — no ejection to the website. */
     expect(catalogSrc).toContain("dailyDropStationForKind(entry.kind)");
-    expect(catalogSrc).toContain("onClick={() => onOpenStation(stationId)}");
+    /* Stack-100 #2 item 97: the swap now also carries the drop's
+       template payload (the pin's station-only call shape was the
+       pre-payload behaviour, changed deliberately by that item). */
+    expect(catalogSrc).toContain("onClick={() => onOpenStation(stationId, dailyDropPanelPayload(entry))}");
     /* The href transfer remains only as the fallback for when no
        panel swap is wired — every kind maps to a desk now. */
     expect(catalogSrc).toContain("href={entry.href}");

@@ -3522,9 +3522,9 @@ export default function WorldPage() {
             const editorStation = STATION_BY_ID.get("visual-vibes-editor");
             if (editorStation) setPanelTarget({ kind: "station", station: editorStation });
           }}
-          onOpenStation={(stationId) => {
+          onOpenStation={(stationId, payload) => {
             const station = STATION_BY_ID.get(stationId);
-            if (station) setPanelTarget({ kind: "station", station });
+            if (station) setPanelTarget({ kind: "station", station, payload: payload ?? null });
           }}
           onEnterRoom={(roomId) => {
             /* The Palace Calendar's walk (3.9): a creator room is

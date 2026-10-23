@@ -74,6 +74,25 @@ describe("#85 studio rails — the 2D studio's verbatim doors", () => {
     expect(ingestKeyShownOnce("")).toBe(false);
   });
 
+  it("stream key honesty (Stack-100 #2 item 79): the key is labelled untested until a broadcast connects", () => {
+    /* No handshake test exists on this surface, so the desk must
+       say the key is untested rather than implying "ready". */
+    expect(deskSrc).toContain('data-testid="world-live-ingest-untested"');
+    expect(deskSrc).toContain("This key is untested");
+    expect(deskSrc).toContain("ingest?.enabled && ingest.has_key");
+  });
+
+  it("live counts are server truth only (Stack-100 #2 item 70): no local increment anywhere in the desk", () => {
+    /* Facet D-H3 claimed the active-count header increments locally
+       on join. The shipped desk reads viewer counts exclusively
+       from server DTOs (normalizeLiveStatus / normalizeWatchStream
+       / the studio's viewer_count poll) — this pin keeps any local
+       +1 from ever creeping back in. */
+    expect(deskSrc).not.toMatch(/viewerCount\s*\+\s*1/);
+    expect(deskSrc).not.toMatch(/setViewers\(\s*\(?\s*v\s*\)?\s*=>\s*v\s*\+/);
+    expect(deskSrc).not.toMatch(/setViewers\([^)]*\+\s*1/);
+  });
+
   it("loyalty menus are LoyaltySettingsPanel's fixed menus verbatim", () => {
     expect([...LOYALTY_WATCH_MENU]).toEqual([0, 5, 10, 20]);
     expect([...LOYALTY_CHAT_MENU]).toEqual([0, 1, 2, 5]);

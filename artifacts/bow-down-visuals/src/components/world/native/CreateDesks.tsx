@@ -120,6 +120,12 @@ export interface CreateDeskProps {
    *  resolves on open — desks save their result as that project
    *  first, so the editor opens on THIS piece). */
   onOpenEditor?: () => void;
+  /** The panel payload this desk was opened with (Stack-100 #2
+   *  item 97, lib/world/panel-payload): RAW and untrusted — a desk
+   *  that speaks payloads parses it with parsePanelPayloadFor for
+   *  its own station id and ignores anything else. Desks that
+   *  don't speak payloads never read it. */
+  panelPayload?: unknown;
 }
 
 function useEditorSeed(props: CreateDeskProps) {
@@ -1756,7 +1762,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
         }
       />
       <QuestProgressChip isLight={isLight} lines={thumbQuest.lines} />
-      <ThumbnailBenches isLight={isLight} />
+      <ThumbnailBenches isLight={isLight} panelPayload={props.panelPayload ?? null} />
       {recent.length > 0 && (
         <div>
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>

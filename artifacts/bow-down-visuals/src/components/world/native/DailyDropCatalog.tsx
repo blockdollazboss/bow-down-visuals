@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
+import type { PanelPayload } from "@/lib/world/panel-payload";
 import {
   DAILY_DROP_ARCHIVE_PATH,
   DAILY_DROP_CATALOG_PATH,
   DAILY_DROP_UNARCHIVE_PATH,
   applyDropArchive,
+  dailyDropPanelPayload,
   dailyDropStationForKind,
   normalizeDailyDropCatalog,
   splitDailyDropCatalog,
@@ -90,8 +92,10 @@ export function DailyDropCatalog({
 }: {
   isLight: boolean;
   /** Open another station's panel in-world (the page's panel swap)
-   *  — a drop whose kind has a native desk "Uses" into it (item 97). */
-  onOpenStation?: (stationId: string) => void;
+   *  — a drop whose kind has a native desk "Uses" into it (item 97),
+   *  carrying the drop's template payload so the desk opens
+   *  prefilled (Stack-100 #2 item 97). */
+  onOpenStation?: (stationId: string, payload?: PanelPayload | null) => void;
 }) {
   const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
@@ -172,7 +176,7 @@ export function DailyDropCatalog({
             return stationId && onOpenStation ? (
               <button
                 type="button"
-                onClick={() => onOpenStation(stationId)}
+                onClick={() => onOpenStation(stationId, dailyDropPanelPayload(entry))}
                 data-testid={`world-daily-drop-use-${entry.key}`}
                 className={useBtn}
               >

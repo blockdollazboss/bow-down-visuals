@@ -313,6 +313,51 @@ export function parseSchedulerPostResponse(data: unknown): SchedulerDeskPost | n
   return posts[0] ?? null;
 }
 
+/* ─── The schedule-success receipt (Stack-100 #2 item 71) ───────────
+   A completed schedule answers back WHAT was scheduled, WHEN it
+   goes out, and on WHICH channels — the creator never has to hunt
+   the calendar to confirm the post they just made. Built from the
+   server's own post when it parsed; when the response didn't
+   parse, the receipt falls back to the draft the member just
+   saved (its caption, its picked time, its platforms) rather than
+   claiming a when/channel it doesn't know. A draft's receipt is
+   honest that nothing is scheduled yet. */
+
+function receiptTitle(caption: string): string {
+  const t = caption.trim().replace(/\s+/g, " ");
+  if (!t) return "Your post";
+  return t.length > 60 ? `${t.slice(0, 57)}…` : t;
+}
+
+function receiptChannels(platforms: SchedulerPlatformKey[]): string {
+  const labels = platforms.map(
+    (p) => SCHEDULER_PLATFORMS.find((s) => s.key === p)?.label ?? p,
+  );
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0]!;
+  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
+export function schedulerSavedReceipt(
+  post: SchedulerDeskPost | null,
+  draft: SchedulerComposeDraft,
+  willSchedule: boolean,
+): string {
+  const title = receiptTitle(post?.caption || draft.caption);
+  if (!willSchedule) {
+    return `Saved as a draft — “${title}” is free and waiting. Give it a time whenever you're ready and it joins the calendar.`;
+  }
+  const whenIso = post?.scheduledAt ?? fromDatetimeLocalValue(draft.whenLocal);
+  const when = whenIso ? prettyDateTime(whenIso) : null;
+  const channels = receiptChannels(
+    post && post.platforms.length > 0 ? post.platforms : draft.platforms,
+  );
+  const parts = [`Scheduled — “${title}”`];
+  if (when) parts.push(`for ${when}`);
+  if (channels) parts.push(`on ${channels}`);
+  return `${parts.join(" ")}. It's on your calendar below, and you can edit or cancel it right here.`;
+}
+
 /** The DELETE answer: a scheduled post cancels (+ refund), anything
  *  else deletable is deleted outright. */
 export function parseSchedulerDeleteResult(data: unknown): { canceled: boolean; refunded: number } {
@@ -379,6 +424,7 @@ import {
   monthGridDays,
   planReschedule,
   postingAccountStates,
+  prettyDateTime,
   toLocalDate,
   type PostingAccountState,
   type ScheduledPostShape,

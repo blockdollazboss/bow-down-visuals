@@ -36,6 +36,7 @@ import {
   parseSchedulerDeskPosts,
   parseSchedulerPostResponse,
   resolveAccountId,
+  schedulerSavedReceipt,
   sortSchedulerDeskPosts,
   toDatetimeLocalValue,
   validateSchedulerCompose,
@@ -348,6 +349,66 @@ describe("full surface (#57) — calendar, reschedule, connect", () => {
     expect(parseSocialAuthUrl(null)).toBeNull();
   });
 
+});
+
+describe("schedule-success receipt (Stack-100 #2 item 71)", () => {
+  const post = (over: Record<string, unknown> = {}) => ({
+    id: "p1",
+    caption: "New clip out Friday",
+    hashtags: "",
+    platforms: ["instagram", "tiktok"],
+    accountIds: {},
+    mediaUrl: "https://cdn.example/clip.mp4",
+    mediaType: "video" as const,
+    scheduledAt: "2026-10-24T17:30:00.000Z",
+    status: "scheduled",
+    creditsCharged: 100,
+    ...over,
+  });
+
+  it("names the title, the when and the channels from the server's post", () => {
+    const line = schedulerSavedReceipt(post(), draft(), true);
+    expect(line).toContain("Scheduled — “New clip out Friday”");
+    expect(line).toContain("Oct"); // the formatted when (prettyDateTime)
+    expect(line).toContain("Instagram and TikTok");
+    expect(line).toContain("calendar below");
+  });
+
+  it("falls back to the just-saved draft when the response didn't parse — never inventing a when it lacks", () => {
+    const line = schedulerSavedReceipt(null, draft({ whenLocal: "2026-10-25T09:15", platforms: ["facebook"] }), true);
+    expect(line).toContain("“New clip out”");
+    expect(line).toContain("Facebook");
+    const bare = schedulerSavedReceipt(null, draft({ whenLocal: "", platforms: [] }), true);
+    expect(bare).toContain("Scheduled — “New clip out”.");
+    expect(bare).not.toContain(" for ");
+    expect(bare).not.toContain("Instagram");
+  });
+
+  it("a draft's receipt is honest that nothing is scheduled yet", () => {
+    const line = schedulerSavedReceipt(null, draft(), false);
+    expect(line).toContain("Saved as a draft");
+    expect(line).toContain("free");
+    expect(line).not.toContain("Scheduled —");
+  });
+
+  it("long captions truncate; an empty caption reads as the post itself", () => {
+    const long = schedulerSavedReceipt(post({ caption: "x".repeat(90) }), draft(), true);
+    expect(long).toContain("…");
+    expect(long.length).toBeLessThan(220);
+    expect(schedulerSavedReceipt(post({ caption: "  " }), draft({ caption: "" }), true)).toContain("“Your post”");
+  });
+
+  it("the desk renders the receipt through the helper (source pin)", () => {
+    const desk = readFileSync(
+      new URL("../../components/world/native/SchedulerDesk.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(desk).toContain("setSavedLine(schedulerSavedReceipt(post, draft, willSchedule))");
+    expect(desk).toContain('data-testid="world-scheduler-saved"');
+  });
+});
+
+describe("full surface (#57) — the desk component (source pins)", () => {
   it("the desk renders the calendar, drag/move and connect surfaces (source pins)", () => {
     const desk = readFileSync(
       new URL("../../components/world/native/SchedulerDesk.tsx", import.meta.url),

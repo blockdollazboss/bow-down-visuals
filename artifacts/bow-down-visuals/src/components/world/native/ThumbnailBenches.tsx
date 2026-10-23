@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { parsePanelPayloadFor } from "@/lib/world/panel-payload";
+import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import {
   buildThumbnailVariantsPayload,
   buildThumbnailWinnerPublishHref,
@@ -64,7 +66,16 @@ const chipBtn = (isLight: boolean) =>
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
 
-export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
+export function ThumbnailBenches({
+  isLight,
+  panelPayload,
+}: {
+  isLight: boolean;
+  /** The panel payload the Thumbnail Desk was opened with
+   *  (Stack-100 #2 item 97): RAW — parsed defensively below for
+   *  this station only. Absent/garbage = the benches open blank. */
+  panelPayload?: unknown;
+}) {
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -74,6 +85,30 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
   const [overlayText, setOverlayText] = useState("");
   const [overlayPosition, setOverlayPosition] = useState<"top" | "middle" | "bottom">("bottom");
   const [attribution, setAttribution] = useState(false);
+
+  /* Panel payload (Stack-100 #2 item 97): a handoff that named a
+     thumbnail template — a Daily Drop thumbnail "Use" — opens the
+     benches PREFILLED with that template's prompt, style, aspect
+     and overlay words (the same fields the website maker's
+     ?template= deep link preloads). Parsed defensively for THIS
+     station only, applied once on open; an unknown slug fills
+     nothing and the benches open blank, as a plain open does.
+     Prefilling is free — only a generation run charges. */
+  const payloadAppliedRef = useRef(false);
+  useEffect(() => {
+    if (payloadAppliedRef.current) return;
+    payloadAppliedRef.current = true;
+    const payload = parsePanelPayloadFor("thumbnail-desk", panelPayload);
+    if (!payload || payload.kind !== "thumbnail-template") return;
+    const tpl = getThumbnailTemplate(payload.templateSlug);
+    if (!tpl) return;
+    setPrompt(tpl.prompt);
+    setStylePreset(tpl.stylePreset);
+    setAspectRatio(tpl.aspectRatio);
+    setOverlayText(tpl.overlayText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [faceFile, setFaceFile] = useState<File | null>(null);
   const [facePreview, setFacePreview] = useState<string | null>(null);
   const [images, setImages] = useState<Array<{ url: string; variation: string }>>([]);
