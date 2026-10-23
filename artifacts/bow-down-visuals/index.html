@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- Stack-28 #54 (A5-M2): pinch zoom re-enabled — no maximum-scale cap.
+         Verified: no layout code reads or depends on the zoom cap (grep for
+         maximum-scale/user-scalable across src/public = only this tag);
+         viewport-fit=cover kept for notch/safe-area layouts. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0a04" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F0" />
     <link rel="manifest" href="/manifest.json" />
@@ -25,8 +29,7 @@
     <link rel="canonical" href="https://bowdownvisuals.com/" />
     <link rel="icon" type="image/gif" href="/favicon.gif" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <!-- Hero preloads are HOME-ONLY. The bow poster (53 KB) and sprite
-         sheet 0 (1.78 MB) are preloaded solely for the homepage hero
+    <!-- Hero preloads are HOME-ONLY. The bow poster (53 KB) is preloaded solely for the homepage hero
          (CinematicHero); as static tags they were fetched on EVERY route —
          all of them — for a hero that never renders there (measured,
          Stack-21 lane 8). index.html is a single static document served
@@ -48,8 +51,11 @@
         var p = window.location.pathname;
         if (p !== "/" && p !== "/index.html") return;
         var assets = [
-          { href: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/hero-bow-poster.webp", cors: false },
-          { href: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/hero-bow-sheet-0.webp", cors: true }
+          { href: "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/hero-bow-poster.webp", cors: false }
+          /* Stack-28 #47: sprite sheet 0 is NO longer preloaded here — all
+             3 sheets (5.47 MB) now load from CinematicHero only after
+             first paint + hero visibility (lib/defer-after-paint). The
+             poster (53 KB) stays preloaded: it is the instant paint. */
         ];
         for (var i = 0; i < assets.length; i++) {
           var link = document.createElement("link");
@@ -69,11 +75,14 @@
     <!-- NOTE: the 8-bit pixel fonts (Press Start 2P, Silkscreen, VT323,
          DotGothic16, Pixelify Sans) are self-hosted via @font-face in
          index.css (public/fonts) — no CDN dependency. -->
-    <!-- Caption font library: the same families are bundled as TTFs in the
-         Docker image so export burn-in matches the preview exactly. -->
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Alfa+Slab+One&family=Archivo+Black&family=Barlow+Condensed:wght@700&family=Bebas+Neue&family=Bungee&family=Cinzel:wght@700&family=Luckiest+Guy&family=Permanent+Marker&family=Poppins:wght@700&family=Righteous&family=Titan+One&display=swap" rel="stylesheet">
-    <!-- Thy Library font catalog: curated creator fonts (Google Fonts, free) -->
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Marcellus&family=Bodoni+Moda:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@400;700&family=Shadows+Into+Light&family=Gochi+Hand&family=Rock+Salt&family=Satisfy&family=Rubik+Mono+One&family=Monoton&family=Fascinate+Inline&family=Wallpoet&family=Black+Ops+One&family=Creepster&display=swap" rel="stylesheet">
+    <!-- Stack-28 #50: the caption font library (12 families) and the Thy
+         Library font catalog (19 families) are NO longer global stylesheets.
+         They load on demand via src/lib/load-fonts.ts in the surfaces that
+         render them (CaptionsSection / video-editor / Library page), with
+         the exact same css2 URLs and display=swap. Only the UI fonts above
+         (Inter + Playfair Display) stay global. The caption families are
+         still bundled as TTFs in the Docker image so export burn-in matches
+         the preview exactly. -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",

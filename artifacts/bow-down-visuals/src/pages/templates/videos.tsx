@@ -16,8 +16,8 @@ import {
 } from "@/data/video-templates";
 import ShareMenu from "@/components/ShareMenu";
 
-/* ─── Public video-edit template library ───
-   No login required. Search + category + sort over the real template set
+/* ─── Video-edit template library (members) ───
+   Sign-in required to browse (access law: /templates* is locked for guests). Search + category + sort over the real template set
    (data/video-templates.ts — the same keys the editor's server catalog
    serves). The default sort is "Featured — our picks": the curated order
    of the data file. There is NO usage tracking behind these templates

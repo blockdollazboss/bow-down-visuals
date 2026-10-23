@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
@@ -60,6 +60,7 @@ import { computeMasterPlayerFit } from "@/lib/master-player-size";
 import { fetchTrack, resolveMedia } from "@/lib/streaming";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { captionFontFamily } from "@/lib/fonts";
+import { ensureCaptionFonts } from "@/lib/load-fonts";
 import { getLibraryPreset } from "@/data/library-presets";
 import {
   COMPARE_POS_DEFAULT,
@@ -74,33 +75,37 @@ import {
 } from "@/lib/compare-slider";
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
-import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
-import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
-import { StockLibraryPanel } from "@/components/editor/sections/StockLibraryPanel";
-import { AssetLibraryPanel } from "@/components/editor/sections/AssetLibraryPanel";
-import TemplatesTabPanel from "@/components/video-editor/TemplatesTabPanel";
-import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
-import { AiCaptionSuite } from "@/components/editor/sections/AiCaptionSuite";
-import { EffectsSection } from "@/components/editor/sections/EffectsSection";
-import { ExportSection } from "@/components/editor/sections/ExportSection";
-import { MusicStudio } from "@/components/editor/music/MusicStudio";
-import { BrandingSection } from "@/components/editor/sections/BrandingSection";
-import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
-import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
-import { TimelineSection } from "@/components/editor/sections/TimelineSection";
-import { MotionGraphicsSection } from "@/components/editor/sections/MotionGraphicsSection";
-import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
-import { VoiceDirectedEditsSection } from "@/components/editor/sections/VoiceDirectedEditsSection";
-import { AICopilotPanel } from "@/components/editor/sections/AICopilotPanel";
-import { BeatSyncSection } from "@/components/editor/sections/BeatSyncSection";
-import { TimelineTemplatesSection } from "@/components/editor/sections/TimelineTemplatesSection";
-import { BackgroundReplaceSection } from "@/components/editor/sections/BackgroundReplaceSection";
-import { StabilizeSection } from "@/components/editor/sections/StabilizeSection";
-import { SpeedRampSection } from "@/components/editor/sections/SpeedRampSection";
-import { CaptionTemplatesSection } from "@/components/editor/sections/CaptionTemplatesSection";
-import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
-import { CanvasGeneratorSection } from "@/components/editor/sections/CanvasGeneratorSection";
-import { KeyframesSection } from "@/components/editor/sections/KeyframesSection";
+/* Stack-28 #51: editor section panels are lazy — each renders only when
+   its rail tab is active, so the editor shell chunk no longer carries all
+   ~30 sections (incl. the 225 KB LipSyncSection) on first editor load.
+   Both panel asides render inside <Suspense> boundaries below. */
+const ClipGeneratorSection = lazy(() => import("@/components/editor/sections/ClipGeneratorSection").then((m) => ({ default: m.ClipGeneratorSection })));
+const ScreenRecorderPanel = lazy(() => import("@/components/editor/sections/ScreenRecorderPanel").then((m) => ({ default: m.ScreenRecorderPanel })));
+const StockLibraryPanel = lazy(() => import("@/components/editor/sections/StockLibraryPanel").then((m) => ({ default: m.StockLibraryPanel })));
+const AssetLibraryPanel = lazy(() => import("@/components/editor/sections/AssetLibraryPanel").then((m) => ({ default: m.AssetLibraryPanel })));
+const TemplatesTabPanel = lazy(() => import("@/components/video-editor/TemplatesTabPanel"));
+const CaptionsSection = lazy(() => import("@/components/editor/sections/CaptionsSection").then((m) => ({ default: m.CaptionsSection })));
+const AiCaptionSuite = lazy(() => import("@/components/editor/sections/AiCaptionSuite").then((m) => ({ default: m.AiCaptionSuite })));
+const EffectsSection = lazy(() => import("@/components/editor/sections/EffectsSection").then((m) => ({ default: m.EffectsSection })));
+const ExportSection = lazy(() => import("@/components/editor/sections/ExportSection").then((m) => ({ default: m.ExportSection })));
+const MusicStudio = lazy(() => import("@/components/editor/music/MusicStudio").then((m) => ({ default: m.MusicStudio })));
+const BrandingSection = lazy(() => import("@/components/editor/sections/BrandingSection").then((m) => ({ default: m.BrandingSection })));
+const LipSyncSection = lazy(() => import("@/components/editor/sections/LipSyncSection").then((m) => ({ default: m.LipSyncSection })));
+const PreProductionSection = lazy(() => import("@/components/editor/sections/PreProductionSection").then((m) => ({ default: m.PreProductionSection })));
+const TimelineSection = lazy(() => import("@/components/editor/sections/TimelineSection").then((m) => ({ default: m.TimelineSection })));
+const MotionGraphicsSection = lazy(() => import("@/components/editor/sections/MotionGraphicsSection").then((m) => ({ default: m.MotionGraphicsSection })));
+const StudioEditorSection = lazy(() => import("@/components/editor/sections/StudioEditorSection").then((m) => ({ default: m.StudioEditorSection })));
+const VoiceDirectedEditsSection = lazy(() => import("@/components/editor/sections/VoiceDirectedEditsSection").then((m) => ({ default: m.VoiceDirectedEditsSection })));
+const AICopilotPanel = lazy(() => import("@/components/editor/sections/AICopilotPanel").then((m) => ({ default: m.AICopilotPanel })));
+const BeatSyncSection = lazy(() => import("@/components/editor/sections/BeatSyncSection").then((m) => ({ default: m.BeatSyncSection })));
+const TimelineTemplatesSection = lazy(() => import("@/components/editor/sections/TimelineTemplatesSection").then((m) => ({ default: m.TimelineTemplatesSection })));
+const BackgroundReplaceSection = lazy(() => import("@/components/editor/sections/BackgroundReplaceSection").then((m) => ({ default: m.BackgroundReplaceSection })));
+const StabilizeSection = lazy(() => import("@/components/editor/sections/StabilizeSection").then((m) => ({ default: m.StabilizeSection })));
+const SpeedRampSection = lazy(() => import("@/components/editor/sections/SpeedRampSection").then((m) => ({ default: m.SpeedRampSection })));
+const CaptionTemplatesSection = lazy(() => import("@/components/editor/sections/CaptionTemplatesSection").then((m) => ({ default: m.CaptionTemplatesSection })));
+const ProToolsSection = lazy(() => import("@/components/editor/sections/ProToolsSection").then((m) => ({ default: m.ProToolsSection })));
+const CanvasGeneratorSection = lazy(() => import("@/components/editor/sections/CanvasGeneratorSection").then((m) => ({ default: m.CanvasGeneratorSection })));
+const KeyframesSection = lazy(() => import("@/components/editor/sections/KeyframesSection").then((m) => ({ default: m.KeyframesSection })));
 import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
 import {
   buildProToolsCssFilter,
@@ -111,19 +116,24 @@ import { TimelineDock } from "@/components/editor/TimelineDock";
 import TemplatePicker from "@/components/TemplatePicker";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import type { HubAsset } from "@/lib/hub-project";
-import PromoClip from "@/pages/promo-clip";
-import LyricVideo from "@/pages/lyric-video";
-import Translate from "@/pages/translate";
-import Repurpose from "@/pages/repurpose";
-import Upscale from "@/pages/upscale";
-import CartoonStudio from "@/pages/cartoon-studio";
-import ThumbnailStudio from "@/pages/thumbnail-studio";
-import { VisualVibesSection } from "@/components/editor/sections/VisualVibesSection";
-import LocationsPage from "@/pages/locations";
-import { StyleStealerSection } from "@/components/editor/sections/StyleStealerSection";
-import { MemeMachineSection } from "@/components/editor/sections/MemeMachineSection";
-import { ThreeSecondLabSection } from "@/components/editor/sections/ThreeSecondLabSection";
+const PromoClip = lazy(() => import("@/pages/promo-clip"));
+const LyricVideo = lazy(() => import("@/pages/lyric-video"));
+const Translate = lazy(() => import("@/pages/translate"));
+const Repurpose = lazy(() => import("@/pages/repurpose"));
+const Upscale = lazy(() => import("@/pages/upscale"));
+const CartoonStudio = lazy(() => import("@/pages/cartoon-studio"));
+const ThumbnailStudio = lazy(() => import("@/pages/thumbnail-studio"));
+const VisualVibesSection = lazy(() => import("@/components/editor/sections/VisualVibesSection").then((m) => ({ default: m.VisualVibesSection })));
+const LocationsPage = lazy(() => import("@/pages/locations"));
+const StyleStealerSection = lazy(() => import("@/components/editor/sections/StyleStealerSection").then((m) => ({ default: m.StyleStealerSection })));
+const MemeMachineSection = lazy(() => import("@/components/editor/sections/MemeMachineSection").then((m) => ({ default: m.MemeMachineSection })));
+const ThreeSecondLabSection = lazy(() => import("@/components/editor/sections/ThreeSecondLabSection").then((m) => ({ default: m.ThreeSecondLabSection })));
 import { ToolPanelShell } from "@/components/editor/ToolPanelShell";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  EDITOR_RIGHT_SECTION_IDS, EDITOR_SECTION_IDS,
+  type EditorSectionId,
+} from "@/lib/editor-sections";
 import { ALIGN_CREDITS as LYRIC_ALIGN_CREDITS, RENDER_CREDITS as LYRIC_RENDER_CREDITS } from "@/lib/lyric-video";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
@@ -142,7 +152,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "motion" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab" | "copilot";
+type EditorTab = EditorSectionId;
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -305,6 +315,9 @@ export default function VideoEditor() {
     "--vv-wash-10": isLight ? "rgba(120,90,40,0.14)" : "rgba(255,255,255,0.10)",
   } as React.CSSProperties;
   usePageTitle(t("videoEditor.pageTitle"), t("videoEditor.pageDescription"));
+  /* Stack-28 #50: caption font families load on demand in the editor
+     (its preview renders captionFontFamily outside CaptionsSection). */
+  useEffect(() => { ensureCaptionFonts(); }, []);
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
@@ -368,6 +381,29 @@ export default function VideoEditor() {
   /* Independent tab state per side — both panels can show different content. */
   const [leftTab, setLeftTab] = useState<EditorTab>("clips");
   const [rightTab, setRightTab] = useState<EditorTab>("thumbnails");
+  /* ── Mobile section sheet (Stack-28 #53, A5-M1): below 768px both
+     desktop panels are hidden md:block, so a rail tap opens the active
+     section in a bottom sheet instead (see the Sheet at the page root).
+     isMobileViewport mirrors the md breakpoint (768px) exactly. ── */
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobileViewport(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      setIsMobileViewport(e.matches);
+      if (!e.matches) setMobileSheetOpen(false);
+    };
+    if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
+    return () => {
+      if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", onChange);
+    };
+  }, []);
   /* Thy Library transition deep-link (?transition=<slug>): scenes load async,
      so the mapped transition parks here until scenes arrive, then applies
      to every clip exactly once. */
@@ -389,11 +425,7 @@ export default function VideoEditor() {
   };
   /* Right-side tabs: CREATE MORE + FINISH — output/distribution workflow.
      Left side builds the video; right side amplifies and finishes it. */
-  const RIGHT_TABS = new Set([
-    "promo-clips", "lyric-video", "thumbnails", "meme-machine",
-    "three-second-lab", "translate", "repurpose",
-    "edit-recipes", "studio", "pro-tools", "export",
-  ]);
+  const RIGHT_TABS = new Set<string>(EDITOR_RIGHT_SECTION_IDS);
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     try {
       const v = Number(localStorage.getItem("bdv:panelWidth"));
@@ -956,7 +988,7 @@ export default function VideoEditor() {
      Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
      Validates against known tab ids; setTab's built-in guard keeps Simple-mode
      users on safe tabs. */
-  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "copilot", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "motion", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
+  const RAIL_TAB_IDS: EditorTab[] = EDITOR_SECTION_IDS;
 
   /* 3-Second Lab: prefill the video description from the timeline's opening
      (first scene lyric/action or first caption line). */
@@ -1942,6 +1974,1006 @@ export default function VideoEditor() {
       : t("videoEditor.tipNoApprovedClips"),
   ].filter(Boolean) as string[];
 
+  /* ── Panel titles + bodies (Stack-28 #53) ─────────────────────────
+     editorTabTitle is the one title map for every section id (typed
+     Record<EditorTab, string>, so a registry id without a title is a
+     type error). renderLeftPanelBody / renderRightPanelBody are the
+     ONLY renders of the section panels: the desktop asides call them
+     with their side's active tab, and the mobile section sheet calls
+     them with the unified active tab — same lazy section components,
+     no duplicated implementations. While the mobile sheet is open the
+     (CSS-hidden) desktop asides render no sections at all, so a section
+     is never mounted twice; the left panel keeps only the playback
+     engine mounted, exactly as before. ── */
+  const editorTabTitle = (id: EditorTab): string =>
+    ({
+      clips: t("videoEditor.railMedia"),
+      templates: t("videoEditor.railTemplates"),
+      copilot: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }),
+      music: t("videoEditor.railAudio"),
+      timeline: t("videoEditor.railTimeline"),
+      "beat-sync": t("videoEditor.railBeatSync"),
+      "edit-recipes": t("videoEditor.railEditRecipes"),
+      captions: t("videoEditor.railText"),
+      effects: t("videoEditor.railEffects"),
+      motion: t("videoEditor.railMotion", { defaultValue: "Motion" }),
+      branding: t("videoEditor.railBrand"),
+      "lip-sync": t("videoEditor.railLipSync"),
+      "pre-production": t("videoEditor.railPrePro"),
+      export: t("videoEditor.railExport"),
+      studio: t("videoEditor.railAdvanced"),
+      "voice-edits": t("videoEditor.railVoiceEdits"),
+      "pro-tools": t("videoEditor.railProTools"),
+      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
+      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
+      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
+      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
+      upscale: t("videoEditor.railUpscale", { defaultValue: "Upscale" }),
+      cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
+      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
+      vibes: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }),
+      locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
+      "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
+      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
+      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
+    } as Record<EditorTab, string>)[id] ?? "";
+  const mobileSectionInSheet = isMobileViewport && mobileSheetOpen;
+  const openSectionFromRail = (id: EditorTab) => {
+    setTab(id);
+    if (isMobileViewport) setMobileSheetOpen(true);
+  };
+  const renderLeftPanelBody = (activeTab: EditorTab, opts: { includeEngine: boolean; includeSections: boolean }) => {
+    const { includeEngine, includeSections } = opts;
+    return (
+                <div className="p-4">
+                  {/* TimelinePreviewPlayer — always mounted (it IS the playback engine), visually hidden.
+                      Only the desktop panel mounts it (includeEngine) — the mobile sheet reuses
+                      this same engine instance through the shared refs, never a second one. */}
+                  {includeEngine && (
+                  <div className="hidden">
+                    <TimelinePreviewPlayer
+                      ref={timelinePlayerRef}
+                      scenes={resolvedScenes}
+                      captionLines={settings.captions.lines}
+                      audioUrl={previewAudioUrl}
+                      initialSceneId={previewSceneId}
+                      captionSettings={settings.captions}
+                      onEngineUpdate={setPreviewEngineState}
+                      externalVideoRef={liveVideoRef}
+                      outgoingVideoRef={outgoingVideoRef}
+                      onSceneChange={handleSceneChange}
+                      timelineLayout={settings.timelineLayout}
+                      clipEdits={settings.clips}
+                      songCrop={settings.musicStudio.songCrop}
+                      audioOffsetSec={settings.musicStudio.videoAudio.startSec ?? 0}
+                    />
+                  </div>
+                  )}
+
+                  {includeSections && (<>
+                  {activeTab === "timeline" && (
+                    <ToolPanelShell
+                      tool="timeline"
+                      kicker={t("videoEditor.railTimeline", { defaultValue: "Timeline" })}
+                      title={t("videoEditor.timelineTitle", { defaultValue: "Timeline" })}
+                      subtitle={t("videoEditor.timelineDesc", {
+                        defaultValue: "Arrange scenes, trim, and fine-tune your edit.",
+                      })}
+                    >
+                    <>
+                    <TimelineSection
+                      scenes={scenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      onPreviewTransition={handlePreviewTransition}
+                      onGoToClips={() => setTab("clips")}
+                      onGoToEffects={() => setTab("effects")}
+                      isSimple={isSimple}
+                      /* Connected to the master player: same engine state + transport */
+                      engineState={previewEngineState}
+                      duration={songDuration}
+                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+                      onRestart={() => timelinePlayerRef.current?.restart()}
+                      audioUrl={previewAudioUrl}
+                      transcriptText={transcriptText}
+                      onTextEdit={(nextScenes, nextCaptionLines) => {
+                        setScenes(nextScenes);
+                        setSettings((prev) => ({
+                          ...prev,
+                          captions: { ...prev.captions, lines: nextCaptionLines },
+                        }));
+                      }}
+                    />
+                    {/* Wave 9 sections moved to their own rail tabs (Beat Sync / Edit Recipes) for direct reachability. */}
+                    </>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "beat-sync" && (
+                    <ToolPanelShell
+                      tool="beat-sync"
+                      kicker={t("videoEditor.railBeatSync", { defaultValue: "Beat Sync" })}
+                      title={t("videoEditor.beatSyncTitle", { defaultValue: "Beat Sync" })}
+                      subtitle={t("videoEditor.beatSyncDesc", {
+                        defaultValue: "Detect the beats in your audio and snap cuts to the rhythm — mark, keep, and apply.",
+                      })}
+                      price="150 Visual Bucs"
+                    >
+                      <BeatSyncSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        audioUrl={previewAudioUrl}
+                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
+                        onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                        projectKey={projectId || "default"}
+                        onMarkersChange={setBeatGrid}
+                        onApplyCuts={applyBeatCuts}
+                      />
+                    </ToolPanelShell>
+                  )}
+
+
+                  {activeTab === "clips" && (
+                    <ToolPanelShell
+                      tool="clips"
+                      kicker={t("videoEditor.railMedia", { defaultValue: "Media" })}
+                      title={t("videoEditor.mediaTitle", { defaultValue: "Media" })}
+                      subtitle={t("videoEditor.mediaDesc", {
+                        defaultValue: "Pull clips, videos, and assets straight into your timeline.",
+                      })}
+                    >
+                        <div className="space-y-6">
+                          {/* Hub project spine — pull finished clips/videos straight into the timeline */}
+                          <ProjectFlowBar
+                            kinds={["video", "clip"]}
+                            actionLabel={t("hubSpine.flowBar.useInEditor")}
+                            onPick={addHubAssetAsScene}
+                          />
+                          {/* Apply consistency banner */}
+                          {consistencyPrompt && scenes.length > 0 && (
+                            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-primary">{t("videoEditor.consistencyLockActive")}</p>
+                                <p className="text-[11px] vv-ink-40 mt-0.5">
+                                  {activeArtist ? t("videoEditor.consistencyLockDesc", { name: activeArtist.artist_name }) : t("videoEditor.consistencyLockDescGeneric")}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={applyConsistencyToAllScenes}
+                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" /> {t("videoEditor.applyToAllScenes")}
+                              </button>
+                            </div>
+                          )}
+                          {/* Generate Scenes From Song — surfaced when there's no saved plan to rebuild
+                              from, but the song's audio + lyrics are already available. */}
+                          {/* Generate Scenes From Song — pro alternate generation flow (5) */}
+                          {scenes.length === 0 && !rawResult && (
+                            previewAudioUrl && lyricsForCaptions && lyricsForCaptions.trim().length > 10 ? (
+                              <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold vv-ink flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-primary shrink-0" /> {t("videoEditor.generateScenesTitle")}
+                                  </p>
+                                  <p className="text-xs vv-ink-40 mt-0.5">
+                                    {t("videoEditor.generateScenesDesc")}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => { void generateScenesFromSong(); }}
+                                  disabled={autoSceneStatus === "generating"}
+                                  data-testid="btn-generate-scenes-from-audio"
+                                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-black hover:bg-primary/90 disabled:opacity-50 shrink-0"
+                                >
+                                  {autoSceneStatus === "generating"
+                                    ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("videoEditor.generatingScenes")}</>
+                                    : <><Clapperboard className="h-4 w-4" /> {t("videoEditor.generateScenesButton")}</>}
+                                </button>
+                                {autoSceneStatus === "error" && autoSceneError && (
+                                  <p className="text-xs text-red-400/80 basis-full">{autoSceneError}</p>
+                                )}
+                              </div>
+                            ) : !previewAudioUrl ? (
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold vv-ink-60">{t("videoEditor.noSongLoaded")}</p>
+                                  <p className="text-[11px] vv-ink-35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setTab("music")}
+                                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
+                                >
+                                  <Music2 className="h-3.5 w-3.5" /> {t("videoEditor.goToSong")}
+                                </button>
+                              </div>
+                            ) : null
+                          )}
+
+                          {/* Rebuild scenes banner — shown when saved plan exists */}
+                          {rawResult && (
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
+                              <div className="flex-1 min-w-0">
+                                {scenes.length === 0 ? (
+                                  <>
+                                    <p className="text-xs font-bold text-amber-400">{t("videoEditor.noScenesSavedPlan")}</p>
+                                    <p className="text-[11px] vv-ink-40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
+                                  </>
+                                ) : rebuildStatus === "done" ? (
+                                  <>
+                                    <p className="text-xs font-bold text-green-400">{t("videoEditor.scenesLoadedFromPlan", { count: scenes.length })}</p>
+                                    <p className="text-[11px] vv-ink-40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
+                                  </>
+                                ) : rebuildStatus === "error" ? (
+                                  <>
+                                    <p className="text-xs font-bold text-red-400">{t("videoEditor.parseScenesTitle")}</p>
+                                    <p className="text-[11px] vv-ink-40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-xs font-bold vv-ink-50">{t("videoEditor.savedPlanAvailable")}</p>
+                                    <p className="text-[11px] vv-ink-35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
+                                  </>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => { void rebuildScenesFromPlan(); }}
+                                disabled={rebuildStatus === "rebuilding"}
+                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
+                                data-testid="btn-rebuild-scenes"
+                              >
+                                {rebuildStatus === "rebuilding" ? (
+                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.rebuilding")}</>
+                                ) : (
+                                  <><RefreshCw className="h-3.5 w-3.5" /> {t("videoEditor.rebuildScenes")}</>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Sync Missing Clips button */}
+                          {projectId && (
+                            <div className="flex items-center justify-between gap-3 px-1">
+                              <div className="min-w-0">
+                                {syncState === "done" && syncMsg && (
+                                  <p className="text-[11px] text-green-400 font-medium">{syncMsg}</p>
+                                )}
+                                {syncState === "error" && syncMsg && (
+                                  <p className="text-[11px] text-red-400 font-medium">{syncMsg}</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => { setSyncState("idle"); void syncMissingClips(); }}
+                                disabled={syncState === "syncing"}
+                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
+                                title={t("videoEditor.syncMissingClipsTitle")}
+                              >
+                                {syncState === "syncing" ? (
+                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.syncing")}</>
+                                ) : (
+                                  <><Zap className="h-3.5 w-3.5" /> {t("videoEditor.syncMissingClips")}</>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* ── Screen Recorder (CapCut parity): capture straight into the timeline. Free. ── */}
+                          <ScreenRecorderPanel
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            projectId={projectId}
+                            getAccessToken={getAccessToken}
+                            onGoToTab={(t) => setTab(t)}
+                          />
+
+                          {/* ── Stock Media Library (CapCut parity): searchable stock video + photos.
+                              Browsing is free; importing into the project costs 50 Visual Bucs. ── */}
+                          <StockLibraryPanel
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            projectId={projectId}
+                            getAccessToken={getAccessToken}
+                            confirmedFetch={confirmedFetch}
+                            onGoToTab={(t) => setTab(t)}
+                          />
+
+                          {/* ── My Library (DE-7): the creator's OWN songs, clips and
+                              covers from /api/asset-library — no re-upload, no charge. ── */}
+                          <AssetLibraryPanel
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            settings={settings}
+                            setSettings={setSettings}
+                            getAccessToken={getAccessToken}
+                            onGoToTab={(t) => setTab(t)}
+                          />
+
+                          <ClipGeneratorSection
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            settings={settings}
+                            setSettings={setSettings}
+                            artistVault={activeArtist}
+                            projectId={projectId}
+                            onPreview={(id) => setPreviewSceneId(id)}
+                            previewSceneId={previewSceneId}
+                            getAccessToken={getAccessToken}
+                            saveState={saveState}
+                            playheadTimeSec={previewEngineState?.currentTime ?? 0}
+                            totalDurationSec={songDuration ?? undefined}
+                            artistName={artistName}
+                            songTitle={songTitle}
+                          />
+                        </div>
+                    </ToolPanelShell>
+                      )}
+
+                  {activeTab === "templates" && (
+                    <ToolPanelShell
+                      tool="templates"
+                      kicker={t("videoEditor.railTemplates", { defaultValue: "Templates" })}
+                      title={t("videoEditor.templatesTitle", { defaultValue: "Templates" })}
+                      subtitle={t("videoEditor.templatesDesc", {
+                        defaultValue: "Start from a proven template — swap in your clips and post.",
+                      })}
+                    >
+                    <TemplatesTabPanel
+                      scenes={scenes}
+                      deepLinkedKey={deepLinkedTemplateKey}
+                      onDeepLinkConsumed={() => setDeepLinkedTemplateKey(null)}
+                      onAddCaptions={handleTemplateVideoForCaptions}
+                      onUseInEditor={handleSplitScreenUseInEditor}
+                      onMultiRatio={handleSplitScreenMultiRatio}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "music" && (
+                    <ToolPanelShell
+                      tool="music"
+                      kicker={t("videoEditor.railAudio", { defaultValue: "Audio" })}
+                      title={t("videoEditor.audioTitle", { defaultValue: "Audio" })}
+                      subtitle={t("videoEditor.audioDesc", {
+                        defaultValue: "Generate music, beats, and voice for your video.",
+                      })}
+                    >
+                    {/* ── My Library (DE-7): attach one of your own library
+                        songs as the soundtrack without re-uploading it. ── */}
+                    <AssetLibraryPanel
+                      scenes={scenes}
+                      setScenes={setScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      getAccessToken={getAccessToken}
+                      onGoToTab={(t) => setTab(t)}
+                    />
+                    <MusicStudio
+                      settings={settings}
+                      onChange={setSettings}
+                      artistName={artistName}
+                      songTitle={songTitle}
+                      audioUrl={audioUrl}
+                      projectId={projectId}
+                      getAccessToken={getAccessToken}
+                      onTranscriptReady={handleTranscriptReady}
+                      transcriptText={transcriptText}
+                      activeArtist={activeArtist}
+                      onGoToCaptions={() => setTab("captions")}
+                      isSimple={isSimple}
+                      requestedExport={requestedAudioExport}
+                      onExportRequestHandled={() => setRequestedAudioExport(null)}
+                      onDirectExportStatusChange={setDirectAudioExportStatus}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "captions" && (
+                    <ToolPanelShell
+                      tool="captions"
+                      kicker={t("videoEditor.railText", { defaultValue: "Text" })}
+                      title={t("videoEditor.captionsTitle", { defaultValue: "Captions" })}
+                      subtitle={t("videoEditor.captionsDesc", {
+                        defaultValue: "Auto-transcribe, style, and translate your captions — word-by-word viral styles included.",
+                      })}
+                    >
+                      {/* ── AI Caption Suite (Wave 5): the single user-facing
+                          concept for captions — Generate → Style → Translate.
+                          Orchestrates /api/auto-captions, /api/caption-styler,
+                          /api/style-subtitles, /api/translate-captions. ── */}
+                      <AiCaptionSuite
+                        getAccessToken={getAccessToken}
+                        timelineVideos={scenes
+                          .filter((s) => s.demoClipUrl?.startsWith("http"))
+                          .map((s) => ({
+                            id: s.id,
+                            label: `Scene ${s.sceneNumber}${s.section ? ` — ${s.section}` : ""}`,
+                            url: s.demoClipUrl as string,
+                          }))}
+                        onPushToTimeline={(newLines) => {
+                          setSettings((prev) => ({
+                            ...prev,
+                            captions: {
+                              ...prev.captions,
+                              lines: [
+                                ...prev.captions.lines,
+                                ...newLines.map((l, i) => ({
+                                  id: `suite-${Date.now()}-${i}`,
+                                  startSec: l.startSec,
+                                  endSec: l.endSec,
+                                  text: l.text,
+                                })),
+                              ],
+                            },
+                          }));
+                        }}
+                      />
+                      <CaptionsSection
+                      settings={settings}
+                      setSettings={setSettings}
+                      lyrics={lyricsForCaptions ?? undefined}
+                      songDuration={songDuration ?? undefined}
+                      audioSourceLoading={!!previewAudioUrl && songDuration == null}
+                      selectedCaptionId={selectedCaptionId}
+                      onSelectCaption={setSelectedCaptionId}
+                      audioUrl={previewAudioUrl}
+                      getAccessToken={getAccessToken}
+                      visiblePresetIds={template.captionPresets}
+                    />
+                      {/* Animated caption templates — word-by-word FX gallery */}
+                      <div className="mt-6">
+                        <CaptionTemplatesSection
+                          scenes={scenes}
+                          settings={settings}
+                          setSettings={setSettings}
+                          onGoToExport={() => setTab("export")}
+                          onGoToPromoClips={() => setTab("promo-clips")}
+                        />
+                      </div>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "effects" && (
+                    <ToolPanelShell
+                      tool="effects"
+                      kicker={t("videoEditor.railEffects", { defaultValue: "Effects" })}
+                      title={t("videoEditor.effectsTitle", { defaultValue: "Effects" })}
+                      subtitle={t("videoEditor.effectsDesc", {
+                        defaultValue: "Cinematic looks, color grades, and transitions — tap any effect to preview it live on the player.",
+                      })}
+                    >
+                    <EffectsSection
+                      scenes={scenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                      onTestEffect={triggerTestEffect}
+                      onTestTransition={triggerTestTransition}
+                      onTestOverlay={triggerTestOverlay}
+                      activeTransitionType={transitionState?.type ?? null}
+                      onPreviewTransition={handlePreviewTransition}
+                      visibleEffects={template.effects}
+                      visibleColorGrades={template.colorGrades}
+                      onReplaceClipVideo={(sceneId, url) =>
+                        setScenes((prev) =>
+                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                        )
+                      }
+                      onGoToCaptions={() => setTab("captions")}
+                      onGoToExport={(videoUrl) => {
+                        if (videoUrl) setLutHandoffUrl(videoUrl);
+                        setTab("export");
+                      }}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "motion" && (
+                    <ToolPanelShell
+                      tool="motion"
+                      kicker={t("videoEditor.railMotion", { defaultValue: "Motion" })}
+                      title={t("videoEditor.motionTitle", { defaultValue: "Motion Graphics" })}
+                      subtitle={t("videoEditor.motionDesc", {
+                        defaultValue: "Animated text and graphic overlays — kinetic titles that move with your video.",
+                      })}
+                    >
+                    <MotionGraphicsSection
+                      playheadTimeSec={previewEngineState?.currentTime ?? 0}
+                      activeArtist={activeArtist}
+                      onAddToTimeline={(item) => {
+                        const id = `motion-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                        setSettings((prev) => ({
+                          ...prev,
+                          overlayItems: [...(prev.overlayItems ?? []), { ...item, id }],
+                        }));
+                        toast({
+                          title: t("motionGraphics.addedToast", { defaultValue: "Motion graphic added" }),
+                          description: t("motionGraphics.addedToastDesc", { defaultValue: "Placed on the timeline at the playhead." }),
+                        });
+                      }}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "branding" && (
+                    <ToolPanelShell
+                      tool="branding"
+                      kicker={t("videoEditor.railBrand", { defaultValue: "Brand" })}
+                      title={t("videoEditor.brandingTitle", { defaultValue: "Brand Kit" })}
+                      subtitle={t("videoEditor.brandingDesc", {
+                        defaultValue: "Your logo, colors, and watermark — Thy Crown stamped on every export.",
+                      })}
+                    >
+                    <BrandingSection
+                      settings={settings}
+                      setSettings={setSettings}
+                      artistName={artistName}
+                      songTitle={songTitle}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "lip-sync" && (
+                    <ToolPanelShell
+                      tool="lip-sync"
+                      kicker={t("videoEditor.railLipSync", { defaultValue: "Lip Sync" })}
+                      title={t("videoEditor.lipSyncTitle", { defaultValue: "Lip Sync" })}
+                      subtitle={t("videoEditor.lipSyncDesc", {
+                        defaultValue: "Match mouths to the audio — AI lip-sync that actually lines up with the words.",
+                      })}
+                    >
+                    <LipSyncSection
+                      scenes={scenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      audioUrl={audioUrl}
+                      masterAudioUrl={previewAudioUrl}
+                      audioDuration={previewEngineState?.audioDuration ?? null}
+                      projectId={projectId}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "pre-production" && project && (
+                    <ToolPanelShell
+                      tool="pre-production"
+                      kicker={t("videoEditor.railPrePro", { defaultValue: "Pre-Pro" })}
+                      title={t("videoEditor.preProTitle", { defaultValue: "Pre-Production" })}
+                      subtitle={t("videoEditor.preProDesc", {
+                        defaultValue: "Plan your video before you build it — concept to shot list.",
+                      })}
+                    >
+                    <PreProductionSection
+                      settings={settings}
+                      setSettings={setSettings}
+                      songTitle={project.song_title ?? undefined}
+                      genre={project.genre ?? undefined}
+                      mood={project.mood ?? undefined}
+                    />
+                    </ToolPanelShell>
+                  )}
+
+
+
+                  {activeTab === "copilot" && (
+                    <ToolPanelShell
+                      tool="copilot"
+                      kicker={t("videoEditor.railCopilot", { defaultValue: "AI" })}
+                      title={t("videoEditor.copilotTitle", { defaultValue: "AI Copilot" })}
+                      subtitle={t("videoEditor.copilotDesc", {
+                        defaultValue: "An expert editor watching your timeline — suggestions, one-tap fixes.",
+                      })}
+                    >
+                    <div className="p-4">
+                      <AICopilotPanel
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        setScenes={setScenes}
+                        captions={settings.captions?.lines ?? []}
+                        totalDurationSec={previewEngineState?.audioDuration ?? null}
+                        songTitle={songTitle}
+                        artistName={artistName}
+                        genre={project?.genre ?? undefined}
+                      />
+                    </div>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "voice-edits" && (
+                    <ToolPanelShell
+                      tool="voice-edits"
+                      kicker={t("videoEditor.railVoiceEdits", { defaultValue: "Voice" })}
+                      title={t("videoEditor.voiceEditsTitle", { defaultValue: "Voice Edits" })}
+                      subtitle={t("videoEditor.voiceEditsDesc", {
+                        defaultValue: "Direct your edits with your voice — just describe the change.",
+                      })}
+                    >
+                    <div className="p-4">
+                      <VoiceDirectedEditsSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        setScenes={setScenes}
+                        audioDuration={previewEngineState?.audioDuration ?? null}
+                        projectTitle={songTitle || undefined}
+                      />
+                    </div>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "upscale" && (
+                    <ToolPanelShell
+                      tool="upscale"
+                      kicker={t("videoEditor.railUpscale", { defaultValue: "Upscale" })}
+                      title={t("upscale.pageTitle")}
+                      subtitle={t("upscale.pageSub")}
+                    >
+                      <Upscale embedded />
+                    </ToolPanelShell>
+                  )}
+                  {activeTab === "cartoonize" && (
+                    <ToolPanelShell
+                      tool="cartoonize"
+                      kicker={t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" })}
+                      title={t("cartoonStudio.title")}
+                      subtitle={t("cartoonStudio.subtitle")}
+                      price={t("cartoonStudio.costBadge")}
+                    >
+                      <CartoonStudio initialTab="cartoonize" embedded />
+                    </ToolPanelShell>
+                  )}
+                  {activeTab === "vibes" && (
+                    <ToolPanelShell
+                      tool="vibes"
+                      kicker={t("videoEditor.railVibes", { defaultValue: "Visual Vibes" })}
+                      title={t("videoEditor.vibesTitle", { defaultValue: "Visual Vibes" })}
+                      subtitle={t("videoEditor.vibesDesc", {
+                        defaultValue: "One-tap mood presets. Each vibe styles your overlays, effects, color grade, and captions instantly — free, no credits.",
+                      })}
+                    >
+                      {/* Dock-in map: one-tap jumps to the finishing tools that
+                          live inside Visual Vibes — labeling only, no behavior change. */}
+                      <div className="mb-5 rounded-2xl border vv-border-soft vv-wash-2 p-4">
+                        <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest mb-3">
+                          {t("videoEditor.vibesDockTitle", { defaultValue: "Finish inside Visual Vibes" })}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(
+                            [
+                              { id: "thumbnails", labelKey: "videoEditor.railThumbnails", fallback: "Thumbnails" },
+                              { id: "cartoonize", labelKey: "videoEditor.railCartoonize", fallback: "Cartoonize" },
+                              { id: "lyric-video", labelKey: "videoEditor.railLyricVideo", fallback: "Lyric Video" },
+                              { id: "promo-clips", labelKey: "videoEditor.railPromoClips", fallback: "Promo Clips" },
+                              { id: "upscale", labelKey: "videoEditor.railUpscale", fallback: "Upscale" },
+                              { id: "style-stealer", labelKey: "videoEditor.railStyleStealer", fallback: "Style Stealer" },
+                              { id: "locations", labelKey: "videoEditor.railLocations", fallback: "Locations" },
+                              { id: "branding", labelKey: "videoEditor.railBrand", fallback: "Branding" },
+                              { id: "export", labelKey: "videoEditor.railExport", fallback: "Export" },
+                            ] as const
+                          ).map((d) => (
+                            <button
+                              key={d.id}
+                              type="button"
+                              onClick={() => setLeftTab(d.id)}
+                              className="rounded-full border vv-border vv-wash-3 px-3.5 py-1.5 text-xs font-bold vv-ink-70 hover:border-primary/50 vv-hover-ink transition-colors"
+                            >
+                              {t(d.labelKey, { defaultValue: d.fallback })}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <VisualVibesSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+                  {activeTab === "locations" && (
+                    <ToolPanelShell
+                      tool="locations"
+                      kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
+                      title={t("locations.pageTitle")}
+                      subtitle={t("locations.subtitle")}
+                    >
+                      <LocationsPage embedded />
+                    </ToolPanelShell>
+                  )}
+                  {activeTab === "style-stealer" && (
+                    <ToolPanelShell
+                      tool="style-stealer"
+                      kicker={t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" })}
+                      title={t("videoEditor.styleStealerTitle", { defaultValue: "Style Stealer" })}
+                      subtitle={t("videoEditor.styleStealerDesc", {
+                        defaultValue: "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline.",
+                      })}
+                    >
+                      <StyleStealerSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+                  </>
+                  )}
+                </div>
+    );
+  };
+  const renderRightPanelBody = (activeTab: EditorTab, opts: { includeSections: boolean }) => {
+    const { includeSections } = opts;
+    return (
+                <div className="p-4">
+                  {includeSections && (<>
+                  {activeTab === "promo-clips" && (
+                    <ToolPanelShell
+                      tool="promo-clips"
+                      kicker={t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" })}
+                      title={t("promo-clip.title")}
+                      subtitle={t("promo-clip.subtitle")}
+                      price={t("promo-clip.creditBadge")}
+                    >
+                      <PromoClip embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "lyric-video" && (
+                    <ToolPanelShell
+                      tool="lyric-video"
+                      kicker={t("lyricVideo.badge")}
+                      title={<>{t("lyricVideo.titlePrefix")}<span className={isLight ? "text-violet-700" : "text-violet-300"}>{t("lyricVideo.titleHighlight")}</span></>}
+                      subtitle={t("lyricVideo.subtitle", { alignCredits: LYRIC_ALIGN_CREDITS, renderCredits: LYRIC_RENDER_CREDITS })}
+                    >
+                      <LyricVideo embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "thumbnails" && (
+                    <ToolPanelShell
+                      tool="thumbnails"
+                      kicker={t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" })}
+                      title={t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
+                      subtitle={t("thumbnailStudio.subtitle", {
+                        defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
+                      })}
+                      price={t("thumbnailMaker.costBadge")}
+                    >
+                      <ThumbnailStudio defaultTab="generate" embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "meme-machine" && (
+                    <ToolPanelShell
+                      tool="meme-machine"
+                      kicker={t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" })}
+                      title={t("videoEditor.memeMachineTitle", { defaultValue: "Meme Machine" })}
+                      subtitle={t("videoEditor.memeMachineDesc", {
+                        defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines. Apply drops the winner onto your timeline as styled captions.",
+                      })}
+                    >
+                      <MemeMachineSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "three-second-lab" && (
+                    <ToolPanelShell
+                      tool="three-second-lab"
+                      kicker={t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" })}
+                      title={t("videoEditor.labTitle", { defaultValue: "3-Second Lab" })}
+                      subtitle={t("videoEditor.labDesc", {
+                        defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power.",
+                      })}
+                    >
+                      <ThreeSecondLabSection openingHint={threeSecondLabHint} bare />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "translate" && (
+                    <ToolPanelShell
+                      tool="translate"
+                      kicker={t("translate.badge")}
+                      title={t("translate.pageTitle")}
+                      subtitle={t("translate.pageSubtitle")}
+                    >
+                      <Translate embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "repurpose" && (
+                    <ToolPanelShell
+                      tool="repurpose"
+                      kicker={t("repurpose.badge")}
+                      title={<>{t("repurpose.titlePrefix")} <span className={isLight ? "text-teal-700" : "text-teal-300"}>{t("repurpose.titleSuffix")}</span></>}
+                      subtitle={t("repurpose.hero")}
+                    >
+                      <Repurpose embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "edit-recipes" && (
+                    <ToolPanelShell
+                      tool="edit-recipes"
+                      kicker={t("videoEditor.railEditRecipes", { defaultValue: "Edit Recipes" })}
+                      title={t("videoEditor.editRecipesTitle", { defaultValue: "Edit Recipes" })}
+                      subtitle={t("videoEditor.editRecipesDesc", {
+                        defaultValue: "One-tap edit recipes — proven formulas for viral cuts.",
+                      })}
+                    >
+                    <div className="p-4">
+                      <TimelineTemplatesSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        audioUrl={previewAudioUrl}
+                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
+                        beatGrid={beatGrid}
+                        projectKey={projectId || "default"}
+                      />
+                    </div>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "studio" && (
+                    <ToolPanelShell
+                      tool="studio"
+                      kicker={t("videoEditor.railAdvanced", { defaultValue: "Advanced" })}
+                      title={t("videoEditor.studioTitle", { defaultValue: "Studio" })}
+                      subtitle={t("videoEditor.studioDesc", {
+                        defaultValue: "Advanced studio controls for precision editing.",
+                      })}
+                    >
+                    <>
+                    <StudioEditorSection
+                      scenes={scenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      setScenes={setScenes}
+                      currentTime={previewEngineState?.currentTime ?? 0}
+                      audioDuration={previewEngineState?.audioDuration ?? null}
+                      isPlaying={previewEngineState?.isPlaying ?? false}
+                      audioUrl={previewAudioUrl}
+                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+                      onRestart={() => timelinePlayerRef.current?.restart()}
+                      onGoToExport={() => setTab("export")}
+                      onGoToMusic={() => setTab("music")}
+                      selectedIdx={selectedIdx}
+                      setSelectedIdx={setSelectedIdx}
+                    />
+                    {/* Wave 9 Voice-Directed Edits moved to its own rail tab for direct reachability. */}
+                    </>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "pro-tools" && (
+                    <ToolPanelShell
+                      tool="pro-tools"
+                      kicker={t("videoEditor.railProTools", { defaultValue: "Pro Tools" })}
+                      title={t("videoEditor.proToolsTitle", { defaultValue: "Pro Tools" })}
+                      subtitle={t("videoEditor.proToolsDesc", {
+                        defaultValue: "Professional-grade tools for power creators.",
+                      })}
+                    >
+                    <>
+                      <ProToolsSection
+                        scenes={resolvedScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        videoRef={liveVideoRef}
+                        onReplaceClipVideo={(sceneId, url) =>
+                          setScenes((prev) =>
+                            prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                          )
+                        }
+                      />
+                      <KeyframesSection
+                        scenes={resolvedScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                      />
+                      {/* Wave 9 — Background Replace: AI background swap for talking-head clips
+                          (honest 503 until a segmentation provider is wired; green-screen clips
+                          are pointed at the working Chroma Key tool). */}
+                      <div className="mt-6">
+                        <BackgroundReplaceSection
+                          scene={selectedIdx != null ? resolvedScenes[selectedIdx] ?? null : null}
+                          settings={settings}
+                          setSettings={setSettings}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                        />
+                      </div>
+                      {/* Wave — Stabilize: smooth shaky footage (vidstab two-pass) */}
+                      <div className="mt-6">
+                        <StabilizeSection
+                          scenes={resolvedScenes}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                          onGoToExport={(videoUrl) => {
+                            if (videoUrl) setLutHandoffUrl(videoUrl);
+                            setTab("export");
+                          }}
+                        />
+                      </div>
+                      {/* Wave — Speed ramp: buttery slow-mo, speed presets, ramp curves */}
+                      <div className="mt-6">
+                        <SpeedRampSection
+                          scenes={resolvedScenes}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                          onGoToExport={(videoUrl) => {
+                            if (videoUrl) setLutHandoffUrl(videoUrl);
+                            setTab("export");
+                          }}
+                        />
+                      </div>
+                    </>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "export" && (
+                    <ToolPanelShell
+                      tool="export"
+                      kicker={t("videoEditor.railExport", { defaultValue: "Export" })}
+                      title={t("videoEditor.exportTitle", { defaultValue: "Export" })}
+                      subtitle={t("videoEditor.exportDesc", {
+                        defaultValue: "Render your finished video and ship it everywhere.",
+                      })}
+                    >
+                    <>
+                    <ExportSection
+                      // NOTE: resolvedScenes (not raw scenes) so the export uses
+                      // lip-synced clip URLs wherever the user enabled lip sync —
+                      // what you see in the master player is what gets exported.
+                      scenes={resolvedScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      projectId={project!.id}
+                      audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                      rawProjectAudioUrl={audioUrl}
+                      masterAudioUrl={previewAudioUrl}
+                      onGoToMusicStudio={() => setTab("music")}
+                      onRenderMissingMix={requestMissingMixRender}
+                      canRenderMissingMix={canDirectRenderMissingMix}
+                      directRenderStatus={directAudioExportStatus}
+                      onGoToEffects={() => setTab("effects")}
+                      masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
+                      projectDurationSec={previewEngineState?.audioDuration ?? 0}
+                      isSimple={isSimple}
+                      topic={songTitle || undefined}
+                      handoffVideoUrl={lutHandoffUrl}
+                      onReplaceClipVideo={(sceneId, url) =>
+                        setScenes((prev) =>
+                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                        )
+                      }
+                    />
+                    {/* Spotify Canvas Generator — docked in the export/promo
+                        chain (DistroKid Canvas parity). Deep-linked via
+                        ?tab=export&canvas=1 from song results / cover art. */}
+                    <div className="mt-6">
+                      <CanvasGeneratorSection
+                        audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                        songTitle={songTitle || undefined}
+                        artistName={artistName || undefined}
+                      />
+                    </div>
+                    </>
+                    </ToolPanelShell>
+                  )}
+                  </>
+                  )}
+                </div>
+    );
+  };
   return (
     <>
     <style>{`
@@ -2046,14 +3078,14 @@ export default function VideoEditor() {
                     <div
                       key={c.userId}
                       title={c.name}
-                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold vv-ink"
+                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[11px] font-bold vv-ink"
                       style={{ backgroundColor: c.color }}
                     >
                       {c.name.charAt(0).toUpperCase()}
                     </div>
                   ))}
                   {collaborators.length > 4 && (
-                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[10px] font-bold vv-ink-70">
+                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[11px] font-bold vv-ink-70">
                       +{collaborators.length - 4}
                     </div>
                   )}
@@ -2064,19 +3096,19 @@ export default function VideoEditor() {
                 onClick={() => setShowTemplatePicker(true)}
                 size="sm"
                 variant="ghost"
-                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30"
+                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30"
                 title={t("videoEditor.changeTemplateTitle")}
                 data-testid="btn-template-picker"
               >
                 <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
               </Button>
-              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
                 <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
               </Button>
-              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
                 <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
               </Button>
-              <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
+              <Button onClick={() => openSectionFromRail("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
                 <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
               </Button>
               {/* ── Simple / Pro editor mode switch — drives the site-wide
@@ -2099,7 +3131,7 @@ export default function VideoEditor() {
                   role="radio"
                   aria-checked={isSimple}
                   onClick={() => setMode("simple")}
-                  className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                  className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                   data-testid="editor-mode-simple"
                 >
                   {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
@@ -2110,7 +3142,7 @@ export default function VideoEditor() {
                     role="radio"
                     aria-checked={!isSimple}
                     onClick={() => setMode("advanced")}
-                    className={`px-2.5 h-7 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                    className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                     data-testid="editor-mode-pro"
                   >
                     {t("videoEditor.modePro", { defaultValue: "Advanced" })}
@@ -2118,7 +3150,7 @@ export default function VideoEditor() {
                 ) : (
                   <Link
                     href="/dashboard"
-                    className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
+                    className="flex items-center gap-1 px-2.5 h-10 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
                     title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks at Creator Level 4 (Shot Caller) — stars are earned from your work" })}
                     data-testid="editor-mode-pro-locked"
                   >
@@ -2140,13 +3172,13 @@ export default function VideoEditor() {
                 />
                 <span className="text-xs vv-ink-50 hidden lg:inline">{t("videoEditor.autosave")}</span>
               </label>
-              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-8" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
+              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-10" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
                 <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
               </Button>
-              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-8" data-testid="btn-save-editor">
+              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
               </Button>
-              <Button onClick={() => setTab("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-8" data-testid="btn-export-topbar">
+              <Button onClick={() => openSectionFromRail("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-10" data-testid="btn-export-topbar">
                 <Download className="h-3.5 w-3.5" /> {t("videoEditor.export")}
               </Button>
             </div>
@@ -2198,7 +3230,7 @@ export default function VideoEditor() {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setTab(item.id as EditorTab)}
+                        onClick={() => openSectionFromRail(item.id as EditorTab)}
                         data-testid={item.testId}
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
@@ -2207,713 +3239,21 @@ export default function VideoEditor() {
                         }`}
                       >
                         {item.icon}
-                        <span className="text-[9px] font-bold leading-none">{item.label}</span>
+                        <span className="text-[11px] font-bold leading-none">{item.label}</span>
                       </button>
                     ))}
               </nav>
 
               {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
               <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-r vv-border overflow-y-auto hidden md:block">
+              <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
                 <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
                   <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
-                    {{
-                      clips: t("videoEditor.railMedia"),
-                      templates: t("videoEditor.railTemplates"),
-                      copilot: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }),
-                      music: t("videoEditor.railAudio"),
-                      timeline: t("videoEditor.railTimeline"),
-                      "beat-sync": t("videoEditor.railBeatSync"),
-                      "edit-recipes": t("videoEditor.railEditRecipes"),
-                      captions: t("videoEditor.railText"),
-                      effects: t("videoEditor.railEffects"),
-                      motion: t("videoEditor.railMotion", { defaultValue: "Motion" }),
-                      branding: t("videoEditor.railBrand"),
-                      "lip-sync": t("videoEditor.railLipSync"),
-                      "pre-production": t("videoEditor.railPrePro"),
-                      export: t("videoEditor.railExport"),
-                      studio: t("videoEditor.railAdvanced"),
-                      "voice-edits": t("videoEditor.railVoiceEdits"),
-                      "pro-tools": t("videoEditor.railProTools"),
-                      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
-                      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
-                      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
-                      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
-                      upscale: t("videoEditor.railUpscale", { defaultValue: "Upscale" }),
-                      cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
-                      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
-                      vibes: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }),
-                      locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
-                      "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
-                      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
-                      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
-                    }[leftTab]}
+                    {editorTabTitle(leftTab)}
                   </h2>
                 </div>
-                <div className="p-4">
-                  {/* TimelinePreviewPlayer — always mounted (it IS the playback engine), visually hidden */}
-                  <div className="hidden">
-                    <TimelinePreviewPlayer
-                      ref={timelinePlayerRef}
-                      scenes={resolvedScenes}
-                      captionLines={settings.captions.lines}
-                      audioUrl={previewAudioUrl}
-                      initialSceneId={previewSceneId}
-                      captionSettings={settings.captions}
-                      onEngineUpdate={setPreviewEngineState}
-                      externalVideoRef={liveVideoRef}
-                      outgoingVideoRef={outgoingVideoRef}
-                      onSceneChange={handleSceneChange}
-                      timelineLayout={settings.timelineLayout}
-                      clipEdits={settings.clips}
-                      songCrop={settings.musicStudio.songCrop}
-                      audioOffsetSec={settings.musicStudio.videoAudio.startSec ?? 0}
-                    />
-                  </div>
-
-                  {leftTab === "timeline" && (
-                    <ToolPanelShell
-                      tool="timeline"
-                      kicker={t("videoEditor.railTimeline", { defaultValue: "Timeline" })}
-                      title={t("videoEditor.timelineTitle", { defaultValue: "Timeline" })}
-                      subtitle={t("videoEditor.timelineDesc", {
-                        defaultValue: "Arrange scenes, trim, and fine-tune your edit.",
-                      })}
-                    >
-                    <>
-                    <TimelineSection
-                      scenes={scenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      onPreviewTransition={handlePreviewTransition}
-                      onGoToClips={() => setTab("clips")}
-                      onGoToEffects={() => setTab("effects")}
-                      isSimple={isSimple}
-                      /* Connected to the master player: same engine state + transport */
-                      engineState={previewEngineState}
-                      duration={songDuration}
-                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
-                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
-                      onRestart={() => timelinePlayerRef.current?.restart()}
-                      audioUrl={previewAudioUrl}
-                      transcriptText={transcriptText}
-                      onTextEdit={(nextScenes, nextCaptionLines) => {
-                        setScenes(nextScenes);
-                        setSettings((prev) => ({
-                          ...prev,
-                          captions: { ...prev.captions, lines: nextCaptionLines },
-                        }));
-                      }}
-                    />
-                    {/* Wave 9 sections moved to their own rail tabs (Beat Sync / Edit Recipes) for direct reachability. */}
-                    </>
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "beat-sync" && (
-                    <ToolPanelShell
-                      tool="beat-sync"
-                      kicker={t("videoEditor.railBeatSync", { defaultValue: "Beat Sync" })}
-                      title={t("videoEditor.beatSyncTitle", { defaultValue: "Beat Sync" })}
-                      subtitle={t("videoEditor.beatSyncDesc", {
-                        defaultValue: "Detect the beats in your audio and snap cuts to the rhythm — mark, keep, and apply.",
-                      })}
-                      price="150 Visual Bucs"
-                    >
-                      <BeatSyncSection
-                        scenes={scenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        audioUrl={previewAudioUrl}
-                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
-                        onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
-                        projectKey={projectId || "default"}
-                        onMarkersChange={setBeatGrid}
-                        onApplyCuts={applyBeatCuts}
-                      />
-                    </ToolPanelShell>
-                  )}
-
-
-                  {leftTab === "clips" && (
-                    <ToolPanelShell
-                      tool="clips"
-                      kicker={t("videoEditor.railMedia", { defaultValue: "Media" })}
-                      title={t("videoEditor.mediaTitle", { defaultValue: "Media" })}
-                      subtitle={t("videoEditor.mediaDesc", {
-                        defaultValue: "Pull clips, videos, and assets straight into your timeline.",
-                      })}
-                    >
-                        <div className="space-y-6">
-                          {/* Hub project spine — pull finished clips/videos straight into the timeline */}
-                          <ProjectFlowBar
-                            kinds={["video", "clip"]}
-                            actionLabel={t("hubSpine.flowBar.useInEditor")}
-                            onPick={addHubAssetAsScene}
-                          />
-                          {/* Apply consistency banner */}
-                          {consistencyPrompt && scenes.length > 0 && (
-                            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-primary">{t("videoEditor.consistencyLockActive")}</p>
-                                <p className="text-[10px] vv-ink-40 mt-0.5">
-                                  {activeArtist ? t("videoEditor.consistencyLockDesc", { name: activeArtist.artist_name }) : t("videoEditor.consistencyLockDescGeneric")}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={applyConsistencyToAllScenes}
-                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" /> {t("videoEditor.applyToAllScenes")}
-                              </button>
-                            </div>
-                          )}
-                          {/* Generate Scenes From Song — surfaced when there's no saved plan to rebuild
-                              from, but the song's audio + lyrics are already available. */}
-                          {/* Generate Scenes From Song — pro alternate generation flow (5) */}
-                          {scenes.length === 0 && !rawResult && (
-                            previewAudioUrl && lyricsForCaptions && lyricsForCaptions.trim().length > 10 ? (
-                              <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold vv-ink flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-primary shrink-0" /> {t("videoEditor.generateScenesTitle")}
-                                  </p>
-                                  <p className="text-xs vv-ink-40 mt-0.5">
-                                    {t("videoEditor.generateScenesDesc")}
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => { void generateScenesFromSong(); }}
-                                  disabled={autoSceneStatus === "generating"}
-                                  data-testid="btn-generate-scenes-from-audio"
-                                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-black hover:bg-primary/90 disabled:opacity-50 shrink-0"
-                                >
-                                  {autoSceneStatus === "generating"
-                                    ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("videoEditor.generatingScenes")}</>
-                                    : <><Clapperboard className="h-4 w-4" /> {t("videoEditor.generateScenesButton")}</>}
-                                </button>
-                                {autoSceneStatus === "error" && autoSceneError && (
-                                  <p className="text-xs text-red-400/80 basis-full">{autoSceneError}</p>
-                                )}
-                              </div>
-                            ) : !previewAudioUrl ? (
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold vv-ink-60">{t("videoEditor.noSongLoaded")}</p>
-                                  <p className="text-[10px] vv-ink-35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setTab("music")}
-                                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
-                                >
-                                  <Music2 className="h-3.5 w-3.5" /> {t("videoEditor.goToSong")}
-                                </button>
-                              </div>
-                            ) : null
-                          )}
-
-                          {/* Rebuild scenes banner — shown when saved plan exists */}
-                          {rawResult && (
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
-                              <div className="flex-1 min-w-0">
-                                {scenes.length === 0 ? (
-                                  <>
-                                    <p className="text-xs font-bold text-amber-400">{t("videoEditor.noScenesSavedPlan")}</p>
-                                    <p className="text-[10px] vv-ink-40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
-                                  </>
-                                ) : rebuildStatus === "done" ? (
-                                  <>
-                                    <p className="text-xs font-bold text-green-400">{t("videoEditor.scenesLoadedFromPlan", { count: scenes.length })}</p>
-                                    <p className="text-[10px] vv-ink-40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
-                                  </>
-                                ) : rebuildStatus === "error" ? (
-                                  <>
-                                    <p className="text-xs font-bold text-red-400">{t("videoEditor.parseScenesTitle")}</p>
-                                    <p className="text-[10px] vv-ink-40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="text-xs font-bold vv-ink-50">{t("videoEditor.savedPlanAvailable")}</p>
-                                    <p className="text-[10px] vv-ink-35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
-                                  </>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => { void rebuildScenesFromPlan(); }}
-                                disabled={rebuildStatus === "rebuilding"}
-                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
-                                data-testid="btn-rebuild-scenes"
-                              >
-                                {rebuildStatus === "rebuilding" ? (
-                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.rebuilding")}</>
-                                ) : (
-                                  <><RefreshCw className="h-3.5 w-3.5" /> {t("videoEditor.rebuildScenes")}</>
-                                )}
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Sync Missing Clips button */}
-                          {projectId && (
-                            <div className="flex items-center justify-between gap-3 px-1">
-                              <div className="min-w-0">
-                                {syncState === "done" && syncMsg && (
-                                  <p className="text-[10px] text-green-400 font-medium">{syncMsg}</p>
-                                )}
-                                {syncState === "error" && syncMsg && (
-                                  <p className="text-[10px] text-red-400 font-medium">{syncMsg}</p>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => { setSyncState("idle"); void syncMissingClips(); }}
-                                disabled={syncState === "syncing"}
-                                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
-                                title={t("videoEditor.syncMissingClipsTitle")}
-                              >
-                                {syncState === "syncing" ? (
-                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.syncing")}</>
-                                ) : (
-                                  <><Zap className="h-3.5 w-3.5" /> {t("videoEditor.syncMissingClips")}</>
-                                )}
-                              </button>
-                            </div>
-                          )}
-
-                          {/* ── Screen Recorder (CapCut parity): capture straight into the timeline. Free. ── */}
-                          <ScreenRecorderPanel
-                            scenes={scenes}
-                            setScenes={setScenes}
-                            projectId={projectId}
-                            getAccessToken={getAccessToken}
-                            onGoToTab={(t) => setTab(t)}
-                          />
-
-                          {/* ── Stock Media Library (CapCut parity): searchable stock video + photos.
-                              Browsing is free; importing into the project costs 50 Visual Bucs. ── */}
-                          <StockLibraryPanel
-                            scenes={scenes}
-                            setScenes={setScenes}
-                            projectId={projectId}
-                            getAccessToken={getAccessToken}
-                            confirmedFetch={confirmedFetch}
-                            onGoToTab={(t) => setTab(t)}
-                          />
-
-                          {/* ── My Library (DE-7): the creator's OWN songs, clips and
-                              covers from /api/asset-library — no re-upload, no charge. ── */}
-                          <AssetLibraryPanel
-                            scenes={scenes}
-                            setScenes={setScenes}
-                            settings={settings}
-                            setSettings={setSettings}
-                            getAccessToken={getAccessToken}
-                            onGoToTab={(t) => setTab(t)}
-                          />
-
-                          <ClipGeneratorSection
-                            scenes={scenes}
-                            setScenes={setScenes}
-                            settings={settings}
-                            setSettings={setSettings}
-                            artistVault={activeArtist}
-                            projectId={projectId}
-                            onPreview={(id) => setPreviewSceneId(id)}
-                            previewSceneId={previewSceneId}
-                            getAccessToken={getAccessToken}
-                            saveState={saveState}
-                            playheadTimeSec={previewEngineState?.currentTime ?? 0}
-                            totalDurationSec={songDuration ?? undefined}
-                            artistName={artistName}
-                            songTitle={songTitle}
-                          />
-                        </div>
-                    </ToolPanelShell>
-                      )}
-
-                  {leftTab === "templates" && (
-                    <ToolPanelShell
-                      tool="templates"
-                      kicker={t("videoEditor.railTemplates", { defaultValue: "Templates" })}
-                      title={t("videoEditor.templatesTitle", { defaultValue: "Templates" })}
-                      subtitle={t("videoEditor.templatesDesc", {
-                        defaultValue: "Start from a proven template — swap in your clips and post.",
-                      })}
-                    >
-                    <TemplatesTabPanel
-                      scenes={scenes}
-                      deepLinkedKey={deepLinkedTemplateKey}
-                      onDeepLinkConsumed={() => setDeepLinkedTemplateKey(null)}
-                      onAddCaptions={handleTemplateVideoForCaptions}
-                      onUseInEditor={handleSplitScreenUseInEditor}
-                      onMultiRatio={handleSplitScreenMultiRatio}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "music" && (
-                    <ToolPanelShell
-                      tool="music"
-                      kicker={t("videoEditor.railAudio", { defaultValue: "Audio" })}
-                      title={t("videoEditor.audioTitle", { defaultValue: "Audio" })}
-                      subtitle={t("videoEditor.audioDesc", {
-                        defaultValue: "Generate music, beats, and voice for your video.",
-                      })}
-                    >
-                    {/* ── My Library (DE-7): attach one of your own library
-                        songs as the soundtrack without re-uploading it. ── */}
-                    <AssetLibraryPanel
-                      scenes={scenes}
-                      setScenes={setScenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      getAccessToken={getAccessToken}
-                      onGoToTab={(t) => setTab(t)}
-                    />
-                    <MusicStudio
-                      settings={settings}
-                      onChange={setSettings}
-                      artistName={artistName}
-                      songTitle={songTitle}
-                      audioUrl={audioUrl}
-                      projectId={projectId}
-                      getAccessToken={getAccessToken}
-                      onTranscriptReady={handleTranscriptReady}
-                      transcriptText={transcriptText}
-                      activeArtist={activeArtist}
-                      onGoToCaptions={() => setTab("captions")}
-                      isSimple={isSimple}
-                      requestedExport={requestedAudioExport}
-                      onExportRequestHandled={() => setRequestedAudioExport(null)}
-                      onDirectExportStatusChange={setDirectAudioExportStatus}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "captions" && (
-                    <ToolPanelShell
-                      tool="captions"
-                      kicker={t("videoEditor.railText", { defaultValue: "Text" })}
-                      title={t("videoEditor.captionsTitle", { defaultValue: "Captions" })}
-                      subtitle={t("videoEditor.captionsDesc", {
-                        defaultValue: "Auto-transcribe, style, and translate your captions — word-by-word viral styles included.",
-                      })}
-                    >
-                      {/* ── AI Caption Suite (Wave 5): the single user-facing
-                          concept for captions — Generate → Style → Translate.
-                          Orchestrates /api/auto-captions, /api/caption-styler,
-                          /api/style-subtitles, /api/translate-captions. ── */}
-                      <AiCaptionSuite
-                        getAccessToken={getAccessToken}
-                        timelineVideos={scenes
-                          .filter((s) => s.demoClipUrl?.startsWith("http"))
-                          .map((s) => ({
-                            id: s.id,
-                            label: `Scene ${s.sceneNumber}${s.section ? ` — ${s.section}` : ""}`,
-                            url: s.demoClipUrl as string,
-                          }))}
-                        onPushToTimeline={(newLines) => {
-                          setSettings((prev) => ({
-                            ...prev,
-                            captions: {
-                              ...prev.captions,
-                              lines: [
-                                ...prev.captions.lines,
-                                ...newLines.map((l, i) => ({
-                                  id: `suite-${Date.now()}-${i}`,
-                                  startSec: l.startSec,
-                                  endSec: l.endSec,
-                                  text: l.text,
-                                })),
-                              ],
-                            },
-                          }));
-                        }}
-                      />
-                      <CaptionsSection
-                      settings={settings}
-                      setSettings={setSettings}
-                      lyrics={lyricsForCaptions ?? undefined}
-                      songDuration={songDuration ?? undefined}
-                      audioSourceLoading={!!previewAudioUrl && songDuration == null}
-                      selectedCaptionId={selectedCaptionId}
-                      onSelectCaption={setSelectedCaptionId}
-                      audioUrl={previewAudioUrl}
-                      getAccessToken={getAccessToken}
-                      visiblePresetIds={template.captionPresets}
-                    />
-                      {/* Animated caption templates — word-by-word FX gallery */}
-                      <div className="mt-6">
-                        <CaptionTemplatesSection
-                          scenes={scenes}
-                          settings={settings}
-                          setSettings={setSettings}
-                          onGoToExport={() => setTab("export")}
-                          onGoToPromoClips={() => setTab("promo-clips")}
-                        />
-                      </div>
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "effects" && (
-                    <ToolPanelShell
-                      tool="effects"
-                      kicker={t("videoEditor.railEffects", { defaultValue: "Effects" })}
-                      title={t("videoEditor.effectsTitle", { defaultValue: "Effects" })}
-                      subtitle={t("videoEditor.effectsDesc", {
-                        defaultValue: "Cinematic looks, color grades, and transitions — tap any effect to preview it live on the player.",
-                      })}
-                    >
-                    <EffectsSection
-                      scenes={scenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
-                      onTestEffect={triggerTestEffect}
-                      onTestTransition={triggerTestTransition}
-                      onTestOverlay={triggerTestOverlay}
-                      activeTransitionType={transitionState?.type ?? null}
-                      onPreviewTransition={handlePreviewTransition}
-                      visibleEffects={template.effects}
-                      visibleColorGrades={template.colorGrades}
-                      onReplaceClipVideo={(sceneId, url) =>
-                        setScenes((prev) =>
-                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                        )
-                      }
-                      onGoToCaptions={() => setTab("captions")}
-                      onGoToExport={(videoUrl) => {
-                        if (videoUrl) setLutHandoffUrl(videoUrl);
-                        setTab("export");
-                      }}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "motion" && (
-                    <ToolPanelShell
-                      tool="motion"
-                      kicker={t("videoEditor.railMotion", { defaultValue: "Motion" })}
-                      title={t("videoEditor.motionTitle", { defaultValue: "Motion Graphics" })}
-                      subtitle={t("videoEditor.motionDesc", {
-                        defaultValue: "Animated text and graphic overlays — kinetic titles that move with your video.",
-                      })}
-                    >
-                    <MotionGraphicsSection
-                      playheadTimeSec={previewEngineState?.currentTime ?? 0}
-                      activeArtist={activeArtist}
-                      onAddToTimeline={(item) => {
-                        const id = `motion-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-                        setSettings((prev) => ({
-                          ...prev,
-                          overlayItems: [...(prev.overlayItems ?? []), { ...item, id }],
-                        }));
-                        toast({
-                          title: t("motionGraphics.addedToast", { defaultValue: "Motion graphic added" }),
-                          description: t("motionGraphics.addedToastDesc", { defaultValue: "Placed on the timeline at the playhead." }),
-                        });
-                      }}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "branding" && (
-                    <ToolPanelShell
-                      tool="branding"
-                      kicker={t("videoEditor.railBrand", { defaultValue: "Brand" })}
-                      title={t("videoEditor.brandingTitle", { defaultValue: "Brand Kit" })}
-                      subtitle={t("videoEditor.brandingDesc", {
-                        defaultValue: "Your logo, colors, and watermark — Thy Crown stamped on every export.",
-                      })}
-                    >
-                    <BrandingSection
-                      settings={settings}
-                      setSettings={setSettings}
-                      artistName={artistName}
-                      songTitle={songTitle}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "lip-sync" && (
-                    <ToolPanelShell
-                      tool="lip-sync"
-                      kicker={t("videoEditor.railLipSync", { defaultValue: "Lip Sync" })}
-                      title={t("videoEditor.lipSyncTitle", { defaultValue: "Lip Sync" })}
-                      subtitle={t("videoEditor.lipSyncDesc", {
-                        defaultValue: "Match mouths to the audio — AI lip-sync that actually lines up with the words.",
-                      })}
-                    >
-                    <LipSyncSection
-                      scenes={scenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      audioUrl={audioUrl}
-                      masterAudioUrl={previewAudioUrl}
-                      audioDuration={previewEngineState?.audioDuration ?? null}
-                      projectId={projectId}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "pre-production" && project && (
-                    <ToolPanelShell
-                      tool="pre-production"
-                      kicker={t("videoEditor.railPrePro", { defaultValue: "Pre-Pro" })}
-                      title={t("videoEditor.preProTitle", { defaultValue: "Pre-Production" })}
-                      subtitle={t("videoEditor.preProDesc", {
-                        defaultValue: "Plan your video before you build it — concept to shot list.",
-                      })}
-                    >
-                    <PreProductionSection
-                      settings={settings}
-                      setSettings={setSettings}
-                      songTitle={project.song_title ?? undefined}
-                      genre={project.genre ?? undefined}
-                      mood={project.mood ?? undefined}
-                    />
-                    </ToolPanelShell>
-                  )}
-
-
-
-                  {leftTab === "copilot" && (
-                    <ToolPanelShell
-                      tool="copilot"
-                      kicker={t("videoEditor.railCopilot", { defaultValue: "AI" })}
-                      title={t("videoEditor.copilotTitle", { defaultValue: "AI Copilot" })}
-                      subtitle={t("videoEditor.copilotDesc", {
-                        defaultValue: "An expert editor watching your timeline — suggestions, one-tap fixes.",
-                      })}
-                    >
-                    <div className="p-4">
-                      <AICopilotPanel
-                        scenes={scenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        setScenes={setScenes}
-                        captions={settings.captions?.lines ?? []}
-                        totalDurationSec={previewEngineState?.audioDuration ?? null}
-                        songTitle={songTitle}
-                        artistName={artistName}
-                        genre={project?.genre ?? undefined}
-                      />
-                    </div>
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "voice-edits" && (
-                    <ToolPanelShell
-                      tool="voice-edits"
-                      kicker={t("videoEditor.railVoiceEdits", { defaultValue: "Voice" })}
-                      title={t("videoEditor.voiceEditsTitle", { defaultValue: "Voice Edits" })}
-                      subtitle={t("videoEditor.voiceEditsDesc", {
-                        defaultValue: "Direct your edits with your voice — just describe the change.",
-                      })}
-                    >
-                    <div className="p-4">
-                      <VoiceDirectedEditsSection
-                        scenes={scenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        setScenes={setScenes}
-                        audioDuration={previewEngineState?.audioDuration ?? null}
-                        projectTitle={songTitle || undefined}
-                      />
-                    </div>
-                    </ToolPanelShell>
-                  )}
-
-                  {leftTab === "upscale" && (
-                    <ToolPanelShell
-                      tool="upscale"
-                      kicker={t("videoEditor.railUpscale", { defaultValue: "Upscale" })}
-                      title={t("upscale.pageTitle")}
-                      subtitle={t("upscale.pageSub")}
-                    >
-                      <Upscale embedded />
-                    </ToolPanelShell>
-                  )}
-                  {leftTab === "cartoonize" && (
-                    <ToolPanelShell
-                      tool="cartoonize"
-                      kicker={t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" })}
-                      title={t("cartoonStudio.title")}
-                      subtitle={t("cartoonStudio.subtitle")}
-                      price={t("cartoonStudio.costBadge")}
-                    >
-                      <CartoonStudio initialTab="cartoonize" embedded />
-                    </ToolPanelShell>
-                  )}
-                  {leftTab === "vibes" && (
-                    <ToolPanelShell
-                      tool="vibes"
-                      kicker={t("videoEditor.railVibes", { defaultValue: "Visual Vibes" })}
-                      title={t("videoEditor.vibesTitle", { defaultValue: "Visual Vibes" })}
-                      subtitle={t("videoEditor.vibesDesc", {
-                        defaultValue: "One-tap mood presets. Each vibe styles your overlays, effects, color grade, and captions instantly — free, no credits.",
-                      })}
-                    >
-                      {/* Dock-in map: one-tap jumps to the finishing tools that
-                          live inside Visual Vibes — labeling only, no behavior change. */}
-                      <div className="mb-5 rounded-2xl border vv-border-soft vv-wash-2 p-4">
-                        <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest mb-3">
-                          {t("videoEditor.vibesDockTitle", { defaultValue: "Finish inside Visual Vibes" })}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {(
-                            [
-                              { id: "thumbnails", labelKey: "videoEditor.railThumbnails", fallback: "Thumbnails" },
-                              { id: "cartoonize", labelKey: "videoEditor.railCartoonize", fallback: "Cartoonize" },
-                              { id: "lyric-video", labelKey: "videoEditor.railLyricVideo", fallback: "Lyric Video" },
-                              { id: "promo-clips", labelKey: "videoEditor.railPromoClips", fallback: "Promo Clips" },
-                              { id: "upscale", labelKey: "videoEditor.railUpscale", fallback: "Upscale" },
-                              { id: "style-stealer", labelKey: "videoEditor.railStyleStealer", fallback: "Style Stealer" },
-                              { id: "locations", labelKey: "videoEditor.railLocations", fallback: "Locations" },
-                              { id: "branding", labelKey: "videoEditor.railBrand", fallback: "Branding" },
-                              { id: "export", labelKey: "videoEditor.railExport", fallback: "Export" },
-                            ] as const
-                          ).map((d) => (
-                            <button
-                              key={d.id}
-                              type="button"
-                              onClick={() => setLeftTab(d.id)}
-                              className="rounded-full border vv-border vv-wash-3 px-3.5 py-1.5 text-xs font-bold vv-ink-70 hover:border-primary/50 vv-hover-ink transition-colors"
-                            >
-                              {t(d.labelKey, { defaultValue: d.fallback })}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <VisualVibesSection settings={settings} setSettings={setSettings} bare />
-                    </ToolPanelShell>
-                  )}
-                  {leftTab === "locations" && (
-                    <ToolPanelShell
-                      tool="locations"
-                      kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
-                      title={t("locations.pageTitle")}
-                      subtitle={t("locations.subtitle")}
-                    >
-                      <LocationsPage embedded />
-                    </ToolPanelShell>
-                  )}
-                  {leftTab === "style-stealer" && (
-                    <ToolPanelShell
-                      tool="style-stealer"
-                      kicker={t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" })}
-                      title={t("videoEditor.styleStealerTitle", { defaultValue: "Style Stealer" })}
-                      subtitle={t("videoEditor.styleStealerDesc", {
-                        defaultValue: "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline.",
-                      })}
-                    >
-                      <StyleStealerSection settings={settings} setSettings={setSettings} bare />
-                    </ToolPanelShell>
-                  )}
-                </div>
+                {renderLeftPanelBody(leftTab, { includeEngine: true, includeSections: !mobileSectionInSheet })}
+              </Suspense>
               </aside>
 
               {/* ── DRAGGABLE DIVIDER: resize the tool panel — snaps to 5 positions (double-click resets) ── */}
@@ -3034,7 +3374,7 @@ export default function VideoEditor() {
                 </div>
                 {/* ── Panel size sync: 0 collapses both, 1-5 presets set BOTH sides to the same width ── */}
                 <div className="shrink-0 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent border-y border-[#C9A84C]/10">
-                  <span className="text-[10px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
+                  <span className="text-[11px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
                   <button
                     type="button"
                     title="Collapse both panels (distraction-free)"
@@ -3042,7 +3382,7 @@ export default function VideoEditor() {
                       setPanelCollapsed(true);
                       setRightPanelCollapsed(true);
                     }}
-                    className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
+                    className={`h-6 w-6 rounded-full text-[11px] font-black transition-all ${
                       panelCollapsed && rightPanelCollapsed
                         ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
                         : "vv-wash-5 vv-ink-40 border vv-border vv-hover-ink vv-hover-border-strong"
@@ -3069,7 +3409,7 @@ export default function VideoEditor() {
                             localStorage.setItem("bdv:rightPanelWidth", String(s));
                           } catch { /* ignore */ }
                         }}
-                        className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
+                        className={`h-6 w-6 rounded-full text-[11px] font-black transition-all ${
                           synced
                             ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
                             : "vv-wash-5 vv-ink-40 border vv-border vv-hover-ink vv-hover-border-strong"
@@ -3119,13 +3459,13 @@ export default function VideoEditor() {
                             {activeArtist.artist_name}
                           </p>
                           {(activeArtist.artist_type || activeArtist.genre) && (
-                            <p className="text-[9px] vv-ink-30 mt-[1px]">
+                            <p className="text-[11px] vv-ink-30 mt-[1px]">
                               {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
                             </p>
                           )}
                         </div>
                         {consistencyPrompt && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
                             {t("videoEditor.lockedBadge")}
                           </div>
                         )}
@@ -3145,7 +3485,7 @@ export default function VideoEditor() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-left vv-hover-wash-3 transition-colors"
                     >
                       <Bug className="h-3 w-3 vv-ink-20" />
-                      <span className="text-[10px] font-bold vv-ink-25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
+                      <span className="text-[11px] font-bold vv-ink-25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
                       {debugOpen ? <ChevronUp className="h-3 w-3 vv-ink-20" /> : <ChevronDown className="h-3 w-3 vv-ink-20" />}
                     </button>
                     {debugOpen && (
@@ -3178,8 +3518,8 @@ export default function VideoEditor() {
                           ["lip sync error",    (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncError?.slice(0, 40) ?? "—"; })()],
                         ] as [string, string][]).map(([label, value]) => (
                           <div key={label} className="flex items-center justify-between gap-2">
-                            <span className="text-[9px] font-mono vv-ink-25">{label}</span>
-                            <span className={`text-[9px] font-bold shrink-0 ${
+                            <span className="text-[11px] font-mono vv-ink-25">{label}</span>
+                            <span className={`text-[11px] font-bold shrink-0 ${
                               value.includes("OK") ? "text-green-400/70"
                                 : value === "none" || value === "no" || value === "unknown" ? "vv-ink-25"
                                 : "text-[#C9A84C]/70"
@@ -3246,292 +3586,16 @@ export default function VideoEditor() {
               )}
 
               {/* ── RIGHT PANEL: CREATE MORE + FINISH sections ── */}
+              <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
               <aside style={{ width: rightPanelCollapsed ? 0 : rightPanelWidth, display: rightPanelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-l vv-border overflow-y-auto hidden md:block">
                 <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
                   <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
-                    {({
-                      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
-                      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
-                      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
-                      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
-                      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
-                      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
-                      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
-                      "edit-recipes": t("videoEditor.railEditRecipes"),
-                      studio: t("videoEditor.railAdvanced"),
-                      "pro-tools": t("videoEditor.railProTools"),
-                      export: t("videoEditor.railExport"),
-                    } as Record<string, string>)[rightTab] ?? ""}
+                    {editorTabTitle(rightTab)}
                   </h2>
                 </div>
-                <div className="p-4">
-                  {rightTab === "promo-clips" && (
-                    <ToolPanelShell
-                      tool="promo-clips"
-                      kicker={t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" })}
-                      title={t("promo-clip.title")}
-                      subtitle={t("promo-clip.subtitle")}
-                      price={t("promo-clip.creditBadge")}
-                    >
-                      <PromoClip embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "lyric-video" && (
-                    <ToolPanelShell
-                      tool="lyric-video"
-                      kicker={t("lyricVideo.badge")}
-                      title={<>{t("lyricVideo.titlePrefix")}<span className={isLight ? "text-violet-700" : "text-violet-300"}>{t("lyricVideo.titleHighlight")}</span></>}
-                      subtitle={t("lyricVideo.subtitle", { alignCredits: LYRIC_ALIGN_CREDITS, renderCredits: LYRIC_RENDER_CREDITS })}
-                    >
-                      <LyricVideo embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "thumbnails" && (
-                    <ToolPanelShell
-                      tool="thumbnails"
-                      kicker={t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" })}
-                      title={t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
-                      subtitle={t("thumbnailStudio.subtitle", {
-                        defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
-                      })}
-                      price={t("thumbnailMaker.costBadge")}
-                    >
-                      <ThumbnailStudio defaultTab="generate" embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "meme-machine" && (
-                    <ToolPanelShell
-                      tool="meme-machine"
-                      kicker={t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" })}
-                      title={t("videoEditor.memeMachineTitle", { defaultValue: "Meme Machine" })}
-                      subtitle={t("videoEditor.memeMachineDesc", {
-                        defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines. Apply drops the winner onto your timeline as styled captions.",
-                      })}
-                    >
-                      <MemeMachineSection settings={settings} setSettings={setSettings} bare />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "three-second-lab" && (
-                    <ToolPanelShell
-                      tool="three-second-lab"
-                      kicker={t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" })}
-                      title={t("videoEditor.labTitle", { defaultValue: "3-Second Lab" })}
-                      subtitle={t("videoEditor.labDesc", {
-                        defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power.",
-                      })}
-                    >
-                      <ThreeSecondLabSection openingHint={threeSecondLabHint} bare />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "translate" && (
-                    <ToolPanelShell
-                      tool="translate"
-                      kicker={t("translate.badge")}
-                      title={t("translate.pageTitle")}
-                      subtitle={t("translate.pageSubtitle")}
-                    >
-                      <Translate embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "repurpose" && (
-                    <ToolPanelShell
-                      tool="repurpose"
-                      kicker={t("repurpose.badge")}
-                      title={<>{t("repurpose.titlePrefix")} <span className={isLight ? "text-teal-700" : "text-teal-300"}>{t("repurpose.titleSuffix")}</span></>}
-                      subtitle={t("repurpose.hero")}
-                    >
-                      <Repurpose embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "edit-recipes" && (
-                    <ToolPanelShell
-                      tool="edit-recipes"
-                      kicker={t("videoEditor.railEditRecipes", { defaultValue: "Edit Recipes" })}
-                      title={t("videoEditor.editRecipesTitle", { defaultValue: "Edit Recipes" })}
-                      subtitle={t("videoEditor.editRecipesDesc", {
-                        defaultValue: "One-tap edit recipes — proven formulas for viral cuts.",
-                      })}
-                    >
-                    <div className="p-4">
-                      <TimelineTemplatesSection
-                        scenes={scenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        audioUrl={previewAudioUrl}
-                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
-                        beatGrid={beatGrid}
-                        projectKey={projectId || "default"}
-                      />
-                    </div>
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "studio" && (
-                    <ToolPanelShell
-                      tool="studio"
-                      kicker={t("videoEditor.railAdvanced", { defaultValue: "Advanced" })}
-                      title={t("videoEditor.studioTitle", { defaultValue: "Studio" })}
-                      subtitle={t("videoEditor.studioDesc", {
-                        defaultValue: "Advanced studio controls for precision editing.",
-                      })}
-                    >
-                    <>
-                    <StudioEditorSection
-                      scenes={scenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      setScenes={setScenes}
-                      currentTime={previewEngineState?.currentTime ?? 0}
-                      audioDuration={previewEngineState?.audioDuration ?? null}
-                      isPlaying={previewEngineState?.isPlaying ?? false}
-                      audioUrl={previewAudioUrl}
-                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
-                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
-                      onRestart={() => timelinePlayerRef.current?.restart()}
-                      onGoToExport={() => setTab("export")}
-                      onGoToMusic={() => setTab("music")}
-                      selectedIdx={selectedIdx}
-                      setSelectedIdx={setSelectedIdx}
-                    />
-                    {/* Wave 9 Voice-Directed Edits moved to its own rail tab for direct reachability. */}
-                    </>
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "pro-tools" && (
-                    <ToolPanelShell
-                      tool="pro-tools"
-                      kicker={t("videoEditor.railProTools", { defaultValue: "Pro Tools" })}
-                      title={t("videoEditor.proToolsTitle", { defaultValue: "Pro Tools" })}
-                      subtitle={t("videoEditor.proToolsDesc", {
-                        defaultValue: "Professional-grade tools for power creators.",
-                      })}
-                    >
-                    <>
-                      <ProToolsSection
-                        scenes={resolvedScenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        videoRef={liveVideoRef}
-                        onReplaceClipVideo={(sceneId, url) =>
-                          setScenes((prev) =>
-                            prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                          )
-                        }
-                      />
-                      <KeyframesSection
-                        scenes={resolvedScenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                      />
-                      {/* Wave 9 — Background Replace: AI background swap for talking-head clips
-                          (honest 503 until a segmentation provider is wired; green-screen clips
-                          are pointed at the working Chroma Key tool). */}
-                      <div className="mt-6">
-                        <BackgroundReplaceSection
-                          scene={selectedIdx != null ? resolvedScenes[selectedIdx] ?? null : null}
-                          settings={settings}
-                          setSettings={setSettings}
-                          onReplaceClipVideo={(sceneId, url) =>
-                            setScenes((prev) =>
-                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                            )
-                          }
-                        />
-                      </div>
-                      {/* Wave — Stabilize: smooth shaky footage (vidstab two-pass) */}
-                      <div className="mt-6">
-                        <StabilizeSection
-                          scenes={resolvedScenes}
-                          onReplaceClipVideo={(sceneId, url) =>
-                            setScenes((prev) =>
-                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                            )
-                          }
-                          onGoToExport={(videoUrl) => {
-                            if (videoUrl) setLutHandoffUrl(videoUrl);
-                            setTab("export");
-                          }}
-                        />
-                      </div>
-                      {/* Wave — Speed ramp: buttery slow-mo, speed presets, ramp curves */}
-                      <div className="mt-6">
-                        <SpeedRampSection
-                          scenes={resolvedScenes}
-                          onReplaceClipVideo={(sceneId, url) =>
-                            setScenes((prev) =>
-                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                            )
-                          }
-                          onGoToExport={(videoUrl) => {
-                            if (videoUrl) setLutHandoffUrl(videoUrl);
-                            setTab("export");
-                          }}
-                        />
-                      </div>
-                    </>
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "export" && (
-                    <ToolPanelShell
-                      tool="export"
-                      kicker={t("videoEditor.railExport", { defaultValue: "Export" })}
-                      title={t("videoEditor.exportTitle", { defaultValue: "Export" })}
-                      subtitle={t("videoEditor.exportDesc", {
-                        defaultValue: "Render your finished video and ship it everywhere.",
-                      })}
-                    >
-                    <>
-                    <ExportSection
-                      // NOTE: resolvedScenes (not raw scenes) so the export uses
-                      // lip-synced clip URLs wherever the user enabled lip sync —
-                      // what you see in the master player is what gets exported.
-                      scenes={resolvedScenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      projectId={project!.id}
-                      audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
-                      rawProjectAudioUrl={audioUrl}
-                      masterAudioUrl={previewAudioUrl}
-                      onGoToMusicStudio={() => setTab("music")}
-                      onRenderMissingMix={requestMissingMixRender}
-                      canRenderMissingMix={canDirectRenderMissingMix}
-                      directRenderStatus={directAudioExportStatus}
-                      onGoToEffects={() => setTab("effects")}
-                      masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
-                      projectDurationSec={previewEngineState?.audioDuration ?? 0}
-                      isSimple={isSimple}
-                      topic={songTitle || undefined}
-                      handoffVideoUrl={lutHandoffUrl}
-                      onReplaceClipVideo={(sceneId, url) =>
-                        setScenes((prev) =>
-                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                        )
-                      }
-                    />
-                    {/* Spotify Canvas Generator — docked in the export/promo
-                        chain (DistroKid Canvas parity). Deep-linked via
-                        ?tab=export&canvas=1 from song results / cover art. */}
-                    <div className="mt-6">
-                      <CanvasGeneratorSection
-                        audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
-                        songTitle={songTitle || undefined}
-                        artistName={artistName || undefined}
-                      />
-                    </div>
-                    </>
-                    </ToolPanelShell>
-                  )}
-                </div>
+                {renderRightPanelBody(rightTab, { includeSections: !mobileSectionInSheet })}
               </aside>
+              </Suspense>
 
               {/* ── RIGHT RAIL: CREATE MORE + FINISH icon nav ── */}
               <nav className="w-[68px] shrink-0 vv-marble-rail border-l vv-border flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Create more and finish">
@@ -3555,7 +3619,7 @@ export default function VideoEditor() {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setTab(item.id as EditorTab)}
+                        onClick={() => openSectionFromRail(item.id as EditorTab)}
                         data-testid={item.testId}
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
@@ -3564,7 +3628,7 @@ export default function VideoEditor() {
                         }`}
                       >
                         {item.icon}
-                        <span className="text-[9px] font-bold leading-none">{item.label}</span>
+                        <span className="text-[11px] font-bold leading-none">{item.label}</span>
                       </button>
                     ))}
               </nav>
@@ -3593,16 +3657,16 @@ export default function VideoEditor() {
                       return (
                         <div className="space-y-3">
                           <div className="rounded-xl border vv-border vv-wash-2 p-3">
-                            <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
+                            <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
                             <p className="text-xs vv-ink-70 mt-1.5 leading-relaxed line-clamp-6">{scene.aiVideoPrompt || t("videoEditor.noPrompt")}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div className="rounded-xl border vv-border vv-wash-2 p-3">
-                              <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
+                              <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
                               <p className={`text-xs font-bold mt-1 ${hasClip ? "text-green-400" : "vv-ink-40"}`}>{hasClip ? t("videoEditor.clipAttached") : t("videoEditor.clipNoClip")}</p>
                             </div>
                             <div className="rounded-xl border vv-border vv-wash-2 p-3">
-                              <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
+                              <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
                               <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "vv-ink-40"}`}>{scene.approved ? t("videoEditor.yes") : t("videoEditor.no")}</p>
                             </div>
                           </div>
@@ -3631,7 +3695,7 @@ export default function VideoEditor() {
                             };
                             return (
                               <div className="rounded-xl border vv-border vv-wash-2 p-3 space-y-2.5">
-                                <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">Clip audio</p>
+                                <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">Clip audio</p>
                                 <div className="flex items-center gap-2">
                                   <button type="button" onClick={() => patchClip({ muted: !ce.muted })}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
@@ -3647,13 +3711,13 @@ export default function VideoEditor() {
                                   onChange={(e) => patchClip({ volume: Number(e.target.value) })}
                                   className="w-full accent-[#C9A84C]" title="Clip volume" aria-label="Clip volume" />
                                 <div className="grid grid-cols-2 gap-2">
-                                  <label className="text-[10px] vv-ink-50">Fade in
+                                  <label className="text-[11px] vv-ink-50">Fade in
                                     <input type="range" min={0} max={5} step={0.1} value={ce.fadeIn}
                                       onChange={(e) => patchClip({ fadeIn: Number(e.target.value) })}
                                       className="w-full accent-[#C9A84C]" aria-label="Fade in seconds" />
                                     <span className="font-mono">{ce.fadeIn.toFixed(1)}s</span>
                                   </label>
-                                  <label className="text-[10px] vv-ink-50">Fade out
+                                  <label className="text-[11px] vv-ink-50">Fade out
                                     <input type="range" min={0} max={5} step={0.1} value={ce.fadeOut}
                                       onChange={(e) => patchClip({ fadeOut: Number(e.target.value) })}
                                       className="w-full accent-[#C9A84C]" aria-label="Fade out seconds" />
@@ -3731,7 +3795,7 @@ export default function VideoEditor() {
               })}
             >
               <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" />
-              <span className="text-[10px] font-bold text-amber-200/80 whitespace-nowrap hidden sm:inline">
+              <span className="text-[11px] font-bold text-amber-200/80 whitespace-nowrap hidden sm:inline">
                 {t("videoEditor.audioFallbackPill")}
               </span>
               <button
@@ -3739,7 +3803,7 @@ export default function VideoEditor() {
                 onClick={requestMissingMixRender}
                 disabled={directAudioExportStatus.status === "rendering"}
                 data-testid="btn-render-missing-video-audio"
-                className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
+                className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
               >
                 {directAudioExportStatus.status === "rendering" ? (
                   <><Loader2 className="h-3 w-3 animate-spin no-underline" /> {t("videoEditor.rendering")}</>
@@ -3774,6 +3838,39 @@ export default function VideoEditor() {
         </div>
       )}
     </div>
+    {/* ── MOBILE SECTION SHEET (Stack-28 #53): below 768px the desktop
+        panels are hidden, so the active editor section opens here as a
+        bottom sheet (the design system's Sheet, bottom side) in the
+        editor's own marble language — vvVars is passed explicitly
+        because the sheet portals to the document root, outside the
+        editor root that defines the --vv-* vars. It renders the SAME
+        panel-body helpers as the desktop asides, routed by the section
+        registry side. Closing returns to the canvas; the transport
+        dock below is untouched and stays mounted. ── */}
+    <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+      <SheetContent
+        side="bottom"
+        data-testid="editor-mobile-sheet"
+        style={vvVars}
+        className="md:hidden h-[84dvh] max-h-[84dvh] p-0 flex flex-col gap-0 vv-marble-panel border-t vv-border rounded-t-2xl"
+      >
+        <SheetHeader className="h-12 shrink-0 flex flex-row items-center px-4 border-b vv-border space-y-0 text-left">
+          <SheetTitle className="text-xs font-black vv-ink uppercase tracking-widest">
+            {editorTabTitle(tab)}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            {t("videoEditor.mobileSheetDesc", { defaultValue: "Editor section panel. Close to return to the canvas." })}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto" data-testid="editor-mobile-sheet-body">
+          <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
+            {RIGHT_TABS.has(tab)
+              ? renderRightPanelBody(tab, { includeSections: true })
+              : renderLeftPanelBody(tab, { includeEngine: false, includeSections: true })}
+          </Suspense>
+        </div>
+      </SheetContent>
+    </Sheet>
     {showTemplatePicker && (
       <TemplatePicker
         activeId={templateId}
@@ -4947,7 +5044,7 @@ function MasterPreviewPlayer({
   }, [showCompareToggle, compareOn]);
 
   /* ── Cinema transport button styles ── */
-  const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30 transition-colors shrink-0";
+  const tBtnSm = "flex items-center justify-center h-10 w-10 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30 transition-colors shrink-0";
 
   return (
     <>
@@ -4962,7 +5059,7 @@ function MasterPreviewPlayer({
           className="mx-auto flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-black/90 border border-white/20 text-white/70 hover:text-white hover:border-primary/50 shadow-2xl transition-colors"
         >
           <Eye className="h-3.5 w-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">{t("videoEditor.showPlayer")}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider">{t("videoEditor.showPlayer")}</span>
         </button>
       )}
     {/* ── Visual mode: true focus mode. The background is essentially blacked out
@@ -5250,7 +5347,7 @@ function MasterPreviewPlayer({
             HTML video; the flip happens at export time. ── */}
         {displayProTools?.reverse && (
           <div className="absolute top-3 left-3 pointer-events-none" style={{ zIndex: 30 }}>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest
               bg-black/70 border border-[#C9A84C]/50 text-[#C9A84C]">
               <Repeat className="h-3 w-3" /> Reversed on export
             </div>
@@ -5289,10 +5386,10 @@ function MasterPreviewPlayer({
               <ChevronsLeftRight className="h-4 w-4" />
             </button>
             {/* Before / After tags */}
-            <div className="absolute top-1/2 -translate-y-1/2 left-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-black/70 border border-white/15 text-[10px] font-black uppercase tracking-widest text-white/80">
+            <div className="absolute top-1/2 -translate-y-1/2 left-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-black/70 border border-white/15 text-[11px] font-black uppercase tracking-widest text-white/80">
               Before
             </div>
-            <div className="absolute top-1/2 -translate-y-1/2 right-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-[#C9A84C]/90 text-[10px] font-black uppercase tracking-widest text-black">
+            <div className="absolute top-1/2 -translate-y-1/2 right-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-[#C9A84C]/90 text-[11px] font-black uppercase tracking-widest text-black">
               After
             </div>
           </>
@@ -5394,7 +5491,7 @@ function MasterPreviewPlayer({
         {displayScene && displaySceneIdx >= 0 && (
           <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/55 border border-[#C9A84C]/25 backdrop-blur-sm pointer-events-none">
             <Film className="h-2.5 w-2.5 text-[#C9A84C]" />
-            <span className="text-[9px] font-bold text-white/60 max-w-[200px] truncate tracking-wide">
+            <span className="text-[11px] font-bold text-white/60 max-w-[200px] truncate tracking-wide">
               Scene {displaySceneIdx + 1}/{scenes.length}
               {displayScene.section ? ` · ${displayScene.section}` : ""}
             </span>
@@ -5406,7 +5503,7 @@ function MasterPreviewPlayer({
         {isPlaying && (
           <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
             <Volume2 className="h-3 w-3 text-black animate-pulse" />
-            <span className="text-[10px] font-black text-black uppercase tracking-wide">{t("videoEditor.liveBadge")}</span>
+            <span className="text-[11px] font-black text-black uppercase tracking-wide">{t("videoEditor.liveBadge")}</span>
           </div>
         )}
 
@@ -5432,14 +5529,14 @@ function MasterPreviewPlayer({
               style={{ top: "5%", bottom: "5%", left: "5%", right: "5%", zIndex: 32 }}
               aria-hidden
             >
-              <span className="absolute top-1 left-1.5 text-[8px] font-mono font-bold uppercase tracking-widest text-white/50">Action safe</span>
+              <span className="absolute top-1 left-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-white/50">Action safe</span>
             </div>
             <div
               className="absolute pointer-events-none border border-dashed border-[#C9A84C]/70 rounded-sm"
               style={{ top: "10%", bottom: "10%", left: "10%", right: "10%", zIndex: 32 }}
               aria-hidden
             >
-              <span className="absolute top-1 left-1.5 text-[8px] font-mono font-bold uppercase tracking-widest text-[#C9A84C]/70">Title safe</span>
+              <span className="absolute top-1 left-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-[#C9A84C]/70">Title safe</span>
             </div>
           </>
         )}
@@ -5500,7 +5597,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Back 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")}>-10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")}>-10</button>
           {/* Frame step back */}
           <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
             className={tBtnSm} title={t("videoEditor.stepBackTitle")}>
@@ -5513,7 +5610,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Forward 10s */}
           <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")}>+10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")}>+10</button>
           {/* Next Scene */}
           <button type="button" onClick={nextClip} disabled={!hasScenes}
             className={tBtnSm} title={t("videoEditor.nextSceneTitle")}>
@@ -5521,7 +5618,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Loop */}
           <button type="button" onClick={() => setLoop((v) => !v)} disabled={!hasScenes}
-            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
+            className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
               loop
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30"
@@ -5531,7 +5628,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Playback speed */}
           <button type="button" onClick={cycleSpeed}
-            className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[9px] font-black tabular-nums`}
+            className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[11px] font-black tabular-nums`}
             title={t("videoEditor.speedTitle", { speed })}>
             {speed}x
           </button>
@@ -5545,13 +5642,13 @@ function MasterPreviewPlayer({
           <button type="button" onClick={cycleFitMode}
             className={`${tBtnSm} min-w-[2rem] px-1`}
             title={t("videoEditor.fitTitle", { label: t(FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]) })}>
-            <span className="text-[7px] font-black tracking-widest uppercase leading-none">
+            <span className="text-[11px] font-black tracking-widest uppercase leading-none">
               {t(FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode])}
             </span>
           </button>
           {/* PiP — one button, manual only; Auto PiP toggled via settings row below */}
           <button type="button" onClick={() => void togglePiP()}
-            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
+            className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-colors shrink-0 ${
               pipActive
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/10"
@@ -5565,7 +5662,7 @@ function MasterPreviewPlayer({
         <div className="flex items-center gap-1.5 mt-1">
           {/* Play / Pause — hero button */}
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-            className="flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
+            className="flex items-center justify-center h-10 w-10 rounded-lg bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
             title={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
@@ -5602,7 +5699,7 @@ function MasterPreviewPlayer({
           />
           {/* Fullscreen — launches from the pinned player */}
           <button type="button" onClick={toggleFullscreen}
-            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
+            className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-colors shrink-0 ${
               isFullscreen
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/10"
@@ -5617,7 +5714,7 @@ function MasterPreviewPlayer({
       {/* Auto PiP sub-settings — hidden in fullscreen / while minimized */}
       {!isFullscreen && !isMinimized && (
         <div className="px-3 py-1.5 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-[10px] font-bold text-white/30 shrink-0">{t("videoEditor.autoPipLabel")}</span>
+          <span className="text-[11px] font-bold text-white/30 shrink-0">{t("videoEditor.autoPipLabel")}</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -5625,7 +5722,7 @@ function MasterPreviewPlayer({
               onChange={(e) => { if (e.target.checked) void enableAutoPiP(); else disableAutoPiP(); }}
               className="accent-primary w-3 h-3"
             />
-            <span className="text-[10px] text-white/50">{t("videoEditor.enableAutoPip")}</span>
+            <span className="text-[11px] text-white/50">{t("videoEditor.enableAutoPip")}</span>
           </label>
           {autoPiP && (
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -5635,7 +5732,7 @@ function MasterPreviewPlayer({
                 onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
                 className="accent-primary w-3 h-3"
               />
-              <span className="text-[10px] text-white/50">{t("videoEditor.onTabSwitch")}</span>
+              <span className="text-[11px] text-white/50">{t("videoEditor.onTabSwitch")}</span>
             </label>
           )}
         </div>
@@ -5662,8 +5759,8 @@ function MasterPreviewPlayer({
             ["pip active",    pipActive    ? "yes OK"   : "no"],
           ] as [string, string][]).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1">
-              <span className="text-[8px] font-mono text-white/20">{k}</span>
-              <span className={`text-[8px] font-bold ${v.includes("OK") || v === "enabled" ? "text-green-400/50" : v === "—" || v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+              <span className="text-[11px] font-mono text-white/20">{k}</span>
+              <span className={`text-[11px] font-bold ${v.includes("OK") || v === "enabled" ? "text-green-400/50" : v === "—" || v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
             </span>
           ))}
         </div>
@@ -5672,7 +5769,7 @@ function MasterPreviewPlayer({
       {/* Playback Animation Debug — dev-only diagnostics, hidden in fullscreen / while minimized */}
       {import.meta.env.DEV && !isFullscreen && !isMinimized && (
         <div className="px-4 py-1 border-t border-white/5 bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
-          <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
+          <span className="text-[11px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
           {([
             ["isPlaying",    (eng?.isPlaying ?? false) ? "yes OK" : "no"],
             ["isScrubbing",  isDraggingRef.current ? "yes" : "no"],
@@ -5685,8 +5782,8 @@ function MasterPreviewPlayer({
             ["effects",      (eng?.isPlaying ?? false) ? "running" : "paused OK"],
           ] as [string, string][]).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1">
-              <span className="text-[8px] font-mono text-white/20">{k}</span>
-              <span className={`text-[8px] font-bold ${
+              <span className="text-[11px] font-mono text-white/20">{k}</span>
+              <span className={`text-[11px] font-bold ${
                 v.includes("OK") ? "text-green-400/50"
                 : v === "no" || v === "paused" ? "text-white/20"
                 : v === "yes" ? "text-yellow-400"
@@ -5699,7 +5796,7 @@ function MasterPreviewPlayer({
 
       {/* Error message — PiP or Auto PiP, hidden in fullscreen / while minimized */}
       {pipError && !isFullscreen && !isMinimized && (
-        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono flex items-start gap-1.5">
+        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[11px] text-red-400 font-mono flex items-start gap-1.5">
           <AlertCircle className="h-3 w-3 shrink-0 mt-px" />
           <span>{pipError}</span>
         </div>

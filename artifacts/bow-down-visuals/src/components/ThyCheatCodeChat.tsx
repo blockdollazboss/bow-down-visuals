@@ -437,7 +437,7 @@ export function ThyCheatCodeChat() {
       <div
         role="dialog"
         aria-label="Chat with Thy Cheat Code"
-        className="animate-tcc-drawer-in fixed right-5 z-[9995] h-[min(520px,70vh)] w-[min(340px,90vw)]"
+        className="animate-tcc-drawer-in fixed right-5 z-[9995] h-[min(520px,70vh)] w-[min(340px,calc(100vw-6rem))]"
         style={{ bottom: "max(7rem, calc(env(safe-area-inset-bottom, 0px) + 6rem))" }}
       >
         <div

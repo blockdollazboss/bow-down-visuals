@@ -157,24 +157,79 @@ export function profileHref(author: SocialAuthor | null | undefined): string {
   return author?.slug ? `/artist/${author.slug}` : "/home";
 }
 
+/* ── Shared fetch timeout (Stack-28 #28 / A3-F6) ─────────────────────
+   Following the in-codebase model in lib/earnings-data.ts (per-attempt
+   AbortController timeout): a connection that opens and then STALLS
+   used to leave every consumer's loading state pending forever — no
+   error, no retry. apiFetch now aborts a stalled request after
+   API_FETCH_TIMEOUT_MS so the caller's per-section error state can
+   render instead.
+
+   OPT-OUT (documented): a legitimately long call — media generation,
+   a large upload, an export/render submission — passes
+   `{ timeoutMs: null }` (or 0) as apiFetch/apiJson's 4th argument to
+   disable the timeout for that call only. A caller-supplied
+   init.signal always still applies and aborts the request itself. */
+export const API_FETCH_TIMEOUT_MS = 15_000;
+
+export interface ApiFetchOptions {
+  /** Milliseconds before a stalled request aborts. `null`/`0` = no
+   *  timeout (the documented opt-out for long legitimate calls). */
+  timeoutMs?: number | null;
+}
+
+/** Merge a caller signal with a timeout into one AbortSignal.
+ *  Returns the signal plus a cancel() that disarms the timer once the
+ *  request has settled (so a completed request is never aborted
+ *  after the fact). */
+export function signalWithTimeout(
+  callerSignal: AbortSignal | null | undefined,
+  timeoutMs: number | null | undefined,
+): { signal: AbortSignal | undefined; cancel: () => void } {
+  if (timeoutMs === null || timeoutMs === undefined || timeoutMs <= 0) {
+    return { signal: callerSignal ?? undefined, cancel: () => undefined };
+  }
+  const controller = new AbortController();
+  const onCallerAbort = () => controller.abort(callerSignal?.reason);
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort(callerSignal.reason);
+    else callerSignal.addEventListener("abort", onCallerAbort, { once: true });
+  }
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    cancel: () => {
+      clearTimeout(timer);
+      callerSignal?.removeEventListener("abort", onCallerAbort);
+    },
+  };
+}
+
 export async function apiFetch(
   getAccessToken: () => Promise<string | null>,
   path: string,
   init?: RequestInit,
+  options?: ApiFetchOptions,
 ): Promise<Response> {
   const token = await getAccessToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(path, { ...init, headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) } });
-  return res;
+  const timeoutMs = options && "timeoutMs" in options ? options.timeoutMs : API_FETCH_TIMEOUT_MS;
+  const { signal, cancel } = signalWithTimeout(init?.signal, timeoutMs);
+  try {
+    return await fetch(path, { ...init, signal, headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) } });
+  } finally {
+    cancel();
+  }
 }
 
 export async function apiJson<T>(
   getAccessToken: () => Promise<string | null>,
   path: string,
   init?: RequestInit,
+  options?: ApiFetchOptions,
 ): Promise<T> {
-  const res = await apiFetch(getAccessToken, path, init);
+  const res = await apiFetch(getAccessToken, path, init, options);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { message?: string }).message || `Request failed (${res.status})`);

@@ -168,7 +168,7 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
         </h3>
         <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
           {t("videoEditor.memeMachineDesc", {
-            defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines (1 VB). Apply drops the winner onto your timeline as styled captions.",
+            defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines (100 VB). Apply drops the winner onto your timeline as styled captions.",
           })}
         </p>
       </div>

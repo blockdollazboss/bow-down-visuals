@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { mediaBaseUrl } from "@/lib/media-cdn";
+import { deferAfterFirstPaint } from "@/lib/defer-after-paint";
 
 /* ─────────────────── Bowing shark hero ─────────────────── */
 /* Canvas sprite scrubber. The shark-king clip was keyed out with an AI
@@ -81,31 +82,38 @@ export function HeroLogo3D() {
     const frameFor = (t: number) =>
       Math.min(FRAMES - 1, Math.max(0, Math.round((t / BOW_END) * (FRAMES - 1))));
 
-    // Preload sprite sheets; draw the standing frame the moment sheet 0 lands.
+    // Stack-28 #47: sprite sheets (5.47 MB) no longer load at mount.
+    // They start only after first paint AND the hero slot is visible
+    // (deferAfterFirstPaint), so they never compete with first paint;
+    // the poster underneath paints instantly and stays until sheet 0
+    // lands — the shipped look once loaded is byte-identical.
     // Light theme has no sheets yet — the cream-robed poster shows instead.
-    for (let s = 0; s < SHEETS; s++) {
-      if (isLight) break;
-      const img = new Image();
-      img.decoding = "async";
-      // CORS mode: the sheets come from the media bucket now, and the
-      // canvas must stay untainted (the bucket's CORS policy covers
-      // the site's origins).
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        sheets[s] = img;
-        sheetsReady++;
-        if (sheetsReady === 1) drawFrame(frameFor(current));
-      };
-      img.onerror = () => console.error(`[hero] sprite sheet ${s} failed to load`);
-      img.src = `${base}hero-bow-sheet-${s}.webp`;
-      // Assign synchronously so a cached sheet is usable immediately.
-      if (img.complete && img.naturalWidth > 0) {
-        sheets[s] = img;
-        sheetsReady++;
+    const cancelSheetLoad = deferAfterFirstPaint(slot, () => {
+      if (cancelled) return;
+      for (let s = 0; s < SHEETS; s++) {
+        if (isLight) break;
+        const img = new Image();
+        img.decoding = "async";
+        // CORS mode: the sheets come from the media bucket now, and the
+        // canvas must stay untainted (the bucket's CORS policy covers
+        // the site's origins).
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          sheets[s] = img;
+          sheetsReady++;
+          if (sheetsReady === 1) drawFrame(frameFor(current));
+        };
+        img.onerror = () => console.error(`[hero] sprite sheet ${s} failed to load`);
+        img.src = `${base}hero-bow-sheet-${s}.webp`;
+        // Assign synchronously so a cached sheet is usable immediately.
+        if (img.complete && img.naturalWidth > 0) {
+          sheets[s] = img;
+          sheetsReady++;
+        }
       }
-    }
-    // If sheet 0 was already cached, draw immediately.
-    if (sheets[0]) drawFrame(0);
+      // If sheet 0 was already cached, draw immediately.
+      if (sheets[0]) drawFrame(0);
+    });
 
     // Scrub across the whole hero section — not just the shark's own box —
     // so the bow progresses gradually as the cursor travels down the page:
@@ -173,6 +181,7 @@ export function HeroLogo3D() {
 
     return () => {
       cancelled = true;
+      cancelSheetLoad();
       cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onPointerMove);
       heroSection.removeEventListener("pointerleave", onLeave);

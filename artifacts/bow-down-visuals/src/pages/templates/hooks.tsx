@@ -13,8 +13,8 @@ import {
   HOOK_CATEGORIES,
 } from "@/data/hook-templates";
 
-/* ─── Public hook template gallery ───
-   No login required. "Use this template" deep-links into Hook Studio
+/* ─── Hook template gallery (members) ───
+   Sign-in required to browse (access law: /templates* is locked for guests). "Use this template" deep-links into Hook Studio
    with ?template=<slug> — login + credits kick in at generation. */
 
 export default function HookTemplates() {
@@ -60,7 +60,7 @@ export default function HookTemplates() {
             <p className="mt-4 text-white/50 max-w-2xl mx-auto">
               Scroll-stopping hooks for Shorts, TikTok, and Reels. Pick a
               template, hit “Use this template,” and our AI writes 5 hooks
-              for your video — free to browse, credits apply when you generate.
+              for your video — free to browse with your account, credits apply when you generate.
             </p>
           </div>
         </LuxReveal>

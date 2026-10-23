@@ -84,6 +84,8 @@ import wallpapersRouter, {
   resolveBrandFontFile,
   BRAND_FONT_CANDIDATES,
   sanitizePackName,
+  renderSchema,
+  screensaverSchema,
   SCREENSAVER_RENDER_COST,
   CLEAN_RENDER_COST,
 } from "../wallpapers";
@@ -572,5 +574,101 @@ describe("wallpapers routes (HTTP)", () => {
     expect(buf.length).toBeGreaterThan(0);
     // ZIP magic
     expect(buf.subarray(0, 2).toString()).toBe("PK");
+  });
+});
+
+/* Stack-28 item 13 — King's Set integration: the desk's starter-pack
+   assets ship as site-relative paths (FE lib/kings-set.ts), which both
+   rails' http(s)-only schemas rejected with 400. The desk now
+   absolutifies at selection time (absoluteKingsSetUrl, pinned in the
+   FE kings-set.test.ts); this block proves the resulting desk-shaped
+   URLs pass the rail schemas and the HTTP routes, while the raw
+   relative forms still fail — the rails themselves did not loosen. */
+describe("King's Set desk-shaped URLs vs the rail schemas (Stack-28 item 13)", () => {
+  const ORIGIN = "https://bowdownvisuals.com";
+  // The set's exact paths, mirrored from FE lib/kings-set.ts.
+  const PIECES = [
+    { still: "/wallpapers/kings-set-plaza-phone.webp", loop: "/wallpapers/kings-set-plaza-loop.mp4", presetKey: "phone-iphone" },
+    { still: "/wallpapers/kings-set-throne-phone.webp", loop: "/wallpapers/kings-set-throne-loop.mp4", presetKey: "phone-iphone" },
+    { still: "/wallpapers/kings-set-stage-desktop.webp", loop: "/wallpapers/kings-set-stage-loop.mp4", presetKey: "desktop-fhd" },
+  ] as const;
+
+  it("renderSchema + screensaverSchema ACCEPT every absolutified King's Set URL", () => {
+    for (const p of PIECES) {
+      const render = renderSchema.safeParse({
+        sourceUrl: `${ORIGIN}${p.still}`,
+        presetKey: p.presetKey,
+      });
+      expect(render.success, `render ${p.still}`).toBe(true);
+      const screensaver = screensaverSchema.safeParse({
+        videoUrl: `${ORIGIN}${p.loop}`,
+        presetKey: "desktop-fhd",
+      });
+      expect(screensaver.success, `screensaver ${p.loop}`).toBe(true);
+    }
+  });
+
+  it("the same URLs in their raw relative form still FAIL both schemas", () => {
+    for (const p of PIECES) {
+      expect(
+        renderSchema.safeParse({ sourceUrl: p.still, presetKey: p.presetKey }).success,
+        `relative render ${p.still}`,
+      ).toBe(false);
+      expect(
+        screensaverSchema.safeParse({ videoUrl: p.loop, presetKey: "desktop-fhd" }).success,
+        `relative screensaver ${p.loop}`,
+      ).toBe(false);
+    }
+  });
+
+  it("HTTP: an absolutified King's Set still renders (200) and a loop screensaver-renders (200)", async () => {
+    const render = await call("POST", "/wallpapers/render", {
+      sourceUrl: `${ORIGIN}${PIECES[0].still}`,
+      presetKey: PIECES[0].presetKey,
+    });
+    expect(render.status).toBe(200);
+    const screensaver = await call("POST", "/wallpapers/screensaver-render", {
+      videoUrl: `${ORIGIN}${PIECES[2].loop}`,
+      presetKey: "desktop-fhd",
+    });
+    expect(screensaver.status).toBe(200);
+  });
+});
+
+/* Stack-28 item 15 — the API side of the desk price pin: the FE desk's
+   derived figures must land on THIS suite's server constants. The FE
+   suite (wallpapers-prices.test.ts) derives the constants from these
+   source files; here the live imported constants are compared against
+   the FE price module's derivation sources (the credit-cost registry
+   it reads), so both suites fail if either side drifts. */
+describe("desk price derivations land on the server constants (Stack-28 item 15)", () => {
+  it("FE registry + price module derive exactly SCREENSAVER_RENDER_COST / CLEAN_RENDER_COST", async () => {
+    const { readFileSync } = await import("node:fs");
+    const fe = (rel: string) =>
+      readFileSync(new URL(`../../../../bow-down-visuals/src/${rel}`, import.meta.url), "utf8");
+    const registry = fe("lib/credit-costs.ts");
+    const prices = fe("lib/wallpapers-prices.ts");
+    const deskSrc = fe("components/wallpapers/WallpapersDesk.tsx");
+
+    // Registry entries the FE derivations read:
+    expect(registry).toContain('"/api/wallpapers/screensaver-render": { cost: 400');
+    expect(registry).toContain('"/api/generate-runway-clip": { cost: 400');
+    expect(registry).toContain('"/api/export-final-video": { cost: 400');
+    expect(registry).toContain('"/api/wallpapers/render": { cost: 0');
+
+    // Those registry figures equal this suite's imported rail constants:
+    expect(SCREENSAVER_RENDER_COST).toBe(400);
+    expect(CLEAN_RENDER_COST).toBe(400);
+
+    // The price module derives (never hardcodes) each desk figure:
+    expect(prices).toContain('getCreditCost("/api/wallpapers/screensaver-render")');
+    expect(prices).toContain('getCreditCost("/api/generate-runway-clip")');
+    expect(prices).toContain('getCreditCost("/api/export-final-video")');
+    expect(prices).toContain("WALLPAPER_CLEAN_RENDER_COST * 2");
+
+    // And the desk renders/quotes only through those constants:
+    expect(deskSrc).not.toMatch(/— \d+ Visual Bucs/);
+    expect(deskSrc).not.toMatch(/const (GENERATE_COST|CLEAN_RENDER_COST)\s*=/);
+    expect(deskSrc).toContain("WALLPAPER_CLEAN_PACK_COST");
   });
 });

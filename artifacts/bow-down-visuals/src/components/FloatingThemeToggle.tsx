@@ -52,7 +52,11 @@ export function FloatingThemeToggle() {
   // (Removed the location-based hiding.)
 
   const onPointerDown = (e: React.PointerEvent) => {
-    const x = pos?.x ?? 16;
+    // Stack-28 #58 corner budget: the toggle's default slot is the second
+    // top-left slot (x=72) — the first slot (x=16) belongs to the floating
+    // language switcher on the pages that mount it. Saved drag positions
+    // are unaffected.
+    const x = pos?.x ?? 72;
     const y = pos?.y ?? 16;
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: x, origY: y, moved: false };
     setDragging(true);
@@ -81,7 +85,7 @@ export function FloatingThemeToggle() {
 
   const style: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, right: "auto" }
-    : { top: 16, left: 16 };
+    : { top: 16, left: 72 };
 
   return (
     <button

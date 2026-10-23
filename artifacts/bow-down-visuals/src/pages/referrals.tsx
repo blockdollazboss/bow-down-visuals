@@ -487,22 +487,45 @@ export default function Referrals() {
     return { res, data };
   }
 
+  const [retryNonce, setRetryNonce] = useState(0);
+
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      // Contest is public — load it even for logged-out visitors.
+      /* Stack-28 #24 / A3-F2: the whole load is guarded — a transport
+         failure on /api/referrals/me used to reject this IIFE outside
+         any try/catch, leaving `loading` true forever (permanent
+         spinner, no retry). Own data and the public contest now load
+         CONCURRENTLY (the contest no longer waterfalls ahead of the
+         user's own code/stats), each settling on its own, and
+         `setLoading(false)` lives in `finally`. */
+      setLoading(true);
+      setError(null);
       try {
-        const cres = await fetch("/api/referrals/contest");
-        const cdata = await cres.json();
-        if (cres.ok) setContest(cdata);
-      } catch { /* non-fatal */ }
-      if (!user) { setLoading(false); return; }
-      const { res, data } = await authFetch("/api/referrals/me");
-      setLoading(false);
-      if (!res.ok) { setError(data.error ?? t("referrals.error.loadFailed")); return; }
-      setInfo(data);
+        const contestP = (async () => {
+          try {
+            const cres = await fetch("/api/referrals/contest");
+            const cdata = await cres.json();
+            if (cres.ok && !cancelled) setContest(cdata);
+          } catch { /* non-fatal — contest is a bonus section */ }
+        })();
+        const meP = (async () => {
+          if (!user) return;
+          const { res, data } = await authFetch("/api/referrals/me");
+          if (cancelled) return;
+          if (!res.ok) { setError(data.error ?? t("referrals.error.loadFailed")); return; }
+          setInfo(data);
+        })();
+        await Promise.allSettled([contestP, meP]);
+      } catch {
+        if (!cancelled) setError(t("referrals.error.loadFailed"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, retryNonce]);
 
   const referralLink = info ? `${window.location.origin}/?ref=${info.code}` : "";
 
@@ -558,7 +581,16 @@ export default function Referrals() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <p className="text-center text-red-400">{error}</p>
+          <div className="text-center">
+            <p className="text-red-400">{error}</p>
+            <button
+              type="button"
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-3 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110"
+            >
+              Try again
+            </button>
+          </div>
         ) : !user ? (
           <p className="text-center text-white/55">
             <a href="/signup" className="text-primary hover:underline font-semibold">{t("referrals.signup.link")}</a>{" "}

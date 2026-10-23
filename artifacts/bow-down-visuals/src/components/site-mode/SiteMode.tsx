@@ -4,6 +4,7 @@ import { Loader2, Link2Off, BadgeCheck } from "lucide-react";
 import { fetchPublicProfile, themeVars, type CreatorProfile } from "@/lib/artist-profiles";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ProfileSections, ProfileActions } from "@/components/artist/profile-sections";
+import { FloatingThemeToggle } from "@/components/FloatingThemeToggle";
 import { JsonLd } from "@/components/seo/json-ld";
 import { MAIN_SITE_URL, isMainAppHost, resolveSite } from "@/lib/domains";
 
@@ -30,10 +31,19 @@ const SOCIAL_ICONS: Record<string, string> = {
   twitch: "🎮", spotify: "🟢", website: "🌐",
 };
 
-/** Tiny gold loader shown while we decide site-mode vs normal app. No app chrome. */
+/** Tiny gold loader shown while we decide site-mode vs normal app. No app chrome.
+    Stack-28 (A4-F1): the splash follows the visitor's theme like every
+    other surface — it was hardcoded bg-black in both themes — and it
+    carries the floating theme toggle, because SiteModeGate renders
+    INSTEAD of AppShell (where the toggle normally lives): without a
+    mount here, a custom-domain visitor had no sun/moon anywhere. */
 function SiteModeSplash() {
+  const isLight = useIsLightTheme();
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black">
+    <div
+      className={`flex min-h-screen items-center justify-center ${isLight ? "bg-[#FAF7F0]" : "bg-black"}`}
+    >
+      <FloatingThemeToggle />
       <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
     </div>
   );
@@ -128,19 +138,26 @@ export function SiteMode({ slug }: { slug: string }) {
 
   if (notFound || !profile) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-black px-4 text-center">
-        <Link2Off className="h-10 w-10 text-amber-400/50" />
-        <h1 className="text-xl font-bold text-white">This domain isn't connected yet.</h1>
-        <p className="max-w-sm text-sm text-white/50">
-          The DNS handshake is still in flight, or the creator's page isn't public. Check back soon.
-        </p>
-        <a
-          href={MAIN_SITE_URL}
-          className="mt-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105"
+      <>
+        <FloatingThemeToggle />
+        <div
+          className={`flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center ${isLight ? "bg-[#FAF7F0]" : "bg-black"}`}
         >
-          Build my own site
-        </a>
-      </div>
+          <Link2Off className="h-10 w-10 text-amber-400/50" />
+          <h1 className={`text-xl font-bold ${isLight ? "text-[#1C1712]" : "text-white"}`}>
+            This domain isn't connected yet.
+          </h1>
+          <p className={`max-w-sm text-sm ${isLight ? "text-[#6B6257]" : "text-white/50"}`}>
+            The DNS handshake is still in flight, or the creator's page isn't public. Check back soon.
+          </p>
+          <a
+            href={MAIN_SITE_URL}
+            className="mt-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105"
+          >
+            Build my own site
+          </a>
+        </div>
+      </>
     );
   }
 
@@ -148,6 +165,9 @@ export function SiteMode({ slug }: { slug: string }) {
 
   return (
     <>
+      {/* A4-F1: the floating toggle mounts in the SiteMode shell itself —
+          AppShell (its normal home) never renders on a custom domain. */}
+      <FloatingThemeToggle />
       <JsonLd
         data={{
           "@context": "https://schema.org",

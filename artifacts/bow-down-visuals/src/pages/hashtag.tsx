@@ -36,11 +36,17 @@ export default function HashtagPage() {
   const tag = params?.tag ? decodeURIComponent(params.tag) : "";
   const [data, setData] = useState<HashtagData | null>(null);
   const [loading, setLoading] = useState(true);
+  /* Stack-28 #33 / A3-F8: a failed load is NOT "0 pieces of content".
+     It gets an error state + retry; the count header only renders
+     from loaded data. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   usePageTitle(tag ? `#${tag}` : "Hashtag", "Posts and videos under this hashtag on Bow Down Visuals.");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     (async () => {
       try {
         const res = await fetch(`/api/hashtag/${encodeURIComponent(tag)}`);
@@ -48,13 +54,13 @@ export default function HashtagPage() {
         const json = (await res.json()) as HashtagData;
         if (!cancelled) setData(json);
       } catch {
-        if (!cancelled) setData(null);
+        if (!cancelled) { setData(null); setLoadError(true); }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [tag]);
+  }, [tag, retryNonce]);
 
   if (loading) {
     return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -71,11 +77,18 @@ export default function HashtagPage() {
         <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><Hash className="h-8 w-8 text-primary" /></span>
         <div>
           <h1 className={`text-3xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>#{tag}</h1>
-          <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{fmt(total)} pieces of content tagged</p>
+          <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{data ? `${fmt(total)} pieces of content tagged` : loadError ? "Couldn't load this tag" : "…"}</p>
         </div>
       </div>
 
-      {!data || total === 0 ? (
+      {loadError ? (
+        <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`} data-testid="hashtag-load-error">
+          <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>This hashtag couldn't load — it may have plenty tagged. Nothing was counted.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-4 inline-block rounded-full bg-primary px-6 py-2.5 font-bold text-black">
+            Try again
+          </button>
+        </div>
+      ) : !data || total === 0 ? (
         <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-[#C9A84C]/40" : "border-white/15"}`}>
           <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>Nothing tagged #{tag} yet. Tag it first — own the search.</p>
           <Link href="/publish?type=video&category=video" className="mt-4 inline-block rounded-full bg-primary px-6 py-2.5 font-bold text-black">

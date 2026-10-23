@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 import type { SocialAccountInfo } from "./ConnectedAccounts";
 
 /* Caption composer + publisher for the Instagram auto-post MVP.
@@ -38,6 +39,7 @@ const PROGRESS_STAGES = [
 ];
 
 export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props) {
+  const instagramPostCost = getCreditCost("/api/social/instagram/publish")?.cost ?? 100;
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -200,7 +202,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">Post to Instagram</h3>
-            <p className="text-xs text-white/40 mt-1">200 Visual Bucs · publishes as a Reel</p>
+            <p className="text-xs text-white/40 mt-1">{instagramPostCost} Visual Bucs · publishes as a Reel</p>
           </div>
           {!publishing && (
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
@@ -305,7 +307,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4" /> Publish Reel · 200 Visual Bucs
+                  <Send className="h-4 w-4" /> Publish Reel · {instagramPostCost} Visual Bucs
                 </>
               )}
             </Button>

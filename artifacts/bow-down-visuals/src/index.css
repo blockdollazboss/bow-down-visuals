@@ -57,6 +57,26 @@ html, body {
   overflow-x: clip;
 }
 
+/* ─── Stack-28 #58 — FLOATING CHROME CORNER BUDGET (390px-first) ───
+   Every fixed shell element owns ONE slot; no two slots overlap at 390px.
+   TOP-LEFT COLUMN (stacked, x from left edge):
+     slot T1 (top 16px, h 44px): language switcher at left 16px
+       (FloatingLanguageSwitcher, home/settings only) and the theme
+       toggle's DEFAULT slot beside it at left 72px (FloatingThemeToggle;
+       user-dragged saved positions override the default, by design).
+     slot T2 (top 68px / top-[4.25rem]): Enter-the-World pill, left 16px
+       (lib/world-entry ENTER_WORLD_CLASSNAME) — starts below T1's 60px floor.
+   BOTTOM:
+     slot B0 (bottom 0, h ≈64px, z-60): StreamingPlayerBar (mobile mini
+       player) owns the full-width bottom strip.
+     slot B1 (bottom 96px / bottom-24, left 20px, 48px, z-9999, mobile
+       only): MobileSidebarTrigger — clears B0 by ≥32px.
+     slot B2 (right 20px, bottom ≥112px, z-9995): Thy Cheat Code chat
+       drawer — its width is capped at calc(100vw - 6rem) so at 390px its
+       left edge (≥76px) clears B1's left rail (ends at 68px).
+   New floating chrome must take a free slot here or extend this budget —
+   never stack into an occupied corner. */
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -461,12 +481,45 @@ html, body {
 .light .text-amber-100:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-yellow-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 .light .text-amber-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.88); }
+/* Stack-28 (A4-D2): the amber-100 ladder stopped at /80 — /40–/75 and
+   /90 had no rule, so My Music's subtitle (/60), purchase-row meta
+   (/50) and receipt rows (/40) printed #FEF3C7 at partial alpha on
+   ivory cards (≈1.1–1.5:1, effectively invisible), as did the
+   DistributionLegacyPanels royalty lines (/70), LipSyncStudio (/75)
+   and GuideMe (/90). The ladder now runs the full shipped range on
+   the same stepped antique-gold alphas as the #e8c86a family. */
+.light .text-amber-100\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-amber-100\/75:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-amber-100\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.85); }
+.light .text-amber-100\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-amber-100\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+.light .text-amber-100\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
 .light .text-amber-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 .light .text-amber-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
 .light .text-amber-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.9); }
 .light .text-amber-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.88); }
 .light .text-amber-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.82); }
 .light .text-amber-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.78); }
+/* Stack-28 (A4-D3): the pale 100/200 opacity variants never got the
+   deepening their base steps have — claim-success body + fine print
+   (emerald-100/80, /60 on storefront-product), per-section error copy
+   (red-100/80) and the purchase-success banner (green-100/85) in
+   live-shopping, the Labels-tab disclaimer (sky-200/90), SyncTab's
+   "placed" prompt (emerald-200/90), discovery earnings suffixes
+   (emerald-200/80) and the scheduler's "publishing" chip (blue-200,
+   which had NO rule at all) all washed out on ivory/faint tints.
+   Each deepens to its family's readable 700 step, stepped like the
+   existing 200-family rungs. */
+.light .text-emerald-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.88); }
+.light .text-emerald-100\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.78); }
+.light .text-red-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.88); }
+.light .text-green-100\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(21 128 61 / 0.9); }
+.light .text-sky-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(3 105 161 / 0.92); }
+.light .text-sky-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(3 105 161 / 0.82); }
+.light .text-emerald-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.92); }
+.light .text-emerald-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.88); }
+.light .text-blue-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #1D4ED8; }
+.light .text-blue-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(29 78 216 / 0.88); }
 .light .text-sky-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0284C7; }
 .light .text-cyan-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #0891B2; }
 .light .text-violet-300:not([data-dark-lock]):not([data-dark-lock] *) { color: #7C3AED; }
@@ -530,6 +583,14 @@ html, body {
 .light .text-\[\#fbbf24\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
 .light .text-\[\#e8c96a\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
 .light .text-\[\#e8c96a\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+/* Stack-28 (A4-D4): text-[#f0d878] was the one pale gold still outside
+   the tables — party.tsx's CategoryIntro icon + category title sit on
+   a bg-black/45 scrim that itself remaps to ivory at 0.52, so in light
+   the flash was pale straw on a milky wash (~1.4:1). It deepens to
+   the same antique gold as its covered siblings (#f7dd7f, #f5e08c…).
+   Only the plain text- class is ruled: the from-/fill- uses of the
+   hex are gold-gradient art with black ink, untouched. */
+.light .text-\[\#f0d878\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 /* Hover / group-hover forms of the same hexes: the §19 hover tables
    cover the named golds only, so a hovered chip would flash back to
    pale straw. They deepen a step past the base, like §19's hovers. */
@@ -554,6 +615,12 @@ html, body {
 .light .border-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.22); }
 .light .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.18); }
 .light .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
+/* Stack-28 (A4-E1): border-white/12 (26+ uses — ManualDAW, SongWorkflow,
+   ArrangementStudio, PianoRoll, RoyalCourtPicker…) had no rung between
+   /10 and /15, so transport buttons, workflow steps and picker chips
+   became borderless white blobs on ivory. It takes the [0.12] bracket
+   value, matching its bracket twin below. */
+.light .border-white\/12:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
 .light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
 .light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(237 227 203 / 0.6); }
 .light .border-zinc-700:not([data-dark-lock]):not([data-dark-lock] *),
@@ -569,6 +636,11 @@ html, body {
 .light .border-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.07\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *),
+/* Stack-28 (A4-E2): [0.09] fell between the covered brackets — the
+   CommandCenter platform pills and the StemFxChainEditor /
+   ArrangementStudio FX-step cards lost their outlines on the
+   remapped marble fill. It joins its neighbours' rung. */
+.light .border-white\/\[0\.09\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.10\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
 .light .border-white\/\[0\.12\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
 /* Remaining uncovered brackets (audit 2026-10-13, D-8): [0.04] joins the
@@ -821,6 +893,13 @@ html, body {
 .light .bg-\[\#0a0a0a\]\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
 .light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#0d0d0f\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
+/* Stack-28 (A4-D5): the clip context menu's dark tone is
+   bg-[#0a0a0a]/[0.98] — a distinct class from the /90 and /95 rungs
+   above, so the menu stayed a near-black slab in light while its
+   rows (text-white/85 etc.) remapped to dark ink: dark-on-dark.
+   The bracket rung joins the family at full frosted-ivory strength;
+   the tone's dark rendering is untouched. */
+.light .bg-\[\#0a0a0a\]\/\[0\.98\]:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.98); }
 
 /* to-black gradients: fade to ivory instead */
 .light .to-black:not([data-dark-lock]):not([data-dark-lock] *) {
@@ -921,6 +1000,16 @@ html, body {
 .light .bg-\[\#161616\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#1a1408\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#1a1405\]:not([data-dark-lock]):not([data-dark-lock] *),
+/* Stack-28 (A4-D1): the Audio Studio DAW rails — ArrangementStudio's
+   sticky track-header column + <option>s and PianoRoll's sticky key
+   rail are bg-[#171208], and arrangement clip blocks are bg-[#241b08].
+   Neither hex was in any table and neither file branches isLight, so
+   the rails stayed near-black in light while their labels remapped
+   to dark ink — dark-on-dark, unreadable, on /audio-studio and in the
+   in-world AudioDesk alike. Both hexes join this marble group; the
+   authored dark rendering is untouched. */
+.light .bg-\[\#171208\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .bg-\[\#241b08\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#141004\]:not([data-dark-lock]):not([data-dark-lock] *) {
   background-color: #FFFFFF;
 }
@@ -931,6 +1020,12 @@ html, body {
 .light .bg-\[\#161616\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 .light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 .light .bg-\[\#0d0d0d\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
+/* Stack-28 (A4-D6): StreamAlertOverlay's toast is bg-[#14100a]/95 —
+   the solid #14100a is covered in the group above but the /95 variant
+   was not, so in light the alert stayed near-black while its
+   text-white title/body remapped to espresso (dark-on-dark). It
+   joins the /95 frosted-ivory family. */
+.light .bg-\[\#14100a\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 
 /* Missing text-white opacity variants → readable warm grays */
 .light .text-white\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.88); }
@@ -978,7 +1073,17 @@ html, body {
   --tw-gradient-to: rgb(250 247 240 / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
 }
-.light .to-\[\#0b0603\]:not([data-dark-lock]):not([data-dark-lock] *) {
+.light .to-\[\#0b0603\]:not([data-dark-lock]):not([data-dark-lock] *),
+/* Stack-28 (A4-A1/A2/A3): to-[#0d0a04] and to-[#0d0d0d] had no rule —
+   their from-[#…] partners remap to ivory, so unconditional panels
+   graded ivory into a near-black slab in light: the Series Studio
+   section (stream/playlist), the gamers unselected chips and the
+   social AttachmentView product card all sank their (remapped, dark)
+   labels into the black end. Both ends now fade to ivory like
+   to-[#0b0603]; the 620 isLight-branched uses keep their authored
+   dark branches in dark and are repainted consistently in light. */
+.light .to-\[\#0d0a04\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .to-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *) {
   --tw-gradient-to: rgb(250 247 240 / 0.95) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
 }

@@ -114,8 +114,12 @@ export default function GroupDetail() {
       setLoading(false);
       return;
     }
-    await loadFeed();
+    /* Stack-28 #30 / A3-F9: the page spinner clears on the CORE data.
+       The feed settles in its own section (it already carries its own
+       feedError state) — awaiting it here blocked the whole group
+       header/members/about behind the slower feed fetch. */
     setLoading(false);
+    void loadFeed();
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [slug]);

@@ -200,6 +200,24 @@ export default function Dashboard() {
   const name = firstName(profile?.display_name, user?.email);
   const balance = profile?.credits ?? 0;
 
+  /* ── Stack-28 #44: the sidebar Quests door lands on /dashboard#quests —
+     scroll to the widget once it mounts (it renders below async sections,
+     so retry briefly until the anchor exists). ── */
+  useEffect(() => {
+    if (window.location.hash !== "#quests") return;
+    let tries = 0;
+    const id = window.setInterval(() => {
+      const el = document.getElementById("quests");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.clearInterval(id);
+      } else if (++tries > 20) {
+        window.clearInterval(id);
+      }
+    }, 150);
+    return () => window.clearInterval(id);
+  }, []);
+
   /* ── Stripe redirect handler ── */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

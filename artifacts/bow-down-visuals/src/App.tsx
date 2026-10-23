@@ -45,32 +45,36 @@ import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 
 /*
- * Marketing pages are imported eagerly so they land in the initial bundle
- * (they're the ones that need to render fast for visitors and crawlers).
- * Everything else — the authenticated product and its tool pages — is
- * lazy-loaded so marketing visitors never download that code.
+ * Stack-28 #49 (A5-P3): the marketing/SEO page modules that used to be
+ * statically imported here (≈280 KB of source: home, pricing, templates,
+ * SEO hubs, showcase…) are now behind the same lazyWithRetry route pattern
+ * as every other page, so the entry chunk no longer carries them for every
+ * visitor. Crawlers are unaffected: the build-time prerender
+ * (src/entry-server.tsx) imports the home page directly from its module,
+ * not through this file, and the routes render inside the shell's existing
+ * Suspense/RouteFallback. lazyWithRetry is a hoisted function declaration
+ * below, so these consts can use it at module scope like the others.
  */
-import Home    from "@/pages/home";
-import Pricing from "@/pages/pricing";
-import CreatorPricing from "@/pages/creator-pricing";
-import Extension from "@/pages/extension";
-import Download from "@/pages/download";
-import TemplatesHub from "@/pages/templates/index";
-import VideoTemplates from "@/pages/templates/videos";
-import ThumbnailTemplates from "@/pages/templates/thumbnails";
-import HookTemplates from "@/pages/templates/hooks";
-import CaptionPacks from "@/pages/templates/captions";
-/* SEO programmatic pages (Worker 9, virality wave): tool pages, vertical
-   hubs, genre hubs — static imports so they render without lazy flash. */
-import ToolsIndex from "@/pages/seo/tools-index";
-import ForIndex from "@/pages/seo/for-index";
-import { ToolPageBySlug } from "@/pages/seo/tool-page";
-import { VerticalHubBySlug } from "@/pages/seo/vertical-hub";
-import { GenreHubBySlug } from "@/pages/seo/genre-hub";
-import Showcase from "@/pages/showcase/index";
-import ShowcaseItemPage from "@/pages/showcase/item";
-import PublicAlbumPage from "@/pages/albums/public";
-import PlanPublic from "@/pages/plan-public";
+const Home    = lazyWithRetry(() => import("@/pages/home"));
+const Pricing = lazyWithRetry(() => import("@/pages/pricing"));
+const CreatorPricing = lazyWithRetry(() => import("@/pages/creator-pricing"));
+const Extension = lazyWithRetry(() => import("@/pages/extension"));
+const Download = lazyWithRetry(() => import("@/pages/download"));
+const TemplatesHub = lazyWithRetry(() => import("@/pages/templates/index"));
+const VideoTemplates = lazyWithRetry(() => import("@/pages/templates/videos"));
+const ThumbnailTemplates = lazyWithRetry(() => import("@/pages/templates/thumbnails"));
+const HookTemplates = lazyWithRetry(() => import("@/pages/templates/hooks"));
+const CaptionPacks = lazyWithRetry(() => import("@/pages/templates/captions"));
+/* SEO programmatic pages (Worker 9, virality wave) — lazy since Stack-28 #49. */
+const ToolsIndex = lazyWithRetry(() => import("@/pages/seo/tools-index"));
+const ForIndex = lazyWithRetry(() => import("@/pages/seo/for-index"));
+const ToolPageBySlug = lazyWithRetry(() => import("@/pages/seo/tool-page").then((m) => ({ default: m.ToolPageBySlug })));
+const VerticalHubBySlug = lazyWithRetry(() => import("@/pages/seo/vertical-hub").then((m) => ({ default: m.VerticalHubBySlug })));
+const GenreHubBySlug = lazyWithRetry(() => import("@/pages/seo/genre-hub").then((m) => ({ default: m.GenreHubBySlug })));
+const Showcase = lazyWithRetry(() => import("@/pages/showcase/index"));
+const ShowcaseItemPage = lazyWithRetry(() => import("@/pages/showcase/item"));
+const PublicAlbumPage = lazyWithRetry(() => import("@/pages/albums/public"));
+const PlanPublic = lazyWithRetry(() => import("@/pages/plan-public"));
 
 /* Discovery (Worker 6): charts, search, browse, verticals, genres, feed. */
 const Charts = lazyWithRetry(() => import("@/pages/discovery/charts"));

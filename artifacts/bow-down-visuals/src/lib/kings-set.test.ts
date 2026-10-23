@@ -6,7 +6,7 @@
  */
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { KINGS_SET } from "./kings-set";
+import { KINGS_SET, absoluteKingsSetUrl } from "./kings-set";
 
 describe("The King's Set — owner-approved starter pack", () => {
   it("is exactly three pieces: plaza + throne (phone) and stage (desktop)", () => {
@@ -56,5 +56,38 @@ describe("The King's Set — owner-approved starter pack", () => {
         expect(existsSync(path), `${url} missing from public/`).toBe(true);
       }
     }
+  });
+});
+
+/* Stack-28 item 13 — the set's paths are site-relative, and both
+   wallpaper rails reject non-http(s) URLs with 400 before any render
+   (routes/wallpapers.ts httpUrlSchema). The desk absolutifies at
+   selection time via absoluteKingsSetUrl; these pins hold the helper
+   to producing exactly the desk-shaped absolute URLs the API suite
+   proves the rail schemas accept. */
+describe("absoluteKingsSetUrl — desk-shaped URLs for the http(s)-only rails", () => {
+  const ORIGIN = "https://bowdownvisuals.com";
+
+  it("absolutifies every still and loop against the page origin", () => {
+    for (const p of KINGS_SET) {
+      expect(absoluteKingsSetUrl(p.stillUrl, ORIGIN)).toBe(`${ORIGIN}${p.stillUrl}`);
+      expect(absoluteKingsSetUrl(p.loopUrl, ORIGIN)).toBe(`${ORIGIN}${p.loopUrl}`);
+    }
+  });
+
+  it("the results parse as http(s) URLs with the set's exact paths", () => {
+    for (const p of KINGS_SET) {
+      for (const raw of [p.stillUrl, p.loopUrl]) {
+        const abs = absoluteKingsSetUrl(raw, ORIGIN);
+        const u = new URL(abs);
+        expect(u.protocol).toBe("https:");
+        expect(u.pathname).toBe(raw);
+      }
+    }
+  });
+
+  it("leaves an already-absolute URL untouched and tolerates a trailing-slash origin", () => {
+    expect(absoluteKingsSetUrl("https://cdn.example/x.webp", ORIGIN)).toBe("https://cdn.example/x.webp");
+    expect(absoluteKingsSetUrl("/wallpapers/a.webp", `${ORIGIN}/`)).toBe(`${ORIGIN}/wallpapers/a.webp`);
   });
 });

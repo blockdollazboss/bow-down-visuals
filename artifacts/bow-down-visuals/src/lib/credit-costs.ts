@@ -66,28 +66,33 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
   "/api/export-quality/estimate": { cost: 0, feature: "Export Size Estimate (free)" },
   "/api/export-quality": { cost: 150, feature: "Quality-Controlled Export" },
-  "/api/export-doctor/export": { cost: 400, feature: "Export Clip" },
+  // Export Doctor rails are FREE — routes/generate/export-doctor.ts
+  // contains zero credit logic (no chargeCredits/deductCredits at
+  // all; verified Stack-28 A2-05). The registry records 0 for all
+  // 13 export-doctor endpoints so the spend confirmation and the
+  // operator quote "free" instead of the old phantom 100–400 VB.
+  "/api/export-doctor/export": { cost: 0, feature: "Export Clip (free)" },
   "/api/carousel/export": { cost: 100, feature: "Carousel Export" },
   "/api/books/ai/assist": { cost: 100, feature: "Thy Books AI Writing Assist" },
   "/api/books/cover/generate": { cost: 200, feature: "Thy Books AI Cover Generation" },
-  "/api/export-doctor/export-audio": { cost: 200, feature: "Export Audio" },
-  "/api/export-doctor/export-all": { cost: 400, feature: "Export All Clips" },
-  "/api/export-doctor/export-all-audio": { cost: 200, feature: "Export All Audio" },
-  "/api/export-doctor/export-all-captions": { cost: 200, feature: "Export Captions" },
-  "/api/export-doctor/export-all-effects": { cost: 200, feature: "Export Effects" },
-  "/api/export-doctor/export-all-overlays": { cost: 200, feature: "Export Overlays" },
-  "/api/export-doctor/export-overlays-range": { cost: 200, feature: "Export Overlays Range" },
-  "/api/export-doctor/export-effects-range": { cost: 200, feature: "Export Effects Range" },
+  "/api/export-doctor/export-audio": { cost: 0, feature: "Export Audio (free)" },
+  "/api/export-doctor/export-all": { cost: 0, feature: "Export All Clips (free)" },
+  "/api/export-doctor/export-all-audio": { cost: 0, feature: "Export All Audio (free)" },
+  "/api/export-doctor/export-all-captions": { cost: 0, feature: "Export Captions (free)" },
+  "/api/export-doctor/export-all-effects": { cost: 0, feature: "Export Effects (free)" },
+  "/api/export-doctor/export-all-overlays": { cost: 0, feature: "Export Overlays (free)" },
+  "/api/export-doctor/export-overlays-range": { cost: 0, feature: "Export Overlays Range (free)" },
+  "/api/export-doctor/export-effects-range": { cost: 0, feature: "Export Effects Range (free)" },
   // ── Video processing (editor tools) ──────────────────────────
   "/api/stabilize": { cost: 300, feature: "Video Stabilization" },
   "/api/apply-speed": { cost: 150, feature: "Speed Preset" },
   "/api/color-grade": { cost: 150, feature: "Color Grade" },
   // PLACEHOLDER — NOT USER-APPROVED: AI background plate generation (gated, no key yet)
   "/api/bg-generate": { cost: 200, feature: "Background Plate (price TBD)" },
-  "/api/export-doctor/export-effects-transitions": { cost: 200, feature: "Export Transitions" },
+  "/api/export-doctor/export-effects-transitions": { cost: 0, feature: "Export Transitions (free)" },
   "/api/video-template/apply": { cost: 250, feature: "Apply Video Template" },
   "/api/split-screen/apply": { cost: 200, feature: "Split-Screen Grid" },
-  "/api/export-doctor/export-audio-sync-short": { cost: 200, feature: "Export Audio Sync" },
+  "/api/export-doctor/export-audio-sync-short": { cost: 0, feature: "Export Audio Sync (free)" },
   "/api/export-multi-ratio": { cost: 100, feature: "Multi-Ratio Export (per ratio)" },
   // Subject-tracking reframe — mirrors REFRAME_COST in the server route
   // (routes/generate/auto-reframe.ts, env REFRAME_CREDITS, default 200).
@@ -96,8 +101,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // in the spend confirmation before anything charges.
   "/api/auto-reframe": { cost: 200, feature: "Smart Reframe — Subject Tracking" },
   "/api/extract-audio": { cost: 50, feature: "Extract Audio" },
-  "/api/export-doctor/repair-normalize": { cost: 100, feature: "Repair: Normalize Clip" },
-  "/api/export-doctor/repair-clip": { cost: 100, feature: "Repair Clip" },
+  "/api/export-doctor/repair-normalize": { cost: 0, feature: "Repair: Normalize Clip (free)" },
+  "/api/export-doctor/repair-clip": { cost: 0, feature: "Repair Clip (free)" },
   // Mirrors PRO_TOOLS_AI_CREDITS in the server route
   // (routes/generate/pro-tools-ai.ts, env PRO_TOOLS_AI_CREDITS,
   // default 100) — the rail charges 100 Visual Bucs.
@@ -136,7 +141,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // pack-download charges nothing, so it stays off this registry.
   "/api/wallpapers/render": { cost: 0, feature: "Wallpaper Render (branded — free)" },
   "/api/wallpapers/screensaver-render": { cost: 400, feature: "Screensaver Loop Render" },
-  "/api/generate-thumbnail": { cost: 100, feature: "Generate Thumbnail" },
+  // Single-shot thumbnail: the rail (routes/generate/thumbnail.ts)
+  // charges TEXT_CREDIT_COST 100 + IMAGE_CREDIT_COST 200 = 300 when the
+  // image lands, and its 402 pre-check requires the full 300 up front.
+  // The registry records the delivered 300 (Stack-28 item 5, A2-08) —
+  // the old 100 was the failure-path price only.
+  "/api/generate-thumbnail": { cost: 300, feature: "Generate Thumbnail" },
   "/api/thumbnail-generator": { cost: 200, feature: "Generate Thumbnail" },
   "/api/thumbnail-test": { cost: 200, feature: "Thumbnail A/B Test" },
   "/api/thumbnail-test/improve": { cost: 200, feature: "Thumbnail A/B Apply Suggestions" },
@@ -170,7 +180,15 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/audio-cleanup": { cost: 300, feature: "Audio Cleanup" },
 
   // ── AI text / copilots (1 credit) ──────────────────────────────
-  "/api/chat": { cost: 100, feature: "Chat Message" },
+  // /api/chat (the direct chat rail): getChatCreditCost() in
+  // api-server/src/lib/ai-chat-assistant.ts defaults CHAT_CREDIT_COST
+  // to 1 — the registry records that actual default (Stack-28 item 9,
+  // A2-06). Env can override it (0 = free mode). The live chat widget
+  // does NOT use this rail: it posts to the free /api/free-chat.
+  // OWNER PRICE CALL PENDING: whether /api/chat should be free, 1, or
+  // 100 is the owner's decision — this stack aligned the DISPLAY to
+  // the rail's current behavior and changed no charge.
+  "/api/chat": { cost: 1, feature: "Chat Message" },
   "/api/hook-studio": { cost: 100, feature: "Hook Studio" },
   "/api/virality-check": { cost: 200, feature: "Virality Pre-Flight Check" },
   "/api/analytics-hub/insights": { cost: 200, feature: "Growth Plan" },
@@ -195,6 +213,29 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/audiogram": { cost: 250, feature: "Audiogram Visualizer" },
   "/api/loop-video": { cost: 150, feature: "Loop Video" },
   "/api/meme": { cost: 100, feature: "Meme Generator" },
+  // Stack-28 item 3 (A2-04): the pre-x100 stale family — these eight
+  // actions displayed 1–2 VB in their section copy while their rails
+  // charge 100–200 VB, and none had a registry entry, so the stale copy
+  // was the only price shown. Every figure below is the rail constant's
+  // own default, re-derived in credit-costs-rail-truth.test.ts:
+  // meme-machine CAPTIONS_CREDITS 100, style-stealer ANALYZE_CREDITS
+  // 200, three-second-lab OPENINGS_CREDITS 200, stream-copilot
+  // PREP_CREDITS / CLIP_PLAN_CREDITS 100 each, trend-jacker
+  // DRAFT_CREDITS 200, lyric-stories CREDITS_PER_CARD 200 (per card —
+  // the rail multiplies by the card count), community
+  // MODERATE/SENTIMENT/SUPERFAN credits 100 each (moderation is per
+  // 50-comment batch; /api/comment-replies above is the fourth
+  // community tool at 100).
+  "/api/meme-machine/captions": { cost: 100, feature: "Meme Machine Captions" },
+  "/api/style-stealer/analyze": { cost: 200, feature: "Style Stealer Analysis" },
+  "/api/three-second-lab/openings": { cost: 200, feature: "3-Second Lab Openings" },
+  "/api/stream-copilot/prep": { cost: 100, feature: "Stream Copilot Prep" },
+  "/api/stream-copilot/clip-plan": { cost: 100, feature: "Stream Copilot Clip Plan" },
+  "/api/trend-jacker/draft": { cost: 200, feature: "Trend Jacker Draft" },
+  "/api/lyric-stories/generate": { cost: 200, feature: "Lyric Stories (per card)" },
+  "/api/community/moderate": { cost: 100, feature: "Community Moderation (per 50 comments)" },
+  "/api/community/sentiment": { cost: 100, feature: "Community Sentiment Report" },
+  "/api/community/superfans": { cost: 100, feature: "Community Superfan Scan" },
   "/api/social-kit": { cost: 400, feature: "Social Media Kit" },
   "/api/promo-cards": { cost: 100, feature: "Release Promo Cards" },
   "/api/clip-description": { cost: 50, feature: "Clip Description" },

@@ -39,6 +39,13 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
   const [wins, setWins] = useState<ChallengeWin[] | null>(null);
   const [gameStats, setGameStats] = useState<ProfileGameStatsDto | null>(null);
   const [brag, setBrag] = useState<MilestoneAchievement | null>(null);
+  /* Stack-28 #34 / A3-F14: a failed source is NOT an empty shelf.
+     Per-source failed flags; when every source is empty AND at least
+     one failed, the shelf renders a small error+retry instead of
+     vanishing. (Game-stats absence can be a legitimate leaderboard
+     opt-out, so only a 5xx/transport failure flags it.) */
+  const [failed, setFailed] = useState({ achievements: false, wins: false, games: false });
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,13 +53,13 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
       try {
         const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/achievements`);
         if (!res.ok) {
-          if (!cancelled) setAchievements([]);
+          if (!cancelled) { setAchievements([]); setFailed((f) => ({ ...f, achievements: true })); }
           return;
         }
         const data = (await res.json()) as { achievements?: MilestoneAchievement[] };
-        if (!cancelled) setAchievements(data.achievements ?? []);
+        if (!cancelled) { setAchievements(data.achievements ?? []); setFailed((f) => ({ ...f, achievements: false })); }
       } catch {
-        if (!cancelled) setAchievements([]);
+        if (!cancelled) { setAchievements([]); setFailed((f) => ({ ...f, achievements: true })); }
       }
     })();
     /* Challenge engine 2.0: challenge wins live on the same shelf — a crown
@@ -61,13 +68,13 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
       try {
         const res = await fetch(`/api/challenges/wins/${encodeURIComponent(slug)}`);
         if (!res.ok) {
-          if (!cancelled) setWins([]);
+          if (!cancelled) { setWins([]); setFailed((f) => ({ ...f, wins: true })); }
           return;
         }
         const data = (await res.json()) as { wins?: ChallengeWin[] };
-        if (!cancelled) setWins(data.wins ?? []);
+        if (!cancelled) { setWins(data.wins ?? []); setFailed((f) => ({ ...f, wins: false })); }
       } catch {
-        if (!cancelled) setWins([]);
+        if (!cancelled) { setWins([]); setFailed((f) => ({ ...f, wins: true })); }
       }
     })();
     /* DE-15: the creator's game record (arcade bests + party wins)
@@ -78,23 +85,41 @@ export default function TrophyShelf({ slug, displayName, avatarUrl }: TrophyShel
       try {
         const res = await fetch(`/api/creator-profiles/${encodeURIComponent(slug)}/game-stats`);
         if (!res.ok) {
-          if (!cancelled) setGameStats(null);
+          /* A non-OK here can be the legitimate leaderboard opt-out
+             hide — only a 5xx counts as a failure. */
+          if (!cancelled) { setGameStats(null); if (res.status >= 500) setFailed((f) => ({ ...f, games: true })); }
           return;
         }
         const data = (await res.json()) as ProfileGameStatsDto;
-        if (!cancelled) setGameStats(data);
+        if (!cancelled) { setGameStats(data); setFailed((f) => ({ ...f, games: false })); }
       } catch {
-        if (!cancelled) setGameStats(null);
+        if (!cancelled) { setGameStats(null); setFailed((f) => ({ ...f, games: true })); }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   const gameCards = gameCardsFromStats(gameStats);
 
-  if ((!achievements || achievements.length === 0) && (!wins || wins.length === 0) && gameCards.length === 0) return null;
+  if ((!achievements || achievements.length === 0) && (!wins || wins.length === 0) && gameCards.length === 0) {
+    /* Empty because a source FAILED is not an empty shelf — show the
+       small error+retry (ProfileTutorialsSection shape) instead of
+       silently falsifying the public record. Genuinely-empty stays
+       hidden by design. */
+    if (failed.achievements || failed.wins || failed.games) {
+      return (
+        <section aria-label={t("milestones.trophyShelf")} className="mx-auto w-full max-w-5xl px-4 pb-10" data-testid="trophy-shelf-error">
+          <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            {t("milestones.trophyShelf")} couldn&apos;t load just now.{" "}
+            <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="font-bold text-primary underline">Try again</button>
+          </p>
+        </section>
+      );
+    }
+    return null;
+  }
 
   const groups = VERTICAL_ORDER.map((vertical) => ({
     vertical,

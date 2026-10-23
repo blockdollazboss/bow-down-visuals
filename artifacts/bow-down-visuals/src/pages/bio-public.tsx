@@ -25,25 +25,34 @@ export default function BioPublic() {
   const [page, setPage] = useState<PublicBioPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; other failures are a
+     load error with retry. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [shared, setShared] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     (async () => {
       try {
         const res = await fetch(`/api/bio-pages/public/${encodeURIComponent(slug)}`);
+        if (res.status === 404) { if (!cancelled) setNotFound(true); return; }
+        if (!res.ok) { if (!cancelled) setLoadError(true); return; }
         const json = await res.json();
         if (cancelled) return;
         if (json.ok && json.page) setPage(json.page);
-        else setNotFound(true);
+        else setLoadError(true);
       } catch {
-        if (!cancelled) setNotFound(true);
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   usePageTitle(
     page ? `${page.displayName} — Links` : t("linkInBio.public.title"),
@@ -82,6 +91,19 @@ export default function BioPublic() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 px-6 text-center text-white" data-testid="bio-load-error">
+        <Link2Off className="w-10 h-10 text-zinc-600" />
+        <h1 className="text-2xl font-bold">This page couldn't load</h1>
+        <p className="text-zinc-400 max-w-sm text-sm">Something went wrong on our end — the page may still be live.</p>
+        <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="rounded-full bg-amber-400 px-6 py-2.5 font-bold text-black hover:bg-amber-300">
+          Try again
+        </button>
       </div>
     );
   }

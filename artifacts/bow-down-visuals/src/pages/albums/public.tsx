@@ -42,27 +42,35 @@ export default function PublicAlbumPage() {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; other failures are a
+     load error with retry, never "album not found". */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!slug) return;
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     fetch(`/api/albums/public/${encodeURIComponent(slug)}`)
       .then((r) => {
         if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) { setLoadError(true); return null; }
         return r.json();
       })
       .then((d) => {
-        if (d?.album) {
+        if (!d) return;
+        if (d.album) {
           setAlbum(d.album);
           setReferralCode(d.referralCode ?? null);
-        } else if (!notFound) setNotFound(true);
+        } else setLoadError(true);
       })
-      .catch(() => setNotFound(true))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   const typeLabel = album?.album_type === "ep" ? "EP" : "Album";
   usePageTitle(
@@ -123,6 +131,21 @@ export default function PublicAlbumPage() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+        <div className="text-center" data-testid="album-load-error">
+          <Disc3 className="h-12 w-12 text-white/20 mx-auto mb-4" />
+          <p className="text-xl font-bold mb-2">This album couldn't load</p>
+          <p className="text-white/40 text-sm mb-6">Something went wrong on our end — it may still be published.</p>
+          <Button variant="outline" className="border-white/15 text-white/70" onClick={() => setRetryNonce((n) => n + 1)}>
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }

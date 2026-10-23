@@ -6,6 +6,7 @@ import {
   Palette, Smartphone, Sparkles, Store, Tablet, User, Video,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +17,14 @@ import {
   THEME_PACK_PRESET_KEYS, buildThemeConfigFromPalette,
   extractPalette, wallpaperPresetByKey, wallpaperPresetsByKind, type WallpaperKind,
 } from "@/lib/wallpapers";
-import { KINGS_SET } from "@/lib/kings-set";
+import { KINGS_SET, absoluteKingsSetUrl } from "@/lib/kings-set";
+import {
+  WALLPAPER_CLEAN_PACK_COST,
+  WALLPAPER_CLEAN_RENDER_COST,
+  WALLPAPER_GENERATE_COST,
+  WALLPAPER_SCREENSAVER_RENDER_COST,
+  WALLPAPER_SCREENSAVER_VIDEO_COST,
+} from "@/lib/wallpapers-prices";
 
 /* ─── Wallpapers, Screensavers & Themes desk ─────────────────────────────
    One desk, two homes: a panel on /create and a tab on /branding-kit.
@@ -38,8 +46,6 @@ import { KINGS_SET } from "@/lib/kings-set";
    full lockup with object-contain; compositing happens server-side
    under the same rule. Pinned by wallpapers-logo.test.ts. */
 
-const GENERATE_COST = 100;
-const CLEAN_RENDER_COST = 400;
 const KIND_ICONS: Record<WallpaperKind, typeof Smartphone> = { phone: Smartphone, tablet: Tablet, desktop: Monitor };
 const KIND_ORDER: WallpaperKind[] = ["phone", "tablet", "desktop"];
 
@@ -54,6 +60,7 @@ export function WallpapersDesk() {
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { confirmSpend } = useCreditConfirm();
   const { toast } = useToast();
 
   /* Source */
@@ -149,7 +156,7 @@ export function WallpapersDesk() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ promptText: prompt.trim(), model: "nano-banana-2.1", ratio }),
-        overrideCost: GENERATE_COST,
+        overrideCost: WALLPAPER_GENERATE_COST,
         overrideFeature: "Generate Artist Image (Turbo)",
       });
       if (!res) return; // user cancelled the credit confirmation
@@ -191,7 +198,14 @@ export function WallpapersDesk() {
   }
 
   /* ── Exact-size render (branded free / clean 400) ──────────────────── */
-  async function renderOne(targetPresetKey: string, sourceUrl: string): Promise<RenderedImage | null> {
+  /* opts.skipConfirm: the caller has already taken ONE confirmation
+     covering this render (the theme pack's up-front pack confirmation,
+     Stack-28 item 14) — never ask twice for the same spend. */
+  async function renderOne(
+    targetPresetKey: string,
+    sourceUrl: string,
+    opts?: { skipConfirm?: boolean },
+  ): Promise<RenderedImage | null> {
     const target = wallpaperPresetByKey(targetPresetKey);
     const res = await confirmedFetch("/api/wallpapers/render", {
       method: "POST",
@@ -202,9 +216,9 @@ export function WallpapersDesk() {
         branded,
         ...(branded ? { logoUrl: brandKit?.logoUrl ?? undefined, brandName } : {}),
       }),
-      ...(branded
+      ...(branded || opts?.skipConfirm
         ? { skipConfirm: true }
-        : { overrideCost: CLEAN_RENDER_COST, overrideFeature: "Clean Wallpaper Render" }),
+        : { overrideCost: WALLPAPER_CLEAN_RENDER_COST, overrideFeature: "Clean Wallpaper Render" }),
     });
     if (!res) return null; // user cancelled the credit confirmation
     const data = (await res.json().catch(() => ({}))) as {
@@ -237,25 +251,55 @@ export function WallpapersDesk() {
   }
 
   /* ── Theme pack ────────────────────────────────────────────────────── */
+  /* Stack-28 item 14 — ONE up-front pack confirmation. Shape chosen:
+     a single confirmSpend for the whole clean pack (2 × clean render)
+     BEFORE any render runs, then both renders ride skipConfirm — the
+     established batch pattern (ClipGeneratorSection "Create All" and
+     AutoClipSection confirm once, then fetch with skipConfirm). The
+     old flow confirmed per render: cancelling the second (desktop)
+     confirmation returned early and threw the already-paid phone
+     render out of desk state. Now cancelling happens before any
+     charge, and if the desktop render itself fails after the phone
+     render landed, the paid phone render is kept in the renders list
+     (visible + downloadable) instead of being discarded. Server
+     charges are unchanged: the rail still charges per render and
+     refunds a failed render itself. */
   async function makePack() {
     if (!currentArt || packBusy) return;
     setPackBusy(true);
     setPackError(null);
     setApplied(false);
     setListedId(null);
+    let phone: RenderedImage | null = null;
     try {
-      const phone = await renderOne(THEME_PACK_PRESET_KEYS.phone, currentArt);
-      if (!phone) return; // cancelled at the confirmation
-      const desktop = await renderOne(THEME_PACK_PRESET_KEYS.desktop, currentArt);
-      if (!desktop) return;
+      if (!branded) {
+        const ok = await confirmSpend({
+          cost: WALLPAPER_CLEAN_PACK_COST,
+          feature: "Clean Theme Pack",
+        });
+        if (!ok) return; // cancelled up front — nothing charged, nothing rendered
+      }
+      phone = await renderOne(THEME_PACK_PRESET_KEYS.phone, currentArt, { skipConfirm: true });
+      if (!phone) return;
+      const desktop = await renderOne(THEME_PACK_PRESET_KEYS.desktop, currentArt, { skipConfirm: true });
+      if (!desktop) {
+        // Defensive: with the pack confirmation taken, renderOne only
+        // returns null if a fetch layer declines — keep the paid phone
+        // render in state rather than discarding it.
+        setRenders((prev) => [phone!, ...prev]);
+        return;
+      }
       const brandPalette = (brandKit?.colors ?? []).map((c) => c.hex).filter(Boolean);
       const palette = useBrandPalette && brandPalette.length > 0
         ? brandPalette
         : await extractPalette(currentArt);
       setPack({ phoneUrl: phone.url, desktopUrl: desktop.url, palette });
-      setRenders((prev) => [phone, desktop, ...prev]);
+      setRenders((prev) => [phone!, desktop, ...prev]);
       if (!listTitle) setListTitle(t("wallpapers.listDefaultTitle", { defaultValue: "My wallpaper & theme pack" }));
     } catch (e) {
+      // A paid phone render survives a failed desktop render: it stays
+      // in Your renders (and in the user's generation history).
+      if (phone) setRenders((prev) => [phone!, ...prev]);
       setPackError(e instanceof Error ? e.message : t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." }));
     } finally {
       setPackBusy(false);
@@ -294,7 +338,11 @@ export function WallpapersDesk() {
           title: listTitle.trim() || t("wallpapers.listDefaultTitle", { defaultValue: "My wallpaper & theme pack" }),
           description: t("wallpapers.listDescription", { defaultValue: "The full set: phone wallpaper, lock screen and desktop wallpaper, matched to one palette." }),
           priceCents,
-          mediaUrls: [pack.phoneUrl],
+          /* Stack-28 item 16: the listing description promises the
+             full set (phone + lock + desktop); the lock screen IS the
+             phone render by design, so phone + desktop are the whole
+             set — attach both, not just the phone render. */
+          mediaUrls: [pack.phoneUrl, pack.desktopUrl],
           inventory: -1,
         }),
       });
@@ -338,44 +386,58 @@ export function WallpapersDesk() {
   }
 
   /* ── Screensaver ───────────────────────────────────────────────────── */
+  /* Stack-28 item 12: this used to POST /api/generate-video — an endpoint
+     that never existed (pinned dead by S27-73), so every click failed and,
+     with no registry entry, confirmedFetch showed no spend confirmation
+     despite the 400 VB label. The real rail is /api/generate-runway-clip
+     (gen4.5, flat 400 Visual Bucs, charged server-side only when the clip
+     succeeds), the same submit+poll pattern MusicVideoTimeline, Scene
+     Studio and Video Studio use: POST { promptText, ratio, model } →
+     { taskId }, then GET /api/generate-runway-clip/:taskId →
+     { status: "processing" | "succeeded" | "failed" | "cancelled", url }.
+     Because the endpoint IS in the credit-cost registry (400), routing
+     through confirmedFetch restores the pre-spend confirmation. */
   async function generateVideo() {
     if (!videoPrompt.trim() || generatingVideo) return;
     setGeneratingVideo(true);
     setVideoError(null);
     try {
-      const res = await confirmedFetch("/api/generate-video", {
+      const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: videoPrompt.trim(), duration: 5, aspectRatio: "16:9" }),
+        body: JSON.stringify({
+          promptText: videoPrompt.trim(),
+          ratio: "1280:720",
+          model: "gen4.5",
+        }),
       });
-      if (!res) return;
-      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data.message === "string" ? data.message : t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
-      const direct = [data.url, data.videoUrl, data.thumbnailImageUrl].find((v) => typeof v === "string") as string | undefined;
-      if (direct) {
-        setVideoUrl(direct);
-        refreshProfile();
-        void loadAssets();
-        return;
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as {
+        taskId?: string; error?: string; message?: string;
+      };
+      if (!res.ok || !data.taskId) {
+        throw new Error(data.message ?? data.error ?? t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
       }
-      const taskId = typeof data.taskId === "string" ? data.taskId : typeof data.id === "string" ? data.id : null;
-      if (!taskId) throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
       const token = await getAccessToken();
       for (let i = 0; i < 60; i++) {
         await sleep(3000);
-        const poll = await fetch(`/api/generate-video/${taskId}`, {
+        const poll = await fetch(`/api/generate-runway-clip/${data.taskId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        const pdata = (await poll.json().catch(() => ({}))) as Record<string, unknown>;
-        const url = [pdata.url, pdata.videoUrl].find((v) => typeof v === "string") as string | undefined;
-        if ((pdata.status === "succeeded" || pdata.status === "completed") && url) {
-          setVideoUrl(url);
+        const pdata = (await poll.json().catch(() => ({}))) as {
+          status?: string; url?: string | null; error?: string;
+        };
+        if (pdata.status === "succeeded" && pdata.url) {
+          setVideoUrl(pdata.url);
           refreshProfile();
           void loadAssets();
           return;
         }
-        if (pdata.status === "failed" || pdata.status === "cancelled") {
+        if (pdata.status === "succeeded") {
           throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
+        }
+        if (pdata.status === "failed" || pdata.status === "cancelled") {
+          throw new Error(pdata.error ?? t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
         }
       }
       throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
@@ -414,7 +476,7 @@ export function WallpapersDesk() {
         width: typeof data.width === "number" ? data.width : target.width,
         height: typeof data.height === "number" ? data.height : target.height,
         seconds: typeof data.seconds === "number" ? data.seconds : 0,
-        creditCost: typeof data.creditCost === "number" ? data.creditCost : 400,
+        creditCost: typeof data.creditCost === "number" ? data.creditCost : WALLPAPER_SCREENSAVER_RENDER_COST,
       });
       refreshProfile();
     } catch (e) {
@@ -514,7 +576,7 @@ export function WallpapersDesk() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => { setCurrentArt(piece.stillUrl); setPresetKey(piece.presetKey); }}
+                      onClick={() => { setCurrentArt(absoluteKingsSetUrl(piece.stillUrl)); setPresetKey(piece.presetKey); }}
                       className="rounded-full bg-[#d4a017] px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#e8c86a]"
                     >
                       {t("wallpapers.kingset.useArt", { defaultValue: "Use this art" })}
@@ -530,7 +592,7 @@ export function WallpapersDesk() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setVideoUrl(piece.loopUrl)}
+                      onClick={() => setVideoUrl(absoluteKingsSetUrl(piece.loopUrl))}
                       className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-stone-300 text-stone-600 hover:border-[#d4a017]/60" : "border-white/15 text-white/70 hover:border-white/35"}`}
                     >
                       {t("wallpapers.kingset.useForScreensaver", { defaultValue: "Use as screensaver" })}
@@ -602,7 +664,7 @@ export function WallpapersDesk() {
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {generating
                 ? t("wallpapers.generating", { defaultValue: "Generating…" })
-                : `${t("wallpapers.generateButton", { defaultValue: "Generate" })} — 100 Visual Bucs`}
+                : `${t("wallpapers.generateButton", { defaultValue: "Generate" })} — ${WALLPAPER_GENERATE_COST} Visual Bucs`}
             </button>
           </div>
         )}
@@ -788,7 +850,7 @@ export function WallpapersDesk() {
               ? t("wallpapers.rendering", { defaultValue: "Rendering…" })
               : branded
                 ? t("wallpapers.renderButton", { defaultValue: "Render exact size — Free" })
-                : `${t("wallpapers.renderCleanButton", { defaultValue: "Render clean, exact size" })} — 400 Visual Bucs`}
+                : `${t("wallpapers.renderCleanButton", { defaultValue: "Render clean, exact size" })} — ${WALLPAPER_CLEAN_RENDER_COST} Visual Bucs`}
           </button>
           {!currentArt && (
             <span className={`text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
@@ -837,7 +899,7 @@ export function WallpapersDesk() {
             ? t("wallpapers.packMaking", { defaultValue: "Building the set…" })
             : branded
               ? t("wallpapers.packMakeButton", { defaultValue: "Make the whole set — Free" })
-              : `${t("wallpapers.packMakeCleanButton", { defaultValue: "Make the whole set, clean" })} — 800 Visual Bucs`}
+              : `${t("wallpapers.packMakeCleanButton", { defaultValue: "Make the whole set, clean" })} — ${WALLPAPER_CLEAN_PACK_COST} Visual Bucs`}
         </button>
         {!branded && (
           <p className={`mt-2 text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
@@ -1001,7 +1063,7 @@ export function WallpapersDesk() {
           {generatingVideo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
           {generatingVideo
             ? t("wallpapers.screensaverGeneratingVideo", { defaultValue: "Generating video…" })
-            : `${t("wallpapers.screensaverGenerateVideoButton", { defaultValue: "Generate video" })} — 400 Visual Bucs`}
+            : `${t("wallpapers.screensaverGenerateVideoButton", { defaultValue: "Generate video" })} — ${WALLPAPER_SCREENSAVER_VIDEO_COST} Visual Bucs`}
         </button>
 
         <label className="mt-5 block text-[11px] font-bold uppercase tracking-widest text-primary/80">
@@ -1032,7 +1094,7 @@ export function WallpapersDesk() {
           {ssBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Monitor className="h-4 w-4" />}
           {ssBusy
             ? t("wallpapers.screensaverRendering", { defaultValue: "Rendering the loop…" })
-            : `${t("wallpapers.screensaverRenderButton", { defaultValue: "Render loop" })} — 400 Visual Bucs`}
+            : `${t("wallpapers.screensaverRenderButton", { defaultValue: "Render loop" })} — ${WALLPAPER_SCREENSAVER_RENDER_COST} Visual Bucs`}
         </button>
         {!videoUrl && (
           <span className={`ml-3 text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
