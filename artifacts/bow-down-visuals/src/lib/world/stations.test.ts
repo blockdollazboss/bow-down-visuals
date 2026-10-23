@@ -41,8 +41,9 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    /* 32 since item 31: the Stage Grounds' Stage Bill joined. */
-    expect(PALACE_STATIONS.length).toBe(32);
+    /* 33 since item 31 (the Stage Grounds' Stage Bill) and
+     * Stack-100 #61 (the Treasury's Visual Buc Packs desk). */
+    expect(PALACE_STATIONS.length).toBe(33);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -70,9 +71,10 @@ describe("the station registry", () => {
      * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
      * + the plaza monument's Kingdom Board (Open World Phase 1)
      * + the Stage Grounds' Stage Bill (item 31, on the same
-     * Kingdom Board panel), born world-native like the six —
+     * Kingdom Board panel) + the Visual Buc Packs desk
+     * (Stack-100 #61), born world-native like the six —
      * they never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(11);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(12);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -125,6 +127,7 @@ describe("the station registry", () => {
       "daily-drop": null,
       "shark-drops": null,
       "quest-board": null,
+      "packs-desk": null,
       "front-row-gallery": null,
       "season-marks-wall": null,
       "crowns-desk": "/memberships",
@@ -162,6 +165,7 @@ describe("the station registry", () => {
       ["daily-drop", "treasury-daily"],
       ["shark-drops", "treasury-shark"],
       ["quest-board", "treasury-quests"],
+      ["packs-desk", "treasury-packs"],
     ] as const) {
       expect(byId(id).roomId).toBe("world:treasury");
       expect(byId(id).panel).toEqual({ kind: "custom", id: customId });

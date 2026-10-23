@@ -11,6 +11,7 @@ import {
   NativeLoadingState,
 } from "@/components/world/native";
 import { loadEarnings, EarningsLoadCancelled } from "@/lib/earnings-data";
+import { PayoutDesk } from "@/components/world/native/PayoutDesk";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import {
   earningsSourceRows,
@@ -441,6 +442,12 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 </div>
               )}
             </NativeCard>
+
+            {/* Stack-100 #62: the payout desk — Stripe Connect status
+                and cash-out on the real /api/connect rails, under the
+                earnings it pays out. Bank onboarding is the hosted
+                flow (sanctioned exit, same as the website). */}
+            <PayoutDesk isLight={isLight} />
           </>
         )
       ) : ledgerFailed ? (

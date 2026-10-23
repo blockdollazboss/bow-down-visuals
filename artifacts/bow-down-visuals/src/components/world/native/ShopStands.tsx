@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   BadgeCheck, BarChart3, Check, Crown, Gem, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
   Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, X,
@@ -41,6 +41,21 @@ import {
   type ShopSettingsFormState,
 } from "@/lib/world/shop-stands";
 import type { CartLine } from "@/lib/shops";
+import {
+  TIER_PERKS_MAX,
+  apiErrorLine,
+  applyTierSave,
+  buildTierPayload,
+  emptyTierForm,
+  parseOwnTiers,
+  removeTier,
+  savedTierDto,
+  tierActivePayload,
+  tierFormFromDto,
+  tierFormProblem,
+  tierNetCents,
+  type TierFormState,
+} from "@/lib/world/money-desks";
 
 /* ─── ShopStands — the Shop Stand pattern (NATIVE-PLAN §3.3) ────────
    The palace's three buying surfaces, built for the room: goods on
@@ -1921,6 +1936,345 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   );
 }
 
+/* ═══ 3a. Crowns — the CREATOR side: your tiers, managed here ══════
+   Stack-100 #63. Fans could already join at this stand; now the
+   creator builds what's being sold, on the memberships page's own
+   rails: GET /api/memberships/tiers (the caller's OWN tiers —
+   paused ones included; management sees what fans can't),
+   POST/PUT/DELETE on the same endpoints with the page's exact
+   bodies (lib/world/money-desks), and the dashboard strip from
+   GET /api/memberships/dashboard. The platform fee is whatever
+   the rail reports (10% today) and is displayed the way the 2D
+   surface displays it — the net line, "after 10% platform fee" —
+   on the dashboard strip and under every tier's price. Tier
+   create/edit/pause are FREE management actions (no Visual Bucs
+   move), so no spend confirmation applies; deletion keeps the
+   stand's two-step discipline, and the row leaves only on the
+   server's confirm. Members only — this whole desk never renders
+   for a guest. */
+
+interface MembershipDashboardDto {
+  activeMembers: number;
+  trialingMembers: number;
+  mrrDollars: number;
+  netMrrCents: number;
+  churnPct: number;
+  testMode: boolean;
+}
+
+function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
+  const authHeaders = useAuthHeaders();
+  const [ownTiers, setOwnTiers] = useState<MembershipTierDto[] | null>(null);
+  const [ownFailed, setOwnFailed] = useState(false);
+  const [feePct, setFeePct] = useState(10);
+  const [dash, setDash] = useState<MembershipDashboardDto | null>(null);
+  const [form, setForm] = useState<TierFormState>(emptyTierForm());
+  const [perkInput, setPerkInput] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [pausingId, setPausingId] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const loadOwn = async () => {
+    try {
+      const res = await fetch("/api/memberships/tiers", { headers: await authHeaders() });
+      if (!res.ok) throw new Error("tiers");
+      const parsed = parseOwnTiers(await res.json());
+      if (!parsed) throw new Error("tiers");
+      setOwnTiers(parsed.tiers);
+      setFeePct(parsed.platformFeePct);
+      setOwnFailed(false);
+    } catch {
+      setOwnFailed(true);
+    }
+    try {
+      const res = await fetch("/api/memberships/dashboard", { headers: await authHeaders() });
+      if (res.ok) {
+        const d = (await res.json()) as Partial<MembershipDashboardDto>;
+        if (typeof d.mrrDollars === "number" && typeof d.netMrrCents === "number") {
+          setDash({
+            activeMembers: typeof d.activeMembers === "number" ? d.activeMembers : 0,
+            trialingMembers: typeof d.trialingMembers === "number" ? d.trialingMembers : 0,
+            mrrDollars: d.mrrDollars,
+            netMrrCents: d.netMrrCents,
+            churnPct: typeof d.churnPct === "number" ? d.churnPct : 0,
+            testMode: d.testMode === true,
+          });
+        }
+      }
+    } catch { /* the dashboard strip is additive — tiers are the desk */ }
+  };
+  useEffect(() => {
+    void loadOwn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(emptyTierForm());
+    setPerkInput("");
+  };
+
+  const startEdit = (tier: MembershipTierDto) => {
+    setEditingId(tier.id);
+    setForm(tierFormFromDto(tier));
+    setPerkInput("");
+    setMsg(null);
+  };
+
+  const addPerk = () => {
+    const perk = perkInput.trim();
+    if (!perk) return;
+    if (form.perks.length >= TIER_PERKS_MAX) {
+      setMsg(`A tier carries at most ${TIER_PERKS_MAX} perks.`);
+      return;
+    }
+    setForm((f) => ({ ...f, perks: [...f.perks, perk] }));
+    setPerkInput("");
+  };
+
+  const save = async () => {
+    const problem = tierFormProblem(form);
+    if (problem) {
+      setMsg(problem);
+      return;
+    }
+    const body = buildTierPayload(form);
+    if (!body) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch(editingId ? `/api/memberships/tiers/${editingId}` : "/api/memberships/tiers", {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't save that tier — try again in a moment."));
+      const saved = savedTierDto(data);
+      if (!saved) throw new Error("Couldn't save that tier — try again in a moment.");
+      setOwnTiers((list) => applyTierSave(list ?? [], saved, editingId));
+      setMsg(editingId ? `“${saved.name}” is updated — fans see the new terms on their next join.` : `“${saved.name}” is live — fans can join it right here at the stand.`);
+      resetForm();
+      void loadOwn();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't save that tier — try again in a moment.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (tier: MembershipTierDto) => {
+    if (pausingId) return;
+    setPausingId(tier.id);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/memberships/tiers/${tier.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(tierActivePayload(tier)),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't update that tier."));
+      const saved = savedTierDto(data);
+      if (saved) setOwnTiers((list) => (list ? applyTierSave(list, saved, tier.id) : list));
+      else void loadOwn();
+      setMsg(saved && !saved.isActive
+        ? `“${tier.name}” is paused — hidden from fans, existing members keep their seats.`
+        : `“${tier.name}” is live again.`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't update that tier.");
+    } finally {
+      setPausingId(null);
+    }
+  };
+
+  const deleteTier = async (tier: MembershipTierDto) => {
+    if (confirmingDeleteId !== tier.id) {
+      setConfirmingDeleteId(tier.id);
+      return;
+    }
+    setDeletingId(tier.id);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/memberships/tiers/${tier.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        throw new Error(apiErrorLine(data, "Couldn't delete that tier."));
+      }
+      setOwnTiers((list) => (list ? removeTier(list, tier.id) : list));
+      if (editingId === tier.id) resetForm();
+      setMsg(`“${tier.name}” is deleted — its members go with it, exactly as on the website.`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't delete that tier.");
+    } finally {
+      setDeletingId(null);
+      setConfirmingDeleteId(null);
+    }
+  };
+
+  const field = (label: string, node: ReactNode) => (
+    <label className="block">
+      <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>{label}</span>
+      {node}
+    </label>
+  );
+
+  return (
+    <NativeCard isLight={isLight} title="Your fan club — tiers you sell">
+      <div data-testid="world-crowns-creator-desk" className="space-y-3">
+        {dash && (
+          <p className={`text-xs ${muted(isLight)}`} data-testid="world-crowns-dash">
+            {dash.activeMembers} active member{dash.activeMembers === 1 ? "" : "s"}
+            {dash.trialingMembers > 0 ? ` · ${dash.trialingMembers} on trial` : ""} ·{" "}
+            {membershipDollars(dash.mrrDollars)}/mo —{" "}
+            <span className="font-semibold">{membershipDollars(dash.netMrrCents / 100)} after {feePct}% platform fee</span>
+            {dash.testMode ? " · test mode" : ""}
+          </p>
+        )}
+
+        {ownFailed ? (
+          <NativeErrorState isLight={isLight} title="Your tiers wouldn't load" message="Your fan club is fine — its tiers couldn't be brought to the stand. Try again." onRetry={() => void loadOwn()} />
+        ) : ownTiers === null ? (
+          <NativeLoadingState isLight={isLight} message="Bringing your tiers…" />
+        ) : (
+          <>
+            {ownTiers.length === 0 ? (
+              <p className={`text-xs ${muted(isLight)}`}>
+                No tiers yet — build your first crown below and fans can join it right here at this stand.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {ownTiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    data-testid="world-crowns-own-tier"
+                    className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                  >
+                    <Crown className={`h-4 w-4 shrink-0 ${tier.isActive ? "text-[#d4af37]" : "text-white/30"}`} />
+                    <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{tier.name}</span>
+                    <span className={`text-xs ${muted(isLight)}`}>
+                      {tierPriceLabel(tier, "monthly")}
+                      {tier.priceCents > 0 && (
+                        <> · you keep {membershipDollars(tierNetCents(tier.priceCents, feePct) / 100)} after {feePct}% platform fee</>
+                      )}
+                      {tier.trialEnabled && tier.priceCents > 0 ? " · 7-day trial" : ""}
+                      {tier.annualDiscountPct > 0 ? ` · ${tier.annualDiscountPct}% off annual` : ""}
+                    </span>
+                    {!tier.isActive && (
+                      <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/50">Paused</span>
+                    )}
+                    <span className="ml-auto inline-flex flex-wrap gap-1.5">
+                      <button type="button" onClick={() => startEdit(tier)} className={chipBtn(isLight)}>
+                        <Pencil className="h-3 w-3" /> Edit
+                      </button>
+                      <button type="button" data-testid="world-crowns-tier-toggle" onClick={() => void toggleActive(tier)} disabled={pausingId === tier.id} className={chipBtn(isLight)}>
+                        {pausingId === tier.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                        {tier.isActive ? "Pause" : "Unpause"}
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="world-crowns-tier-delete"
+                        onClick={() => void deleteTier(tier)}
+                        disabled={deletingId === tier.id}
+                        className={`${chipBtn(isLight)} ${confirmingDeleteId === tier.id ? "border-red-400 text-red-300" : ""}`}
+                      >
+                        {deletingId === tier.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        {confirmingDeleteId === tier.id ? "Tap again to delete" : "Delete"}
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className={`space-y-2 rounded-2xl border px-3 py-3 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/10 bg-black/30"}`}>
+              <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                {editingId ? "Edit this tier" : "Build a new tier"}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {field("Tier name", (
+                  <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Gold Circle" className={inputCls(isLight)} maxLength={70} />
+                ))}
+                {field("Price — $ / month (0 = free)", (
+                  <input value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="5" className={inputCls(isLight)} />
+                ))}
+              </div>
+              {field("Description", (
+                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} className={inputCls(isLight)} maxLength={520} />
+              ))}
+              <div>
+                <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>Perks</span>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={perkInput}
+                    onChange={(e) => setPerkInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPerk(); } }}
+                    placeholder="A perk fans get…"
+                    className={`${inputCls(isLight)} min-w-0 flex-1`}
+                    maxLength={150}
+                  />
+                  <button type="button" onClick={addPerk} className={chipBtn(isLight)}>
+                    <Plus className="h-3.5 w-3.5" /> Add perk
+                  </button>
+                </div>
+                {form.perks.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {form.perks.map((perk, i) => (
+                      <li key={i} className={`flex items-center gap-2 text-xs ${muted(isLight)}`}>
+                        <Check className="h-3 w-3 shrink-0 text-[#d4af37]" />
+                        <span className="min-w-0 flex-1">{perk}</span>
+                        <button type="button" aria-label={`Remove perk ${perk}`} onClick={() => setForm((f) => ({ ...f, perks: f.perks.filter((_, j) => j !== i) }))} className={chipBtn(isLight)}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className={`inline-flex items-center gap-2 text-xs font-semibold ${muted(isLight)}`}>
+                  <input
+                    type="checkbox"
+                    checked={form.trialEnabled}
+                    onChange={(e) => setForm((f) => ({ ...f, trialEnabled: e.target.checked }))}
+                    className="h-4 w-4 accent-[#d4af37]"
+                  />
+                  Offer a 7-day free trial
+                </label>
+                <label className="block">
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>Annual discount %</span>
+                  <input value={form.annualDiscount} onChange={(e) => setForm((f) => ({ ...f, annualDiscount: e.target.value }))} inputMode="numeric" placeholder="0" className={`${inputCls(isLight)} w-24`} />
+                </label>
+                <span className={`text-[11px] ${muted(isLight)}`}>
+                  Creating and editing tiers is free — the {feePct}% platform fee comes out of each membership payment, never on top of the fan&rsquo;s price.
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" data-testid="world-crowns-tier-save" onClick={() => void save()} disabled={saving} className={goldBtn(saving)}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
+                  {editingId ? "Save tier" : "Create tier"}
+                </button>
+                {editingId && (
+                  <button type="button" onClick={resetForm} className={chipBtn(isLight)}>
+                    Cancel edit
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+        {msg && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{msg}</p>}
+      </div>
+    </NativeCard>
+  );
+}
+
 /* ═══ 3. Crowns & Memberships — tiers as crown cards ═══════════════ */
 
 function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
@@ -2036,6 +2390,9 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
 
   return (
     <div className="space-y-4" data-testid="world-shop-crowns">
+      {/* Stack-100 #63: the creator side of this stand — members
+          manage their own tiers here; guests never see the desk. */}
+      {!isGuest && <CrownsCreatorDesk isLight={isLight} />}
       {!isGuest && mine && mine.length > 0 && (
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">

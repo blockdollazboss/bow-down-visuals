@@ -301,6 +301,22 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "custom", id: "treasury-quests" },
     websitePath: null,
   },
+  {
+    /* Stack-100 #61: the packs desk — buying Visual Bucs in-world
+     * so an out-of-credits state is a door, not a dead end. It
+     * stands at the row's east end (the Treasury's walk floor runs
+     * to x -14.35); the panel rides the pricing page's own
+     * checkout rail, hosted page in a new tab. */
+    id: "packs-desk",
+    roomId: TREASURY_ID,
+    name: "Visual Buc Packs",
+    tagline: "Top up your Visual Bucs right here — the real packs, the real checkout.",
+    x: -15.2,
+    z: -16.9,
+    membersOnly: true,
+    panel: { kind: "custom", id: "treasury-packs" },
+    websitePath: null,
+  },
 
   /* ── Royal Court Chamber ─────────────────────────────────────── */
   {
