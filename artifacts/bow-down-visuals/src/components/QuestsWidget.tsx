@@ -75,6 +75,11 @@ export default function QuestsWidget({
   });
   const [claiming, setClaiming] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  /* Per-section load errors (S27-45): the weekly slate and the daily
+     trio settle independently, and a failure is a VISIBLE state in
+     the widget — never the old silent catch that just emptied it. */
+  const [weeklyError, setWeeklyError] = useState(false);
+  const [dailyError, setDailyError] = useState(false);
 
   const authHeaders = useCallback(async (): Promise<HeadersInit> => {
     const token = await getToken();
@@ -82,16 +87,38 @@ export default function QuestsWidget({
   }, [getToken]);
 
   const load = useCallback(async () => {
+    let headers: HeadersInit;
     try {
-      const headers = await authHeaders();
-      const [res, dailyRes] = await Promise.all([
-        fetch("/api/retention/quests", { headers }),
-        fetch("/api/retention/quests/daily", { headers }),
-      ]);
-      if (res.ok) setData((await res.json()) as QuestsData);
-      /* A failed trio read hides the trio, never the board. */
-      if (dailyRes.ok) setDaily(normalizeDailyQuestsStatus(await dailyRes.json()));
-    } catch { /* widget stays empty on failure */ }
+      headers = await authHeaders();
+    } catch {
+      setWeeklyError(true);
+      setDailyError(true);
+      return;
+    }
+    const loadWeekly = async (): Promise<QuestsData> => {
+      const res = await fetch("/api/retention/quests", { headers });
+      if (!res.ok) throw new Error(`quests ${res.status}`);
+      return (await res.json()) as QuestsData;
+    };
+    const loadDaily = async (): Promise<DailyQuestsStatusShape | null> => {
+      const res = await fetch("/api/retention/quests/daily", { headers });
+      if (!res.ok) throw new Error(`daily quests ${res.status}`);
+      return normalizeDailyQuestsStatus(await res.json());
+    };
+    const [weeklySettled, dailySettled] = await Promise.allSettled([loadWeekly(), loadDaily()]);
+    if (weeklySettled.status === "fulfilled") {
+      setData(weeklySettled.value);
+      setWeeklyError(false);
+    } else {
+      setWeeklyError(true);
+    }
+    /* A failed trio read flags the trio's own error state, never the board. */
+    if (dailySettled.status === "fulfilled") {
+      setDaily(dailySettled.value);
+      setDailyError(false);
+    } else {
+      setDailyError(true);
+    }
   }, [authHeaders]);
 
   useEffect(() => { void load(); }, [load]);
@@ -170,7 +197,21 @@ export default function QuestsWidget({
   }, [authHeaders, load, onBalanceChange, t]);
 
   if (hidden) return null;
-  if (!data) return null;
+  if (!data) {
+    if (!weeklyError) return null;
+    return (
+      <section className={`rounded-2xl border px-4 py-3 flex items-center gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+        <Target className="h-5 w-5 text-red-400 shrink-0" />
+        <span className="flex-1 text-xs font-bold text-white/60">
+          {t("retention.quests_load_failed", { defaultValue: "Your quests couldn't load — check your connection and try again." })}
+        </span>
+        <button type="button" onClick={() => void load()}
+          className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all">
+          {t("retention.quests_retry", { defaultValue: "Try again" })}
+        </button>
+      </section>
+    );
+  }
 
   const toggle = (
     <button type="button" onClick={() => void toggleEnabled()} role="switch" aria-checked={data.enabled}
@@ -316,6 +357,14 @@ export default function QuestsWidget({
                 );
               })}
             </div>
+          )}
+          {dailyError && (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-[11px] font-bold text-red-300">
+              {t("retention.daily_quests_load_failed", { defaultValue: "Today's daily quests couldn't load — your weekly quests below are fine." })}{" "}
+              <button type="button" onClick={() => void load()} className="underline underline-offset-2 hover:text-red-200">
+                {t("retention.quests_retry", { defaultValue: "Try again" })}
+              </button>
+            </p>
           )}
           {data.quests.map((q) => {
             const meta = QUEST_META[q.key];

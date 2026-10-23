@@ -7,7 +7,7 @@
  * fake-empty, a private collection is its own state (not "empty", not
  * "missing"), and owner-only invitations never show to visitors.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   spotlightViewState,
   collectionViewState,
@@ -33,6 +33,7 @@ import {
   type ProfileBlockDto,
   type ProfileBlockTypeDef,
   type MembershipTierDto,
+  fetchMyPinnableItems,
 } from "./profile-website";
 
 const PIN: SpotlightPin = {
@@ -275,5 +276,60 @@ describe("memberships view state + price labels", () => {
     expect(membershipAnnualLabel(tier({ annualDiscountPct: 20, annualPriceDollars: "240.00" })))
       .toBe("$240.00 / year — save 20%");
     expect(membershipAnnualLabel(tier({ priceCents: 0, annualDiscountPct: 20 }))).toBeNull();
+  });
+});
+
+describe("fetchMyPinnableItems — per-kind settle (S27-46)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(byKind: Record<string, { ok: boolean; items?: unknown[] } | "reject">) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const kind = url.includes("kind=video") ? "video" : "track";
+        const entry = byKind[kind];
+        if (entry === "reject") throw new Error("network down");
+        if (!entry) throw new Error(`unexpected ${url}`);
+        return {
+          ok: entry.ok,
+          status: entry.ok ? 200 : 500,
+          json: async () => (entry.ok ? { items: entry.items ?? [] } : { error: "server boom" }),
+        };
+      }),
+    );
+  }
+
+  it("returns both kinds when both load", async () => {
+    stubFetch({
+      track: { ok: true, items: [{ id: "t1", title: "Song", artwork_url: "a.png" }] },
+      video: { ok: true, items: [{ id: "v1", title: "Clip", thumbnail_url: "t.png" }] },
+    });
+    const items = await fetchMyPinnableItems("some-slug");
+    expect(items.map((i) => `${i.kind}:${i.id}`)).toEqual(["track:t1", "video:v1"]);
+  });
+
+  it("a rejected track fetch still returns the videos", async () => {
+    stubFetch({
+      track: "reject",
+      video: { ok: true, items: [{ id: "v1", title: "Clip", thumbnail_url: "t.png" }] },
+    });
+    const items = await fetchMyPinnableItems("some-slug");
+    expect(items).toEqual([{ kind: "video", id: "v1", title: "Clip", artworkUrl: "t.png" }]);
+  });
+
+  it("an HTTP-failed video source still returns the tracks", async () => {
+    stubFetch({
+      track: { ok: true, items: [{ id: "t1", title: "Song", artwork_url: null }] },
+      video: { ok: false },
+    });
+    const items = await fetchMyPinnableItems("some-slug");
+    expect(items).toEqual([{ kind: "track", id: "t1", title: "Song", artworkUrl: null }]);
+  });
+
+  it("throws only when BOTH kinds fail, so the picker error state still shows", async () => {
+    stubFetch({ track: "reject", video: { ok: false } });
+    await expect(fetchMyPinnableItems("some-slug")).rejects.toThrow();
   });
 });

@@ -90,7 +90,11 @@ export default function ContentIdMonitor() {
   const [optins, setOptins] = useState<Optin[]>([]);
   const [detections, setDetections] = useState<Detection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /* Per-section load errors (S27-33): opt-ins and detections settle
+     independently — one source failing degrades only its own section,
+     and the full-page error renders only when BOTH sources failed. */
+  const [optinsError, setOptinsError] = useState<string | null>(null);
+  const [detectionsError, setDetectionsError] = useState<string | null>(null);
 
   /* opt-in form */
   const [title, setTitle] = useState("");
@@ -142,20 +146,26 @@ export default function ContentIdMonitor() {
       return;
     }
     setLoading(true);
-    setError(null);
+    setOptinsError(null);
+    setDetectionsError(null);
+    const loadOptins = async (): Promise<Optin[]> => {
+      const res = await authed("/api/content-id/optins");
+      const data = (await res.json().catch(() => ({}))) as { optins?: Optin[]; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load your opt-ins.");
+      return Array.isArray(data.optins) ? data.optins : [];
+    };
+    const loadDetections = async (): Promise<Detection[]> => {
+      const res = await authed("/api/content-id/detections");
+      const data = (await res.json().catch(() => ({}))) as { detections?: Detection[]; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load your detections.");
+      return Array.isArray(data.detections) ? data.detections : [];
+    };
     try {
-      const [oRes, dRes] = await Promise.all([
-        authed("/api/content-id/optins"),
-        authed("/api/content-id/detections"),
-      ]);
-      const oData = (await oRes.json().catch(() => ({}))) as { optins?: Optin[]; error?: string; message?: string };
-      const dData = (await dRes.json().catch(() => ({}))) as { detections?: Detection[]; error?: string; message?: string };
-      if (!oRes.ok) throw new Error(oData.message || oData.error || "Couldn't load your opt-ins.");
-      if (!dRes.ok) throw new Error(dData.message || dData.error || "Couldn't load your detections.");
-      setOptins(Array.isArray(oData.optins) ? oData.optins : []);
-      setDetections(Array.isArray(dData.detections) ? dData.detections : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load the Content ID monitor.");
+      const [oSettled, dSettled] = await Promise.allSettled([loadOptins(), loadDetections()]);
+      if (oSettled.status === "fulfilled") setOptins(oSettled.value);
+      else setOptinsError(oSettled.reason instanceof Error ? oSettled.reason.message : "Couldn't load your opt-ins.");
+      if (dSettled.status === "fulfilled") setDetections(dSettled.value);
+      else setDetectionsError(dSettled.reason instanceof Error ? dSettled.reason.message : "Couldn't load your detections.");
     } finally {
       setLoading(false);
     }
@@ -451,10 +461,10 @@ export default function ContentIdMonitor() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
           <span className="sr-only">Loading Content ID monitor…</span>
         </div>
-      ) : error ? (
+      ) : optinsError && detectionsError ? (
         <div className="rounded-3xl border border-red-500/30 bg-red-500/[0.06] p-8 text-center">
           <AlertTriangle className="mx-auto h-8 w-8 text-red-400" aria-hidden="true" />
-          <p className="mt-3 text-sm text-red-300">{error}</p>
+          <p className="mt-3 text-sm text-red-300">{optinsError}</p>
           <button onClick={() => void load()} className={`${ghostBtn} mt-4`}>
             Try again
           </button>
@@ -467,19 +477,19 @@ export default function ContentIdMonitor() {
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Tracks opted in
               </p>
-              <p className="mt-2 font-display text-4xl font-black text-white">{optedInCount}</p>
+              <p className="mt-2 font-display text-4xl font-black text-white">{optinsError ? "—" : optedInCount}</p>
             </div>
             <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 <Clock3 className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Pending partner
               </p>
-              <p className="mt-2 font-display text-4xl font-black text-amber-300">{pendingCount}</p>
+              <p className="mt-2 font-display text-4xl font-black text-amber-300">{optinsError ? "—" : pendingCount}</p>
             </div>
             <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 <BadgeCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> Detected uses
               </p>
-              <p className="mt-2 font-display text-4xl font-black text-white">{detections.length}</p>
+              <p className="mt-2 font-display text-4xl font-black text-white">{detectionsError ? "—" : detections.length}</p>
             </div>
           </div>
 
@@ -533,7 +543,14 @@ export default function ContentIdMonitor() {
 
             {/* opt-in list */}
             <div className="mt-6 space-y-2.5">
-              {optins.length === 0 ? (
+              {optinsError ? (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] px-4 py-8 text-center">
+                  <p className="text-sm text-red-300">{optinsError}</p>
+                  <button onClick={() => void load()} className={`${ghostBtn} mt-4`}>
+                    Try again
+                  </button>
+                </div>
+              ) : optins.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-white/40">
                   No tracks opted in yet — add your first one above. It costs nothing.
                 </p>
@@ -662,7 +679,14 @@ export default function ContentIdMonitor() {
             )}
 
             <div className="mt-5 space-y-2.5">
-              {detections.length === 0 && !showDetForm ? (
+              {detectionsError ? (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] px-4 py-8 text-center">
+                  <p className="text-sm text-red-300">{detectionsError}</p>
+                  <button onClick={() => void load()} className={`${ghostBtn} mt-4`}>
+                    Try again
+                  </button>
+                </div>
+              ) : detections.length === 0 && !showDetForm ? (
                 <p className="rounded-2xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-white/40">
                   Nothing logged yet. When you find your music in the wild, log it here.
                 </p>

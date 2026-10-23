@@ -68,6 +68,29 @@ export async function saveMyCourt(memberProfileIds: string[]): Promise<CourtMemb
   return Array.isArray(data.court) ? data.court : [];
 }
 
+/* Per-source settle for the picker (S27-35): the loaded Court and
+   the candidate list are independent sources. A candidates failure
+   must not discard a Court that already loaded (the old picker
+   Promise.all'd both into one catch and threw the Court away); a
+   Court failure is reported on its own channel so the picker can
+   keep its honest load-error state for the Court itself. */
+export interface CourtPickerSources {
+  court: CourtMember[] | null;
+  courtError: unknown;
+  candidates: CourtCandidate[] | null;
+  candidatesError: unknown;
+}
+
+export async function fetchCourtPickerSources(): Promise<CourtPickerSources> {
+  const [court, candidates] = await Promise.allSettled([fetchMyCourt(), fetchCourtCandidates()]);
+  return {
+    court: court.status === "fulfilled" ? court.value : null,
+    courtError: court.status === "rejected" ? court.reason : null,
+    candidates: candidates.status === "fulfilled" ? candidates.value : null,
+    candidatesError: candidates.status === "rejected" ? candidates.reason : null,
+  };
+}
+
 export async function fetchCourtCandidates(query?: string): Promise<CourtCandidate[]> {
   const q = (query ?? "").trim();
   const res = await fetch(
