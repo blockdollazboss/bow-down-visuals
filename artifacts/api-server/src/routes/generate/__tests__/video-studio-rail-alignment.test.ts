@@ -16,6 +16,16 @@
  *     (400) both promise;
  *   - image mode (referenceImageUrl) → image-to-video submission;
  *   - POST /generate-video stays 404 — the dead path must not come back.
+ *
+ * S27-72 UPDATE (rail ratio honesty): the original pin below recorded a
+ * RAIL QUIRK — runway-clip.ts derived the provider ratio only from
+ * locked-pack ingredients, so a non-pack gen4.5 submission reached the
+ * provider as portrait 720:1280 even when the client sent "1280:720"
+ * (Video Studio's 16:9 picks rendered portrait). That quirk is FIXED:
+ * for non-pack submissions the validated body ratio is honored, an
+ * absent body ratio keeps the portrait default, and a locked pack's
+ * ratio still wins over a conflicting body ratio. The pins below assert
+ * that corrected contract.
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import express from "express";
@@ -23,6 +33,9 @@ import type { AddressInfo } from "node:net";
 
 const h = vi.hoisted(() => ({
   submitted: [] as Array<{ via: string; args: Record<string, unknown> }>,
+  /* When set, the getLockedPack mock returns this pack instead of
+     throwing — used by the S27-72 pack-ratio-wins cases. */
+  pack: null as null | { ingredients: Array<Record<string, unknown>> },
 }));
 
 vi.mock("../../../middlewares/require-auth", () => ({
@@ -69,6 +82,7 @@ vi.mock("../../../lib/veo-client", () => ({
 
 vi.mock("../pre-production", () => ({
   getLockedPack: vi.fn(async () => {
+    if (h.pack) return h.pack;
     throw new Error("no pack in this test");
   }),
 }));
@@ -115,6 +129,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   h.submitted.length = 0;
+  h.pack = null;
 });
 
 async function post(path: string, body: Record<string, unknown>) {
@@ -150,12 +165,12 @@ describe("S27-42 — the Video Studio page's submit contract", () => {
     expect(h.submitted[0]!.via).toBe("textToVideo");
     expect(h.submitted[0]!.args["model"]).toBe("gen4.5");
     expect(h.submitted[0]!.args["duration"]).toBe(5);
-    /* RAIL QUIRK (flagged in the lane report, behavior NOT changed here):
-       runway-clip.ts derives effectiveRatio from locked-pack ingredients
-       only, so a non-pack gen4.5 submission reaches the provider as
-       portrait 720:1280 even when the client sent ratio "1280:720"
-       (the body ratio is honored only by the Seedance plan). */
-    expect(h.submitted[0]!.args["ratio"]).toBe("720:1280");
+    /* S27-72 CORRECTED CONTRACT (was: the RAIL QUIRK pin — a non-pack
+       gen4.5 submission reached the provider as portrait 720:1280 even
+       when the client sent ratio "1280:720"): the validated body ratio
+       is now honored for non-pack submissions, so the landscape body
+       the page sends for a 16:9 pick reaches the provider as 1280:720. */
+    expect(h.submitted[0]!.args["ratio"]).toBe("1280:720");
   });
 
   it("image mode: a referenceImageUrl submits image-to-video", async () => {
@@ -174,4 +189,79 @@ describe("S27-42 — the Video Studio page's submit contract", () => {
     expect(r.status).toBe(404);
     expect(h.submitted).toHaveLength(0);
   });
+});
+
+describe("S27-72 — gen4.5 provider ratio honors the body (non-pack) / the pack (locked)", () => {
+  it("non-pack image mode with ratio 1280:720 → provider called with 1280:720", async () => {
+    const r = await post("/generate-runway-clip", { ...IMAGE_BODY, ratio: "1280:720" });
+    expect(r.status).toBe(200);
+    expect(r.json.taskId).toBe("task-img");
+    expect(h.submitted).toHaveLength(1);
+    expect(h.submitted[0]!.via).toBe("imageToVideo");
+    expect(h.submitted[0]!.args["ratio"]).toBe("1280:720");
+  });
+
+  it("non-pack with NO ratio in the body → portrait default 720:1280 preserved", async () => {
+    const { ratio: _omit, ...noRatioBody } = TEXT_BODY;
+    const r = await post("/generate-runway-clip", noRatioBody);
+    expect(r.status).toBe(200);
+    expect(r.json.taskId).toBe("task-txt");
+    expect(h.submitted).toHaveLength(1);
+    expect(h.submitted[0]!.via).toBe("textToVideo");
+    expect(h.submitted[0]!.args["ratio"]).toBe("720:1280");
+  });
+
+  it("locked pack ratio wins over a conflicting body ratio (pack portrait, body landscape)", async () => {
+    h.pack = {
+      ingredients: [
+        {
+          shotNumber: 1,
+          prompt: "Locked pack shot: the king crosses the marble hall",
+          negativePrompt: "",
+          referenceAssetUrls: [],
+          continuityNotes: "",
+          model: "gen4.5",
+          durationSec: 5,
+          ratio: "720:1280",
+        },
+      ],
+    };
+    const r = await post("/generate-runway-clip", {
+      packId: "pack-1",
+      shotNumber: 1,
+      ratio: "1280:720",
+      model: "gen4.5",
+    });
+    expect(r.status).toBe(200);
+    expect(r.json.model).toBe("gen4.5");
+    expect(h.submitted).toHaveLength(1);
+    expect(h.submitted[0]!.args["ratio"]).toBe("720:1280");
+  });
+
+  it("locked pack ratio wins over a conflicting body ratio (pack landscape, body portrait)", async () => {
+    h.pack = {
+      ingredients: [
+        {
+          shotNumber: 1,
+          prompt: "Locked pack shot: a wide establishing sweep of the palace",
+          negativePrompt: "",
+          referenceAssetUrls: [],
+          continuityNotes: "",
+          model: "gen4.5",
+          durationSec: 5,
+          ratio: "1280:720",
+        },
+      ],
+    };
+    const r = await post("/generate-runway-clip", {
+      packId: "pack-1",
+      shotNumber: 1,
+      ratio: "720:1280",
+      model: "gen4.5",
+    });
+    expect(r.status).toBe(200);
+    expect(h.submitted).toHaveLength(1);
+    expect(h.submitted[0]!.args["ratio"]).toBe("1280:720");
+  });
+
 });

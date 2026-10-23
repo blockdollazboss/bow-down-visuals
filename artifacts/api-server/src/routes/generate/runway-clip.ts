@@ -698,7 +698,20 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
   }
 
   const client = new RunwayML({ apiKey });
-  const resolvedRatio = effectiveRatio;
+  /* S27-72: effectiveRatio above is derived ONLY from locked-pack
+     ingredients, so a non-pack submission used to reach the gen4.5
+     provider as portrait 720:1280 no matter what ratio the client
+     requested (the body ratio was honored only by the Seedance plan) —
+     Video Studio's 16:9 picks rendered portrait. For NON-PACK
+     submissions the gen4.5 provider ratio now honors the validated
+     request-body ratio (the schema enum allows exactly "1280:720" |
+     "720:1280"), defaulting to the previous portrait behavior when the
+     body sends none — callers that hard-send 720:1280 (Scene Studio,
+     Music Video Timeline) are unaffected. Locked-pack submissions keep
+     effectiveRatio exactly as before (the pack wins over the body), and
+     the Seedance (seedanceRatio) and Veo (effectiveRatio) paths are
+     untouched. */
+  const resolvedRatio = lockedIngredients ? effectiveRatio : (ratio ?? effectiveRatio);
   /* Seedance 2.5 resolution mapping: 720p stays at the base ratio, 1080p
      steps up to the full-HD variant. Generated audio is always off — music
      videos get their audio from the song, not the video model. */
