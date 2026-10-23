@@ -144,24 +144,24 @@ direction). Everything else is buildable now.
 
 ## MOVEMENT — CLIMBABLE-Y, THE PARKED ITEM 38 FINISHED (48–55)
 
-48. **Figure carries Y**: the world figure gains a real `y` (schema + server figure),
+48. **Figure carries Y**: the world figure gains a real `y` (schema + server figure), **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     replacing the z-as-y legacy — the foundation stone of item 38 (C-M1).
-49. **Grounds height map**: the layout's grounds/terraces carry authored heights and
+49. **Grounds height map**: the layout's grounds/terraces carry authored heights and **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     the server validates a walker's Y against the room's height map (clamp +
     honesty), so height is server-mirrored, not client-asserted (C-M2/C-M3).
-50. **Client Y-follow**: movement follows ramps/stairs/terraces smoothly (step-up,
+50. **Client Y-follow**: movement follows ramps/stairs/terraces smoothly (step-up, **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     slope slide rules) instead of walls-or-glides (C-M2).
-51. **Ceremonial stair climbable**: the hall-arch ceremonial stair becomes a real
+51. **Ceremonial stair climbable**: the hall-arch ceremonial stair becomes a real **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     climb (round-1 item 38's named set piece).
-52. **Terrace access**: district terraces/audience slopes become walkable at their
+52. **Terrace access**: district terraces/audience slopes become walkable at their **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     authored heights — the Stage Grounds raked seating stops being a visual lie
     (A SG-2; district-thresholds fudge A G-6 resolved against real heights).
-53. **Spawn & thresholds at height**: spawn, doorway transfers and gate settles
+53. **Spawn & thresholds at height**: spawn, doorway transfers and gate settles **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     place the figure at the destination's ground height — no sinking/floating
     on room change (C-K1 companion).
-54. **Height in presence**: remote figures render at their true Y (no ground-snapping
+54. **Height in presence**: remote figures render at their true Y (no ground-snapping **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     of a creator standing on a terrace).
-55. **Fall safety**: walking off an edge resolves to the lower ground honestly
+55. **Fall safety**: walking off an edge resolves to the lower ground honestly **[STATUS: DONE (movement lane 4f93a797, merged be8d0c41) — FE world suite 1,559/1,559, API world suite 517/517, both typechecks 0 on the lane; flakes A/B-proven pre-existing.]**
     (step-down limit, no void falls, no teleport pops).
 
 ## MOVEMENT, CAMERA & INPUT FEEL (56–60)
