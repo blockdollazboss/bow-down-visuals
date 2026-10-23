@@ -1,1 +1,3 @@
 - ar HELD piece resolved by coordinator commit (filesSkipped family + pin 33->34, 169 targeted tests PASS): item 88 closes WHOLE; ar totals 2,600 closed / 134 allowlisted / 0 remaining. NOTE for ar-W5 (appendix): mediaDetector.filesSkipped will need pin 34->35 when it lands.
+- pt lane (items 78, 87, 96): 2,082 raw keys closed (699/695/688 per wave), allowlists 97/71/82 with stale-guards; playlistPitch loanwords kept per pre-existing guard pin. Merged @ 0e0d42c7.
+- ko lane (items 77, 86, 95, 99): 2,204 missing closed, 183 allowlisted, 0 remaining in scope. 746 ko keys remain in W5/W6 namespaces (appendix) — largest: linkInBio 83, nfcCards 73, milestones 63, lufs 53, privacy 51.
