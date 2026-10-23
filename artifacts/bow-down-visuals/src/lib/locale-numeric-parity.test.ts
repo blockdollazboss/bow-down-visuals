@@ -276,7 +276,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     ["LEGIT: 'quarter-second' numeralized as 0.25", ["videoExport.rangeTooShort"]],
     ["LEGIT: 'a couple' rendered as 2、3", ["collabs.templateCasualDmBody"]],
     ["LEGIT: prices corrected to 200/200 by the drift lane; the residual is per-unit counters (1回)", ["thumbnailTest.costNote"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   ko: grouped(
