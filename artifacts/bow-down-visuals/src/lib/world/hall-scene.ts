@@ -3695,10 +3695,9 @@ export class KingsHallScene {
     group.updateMatrixWorld(true);
     const v = new THREE.Vector3();
     group.traverse((obj) => {
-      const light = obj as THREE.PointLight | THREE.SpotLight;
-      if ((light as THREE.Light).isPointLight || (light as THREE.Light).isSpotLight) {
-        light.getWorldPosition(v);
-        this.scopedLights.push({ light, x: v.x, z: v.z, range: light.distance ?? 0 });
+      if (obj instanceof THREE.PointLight || obj instanceof THREE.SpotLight) {
+        obj.getWorldPosition(v);
+        this.scopedLights.push({ light: obj, x: v.x, z: v.z, range: obj.distance ?? 0 });
       }
     });
   }
