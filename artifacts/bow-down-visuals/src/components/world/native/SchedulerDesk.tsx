@@ -103,7 +103,12 @@ function SchedulerComposeForm(props: ComposeFormProps) {
   const [btError, setBtError] = useState<string | null>(null);
 
   /* A new initial draft (a chip's prefill, an Edit tap) reseeds the
-     form wholesale — the form never half-remembers the last post. */
+     form wholesale — the form never half-remembers the last post.
+     Keyed on the draft's CONTENT, not its object identity: a parent
+     re-render (accounts finishing loading, a desk re-render) hands
+     down an equal-but-new prefill object and must never wipe what
+     the member has already typed. */
+  const seedKey = JSON.stringify(props.initialDraft);
   useEffect(() => {
     setDraft(props.initialDraft);
     setError(null);
@@ -112,7 +117,7 @@ function SchedulerComposeForm(props: ComposeFormProps) {
     setBtNote(null);
     setBtError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.initialDraft]);
+  }, [seedKey]);
 
   const set = (patch: Partial<SchedulerComposeDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
