@@ -254,7 +254,10 @@ describe("Listening Gardens — Stack-100 #2 finishing (items 36–38)", () => {
       expect(dx).toBeGreaterThan(GARDENS_FOUNTAIN.blockHalf);
     }
     expect(sceneSrc).toContain("GARDENS_FOUNTAIN");
-    expect(sceneSrc).toContain("anim.waters.push({ tex: waterTex, jet })");
+    /* Pin corrected by the sky-light lane (Stack-100 #2 items 5–7):
+     * the fountain's registration legitimately grew its ripple
+     * normal layer and its falling sheet — same jet, more water. */
+    expect(sceneSrc).toContain("anim.waters.push({ tex: waterTex, jet, normalTex: basinNormal, fall, fallBase: 0.5 })");
   });
 
   it("items 37–38: no floating audio discs and no sunk river exist in this district to fix — the rill is the water, surfaced and blocked", () => {

@@ -38,6 +38,16 @@ import type { PalaceDirectoryEntry } from "./world-client";
 export const MONUMENT_PLATE_W = 1024;
 export const MONUMENT_PLATE_H = 1408;
 
+/** The plate face's emissive strength per theme (Stack-100 #2
+ *  monument finish): the faces are lit PBR whose emissive map IS
+ *  the plate texture. After dark the board carries its own glow
+ *  (0.55 — readable across the plaza, never a floodlight); by day
+ *  a whisper (0.07) keeps the lettering seated in the stone while
+ *  the sun does the lighting. */
+export function monumentPlateEmissiveIntensity(theme: "light" | "dark"): number {
+  return theme === "dark" ? 0.55 : 0.07;
+}
+
 export interface MonumentBoardData {
   /** Rooms with someone in them, busiest first. */
   here: Array<{ room: string; count: number; members: string[] }>;

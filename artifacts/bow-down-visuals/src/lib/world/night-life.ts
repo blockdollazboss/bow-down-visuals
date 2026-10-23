@@ -96,3 +96,26 @@ export function emberOffsetAt(p: EmberParticle, tSec: number): EmberOffset {
 export function lanternGlowScale(base: number, tSec: number, phase: number): number {
   return base * (1 + 0.12 * Math.sin(tSec * 1.7 + phase));
 }
+
+/* ── Fake light pools (Stack-100 #2 light round) ─────────────────
+ * Where a flame's light is VISUAL only, the ground under it used
+ * to stay unlit: the plaza's lamp standards carry no real light
+ * at all (glow sprites + emissive glass), and on the low rung the
+ * decorative candle points go emissive-only. A fake pool — an
+ * additive radial glow laid on the ground — grounds the flame:
+ * the eye reads pooled light where the lamp stands. Pools are
+ * dressing, not lights: they exist only in the dark look, and
+ * their strength INCREASES as the rung's real lights decrease
+ * (the low rung leans on them hardest). The stage needs none —
+ * its spots are real lights on every rung. */
+export type FakePoolKind = "lamp" | "brazier";
+
+export const FAKE_POOL: Record<FakePoolKind, { radius: number }> = {
+  lamp: { radius: 1.15 },
+  brazier: { radius: 1.5 },
+};
+
+export function fakePoolOpacity(kind: FakePoolKind, tier: "high" | "medium" | "low"): number {
+  if (kind === "lamp") return tier === "low" ? 0.36 : tier === "medium" ? 0.3 : 0.27;
+  return tier === "low" ? 0.3 : tier === "medium" ? 0.22 : 0.18;
+}

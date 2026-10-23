@@ -24,6 +24,7 @@ import {
   monumentBoardData,
   monumentBoardSignature,
   monumentPlateSections,
+  monumentPlateEmissiveIntensity,
   type MonumentPlateCtx,
 } from "./monument-board";
 import type { Leaderboard } from "./treasury-quests";
@@ -153,5 +154,30 @@ describe("monument-board painter", () => {
     /* The old unlettered plate is gone. */
     expect(src).not.toContain("ruled, never lettered");
     expect(src).not.toContain("lineWidths");
+  });
+
+  it("monument finish (Stack-100 #2): the plate is lit PBR with a night emissive, and repaints on data change", () => {
+    const src = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
+    /* Facet B-G1 said the plate never re-renders: stale — the data
+     * seam exists and re-maps BOTH the colour and emissive maps. */
+    expect(src).toContain("setMonumentBoardData");
+    expect(src).toContain("mat.emissiveMap = tex");
+    expect(src).toContain("emissiveMap: plateTex");
+    expect(src).toContain("monumentPlateEmissiveIntensity(look.theme)");
+    expect(monumentPlateEmissiveIntensity("dark")).toBeGreaterThan(0.4);
+    expect(monumentPlateEmissiveIntensity("light")).toBeLessThan(0.15);
+    expect(monumentPlateEmissiveIntensity("dark")).toBeGreaterThan(monumentPlateEmissiveIntensity("light"));
+    /* No hardcoded gold-plaque scalar survives (facet B-G2/G5 —
+     * the 0.64 plaque scalar does not exist in the current tree). */
+    expect(src).not.toContain("plaqueScalar");
+  });
+
+  it("monument finish: the relief wraps all four faces and the hero gold is per-metre", () => {
+    const src = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
+    expect(src).toContain("ALL FOUR faces");
+    expect(src).toContain("mats.goldFor(wAt + 0.1, 0.11)");
+    expect(src).toContain("mats.goldFor(dAt + 0.1, 0.11)");
+    expect(src).toContain("mats.goldDarkFor(faceW, 0.62)");
+    expect(src).toContain("mats.goldFor(M.crown.capR * 2");
   });
 });

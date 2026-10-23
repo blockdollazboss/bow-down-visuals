@@ -74,6 +74,7 @@ import {
   detectInitialTier,
   loadQualityPreference,
   resolveTier,
+  shadowRefreshDue,
   steppedTextureSize,
   storeQualityPreference,
   type QualityPreference,
@@ -88,7 +89,7 @@ import {
   reflectorShouldRender,
 } from "./visibility";
 import { capsuleBodyHex } from "./capsule-color";
-import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
+import { HALL_SCREEN, hallLookFor, lookFadeProgress, type HallLook, type HallTheme } from "./hall-looks";
 import { mediaUrl } from "../media-cdn";
 import {
   coverTransform,
@@ -158,7 +159,7 @@ import {
 import { stationsInRoom } from "./stations";
 import { propVariation } from "./prop-variation";
 import { HOUSE_TRIM, roomTrimProfile, type RoomTrimProfile } from "./room-trim";
-import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
+import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, gateLeafYaw, type DistrictThreshold } from "./district-gates";
 import {
   STAGE_GROUNDS_INTERIOR, STAGE_WALL_RUNS, STAGE_PIERS, STAGE_PLATFORM,
   STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
@@ -202,17 +203,18 @@ import {
   HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD,
 } from "./creator-heights";
 import {
-  createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
+  createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale,
+  FAKE_POOL, fakePoolOpacity, type EmberParticle,
 } from "./night-life";
 import {
-  POOL, FOUNTAIN, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
+  POOL, FOUNTAIN, FOUNTAIN_FALL, WET_EDGE, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
   PLAZA_TABLE_SETS, PLAZA_URNS, URN, PLAZA_STALLS, STALL, SPAWN_DRESSING,
   bannerSwayAt, createPollenField, pollenCountForScale, pollenPositionAt,
   waterSurfaceAt, poolWaterTint, type PollenMote,
 } from "./plaza-life";
 import {
   EMPTY_MONUMENT_BOARD, MONUMENT_PLATE_H, MONUMENT_PLATE_W, drawMonumentBoardPlate,
-  monumentBoardSignature, type MonumentBoardData, type MonumentPlateCtx,
+  monumentBoardSignature, monumentPlateEmissiveIntensity, type MonumentBoardData, type MonumentPlateCtx,
 } from "./monument-board";
 import {
   ACTION_BY_ID,
@@ -229,6 +231,9 @@ import {
   repeatForSize,
   derivedPbrTextures,
   brushedGoldTextures,
+  rippleNormalTexture,
+  MATERIAL_NORMAL_SCALES,
+  GOLD_METRES_PER_TILE,
   enhanceLoadedTexture,
   type PbrKind,
 } from "./pbr-materials";
@@ -253,6 +258,7 @@ import {
   buildVisibleSkyDome,
   skyHasClouds,
   cloudDriftX,
+  cloudShadeAt,
   SKY_CLOUDS,
   type SkyCloudDef,
 } from "./sky-env";
@@ -1296,6 +1302,11 @@ function disposeObjectTree(root: THREE.Object3D): void {
 interface LookMaterials {
   gold: THREE.MeshStandardMaterial;
   goldDark: THREE.MeshStandardMaterial;
+  /** Per-metre gold factories (Stack-100 #2 materials round 2):
+   *  a hero gold surface (monument bands, gate caps/headers) gets
+   *  brushed maps repeated from ITS size, not the shared 2×2. */
+  goldFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  goldDarkFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
   marble: THREE.MeshStandardMaterial;
   marbleWall: THREE.MeshStandardMaterial;
   ceiling: THREE.MeshStandardMaterial;
@@ -1342,7 +1353,20 @@ interface LookAnim {
    * motion is off). */
   bannerSways: Array<{ pivot: THREE.Group; phase: number }>;
   pollen: { points: THREE.Points; field: PollenMote[] } | null;
-  waters: Array<{ tex: THREE.Texture; jet: THREE.Mesh | null }>;
+  /* Water round 2 (Stack-100 #2 items 5–7): every entry's colour
+   * layer scrolls one way and its ripple NORMAL layer counter-
+   * scrolls (normalTex), both from plaza-life's ONE water model;
+   * fountains add their falling sheet (fall) and the plaza
+   * fountain its impact ripple ring. */
+  waters: Array<{
+    tex: THREE.Texture;
+    jet: THREE.Mesh | null;
+    normalTex?: THREE.Texture;
+    fall?: THREE.Mesh | null;
+    /** The fall sheet's built opacity; the model scales it. */
+    fallBase?: number;
+    ripple?: THREE.Mesh | null;
+  }>;
   /* Stack-100 #2 item 29: spinning dressing (the boardwalk prize
    * wheel) — the tick sets each spinner's z-rotation from its
    * angle function; registered in both looks, never under
@@ -1453,8 +1477,11 @@ export class KingsHallScene {
   private frontRowSlugs = new Set<string>();
   /** The monument faces' materials (item 16): every look build
    *  re-registers them, and setMonumentBoardData re-maps them
-   *  when the board's words change. */
-  private monumentFaceMats: THREE.MeshBasicMaterial[] = [];
+   *  when the board's words change. Stack-100 #2 monument finish:
+   *  the faces are LIT PBR (standard materials) whose emissive
+   *  map is the plate itself — after dark the board glows with
+   *  its own words instead of wearing an unlit decal. */
+  private monumentFaceMats: THREE.MeshStandardMaterial[] = [];
   /** The Heights roster plates' materials (Stack-100 #2 item 20):
    *  every look build re-registers them, and setHeightsRoster
    *  re-letters them when the room's live roster changes. */
@@ -1503,6 +1530,23 @@ export class KingsHallScene {
    *  per frame in servicePerfSystems so the dome is always the
    *  same distance in every direction. */
   private skyGroup: THREE.Group | null = null;
+  /** The visible dome's shader material (Stack-100 #2 item 1):
+   *  the tick advances its uTime so the night stars twinkle and
+   *  drift — never under reduced motion, and never the PMREM
+   *  capture (its uTime stays 0: reflections are the average). */
+  private skyDomeMaterial: THREE.ShaderMaterial | null = null;
+  /** Brazier point lights (plaza + hall dais — ONE class) that
+   *  cast shadows on the top rung (item 13): re-registered per
+   *  look build, re-ruled per ladder step. */
+  private brazierShadowLights: THREE.PointLight[] = [];
+  /** Day/night crossfade state: the previous look's exposure /
+   *  background / fog the tick eases away from (null = no fade). */
+  private lookFade: {
+    fromExposure: number; toExposure: number;
+    fromBg: THREE.Color; toBg: THREE.Color;
+    fromFog: THREE.Color; toFog: THREE.Color;
+    startedAtMs: number;
+  } | null = null;
   private floorOverlayMat: THREE.MeshPhysicalMaterial | null = null;
   /** Every scoped point/spot light in the current look, with its
    *  world position + range (item 24) — judged per room change. */
@@ -1541,7 +1585,11 @@ export class KingsHallScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = q.shadows;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    /* Item 14: plain PCF, deliberately — PCFSoftShadowMap IGNORES
+     * shadow.radius in three.js, so the rung's softness table
+     * (2/3/4) would be a lie under it. Under PCF the radius is
+     * real, and the top rung's 4 reads soft. */
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     /* Overhaul stage 3 (perf audit E4): every shadow caster in the
      * palace is architecture — static — and figures ground with
      * painted blobs, so the shadow map is rendered on demand
@@ -1590,6 +1638,18 @@ export class KingsHallScene {
   private applyLook(theme: HallTheme): void {
     const look = hallLookFor(theme);
 
+    /* Day/night crossfade: capture the OUTGOING look's light
+     * values before teardown — the tick eases exposure, background
+     * and fog colour from these to the new look's over
+     * LOOK_FADE_MS. First build has nothing to fade from. */
+    const fadeFrom = this.lookGroup
+      ? {
+          fromExposure: this.renderer.toneMappingExposure,
+          fromBg: (this.scene.background as THREE.Color | null)?.clone() ?? new THREE.Color(look.background),
+          fromFog: this.scene.fog instanceof THREE.Fog ? this.scene.fog.color.clone() : new THREE.Color(look.fogColor),
+        }
+      : null;
+
     // Tear down the previous look — never the shared texture cache,
     // never the screen material (the reel keeps playing across a
     // re-skin), and avatars are not part of the look group.
@@ -1604,10 +1664,24 @@ export class KingsHallScene {
       this.envTarget = null;
     }
     this.lookAnim = EMPTY_ANIM;
+    this.brazierShadowLights = [];
 
     this.renderer.toneMappingExposure = look.exposure;
     this.scene.background = new THREE.Color(look.background);
     this.scene.fog = new THREE.Fog(look.fogColor, look.fogNear, look.fogFar);
+    if (fadeFrom) {
+      this.lookFade = {
+        ...fadeFrom,
+        toExposure: look.exposure,
+        toBg: new THREE.Color(look.background),
+        toFog: new THREE.Color(look.fogColor),
+        startedAtMs: performance.now(),
+      };
+      // The tick starts the ease FROM the old look's values.
+      this.renderer.toneMappingExposure = fadeFrom.fromExposure;
+      (this.scene.background as THREE.Color).copy(fadeFrom.fromBg);
+      this.scene.fog.color.copy(fadeFrom.fromFog);
+    }
     this.envTarget = buildSkyEnvironment(this.renderer, look);
     this.scene.environment = this.envTarget.texture;
     this.scene.environmentIntensity = look.environmentIntensity;
@@ -1616,6 +1690,7 @@ export class KingsHallScene {
     this.buildLook(group, look);
     this.scene.add(group);
     this.lookGroup = group;
+    this.applyLocalShadowLights();
     this.collectScopedLights(group);
     this.applyLightScoping();
     // Fresh lights + fog for the room we stand in (aimSun also
@@ -1659,7 +1734,7 @@ export class KingsHallScene {
       for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) registerRungSurfaceTexture(t);
       return new THREE.MeshStandardMaterial({
         map: hallTexture(url, rep.x, rep.y),
-        normalMap: pbr.normalMap, normalScale: new THREE.Vector2(0.6, 0.6),
+        normalMap: pbr.normalMap, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.surface, MATERIAL_NORMAL_SCALES.surface),
         roughnessMap: pbr.roughnessMap, roughness: 1,
         aoMap: pbr.aoMap,
         color: opts.color, metalness: opts.metalness ?? 0.05, envMapIntensity: opts.envMapIntensity,
@@ -1697,24 +1772,41 @@ export class KingsHallScene {
     /* Gold (item 12): brushed-metal maps — roughness that varies
      * along the brush (bright ≈ 0.14–0.34, deep ≈ 0.30–0.54) and a
      * subtle streak normal — under the sky env, so it reads as
-     * metal. roughness scalar is 1: the map carries the value. */
-    const goldMaps = brushedGoldTextures("bright", 2, 2);
-    registerRungSurfaceTexture(goldMaps.normalMap);
-    registerRungSurfaceTexture(goldMaps.roughnessMap);
-    const gold = new THREE.MeshStandardMaterial({
-      color: 0xd9b45c, metalness: 1, roughness: 1,
-      roughnessMap: goldMaps.roughnessMap, normalMap: goldMaps.normalMap,
-      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.35,
-    });
-    const goldDarkMaps = brushedGoldTextures("dark", 2, 2);
-    registerRungSurfaceTexture(goldDarkMaps.normalMap);
-    registerRungSurfaceTexture(goldDarkMaps.roughnessMap);
-    const goldDark = new THREE.MeshStandardMaterial({
-      color: 0x9a7a24, metalness: 1, roughness: 1,
-      roughnessMap: goldDarkMaps.roughnessMap, normalMap: goldDarkMaps.normalMap,
-      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 0.9,
-      emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
-    });
+     * metal. roughness scalar is 1: the map carries the value.
+     * Round 2: gold is built by ONE maker, and goldFor/goldDarkFor
+     * give a surface a material whose brushed repeat derives from
+     * ITS size in metres (GOLD_METRES_PER_TILE) — the shared
+     * gold/goldDark below are the maker's 2×2 default, unchanged
+     * for the hundreds of small gilt pieces that share them. */
+    const makeGold = (variant: "bright" | "dark", repX: number, repY: number): THREE.MeshStandardMaterial => {
+      const maps = brushedGoldTextures(variant, repX, repY);
+      registerRungSurfaceTexture(maps.normalMap);
+      registerRungSurfaceTexture(maps.roughnessMap);
+      return variant === "bright"
+        ? new THREE.MeshStandardMaterial({
+            color: 0xd9b45c, metalness: 1, roughness: 1,
+            roughnessMap: maps.roughnessMap, normalMap: maps.normalMap,
+            normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.gold, MATERIAL_NORMAL_SCALES.gold), envMapIntensity: 1.35,
+          })
+        : new THREE.MeshStandardMaterial({
+            color: 0x9a7a24, metalness: 1, roughness: 1,
+            roughnessMap: maps.roughnessMap, normalMap: maps.normalMap,
+            normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.gold, MATERIAL_NORMAL_SCALES.gold), envMapIntensity: 0.9,
+            emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
+          });
+    };
+    const gold = makeGold("bright", 2, 2);
+    const goldDark = makeGold("dark", 2, 2);
+    const goldCache = new Map<string, THREE.MeshStandardMaterial>();
+    const goldSized = (variant: "bright" | "dark") => (widthM: number, heightM: number): THREE.MeshStandardMaterial => {
+      const key = `${variant}|${widthM.toFixed(2)}x${heightM.toFixed(2)}`;
+      const hit = goldCache.get(key);
+      if (hit) return hit;
+      const rep = repeatForSize(widthM, heightM, GOLD_METRES_PER_TILE);
+      const mat = makeGold(variant, rep.x, rep.y);
+      goldCache.set(key, mat);
+      return mat;
+    };
     /* The shared prop marble: nominal 2 m surface (columns, stage,
      * monument, troughs — all in that size class). Big flat runs
      * (walls, ceilings, plaza walls) go through the *For factories
@@ -1728,7 +1820,7 @@ export class KingsHallScene {
     for (const t of [fabricPbr.normalMap, fabricPbr.roughnessMap, fabricPbr.aoMap]) registerRungSurfaceTexture(t);
     const fabric = new THREE.MeshStandardMaterial({
       map: hallTexture(look.throneFabricTextureUrl, fabricRep.x, fabricRep.y),
-      normalMap: fabricPbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
+      normalMap: fabricPbr.normalMap, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.fabric, MATERIAL_NORMAL_SCALES.fabric),
       roughnessMap: fabricPbr.roughnessMap, roughness: 1,
       aoMap: fabricPbr.aoMap,
       metalness: 0, envMapIntensity: 0.5,
@@ -1736,10 +1828,15 @@ export class KingsHallScene {
     const darkMetal = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.55, metalness: 0.5 });
     return {
       gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal,
+      goldFor: goldSized("bright"),
+      goldDarkFor: goldSized("dark"),
       wallFor: sized("wall", "marble-rough", { envMapIntensity: 0.55 }),
       marbleFor: sized("marble", "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
       ceilingFor: sized("ceiling", "marble-rough", { color: ceilingTint, envMapIntensity: 0.55 }),
-      stoneFor: sizedUrl("stone", look.facadeStoneTextureUrl, FACADE_STONE_METRES_PER_TILE, "marble-rough", { envMapIntensity: 0.5 }),
+      /* Round 2: the façade stone finally derives as the STONE
+       * kind it is — it used to borrow marble-rough's carve, and
+       * the dedicated "stone" kind sat unused. */
+      stoneFor: sizedUrl("stone", look.facadeStoneTextureUrl, FACADE_STONE_METRES_PER_TILE, "stone", { envMapIntensity: 0.5 }),
       facadeMarbleFor: sizedUrl("facade-marble", look.facadeMarbleTextureUrl, FACADE_MARBLE_METRES_PER_TILE, "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
       pavingFor: sizedUrl("paving", look.pavingTextureUrl, PAVING_METRES_PER_TILE, "paving", { envMapIntensity: 0.45 }),
       lawnFor: sizedUrl("lawn", look.lawnTextureUrl, LAWN_METRES_PER_TILE, "lawn", { envMapIntensity: 0.3 }),
@@ -1780,7 +1877,7 @@ export class KingsHallScene {
      * room shell (room-culled from indoors, exactly when the
      * roofline must still read from a raised camera). */
     this.buildPalaceExterior(group, look, mats, anim);
-    this.buildBackdropGrounds(group, look);
+    this.buildBackdropGrounds(group, look, anim);
     this.buildVisibleSky(group, look, anim);
     this.lookAnim = anim;
   }
@@ -1794,7 +1891,9 @@ export class KingsHallScene {
    *  never written — pure background that follows the camera. */
   private buildVisibleSky(group: THREE.Group, look: HallLook, anim: LookAnim): void {
     const sky = new THREE.Group();
-    sky.add(buildVisibleSkyDome(look));
+    const dome = buildVisibleSkyDome(look);
+    this.skyDomeMaterial = dome.material as THREE.ShaderMaterial;
+    sky.add(dome);
     if (skyHasClouds(look)) {
       const tex = cloudTexture();
       for (const def of SKY_CLOUDS) {
@@ -1881,7 +1980,8 @@ export class KingsHallScene {
       new THREE.PlaneGeometry(FACADE_WINDOW_W, FACADE_WINDOW_H),
       new THREE.MeshStandardMaterial({
         color: style.color, emissive: style.emissive,
-        emissiveIntensity: style.emissiveIntensity, roughness: style.roughness, metalness: 0.1,
+        emissiveIntensity: style.emissiveIntensity, roughness: style.roughness,
+        metalness: style.metalness, envMapIntensity: style.envMapIntensity,
       }),
       FACADE_WINDOWS.map((w) => ({ x: w.x, y: w.y, z: FACADE_WINDOW_GLASS_Z })),
     );
@@ -2023,7 +2123,7 @@ export class KingsHallScene {
    *  and nothing needs a blocked rect: it all stands outside
    *  every walk rect, inside the 90 m dome (palace-grounds pins
    *  both). */
-  private buildBackdropGrounds(group: THREE.Group, look: HallLook): void {
+  private buildBackdropGrounds(group: THREE.Group, look: HallLook, anim: LookAnim): void {
     const g = new THREE.Group();
     const night = look.theme === "dark";
     const dummy = new THREE.Object3D();
@@ -2040,15 +2140,22 @@ export class KingsHallScene {
     g.add(skirt);
 
     /* The moat glint: a flat ring segment of the look's water,
-     * glossy enough to catch the sky env — a still strip, no
-     * animation (water life is item 28's, elsewhere). A standard
-     * material (it must shade + fog), three segments' worth of
-     * ring facing the plaza's open sides. */
+     * glossy enough to catch the sky env. Stack-100 #2: the moat
+     * JOINS the animated system — its colour texture is a clone
+     * registered in anim.waters with a ripple normal layer, so
+     * the backdrop water lives by the same ONE water model as
+     * the pool (it used to be the world's one still water). A
+     * standard material (it must shade + fog), three segments'
+     * worth of ring facing the plaza's open sides. */
     const waterRep = repeatForSize(8, 8, 4);
+    const moatTex = hallTexture(look.waterTextureUrl, waterRep.x, waterRep.y).clone();
+    moatTex.needsUpdate = true;
+    const moatNormal = this.rippleNormalFor(8, 8);
     const water = new THREE.Mesh(
       new THREE.RingGeometry(BACKDROP.moatInnerR, BACKDROP.moatOuterR, 48, 1, Math.PI * 0.72, Math.PI * 0.95),
       new THREE.MeshStandardMaterial({
-        map: hallTexture(look.waterTextureUrl, waterRep.x, waterRep.y),
+        map: moatTex,
+        normalMap: moatNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
         color: night ? 0xbfd4de : 0xdfe9e4,
         roughness: 0.12, metalness: 0.05, envMapIntensity: 1.3,
       }),
@@ -2056,6 +2163,7 @@ export class KingsHallScene {
     water.rotation.x = -Math.PI / 2;
     water.position.set(BACKDROP.moatCenter.x, BACKDROP.moatY, BACKDROP.moatCenter.z);
     g.add(water);
+    anim.waters.push({ tex: moatTex, jet: null, normalTex: moatNormal });
 
     /* The distant wings: unlit stone masses. Their colour is a
      * fog-veiled silhouette tone per look (dark masses at night,
@@ -2315,6 +2423,97 @@ export class KingsHallScene {
     plate.position.set(x, y, z);
     plate.rotation.y = rotY;
     group.add(plate);
+  }
+
+  /** A BACKED, two-faced plate (Stack-100 #2 gates round): the
+   *  district gates' name plates used to be one single-sided
+   *  plane — from the district side a walker saw through the
+   *  gate's name entirely. Now the plate is a thin gilt slab
+   *  (cast + receive shadow) wearing the lettering on BOTH faces,
+   *  each face reading correctly from its own side. */
+  private doorPlateBacked(
+    group: THREE.Group, text: string, x: number, y: number, z: number, rotY: number, width: number,
+    mats: LookMaterials,
+  ): void {
+    const h = (width * 224) / 1024;
+    const holder = new THREE.Group();
+    holder.position.set(x, y, z);
+    holder.rotation.y = rotY;
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(width + 0.06, h + 0.06, 0.045), mats.goldDark);
+    slab.castShadow = true;
+    slab.receiveShadow = true;
+    holder.add(slab);
+    for (const side of [1, -1] as const) {
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, h),
+        new THREE.MeshBasicMaterial({ map: doorPlateTexture(text), toneMapped: false }),
+      );
+      face.position.z = side * 0.026;
+      if (side < 0) face.rotation.y = Math.PI;
+      holder.add(face);
+    }
+    group.add(holder);
+  }
+
+  /* ── Water round 2 helpers (Stack-100 #2 items 5–7) ──────────
+   * Every water surface in the world is built the same way: the
+   * look's water colour texture (cloned, scrolled by the tick)
+   * PLUS a cloned ripple normal texture the same tick counter-
+   * scrolls — the surface bends light, not just slides a picture.
+   * And every basin wears the wet edge: a dark band on the water
+   * at its rim (plaza-life's WET_EDGE), so water meets stone
+   * like water, not like a decal. */
+
+  /** A per-surface ripple normal texture: shared pixels, own
+   *  repeat + own offset (the tick animates the offset). */
+  private rippleNormalFor(repeatX: number, repeatY: number): THREE.Texture {
+    const tex = rippleNormalTexture().clone();
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeatX, repeatY);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  private wetEdgeMaterial(): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color: WET_EDGE.color, transparent: true, opacity: WET_EDGE.opacity, depthWrite: false,
+    });
+  }
+
+  /** The wet edge for a rectangular basin: four flat strips just
+   *  inside the rim, hovering a breath over the water. */
+  private wetEdgeRect(cx: number, cz: number, w: number, d: number, waterY: number): THREE.Group {
+    const g = new THREE.Group();
+    const mat = this.wetEdgeMaterial();
+    const bw = WET_EDGE.width;
+    const y = waterY + WET_EDGE.lift;
+    const strips: Array<{ w: number; d: number; x: number; z: number }> = [
+      { w, d: bw, x: cx, z: cz - d / 2 + bw / 2 },
+      { w, d: bw, x: cx, z: cz + d / 2 - bw / 2 },
+      { w: bw, d: d - bw * 2, x: cx - w / 2 + bw / 2, z: cz },
+      { w: bw, d: d - bw * 2, x: cx + w / 2 - bw / 2, z: cz },
+    ];
+    for (const s of strips) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.d), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(s.x, y, s.z);
+      m.renderOrder = 2;
+      g.add(m);
+    }
+    return g;
+  }
+
+  /** The wet edge for a round basin: one flat ring at the rim. */
+  private wetEdgeRing(cx: number, cz: number, r: number, waterY: number): THREE.Mesh {
+    const m = new THREE.Mesh(
+      new THREE.RingGeometry(r - WET_EDGE.width, r, 36),
+      this.wetEdgeMaterial(),
+    );
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(cx, waterY + WET_EDGE.lift, cz);
+    m.renderOrder = 2;
+    return m;
   }
 
   private buildWalls(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
@@ -2741,6 +2940,7 @@ export class KingsHallScene {
     if (QUALITY[this.quality].shadows) {
       sun.castShadow = true;
       sun.shadow.mapSize.set(QUALITY[this.quality].shadowMapSize, QUALITY[this.quality].shadowMapSize);
+      sun.shadow.radius = QUALITY[this.quality].shadowRadius;
       sun.shadow.camera.left = -20;
       sun.shadow.camera.right = 20;
       sun.shadow.camera.top = 20;
@@ -2912,6 +3112,9 @@ export class KingsHallScene {
         light.position.set(x, 1.35, -11.3);
         group.add(light);
         anim.flickerLights.push({ light, base: 26, phase: Math.random() * 20 });
+        /* Item 13: the dais braziers join the one shadow-casting
+         * local light class (ruled in applyLocalShadowLights). */
+        this.brazierShadowLights.push(light);
       }
     }
   }
@@ -3936,28 +4139,51 @@ export class KingsHallScene {
       stele.position.y = M.stele.baseY + steleH / 2;
       stele.castShadow = shadows;
       monument.add(stele);
-      /* Relief banding: gold bands proud of the stele's front and
-       * back faces at the plan's heights — widths following the
-       * frustum's taper at those heights. */
+      /* Relief banding: gold bands proud of ALL FOUR faces of
+       * the stele at the plan's heights (Stack-100 #2 monument
+       * finish — the relief used to wrap only front and back, so
+       * the stele's flanks were bald) — widths following the
+       * frustum's taper at those heights, gold at per-metre
+       * repeats. */
       for (const bandY of M.reliefBandYs) {
         const t = (bandY - M.stele.baseY) / steleH;
         const wAt = M.stele.baseW + (M.stele.topW - M.stele.baseW) * t;
         const dAt = M.stele.baseD + (M.stele.topD - M.stele.baseD) * t;
         for (const sz of [-1, 1] as const) {
-          const band = new THREE.Mesh(new THREE.BoxGeometry(wAt + 0.1, 0.11, 0.05), mats.gold);
+          const band = new THREE.Mesh(new THREE.BoxGeometry(wAt + 0.1, 0.11, 0.05), mats.goldFor(wAt + 0.1, 0.11));
           band.position.set(0, bandY, sz * (dAt / 2 + 0.012));
           monument.add(band);
+          const flank = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.11, dAt + 0.1), mats.goldFor(dAt + 0.1, 0.11));
+          flank.position.set(sz * (wAt / 2 + 0.012), bandY, 0);
+          monument.add(flank);
         }
       }
-      /* The relief panel: a gold relief in a dark-gold frame on
-       * the stele's south face, below the plate drum. */
+      /* The relief panel: a gold relief in a dark-gold frame,
+       * below the plate drum — now on ALL FOUR faces (it lived
+       * on the south face alone), each face turned outward. The
+       * stele is a shallow slab (1.9 wide × 0.56 deep), so the
+       * flank panels take the flank's own width and stand on the
+       * flank's own surface — same relief, honestly sized. */
       {
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.045), mats.goldDark);
-        panel.position.set(0, 1.42, M.stele.baseD / 2 + 0.03);
-        monument.add(panel);
-        const relief = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.44, 0.03), mats.gold);
-        relief.position.set(0, 1.42, M.stele.baseD / 2 + 0.055);
-        monument.add(relief);
+        const t142 = (1.42 - M.stele.baseY) / steleH;
+        const wAt142 = M.stele.baseW + (M.stele.topW - M.stele.baseW) * t142;
+        const dAt142 = M.stele.baseD + (M.stele.topD - M.stele.baseD) * t142;
+        for (const [rotY, faceW, out] of [
+          [0, 0.92, M.stele.baseD / 2 + 0.03],
+          [Math.PI, 0.92, M.stele.baseD / 2 + 0.03],
+          [Math.PI / 2, Math.min(0.4, dAt142 - 0.1), wAt142 / 2 + 0.03],
+          [-Math.PI / 2, Math.min(0.4, dAt142 - 0.1), wAt142 / 2 + 0.03],
+        ] as Array<[number, number, number]>) {
+          const faceGroup = new THREE.Group();
+          faceGroup.rotation.y = rotY;
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(faceW, 0.62, 0.045), mats.goldDarkFor(faceW, 0.62));
+          panel.position.set(0, 1.42, out);
+          faceGroup.add(panel);
+          const relief = new THREE.Mesh(new THREE.BoxGeometry(faceW * 0.8, 0.44, 0.03), mats.goldFor(faceW * 0.8, 0.44));
+          relief.position.set(0, 1.42, out + 0.025);
+          faceGroup.add(relief);
+          monument.add(faceGroup);
+        }
       }
       /* The plate drum: a square housing around the stele at
        * reading height, so the plate has four equal faces to
@@ -3978,7 +4204,18 @@ export class KingsHallScene {
         [M.drum.faceOffset, 0, Math.PI / 2],
         [-M.drum.faceOffset, 0, -Math.PI / 2],
       ] as Array<[number, number, number]>) {
-        const faceMat = new THREE.MeshBasicMaterial({ map: plateTex, toneMapped: false });
+        /* Monument finish (Stack-100 #2): the plate face is LIT
+         * PBR now — a standard material that takes the plaza's
+         * light like gilt stone, with the plate itself as its
+         * emissive map so after dark the board glows with its own
+         * words (monument-board's per-theme intensity). */
+        const faceMat = new THREE.MeshStandardMaterial({
+          map: plateTex,
+          emissiveMap: plateTex,
+          emissive: 0xffffff,
+          emissiveIntensity: monumentPlateEmissiveIntensity(look.theme),
+          roughness: 0.38, metalness: 0.15, envMapIntensity: 0.8,
+        });
         const face = new THREE.Mesh(new THREE.PlaneGeometry(M.drum.faceW, M.drum.faceH), faceMat);
         face.position.set(fx, M.drum.centerY, fz);
         face.rotation.y = rotY;
@@ -3991,7 +4228,7 @@ export class KingsHallScene {
        * scale. */
       const crownCap = new THREE.Mesh(
         new THREE.CylinderGeometry(0.3, M.crown.capR, M.crown.capTopY - M.crown.capBaseY, 12),
-        mats.gold,
+        mats.goldFor(M.crown.capR * 2, M.crown.capTopY - M.crown.capBaseY),
       );
       crownCap.position.y = (M.crown.capBaseY + M.crown.capTopY) / 2;
       crownCap.castShadow = shadows;
@@ -4239,11 +4476,15 @@ export class KingsHallScene {
         }
         g.add(brazier);
         if (look.candles) this.addEmbers(g, anim, bx, 0.82, bz, `${bx},${bz}`);
+        if (look.candles) this.addFakePool(g, bx, bz, "brazier");
         if (look.candles && QUALITY[this.quality].brazierLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
           light.position.set(bx, 1.35, bz);
           g.add(light);
           anim.flickerLights.push({ light, base: 22, phase: Math.random() * 20 });
+          /* Item 13: the plaza braziers join the one shadow-casting
+           * local light class (ruled in applyLocalShadowLights). */
+          this.brazierShadowLights.push(light);
         }
       }
     }
@@ -4278,6 +4519,12 @@ export class KingsHallScene {
     const buildDistrictGate = (def: DistrictThreshold, index: number) => {
       const { name, x, z, axis, plateRotY } = def;
       const v = propVariation("gate", index);
+      const shadows = QUALITY[this.quality].shadows;
+      /* Gates round (Stack-100 #2): the gate's gold is ITS OWN —
+       *  the identity's cap variant at per-metre repeats — not
+       *  the shared kit's. */
+      const capMat = def.identity.capVariant === "dark" ? mats.goldDarkFor(0.46, 0.12) : mats.goldFor(0.46, 0.12);
+      const headerMat = def.identity.capVariant === "dark" ? mats.goldDarkFor(2.52, 0.12) : mats.goldFor(2.52, 0.12);
       for (const sd of [-1.1, 1.1]) {
         const px = axis === "x" ? x + sd : x;
         const pz = axis === "x" ? z : z + sd;
@@ -4286,18 +4533,90 @@ export class KingsHallScene {
         const post = new THREE.Mesh(gatePostGeo, postMat);
         post.position.set(px, 0.95 * v.scaleY, pz);
         post.scale.y = v.scaleY;
-        post.castShadow = QUALITY[this.quality].shadows;
+        post.castShadow = shadows;
+        post.receiveShadow = shadows;
         g.add(post);
-        const cap = new THREE.Mesh(gateCapGeo, v.variant === 2 ? mats.goldDark : mats.gold);
+        const cap = new THREE.Mesh(gateCapGeo, capMat);
         cap.position.set(px, 1.9 * v.scaleY + 0.06, pz);
+        cap.castShadow = shadows;
+        cap.receiveShadow = shadows;
         g.add(cap);
       }
       const header = new THREE.Mesh(
         axis === "x" ? new THREE.BoxGeometry(2.52, 0.12, 0.3) : new THREE.BoxGeometry(0.3, 0.12, 2.52),
-        mats.gold,
+        headerMat,
       );
       header.position.set(x, 1.8 * v.scaleY, z);
+      header.castShadow = shadows;
+      header.receiveShadow = shadows;
       g.add(header);
+      /* The OPEN LEAVES: an open gate used to be two posts and a
+       * header with nothing in the passage's history — now each
+       * gate wears its pair of leaves, swung open toward its own
+       * district (district-gates' gateLeafYaw), cloth in the
+       * district's accent with a gilt frame. Closed gates (none
+       * today) wear the bar instead, as before. */
+      if (def.open) {
+        const leafMat = new THREE.MeshStandardMaterial({
+          color: def.identity.accent, roughness: 0.82, metalness: 0.05, envMapIntensity: 0.4,
+        });
+        for (const sd of [-1.1, 1.1]) {
+          const extendingPlus = sd < 0; // the leaf reaches from its post toward the centre
+          const pivot = new THREE.Group();
+          pivot.position.set(axis === "x" ? x + sd : x, 0, axis === "x" ? z : z + sd);
+          pivot.rotation.y = gateLeafYaw(def, extendingPlus);
+          const leaf = new THREE.Mesh(
+            axis === "x" ? new THREE.BoxGeometry(1.02, 1.52, 0.05) : new THREE.BoxGeometry(0.05, 1.52, 1.02),
+            leafMat,
+          );
+          // The leaf hangs from the pivot at the post, reaching
+          // toward the gate's centre BEFORE the yaw swings it.
+          if (axis === "x") leaf.position.set(sd < 0 ? 0.53 : -0.53, 0.82, 0);
+          else leaf.position.set(0, 0.82, sd < 0 ? 0.53 : -0.53);
+          leaf.castShadow = shadows;
+          leaf.receiveShadow = shadows;
+          pivot.add(leaf);
+          const stile = new THREE.Mesh(
+            axis === "x" ? new THREE.BoxGeometry(1.06, 0.07, 0.07) : new THREE.BoxGeometry(0.07, 0.07, 1.06),
+            headerMat,
+          );
+          stile.position.copy(leaf.position);
+          stile.position.y = 1.56;
+          pivot.add(stile);
+          g.add(pivot);
+        }
+      }
+      /* The LANTERN MESH: every gate hangs a real lantern from
+       * its header — gilt cage, glass in the lamp-glass law,
+       * a cap — where before a glow sprite hung on nothing. The
+       * item-27 glow sprite now sits at the lantern's heart. */
+      {
+        const lantern = new THREE.Group();
+        const hy = 1.8 * v.scaleY;
+        lantern.position.set(x, hy, z);
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 6), mats.darkMetal);
+        stem.position.y = -0.08;
+        lantern.add(stem);
+        const cage = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.21, 0.17), headerMat);
+        cage.position.y = -0.27;
+        cage.castShadow = shadows;
+        lantern.add(cage);
+        const glassStyle = lampGlassStyle(look.theme);
+        const glass = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.15, 0.12),
+          new THREE.MeshStandardMaterial({
+            color: glassStyle.color, emissive: glassStyle.emissive,
+            emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+          }),
+        );
+        glass.position.y = -0.27;
+        lantern.add(glass);
+        const capTop = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.1, 4), headerMat);
+        capTop.position.y = -0.13;
+        capTop.rotation.y = Math.PI / 4;
+        lantern.add(capTop);
+        g.add(lantern);
+      }
       /* A CLOSED gate wears its gold bar; an OPEN gate (item 31:
        * the district beyond is built) wears none — the passage
        * between the posts is the visible truth, and its sub-plate
@@ -4312,13 +4631,17 @@ export class KingsHallScene {
       }
       /* The plate SEATS on the header: plate height at width 2.6
        * is 0.57, so its centre sits header-top + half-height —
-       * grounded, not floating at the old 2.33. */
-      this.doorPlate(g, name, x, 1.86 * v.scaleY + 0.285, z, plateRotY, 2.6);
-      this.doorPlate(g, def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3);
+       * grounded, not floating at the old 2.33. Gates round: the
+       * gate plates are BACKED and two-faced (doorPlateBacked) —
+       * the district reads its name on the way back too. */
+      this.doorPlateBacked(g, name, x, 1.86 * v.scaleY + 0.285, z, plateRotY, 2.6, mats);
+      this.doorPlateBacked(g, def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3, mats);
       if (look.candles) {
         const lx = axis === "x" ? x : x + (def.barDx ?? 0);
         const lz = axis === "x" ? z + (def.barDz ?? 0) : z;
-        this.addLanternGlow(g, anim, lx, 1.62, lz, 1.15, index * 1.7);
+        /* The glow now lives at the lantern mesh's heart (header
+         * height − its cage drop), not at a floating 1.62. */
+        this.addLanternGlow(g, anim, lx, 1.8 * v.scaleY - 0.27, lz, 1.15, index * 1.7);
       }
     };
     const buildDistrictMarker = (def: DistrictThreshold, index: number) => {
@@ -4928,17 +5251,20 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 0.4, 3).clone();
       waterTex.needsUpdate = true;
+      const rillNormal = this.rippleNormalFor(0.4, 3);
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(RILL.w - RILL.rimLip * 2, RILL.d - RILL.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: rillNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(RILL.cx, RILL.waterY + PARTERRE_LAWN.topY, RILL.cz);
       g.add(water);
-      anim.waters.push({ tex: waterTex, jet: null });
+      g.add(this.wetEdgeRect(RILL.cx, RILL.cz, RILL.w - RILL.rimLip * 2, RILL.d - RILL.rimLip * 2, RILL.waterY + PARTERRE_LAWN.topY));
+      anim.waters.push({ tex: waterTex, jet: null, normalTex: rillNormal });
     }
 
     /* Stack-100 #2 item 36: the gardens' fountain — a round
@@ -4967,16 +5293,19 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 1, 1).clone();
       waterTex.needsUpdate = true;
+      const basinNormal = this.rippleNormalFor(1, 1);
       const water = new THREE.Mesh(
         new THREE.CircleGeometry(f.rimR - 0.08, 28),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: basinNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(f.cx, baseY + f.waterY, f.cz);
       g.add(water);
+      g.add(this.wetEdgeRing(f.cx, f.cz, f.rimR - 0.08, baseY + f.waterY));
       const column = new THREE.Mesh(
         new THREE.CylinderGeometry(0.11, 0.18, f.columnTopY - 0.2, 12), mats.stoneFor(0.4, 0.8),
       );
@@ -5000,15 +5329,18 @@ export class KingsHallScene {
       jet.renderOrder = 4;
       g.add(jet);
       /* The falling water: a translucent cone sheet from the
-       * bowl's rim back down to the basin's surface. */
+       * bowl's rim back down to the basin's surface. Its material
+       * is a CLONE of the jet's: the water model breathes the
+       * fall's opacity (Stack-100 #2 item 7) and the jet must not
+       * breathe with it. */
       const fall = new THREE.Mesh(
         new THREE.CylinderGeometry(f.bowlR * 0.92, f.bowlR * 1.5, f.columnTopY - f.waterY - 0.05, 20, 1, true),
-        jetMat,
+        jetMat.clone(),
       );
       fall.position.set(f.cx, baseY + (f.columnTopY + f.waterY) / 2, f.cz);
       fall.renderOrder = 4;
       g.add(fall);
-      anim.waters.push({ tex: waterTex, jet });
+      anim.waters.push({ tex: waterTex, jet, normalTex: basinNormal, fall, fallBase: 0.5 });
     }
 
     /* The hedged listening nooks: clipped hedge runs (instanced
@@ -6225,17 +6557,20 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 6, 0.6).clone();
       waterTex.needsUpdate = true;
+      const basinNormal = this.rippleNormalFor(6, 0.6);
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(BOARDWALK_BASIN.w - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.d - BOARDWALK_BASIN.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: basinNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.05, envMapIntensity: 1.2, transparent: true, opacity: 0.94,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.waterY, BOARDWALK_BASIN.cz);
       g.add(water);
-      anim.waters.push({ tex: waterTex, jet: null });
+      g.add(this.wetEdgeRect(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.cz, BOARDWALK_BASIN.w - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.d - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.waterY));
+      anim.waters.push({ tex: waterTex, jet: null, normalTex: basinNormal });
       instanced(
         new THREE.CylinderGeometry(0.035, 0.045, BOARDWALK_RAILING.postH, 8), mats.darkMetal,
         BOARDWALK_RAILING_POSTS.map((p) => ({ x: p.x, y: BOARDWALK_RAILING.postH / 2, z: p.z })),
@@ -6877,16 +7212,19 @@ export class KingsHallScene {
       const tint = poolWaterTint(look.theme);
       const waterTex = hallTexture(look.waterTextureUrl, 3, 1.25).clone();
       waterTex.needsUpdate = true;
+      const poolNormal = this.rippleNormalFor(3, 1.25);
       const water = new THREE.Mesh(
         new THREE.PlaneGeometry(POOL.w - POOL.rimLip * 2, POOL.d - POOL.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
+          normalMap: poolNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
       water.rotation.x = -Math.PI / 2;
       water.position.set(POOL.cx, POOL.waterY, POOL.cz);
       g.add(water);
+      g.add(this.wetEdgeRect(POOL.cx, POOL.cz, POOL.w - POOL.rimLip * 2, POOL.d - POOL.rimLip * 2, POOL.waterY));
       /* The fountain: a marble basin on a short column at the
        * pool's heart, a smaller upper bowl, and the jet — a
        * translucent cone whose pulse is the water's life. */
@@ -6907,7 +7245,34 @@ export class KingsHallScene {
       jet.position.set(FOUNTAIN.x, (FOUNTAIN.jetBaseY + FOUNTAIN.jetTopY) / 2, FOUNTAIN.z);
       jet.renderOrder = 4;
       g.add(jet);
-      anim.waters.push({ tex: waterTex, jet });
+      /* Stack-100 #2 item 7: the fall + the landing. The sheet
+       * drops from the basin's rim to the pool (the gardens
+       * fountain's construction, plaza twin), breathing with the
+       * water model; the impact ripple is a flat ring on the pool
+       * around the column that the model expands and fades. */
+      const fallMat = new THREE.MeshBasicMaterial({
+        color: look.theme === "dark" ? 0x9fc4d8 : 0xeaf6ff, transparent: true,
+        opacity: 0.42, depthWrite: false, side: THREE.DoubleSide,
+      });
+      const fall = new THREE.Mesh(
+        new THREE.CylinderGeometry(FOUNTAIN_FALL.topR, FOUNTAIN_FALL.bottomR, FOUNTAIN_FALL.topY - FOUNTAIN_FALL.bottomY, 20, 1, true),
+        fallMat,
+      );
+      fall.position.set(FOUNTAIN.x, (FOUNTAIN_FALL.topY + FOUNTAIN_FALL.bottomY) / 2, FOUNTAIN.z);
+      fall.renderOrder = 4;
+      g.add(fall);
+      const ripple = new THREE.Mesh(
+        new THREE.RingGeometry(FOUNTAIN_FALL.rippleInnerR, FOUNTAIN_FALL.rippleOuterR, 36),
+        new THREE.MeshBasicMaterial({
+          color: look.theme === "dark" ? 0xcfe4ee : 0xffffff, transparent: true,
+          opacity: 0.4, depthWrite: false, side: THREE.DoubleSide,
+        }),
+      );
+      ripple.rotation.x = -Math.PI / 2;
+      ripple.position.set(FOUNTAIN.x, FOUNTAIN_FALL.rippleY, FOUNTAIN.z);
+      ripple.renderOrder = 3;
+      g.add(ripple);
+      anim.waters.push({ tex: waterTex, jet, normalTex: poolNormal, fall, fallBase: 0.42, ripple });
     }
 
     /* ── Item 29: lamp standards ───────────────────────────────
@@ -6953,6 +7318,9 @@ export class KingsHallScene {
       if (look.candles) {
         PLAZA_LAMPS.forEach((l, i) => {
           this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.31);
+          /* Fake light pool: the lamps carry NO real light — the
+           * pool is what grounds their glow on the paving. */
+          this.addFakePool(g, l.x, l.z, "lamp");
         });
       }
     }
@@ -7279,6 +7647,7 @@ export class KingsHallScene {
     const tex = kingdomBoardPlateTexture(this.theme);
     for (const mat of this.monumentFaceMats) {
       mat.map = tex;
+      mat.emissiveMap = tex;
       mat.needsUpdate = true;
     }
   }
@@ -7800,6 +8169,55 @@ export class KingsHallScene {
     });
   }
 
+  /** Item 13 [PICK — conservative top-rung version]: the brazier
+   *  point lights (plaza + hall dais, ONE class) cast shadows on
+   *  the HIGH rung only. Cube maps at 512, near/far fitted to the
+   *  light's own range, radius from the rung's softness table.
+   *  The flames flicker in INTENSITY only — positions are static,
+   *  so the frozen-map discipline keeps their shadows honest and
+   *  the cost lands on refresh frames, never per frame. This is
+   *  also the hall's indoor night shadow light: indoors after
+   *  dark the directional is out (the look's sun is absent), and
+   *  the dais braziers are the fire the room is lit by. */
+  private applyLocalShadowLights(): void {
+    const rung = QUALITY[this.quality];
+    for (const light of this.brazierShadowLights) {
+      light.castShadow = rung.localShadowLights;
+      if (rung.localShadowLights) {
+        light.shadow.mapSize.set(512, 512);
+        light.shadow.camera.near = 0.3;
+        light.shadow.camera.far = light.distance > 0 ? light.distance : 12;
+        light.shadow.radius = rung.shadowRadius;
+        light.shadow.bias = -0.005;
+        if (light.shadow.map) {
+          light.shadow.map.dispose();
+          light.shadow.map = null;
+        }
+      }
+    }
+    if (rung.localShadowLights) this.renderer.shadowMap.needsUpdate = true;
+  }
+
+  /** A fake light pool (night-life's FAKE_POOL): an additive
+   *  radial glow laid on the ground under a flame that carries
+   *  no (or not enough) real light — the plaza lamps above all.
+   *  Dressing, not a light: no shadow, no cost beyond one quad. */
+  private addFakePool(group: THREE.Group, x: number, z: number, kind: "lamp" | "brazier", groundY = 0.02): void {
+    const r = FAKE_POOL[kind].radius;
+    const pool = new THREE.Mesh(
+      new THREE.CircleGeometry(r, 24),
+      new THREE.MeshBasicMaterial({
+        map: flameTexture(), transparent: true,
+        opacity: fakePoolOpacity(kind, this.quality),
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(x, groundY, z);
+    pool.renderOrder = 2;
+    group.add(pool);
+  }
+
   /** Item 24: switch off lights whose range provably cannot reach
    *  the walker's current room (visibility.ts carries the proof);
    *  everything that could reach stays on — the look inside an
@@ -7901,6 +8319,7 @@ export class KingsHallScene {
       this.sunLight.castShadow = rung.shadows;
       if (rung.shadows && rung.shadowMapSize > 0) {
         this.sunLight.shadow.mapSize.set(rung.shadowMapSize, rung.shadowMapSize);
+        this.sunLight.shadow.radius = rung.shadowRadius;
         this.sunLight.shadow.bias = -0.0004;
         this.sunLight.shadow.normalBias = 0.03;
         if (this.sunLight.shadow.map) {
@@ -7909,6 +8328,9 @@ export class KingsHallScene {
         }
       }
     }
+    /* Item 13/14: a ladder step re-rules the local shadow lights
+     * and the softness they carry, in the same pass. */
+    this.applyLocalShadowLights();
     this.renderer.shadowMap.needsUpdate = true;
     if (this.floorReflector) {
       /* Item 92: the target is truly the rung's size in both
@@ -8237,8 +8659,18 @@ export class KingsHallScene {
       const sc = lanternGlowScale(l.base, t, l.phase);
       l.sprite.scale.set(sc, sc, 1);
     }
+    /* Night-sky life (Stack-100 #2 item 1): the visible dome's
+     * uTime advances so its stars twinkle, carry magnitude and
+     * drift — under reduced motion the sky rests at t=0. */
+    if (this.skyDomeMaterial && !this.reducedMotion) {
+      this.skyDomeMaterial.uniforms.uTime!.value = t;
+    }
     for (const c of anim.clouds) {
       c.sprite.position.x = cloudDriftX(c.def, t);
+      /* Day-sky parity (item 2): each cloud is tinted by where it
+       * rides relative to the sun side — lit bodies, not decals. */
+      const shade = cloudShadeAt(c.def, t);
+      (c.sprite.material as THREE.SpriteMaterial).color.setRGB(shade.r, shade.g, shade.b);
     }
     /* Plaza life (Stage C batch C3): banner sway + pollen drift
      * (item 26 — registered only in the light look and never
@@ -8268,7 +8700,15 @@ export class KingsHallScene {
       const ws = waterSurfaceAt(t);
       for (const w of anim.waters) {
         w.tex.offset.set(ws.offsetX, ws.offsetY);
-        if (w.jet) w.jet.scale.set(ws.jetPulse, 1, ws.jetPulse);
+        /* Ripple normals counter-scroll against the colour layer
+         * (items 5–7): the surface bends light in motion. */
+        if (w.normalTex) w.normalTex.offset.set(ws.normalOffsetX, ws.normalOffsetY);
+        if (w.jet) w.jet.scale.set(ws.jetPulse, ws.jetHeightPulse, ws.jetPulse);
+        if (w.fall) (w.fall.material as THREE.MeshBasicMaterial).opacity = (w.fallBase ?? 0.42) * ws.fallOpacity;
+        if (w.ripple) {
+          w.ripple.scale.set(ws.rippleScale, ws.rippleScale, 1);
+          (w.ripple.material as THREE.MeshBasicMaterial).opacity = ws.rippleOpacity;
+        }
       }
     }
 
@@ -8281,6 +8721,29 @@ export class KingsHallScene {
     ) {
       this.lastPose = pose;
       this.onPose?.(pose.x, pose.z, pose.rotY);
+    }
+
+    /* Item 18: the frozen shadow map re-renders on the slow
+     * cadence while ANIMATED casters exist (swaying banners, the
+     * spinning wheel) — their shadows track instead of resting at
+     * the build pose. Static scenes and reduced motion pay
+     * nothing (the sway itself is still under reduced motion). */
+    if (
+      !this.reducedMotion &&
+      shadowRefreshDue(this.frameIndex, anim.bannerSways.length + anim.spinners.length, this.renderer.shadowMap.enabled)
+    ) {
+      this.renderer.shadowMap.needsUpdate = true;
+    }
+
+    /* Day/night crossfade: ease exposure / background / fog from
+     * the outgoing look's values until the fade completes. */
+    if (this.lookFade) {
+      const p = lookFadeProgress(performance.now() - this.lookFade.startedAtMs);
+      this.renderer.toneMappingExposure =
+        this.lookFade.fromExposure + (this.lookFade.toExposure - this.lookFade.fromExposure) * p;
+      if (this.scene.background instanceof THREE.Color) this.scene.background.lerpColors(this.lookFade.fromBg, this.lookFade.toBg, p);
+      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerpColors(this.lookFade.fromFog, this.lookFade.toFog, p);
+      if (p >= 1) this.lookFade = null;
     }
 
     this.renderer.render(this.scene, this.camera);

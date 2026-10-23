@@ -25,7 +25,7 @@ import {
   POOL, POOL_BLOCKED, FOUNTAIN, PLAZA_LAMPS, LAMP, PLAZA_BENCHES, PLAZA_TABLE_SETS,
   PLAZA_URNS, PLAZA_STALLS, SPAWN_DRESSING, PLAZA_LIFE_BLOCKED,
   bannerSwayAt, createPollenField, pollenCountForScale, pollenPositionAt, POLLEN_FIELD,
-  waterSurfaceAt, poolWaterTint, lampGlassStyle,
+  waterSurfaceAt, poolWaterTint, lampGlassStyle, FOUNTAIN_FALL, WET_EDGE,
 } from "./plaza-life";
 import {
   COURTYARD_ID, PALACE_LAYOUT, PLAZA_BLOCKED, PLAZA_WALL_RUNS,
@@ -111,6 +111,38 @@ describe("plaza-life — item 28 the water", () => {
     expect(poolWaterTint("dark").roughness).toBeGreaterThan(poolWaterTint("light").roughness);
     expect(lampGlassStyle("dark").emissiveIntensity).toBeGreaterThan(lampGlassStyle("light").emissiveIntensity);
   });
+
+  it("water round 2 (Stack-100 #2 items 5–7): one model drives normals, jet height, fall and ripple", () => {
+    for (let t = 0; t < 500; t += 7.3) {
+      const w = waterSurfaceAt(t);
+      expect(w.normalOffsetX).toBeGreaterThanOrEqual(0);
+      expect(w.normalOffsetX).toBeLessThan(1);
+      expect(w.normalOffsetY).toBeGreaterThanOrEqual(0);
+      expect(w.normalOffsetY).toBeLessThan(1);
+      expect(w.jetHeightPulse).toBeGreaterThanOrEqual(0.93);
+      expect(w.jetHeightPulse).toBeLessThanOrEqual(1.07);
+      expect(w.fallOpacity).toBeGreaterThanOrEqual(0.63);
+      expect(w.fallOpacity).toBeLessThanOrEqual(1.01);
+      expect(w.ripplePhase).toBeGreaterThanOrEqual(0);
+      expect(w.ripplePhase).toBeLessThan(1);
+      expect(w.rippleScale).toBeGreaterThanOrEqual(0.35);
+      expect(w.rippleScale).toBeLessThanOrEqual(0.95);
+      // The ripple fades as it grows: opacity is the phase's mirror.
+      expect(w.rippleOpacity).toBeCloseTo(0.5 * (1 - w.ripplePhase), 9);
+    }
+    // The fall sheet spans basin rim to pool surface; the ripple
+    // ring sits ON the pool water around the fountain.
+    expect(FOUNTAIN_FALL.topY).toBeLessThan(FOUNTAIN.basinTopY);
+    expect(FOUNTAIN_FALL.bottomY).toBeGreaterThan(POOL.waterY);
+    expect(FOUNTAIN_FALL.bottomR).toBeGreaterThan(FOUNTAIN_FALL.topR);
+    expect(FOUNTAIN_FALL.rippleY).toBeGreaterThan(POOL.waterY);
+    expect(FOUNTAIN_FALL.rippleY).toBeLessThan(POOL.rimH);
+    // The wet edge is one treatment: a stain-width band, not a stripe.
+    expect(WET_EDGE.width).toBeGreaterThan(0.1);
+    expect(WET_EDGE.width).toBeLessThan(0.35);
+    expect(WET_EDGE.opacity).toBeGreaterThan(0.2);
+    expect(WET_EDGE.opacity).toBeLessThan(0.45);
+  });
 });
 
 describe("plaza-life — items 29 + 30 lamps and furniture", () => {
@@ -186,6 +218,42 @@ describe("plaza-life — item 40 spawn arrival", () => {
       for (const st of SPAWN_DRESSING.stones) expect(pointInRect(st.x, st.z, r)).toBe(false);
     }
     expect(SPAWN_DRESSING.band.cz).toBeGreaterThan(SPAWN_DRESSING.cz);
+  });
+});
+
+describe("plaza-life — water round 2 scene wiring (Stack-100 #2 items 5–7)", () => {
+  const scene = read("./hall-scene.ts");
+
+  it("every water body registers a ripple normal layer; the moat joined the animated system", () => {
+    // Pool, rill, gardens basin, boardwalk basin, moat: five pushes
+    // carrying a normalTex — and the moat's is explicit.
+    const pushes = scene.match(/anim\.waters\.push/g) ?? [];
+    expect(pushes.length).toBe(5);
+    expect(scene).toContain("anim.waters.push({ tex: moatTex, jet: null, normalTex: moatNormal })");
+    expect(scene).toContain("normalTex: poolNormal");
+    expect(scene).toContain("normalTex: rillNormal");
+    // The old admission is gone: the moat is no longer still water.
+    expect(scene).not.toContain("a still strip, no");
+  });
+
+  it("the tick drives normals, jet height, fall and ripple from the ONE model", () => {
+    expect(scene).toContain("w.normalTex.offset.set(ws.normalOffsetX, ws.normalOffsetY)");
+    expect(scene).toContain("w.jet.scale.set(ws.jetPulse, ws.jetHeightPulse, ws.jetPulse)");
+    expect(scene).toContain("ws.rippleScale");
+    expect(scene).toContain("ws.rippleOpacity");
+    expect(scene).toContain("ws.fallOpacity");
+  });
+
+  it("the wet edge bands the pool, rill, boardwalk basin (rect) and gardens basin (ring)", () => {
+    expect(scene).toContain("this.wetEdgeRect(POOL.cx, POOL.cz");
+    expect(scene).toContain("this.wetEdgeRect(RILL.cx, RILL.cz");
+    expect(scene).toContain("this.wetEdgeRect(BOARDWALK_BASIN.cx, BOARDWALK_BASIN.cz");
+    expect(scene).toContain("this.wetEdgeRing(f.cx, f.cz");
+  });
+
+  it("the plaza fountain gained its falling sheet from FOUNTAIN_FALL", () => {
+    expect(scene).toContain("FOUNTAIN_FALL.topR");
+    expect(scene).toContain("FOUNTAIN_FALL.rippleInnerR");
   });
 });
 

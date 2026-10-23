@@ -18,6 +18,8 @@ import {
   qualityPreferenceLabel,
   resolveTier,
   rungFor,
+  shadowRefreshDue,
+  SHADOW_REFRESH_FRAMES,
   steppedTextureSize,
   stepDownTier,
   stepUpTier,
@@ -142,7 +144,10 @@ describe("rung table (item 99: meaningful rungs)", () => {
     expect(med.shadowMapSize).toBe(1024);
     expect(med.reflectorSize).toBe(512);
     expect(med.reflectorGlimpseEveryN).toBe(2);
-    expect(rungFor("high").shadowMapSize).toBe(2048);
+    /* PIN CORRECTION (Stack-100 #2 item 15, task-ordered): the
+     * top rung's map rises 2048 → 4096 for texel density — shipped
+     * behaviour legitimately changed by the item itself. */
+    expect(rungFor("high").shadowMapSize).toBe(4096);
   });
   it("lod draw distance shrinks with the rung", () => {
     expect(rungFor("high").lodDrawDistance).toBeGreaterThan(rungFor("medium").lodDrawDistance);
@@ -243,6 +248,69 @@ describe("FrameTimeMonitor (item 22: adaptive ladder)", () => {
 const readSrc = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const hallSceneSrc = readSrc("./hall-scene.ts");
 const worldPageSrc = readSrc("../../pages/world.tsx");
+
+describe("light & shadow truth (Stack-100 #2 items 13–19)", () => {
+  it("item 13 [PICK]: local shadow lights are HIGH-rung only, one class, scene-ruled", () => {
+    expect(rungFor("high").localShadowLights).toBe(true);
+    expect(rungFor("medium").localShadowLights).toBe(false);
+    expect(rungFor("low").localShadowLights).toBe(false);
+    expect(hallSceneSrc).toContain("this.brazierShadowLights.push(light)");
+    expect(hallSceneSrc).toContain("light.castShadow = rung.localShadowLights");
+    expect(hallSceneSrc).toContain("private applyLocalShadowLights()");
+  });
+
+  it("item 14: softness is a real per-rung radius — PCF, never PCFSoft (which ignores radius)", () => {
+    expect(rungFor("low").shadowRadius).toBe(2);
+    expect(rungFor("medium").shadowRadius).toBe(3);
+    expect(rungFor("high").shadowRadius).toBe(4);
+    expect(hallSceneSrc).toContain("THREE.PCFShadowMap");
+    expect(hallSceneSrc).not.toContain("type = THREE.PCFSoftShadowMap");
+    expect(hallSceneSrc).toContain("sun.shadow.radius = QUALITY[this.quality].shadowRadius");
+    expect(hallSceneSrc).toContain("this.sunLight.shadow.radius = rung.shadowRadius");
+  });
+
+  it("item 15 (stale facet): ONE directional does sun AND moon — no moon-shadows module, no second caster", () => {
+    expect(hallSceneSrc).toContain("sunLight.castShadow = rung.shadows");
+    expect(hallSceneSrc).not.toContain("moonLight");
+    expect(hallSceneSrc).not.toContain("moon-shadows");
+    /* The 4096 top-rung map is the item's texel half (pin above). */
+    expect(rungFor("high").shadowMapSize).toBe(4096);
+  });
+
+  it("item 16 (stale facet): the shadow camera is typed and re-fitted with a projection update", () => {
+    expect(hallSceneSrc).toContain("cam.updateProjectionMatrix()");
+    expect(hallSceneSrc).not.toContain("shadow.camera as any");
+  });
+
+  it("item 17 (stale facet): no RectAreaLight anywhere in the scene", () => {
+    expect(hallSceneSrc).not.toContain("RectAreaLight");
+  });
+
+  it("item 18: animated casters refresh the frozen map on the slow cadence only", () => {
+    expect(SHADOW_REFRESH_FRAMES).toBeGreaterThanOrEqual(120);
+    expect(shadowRefreshDue(SHADOW_REFRESH_FRAMES, 1, true)).toBe(true);
+    expect(shadowRefreshDue(SHADOW_REFRESH_FRAMES - 1, 1, true)).toBe(false);
+    expect(shadowRefreshDue(SHADOW_REFRESH_FRAMES, 0, true)).toBe(false);
+    expect(shadowRefreshDue(SHADOW_REFRESH_FRAMES, 3, false)).toBe(false);
+    expect(hallSceneSrc).toContain("shadowRefreshDue(this.frameIndex");
+  });
+
+  it("item 19 (stale facet): the moon is a shader disc in the dome — no moon mesh, no moon casters", () => {
+    const skySrc = readSrc("./sky-env.ts");
+    expect(skySrc).toContain("moon disc");
+    expect(hallSceneSrc).not.toContain("moonMesh");
+  });
+
+  it("crossfade: theme switches ease the light (lookFade), never a hard cut", () => {
+    expect(hallSceneSrc).toContain("lookFadeProgress(performance.now()");
+    expect(hallSceneSrc).toContain("fromExposure: this.renderer.toneMappingExposure");
+  });
+
+  it("fake pools: lamps and braziers pool light on the ground in the dark look", () => {
+    expect(hallSceneSrc).toContain('this.addFakePool(g, l.x, l.z, "lamp")');
+    expect(hallSceneSrc).toContain('this.addFakePool(g, bx, bz, "brazier")');
+  });
+});
 
 describe("governor wiring (item 81: decisions reach the live scene)", () => {
   it("the frame loop feeds the monitor and applies every step it returns", () => {
