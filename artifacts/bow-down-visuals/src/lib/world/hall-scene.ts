@@ -12,9 +12,16 @@
  *   DARK  → Look B "Midnight Throne Room": black marble with gold
  *           veining, candle sconces and fire braziers, haze, deep
  *           premium shadow over a mirror-dark floor.
- * Both looks are PBR: real texture maps, themed environment
- * reflections, a true planar-reflection floor under a polished marble
- * overlay, and per-look light rigs. A quality ladder keeps phone-class
+ * Materials (overhaul stage B, pbr-materials.ts / sky-env.ts): the
+ * marble/fabric colour maps are made tileable at load and given
+ * procedurally DERIVED normal / roughness / AO maps — a vein-aware
+ * heightfield (veins sit recessed in polished stone), never the
+ * colour map fed back as its own bump. Texture repeats derive from
+ * each surface's size in metres, gold wears procedural brushed-metal
+ * maps, and environment reflections are PMREM-baked from a real
+ * procedural sky per look (day sky / night sky), not a fake room.
+ * A true planar-reflection floor sits under the polished marble
+ * overlay, with per-look light rigs. A quality ladder keeps phone-class
  * hardware (headsets included) honest: low tiers drop the planar
  * reflection, shadow maps and the extra point lights, in that order.
  * Imported ONLY via dynamic import from the /world page, so three.js
@@ -116,6 +123,16 @@ import {
   type WorldActionId,
 } from "./actions";
 import { createMover, stepMover, type MoverState } from "./movement";
+import {
+  MARBLE_METRES_PER_TILE,
+  FABRIC_METRES_PER_TILE,
+  repeatForSize,
+  derivedPbrTextures,
+  brushedGoldTextures,
+  enhanceLoadedTexture,
+  type PbrKind,
+} from "./pbr-materials";
+import { buildSkyEnvironment } from "./sky-env";
 
 /** A peer's figure chases its network target at most this fast
  *  (m/s) — a touch over run pace, so a sprinting peer reads as
@@ -213,7 +230,11 @@ const QUALITY = {
 /* ── Texture maps (public assets, lazy with the world chunk) ─────────
    One cached instance per (url, repeat) — materials vary by repeat,
    never by look, so a theme re-skin re-uses what's already loaded.
-   Mirrored wrapping hides the tile seams of generated maps. */
+   Repeats come from repeatForSize (metres, not vibes — item 7) and
+   wrapping is plain Repeat: the source is made tileable at load by
+   pbr-materials.enhanceLoadedTexture (item 11), which also derives
+   the normal/roughness/AO maps from it (item 9). The old mirrored
+   wrapping kaleidoscoped the non-seamless source's veins. */
 const textureCache = new Map<string, THREE.Texture>();
 
 /* The renderer's real anisotropy ceiling, captured at scene
@@ -231,7 +252,11 @@ function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Textu
   // bucket's CORS policy covers the site's origins, so WebGL uploads
   // stay clean. Absolute URLs (none today) pass through untouched.
   const path = url.startsWith("/") ? mediaUrl(url) : url;
-  const tex = new THREE.TextureLoader().load(path, undefined, undefined, () => {
+  const tex = new THREE.TextureLoader().load(path, (loaded) => {
+    /* The source landed: swap in its tileable variant and fill the
+     * derived PBR maps registered for this URL (pbr-materials). */
+    enhanceLoadedTexture(url, loaded);
+  }, undefined, () => {
     /* Overhaul audit T14: a slow/blocked/CORS-failed CDN copy used
      * to leave the surface untextured black with no recovery. Fall
      * back to the same asset on the site origin (the public/ copy
@@ -250,8 +275,8 @@ function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Textu
     }
   });
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.MirroredRepeatWrapping;
-  tex.wrapT = THREE.MirroredRepeatWrapping;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(repeatX, repeatY);
   tex.anisotropy = maxTextureAnisotropy;
   textureCache.set(key, tex);
@@ -1072,6 +1097,13 @@ interface LookMaterials {
   ceiling: THREE.MeshStandardMaterial;
   fabric: THREE.MeshStandardMaterial;
   darkMetal: THREE.MeshStandardMaterial;
+  /** Per-metre material factories (item 7): a wall run, ceiling or
+   *  plaza wall of a given size gets a material whose texture repeat
+   *  derives from THAT size, so texel density is constant across the
+   *  palace. Cached per size within the look. */
+  wallFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  marbleFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  ceilingFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
 }
 
 interface LookAnim {
@@ -1293,7 +1325,7 @@ export class KingsHallScene {
     this.renderer.toneMappingExposure = look.exposure;
     this.scene.background = new THREE.Color(look.background);
     this.scene.fog = new THREE.Fog(look.fogColor, look.fogNear, look.fogFar);
-    this.envTarget = this.buildEnvironment(look);
+    this.envTarget = buildSkyEnvironment(this.renderer, look);
     this.scene.environment = this.envTarget.texture;
     this.scene.environmentIntensity = look.environmentIntensity;
 
@@ -1319,88 +1351,88 @@ export class KingsHallScene {
     if (this.floorReflector) this.floorReflector.getRenderTarget().dispose();
   }
 
-  /** Themed reflections, baked from a thumbnail stand-in room: the
-   *  palace gets a blazing window wall to mirror in its gold; the
-   *  throne room gets near-black with a few warm candle glows. */
-  private buildEnvironment(look: HallLook): THREE.WebGLRenderTarget {
-    const env = new THREE.Scene();
-    const roomMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
-    const room = new THREE.Mesh(new THREE.BoxGeometry(24, 14, 24), roomMat);
-    if (look.theme === "light") {
-      roomMat.color.setRGB(0.5, 0.46, 0.38);
-      const windowWall = new THREE.Mesh(
-        new THREE.PlaneGeometry(16, 10),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(6.5, 5.9, 4.4) }),
-      );
-      windowWall.position.set(-11.8, 1, 0);
-      windowWall.rotation.y = Math.PI / 2;
-      env.add(windowWall);
-      const floorGlow = new THREE.Mesh(
-        new THREE.PlaneGeometry(20, 20),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.72, 0.5) }),
-      );
-      floorGlow.rotation.x = -Math.PI / 2;
-      floorGlow.position.y = -6.8;
-      env.add(floorGlow);
-      const screenGlow = new THREE.Mesh(
-        new THREE.PlaneGeometry(11, 5),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 0.5, 0.75) }),
-      );
-      screenGlow.position.set(0, 0.5, -11.8);
-      env.add(screenGlow);
-    } else {
-      roomMat.color.setRGB(0.012, 0.011, 0.013);
-      for (let i = 0; i < 7; i++) {
-        const glow = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.7, 1.1),
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(4.2, 1.8, 0.5) }),
-        );
-        const side = i % 2 === 0 ? -11.8 : 11.8;
-        glow.position.set(side, -2.5 + (i % 3), -8 + i * 2.6);
-        glow.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
-        env.add(glow);
-      }
-      const screenGlow = new THREE.Mesh(
-        new THREE.PlaneGeometry(11, 5),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.13, 0.22) }),
-      );
-      screenGlow.position.set(0, 0.5, -11.8);
-      env.add(screenGlow);
-    }
-    env.add(room);
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const target = pmrem.fromScene(env, 0.05);
-    pmrem.dispose();
-    return target;
-  }
+  /* Themed reflections come from sky-env.ts (item 21): a PMREM of
+   * a procedural sky per look — the fake indoor-room env that gold
+   * and marble used to reflect is gone. */
 
   /* ── Look construction ── */
 
   private makeMaterials(look: HallLook): LookMaterials {
-    const marbleMap = hallTexture(look.marbleTextureUrl, 2, 2);
+    /* One marble surface builder for the whole palace: colour map +
+     * the derived PBR set (normal/roughness/AO from pbr-materials,
+     * filled in when the source lands) at a repeat derived from the
+     * surface's size in metres. Scalar roughness is 1 wherever a
+     * roughness MAP is attached — the map encodes the absolute
+     * value, the scalar would only double-apply it. */
+    const marbleSurface = (
+      kind: PbrKind, widthM: number, heightM: number,
+      opts: { color?: number; envMapIntensity: number; metalness?: number },
+    ): THREE.MeshStandardMaterial => {
+      const rep = repeatForSize(widthM, heightM, MARBLE_METRES_PER_TILE);
+      const pbr = derivedPbrTextures(look.marbleTextureUrl, kind, rep.x, rep.y);
+      for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
+      return new THREE.MeshStandardMaterial({
+        map: hallTexture(look.marbleTextureUrl, rep.x, rep.y),
+        normalMap: pbr.normalMap, normalScale: new THREE.Vector2(0.6, 0.6),
+        roughnessMap: pbr.roughnessMap, roughness: 1,
+        aoMap: pbr.aoMap,
+        color: opts.color, metalness: opts.metalness ?? 0.05, envMapIntensity: opts.envMapIntensity,
+      });
+    };
+    const sizedCache = new Map<string, THREE.MeshStandardMaterial>();
+    const sized = (
+      tag: string, kind: PbrKind,
+      opts: { color?: number; envMapIntensity: number; metalness?: number },
+    ) => (widthM: number, heightM: number): THREE.MeshStandardMaterial => {
+      const key = `${tag}|${widthM.toFixed(2)}x${heightM.toFixed(2)}`;
+      const hit = sizedCache.get(key);
+      if (hit) return hit;
+      const mat = marbleSurface(kind, widthM, heightM, opts);
+      sizedCache.set(key, mat);
+      return mat;
+    };
+
+    /* Gold (item 12): brushed-metal maps — roughness that varies
+     * along the brush (bright ≈ 0.14–0.34, deep ≈ 0.30–0.54) and a
+     * subtle streak normal — under the sky env, so it reads as
+     * metal. roughness scalar is 1: the map carries the value. */
+    const goldMaps = brushedGoldTextures("bright", 2, 2);
     const gold = new THREE.MeshStandardMaterial({
-      color: 0xd9b45c, metalness: 1, roughness: look.theme === "light" ? 0.21 : 0.3, envMapIntensity: 1.35,
+      color: 0xd9b45c, metalness: 1, roughness: 1,
+      roughnessMap: goldMaps.roughnessMap, normalMap: goldMaps.normalMap,
+      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.35,
     });
+    const goldDarkMaps = brushedGoldTextures("dark", 2, 2);
     const goldDark = new THREE.MeshStandardMaterial({
-      color: 0x9a7a24, metalness: 1, roughness: 0.45, envMapIntensity: 0.9,
+      color: 0x9a7a24, metalness: 1, roughness: 1,
+      roughnessMap: goldDarkMaps.roughnessMap, normalMap: goldDarkMaps.normalMap,
+      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 0.9,
       emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
     });
-    const marble = new THREE.MeshStandardMaterial({
-      map: marbleMap, bumpMap: marbleMap, bumpScale: 0.12, roughness: 0.42, metalness: 0.06, envMapIntensity: 0.7,
-    });
-    const marbleWall = new THREE.MeshStandardMaterial({
-      map: hallTexture(look.marbleTextureUrl, 5, 1.4), roughness: 0.58, metalness: 0.05, envMapIntensity: 0.55,
-    });
-    const ceiling = new THREE.MeshStandardMaterial({
-      map: hallTexture(look.marbleTextureUrl, 6, 6),
-      color: look.theme === "light" ? 0xe9dfc8 : 0x59503f, roughness: 0.72, metalness: 0.05,
-    });
+    /* The shared prop marble: nominal 2 m surface (columns, stage,
+     * monument, troughs — all in that size class). Big flat runs
+     * (walls, ceilings, plaza walls) go through the *For factories
+     * so their repeat matches their real size. */
+    const marble = marbleSurface("marble", 2, 2, { envMapIntensity: 0.7, metalness: 0.06 });
+    const marbleWall = marbleSurface("marble-rough", 28.8, 6.5, { envMapIntensity: 0.55 });
+    const ceilingTint = look.theme === "light" ? 0xe9dfc8 : 0x59503f;
+    const ceiling = marbleSurface("marble-rough", 28, 30, { color: ceilingTint, envMapIntensity: 0.55 });
+    const fabricRep = repeatForSize(1.8, 1.8, FABRIC_METRES_PER_TILE);
+    const fabricPbr = derivedPbrTextures(look.throneFabricTextureUrl, "fabric", fabricRep.x, fabricRep.y);
     const fabric = new THREE.MeshStandardMaterial({
-      map: hallTexture(look.throneFabricTextureUrl, 1.5, 1.5),
-      roughness: look.theme === "light" ? 0.62 : 0.92, metalness: 0, envMapIntensity: 0.5,
+      map: hallTexture(look.throneFabricTextureUrl, fabricRep.x, fabricRep.y),
+      normalMap: fabricPbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
+      roughnessMap: fabricPbr.roughnessMap, roughness: 1,
+      aoMap: fabricPbr.aoMap,
+      metalness: 0, envMapIntensity: 0.5,
     });
     const darkMetal = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.55, metalness: 0.5 });
-    return { gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal };
+    return {
+      gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal,
+      wallFor: sized("wall", "marble-rough", { envMapIntensity: 0.55 }),
+      marbleFor: sized("marble", "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
+      ceilingFor: sized("ceiling", "marble-rough", { color: ceilingTint, envMapIntensity: 0.55 }),
+    };
   }
 
   private buildLook(group: THREE.Group, look: HallLook): void {
@@ -1441,13 +1473,23 @@ export class KingsHallScene {
       group.add(reflector);
       this.floorReflector = reflector;
     }
-    const floorMap = hallTexture(look.marbleTextureUrl, look.floorRepeat, look.floorRepeat * (30 / 28));
+    /* Per-metre repeat (item 7): the 28×30 m floor samples the same
+     * texel density as every other marble surface. The polished
+     * floor's roughness lives in its derived map (marble-floor kind:
+     * ~0.10 field, rougher veins) — roughness scalar 1, no bumpMap:
+     * the normal map carries the relief now (item 9). */
+    const floorRep = repeatForSize(28, 30, MARBLE_METRES_PER_TILE);
+    const floorMap = hallTexture(look.marbleTextureUrl, floorRep.x, floorRep.y);
+    const floorPbr = derivedPbrTextures(look.marbleTextureUrl, "marble-floor", floorRep.x, floorRep.y);
+    for (const t of [floorPbr.normalMap, floorPbr.roughnessMap, floorPbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
     const overlay = new THREE.Mesh(
       new THREE.PlaneGeometry(28, 30),
       new THREE.MeshPhysicalMaterial({
-        map: floorMap, bumpMap: floorMap, bumpScale: 0.08,
+        map: floorMap,
+        normalMap: floorPbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
+        roughnessMap: floorPbr.roughnessMap, aoMap: floorPbr.aoMap,
         transparent: true, opacity: q.reflectorSize > 0 ? look.floorOverlayOpacity : 0.97,
-        roughness: look.floorRoughness, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3,
+        roughness: 1, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3,
         envMapIntensity: 0.85, depthWrite: false,
       }),
     );
@@ -1500,7 +1542,7 @@ export class KingsHallScene {
     const len = to - from;
     if (len <= 0.01 || y1 <= y0) return;
     const cx = (from + to) / 2;
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, y1 - y0, 0.4), mats.marbleWall);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, y1 - y0, 0.4), mats.wallFor(len, y1 - y0));
     wall.position.set(cx, y0 + (y1 - y0) / 2, z);
     wall.receiveShadow = QUALITY[this.quality].shadows;
     group.add(wall);
@@ -1523,7 +1565,7 @@ export class KingsHallScene {
     const len = to - from;
     if (len <= 0.01 || y1 <= y0) return;
     const cz = (from + to) / 2;
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.4, y1 - y0, len), mats.marbleWall);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.4, y1 - y0, len), mats.wallFor(len, y1 - y0));
     wall.position.set(x, y0 + (y1 - y0) / 2, cz);
     wall.receiveShadow = QUALITY[this.quality].shadows;
     group.add(wall);
@@ -1779,7 +1821,7 @@ export class KingsHallScene {
   }
 
   private buildCeiling(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(28, 30), mats.ceiling);
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(28, 30), mats.ceilingFor(28, 30));
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.set(0, 6.5, -3);
     group.add(ceiling);
@@ -2266,23 +2308,28 @@ export class KingsHallScene {
   private shellFloor(
     g: THREE.Group, look: HallLook, mats: LookMaterials,
     rect: { minX: number; maxX: number; minZ: number; maxZ: number },
-    roughness: number, repeatDivisor: number,
+    kind: PbrKind,
   ): void {
     const w = rect.maxX - rect.minX;
     const d = rect.maxZ - rect.minZ;
     const cx = (rect.minX + rect.maxX) / 2;
     const cz = (rect.minZ + rect.maxZ) / 2;
-    const map = hallTexture(
-      look.marbleTextureUrl,
-      Math.max(2, Math.round(w / repeatDivisor)),
-      Math.max(2, Math.round(d / repeatDivisor)),
-    );
+    /* Per-metre repeat (item 7) — the old code rounded w/7 to whole
+     * tiles, so every rect snapped to a different texel density.
+     * Derived PBR maps ride along (item 9); roughness is encoded
+     * in the kind's map, so the scalar is 1. */
+    const rep = repeatForSize(w, d, MARBLE_METRES_PER_TILE);
+    const map = hallTexture(look.marbleTextureUrl, rep.x, rep.y);
+    const pbr = derivedPbrTextures(look.marbleTextureUrl, kind, rep.x, rep.y);
+    for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(w, d),
       new THREE.MeshPhysicalMaterial({
-        map, bumpMap: map, bumpScale: 0.06,
+        map,
+        normalMap: pbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
+        roughnessMap: pbr.roughnessMap, aoMap: pbr.aoMap,
         transparent: true, opacity: 0.97,
-        roughness, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.35,
+        roughness: 1, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.35,
         envMapIntensity: 0.8, depthWrite: false,
       }),
     );
@@ -2328,8 +2375,11 @@ export class KingsHallScene {
    *  carry extra lights (the plan's budget: no room out-lights the
    *  hall; shells get exactly this one). */
   private shellLantern(g: THREE.Group, look: HallLook, x: number, z: number): void {
+    const lanternGoldMaps = brushedGoldTextures("bright", 1, 1);
     const matsGold = new THREE.MeshStandardMaterial({
-      color: 0xd9b45c, metalness: 1, roughness: 0.3, envMapIntensity: 1.2,
+      color: 0xd9b45c, metalness: 1, roughness: 1,
+      roughnessMap: lanternGoldMaps.roughnessMap, normalMap: lanternGoldMaps.normalMap,
+      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.2,
     });
     const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.1, 6), matsGold);
     chain.position.set(x, 5.95, z);
@@ -2361,11 +2411,11 @@ export class KingsHallScene {
     // off the plan, so a new room needs no builder changes.
     const west = interior.maxX < 0;
 
-    this.shellFloor(g, look, mats, interior, look.floorRoughness, 7);
+    this.shellFloor(g, look, mats, interior, "marble-floor");
 
     const ceiling = new THREE.Mesh(
       new THREE.PlaneGeometry(interior.maxX - interior.minX, interior.maxZ - interior.minZ),
-      mats.ceiling,
+      mats.ceilingFor(interior.maxX - interior.minX, interior.maxZ - interior.minZ),
     );
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.set(cx, 6.5, cz);
@@ -2430,11 +2480,11 @@ export class KingsHallScene {
     const DH = PALACE_DOOR_HEIGHT;
     const door = t.door;
 
-    this.shellFloor(g, look, mats, interior, look.floorRoughness, 7);
+    this.shellFloor(g, look, mats, interior, "marble-floor");
 
     const ceiling = new THREE.Mesh(
       new THREE.PlaneGeometry(interior.maxX - interior.minX, interior.maxZ - interior.minZ),
-      mats.ceiling,
+      mats.ceilingFor(interior.maxX - interior.minX, interior.maxZ - interior.minZ),
     );
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.set(cx, H, cz);
@@ -2759,14 +2809,14 @@ export class KingsHallScene {
      * z 26.4..38) — one rect over both would z-fight it. Tile
      * instead: the main grounds, then the promenade, abutting at
      * z 26 with no overlap. Same rough outdoor finish as before. */
-    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, 0.78, 7);
-    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, 0.78, 7);
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, "marble-rough");
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, "marble-rough");
     /* The south-east patch (overhaul stage 3): east of the Creator
      * Room's floor and south of the main grounds, the shipped plan
      * laid NO floor at all — background void showed under the east
      * lawn's edge. This rect abuts the creator floor (x 16.4) and
      * the main grounds (z 26) without overlapping either. */
-    this.shellFloor(g, look, mats, { minX: 16.4, maxX: 28.2, minZ: 26.0, maxZ: 34.0 }, 0.78, 7);
+    this.shellFloor(g, look, mats, { minX: 16.4, maxX: 28.2, minZ: 26.0, maxZ: 34.0 }, "marble-rough");
 
     // Low marble walls with a gold cap on the open sides (the
     // fourth side is the hall's own back wall + the arch through
@@ -2779,7 +2829,10 @@ export class KingsHallScene {
     // flow into the promenade, and the Creator Rooms arch area
     // (x 8.45..10.55 at z ≈ 26) stays open as it was.
     const lowWall = (w: number, d: number, x: number, z: number) => {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1.05, d), mats.marble);
+      /* The long runs (up to 27 m) get a per-metre material — the
+       * shared prop marble would stretch one tile across the whole
+       * promenade wall (item 7). */
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1.05, d), mats.marbleFor(Math.max(w, d), 1.05));
       wall.position.set(x, 0.525, z);
       wall.castShadow = QUALITY[this.quality].shadows;
       g.add(wall);

@@ -52,10 +52,15 @@ export interface HallLook {
   /** PBR texture maps (public assets, loaded with the world chunk). */
   marbleTextureUrl: string;
   throneFabricTextureUrl: string;
-  /** Marble map repeat across the 28×30 m floor. */
+  /** Legacy: the floor's old whole-tile repeat count. Repeats are
+   *  per-metre now (pbr-materials.repeatForSize, overhaul item 7) —
+   *  hall-scene no longer reads this; kept as look history. */
   floorRepeat: number;
   /** How much of the mirror floor shows through the marble overlay. */
   floorOverlayOpacity: number;
+  /** The floor polish this look designs for — now encoded in the
+   *  derived marble-floor roughness map (≈ this value on the field,
+   *  rougher in the veins) rather than a material scalar. */
   floorRoughness: number;
   /** Tint multiplied into the planar reflection (Reflector colour). */
   floorReflectionTint: number;
