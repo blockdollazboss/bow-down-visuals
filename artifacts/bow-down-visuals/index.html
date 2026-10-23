@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- Stack-28 #54 (A5-M2): pinch zoom re-enabled — no maximum-scale cap.
+         Verified: no layout code reads or depends on the zoom cap (grep for
+         maximum-scale/user-scalable across src/public = only this tag);
+         viewport-fit=cover kept for notch/safe-area layouts. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0a04" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F0" />
     <link rel="manifest" href="/manifest.json" />
