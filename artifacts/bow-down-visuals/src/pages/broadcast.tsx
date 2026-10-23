@@ -27,26 +27,45 @@ export default function BroadcastPage() {
   usePageTitle("Broadcast", "Broadcast channels and premieres on Bow Down Visuals.");
   const [channels, setChannels] = useState<ChannelRow[]>([]);
   const [inbox, setInbox] = useState<Array<{ id: string; channelName: string; body: string; createdAt: string | null; creator: { displayName: string } | null }>>([]);
-  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  /* Per-source states (Stack-28 #26 / A3-F4, dashboard-sections
+     pattern): channels and inbox settle independently — one failing
+     source must never blank the other or hide the create form. */
+  const [channelsState, setChannelsState] = useState<"loading" | "ready" | "error">("loading");
+  const [inboxState, setInboxState] = useState<"loading" | "ready" | "error">("loading");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const loadData = useCallback(async () => {
+  const loadChannels = useCallback(async () => {
+    setChannelsState("loading");
     try {
-      const [ch, ib] = await Promise.all([reachApi.broadcastChannels(getAccessToken), reachApi.broadcastInbox(getAccessToken)]);
+      const ch = await reachApi.broadcastChannels(getAccessToken);
       setChannels(ch.channels as ChannelRow[]);
-      setInbox(ib.posts);
-      setLoadState("ready");
+      setChannelsState("ready");
     } catch {
-      setLoadState("error");
+      setChannelsState("error");
     }
   }, [getAccessToken]);
 
+  const loadInbox = useCallback(async () => {
+    setInboxState("loading");
+    try {
+      const ib = await reachApi.broadcastInbox(getAccessToken);
+      setInbox(ib.posts);
+      setInboxState("ready");
+    } catch {
+      setInboxState("error");
+    }
+  }, [getAccessToken]);
+
+  const loadData = useCallback(async () => {
+    await Promise.allSettled([loadChannels(), loadInbox()]);
+  }, [loadChannels, loadInbox]);
+
   useEffect(() => {
     if (user) void loadData();
-    else setLoadState("ready");
+    else { setChannelsState("ready"); setInboxState("ready"); }
   }, [user, loadData]);
 
   if (!user) {
@@ -58,14 +77,6 @@ export default function BroadcastPage() {
       </div>
     );
   }
-  if (loadState === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
-      </div>
-    );
-  }
-
   const mine = channels.find((c) => c.isOwner);
 
   return (
@@ -76,13 +87,23 @@ export default function BroadcastPage() {
           <p className="mt-1 text-sm text-white/50">Your one-to-many channel: you post, your people read. Open to every creator from day one.</p>
         </div>
 
-        {loadState === "error" && (
-          <div className="rounded-2xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-300">
-            Broadcast couldn't load. <button type="button" onClick={() => void loadData()} className="font-bold underline">Try again</button>
+        {channelsState === "loading" && (
+          <div className="flex items-center gap-2 text-sm text-white/40">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-400" /> Loading your channels…
           </div>
         )}
 
-        {!mine && loadState === "ready" && (
+        {channelsState === "error" && (
+          <div className="rounded-2xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-300" data-testid="broadcast-channels-error">
+            Your channels couldn't load. <button type="button" onClick={() => void loadChannels()} className="font-bold underline">Try again</button>
+          </div>
+        )}
+
+        {/* The create form keys off the channels source only — and
+            stays reachable even when that source failed (the server
+            answers the create honestly); an inbox failure can never
+            hide it (Stack-28 #26). */}
+        {!mine && channelsState !== "loading" && (
           <form
             className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5"
             onSubmit={async (e) => {
@@ -153,7 +174,13 @@ export default function BroadcastPage() {
 
         <section>
           <h2 className="text-sm font-black uppercase tracking-wider text-white/60">Your broadcast inbox</h2>
-          {inbox.length === 0 ? (
+          {inboxState === "error" ? (
+            <div className="mt-3 rounded-2xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-300" data-testid="broadcast-inbox-error">
+              Your inbox couldn't load. <button type="button" onClick={() => void loadInbox()} className="font-bold underline">Try again</button>
+            </div>
+          ) : inboxState === "loading" ? (
+            <p className="mt-3 inline-flex items-center gap-2 text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin text-amber-400" /> Loading your inbox…</p>
+          ) : inbox.length === 0 ? (
             <p className="mt-3 rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-sm text-white/40">Nothing here yet — join a channel above and its posts land in this inbox.</p>
           ) : (
             <ul className="mt-3 space-y-3">

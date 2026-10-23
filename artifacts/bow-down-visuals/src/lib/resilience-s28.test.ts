@@ -85,3 +85,28 @@ describe("#25 sponsor-dashboard: banner never paints fake zeros (A3-F3)", () => 
     expect(page).toContain("setRetryNonce((n) => n + 1)");
   });
 });
+
+describe("#26 broadcast: channels and inbox settle independently (A3-F4)", () => {
+  const page = src("../pages/broadcast.tsx");
+  it("no coupled Promise.all and no single page loadState remain", () => {
+    expect(page).not.toContain("Promise.all([reachApi.broadcastChannels");
+    expect(page).not.toContain("loadState");
+    expect(page).toContain("Promise.allSettled([loadChannels(), loadInbox()])");
+  });
+  it("each source carries its own state and its own error card + retry", () => {
+    expect(page).toContain('data-testid="broadcast-channels-error"');
+    expect(page).toContain('data-testid="broadcast-inbox-error"');
+    expect(page).toContain("onClick={() => void loadChannels()}");
+    expect(page).toContain("onClick={() => void loadInbox()}");
+  });
+  it("the create form is reachable whenever channels are not loading — inbox state never gates it", () => {
+    expect(page).toContain('!mine && channelsState !== "loading"');
+    const formAt = page.indexOf("Open your broadcast channel");
+    const inboxErrorAt = page.indexOf('data-testid="broadcast-inbox-error"');
+    expect(formAt).toBeGreaterThan(-1);
+    expect(inboxErrorAt).toBeGreaterThan(formAt);
+  });
+  it("there is no full-page spinner gate anymore", () => {
+    expect(page).not.toContain('loadState === "loading"');
+  });
+});
