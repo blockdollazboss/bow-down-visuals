@@ -115,7 +115,10 @@ describe("findability — the doors are hung in their home sections", () => {
       ["/nfc-cards", "nav.nfcCards"],
       ["/live-shopping", "nav.liveShopping"],
       ["/community", "nav.community"],
-      ["/dashboard", "nav.quests"],
+      /* Stack-28 #44 deliberate pin correction: the Quests door now
+         carries the #quests anchor (A1-03) — same route, same key,
+         aimed at the widget instead of the top of the dashboard. */
+      ["/dashboard#quests", "nav.quests"],
       ["/earnings", "nav.earnings"],
       ["/memberships", "nav.memberships"],
       ["/team", "nav.team"],
