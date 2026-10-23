@@ -2849,6 +2849,7 @@ export class KingsHallScene {
     };
     const wallInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mats.marble, LOW_WALL_RUNS.length);
     wallInst.castShadow = QUALITY[this.quality].shadows;
+    wallInst.frustumCulled = false;
     const capInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mats.gold, LOW_WALL_RUNS.length);
     LOW_WALL_RUNS.forEach((run, i) => {
       setInst(wallInst, i, run.x, 0.525, run.z, run.w, 1.05, run.d);
@@ -2857,12 +2858,14 @@ export class KingsHallScene {
     });
     wallInst.instanceMatrix.needsUpdate = true;
     capInst.instanceMatrix.needsUpdate = true;
+    capInst.frustumCulled = false;
     g.add(wallInst);
     g.add(capInst);
 
     const plinthInst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.22, 0.9), mats.marble, COLUMN_SPOTS.length);
     const shaftInst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.62, 2.6, 0.62), mats.marble, COLUMN_SPOTS.length);
     shaftInst.castShadow = QUALITY[this.quality].shadows;
+    shaftInst.frustumCulled = false;
     const colCapInst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold, COLUMN_SPOTS.length);
     COLUMN_SPOTS.forEach((spot, i) => {
       setInst(plinthInst, i, spot.x, 1.13, spot.z);
@@ -2872,6 +2875,8 @@ export class KingsHallScene {
     plinthInst.instanceMatrix.needsUpdate = true;
     shaftInst.instanceMatrix.needsUpdate = true;
     colCapInst.instanceMatrix.needsUpdate = true;
+    plinthInst.frustumCulled = false;
+    colCapInst.frustumCulled = false;
     g.add(plinthInst);
     g.add(shaftInst);
     g.add(colCapInst);
@@ -2978,6 +2983,7 @@ export class KingsHallScene {
     const troughXInst = new THREE.InstancedMesh(new THREE.BoxGeometry(2.0, 0.55, 0.72), mats.marble, spotsX.length);
     const crownInst = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.44, 1), leafMat, ALL_PLANTER_CROWNS.length);
     crownInst.castShadow = QUALITY[this.quality].shadows;
+    crownInst.frustumCulled = false;
     {
       const dummy = new THREE.Object3D();
       const put = (im: THREE.InstancedMesh, i: number, x: number, y: number, z: number) => {
@@ -2993,6 +2999,8 @@ export class KingsHallScene {
       troughZInst.instanceMatrix.needsUpdate = true;
       troughXInst.instanceMatrix.needsUpdate = true;
       crownInst.instanceMatrix.needsUpdate = true;
+      troughZInst.frustumCulled = false;
+      troughXInst.frustumCulled = false;
     }
     g.add(troughZInst);
     g.add(troughXInst);
@@ -3072,6 +3080,8 @@ export class KingsHallScene {
       });
       postInst.instanceMatrix.needsUpdate = true;
       gateCapInst.instanceMatrix.needsUpdate = true;
+      postInst.frustumCulled = false;
+      gateCapInst.frustumCulled = false;
       g.add(postInst);
       g.add(gateCapInst);
     }
