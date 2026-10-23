@@ -18,6 +18,18 @@ import {
   PLAZA_GATES,
   PLAZA_BLOCKED,
   PLAZA_TALL_BLOCKED,
+  MONUMENT_CORE_BLOCKED,
+  PLAZA_STEPS,
+  LAWN_ZONES,
+  HALL_STEP_ZONES,
+  TERRACE_ZONES,
+  MONUMENT_STEPS,
+  BOARDWALK_STEPS,
+  STEP_UP_MAX,
+  STEP_DOWN_MAX,
+  groundHeightAt,
+  stepZoneAt,
+  isStandable,
   CREATOR_ARCH_PILLARS,
   cameraPointFree,
   pullInCamera,
@@ -187,26 +199,38 @@ describe("the King's Plaza (Open World Phase 1)", () => {
     expect(stroll.z).toBe(23.5);
   });
 
-  it("the Kingdom Board monument is solid — no walking through the plinth", () => {
-    /* Overhaul stage 3 (clipping fix): the monument's footprint is
-     * a blocked rect in the plaza's layout. */
-    expect(isWalkable(0, 19.7)).toBe(false); // the stele itself
-    expect(isWalkable(0, 21.4)).toBe(false); // the plinth's south edge — solid too
-    /* Stage C item 17 DELIBERATELY moved the two pins below: the
-     * grown plinth's trim face stands at z 21.93 and its blocked
-     * rect ends at 22.0, so the walker's stance at the face (and
-     * the bonk's start) moved 0.45 m south with it. The board
-     * station point at 22.6 is untouched. */
-    expect(isWalkable(0, 22.15)).toBe(true); // a walker's stance at the face — prompt radius reaches
-    expect(isWalkable(0, 22.6)).toBe(true); // the board station point stands on open plaza
-    /* A step aimed into the plinth stops dead (the bonk)… */
-    const bonk = resolvePalaceMove({ x: 0, z: 22.4, room: COURTYARD_ID }, 0, 21.6);
+  it("the Kingdom Board monument: tiers climbable, the stele core solid (Stack-100 #2)", () => {
+    /* Overhaul stage 3 made the whole footprint a blocked rect;
+     * Stage C item 17 grew it. DELIBERATELY moved by Stack-100 #2
+     * (the climbable-Y finish of item 38): the three plinth tiers
+     * are step zones now — a walker climbs them tier by tier —
+     * and only the stele/drum core stays solid. */
+    expect(isWalkable(0, 19.7)).toBe(false); // the stele itself — still a wall
+    expect(isStandable(0, 19.7)).toBe(false);
+    expect(isWalkable(0, 21.4)).toBe(true); // the plinth's south edge — the tiers stand here now
+    expect(groundHeightAt(0, 21.4)).toBe(0.48); // tier 2's apron (its square reaches z 21.45)
+    /* Stage C item 17's pins stand: the board station point and a
+     * reader's stance at the face are open plaza. */
+    expect(isWalkable(0, 22.15)).toBe(true);
+    expect(isWalkable(0, 22.6)).toBe(true);
+    /* The climb, tier by tier (each rise ≤ STEP_UP_MAX)… */
+    const t1 = resolvePalaceMove({ x: 0, z: 22.4, room: COURTYARD_ID }, 0, 21.6);
+    expect(t1.z).toBe(21.6);
+    expect(groundHeightAt(t1.x, t1.z)).toBe(0.24);
+    const t2 = resolvePalaceMove({ x: 0, z: 21.6, room: COURTYARD_ID }, 0, 21.2);
+    expect(t2.z).toBe(21.2);
+    expect(groundHeightAt(t2.x, t2.z)).toBe(0.48);
+    const t3 = resolvePalaceMove({ x: 0, z: 21.2, room: COURTYARD_ID }, 0, 20.9);
+    expect(t3.z).toBe(20.9);
+    expect(groundHeightAt(t3.x, t3.z)).toBe(0.7);
+    /* …and the core stops the climb dead (the bonk). */
+    const bonk = resolvePalaceMove({ x: 0, z: 20.9, room: COURTYARD_ID }, 0, 20.4);
     expect(bonk.x).toBe(0);
-    expect(bonk.z).toBe(22.4);
-    /* …and a diagonal step slides along its face like a wall. */
-    const slide = resolvePalaceMove({ x: 0.5, z: 22.5, room: COURTYARD_ID }, -0.5, 21.4);
+    expect(bonk.z).toBe(20.9);
+    /* A diagonal step at the core's face slides along it like a wall. */
+    const slide = resolvePalaceMove({ x: 0.5, z: 20.9, room: COURTYARD_ID }, -0.5, 20.4);
     expect(slide.x).toBe(-0.5);
-    expect(slide.z).toBe(22.5);
+    expect(slide.z).toBe(20.9);
     expect(slide.room).toBe(COURTYARD_ID);
   });
 
@@ -288,10 +312,14 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
         minZ: run.z - run.d / 2, maxZ: run.z + run.d / 2,
       });
     }
-    /* Stage C item 17 DELIBERATELY moved this pin: the monument
-     * grew (4.46 m trim square), so its blocked rect grew to the
-     * 4.6 m square palace-grounds' MONUMENT_BLOCKED defines. */
-    expect(PLAZA_BLOCKED).toContainEqual({ minX: -2.3, maxX: 2.3, minZ: 17.4, maxZ: 22.0 });
+    /* Stage C item 17 DELIBERATELY moved this pin (the monument
+     * grew, its blocked rect grew to the 4.6 m square); Stack-100
+     * #2 DELIBERATELY moved it again: the walker's blocked list
+     * carries the stele/drum CORE (1.96 m square) — the tiers are
+     * climbable zones — while the 4.6 m square survives as the
+     * camera's footprint in PLAZA_TALL_BLOCKED (item 44's test). */
+    expect(PLAZA_BLOCKED).toContainEqual(MONUMENT_CORE_BLOCKED);
+    expect(PLAZA_BLOCKED).toContainEqual({ minX: -0.98, maxX: 0.98, minZ: 18.72, maxZ: 20.68 });
     expect(plaza.blocked).toBe(PLAZA_BLOCKED);
   });
 
@@ -301,8 +329,17 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     expect(planterBonk.z).toBe(15.8);
     const brazierBonk = resolvePalaceMove({ x: -3.7, z: 18.6, room: COURTYARD_ID }, -4.6, 18.6);
     expect(brazierBonk.x).toBe(-3.7);
-    const gateBonk = resolvePalaceMove({ x: 13.5, z: 23.6, room: COURTYARD_ID }, 13.5, 24.6);
-    expect(gateBonk.z).toBe(23.6);
+    /* DELIBERATELY moved by Stack-100 #2: this step used to bonk
+     * — the samples south of the portal (z 23.6..23.75) stood in
+     * a rect sliver no list claimed. The clipped east lawn's
+     * strip physically runs to the wall face beside the gate's
+     * real gap, so the throat is standing ground at grass height
+     * now and the step crosses into the Heights, exactly like
+     * the diagonal below. The gate's POSTS stay solid (the
+     * postBonk at the end of this test). */
+    const gateCross = resolvePalaceMove({ x: 13.5, z: 23.6, room: COURTYARD_ID }, 13.5, 24.6);
+    expect(gateCross.z).toBe(24.6);
+    expect(gateCross.entered).toBe(HEIGHTS_ID);
     /* DELIBERATELY moved in item 36: the freestanding marker at
      * (13.5, 24.6) is an OPEN gate now — the diagonal that used
      * to slide along the marker's plinth CROSSES through the
@@ -440,7 +477,18 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
   });
 
   it("item 44: the camera collides with tall props only — pull-in stops clear of the monument", () => {
-    for (const b of PLAZA_TALL_BLOCKED) expect(PLAZA_BLOCKED).toContainEqual(b);
+    /* Every camera-tall rect is also walker-blocked — with ONE
+     * deliberate exception since Stack-100 #2: the monument's
+     * full footprint stays camera-tall (the stele reaches ~5.4 m
+     * over climbable tiers), while walkers block only on its
+     * core. The camera law itself is untouched: it reads
+     * camBlocked, never the walker's list. */
+    const MONUMENT_FOOTPRINT = { minX: -2.3, maxX: 2.3, minZ: 17.4, maxZ: 22.0 };
+    expect(PLAZA_TALL_BLOCKED).toContainEqual(MONUMENT_FOOTPRINT);
+    for (const b of PLAZA_TALL_BLOCKED) {
+      if (b.minX === MONUMENT_FOOTPRINT.minX && b.minZ === MONUMENT_FOOTPRINT.minZ) continue;
+      expect(PLAZA_BLOCKED).toContainEqual(b);
+    }
     expect(cameraPointFree(COURTYARD_ID, -4.6, 18.6)).toBe(true);
     expect(cameraPointFree(COURTYARD_ID, -27.3, 15.8)).toBe(true);
     expect(cameraPointFree(COURTYARD_ID, 0, 19.7)).toBe(false);
@@ -526,5 +574,103 @@ describe("the second ring (palace follow-on)", () => {
     const res = resolvePalaceMove({ x: 20, z: -9.7, room: ROYAL_COURT_ID }, 20, -8.0);
     expect(res.room).toBe(ROYAL_COURT_ID);
     expect(res.z).toBe(-9.7);
+  });
+});
+
+describe("climbable Y — step zones and height-gated movement (Stack-100 #2, items 49/50/55)", () => {
+  it("the zone inventory matches the server's mirrored table, count for count", () => {
+    /* api-server world-palace.ts carries exactly these zones as
+     * its plaza grounds table (19 rects) — pinned there too. */
+    expect(LAWN_ZONES).toHaveLength(2);
+    expect(HALL_STEP_ZONES).toHaveLength(8);
+    expect(TERRACE_ZONES).toHaveLength(6);
+    expect(MONUMENT_STEPS).toHaveLength(3);
+    expect(PLAZA_STEPS).toHaveLength(19);
+    expect(BOARDWALK_STEPS).toHaveLength(3); // main deck + both north strips
+    expect(STEP_UP_MAX).toBe(0.4);
+    expect(STEP_DOWN_MAX).toBe(0.4);
+  });
+
+  it("lawns stand at grass height — the east lawn only where it is actually built", () => {
+    expect(groundHeightAt(-16.75, 19.2)).toBe(0.05); // west lawn heart
+    expect(groundHeightAt(10.0, 19.2)).toBe(0.05); // the clipped east strip
+    expect(LAWN_ZONES.map((z) => z.rect)).toContainEqual({
+      minX: 6.5, maxX: 13.5, minZ: 13.7, maxZ: 24.7,
+    });
+    /* East of the enclave wall (x > 13.5) is the Heights' own
+     * ground at floor height — the lawn zone must not leak
+     * through the wall (the gate-bonk regression). */
+    expect(stepZoneAt(20, 19.2)).toBeNull();
+    expect(groundHeightAt(20, 19.2)).toBe(0);
+    expect(groundHeightAt(14.5, 24.0)).toBe(0);
+    /* Nor may the zone call the wall's own footprint standable:
+     * on the wall line north of the gate gap the Heights wall
+     * run stands, and a solid from ANY room beats the zone. */
+    expect(isStandable(13.5, 20.0)).toBe(false);
+    expect(groundHeightAt(13.5, 20.0)).toBe(0);
+    /* The gate throat itself stands on the lawn strip's end. */
+    expect(groundHeightAt(13.5, 24.0)).toBe(0.05);
+  });
+
+  it("the hall steps climb tread by tread, and the platform's edge is one honest drop", () => {
+    const climb: Array<[number, number]> = [
+      [13.36, 0.12],
+      [14.08, 0.24],
+      [14.8, 0.36],
+      [15.3, 0.36], // the platform (a plaza-life table set stands on its centre — pinned in palace-grounds.test)
+    ];
+    let from = { x: -3.85, z: 12.9, room: COURTYARD_ID };
+    for (const [z, topY] of climb) {
+      const res = resolvePalaceMove(from, -3.85, z);
+      expect(res.z).toBe(z);
+      expect(groundHeightAt(res.x, res.z)).toBe(topY);
+      from = { x: res.x, z: res.z, room: res.room };
+    }
+    /* Off the platform's side: a single 0.36 drop — within
+     * STEP_DOWN_MAX, so the step lands on the plaza floor. */
+    const off = resolvePalaceMove({ x: -3.85, z: 15.3, room: COURTYARD_ID }, -1.5, 15.3);
+    expect(off.x).toBe(-1.5);
+    expect(groundHeightAt(off.x, off.z)).toBe(0);
+  });
+
+  it("terraces climb by their tiers; the top tier's side refuses like a wall (item 55)", () => {
+    /* The climb runs along the west mass's north reach (z 14.2):
+     * a planter stands on tier 1 at the mass's centre (z ~15.8)
+     * and its footprint is solid there — pinned in
+     * palace-grounds.test. */
+    const tiers: Array<[number, number]> = [
+      [-26.37, 0.3],
+      [-27.1, 0.62],
+      [-27.83, 0.95],
+    ];
+    let from = { x: -25.5, z: 14.2, room: COURTYARD_ID };
+    for (const [x, topY] of tiers) {
+      const res = resolvePalaceMove(from, x, 14.2);
+      expect(res.x).toBe(x);
+      expect(groundHeightAt(res.x, res.z)).toBe(topY);
+      from = { x: res.x, z: res.z, room: res.room };
+    }
+    /* Off the top tier's south side is a 0.95 m drop — beyond
+     * STEP_DOWN_MAX: no void fall, no teleport pop; the step is
+     * refused whole, exactly like a wall. */
+    const leap = resolvePalaceMove({ x: -27.83, z: 16.4, room: COURTYARD_ID }, -27.83, 17.2);
+    expect(leap.x).toBe(-27.83);
+    expect(leap.z).toBe(16.4);
+    /* And back down is by the tiers, one honest drop at a time. */
+    const down = resolvePalaceMove({ x: -27.83, z: 14.2, room: COURTYARD_ID }, -27.1, 14.2);
+    expect(down.x).toBe(-27.1);
+    expect(groundHeightAt(down.x, down.z)).toBe(0.62);
+  });
+
+  it("district lawns and the Boardwalk deck carry their authored heights", () => {
+    /* Off-centre probes: the audience lawn's centre carries a
+     * bench row and the parterre's centre its rill — both solid
+     * there (a solid inside a zone always wins). */
+    expect(groundHeightAt(-45.0, 19.0)).toBe(0.05); // Stage Grounds audience lawn
+    expect(groundHeightAt(-32.0, 43.0)).toBe(0.05); // Listening Gardens parterre lawn
+    expect(groundHeightAt(0, 40.0)).toBe(0.03); // Boardwalk main deck
+    expect(groundHeightAt(0, 36.2)).toBe(0.03); // Boardwalk entry strip (its spawn)
+    expect(groundHeightAt(0, 31.5)).toBe(0); // the plaza promenade stays floor-flat
+    expect(groundHeightAt(0, 0)).toBe(0); // the hall floor
   });
 });

@@ -13,12 +13,13 @@
  * — every piece in world metres — so the tests can pin the laws
  * without a GL context:
  *
- *   1. WALK SEMANTICS NEVER MOVE. The movement system is a flat
- *      plane (palace-layout's resolvePalaceMove has no Y). Every
- *      solid this module adds either stands OUTSIDE the courtyard
- *      walk/grounds rects entirely, or is registered as a blocked
- *      rect in palace-layout DERIVED from this same data — a
- *      visible body and its collision can never drift apart.
+ *   1. WALK SEMANTICS NEVER MOVE. Every solid this module adds
+ *      either stands OUTSIDE the courtyard walk/grounds rects
+ *      entirely, or is registered in palace-layout DERIVED from
+ *      this same data — as a blocked rect, or (since Stack-100 #2
+ *      finished item 38) as a climbable step zone at its authored
+ *      height — so a visible body and its walk truth can never
+ *      drift apart.
  *   2. The monument keeps its heart: same centre (0, 19.7), same
  *      plate drum centre height, same four lettered faces at the
  *      same size (item 16's real headlines render exactly as
@@ -237,20 +238,26 @@ export const MONUMENT_BLOCKED: PalaceRect = {
 };
 
 /** Monument plinth steps (item 38's third clause): the three
- *  tiers ARE the massing steps up the plinth — climbable-Y is
- *  parked (flat-plane movement), so the steps read as ceremony,
- *  and the whole footprint stays inside MONUMENT_BLOCKED. */
+ *  tiers ARE the massing steps up the plinth. Stack-100 #2
+ *  finished item 38: the tiers are climbable step zones in
+ *  palace-layout (MONUMENT_STEPS at these same topYs); only the
+ *  stele/drum core stays blocked (MONUMENT_CORE_BLOCKED there).
+ *  MONUMENT_BLOCKED below remains the CAMERA's footprint (the
+ *  whole grown monument is camera-tall) and the record of the
+ *  plinth's full extent. */
 
 /* ── Item 38: elevation around the walk paths ─────────────────────
  * Ceremonial steps FLANK the hall-arch approach (they dress the
  * path's edges, never the path: the 3.6 m marble run stays clear),
  * terraces mass the grounds' east and west edges, and the
- * monument's tiers (above) step its plinth. Everything here is
- * VISUAL elevation around flat-plane walking — no step enters a
- * walk path, and every mass that stands in walkable ground is in
- * TERRACE_BLOCKED (palace-layout blocks from it). True climbable
- * Y is parked: resolvePalaceMove has no Y and this batch does not
- * give it one. */
+ * monument's tiers (above) step its plinth. Round 1 shipped them
+ * as visual elevation behind blocked rects (HALL_STEPS_BLOCKED /
+ * TERRACE_BLOCKED below — kept as the record of the masses'
+ * footprints, and the terraces' planting still stands on them).
+ * Stack-100 #2 finished item 38: palace-layout derives climbable
+ * step zones from HALL_STEPS / TERRACES at these authored heights
+ * (the blocked lists no longer gate walking), movement carries a
+ * real Y, and the server validates it against its mirror table. */
 
 /** One ceremonial step run flanking the arch approach: three
  *  shallow steps up to a low platform, mirrored east/west of the
