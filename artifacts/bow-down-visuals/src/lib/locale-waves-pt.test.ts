@@ -168,3 +168,88 @@ describe("pt W1 (Stack-28 #78) — namespaces closed whole", () => {
     }
   });
 });
+
+const W2_NAMESPACES = ["sponsorDealDetail", "sponsors", "sponsorsPost", "retentionDoctor", "retentionDelight", "invite", "fomoFeed", "home", "planPublic", "academy", "delight", "common", "waitlist", "betaAccess", "features", "auth", "promo-clip", "splitScreen", "productPhotoStudio", "carouselMaker", "videoTemplates", "movies", "motionGraphics"] as const;
+const W2_LEGIT: ReadonlySet<string> = new Set([
+  "academy.catBranding",
+  "academy.coachRole",
+  "academy.heroTitleAccent",
+  "academy.heroTitleStart",
+  "academy.hoursPlaceholder",
+  "academy.lessonMinutes",
+  "auth.passwordPlaceholder",
+  "betaAccess.badgeBeta",
+  "betaAccess.creatorRapper",
+  "betaAccess.wantThumbnails",
+  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.fontDisplay",
+  "carouselMaker.fontSans",
+  "carouselMaker.fontSerif",
+  "common.beta",
+  "common.premium",
+  "common.visualBucs",
+  "home.demo.hiphop.label",
+  "home.demo.pop.label",
+  "home.demo.rnb.label",
+  "home.extTitleA",
+  "home.faqKicker",
+  "home.formats.podcasts.title",
+  "home.formats.streamers.title",
+  "home.manifestoTitleA",
+  "home.manifestoTitleB",
+  "home.vaultBodyB",
+  "movies.logline",
+  "movies.streamUrlPlaceholder",
+  "productPhotoStudio.credits",
+  "productPhotoStudio.lifestyle",
+  "productPhotoStudio.packshot",
+  "productPhotoStudio.pastePlaceholder",
+  "productPhotoStudio.ratioStory",
+  "promo-clip.creditBadge",
+  "promo-clip.genres.afrobeats",
+  "promo-clip.genres.country",
+  "promo-clip.genres.dancehall",
+  "promo-clip.genres.drill",
+  "promo-clip.genres.gospel",
+  "promo-clip.genres.hipHop",
+  "promo-clip.genres.pop",
+  "promo-clip.genres.rnb",
+  "promo-clip.genres.rock",
+  "promo-clip.genres.trap",
+  "promo-clip.platforms.reels",
+  "promo-clip.platforms.shorts",
+  "promo-clip.platforms.tiktok",
+  "promo-clip.tags.ctas",
+  "promo-clip.tags.hashtags",
+  "retentionDelight.prefs_sharkDrops",
+  "retentionDoctor.atPlaceholder",
+  "retentionDoctor.eyebrow",
+  "retentionDoctor.platform_instagram",
+  "retentionDoctor.platform_tiktok",
+  "retentionDoctor.platform_x",
+  "retentionDoctor.platform_youtube",
+  "retentionDoctor.type_promo",
+  "retentionDoctor.type_tutorial",
+  "retentionDoctor.type_vlog",
+  "splitScreen.modeSimple",
+  "splitScreen.pickLayout",
+  "sponsorDealDetail.escrowStatusLabel",
+  "sponsorDealDetail.followersPlaceholder",
+  "sponsors.matchFollowersPlaceholder",
+  "sponsors.matchPlatformsPlaceholder",
+  "sponsorsPost.budgetMaxPlaceholder",
+  "sponsorsPost.budgetMinPlaceholder",
+  "waitlist.artistTypeRapper",
+  "waitlist.badgeBeta",
+  "waitlist.wantThumbnails"
+]);
+
+describe("pt W2 (Stack-28 #87) — namespaces closed whole", () => {
+  waveSuite("W2", W2_NAMESPACES, W2_LEGIT);
+  it("pt carries the _many plural forms for the promo-clip families (§4)", () => {
+    for (const k of ["promo-clip.clips.count_many", "promo-clip.summary.clipsSelected_many"]) {
+      expect(PT[k], `${k} missing`).toBeDefined();
+      expect(nonEmpty(PT[k])).toBe(true);
+    }
+  });
+});
