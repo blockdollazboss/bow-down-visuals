@@ -11070,6 +11070,18 @@
     "doorLockedNotice": "A porta de {{name}} está trancada agora — você ainda está em {{room}}."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "O Kit do Rei",
+      "sub": "O pacote inicial da casa — o próprio Rei, em destaque, com o logotipo completo da Bow Down Visuals já em cada peça. Grátis para usar e baixar.",
+      "plaza": "O Rei na praça",
+      "throne": "O Rei no seu trono",
+      "stage": "O Rei no palco",
+      "useArt": "Usar esta arte",
+      "download": "Baixar",
+      "living": "Versão animada",
+      "still": "Imagem fixa",
+      "useForScreensaver": "Usar como protetor de tela"
+    },
     "title": "Papéis de parede e temas",
     "subtitle": "Papéis de parede, telas de bloqueio, protetores de tela e pacotes de temas combinados para telefones, tablets e computadores — sua arte no centro, no tamanho exato do dispositivo.",
     "sourceTitle": "Sua arte",

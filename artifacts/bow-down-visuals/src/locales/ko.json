@@ -11053,6 +11053,18 @@
     "doorLockedNotice": "{{name}}의 문은 지금 잠겨 있어요 — 당신은 아직 {{room}}에 있어요."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "더 킹스 세트",
+      "sub": "하우스 스타터 팩 — 킹 본인이 전면에, 모든 작품에 Bow Down Visuals 전체 로고가 이미 들어 있습니다. 무료로 사용하고 무료로 다운로드하세요.",
+      "plaza": "광장의 킹",
+      "throne": "왕좌의 킹",
+      "stage": "무대 위의 킹",
+      "useArt": "이 아트 사용",
+      "download": "다운로드",
+      "living": "라이브 버전",
+      "still": "정지 이미지",
+      "useForScreensaver": "화면 보호기로 사용"
+    },
     "title": "배경화면 및 테마",
     "subtitle": "휴대폰, 태블릿, 컴퓨터용 배경화면, 잠금 화면, 화면 보호기와 어울리는 테마 팩 — 당신의 아트를 중심에, 기기 크기에 딱 맞게.",
     "sourceTitle": "당신의 아트",

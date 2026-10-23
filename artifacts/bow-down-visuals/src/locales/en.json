@@ -14502,6 +14502,18 @@
     "doorLockedNotice": "{{name}}'s door is locked right now — you're still in {{room}}."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "The King's Set",
+      "sub": "The house starter pack — the King himself, front and center, with the full Bow Down Visuals lockup already on every piece. Free to use and free to download.",
+      "plaza": "The King on the Plaza",
+      "throne": "The King on His Throne",
+      "stage": "The King on Stage",
+      "useArt": "Use this art",
+      "download": "Download",
+      "living": "Living version",
+      "still": "Still",
+      "useForScreensaver": "Use as screensaver"
+    },
     "title": "Wallpapers & Themes",
     "subtitle": "Wallpapers, lock screens, screensavers and matched theme packs for phones, tablets and computers — your art at the center, sized exactly for the device.",
     "sourceTitle": "Your art",

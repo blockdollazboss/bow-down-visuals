@@ -12168,6 +12168,18 @@
     "doorLockedNotice": "La puerta de {{name}} está bloqueada ahora mismo — sigues en {{room}}."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "El set del Rey",
+      "sub": "El paquete inicial de la casa: el Rey en persona, en primer plano, con el logotipo completo de Bow Down Visuals ya en cada pieza. Gratis para usar y descargar.",
+      "plaza": "El Rey en la plaza",
+      "throne": "El Rey en su trono",
+      "stage": "El Rey en el escenario",
+      "useArt": "Usar esta imagen",
+      "download": "Descargar",
+      "living": "Versión animada",
+      "still": "Imagen fija",
+      "useForScreensaver": "Usar como salvapantallas"
+    },
     "title": "Fondos de pantalla y temas",
     "subtitle": "Fondos de pantalla, pantallas de bloqueo, salvapantallas y paquetes de temas a juego para teléfonos, tabletas y computadoras: tu arte en el centro, con el tamaño exacto para cada dispositivo.",
     "sourceTitle": "Tu arte",

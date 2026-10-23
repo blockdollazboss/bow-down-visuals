@@ -16,6 +16,7 @@ import {
   THEME_PACK_PRESET_KEYS, buildThemeConfigFromPalette,
   extractPalette, wallpaperPresetByKey, wallpaperPresetsByKind, type WallpaperKind,
 } from "@/lib/wallpapers";
+import { KINGS_SET } from "@/lib/kings-set";
 
 /* ─── Wallpapers, Screensavers & Themes desk ─────────────────────────────
    One desk, two homes: a panel on /create and a tab on /branding-kit.
@@ -101,6 +102,7 @@ export function WallpapersDesk() {
   const [ssError, setSsError] = useState<string | null>(null);
   const [ssResult, setSsResult] = useState<ScreensaverResult | null>(null);
   const [slideshowBusy, setSlideshowBusy] = useState(false);
+  const [livingId, setLivingId] = useState<string | null>(null);
 
   const brandName = brandKit?.brandName || profileName || undefined;
   const preset = wallpaperPresetByKey(presetKey);
@@ -462,6 +464,92 @@ export function WallpapersDesk() {
           {t("wallpapers.subtitle", { defaultValue: "Wallpapers, lock screens, screensavers and matched theme packs for phones, tablets and computers — your art at the center, sized exactly for the device." })}
         </p>
       </div>
+
+      {/* THE KING'S SET — the house starter pack. Owner-approved pieces:
+          the King subject-led, the full logo lockup baked in whole at
+          emblem size. Free to use as art, free to download; the living
+          versions feed the screensaver rail below. */}
+      <section className={panel} aria-label={t("wallpapers.kingset.title", { defaultValue: "The King's Set" })}>
+        <h3 className={sectionTitle}>
+          <Crown className="h-4 w-4 text-primary" />
+          {t("wallpapers.kingset.title", { defaultValue: "The King's Set" })}
+        </h3>
+        <p className={`mt-1 text-sm ${isLight ? "text-stone-500" : "text-white/50"}`}>
+          {t("wallpapers.kingset.sub", { defaultValue: "The house starter pack — the King himself, front and center, with the full Bow Down Visuals lockup already on every piece. Free to use and free to download." })}
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {KINGS_SET.map((piece) => {
+            const living = livingId === piece.id;
+            return (
+              <div key={piece.id} className={`overflow-hidden rounded-2xl border ${isLight ? "border-stone-200 bg-white" : "border-white/10 bg-white/[0.03]"}`}>
+                <div className={piece.orientation === "portrait" ? "aspect-[9/16]" : "aspect-video"}>
+                  {living ? (
+                    <video
+                      src={piece.loopUrl}
+                      className="h-full w-full object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      aria-label={t(`wallpapers.kingset.${piece.titleKey}`, { defaultValue: piece.id })}
+                    />
+                  ) : (
+                    <img
+                      src={piece.stillUrl}
+                      alt={t(`wallpapers.kingset.${piece.titleKey}`, { defaultValue: piece.id })}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="text-sm font-bold">
+                    {t(`wallpapers.kingset.${piece.titleKey}`, {
+                      defaultValue: piece.id === "plaza" ? "The King on the Plaza" : piece.id === "throne" ? "The King on His Throne" : "The King on Stage",
+                    })}
+                  </p>
+                  <p className={`text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
+                    {piece.stillWidth} × {piece.stillHeight}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setCurrentArt(piece.stillUrl); setPresetKey(piece.presetKey); }}
+                      className="rounded-full bg-[#d4a017] px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#e8c86a]"
+                    >
+                      {t("wallpapers.kingset.useArt", { defaultValue: "Use this art" })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLivingId(living ? null : piece.id)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-stone-300 text-stone-600 hover:border-[#d4a017]/60" : "border-white/15 text-white/70 hover:border-white/35"}`}
+                    >
+                      {living
+                        ? t("wallpapers.kingset.still", { defaultValue: "Still" })
+                        : t("wallpapers.kingset.living", { defaultValue: "Living version" })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVideoUrl(piece.loopUrl)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-stone-300 text-stone-600 hover:border-[#d4a017]/60" : "border-white/15 text-white/70 hover:border-white/35"}`}
+                    >
+                      {t("wallpapers.kingset.useForScreensaver", { defaultValue: "Use as screensaver" })}
+                    </button>
+                    <a
+                      href={piece.stillUrl}
+                      download
+                      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-stone-300 text-stone-600 hover:border-[#d4a017]/60" : "border-white/15 text-white/70 hover:border-white/35"}`}
+                    >
+                      <Download className="h-3 w-3" />
+                      {t("wallpapers.kingset.download", { defaultValue: "Download" })}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* SOURCE */}
       <section className={panel} aria-label={t("wallpapers.sourceTitle", { defaultValue: "Your art" })}>

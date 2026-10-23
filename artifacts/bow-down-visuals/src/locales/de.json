@@ -12147,6 +12147,18 @@
     "doorLockedNotice": "Die Tür von {{name}} ist gerade abgeschlossen — du bist weiterhin in {{room}}."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "Das Set des Königs",
+      "sub": "Das Starterpaket des Hauses — der König persönlich im Mittelpunkt, mit dem vollständigen Bow Down Visuals-Logo bereits auf jedem Stück. Kostenlos zu nutzen und herunterzuladen.",
+      "plaza": "Der König auf dem Platz",
+      "throne": "Der König auf seinem Thron",
+      "stage": "Der König auf der Bühne",
+      "useArt": "Dieses Bild verwenden",
+      "download": "Herunterladen",
+      "living": "Bewegte Version",
+      "still": "Standbild",
+      "useForScreensaver": "Als Bildschirmschoner verwenden"
+    },
     "title": "Hintergrundbilder & Themes",
     "subtitle": "Hintergrundbilder, Sperrbildschirme, Bildschirmschoner und abgestimmte Theme-Packs für Telefone, Tablets und Computer — deine Kunst im Mittelpunkt, exakt in Gerätegröße.",
     "sourceTitle": "Deine Kunst",

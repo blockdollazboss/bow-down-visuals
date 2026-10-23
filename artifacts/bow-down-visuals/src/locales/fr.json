@@ -12168,6 +12168,18 @@
     "doorLockedNotice": "La porte de {{name}} est verrouillée en ce moment — vous êtes toujours dans {{room}}."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "Le set du Roi",
+      "sub": "Le pack de départ de la maison : le Roi en personne, au premier plan, avec le logo complet de Bow Down Visuals déjà sur chaque pièce. Gratuit à utiliser et à télécharger.",
+      "plaza": "Le Roi sur la place",
+      "throne": "Le Roi sur son trône",
+      "stage": "Le Roi sur scène",
+      "useArt": "Utiliser cette image",
+      "download": "Télécharger",
+      "living": "Version animée",
+      "still": "Image fixe",
+      "useForScreensaver": "Utiliser comme écran de veille"
+    },
     "title": "Fonds d'écran et thèmes",
     "subtitle": "Fonds d'écran, écrans de verrouillage, économiseurs d'écran et packs de thèmes assortis pour téléphones, tablettes et ordinateurs — votre art au centre, à la taille exacte de l'appareil.",
     "sourceTitle": "Votre art",

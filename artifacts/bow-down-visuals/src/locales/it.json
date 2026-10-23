@@ -11070,6 +11070,18 @@
     "doorLockedNotice": "La porta di {{name}} è chiusa a chiave in questo momento — sei ancora in {{room}}."
   },
   "wallpapers": {
+    "kingset": {
+      "title": "Il set del Re",
+      "sub": "Il pacchetto iniziale della casa: il Re in persona, in primo piano, con il logo completo di Bow Down Visuals già su ogni pezzo. Gratuito da usare e da scaricare.",
+      "plaza": "Il Re sulla piazza",
+      "throne": "Il Re sul suo trono",
+      "stage": "Il Re sul palco",
+      "useArt": "Usa questa immagine",
+      "download": "Scarica",
+      "living": "Versione animata",
+      "still": "Immagine fissa",
+      "useForScreensaver": "Usa come screensaver"
+    },
     "title": "Sfondi e temi",
     "subtitle": "Sfondi, schermate di blocco, salvaschermo e pacchetti tema abbinati per telefoni, tablet e computer — la tua arte al centro, nella misura esatta del dispositivo.",
     "sourceTitle": "La tua arte",
