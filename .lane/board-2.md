@@ -66,80 +66,80 @@ direction). Everything else is buildable now.
 
 ## DISTRICT FINISHING — CREATOR HEIGHTS (skeletal → finished) (20–26)
 
-20. **Roster plates letter real names** [PICK]: the residents' gold plates re-letter
+20. **Roster plates letter real names** [PICK]: the residents' gold plates re-letter **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     when the roster updates — today they are blank forever (A CH-2 / D-H9).
-21. **Front desk dressed**: bell, lamp, papers, chair — today a bare counter slab (A CH-3).
-22. **Heights seating & lamps**: benches and lamp standards join the enclave — today
+21. **Front desk dressed**: bell, lamp, papers, chair — today a bare counter slab (A CH-3). **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
+22. **Heights seating & lamps**: benches and lamp standards join the enclave — today **[STATUS: VERIFIED IN TREE (districts lane) — already true in the shipped build; pinned, no rebuild.]**
     zero seating, zero lamps (A CH-4 / G-3).
-23. **Wall-bay planting parity**: one dressed planter per wall bay, matching the
+23. **Wall-bay planting parity**: one dressed planter per wall bay, matching the **[STATUS: DONE as corrected at integration (f5bbfc39) — southern east bed only; northern bed removed (buried in terrace mass) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     Boardwalk's trough standard (A CH-4).
-24. **Heights sign reconciled**: the district sign takes the same wall-lintel form as
+24. **Heights sign reconciled**: the district sign takes the same wall-lintel form as **[STATUS: VERIFIED IN TREE (districts lane) — already true in the shipped build; pinned, no rebuild.]**
     every other district instead of a one-off gate beam (A CH-5; B-G4 companion).
-25. **Enclave ground dressing**: carpet/runner + trim continuity so the small plaza
+25. **Enclave ground dressing**: carpet/runner + trim continuity so the small plaza **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     reads as a finished court, not a leftover corner (A CH-1).
-26. **Arrival threshold dressing**: a marked threshold moment at the Heights gate,
+26. **Arrival threshold dressing**: a marked threshold moment at the Heights gate, **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     matching the spawn-arrival standard (A CH-1; round-1 item 40's bar).
 
 ## DISTRICT FINISHING — BOARDWALK (27–30)
 
-27. **Awning posts**: every shop awning gets its posts — today all 10 float 1.1 m
+27. **Awning posts**: every shop awning gets its posts — today all 10 float 1.1 m **[STATUS: VERIFIED IN TREE (districts lane) — already true in the shipped build; pinned, no rebuild.]**
     above the stalls (A BW-1).
-28. **Stall counters collide**: counters join the blocked spec — today a walker
+28. **Stall counters collide**: counters join the blocked spec — today a walker **[STATUS: VERIFIED IN TREE (districts lane) — already true in the shipped build; pinned, no rebuild.]**
     passes through 10 counters and only the frame posts stop them (A BW-2).
-29. **Prize wheel moves**: the game-stand wheel spins (idle sway + spin on approach
+29. **Prize wheel moves**: the game-stand wheel spins (idle sway + spin on approach **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     or interval) — today it is the boardwalk's only "game" and it is static (A BW-3).
-30. **Animated stall dressing**: hanging wares/flags gain the sway the hall banners
+30. **Animated stall dressing**: hanging wares/flags gain the sway the hall banners **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     have — districts get animated textiles too (A KH-1 / G-4).
 
 ## DISTRICT FINISHING — THE ATELIERS (31–33)
 
-31. **Mannequins collide**: the four Ateliers mannequins join the blocked spec —
+31. **Mannequins collide**: the four Ateliers mannequins join the blocked spec — **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     today the station point itself invites a punch-through (A AT-1).
-32. **Mannequin heads**: real head forms replace the squashed guard-capsule texture
+32. **Mannequin heads**: real head forms replace the squashed guard-capsule texture **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     spheres (A AT-2).
-33. **Fabric bolts variety**: varied widths, colours, and one unrolled cascade bolt —
+33. **Fabric bolts variety**: varied widths, colours, and one unrolled cascade bolt — **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     today nine identical rolls (A AT-3).
 
 ## DISTRICT FINISHING — CREATION ROW (34–35)
 
-34. **Lamp spread**: the three lamp posts clustered on a 3 m span redistribute along
+34. **Lamp spread**: the three lamp posts clustered on a 3 m span redistribute along **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     the Row so its night look matches its day look (A CR-1).
-35. **Scaffold variety**: the 10 identical A-frames gain rotation/height variation
+35. **Scaffold variety**: the 10 identical A-frames gain rotation/height variation **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     within the variation system (A CR-2; round-1 item 18's system extended).
 
 ## DISTRICT FINISHING — LISTENING GARDENS (36–38)
 
-36. **A real fountain** [PICK]: basin rim, centre jet and falling-water treatment at
+36. **A real fountain** [PICK]: basin rim, centre jet and falling-water treatment at **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     the gardens' heart — today the "fountain" is a flat river tube + discs (A LG-1).
-37. **Lily pads sit on the water**: audio-node discs drop to the pond surface
+37. **Lily pads sit on the water**: audio-node discs drop to the pond surface **[STATUS: PARKED (districts lane, evidence) — see lane commits; revisit only with new evidence or an owner direction.]**
     (y 0.03 → 0.02) — today they hover (A LG-2).
-38. **Sunk river resolved**: the under-stage river run at y −0.18 is either surfaced
+38. **Sunk river resolved**: the under-stage river run at y −0.18 is either surfaced **[STATUS: PARKED (districts lane, evidence) — see lane commits; revisit only with new evidence or an owner direction.]**
     honestly (visible channel) or removed from the build path — today it renders
     under an opaque ground plane (A LG-3; removal = geometry change, not file deletion).
 
 ## DISTRICT FINISHING — STAGE GROUNDS & PLAZA & HALL (39–47)
 
-39. **Stage Grounds arrival gate dressed**: arch/proscenium dressing at the district
+39. **Stage Grounds arrival gate dressed**: arch/proscenium dressing at the district **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     threshold to match the proscenium it leads to — today a plain lintel in open
     floor (A SG-1).
-40. **Fence kit variety**: the six identical instanced fence kits gain per-district
+40. **Fence kit variety**: the six identical instanced fence kits gain per-district **[STATUS: OPEN — not built by districts lane; assigned to sky-light lane]**
     variation (cap/finial/colourway) — today one cloned kit is the world's only
     instancing and its strongest clone cue (A G-1).
-41. **Room trim identity**: the identical gold trim line on all 14 rooms gains
+41. **Room trim identity**: the identical gold trim line on all 14 rooms gains **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     per-room variation (height/profile/accent) so rooms stop reading as one shell
     re-skinned (A G-2).
-42. **Plaza props collide**: the two marble lions, compass rose, telescope, standards
+42. **Plaza props collide**: the two marble lions, compass rose, telescope, standards **[STATUS: PARKED (districts lane, evidence) — see lane commits; revisit only with new evidence or an owner direction.]**
     and boards join the blocked spec — today every plaza dressing mesh is a
     walk-through ghost (A PL-2).
-43. **Dam caps**: both river dams get collision caps — their tops read as bridges
+43. **Dam caps**: both river dams get collision caps — their tops read as bridges **[STATUS: PARKED (districts lane, evidence) — see lane commits; revisit only with new evidence or an owner direction.]**
     and today a walker slides up to 11.2 m into open water (A PL-3).
-44. **Compass rose relief**: rim, ring and inlay relief replace the flat decal (A PL-4).
-45. **Etiquette plate tells all four rules**: the plate's body renders the 4 rules
+44. **Compass rose relief**: rim, ring and inlay relief replace the flat decal (A PL-4). **[STATUS: PARKED (districts lane, evidence) — see lane commits; revisit only with new evidence or an owner direction.]**
+45. **Etiquette plate tells all four rules**: the plate's body renders the 4 rules **[STATUS: PARKED (districts lane, evidence) — see lane commits; revisit only with new evidence or an owner direction.]**
     its title promises — today only 2 are lettered (A PL-1).
-46. **Textured lawns**: lawn parcels take the shipped lawn textures with per-metre
+46. **Textured lawns**: lawn parcels take the shipped lawn textures with per-metre **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     repeats — today one flat #2c5a26 box per parcel and blob "greenery" in the hall
     troughs (A G-5; round-1 T4 residue).
-47. **Hall greenery upgrade**: trough blobs become shaped planting matching the
+47. **Hall greenery upgrade**: trough blobs become shaped planting matching the **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     gardens' standard (A G-5 companion).
 
 ## MOVEMENT — CLIMBABLE-Y, THE PARKED ITEM 38 FINISHED (48–55)
