@@ -1938,11 +1938,11 @@
       },
       "ambassadorship": {
         "blurb": "Langfristige Partnerschaften",
-        "label": "Ambassadorships"
+        "label": "Markenbotschafter"
       },
       "productGifting": {
         "blurb": "Gratis-Produkt für Content",
-        "label": "Product Gifting"
+        "label": "Produkt-Geschenke"
       },
       "sponsoredPost": {
         "blurb": "Bezahlter Brand-Content",
@@ -1975,9 +1975,9 @@
     "nicheLabel": "Deine Nische",
     "niches": {
       "beauty": "Beauty",
-      "fashion": "Fashion",
+      "fashion": "Mode",
       "fitness": "Fitness",
-      "food": "Food",
+      "food": "Essen",
       "gaming": "Gaming",
       "lifestyle": "Lifestyle",
       "music": "Musik",
@@ -1993,7 +1993,18 @@
     "tipsTitle": "So landet es",
     "title": "Brand-Deal-",
     "titleAccent": "Finder",
-    "verifyPrefix": "Verifizieren:"
+    "verifyPrefix": "Verifizieren:",
+    "finderExplainer": "Das ist der Finder — die KI jagt Marken, die zu dir passen. Wenn eine Marke einen Deal postet, auf den sich Creator bewerben können, ist das der ",
+    "marketplaceLink": "Sponsoren-Marktplatz",
+    "related": {
+      "label": "Verwandt:",
+      "postDeal": "Einen Deal posten",
+      "sponsorDashboard": "Sponsoren-Dashboard"
+    },
+    "tabs": {
+      "finder": "Finder",
+      "marketplace": "Marktplatz"
+    }
   },
   "brandingKit": {
     "eyebrow": "Brand-Identität",
@@ -2063,7 +2074,7 @@
     "heroBadge": "KI-Branding-Shop",
     "increaseAria": "Erhöhen",
     "increaseQtyAria": "Menge erhöhen",
-    "jewelryBadge": "Custom Jewelry",
+    "jewelryBadge": "Maßgeschneiderter Schmuck",
     "jewelryCtaShop": "Schmuck shoppen",
     "jewelryCtaStudio": "Custom-Design-Studio",
     "jewelryText": "Anhänger auf Bestellung, Cuban Chains, Siegelringe und ID-Armbänder mit deinem Logo oder deinen Initialen — gegossen in Gold, Silber oder Schwarz. Reserviere kostenlos; gezahlt wird, wenn die Produktion bestätigt ist.",
@@ -2099,7 +2110,7 @@
     "smartCardsBadge": "Smart Cards",
     "smartCardsCta": "Meine Smart Card designen",
     "smartCardsText": "Tap-to-Share-Karten in PVC, Bambus und Metall — jede verlinkt auf deine digitale Live-Karte mit vCard, Links und QR-Backup. Reserviere kostenlos; gezahlt wird, wenn die Produktion bestätigt ist.",
-    "smartCardsTitle": "NFC Smart Business Cards",
+    "smartCardsTitle": "NFC Smart Visitenkarten",
     "statePlaceholder": "Bundesland",
     "statuses": {
       "canceled": "Storniert",
@@ -2126,7 +2137,8 @@
     "trackPackage": "Paket verfolgen",
     "trackingLabel": "Tracking:",
     "viewOrders": "Meine Bestellungen ansehen",
-    "zipPlaceholder": "PLZ"
+    "zipPlaceholder": "PLZ",
+    "contactForQuote": "Für ein Angebot kontaktieren"
   },
   "captionStyler": {
     "autoEmoji": "Auto-Emoji",
@@ -2614,7 +2626,9 @@
     "what_kind_of_contract_is_it": "Um was für einen Vertrag handelt es sich?",
     "what_s_fair": "Was ist fair?",
     "you_sign_it": "Sie ihn unterschreiben.",
-    "ai_contract_analyzer": "KI-Vertragsanalyse"
+    "ai_contract_analyzer": "KI-Vertragsanalyse",
+    "copy_analysis": "Analyse kopieren",
+    "download_analysis": "Herunterladen"
   },
   "copyright": {
     "already_published_released": "Bereits veröffentlicht",
@@ -3773,7 +3787,8 @@
     "uploadLogo": "Klicken Sie, um Ihr Logo hochzuladen",
     "uploadToContinue": "Laden Sie ein Logo hoch, um fortzufahren",
     "uploadedLogoAlt": "Hochgeladenes Logo",
-    "whatMaking": "Was stellen wir her?"
+    "whatMaking": "Was stellen wir her?",
+    "useMyLogo": "Oder verwende ein Logo, das du schon gemacht hast"
   },
   "jewelryShop": {
     "back": "Zurück",
@@ -3818,7 +3833,8 @@
     "streetPh": "Straße *",
     "studioLink": "Vollständig individuelles Design gewünscht? Logo-to-Luxury-Studio öffnen",
     "total": "Gesamt:",
-    "zipPh": "PLZ *"
+    "zipPh": "PLZ *",
+    "designCarried": "Dein Studio-Design wurde übernommen — prüfe es unten."
   },
   "labelPitch": {
     "advancedSuffix": " Bio, Statistiken & Songtexte (besseres Paket)",
@@ -4892,7 +4908,7 @@
     "step5Title": "Starten 🚀",
     "stepAiDescription": "KI-Beschreibung",
     "stepBranding": "Branding",
-    "stepDomainLaunch": "Domain & Launch",
+    "stepDomainLaunch": "Domain & Start",
     "stepIdentity": "Identität",
     "stepProducts": "Produkte",
     "taglineLabel": "Slogan",
@@ -4921,7 +4937,8 @@
     "searchPlaceholder": "Shops, Creator, Vibes suchen…",
     "startBuilding": "Mit dem Bau starten",
     "verifiedDomain": "Verifizierte Domain: {{domain}}",
-    "visitShop": "Shop besuchen"
+    "visitShop": "Shop besuchen",
+    "domainsLink": "Eine eigene Domain verbinden →"
   },
   "streamPack": {
     "allOn": "alle an",
@@ -5940,7 +5957,9 @@
     "recordedTitle": "Trinkgeld erfasst!",
     "sendTipButton": "${{amount}} Trinkgeld senden",
     "tipHeading": "Trinkgeld",
-    "tipStats": "{{count}} Trinkgelder bisher · ${{total}} insgesamt"
+    "tipStats": "{{count}} Trinkgelder bisher · ${{total}} insgesamt",
+    "paidBody": "{{name}} hat gerade dein Trinkgeld von ${{amount}} erhalten — danke, dass du ihre Arbeit unterstützt.",
+    "paidTitle": "Trinkgeld gesendet!"
   },
   "tips": {
     "anonymousFan": "Anonymer Fan",
@@ -5979,7 +5998,8 @@
     "titleHighlight": "Trinkgeld-Glas",
     "titlePrefix": "Dein",
     "totalsTitle": "Trinkgeld-Glas-Summen",
-    "updateButton": "Trinkgeld-Seite aktualisieren"
+    "updateButton": "Trinkgeld-Seite aktualisieren",
+    "shareTipPage": "Trinkgeldseite teilen"
   },
   "titles": {
     "allTagsCopyLabel": "alle Tags",
@@ -7683,81 +7703,82 @@
   },
   "royalties": {
     "eyebrow": "Royalty Tracker",
-    "titlePrefix": "Every stream. Every platform.",
-    "titleSuffix": "One dashboard.",
-    "subtitle": "Import your distributor CSVs and watch your catalog earn. The dashboard is free — only the AI earnings insights cost Visual Bucs.",
-    "signIn": "Sign in to track your royalties.",
-    "loading": "Loading your royalty dashboard…",
-    "free": "Free",
+    "titlePrefix": "Jeder Stream. Jede Plattform.",
+    "titleSuffix": "Ein Dashboard.",
+    "subtitle": "Importiere deine Distributor-CSVs und sieh zu, wie dein Katalog verdient. Das Dashboard ist kostenlos — nur die KI-Einnahmen-Insights kosten Visual Bucs.",
+    "signIn": "Melde dich an, um deine Royalties zu verfolgen.",
+    "loading": "Dein Royalty-Dashboard wird geladen…",
+    "free": "Kostenlos",
     "totals": {
-      "earnings": "Total earnings",
-      "entries": "{{num}} entries tracked",
-      "streams": "Total streams",
-      "acrossPlatforms": "across all platforms",
-      "songs": "Songs earning",
-      "platforms": "{{num}} platforms reporting"
+      "earnings": "Gesamteinnahmen",
+      "entries": "{{num}} Einträge erfasst",
+      "streams": "Streams gesamt",
+      "acrossPlatforms": "auf allen Plattformen",
+      "songs": "Verdienende Songs",
+      "platforms": "{{num}} Plattformen berichten"
     },
     "insights": {
       "title": "AI earnings insights",
       "cost": "{{cost}} Visual Buc",
-      "analyze": "Analyze my earnings",
-      "needData": "Import some royalty data below first — I need numbers to analyze."
+      "analyze": "Meine Einnahmen analysieren",
+      "needData": "Importiere zuerst unten einige Royalty-Daten — ich brauche Zahlen zum Analysieren."
     },
-    "monthlyTrend": "Monthly trend",
-    "perSong": "Per song",
-    "perPlatform": "Per platform",
-    "streams": "{{num}} streams",
+    "monthlyTrend": "Monatlicher Trend",
+    "perSong": "Pro Song",
+    "perPlatform": "Pro Plattform",
+    "streams": "{{num}} Streams",
     "empty": {
-      "title": "No royalty data yet",
-      "desc": "Export a CSV from your distributor (DistroKid, TuneCore, CD Baby — they all export them) and paste it below. We'll do the rest."
+      "title": "Noch keine Royalty-Daten",
+      "desc": "Exportiere eine CSV von deinem Distributor (DistroKid, TuneCore, CD Baby — sie alle exportieren sie) und füge sie unten ein. Wir erledigen den Rest."
     },
     "import": {
-      "title": "Import distributor CSV",
-      "desc": "We auto-detect common distributor columns (song, platform, period, streams, amount). Accepts MM/DD/YYYY or YYYY-MM-DD dates.",
-      "button": "Import entries",
-      "success": "Imported {{num}} entries.",
-      "warnings": "{{num}} row(s) skipped."
+      "title": "Distributor-CSV importieren",
+      "desc": "Wir erkennen gängige Distributor-Spalten automatisch (Song, Plattform, Periode, Streams, Betrag). Akzeptiert MM/DD/YYYY oder YYYY-MM-DD Daten.",
+      "button": "Einträge importieren",
+      "success": "{{num}} Einträge importiert.",
+      "warnings": "{{num}} Zeile(n) übersprungen."
     },
     "platforms": {
-      "title": "Platform connections",
-      "desc1": "Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists — their auto-sync is honestly",
-      "comingSoon": "coming soon",
-      "desc2": ". CSV import works for everything today.",
-      "connected": "Connected{{account}}",
-      "notConnected": "Not connected",
-      "autoSyncSoon": "Auto-sync coming soon",
-      "connect": "Connect"
+      "title": "Plattform-Verbindungen",
+      "desc1": "Spotify, Apple Music und YouTube bieten keine Self-Service-Royalty-APIs für Indie-Künstler an — ihr Auto-Sync ist ehrlich gesagt",
+      "comingSoon": "kommt bald",
+      "desc2": ". CSV-Import funktioniert heute für alles.",
+      "connected": "Verbunden{{account}}",
+      "notConnected": "Nicht verbunden",
+      "autoSyncSoon": "Auto-Sync kommt bald",
+      "connect": "Verbinden"
     },
     "payouts": {
-      "title": "Payout tracking",
-      "record": "Record payout",
-      "cancel": "Cancel",
+      "title": "Auszahlungs-Verfolgung",
+      "record": "Auszahlung erfassen",
+      "cancel": "Abbrechen",
       "distributor": "Distributor",
       "status": {
-        "expected": "expected",
-        "received": "received",
-        "partial": "partial",
-        "overdue": "overdue"
+        "expected": "erwartet",
+        "received": "erhalten",
+        "partial": "teilweise",
+        "overdue": "überfällig"
       },
-      "periodStart": "Period start",
-      "periodEnd": "Period end",
-      "expectedAmount": "Expected amount",
-      "receivedAmount": "Received amount (optional)",
-      "save": "Save payout",
-      "empty": "No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.",
-      "expected": "Expected",
-      "received": "Received",
-      "statusExpected": "Expected",
-      "statusReceived": "Received",
-      "statusPartial": "Partial",
-      "statusOverdue": "Overdue"
+      "periodStart": "Periodenstart",
+      "periodEnd": "Periodenende",
+      "expectedAmount": "Erwarteter Betrag",
+      "receivedAmount": "Erhaltener Betrag (optional)",
+      "save": "Auszahlung speichern",
+      "empty": "Noch keine Auszahlungen erfasst. Distributoren zahlen normalerweise 1–3 Monate nach der Berichtsperiode.",
+      "expected": "Erwartet",
+      "received": "Erhalten",
+      "statusExpected": "Erwartet",
+      "statusReceived": "Erhalten",
+      "statusPartial": "Teilweise",
+      "statusOverdue": "Überfällig",
+      "statusLabel": "Status"
     },
-    "disclaimer": "Royalty figures come from your own imports — always reconcile against your distributor's official statements before making financial decisions. AI insights are analytical guidance, not financial advice.",
+    "disclaimer": "Die Royalty-Zahlen stammen aus deinen eigenen Importen — gleiche sie immer mit den offiziellen Abrechnungen deines Distributors ab, bevor du finanzielle Entscheidungen triffst. KI-Insights sind analytische Orientierung, keine Finanzberatung.",
     "error": {
-      "importFailed": "Import failed.",
-      "insightsFailed": "Insights failed — try again.",
-      "payoutRequired": "Distributor, period dates, and expected amount are required.",
-      "payoutSaveFailed": "Couldn't save that payout."
+      "importFailed": "Import fehlgeschlagen.",
+      "insightsFailed": "Insights fehlgeschlagen — versuche es erneut.",
+      "payoutRequired": "Distributor, Periodendaten und erwarteter Betrag sind erforderlich.",
+      "payoutSaveFailed": "Diese Auszahlung konnte nicht gespeichert werden."
     }
   },
   "mediaDetector": {
@@ -7916,125 +7937,182 @@
   },
   "refundPolicy": {
     "nav": {
-      "contactSupport": "Contact / Support"
+      "contactSupport": "Kontakt / Support"
     },
-    "pageTitle": "Refund Policy",
-    "pageDescription": "Our refund policy for Visual Bucs and purchases.",
-    "title": "Refund Policy",
-    "lastUpdated": "Last updated: September 2026",
+    "pageTitle": "Erstattungsrichtlinie",
+    "pageDescription": "Unsere Erstattungsrichtlinie für Visual Bucs und Käufe.",
+    "title": "Erstattungsrichtlinie",
+    "lastUpdated": "Zuletzt aktualisiert: September 2026",
     "whatWeSell": {
-      "title": "What We Sell",
-      "p1": "Bow Down Visuals sells ",
-      "strong": "digital AI creator Visual Bucs",
-      "p2": " — pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos, lyrics, thumbnails, caption sets, promo clips, and other digital creator content. All products are digital and delivered instantly upon Visual Buc use. No physical goods are sold or shipped."
+      "title": "Was wir verkaufen",
+      "p1": "Bow Down Visuals verkauft ",
+      "strong": "digitale KI-Creator Visual Bucs",
+      "p2": " — vorgekaufte Einheiten, mit denen Videos, Musik, Bilder, Voiceovers, lip-sync-synchronisierte Videos, Songtexte, Thumbnails, Untertitel-Sets, Promo-Clips und andere digitale Creator-Inhalte generiert werden. Alle Produkte sind digital und werden sofort bei der Verwendung von Visual Bucs geliefert. Es werden keine physischen Waren verkauft oder versandt."
     },
     "generalPolicy": {
-      "title": "Digital Products — General Policy",
-      "p1": "Because our products are digital and consumed immediately upon generation, ",
-      "strong": " all sales are generally final",
-      "p2": ". Once Visual Bucs have been used to generate content, those Visual Bucs cannot be refunded. Bonus Visual Bucs earned through referrals or promotions have no cash value and are non-refundable."
+      "title": "Digitale Produkte — Allgemeine Regelung",
+      "p1": "Da unsere Produkte digital sind und sofort bei der Generierung verbraucht werden, sind ",
+      "strong": " alle Verkäufe grundsätzlich endgültig",
+      "p2": ". Sobald Visual Bucs verwendet wurden, um Inhalte zu generieren, können diese Visual Bucs nicht erstattet werden. Bonus Visual Bucs, die durch Empfehlungen oder Aktionen verdient wurden, haben keinen Geldwert und sind nicht erstattungsfähig."
     },
     "whenWeRefund": {
-      "title": "When We Do Issue Refunds",
-      "intro": "We will issue a full or partial refund in the following situations:",
+      "title": "Wann wir Erstattungen ausstellen",
+      "intro": "Wir zahlen in den folgenden Situationen eine vollständige oder teilweise Erstattung:",
       "technical": {
-        "title": "Technical failure:",
-        "desc": " Visual Bucs were deducted but no content was generated due to a platform error on our end."
+        "title": "Technischer Fehler:",
+        "desc": " Visual Bucs wurden abgebucht, aber aufgrund eines Plattformfehlers auf unserer Seite wurde kein Inhalt generiert."
       },
       "duplicate": {
-        "title": "Duplicate charge:",
-        "desc": " You were charged more than once for the same subscription period or purchase."
+        "title": "Doppelte Abbuchung:",
+        "desc": " Dir wurde für denselben Abo-Zeitraum oder Kauf mehr als einmal abgebucht."
       },
       "unauthorized": {
-        "title": "Unauthorized charge:",
-        "desc": " You believe your account was accessed without your authorization."
+        "title": "Nicht autorisierte Abbuchung:",
+        "desc": " Du glaubst, dass auf dein Konto ohne deine Autorisierung zugegriffen wurde."
       },
       "firstSub": {
-        "title": "Within 48 hours of first subscription:",
-        "desc": " If you subscribed and have not yet used any Visual Bucs, you may request a full refund within 48 hours of your first payment."
+        "title": "Innerhalb von 48 Stunden nach dem ersten Abonnement:",
+        "desc": " Wenn du dich angemeldet hast und noch keine Visual Bucs verwendet hast, kannst du innerhalb von 48 Stunden nach deiner ersten Zahlung eine vollständige Erstattung anfordern."
       }
     },
     "cancellations": {
-      "title": "Subscription Cancellations",
-      "p1": "You may cancel your subscription at any time. Cancellation stops future billing; you retain access to your remaining Visual Bucs and subscription benefits through the end of the current billing period. ",
-      "strong": "Partial-month refunds are not issued for cancellations mid-cycle."
+      "title": "Abo-Kündigungen",
+      "p1": "Du kannst dein Abonnement jederzeit kündigen. Die Kündigung stoppt zukünftige Abrechnungen; du behältst den Zugang zu deinen verbleibenden Visual Bucs und Abo-Vorteilen bis zum Ende des aktuellen Abrechnungszeitraums. ",
+      "strong": "Teilmonats-Erstattungen werden bei Kündigung mitten im Zyklus nicht ausgezahlt."
     },
     "howTo": {
-      "title": "How to Request a Refund",
-      "intro1": "To request a refund, contact us within ",
-      "strong": "7 days",
-      "intro2": " of the charge:",
+      "title": "So forderst du eine Erstattung an",
+      "intro1": "Um eine Erstattung anzufordern, kontaktiere uns innerhalb von ",
+      "strong": "7 Tagen",
+      "intro2": " nach der Abbuchung:",
       "email": "Email: ",
-      "subject1": "Subject: ",
-      "subject2": "Refund Request — [your email]",
-      "include": "Include: date of charge, amount, and a brief description of the issue",
-      "response": "We aim to respond within 2 business days. Approved refunds are returned to your original payment method within 5–10 business days depending on your bank."
+      "subject1": "Betreff: ",
+      "subject2": "Erstattungsanfrage — [deine E-Mail]",
+      "include": "Füge hinzu: Datum der Abbuchung, Betrag und eine kurze Beschreibung des Problems",
+      "response": "Wir bemühen uns, innerhalb von 2 Werktagen zu antworten. Genehmigte Erstattungen werden je nach deiner Bank innerhalb von 5–10 Werktagen auf deine ursprüngliche Zahlungsmethode zurückgebucht."
     },
     "questions": {
-      "title": "Questions?",
-      "p1": "Visit our ",
-      "contactLink": "Contact / Support page",
-      "p2": " or email "
+      "title": "Fragen?",
+      "p1": "Besuche unsere ",
+      "contactLink": "Kontakt- / Support-Seite",
+      "p2": " oder schreibe an "
     }
   },
   "referrals": {
     "error": {
-      "loadFailed": "Couldn't load referrals."
+      "loadFailed": "Empfehlungen konnten nicht geladen werden."
     },
-    "shareText": "Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get {{reward}} free Visual Bucs to start!",
+    "shareText": "Komm zu mir auf Bow Down Visuals — dem KI-Studio für Content Creator. Melde dich über meinen Link an und erhalte {{reward}} kostenlose Visual Bucs zum Start!",
     "titlePrefix": "Promoter",
     "titleSuffix": "HQ",
     "hero": {
-      "p1": "This is your job now. Climb the Kingpin ranks — more stars, bigger cut. New creators get",
-      "reward": "{{num}} free Visual Bucs",
-      "p2": ", and you earn up to",
-      "cut": "40% of everything they buy",
-      "p3": "for",
-      "days": "{{days}} days",
+      "p1": "Das ist jetzt dein Job. Steige in den Kingpin-Rängen auf — mehr Sterne, größerer Anteil. Neue Creator erhalten",
+      "reward": "{{num}} kostenlose Visual Bucs",
+      "p2": ", und du verdienst bis zu",
+      "cut": "40% von allem, was sie kaufen",
+      "p3": "für",
+      "days": "{{days}} Tage",
       "p4": "."
     },
     "signup": {
-      "link": "Sign up",
-      "suffix": "to get your referral link."
+      "link": "Melde dich an",
+      "suffix": ", um deinen Empfehlungslink zu erhalten."
     },
     "rank": {
-      "cut": "{{pct}}% cut on every active referral",
-      "notRanked": "Not ranked yet",
-      "firstStar": "Your first referral earns your first star",
-      "moreTo": "{{num}} more to",
+      "cut": "{{pct}}% Anteil an jeder aktiven Empfehlung",
+      "notRanked": "Noch nicht eingestuft",
+      "firstStar": "Deine erste Empfehlung bringt dir deinen ersten Stern",
+      "moreTo": "Noch {{num}} bis",
       "nextReward": "{{pct}}% + {{bonus}} VB bonus",
-      "top": "Top of the mountain. The Don."
+      "top": "Gipfel des Berges. Der Don.",
+      "allTime": "Gesamtzeit",
+      "myRanks": "Deine Ränge",
+      "thisMonth": "Dieser Monat",
+      "thisWeek": "Diese Woche",
+      "unranked": "Nicht eingestuft"
     },
     "stats": {
-      "joined": "Creators joined",
-      "earning": "Earning now",
-      "earned": "Visual Bucs earned"
+      "joined": "Beigetretene Creator",
+      "earning": "Verdienen jetzt",
+      "earned": "Verdiente Visual Bucs"
     },
     "link": {
-      "title": "Your referral link",
-      "copy": "Copy",
-      "copied": "Copied"
+      "title": "Dein Empfehlungslink",
+      "copy": "Kopieren",
+      "copied": "Kopiert"
     },
     "share": {
-      "title": "Share it"
+      "title": "Teile ihn"
     },
     "tracker": {
-      "title": "Your referrals",
-      "empty": "Nobody's joined through your link yet — share it above and they'll show up here.",
+      "title": "Deine Empfehlungen",
+      "empty": "Noch ist niemand über deinen Link beigetreten — teile ihn oben und sie erscheinen hier.",
       "creator": "Creator #{{n}}",
-      "joined": "Joined",
+      "joined": "Beigetreten",
       "earned": "+{{amount}} VB",
-      "earning": "Earning · {{days}}d left",
-      "ended": "Window ended"
+      "earning": "Verdient · noch {{days}} T übrig",
+      "ended": "Zeitfenster beendet"
     },
     "ladder": {
-      "title": "Kingpin ranks",
+      "title": "Kingpin-Ränge",
       "you": "YOU",
-      "requirement": "{{min}}+ creators · {{pct}}% cut",
+      "requirement": "{{min}}+ Creator · {{pct}}% Anteil",
       "bonus": "+{{bonus}} VB bonus",
-      "bonusClaimed": "✓{{bonus}} VB bonus claimed"
+      "bonusClaimed": "✓{{bonus}} VB Bonus eingefordert"
     },
-    "footer": "You earn {{pct}}% of each referred creator's Visual Buc purchases, paid in Visual Bucs, for {{days}} days after they join. Payouts land automatically when they buy."
+    "footer": "Du verdienst {{pct}}% der Visual Buc Käufe jedes geworbenen Creators, ausgezahlt in Visual Bucs, für {{days}} Tage nach seinem Beitritt. Auszahlungen landen automatisch, wenn er kauft.",
+    "contest": {
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "days": "T",
+      "endsIn": "Endet in",
+      "hours": "Std.",
+      "lastWinnersTitle": "Gewinner des letzten Monats",
+      "mins": "Min.",
+      "needMore": "Noch {{n}} Anmeldungen zur Qualifikation",
+      "noWinners": "Noch kein Contest abgerechnet — werde die erste Legende.",
+      "pool": "{{total}} Visual Bucs Preispool",
+      "prizeFor": "#{{rank}} — {{prize}} VB",
+      "prizesTitle": "Preise",
+      "qualified": "Qualifiziert",
+      "revenue": "Verdiente VB",
+      "rulesTitle": "So gewinnst du",
+      "secs": "Sek.",
+      "share": "Teilen",
+      "shareWin": "{{name}} hat gerade den Bow Down Visuals Monthly Viral Contest gewonnen — {{prize}} Visual Bucs für {{signups}} geworbene Creator! Glaubst du, du kannst sie übertreffen? {{link}}",
+      "signups": "Anmeldungen",
+      "standingsTitle": "Das Rennen dieses Monats",
+      "title": "Monatlicher Viral Contest",
+      "you": "DU",
+      "yourSpots": "Deine Anmeldungen diesen Monat: {{n}}"
+    },
+    "leaderboard": {
+      "allTime": "Gesamtzeit",
+      "empty": "Noch keine Recruiter auf der Liste — der erste Platz ist weit offen.",
+      "monthly": "Monatlich",
+      "revenue": "Generierte VB",
+      "signups": "Anmeldungen",
+      "title": "Recruiter-Bestenliste",
+      "weekly": "Wöchentlich",
+      "you": "DU",
+      "yourRank": "Dein Rang: #{{rank}}"
+    },
+    "sharekit": {
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "postChat": "Yo — Bow Down Visuals ist der KI-Cheat-Code für Creator. Nutze meinen Link und wir gewinnen beide: Du bekommst {{reward}} kostenlose Visual Bucs, ich steige in den Recruiter-Rängen auf. {{link}}",
+      "postThreads": "POV: Du hast den Cheat Code für Content-Erstellung gefunden. Bow Down Visuals = KI-Thumbnails, Hooks, Videos, Musik — einfach alles. Starte mit {{reward}} KOSTENLOSEN Visual Bucs über meinen Link: {{link}}",
+      "postTiktok": "Dieses KI-Studio macht meine Thumbnails, Hooks UND Videos für mich. Erhalte {{reward}} kostenlose Visual Bucs, wenn du dich über meinen Link anmeldest: {{link}}",
+      "postX": "Ich baue mein Creator-Imperium auf Bow Down Visuals auf — dem KI-Studio für Creator. Melde dich über meinen Link an und erhalte {{reward}} KOSTENLOSE Visual Bucs zum Start: {{link}}",
+      "subtitle": "Posts mit einem Klick. Kopieren, raushauen, rekrutieren.",
+      "templates": {
+        "chat": "Discord / WhatsApp",
+        "threads": "Threads / Instagram",
+        "tiktok": "TikTok-Beschreibung",
+        "x": "Auf X posten"
+      },
+      "title": "Share-Kit"
+    }
   },
   "randomizer": {
     "badge": "Thy Cheat Code's dice",
@@ -8144,64 +8222,70 @@
   "memberships": {
     "badge": "Fan Clubs",
     "titleStart": "Fan",
-    "titleAccent": "Memberships",
-    "subtitle": "Launch paid tiers for your biggest fans — exclusive content, early access, behind-the-scenes. Free to set up.",
+    "titleAccent": "Mitgliedschaften",
+    "subtitle": "Starte bezahlte Stufen für deine größten Fans — exklusive Inhalte, früher Zugang, Hinter-den-Kulissen. Kostenlos einzurichten.",
     "paymentsNotice": "Zahlungen sind live (Testmodus) — Fans treten über den sicheren Checkout bei und erscheinen hier, sobald ihre Zahlung bestätigt ist. Keine Fake-Transaktionen, jemals.",
-    "signInPrompt": "Sign in to build your fan club.",
-    "signIn": "Sign In",
-    "dismiss": "Dismiss",
-    "errorLoad": "Couldn't load your fan club — try again.",
-    "errorSaveTier": "Couldn't save the tier — try again.",
-    "errorDeleteTier": "Couldn't delete the tier — try again.",
-    "errorAddMember": "Couldn't add the member — try again.",
-    "errorUpdateMember": "Couldn't update the member — try again.",
-    "errorRemoveMember": "Couldn't remove the member — try again.",
-    "errorDuplicateMember": "That fan is already on this tier.",
-    "errorSuggester": "The AI suggester hiccuped — Visual Bucs were refunded, try again.",
-    "confirmDeleteTier": "Delete this tier and its tracked members? This can't be undone.",
-    "confirmRemoveMember": "Remove this member from tracking?",
-    "dashboardTitle": "Member Dashboard",
-    "activeMembers": "Active members",
-    "monthlyRevenue": "Monthly revenue",
-    "afterFee": "{{amount}} after 10% platform fee",
-    "churn": "Churn",
-    "pastDue": "Past due",
-    "tierStats": "{{count}} members · {{amount}}/mo",
-    "buildTier": "Build a Tier",
-    "editTier": "Edit Tier",
-    "tierNamePlaceholder": "Tier name (e.g. Gold Circle)",
-    "pricePlaceholder": "Price / month",
-    "descriptionPlaceholder": "What is this tier about? (optional)",
-    "perkPlaceholder": "Add a perk, then press Enter (e.g. Early access to every video)",
-    "addPerk": "Add",
-    "removePerk": "Remove perk",
-    "createTier": "Create Tier",
-    "saveTier": "Save Tier",
-    "cancel": "Cancel",
-    "editTierAria": "Edit tier",
-    "deleteTierAria": "Delete tier",
+    "signInPrompt": "Melde dich an, um deinen Fanclub aufzubauen.",
+    "signIn": "Anmelden",
+    "dismiss": "Schließen",
+    "errorLoad": "Dein Fanclub konnte nicht geladen werden — versuche es erneut.",
+    "errorSaveTier": "Die Stufe konnte nicht gespeichert werden — versuche es erneut.",
+    "errorDeleteTier": "Die Stufe konnte nicht gelöscht werden — versuche es erneut.",
+    "errorAddMember": "Das Mitglied konnte nicht hinzugefügt werden — versuche es erneut.",
+    "errorUpdateMember": "Das Mitglied konnte nicht aktualisiert werden — versuche es erneut.",
+    "errorRemoveMember": "Das Mitglied konnte nicht entfernt werden — versuche es erneut.",
+    "errorDuplicateMember": "Dieser Fan ist bereits auf dieser Stufe.",
+    "errorSuggester": "Der KI-Vorschlager hatte einen Schluckauf — Visual Bucs wurden erstattet, versuche es erneut.",
+    "confirmDeleteTier": "Diese Stufe und ihre erfassten Mitglieder löschen? Das kann nicht rückgängig gemacht werden.",
+    "confirmRemoveMember": "Dieses Mitglied aus der Erfassung entfernen?",
+    "dashboardTitle": "Mitglieder-Dashboard",
+    "activeMembers": "Aktive Mitglieder",
+    "monthlyRevenue": "Monatlicher Umsatz",
+    "afterFee": "{{amount}} nach 10% Plattformgebühr",
+    "churn": "Abwanderung",
+    "pastDue": "Überfällig",
+    "tierStats": "{{count}} Mitglieder · {{amount}}/Mon.",
+    "buildTier": "Eine Stufe aufbauen",
+    "editTier": "Stufe bearbeiten",
+    "tierNamePlaceholder": "Stufenname (z. B. Gold Circle)",
+    "pricePlaceholder": "Preis / Monat",
+    "descriptionPlaceholder": "Worum geht es bei dieser Stufe? (optional)",
+    "perkPlaceholder": "Füge einen Vorteil hinzu und drücke Enter (z. B. Früher Zugang zu jedem Video)",
+    "addPerk": "Hinzufügen",
+    "removePerk": "Vorteil entfernen",
+    "createTier": "Stufe erstellen",
+    "saveTier": "Stufe speichern",
+    "cancel": "Abbrechen",
+    "editTierAria": "Stufe bearbeiten",
+    "deleteTierAria": "Stufe löschen",
     "perMonth": "/mo",
-    "tierOption": "{{name}} — {{price}}/mo",
+    "tierOption": "{{name}} — {{price}}/Mon.",
     "aiSuggesterTitle": "AI Tier Suggester",
     "aiCost": "100 Visual Bucs",
-    "aiDescription": "Tell the AI your niche and it designs 3 tiers — names, prices, and concrete perks. Apply any suggestion straight into the tier builder.",
-    "nichePlaceholder": "Your niche (e.g. Music production)",
-    "audienceStarting": "starting",
-    "audienceGrowing": "growing",
-    "audienceEstablished": "established",
-    "suggestButton": "Suggest My Tiers",
-    "useTier": "Use This Tier",
-    "membersTitle": "Members",
+    "aiDescription": "Sag der KI deine Nische und sie entwirft 3 Stufen — Namen, Preise und konkrete Vorteile. Übernimm jeden Vorschlag direkt in den Stufen-Builder.",
+    "nichePlaceholder": "Deine Nische (z. B. Musikproduktion)",
+    "audienceStarting": "am Anfang",
+    "audienceGrowing": "wachsend",
+    "audienceEstablished": "etabliert",
+    "suggestButton": "Meine Stufen vorschlagen",
+    "useTier": "Diese Stufe verwenden",
+    "membersTitle": "Mitglieder",
     "membersNote": "Zahlende Mitglieder erscheinen hier automatisch, sobald ihr Checkout bestätigt ist. Du kannst unten weiterhin Mitglieder von außerhalb der Plattform manuell hinzufügen.",
-    "pickTier": "Pick a tier…",
-    "fanPlaceholder": "Fan email or handle",
-    "addMember": "Add Member",
-    "statusActive": "Active",
-    "statusPastDue": "Past due",
-    "statusCanceled": "Canceled",
-    "removeMemberAria": "Remove member",
-    "memberMeta": "{{tier}} · {{price}}/mo · joined {{date}}",
-    "noMembers": "No members tracked yet."
+    "pickTier": "Wähle eine Stufe…",
+    "fanPlaceholder": "Fan-E-Mail oder Handle",
+    "addMember": "Mitglied hinzufügen",
+    "statusActive": "Aktiv",
+    "statusPastDue": "Überfällig",
+    "statusCanceled": "Gekündigt",
+    "removeMemberAria": "Mitglied entfernen",
+    "memberMeta": "{{tier}} · {{price}}/Mon. · beigetreten {{date}}",
+    "noMembers": "Noch keine Mitglieder erfasst.",
+    "errorUpdateTier": "Die Stufe konnte nicht aktualisiert werden — versuche es erneut.",
+    "pauseTier": "Stufe pausieren",
+    "resumeTier": "Stufe fortsetzen",
+    "retry": "Erneut versuchen",
+    "tierPaused": "Pausiert",
+    "tierPausedNote": "Für Fans verborgen — während der Pause kann niemand neu beitreten."
   },
   "myProjects": {
     "pageTitle": "Meine Projekte",
@@ -8289,90 +8373,92 @@
     "failedOpenHubProject": "Das Hub-Projekt konnte nicht geöffnet werden. Bitte versuch es erneut."
   },
   "merch": {
-    "back": "Back",
+    "back": "Zurück",
     "title": "Merch Designer",
-    "subtitle": "AI-designed merch for your brand — 300 Visual Bucs per design batch",
+    "subtitle": "KI-designter Merch für deine Marke — 300 Visual Bucs pro Design-Batch",
     "tabs": {
       "design": "Design Studio",
-      "store": "My Store"
+      "store": "Mein Store",
+      "merch": "Merch"
     },
     "products": {
       "t-shirt": {
         "label": "T-Shirt",
-        "blurb": "Classic crew tee"
+        "blurb": "Klassisches Crew-Tee"
       },
       "hoodie": {
         "label": "Hoodie",
-        "blurb": "Heavyweight pullover"
+        "blurb": "Schwerer Pullover-Hoodie"
       },
       "cap": {
         "label": "Cap",
-        "blurb": "Snapback / dad hat"
+        "blurb": "Snapback / Dad Hat"
       },
       "poster": {
         "label": "Poster",
-        "blurb": "18\"×24\" matte print"
+        "blurb": "18″×24″ matter Druck"
       }
     },
     "styles": {
       "streetwear": {
         "label": "Streetwear",
-        "blurb": "Bold graphics, urban energy"
+        "blurb": "Fette Grafiken, urbane Energie"
       },
       "minimal": {
         "label": "Minimal",
-        "blurb": "Clean, subtle, timeless"
+        "blurb": "Sauber, dezent, zeitlos"
       },
       "vintage": {
         "label": "Vintage",
-        "blurb": "Retro, worn-in, classic"
+        "blurb": "Retro, abgetragen, klassisch"
       },
       "luxury-gold": {
         "label": "Luxury Gold",
-        "blurb": "Black & gold, premium"
+        "blurb": "Schwarz & Gold, Premium"
       }
     },
-    "productLabel": "Product",
+    "productLabel": "Produkt",
     "styleLabel": "Style",
-    "designTitleLabel": "Design title",
-    "titlePlaceholder": "e.g. Shark King Tour Tee",
-    "describeLabel": "Describe your design",
-    "describeHint": "(AI handles the rest)",
-    "descriptionPlaceholder": "e.g. A crowned shark with lightning, 'BOW DOWN' in bold gold letters underneath",
-    "generateButton": "Generate 2 mockups · 300 Visual Bucs",
-    "creditsRemaining": "{{count}} Visual Bucs remaining",
-    "designing": "Designing your merch…",
-    "designingDetail": "Rendering 2 product mockups — hang tight.",
-    "mockupsReady": "2 mockups ready",
-    "suggestedRetail": "suggested retail {{price}}",
-    "mockupAlt": "Merch mockup",
+    "designTitleLabel": "Designtitel",
+    "titlePlaceholder": "z. B. Shark King Tour Tee",
+    "describeLabel": "Beschreibe dein Design",
+    "describeHint": "(KI erledigt den Rest)",
+    "descriptionPlaceholder": "z. B. Ein gekrönter Hai mit Blitzen, darunter 'BOW DOWN' in fetten goldenen Buchstaben",
+    "generateButton": "2 Mockups generieren · 300 Visual Bucs",
+    "creditsRemaining": "Noch {{count}} Visual Bucs",
+    "designing": "Dein Merch wird gestaltet…",
+    "designingDetail": "2 Produkt-Mockups werden gerendert — einen Moment Geduld.",
+    "mockupsReady": "2 Mockups bereit",
+    "suggestedRetail": "empfohlener Verkaufspreis {{price}}",
+    "mockupAlt": "Merch-Mockup",
     "download": "Download",
-    "saved": "Saved",
-    "saveToStore": "Save to store",
-    "newBatch": "New batch",
-    "dropshipTitle": "Dropship model:",
-    "dropshipDesc": "you design, manufacturers print & ship directly — Bow Down Visuals never touches inventory. Checkout is",
-    "comingSoon": "coming soon",
-    "dropshipEnd": "; listing is free.",
-    "loadingStore": "Loading your store…",
-    "noDesigns": "No designs yet",
-    "noDesignsDetail": "Generate a batch in the Design Studio, then save your favorites here.",
-    "startDesigning": "Start designing",
+    "saved": "Gespeichert",
+    "saveToStore": "Im Store speichern",
+    "newBatch": "Neuer Batch",
+    "dropshipTitle": "Dropship-Modell:",
+    "dropshipDesc": "du designst, Hersteller drucken & versenden direkt — Bow Down Visuals fasst niemals Lagerbestand an. Checkout",
+    "comingSoon": "kommt bald",
+    "dropshipEnd": "; das Einstellen ist kostenlos.",
+    "loadingStore": "Dein Store wird geladen…",
+    "noDesigns": "Noch keine Designs",
+    "noDesignsDetail": "Generiere einen Batch im Design Studio und speichere dann deine Favoriten hier.",
+    "startDesigning": "Mit dem Designen beginnen",
     "pricePlaceholder": "29.99",
-    "setPrice": "Set price",
-    "listForSale": "List for sale",
-    "unlist": "Unlist",
-    "deleteDesign": "Delete design",
-    "baseCost": "Base cost",
-    "platformFee": "Platform fee (future)",
-    "yourProfit": "Your profit",
-    "marginPct": "{{pct}}% margin",
-    "previewCheckout": "Preview checkout",
-    "priceNote": "Prices and listing are free to change anytime. The 15% platform fee only applies once checkout goes live.",
-    "errorGenerate": "Could not generate the designs — no Visual Bucs were charged.",
-    "errorNetwork": "Network error — please try again. No Visual Bucs were charged.",
-    "confirmDelete": "Delete this design? This can't be undone.",
-    "checkoutSoon": "Checkout is coming soon."
+    "setPrice": "Preis festlegen",
+    "listForSale": "Zum Verkauf einstellen",
+    "unlist": "Einstellen zurücknehmen",
+    "deleteDesign": "Design löschen",
+    "baseCost": "Basiskosten",
+    "platformFee": "Plattformgebühr (zukünftig)",
+    "yourProfit": "Dein Gewinn",
+    "marginPct": "{{pct}}% Marge",
+    "previewCheckout": "Checkout-Vorschau",
+    "priceNote": "Preise und Einstellung sind jederzeit kostenlos änderbar. Die 15% Plattformgebühr gilt erst, sobald der Checkout live geht.",
+    "errorGenerate": "Die Designs konnten nicht generiert werden — es wurden keine Visual Bucs abgebucht.",
+    "errorNetwork": "Netzwerkfehler — bitte versuche es erneut. Es wurden keine Visual Bucs abgebucht.",
+    "confirmDelete": "Dieses Design löschen? Das kann nicht rückgängig gemacht werden.",
+    "checkoutSoon": "Checkout kommt bald.",
+    "myShopLink": "In meinem Shop verkaufen"
   },
   "podcast": {
     "episode": {
@@ -8754,23 +8840,23 @@
   },
   "pricing": {
     "betaNotice": {
-      "cta": "Join the beta list for early access →",
-      "label": "Beta Notice:",
-      "text": "Bow Down Visuals is currently in beta. Payments are not live yet."
+      "cta": "Trage dich für frühen Zugang in die Beta-Liste ein →",
+      "label": "Beta-Hinweis:",
+      "text": "Bow Down Visuals ist derzeit in der Beta. Zahlungen sind noch nicht live."
     },
     "bottomCta": {
-      "joinBeta": "Join Beta",
-      "text": "Beta members lock in the founding rate and get 100 bonus Visual Bucs on launch day.",
-      "title": "Get in early.",
-      "tryTools": "Try the Tools"
+      "joinBeta": "Beta beitreten",
+      "text": "Beta-Mitglieder sichern sich den Gründungstarif und erhalten am Starttag 100 Bonus Visual Bucs.",
+      "title": "Steige früh ein.",
+      "tryTools": "Tools ausprobieren"
     },
     "cancelledBanner": {
-      "text": "Payment cancelled. No Visual Bucs were added."
+      "text": "Zahlung abgebrochen. Es wurden keine Visual Bucs gutgeschrieben."
     },
     "creditPacks": {
-      "buyButton": "Buy Visual Bucs",
-      "checkoutFailed": "Checkout failed. Please try again.",
-      "networkError": "Network error. Please try again.",
+      "buyButton": "Visual Bucs kaufen",
+      "checkoutFailed": "Checkout fehlgeschlagen. Bitte versuche es erneut.",
+      "networkError": "Netzwerkfehler. Bitte versuche es erneut.",
       "packs": {
         "10": {
           "credits": "1,000 Visual Bucs",
@@ -8789,145 +8875,145 @@
           "price": "$249"
         }
       },
-      "processing": "Processing…",
-      "signInNote": "You must be signed in to purchase Visual Bucs.",
-      "subtitle": "Need extra Visual Bucs without a subscription? Top up anytime.",
-      "testModeLead": "Payments are currently in",
-      "testModeStrong": "test mode",
-      "testModeTail": ". No real money is charged.",
-      "title": "Test Visual Buc Packs"
+      "processing": "Wird verarbeitet…",
+      "signInNote": "Du musst angemeldet sein, um Visual Bucs zu kaufen.",
+      "subtitle": "Brauchst du zusätzliche Visual Bucs ohne Abo? Lade jederzeit auf.",
+      "testModeLead": "Zahlungen sind derzeit im",
+      "testModeStrong": "Testmodus",
+      "testModeTail": ". Es wird kein echtes Geld abgebucht.",
+      "title": "Visual Buc Testpakete"
     },
     "faq": {
-      "a1": "Visual Bucs are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly Visual Bucs balance.",
-      "a2": "Not yet. Bow Down Visuals is currently in beta. Payments are coming soon. Join the beta list now to lock in your founding rate and get early access when billing goes live.",
-      "a3": "Yes. Beta users can test selected tools with a starter Visual Bucs balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
-      "a4": "Yes — music video clip generation is a premium action and uses more Visual Bucs than standard text generation. The exact cost per clip will be confirmed at launch.",
-      "a5": "Yes. Once billing is live, you can upgrade, downgrade, or cancel any time from your account settings. No contracts. No cancellation fees.",
-      "a6": "AI song vocals and full beat generation are planned but not fully launched yet. Right now the platform creates professional lyrics, hooks, verses, AI music prompts, video treatments, and promo content — everything you need to direct and produce your release.",
-      "q1": "What are Visual Bucs?",
-      "q2": "Are payments live yet?",
-      "q3": "Can I use Bow Down Visuals during beta?",
-      "q4": "Do music video clips cost Visual Bucs?",
-      "q5": "Can I cancel later?",
-      "q6": "Does this make real songs with vocals yet?",
-      "title": "Frequently Asked Questions"
+      "a1": "Visual Bucs werden jedes Mal verwendet, wenn du eine KI-Generierung startest — einen Song erstellen, einen Videoplan generieren, Promo-Clips erstellen oder Musikvideo-Clips produzieren. Jede Aktion zieht von deinem monatlichen Visual Bucs Guthaben ab.",
+      "a2": "Noch nicht. Bow Down Visuals ist derzeit in der Beta. Zahlungen kommen bald. Trage dich jetzt in die Beta-Liste ein, um dir deinen Gründungstarif zu sichern und frühen Zugang zu erhalten, sobald die Abrechnung live geht.",
+      "a3": "Ja. Beta-Nutzer können ausgewählte Tools mit einem Startguthaben an Visual Bucs testen. Melde dich an, erkunde die Creator-Tools und gib uns Feedback. Der volle Zugang öffnet mit dem kostenpflichtigen Start.",
+      "a4": "Ja — die Generierung von Musikvideo-Clips ist eine Premium-Aktion und verbraucht mehr Visual Bucs als die Standard-Textgenerierung. Die genauen Kosten pro Clip werden zum Start bestätigt.",
+      "a5": "Ja. Sobald die Abrechnung live ist, kannst du jederzeit in deinen Kontoeinstellungen upgraden, downgraden oder kündigen. Keine Verträge. Keine Kündigungsgebühren.",
+      "a6": "KI-Songgesang und die vollständige Beat-Generierung sind geplant, aber noch nicht vollständig gestartet. Aktuell erstellt die Plattform professionelle Songtexte, Hooks, Strophen, KI-Musikprompts, Video-Treatments und Promo-Inhalte — alles, was du brauchst, um deine Veröffentlichung zu inszenieren und zu produzieren.",
+      "q1": "Was sind Visual Bucs?",
+      "q2": "Sind Zahlungen schon live?",
+      "q3": "Kann ich Bow Down Visuals während der Beta nutzen?",
+      "q4": "Kosten Musikvideo-Clips Visual Bucs?",
+      "q5": "Kann ich später kündigen?",
+      "q6": "Macht das schon echte Songs mit Gesang?",
+      "title": "Häufig gestellte Fragen"
     },
     "hero": {
-      "disclaimer": "No free generations. No hidden compute charges. See the Visual Buc cost before you create.",
-      "kicker": "Pricing",
-      "subtitle": "Climb from Street Punk to Kingpin — the higher your rank, the more power, Visual Bucs, automation, and control you unlock.",
-      "titleLine1": "Choose Your",
-      "titleLine2": "Rank",
-      "videoAriaLabel": "Thy Cheat Code leveling up"
+      "disclaimer": "Keine kostenlosen Generierungen. Keine versteckten Rechenkosten. Sieh dir die Visual Buc Kosten an, bevor du erstellst.",
+      "kicker": "Preise",
+      "subtitle": "Steige vom Street Punk zum Kingpin auf — je höher dein Rang, desto mehr Power, Visual Bucs, Automatisierung und Kontrolle schaltest du frei.",
+      "titleLine1": "Wähle deinen",
+      "titleLine2": "Rang",
+      "videoAriaLabel": "Thy Cheat Code steigt auf"
     },
     "jsonLd": {
-      "description": "AI-powered creative studio for content creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
-      "offerCatalogName": "Bow Down Visuals Plans"
+      "description": "KI-gestütztes Kreativstudio für Content Creator mit Abo-Plänen für Songtexte, Musikvideo-Treatments, Promo-Clips und Thumbnails.",
+      "offerCatalogName": "Bow Down Visuals Pläne"
     },
-    "pageDescription": "Choose your rank — six star-rated creator plans.",
+    "pageDescription": "Wähle deinen Rang — sechs Creator-Pläne mit Sternebewertung.",
     "pageTitle": "Preise",
     "planCard": {
-      "bestFor": "Best for: {{bestFor}}",
+      "bestFor": "Am besten für: {{bestFor}}",
       "perMonth": "/month",
-      "wantedStarsAria": "{{stars}} out of 6 wanted stars"
+      "wantedStarsAria": "{{stars}} von 6 Wanted-Sternen"
     },
     "plans": {
-      "comingSoonNote": "Billing is not live yet. All plan buttons join the beta list.",
+      "comingSoonNote": "Die Abrechnung ist noch nicht live. Alle Plan-Buttons tragen dich in die Beta-Liste ein.",
       "crimeBoss": {
-        "badge": "Exclusive",
-        "bestFor": "High-volume creators",
-        "credits": "150,000 Visual Bucs monthly",
-        "cta": "Become a Crime Boss",
+        "badge": "Exklusiv",
+        "bestFor": "Creator mit hohem Volumen",
+        "credits": "150.000 Visual Bucs monatlich",
+        "cta": "Werde ein Crime Boss",
         "features": {
-          "f1": "Everything in Shot Caller",
-          "f2": "Priority generation queue",
-          "f3": "4K output where supported",
-          "f4": "Early access to new AI models",
-          "f5": "Advanced cross-platform analytics",
-          "f6": "Exclusive Crime Boss templates & styles"
+          "f1": "Alles aus Shot Caller",
+          "f2": "Prioritäts-Warteschlange für Generierungen",
+          "f3": "4K-Ausgabe, wo unterstützt",
+          "f4": "Früher Zugang zu neuen KI-Modellen",
+          "f5": "Erweiterte plattformübergreifende Analysen",
+          "f6": "Exklusive Crime Boss Vorlagen & Stile"
         },
         "name": "Crime Boss"
       },
       "gangster": {
-        "bestFor": "Serious full-time creators",
-        "credits": "25,000 Visual Bucs monthly",
-        "cta": "Become a Gangster",
+        "bestFor": "Ambitionierte Vollzeit-Creator",
+        "credits": "25.000 Visual Bucs monatlich",
+        "cta": "Werde ein Gangster",
         "features": {
-          "f1": "Everything in Hustler",
+          "f1": "Alles aus Hustler",
           "f2": "AI Lip Sync",
           "f3": "AI mastering + stem separation",
-          "f4": "Advanced effects & transitions",
-          "f5": "Upscaling & watermark cleanup",
-          "f6": "Batch creative variations"
+          "f4": "Erweiterte Effekte & Übergänge",
+          "f5": "Upscaling & Wasserzeichen-Bereinigung",
+          "f6": "Kreativvarianten im Batch"
         },
         "name": "Gangster"
       },
       "hustler": {
-        "badge": "Most Popular",
-        "bestFor": "Active solo creators",
-        "credits": "10,000 Visual Bucs monthly",
-        "cta": "Rank Up to Hustler",
+        "badge": "Am beliebtesten",
+        "bestFor": "Aktive Solo-Creator",
+        "credits": "10.000 Visual Bucs monatlich",
+        "cta": "Steige zum Hustler auf",
         "features": {
-          "f1": "Everything in Street Punk",
+          "f1": "Alles aus Street Punk",
           "f2": "AI video clip generation",
           "f3": "Full Video Editor access",
-          "f4": "Creator Vault + Photo Shoot",
+          "f4": "Creator Vault + Foto-Shooting",
           "f5": "Artist Voice Lock",
-          "f6": "Character video references"
+          "f6": "Charakter-Videoreferenzen"
         },
         "name": "Hustler"
       },
       "kingpin": {
-        "badge": "Top Tier",
-        "bestFor": "Labels, agencies & power users",
-        "credits": "400,000 Visual Bucs monthly",
-        "cta": "Claim the Kingpin Crown",
+        "badge": "Top-Stufe",
+        "bestFor": "Labels, Agenturen & Power-User",
+        "credits": "400.000 Visual Bucs monatlich",
+        "cta": "Sichere dir die Kingpin-Krone",
         "features": {
-          "f1": "Everything in Crime Boss",
-          "f2": "8K delivery where supported",
+          "f1": "Alles aus Crime Boss",
+          "f2": "8K-Lieferung, wo unterstützt",
           "f3": "Custom AI style training",
-          "f4": "White-label client deliverables",
-          "f5": "API access & automation",
-          "f6": "Dedicated account manager"
+          "f4": "White-Label-Lieferungen für Kunden",
+          "f5": "API-Zugang & Automatisierung",
+          "f6": "Persönlicher Account Manager"
         },
         "name": "Kingpin"
       },
       "shotCaller": {
-        "bestFor": "Teams & creator brands",
-        "credits": "60,000 Visual Bucs monthly",
-        "cta": "Become a Shot Caller",
+        "bestFor": "Teams & Creator-Marken",
+        "credits": "60.000 Visual Bucs monatlich",
+        "cta": "Werde ein Shot Caller",
         "features": {
-          "f1": "Everything in Gangster",
-          "f2": "Team workspace & member roles",
-          "f3": "Shared vaults & brand libraries",
-          "f4": "Review & approval workflow",
-          "f5": "Social scheduling & publishing",
-          "f6": "Bulk asset creation"
+          "f1": "Alles aus Gangster",
+          "f2": "Team-Workspace & Mitgliedsrollen",
+          "f3": "Geteilte Vaults & Markenbibliotheken",
+          "f4": "Review- & Freigabe-Workflow",
+          "f5": "Social-Media-Planung & Veröffentlichung",
+          "f6": "Asset-Erstellung in Masse"
         },
         "name": "Shot Caller"
       },
       "streetPunk": {
-        "bestFor": "New creators",
-        "credits": "2,500 Visual Bucs monthly",
-        "cta": "Become a Street Punk",
+        "bestFor": "Neue Creator",
+        "credits": "2.500 Visual Bucs monatlich",
+        "cta": "Werde ein Street Punk",
         "features": {
           "f1": "AI Music Maker",
-          "f2": "Music video plans & treatments",
-          "f3": "Promo clip planning",
-          "f4": "Hook Studio + virality check",
+          "f2": "Musikvideo-Pläne & Treatments",
+          "f3": "Promo-Clip-Planung",
+          "f4": "Hook Studio + Viralitäts-Check",
           "f5": "Thumbnail Maker & Logo Maker",
-          "f6": "Thy Cheat Code guided setup"
+          "f6": "Geführte Einrichtung durch Thy Cheat Code"
         },
         "name": "Street Punk"
       }
     },
     "wantedMeter": {
-      "ariaLabel": "Preview rank",
-      "hint": "Hover the stars, then tap a level to jump to its plan",
-      "hoverLabel_one": "{{count}} Star — {{name}} · ${{price}}/mo",
-      "hoverLabel_other": "{{count}} Stars — {{name}} · ${{price}}/mo",
-      "starOption_one": "{{count}} star — {{name}} ${{price}}/month",
-      "starOption_other": "{{count}} stars — {{name}} ${{price}}/month"
+      "ariaLabel": "Rang-Vorschau",
+      "hint": "Fahre über die Sterne und tippe dann auf eine Stufe, um zu ihrem Plan zu springen",
+      "hoverLabel_one": "{{count}} Stern — {{name}} · ${{price}}/Mon.",
+      "hoverLabel_other": "{{count}} Sterne — {{name}} · ${{price}}/Mon.",
+      "starOption_one": "{{count}} Stern — {{name}} ${{price}}/Monat",
+      "starOption_other": "{{count}} Sterne — {{name}} ${{price}}/Monat"
     }
   },
   "privacy": {
@@ -10038,120 +10124,120 @@
   "syncPitch": {
     "tabSync": "Sync Pitch Kit",
     "subTabOneSheet": "One-Sheets",
-    "subTabBriefs": "Brief Board",
-    "subTabTracker": "Pitch Tracker",
-    "statusSent": "Sent",
-    "statusPending": "Pending",
-    "statusPlaced": "Placed",
-    "statusDead": "Dead",
+    "subTabBriefs": "Brief-Board",
+    "subTabTracker": "Pitch-Tracker",
+    "statusSent": "Gesendet",
+    "statusPending": "Ausstehend",
+    "statusPlaced": "Platziert",
+    "statusDead": "Erledigt",
     "typeTv": "TV",
     "typeFilm": "Film",
-    "typeAd": "Ad",
-    "typeGame": "Game",
-    "yourSong": "Your song",
-    "enterManually": "Enter manually",
-    "fromLibrary": "From library ({{count}})",
-    "pickSong": "Pick a song from your library…",
-    "untitledSong": "Untitled song",
-    "songTitlePlaceholder": "Song title",
-    "artistNamePlaceholder": "Artist name",
-    "genrePlaceholder": "Genre (e.g. dark pop)",
-    "moodPlaceholder": "Mood tags, comma separated (e.g. brooding, triumphant)",
-    "bpmPlaceholder": "BPM (e.g. 92)",
-    "keyPlaceholder": "Key (e.g. A minor)",
-    "descriptionPlaceholder": "Describe the song — story, vibe, what it's about…",
-    "instrumentalAvailable": "Instrumental version available",
-    "stemsAvailable": "Stems available",
-    "stemsHint": "Supervisors ask for instrumental and stems first — tick what you actually have.",
-    "advancedDetails": "Details & contact info",
-    "contactNamePlaceholder": "Contact name",
-    "contactEmailPlaceholder": "Contact email",
-    "generateSheet": "Generate Sync One-Sheet · {{cost}} VB",
-    "writingSheet": "Writing your one-sheet…",
-    "signInPrompt": "Sign in to generate a sync one-sheet.",
-    "titleRequired": "Give your song a title first.",
-    "kitFailed": "The one-sheet didn't come together. Try again.",
-    "copied": "Copied",
-    "copyLabel": "Copy {{label}}",
-    "copyAria": "Copy {{label}} to clipboard",
+    "typeAd": "Werbung",
+    "typeGame": "Spiel",
+    "yourSong": "Dein Song",
+    "enterManually": "Manuell eingeben",
+    "fromLibrary": "Aus der Bibliothek ({{count}})",
+    "pickSong": "Wähle einen Song aus deiner Bibliothek…",
+    "untitledSong": "Song ohne Titel",
+    "songTitlePlaceholder": "Songtitel",
+    "artistNamePlaceholder": "Künstlername",
+    "genrePlaceholder": "Genre (z. B. Dark Pop)",
+    "moodPlaceholder": "Stimmungs-Tags, kommagetrennt (z. B. düster, triumphierend)",
+    "bpmPlaceholder": "BPM (z. B. 92)",
+    "keyPlaceholder": "Tonart (z. B. A-Moll)",
+    "descriptionPlaceholder": "Beschreibe den Song — Geschichte, Vibe, worum es geht…",
+    "instrumentalAvailable": "Instrumentalversion verfügbar",
+    "stemsAvailable": "Stems verfügbar",
+    "stemsHint": "Supervisors fragen zuerst nach Instrumental und Stems — hake an, was du wirklich hast.",
+    "advancedDetails": "Details & Kontaktinfo",
+    "contactNamePlaceholder": "Kontaktname",
+    "contactEmailPlaceholder": "Kontakt-E-Mail",
+    "generateSheet": "Sync One-Sheet generieren · {{cost}} VB",
+    "writingSheet": "Dein One-Sheet wird geschrieben…",
+    "signInPrompt": "Melde dich an, um ein Sync One-Sheet zu generieren.",
+    "titleRequired": "Gib deinem Song zuerst einen Titel.",
+    "kitFailed": "Das One-Sheet ist nicht zustande gekommen. Versuche es erneut.",
+    "copied": "Kopiert",
+    "copyLabel": "{{label}} kopieren",
+    "copyAria": "{{label}} in die Zwischenablage kopieren",
     "copyEmailLabel": "email",
-    "copyShareLink": "Copy share link",
-    "shareSheet": "Share",
-    "linkCopied": "Copied!",
-    "view": "View",
-    "hide": "Hide",
-    "myOneSheets": "My One-Sheets",
-    "noSheets": "No one-sheets yet — generate one above and start pitching.",
-    "deleteSheet": "Delete this one-sheet",
-    "trackThisPitch": "Track this pitch",
-    "oneSheetBadge": "Sync one-sheet",
+    "copyShareLink": "Share-Link kopieren",
+    "shareSheet": "Teilen",
+    "linkCopied": "Kopiert!",
+    "view": "Ansehen",
+    "hide": "Ausblenden",
+    "myOneSheets": "Meine One-Sheets",
+    "noSheets": "Noch keine One-Sheets — generiere oben eines und beginne zu pitchen.",
+    "deleteSheet": "Dieses One-Sheet löschen",
+    "trackThisPitch": "Diesen Pitch verfolgen",
+    "oneSheetBadge": "Sync One-Sheet",
     "statBpm": "BPM",
-    "statKey": "Key",
+    "statKey": "Tonart",
     "statInstrumental": "Instrumental",
     "statStems": "Stems",
-    "yes": "Yes",
-    "no": "No",
-    "moodTagsLabel": "Mood tags",
-    "soundsLikeLabel": "Sounds like",
-    "comparableArtists": "Comparable artists",
-    "syncUsesLabel": "Made for sync",
-    "contactLabel": "Licensing contact",
-    "supervisorEmail": "Music supervisor pitch email",
-    "subjectLabel": "Subject",
-    "bodyLabel": "Body",
-    "licensingNotesLabel": "Licensing notes",
-    "handoffStems": "Make instrumental / stems",
-    "handoffStemsDesc": "Strip or separate your track in Stems",
-    "handoffSponsor": "Send to sponsor outreach",
-    "handoffSponsorDesc": "Adapt this pitch for brand placements",
+    "yes": "Ja",
+    "no": "Nein",
+    "moodTagsLabel": "Stimmungs-Tags",
+    "soundsLikeLabel": "Klingt wie",
+    "comparableArtists": "Vergleichbare Künstler",
+    "syncUsesLabel": "Gemacht für Sync",
+    "contactLabel": "Lizenz-Kontakt",
+    "supervisorEmail": "Pitch-E-Mail an Music Supervisor",
+    "subjectLabel": "Betreff",
+    "bodyLabel": "Text",
+    "licensingNotesLabel": "Lizenzhinweise",
+    "handoffStems": "Instrumental / Stems erstellen",
+    "handoffStemsDesc": "Ziehe deinen Track in Stems auseinander oder trenne ihn",
+    "handoffSponsor": "An Sponsoren-Outreach senden",
+    "handoffSponsorDesc": "Passe diesen Pitch für Markenplatzierungen an",
     "tagInstrumental": "Instrumental",
     "tagStems": "Stems",
-    "briefsIntro": "Create briefs for the placements you want — TV, film, ads, games — then match your catalog songs against them.",
-    "newBrief": "New brief",
-    "briefTitlePlaceholder": "Brief title (e.g. Indie drama trailer)",
-    "briefMoodPlaceholder": "Mood (e.g. hopeful, cinematic)",
-    "budgetPlaceholder": "Budget range (e.g. $1k–$5k)",
-    "briefNotesPlaceholder": "Notes, reference tracks, delivery format…",
-    "briefTitleRequired": "Give the brief a title first.",
-    "saveBrief": "Save brief",
-    "cancel": "Cancel",
-    "saveFailed": "Couldn't save. Try again.",
-    "deleteBrief": "Delete this brief",
-    "noBriefs": "No briefs yet — create one to start matching your songs.",
-    "matchSongs": "Match songs",
-    "hideMatches": "Hide",
+    "briefsIntro": "Erstelle Briefs für die Platzierungen, die du willst — TV, Film, Werbung, Spiele — und gleiche dann deine Katalog-Songs damit ab.",
+    "newBrief": "Neues Brief",
+    "briefTitlePlaceholder": "Brief-Titel (z. B. Indie-Drama-Trailer)",
+    "briefMoodPlaceholder": "Stimmung (z. B. hoffnungsvoll, cineastisch)",
+    "budgetPlaceholder": "Budgetrahmen (z. B. $1k–$5k)",
+    "briefNotesPlaceholder": "Notizen, Referenztracks, Lieferformat…",
+    "briefTitleRequired": "Gib dem Brief zuerst einen Titel.",
+    "saveBrief": "Brief speichern",
+    "cancel": "Abbrechen",
+    "saveFailed": "Speichern nicht möglich. Versuche es erneut.",
+    "deleteBrief": "Dieses Brief löschen",
+    "noBriefs": "Noch keine Briefs — erstelle eines, um deine Songs abzugleichen.",
+    "matchSongs": "Songs abgleichen",
+    "hideMatches": "Ausblenden",
     "matchScore": "Match {{score}}",
-    "pitchThis": "Pitch this",
-    "noMatches": "No one-sheets to match yet — generate a one-sheet first.",
-    "noMoodTags": "No mood tags",
-    "noMood": "No mood set",
-    "deadlineLabel": "due {{date}}",
-    "newSheetFromBrief": "New sheet",
-    "logPitch": "Log pitch",
-    "pitchesCount": "pitches",
-    "placedCount": "placed",
-    "targetPlaceholder": "Target (supervisor, show, brand…)",
+    "pitchThis": "Diesen pitchen",
+    "noMatches": "Noch keine One-Sheets zum Abgleichen — generiere zuerst ein One-Sheet.",
+    "noMoodTags": "Keine Stimmungs-Tags",
+    "noMood": "Keine Stimmung gesetzt",
+    "deadlineLabel": "fällig {{date}}",
+    "newSheetFromBrief": "Neues Sheet",
+    "logPitch": "Pitch eintragen",
+    "pitchesCount": "Pitches",
+    "placedCount": "platziert",
+    "targetPlaceholder": "Ziel (Supervisor, Show, Marke…)",
     "notesPlaceholder": "Notes…",
-    "savePitch": "Save pitch",
-    "deletePitch": "Delete this pitch",
-    "noPitches": "No sync pitches logged yet.",
-    "noTarget": "No target yet",
-    "updateFailed": "Couldn't update. Try again.",
-    "markStatus": "Mark {{status}}",
-    "placedPrompt": "Placed! Log the income to your Money Tracker:",
-    "amountPlaceholder": "$ amount",
-    "incomeAmountRequired": "Enter the placement amount first.",
-    "logToMoney": "Log to Money Tracker",
-    "moneyLogFailed": "Couldn't log the income. Try again.",
+    "savePitch": "Pitch speichern",
+    "deletePitch": "Diesen Pitch löschen",
+    "noPitches": "Noch keine Sync-Pitches eingetragen.",
+    "noTarget": "Noch kein Ziel",
+    "updateFailed": "Aktualisieren nicht möglich. Versuche es erneut.",
+    "markStatus": "Als {{status}} markieren",
+    "placedPrompt": "Platziert! Trage die Einnahmen in deinen Money Tracker ein:",
+    "amountPlaceholder": "$ Betrag",
+    "incomeAmountRequired": "Gib zuerst den Platzierungsbetrag ein.",
+    "logToMoney": "In Money Tracker eintragen",
+    "moneyLogFailed": "Einnahmen konnten nicht eingetragen werden. Versuche es erneut.",
     "publicBadge": "Sync One-Sheet",
     "publicTitle": "Sync One-Sheet",
-    "publicDescription": "A sync licensing one-sheet for an independent song.",
-    "publicNotFound": "One-sheet not found",
-    "publicNotFoundDesc": "This link may be expired or mistyped.",
-    "publicHome": "Go home",
-    "publicCta": "Pitch your own music for TV, film, ads & games",
-    "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
-    "publicCtaButton": "Make my sync one-sheet",
+    "publicDescription": "Ein Sync-Lizenz-One-Sheet für einen unabhängigen Song.",
+    "publicNotFound": "One-Sheet nicht gefunden",
+    "publicNotFoundDesc": "Dieser Link ist möglicherweise abgelaufen oder falsch geschrieben.",
+    "publicHome": "Zur Startseite",
+    "publicCta": "Pitche deine eigene Musik für TV, Film, Werbung & Spiele",
+    "publicCtaDesc": "Bow Down Visuals schreibt das One-Sheet, gleicht deine Songs mit Briefs ab und verfolgt jeden Pitch — in Minuten.",
+    "publicCtaButton": "Mein Sync One-Sheet erstellen",
     "madeWith": "Made with Bow Down Visuals"
   },
   "socialProof": {
@@ -12252,5 +12338,63 @@
     "slideshowTitle": "Diashow-Pack",
     "slideshowBlurb": "Ein Ordner mit den Bildern deines Sets, bereit für einen Diashow-Bildschirmschoner — kein Video, nur deine Kunst im Wechsel auf dem Bildschirm.",
     "slideshowButton": "Das Diashow-Pack herunterladen (.zip)"
+  },
+  "moneyTracker": {
+    "addEntry": "Eintrag hinzufügen",
+    "addFirst": "Füge deinen ersten Eintrag hinzu",
+    "addIncomeFromDeal": "Als Einnahme eintragen",
+    "allTime": "Gesamtzeit",
+    "amount": "Betrag (USD)",
+    "breakdownExpense": "Ausgaben nach Kategorie",
+    "breakdownIncome": "Einnahmen nach Kategorie",
+    "cancelDelete": "Behalten",
+    "cat_ad_revenue": "Werbeeinnahmen",
+    "cat_ads": "Werbung",
+    "cat_affiliate": "Affiliate",
+    "cat_contractors": "Auftragnehmer",
+    "cat_equipment": "Ausrüstung",
+    "cat_invoice_payout": "Rechnungsauszahlung",
+    "cat_merch_sales": "Merch-Verkäufe",
+    "cat_other_expense": "Sonstige Ausgabe",
+    "cat_other_income": "Sonstige Einnahmen",
+    "cat_production": "Produktion",
+    "cat_software": "Software",
+    "cat_sponsor_deals": "Sponsoren-Deals",
+    "cat_streaming_royalties": "Streaming-Royalties",
+    "cat_subscriptions": "Abonnements",
+    "cat_travel": "Reisen",
+    "category": "Kategorie",
+    "closeForm": "Schließen",
+    "confirmDelete": "Löschen",
+    "date": "Datum",
+    "dealPaidNote": "Verfolge diese Auszahlung in deinem Money Tracker.",
+    "deleteEntry": "Eintrag löschen",
+    "emptyMonth": "Diesen Monat ist noch nichts eingetragen. Füge deinen ersten Eintrag hinzu, um deine Zahlen zu kennen.",
+    "entriesThisMonth": "Einträge — {{month}}",
+    "errorAmount": "Gib einen Betrag größer als $0 ein.",
+    "errorDate": "Wähle ein gültiges Datum.",
+    "errorDelete": "Der Eintrag konnte nicht gelöscht werden.",
+    "errorLoad": "Deine Geldeinträge konnten nicht geladen werden.",
+    "errorSave": "Der Eintrag konnte nicht gespeichert werden.",
+    "expense": "Ausgabe",
+    "expenses": "Ausgaben",
+    "income": "Einnahmen",
+    "loading": "Deine Zahlen werden geladen…",
+    "netProfit": "Nettogewinn",
+    "newEntry": "Neuer Eintrag",
+    "nextMonth": "Nächster Monat",
+    "note": "Notiz",
+    "notePlaceholder": "z. B. Auszahlung Sponsoring Marke X",
+    "prefilledInvoice": "Rechnungsauszahlung aus einer bezahlten Rechnung vorausgefüllt — prüfen und speichern.",
+    "prevMonth": "Vorheriger Monat",
+    "retry": "Erneut versuchen",
+    "saveEntry": "Eintrag speichern",
+    "saving": "Wird gespeichert…",
+    "signInPrompt": "Melde dich an, um dein Creator-Geld zu verfolgen.",
+    "source": "Quelle",
+    "sourcePlaceholder": "z. B. YouTube, Shopify, Markenname",
+    "subtitle": "Kenne deine Zahlen — jeder Dollar rein, jeder Dollar raus.",
+    "title": "Money Tracker",
+    "viewRoyalties": "Royalties"
   }
 }
