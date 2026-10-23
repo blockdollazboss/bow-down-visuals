@@ -17,6 +17,7 @@
  */
 import { describe, it, expect } from "vitest";
 import {
+  BOARDWALK_ID,
   COURTYARD_ID,
   HALL_ROOM_ID,
   creatorRoomId,
@@ -63,7 +64,14 @@ describe("the template floor plan", () => {
     expect(isWalkable(9.5, 32)).toBe(true); // the room's floor
     expect(isWalkable(9.5, 26.2)).toBe(true); // the arch portal
     expect(isWalkable(5, 26.2)).toBe(false); // the wall either side of the arch
-    expect(isWalkable(9.5, 40)).toBe(false); // beyond the south wall
+    /* DELIBERATELY moved in item 35: (9.5, 40) — beyond the
+     * creator room's south wall — is the Boardwalk's deck now:
+     * walkable, but as the Boardwalk's ground, never the
+     * creator room's. The creator room still ends at its own
+     * south wall; beyond the Boardwalk's wall, nothing walks. */
+    expect(isWalkable(9.5, 40)).toBe(true);
+    expect(roomAt(9.5, 40, COURTYARD_ID)).toBe(BOARDWALK_ID);
+    expect(isWalkable(9.5, 62)).toBe(false); // beyond every south wall
   });
 
   it("membership flips at the arch plane, in both directions", () => {
