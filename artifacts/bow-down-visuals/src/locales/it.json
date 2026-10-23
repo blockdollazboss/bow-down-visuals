@@ -340,7 +340,7 @@
           {
             "title": "Clip Promozionali",
             "description": "Clip che fermano lo scroll per TikTok, Reels e Shorts.",
-            "cost": "400 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Hook Studio",
@@ -453,7 +453,7 @@
       },
       {
         "q": "Quanto costa una release completa?",
-        "a": "Una canzone (400 VB) + un video musicale (400 VB) + clip promozionali (400 VB) + un pacchetto hook (100 VB) = 1.300 Visual Bucs. L'intera pipeline di release — dalla canzone alla promo — per meno del costo di un pacchetto."
+        "a": "Una canzone (400 VB) + un video musicale (400 VB) + clip promozionali (100 VB) + un pacchetto hook (100 VB) = 1.000 Visual Bucs. L'intera pipeline di release — dalla canzone alla promo — per meno del costo di un pacchetto."
       },
       {
         "q": "Serve esperienza per usarlo?",
@@ -2473,19 +2473,19 @@
     "tabs": {
       "moderate": {
         "label": "Moderazione",
-        "cost": "1 VB / 50 commenti"
+        "cost": "100 VB / 50 commenti"
       },
       "replies": {
         "label": "Bozze di risposta",
-        "cost": "1 VB / batch"
+        "cost": "100 VB / batch"
       },
       "sentiment": {
         "label": "Sentiment",
-        "cost": "1 VB / report"
+        "cost": "100 VB / report"
       },
       "superfans": {
         "label": "Superfan",
-        "cost": "1 VB / scansione"
+        "cost": "100 VB / scansione"
       }
     },
     "tones": {
@@ -6596,7 +6596,7 @@
     "handoffSceneTitle": "Aggiunto alla tua timeline",
     "hideInspector": "Nascondi inspector",
     "labClipActive": "Descrivi questa clip qui sotto — il lab valuta le aperture per lei.",
-    "labDesc": "Vinci i primi 3 secondi. L'AI scrive 5 aperture alternative per il tuo video e valuta ciascuna per il potere di fermare lo scroll. 2 VB.",
+    "labDesc": "Vinci i primi 3 secondi. L'AI scrive 5 aperture alternative per il tuo video e valuta ciascuna per il potere di fermare lo scroll. 200 VB.",
     "labGenerate": "Testa 5 Aperture",
     "labNiche": "Nicchia (facoltativo)",
     "labRemove": "Rimuovi clip",
@@ -6656,7 +6656,7 @@
     "memeMachineApply": "Applica alla timeline",
     "memeMachineContext": "Descrivi il momento della clip *",
     "memeMachineCustomActive": "Formato personalizzato selezionato — sceglilo qui sotto o mantieni un preset.",
-    "memeMachineDesc": "Descrivi il momento, scegli un formato meme — l'AI scrive le battute finali (1 VB). Applica inserisce la vincente nella tua timeline come didascalie stilizzate.",
+    "memeMachineDesc": "Descrivi il momento, scegli un formato meme — l'AI scrive le battute finali (100 VB). Applica inserisce la vincente nella tua timeline come didascalie stilizzate.",
     "memeMachineFormat": "Formato meme",
     "memeMachineGenerate": "Scrivi Didascalie Meme",
     "memeMachinePh": "es. Io che mi accorgo che la ripresa era muta per tutto il tempo…",
@@ -6961,7 +6961,7 @@
     "styleStealerAudio": "Cue audio",
     "styleStealerCaptions": "Didascalie",
     "styleStealerCuts": "Schema dei tagli",
-    "styleStealerDesc": "Incolla il link di un video virale e descrivi ciò che hai visto. L'AI ne decodifica la formula — hook, ritmo, tagli — in una ricetta di montaggio per la tua timeline. 2 VB.",
+    "styleStealerDesc": "Incolla il link di un video virale e descrivi ciò che hai visto. L'AI ne decodifica la formula — hook, ritmo, tagli — in una ricetta di montaggio per la tua timeline. 200 VB.",
     "styleStealerDescLabel": "Descrivi ciò che hai visto *",
     "styleStealerDescPh": "es. Si apre con un fotogramma congelato + testo in grassetto, jump cut ogni 2 sec sul beat, didascalie che appaiono parola per parola…",
     "styleStealerFormula": "La formula",

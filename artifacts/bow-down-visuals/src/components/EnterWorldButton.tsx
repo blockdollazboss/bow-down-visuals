@@ -12,8 +12,8 @@ import {
    Mounted once in AppShell beside the floating theme toggle, so it
    renders on every route the shell serves: the authed layout, marketing
    pages, auth pages, and public surfaces alike. One click navigates
-   client-side to /world (the King's Hall), same tab. No auth gating —
-   the hall admits guests. Hidden only on /world itself. The contract
+   client-side to /world (the King's Plaza), same tab. No auth gating —
+   the plaza admits guests. Hidden only on /world itself. The contract
    (target, label, styling, visibility) lives in lib/world-entry.ts. */
 export function EnterWorldButton() {
   const [location] = useLocation();
@@ -22,8 +22,8 @@ export function EnterWorldButton() {
     <Link
       href={WORLD_ROUTE}
       data-testid={ENTER_WORLD_TEST_ID}
-      aria-label="Enter the World — step into the King's Hall"
-      title="Enter the World — step into the King's Hall"
+      aria-label="Enter the World — step into the King's Plaza"
+      title="Enter the World — step into the King's Plaza"
       className={ENTER_WORLD_CLASSNAME}
     >
       <Crown className="h-4 w-4" />

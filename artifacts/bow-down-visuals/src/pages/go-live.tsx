@@ -489,9 +489,10 @@ export default function GoLive() {
           ))}
         </div>
       </div>
-      {/* ── The World — the King's Hall lives here in the Go Live hub:
-          one shared room where everybody watches the big screen
-          together (and a live stream takes the screen while it's on). ── */}
+      {/* ── The World — the King's Plaza lives here in the Go Live hub:
+          one open world where everybody gathers on the plaza and in
+          the palace together (and a live stream takes the big screen
+          while it's on). ── */}
       <div className="mx-auto max-w-5xl px-4 pt-4">
         <Link
           href="/world"
@@ -507,14 +508,14 @@ export default function GoLive() {
           </span>
           <span className="min-w-0 flex-1">
             <span className={`block text-base font-black tracking-wide ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
-              The World — step into the King's Hall
+              The World — step into the King's Plaza
             </span>
             <span className={`block text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-              One room, everybody in it together: walk the hall, watch the big screen, talk by proximity. Works on this screen — and in a VR headset if you've got one.
+              An open world, everybody in it together: arrive on the King's Plaza, walk the palace and its districts, watch the big screen, talk by proximity. Works on this screen — and in a VR headset if you've got one.
             </span>
           </span>
           <span className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition group-hover:scale-105">
-            Enter the hall
+            Enter the World
           </span>
         </Link>
       </div>

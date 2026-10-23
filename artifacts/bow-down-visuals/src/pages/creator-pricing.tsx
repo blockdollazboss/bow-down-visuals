@@ -13,8 +13,9 @@ import { SocialProofBand } from "@/components/SocialProofBand";
 import { loginPathWithNext } from "@/lib/auth-next";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
-   The tier upgrade page. Sells the MONEY MATH, not vibes:
-     "Pro keeps 3% more of every sale — pays for itself at $400/mo in sales."
+   The tier upgrade page. Sells the MONEY MATH, not vibes: every tier
+     pays the same flat 5% platform fee (the checkout rails' truth);
+     paid tiers sell their features — domain, products, analytics, boosts.
    Real USD only — Visual Bucs copy never appears here.
 
    Link-graph (both ways, never a dead end):
@@ -115,7 +116,11 @@ export default function CreatorPricing() {
     }
   }
 
-  const savings = (plan: Plan) => Math.round(volume * ((1000 - plan.feeBps) / 10_000) * 100) / 100;
+  // Extra kept vs the Free tier's fee. Every tier pays the same flat 5%
+  // platform fee (Stack-28 #4), so this is $0 for all tiers — the figure
+  // is computed from the server-sent feeBps, never a hardcoded ladder.
+  const freeFeeBps = plans.find((pl) => pl.tier === "free")?.feeBps ?? 500;
+  const savings = (plan: Plan) => Math.round(volume * ((freeFeeBps - plan.feeBps) / 10_000) * 100) / 100;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -132,7 +137,7 @@ export default function CreatorPricing() {
               <BadgeCheck className="h-5 w-5" /> You're {upgradeTier === "elite" ? "Elite" : "Pro"} now. Let's get this money. 🎉
             </div>
             <p className="mt-1 text-sm text-white/60">
-              Your lower fee applies to every sale from here on. Receipts always show gross → fee → net.
+              Your plan applies to every sale from here on — the platform fee stays a flat 5% on every tier. Receipts always show gross → fee → net.
             </p>
             <Link
               href={returnTo}
@@ -160,8 +165,8 @@ export default function CreatorPricing() {
             Go pro. <span className={isLight ? "bg-gradient-to-b from-[#A97F1F] to-[#7A5A12] bg-clip-text text-transparent" : "bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent"}>Keep more of your money.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/55">
-            Free earns from day one. Paid tiers keep <em className="text-white/80 not-italic font-bold">more of every single sale</em> —
-            lower fees, your own domain, pro analytics, AI promotion boosts. The fee drop pays for itself.
+            Free earns from day one at the same flat 5% platform fee every tier pays. Paid tiers add
+            your own domain, unlimited products, pro analytics and AI promotion boosts.
           </p>
           <div className="mt-4 flex justify-center"><TierBadge /></div>
         </div>
@@ -181,8 +186,8 @@ export default function CreatorPricing() {
             The money math
           </h2>
           <p className="mt-2 text-sm text-white/55">
-            Pick your monthly sales. Watch what each tier keeps. Pro takes 7% instead of 10% — that's
-            <strong className="text-white"> 3% more of every sale in your pocket</strong>.
+            Pick your monthly sales. Every tier — Free, Pro and Elite — pays the same
+            <strong className="text-white"> flat 5% platform fee</strong> on every sale. Paid tiers earn their keep with features, not a fee trick.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {[250, 500, 1000, 2500].map((v) => (
@@ -207,7 +212,7 @@ export default function CreatorPricing() {
             <div className="mt-6 flex items-center gap-2 text-white/50"><Loader2 className="h-5 w-5 animate-spin" /> Loading plans…</div>
           ) : plans.length === 0 ? (
             <p className={`mt-6 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-              The plan math is warming up — the tiers are below. Free keeps 90% of every sale, Pro keeps 93%, Elite keeps even more.
+              The plan math is warming up — the tiers are below. Every tier keeps 95% of every sale: the platform fee is a flat 5% on Free, Pro and Elite alike.
             </p>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -380,8 +385,8 @@ export default function CreatorPricing() {
         <section className="mx-auto mt-12 max-w-3xl space-y-4">
           <h2 className="text-center text-2xl font-black">Quick answers</h2>
           {[
-            ["Can I really earn on Free?", "Yes. Free sells with the standard 10% fee and your full earnings dashboard is always visible. Paid tiers just keep more of each sale."],
-            ["When does the lower fee kick in?", "The moment your subscription activates — every sale after that splits at your tier's rate. Old sales keep their original split."],
+            ["Can I really earn on Free?", "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — your own domain, unlimited products, pro analytics and more AI promotion boosts."],
+            ["Do paid tiers lower my platform fee?", "No — the platform fee is a flat 5% on every tier, Free included. Paid tiers pay for themselves with their features, not a lower fee."],
             ["What if I cancel?", "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty, manage it yourself from the billing portal."],
             ["Is this Visual Bucs?", "No. Tiers are real USD subscriptions via Stripe (test mode). Visual Bucs are the separate AI-credit system — the two never mix."],
           ].map(([q, a]) => (

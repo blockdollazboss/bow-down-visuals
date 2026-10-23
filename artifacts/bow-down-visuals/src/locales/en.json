@@ -343,7 +343,7 @@
           {
             "title": "Promo Clips",
             "description": "Scroll-stopping clips for TikTok, Reels, and Shorts.",
-            "cost": "400 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Hook Studio",
@@ -456,7 +456,7 @@
       },
       {
         "q": "What does a full release cost?",
-        "a": "A song (400 VB) + a music video (400 VB) + promo clips (400 VB) + a hook pack (100 VB) = 1,300 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack."
+        "a": "A song (400 VB) + a music video (400 VB) + promo clips (100 VB) + a hook pack (100 VB) = 1,000 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack."
       },
       {
         "q": "Do I need experience to use it?",
@@ -2700,19 +2700,19 @@
     "tabs": {
       "moderate": {
         "label": "Moderation",
-        "cost": "1 VB / 50 comments"
+        "cost": "100 VB / 50 comments"
       },
       "replies": {
         "label": "Reply Drafts",
-        "cost": "1 VB / batch"
+        "cost": "100 VB / batch"
       },
       "sentiment": {
         "label": "Sentiment",
-        "cost": "1 VB / report"
+        "cost": "100 VB / report"
       },
       "superfans": {
         "label": "Superfans",
-        "cost": "1 VB / scan"
+        "cost": "100 VB / scan"
       }
     },
     "tones": {
@@ -7490,7 +7490,7 @@
     "railLocations": "Locations",
     "toolPanel": "Tool panel",
     "memeMachineTitle": "Meme Machine",
-    "memeMachineDesc": "Describe the moment, pick a meme format — AI writes the punchlines (1 VB). Apply drops the winner onto your timeline as styled captions.",
+    "memeMachineDesc": "Describe the moment, pick a meme format — AI writes the punchlines (100 VB). Apply drops the winner onto your timeline as styled captions.",
     "memeMachineUploadTitle": "Upload your own template",
     "memeMachineCustomActive": "Custom format selected — pick it below or keep a preset.",
     "memeMachineReplace": "Replace",
@@ -7506,7 +7506,7 @@
     "memeMachineApplied": "On your timeline",
     "memeMachineApply": "Apply to timeline",
     "styleStealerTitle": "Style Stealer",
-    "styleStealerDesc": "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline. 2 VB.",
+    "styleStealerDesc": "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline. 200 VB.",
     "styleStealerUrl": "Viral video URL",
     "styleStealerDescLabel": "Describe what you saw *",
     "styleStealerDescPh": "e.g. Opens with a freeze-frame + bold text, jump cuts every 2 sec on the beat, captions pop word-by-word…",
@@ -7522,7 +7522,7 @@
     "styleStealerApplied": "Applied to timeline",
     "styleStealerApply": "Apply style to my timeline",
     "labTitle": "3-Second Lab",
-    "labDesc": "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power. 2 VB.",
+    "labDesc": "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power. 200 VB.",
     "labUploadTitle": "Upload your clip",
     "labClipActive": "Describe this clip below — the lab scores openings for it.",
     "labReplace": "Replace",

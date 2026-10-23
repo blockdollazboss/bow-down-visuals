@@ -340,7 +340,7 @@
           {
             "title": "Promo-Clips",
             "description": "Scroll-stoppende Clips für TikTok, Reels und Shorts.",
-            "cost": "400 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Hook-Studio",
@@ -453,7 +453,7 @@
       },
       {
         "q": "Was kostet ein kompletter Release?",
-        "a": "Ein Song (400 VB) + ein Musikvideo (400 VB) + Promo-Clips (400 VB) + ein Hook-Pack (100 VB) = 1.300 Visual Bucs. Die gesamte Release-Pipeline — vom Song bis zur Promo — für weniger als ein Pack kostet."
+        "a": "Ein Song (400 VB) + ein Musikvideo (400 VB) + Promo-Clips (100 VB) + ein Hook-Pack (100 VB) = 1.000 Visual Bucs. Die gesamte Release-Pipeline — vom Song bis zur Promo — für weniger als ein Pack kostet."
       },
       {
         "q": "Brauche ich Erfahrung, um es zu nutzen?",
@@ -2474,19 +2474,19 @@
     "run_a_scan_to_find_your_most_eng": "Starte einen Scan, um deine engagiertesten Supporter zu finden.",
     "tabs": {
       "moderate": {
-        "cost": "1 VB / 50 Kommentare",
+        "cost": "100 VB / 50 Kommentare",
         "label": "Moderation"
       },
       "replies": {
-        "cost": "1 VB / Batch",
+        "cost": "100 VB / Batch",
         "label": "Antwort-Entwürfe"
       },
       "sentiment": {
-        "cost": "1 VB / Bericht",
+        "cost": "100 VB / Bericht",
         "label": "Sentiment"
       },
       "superfans": {
-        "cost": "1 VB / Scan",
+        "cost": "100 VB / Scan",
         "label": "Superfans"
       }
     },
@@ -6584,7 +6584,7 @@
     "handoffSceneTitle": "Zu deiner Timeline hinzugefügt",
     "hideInspector": "Inspector ausblenden",
     "labClipActive": "Beschreibe diesen Clip unten — das Lab bewertet Anfänge dafür.",
-    "labDesc": "Gewinne die ersten 3 Sekunden. Die KI schreibt 5 alternative Anfänge für dein Video und bewertet jeden nach Scroll-Stopp-Kraft. 2 VB.",
+    "labDesc": "Gewinne die ersten 3 Sekunden. Die KI schreibt 5 alternative Anfänge für dein Video und bewertet jeden nach Scroll-Stopp-Kraft. 200 VB.",
     "labGenerate": "5 Anfänge testen",
     "labNiche": "Nische (optional)",
     "labRemove": "Clip entfernen",
@@ -6644,7 +6644,7 @@
     "memeMachineApply": "Auf Timeline anwenden",
     "memeMachineContext": "Den Clip-Moment beschreiben *",
     "memeMachineCustomActive": "Eigenes Format ausgewählt — wähl es unten oder behalte ein Preset.",
-    "memeMachineDesc": "Beschreibe den Moment, wähl ein Meme-Format — die KI schreibt die Punchlines (1 VB). Anwenden legt den Gewinner als gestylte Captions auf deine Timeline.",
+    "memeMachineDesc": "Beschreibe den Moment, wähl ein Meme-Format — die KI schreibt die Punchlines (100 VB). Anwenden legt den Gewinner als gestylte Captions auf deine Timeline.",
     "memeMachineFormat": "Meme-Format",
     "memeMachineGenerate": "Meme-Captions schreiben",
     "memeMachinePh": "z. B. Ich, als ich merke, dass der Take die ganze Zeit stumm war…",
@@ -6949,7 +6949,7 @@
     "styleStealerAudio": "Audio-Cues",
     "styleStealerCaptions": "Captions",
     "styleStealerCuts": "Cut-Muster",
-    "styleStealerDesc": "Füge einen viralen Video-Link ein und beschreibe, was du gesehen hast. Die KI zerlegt seine Formel — Hook, Pacing, Cuts — in ein Edit-Rezept für deine Timeline. 2 VB.",
+    "styleStealerDesc": "Füge einen viralen Video-Link ein und beschreibe, was du gesehen hast. Die KI zerlegt seine Formel — Hook, Pacing, Cuts — in ein Edit-Rezept für deine Timeline. 200 VB.",
     "styleStealerDescLabel": "Beschreibe, was du gesehen hast *",
     "styleStealerDescPh": "z. B. Öffnet mit einem Freeze-Frame + fettem Text, Jump Cuts alle 2 Sekunden auf den Beat, Captions poppen Wort für Wort auf…",
     "styleStealerFormula": "Die Formel",

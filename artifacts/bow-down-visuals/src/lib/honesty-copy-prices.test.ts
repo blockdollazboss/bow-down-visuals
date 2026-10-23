@@ -74,6 +74,23 @@ describe("S27-21 social publishing copy prices (100, derived)", () => {
     expect(src).toContain('getCreditCost("/api/social/facebook/publish")');
     expect(src.match(/\{facebookPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
   });
+
+  // Stack-28 #7/#8 (A2-02/A2-03): the Instagram and TikTok modals were
+  // the two S27-21 misses — both hardcoded 200 while their rails charge
+  // 100. They now derive from the registry exactly like Facebook's.
+  it("InstagramPostModal carries no 200 Visual Bucs and derives the Instagram cost in both spots", () => {
+    const src = readComponent("InstagramPostModal.tsx");
+    expect(src).not.toContain("200 Visual Bucs");
+    expect(src).toContain('getCreditCost("/api/social/instagram/publish")');
+    expect(src.match(/\{instagramPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
+  });
+
+  it("TikTokPostModal carries no 200 Visual Bucs and derives the TikTok cost in both spots", () => {
+    const src = readComponent("TikTokPostModal.tsx");
+    expect(src).not.toContain("200 Visual Bucs");
+    expect(src).toContain('getCreditCost("/api/social/tiktok/publish")');
+    expect(src.match(/\{tiktokPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
+  });
 });
 
 describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
@@ -90,7 +107,10 @@ describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
   it("registry figures the panel derives from are the rail-true ones", () => {
     expect(getCreditCost("/api/generate-video-plan")?.cost).toBe(200);
     expect(getCreditCost("/api/generate-promo-clips")?.cost).toBe(100);
-    expect(getCreditCost("/api/generate-thumbnail")?.cost).toBe(100);
+    // Stack-28 #5 (A2-08) pin correction: this line pinned 100, but the
+    // rail charges TEXT 100 + IMAGE 200 = 300 on delivery and pre-checks
+    // 300 — 100 was the failure-path price. Pin now holds the rail truth.
+    expect(getCreditCost("/api/generate-thumbnail")?.cost).toBe(300);
     expect(getCreditCost("/api/thumbnail-generator")?.cost).toBe(200);
     expect(getCreditCost("/api/generate-runway-clip")?.cost).toBe(400);
     // S27-73: the "/api/generate-video" registry entry was removed — that
@@ -112,6 +132,70 @@ describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
     /* The one literal the registry cannot supply: the song tier max,
        pinned here against the rail table derived above. */
     expect(src).toContain("SONG_COST_MAX = 1_200");
+  });
+});
+
+describe("Stack-28 #6 homepage Promo Clips price (100, bundle 1,000)", () => {
+  // A2-07: the homepage grid + FAQ quoted promo clips at 400 VB and a
+  // 1,300 VB bundle; the rail charges 100 (routes/generate/promo.ts
+  // CREDIT_COST), so the true bundle is 400+400+100+100 = 1,000.
+  it("rail charges 100 and the registry agrees", () => {
+    const rail = deriveServerConstant("routes/generate/promo.ts", "CREDIT_COST");
+    expect(rail).toBe(100);
+    expect(getCreditCost("/api/generate-promo-clips")?.cost).toBe(rail);
+  });
+
+  it("en catalog grid + FAQ and the hardcoded home.tsx FAQ carry 100 / 1,000", () => {
+    const en = JSON.parse(readFileSync(new URL("../locales/en.json", import.meta.url), "utf8")) as {
+      home: { studio: { tools: { title: string; cost: string }[] }[]; faqs: { a: string }[] };
+    };
+    const promo = en.home.studio.flatMap((c) => c.tools).find((t) => t.title === "Promo Clips");
+    expect(promo?.cost).toBe("100 VB");
+    const faq = en.home.faqs.map((f) => f.a).find((a) => a.includes("hook pack"));
+    expect(faq).toContain("promo clips (100 VB)");
+    expect(faq).toContain("= 1,000 Visual Bucs");
+    const home = readFileSync(new URL("../pages/home.tsx", import.meta.url), "utf8");
+    expect(home).toContain("promo clips (100 VB) + a hook pack (100 VB) = 1,000 Visual Bucs");
+    expect(home).not.toContain("promo clips (400 VB)");
+  });
+});
+
+describe("Stack-28 #10 Distribute sandbox qualifier at the sell + confirm moments", () => {
+  // A2-10: the hero sold real platform delivery and the pre-spend
+  // confirmation carried no sandbox qualifier while the default
+  // aggregator is the mock/sandbox adapter. Both moments now carry the
+  // same qualifier the in-flow badges use, gated on the server-reported
+  // aggregator exactly like those badges.
+  it("hero shows the sandbox line when the aggregator is mock", () => {
+    const src = readFileSync(new URL("../pages/distribute.tsx", import.meta.url), "utf8");
+    const hero = src.slice(src.indexOf("distribute.get_your_music_on_spotify_apple"));
+    const heroBlock = hero.slice(0, 600);
+    expect(heroBlock).toContain('pricing?.aggregator === "mock"');
+    expect(heroBlock).toContain("distribute.sandbox_mode_statuses_will_simul");
+  });
+
+  it("the submit window.confirm appends the sandbox note in mock mode", () => {
+    const src = readFileSync(new URL("../pages/distribute.tsx", import.meta.url), "utf8");
+    expect(src).toContain('Sandbox simulation — the aggregator is in sandbox mode');
+    expect(src).toContain("(release.aggregator ?? pricing?.aggregator) === \"mock\"");
+  });
+});
+
+describe("Stack-28 #11 Go Live World entry copy names the Plaza, not the Hall", () => {
+  // A2-12: entry lands on the King's Plaza in the open world; the Go
+  // Live hub card and the shell button still invited users into "the
+  // King's Hall" as if it were the whole World. (These strings are
+  // hardcoded in the components — no locale catalog carries them, so
+  // there is no catalog copy to align.)
+  it("go-live.tsx card + EnterWorldButton labels name the King's Plaza", () => {
+    const goLive = readFileSync(new URL("../pages/go-live.tsx", import.meta.url), "utf8");
+    expect(goLive).toContain("The World — step into the King's Plaza");
+    expect(goLive).toContain("Enter the World");
+    expect(goLive).not.toContain("step into the King's Hall");
+    expect(goLive).not.toContain("Enter the hall");
+    const btn = readComponent("EnterWorldButton.tsx");
+    expect(btn).toContain("Enter the World — step into the King's Plaza");
+    expect(btn).not.toContain("step into the King's Hall");
   });
 });
 

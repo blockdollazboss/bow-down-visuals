@@ -137,7 +137,7 @@ export function StyleStealerSection({ settings, setSettings, bare }: StyleSteale
         </h3>
         <p className="text-[11px] text-white/50 mt-1 leading-relaxed">
           {t("videoEditor.styleStealerDesc", {
-            defaultValue: "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline. 2 VB.",
+            defaultValue: "Paste a viral video link and describe what you saw. AI reverse-engineers its formula — hook, pacing, cuts — into an edit recipe for your timeline. 200 VB.",
           })}
         </p>
       </div>

@@ -39,15 +39,15 @@ export function isPackaged(status: string): boolean {
    Mirrors the backend pricing defaults; the UI also fetches
    GET /api/distribution/pricing and prefers that when it loads. */
 export const DISTRIBUTION_TIERS = [
-  { type: "single", credits: 10, label: "Single", blurb: "1 track — one release event" },
-  { type: "ep", credits: 20, label: "EP", blurb: "2–5 tracks — a short project" },
-  { type: "album", credits: 30, label: "Album", blurb: "6+ tracks — a full project" },
+  { type: "single", credits: 1000, label: "Single", blurb: "1 track — one release event" },
+  { type: "ep", credits: 2000, label: "EP", blurb: "2–5 tracks — a short project" },
+  { type: "album", credits: 3000, label: "Album", blurb: "6+ tracks — a full project" },
 ] as const;
 
 export type DistributionTier = (typeof DISTRIBUTION_TIERS)[number]["type"];
 
 export function tierCredits(type: string): number {
-  return DISTRIBUTION_TIERS.find((t) => t.type === type)?.credits ?? 10;
+  return DISTRIBUTION_TIERS.find((t) => t.type === type)?.credits ?? 1000;
 }
 
 export function tierLabel(type: string): string {

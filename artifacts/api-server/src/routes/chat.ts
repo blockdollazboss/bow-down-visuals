@@ -35,8 +35,11 @@ const chatSchema = z.object({
 });
 
 /* POST /api/chat { message, history? } → 200 { reply, model }
-   Free by default (CHAT_CREDIT_COST=0): a sales/support tool, rate-limited per IP.
-   Set CHAT_CREDIT_COST > 0 to charge credits per message — auth then required. */
+   Charges CHAT_CREDIT_COST credits per message — the default is 1
+   (getChatCreditCost in lib/ai-chat-assistant.ts), so auth is required
+   by default. Set CHAT_CREDIT_COST=0 for free guest-open mode.
+   (Stack-28 item 9: the old "free by default" comment contradicted the
+   rail's ?? "1" default; the charge itself is unchanged.) */
 const chatCreditCost = getChatCreditCost();
 const maybeAuth =
   chatCreditCost > 0

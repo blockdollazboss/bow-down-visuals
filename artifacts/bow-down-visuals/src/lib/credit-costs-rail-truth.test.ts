@@ -21,6 +21,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CREDIT_COSTS } from "./credit-costs";
+import { DISTRIBUTION_TIERS, tierCredits } from "./distribution";
 
 function readApi(rel: string): string {
   const url = new URL(`../../../api-server/src/${rel}`, import.meta.url);
@@ -66,6 +67,113 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     { endpoint: "/api/music/export", file: "routes/music-export.ts", handler: "/music/export" },
     { endpoint: "/api/music/preview-render", file: "routes/music-export.ts", handler: "/music/preview-render" },
   ] as const;
+
+  // Stack-28 item 1 (A2-01): the FE distribution fallback constants are a
+  // LIVE display path (initial paint + any pricing-fetch failure, including
+  // the pre-spend confirmation). They displayed 10/20/30 while the rail
+  // charges 1,000/2,000/3,000 — a 100× understatement. The fallback now
+  // equals RELEASE_TIER_CREDITS; the rail never reads the FE constants, so
+  // no charge moved. Pin re-derives the rail side from the server source:
+  // single falls back to DISTRIBUTION_RELEASE_CREDITS, ep/album are
+  // env-overridable literals in RELEASE_TIER_CREDITS.
+  it("distribution fallback tiers == RELEASE_TIER_CREDITS (1000/2000/3000)", () => {
+    const single = deriveServerConstant("routes/generate/distribution.ts", "DISTRIBUTION_RELEASE_CREDITS");
+    expect(single).toBe(1000);
+    const src = readApi("routes/generate/distribution.ts");
+    const ep = src.match(/ep:\s*Number\(process\.env\[["'][A-Z0-9_]+["']\]\)\s*\|\|\s*(\d+)/);
+    const album = src.match(/album:\s*Number\(process\.env\[["'][A-Z0-9_]+["']\]\)\s*\|\|\s*(\d+)/);
+    expect(ep, "RELEASE_TIER_CREDITS.ep").toBeTruthy();
+    expect(album, "RELEASE_TIER_CREDITS.album").toBeTruthy();
+    const rail = { single, ep: Number(ep![1]), album: Number(album![1]) };
+    expect(rail).toEqual({ single: 1000, ep: 2000, album: 3000 });
+    for (const tier of DISTRIBUTION_TIERS) {
+      expect(tier.credits).toBe(rail[tier.type]);
+      expect(tierCredits(tier.type)).toBe(rail[tier.type]);
+    }
+    expect(tierCredits("unknown-type")).toBe(rail.single);
+  });
+
+  // Stack-28 item 2 (A2-05): all 13 Export Doctor endpoints were quoted
+  // 100–400 VB in the registry (and therefore in the spend confirmation),
+  // but routes/generate/export-doctor.ts contains ZERO credit logic —
+  // the rails charge nothing. Registry now records 0/free for all 13.
+  const EXPORT_DOCTOR_ENDPOINTS = [
+    "/api/export-doctor/export",
+    "/api/export-doctor/export-all",
+    "/api/export-doctor/export-audio",
+    "/api/export-doctor/export-all-audio",
+    "/api/export-doctor/export-all-captions",
+    "/api/export-doctor/export-all-effects",
+    "/api/export-doctor/export-all-overlays",
+    "/api/export-doctor/export-overlays-range",
+    "/api/export-doctor/export-effects-range",
+    "/api/export-doctor/export-effects-transitions",
+    "/api/export-doctor/export-audio-sync-short",
+    "/api/export-doctor/repair-normalize",
+    "/api/export-doctor/repair-clip",
+  ] as const;
+
+  it("export-doctor rail charges nothing anywhere and registry displays 0 for all 13", () => {
+    const src = readApi("routes/generate/export-doctor.ts");
+    expect(src).not.toMatch(/chargeCredits\s*\(|deductCredits\s*\(/);
+    for (const ep of EXPORT_DOCTOR_ENDPOINTS) {
+      expect(CREDIT_COSTS[ep]?.cost, ep).toBe(0);
+    }
+  });
+
+  // Stack-28 item 3 (A2-04): the pre-x100 stale family. Eight actions
+  // displayed 1–2 VB and had NO registry entry; displays now read the
+  // rail truth and the registry records each charge, pinned here by
+  // re-deriving every rail constant from its server source file.
+  const STALE_FAMILY = [
+    { endpoint: "/api/meme-machine/captions", file: "routes/generate/meme-machine.ts", constant: "CAPTIONS_CREDITS", cost: 100 },
+    { endpoint: "/api/style-stealer/analyze", file: "routes/generate/style-stealer.ts", constant: "ANALYZE_CREDITS", cost: 200 },
+    { endpoint: "/api/three-second-lab/openings", file: "routes/generate/three-second-lab.ts", constant: "OPENINGS_CREDITS", cost: 200 },
+    { endpoint: "/api/stream-copilot/prep", file: "routes/generate/stream-copilot.ts", constant: "PREP_CREDITS", cost: 100 },
+    { endpoint: "/api/stream-copilot/clip-plan", file: "routes/generate/stream-copilot.ts", constant: "CLIP_PLAN_CREDITS", cost: 100 },
+    { endpoint: "/api/trend-jacker/draft", file: "routes/generate/trend-jacker.ts", constant: "DRAFT_CREDITS", cost: 200 },
+    { endpoint: "/api/lyric-stories/generate", file: "routes/generate/lyric-stories.ts", constant: "CREDITS_PER_CARD", cost: 200 },
+    { endpoint: "/api/community/moderate", file: "routes/generate/community.ts", constant: "COMMUNITY_MODERATE_CREDITS", cost: 100 },
+    { endpoint: "/api/community/sentiment", file: "routes/generate/community.ts", constant: "COMMUNITY_SENTIMENT_CREDITS", cost: 100 },
+    { endpoint: "/api/community/superfans", file: "routes/generate/community.ts", constant: "COMMUNITY_SUPERFAN_CREDITS", cost: 100 },
+    { endpoint: "/api/comment-replies", file: "routes/generate/community.ts", constant: "COMMUNITY_REPLY_CREDITS", cost: 100 },
+  ] as const;
+
+  for (const spec of STALE_FAMILY) {
+    it(`${spec.endpoint}: registry == ${spec.constant} (${spec.cost})`, () => {
+      const rail = deriveServerConstant(spec.file, spec.constant);
+      expect(rail).toBe(spec.cost);
+      expect(CREDIT_COSTS[spec.endpoint]?.cost).toBe(rail);
+    });
+  }
+
+  // Stack-28 item 5 (A2-08): the single-shot thumbnail registry said 100,
+  // but the rail charges TEXT_CREDIT_COST (100) + IMAGE_CREDIT_COST (200)
+  // = 300 on delivery and its 402 pre-check requires 300 up front.
+  // Registry now displays the delivered 300, pinned against both parts.
+  it("single-shot thumbnail: registry == TEXT_CREDIT_COST + IMAGE_CREDIT_COST (300)", () => {
+    const text = deriveServerConstant("routes/generate/thumbnail.ts", "TEXT_CREDIT_COST");
+    const image = deriveServerConstant("routes/generate/thumbnail.ts", "IMAGE_CREDIT_COST");
+    expect(text).toBe(100);
+    expect(image).toBe(200);
+    expect(CREDIT_COSTS["/api/generate-thumbnail"]?.cost).toBe(text + image);
+  });
+
+  // Stack-28 item 9 (A2-06): /api/chat three-way disagreement — registry
+  // said 100, the rail default charges 1 (CHAT_CREDIT_COST ?? "1"), and
+  // the route comment claimed "free by default". Display artifacts now
+  // align to the rail's actual default (1); the charge is untouched and
+  // the intended price (free / 1 / 100) remains an owner call.
+  it("/api/chat: registry == getChatCreditCost() default (1)", () => {
+    const src = readApi("lib/ai-chat-assistant.ts");
+    const m = src.match(/CHAT_CREDIT_COST"\]\s*\?\?\s*"(\d+)"/);
+    expect(m, "CHAT_CREDIT_COST default").toBeTruthy();
+    const railDefault = Number(m![1]);
+    expect(railDefault).toBe(1);
+    expect(CREDIT_COSTS["/api/chat"]?.cost).toBe(railDefault);
+    const route = readApi("routes/chat.ts");
+    expect(route).not.toContain("Free by default (CHAT_CREDIT_COST=0)");
+  });
 
   for (const spec of FREE_RAILS) {
     it(`${spec.endpoint}: handler charges nothing and the registry displays 0`, () => {

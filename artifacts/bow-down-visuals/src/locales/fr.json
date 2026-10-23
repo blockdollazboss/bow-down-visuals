@@ -340,7 +340,7 @@
           {
             "title": "Clips promotionnels",
             "description": "Des clips qui arrêtent le scroll pour TikTok, Reels et Shorts.",
-            "cost": "400 VB"
+            "cost": "100 VB"
           },
           {
             "title": "Studio d'Accroches",
@@ -453,7 +453,7 @@
       },
       {
         "q": "Combien coûte une version complète ?",
-        "a": "Une chanson (400 VB) + un clip vidéo (400 VB) + clips promotionnels (400 VB) + un pack d'accroches (100 VB) = 1 300 Visual Bucs. L'ensemble du pipeline de sorties, de la chanson à la promo, pour moins que le coût d'un pack."
+        "a": "Une chanson (400 VB) + un clip vidéo (400 VB) + clips promotionnels (100 VB) + un pack d'accroches (100 VB) = 1 000 Visual Bucs. L'ensemble du pipeline de sorties, de la chanson à la promo, pour moins que le coût d'un pack."
       },
       {
         "q": "Ai-je besoin d’expérience pour l’utiliser ?",
@@ -2473,19 +2473,19 @@
     "tabs": {
       "moderate": {
         "label": "Modération",
-        "cost": "1 VB / 50 commentaires"
+        "cost": "100 VB / 50 commentaires"
       },
       "replies": {
         "label": "Brouillons de réponses",
-        "cost": "1 VB / lot"
+        "cost": "100 VB / lot"
       },
       "sentiment": {
         "label": "Sentiment",
-        "cost": "1 VB / rapport"
+        "cost": "100 VB / rapport"
       },
       "superfans": {
         "label": "Superfans",
-        "cost": "1 VB / scan"
+        "cost": "100 VB / scan"
       }
     },
     "tones": {
@@ -6596,7 +6596,7 @@
     "handoffSceneTitle": "Ajouté à ta timeline",
     "hideInspector": "Masquer l'inspecteur",
     "labClipActive": "Décris ce clip ci-dessous — le labo note les ouvertures pour lui.",
-    "labDesc": "Gagne les 3 premières secondes. L'IA écrit 5 ouvertures alternatives pour ta vidéo et note chacune pour son pouvoir d'arrêt du scroll. 2 VB.",
+    "labDesc": "Gagne les 3 premières secondes. L'IA écrit 5 ouvertures alternatives pour ta vidéo et note chacune pour son pouvoir d'arrêt du scroll. 200 VB.",
     "labGenerate": "Tester 5 ouvertures",
     "labNiche": "Niche (optionnel)",
     "labRemove": "Retirer le clip",
@@ -6656,7 +6656,7 @@
     "memeMachineApply": "Appliquer à la timeline",
     "memeMachineContext": "Décris le moment du clip *",
     "memeMachineCustomActive": "Format personnalisé sélectionné — choisis-le ci-dessous ou garde un préréglage.",
-    "memeMachineDesc": "Décris le moment, choisis un format de mème — l'IA écrit les punchlines (1 VB). Appliquer dépose la gagnante sur ta timeline comme légendes stylées.",
+    "memeMachineDesc": "Décris le moment, choisis un format de mème — l'IA écrit les punchlines (100 VB). Appliquer dépose la gagnante sur ta timeline comme légendes stylées.",
     "memeMachineFormat": "Format de mème",
     "memeMachineGenerate": "Écrire les légendes de mème",
     "memeMachinePh": "ex. Moi réalisant que la prise était muette depuis le début…",
@@ -6961,7 +6961,7 @@
     "styleStealerAudio": "Indices audio",
     "styleStealerCaptions": "Légendes",
     "styleStealerCuts": "Motif de cuts",
-    "styleStealerDesc": "Colle un lien de vidéo virale et décris ce que tu as vu. L'IA rétro-conçoit sa formule — accroche, rythme, cuts — en recette de montage pour ta timeline. 2 VB.",
+    "styleStealerDesc": "Colle un lien de vidéo virale et décris ce que tu as vu. L'IA rétro-conçoit sa formule — accroche, rythme, cuts — en recette de montage pour ta timeline. 200 VB.",
     "styleStealerDescLabel": "Décris ce que tu as vu *",
     "styleStealerDescPh": "ex. S'ouvre sur une image figée + texte en gras, jump cuts toutes les 2 sec sur le beat, légendes qui poppent mot par mot…",
     "styleStealerFormula": "La formule",

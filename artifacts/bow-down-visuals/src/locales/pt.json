@@ -281,7 +281,7 @@
         "q": "Como funcionam os Visual Bucs?"
       },
       {
-        "a": "Uma música (400 VB) + um clipe (400 VB) + clipes promocionais (400 VB) + um pacote de ganchos (100 VB) = 1.300 Visual Bucs. Todo o pipeline do lançamento — da música à promoção — por menos que o custo de um pacote.",
+        "a": "Uma música (400 VB) + um clipe (400 VB) + clipes promocionais (100 VB) + um pacote de ganchos (100 VB) = 1.000 Visual Bucs. Todo o pipeline do lançamento — da música à promoção — por menos que o custo de um pacote.",
         "q": "Quanto custa um lançamento completo?"
       },
       {
@@ -463,7 +463,7 @@
         "tagline": "O lançamento",
         "tools": [
           {
-            "cost": "400 VB",
+            "cost": "100 VB",
             "description": "Clipes que param a rolagem para TikTok, Reels e Shorts.",
             "title": "Clipes Promocionais"
           },
@@ -2473,19 +2473,19 @@
     "tabs": {
       "moderate": {
         "label": "Moderação",
-        "cost": "1 VB / 50 comentários"
+        "cost": "100 VB / 50 comentários"
       },
       "replies": {
         "label": "Rascunhos de Resposta",
-        "cost": "1 VB / lote"
+        "cost": "100 VB / lote"
       },
       "sentiment": {
         "label": "Sentimento",
-        "cost": "1 VB / relatório"
+        "cost": "100 VB / relatório"
       },
       "superfans": {
         "label": "Superfãs",
-        "cost": "1 VB / varredura"
+        "cost": "100 VB / varredura"
       }
     },
     "tones": {
@@ -6596,7 +6596,7 @@
     "handoffSceneTitle": "Adicionado à sua linha do tempo",
     "hideInspector": "Ocultar inspetor",
     "labClipActive": "Descreva este clipe abaixo — o laboratório pontua aberturas para ele.",
-    "labDesc": "Conquiste os primeiros 3 segundos. A IA escreve 5 aberturas alternativas para seu vídeo e pontua cada uma pelo poder de parar a rolagem. 2 VB.",
+    "labDesc": "Conquiste os primeiros 3 segundos. A IA escreve 5 aberturas alternativas para seu vídeo e pontua cada uma pelo poder de parar a rolagem. 200 VB.",
     "labGenerate": "Testar 5 Aberturas",
     "labNiche": "Nicho (opcional)",
     "labRemove": "Remover clipe",
@@ -6656,7 +6656,7 @@
     "memeMachineApply": "Aplicar à linha do tempo",
     "memeMachineContext": "Descreva o momento do clipe *",
     "memeMachineCustomActive": "Formato personalizado selecionado — escolha abaixo ou mantenha uma predefinição.",
-    "memeMachineDesc": "Descreva o momento, escolha um formato de meme — a IA escreve as piadas (1 VB). Aplicar coloca a vencedora na sua linha do tempo como legendas estilizadas.",
+    "memeMachineDesc": "Descreva o momento, escolha um formato de meme — a IA escreve as piadas (100 VB). Aplicar coloca a vencedora na sua linha do tempo como legendas estilizadas.",
     "memeMachineFormat": "Formato do meme",
     "memeMachineGenerate": "Escrever Legendas de Meme",
     "memeMachinePh": "ex. Eu percebendo que a gravação ficou muda o tempo todo…",
@@ -6961,7 +6961,7 @@
     "styleStealerAudio": "Sinais de áudio",
     "styleStealerCaptions": "Legendas",
     "styleStealerCuts": "Padrão de cortes",
-    "styleStealerDesc": "Cole o link de um vídeo viral e descreva o que viu. A IA faz engenharia reversa da fórmula — gancho, ritmo, cortes — em uma receita de edição para sua linha do tempo. 2 VB.",
+    "styleStealerDesc": "Cole o link de um vídeo viral e descreva o que viu. A IA faz engenharia reversa da fórmula — gancho, ritmo, cortes — em uma receita de edição para sua linha do tempo. 200 VB.",
     "styleStealerDescLabel": "Descreva o que viu *",
     "styleStealerDescPh": "ex. Abre com um quadro congelado + texto em negrito, cortes a cada 2 segundos na batida, legendas surgem palavra por palavra…",
     "styleStealerFormula": "A fórmula",
