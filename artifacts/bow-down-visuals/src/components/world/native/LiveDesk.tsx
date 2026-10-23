@@ -2,13 +2,22 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Radio, Square, Loader2, Video, VideoOff, KeyRound, RefreshCw, Ban, Copy, Check,
   Eye, Trophy, UserPlus, Trash2, ArrowUpCircle, ArrowDownCircle, UserX, Send,
-  LogOut, Link2, ShieldCheck,
+  LogOut, Link2, ShieldCheck, CalendarPlus, CalendarClock, Clapperboard, Pencil,
+  Gamepad2, Users, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeLoadingState, NativeEmptyState } from "@/components/world/native";
 import { pendingRedemptionsFromPayload } from "@/lib/reach-watch";
 import { apiJson } from "@/lib/social-api";
-import { reachApi, type LoyaltyState, type SavedDestination } from "@/lib/reach-api";
+import { reachApi, type LoyaltyState, type SavedDestination, type PremiereDto } from "@/lib/reach-api";
+import LiveChatPanel from "@/components/live/LiveChatPanel";
+import { FollowButton, useFollowStates } from "@/components/discovery/FollowButton";
+import PushAlertsToggle from "@/components/live/PushAlertsToggle";
+import StreamDeck from "@/components/live/StreamDeck";
+import {
+  ControllerRemoteClient, controllerSocketUrl,
+  type ControllerSocketLike,
+} from "@/lib/stream-controller";
 import {
   createStreamTransport, SITE_DESTINATION, WhipTransport, OwnServerTransport,
   TransportError, type StreamTransport,
@@ -17,7 +26,7 @@ import {
   mintGuestInvite, listGuestInvites, revokeGuestInvite, promoteGuest, demoteGuest,
   removeGuest, hostBackstageHistory, hostBackstagePost,
   readInvite, joinAsGuest, guestSession, guestHeartbeat, guestLeave,
-  guestBackstageHistory, guestBackstagePost, GuestApiError,
+  guestBackstageHistory, guestBackstagePost, GuestApiError, publicOnStageGuests,
   type GuestInviteDto, type GuestSessionDto, type BackstageMessageDto, type InviteInfoDto,
 } from "@/lib/go-live/guest-api";
 import { BackstageClient, type BackstagePeer } from "@/lib/go-live/backstage-client";
@@ -31,6 +40,17 @@ import {
   normalizeGuestRoster, inviteShareUrl, backstageDraftReady,
   extractInviteToken, guestStorageKey, guestNameReady, guestSessionActive,
   type LiveStatusView,
+  SCHEDULED_STREAMS_PATH, SCHEDULED_STREAM_PATH,
+  normalizeScheduledStreams, scheduleDraftReady, scheduleWhenIso, toLocalInputValue,
+  type ScheduledStreamRow,
+  CONTROLLER_WS_PATH,
+  controllerStatusLine, controllerUnavailableNote,
+  WATCH_HEARTBEAT_PATH,
+  normalizeWatchStream, watchHeartbeatBody, watchStreamIdFromScreen,
+  type WatchStreamView,
+  GENERATED_CLIPS_PATH,
+  normalizeFinishedClips, premiereDraftReady, isOwnPremiere,
+  type FinishedClipOption,
 } from "@/lib/world/live-desk";
 
 /* ─── Live Wave I (stack-100 #85–#87) ───────────────────────────────
@@ -50,7 +70,22 @@ import {
      guest-api + BackstageClient with the guest token, for a
      signed-in member joining a stream as its guest participant.
    The Screen panel itself is members-only, so palace guests never
-   reach these desks — no voice is given to them anywhere here. */
+   reach these desks — no voice is given to them anywhere here.
+
+   Live Wave II (stack-100 #88–#91) docks below:
+   - LiveScheduleDesk (#88): GoLiveMain's Schedule section on its
+     /api/discord/streams doors — schedule, cancel, recent history,
+     and edit as prefill + replacement-first save (no PATCH exists).
+   - LiveControllerDesk (#89): the StreamDeck driven by
+     ControllerRemoteClient over the per-account controller relay —
+     the phone remote's exact surface, in-world.
+   - LiveWatchDesk (#90): for the stream on the big screen — the
+     watch page's LiveChatPanel, its follow rail (FollowButton +
+     PushAlertsToggle), on-stage guest chips and presence heartbeat.
+     Audience chat, distinct from the backstage chat above.
+   - LivePremiereDesk (#91): SchedulePremiereForm's flow via
+     reachApi — schedule a premiere from finished clips, see the
+     upcoming list, cancel your own. */
 
 function useToken() {
   const { getAccessToken } = useAuth();
@@ -1327,6 +1362,542 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       )}
       {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
       {sessionToken && !joined && endedReason && <p className={`text-sm ${muted}`}>{endedReason}</p>}
+    </div>
+  );
+}
+
+/* ═══ #88 Stream scheduling / management ══════════════════════════ */
+
+export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
+  const authHeaders = useAuthHeaders();
+  const [view, setView] = useState<{ upcoming: ScheduledStreamRow[]; recent: ScheduledStreamRow[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [title, setTitle] = useState("");
+  const [game, setGame] = useState("");
+  const [when, setWhen] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(SCHEDULED_STREAMS_PATH, { headers: await authHeaders() });
+      if (!res.ok) throw new Error("streams");
+      setView(normalizeScheduledStreams(await res.json()));
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function startEdit(row: ScheduledStreamRow) {
+    setEditingId(row.id);
+    setTitle(row.title);
+    setGame(row.game ?? "");
+    setWhen(toLocalInputValue(row.scheduledFor));
+    setNote("Editing — save posts the updated plan first, then cancels the old one, so a failed save never loses your stream.");
+  }
+
+  function clearForm() {
+    setEditingId(null);
+    setTitle("");
+    setGame("");
+    setWhen("");
+  }
+
+  async function handleSave() {
+    if (!scheduleDraftReady(title, game)) {
+      setNote("Give the stream a title (the game line is optional).");
+      return;
+    }
+    setSaving(true);
+    setNote(null);
+    try {
+      const headers = { ...(await authHeaders()), "Content-Type": "application/json" };
+      const res = await fetch(SCHEDULED_STREAMS_PATH, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: title.trim(),
+          game: game.trim() || undefined,
+          scheduled_for: scheduleWhenIso(when),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "That stream couldn't be scheduled.");
+      if (editingId) {
+        await fetch(SCHEDULED_STREAM_PATH(editingId), { method: "DELETE", headers: await authHeaders() });
+        setNote("Stream updated — the new plan is below and the old one is cancelled.");
+      } else {
+        setNote("Scheduled — it shows in your upcoming streams here and on the website's Go Live page.");
+      }
+      clearForm();
+      await load();
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "That stream couldn't be scheduled.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCancel(row: ScheduledStreamRow) {
+    setCancellingId(row.id);
+    setNote(null);
+    try {
+      await fetch(SCHEDULED_STREAM_PATH(row.id), { method: "DELETE", headers: await authHeaders() });
+      if (editingId === row.id) clearForm();
+      setNote(`"${row.title}" is cancelled.`);
+      await load();
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+
+  return (
+    <div className="space-y-3" data-testid="world-live-schedule">
+      <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+        <CalendarPlus className="h-4 w-4 text-[#d4af37]" /> Schedule a stream
+      </p>
+      <p className={`text-sm ${muted}`}>Plan ahead on the same list the website&rsquo;s Go Live page keeps — schedule here and it shows there, and the other way round.</p>
+      <div className="grid gap-2 md:grid-cols-3">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Stream title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-sched-title" />
+        <input value={game} onChange={(e) => setGame(e.target.value)} placeholder="Game / content (optional)" maxLength={100} className={inputCls(isLight)} data-testid="world-live-sched-game" />
+        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={inputCls(isLight)} data-testid="world-live-sched-when" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => void handleSave()} disabled={saving || !scheduleDraftReady(title, game)} className={goldBtn} data-testid="world-live-sched-save">
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />}
+          {editingId ? "Save updated stream" : "Schedule stream"}
+        </button>
+        {editingId && (
+          <button type="button" onClick={clearForm} className={chipBtn(isLight)} data-testid="world-live-sched-edit-cancel">
+            <X className="h-3.5 w-3.5" /> Stop editing
+          </button>
+        )}
+      </div>
+      {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-sched-note">{note}</p>}
+
+      {failed ? (
+        <p className={`text-sm ${muted}`}>Your streams couldn&rsquo;t load. <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button></p>
+      ) : view === null ? (
+        <NativeLoadingState isLight={isLight} message="Loading your streams…" />
+      ) : (
+        <>
+          <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Upcoming</p>
+          {view.upcoming.length === 0 ? (
+            <p className={`text-sm ${muted}`}>No streams scheduled yet — set a date above and your next stream will show up here.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {view.upcoming.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-sched-row">
+                  <span className={strong}>{s.title}</span>
+                  <span className={muted}>
+                    {s.scheduledFor ? new Date(s.scheduledFor).toLocaleString() : "No date set"}
+                    {s.game ? ` · ${s.game}` : ""}
+                  </span>
+                  <button type="button" className={chipBtn(isLight)} onClick={() => startEdit(s)} data-testid="world-live-sched-edit">
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  <button type="button" className={chipBtn(isLight)} disabled={cancellingId === s.id} onClick={() => void handleCancel(s)} data-testid="world-live-sched-cancel">
+                    {cancellingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Cancel stream
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {view.recent.length > 0 && (
+            <>
+              <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Recent</p>
+              <ul className="space-y-1.5">
+                {view.recent.map((s) => (
+                  <li key={s.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-sched-recent-row">
+                    <span className={strong}>{s.title}</span>
+                    <span className={muted}>
+                      {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : ""}
+                      {s.game ? ` · ${s.game}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ═══ #89 Stream Controller deck ════════════════════════════════════ */
+
+export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
+  const { user, getAccessToken } = useAuth();
+  const [, setTick] = useState(0);
+  const clientRef = useRef<ControllerRemoteClient | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const client = new ControllerRemoteClient(
+      {
+        getAccessToken,
+        socketUrl: controllerSocketUrl(window.location, "remote"),
+        openSocket: (url) => new WebSocket(url) as unknown as ControllerSocketLike,
+      },
+      () => setTick((n) => n + 1),
+    );
+    clientRef.current = client;
+    void client.start();
+    /* Sweep expired ack beats even when the studio goes quiet —
+       the phone remote's own rhythm. */
+    const sweeper = window.setInterval(() => client.sweepPending(), 1000);
+    return () => {
+      window.clearInterval(sweeper);
+      client.stop();
+      clientRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const client = clientRef.current;
+  const state = client?.state ?? null;
+  const stageConnected = !!client?.presence.stageConnected;
+  const socketUp = !!client?.socketUp;
+  const view = {
+    started: !!client,
+    socketUp,
+    stageConnected,
+    live: !!state?.live,
+    label: state?.label ?? null,
+  };
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+
+  return (
+    <div className="space-y-3" data-testid="world-live-controller">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+          <Gamepad2 className="h-4 w-4 text-[#d4af37]" /> Stream Controller
+        </span>
+        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${muted}`} role="status">
+          <span className={`inline-block h-2 w-2 rounded-full ${stageConnected && socketUp ? (state?.live ? "animate-pulse bg-red-500" : "bg-emerald-500") : "bg-white/30"}`} />
+          {controllerStatusLine(view)}
+        </span>
+      </div>
+      <p className={`text-sm ${muted}`}>
+        The same deck as the phone remote ({CONTROLLER_WS_PATH}) — it pairs with the studio signed in as you, nobody else&rsquo;s, and every button shows the studio&rsquo;s confirmed state, never a guess.
+      </p>
+      <div className={`rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-[#14100a]" : "border-white/10 bg-[#14100a]"}`}>
+        <StreamDeck
+          state={state}
+          canControl={stageConnected && socketUp}
+          unavailableNote={controllerUnavailableNote(view)}
+          isPending={(cmd, sceneId) => client?.isPending(cmd, sceneId) ?? false}
+          notice={client?.notice ?? null}
+          onCommand={(cmd, args) => { client?.send(cmd, args); }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ═══ #90 Live-watch parity — the audience side of the hall ═════════ */
+
+export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: { mode: string; streamId: string | null } | null }) {
+  const streamId = watchStreamIdFromScreen(screen);
+  const [stream, setStream] = useState<WatchStreamView | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [onStage, setOnStage] = useState<string[]>([]);
+  const sessionRef = useRef<string>("");
+  if (!sessionRef.current) {
+    sessionRef.current =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  const load = useCallback(async () => {
+    if (!streamId) return;
+    try {
+      const res = await fetch(LIVE_STREAM_PATH(streamId));
+      if (!res.ok) throw new Error("watch");
+      setStream(normalizeWatchStream(await res.json()));
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  }, [streamId]);
+
+  useEffect(() => {
+    setStream(null);
+    setFailed(false);
+    void load();
+  }, [load]);
+
+  const isLive = stream?.status === "live";
+
+  /* live-watch.tsx's presence beat: while the stream is live, this
+     viewer counts — a POST every 15s, plus a 15s status poll so the
+     desk learns the moment the show ends. */
+  useEffect(() => {
+    if (!isLive || !streamId) return;
+    const beat = async () => {
+      try {
+        await fetch(WATCH_HEARTBEAT_PATH(streamId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(watchHeartbeatBody(sessionRef.current)),
+        });
+      } catch { /* presence is best-effort */ }
+    };
+    void beat();
+    const beatTimer = setInterval(beat, 15_000);
+    const pollTimer = setInterval(() => void load(), 15_000);
+    return () => {
+      clearInterval(beatTimer);
+      clearInterval(pollTimer);
+    };
+  }, [isLive, streamId, load]);
+
+  /* The public on-stage roster — the audience only ever sees who is
+     ON stage; backstage stays invisible, here as on the watch page. */
+  useEffect(() => {
+    if (!streamId) { setOnStage([]); return; }
+    let cancelled = false;
+    const loadGuests = async () => {
+      try {
+        const data = await publicOnStageGuests(streamId);
+        if (!cancelled) setOnStage(data.on_stage.map((g) => g.display_name));
+      } catch { /* best-effort chips */ }
+    };
+    void loadGuests();
+    const id = setInterval(loadGuests, 20_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [streamId]);
+
+  const followStates = useFollowStates(stream?.creator ? [stream.creator.id] : []);
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+
+  if (!streamId) {
+    return (
+      <div className="space-y-2" data-testid="world-live-watch">
+        <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+          <Users className="h-4 w-4 text-[#d4af37]" /> Watching the hall
+        </p>
+        <NativeEmptyState
+          isLight={isLight}
+          message="No live show on the big screen right now"
+          detail="When a stream takes the stage, its stream chat, the streamer's follow rail and the on-stage guests land here — the same watch setup as the website's live page, without leaving the hall."
+        />
+      </div>
+    );
+  }
+
+  const creator = stream?.creator ?? null;
+
+  return (
+    <div className="space-y-3" data-testid="world-live-watch">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+          <Users className="h-4 w-4 text-[#d4af37]" /> Watching: {stream?.title ?? "the live show"}
+        </span>
+        {isLive && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> LIVE · {stream?.viewerCount ?? 0} watching
+          </span>
+        )}
+      </div>
+      {failed ? (
+        <p className={`text-sm ${muted}`}>The stream&rsquo;s details couldn&rsquo;t load — the show itself is on the big screen. <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button></p>
+      ) : stream && !isLive ? (
+        <p className={`text-sm ${muted}`}>This stream has ended — chat below is its replay.</p>
+      ) : null}
+
+      {creator && (
+        <div className="flex flex-wrap items-center gap-3" data-testid="world-live-watch-creator">
+          {creator.avatarUrl ? (
+            <img src={creator.avatarUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#e8c86a]/20 text-lg font-bold text-[#e8c86a]">
+              {creator.displayName[0] ?? "?"}
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className={`block font-bold ${strong}`}>{creator.displayName}</span>
+            <span className={`block text-xs ${muted}`}>The streamer on the big screen</span>
+          </span>
+          <FollowButton profileId={creator.id} initialFollowing={followStates[creator.id]} />
+          <PushAlertsToggle />
+        </div>
+      )}
+
+      {onStage.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" data-testid="world-live-watch-onstage">
+          <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>On stage</span>
+          {onStage.map((name) => (
+            <span key={name} className="inline-flex items-center gap-1.5 rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-200">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+              {name} · Guest
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* The dedicated stream chat — the watch page's own panel, so
+          its rules (sign-in, slow mode, mutes, moderation) are the
+          site's, enforced by the same server rails. */}
+      <LiveChatPanel streamId={streamId} className="h-[380px]" />
+    </div>
+  );
+}
+
+/* ═══ #91 Premiere / broadcast scheduling ═══════════════════════════ */
+
+export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
+  const { getAccessToken } = useAuth();
+  const authHeaders = useAuthHeaders();
+  const [clips, setClips] = useState<FinishedClipOption[] | null>(null);
+  const [clipsFailed, setClipsFailed] = useState(false);
+  const [upcoming, setUpcoming] = useState<PremiereDto[] | null>(null);
+  const [myProfileId, setMyProfileId] = useState<string | null>(null);
+  const [clipId, setClipId] = useState("");
+  const [title, setTitle] = useState("");
+  const [duration, setDuration] = useState("180");
+  const [when, setWhen] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const loadUpcoming = useCallback(async () => {
+    try {
+      const res = await reachApi.upcomingPremieres(getAccessToken);
+      setUpcoming(res.premieres);
+    } catch {
+      setUpcoming([]);
+    }
+  }, [getAccessToken]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(GENERATED_CLIPS_PATH, { headers: await authHeaders() });
+        if (!res.ok) throw new Error("clips");
+        setClips(normalizeFinishedClips(await res.json()));
+      } catch {
+        setClipsFailed(true);
+        setClips([]);
+      }
+      try {
+        const me = await apiJson<{ id?: string }>(getAccessToken, MY_PROFILE_PATH).catch(() => null);
+        setMyProfileId(me?.id ?? null);
+      } catch { /* no profile → no cancel doors, the create rail says why */ }
+      await loadUpcoming();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getAccessToken, loadUpcoming]);
+
+  async function handleSchedule() {
+    setSaving(true);
+    setNote(null);
+    try {
+      await reachApi.createPremiere(getAccessToken, {
+        clipId,
+        title: title.trim(),
+        durationSeconds: Number(duration),
+        scheduledAt: new Date(when).toISOString(),
+      });
+      setNote("Premiere scheduled — at the start time it plays for everyone together, with live chat, right on its premiere page.");
+      setTitle("");
+      setWhen("");
+      await loadUpcoming();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "That premiere couldn't be scheduled.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCancel(p: PremiereDto) {
+    setCancellingId(p.id);
+    setNote(null);
+    try {
+      await reachApi.cancelPremiere(getAccessToken, p.id);
+      setNote(`"${p.title}" is cancelled.`);
+      await loadUpcoming();
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "That premiere couldn't be cancelled.");
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  const draftReady = premiereDraftReady(
+    { clipId, title, durationSeconds: Number(duration), whenLocal: when },
+    Date.now(),
+  );
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+
+  return (
+    <div className="space-y-3" data-testid="world-live-premiere">
+      <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+        <Clapperboard className="h-4 w-4 text-[#d4af37]" /> Schedule a premiere
+      </p>
+      <p className={`text-sm ${muted}`}>A finished video, shown first at a set time — countdown, live chat, everyone in sync. The same premiere the website&rsquo;s Broadcast page schedules; after it ends it&rsquo;s a normal watch page. It is always labelled a premiere, never dressed up as a live camera broadcast.</p>
+      {clipsFailed && (
+        <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Your finished videos couldn&rsquo;t load, so a premiere can&rsquo;t be scheduled right now.</p>
+      )}
+      <div className="grid gap-2 md:grid-cols-2">
+        <select value={clipId} onChange={(e) => setClipId(e.target.value)} className={selectCls(isLight)} data-testid="world-live-premiere-clip">
+          <option value="">Pick a finished video…</option>
+          {(clips ?? []).map((c) => (
+            <option key={c.id} value={c.id}>{c.title}</option>
+          ))}
+        </select>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Premiere title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-premiere-title" />
+        <label className={`text-xs ${muted}`}>
+          Video length (seconds)
+          <input type="number" min={10} max={14400} value={duration} onChange={(e) => setDuration(e.target.value)} className={`${inputCls(isLight)} mt-1`} data-testid="world-live-premiere-duration" />
+        </label>
+        <label className={`text-xs ${muted}`}>
+          Starts at
+          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={`${inputCls(isLight)} mt-1`} data-testid="world-live-premiere-when" />
+        </label>
+      </div>
+      <button type="button" onClick={() => void handleSchedule()} disabled={saving || !draftReady} className={goldBtn} data-testid="world-live-premiere-save">
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />} Schedule premiere
+      </button>
+      {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-premiere-note">{note}</p>}
+
+      <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Upcoming premieres</p>
+      {upcoming === null ? (
+        <NativeLoadingState isLight={isLight} message="Loading premieres…" />
+      ) : upcoming.length === 0 ? (
+        <p className={`text-sm ${muted}`}>No premieres coming up — schedule the first one above.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {upcoming.map((p) => (
+            <li key={p.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-premiere-row">
+              <span className={strong}>{p.title}</span>
+              <span className={muted}>
+                {p.phase === "live" ? "playing now" : p.scheduledAt ? new Date(p.scheduledAt).toLocaleString() : ""}
+                {p.creator ? ` · by ${p.creator.displayName}` : ""}
+              </span>
+              {isOwnPremiere(p, myProfileId) && p.phase === "scheduled" && (
+                <button type="button" className={chipBtn(isLight)} disabled={cancellingId === p.id} onClick={() => void handleCancel(p)} data-testid="world-live-premiere-cancel">
+                  {cancellingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} Cancel premiere
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

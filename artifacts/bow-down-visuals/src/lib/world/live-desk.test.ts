@@ -205,13 +205,15 @@ describe("law — members only, no link-out completion, nothing charged", () => 
     expect(deskSrc).not.toContain("idempotency");
   });
 
-  it("the board records the promotions and the honest follow-ons (#88/#89/#90 stay parked)", () => {
+  it("the board records the wave-I promotions (#88–#91 follow-ons retired by wave II)", () => {
     expect(LIVE_WAVE1_PROMOTIONS).toHaveLength(3);
     expect(LIVE_WAVE1_PROMOTIONS[0]).toContain("#85");
     expect(LIVE_WAVE1_PROMOTIONS[1]).toContain("#86");
     expect(LIVE_WAVE1_PROMOTIONS[2]).toContain("#87");
-    expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).toContain("#88");
-    expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).toContain("#89");
-    expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).toContain("#90");
+    /* Wave II built #88/#89/#90/#91 — the wave-I follow-on entries
+       for them are retired (see live-desk-wave2.test.ts). */
+    expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).not.toContain("stays with stack-100 #88");
+    expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).not.toContain("stays with #89");
+    expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).not.toContain("stays with #90");
   });
 });

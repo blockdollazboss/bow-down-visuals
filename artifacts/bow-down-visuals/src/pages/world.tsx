@@ -140,7 +140,7 @@ import {
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
-import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk } from "@/components/world/native/LiveDesk";
+import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk, LiveScheduleDesk, LiveControllerDesk, LiveWatchDesk, LivePremiereDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
 import { fetchPublicCourt } from "@/lib/royal-court";
@@ -3085,6 +3085,14 @@ export default function WorldPage() {
             <LiveStudioDesk isLight={isLight} onStreamChange={() => void loadStageTools()} />
             <LiveBackstageDesk isLight={isLight} />
             <LiveGuestJoinDesk isLight={isLight} />
+            {/* Live Wave II (stack-100 #88–#91): scheduling, the
+                Stream Controller deck, live-watch parity for the
+                stream on the big screen, and premiere scheduling —
+                same members-only panel, same real rails. */}
+            <LiveScheduleDesk isLight={isLight} />
+            <LiveControllerDesk isLight={isLight} />
+            <LiveWatchDesk isLight={isLight} screen={stageScreen ? { mode: stageScreen.mode, streamId: stageScreen.streamId } : null} />
+            <LivePremiereDesk isLight={isLight} />
           </div>
         </div>
       )}
