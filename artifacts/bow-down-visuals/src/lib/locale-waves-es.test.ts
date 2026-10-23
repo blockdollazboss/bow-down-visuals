@@ -245,3 +245,110 @@ describe("es W2 (Stack-28 #81) — namespaces closed whole", () => {
     }
   });
 });
+
+const W3_NAMESPACES = ["cartoonStudio", "bgStudio", "headshotStudio", "colorGrade", "photoEnhance", "speedRamp", "captionTemplates", "videoTemplatesPage", "photoShoot", "upscale", "makeVideo", "songAndVideo", "avatarPresenter", "thumbnailMaker", "thumbnailStudio", "thumbnail", "clipMaker", "logoMaker", "captionStyler", "thumbnailTest", "thumbnails", "watermarkRemoval", "harmony", "mixMaster", "deverb", "fillerRemover", "lrcExport"] as const;
+const W3_LEGIT: ReadonlySet<string> = new Set([
+  "avatarPresenter.avatarLabel",
+  "bgStudio.kind.color",
+  "captionStyler.autoEmoji",
+  "captionStyler.styles.hormozi.label",
+  "captionStyler.styles.karaoke.label",
+  "cartoonStudio.pageTitle",
+  "cartoonStudio.styleAnimeName",
+  "cartoonStudio.title",
+  "clipMaker.secondsLabel",
+  "deverb.abOriginal",
+  "deverb.featureName",
+  "deverb.handoffPodcast",
+  "deverb.handoffVoiceover",
+  "deverb.labelOriginal",
+  "harmony.buttonCost",
+  "harmony.confirmFeature",
+  "harmony.partsLine",
+  "harmony.title",
+  "harmony.vb",
+  "headshotStudio.models.ideogram",
+  "headshotStudio.models.nano",
+  "headshotStudio.visualBucs",
+  "logoMaker.modelPremium",
+  "logoMaker.styleGaming",
+  "logoMaker.vb",
+  "lrcExport.aiCost",
+  "makeVideo.clipFallback",
+  "makeVideo.genreAfrobeats",
+  "makeVideo.genreCountry",
+  "makeVideo.genreDancehall",
+  "makeVideo.genreDrill",
+  "makeVideo.genreHipHop",
+  "makeVideo.genrePop",
+  "makeVideo.genreRB",
+  "makeVideo.genreRock",
+  "makeVideo.genreTrap",
+  "makeVideo.platformTiktok",
+  "makeVideo.priceBadge",
+  "makeVideo.refundedNoticeSuffix",
+  "makeVideo.unknownStep",
+  "makeVideo.videoStyleBrooklynDrill",
+  "mixMaster.genres.afrobeat.label",
+  "mixMaster.genres.edm.label",
+  "mixMaster.genres.gospel.label",
+  "mixMaster.genres.hip-hop.label",
+  "mixMaster.genres.lofi.label",
+  "mixMaster.genres.podcast.label",
+  "mixMaster.genres.pop.label",
+  "mixMaster.genres.rnb.label",
+  "mixMaster.genres.rock.label",
+  "mixMaster.genres.trap.label",
+  "mixMaster.loudness.club.label",
+  "mixMaster.loudness.radio.label",
+  "mixMaster.loudness.streaming.label",
+  "mixMaster.stemTypes.fx",
+  "mixMaster.stemTypes.other",
+  "mixMaster.tabMixStems",
+  "photoEnhance.featureName",
+  "songAndVideo.costBadge",
+  "songAndVideo.genreAfrobeats",
+  "songAndVideo.genreCountry",
+  "songAndVideo.genreDancehall",
+  "songAndVideo.genreDrill",
+  "songAndVideo.genreHipHop",
+  "songAndVideo.genrePop",
+  "songAndVideo.genreRB",
+  "songAndVideo.genreRock",
+  "songAndVideo.genreTrap",
+  "songAndVideo.platformTiktokReels",
+  "songAndVideo.simpleTabLabel",
+  "songAndVideo.summaryVideo",
+  "songAndVideo.videoStyleBrooklynDrill",
+  "speedRamp.slowmo.simple",
+  "thumbnail.artStyleAnime",
+  "thumbnail.artStyleVintage",
+  "thumbnail.platformAppleMusic",
+  "thumbnail.platformSoundCloud",
+  "thumbnail.platformSpotify",
+  "thumbnail.platformYouTube",
+  "thumbnailMaker.portraitBlurb",
+  "thumbnailMaker.styleGamingName",
+  "thumbnailMaker.styleVlogName",
+  "upscale.tabVideoShort",
+  "upscale.target1080p",
+  "upscale.target4k"
+]);
+
+describe("es W3 (Stack-28 #90) — namespaces closed whole", () => {
+  const keys = Object.keys(EN).filter((k) => W3_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
+  it("every en key of the wave namespaces is present and non-empty in es", () => {
+    const bad = keys.filter((k) => !(k in ES) || !nonEmpty(ES[k]));
+    expect(bad, `es W3 missing/empty: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("no es value is identical to en outside the legit allowlist", () => {
+    const bad = keys.filter((k) => k in ES && JSON.stringify(ES[k]) === JSON.stringify(EN[k]) && !W3_LEGIT.has(k));
+    expect(bad, `es W3 untranslated residue: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const k of W3_LEGIT) {
+      expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
+      expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
+    }
+  });
+});
