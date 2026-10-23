@@ -1251,6 +1251,31 @@ const DOCKED_FEATURES = [
       { endpoint: "/api/wallpapers/render", feature: "Wallpaper Render (clean — unbranded)", constant: "CLEAN_RENDER_COST" },
     ],
   },
+  {
+    /* World locks (Stack-28, A6-K3): the palace's lock rails live
+       inside the World page's admin panel — no route of their own —
+       so the operator's HANDS knew locks (the tier-4 world.* tools)
+       while its KNOWLEDGE did not: no entry, none of the five lock
+       endpoints, no way to explain a door lock vs a lock-out, its
+       duration, or that the lock card a member sees is not a glitch.
+       Name + description are reviewed literals (precedent:
+       live-guests-backstage / rtmp-ingest — the panel's copy is
+       inline JSX the generator never quotes). The rails charge
+       nothing, so pricedEndpoints stays empty — the paid-series /
+       morning-brief precedent. Durations in the description are the
+       code's own: WORLD_LOCK_DEFAULT_MINUTES = 60 (1 hour) and
+       WORLD_LOCK_MAX_MINUTES = 7 * 24 * 60 (7 days) in
+       routes/world.ts, re-derived by the KB test. */
+    id: "world-locks",
+    name: { text: "World Locks" },
+    path: "/world",
+    hostPath: "/world",
+    description: {
+      text: "Palace admins can lock a room's door — the people inside stay, and nobody new joins — or lock one person out of a room for a time: 1 hour by default, up to 7 days. A lock is not a glitch: the World shows an honest card saying which lock it is and, for a person lock, how long is left.",
+    },
+    endpoints: ["/api/world/locks", "/api/world/locks/door/lock", "/api/world/locks/door/unlock", "/api/world/locks/person/lock", "/api/world/locks/person/unlock"],
+    pricedEndpoints: [],
+  },
 ];
 
 /** en.json lookup for a docked spec field: a plain key, or a dotted
