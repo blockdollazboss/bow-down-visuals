@@ -195,7 +195,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   hi: grouped(
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   it: grouped(
