@@ -2054,14 +2054,14 @@ export default function VideoEditor() {
                     <div
                       key={c.userId}
                       title={c.name}
-                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold vv-ink"
+                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[11px] font-bold vv-ink"
                       style={{ backgroundColor: c.color }}
                     >
                       {c.name.charAt(0).toUpperCase()}
                     </div>
                   ))}
                   {collaborators.length > 4 && (
-                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[10px] font-bold vv-ink-70">
+                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[11px] font-bold vv-ink-70">
                       +{collaborators.length - 4}
                     </div>
                   )}
@@ -2215,7 +2215,7 @@ export default function VideoEditor() {
                         }`}
                       >
                         {item.icon}
-                        <span className="text-[9px] font-bold leading-none">{item.label}</span>
+                        <span className="text-[11px] font-bold leading-none">{item.label}</span>
                       </button>
                     ))}
               </nav>
@@ -2364,7 +2364,7 @@ export default function VideoEditor() {
                             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-bold text-primary">{t("videoEditor.consistencyLockActive")}</p>
-                                <p className="text-[10px] vv-ink-40 mt-0.5">
+                                <p className="text-[11px] vv-ink-40 mt-0.5">
                                   {activeArtist ? t("videoEditor.consistencyLockDesc", { name: activeArtist.artist_name }) : t("videoEditor.consistencyLockDescGeneric")}
                                 </p>
                               </div>
@@ -2410,7 +2410,7 @@ export default function VideoEditor() {
                               <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border vv-border-soft vv-wash-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-bold vv-ink-60">{t("videoEditor.noSongLoaded")}</p>
-                                  <p className="text-[10px] vv-ink-35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
+                                  <p className="text-[11px] vv-ink-35 mt-0.5">{t("videoEditor.noSongDesc")}</p>
                                 </div>
                                 <button
                                   type="button"
@@ -2430,22 +2430,22 @@ export default function VideoEditor() {
                                 {scenes.length === 0 ? (
                                   <>
                                     <p className="text-xs font-bold text-amber-400">{t("videoEditor.noScenesSavedPlan")}</p>
-                                    <p className="text-[10px] vv-ink-40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
+                                    <p className="text-[11px] vv-ink-40 mt-0.5">{t("videoEditor.rebuildScenesHint")}</p>
                                   </>
                                 ) : rebuildStatus === "done" ? (
                                   <>
                                     <p className="text-xs font-bold text-green-400">{t("videoEditor.scenesLoadedFromPlan", { count: scenes.length })}</p>
-                                    <p className="text-[10px] vv-ink-40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
+                                    <p className="text-[11px] vv-ink-40 mt-0.5">{t("videoEditor.scenesParsedDesc")}</p>
                                   </>
                                 ) : rebuildStatus === "error" ? (
                                   <>
                                     <p className="text-xs font-bold text-red-400">{t("videoEditor.parseScenesTitle")}</p>
-                                    <p className="text-[10px] vv-ink-40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
+                                    <p className="text-[11px] vv-ink-40 mt-0.5">{rebuildError ?? t("videoEditor.noSceneBreakdownError")}</p>
                                   </>
                                 ) : (
                                   <>
                                     <p className="text-xs font-bold vv-ink-50">{t("videoEditor.savedPlanAvailable")}</p>
-                                    <p className="text-[10px] vv-ink-35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
+                                    <p className="text-[11px] vv-ink-35 mt-0.5">{t("videoEditor.reparseDesc")}</p>
                                   </>
                                 )}
                               </div>
@@ -2470,10 +2470,10 @@ export default function VideoEditor() {
                             <div className="flex items-center justify-between gap-3 px-1">
                               <div className="min-w-0">
                                 {syncState === "done" && syncMsg && (
-                                  <p className="text-[10px] text-green-400 font-medium">{syncMsg}</p>
+                                  <p className="text-[11px] text-green-400 font-medium">{syncMsg}</p>
                                 )}
                                 {syncState === "error" && syncMsg && (
-                                  <p className="text-[10px] text-red-400 font-medium">{syncMsg}</p>
+                                  <p className="text-[11px] text-red-400 font-medium">{syncMsg}</p>
                                 )}
                               </div>
                               <button
@@ -3044,7 +3044,7 @@ export default function VideoEditor() {
                 </div>
                 {/* ── Panel size sync: 0 collapses both, 1-5 presets set BOTH sides to the same width ── */}
                 <div className="shrink-0 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent border-y border-[#C9A84C]/10">
-                  <span className="text-[10px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
+                  <span className="text-[11px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
                   <button
                     type="button"
                     title="Collapse both panels (distraction-free)"
@@ -3052,7 +3052,7 @@ export default function VideoEditor() {
                       setPanelCollapsed(true);
                       setRightPanelCollapsed(true);
                     }}
-                    className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
+                    className={`h-6 w-6 rounded-full text-[11px] font-black transition-all ${
                       panelCollapsed && rightPanelCollapsed
                         ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
                         : "vv-wash-5 vv-ink-40 border vv-border vv-hover-ink vv-hover-border-strong"
@@ -3079,7 +3079,7 @@ export default function VideoEditor() {
                             localStorage.setItem("bdv:rightPanelWidth", String(s));
                           } catch { /* ignore */ }
                         }}
-                        className={`h-6 w-6 rounded-full text-[10px] font-black transition-all ${
+                        className={`h-6 w-6 rounded-full text-[11px] font-black transition-all ${
                           synced
                             ? "bg-primary text-black shadow-[0_0_10px_rgba(201,168,76,0.6)]"
                             : "vv-wash-5 vv-ink-40 border vv-border vv-hover-ink vv-hover-border-strong"
@@ -3129,13 +3129,13 @@ export default function VideoEditor() {
                             {activeArtist.artist_name}
                           </p>
                           {(activeArtist.artist_type || activeArtist.genre) && (
-                            <p className="text-[9px] vv-ink-30 mt-[1px]">
+                            <p className="text-[11px] vv-ink-30 mt-[1px]">
                               {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
                             </p>
                           )}
                         </div>
                         {consistencyPrompt && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
                             {t("videoEditor.lockedBadge")}
                           </div>
                         )}
@@ -3155,7 +3155,7 @@ export default function VideoEditor() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-left vv-hover-wash-3 transition-colors"
                     >
                       <Bug className="h-3 w-3 vv-ink-20" />
-                      <span className="text-[10px] font-bold vv-ink-25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
+                      <span className="text-[11px] font-bold vv-ink-25 uppercase tracking-widest flex-1">{t("videoEditor.debugPanel")}</span>
                       {debugOpen ? <ChevronUp className="h-3 w-3 vv-ink-20" /> : <ChevronDown className="h-3 w-3 vv-ink-20" />}
                     </button>
                     {debugOpen && (
@@ -3188,8 +3188,8 @@ export default function VideoEditor() {
                           ["lip sync error",    (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncError?.slice(0, 40) ?? "—"; })()],
                         ] as [string, string][]).map(([label, value]) => (
                           <div key={label} className="flex items-center justify-between gap-2">
-                            <span className="text-[9px] font-mono vv-ink-25">{label}</span>
-                            <span className={`text-[9px] font-bold shrink-0 ${
+                            <span className="text-[11px] font-mono vv-ink-25">{label}</span>
+                            <span className={`text-[11px] font-bold shrink-0 ${
                               value.includes("OK") ? "text-green-400/70"
                                 : value === "none" || value === "no" || value === "unknown" ? "vv-ink-25"
                                 : "text-[#C9A84C]/70"
@@ -3576,7 +3576,7 @@ export default function VideoEditor() {
                         }`}
                       >
                         {item.icon}
-                        <span className="text-[9px] font-bold leading-none">{item.label}</span>
+                        <span className="text-[11px] font-bold leading-none">{item.label}</span>
                       </button>
                     ))}
               </nav>
@@ -3605,16 +3605,16 @@ export default function VideoEditor() {
                       return (
                         <div className="space-y-3">
                           <div className="rounded-xl border vv-border vv-wash-2 p-3">
-                            <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
+                            <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.sceneOfScenes", { current: selectedIdx + 1, total: scenes.length })}</p>
                             <p className="text-xs vv-ink-70 mt-1.5 leading-relaxed line-clamp-6">{scene.aiVideoPrompt || t("videoEditor.noPrompt")}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div className="rounded-xl border vv-border vv-wash-2 p-3">
-                              <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
+                              <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.clipLabel")}</p>
                               <p className={`text-xs font-bold mt-1 ${hasClip ? "text-green-400" : "vv-ink-40"}`}>{hasClip ? t("videoEditor.clipAttached") : t("videoEditor.clipNoClip")}</p>
                             </div>
                             <div className="rounded-xl border vv-border vv-wash-2 p-3">
-                              <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
+                              <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">{t("videoEditor.approvedLabel")}</p>
                               <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "vv-ink-40"}`}>{scene.approved ? t("videoEditor.yes") : t("videoEditor.no")}</p>
                             </div>
                           </div>
@@ -3643,7 +3643,7 @@ export default function VideoEditor() {
                             };
                             return (
                               <div className="rounded-xl border vv-border vv-wash-2 p-3 space-y-2.5">
-                                <p className="text-[10px] font-black vv-ink-40 uppercase tracking-widest">Clip audio</p>
+                                <p className="text-[11px] font-black vv-ink-40 uppercase tracking-widest">Clip audio</p>
                                 <div className="flex items-center gap-2">
                                   <button type="button" onClick={() => patchClip({ muted: !ce.muted })}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
@@ -3659,13 +3659,13 @@ export default function VideoEditor() {
                                   onChange={(e) => patchClip({ volume: Number(e.target.value) })}
                                   className="w-full accent-[#C9A84C]" title="Clip volume" aria-label="Clip volume" />
                                 <div className="grid grid-cols-2 gap-2">
-                                  <label className="text-[10px] vv-ink-50">Fade in
+                                  <label className="text-[11px] vv-ink-50">Fade in
                                     <input type="range" min={0} max={5} step={0.1} value={ce.fadeIn}
                                       onChange={(e) => patchClip({ fadeIn: Number(e.target.value) })}
                                       className="w-full accent-[#C9A84C]" aria-label="Fade in seconds" />
                                     <span className="font-mono">{ce.fadeIn.toFixed(1)}s</span>
                                   </label>
-                                  <label className="text-[10px] vv-ink-50">Fade out
+                                  <label className="text-[11px] vv-ink-50">Fade out
                                     <input type="range" min={0} max={5} step={0.1} value={ce.fadeOut}
                                       onChange={(e) => patchClip({ fadeOut: Number(e.target.value) })}
                                       className="w-full accent-[#C9A84C]" aria-label="Fade out seconds" />
@@ -3743,7 +3743,7 @@ export default function VideoEditor() {
               })}
             >
               <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" />
-              <span className="text-[10px] font-bold text-amber-200/80 whitespace-nowrap hidden sm:inline">
+              <span className="text-[11px] font-bold text-amber-200/80 whitespace-nowrap hidden sm:inline">
                 {t("videoEditor.audioFallbackPill")}
               </span>
               <button
@@ -3751,7 +3751,7 @@ export default function VideoEditor() {
                 onClick={requestMissingMixRender}
                 disabled={directAudioExportStatus.status === "rendering"}
                 data-testid="btn-render-missing-video-audio"
-                className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
+                className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
               >
                 {directAudioExportStatus.status === "rendering" ? (
                   <><Loader2 className="h-3 w-3 animate-spin no-underline" /> {t("videoEditor.rendering")}</>
@@ -4974,7 +4974,7 @@ function MasterPreviewPlayer({
           className="mx-auto flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-black/90 border border-white/20 text-white/70 hover:text-white hover:border-primary/50 shadow-2xl transition-colors"
         >
           <Eye className="h-3.5 w-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">{t("videoEditor.showPlayer")}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider">{t("videoEditor.showPlayer")}</span>
         </button>
       )}
     {/* ── Visual mode: true focus mode. The background is essentially blacked out
@@ -5262,7 +5262,7 @@ function MasterPreviewPlayer({
             HTML video; the flip happens at export time. ── */}
         {displayProTools?.reverse && (
           <div className="absolute top-3 left-3 pointer-events-none" style={{ zIndex: 30 }}>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest
               bg-black/70 border border-[#C9A84C]/50 text-[#C9A84C]">
               <Repeat className="h-3 w-3" /> Reversed on export
             </div>
@@ -5301,10 +5301,10 @@ function MasterPreviewPlayer({
               <ChevronsLeftRight className="h-4 w-4" />
             </button>
             {/* Before / After tags */}
-            <div className="absolute top-1/2 -translate-y-1/2 left-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-black/70 border border-white/15 text-[10px] font-black uppercase tracking-widest text-white/80">
+            <div className="absolute top-1/2 -translate-y-1/2 left-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-black/70 border border-white/15 text-[11px] font-black uppercase tracking-widest text-white/80">
               Before
             </div>
-            <div className="absolute top-1/2 -translate-y-1/2 right-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-[#C9A84C]/90 text-[10px] font-black uppercase tracking-widest text-black">
+            <div className="absolute top-1/2 -translate-y-1/2 right-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-[#C9A84C]/90 text-[11px] font-black uppercase tracking-widest text-black">
               After
             </div>
           </>
@@ -5406,7 +5406,7 @@ function MasterPreviewPlayer({
         {displayScene && displaySceneIdx >= 0 && (
           <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/55 border border-[#C9A84C]/25 backdrop-blur-sm pointer-events-none">
             <Film className="h-2.5 w-2.5 text-[#C9A84C]" />
-            <span className="text-[9px] font-bold text-white/60 max-w-[200px] truncate tracking-wide">
+            <span className="text-[11px] font-bold text-white/60 max-w-[200px] truncate tracking-wide">
               Scene {displaySceneIdx + 1}/{scenes.length}
               {displayScene.section ? ` · ${displayScene.section}` : ""}
             </span>
@@ -5418,7 +5418,7 @@ function MasterPreviewPlayer({
         {isPlaying && (
           <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
             <Volume2 className="h-3 w-3 text-black animate-pulse" />
-            <span className="text-[10px] font-black text-black uppercase tracking-wide">{t("videoEditor.liveBadge")}</span>
+            <span className="text-[11px] font-black text-black uppercase tracking-wide">{t("videoEditor.liveBadge")}</span>
           </div>
         )}
 
@@ -5444,14 +5444,14 @@ function MasterPreviewPlayer({
               style={{ top: "5%", bottom: "5%", left: "5%", right: "5%", zIndex: 32 }}
               aria-hidden
             >
-              <span className="absolute top-1 left-1.5 text-[8px] font-mono font-bold uppercase tracking-widest text-white/50">Action safe</span>
+              <span className="absolute top-1 left-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-white/50">Action safe</span>
             </div>
             <div
               className="absolute pointer-events-none border border-dashed border-[#C9A84C]/70 rounded-sm"
               style={{ top: "10%", bottom: "10%", left: "10%", right: "10%", zIndex: 32 }}
               aria-hidden
             >
-              <span className="absolute top-1 left-1.5 text-[8px] font-mono font-bold uppercase tracking-widest text-[#C9A84C]/70">Title safe</span>
+              <span className="absolute top-1 left-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-[#C9A84C]/70">Title safe</span>
             </div>
           </>
         )}
@@ -5512,7 +5512,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Back 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")}>-10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")}>-10</button>
           {/* Frame step back */}
           <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
             className={tBtnSm} title={t("videoEditor.stepBackTitle")}>
@@ -5525,7 +5525,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Forward 10s */}
           <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")}>+10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")}>+10</button>
           {/* Next Scene */}
           <button type="button" onClick={nextClip} disabled={!hasScenes}
             className={tBtnSm} title={t("videoEditor.nextSceneTitle")}>
@@ -5543,7 +5543,7 @@ function MasterPreviewPlayer({
           </button>
           {/* Playback speed */}
           <button type="button" onClick={cycleSpeed}
-            className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[9px] font-black tabular-nums`}
+            className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[11px] font-black tabular-nums`}
             title={t("videoEditor.speedTitle", { speed })}>
             {speed}x
           </button>
@@ -5557,7 +5557,7 @@ function MasterPreviewPlayer({
           <button type="button" onClick={cycleFitMode}
             className={`${tBtnSm} min-w-[2rem] px-1`}
             title={t("videoEditor.fitTitle", { label: t(FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]) })}>
-            <span className="text-[7px] font-black tracking-widest uppercase leading-none">
+            <span className="text-[11px] font-black tracking-widest uppercase leading-none">
               {t(FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode])}
             </span>
           </button>
@@ -5629,7 +5629,7 @@ function MasterPreviewPlayer({
       {/* Auto PiP sub-settings — hidden in fullscreen / while minimized */}
       {!isFullscreen && !isMinimized && (
         <div className="px-3 py-1.5 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-[10px] font-bold text-white/30 shrink-0">{t("videoEditor.autoPipLabel")}</span>
+          <span className="text-[11px] font-bold text-white/30 shrink-0">{t("videoEditor.autoPipLabel")}</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -5637,7 +5637,7 @@ function MasterPreviewPlayer({
               onChange={(e) => { if (e.target.checked) void enableAutoPiP(); else disableAutoPiP(); }}
               className="accent-primary w-3 h-3"
             />
-            <span className="text-[10px] text-white/50">{t("videoEditor.enableAutoPip")}</span>
+            <span className="text-[11px] text-white/50">{t("videoEditor.enableAutoPip")}</span>
           </label>
           {autoPiP && (
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -5647,7 +5647,7 @@ function MasterPreviewPlayer({
                 onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
                 className="accent-primary w-3 h-3"
               />
-              <span className="text-[10px] text-white/50">{t("videoEditor.onTabSwitch")}</span>
+              <span className="text-[11px] text-white/50">{t("videoEditor.onTabSwitch")}</span>
             </label>
           )}
         </div>
@@ -5674,8 +5674,8 @@ function MasterPreviewPlayer({
             ["pip active",    pipActive    ? "yes OK"   : "no"],
           ] as [string, string][]).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1">
-              <span className="text-[8px] font-mono text-white/20">{k}</span>
-              <span className={`text-[8px] font-bold ${v.includes("OK") || v === "enabled" ? "text-green-400/50" : v === "—" || v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+              <span className="text-[11px] font-mono text-white/20">{k}</span>
+              <span className={`text-[11px] font-bold ${v.includes("OK") || v === "enabled" ? "text-green-400/50" : v === "—" || v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
             </span>
           ))}
         </div>
@@ -5684,7 +5684,7 @@ function MasterPreviewPlayer({
       {/* Playback Animation Debug — dev-only diagnostics, hidden in fullscreen / while minimized */}
       {import.meta.env.DEV && !isFullscreen && !isMinimized && (
         <div className="px-4 py-1 border-t border-white/5 bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
-          <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
+          <span className="text-[11px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
           {([
             ["isPlaying",    (eng?.isPlaying ?? false) ? "yes OK" : "no"],
             ["isScrubbing",  isDraggingRef.current ? "yes" : "no"],
@@ -5697,8 +5697,8 @@ function MasterPreviewPlayer({
             ["effects",      (eng?.isPlaying ?? false) ? "running" : "paused OK"],
           ] as [string, string][]).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1">
-              <span className="text-[8px] font-mono text-white/20">{k}</span>
-              <span className={`text-[8px] font-bold ${
+              <span className="text-[11px] font-mono text-white/20">{k}</span>
+              <span className={`text-[11px] font-bold ${
                 v.includes("OK") ? "text-green-400/50"
                 : v === "no" || v === "paused" ? "text-white/20"
                 : v === "yes" ? "text-yellow-400"
@@ -5711,7 +5711,7 @@ function MasterPreviewPlayer({
 
       {/* Error message — PiP or Auto PiP, hidden in fullscreen / while minimized */}
       {pipError && !isFullscreen && !isMinimized && (
-        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono flex items-start gap-1.5">
+        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[11px] text-red-400 font-mono flex items-start gap-1.5">
           <AlertCircle className="h-3 w-3 shrink-0 mt-px" />
           <span>{pipError}</span>
         </div>
