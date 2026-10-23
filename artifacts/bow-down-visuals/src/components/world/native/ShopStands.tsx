@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { PalaceStation } from "@/lib/world/stations";
 import { NativeCard } from "./NativeCard";
+import { DomainsDesk } from "./DomainsDesk";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay, cartKey } from "@/lib/shops";
 import {
@@ -692,8 +693,9 @@ function StandCreateShop({
    view (GET /api/storefronts/:id/analytics — the owner-scoped
    ledger the My Shop page reads; totals, the 30-day views strip,
    recent sales, and pending checkouts kept visibly apart from
-   sales). Custom domains stay on the website: the settings tab
-   says so and points at this panel's standard transfer footer. */
+   sales). Custom domains dock here too (Stack-100 #68): the
+   DomainsDesk under the settings form rides the creator-domains
+   page's own lib/domains rails (claim / verify / remove). */
 
 function StandManager({
   shop,
@@ -1250,9 +1252,10 @@ function StandManager({
           <p className={`text-[11px] ${muted(isLight)}`}>
             The writer&rsquo;s price is confirmed before it runs; a failed run is refunded by the rail itself. Its words land above, unsaved — saving is your tap.
           </p>
-          <p className={`text-[11px] ${muted(isLight)}`}>
-            Custom domains live on your shop&rsquo;s page on the website — the quiet &ldquo;Open on the website ↗&rdquo; door at the foot of this panel takes you there.
-          </p>
+          {/* Stack-100 #68: custom domains — claim, DNS instructions,
+              verify and remove on the creator-domains rails,
+              right here in the stand's settings. */}
+          <DomainsDesk isLight={isLight} />
 
           <div className="space-y-2 border-t border-red-400/30 pt-3">
             <p className={`text-xs font-black uppercase tracking-[0.14em] text-red-300`}>Close this shop</p>

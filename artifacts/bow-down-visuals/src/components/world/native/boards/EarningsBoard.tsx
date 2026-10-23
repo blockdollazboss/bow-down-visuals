@@ -12,6 +12,10 @@ import {
 } from "@/components/world/native";
 import { loadEarnings, EarningsLoadCancelled } from "@/lib/earnings-data";
 import { PayoutDesk } from "@/components/world/native/PayoutDesk";
+import { MoneyActionsDesk } from "@/components/world/native/MoneyActionsDesk";
+import { PlansDesk } from "@/components/world/native/PlansDesk";
+import { TipJarDesk } from "@/components/world/native/TipJarDesk";
+import { ledgerPage } from "@/lib/world/money-desks-2";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import {
   earningsSourceRows,
@@ -40,10 +44,13 @@ import {
    line, never a fake zero), recent money movement as rows, and
    the old /credit-history folded in as the Ledger tab
    (GET /api/credits/history + GET /api/payments/history).
-   Distribution permanence and content-ID claims appear as
-   READ-ONLY status rows — changing an election or working a claim
-   is management, and management is what the transfer footer is
-   for (this board never writes to either rail). The statement
+   Distribution permanence and content-ID claims appear as status
+   rows here, and — Stack-100 #67 — the MoneyActionsDesk under
+   this board works them on the same rails the 2D money pages use
+   (permanence PUTs, claim PATCHes); #66 adds the TipJarDesk
+   (your tip page + settings), #69 the PlansDesk (site plan
+   subscriptions on the creator-tiers rails) and #70 turns the
+   Ledger tab into the full paginated history. The statement
    card views the year's statement ON the board and downloads it
    as a PDF file (plan §3.9: a download is not a pull-up) using
    the documents panel's own blob pattern. The view and the PDF
@@ -61,8 +68,6 @@ import {
    pitch and no fetch ever fires for them. */
 
 type EarningsTab = "earnings" | "ledger";
-
-const LEDGER_CAP = 30;
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "";
@@ -82,6 +87,9 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
   const [claimsNote, setClaimsNote] = useState<string | null>(null);
   const [ledger, setLedger] = useState<LedgerEntry[] | null>(null);
   const [ledgerFailed, setLedgerFailed] = useState(false);
+  /* Stack-100 #70: the Ledger tab is the FULL history, paged —
+     the page index lives here; ledgerPage clamps it into range. */
+  const [ledgerPg, setLedgerPg] = useState(0);
   const [tick, setTick] = useState(0);
   const [year, setYear] = useState(() => statementYears()[0]!);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -356,13 +364,13 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 isLight={isLight}
                 title="Distribution permanence"
                 detail={permanenceNote ? permanenceNote.join(" · ") : "Reading your elections…"}
-                meta="Read-only"
+                meta="Manage below"
               />
               <NativeBoardRow
                 isLight={isLight}
                 title="Content-ID matches & claims"
                 detail={claimsNote ?? "Reading your claims…"}
-                meta="Read-only"
+                meta="Work them below"
               />
             </NativeBoard>
 
@@ -448,6 +456,21 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 earnings it pays out. Bank onboarding is the hosted
                 flow (sanctioned exit, same as the website). */}
             <PayoutDesk isLight={isLight} />
+
+            {/* Stack-100 #67: the management desk — permanence
+                elections and Content-ID claim actions on the 2D
+                money pages' own rails, under the status rows above
+                that summarise them. */}
+            <MoneyActionsDesk isLight={isLight} />
+
+            {/* Stack-100 #66: your tip page — settings, totals and
+                the recent feed on the Tip Jar page's rails. */}
+            <TipJarDesk isLight={isLight} />
+
+            {/* Stack-100 #69: your site plan — the creator-tiers
+                catalog read from its rail, checkout/portal hosted
+                in a new tab, exactly as the pricing page rides it. */}
+            <PlansDesk isLight={isLight} />
           </>
         )
       ) : ledgerFailed ? (
@@ -469,22 +492,55 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
           detail="Purchases and Visual Buc activity land here the moment they happen."
         />
       ) : (
-        <NativeBoard isLight={isLight} title="Visual Buc ledger">
-          {ledger.slice(0, LEDGER_CAP).map((entry) => (
-            <NativeBoardRow
-              key={entry.id}
-              isLight={isLight}
-              title={entry.title}
-              detail={[entry.detail, fmtDate(entry.dateIso)].filter(Boolean).join(" · ") || undefined}
-              meta={entry.unit === "VB" ? `${entry.amount} VB` : entry.amount}
-            />
-          ))}
-          {ledger.length > LEDGER_CAP && (
-            <p className={`px-1 pt-1 text-[11px] ${muted}`}>
-              Showing the latest {LEDGER_CAP} of {ledger.length} entries — the full history waits on the website, one tap below.
-            </p>
-          )}
-        </NativeBoard>
+        /* Stack-100 #70: the FULL history, paged in place — every
+           entry the two history rails returned, twenty to a page,
+           newest first. Nothing is capped to "recent rows" and no
+           one is sent to the website to read their own ledger. */
+        (() => {
+          const page = ledgerPage(ledger, ledgerPg);
+          return (
+            <div data-testid="world-ledger-full">
+              <NativeBoard isLight={isLight} title="Visual Buc ledger — full history">
+                {page.rows.map((entry) => (
+                  <NativeBoardRow
+                    key={entry.id}
+                    isLight={isLight}
+                    title={entry.title}
+                    detail={[entry.detail, fmtDate(entry.dateIso)].filter(Boolean).join(" · ") || undefined}
+                    meta={entry.unit === "VB" ? `${entry.amount} VB` : entry.amount}
+                  />
+                ))}
+              </NativeBoard>
+              <div className="mt-2 flex flex-wrap items-center gap-2 px-1">
+                <button
+                  type="button"
+                  data-testid="world-ledger-prev"
+                  disabled={page.page === 0}
+                  onClick={() => setLedgerPg(page.page - 1)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${
+                    isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
+                  }`}
+                >
+                  ← Newer
+                </button>
+                <span className={`text-[11px] font-semibold ${muted}`}>
+                  Page {page.page + 1} of {page.pageCount} · {page.total} {page.total === 1 ? "entry" : "entries"} in your full history
+                </span>
+                <button
+                  type="button"
+                  data-testid="world-ledger-next"
+                  disabled={page.page >= page.pageCount - 1}
+                  onClick={() => setLedgerPg(page.page + 1)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${
+                    isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
+                  }`}
+                >
+                  Older →
+                </button>
+              </div>
+            </div>
+          );
+        })()
       )}
     </div>
   );

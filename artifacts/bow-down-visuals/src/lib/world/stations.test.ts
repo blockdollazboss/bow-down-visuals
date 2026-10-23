@@ -41,9 +41,10 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    /* 33 since item 31 (the Stage Grounds' Stage Bill) and
-     * Stack-100 #61 (the Treasury's Visual Buc Packs desk). */
-    expect(PALACE_STATIONS.length).toBe(33);
+    /* 34 since item 31 (the Stage Grounds' Stage Bill),
+     * Stack-100 #61 (the Treasury's Visual Buc Packs desk) and
+     * Stack-100 #65 (the Music Hall's Beat Marketplace). */
+    expect(PALACE_STATIONS.length).toBe(34);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -72,9 +73,9 @@ describe("the station registry", () => {
      * + the plaza monument's Kingdom Board (Open World Phase 1)
      * + the Stage Grounds' Stage Bill (item 31, on the same
      * Kingdom Board panel) + the Visual Buc Packs desk
-     * (Stack-100 #61), born world-native like the six —
-     * they never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(12);
+     * (Stack-100 #61) + the Beat Marketplace (Stack-100 #65),
+     * born world-native like the six — they never had a page. */
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(13);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -113,6 +114,7 @@ describe("the station registry", () => {
       "post-office": "/messages",
       jukebox: null,
       "listening-booth": "/my-music",
+      "beats-desk": "/beats",
       "charts-desk": "/charts",
       "arcade-cabinets": "/arcade",
       "marble-table": "/party",
