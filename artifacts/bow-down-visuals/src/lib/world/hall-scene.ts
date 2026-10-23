@@ -158,7 +158,7 @@ import {
 import { stationsInRoom } from "./stations";
 import { propVariation } from "./prop-variation";
 import { HOUSE_TRIM, roomTrimProfile, type RoomTrimProfile } from "./room-trim";
-import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
+import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, gateLeafYaw, type DistrictThreshold } from "./district-gates";
 import {
   STAGE_GROUNDS_INTERIOR, STAGE_WALL_RUNS, STAGE_PIERS, STAGE_PLATFORM,
   STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
@@ -212,7 +212,7 @@ import {
 } from "./plaza-life";
 import {
   EMPTY_MONUMENT_BOARD, MONUMENT_PLATE_H, MONUMENT_PLATE_W, drawMonumentBoardPlate,
-  monumentBoardSignature, type MonumentBoardData, type MonumentPlateCtx,
+  monumentBoardSignature, monumentPlateEmissiveIntensity, type MonumentBoardData, type MonumentPlateCtx,
 } from "./monument-board";
 import {
   ACTION_BY_ID,
@@ -1475,8 +1475,11 @@ export class KingsHallScene {
   private frontRowSlugs = new Set<string>();
   /** The monument faces' materials (item 16): every look build
    *  re-registers them, and setMonumentBoardData re-maps them
-   *  when the board's words change. */
-  private monumentFaceMats: THREE.MeshBasicMaterial[] = [];
+   *  when the board's words change. Stack-100 #2 monument finish:
+   *  the faces are LIT PBR (standard materials) whose emissive
+   *  map is the plate itself — after dark the board glows with
+   *  its own words instead of wearing an unlit decal. */
+  private monumentFaceMats: THREE.MeshStandardMaterial[] = [];
   /** The Heights roster plates' materials (Stack-100 #2 item 20):
    *  every look build re-registers them, and setHeightsRoster
    *  re-letters them when the room's live roster changes. */
@@ -2375,6 +2378,36 @@ export class KingsHallScene {
     plate.position.set(x, y, z);
     plate.rotation.y = rotY;
     group.add(plate);
+  }
+
+  /** A BACKED, two-faced plate (Stack-100 #2 gates round): the
+   *  district gates' name plates used to be one single-sided
+   *  plane — from the district side a walker saw through the
+   *  gate's name entirely. Now the plate is a thin gilt slab
+   *  (cast + receive shadow) wearing the lettering on BOTH faces,
+   *  each face reading correctly from its own side. */
+  private doorPlateBacked(
+    group: THREE.Group, text: string, x: number, y: number, z: number, rotY: number, width: number,
+    mats: LookMaterials,
+  ): void {
+    const h = (width * 224) / 1024;
+    const holder = new THREE.Group();
+    holder.position.set(x, y, z);
+    holder.rotation.y = rotY;
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(width + 0.06, h + 0.06, 0.045), mats.goldDark);
+    slab.castShadow = true;
+    slab.receiveShadow = true;
+    holder.add(slab);
+    for (const side of [1, -1] as const) {
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, h),
+        new THREE.MeshBasicMaterial({ map: doorPlateTexture(text), toneMapped: false }),
+      );
+      face.position.z = side * 0.026;
+      if (side < 0) face.rotation.y = Math.PI;
+      holder.add(face);
+    }
+    group.add(holder);
   }
 
   /* ── Water round 2 helpers (Stack-100 #2 items 5–7) ──────────
@@ -4057,28 +4090,51 @@ export class KingsHallScene {
       stele.position.y = M.stele.baseY + steleH / 2;
       stele.castShadow = shadows;
       monument.add(stele);
-      /* Relief banding: gold bands proud of the stele's front and
-       * back faces at the plan's heights — widths following the
-       * frustum's taper at those heights. */
+      /* Relief banding: gold bands proud of ALL FOUR faces of
+       * the stele at the plan's heights (Stack-100 #2 monument
+       * finish — the relief used to wrap only front and back, so
+       * the stele's flanks were bald) — widths following the
+       * frustum's taper at those heights, gold at per-metre
+       * repeats. */
       for (const bandY of M.reliefBandYs) {
         const t = (bandY - M.stele.baseY) / steleH;
         const wAt = M.stele.baseW + (M.stele.topW - M.stele.baseW) * t;
         const dAt = M.stele.baseD + (M.stele.topD - M.stele.baseD) * t;
         for (const sz of [-1, 1] as const) {
-          const band = new THREE.Mesh(new THREE.BoxGeometry(wAt + 0.1, 0.11, 0.05), mats.gold);
+          const band = new THREE.Mesh(new THREE.BoxGeometry(wAt + 0.1, 0.11, 0.05), mats.goldFor(wAt + 0.1, 0.11));
           band.position.set(0, bandY, sz * (dAt / 2 + 0.012));
           monument.add(band);
+          const flank = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.11, dAt + 0.1), mats.goldFor(dAt + 0.1, 0.11));
+          flank.position.set(sz * (wAt / 2 + 0.012), bandY, 0);
+          monument.add(flank);
         }
       }
-      /* The relief panel: a gold relief in a dark-gold frame on
-       * the stele's south face, below the plate drum. */
+      /* The relief panel: a gold relief in a dark-gold frame,
+       * below the plate drum — now on ALL FOUR faces (it lived
+       * on the south face alone), each face turned outward. The
+       * stele is a shallow slab (1.9 wide × 0.56 deep), so the
+       * flank panels take the flank's own width and stand on the
+       * flank's own surface — same relief, honestly sized. */
       {
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.045), mats.goldDark);
-        panel.position.set(0, 1.42, M.stele.baseD / 2 + 0.03);
-        monument.add(panel);
-        const relief = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.44, 0.03), mats.gold);
-        relief.position.set(0, 1.42, M.stele.baseD / 2 + 0.055);
-        monument.add(relief);
+        const t142 = (1.42 - M.stele.baseY) / steleH;
+        const wAt142 = M.stele.baseW + (M.stele.topW - M.stele.baseW) * t142;
+        const dAt142 = M.stele.baseD + (M.stele.topD - M.stele.baseD) * t142;
+        for (const [rotY, faceW, out] of [
+          [0, 0.92, M.stele.baseD / 2 + 0.03],
+          [Math.PI, 0.92, M.stele.baseD / 2 + 0.03],
+          [Math.PI / 2, Math.min(0.4, dAt142 - 0.1), wAt142 / 2 + 0.03],
+          [-Math.PI / 2, Math.min(0.4, dAt142 - 0.1), wAt142 / 2 + 0.03],
+        ] as Array<[number, number, number]>) {
+          const faceGroup = new THREE.Group();
+          faceGroup.rotation.y = rotY;
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(faceW, 0.62, 0.045), mats.goldDarkFor(faceW, 0.62));
+          panel.position.set(0, 1.42, out);
+          faceGroup.add(panel);
+          const relief = new THREE.Mesh(new THREE.BoxGeometry(faceW * 0.8, 0.44, 0.03), mats.goldFor(faceW * 0.8, 0.44));
+          relief.position.set(0, 1.42, out + 0.025);
+          faceGroup.add(relief);
+          monument.add(faceGroup);
+        }
       }
       /* The plate drum: a square housing around the stele at
        * reading height, so the plate has four equal faces to
@@ -4099,7 +4155,18 @@ export class KingsHallScene {
         [M.drum.faceOffset, 0, Math.PI / 2],
         [-M.drum.faceOffset, 0, -Math.PI / 2],
       ] as Array<[number, number, number]>) {
-        const faceMat = new THREE.MeshBasicMaterial({ map: plateTex, toneMapped: false });
+        /* Monument finish (Stack-100 #2): the plate face is LIT
+         * PBR now — a standard material that takes the plaza's
+         * light like gilt stone, with the plate itself as its
+         * emissive map so after dark the board glows with its own
+         * words (monument-board's per-theme intensity). */
+        const faceMat = new THREE.MeshStandardMaterial({
+          map: plateTex,
+          emissiveMap: plateTex,
+          emissive: 0xffffff,
+          emissiveIntensity: monumentPlateEmissiveIntensity(look.theme),
+          roughness: 0.38, metalness: 0.15, envMapIntensity: 0.8,
+        });
         const face = new THREE.Mesh(new THREE.PlaneGeometry(M.drum.faceW, M.drum.faceH), faceMat);
         face.position.set(fx, M.drum.centerY, fz);
         face.rotation.y = rotY;
@@ -4112,7 +4179,7 @@ export class KingsHallScene {
        * scale. */
       const crownCap = new THREE.Mesh(
         new THREE.CylinderGeometry(0.3, M.crown.capR, M.crown.capTopY - M.crown.capBaseY, 12),
-        mats.gold,
+        mats.goldFor(M.crown.capR * 2, M.crown.capTopY - M.crown.capBaseY),
       );
       crownCap.position.y = (M.crown.capBaseY + M.crown.capTopY) / 2;
       crownCap.castShadow = shadows;
@@ -4399,6 +4466,12 @@ export class KingsHallScene {
     const buildDistrictGate = (def: DistrictThreshold, index: number) => {
       const { name, x, z, axis, plateRotY } = def;
       const v = propVariation("gate", index);
+      const shadows = QUALITY[this.quality].shadows;
+      /* Gates round (Stack-100 #2): the gate's gold is ITS OWN —
+       *  the identity's cap variant at per-metre repeats — not
+       *  the shared kit's. */
+      const capMat = def.identity.capVariant === "dark" ? mats.goldDarkFor(0.46, 0.12) : mats.goldFor(0.46, 0.12);
+      const headerMat = def.identity.capVariant === "dark" ? mats.goldDarkFor(2.52, 0.12) : mats.goldFor(2.52, 0.12);
       for (const sd of [-1.1, 1.1]) {
         const px = axis === "x" ? x + sd : x;
         const pz = axis === "x" ? z : z + sd;
@@ -4407,18 +4480,90 @@ export class KingsHallScene {
         const post = new THREE.Mesh(gatePostGeo, postMat);
         post.position.set(px, 0.95 * v.scaleY, pz);
         post.scale.y = v.scaleY;
-        post.castShadow = QUALITY[this.quality].shadows;
+        post.castShadow = shadows;
+        post.receiveShadow = shadows;
         g.add(post);
-        const cap = new THREE.Mesh(gateCapGeo, v.variant === 2 ? mats.goldDark : mats.gold);
+        const cap = new THREE.Mesh(gateCapGeo, capMat);
         cap.position.set(px, 1.9 * v.scaleY + 0.06, pz);
+        cap.castShadow = shadows;
+        cap.receiveShadow = shadows;
         g.add(cap);
       }
       const header = new THREE.Mesh(
         axis === "x" ? new THREE.BoxGeometry(2.52, 0.12, 0.3) : new THREE.BoxGeometry(0.3, 0.12, 2.52),
-        mats.gold,
+        headerMat,
       );
       header.position.set(x, 1.8 * v.scaleY, z);
+      header.castShadow = shadows;
+      header.receiveShadow = shadows;
       g.add(header);
+      /* The OPEN LEAVES: an open gate used to be two posts and a
+       * header with nothing in the passage's history — now each
+       * gate wears its pair of leaves, swung open toward its own
+       * district (district-gates' gateLeafYaw), cloth in the
+       * district's accent with a gilt frame. Closed gates (none
+       * today) wear the bar instead, as before. */
+      if (def.open) {
+        const leafMat = new THREE.MeshStandardMaterial({
+          color: def.identity.accent, roughness: 0.82, metalness: 0.05, envMapIntensity: 0.4,
+        });
+        for (const sd of [-1.1, 1.1]) {
+          const extendingPlus = sd < 0; // the leaf reaches from its post toward the centre
+          const pivot = new THREE.Group();
+          pivot.position.set(axis === "x" ? x + sd : x, 0, axis === "x" ? z : z + sd);
+          pivot.rotation.y = gateLeafYaw(def, extendingPlus);
+          const leaf = new THREE.Mesh(
+            axis === "x" ? new THREE.BoxGeometry(1.02, 1.52, 0.05) : new THREE.BoxGeometry(0.05, 1.52, 1.02),
+            leafMat,
+          );
+          // The leaf hangs from the pivot at the post, reaching
+          // toward the gate's centre BEFORE the yaw swings it.
+          if (axis === "x") leaf.position.set(sd < 0 ? 0.53 : -0.53, 0.82, 0);
+          else leaf.position.set(0, 0.82, sd < 0 ? 0.53 : -0.53);
+          leaf.castShadow = shadows;
+          leaf.receiveShadow = shadows;
+          pivot.add(leaf);
+          const stile = new THREE.Mesh(
+            axis === "x" ? new THREE.BoxGeometry(1.06, 0.07, 0.07) : new THREE.BoxGeometry(0.07, 0.07, 1.06),
+            headerMat,
+          );
+          stile.position.copy(leaf.position);
+          stile.position.y = 1.56;
+          pivot.add(stile);
+          g.add(pivot);
+        }
+      }
+      /* The LANTERN MESH: every gate hangs a real lantern from
+       * its header — gilt cage, glass in the lamp-glass law,
+       * a cap — where before a glow sprite hung on nothing. The
+       * item-27 glow sprite now sits at the lantern's heart. */
+      {
+        const lantern = new THREE.Group();
+        const hy = 1.8 * v.scaleY;
+        lantern.position.set(x, hy, z);
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 6), mats.darkMetal);
+        stem.position.y = -0.08;
+        lantern.add(stem);
+        const cage = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.21, 0.17), headerMat);
+        cage.position.y = -0.27;
+        cage.castShadow = shadows;
+        lantern.add(cage);
+        const glassStyle = lampGlassStyle(look.theme);
+        const glass = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.15, 0.12),
+          new THREE.MeshStandardMaterial({
+            color: glassStyle.color, emissive: glassStyle.emissive,
+            emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+          }),
+        );
+        glass.position.y = -0.27;
+        lantern.add(glass);
+        const capTop = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.1, 4), headerMat);
+        capTop.position.y = -0.13;
+        capTop.rotation.y = Math.PI / 4;
+        lantern.add(capTop);
+        g.add(lantern);
+      }
       /* A CLOSED gate wears its gold bar; an OPEN gate (item 31:
        * the district beyond is built) wears none — the passage
        * between the posts is the visible truth, and its sub-plate
@@ -4433,13 +4578,17 @@ export class KingsHallScene {
       }
       /* The plate SEATS on the header: plate height at width 2.6
        * is 0.57, so its centre sits header-top + half-height —
-       * grounded, not floating at the old 2.33. */
-      this.doorPlate(g, name, x, 1.86 * v.scaleY + 0.285, z, plateRotY, 2.6);
-      this.doorPlate(g, def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3);
+       * grounded, not floating at the old 2.33. Gates round: the
+       * gate plates are BACKED and two-faced (doorPlateBacked) —
+       * the district reads its name on the way back too. */
+      this.doorPlateBacked(g, name, x, 1.86 * v.scaleY + 0.285, z, plateRotY, 2.6, mats);
+      this.doorPlateBacked(g, def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3, mats);
       if (look.candles) {
         const lx = axis === "x" ? x : x + (def.barDx ?? 0);
         const lz = axis === "x" ? z + (def.barDz ?? 0) : z;
-        this.addLanternGlow(g, anim, lx, 1.62, lz, 1.15, index * 1.7);
+        /* The glow now lives at the lantern mesh's heart (header
+         * height − its cage drop), not at a floating 1.62. */
+        this.addLanternGlow(g, anim, lx, 1.8 * v.scaleY - 0.27, lz, 1.15, index * 1.7);
       }
     };
     const buildDistrictMarker = (def: DistrictThreshold, index: number) => {
@@ -7442,6 +7591,7 @@ export class KingsHallScene {
     const tex = kingdomBoardPlateTexture(this.theme);
     for (const mat of this.monumentFaceMats) {
       mat.map = tex;
+      mat.emissiveMap = tex;
       mat.needsUpdate = true;
     }
   }

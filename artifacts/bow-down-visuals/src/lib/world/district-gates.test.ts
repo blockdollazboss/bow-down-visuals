@@ -15,7 +15,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { DISTRICT_GATE_GAPS, DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS } from "./district-gates";
+import { DISTRICT_GATE_GAPS, DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, gateLeafYaw } from "./district-gates";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const sceneSrc = read("./hall-scene.ts");
@@ -146,5 +146,62 @@ describe("district-gates", () => {
     expect(sceneSrc).not.toContain('districtGate("THE ATELIERS"');
     expect(sceneSrc).not.toContain('districtGate("LISTENING GARDENS"');
     expect(sceneSrc).not.toContain('districtGate("CREATOR HEIGHTS"');
+  });
+
+  it("gates round (Stack-100 #2): every gate carries its own identity — no two gates alike", () => {
+    const accents = new Set(DISTRICT_THRESHOLDS.map((d) => d.identity.accent));
+    const angles = new Set(DISTRICT_THRESHOLDS.map((d) => d.identity.leafAngleDeg));
+    expect(accents.size).toBe(DISTRICT_THRESHOLDS.length);
+    expect(angles.size).toBeGreaterThanOrEqual(5);
+    expect(new Set(DISTRICT_THRESHOLDS.map((d) => d.identity.capVariant)).size).toBe(2);
+    for (const d of DISTRICT_THRESHOLDS) {
+      expect(d.identity.leafAngleDeg).toBeGreaterThanOrEqual(50);
+      expect(d.identity.leafAngleDeg).toBeLessThanOrEqual(85);
+    }
+    /* districtDir agrees with the map: the Stage Grounds' district
+     * lies at −X of its gate; every east/south district at +normal. */
+    const sg = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
+    expect(sg.identity.districtDir).toBe(-1);
+    for (const d of DISTRICT_THRESHOLDS) {
+      if (d.name !== "STAGE GROUNDS") expect(d.identity.districtDir, d.name).toBe(1);
+    }
+  });
+
+  it("gateLeafYaw swings both leaves TOWARD the district, mirrored, never across the passage", () => {
+    for (const d of DISTRICT_THRESHOLDS) {
+      const plus = gateLeafYaw(d, true);
+      const minus = gateLeafYaw(d, false);
+      expect(minus).toBeCloseTo(-plus, 9);
+      expect(Math.abs(plus)).toBeCloseTo((d.identity.leafAngleDeg * Math.PI) / 180, 9);
+      /* A leaf swung past 90° would cross the passage line; the
+       * yaw is the identity's angle exactly, so it rests along
+       * the wall inside the district. */
+      expect(Math.abs(plus)).toBeLessThan(Math.PI / 2);
+    }
+    /* South-wall gate (Boardwalk, axis x, district +Z): the
+     * +x-extending leaf yaws negative (toward +Z). East-wall gate
+     * (Creation Row, axis z, district +X): its +z-extending leaf
+     * yaws positive (toward +X). */
+    const bw = DISTRICT_THRESHOLDS.find((d) => d.name === "THE BOARDWALK")!;
+    expect(gateLeafYaw(bw, true)).toBeLessThan(0);
+    const cr = DISTRICT_THRESHOLDS.find((d) => d.name === "CREATION ROW")!;
+    expect(gateLeafYaw(cr, true)).toBeGreaterThan(0);
+    const sg = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
+    expect(gateLeafYaw(sg, true)).toBeLessThan(0); // district at −X
+  });
+
+  it("the scene builds the identity: leaves, a lantern MESH, backed two-faced plates, full shadow flags", () => {
+    expect(sceneSrc).toContain("gateLeafYaw(def, extendingPlus)");
+    expect(sceneSrc).toContain("def.identity.accent");
+    expect(sceneSrc).toContain("def.identity.capVariant");
+    expect(sceneSrc).toContain("doorPlateBacked(g, name");
+    expect(sceneSrc).toContain("doorPlateBacked(g, def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE");
+    // The lantern is a mesh (cage + glass), not only a glow sprite.
+    const gateBuild = sceneSrc.slice(sceneSrc.indexOf("const buildDistrictGate"), sceneSrc.indexOf("const buildDistrictMarker"));
+    expect(gateBuild).toContain("const lantern = new THREE.Group()");
+    expect(gateBuild).toContain("glassStyle.emissive");
+    expect(gateBuild).toContain("cap.castShadow = shadows");
+    expect(gateBuild).toContain("header.castShadow = shadows");
+    expect(gateBuild).toContain("leaf.castShadow = shadows");
   });
 });
