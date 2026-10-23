@@ -123,13 +123,19 @@ export default function ReachWatchPanel({
     let cancelled = false;
     const poll = async () => {
       try {
-        const [out, inc] = await Promise.all([
+        /* Stack-28 #34 / A3-F16: the two raid halves settle
+           independently (allSettled) — one endpoint hiccupping must
+           not discard the other half's fresh state for this cycle
+           (e.g. a missed incoming-raid alert). */
+        const [outR, incR] = await Promise.allSettled([
           reachApi.raidOutgoing(getAccessToken, streamId),
           reachApi.raidIncoming(getAccessToken, streamId),
         ]);
         if (cancelled) return;
+        if (incR.status === "fulfilled") setIncoming(incR.value.raid);
+        if (outR.status !== "fulfilled") return;
+        const out = outR.value;
         setOutgoing(out.raid);
-        setIncoming(inc.raid);
         if (out.raid && !isOwner && carriedRef.current !== out.raid.id) {
           const startedAt = out.raid.createdAt ? new Date(out.raid.createdAt).getTime() : Date.now();
           const remaining = Math.max(0, Math.ceil((startedAt + out.raid.countdownSeconds * 1000 - Date.now()) / 1000));

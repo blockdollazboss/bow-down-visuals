@@ -55,6 +55,10 @@ export default function TeamPage() {
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [spending, setSpending] = useState<SpendRow[]>([]);
+  /* Stack-28 #34 / A3-F15: a failed spending fetch is NOT a team that
+     spent nothing — the section shows an error note + retry instead
+     of silently vanishing. */
+  const [spendingFailed, setSpendingFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -97,8 +101,10 @@ export default function TeamPage() {
           try {
             const spend = await api(`/api/teams/${mine.id}/spending`);
             setSpending(spend.spending ?? []);
+            setSpendingFailed(false);
           } catch {
             setSpending([]);
+            setSpendingFailed(true);
           }
         }
       } else {
@@ -460,7 +466,14 @@ export default function TeamPage() {
             </div>
           </Card>
 
-          {/* Spending */}
+          {/* Spending — a failed load shows its note in place of the section */}
+          {spendingFailed && spending.length === 0 && (activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
+            <Card className="p-5 bg-white/[0.03] border-white/10" data-testid="team-spending-error">
+              <h2 className="font-bold text-white mb-2">{t("team.poolSpendingTitle")}</h2>
+              <p className="text-sm text-red-300">Team spending couldn&apos;t load — it isn&apos;t hidden, it just didn&apos;t arrive.</p>
+              <button type="button" onClick={() => void load()} className="mt-3 rounded-full bg-primary px-5 py-2 text-xs font-bold text-black hover:brightness-110">Try again</button>
+            </Card>
+          )}
           {spending.length > 0 && (
             <Card className="p-5 bg-white/[0.03] border-white/10">
               <h2 className="font-bold text-white mb-3">{t("team.poolSpendingTitle")}</h2>

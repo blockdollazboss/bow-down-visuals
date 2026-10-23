@@ -331,3 +331,41 @@ describe("#33 silent-empty batch A — hashtag + party lobby (A3-F8/F12)", () =>
     expect(page).toContain("setRoomsFailed(false);");
   });
 });
+
+describe("#34 silent-empty batch B — ShortsMenu, TrophyShelf, team spending, ReachWatch (A3-F13–F16)", () => {
+  it("F13 ShortsMenu: per-tab failed flags replace silent catch-to-empty", () => {
+    const page = src("../pages/shorts.tsx");
+    expect(page).toContain("const [challengesFailed, setChallengesFailed] = useState(false);");
+    expect(page).toContain("const [soundsFailed, setSoundsFailed] = useState(false);");
+    expect(page).not.toContain('apiGet("/api/challenges/trending?limit=10").catch(() => ({ challenges: [] }))');
+    expect(page).toContain('data-testid="shorts-menu-challenges-error"');
+    expect(page).toContain('data-testid="shorts-menu-sounds-error"');
+    /* failure branch is gated before the genuine-empty copy */
+    expect(page.indexOf('data-testid="shorts-menu-challenges-error"')).toBeLessThan(page.indexOf("No challenges yet"));
+  });
+  it("F14 TrophyShelf: per-source failed flags; empty-because-failed renders error+retry, genuine empty still hides", () => {
+    const page = src("../components/artist/TrophyShelf.tsx");
+    expect(page).toContain("const [failed, setFailed] = useState({ achievements: false, wins: false, games: false });");
+    expect(page).toContain('data-testid="trophy-shelf-error"');
+    expect(page).toContain("if (failed.achievements || failed.wins || failed.games)");
+    expect(page).toContain("return null;\n  }");
+    /* game-stats: only 5xx/transport flags a failure (a 404 can be the legit opt-out hide) */
+    expect(page).toContain("if (res.status >= 500) setFailed((f) => ({ ...f, games: true }))");
+  });
+  it("F15 team spending: failure shows a section note + retry instead of the section vanishing", () => {
+    const page = src("../pages/team.tsx");
+    expect(page).toContain("const [spendingFailed, setSpendingFailed] = useState(false);");
+    expect(page).toContain("setSpendingFailed(true);");
+    expect(page).toContain('data-testid="team-spending-error"');
+    const errAt = page.indexOf('data-testid="team-spending-error"');
+    const sectionAt = page.indexOf("{spending.length > 0 && (", errAt);
+    expect(sectionAt).toBeGreaterThan(errAt);
+  });
+  it("F16 ReachWatch raid poll: halves settle independently via allSettled", () => {
+    const page = src("../components/reach/ReachWatchPanel.tsx");
+    expect(page).toContain("await Promise.allSettled([");
+    expect(page).not.toContain("const [out, inc] = await Promise.all([");
+    expect(page).toContain('if (incR.status === "fulfilled") setIncoming(incR.value.raid);');
+    expect(page).toContain('if (outR.status !== "fulfilled") return;');
+  });
+});

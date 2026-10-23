@@ -770,6 +770,10 @@ function ShortsMenu() {
   const [challenges, setChallenges] = useState<{ slug: string; title: string; hashtag: string; entry_count: number; prize_text: string; prize_pool_credits?: number; effective_status?: string }[]>([]);
   const [sounds, setSounds] = useState<{ id: string; title: string | null; use_count: number; is_earning: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
+  /* Stack-28 #34 / A3-F13: a failed trending fetch is NOT an empty
+     list — each tab carries its own failed flag. */
+  const [challengesFailed, setChallengesFailed] = useState(false);
+  const [soundsFailed, setSoundsFailed] = useState(false);
 
   useEffect(() => {
     if (!open || loading) return;
@@ -777,8 +781,8 @@ function ShortsMenu() {
     (async () => {
       try {
         const [c, s] = await Promise.all([
-          apiGet("/api/challenges/trending?limit=10").catch(() => ({ challenges: [] })),
-          apiGet("/api/sounds/trending?limit=10").catch(() => ({ sounds: [] })),
+          apiGet("/api/challenges/trending?limit=10").then((v) => { setChallengesFailed(false); return v; }).catch(() => { setChallengesFailed(true); return { challenges: [] }; }),
+          apiGet("/api/sounds/trending?limit=10").then((v) => { setSoundsFailed(false); return v; }).catch(() => { setSoundsFailed(true); return { sounds: [] }; }),
         ]);
         setChallenges(c.challenges ?? []);
         setSounds(s.sounds ?? []);
@@ -834,7 +838,7 @@ function ShortsMenu() {
                       )}
                     </div>
                   );
-                }) : <p className="py-8 text-center text-sm text-white/40">No challenges yet — start the first one and own the wave.</p>
+                }) : challengesFailed ? <p className="py-8 text-center text-sm text-red-300" data-testid="shorts-menu-challenges-error">Trending challenges couldn&apos;t load — close and reopen to retry.</p> : <p className="py-8 text-center text-sm text-white/40">No challenges yet — start the first one and own the wave.</p>
               )}
               {!loading && tab === "sounds" && (
                 sounds.length ? sounds.map((s) => (
@@ -847,7 +851,7 @@ function ShortsMenu() {
                         {s.is_earning && <span className="ml-1 font-bold text-primary">· 💰 earning</span>}</p>
                     </div>
                   </Link>
-                )) : <p className="py-8 text-center text-sm text-white/40">No sounds trending yet.</p>
+                )) : soundsFailed ? <p className="py-8 text-center text-sm text-red-300" data-testid="shorts-menu-sounds-error">Trending sounds couldn&apos;t load — close and reopen to retry.</p> : <p className="py-8 text-center text-sm text-white/40">No sounds trending yet.</p>
               )}
             </div>
             <div data-min-stars="3" className="mt-3 border-t border-white/10 pt-3">
