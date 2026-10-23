@@ -118,26 +118,50 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
 
   const panelCls = `rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`;
 
-  const loadAll = useCallback(async () => {
+  /* Per-source load errors (dashboard pattern): library and crates
+     settle independently — a crates failure must not hide the library
+     that loaded fine, and vice versa. Each column shows its own error
+     with its own retry; the page-level error line is reserved for
+     both sources failing together. */
+  const [libError, setLibError] = useState(false);
+  const [cratesError, setCratesError] = useState(false);
+
+  const loadLibrarySection = useCallback(async (): Promise<boolean> => {
     try {
       const headers = await authHeaders();
-      const [libRes, crateRes] = await Promise.all([
-        fetch("/api/dj/library", { headers }),
-        fetch("/api/dj/crates", { headers }),
-      ]);
+      const libRes = await fetch("/api/dj/library", { headers });
       const lib = (await libRes.json()) as { tracks?: DjLibraryTrack[]; error?: string };
-      const cr = (await crateRes.json()) as { crates?: DjCrate[]; error?: string };
       if (!libRes.ok) throw new Error(lib.error || t("djSets.errorLoad"));
-      if (!crateRes.ok) throw new Error(cr.error || t("djSets.errorLoad"));
       setTracks(lib.tracks ?? []);
-      setCrates(cr.crates ?? []);
-      setSelectedCrateId((prev) => prev ?? (cr.crates ?? [])[0]?.id ?? null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorLoad"));
-    } finally {
-      setLoading(false);
+      setLibError(false);
+      return true;
+    } catch {
+      setLibError(true);
+      return false;
     }
   }, [authHeaders, t]);
+
+  const loadCratesSection = useCallback(async (): Promise<boolean> => {
+    try {
+      const headers = await authHeaders();
+      const crateRes = await fetch("/api/dj/crates", { headers });
+      const cr = (await crateRes.json()) as { crates?: DjCrate[]; error?: string };
+      if (!crateRes.ok) throw new Error(cr.error || t("djSets.errorLoad"));
+      setCrates(cr.crates ?? []);
+      setSelectedCrateId((prev) => prev ?? (cr.crates ?? [])[0]?.id ?? null);
+      setCratesError(false);
+      return true;
+    } catch {
+      setCratesError(true);
+      return false;
+    }
+  }, [authHeaders, t]);
+
+  const loadAll = useCallback(async () => {
+    const [libOk, cratesOk] = await Promise.all([loadLibrarySection(), loadCratesSection()]);
+    if (!libOk && !cratesOk) setError(t("djSets.errorLoad"));
+    setLoading(false);
+  }, [loadLibrarySection, loadCratesSection, t]);
 
   useEffect(() => {
     void loadAll();
@@ -356,7 +380,14 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
               </Button>
             )}
           </div>
-          {tracks.length === 0 ? (
+          {libError ? (
+            <p className="text-sm text-red-400 py-8 text-center">
+              {t("djSets.errorLoad")}{" "}
+              <button type="button" onClick={() => void loadLibrarySection()} className="font-bold underline">
+                Try again
+              </button>
+            </p>
+          ) : tracks.length === 0 ? (
             <p className="text-sm text-white/40 py-8 text-center">{t("djSets.noTracks")}</p>
           ) : (
             <div className="space-y-2">
@@ -462,7 +493,14 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
             </div>
           )}
 
-          {!selectedCrate ? (
+          {cratesError ? (
+            <p className="text-sm text-red-400 py-8 text-center">
+              {t("djSets.errorLoad")}{" "}
+              <button type="button" onClick={() => void loadCratesSection()} className="font-bold underline">
+                Try again
+              </button>
+            </p>
+          ) : !selectedCrate ? (
             <p className="text-sm text-white/40 py-8 text-center">{t("djSets.noCrates")}</p>
           ) : (
             <div className={panelCls}>

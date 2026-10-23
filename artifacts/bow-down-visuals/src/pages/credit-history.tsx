@@ -71,37 +71,78 @@ export default function CreditHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  /* Per-source states (dashboard pattern): the payments ledger and the
+     usage ledger settle independently — one failing shows its own
+     section error while the other renders. The full-page error is
+     reserved for both ledgers failing together. */
+  const [paymentsError, setPaymentsError] = useState(false);
+  const [usageError, setUsageError] = useState(false);
+
+  async function authHeaders(): Promise<Record<string, string>> {
+    const token = await getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }
+
+  async function loadPayments(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/payments/history", { headers: await authHeaders() });
+      if (!res.ok) throw new Error("Failed to load purchase history");
+      const payData = (await res.json()) as { payments?: Payment[] };
+      setPayments(payData.payments ?? []);
+      setPaymentsError(false);
+      return true;
+    } catch {
+      setPaymentsError(true);
+      return false;
+    }
+  }
+
+  async function loadUsage(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/credits/history", { headers: await authHeaders() });
+      if (!res.ok) throw new Error("Failed to load Visual Buc history");
+      const histData = (await res.json()) as { usage?: Usage[] };
+      setUsage(histData.usage ?? []);
+      setUsageError(false);
+      return true;
+    } catch {
+      setUsageError(true);
+      return false;
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError(null);
-      try {
-        const token = await getAccessToken();
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-        const [payRes, histRes] = await Promise.all([
-          fetch("/api/payments/history", { headers }),
-          fetch("/api/credits/history", { headers }),
-        ]);
-        if (!payRes.ok) throw new Error("Failed to load purchase history");
-        if (!histRes.ok) throw new Error("Failed to load Visual Buc history");
-        const payData = (await payRes.json()) as { payments?: Payment[] };
-        const histData = (await histRes.json()) as { usage?: Usage[] };
-        if (!cancelled) {
-          setPayments(payData.payments ?? []);
-          setUsage(histData.usage ?? []);
-        }
-      } catch {
-        if (!cancelled) setError(t("credit-history.could_not_load_visual_buc_histor"));
-      } finally {
-        if (!cancelled) setLoading(false);
+      const [payOk, histOk] = await Promise.all([loadPayments(), loadUsage()]);
+      if (!cancelled) {
+        if (!payOk && !histOk) setError(t("credit-history.could_not_load_visual_buc_histor"));
+        setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getAccessToken, retryNonce]);
+
+  /* One ledger's failure card, rendered in that ledger's place. */
+  const sectionError = (retry: () => void) => (
+    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-red-400 text-sm">
+      {t("credit-history.could_not_load_visual_buc_histor")}
+      <div>
+        <button
+          onClick={retry}
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+        >
+          <RotateCcw className="h-4 w-4" /> Try again
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -158,7 +199,9 @@ export default function CreditHistory() {
           </div>
         )}
 
-        {!loading && payments && usage && (
+        {!loading && !payments && paymentsError && sectionError(() => { setError(null); void loadPayments(); })}
+
+        {!loading && payments && (
           <>
             {/* Section 2: Purchase History */}
             <section className="space-y-4">
@@ -222,6 +265,13 @@ export default function CreditHistory() {
               )}
             </section>
 
+          </>
+        )}
+
+        {!loading && !usage && usageError && sectionError(() => { setError(null); void loadUsage(); })}
+
+        {!loading && usage && (
+          <>
             {/* Section 3: Credit Activity (charges, refunds, grants) */}
             <section className="space-y-4">
               <div className="flex items-center gap-2">

@@ -102,42 +102,65 @@ export default function NfcCards() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [loadingMine, setLoadingMine] = useState(false);
   /* "My cards" load failures are NOT "no cards yet" — they get their
-     own error state with a retry, scoped to the mine list. mineLoadedRef
-     guards the gate: once the list has loaded successfully, a later
-     failed reload (e.g. the refresh after placing an order) must NOT
-     blank the cards already on screen into the error state. */
+     own error states with retries, one per list (dashboard pattern):
+     profiles and orders settle independently, so one failing list
+     shows its own error while the other renders. loadError remains
+     only for both lists failing before either ever loaded. The
+     per-list loaded refs guard the gates: once a list has loaded
+     successfully, a later failed reload (e.g. the refresh after
+     placing an order) must NOT blank what is already on screen. */
   const [loadError, setLoadError] = useState(false);
-  const mineLoadedRef = useRef(false);
+  const [profilesError, setProfilesError] = useState(false);
+  const [ordersError, setOrdersError] = useState(false);
+  const profilesLoadedRef = useRef(false);
+  const ordersLoadedRef = useRef(false);
   const [editing, setEditing] = useState<NfcProfile | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
   const style = nfcStyleByKey(styleKey)!;
   const total = style.priceCents * quantity;
 
+  const loadProfilesList = async (): Promise<boolean> => {
+    try {
+      const pRes = await confirmedFetch("/api/nfc-cards/my-profiles", { skipConfirm: true });
+      /* A fetch failing — rejected, non-OK, or an ok:false body — is
+         a load failure, not an empty list. */
+      if (!pRes) throw new Error("load failed");
+      const pj = await pRes.json();
+      if (!pRes.ok || !pj.ok) throw new Error("load failed");
+      setProfiles(pj.profiles ?? []);
+      profilesLoadedRef.current = true;
+      setProfilesError(false);
+      return true;
+    } catch {
+      if (!profilesLoadedRef.current) setProfilesError(true);
+      return false;
+    }
+  };
+
+  const loadOrdersList = async (): Promise<boolean> => {
+    try {
+      const oRes = await confirmedFetch("/api/nfc-cards/orders", { skipConfirm: true });
+      if (!oRes) throw new Error("load failed");
+      const oj = await oRes.json();
+      if (!oRes.ok || !oj.ok) throw new Error("load failed");
+      setOrders(oj.orders ?? []);
+      ordersLoadedRef.current = true;
+      setOrdersError(false);
+      return true;
+    } catch {
+      if (!ordersLoadedRef.current) setOrdersError(true);
+      return false;
+    }
+  };
+
   const loadMine = async () => {
     if (!user) return;
     setLoadingMine(true);
     setLoadError(false);
-    try {
-      const [pRes, oRes] = await Promise.all([
-        confirmedFetch("/api/nfc-cards/my-profiles", { skipConfirm: true }),
-        confirmedFetch("/api/nfc-cards/orders", { skipConfirm: true }),
-      ]);
-      /* Either fetch failing — rejected, non-OK, or an ok:false body —
-         is a load failure, not an empty list. Parse both before setting
-         either, so a partial failure never half-fills the list. */
-      if (!pRes || !oRes) throw new Error("load failed");
-      const pj = await pRes.json();
-      const oj = await oRes.json();
-      if (!pRes.ok || !pj.ok || !oRes.ok || !oj.ok) throw new Error("load failed");
-      setProfiles(pj.profiles ?? []);
-      setOrders(oj.orders ?? []);
-      mineLoadedRef.current = true;
-    } catch {
-      if (!mineLoadedRef.current) setLoadError(true);
-    } finally {
-      setLoadingMine(false);
-    }
+    const [pOk, oOk] = await Promise.all([loadProfilesList(), loadOrdersList()]);
+    if (!pOk && !oOk && !profilesLoadedRef.current && !ordersLoadedRef.current) setLoadError(true);
+    setLoadingMine(false);
   };
 
   useEffect(() => { loadMine(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
@@ -468,7 +491,22 @@ export default function NfcCards() {
                   <RotateCcw className="h-4 w-4" /> Try again
                 </button>
               </div>
-            ) : profiles.length === 0 && orders.length === 0 ? (
+            ) : profilesError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your cards.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — your cards are safe, this page just couldn't load them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadProfilesList()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
+            ) : !ordersError && profiles.length === 0 && orders.length === 0 ? (
               <p className={`${isLight ? "text-[#8A7A56]" : "text-zinc-500"}`}>{t("nfcCards.noCardsYet")}</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -503,7 +541,22 @@ export default function NfcCards() {
                 ))}
               </div>
             )}
-            {orders.length > 0 && (
+            {ordersError ? (
+              <div className={`mt-6 rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
+                <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your orders.</p>
+                <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  Something went wrong on our end — your orders are safe, this page just couldn't load them.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadOrdersList()}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+                >
+                  <RotateCcw className="h-4 w-4" /> Try again
+                </button>
+              </div>
+            ) : orders.length > 0 && (
               <div className="mt-6">
                 <h3 className={`${isLight ? "font-semibold mb-2 text-[#2A1E07]" : "font-semibold mb-2 text-zinc-300"}`}>{t("nfcCards.orderHistory")}</h3>
                 <div className="space-y-2">
