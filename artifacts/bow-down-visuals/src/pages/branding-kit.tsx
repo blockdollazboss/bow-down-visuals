@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
-import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera, Fingerprint } from "lucide-react";
+import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera, Fingerprint, Image } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BrandKitPanel } from "@/components/branding/BrandKitPanel";
@@ -12,6 +12,7 @@ import { StreamPackTool } from "@/pages/stream-pack";
 import BrandingShop from "@/pages/branding-shop";
 import JewelryStudio from "@/pages/jewelry";
 import { HeadshotStudio } from "@/components/photo/HeadshotStudio";
+import { WallpapersDesk } from "@/components/wallpapers/WallpapersDesk";
 
 /* ─── Branding Kit ──────────────────────────────────────────────────────────
    Hub page for the creator brand-identity tools: Logo Studio, Intro & Outro
@@ -20,7 +21,7 @@ import { HeadshotStudio } from "@/components/photo/HeadshotStudio";
 
 /* Tab labels translate inside the component (via t()); icons stay static.
    The blurbs are reference metadata and are not rendered on this page. */
-type TabKey = "brand" | "logo" | "intros" | "stream" | "headshots" | "shop" | "jewelry";
+type TabKey = "brand" | "logo" | "intros" | "stream" | "headshots" | "shop" | "jewelry" | "wallpapers";
 
 export default function BrandingKit() {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export default function BrandingKit() {
   const [tab, setTab] = useState<TabKey>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      return q === "logo" || q === "intros" || q === "stream" || q === "headshots" || q === "shop" || q === "jewelry" ? q : "brand";
+      return q === "logo" || q === "intros" || q === "stream" || q === "headshots" || q === "shop" || q === "jewelry" || q === "wallpapers" ? q : "brand";
     } catch { return "brand"; }
   });
 
@@ -41,6 +42,7 @@ export default function BrandingKit() {
     { key: "headshots", label: t("brandingKit.tabs.headshots.label", { defaultValue: "Headshots" }), Icon: Camera },
     { key: "shop", label: t("brandingKit.tabs.shop.label", { defaultValue: "Shop" }), Icon: Store },
     { key: "jewelry", label: t("brandingKit.tabs.jewelry.label", { defaultValue: "Jewelry" }), Icon: Gem },
+    { key: "wallpapers", label: t("brandingKit.tabs.wallpapers.label", { defaultValue: "Wallpapers & Themes" }), Icon: Image },
   ] as const;
 
   return (
@@ -124,6 +126,7 @@ export default function BrandingKit() {
         {tab === "headshots" && <HeadshotStudio key="headshots" />}
         {tab === "shop" && <BrandingShop key="shop" />}
         {tab === "jewelry" && <JewelryStudio key="jewelry" />}
+        {tab === "wallpapers" && <WallpapersDesk key="wallpapers" />}
       </div>
 
 
