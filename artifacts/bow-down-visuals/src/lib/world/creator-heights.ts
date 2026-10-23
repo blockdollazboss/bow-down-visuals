@@ -294,11 +294,15 @@ export const HEIGHTS_PLANTERS: readonly GroundsBox[] = [
   { cx: 26.6, cy: 0.275, cz: 17.6, w: 2.2, h: 0.55, d: 1.2 },
   /* Stack-100 #2 item 23: wall-bay planting parity — one dressed
    * bed per wall bay, matching the Boardwalk's trough standard.
-   * The east wall's two bays (between the corner bed and the
-   * south-east lamp) each gain a bed; the north bays are the
-   * residence fronts themselves and the south bays are the
-   * terraces, so the east run completes the circuit. */
-  { cx: 27.5, cy: 0.275, cz: 18.6, w: 0.9, h: 0.55, d: 1.6 },
+   * The east wall's southern bay (between the terraces and the
+   * south-east lamp) gains a bed; the north bays are the
+   * residence fronts themselves. The east wall's NORTHERN bay
+   * is the plaza's terrace mass itself (tiers at 0.62/0.95 stand
+   * there, climbable since the climbable-Y finish) — a floor-
+   * level bed placed on it in this item's first cut sat buried
+   * under the tiers and was removed in the coordinator's
+   * integration fix; the corner bed above already dresses that
+   * edge from the mass's foot. */
   { cx: 27.5, cy: 0.275, cz: 22.2, w: 0.9, h: 0.55, d: 1.6 },
 ];
 
@@ -309,8 +313,7 @@ export const HEIGHTS_PLANTERS: readonly GroundsBox[] = [
 export const HEIGHTS_PLANTER_CROWNS: ReadonlyArray<{ x: number; z: number }> = [
   ...[0, 1, 2, 3].map((i) => ({ x: 15.9, z: 19.15 + i * 1.1 })),
   ...[0, 1, 2].map((i) => ({ x: 25.9 + i * 0.7, z: 17.6 })),
-  /* The item-23 east-bay beds' crowns, running along Z. */
-  ...[0, 1, 2].map((i) => ({ x: 27.5, z: 18.1 + i * 0.5 })),
+  /* The item-23 east-bay bed's crowns, running along Z. */
   ...[0, 1, 2].map((i) => ({ x: 27.5, z: 21.7 + i * 0.5 })),
 ];
 

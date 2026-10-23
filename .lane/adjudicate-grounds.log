@@ -1,0 +1,53 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-world28/artifacts/bow-down-visuals[39m
+
+ [31m❯[39m src/lib/world/palace-grounds.test.ts [2m([22m[2m15 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 44[2mms[22m[39m
+   [32m✓[39m outdoor ground system (item 6) [2m(2)[22m
+     [32m✓[39m the paving plan covers exactly the courtyard's three floor rects[32m 3[2mms[22m[39m
+     [32m✓[39m every paving slab is exactly one whole texture tile, inside a floor rect[32m 5[2mms[22m[39m
+   [32m✓[39m lawns & planting (item 8) [2m(3)[22m
+     [32m✓[39m the lawn panels keep their shipped footprints exactly[32m 1[2mms[22m[39m
+     [32m✓[39m edging runs stay on the panel's own rim — no new collision anywhere[32m 1[2mms[22m[39m
+     [32m✓[39m the parterre planting stays inside the grass, ringed around the medallion[32m 2[2mms[22m[39m
+   [32m✓[39m monument scale & sculpture (item 17) [2m(3)[22m
+     [32m✓[39m the plate drum is EXACTLY item 16's — headlines render as today[32m 0[2mms[22m[39m
+     [32m✓[39m the monument outgrew the old build on every axis[32m 1[2mms[22m[39m
+     [32m✓[39m the blocked rect grew with the plinth — layout and grounds agree[32m 2[2mms[22m[39m
+   [31m❯[39m elevation (item 38) [2m(2)[22m
+     [32m✓[39m the hall steps flank the path — the 3.6 m marble run stays clear[32m 4[2mms[22m[39m
+[31m     [31m×[31m the terraces mass the grounds' edges, rising toward the walls, honestly blocked[39m[32m 11[2mms[22m[39m
+   [32m✓[39m backdrop ring (item 5) [2m(3)[22m
+     [32m✓[39m no backdrop solid touches walkable ground — it all stands beyond the walls[32m 2[2mms[22m[39m
+     [32m✓[39m everything sits inside the far plane from the plaza, and inside the dome from its heart[32m 9[2mms[22m[39m
+     [32m✓[39m the wings carry lit windows echoing the façade — lit at night, pale by day[32m 1[2mms[22m[39m
+   [32m✓[39m Plaza grounds — Stack-100 #2 finishing (items 46–47) [2m(2)[22m
+     [32m✓[39m item 46 verified: the lawns wear the shipped lawn texture at per-metre repeats — plaza, stage and gardens alike[32m 1[2mms[22m[39m
+     [32m✓[39m item 47: the plaza trough crowns are shaped planting clusters (cone + mounds), not single blobs[32m 0[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/palace-grounds.test.ts[2m > [22melevation (item 38)[2m > [22mthe terraces mass the grounds' edges, rising toward the walls, honestly blocked
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/lib/world/palace-grounds.test.ts:[2m272:41[22m[39m
+    [90m270|[39m         expect(groundHeightAt(s.cx, s.cz)).toBe(0);
+    [90m271|[39m       } else {
+    [90m272|[39m         expect(isStandable(s.cx, s.cz)).toBe(true);
+    [90m   |[39m                                         [31m^[39m
+    [90m273|[39m         expect(groundHeightAt(s.cx, s.cz)).toBeCloseTo(s.cy + s.h / 2,…
+    [90m274|[39m       }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m14 passed[39m[22m[90m (15)[39m
+[2m   Start at [22m 14:20:42
+[2m   Duration [22m 829ms[2m (transform 68%, import 22%, tests 8%, worker 1%)[22m
+

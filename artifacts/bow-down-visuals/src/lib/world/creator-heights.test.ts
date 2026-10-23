@@ -342,10 +342,18 @@ describe("Creator Heights — Stack-100 #2 finishing (items 20–26)", () => {
     expect(isWalkable(20.85, 21.8)).toBe(true); // the court's heart
   });
 
-  it("item 23: wall-bay planters complete the circuit — a bed on the east wall's bays too, crowns on beds", () => {
-    expect(HEIGHTS_PLANTERS.length).toBeGreaterThanOrEqual(4);
+  it("item 23: wall-bay planters complete the circuit — a bed on the east wall's southern bay too, crowns on beds", () => {
+    /* Corrected at integration (coordinator): the item's first
+     * cut added TWO east beds; the northern one stood at
+     * (27.5, 18.6) — on the plaza terrace mass (tiers 0.62/0.95),
+     * where a floor-level bed sits buried and its blocked rect
+     * fenced off climbable tiers. It was removed; the northern
+     * bay is dressed by the pre-existing corner bed at the
+     * mass's foot. What stands: west bed, corner bed, and the
+     * southern east-bay bed at (27.5, 22.2). */
+    expect(HEIGHTS_PLANTERS.length).toBe(3);
     const eastBeds = HEIGHTS_PLANTERS.filter((p) => p.cx > 27);
-    expect(eastBeds.length).toBeGreaterThanOrEqual(2);
+    expect(eastBeds.length).toBeGreaterThanOrEqual(1);
     for (const b of eastBeds) expect(isWalkable(b.cx, b.cz)).toBe(false);
   });
 
