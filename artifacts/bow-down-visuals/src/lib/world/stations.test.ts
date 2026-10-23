@@ -41,9 +41,10 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    /* 35 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
-     * item 32 (Gardens Slate) and Stack-100 #65 (Beat Marketplace). */
-    expect(PALACE_STATIONS.length).toBe(35);
+    /* 36 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
+     * item 32 (Gardens Slate), Stack-100 #65 (Beat Marketplace) and
+     * Stack-100 #74 (the Atelier's Jewelry Bench). */
+    expect(PALACE_STATIONS.length).toBe(36);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -66,7 +67,7 @@ describe("the station registry", () => {
       expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
       expect(s.panel.kind, s.id).not.toBe("page");
     }
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(20);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(21);
     /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
      * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
      * + the plaza monument's Kingdom Board (Open World Phase 1)
@@ -98,12 +99,13 @@ describe("the station registry", () => {
       "branding-kit-desk": "business",
       "branding-shop-desk": "shop",
       "press-kit-desk": "business",
+      "jewelry-bench": "business",
       marketplace: "shop",
       "community-hall": "social",
       "promote-room": "business",
       "get-paid-room": "board",
     };
-    expect(Object.keys(patterns).length).toBe(20);
+    expect(Object.keys(patterns).length).toBe(21);
     for (const [id, pattern] of Object.entries(patterns)) {
       expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern });
     }
@@ -138,6 +140,7 @@ describe("the station registry", () => {
       "branding-kit-desk": "/branding-kit",
       "branding-shop-desk": "/branding-kit?tab=shop",
       "press-kit-desk": "/press-kit",
+      "jewelry-bench": "/branding-kit?tab=jewelry",
       "kingdom-board-plaza": null,
       marketplace: "/storefronts",
       "community-hall": "/community",

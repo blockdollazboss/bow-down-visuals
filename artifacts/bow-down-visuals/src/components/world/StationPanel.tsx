@@ -40,6 +40,7 @@ import {
 import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
 import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
+import { JewelryBench } from "@/components/world/native/JewelryBench";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import {
   buildListeningPartyBody,
@@ -1761,6 +1762,8 @@ export default function StationPanel(props: StationPanelProps) {
               <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
               <PressKitDesk isLight={isLight} isGuest={isGuest} />
+            ) : resolution.pattern === "business" && station.id === "jewelry-bench" ? (
+              <JewelryBench isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "promote-room" ? (
               <PromoteDesk isLight={isLight} isGuest={isGuest} />
             ) : (
