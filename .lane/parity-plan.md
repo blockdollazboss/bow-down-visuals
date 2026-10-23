@@ -6,29 +6,55 @@ resolving INTO this worktree (readlink -f); lib/db + lib/api-zod dists built in-
 (.lane/build-db.log, .lane/build-zod.log, both exit 0).
 
 ## Per-item status
-- 68 Hook Desk Preview: INVESTIGATING — current HookDesk.tsx has NO Preview button at all
-  (modes hooks/captions/preflight/cta, results render in-panel). Audit D-H1 may be stale
-  (pre-native desk). Verify create-desks runner path before ruling.
-- 69 humAudioUrl: INVESTIGATING — identifier absent from current tree (grep 0 hits);
-  create-finishers.ts no longer exists. Find current hum tab in SongDeskTabs/audio lib.
-- 70 Live Desk count: INVESTIGATING — LiveDesk.tsx (1903 lines) to read.
-- 71 Scheduler receipt: INVESTIGATING — SchedulerDesk.tsx to read.
-- 72 AI-assist gate reason: INVESTIGATING — SchedulerDesk.tsx to read.
-- 73 Pricing badge: INVESTIGATING — search scheduler AI badge copy.
-- 74 Daily Drop music kinds: INVESTIGATING — current DailyDropKind set is only
-  {thumbnail,caption,video,hook} (daily-drop-catalog.ts DROP_KINDS); server DAILY_DROPS
-  slate must be checked for sample-pack/preset kinds.
-- 75 Atelier bench copy: INVESTIGATING — ateliers.ts/component roster copy.
-- 76 My-Studio navs: INVESTIGATING — no getStatus in lib/world (grep 0); find current navs.
-- 77 Tutorial overlay station-follow: INVESTIGATING — tutorial.ts is pure; overlay in world.tsx.
-- 78 JOIN_VOICE render side-effect: INVESTIGATING — no JOIN_VOICE identifier; find blocked
-  notice in world.tsx voice code.
-- 79 Stream key honesty: INVESTIGATING — LiveDesk / go-live desk key surface.
-- 80 Post Assist label: INVESTIGATING — PostAssist.tsx (145 lines) to read.
-- 97 Panel payload: DESIGN — panel swap is onOpenStation(stationId: string) only
-  (StationPanel props; world.tsx host). SchedulerPrefill pattern exists in
-  scheduler-desk.ts (typed + defensive) as the model. Daily Drop "Use" currently
-  passes NO payload (DailyDropCatalog.tsx onOpenStation(stationId)).
+- 97 DONE (commit 1): panel payload channel — new lib/world/panel-payload.ts (typed
+  PanelPayload: hook-template/caption-pack/thumbnail-template; template references only,
+  never money) + parsePanelPayloadFor defensive parse per receiving station. Threaded
+  world.tsx target → StationPanel → CreateDeskPanel → CreateDeskProps.panelPayload.
+  Consumers: Daily Drop Use sends dailyDropPanelPayload(entry) (drop key = template slug);
+  HookDesk applies via hookTemplatePrefill/captionPackPrefill in matching mode;
+  ThumbnailBenches via getThumbnailTemplate. Video drops honestly carry no payload
+  (editor seed is a project id). Pin correction (1): daily-drop-catalog.test USE pin —
+  station-only call shape → station+payload shape (behaviour changed by this item).
+- 71 DONE (commit 5fd46850): scheduler receipt — facet partly stale (a saved line existed
+  but named only the when, and only when the response parsed). schedulerSavedReceipt()
+  in scheduler-desk.ts now names title + when + channels from the server post, falling
+  back to the just-saved draft; draft receipt stays honest. 5 new tests + source pin.
+- 79 DONE (commit 59b63ebe): stream key honesty — IngestKeySection now labels an enabled
+  existing key "untested — proven the first time your encoder connects" (no handshake
+  test exists on the surface). Copy-only; no rail/price change.
+- 68 PINNED (stale): Hook Desk has NO Preview button and saves no draft in the shipped
+  tree; results render in-panel (world-hook-desk-result). Pin: parity-rewalk.test.ts.
+- 69 PINNED (stale): humAudioUrl / create-finishers.ts do not exist; SongHumBench declares
+  humRef state before all uses. Pin: parity-rewalk.test.ts.
+- 70 PINNED (stale): no local viewer-count increment anywhere in LiveDesk; all counts are
+  server DTO reads. Pin: live-desk.test.ts (in commit 59b63ebe).
+- 72 PINNED (stale): no AI toggle / feature-flag gate copy in the in-world scheduler.
+- 73 PINNED (stale): no "Write with AI ✓ included" badge anywhere; best-time price is the
+  named constant SCHEDULER_BEST_TIME_COST_VISUAL_BUCS=100 printed before the ask.
+  Pins (72+73): parity-rewalk.test.ts.
+- 74 PINNED (stale): server DAILY_DROPS slate kind union is exactly {caption, hook,
+  thumbnail, video} (read from api-server retention-drops.ts in the pin) — no
+  sample-pack/preset/wallpaper kinds exist to strand; all four kinds route to real
+  stations; unknown kinds fail the catalogue closed. Pins: parity-rewalk.test.ts.
+- 75 PINNED (stale): no "today's bench" copy, no rosterFor; Ateliers Slate = Kingdom Board.
+- 76 PINNED (stale): exactly one my-studio station, one StudioBoard render, zero
+  getStatus in lib/world. Pins: parity-rewalk.test.ts.
+- 77 PINNED (stale): no WorldTutorialOverlay; tutorialStatus refreshes on room change
+  ([status, roomId, refreshTutorial]) + panel close. Pin: parity-rewalk.test.ts.
+- 78 PINNED (stale): world.tsx's only setTimeout CALLS (2) sit inside TimerRef callbacks;
+  voiceNote renders as plain state set from socket callbacks; no JOIN_VOICE exists.
+  Pin: parity-rewalk.test.ts.
+- 80 PINNED (stale): PostAssist copy names the in-world composer ("Drafted into your
+  composer below"); Promote host hands the draft to the in-world SchedulerDeskSection.
+  Pin: parity-rewalk.test.ts.
+- 97 sub-claims PINNED (stale halves): D-97d — "Schedule it" already opens
+  SchedulerComposeStandalone inline with a typed SchedulerPrefill (no hardcoded editor
+  URL); D-97c-wallpaper — no wallpaper surface exists in the world. Pins:
+  parity-rewalk.test.ts.
+
+## Parked
+- None. No migrations needed; no price/charge changes; no new locale keys (all new copy
+  is English literals in components that already use English literals).
 
 ## Verification
-(pending — numbers only from finished .lane logs)
+(pending final runs — numbers only from finished .lane logs)
