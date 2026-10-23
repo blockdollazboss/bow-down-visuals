@@ -563,6 +563,14 @@ html, body {
 .light .text-\[\#fbbf24\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
 .light .text-\[\#e8c96a\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
 .light .text-\[\#e8c96a\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+/* Stack-28 (A4-D4): text-[#f0d878] was the one pale gold still outside
+   the tables — party.tsx's CategoryIntro icon + category title sit on
+   a bg-black/45 scrim that itself remaps to ivory at 0.52, so in light
+   the flash was pale straw on a milky wash (~1.4:1). It deepens to
+   the same antique gold as its covered siblings (#f7dd7f, #f5e08c…).
+   Only the plain text- class is ruled: the from-/fill- uses of the
+   hex are gold-gradient art with black ink, untouched. */
+.light .text-\[\#f0d878\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 /* Hover / group-hover forms of the same hexes: the §19 hover tables
    cover the named golds only, so a hovered chip would flash back to
    pale straw. They deepen a step past the base, like §19's hovers. */
@@ -865,6 +873,13 @@ html, body {
 .light .bg-\[\#0a0a0a\]\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
 .light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *),
 .light .bg-\[\#0d0d0f\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.94); }
+/* Stack-28 (A4-D5): the clip context menu's dark tone is
+   bg-[#0a0a0a]/[0.98] — a distinct class from the /90 and /95 rungs
+   above, so the menu stayed a near-black slab in light while its
+   rows (text-white/85 etc.) remapped to dark ink: dark-on-dark.
+   The bracket rung joins the family at full frosted-ivory strength;
+   the tone's dark rendering is untouched. */
+.light .bg-\[\#0a0a0a\]\/\[0\.98\]:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.98); }
 
 /* to-black gradients: fade to ivory instead */
 .light .to-black:not([data-dark-lock]):not([data-dark-lock] *) {
@@ -985,6 +1000,12 @@ html, body {
 .light .bg-\[\#161616\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 .light .bg-\[\#0d0d0d\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 .light .bg-\[\#0d0d0d\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(255 255 255 / 0.86); }
+/* Stack-28 (A4-D6): StreamAlertOverlay's toast is bg-[#14100a]/95 —
+   the solid #14100a is covered in the group above but the /95 variant
+   was not, so in light the alert stayed near-black while its
+   text-white title/body remapped to espresso (dark-on-dark). It
+   joins the /95 frosted-ivory family. */
+.light .bg-\[\#14100a\]\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(252 247 234 / 0.96); }
 
 /* Missing text-white opacity variants → readable warm grays */
 .light .text-white\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(28 23 18 / 0.88); }

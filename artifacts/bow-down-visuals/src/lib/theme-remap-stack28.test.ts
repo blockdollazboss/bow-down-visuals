@@ -168,3 +168,35 @@ describe("item 41 — homepage demo panels carry the solid .content-panel ground
     expect(css).toContain(`.light .content-panel${GUARDED} {`);
   });
 });
+
+describe("item 42 — outside-table surfaces batch (A4-D4/D5/D6)", () => {
+  it("party pale-gold text-[#f0d878] deepens to antique gold (D4)", () => {
+    expect(css).toContain(
+      `.light .text-\\[\\#f0d878\\]${GUARDED} { color: #8A6B1F; }`,
+    );
+    // Only the text- class is ruled — gradient/fill art uses stay authored.
+    expect(css).not.toContain(".light .from-\\[\\#f0d878\\]");
+    expect(css).not.toContain(".light .fill-\\[\\#f0d878\\]");
+  });
+
+  it("context-menu bg-[#0a0a0a]/[0.98] joins the frosted-ivory family (D5)", () => {
+    expect(css).toContain(
+      `.light .bg-\\[\\#0a0a0a\\]\\/\\[0\\.98\\]${GUARDED} { background-color: rgb(252 247 234 / 0.98); }`,
+    );
+    // The tone strings themselves are untouched (the dark tone is pinned
+    // by clip-context-menu-tone.test.ts) — this is a table fix only.
+    const tone = readFileSync(new URL("./context-menu-tone.ts", import.meta.url), "utf8");
+    expect(tone).toContain("bg-[#0a0a0a]/[0.98]");
+  });
+
+  it("StreamAlertOverlay bg-[#14100a]/95 joins the /95 ivory family (D6)", () => {
+    expect(css).toContain(
+      `.light .bg-\\[\\#14100a\\]\\/95${GUARDED} { background-color: rgb(252 247 234 / 0.96); }`,
+    );
+    const overlay = readFileSync(
+      new URL("../components/live/StreamAlertOverlay.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(overlay).toContain("bg-[#14100a]/95");
+  });
+});
