@@ -22,8 +22,8 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { rnnoiseUrls, RNNOISE_LOCAL_BASE } from "./voice-isolator";
-import { SEGMENTATION_LOCAL_BASE, SEGMENTATION_CDN_BASE } from "./background-changer";
+import { rnnoiseUrls, RNNOISE_LOCAL_BASE, RNNOISE_ORIGIN_BASE } from "./voice-isolator";
+import { SEGMENTATION_LOCAL_BASE, SEGMENTATION_ORIGIN_BASE, SEGMENTATION_CDN_BASE } from "./background-changer";
 
 /* ---------------------------------------------------------------- fakes */
 
@@ -231,18 +231,26 @@ describe("segmentation engine loading", () => {
     await changer.stop();
   });
 
-  it("falls back to the CDN build when the local copy fails", async () => {
+  it("falls back R2 → shipped same-origin copy → CDN build, in that order (S27-18)", async () => {
     const BackgroundChanger = await loadChanger();
     const changer = new BackgroundChanger({ mode: "green", quality: "standard" });
     const started = changer.start();
     await flush();
     expect(scripts[0].src).toContain(SEGMENTATION_LOCAL_BASE);
+    /* The origin step is the TRUE same-origin base off BASE_URL. */
+    expect(SEGMENTATION_ORIGIN_BASE).toBe(
+      `${import.meta.env.BASE_URL}engines/selfie-segmentation`,
+    );
     scripts[0].onerror?.();
     await flush();
     expect(scripts).toHaveLength(2);
-    expect(scripts[1].src).toBe(`${SEGMENTATION_CDN_BASE}/selfie_segmentation.js`);
+    expect(scripts[1].src).toBe(`${SEGMENTATION_ORIGIN_BASE}/selfie_segmentation.js`);
+    scripts[1].onerror?.();
+    await flush();
+    expect(scripts).toHaveLength(3);
+    expect(scripts[2].src).toBe(`${SEGMENTATION_CDN_BASE}/selfie_segmentation.js`);
     win.SelfieSegmentation = FakeSegmenter;
-    scripts[1].onload?.();
+    scripts[2].onload?.();
     await started;
     await flush();
     expect(changer.segmentationAvailable).toBe(true);
@@ -261,7 +269,11 @@ describe("segmentation engine loading", () => {
     scripts[0].onerror?.();
     await flush();
     expect(scripts).toHaveLength(2);
+    expect(scripts[1].src).toBe(`${SEGMENTATION_ORIGIN_BASE}/selfie_segmentation.js`);
     scripts[1].onerror?.();
+    await flush();
+    expect(scripts).toHaveLength(3);
+    scripts[2].onerror?.();
     const { stream } = await started; // resolves — does not throw
     await flush(); // the engine failure settles in the background
     expect(stream).toBeTruthy();
@@ -499,6 +511,24 @@ describe("rnnoise asset urls", () => {
     expect(urls.wasm).toBe(`${RNNOISE_LOCAL_BASE}/rnnoise.wasm`);
     expect(urls.wasmSimd).toBe(`${RNNOISE_LOCAL_BASE}/rnnoise_simd.wasm`);
     expect(urls.worklet).toBe(`${RNNOISE_LOCAL_BASE}/rnnoise/workletProcessor.js`);
+  });
+
+  it("the fallback chain's middle base is the shipped same-origin copy (S27-18)", () => {
+    /* RNNOISE_BASES itself is module-private; its order (R2 → origin →
+       CDN) is exercised end-to-end by the VoiceIsolator load loop.
+       Pin the origin base's identity here: the TRUE origin base off
+       BASE_URL, composing the same asset file names as the R2 base. */
+    expect(RNNOISE_ORIGIN_BASE).toBe(`${import.meta.env.BASE_URL}engines/rnnoise`);
+    expect(RNNOISE_ORIGIN_BASE.startsWith("http")).toBe(false);
+    const originUrls = rnnoiseUrls(RNNOISE_ORIGIN_BASE);
+    expect(originUrls.index).toBe(`${RNNOISE_ORIGIN_BASE}/index.js`);
+    expect(originUrls.wasm).toBe(`${RNNOISE_ORIGIN_BASE}/rnnoise.wasm`);
+    expect(originUrls.worklet).toBe(`${RNNOISE_ORIGIN_BASE}/rnnoise/workletProcessor.js`);
+    /* And the source's load chain names it between local and CDN. */
+    const src = readFileSync(new URL("./voice-isolator.ts", import.meta.url), "utf8");
+    expect(src).toContain(
+      "const RNNOISE_BASES = [RNNOISE_LOCAL_BASE, RNNOISE_ORIGIN_BASE, RNNOISE_CDN_BASE] as const;",
+    );
   });
 });
 
