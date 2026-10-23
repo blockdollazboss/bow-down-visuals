@@ -20,7 +20,13 @@
  * Naming law: no provider names anywhere in copy; the logo maker's
  * tiers keep the pages' own words (Premium / Standard).
  */
-import { slugifyHandle } from "@/lib/press-kit";
+import {
+  slugifyHandle,
+  isValidHandle,
+  resolvePressKitLayout,
+  type PressKitLayoutEntry,
+} from "@/lib/press-kit";
+import { BRAND_KIT_COLOR_ROLES, type BrandKit, type BrandKitColor, type BrandKitFont } from "@/lib/brand-kit";
 import { primaryActionFor, creatorStateSummary, type CoachCreatorState } from "@/lib/coach-next-action";
 
 /* ─── Costs (Visual Bucs, x100 — quoted up front, never invented) ────
@@ -364,6 +370,98 @@ export function streamPackThemeLabel(themeId: string | null): string | null {
   return STREAM_PACK_THEMES.find((t) => t.key === themeId)?.label ?? null;
 }
 
+/* ─── Branding Kit Desk: manual field editing (Stack-100 #72) ──────
+   The kit used to be generated/applied in-world but its fields could
+   only be hand-edited on the website. This is the BrandKitPanel's own
+   editor on the panel's own rail: PUT /api/brand-kit via the shared
+   lib/brand-kit saveBrandKit seam (FREE). The panel's rules ride
+   along: every color needs a #RRGGBB hex and a name, roles are
+   unique (picking a taken role swaps, exactly like the panel), font
+   pairings need a heading and a body font, and the palette/fonts
+   only ride the save when a kit exists and the lists are non-empty —
+   the panel's exact payload rule. */
+
+export interface BrandKitEditDraft {
+  brandName: string;
+  logoUrl: string;
+  selectedTagline: string | null;
+  bioLines: string[];
+  pressFacts: string[];
+  colors: BrandKitColor[];
+  fonts: BrandKitFont[];
+}
+
+export function brandKitDraftFromKit(kit: BrandKit): BrandKitEditDraft {
+  return {
+    brandName: kit.brandName,
+    logoUrl: kit.logoUrl ?? "",
+    selectedTagline: kit.selectedTagline,
+    bioLines: [...kit.bioLines],
+    pressFacts: [...kit.pressFacts],
+    colors: kit.colors.map((c) => ({ ...c })),
+    fonts: kit.fonts.map((f) => ({ ...f })),
+  };
+}
+
+export const BRAND_KIT_HEX_RE = /^#[0-9a-fA-F]{6}$/;
+export const BRAND_KIT_MAX_BIO_LINES = 8;
+export const BRAND_KIT_MAX_PRESS_FACTS = 16;
+export const BRAND_KIT_MAX_FONT_PAIRINGS = 3;
+
+/** The panel's refusal, in its own words, or null when the draft can
+ *  save. Only checked when a kit exists — the panel skips the check
+ *  pre-kit because the palette/fonts don't ride that save. */
+export function validateBrandKitDraft(draft: BrandKitEditDraft, hasKit: boolean): string | null {
+  if (!hasKit) return null;
+  const badColor = draft.colors.some((c) => !BRAND_KIT_HEX_RE.test(c.hex.trim()) || !c.name.trim());
+  const badFont = draft.fonts.some((f) => !f.heading.trim() || !f.body.trim());
+  if (badColor || badFont) {
+    return "Check your colors and fonts — every color needs a #RRGGBB hex and a name, and every font pairing needs a heading and a body font.";
+  }
+  const roles = draft.colors.map((c) => c.role);
+  if (new Set(roles).size !== roles.length) return "Each color needs its own role — two colors can't hold the same one.";
+  return null;
+}
+
+/** PUT /api/brand-kit — the panel's handleSave payload, exactly:
+ *  lines trimmed with blanks dropped, colors/fonts riding only when
+ *  a kit exists and the list is non-empty. */
+export function buildBrandKitSavePayload(draft: BrandKitEditDraft, hasKit: boolean): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    brandName: draft.brandName.trim() || undefined,
+    logoUrl: draft.logoUrl.trim() || null,
+    selectedTagline: draft.selectedTagline,
+    bioLines: draft.bioLines.map((l) => l.trim()).filter(Boolean),
+    pressFacts: draft.pressFacts.map((l) => l.trim()).filter(Boolean),
+  };
+  if (hasKit && draft.colors.length > 0) {
+    payload["colors"] = draft.colors.map((c) => ({ hex: c.hex.trim(), name: c.name.trim(), role: c.role }));
+  }
+  if (hasKit && draft.fonts.length > 0) {
+    payload["fonts"] = draft.fonts.map((f) => ({ heading: f.heading.trim(), body: f.body.trim(), usage: f.usage.trim() }));
+  }
+  return payload;
+}
+
+/** The panel's role pick: roles are unique, so taking a role another
+ *  color holds swaps the two (the other color takes this one's old
+ *  role). Returns a new list. */
+export function setBrandKitColorRole(colors: BrandKitColor[], index: number, role: string): BrandKitColor[] {
+  return colors.map((c, j) => {
+    if (j === index) return { ...c, role };
+    if (c.role === role) return { ...c, role: colors[index]!.role };
+    return c;
+  });
+}
+
+/** The panel's add-color pick: the first role no color holds yet, or
+ *  null when the palette already covers every role. */
+export function nextBrandKitColor(colors: BrandKitColor[]): BrandKitColor | null {
+  const unused = BRAND_KIT_COLOR_ROLES.find((r) => !colors.some((c) => c.role === r));
+  if (!unused) return null;
+  return { hex: "#C9A84C", name: "New color", role: unused };
+}
+
 /* ─── Press Kit Desk ─────────────────────────────────────────────────
    Wire shape is the page's PressKit (snake_case, routes/generate/
    press-kit presentKit): GET /api/press-kit/mine → { kits: [...] }. */
@@ -377,10 +475,16 @@ export interface PressKitSummary {
   genre: string | null;
   location: string | null;
   booking_email: string | null;
+  website: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  youtube_url: string | null;
+  spotify_url: string | null;
   achievements: string[];
   press_quotes: Array<{ quote: string; source: string }>;
   photo_urls: string[];
   top_tracks: Array<{ title: string; url: string }>;
+  layout: PressKitLayoutEntry[];
   is_public: boolean;
 }
 
@@ -404,6 +508,11 @@ export function parsePressKits(data: unknown): PressKitSummary[] {
       genre: str(k["genre"]),
       location: str(k["location"]),
       booking_email: str(k["booking_email"]),
+      website: str(k["website"]),
+      instagram_url: str(k["instagram_url"]),
+      tiktok_url: str(k["tiktok_url"]),
+      youtube_url: str(k["youtube_url"]),
+      spotify_url: str(k["spotify_url"]),
       achievements: strings(k["achievements"]),
       press_quotes: Array.isArray(k["press_quotes"])
         ? (k["press_quotes"] as unknown[])
@@ -418,6 +527,7 @@ export function parsePressKits(data: unknown): PressKitSummary[] {
             .filter((t) => str(t["title"]))
             .map((t) => ({ title: str(t["title"])!, url: str(t["url"]) ?? "" }))
         : [],
+      layout: resolvePressKitLayout(k["layout"]),
       is_public: k["is_public"] === true,
     });
   }
@@ -469,6 +579,148 @@ export function buildPressKitGeneratePayload(input: {
 /** POST /api/press-kit/:id/regenerate-bio — the page's payload. */
 export function buildRegenerateBioPayload(kit: PressKitSummary, tone: string): Record<string, unknown> {
   return { achievements: kit.achievements, tone };
+}
+
+/* ─── Press Kit Desk: FULL editing (Stack-100 #71) ───────────────────
+   The whole editor the 2D Press Kit page runs, on the page's own
+   rails: PUT /api/press-kit/:id saves every field FREE (handle,
+   socials, achievements, quotes, photos, top tracks, bio, public
+   toggle, public-page layout), DELETE /api/press-kit/:id removes the
+   kit, and the page's PDF export is window.print() of the public kit
+   — in-world the desk opens the same public page (/press/:handle)
+   the print view is made from. Validation mirrors the route's zod
+   schema (updatePressKitSchema) so a refusal is spoken at the desk,
+   in words, before a doomed save is sent. */
+
+export interface PressKitDraft {
+  handle: string;
+  artist_name: string;
+  tagline: string;
+  bio: string;
+  genre: string;
+  location: string;
+  booking_email: string;
+  website: string;
+  instagram_url: string;
+  tiktok_url: string;
+  youtube_url: string;
+  spotify_url: string;
+  achievements: string[];
+  press_quotes: Array<{ quote: string; source: string }>;
+  photo_urls: string[];
+  top_tracks: Array<{ title: string; url: string }>;
+  layout: PressKitLayoutEntry[];
+  is_public: boolean;
+}
+
+export function pressKitDraftFromKit(kit: PressKitSummary): PressKitDraft {
+  return {
+    handle: kit.handle,
+    artist_name: kit.artist_name,
+    tagline: kit.tagline ?? "",
+    bio: kit.bio ?? "",
+    genre: kit.genre ?? "",
+    location: kit.location ?? "",
+    booking_email: kit.booking_email ?? "",
+    website: kit.website ?? "",
+    instagram_url: kit.instagram_url ?? "",
+    tiktok_url: kit.tiktok_url ?? "",
+    youtube_url: kit.youtube_url ?? "",
+    spotify_url: kit.spotify_url ?? "",
+    achievements: kit.achievements.length > 0 ? [...kit.achievements] : [""],
+    press_quotes: kit.press_quotes.map((q) => ({ ...q })),
+    photo_urls: [...kit.photo_urls],
+    top_tracks: kit.top_tracks.map((t) => ({ ...t })),
+    layout: kit.layout.map((e) => ({ ...e })),
+    is_public: kit.is_public,
+  };
+}
+
+function isHttpUrl(v: string): boolean {
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** The desk's refusal, in words, or null when the draft can save.
+ *  Mirrors updatePressKitSchema: a valid handle, a name, a real
+ *  booking email or none, real URLs or none, and the schema's caps. */
+export function validatePressKitDraft(draft: PressKitDraft): string | null {
+  if (!isValidHandle(slugifyHandle(draft.handle))) {
+    return "The press address needs 3–30 lowercase letters, numbers and hyphens — e.g. king-shark.";
+  }
+  if (!draft.artist_name.trim()) return "Give the kit your artist name first.";
+  if (draft.booking_email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.booking_email.trim())) {
+    return "The booking email doesn't look like an email address — fix it or clear it.";
+  }
+  const urlFields: Array<[string, string]> = [
+    ["Website", draft.website],
+    ["Instagram", draft.instagram_url],
+    ["TikTok", draft.tiktok_url],
+    ["YouTube", draft.youtube_url],
+    ["Spotify", draft.spotify_url],
+  ];
+  for (const [label, v] of urlFields) {
+    if (v.trim() && !isHttpUrl(v.trim())) return `Your ${label} link needs to be a full http(s) address.`;
+  }
+  const achievements = draft.achievements.map((a) => a.trim()).filter(Boolean);
+  if (achievements.length > 20) return "A kit holds at most 20 achievements.";
+  if (achievements.some((a) => a.length > 200)) return "Each achievement needs to stay under 200 characters.";
+  const quotes = draft.press_quotes.filter((q) => q.quote.trim() || q.source.trim());
+  if (quotes.length > 10) return "A kit holds at most 10 press quotes.";
+  for (const q of quotes) {
+    if (!q.quote.trim() || !q.source.trim()) return "Every press quote needs both the words and who said them — or remove the row.";
+  }
+  const photos = draft.photo_urls.map((p) => p.trim()).filter(Boolean);
+  if (photos.length > 12) return "A kit holds at most 12 photos.";
+  for (const p of photos) {
+    if (!isHttpUrl(p)) return "Every photo needs to be a full http(s) image address.";
+  }
+  const tracks = draft.top_tracks.filter((t) => t.title.trim() || t.url.trim());
+  if (tracks.length > 10) return "A kit holds at most 10 top tracks.";
+  for (const t of tracks) {
+    if (!t.title.trim()) return "Every top track needs a title — or remove the row.";
+    if (!isHttpUrl(t.url.trim())) return `“${t.title.trim()}” needs a full http(s) listen link.`;
+  }
+  if (draft.bio.length > 5000) return "The bio needs to stay under 5,000 characters.";
+  return null;
+}
+
+/** PUT /api/press-kit/:id — the page's handleSave body, byte for byte
+ *  in shape: the handle slugified, text trimmed, blank rows dropped
+ *  exactly the way the page drops them (quotes need words AND a
+ *  source, tracks a title AND a link). Free. */
+export function buildPressKitSavePayload(draft: PressKitDraft): Record<string, unknown> {
+  const cleanList = (l: string[]) => l.map((s) => s.trim()).filter(Boolean);
+  return {
+    handle: slugifyHandle(draft.handle),
+    artist_name: draft.artist_name.trim(),
+    tagline: draft.tagline.trim(),
+    genre: draft.genre.trim(),
+    location: draft.location.trim(),
+    booking_email: draft.booking_email.trim(),
+    website: draft.website.trim(),
+    instagram_url: draft.instagram_url.trim(),
+    tiktok_url: draft.tiktok_url.trim(),
+    youtube_url: draft.youtube_url.trim(),
+    spotify_url: draft.spotify_url.trim(),
+    bio: draft.bio.trim(),
+    is_public: draft.is_public,
+    layout: draft.layout.map((e) => ({ key: e.key, visible: e.visible })),
+    achievements: cleanList(draft.achievements),
+    press_quotes: draft.press_quotes.filter((q) => q.quote.trim() && q.source.trim()),
+    photo_urls: cleanList(draft.photo_urls),
+    top_tracks: draft.top_tracks.filter((t) => t.title.trim() && t.url.trim()),
+  };
+}
+
+/** The public page a kit stands on — also the page the 2D editor's
+ *  PDF/print export is made from. */
+export function pressKitPublicPath(kit: Pick<PressKitSummary, "handle">): string {
+  return `/press/${kit.handle}`;
 }
 
 /* ─── Promote Desk: link-in-bio ──────────────────────────────────────
@@ -971,28 +1223,193 @@ export function upcomingPosts(posts: UpcomingPost[], limit = 3): UpcomingPost[] 
     .slice(0, Math.max(0, limit));
 }
 
-/* ─── Folded row: Coach ──────────────────────────────────────────────
-   POST /api/monetization-coach — the coach page's payload with the
-   page's own defaults (niche Music, YouTube + TikTok, 3 posts a
-   week, no follower counts typed in-world in v1). The plan costs
-   100 Visual Bucs, shown before the ask. What the row reads back
-   is the plan's ONE next action (lib/coach-next-action) plus its
-   first money move — readable where you stand; the full plan is
-   the bench (a follow-on). */
+/* ─── Folded row: Coach (Stack-100 #75 — REAL inputs) ────────────────
+   POST /api/monetization-coach — the plan used to be computed from
+   hardcoded defaults (Music / YouTube+TikTok / 0 followers / 3 a
+   week) no matter who asked. Now the desk carries the creator's OWN
+   inputs, exactly the 2D /coach form's fields: their niche (the
+   page's list, or their own words), their platforms, their follower
+   counts, their posting cadence — plus the moneySnapshot the page
+   grounds the plan in, computed here from the creator's REAL Money
+   Tracker entries (GET /api/money, the tracker panel's own rail and
+   its own snapshot math) instead of pure estimates. The server adds
+   the creator's catalog state itself (creatorState), so the plan is
+   computed from truth end to end. The plan costs 100 Visual Bucs,
+   shown before the ask, confirmed like the page's ask. */
 
-export function buildCoachPayload(): Record<string, unknown> {
+export const COACH_NICHES = [
+  "Music",
+  "Gaming",
+  "Comedy",
+  "Fitness",
+  "Beauty & Fashion",
+  "Tech",
+  "Education",
+  "Lifestyle",
+] as const;
+
+export const COACH_PLATFORMS = [
+  { key: "youtube", label: "YouTube" },
+  { key: "tiktok", label: "TikTok" },
+  { key: "instagram", label: "Instagram" },
+] as const;
+export type CoachPlatformKey = (typeof COACH_PLATFORMS)[number]["key"];
+
+export interface CoachInputs {
+  niche: string;
+  customNiche: string;
+  platforms: CoachPlatformKey[];
+  followers: Record<CoachPlatformKey, string>;
+  cadence: string;
+}
+
+/** The page's own opening state — Music, YouTube + TikTok, no counts
+ *  typed yet, 3 posts a week. From here the creator's real answers
+ *  take over; nothing is sent that they didn't stand behind. */
+export function defaultCoachInputs(): CoachInputs {
   return {
     niche: "Music",
+    customNiche: "",
     platforms: ["youtube", "tiktok"],
-    followers: { youtube: 0, tiktok: 0, instagram: 0 },
-    cadence: 3,
+    followers: { youtube: "", tiktok: "", instagram: "" },
+    cadence: "3",
   };
+}
+
+/** The niche the ask carries: the creator's own words win over the
+ *  picked one (the page's rule), capped at the schema's 120. */
+export function coachFinalNiche(inputs: CoachInputs): string {
+  return (inputs.customNiche.trim() || inputs.niche).slice(0, 120);
+}
+
+/** The page's refusals, in words, or null when the ask can run. */
+export function validateCoachInputs(inputs: CoachInputs): string | null {
+  if (!coachFinalNiche(inputs)) return "Tell the coach your niche first.";
+  if (inputs.platforms.length === 0) return "Pick at least one platform — the coach plans per platform.";
+  return null;
+}
+
+export interface CoachMoneySnapshot {
+  monthIncomeCents: number;
+  monthExpenseCents: number;
+  monthNetCents: number;
+  allTimeIncomeCents: number;
+  allTimeExpenseCents: number;
+  allTimeNetCents: number;
+  topIncomeCategory: string | null;
+  topExpenseCategory: string | null;
+  monthLabel: string;
+}
+
+export interface MoneyEntryLike {
+  entry_type: string;
+  category: string;
+  amount_cents: number;
+  entry_date: string;
+}
+
+/** The Money Tracker panel's snapshot math, verbatim: this month's
+ *  income/expense (entries whose date starts with the current
+ *  YYYY-MM), all-time totals, and this month's top categories. Null
+ *  when the creator tracks no money yet — the page sends null then
+ *  too (readMoneySnapshot before the tracker ever loads). */
+export function buildMoneySnapshot(entries: MoneyEntryLike[], now: Date): CoachMoneySnapshot | null {
+  if (entries.length === 0) return null;
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  let mi = 0, me = 0, ai = 0, ae = 0;
+  const incByCat = new Map<string, number>();
+  const expByCat = new Map<string, number>();
+  for (const e of entries) {
+    const inMonth = typeof e.entry_date === "string" && e.entry_date.startsWith(monthKey);
+    if (e.entry_type === "income") {
+      ai += e.amount_cents;
+      if (inMonth) {
+        mi += e.amount_cents;
+        incByCat.set(e.category, (incByCat.get(e.category) ?? 0) + e.amount_cents);
+      }
+    } else {
+      ae += e.amount_cents;
+      if (inMonth) {
+        me += e.amount_cents;
+        expByCat.set(e.category, (expByCat.get(e.category) ?? 0) + e.amount_cents);
+      }
+    }
+  }
+  const topOf = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  return {
+    monthIncomeCents: mi,
+    monthExpenseCents: me,
+    monthNetCents: mi - me,
+    allTimeIncomeCents: ai,
+    allTimeExpenseCents: ae,
+    allTimeNetCents: ai - ae,
+    topIncomeCategory: topOf(incByCat),
+    topExpenseCategory: topOf(expByCat),
+    monthLabel: now.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+  };
+}
+
+/** The entries out of GET /api/money ({ entries: [...] }), tolerant
+ *  the way every desk parser is. */
+export function parseMoneyEntries(data: unknown): MoneyEntryLike[] {
+  const rows = asRecord(data)["entries"];
+  if (!Array.isArray(rows)) return [];
+  const out: MoneyEntryLike[] = [];
+  for (const raw of rows) {
+    const e = asRecord(raw);
+    const date = str(e["entry_date"]);
+    const cents = num(e["amount_cents"]);
+    if (!date || cents === null) continue;
+    out.push({
+      entry_type: str(e["entry_type"]) ?? "income",
+      category: str(e["category"]) ?? "other_income",
+      amount_cents: cents,
+      entry_date: date,
+    });
+  }
+  return out;
+}
+
+/** POST /api/monetization-coach — the page's buildPlan body: the
+ *  creator's real niche/platforms/follower counts/cadence (counts
+ *  parsed the page's way, cadence clamped to the schema's 0–100) and
+ *  the real money snapshot (or null, as the page sends when nothing
+ *  is tracked). No arguments = the page's opening defaults, kept for
+ *  the pinned shape. */
+export function buildCoachPayload(
+  inputs: CoachInputs = defaultCoachInputs(),
+  moneySnapshot: CoachMoneySnapshot | null = null,
+): Record<string, unknown> {
+  const count = (v: string) => parseInt(v || "0", 10) || 0;
+  return {
+    niche: coachFinalNiche(inputs),
+    platforms: [...inputs.platforms],
+    followers: {
+      youtube: count(inputs.followers.youtube),
+      tiktok: count(inputs.followers.tiktok),
+      instagram: count(inputs.followers.instagram),
+    },
+    cadence: Math.max(0, Math.min(100, parseInt(inputs.cadence, 10) || 0)),
+    moneySnapshot,
+  };
+}
+
+export interface CoachEligibilityItem {
+  platform: string;
+  program: string;
+  threshold: string;
+  progress: number;
+  status: string;
+  nextStep: string;
 }
 
 export interface CoachTodayAction {
   label: string;
   href: string;
   firstMove: string | null;
+  moves: string[];
+  eligibility: CoachEligibilityItem[];
+  earningsNote: string | null;
   stateSummary: string | null;
 }
 
@@ -1001,14 +1418,28 @@ export function parseCoachTodayAction(data: unknown): CoachTodayAction | null {
   const moves = Array.isArray(d["moneyMoves"])
     ? (d["moneyMoves"] as unknown[]).filter((x): x is string => typeof x === "string" && x.length > 0)
     : [];
-  const eligibility = d["eligibility"];
-  if (moves.length === 0 && !Array.isArray(eligibility)) return null;
+  const rawEligibility = d["eligibility"];
+  if (moves.length === 0 && !Array.isArray(rawEligibility)) return null;
   const action = primaryActionFor({ nextAction: (d["nextAction"] as never) ?? null });
   const state = (d["creatorState"] as CoachCreatorState | undefined) ?? null;
+  const eligibility: CoachEligibilityItem[] = Array.isArray(rawEligibility)
+    ? (rawEligibility as unknown[]).map(asRecord).filter((e) => str(e["platform"])).map((e) => ({
+        platform: str(e["platform"])!,
+        program: str(e["program"]) ?? "",
+        threshold: str(e["threshold"]) ?? "",
+        progress: num(e["progress"]) ?? 0,
+        status: str(e["status"]) ?? "building",
+        nextStep: str(e["nextStep"]) ?? "",
+      }))
+    : [];
+  const earnings = asRecord(d["earnings"]);
   return {
     label: action.label,
     href: action.href,
     firstMove: moves[0] ?? null,
+    moves,
+    eligibility,
+    earningsNote: str(earnings["rpmNotes"]),
     stateSummary: creatorStateSummary(state),
   };
 }
@@ -1030,38 +1461,17 @@ export interface BusinessFollowOn {
 
 export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
   {
-    id: "press-kit-layout-editing",
-    title: "NATIVE FOLLOW-ON: Press-kit layout editing",
+    id: "press-release-panel",
+    title: "NATIVE FOLLOW-ON: Press-release panel",
     desk: "press-kit",
     benchPath: "/press-kit",
-    note: "The full edit form (handle, socials, achievements, quotes, tracks, photos, public toggle), press-release panel, PDF/print, copy-link and delete — v1 reads the kit, regenerates the bio, and generates a first kit.",
-  },
-  {
-    id: "branding-jewelry-bench",
-    title: "NATIVE FOLLOW-ON: Branding jewelry bench",
-    desk: "branding-kit",
-    benchPath: "/branding-kit?tab=jewelry",
-    note: "The jewelry studio family (/api/jewelry/…) stays a transfer bench in v1.",
-  },
-  {
-    id: "brand-kit-generate-edit-apply",
-    title: "NATIVE FOLLOW-ON: Brand-kit generation, editing and apply",
-    desk: "branding-kit",
-    benchPath: "/branding-kit",
-    note: "Generating a kit (POST /api/brand-kit, 200 Visual Bucs), editing manual fields (PUT /api/brand-kit), choosing a tagline, and applying colors/fonts to the profile (POST /api/brand-kit/apply) — v1's kit card is read-only.",
-  },
-  {
-    id: "generated-logo-save-to-kit",
-    title: "NATIVE FOLLOW-ON: Saving a generated logo into the brand kit",
-    desk: "branding-kit",
-    benchPath: "/branding-kit",
-    note: "In v1 a logo made at the desk is shown in-world; writing it back as the kit's logoUrl (and into hub project assets, as the page does) is a follow-on.",
+    note: "The press-release generator panel that shares the 2D press-kit page (POST /api/press-release/…) — Stack-100 #71 graduated the kit editor itself (full field editing, layout, public toggle, PDF via the public page, copy-link, delete); the release writer is the part that remains on the bench.",
   },
   {
     id: "coach-full-page-depth",
     title: "NATIVE FOLLOW-ON: Full coach page depth",
     desk: "coach",
     benchPath: "/coach",
-    note: "The full money plan (eligibility per platform, earnings guidance, all money moves), niche analyzer, money tracker, and typed inputs (niche/platforms/followers/cadence) — v1 reads back only today's next action from the page-default ask.",
+    note: "The coach's sibling tabs — the niche analyzer and the money/action trackers as full panels. Stack-100 #75 graduated the ask itself: the creator's real niche/platforms/followers/cadence and their real Money Tracker snapshot now drive the plan in-world, and the plan's moves + eligibility read back at the desk.",
   },
 ];
