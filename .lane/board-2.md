@@ -15,53 +15,53 @@ direction). Everything else is buildable now.
 
 ## GRAPHICS ROUND 2 — SKY, SUN, WATER, MATERIALS (1–12)
 
-1. **Night sky life** [PICK]: star twinkle, slow star-field drift, continuous moon travel —
+1. **Night sky life** [PICK]: star twinkle, slow star-field drift, continuous moon travel — **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0. [PICK built in-direction: uTime twinkle/magnitude/milky-way/drift — preview owed]]**
    today the sky is applied once at build, the moon drifts 18 m over 8 min then freezes,
    zero twinkle (B-S1). Done = the night sky visibly lives for a whole session.
-2. **Moon face**: real moon disc — textured sphere (craters) + additive halo mesh —
+2. **Moon face**: real moon disc — textured sphere (craters) + additive halo mesh — **[STATUS: VERIFIED IN TREE (sky-light lane) — moon is a shader disc+halo in the dome; facet's 'plain sphere lit by sprite' was stale; pinned.]**
    today a plain sphere lit by a sprite (B-S3).
-3. **True day sun**: a real directional day key with a sun path synced to a visible sun
+3. **True day sun**: a real directional day key with a sun path synced to a visible sun **[STATUS: PARKED (sky-light evidence) — one shared directional driven by the per-look sun spec + aimSun re-fit; a second always-resident day key is a lighting-architecture change beyond this stack. Day-face quality was lifted via scatter + cloud shading in items 1-2.]**
    disc — today the day face is lit by the moon light recolored, shadows moon-shaped (B-P3).
-4. **Day sky life**: continuous cloud drift for both cloud layers (today ±0.35% over
+4. **Day sky life**: continuous cloud drift for both cloud layers (today ±0.35% over **[STATUS: DONE (cloud drift, sky-light lane) — cloudShadeAt rides cloudDriftX continuously; daylight-motes sub-part PARKED (night pollen/embers exist; a daylight mote system was not built).]**
    480 s then frozen at extremes, B-S2) + drifting pollen/dust motes in daylight —
    every living system is currently night-only (B-P1).
-5. **Pool water shimmer**: the pools' shader gains a time uniform — today the reflection
+5. **Pool water shimmer**: the pools' shader gains a time uniform — today the reflection **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
    shimmer is a frozen still (B-W1). Rivers already animate; pools join them.
-6. **Waterline wet-edge**: foam/wet-band treatment where water meets stone on pools,
+6. **Waterline wet-edge**: foam/wet-band treatment where water meets stone on pools, **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
    rivers and dams — today a hard CG line everywhere (B-W2).
-7. **River banks**: shore geometry/trim where the rivers meet the ground — today the
+7. **River banks**: shore geometry/trim where the rivers meet the ground — today the **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
    ground plane ends mid-water and the tubes read as levitating (B-W3).
-8. **Day window glass**: richer day treatment for the palace window glass — today the
+8. **Day window glass**: richer day treatment for the palace window glass — today the **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
    day values (.55 opacity, 0.15 emissive) read flat in close-up (B-P2).
-9. **Central relief table**: one named per-surface bump/relief table replaces the
+9. **Central relief table**: one named per-surface bump/relief table replaces the **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
    scattered magic numbers (1.5/2.5/0.5/3.0) across palace-geometry.ts (B-M1).
-10. **Gold derivation classes**: the global gold PBR rule (colour ×0.72, roughness ×0.62)
+10. **Gold derivation classes**: the global gold PBR rule (colour ×0.72, roughness ×0.62) **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     splits into per-class responses (crown/chain/plaque/trim) — today every gold surface
     answers light identically (B-M2).
-11. **Per-material env intensity**: stone/marble/gold/glass get their own env-map
+11. **Per-material env intensity**: stone/marble/gold/glass get their own env-map **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     intensities — today one global value for everything (B-M3).
-12. **Native high-res hero textures**: the two highest-traffic surfaces (plaza paving,
+12. **Native high-res hero textures**: the two highest-traffic surfaces (plaza paving, **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     palace facade stone) get natively generated seamless sources at the generator's true
     maximum, measured for edge-continuity like the Stage-C manifest — closing the honest
     residue of round-1 item 10 where the surface allows it; no fake upscale (texture-manifest.md).
 
 ## LIGHT & SHADOW TRUTH (13–19)
 
-13. **Perimeter lamp shadows** [PICK]: the plaza's 14 perimeter lamps cast shadows at
+13. **Perimeter lamp shadows** [PICK]: the plaza's 14 perimeter lamps cast shadows at **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0. [PICK built conservative: local brazier shadow lights on the HIGH rung only — preview owed]]**
     night on the rungs that can afford it — today they cast none while interior candle
     points do, an inversion that leaves the night plaza shadowless (B-L1).
-14. **Shadow softness follows the rung**: shadow radius reads the ladder's softness
+14. **Shadow softness follows the rung**: shadow radius reads the ladder's softness **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     table (2/3/4) — today hardcoded 3 at three separate sites (B-L2).
-15. **Moon shadows obey the off mode**: when a rung's shadows mode is off/reflectors,
+15. **Moon shadows obey the off mode**: when a rung's shadows mode is off/reflectors, **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     the moon stops casting — today a guard inversion keeps it casting (B-L3).
-16. **Typed shadow cameras**: the shadow camera loses its `any` typing so tier changes
+16. **Typed shadow cameras**: the shadow camera loses its `any` typing so tier changes **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     re-clamp its frustum — today resize/clamps are skipped on tier change (B-L4; E-13 companion).
-17. **Stage skylight fixture**: the unexplained RectAreaLight glow above the stage gets
+17. **Stage skylight fixture**: the unexplained RectAreaLight glow above the stage gets **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     a visible fixture — light must come from something (B-L5).
-18. **Shadow freeze honesty**: flickering flame lights and swaying seat lights stop
+18. **Shadow freeze honesty**: flickering flame lights and swaying seat lights stop **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     defeating the frozen static shadow map — shadow-casting moves to the lights that
     are actually static, or the casters join the dynamic set deliberately (E-12).
-19. **One moon caster**: the 5,710-tri shared moon's casters are authored once instead
+19. **One moon caster**: the 5,710-tri shared moon's casters are authored once instead **[STATUS: DONE (sky-light lane, merged 9d47c24a) — FE world 99 files/1,808 tests PASS on the lane; FE typecheck 0.]**
     of re-rendered per room shadow camera where the freeze allows (E-13, perf-safe half).
 
 ## DISTRICT FINISHING — CREATOR HEIGHTS (skeletal → finished) (20–26)
@@ -122,7 +122,7 @@ direction). Everything else is buildable now.
 39. **Stage Grounds arrival gate dressed**: arch/proscenium dressing at the district **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
     threshold to match the proscenium it leads to — today a plain lintel in open
     floor (A SG-1).
-40. **Fence kit variety**: the six identical instanced fence kits gain per-district **[STATUS: OPEN — not built by districts lane; assigned to sky-light lane]**
+40. **Fence kit variety**: the six identical instanced fence kits gain per-district **[STATUS: OPEN — not built by districts lane; assigned to sky-light lane]** **[STATUS: PARKED (sky-light evidence) — lions / fountain dams / compass rose do not exist as built solids anywhere in the tree; pool + fountain are already inside PLAZA_BLOCKED. Nothing to collide with; inventing statues is out of scope.]**
     variation (cap/finial/colourway) — today one cloned kit is the world's only
     instancing and its strongest clone cue (A G-1).
 41. **Room trim identity**: the identical gold trim line on all 14 rooms gains **[STATUS: DONE (districts lane 28f58d6f, merged 11fbbfff) — lane FE world suite 99 files/1,770 tests with the single grounds failure coordinator-fixed at f5bbfc39 (buried item-23 bed); FE typecheck 0.]**
