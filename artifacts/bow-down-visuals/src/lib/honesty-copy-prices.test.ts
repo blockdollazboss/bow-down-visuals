@@ -160,6 +160,27 @@ describe("Stack-28 #6 homepage Promo Clips price (100, bundle 1,000)", () => {
   });
 });
 
+describe("Stack-28 #10 Distribute sandbox qualifier at the sell + confirm moments", () => {
+  // A2-10: the hero sold real platform delivery and the pre-spend
+  // confirmation carried no sandbox qualifier while the default
+  // aggregator is the mock/sandbox adapter. Both moments now carry the
+  // same qualifier the in-flow badges use, gated on the server-reported
+  // aggregator exactly like those badges.
+  it("hero shows the sandbox line when the aggregator is mock", () => {
+    const src = readFileSync(new URL("../pages/distribute.tsx", import.meta.url), "utf8");
+    const hero = src.slice(src.indexOf("distribute.get_your_music_on_spotify_apple"));
+    const heroBlock = hero.slice(0, 600);
+    expect(heroBlock).toContain('pricing?.aggregator === "mock"');
+    expect(heroBlock).toContain("distribute.sandbox_mode_statuses_will_simul");
+  });
+
+  it("the submit window.confirm appends the sandbox note in mock mode", () => {
+    const src = readFileSync(new URL("../pages/distribute.tsx", import.meta.url), "utf8");
+    expect(src).toContain('Sandbox simulation — the aggregator is in sandbox mode');
+    expect(src).toContain("(release.aggregator ?? pricing?.aggregator) === \"mock\"");
+  });
+});
+
 describe("S27-25 FinalVideoExport never displays a raw provider name", () => {
   it("scene list and check table render the neutral sceneClip label for any provider", () => {
     const src = readComponent("FinalVideoExport.tsx");

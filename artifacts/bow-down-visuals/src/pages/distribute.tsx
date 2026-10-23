@@ -2073,9 +2073,13 @@ function ReleaseDetail(props: {
 
   async function submitRelease() {
     if (submitting || release.status !== "draft") return;
+    const sandboxNote = (release.aggregator ?? pricing?.aggregator) === "mock"
+      ? "\n\nSandbox simulation — the aggregator is in sandbox mode, so delivery will be simulated, not sent to real platform APIs."
+      : "";
     if (!window.confirm(
       `Submit "${release.title}" for distribution for ${submitPrice} Visual Bucs?\n\n` +
-      `This pays the aggregator delivery fee and queues delivery to ${release.platforms.map(platformLabel).join(", ") || "your platforms"}.`,
+      `This pays the aggregator delivery fee and queues delivery to ${release.platforms.map(platformLabel).join(", ") || "your platforms"}.` +
+      sandboxNote,
     )) return;
     setSubmitting(true);
     onError("");
@@ -3274,6 +3278,11 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">{t("distribute.music")}{" "}<span className="text-primary">{t("distribute.distribution")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">{t("distribute.get_your_music_on_spotify_apple")}</p>
+          {pricing?.aggregator === "mock" && (
+            <p className="mx-auto mt-3 inline-flex items-center gap-2 text-xs text-violet-300">
+              <FlaskConical className="h-4 w-4" />{t("distribute.sandbox_mode_statuses_will_simul")}
+            </p>
+          )}
           {pricing?.annualPlan?.comingSoon && (
             <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold text-white/45">
               <Clock className="h-3 w-3" /> {pricing.annualPlan.label} — coming soon
