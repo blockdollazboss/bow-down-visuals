@@ -1,0 +1,1 @@
+- ar HELD piece resolved by coordinator commit (filesSkipped family + pin 33->34, 169 targeted tests PASS): item 88 closes WHOLE; ar totals 2,600 closed / 134 allowlisted / 0 remaining. NOTE for ar-W5 (appendix): mediaDetector.filesSkipped will need pin 34->35 when it lands.
