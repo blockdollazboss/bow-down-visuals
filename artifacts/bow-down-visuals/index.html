@@ -71,11 +71,14 @@
     <!-- NOTE: the 8-bit pixel fonts (Press Start 2P, Silkscreen, VT323,
          DotGothic16, Pixelify Sans) are self-hosted via @font-face in
          index.css (public/fonts) — no CDN dependency. -->
-    <!-- Caption font library: the same families are bundled as TTFs in the
-         Docker image so export burn-in matches the preview exactly. -->
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Alfa+Slab+One&family=Archivo+Black&family=Barlow+Condensed:wght@700&family=Bebas+Neue&family=Bungee&family=Cinzel:wght@700&family=Luckiest+Guy&family=Permanent+Marker&family=Poppins:wght@700&family=Righteous&family=Titan+One&display=swap" rel="stylesheet">
-    <!-- Thy Library font catalog: curated creator fonts (Google Fonts, free) -->
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Marcellus&family=Bodoni+Moda:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Oswald:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&family=Caveat:wght@400;700&family=Shadows+Into+Light&family=Gochi+Hand&family=Rock+Salt&family=Satisfy&family=Rubik+Mono+One&family=Monoton&family=Fascinate+Inline&family=Wallpoet&family=Black+Ops+One&family=Creepster&display=swap" rel="stylesheet">
+    <!-- Stack-28 #50: the caption font library (12 families) and the Thy
+         Library font catalog (19 families) are NO longer global stylesheets.
+         They load on demand via src/lib/load-fonts.ts in the surfaces that
+         render them (CaptionsSection / video-editor / Library page), with
+         the exact same css2 URLs and display=swap. Only the UI fonts above
+         (Inter + Playfair Display) stay global. The caption families are
+         still bundled as TTFs in the Docker image so export burn-in matches
+         the preview exactly. -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",

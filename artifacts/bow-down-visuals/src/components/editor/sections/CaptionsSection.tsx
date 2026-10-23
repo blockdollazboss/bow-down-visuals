@@ -25,6 +25,7 @@ import {
 import { LayoutTemplate } from "lucide-react";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
 import { CAPTION_FONTS, FONT_VIBES, getCaptionFont } from "@/lib/fonts";
+import { ensureCaptionFonts } from "@/lib/load-fonts";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 import { detectBeatGrid, snapToNearestBeat, type BeatGrid } from "@/lib/beat-grid";
 
@@ -649,6 +650,9 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
   /* ── Beat sync state ── */
   const [beatGrid, setBeatGrid] = useState<BeatGrid | null>(null);
   const [beatSyncEnabled, setBeatSyncEnabled] = useState(true);
+
+  /* Stack-28 #50: caption font families load on demand in this surface. */
+  useEffect(() => { ensureCaptionFonts(); }, []);
 
   /* Detect the song's beat grid when audio is available (cached per URL). */
   useEffect(() => {

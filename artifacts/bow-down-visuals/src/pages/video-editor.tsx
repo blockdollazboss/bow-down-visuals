@@ -60,6 +60,7 @@ import { computeMasterPlayerFit } from "@/lib/master-player-size";
 import { fetchTrack, resolveMedia } from "@/lib/streaming";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { captionFontFamily } from "@/lib/fonts";
+import { ensureCaptionFonts } from "@/lib/load-fonts";
 import { getLibraryPreset } from "@/data/library-presets";
 import {
   COMPARE_POS_DEFAULT,
@@ -305,6 +306,9 @@ export default function VideoEditor() {
     "--vv-wash-10": isLight ? "rgba(120,90,40,0.14)" : "rgba(255,255,255,0.10)",
   } as React.CSSProperties;
   usePageTitle(t("videoEditor.pageTitle"), t("videoEditor.pageDescription"));
+  /* Stack-28 #50: caption font families load on demand in the editor
+     (its preview renders captionFontFamily outside CaptionsSection). */
+  useEffect(() => { ensureCaptionFonts(); }, []);
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
