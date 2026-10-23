@@ -396,7 +396,10 @@ function ConnectedAccountsTab() {
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   const [overview, setOverview] = useState<ConnOverviewResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  /* Starts in flight: until the first overview settles, the platform
+     grid must show skeletons — never the "not connected" cards
+     (Stack-28 #23 / A3-F1). */
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [insights, setInsights] = useState<ConnInsights | null>(null);
@@ -564,14 +567,42 @@ function ConnectedAccountsTab() {
         </div>
       </div>
 
-      {error && (
+      {error && overview && (
         <div className="relative mt-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* platform cards */}
+      {/* platform cards — three honest states before the grid
+          (Stack-28 #23 / A3-F1): while the overview is in flight the
+          cards are skeletons; if it failed with nothing loaded, ONE
+          scoped error card with Retry replaces the grid. The Connect
+          cards below may only render from a LOADED overview — a failed
+          or pending load must never claim "nothing is connected". */}
+      {overview === null && loading ? (
+        <section className="relative mt-8 grid gap-4 md:grid-cols-3" data-testid="analytics-overview-loading">
+          {CONN_ALL_PLATFORMS.map((key) => (
+            <div key={key} className={connCardClass(isLight)} aria-hidden="true">
+              <div className="h-5 w-28 animate-pulse rounded bg-white/10" />
+              <div className="mt-3 h-4 w-full animate-pulse rounded bg-white/10" />
+              <div className="mt-2 h-4 w-2/3 animate-pulse rounded bg-white/10" />
+            </div>
+          ))}
+        </section>
+      ) : overview === null && error ? (
+        <section className="relative mt-8" data-testid="analytics-overview-error">
+          <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {error}{" "}
+              <button onClick={loadOverview} className="font-semibold text-primary hover:underline">
+                {t("analytics.tryAgain")}
+              </button>
+            </span>
+          </div>
+        </section>
+      ) : (
       <section className="relative mt-8 grid gap-4 md:grid-cols-3">
         {CONN_ALL_PLATFORMS.map((key) => {
           const meta = CONN_PLATFORM_META[key];
@@ -710,6 +741,7 @@ function ConnectedAccountsTab() {
           );
         })}
       </section>
+      )}
 
       {/* AI layer */}
       <section className="relative mt-12">
