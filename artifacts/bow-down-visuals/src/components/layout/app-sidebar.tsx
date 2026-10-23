@@ -295,7 +295,7 @@ const SECTIONS: NavSection[] = [
       { href: "/party", labelKey: "nav.partyGames", icon: Swords, badge: "NEW" },
       /* Quests live on the dashboard surface — this is their front door
          (findability fix, 2026-10-18); the World Quest Board is the other. */
-      { href: "/dashboard", labelKey: "nav.quests", icon: ClipboardCheck },
+      { href: "/dashboard#quests", labelKey: "nav.quests", icon: ClipboardCheck },
       { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown },
     ],
   },
