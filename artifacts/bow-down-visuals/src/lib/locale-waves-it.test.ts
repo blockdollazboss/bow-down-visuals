@@ -193,3 +193,92 @@ describe("it-W1 (Stack-28 #75) — commerce namespaces fully Italian", () => {
     }
   });
 });
+
+/* ------------------------------ it-W2 (item 84) ------------------------------ */
+const W2_NAMESPACES = [
+  "labelPitch", "distribute", "brandCalculator", "playlistPitch", "sponsorsPost",
+  "sponsorDealDetail", "sponsors", "sponsorDashboard", "retentionDoctor",
+  "retentionDelight", "invite", "fomoFeed", "planPublic", "home", "delight",
+  "academy", "common", "waitlist", "betaAccess", "auth", "signup", "features",
+  "guides", "promo-clip", "splitScreen", "productPhotoStudio", "carouselMaker",
+  "videoTemplates", "movies",
+];
+
+/* Legit identicals (§1.4): platforms, genres, brand/house names, example
+   placeholders & ISRC codes, numbers/formats only, Italian cognates &
+   loanwords (Email, Password, Video, Album, Film, Tutorial, Vlog, Promo,
+   Layout, Turbo, Clip, Hook, Logline, Brand, Serif/Sans/Display…). */
+const W2_LEGIT = new Set([
+  "academy.catBranding", "invite.email", "videoTemplates.kindVideo",
+  "splitScreen.pickLayout", "splitScreen.modeSimple", "splitScreen.cellN",
+  "promo-clip.creditBadge", "promo-clip.tags.hashtags", "promo-clip.clips.count_one",
+  "promo-clip.platforms.tiktok", "promo-clip.platforms.reels", "promo-clip.platforms.shorts",
+  "promo-clip.genres.hipHop", "promo-clip.genres.drill", "promo-clip.genres.trap",
+  "promo-clip.genres.rnb", "promo-clip.genres.pop", "promo-clip.genres.afrobeats",
+  "promo-clip.genres.dancehall", "promo-clip.genres.gospel", "promo-clip.genres.rock",
+  "promo-clip.genres.country", "promo-clip.clipsSelector.clipFallback",
+  "movies.logline", "movies.epLabel", "movies.hookLabel",
+  "retentionDoctor.eyebrow", "retentionDoctor.atPlaceholder",
+  "retentionDoctor.type_tutorial", "retentionDoctor.type_vlog", "retentionDoctor.type_promo",
+  "retentionDoctor.platform_tiktok", "retentionDoctor.platform_instagram",
+  "retentionDoctor.platform_youtube", "retentionDoctor.platform_x",
+  "carouselMaker.heroTitleB", "carouselMaker.brandTitle", "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.fontSerif", "carouselMaker.fontSans", "carouselMaker.fontDisplay",
+  "carouselMaker.tplLuxeName", "retentionDelight.levelUp_title",
+  "productPhotoStudio.title", "productPhotoStudio.pastePlaceholder",
+  "productPhotoStudio.packshot", "productPhotoStudio.lifestyle",
+  "productPhotoStudio.preset.infinityWhite", "productPhotoStudio.preset.streetStyle",
+  "productPhotoStudio.preset.goldenHour", "productPhotoStudio.credits",
+  "productPhotoStudio.confirmFeature",
+  "auth.email", "auth.password", "auth.passwordPlaceholder",
+  "common.beta", "common.premium", "common.visualBucs",
+  "home.demo.hiphop.label", "home.demo.rnb.label", "home.demo.pop.label",
+  "home.extTitleA", "home.faqKicker", "home.vaultBodyB", "home.academyKicker",
+  "academy.pageTitle", "academy.hoursPlaceholder", "academy.lessonMinutes", "academy.coachRole",
+  "betaAccess.emailLabel", "betaAccess.creatorRapper", "betaAccess.creatorContentCreator",
+  "betaAccess.badgeBeta",
+  "brandCalculator.niches.fitness", "brandCalculator.niches.gaming",
+  "brandCalculator.niches.lifestyle", "brandCalculator.niches.tech",
+  "brandCalculator.platforms.twitch.blurb", "brandCalculator.title",
+  "distribute.midnight_frequencies", "distribute.shark_king", "distribute.hip_hop_trap",
+  "distribute.us_xxx_26_00001", "distribute.bow_down_records", "distribute.isrc",
+  "distribute.luxury_gold_and_black_album_cove", "distribute.dark_luxury_trap_anthem_heavy_80",
+  "distribute.isrc_2", "distribute.visual_bucs", "distribute.100_visual_bucs",
+  "distribute.tier.ep.label", "distribute.tier.album.label",
+  "features.cheat_code", "guides.academy.name",
+  "labelPitch.genres.afrobeats", "labelPitch.genres.country", "labelPitch.genres.edm",
+  "labelPitch.genres.hip-hop", "labelPitch.genres.latin", "labelPitch.genres.pop",
+  "labelPitch.genres.r&b", "labelPitch.genres.rock", "labelPitch.heroBadge",
+  "labelPitch.labelEmail", "labelPitch.labelFollowUp", "labelPitch.labelOneSheet",
+  "labelPitch.typeImprint", "labelPitch.typeMajor",
+  "sponsorDealDetail.followersPlaceholder", "sponsors.matchFollowersPlaceholder",
+  "sponsors.matchPlatformsPlaceholder", "sponsorsPost.budgetMaxPlaceholder",
+  "sponsorsPost.budgetMinPlaceholder",
+  "signup.emailField", "signup.passwordField",
+  "waitlist.artistTypeContentCreator", "waitlist.artistTypeRapper",
+  "waitlist.badgeBeta", "waitlist.emailLabel",
+  "playlistPitch.copyEmailLabel", "playlistPitch.copyDmLabel",
+  "playlistPitch.copyFollowUpLabel", "playlistPitch.heroBadge",
+  "playlistPitch.tabTracker", "playlistPitch.tabTrackerCount",
+]);
+
+describe("it-W2 (Stack-28 #84) — sponsors/retention/create-entry namespaces fully Italian", () => {
+  const r = checkWave(W2_NAMESPACES, [...W2_LEGIT]);
+  it("covers every en key in the wave namespaces", () => {
+    expect(r.missing).toEqual([]);
+    expect(r.empty).toEqual([]);
+  });
+  it("preserves {{placeholders}} exactly", () => {
+    expect(r.badPlaceholders).toEqual([]);
+  });
+  it("leaves no REAL untranslated identicals", () => {
+    expect(r.realIdentical).toEqual([]);
+  });
+  it("carries promo-clip plurals whole (_one/_other/_many)", () => {
+    for (const base of ["promo-clip.clips.count", "promo-clip.summary.clipsSelected"]) {
+      for (const suffix of ["_one", "_other", "_many"]) {
+        expect(typeof IT[`${base}${suffix}`], `${base}${suffix}`).toBe("string");
+      }
+    }
+  });
+});
