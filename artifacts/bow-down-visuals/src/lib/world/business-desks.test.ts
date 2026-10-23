@@ -706,18 +706,22 @@ describe("parity follow-on log — thorough, each bench named", () => {
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
       expect(f.note.length, f.id).toBeGreaterThan(20);
     }
-    // The promo-cards gap is logged as a gap, not hidden.
-    expect(BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note).toContain("GAP");
   });
 
-  it("promo-card per-card actions are built, so the follow-on is resolved — and the list note tells the endpoint truth", () => {
+  it("promo-card actions AND the full history graduated (Stack-100 #60), so both follow-ons are resolved", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     expect(ids).not.toContain("promo-card-actions");
-    const listNote = BUSINESS_NATIVE_FOLLOW_ONS.find((f) => f.id === "promo-cards-list-endpoint")!.note;
-    /* The endpoint exists (website history ships from it); the
-       remaining gap is only that this desk doesn't read it yet. */
-    expect(listNote).toContain("GET /api/promo-cards");
-    expect(listNote).not.toContain("no GET endpoint");
+    /* The desk now reads GET /api/promo-cards itself — the full
+       history shelf stands in-world, so the list follow-on leaves
+       the log like every graduated item before it. */
+    expect(ids).not.toContain("promo-cards-list-endpoint");
+    const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
+    expect(desk).toContain('fetch("/api/promo-cards"');
+    expect(desk).toContain("normalizePromoCardHistory");
+    expect(desk).toContain('data-testid="world-promote-card-history"');
+    expect(desk).toContain('data-testid="world-promote-history-card"');
+    expect(desk).toContain('data-testid="world-promote-history-delete"');
+    expect(desk).toContain("removePromoCard(h.cards, c.id)");
   });
 });
 

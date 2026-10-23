@@ -1064,11 +1064,4 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
     benchPath: "/coach",
     note: "The full money plan (eligibility per platform, earnings guidance, all money moves), niche analyzer, money tracker, and typed inputs (niche/platforms/followers/cadence) — v1 reads back only today's next action from the page-default ask.",
   },
-  {
-    id: "promo-cards-list-endpoint",
-    title: "NATIVE FOLLOW-ON: Promo-cards history on this desk (list endpoint exists)",
-    desk: "promote",
-    benchPath: "/promote",
-    note: "GAP: GET /api/promo-cards exists (shipped with the website's promo-card history; every pack is recorded server-side) and the website panel lists the creator's cards from it — but this desk doesn't read it yet, so the in-world gallery still holds only this sitting's pack. Wiring the desk's gallery to the endpoint is the remaining follow-on. (Per-card actions on the gallery's cards — download, share, schedule, add-to-assets — are built; they ride the same rails as the website panel's.)",
-  },
 ];

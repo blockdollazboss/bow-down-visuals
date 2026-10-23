@@ -5,7 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { downloadImage } from "@/lib/download-image";
-import { promoCardFileName, promoCardSharePayload } from "@/lib/promo-card-history";
+import {
+  normalizePromoCardHistory,
+  promoCardDateLabel,
+  promoCardFileName,
+  promoCardSharePayload,
+  promoCardShareText,
+  removePromoCard,
+  type PromoCardHistoryItem,
+} from "@/lib/promo-card-history";
 import { NativeCard } from "./NativeCard";
 import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
@@ -1596,9 +1604,9 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
 
-  /* Promo cards gallery (this sitting's pack; every pack is recorded
-     server-side and the full shelf is the website's history — see
-     the lib follow-on note). */
+  /* Promo cards gallery (this sitting's pack) + the FULL history
+     shelf below it (Stack-100 #60): every pack ever made, read from
+     GET /api/promo-cards — the website history's own endpoint. */
   const [cardTitle, setCardTitle] = useState("");
   const [cardArtist, setCardArtist] = useState("");
   const [cardStyle, setCardStyle] = useState<string>("out-now");
@@ -1608,6 +1616,14 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const [cardsNote, setCardsNote] = useState<string | null>(null);
   const [cardActionNote, setCardActionNote] = useState<string | null>(null);
   const [sharedCardKey, setSharedCardKey] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ status: "loading" | "failed" | "ready"; cards: PromoCardHistoryItem[]; hasMore: boolean }>({
+    status: "loading",
+    cards: [],
+    hasMore: false,
+  });
+  const [historyTick, setHistoryTick] = useState(0);
+  const [historyNote, setHistoryNote] = useState<string | null>(null);
+  const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
 
   /* Coach row. */
   const [coachBusy, setCoachBusy] = useState(false);
@@ -1720,6 +1736,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
       setCardCaption(suggestedCaption);
       setCardActionNote(null);
       setSharedCardKey(null);
+      setHistoryTick((n) => n + 1); // the new pack joins the history shelf
       refreshProfile();
     } catch {
       setCardsNote("The card desk didn't answer. Try again.");
@@ -1806,6 +1823,67 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const retryAll = () => {
     setBio(loading());
     setTick((n) => n + 1);
+  };
+
+  /* ── Promo-card full history (#60) ─────────────────────────────── */
+  useEffect(() => {
+    if (isGuest) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/promo-cards", { headers: await authHeaders() });
+        if (!res.ok) throw new Error("history");
+        const page = normalizePromoCardHistory((await res.json()) as unknown);
+        if (!cancelled) setHistory({ status: "ready", cards: page.cards, hasMore: page.hasMore });
+      } catch {
+        if (!cancelled) setHistory((h) => ({ ...h, status: "failed" }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest, historyTick]);
+
+  const shareHistoryCard = async (c: PromoCardHistoryItem) => {
+    const text = promoCardShareText(c);
+    const channel = typeof navigator !== "undefined" && "share" in navigator ? "native" : "copy";
+    try {
+      if (channel === "native") {
+        await navigator.share({ title: c.releaseTitle, text, url: c.url });
+      } else {
+        await navigator.clipboard.writeText(`${text}\n${c.url}`);
+        setHistoryNote("Share link copied.");
+      }
+    } catch {
+      return; // dismissed share sheet — nothing tracked, nothing said
+    }
+    setSharedCardKey(c.url);
+    try {
+      await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(promoCardSharePayload(c, channel)),
+      });
+    } catch { /* tracking is a passenger, never the driver */ }
+  };
+
+  const deleteHistoryCard = async (c: PromoCardHistoryItem) => {
+    setHistoryNote(null);
+    try {
+      const res = await fetch(`/api/promo-cards/${c.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("delete");
+      /* The row leaves the shelf ONLY on the server's confirmed
+         delete (the promo-card-history seam's own rule). */
+      setHistory((h) => ({ ...h, cards: removePromoCard(h.cards, c.id) }));
+      setConfirmDeleteCardId(null);
+      setHistoryNote("Removed from your history.");
+    } catch {
+      setHistoryNote("That card couldn't be removed — it's still on your shelf. Try again.");
+    }
   };
 
   return (
@@ -1978,9 +2056,97 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           <NativeEmptyState
             isLight={isLight}
             message="No promo cards on the stand yet."
-            detail="Cards you make here are recorded to your promo card history (the full shelf lives on the website's Promote page); this gallery holds the pack you make in this sitting."
+            detail="Cards you make here are recorded to your promo card history — the full shelf stands right below; this gallery holds the pack you make in this sitting."
           />
         )}
+
+        {/* Full history (#60) — every recorded pack, not just this
+            sitting's, with the website panel's own per-card actions
+            plus delete, on the history endpoint's rails. */}
+        <div className={`mt-4 border-t border-dashed pt-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-promote-card-history">
+          <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+            Your promo card history
+          </p>
+          {history.status === "loading" ? (
+            <NativeLoadingState isLight={isLight} message="Opening your card shelf…" />
+          ) : history.status === "failed" ? (
+            <NativeErrorState
+              isLight={isLight}
+              message="Your card history wouldn't open — every card is safe on the real rails."
+              onRetry={() => setHistoryTick((n) => n + 1)}
+            />
+          ) : history.cards.length === 0 ? (
+            <p className={`mt-2 text-xs ${muted}`}>Nothing recorded yet — the first pack you make takes its place here and stays.</p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-3">
+              {history.cards.map((c) => (
+                <figure key={c.id} className="w-44" data-testid="world-promote-history-card">
+                  <img src={c.url} alt="" className="w-44 rounded-xl border border-[#d4af37]/40 object-cover" />
+                  <figcaption className={`mt-1 text-center text-[11px] font-semibold ${muted}`}>
+                    {c.releaseTitle}
+                    {c.artistName ? ` — ${c.artistName}` : ""} · {c.style} · {c.size}
+                    {promoCardDateLabel(c.createdAt) ? ` · ${promoCardDateLabel(c.createdAt)}` : ""}
+                  </figcaption>
+                  <div className="mt-1.5 grid grid-cols-2 gap-1">
+                    <button type="button" data-testid="world-promote-history-download" onClick={() => void downloadImage(c.url, promoCardFileName(c))} className={cardChipCls}>
+                      <Download className="h-3.5 w-3.5" /> Download
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="world-promote-history-schedule"
+                      onClick={() => {
+                        setCardPrefill({ mediaUrl: c.url, mediaType: "image", caption: promoCardShareText(c) });
+                        setCardPrefillNonce((n) => n + 1);
+                        setHistoryNote("Your card is loaded in the Scheduler below — pick a platform and a time, right here.");
+                      }}
+                      className={cardChipCls}
+                    >
+                      <CalendarClock className="h-3.5 w-3.5" /> Schedule
+                    </button>
+                    <button type="button" data-testid="world-promote-history-share" onClick={() => void shareHistoryCard(c)} className={cardChipCls}>
+                      <Share2 className="h-3.5 w-3.5" /> {sharedCardKey === c.url ? "Shared" : "Share"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="world-promote-history-assets"
+                      onClick={() => {
+                        addAsset({
+                          kind: "image",
+                          url: c.url,
+                          label: `Promo card — ${c.style} (${c.size})`,
+                          detail: c.artistName ? `${c.releaseTitle} — ${c.artistName}` : c.releaseTitle,
+                          meta: { sourceAsset: "promo-cards", handoff: "promo-cards", style: c.style, size: c.size },
+                        });
+                        setHistoryNote("Added to your project assets.");
+                      }}
+                      className={cardChipCls}
+                    >
+                      <FolderPlus className="h-3.5 w-3.5" /> Add to assets
+                    </button>
+                    {confirmDeleteCardId === c.id ? (
+                      <>
+                        <button type="button" data-testid="world-promote-history-delete-confirm" onClick={() => void deleteHistoryCard(c)} className={cardChipCls}>
+                          <Trash2 className="h-3.5 w-3.5" /> Confirm delete
+                        </button>
+                        <button type="button" onClick={() => setConfirmDeleteCardId(null)} className={cardChipCls}>
+                          Keep
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" data-testid="world-promote-history-delete" onClick={() => setConfirmDeleteCardId(c.id)} className={cardChipCls}>
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
+                    )}
+                  </div>
+                </figure>
+              ))}
+            </div>
+          )}
+          {history.status === "ready" && history.hasMore ? (
+            <p className={`mt-2 text-[11px] ${muted}`}>More cards sit beyond this shelf's first page — the newest {history.cards.length} stand here.</p>
+          ) : null}
+          {historyNote ? <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{historyNote}</p> : null}
+        </div>
       </NativeCard>
 
       {/* The Scheduler, finished in-world (Stack-100 #45): compose,
