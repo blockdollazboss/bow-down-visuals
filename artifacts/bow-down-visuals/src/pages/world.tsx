@@ -140,6 +140,7 @@ import {
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
+import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
 import { fetchPublicCourt } from "@/lib/royal-court";
@@ -2991,11 +2992,7 @@ export default function WorldPage() {
                   )
                 ) : (
                   <span className={`inline-flex flex-wrap items-center gap-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                    To perform live, start your stream first —{" "}
-                    <Link href="/go-live" className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      open the Go Live studio
-                    </Link>{" "}
-                    — then come back and take the stage.
+                    To perform live, start your stream first — in the Live studio right below, without leaving the hall — then take the stage.
                   </span>
                 )}
                 {stageScreen?.mode === "video" && (
@@ -3078,6 +3075,17 @@ export default function WorldPage() {
               </div>
             </div>
           )}
+
+          {/* Live Wave I (stack-100 #85–#87): the Go Live studio,
+              its guests & backstage, and the guest door — in-world,
+              on the 2D studio's own rails. This panel is members-only
+              (!isGuest above), so palace guests never reach these
+              desks and gain no voice from them. */}
+          <div className={`mt-4 space-y-5 border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-[#d4af37]/20"}`} data-testid="world-live-desks">
+            <LiveStudioDesk isLight={isLight} onStreamChange={() => void loadStageTools()} />
+            <LiveBackstageDesk isLight={isLight} />
+            <LiveGuestJoinDesk isLight={isLight} />
+          </div>
         </div>
       )}
 
