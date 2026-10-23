@@ -26,6 +26,8 @@
  * purpose — the clamp is anti-wall-parking, not physics).
  */
 
+import { HALL_STEPS_BLOCKED, MONUMENT_BLOCKED, TERRACE_BLOCKED } from "./palace-grounds";
+
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
 export const GAME_ROOMS_ID = "world:game-rooms";
@@ -249,15 +251,24 @@ const gateRect = (gate: PlazaGate): PalaceRect =>
  *  pillars. A step into any of them resolves like a wall — slide
  *  or stop — never a walk through a visible body. */
 export const PLAZA_BLOCKED: PalaceRect[] = [
-  /* The Kingdom Board monument's plinth (3.55 m trim square at
-   * (0, 19.7)) — banked in overhaul stage 3, kept exact. */
-  { minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 },
+  /* The Kingdom Board monument's plinth — Stage C item 17 grew
+   * the monument (4.46 m trim square at (0, 19.7)), and its
+   * blocked rect grew with it, derived from palace-grounds'
+   * MONUMENT_BLOCKED in the same batch (the old 3.7 m square was
+   * banked in overhaul stage 3 for the old 3.55 m trim). */
+  MONUMENT_BLOCKED,
   ...PLAZA_WALL_RUNS.map(wallRunRect),
   ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
   ...PLAZA_PLANTERS.map((p) => rectAround(p.x, p.z, p.alongZ ? 0.44 : 1.0, p.alongZ ? 1.0 : 0.44)),
   ...PLAZA_BRAZIERS.map((b) => rectAround(b.x, b.z, 0.46, 0.46)),
   ...PLAZA_GATES.map(gateRect),
   ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
+  /* Stage C item 38: the ceremonial hall steps flanking the arch
+   * approach and the edge terraces — visual elevation AROUND the
+   * walk paths, honestly blocked from the same placement data
+   * (palace-grounds) the scene builds the masses from. */
+  ...HALL_STEPS_BLOCKED,
+  ...TERRACE_BLOCKED,
 ];
 
 /** The plaza's camera-tall solids (item 44): the monument (stele
@@ -266,7 +277,9 @@ export const PLAZA_BLOCKED: PalaceRect[] = [
  *  low walls (1.12 m), planters (~1.3 m), braziers (0.8 m), gate
  *  posts (2.0 m) — passes under the 2.45 m camera. */
 export const PLAZA_TALL_BLOCKED: PalaceRect[] = [
-  { minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 },
+  /* The grown monument (item 17): stele + crown now reach ~5.4 m
+   * — still the plaza's camera-tall heart. */
+  MONUMENT_BLOCKED,
   ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
   ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
 ];

@@ -57,6 +57,19 @@ import * as THREE from "three";
 export const MARBLE_METRES_PER_TILE = 4;
 /** One tile of the throne-fabric source (brocade / velvet). */
 export const FABRIC_METRES_PER_TILE = 1.2;
+/** One tile of the plaza paving source (Stage C item 6). The art
+ *  lane's sett pattern reads at courtyard scale at ~4 m per tile;
+ *  the manifest asks for INTEGRAL repeat counts on paving/stone so
+ *  the joints stay even — the grounds' floor rects are sized to
+ *  whole tiles (palace-grounds.ts), so repeats come out whole. */
+export const PAVING_METRES_PER_TILE = 4;
+/** One tile of the lawn source (Stage C item 8): grass detail is
+ *  fine-grained, so its tile is smaller — 3 m. */
+export const LAWN_METRES_PER_TILE = 3;
+/** One tile of the ashlar stone source (façade + grounds edging,
+ *  Stage C items 1/8): block courses at ~3 m per tile, integral
+ *  repeats wherever the surface size allows. */
+export const STONE_METRES_PER_TILE = 3;
 
 /** Texture repeat for a surface `widthM` × `heightM` metres, given
  *  the world size one texture tile represents. Texel density is
@@ -185,7 +198,11 @@ export function seamStepRatio(rgba: Uint8ClampedArray, width: number, height: nu
 
 /* ── Heightfield, normal, roughness, AO (item 9) ──────────────────── */
 
-export type PbrKind = "marble" | "marble-rough" | "marble-floor" | "fabric";
+export type PbrKind =
+  | "marble" | "marble-rough" | "marble-floor" | "fabric"
+  /* Stage C grounds kinds: paving setts (matte, joint-led relief),
+   * lawn grass (fully matte, soft relief) and ashlar stone. */
+  | "paving" | "lawn" | "stone";
 
 export interface PbrKindParams {
   /** Roughness of the polished field (encoded into the map). */
@@ -205,6 +222,15 @@ export const PBR_KIND_PARAMS: Record<PbrKind, PbrKindParams> = {
   "marble-rough": { baseRoughness: 0.52, veinRoughnessBoost: 0.18, normalStrength: 1.7, aoStrength: 1.4, aoFloor: 0.6 },
   "marble-floor": { baseRoughness: 0.1, veinRoughnessBoost: 0.2, normalStrength: 1.8, aoStrength: 1.5, aoFloor: 0.6 },
   fabric: { baseRoughness: 0.78, veinRoughnessBoost: 0.12, normalStrength: 1.3, aoStrength: 1.1, aoFloor: 0.65 },
+  /* Paving: matte stone setts — the "veins" here are the joints
+   * between setts, which the vein-aware heightfield reads as
+   * recesses exactly as it should: joints sit lower and rougher. */
+  paving: { baseRoughness: 0.82, veinRoughnessBoost: 0.16, normalStrength: 2.0, aoStrength: 1.5, aoFloor: 0.6 },
+  /* Lawn: grass is matte end to end; the relief is a soft mow-tone
+   * undulation, never a groove. */
+  lawn: { baseRoughness: 0.95, veinRoughnessBoost: 0.04, normalStrength: 1.1, aoStrength: 0.9, aoFloor: 0.7 },
+  /* Ashlar stone: cut blocks, mid-matte, joints recessed. */
+  stone: { baseRoughness: 0.68, veinRoughnessBoost: 0.2, normalStrength: 1.9, aoStrength: 1.5, aoFloor: 0.6 },
 };
 
 /** Vein-aware heightfield from a colour image.

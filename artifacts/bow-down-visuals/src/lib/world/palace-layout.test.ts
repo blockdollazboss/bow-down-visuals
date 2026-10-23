@@ -163,14 +163,19 @@ describe("the King's Plaza (Open World Phase 1)", () => {
      * a blocked rect in the plaza's layout. */
     expect(isWalkable(0, 19.7)).toBe(false); // the stele itself
     expect(isWalkable(0, 21.4)).toBe(false); // the plinth's south edge — solid too
-    expect(isWalkable(0, 21.7)).toBe(true); // a walker's stance at the face — prompt radius reaches
+    /* Stage C item 17 DELIBERATELY moved the two pins below: the
+     * grown plinth's trim face stands at z 21.93 and its blocked
+     * rect ends at 22.0, so the walker's stance at the face (and
+     * the bonk's start) moved 0.45 m south with it. The board
+     * station point at 22.6 is untouched. */
+    expect(isWalkable(0, 22.15)).toBe(true); // a walker's stance at the face — prompt radius reaches
     expect(isWalkable(0, 22.6)).toBe(true); // the board station point stands on open plaza
     /* A step aimed into the plinth stops dead (the bonk)… */
-    const bonk = resolvePalaceMove({ x: 0, z: 21.9, room: COURTYARD_ID }, 0, 21.3);
+    const bonk = resolvePalaceMove({ x: 0, z: 22.4, room: COURTYARD_ID }, 0, 21.6);
     expect(bonk.x).toBe(0);
-    expect(bonk.z).toBe(21.9);
+    expect(bonk.z).toBe(22.4);
     /* …and a diagonal step slides along its face like a wall. */
-    const slide = resolvePalaceMove({ x: 0.5, z: 22.5, room: COURTYARD_ID }, -0.5, 21.2);
+    const slide = resolvePalaceMove({ x: 0.5, z: 22.5, room: COURTYARD_ID }, -0.5, 21.4);
     expect(slide.x).toBe(-0.5);
     expect(slide.z).toBe(22.5);
     expect(slide.room).toBe(COURTYARD_ID);
@@ -249,7 +254,10 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
         minZ: run.z - run.d / 2, maxZ: run.z + run.d / 2,
       });
     }
-    expect(PLAZA_BLOCKED).toContainEqual({ minX: -1.85, maxX: 1.85, minZ: 17.85, maxZ: 21.55 });
+    /* Stage C item 17 DELIBERATELY moved this pin: the monument
+     * grew (4.46 m trim square), so its blocked rect grew to the
+     * 4.6 m square palace-grounds' MONUMENT_BLOCKED defines. */
+    expect(PLAZA_BLOCKED).toContainEqual({ minX: -2.3, maxX: 2.3, minZ: 17.4, maxZ: 22.0 });
     expect(plaza.blocked).toBe(PLAZA_BLOCKED);
   });
 

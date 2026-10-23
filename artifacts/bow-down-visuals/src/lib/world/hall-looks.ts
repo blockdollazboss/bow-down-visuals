@@ -60,6 +60,16 @@ export interface HallLook {
    *  pilasters, pediment, dome): black/gold at night, cream/gold
    *  by day — the Living Night Palace direction and its twin. */
   facadeMarbleTextureUrl: string;
+  /** The plaza grounds' own surfaces (Stage C items 5/6/8, art
+   *  lane item 10): real outdoor paving for the broad floor (dark
+   *  setts at night, warm light stone by day), textured grass for
+   *  the lawns (deep green at dusk, bright by day), and the
+   *  backdrop moat's water (a dusk still-water base in both looks
+   *  — the art lane shipped one water file; by day it reads as
+   *  shaded water under the pale sky). */
+  pavingTextureUrl: string;
+  lawnTextureUrl: string;
+  waterTextureUrl: string;
   /** Legacy: the floor's old whole-tile repeat count. Repeats are
    *  per-metre now (pbr-materials.repeatForSize, overhaul item 7) —
    *  hall-scene no longer reads this; kept as look history. */
@@ -110,6 +120,9 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     throneFabricTextureUrl: `${TEXTURE_BASE}/brocade-gold.jpg`,
     facadeStoneTextureUrl: `${TEXTURE_BASE}/stone-light.jpg`,
     facadeMarbleTextureUrl: `${TEXTURE_BASE}/marble-cream-goldvein.jpg`,
+    pavingTextureUrl: `${TEXTURE_BASE}/paving-light.jpg`,
+    lawnTextureUrl: `${TEXTURE_BASE}/lawn-light.jpg`,
+    waterTextureUrl: `${TEXTURE_BASE}/water-dark.jpg`,
     floorRepeat: 3,
     floorOverlayOpacity: 0.5,
     floorRoughness: 0.07,
@@ -140,6 +153,9 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     throneFabricTextureUrl: `${TEXTURE_BASE}/velvet-black.jpg`,
     facadeStoneTextureUrl: `${TEXTURE_BASE}/stone-dark.jpg`,
     facadeMarbleTextureUrl: `${TEXTURE_BASE}/marble-black-goldvein.jpg`,
+    pavingTextureUrl: `${TEXTURE_BASE}/paving-dark.jpg`,
+    lawnTextureUrl: `${TEXTURE_BASE}/lawn-dark.jpg`,
+    waterTextureUrl: `${TEXTURE_BASE}/water-dark.jpg`,
     floorRepeat: 3,
     floorOverlayOpacity: 0.58,
     floorRoughness: 0.06,
