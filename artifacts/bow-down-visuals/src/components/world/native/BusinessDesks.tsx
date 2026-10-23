@@ -6,8 +6,9 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { downloadImage } from "@/lib/download-image";
 import { promoCardFileName, promoCardSharePayload } from "@/lib/promo-card-history";
-import { scheduleHrefForMedia } from "@/lib/world/create-desks";
 import { NativeCard } from "./NativeCard";
+import { SchedulerDeskSection } from "./SchedulerDesk";
+import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
@@ -20,7 +21,6 @@ import {
 } from "@/lib/stream-pack";
 import { slugifyHandle } from "@/lib/press-kit";
 import { SITE_FEATURES } from "@/data/features";
-import { prettyDateTime, countdownLabel } from "@/lib/scheduler";
 import {
   BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
   buildBrandKitGeneratePayload,
@@ -71,8 +71,6 @@ import {
   parseReleases,
   releaseDeskLine,
   parseVaultedCount,
-  parseScheduledPosts,
-  upcomingPosts,
   buildCoachPayload,
   parseCoachTodayAction,
   type PressKitSummary,
@@ -81,7 +79,6 @@ import {
   type PromoResult,
   type PromoCardItem,
   type ReleaseSummary,
-  type UpcomingPost,
   type CoachTodayAction,
 } from "@/lib/world/business-desks";
 
@@ -1309,8 +1306,13 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
   const [bio, setBio] = useState<SectionState<{ page: BioPageSummary; analytics: BioAnalytics | null }>>(loading());
   const [releases, setReleases] = useState<SectionState<{ list: ReleaseSummary[]; vaulted: number }>>(loading());
-  const [scheduled, setScheduled] = useState<SectionState<{ posts: UpcomingPost[] }>>(loading());
   const [tick, setTick] = useState(0);
+
+  /* A promo card's Schedule tap hands the card to the in-world
+     Scheduler section below (Stack-100 #45/#46) — the compose opens
+     prefilled, in this room, never a new tab. */
+  const [cardPrefill, setCardPrefill] = useState<SchedulerPrefill | null>(null);
+  const [cardPrefillNonce, setCardPrefillNonce] = useState(0);
 
   /* Make a promo (promo-generator). */
   const [featureKey, setFeatureKey] = useState(SITE_FEATURES[0]!.key);
@@ -1376,16 +1378,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         if (!cancelled) setReleases({ status: "ready", data: { list, vaulted } });
       } catch {
         if (!cancelled) setReleases({ status: "failed", data: null });
-      }
-    })();
-    (async () => {
-      try {
-        const res = await fetch("/api/scheduler/posts?status=scheduled", { headers: await authHeaders() });
-        if (!res.ok) throw new Error("scheduler");
-        const posts = parseScheduledPosts((await res.json()) as unknown);
-        if (!cancelled) setScheduled({ status: "ready", data: { posts } });
-      } catch {
-        if (!cancelled) setScheduled({ status: "failed", data: null });
       }
     })();
     return () => {
@@ -1477,11 +1469,11 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
     }
   };
 
-  /* Per-card actions — the website panel's own handoffs, on the same
+  /* Per-card actions — the website panel's own actions, on the same
      rails: download the stored card image, share on the share rail
      (the card rides as an image with its history record id), schedule
-     through the scheduler handoff (a user-clicked door, new tab —
-     the palace stays where it was), and add to the hub project's
+     through the IN-WORLD scheduler below (the compose opens with the
+     card loaded — Stack-100 #46), and add to the hub project's
      release assets. */
   const cardShareText = () => cardCaption ?? `${cardTitle} — ${cardArtist}`;
 
@@ -1555,7 +1547,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const retryAll = () => {
     setBio(loading());
     setReleases(loading());
-    setScheduled(loading());
     setTick((n) => n + 1);
   };
 
@@ -1685,15 +1676,18 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                     >
                       <Download className="h-3.5 w-3.5" /> Download
                     </button>
-                    <a
+                    <button
+                      type="button"
                       data-testid="world-promote-card-schedule"
-                      href={scheduleHrefForMedia(c.url, "image", cardShareText())}
-                      target="_blank"
-                      rel="noreferrer"
+                      onClick={() => {
+                        setCardPrefill({ mediaUrl: c.url, mediaType: "image", caption: cardShareText() });
+                        setCardPrefillNonce((n) => n + 1);
+                        setCardActionNote("Your card is loaded in the Scheduler below — pick a platform and a time, right here.");
+                      }}
                       className={cardChipCls}
                     >
                       <CalendarClock className="h-3.5 w-3.5" /> Schedule
-                    </a>
+                    </button>
                     <button
                       type="button"
                       data-testid="world-promote-card-share"
@@ -1727,6 +1721,10 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         )}
       </NativeCard>
 
+      {/* The Scheduler, finished in-world (Stack-100 #45): compose,
+          best-time, calendar, edit and cancel all complete here. */}
+      <SchedulerDeskSection isLight={isLight} prefill={cardPrefill} prefillNonce={cardPrefillNonce} />
+
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
           <NativeCard isLight={isLight} title="Release Desk">
@@ -1741,32 +1739,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                   <NativeBoardRow key={r.id} isLight={isLight} title={r.title} detail={r.artistName || undefined} meta={`${r.releaseType} · ${r.status}`} />
                 ))}
                 <div className="flex justify-end pt-1"><RowTransfer websitePath="/distribute" isLight={isLight} /></div>
-              </div>
-            )}
-          </NativeCard>
-
-          <NativeCard isLight={isLight} title="Scheduler">
-            {scheduled.status === "loading" ? (
-              <NativeLoadingState isLight={isLight} message="Checking what's coming up…" />
-            ) : scheduled.status === "failed" || !scheduled.data ? (
-              <NativeErrorState isLight={isLight} message="Your upcoming posts wouldn't open — the schedule itself is untouched." onRetry={retryAll} />
-            ) : upcomingPosts(scheduled.data.posts).length === 0 ? (
-              <div className="space-y-2">
-                <NativeEmptyState isLight={isLight} message="Nothing scheduled right now." detail="The calendar bench is one tap out — plan the next post there." />
-                <div className="flex justify-end"><RowTransfer websitePath="/scheduler" isLight={isLight} /></div>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {upcomingPosts(scheduled.data.posts).map((p) => (
-                  <NativeBoardRow
-                    key={p.id}
-                    isLight={isLight}
-                    title={p.caption || "Scheduled post"}
-                    detail={`${prettyDateTime(p.scheduledAt)} · ${countdownLabel(p.scheduledAt)}`}
-                    meta={p.platforms.join(", ") || undefined}
-                  />
-                ))}
-                <div className="flex justify-end pt-1"><RowTransfer websitePath="/scheduler" isLight={isLight} /></div>
               </div>
             )}
           </NativeCard>

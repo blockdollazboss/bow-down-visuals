@@ -31,7 +31,7 @@ import {
   ARTIST_IMAGE_MODELS,
   type ArtistImageModel,
 } from "../../components/generate-artist-image";
-import { buildSchedulerHref } from "../scheduler-handoff";
+import type { SchedulerPrefill } from "./scheduler-desk";
 
 export type CreateDeskId =
   | "song-desk"
@@ -693,9 +693,18 @@ export function buildEditorProjectPayload(input: EditorSeedInput): Record<string
 
 /* ─── Next-step hrefs the pages themselves offer after a make ────── */
 
-/** CoverInMotionPanel's "Post it →" rail: the scheduler handoff. */
-export function scheduleHrefForMedia(mediaUrl: string, mediaType: "video" | "image", caption: string): string {
-  return buildSchedulerHref({ caption, media: mediaUrl, mediaType });
+/** Stack-100 #46: a finished creation's "Schedule it" chip hands
+ *  the asset to the IN-WORLD scheduler compose (lib/world/
+ *  scheduler-desk) — the post completes in-world on the real
+ *  scheduler rails. This replaces the old buildSchedulerHref
+ *  target=_blank exit for world surfaces; the 2D pages keep their
+ *  own scheduler-handoff protocol. */
+export function schedulePrefillForMedia(
+  mediaUrl: string,
+  mediaType: "video" | "image",
+  caption: string,
+): SchedulerPrefill {
+  return { mediaUrl, mediaType, caption };
 }
 
 /** cover-art.tsx's result "Distribute" rail. */

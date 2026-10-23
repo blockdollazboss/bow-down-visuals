@@ -5,7 +5,7 @@ import {
   buildThumbnailVariantsPayload,
   buildThumbnailWinnerPublishHref,
   ctrPredictionOfResponse,
-  scheduleHrefForMedia,
+  schedulePrefillForMedia,
   THUMBNAIL_BATCH_SIZE,
   thumbnailBenchSlots,
   thumbnailGeneratorCost,
@@ -30,6 +30,7 @@ import {
   useDeskAuthHeaders,
   useQuestProgressChip,
 } from "./CreateDeskShared";
+import { SchedulerComposeStandalone } from "./SchedulerDesk";
 
 /* ─── Ring 2 (2.9 + 2.10) — the Thumbnail Desk's pro benches ────────
    thumbnail-studio.tsx's own benches docked:
@@ -85,6 +86,7 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
      the bench selection afterwards can't swap it. */
   const [variantsSource, setVariantsSource] = useState<string | null>(null);
   const [winner, setWinner] = useState<string | null>(null);
+  const [winnerScheduleOpen, setWinnerScheduleOpen] = useState(false);
   const [testFiles, setTestFiles] = useState<File[]>([]);
   const [testPreviews, setTestPreviews] = useState<string[]>([]);
   const [ctr, setCtr] = useState<CtrPrediction | null>(null);
@@ -361,14 +363,23 @@ export function ThumbnailBenches({ isLight }: { isLight: boolean }) {
               >
                 Use as thumbnail for a video
               </a>
-              <a
-                href={scheduleHrefForMedia(winner, "image", "My winning thumbnail — made with Bow Down Visuals")}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                data-testid="world-thumbnail-schedule"
+                aria-expanded={winnerScheduleOpen}
+                onClick={() => setWinnerScheduleOpen((v) => !v)}
                 className={chipBtn(isLight)}
               >
                 Schedule it
-              </a>
+              </button>
+              {winnerScheduleOpen ? (
+                <div className="w-full">
+                  <SchedulerComposeStandalone
+                    isLight={isLight}
+                    prefill={schedulePrefillForMedia(winner, "image", "My winning thumbnail — made with Bow Down Visuals")}
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

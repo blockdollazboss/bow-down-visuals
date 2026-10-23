@@ -719,8 +719,10 @@ export function parseVaultedCount(data: unknown): number {
 
 /* ─── Folded row: Scheduler ──────────────────────────────────────────
    GET /api/scheduler/posts → { posts: [...] } (the scheduler lib's
-   ScheduledPostShape). The row shows what's coming up, soonest
-   first; the calendar itself is the bench (a follow-on). */
+   ScheduledPostShape). This shaping served the old read-only row;
+   the full in-world Scheduler desk (compose / best-time / edit /
+   cancel, Stack-100 #45) owns its own shaping in
+   lib/world/scheduler-desk.ts. */
 
 export interface UpcomingPost {
   id: string;
@@ -825,13 +827,6 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
     desk: "release",
     benchPath: "/distribute",
     note: "Create/edit releases, metadata, splits, UPC/barcode, platform delivery tracking, pre-save and submit — v1 shows distribution status only.",
-  },
-  {
-    id: "scheduler-calendar",
-    title: "NATIVE FOLLOW-ON: Scheduler calendar",
-    desk: "scheduler",
-    benchPath: "/scheduler",
-    note: "Month calendar, drag-to-reschedule, composing/scheduling posts, account connections and best-time — v1 shows upcoming posts only.",
   },
   {
     id: "bio-page-layout-theme-editors",
