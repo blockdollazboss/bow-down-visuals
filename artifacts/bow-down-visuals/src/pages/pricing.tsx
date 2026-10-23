@@ -141,6 +141,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 function WantedMeter({ onSelect, plans }: { onSelect: (stars: number) => void; plans: Plan[] }) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   return (
     <div className="flex flex-col items-center gap-3 mt-8">
       <div
@@ -157,11 +158,11 @@ function WantedMeter({ onSelect, plans }: { onSelect: (stars: number) => void; p
               key={s}
               type="button"
               role="radio"
-              aria-checked={false}
+              aria-checked={selected === s}
               aria-label={t("pricing.wantedMeter.starOption", { count: s, name: plan.name, price: plan.price })}
               onMouseEnter={() => setHovered(s)}
               onFocus={() => setHovered(s)}
-              onClick={() => onSelect(s)}
+              onClick={() => { setSelected(s); onSelect(s); }}
               className="p-1 transition-transform hover:scale-125 active:scale-95"
             >
               <Star
