@@ -1457,6 +1457,13 @@ export class KingsHallScene {
   private nextLoopFeedId = 1;
   private loopVisibilityHooked = false;
   private loopFrustum: THREE.Frustum | null = null;
+  /* Item 96: serviceLoopFeeds runs every tick and used to allocate
+   * its candidate + decorated arrays (and a fresh key string per
+   * feed) on every call. The scratch buffers below are refilled in
+   * place — slots are reused by index, and a decorated slot's key
+   * string is rebuilt only when the slot changes feeds. */
+  private loopEntriesScratch: { rig: AvatarRig; feed: FigureLoopFeed }[] = [];
+  private loopDecoratedScratch: { key: string; distance: number; visible: boolean; feed: FigureLoopFeed }[] = [];
   private boundHandlers: Array<[string, EventListener, unknown]> = [];
 
   private quality: QualityTier;
@@ -8010,35 +8017,54 @@ export class KingsHallScene {
    *  still in updateFigure. Also self-heals playback after the
    *  tab was hidden (the visibility hook pauses everything). */
   private serviceLoopFeeds(): void {
-    const entries: { rig: AvatarRig; feed: FigureLoopFeed }[] = [];
+    const entries = this.loopEntriesScratch;
+    let count = 0;
     const collect = (rig: AvatarRig | null) => {
       if (rig?.loopFeed && !rig.loopFeed.failed && rig.portrait) {
-        entries.push({ rig, feed: rig.loopFeed });
+        const feed = rig.loopFeed;
+        let slot = entries[count];
+        if (!slot) {
+          slot = { rig, feed };
+          entries[count] = slot;
+        } else {
+          slot.rig = rig;
+          slot.feed = feed;
+        }
+        count++;
       }
     };
     for (const rig of this.avatars.values()) collect(rig);
     collect(this.selfRig);
-    if (!entries.length) return;
+    entries.length = count;
+    if (!count) return;
     this.camera.getWorldPosition(SCRATCH_VEC);
     if (!this.loopFrustum) this.loopFrustum = new THREE.Frustum();
     const frustum = this.loopFrustum;
     frustum.setFromProjectionMatrix(
       LOOP_SCRATCH_MAT.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse),
     );
-    const decorated = entries.map(({ rig, feed }) => {
+    const decorated = this.loopDecoratedScratch;
+    for (let i = 0; i < count; i++) {
+      const { rig, feed } = entries[i]!;
       const p = rig.group.position;
       LOOP_SCRATCH_SPHERE.center.set(p.x, 1, p.z);
       const inView =
         rig === this.selfRig ? rig.group.visible : rig.group.visible && frustum.intersectsSphere(LOOP_SCRATCH_SPHERE);
-      return {
-        key: `f${feed.id}`,
-        distance: Math.hypot(p.x - SCRATCH_VEC.x, p.z - SCRATCH_VEC.z),
-        visible: inView,
-        feed,
-      };
-    });
+      let d = decorated[i];
+      if (!d) {
+        d = { key: `f${feed.id}`, distance: 0, visible: false, feed };
+        decorated[i] = d;
+      } else if (d.feed !== feed) {
+        d.feed = feed;
+        d.key = `f${feed.id}`;
+      }
+      d.distance = Math.hypot(p.x - SCRATCH_VEC.x, p.z - SCRATCH_VEC.z);
+      d.visible = inView;
+    }
+    decorated.length = count;
     const live = selectLiveLoops(decorated);
-    for (const d of decorated) {
+    for (let i = 0; i < count; i++) {
+      const d = decorated[i]!;
       const shouldLive = live.has(d.key) && d.feed.ready;
       d.feed.active = shouldLive;
       const v = d.feed.video;

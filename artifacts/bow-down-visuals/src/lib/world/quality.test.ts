@@ -410,3 +410,25 @@ describe("texture step-down (item 93: lower rungs decode a smaller set)", () => 
     expect(applySegment).toContain("activeTextureScale = rung.textureScale;");
   });
 });
+
+describe("per-frame allocation cuts (item 96: buffers and maps are reused)", () => {
+  it("serviceLoopFeeds refills scratch buffers instead of allocating per tick", () => {
+    const start = hallSceneSrc.indexOf("private serviceLoopFeeds()");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 2600);
+    expect(segment).toContain("const entries = this.loopEntriesScratch;");
+    expect(segment).toContain("const decorated = this.loopDecoratedScratch;");
+    expect(segment).not.toContain("entries.push(");
+    expect(segment).not.toContain("entries.map(");
+  });
+
+  it("the page's proximity-voice tick reuses its positions map across ticks", () => {
+    const start = worldPageSrc.indexOf("volumeTick = setInterval(");
+    expect(start).toBeGreaterThan(-1);
+    const segment = worldPageSrc.slice(Math.max(0, start - 1400), start + 1500);
+    expect(segment).toContain("const voicePositions = new Map<string, { x: number; z: number }>();");
+    const tickSegment = worldPageSrc.slice(start, start + 1500);
+    expect(tickSegment).toContain("voicePositions.clear();");
+    expect(tickSegment).not.toContain("new Map");
+  });
+});
