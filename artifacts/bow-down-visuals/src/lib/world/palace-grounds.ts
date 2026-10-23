@@ -438,13 +438,18 @@ export const BACKDROP_WINGS: readonly BackdropWing[] = [
  *  (68, 14). The SOUTH-EAST mound moved south in Stage C
  *  item 34 the same way: the ground it used to mound
  *  (x 31..45, z 33..47) is the built Ateliers district now —
- *  it rings the Ateliers' south wall instead, at (30, 63). */
+ *  it rings the Ateliers' south wall instead, at (30, 63). The
+ *  SOUTH-CENTRE mound moved south in Stage C item 35 the same
+ *  way: the ground it used to mound (x 12..28, z 40..56) is the
+ *  built Boardwalk district now — it rings the Boardwalk's
+ *  south wall instead, at (20, 68), rising beyond the moat's
+ *  near edge south of the waterfront. */
 export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; h: number }> = [
   { x: -66, z: 4, r: 7, h: 3.2 },
   { x: -68, z: 24, r: 9, h: 4.0 },
   { x: -66, z: 44, r: 6.5, h: 2.8 },
   { x: -50, z: 50, r: 8, h: 3.4 },
-  { x: 20, z: 48, r: 8, h: 3.4 },
+  { x: 20, z: 68, r: 8, h: 3.4 },
   { x: 30, z: 63, r: 6.5, h: 2.8 },
   { x: 68, z: 14, r: 7.5, h: 3.6 },
   { x: 14, z: -38, r: 9, h: 4.2 },
