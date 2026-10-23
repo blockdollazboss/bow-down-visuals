@@ -53,10 +53,20 @@ describe("#85 studio rails — the 2D studio's verbatim doors", () => {
   });
 
   it("normalizes the status payload the studio reads (configured, transport, live stream)", () => {
+    /* Item 98 pin change (justified): LiveStatusView.liveStream now
+       also carries startedAt — the server-written broadcast start
+       the shared status read publishes (see live-desk.ts). The old
+       exact-shape expectation predates the field. */
+    expect(normalizeLiveStatus({
+      configured: true, transport: "own",
+      live_stream: { id: "s1", title: "Show", viewer_count: 7, started_at: "2026-10-23T19:00:00.000Z" },
+    })).toEqual({ configured: true, transport: "own", liveStream: { id: "s1", title: "Show", viewerCount: 7, startedAt: "2026-10-23T19:00:00.000Z" } });
+    /* A status payload without started_at reads startedAt: null —
+       unknown, never a fabricated client-side start. */
     expect(normalizeLiveStatus({
       configured: true, transport: "own",
       live_stream: { id: "s1", title: "Show", viewer_count: 7 },
-    })).toEqual({ configured: true, transport: "own", liveStream: { id: "s1", title: "Show", viewerCount: 7 } });
+    }).liveStream?.startedAt).toBeNull();
     expect(normalizeLiveStatus({ configured: false, transport: "weird", live_stream: null }))
       .toEqual({ configured: false, transport: null, liveStream: null });
     expect(normalizeLiveStatus(null)).toEqual({ configured: false, transport: null, liveStream: null });

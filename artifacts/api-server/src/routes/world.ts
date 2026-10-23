@@ -427,8 +427,12 @@ function lockBodyString(body: unknown, key: string): string | null {
  * (WORLD_TURN_* env, lib/world-voice-config), an honest empty list
  * until then. Members only: voice is members-only, so the relay
  * coordinates never serve to guests or the public. */
-router.get("/world/voice-config", requireAuth, (_req, res) => {
-  res.json(buildWorldVoiceConfig(process.env));
+router.get("/world/voice-config", requireAuth, (req, res) => {
+  /* The member id rides the request so that, when WORLD_TURN_SECRET
+   * is set, the rail signs the credential for THIS session
+   * (Stack-100 #2 item 100); unset, the static pair is served as
+   * before and the id is unused. */
+  res.json(buildWorldVoiceConfig(process.env, { userId: req.userId }));
 });
 
 router.get("/world/locks", requireAuth, (req, res) => {

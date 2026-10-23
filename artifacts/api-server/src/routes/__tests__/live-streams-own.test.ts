@@ -410,6 +410,29 @@ describe("status + create on the own transport", () => {
     expect(h.state.own.beginCalls).toEqual([dto.id]);
   });
 
+  it("item 98: create writes goLiveStartedAt server-side — the row and the DTO carry the real start instant", async () => {
+    const before = Date.now();
+    const { status, json } = await goLive();
+    const after = Date.now();
+    expect(status).toBe(201);
+    /* The DTO's started_at is the server-written start, not null and
+       not a client guess: within the request window. */
+    const dtoStart = Date.parse(String(json.stream.started_at));
+    expect(Number.isNaN(dtoStart)).toBe(false);
+    expect(dtoStart).toBeGreaterThanOrEqual(before - 1000);
+    expect(dtoStart).toBeLessThanOrEqual(after + 1000);
+    /* And it is the ROW's value (the fake db echoes what was inserted):
+       any surface reading the shared status sees the same instant —
+       compared at second resolution, the storage's own granularity. */
+    const row = h.state.streams.get(json.stream.id)!;
+    expect(row["started_at"]).toBeTruthy();
+    expect(Math.abs(Date.parse(String(row["started_at"])) - dtoStart)).toBeLessThan(1000);
+    /* The shared status read carries the same live stream + start. */
+    const st = await call("GET", "/live-streams/status");
+    expect(st.json.live_stream?.id).toBe(json.stream.id);
+    expect(Math.abs(Date.parse(String(st.json.live_stream?.started_at)) - dtoStart)).toBeLessThan(1000);
+  });
+
   it("create refuses honestly when the stage is at capacity", async () => {
     h.state.own.activeCount = 3;
     const { status, json } = await goLive();

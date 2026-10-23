@@ -15,6 +15,10 @@
      POST   /api/distribution/releases/:id/generate-barcode  mint an
                                             INTERNAL placeholder (free)
      PUT    /api/distribution/releases/:id/splits      royalty splits (free)
+     POST   /api/distribution/releases/:id/splits/invite   split invite
+                                            by email (free; item 99)
+     POST   /api/distribution/releases/:id/splits/share-link  agreement
+                                            share link (free; item 99)
      POST   /api/distribution/releases/:id/presave     mint smartlink (free)
      PATCH  /api/distribution/releases/:id/presave-settings  smartlink
                                             settings + retargeting pixels (free)
@@ -204,6 +208,10 @@ export function parseReleaseDetail(data: unknown): ReleaseDetail | null {
     const share = num(s["share"]);
     if (!name || share === null) continue;
     royaltySplits.push({
+      /* Item 99: the split's id MUST ride along — the invite rail
+         names the collaborator by splitId, and dropping the id here
+         is what made in-world invites impossible. */
+      id: str(s["id"]) ?? undefined,
       name,
       role: str(s["role"]) ?? undefined,
       email: str(s["email"]),
@@ -502,9 +510,79 @@ export function parseSplitsSave(data: unknown): { splits: RoyaltySplit[]; agreem
     const name = str(s["name"]);
     const share = num(s["share"]);
     if (!name || share === null) continue;
-    splits.push({ name, role: str(s["role"]) ?? undefined, email: str(s["email"]), share });
+    /* Item 99: keep the id + invite status the save returns — the
+       rows the editor holds after a save are the very rows the
+       invite door acts on. */
+    splits.push({
+      id: str(s["id"]) ?? undefined,
+      name,
+      role: str(s["role"]) ?? undefined,
+      email: str(s["email"]),
+      share,
+      inviteStatus: str(s["inviteStatus"]) ?? undefined,
+    });
   }
   return { splits, agreementVersion: num(d["agreementVersion"]) };
+}
+
+/* ─── Split invites + agreement share link (item 99) ──────────────────
+   The rails already exist on the 2D page's own server (generate/
+   distribution.ts): POST .../splits/invite { splitId } records the
+   invite on the split row (invite_status 'invited' + an invite
+   token — pending-invite state on the existing schema, no
+   migration) and emails the collaborator when a provider is
+   configured; without one the invite is STILL recorded and the
+   answer says so, and the desk falls back to the share link
+   (POST .../splits/share-link, the public agreement summary).
+   Collaborators are invited by the EMAIL on their split row and by
+   that link — never by a raw user id typed into the editor.
+   Splits are percentages of the creator's own release: inviting
+   charges nothing and changes no price. */
+
+export const SPLIT_INVITE_PATH = (releaseId: string) =>
+  `/api/distribution/releases/${encodeURIComponent(releaseId)}/splits/invite`;
+export const SPLIT_SHARE_LINK_PATH = (releaseId: string) =>
+  `/api/distribution/releases/${encodeURIComponent(releaseId)}/splits/share-link`;
+
+/** The invite rail's body: the saved split's id, nothing else. */
+export function buildSplitInviteBody(split: RoyaltySplit): { splitId: string } | null {
+  return split.id ? { splitId: split.id } : null;
+}
+
+/** A payee can be invited only once their split is SAVED (it has an
+ *  id) and carries an email — the rail 400s without one, so the
+ *  door stays shut honestly instead of firing a doomed call.
+ *  Re-inviting an already-invited payee is allowed (the rail
+ *  re-records + re-emails), so inviteStatus never blocks the door. */
+export function splitInviteReady(split: RoyaltySplit): boolean {
+  return !!split.id && !!(split.email ?? "").trim();
+}
+
+export interface SplitInviteResult {
+  recorded: boolean;
+  emailSent: boolean;
+  note: string | null;
+}
+
+/** The invite rail's answer, honestly read: `recorded` is true only
+ *  when the server says so — the desk marks a payee "invited" from
+ *  this, never from the click. */
+export function parseSplitInviteResult(data: unknown): SplitInviteResult {
+  const d = asRecord(data);
+  return {
+    recorded: d["recorded"] === true,
+    emailSent: d["emailSent"] === true,
+    note: str(d["note"]),
+  };
+}
+
+/** The share-link rail's answer ({ slug, url }); null when the
+ *  server didn't mint one. */
+export function parseSplitShareLink(data: unknown): { slug: string; url: string } | null {
+  const d = asRecord(data);
+  const slug = str(d["slug"]);
+  const url = str(d["url"]);
+  return slug && url ? { slug, url } : null;
 }
 
 /* ─── Barcode + submit answers ────────────────────────────────────── */

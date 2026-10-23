@@ -58,7 +58,18 @@ export const LOYALTY_CUSTOM_COST_MENU = [500, 1000, 2500, 5000] as const;
 export interface LiveStatusView {
   configured: boolean;
   transport: "own" | "cloudflare" | null;
-  liveStream: { id: string; title: string; viewerCount: number } | null;
+  liveStream: {
+    id: string;
+    title: string;
+    viewerCount: number;
+    /** The server-written broadcast start (item 98: `started_at` is
+     *  written in the api-server go-live start path — POST create on
+     *  both transports and the RTMP ingest start — so EVERY surface
+     *  that starts a broadcast publishes it, and this ONE shared
+     *  status read is where every surface reads it back). Null only
+     *  when the server didn't say — never a client-side guess. */
+    startedAt: string | null;
+  } | null;
 }
 
 export function normalizeLiveStatus(raw: unknown): LiveStatusView {
@@ -72,6 +83,7 @@ export function normalizeLiveStatus(raw: unknown): LiveStatusView {
           id: live["id"],
           title: typeof live["title"] === "string" ? live["title"] : "Live stream",
           viewerCount: typeof live["viewer_count"] === "number" ? live["viewer_count"] : 0,
+          startedAt: typeof live["started_at"] === "string" ? live["started_at"] : null,
         }
       : null,
   };

@@ -96,6 +96,10 @@ interface LiveStreamOwnerDto {
 interface WatchDto {
   viewer_count: number;
   status: string;
+  /* The server-written broadcast start (item 98) — adopted by the
+     live poll below so the studio clock and every controller deck
+     read the rail's truth, not a local reconstruction. */
+  started_at?: string | null;
 }
 
 function formatDuration(totalSec: number): string {
@@ -420,6 +424,14 @@ export default function BroadcastStudio() {
         if (res.ok) {
           const d = (await res.json()) as { stream: WatchDto };
           setViewerCount(d.stream.viewer_count);
+          /* Item 98: adopt the server-written start (goLiveStartedAt)
+             as the clock's source the moment the rail reports it —
+             the local Date.now() taken in goLive() is only the
+             bridge until the rail's value lands. */
+          const serverStart = d.stream.started_at ? Date.parse(d.stream.started_at) : NaN;
+          if (!Number.isNaN(serverStart)) {
+            setLiveSince((prev) => (prev === serverStart ? prev : serverStart));
+          }
         }
       } catch {
         /* the next poll retries */
@@ -1062,7 +1074,12 @@ export default function BroadcastStudio() {
     micPresent: micInput !== null,
     cameraOn: phase !== "off",
     recording: recPhase === "recording" || isLivePhase,
-    liveSince: isLivePhase ? Date.now() - elapsed * 1000 : null,
+    /* Item 98: publish the REAL start — the liveSince state, which
+       goLive() sets and the live poll then corrects to the
+       server-written started_at. (This used to reconstruct
+       Date.now() - elapsed*1000 on every render: a drifting
+       fabrication the decks presented as the broadcast's start.) */
+    liveSince: isLivePhase ? liveSince : null,
   };
   controllerBuildRef.current = () => controllerState;
   controllerExecRef.current = async (command, args) => {

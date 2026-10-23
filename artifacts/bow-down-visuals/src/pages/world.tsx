@@ -154,6 +154,7 @@ import {
   createBrowserPeerConnection,
   createBrowserVoiceSink,
   createLocalLevelTap,
+  createVoiceConnectionSummarizer,
   summarizeVoiceConnections,
   voiceConnectionHeadline,
   type VoicePeerConnectionState,
@@ -470,6 +471,10 @@ export default function WorldPage() {
      Members only — this state only ever exists inside a voice
      session, which guests can't start. */
   const [voiceConnStates, setVoiceConnStates] = useState<Map<string, VoicePeerConnectionState>>(new Map());
+  /* Item 66: the connection summary is rolled up through a memoizing
+     summarizer — unchanged snapshots (join/partway churn, unrelated
+     re-renders) reuse the same summary object instead of recomputing. */
+  const voiceSummarizerRef = useRef(createVoiceConnectionSummarizer());
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
@@ -2257,8 +2262,12 @@ export default function WorldPage() {
           : "border-white/15 text-white/75 hover:text-white"
     }`;
   /* The voice connection truth for the footer (item 100): rolled up
-     from the mesh's per-pair states — never assumed from "in voice". */
-  const voiceConnSummary = summarizeVoiceConnections(voiceConnStates);
+     from the mesh's per-pair states — never assumed from "in voice".
+     Item 66: through the memoizing summarizer, so a render where no
+     pair's state changed reuses the previous summary object. Item 63:
+     the headline also reads the room's live occupant count, so the
+     honest "quiet" caption renders in mixed rooms too. */
+  const voiceConnSummary = voiceSummarizerRef.current(voiceConnStates);
   const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary, peopleCount);
   /* The voice modes in the words the control speaks them. */
   const voiceModeLabels: Record<VoiceMode, string> = {

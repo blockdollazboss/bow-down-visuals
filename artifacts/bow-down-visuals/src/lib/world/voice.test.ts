@@ -19,6 +19,7 @@ import {
   gainForDistance,
   gainForPolicy,
   mapRtcConnectionState,
+  createVoiceConnectionSummarizer,
   summarizeVoiceConnections,
   voiceConnectionHeadline,
   VOICE_MAX_DISTANCE,
@@ -478,5 +479,40 @@ describe("the mesh under a gain policy", () => {
     expect(mesh.peerCount).toBe(2);
     mesh.setGainPolicy("lobby");
     expect(mesh.peerCount).toBe(2);
+  });
+});
+
+describe("createVoiceConnectionSummarizer — item 66: no recompute when nothing changed", () => {
+  const S = (entries: Array<[string, VoicePeerConnectionState]>) => new Map(entries);
+
+  it("returns the SAME summary object for an unchanged snapshot, even a fresh Map with equal contents", () => {
+    const summarize = createVoiceConnectionSummarizer();
+    const first = summarize(S([["a", "connecting"], ["b", "connected"]]));
+    /* Join/partway churn: a new Map object, identical contents. */
+    const second = summarize(S([["a", "connecting"], ["b", "connected"]]));
+    expect(second).toBe(first);
+    expect(second).toEqual(summarizeVoiceConnections(S([["a", "connecting"], ["b", "connected"]])));
+  });
+
+  it("recomputes (new object, new truth) the moment any pair's state changes or the peer set moves", () => {
+    const summarize = createVoiceConnectionSummarizer();
+    const first = summarize(S([["a", "connecting"]]));
+    const flipped = summarize(S([["a", "connected"]]));
+    expect(flipped).not.toBe(first);
+    expect(flipped.state).toBe("connected");
+    const grown = summarize(S([["a", "connected"], ["b", "failed"]]));
+    expect(grown).not.toBe(flipped);
+    expect(grown.state).toBe("partial");
+    expect(grown.failedPeerIds).toEqual(["b"]);
+    const shrunk = summarize(S([]));
+    expect(shrunk.state).toBe("empty");
+  });
+
+  it("each summarizer instance memoizes independently", () => {
+    const one = createVoiceConnectionSummarizer();
+    const two = createVoiceConnectionSummarizer();
+    const snap = S([["a", "connected"]]);
+    expect(one(snap)).not.toBe(two(snap));
+    expect(one(snap)).toEqual(two(snap));
   });
 });
