@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { apiFetch, apiJson, profileHref, type FeedPost, type PollData } from "@/lib/social-api";
 import { removalReasonLabel } from "@/lib/content-removal";
 import { Avatar } from "./Avatar";
@@ -42,6 +43,7 @@ export function PostCard({
   depth?: number;
 }) {
   const { getAccessToken, user } = useAuth();
+  const isLight = useIsLightTheme();
   const [emoji, setEmoji] = useState<string | null>(post.viewer_emoji);
   const [counts, setCounts] = useState<Record<string, number>>(post.reaction_counts ?? {});
   const [saved, setSaved] = useState(post.viewer_saved);
@@ -245,7 +247,7 @@ export function PostCard({
                     onClick={() => vote(o.id)}
                     disabled={!!poll.viewer_option_id || voting}
                     className={`relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-sm ${
-                      mine ? "border-[#d4af37] text-[#f5e08c]" : "border-[#2a2a2a] text-neutral-200"
+                      mine ? `border-[#d4af37] ${isLight ? "text-[#7A5A12]" : "text-[#f5e08c]"}` : "border-[#2a2a2a] text-neutral-200"
                     } ${poll.viewer_option_id ? "" : "hover:border-[#d4af37]/60"}`}
                   >
                     <span className="absolute inset-y-0 left-0 bg-[#d4af37]/15" style={{ width: `${pct}%` }} />
@@ -343,8 +345,8 @@ export function PostCard({
 
           {/* earning hint — guide them to the money */}
           {!removed && showAnalytics && earningHint && (
-            <div className="mt-2 rounded-xl border border-[#d4af37]/40 bg-gradient-to-r from-[#1a1408] to-transparent p-3">
-              <p className="text-xs leading-relaxed text-[#f5e08c]">💰 {earningHint}</p>
+            <div className={`mt-2 rounded-xl border border-[#d4af37]/40 p-3 ${isLight ? "bg-gradient-to-r from-[#F4E7C3] to-[#FCF7EA]" : "bg-gradient-to-r from-[#1a1408] to-transparent"}`}>
+              <p className={`text-xs leading-relaxed ${isLight ? "text-[#7A5A12]" : "text-[#f5e08c]"}`}>💰 {earningHint}</p>
             </div>
           )}
 

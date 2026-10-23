@@ -793,7 +793,7 @@ export default function SharkRunnerGame({
           <button
             type="button"
             aria-label="Duck"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-[#f0d878]"
+            className={`flex h-12 w-12 items-center justify-center rounded-full bg-black/60 ${light ? "text-[#7A5A12]" : "text-[#f0d878]"}`}
             onPointerDown={(e) => { e.preventDefault(); keysRef.current.duck = true; }}
             onPointerUp={() => { keysRef.current.duck = false; }}
             onPointerLeave={() => { keysRef.current.duck = false; }}
@@ -803,7 +803,7 @@ export default function SharkRunnerGame({
           <button
             type="button"
             aria-label="Jump"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-[#f0d878]"
+            className={`flex h-12 w-12 items-center justify-center rounded-full bg-black/60 ${light ? "text-[#7A5A12]" : "text-[#f0d878]"}`}
             onPointerDown={(e) => { e.preventDefault(); jump(); }}
           >
             <ArrowBigUp className="h-6 w-6" />
