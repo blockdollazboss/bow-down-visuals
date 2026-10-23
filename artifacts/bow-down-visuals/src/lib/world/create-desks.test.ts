@@ -59,7 +59,7 @@ import {
   resultExcerpt,
   songMusicPromptOf,
   SONG_AUDIO_LENGTH_SECONDS,
-  scheduleHrefForMedia,
+  schedulePrefillForMedia,
   sfxCost,
   songDeskCost,
   songVideoDeskCost,
@@ -368,9 +368,12 @@ describe("drafts + editor seed match the pages' shapes (pin d)", () => {
     });
   });
 
-  it("next-step hrefs are the pages' own rails", () => {
-    expect(scheduleHrefForMedia("https://x/v.mp4", "video", "cap")).toContain("/scheduler?schedule=1");
-    expect(scheduleHrefForMedia("https://x/v.mp4", "video", "cap")).toContain("mediaType=video");
+  it("next-step rails: the schedule chip hands a prefill to the in-world scheduler (#46), release keeps its href", () => {
+    expect(schedulePrefillForMedia("https://x/v.mp4", "video", "cap")).toEqual({
+      mediaUrl: "https://x/v.mp4",
+      mediaType: "video",
+      caption: "cap",
+    });
     expect(distributeHrefForCover("https://x/c.png", "My Song")).toBe(
       "/distribute?cover=https%3A%2F%2Fx%2Fc.png&title=My%20Song",
     );

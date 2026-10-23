@@ -575,7 +575,6 @@ describe("parity follow-on log — thorough, each bench named", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     for (const required of [
       "release-wizard",
-      "scheduler-calendar",
       "bio-page-layout-theme-editors",
       "press-kit-layout-editing",
       "branding-jewelry-bench",
@@ -590,6 +589,9 @@ describe("parity follow-on log — thorough, each bench named", () => {
     // Stream pack graduated the same way: library + generate + apply
     // are native at the Branding Kit Desk, reading the same records.
     expect(ids).not.toContain("branding-stream-pack-bench");
+    // The Scheduler graduated too (Stack-100 #45): compose, calendar,
+    // best-time, edit and cancel are native at the Promote Desk.
+    expect(ids).not.toContain("scheduler-calendar");
     for (const f of BUSINESS_NATIVE_FOLLOW_ONS) {
       expect(f.title.startsWith("NATIVE FOLLOW-ON:"), f.id).toBe(true);
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
@@ -619,7 +621,12 @@ describe("Promote Desk gallery actions (source pins)", () => {
     expect(desk).toContain('data-testid="world-promote-card-share"');
     expect(desk).toContain('data-testid="world-promote-card-assets"');
     expect(desk).toContain("downloadImage(c.url, promoCardFileName(c))");
-    expect(desk).toContain('scheduleHrefForMedia(c.url, "image", cardShareText())');
+    // #46: the card's Schedule action loads the in-world Scheduler
+    // compose — a prefill into SchedulerDeskSection, never the old
+    // scheduler-handoff href exit.
+    expect(desk).toContain('setCardPrefill({ mediaUrl: c.url, mediaType: "image", caption: cardShareText() })');
+    expect(desk).toContain("<SchedulerDeskSection");
+    expect(desk).not.toContain("scheduleHrefForMedia");
     expect(desk).toContain("promoCardSharePayload(c, channel)");
     expect(desk).toContain("addGalleryCardToAssets(c)");
   });

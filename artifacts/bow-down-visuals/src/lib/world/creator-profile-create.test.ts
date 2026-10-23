@@ -7,6 +7,7 @@
  * until the handle is confirmed available), the create payload's
  * field names, and the already-has-a-profile parse.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildCreatorProfilePayload,
@@ -120,5 +121,36 @@ describe("already-has-a-profile path", () => {
     expect(parseMyCreatorProfile({ error: "No profile yet" })).toBeNull();
     expect(parseMyCreatorProfile(null)).toBeNull();
     expect(parseMyCreatorProfile({})).toBeNull();
+  });
+});
+
+describe("the creation card + its mounts (source pins)", () => {
+  const card = readFileSync(
+    new URL("../../components/world/native/CreatorProfileCreate.tsx", import.meta.url),
+    "utf8",
+  );
+  const desks = readFileSync(
+    new URL("../../components/world/native/CreateDesks.tsx", import.meta.url),
+    "utf8",
+  );
+  const studio = readFileSync(
+    new URL("../../components/world/native/boards/StudioBoard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("the card rides /me, check-slug (live) and the create POST", () => {
+    expect(card).toContain('fetch("/api/creator-profiles/me"');
+    expect(card).toContain("/api/creator-profiles/check-slug?slug=");
+    expect(card).toContain('fetch("/api/creator-profiles"');
+    expect(card).toContain('data-testid="world-profile-create-submit"');
+    expect(card).toContain('data-testid="world-profile-slug-check"');
+    expect(card).toContain('data-testid="world-profile-mine"');
+  });
+
+  it("the song publish rail opens the card instead of exiting, and My Studio mounts it", () => {
+    expect(desks).toContain("setNeedsProfile(true)");
+    expect(desks).toContain('data-testid="world-create-profile-gate"');
+    expect(desks).not.toContain("create one on your profile page");
+    expect(studio).toContain("<CreatorProfileCreateCard");
   });
 });

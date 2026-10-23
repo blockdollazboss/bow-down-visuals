@@ -21,6 +21,7 @@ import { StoryboardPlanner } from "./StoryboardPlanner";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
+import { CreatorProfileCreateCard } from "./CreatorProfileCreate";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
   AI_EDIT_STYLE_DEFS,
@@ -66,7 +67,7 @@ import {
   profileIdOfProfilesResponse,
   publishedTrackIdOfResponse,
   resultExcerpt,
-  scheduleHrefForMedia,
+  schedulePrefillForMedia,
   showcaseSlugOfResponse,
   transcribeCost,
   transcriptOfResponse,
@@ -183,6 +184,10 @@ function useSongPublishRail(args: {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  /* Stack-100 #48: no creator profile yet is not an error and never
+     an exit — the desk opens the in-world profile creation card and
+     the publish retries from the same spot once it exists. */
+  const [needsProfile, setNeedsProfile] = useState(false);
   const [publishedTrackId, setPublishedTrackId] = useState<string | null>(null);
   const [jukeboxSent, setJukeboxSent] = useState(false);
 
@@ -192,6 +197,7 @@ function useSongPublishRail(args: {
     setAudioError(null);
     setPublishBusy(false);
     setPublishError(null);
+    setNeedsProfile(false);
     setPublishedTrackId(null);
     setJukeboxSent(false);
   };
@@ -237,9 +243,10 @@ function useSongPublishRail(args: {
       if (!profRes.ok) throw new Error("Couldn't check your creator profile — try publishing again.");
       const profileId = profileIdOfProfilesResponse(await profRes.json().catch(() => null));
       if (!profileId) {
-        throw new Error(
-          "You don't have a creator profile yet — create one on your profile page, then publish from here.",
-        );
+        /* #48: the creation card opens right here (rendered by the
+           desk below) — no profile page, no leaving the World. */
+        setNeedsProfile(true);
+        return;
       }
       const res = await fetch("/api/publish/track", {
         method: "POST",
@@ -282,6 +289,8 @@ function useSongPublishRail(args: {
     publish,
     publishBusy,
     publishError,
+    needsProfile,
+    profileCreated: () => setNeedsProfile(false),
     published: publishedTrackId !== null,
     publishedTrackId,
     jukeboxSent,
@@ -550,6 +559,14 @@ export function SongDesk(props: CreateDeskProps) {
                   {rail.publishError}
                 </p>
               ) : null}
+              {rail.needsProfile ? (
+                <div className="mt-3" data-testid="world-create-profile-gate">
+                  <CreatorProfileCreateCard isLight={isLight} compact onCreated={() => rail.profileCreated()} />
+                  <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    Once your profile exists, tap Publish again — the song lands on it without leaving this desk.
+                  </p>
+                </div>
+              ) : null}
               {rail.published ? (
                 <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
               ) : (
@@ -697,6 +714,14 @@ export function SongVideoDesk(props: CreateDeskProps) {
                 <p data-testid="world-create-publish-error" className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
                   {rail.publishError}
                 </p>
+              ) : null}
+              {rail.needsProfile ? (
+                <div className="mt-3" data-testid="world-create-profile-gate">
+                  <CreatorProfileCreateCard isLight={isLight} compact onCreated={() => rail.profileCreated()} />
+                  <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    Once your profile exists, tap Publish again — the song lands on it without leaving this desk.
+                  </p>
+                </div>
               ) : null}
               {rail.published ? (
                 <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
@@ -1088,7 +1113,7 @@ export function VideoDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                scheduleHref={scheduleHrefForMedia(clipUrl, "video", "My new clip — made with Bow Down Visuals")}
+                schedulePrefill={schedulePrefillForMedia(clipUrl, "video", "My new clip — made with Bow Down Visuals")}
                 onMakeAnother={() => {
                   setState("idle");
                   setClipUrl(null);
@@ -1471,7 +1496,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                 }
                 editorBusy={editor.busy}
                 releaseHref={distributeHrefForCover(coverUrl, songTitle)}
-                scheduleHref={motionUrl ? scheduleHrefForMedia(motionUrl, "video", "My cover visualizer — made with Bow Down Visuals") : undefined}
+                schedulePrefill={motionUrl ? schedulePrefillForMedia(motionUrl, "video", "My cover visualizer — made with Bow Down Visuals") : undefined}
                 onMakeAnother={() => {
                   setState("idle");
                   setCoverUrl(null);
@@ -1652,7 +1677,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                scheduleHref={imageUrl ? scheduleHrefForMedia(imageUrl, "image", "My new thumbnail — made with Bow Down Visuals") : undefined}
+                schedulePrefill={imageUrl ? schedulePrefillForMedia(imageUrl, "image", "My new thumbnail — made with Bow Down Visuals") : undefined}
                 onSaveDraft={() =>
                   void draft.save(
                     buildDraftPayload(THUMBNAIL_DRAFT_WORKFLOW, songTitle || "Thumbnail draft", {

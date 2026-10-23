@@ -6,6 +6,7 @@
  * pin the shaping: compose → payload → scheduled post listed;
  * account resolution; validation in words; best-time slots.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   SCHEDULER_BEST_TIME_COST_VISUAL_BUCS,
@@ -217,5 +218,46 @@ describe("best time — payload, slots, and the honest price constants", () => {
     // default to 100; the 2D page's costNote says the same in words.
     expect(SCHEDULER_POST_COST_VISUAL_BUCS).toBe(100);
     expect(SCHEDULER_BEST_TIME_COST_VISUAL_BUCS).toBe(100);
+  });
+});
+
+describe("the desk component rides the real rails (source pins)", () => {
+  const desk = readFileSync(
+    new URL("../../components/world/native/SchedulerDesk.tsx", import.meta.url),
+    "utf8",
+  );
+  const shared = readFileSync(
+    new URL("../../components/world/native/CreateDeskShared.tsx", import.meta.url),
+    "utf8",
+  );
+  const thumb = readFileSync(
+    new URL("../../components/world/native/ThumbnailBenches.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("compose/list/edit/delete/best-time all call the scheduler rails, charged calls confirmed", () => {
+    expect(desk).toContain('fetch("/api/scheduler/posts"');
+    expect(desk).toContain("`/api/scheduler/posts/${editing.id}`");
+    expect(desk).toContain("`/api/scheduler/posts/${post.id}`");
+    expect(desk).toContain('method: "DELETE"');
+    expect(desk).toContain('confirmedFetch("/api/scheduler/best-time"');
+    expect(desk).toContain('fetch("/api/social/accounts"');
+    expect(desk).toContain('data-testid="world-scheduler-compose"');
+    expect(desk).toContain('data-testid="world-scheduler-post-edit"');
+    expect(desk).toContain('data-testid="world-scheduler-post-delete"');
+    expect(desk).toContain('data-testid="world-scheduler-best-time-use"');
+  });
+
+  it("no world surface exits to the 2D scheduler anymore (#46)", () => {
+    for (const src of [desk, shared, thumb]) {
+      expect(src).not.toContain("scheduleHrefForMedia");
+      expect(src).not.toContain("/scheduler?schedule=1");
+    }
+    // The chip is a button opening the compose in place.
+    expect(shared).toContain('data-testid="world-create-chip-schedule"');
+    expect(shared).toContain("<SchedulerComposeStandalone");
+    expect(shared).not.toContain("scheduleHref");
+    expect(thumb).toContain('data-testid="world-thumbnail-schedule"');
+    expect(thumb).toContain("schedulePrefillForMedia(winner");
   });
 });

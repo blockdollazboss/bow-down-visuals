@@ -21,6 +21,7 @@ import {
   fetchVaultCharacters,
   type VaultCharacter,
 } from "@/lib/world/characters";
+import { CreatorProfileCreateCard } from "@/components/world/native/CreatorProfileCreate";
 
 /* ─── StudioBoard — My Studio as a palace board (NATIVE-PLAN §3.1) ───
    The Create Wing's studio door, rebuilt in-world: your projects
@@ -131,6 +132,11 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
 
   return (
     <div className="space-y-3">
+      {/* Your creator profile (Stack-100 #48): shows yours when you
+          have one; a member without one claims it right here, so a
+          first publish never has to leave the World. */}
+      <CreatorProfileCreateCard isLight={isLight} />
+
       {/* The balance + streak strip */}
       <NativeCard isLight={isLight}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
