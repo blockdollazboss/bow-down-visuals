@@ -63,6 +63,13 @@ export interface QualityRung {
   antialias: boolean;
   /** Texture anisotropy cap (further capped by the device max). */
   anisotropy: number;
+  /** Texture decode step-down (Stack-100 #2 item 93): the world
+   *  texture set is canvas-downscaled by this factor AS IT LOADS —
+   *  the same source files, no extra assets. Like MSAA it is a
+   *  load-time fact: a texture already decoded keeps its size until
+   *  it reloads (theme rebuild / next entry); textures loaded after
+   *  a ladder step use the new rung's factor. 1 = full size. */
+  textureScale: number;
   /** Fraction of ambient particles (dust motes) drawn, 0..1. */
   particleScale: number;
   /** LOD: dressing beyond this distance (m) is hidden; detail
@@ -86,6 +93,7 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     shadowMapSize: 2048,
     antialias: true,
     anisotropy: 16,
+    textureScale: 1,
     particleScale: 1,
     lodDrawDistance: 120,
     brazierLights: true,
@@ -100,6 +108,7 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     shadowMapSize: 1024,
     antialias: true,
     anisotropy: 8,
+    textureScale: 0.5,
     particleScale: 0.6,
     lodDrawDistance: 90,
     brazierLights: true,
@@ -114,6 +123,7 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     shadowMapSize: 0,
     antialias: false,
     anisotropy: 4,
+    textureScale: 0.25,
     particleScale: 0.3,
     lodDrawDistance: 60,
     brazierLights: true,
@@ -123,6 +133,30 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
 
 export function rungFor(tier: QualityTier): QualityRung {
   return QUALITY_RUNGS[tier];
+}
+
+/**
+ * The stepped-down decode size for one texture at a rung's
+ * textureScale (item 93). Pure math so the ladder's promise is
+ * testable without a canvas: scale ≥ 1 (or junk input) returns the
+ * source size untouched; otherwise each axis scales and clamps to
+ * a 2 px floor (the tileable-variant precedent in pbr-materials).
+ * Memory falls with the SQUARE of the scale: medium decodes the
+ * set at ~1/4 the pixels, low at ~1/16.
+ */
+export function steppedTextureSize(
+  width: number,
+  height: number,
+  scale: number,
+): { width: number; height: number } {
+  const w = Number.isFinite(width) && width > 0 ? Math.round(width) : 0;
+  const h = Number.isFinite(height) && height > 0 ? Math.round(height) : 0;
+  const s = Number.isFinite(scale) && scale > 0 ? Math.min(1, scale) : 1;
+  if (s >= 1 || w === 0 || h === 0) return { width: w, height: h };
+  return {
+    width: Math.max(2, Math.round(w * s)),
+    height: Math.max(2, Math.round(h * s)),
+  };
 }
 
 /** One rung down (toward low); null when already at the floor. */

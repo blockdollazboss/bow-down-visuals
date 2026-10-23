@@ -2006,16 +2006,35 @@ export default function WorldPage() {
       }
       screenPoll = setInterval(loadScreen, 45_000);
 
-      /* Proximity voice follows the avatars. */
+      /* Proximity voice follows the avatars. Item 96: the tick used
+       * to allocate a fresh Map and a fresh position object per
+       * peer every 250 ms for the whole session. The map and the
+       * per-peer position objects are reused across ticks (the
+       * voice mesh reads the map synchronously and keeps nothing),
+       * with cached objects pruned as peers leave or go voiceless. */
+      const voicePositions = new Map<string, { x: number; z: number }>();
+      const voicePositionCache = new Map<string, { x: number; z: number }>();
       volumeTick = setInterval(() => {
         const mesh = meshRef.current;
         if (!mesh || !client.self) return;
-        const positions = new Map<string, { x: number; z: number }>();
+        voicePositions.clear();
         for (const peer of client.peers.values()) {
-          if (peer.voice) positions.set(peer.peerId, { x: peer.x, z: peer.z });
+          if (!peer.voice) continue;
+          let pos = voicePositionCache.get(peer.peerId);
+          if (!pos) {
+            pos = { x: peer.x, z: peer.z };
+            voicePositionCache.set(peer.peerId, pos);
+          } else {
+            pos.x = peer.x;
+            pos.z = peer.z;
+          }
+          voicePositions.set(peer.peerId, pos);
+        }
+        for (const peerId of voicePositionCache.keys()) {
+          if (!voicePositions.has(peerId)) voicePositionCache.delete(peerId);
         }
         const pose = scene.localPose();
-        mesh.updateVolumes({ x: pose.x, z: pose.z }, positions);
+        mesh.updateVolumes({ x: pose.x, z: pose.z }, voicePositions);
       }, 250);
 
       /* Character lips: each character figure's mouth follows its

@@ -6,6 +6,7 @@
  * LOW keeps the brazier lights (the night plaza's only lights).
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   QUALITY_RUNGS,
   FrameTimeMonitor,
@@ -17,6 +18,7 @@ import {
   qualityPreferenceLabel,
   resolveTier,
   rungFor,
+  steppedTextureSize,
   stepDownTier,
   stepUpTier,
   storeQualityPreference,
@@ -222,5 +224,211 @@ describe("FrameTimeMonitor (item 22: adaptive ladder)", () => {
     const mon = new FrameTimeMonitor("high");
     feed(mon, 10, 80, 0);
     expect(mon.averageMs).toBeCloseTo(10, 0);
+  });
+});
+
+/* ── Stack-100 #2 items 81/83/85: the wiring pins ──────────────────
+ * Audit facet E found the ladder's original sin: the frame
+ * governor's decisions fired into a void closure in the page, the
+ * scene applied a device-hint rung once at construction, and the
+ * page's own rAF loop fought the scene over pixel ratio with a
+ * hardcoded cap. The overhaul rewired all three (the monitor now
+ * lives in the scene and steps it directly; the page owns no
+ * pixel-ratio code; the chrome carries the quality control), but
+ * nothing PINNED the wiring — a future refactor could void it
+ * again in silence. These source pins (the house pattern for
+ * scene/page behaviour this node suite cannot execute) hold the
+ * seams: governor → scene, one pixel-ratio owner, chrome control.
+ */
+const readSrc = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+const hallSceneSrc = readSrc("./hall-scene.ts");
+const worldPageSrc = readSrc("../../pages/world.tsx");
+
+describe("governor wiring (item 81: decisions reach the live scene)", () => {
+  it("the frame loop feeds the monitor and applies every step it returns", () => {
+    const feedIdx = hallSceneSrc.indexOf("this.frameMonitor.sample(");
+    expect(feedIdx).toBeGreaterThan(-1);
+    const feedSegment = hallSceneSrc.slice(feedIdx, feedIdx + 220);
+    expect(feedSegment).toContain("if (stepped) this.applyTierToRenderer(stepped);");
+  });
+
+  it("the monitor only drives the ladder in Auto (an explicit pin is never overridden)", () => {
+    const feedIdx = hallSceneSrc.indexOf("this.frameMonitor.sample(");
+    const guardSegment = hallSceneSrc.slice(Math.max(0, feedIdx - 160), feedIdx);
+    expect(guardSegment).toContain('this.qualityPref === "auto"');
+  });
+
+  it("an explicit preference applies its rung to the renderer and persists", () => {
+    const start = hallSceneSrc.indexOf("setQualityPreference(pref: QualityPreference)");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 700);
+    expect(segment).toContain("storeQualityPreference(pref)");
+    expect(segment).toContain("this.applyTierToRenderer(pref)");
+  });
+
+  it("the boot rung comes from the persisted preference over the device guess", () => {
+    const start = hallSceneSrc.indexOf("this.qualityPref = loadQualityPreference();");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 300);
+    expect(segment).toContain("new FrameTimeMonitor(detected)");
+    expect(segment).toContain("resolveTier(this.qualityPref, detected)");
+  });
+});
+
+describe("one pixel-ratio owner (item 83: the scene, from the rung)", () => {
+  it("applyTierToRenderer sets pixel ratio from the rung — and only from the rung", () => {
+    const start = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 1400);
+    expect(segment).toContain(
+      "this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, rung.pixelRatio))",
+    );
+  });
+
+  it("the page contains no pixel-ratio code and no governor callback at all", () => {
+    expect(worldPageSrc).not.toContain("setPixelRatio");
+    expect(worldPageSrc).not.toContain("onTier");
+    expect(worldPageSrc).not.toContain("devicePixelRatio");
+  });
+
+  it("every setPixelRatio in the scene reads a rung cap (no hardcoded target)", () => {
+    const sites = hallSceneSrc.match(/setPixelRatio\([^)]*\)/g) ?? [];
+    expect(sites.length).toBeGreaterThanOrEqual(2);
+    for (const site of sites) {
+      expect(site).toContain("pixelRatio");
+      // The cap argument (after the comma) is a rung field, never a
+      // numeric literal — the `|| 1` devicePixelRatio fallback is
+      // the only digit allowed, and it precedes the comma.
+      expect(site).not.toMatch(/,\s*\d/);
+    }
+  });
+});
+
+describe("user quality control (item 85: chrome control, persisted)", () => {
+  it("the World chrome carries the quality control, cycling the shared preference", () => {
+    const idx = worldPageSrc.indexOf('data-testid="world-quality-control"');
+    expect(idx).toBeGreaterThan(-1);
+    const segment = worldPageSrc.slice(Math.max(0, idx - 500), idx + 800);
+    expect(segment).toContain("nextQualityPreference");
+    expect(segment).toContain("qualityPreferenceLabel(qualityPref)");
+  });
+
+  it("the page state is seeded from storage and forwarded to the scene", () => {
+    expect(worldPageSrc).toContain("useState<QualityPreference>(() => loadQualityPreference())");
+    expect(worldPageSrc).toContain("sceneRef.current?.setQualityPreference(qualityPref)");
+    expect(worldPageSrc).toContain("scene.setQualityPreference(loadQualityPreference())");
+  });
+});
+
+describe("rungs fully applied (items 82/84/94: no side tables, no orphan maps)", () => {
+  it("anisotropy reads 16/8/4 honestly across the ladder (item 84)", () => {
+    expect(rungFor("high").anisotropy).toBe(16);
+    expect(rungFor("medium").anisotropy).toBe(8);
+    expect(rungFor("low").anisotropy).toBe(4);
+  });
+
+  it("no texture is born at the raw device ceiling — births read the active rung", () => {
+    expect(hallSceneSrc).not.toContain("t.anisotropy = maxTextureAnisotropy");
+    expect(hallSceneSrc).toContain("tex.anisotropy = surfaceAnisotropy();");
+    expect(hallSceneSrc).toContain("activeRungAnisotropy = q.anisotropy;");
+  });
+
+  it("the derived PBR sets and brushed gold maps register for the tier pass (item 94)", () => {
+    // surface() + floor + rect-floor PBR sets, the fabric set, and
+    // the gold maps (gates' caps/headers, lantern gilt).
+    const registrations = hallSceneSrc.match(/registerRungSurfaceTexture\(/g) ?? [];
+    expect(registrations.length).toBeGreaterThanOrEqual(8);
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
+    expect(applySegment).toContain("for (const tex of rungSurfaceTextures)");
+    expect(applySegment).toContain("activeRungAnisotropy = rung.anisotropy;");
+  });
+
+  it("the sun's shadow size reads the rung — no per-tier side table (item 82)", () => {
+    expect(hallSceneSrc).not.toContain('this.quality === "high" ? 2048 : 1024');
+    expect(hallSceneSrc).toContain(
+      "sun.shadow.mapSize.set(QUALITY[this.quality].shadowMapSize, QUALITY[this.quality].shadowMapSize)",
+    );
+  });
+
+  it("a ladder step re-ranges embers and pollen from the rung's particleScale (item 82)", () => {
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
+    expect(applySegment).toContain("e.field.length * rung.particleScale");
+    expect(applySegment).toContain("pollen.field.length * rung.particleScale");
+  });
+});
+
+describe("reflector honesty (item 92: rung-sized target, both directions)", () => {
+  it("the reflector is born at the boot rung's size", () => {
+    const idx = hallSceneSrc.indexOf("new Reflector(");
+    expect(idx).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(idx, idx + 400);
+    expect(segment).toContain("textureWidth: q.reflectorSize");
+    expect(segment).toContain("textureHeight: q.reflectorSize");
+    expect(segment).toContain("clipBias: 0.003");
+  });
+
+  it("a step to the low rung shrinks the target to a stub instead of holding it", () => {
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
+    expect(applySegment).toContain("rung.reflectorSize > 0 ? rung.reflectorSize : 1");
+    expect(applySegment).toContain("getRenderTarget().setSize(targetSize, targetSize)");
+  });
+
+  it("the scene builds exactly one reflector (the clip treatment has no second surface to drift from)", () => {
+    const builds = hallSceneSrc.match(/new Reflector\(/g) ?? [];
+    expect(builds.length).toBe(1);
+  });
+});
+
+describe("texture step-down (item 93: lower rungs decode a smaller set)", () => {
+  it("the ladder carries a decode scale: full, half, quarter", () => {
+    expect(rungFor("high").textureScale).toBe(1);
+    expect(rungFor("medium").textureScale).toBe(0.5);
+    expect(rungFor("low").textureScale).toBe(0.25);
+  });
+
+  it("steppedTextureSize scales both axes — memory falls with the square", () => {
+    expect(steppedTextureSize(1600, 1600, 1)).toEqual({ width: 1600, height: 1600 });
+    expect(steppedTextureSize(1600, 1600, 0.5)).toEqual({ width: 800, height: 800 });
+    expect(steppedTextureSize(1600, 1200, 0.25)).toEqual({ width: 400, height: 300 });
+  });
+
+  it("steppedTextureSize clamps tiny axes to the 2px floor and shrugs off junk", () => {
+    expect(steppedTextureSize(3, 3, 0.25)).toEqual({ width: 2, height: 2 });
+    expect(steppedTextureSize(0, 0, 0.5)).toEqual({ width: 0, height: 0 });
+    expect(steppedTextureSize(1024, 1024, Number.NaN)).toEqual({ width: 1024, height: 1024 });
+    expect(steppedTextureSize(1024, 1024, 2)).toEqual({ width: 1024, height: 1024 });
+  });
+
+  it("hallTexture's load path applies the active rung's scale (wiring pin)", () => {
+    expect(hallSceneSrc).toContain("if (activeTextureScale < 1) downscaleTextureImage(loaded, activeTextureScale);");
+    expect(hallSceneSrc).toContain("activeTextureScale = q.textureScale;");
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
+    expect(applySegment).toContain("activeTextureScale = rung.textureScale;");
+  });
+});
+
+describe("per-frame allocation cuts (item 96: buffers and maps are reused)", () => {
+  it("serviceLoopFeeds refills scratch buffers instead of allocating per tick", () => {
+    const start = hallSceneSrc.indexOf("private serviceLoopFeeds()");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 2600);
+    expect(segment).toContain("const entries = this.loopEntriesScratch;");
+    expect(segment).toContain("const decorated = this.loopDecoratedScratch;");
+    expect(segment).not.toContain("entries.push(");
+    expect(segment).not.toContain("entries.map(");
+  });
+
+  it("the page's proximity-voice tick reuses its positions map across ticks", () => {
+    const start = worldPageSrc.indexOf("volumeTick = setInterval(");
+    expect(start).toBeGreaterThan(-1);
+    const segment = worldPageSrc.slice(Math.max(0, start - 1400), start + 1500);
+    expect(segment).toContain("const voicePositions = new Map<string, { x: number; z: number }>();");
+    const tickSegment = worldPageSrc.slice(start, start + 1500);
+    expect(tickSegment).toContain("voicePositions.clear();");
+    expect(tickSegment).not.toContain("new Map");
   });
 });
