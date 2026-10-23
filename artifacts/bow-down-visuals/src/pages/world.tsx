@@ -5,7 +5,7 @@ import {
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
-  Megaphone, Bell, BellOff, X, Coins, Gem,
+  Megaphone, Bell, BellOff, X, Coins, Gem, Lock, LockOpen,
 } from "lucide-react";
 import {
   WORLD_ACTIONS,
@@ -50,6 +50,17 @@ import {
   type WorldDropState,
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
+import {
+  canUseWorldLockVerbs,
+  doorLockVerb,
+  fetchWorldLocks,
+  lockWorldDoor,
+  unlockWorldDoor,
+  lockWorldPerson,
+  unlockWorldPerson,
+  type WorldLocksDto,
+  type WorldPersonLockDto,
+} from "@/lib/world/admin-locks";
 import {
   isKingMomentLive,
   kingClaimedLine,
@@ -549,6 +560,16 @@ export default function WorldPage() {
   const hostMutedRef = useRef(false);
   const rosterSigRef = useRef("");
   const [removeArm, setRemoveArm] = useState<string | null>(null);
+  /* The World's locks (items 92–93): the admin lock verbs' state —
+     the two-tap lock-out arm, the standing locks on this room, and
+     the honest note the last verb landed with. Admin-only: the
+     panel that renders these stands behind isAdmin, the handlers
+     re-check canUseWorldLockVerbs, and the server rejects
+     non-admin calls regardless (peace law). */
+  const [lockArm, setLockArm] = useState<string | null>(null);
+  const [worldLocks, setWorldLocks] = useState<WorldLocksDto | null>(null);
+  const [lockNote, setLockNote] = useState<string | null>(null);
+  const [lockBusy, setLockBusy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myPeerId, setMyPeerId] = useState<string | null>(null);
   /* Fullscreen + controller presence (view states only — the render
@@ -770,6 +791,93 @@ export default function WorldPage() {
       void refreshTutorial();
     }
   }, [tutorialClaimBusy, getAccessToken, refreshTutorial]);
+
+  /* The World's locks (items 92–93): read the standing locks for
+   * the host panel, and fire the four admin verbs. Every handler
+   * re-checks the display gate before the call; the server gates
+   * fail-closed on ADMIN_EMAILS regardless. A landed verb refreshes
+   * the standing list, and a door verb also takes the fresh
+   * directory the server carried back — the Locked pill updates
+   * in the same moment, never on a later poll. */
+  const refreshWorldLocks = useCallback(async () => {
+    if (!canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+    try {
+      const token = await getAccessToken();
+      setWorldLocks(await fetchWorldLocks(token));
+    } catch {
+      /* The panel keeps its last known locks. */
+    }
+  }, [isAdmin, isGuest, getAccessToken]);
+
+  useEffect(() => {
+    if (hostPanelOpen && status === "inside") void refreshWorldLocks();
+  }, [hostPanelOpen, status, roomId, refreshWorldLocks]);
+
+  const runDoorLockVerb = useCallback(async () => {
+    if (lockBusy || !canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+    const entry = directory.find((r) => r.id === roomId);
+    if (!entry) return;
+    setLockBusy(true);
+    setLockNote(null);
+    try {
+      const token = await getAccessToken();
+      const result =
+        doorLockVerb(entry) === "unlock"
+          ? await unlockWorldDoor(token, roomId)
+          : await lockWorldDoor(token, roomId);
+      if (result.rooms) setDirectory(result.rooms);
+      setLockNote(
+        result.door.locked
+          ? `${entry.name}'s door is locked — everyone inside stays, nobody new joins.`
+          : `${entry.name}'s door is open again.`,
+      );
+      await refreshWorldLocks();
+    } catch (err) {
+      setLockNote(err instanceof Error ? err.message : "That lock didn't land — nothing was changed.");
+    } finally {
+      setLockBusy(false);
+    }
+  }, [lockBusy, isAdmin, isGuest, directory, roomId, getAccessToken, refreshWorldLocks]);
+
+  const runPersonLock = useCallback(
+    async (peer: WorldPeer) => {
+      if (lockBusy || !canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+      setLockBusy(true);
+      setLockNote(null);
+      try {
+        const token = await getAccessToken();
+        const result = await lockWorldPerson(token, { roomId, peerId: peer.peerId, minutes: 60 });
+        setLockNote(
+          `${result.person.displayName ?? peer.displayName} is locked out of this room for 1 hour${result.evicted ? " — they're out now" : ""}.`,
+        );
+        await refreshWorldLocks();
+      } catch (err) {
+        setLockNote(err instanceof Error ? err.message : "That lock didn't land — nothing was changed.");
+      } finally {
+        setLockBusy(false);
+      }
+    },
+    [lockBusy, isAdmin, isGuest, roomId, getAccessToken, refreshWorldLocks],
+  );
+
+  const runPersonUnlock = useCallback(
+    async (lock: WorldPersonLockDto) => {
+      if (lockBusy || !canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+      setLockBusy(true);
+      setLockNote(null);
+      try {
+        const token = await getAccessToken();
+        await unlockWorldPerson(token, { roomId: lock.roomId, userId: lock.userId });
+        setLockNote(`${lock.displayName} can walk into this room again, right now.`);
+        await refreshWorldLocks();
+      } catch (err) {
+        setLockNote(err instanceof Error ? err.message : "That unlock didn't land — nothing was changed.");
+      } finally {
+        setLockBusy(false);
+      }
+    },
+    [lockBusy, isAdmin, isGuest, getAccessToken, refreshWorldLocks],
+  );
 
   /* Entry runs the check (and a mid-visit level change re-runs it —
    * evaluateLevel makes repeats harmless: equal is "none"). */
@@ -2998,6 +3106,30 @@ export default function WorldPage() {
                         {p.hostMuted ? "Unmute voice" : "Mute voice"}
                       </button>
                     )}
+                    {!p.guest && (
+                      <button
+                        type="button"
+                        data-testid="world-host-lock-person"
+                        disabled={lockBusy}
+                        onClick={() => {
+                          if (lockArm === p.peerId) {
+                            setLockArm(null);
+                            void runPersonLock(p);
+                          } else {
+                            setLockArm(p.peerId);
+                          }
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${
+                          lockArm === p.peerId
+                            ? "border-red-500 bg-red-500 text-white"
+                            : isLight
+                              ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                              : "border-white/15 text-white/75 hover:text-white"
+                        }`}
+                      >
+                        {lockArm === p.peerId ? "Tap again to lock out 1h" : "Lock out"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       data-testid="world-host-remove"
@@ -3070,6 +3202,81 @@ export default function WorldPage() {
               </p>
             )}
           </form>
+
+          {/* The World's locks (items 92–93): the door verb for the
+              room the admin stands in, and this room's standing
+              person locks with their lift buttons. Admin-only —
+              this whole panel stands behind isAdmin, the handlers
+              re-check the gate, and the server rejects non-admin
+              calls regardless. Results land immediately: a door
+              verb carries the fresh directory back (the Locked
+              pill moves in the same moment) and the standing list
+              is re-read after every verb. */}
+          {canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest }) && (
+            <div className="mt-3" data-testid="world-host-locks">
+              <p
+                className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
+              >
+                <Lock className="h-4 w-4 text-[#d4af37]" /> The door &amp; the locks
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {(() => {
+                  const entry = directory.find((r) => r.id === roomId);
+                  const verb = entry ? doorLockVerb(entry) : "lock";
+                  return (
+                    <button
+                      type="button"
+                      data-testid="world-host-door-lock"
+                      disabled={lockBusy || !entry}
+                      onClick={() => void runDoorLockVerb()}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                    >
+                      {verb === "unlock" ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                      {verb === "unlock" ? "Unlock this room's door" : "Lock this room's door"}
+                    </button>
+                  );
+                })()}
+                <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  {directory.find((r) => r.id === roomId)?.locked
+                    ? "This door is locked — people inside stay, nobody new joins."
+                    : "This door is open."}
+                </span>
+              </div>
+              {worldLocks && worldLocks.persons.filter((l) => l.roomId === roomId).length > 0 && (
+                <div className="mt-2 space-y-1.5" data-testid="world-host-person-locks">
+                  {worldLocks.persons
+                    .filter((l) => l.roomId === roomId)
+                    .map((l) => (
+                      <div
+                        key={`${l.roomId}:${l.userId}`}
+                        className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                      >
+                        <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                          {l.displayName}
+                        </span>
+                        <span className={`text-[11px] font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                          locked out until {new Date(l.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="world-host-unlock-person"
+                          disabled={lockBusy}
+                          onClick={() => void runPersonUnlock(l)}
+                          className={`ml-auto rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                        >
+                          Lift lock
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+              {lockNote && (
+                <p className={`mt-1.5 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-host-lock-note">
+                  {lockNote}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
