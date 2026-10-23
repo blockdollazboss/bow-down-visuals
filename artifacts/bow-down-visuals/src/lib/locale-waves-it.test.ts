@@ -639,3 +639,101 @@ describe("it W5 namespaces (Stack-28 appendix)", () => {
     expect(r.realIdentical).toEqual([]);
   });
 });
+
+const W6_NAMESPACES: string[] = ["linkInBio", "weekly_contest", "community", "collabs", "team", "discord-bot", "tour", "extension", "shoutouts", "goLive", "shows", "contests", "gamers", "commentReplies", "nfcCards", "privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "websiteBuilder", "contact", "locations", "milestones"];
+const W6_LEGIT: string[] = [
+  "linkInBio.public.title",
+  "linkInBio.links.urlPlaceholder",
+  "linkInBio.theme.onyxMinimal",
+  "linkInBio.theme.midnightGold",
+  "linkInBio.theme.goldRoyal",
+  "linkInBio.profile.avatarUrlPlaceholder",
+  "linkInBio.profile.bio",
+  "linkInBio.hero.badge",
+  "linkInBio.tab",
+  "nfcCards.bio",
+  "nfcCards.emailPlaceholder",
+  "nfcCardProfile.poweredBy",
+  "notFound.myProjects",
+  "promote.tabs.linkInBio",
+  "promote.results.cta",
+  "promote.tones.hype",
+  "weekly_contest.hall_of_fame",
+  "coach.tabTeam",
+  "coach.cadencePlaceholder",
+  "coach.crossLinkBrand",
+  "coach.nicheBeautyFashion",
+  "coach.nicheComedy",
+  "coach.nicheFitness",
+  "coach.nicheGaming",
+  "coach.nicheLifestyle",
+  "coach.nicheTech",
+  "coach.platformInstagram",
+  "coach.platformTikTok",
+  "coach.platformTikTokBlurb",
+  "coach.platformYouTube",
+  "coach.platformYouTubeBlurb",
+  "coach.titleStart",
+  "collabs.bioLabel",
+  "collabs.creatorCount_one",
+  "collabs.matchCostNote",
+  "collabs.tabInbox",
+  "collabs.tabInboxWithCount",
+  "commentReplies.batchSubline",
+  "commentReplies.toneHypeLabel",
+  "community.removed",
+  "community.tabs.replies.cost",
+  "community.tabs.sentiment.cost",
+  "community.tabs.sentiment.label",
+  "community.tones.hype",
+  "contact.email",
+  "contests.seed",
+  "copyright.copyright",
+  "copyright.workType.album.label",
+  "discord-bot.discord",
+  "discord-bot.discord_bot_shared_secret",
+  "discord-bot.discord_bot_token",
+  "discord-bot.discord_client_id",
+  "discord-bot.live_companion_bot",
+  "extension.bdv",
+  "extension.chrome_extensions",
+  "extension.in_chrome",
+  "extension.thy_cheat_code",
+  "gamers.loadout",
+  "gamers.toolkit",
+  "goLive.liveBadge",
+  "goLive.pageTitle",
+  "goLive.streamFallback",
+  "nfcCards.qrSvg",
+  "privacy.section4Item1Label",
+  "privacy.section4Item2Label",
+  "privacy.section4Item3Label",
+  "shoutouts.displayNamePlaceholder",
+  "shoutouts.perShoutout",
+  "shows.titleAccent",
+  "shows.titleStart",
+  "team.fallbackOff",
+  "team.fallbackOn",
+  "team.fundPlaceholder",
+  "team.roleAdmin",
+  "team.spendingAmount",
+  "team.teamFallbackName",
+  "tour.budgetCrew",
+  "tour.heroTitleA",
+  "tour.heroTitleB",
+  "websiteBuilder.templateLinkInBio",
+  "websiteBuilder.templatePressKit",
+];
+describe("it W6 namespaces (Stack-28 appendix)", () => {
+  const r = checkWave(W6_NAMESPACES, [...W6_LEGIT]);
+  it("covers every en key in the wave namespaces", () => {
+    expect(r.missing).toEqual([]);
+    expect(r.empty).toEqual([]);
+  });
+  it("preserves {{placeholders}} exactly", () => {
+    expect(r.badPlaceholders).toEqual([]);
+  });
+  it("leaves no REAL untranslated identicals", () => {
+    expect(r.realIdentical).toEqual([]);
+  });
+});
