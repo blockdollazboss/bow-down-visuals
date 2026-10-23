@@ -1,0 +1,573 @@
+{"linkInBio.tab": "Enlace en la bio"}
+{"linkInBio.hero.badge": "Enlace en la bio"}
+{"linkInBio.hero.title": "Una página."}
+{"linkInBio.hero.titleAccent": "Todos tus enlaces."}
+{"linkInBio.hero.subtitle": "Crea una página de enlace en la bio de lujo dorado para tus fans. Redactar es gratis — publicar cuesta {{cost}} Visual Bucs."}
+{"linkInBio.profile.title": "Encabezado del perfil"}
+{"linkInBio.profile.prefill": "Rellenar desde Artist Vault"}
+{"linkInBio.profile.prefillDone": "Rellenado desde la bóveda"}
+{"linkInBio.profile.noVaults": "Aún no hay bóvedas de artista — crea una en Artist Vault para rellenar al instante."}
+{"linkInBio.profile.displayName": "Nombre visible"}
+{"linkInBio.profile.displayNamePlaceholder": "Tu nombre artístico"}
+{"linkInBio.profile.headline": "Titular"}
+{"linkInBio.profile.headlinePlaceholder": "Cantante · Compositor · Narrador"}
+{"linkInBio.profile.bioPlaceholder": "Dos líneas que hagan que un fan pulse seguir."}
+{"linkInBio.profile.avatarUrl": "URL de la imagen de avatar"}
+{"linkInBio.profile.slug": "Identificador de la página"}
+{"linkInBio.profile.slugHint": "Tu URL pública: bowdownvisuals.com/bio/{{slug}}"}
+{"linkInBio.profile.slugInvalid": "El identificador debe ser letras minúsculas, números y guiones."}
+{"linkInBio.theme.title": "Tema"}
+{"linkInBio.theme.goldRoyal": "Dorado Real"}
+{"linkInBio.theme.goldRoyalBlurb": "Negro + dorado radiante — el look insignia de Bow Down"}
+{"linkInBio.theme.midnightGold": "Dorado Medianoche"}
+{"linkInBio.theme.midnightGoldBlurb": "Azul-negro profundo con acentos dorados cálidos"}
+{"linkInBio.theme.onyxMinimal": "Ónix Minimalista"}
+{"linkInBio.theme.onyxMinimalBlurb": "Negro puro, líneas doradas finas — ultra limpio"}
+{"linkInBio.links.title": "Enlaces"}
+{"linkInBio.links.add": "Añadir enlace"}
+{"linkInBio.links.titlePlaceholder": "Título del enlace (ej. Nuevo sencillo)"}
+{"linkInBio.links.icon": "Icono"}
+{"linkInBio.links.moveUp": "Subir"}
+{"linkInBio.links.moveDown": "Bajar"}
+{"linkInBio.links.remove": "Quitar enlace"}
+{"linkInBio.links.empty": "Aún no hay enlaces — añade el primero arriba."}
+{"linkInBio.links.needOne": "Añade al menos un enlace antes de publicar."}
+{"linkInBio.socials.title": "Iconos sociales"}
+{"linkInBio.socials.hint": "Pega las URL de tus perfiles — los iconos aparecen en tu página."}
+{"linkInBio.featured.title": "Contenido destacado"}
+{"linkInBio.featured.hint": "Trae trabajo destacado de tu proyecto hub — los fans aterrizan directo en tu escaparate y clips."}
+{"linkInBio.featured.fromHub": "Desde el proyecto hub"}
+{"linkInBio.featured.noAssets": "Aún no hay recursos en tu proyecto hub — genera algo primero."}
+{"linkInBio.featured.added": "Añadido"}
+{"linkInBio.featured.add": "Añadir"}
+{"linkInBio.featured.empty": "Nada destacado aún. Destaca una canción, video o miniatura."}
+{"linkInBio.featured.remove": "Quitar"}
+{"linkInBio.tipJar.title": "Bote de propinas"}
+{"linkInBio.tipJar.hint": "Enlaza tu página de propinas para que los fans muestren cariño (ej. /tips/your-handle)."}
+{"linkInBio.actions.saveDraft": "Guardar borrador"}
+{"linkInBio.actions.saving": "Guardando…"}
+{"linkInBio.actions.publish": "Publicar · {{cost}} Visual Bucs"}
+{"linkInBio.actions.publishing": "Publicando…"}
+{"linkInBio.actions.unpublish": "Despublicar"}
+{"linkInBio.actions.unpublishing": "Despublicando…"}
+{"linkInBio.actions.viewPage": "Ver página en vivo"}
+{"linkInBio.actions.share": "Compartir"}
+{"linkInBio.actions.copied": "¡Copiado!"}
+{"linkInBio.actions.copyLink": "Copiar enlace"}
+{"linkInBio.actions.draftSaved": "Borrador guardado."}
+{"linkInBio.actions.published": "¡Tu página está en vivo!"}
+{"linkInBio.actions.unpublished": "Página despublicada."}
+{"linkInBio.actions.alreadyPublished": "Esta página ya está publicada."}
+{"linkInBio.actions.statusLive": "En vivo — cualquiera con el enlace puede ver esta página"}
+{"linkInBio.actions.statusDraft": "Borrador — solo tú puedes ver esta página"}
+{"linkInBio.actions.outOfCredits": "No tienes Visual Bucs suficientes para publicar — recarga para salir en vivo."}
+{"linkInBio.analytics.title": "Analítica de clics"}
+{"linkInBio.analytics.views": "Vistas de la página"}
+{"linkInBio.analytics.clicks": "Clics totales en enlaces"}
+{"linkInBio.analytics.last7d": "Clics (7 días)"}
+{"linkInBio.analytics.perLink": "Clics por enlace"}
+{"linkInBio.analytics.noData": "Aún no hay clics — comparte tu página y mira cómo se ilumina."}
+{"linkInBio.errors.loadFailed": "No se pudieron cargar tus páginas de bio."}
+{"linkInBio.errors.saveFailed": "No se pudo guardar el borrador."}
+{"linkInBio.errors.publishFailed": "No se pudo publicar la página."}
+{"linkInBio.errors.needName": "Añade primero un nombre visible."}
+{"linkInBio.public.title": "Enlace en la bio"}
+{"linkInBio.public.description": "Páginas de enlace en la bio para creadores, creadas con Bow Down Visuals."}
+{"linkInBio.public.notFound": "Página no encontrada"}
+{"linkInBio.public.notFoundDetail": "Esta página de enlace en la bio no existe o fue retirada."}
+{"linkInBio.public.share": "Compartir esta página"}
+{"linkInBio.preview": "Vista previa"}
+{"nfcCards.orderFailed": "El pedido falló"}
+{"nfcCards.orderFailedRetry": "El pedido falló — inténtalo de nuevo."}
+{"nfcCards.saveFailed": "Guardar falló"}
+{"nfcCards.heroBadge": "Tarjetas de presentación inteligentes NFC"}
+{"nfcCards.heroTitle": "Tu tarjeta de presentación,"}
+{"nfcCards.heroTitleAccent": "pero se toca."}
+{"nfcCards.heroDescription": "Una tarjeta física premium con un chip NFC dentro. Tócala en cualquier teléfono y tu tarjeta digital se abre al instante — enlaces, reservas, redes, todo. Actualízala cuando quieras sin reimprimir."}
+{"nfcCards.how1t": "1. Diseña tu tarjeta"}
+{"nfcCards.how1d": "Elige un estilo, añade tu nombre, enlaces y foto."}
+{"nfcCards.how2t": "2. Nosotros la codificamos"}
+{"nfcCards.how2d": "Tu chip NFC + QR se programan hacia tu tarjeta digital."}
+{"nfcCards.how3t": "3. Toca y conecta"}
+{"nfcCards.how3d": "Te llega por envío. Toca teléfonos, escanea QR, consigue clientes."}
+{"nfcCards.reservedTitle": "¡Tarjeta reservada!"}
+{"nfcCards.reservedDescription": "Tu tarjeta digital ya está en vivo. Te contactaremos para confirmar la producción y cobrar el pago — hoy no se cobra nada."}
+{"nfcCards.viewDigitalCard": "Ver tu tarjeta digital"}
+{"nfcCards.alreadyReserved": "Esta reserva ya se hizo — no se creó un duplicado."}
+{"nfcCards.orderAnother": "Pedir otra tarjeta"}
+{"nfcCards.buildYourCard": "Crea tu tarjeta"}
+{"nfcCards.quantity": "Cantidad"}
+{"nfcCards.detailsHint": "Esto es lo que la gente ve cuando toca tu tarjeta. Puedes editarlo cuando quieras."}
+{"nfcCards.displayNamePlaceholder": "Nombre visible *"}
+{"nfcCards.titlePlaceholder": "Título — ej. Agente inmobiliario, Barbero, Fotógrafo"}
+{"nfcCards.bioPlaceholder": "Bio corta"}
+{"nfcCards.linksLabel": "Enlaces (Instagram, reservas, sitio web…)"}
+{"nfcCards.linkLabelPlaceholder": "Etiqueta"}
+{"nfcCards.addLink": "Añadir enlace"}
+{"nfcCards.fullNamePlaceholder": "Nombre completo *"}
+{"nfcCards.phonePlaceholder": "Teléfono"}
+{"nfcCards.emailPlaceholder": "Correo *"}
+{"nfcCards.streetPlaceholder": "Dirección *"}
+{"nfcCards.cityPlaceholder": "Ciudad *"}
+{"nfcCards.statePlaceholder": "Estado *"}
+{"nfcCards.zipPlaceholder": "Código postal *"}
+{"nfcCards.shippingPrivacy": "Tus datos solo se usan para hacer y enviar tu tarjeta."}
+{"nfcCards.reviewStyle": "Estilo"}
+{"nfcCards.reviewQuantity": "Cantidad"}
+{"nfcCards.reviewDigitalCardFor": "Tarjeta digital para"}
+{"nfcCards.reviewShipTo": "Enviar a"}
+{"nfcCards.reviewTotal": "Total a pagar en la confirmación"}
+{"nfcCards.reserveFreeNote": "Reservar es gratis — hoy no se cobra nada. Confirmaremos tu tarjeta con nuestro socio de producción y luego cobraremos el pago antes de enviarla."}
+{"nfcCards.back": "Atrás"}
+{"nfcCards.continue": "Continuar"}
+{"nfcCards.reserving": "Reservando…"}
+{"nfcCards.reserveFree": "Reservar mi tarjeta — gratis"}
+{"nfcCards.signInPromptPrefix": "Se te pedirá"}
+{"nfcCards.signIn": "iniciar sesión"}
+{"nfcCards.signInPromptSuffix": "para reservar tu tarjeta."}
+{"nfcCards.mySmartCards": "Mis tarjetas inteligentes"}
+{"nfcCards.noCardsYet": "Aún no hay tarjetas — crea la primera arriba."}
+{"nfcCards.taps": "{{count}} toques"}
+{"nfcCards.editCard": "Editar tarjeta"}
+{"nfcCards.preview": "Vista previa"}
+{"nfcCards.orderHistory": "Historial de pedidos"}
+{"nfcCards.questions": "Preguntas"}
+{"nfcCards.faq1q": "¿Cómo funciona el toque?"}
+{"nfcCards.faq1a": "Cada tarjeta tiene un chip NFC NTAG213 dentro. Tócala contra cualquier teléfono moderno y tu tarjeta digital se abre al instante — sin app. Los teléfonos más viejos pueden escanear el QR impreso en el reverso."}
+{"nfcCards.faq2q": "¿Puedo cambiar mis enlaces después de pedir?"}
+{"nfcCards.faq2a": "Sí — ese es el punto. Tu tarjeta apunta a tu perfil digital, que puedes editar cuando quieras: enlaces, título, bio, foto. La tarjeta física nunca queda desactualizada."}
+{"nfcCards.faq3q": "¿Cuándo pago?"}
+{"nfcCards.faq3a": "Reservas hoy sin cargo. Cuando confirmemos tu tarjeta con nuestro socio de producción, cobraremos el pago y tu tarjeta se enviará directo a ti."}
+{"nfcCards.faq4q": "¿Cuánto tarda en llegar mi tarjeta?"}
+{"nfcCards.faq4a": "Las tarjetas se hacen bajo pedido. Espera que la producción más el envío tarden 2–3 semanas desde la confirmación del pago. Te mantendremos al tanto en cada paso."}
+{"nfcCards.faq5q": "¿Puedo repetir el pedido o conseguir tarjetas para mi equipo?"}
+{"nfcCards.faq5a": "Sí — pide cualquier cantidad, y cada tarjeta tiene su propio perfil digital. Los paquetes para equipos son perfectos para inmobiliarias, barberías, salones y agencias."}
+{"nfcCards.editDigitalCard": "Editar tarjeta digital"}
+{"nfcCards.displayName": "Nombre visible"}
+{"nfcCards.title": "Título"}
+{"nfcCards.cancel": "Cancelar"}
+{"nfcCards.save": "Guardar"}
+{"myProjects.hubProjectsTitle": "Proyectos del Hub"}
+{"myProjects.hubProjectsHint": "Cada proyecto sincronizado desde tu Hub, los más nuevos primero. El más reciente es el proyecto abierto en tu Hub ahora mismo."}
+{"myProjects.hubProjectsCurrent": "Actual"}
+{"myProjects.hubProjectsOpenInHub": "Abrir en el Hub"}
+{"myProjects.hubProjectsCapNote": "Mostrando tus 100 proyectos hub más recientes."}
+{"myProjects.noHubProjects": "Aún no hay proyectos hub sincronizados. Los proyectos que crees en el Hub aparecerán aquí."}
+{"myProjects.failedLoadHubProjects": "No se pudieron cargar los proyectos hub"}
+{"myProjects.deleteHubProject": "Eliminar proyecto hub"}
+{"myProjects.deleteHubProjectConfirm": "¿Eliminar el proyecto hub \"{{name}}\" de tu cuenta? Esto quita su copia sincronizada."}
+{"myProjects.failedDeleteHubProject": "No se pudo eliminar el proyecto hub. Inténtalo de nuevo."}
+{"myProjects.generationsLink": "Historial de generaciones →"}
+{"myProjects.importLink": "Importar medios →"}
+{"myProjects.tabMyClips": "Mis clips"}
+{"myProjects.pageDescription": "Todas tus canciones, videos y proyectos creativos en un solo lugar."}
+{"myProjects.subheading": "Proyectos guardados, borradores sin guardar y todos tus clips de escenas generados — todo en un solo lugar."}
+{"myProjects.backToDashboard": "Volver al panel"}
+{"myProjects.tabProjects": "Proyectos"}
+{"myProjects.tabDrafts": "Borradores"}
+{"myProjects.tabClips": "Clips generados"}
+{"myProjects.tabHistory": "Historial de generaciones"}
+{"myProjects.tryAgain": "Intentar de nuevo"}
+{"myProjects.noProjects": "Aún no hay proyectos guardados"}
+{"myProjects.noProjectsHint": "Genera contenido y haz clic en Guardar proyecto — aparecerá aquí."}
+{"myProjects.goToDashboard": "Ir al panel"}
+{"myProjects.noDrafts": "No hay borradores guardados"}
+{"myProjects.noDraftsHint": "Los borradores se guardan automáticamente mientras trabajas. Empieza un proyecto y tu progreso aparecerá aquí."}
+{"myProjects.startProject": "Empezar un proyecto"}
+{"myProjects.draftsHint": "Los borradores se guardan automáticamente mientras trabajas. Haz clic en Recuperar para volver a ese proyecto y seguir donde lo dejaste."}
+{"myProjects.noClips": "Aún no hay clips generados"}
+{"myProjects.noClipsHint": "Genera clips de escenas en tu proyecto de video musical — se guardarán aquí automáticamente."}
+{"myProjects.clipsSaved": "{{count}} clips guardados — se guardan automáticamente en cuanto termina cada trabajo de clip."}
+{"myProjects.noHistory": "Aún no hay historial de generaciones"}
+{"myProjects.noHistoryHint": "Aún no hay historial de generaciones. Tus generaciones de IA aparecerán aquí después de que crees algo."}
+{"myProjects.startGenerating": "Empezar a generar"}
+{"myProjects.generationsLogged": "{{count}} generaciones registradas — las más nuevas primero."}
+{"myProjects.failedLoadProjects": "No se pudieron cargar los proyectos"}
+{"myProjects.failedLoadDrafts": "No se pudieron cargar los borradores"}
+{"myProjects.failedLoadClips": "No se pudieron cargar los clips"}
+{"myProjects.failedLoadHistory": "No se pudo cargar el historial de generaciones"}
+{"myProjects.failedDeleteProject": "No se pudo eliminar el proyecto. Inténtalo de nuevo."}
+{"myProjects.failedDeleteDraft": "No se pudo eliminar el borrador. Inténtalo de nuevo."}
+{"myProjects.failedDeleteClip": "No se pudo eliminar el clip. Inténtalo de nuevo."}
+{"myProjects.typeStartFromScratch": "Empezar desde cero"}
+{"myProjects.typeVideoForMySong": "Video para mi canción"}
+{"myProjects.typeRunwayClip": "Clip de video IA"}
+{"myProjects.typeLipSyncClip": "Clip de sincronía labial"}
+{"myProjects.typeScenePrompt": "Prompt de escena"}
+{"myProjects.typeVideoPlan": "Plan de video"}
+{"myProjects.typeGeneration": "Generación"}
+{"myProjects.statusSaved": "Guardado"}
+{"myProjects.statusSaveFailed": "Error al guardar"}
+{"myProjects.statusGenerated": "Generado"}
+{"myProjects.visualBucsRefunded": "Visual Bucs reembolsados"}
+{"myProjects.previewClip": "Vista previa del clip"}
+{"myProjects.openProject": "Abrir proyecto"}
+{"myProjects.copyContent": "Copiar contenido"}
+{"myProjects.open": "Abrir"}
+{"myProjects.deleteProject": "Eliminar proyecto"}
+{"myProjects.deleteProjectConfirm": "¿Eliminar \"{{title}}\"? Esto no se puede deshacer."}
+{"myProjects.runwayClipsSaved": "{{count}} clips de escena guardados"}
+{"myProjects.unsavedDraft": "Borrador sin guardar"}
+{"myProjects.deleteDraftConfirm": "¿Eliminar este borrador? Esto no se puede deshacer."}
+{"myProjects.generatedContentIncluded": "Contenido generado incluido"}
+{"myProjects.downloadBackupJson": "Descargar respaldo JSON"}
+{"myProjects.recover": "Recuperar"}
+{"myProjects.deleteClipConfirm": "¿Eliminar este clip? Esto no se puede deshacer."}
+{"myProjects.openVideoUrl": "Abrir URL del video"}
+{"myProjects.hidePrompt": "Ocultar prompt ▲"}
+{"myProjects.showPrompt": "Mostrar prompt ▼"}
+{"myProjects.analysisFailed": "El análisis falló"}
+{"myProjects.analysisFailedRetry": "El análisis falló. Inténtalo de nuevo."}
+{"myProjects.copied": "¡Copiado!"}
+{"myProjects.copyAll": "Copiar todo"}
+{"myProjects.analyzing": "Analizando..."}
+{"myProjects.reanalyzeSections": "Reanalizar secciones"}
+{"myProjects.findHookVerses": "Encontrar gancho y versos"}
+{"myProjects.analysisComplete": "Análisis completo"}
+{"myProjects.noContentSaved": "No hay contenido guardado."}
+{"mashup.tabCreate": "Crear"}
+{"mashup.title": "Mashup de canciones"}
+{"mashup.subtitle": "Elige dos canciones — tuyas o subidas — y mézclalas en una sola pista. Con tempo igualado, ritmo bloqueado, en un clic."}
+{"mashup.modeCustom": "Avanzado"}
+{"mashup.songA": "Canción A"}
+{"mashup.songB": "Canción B"}
+{"mashup.pickFromLibrary": "Elige de tu biblioteca…"}
+{"mashup.uploadInstead": "o sube audio"}
+{"mashup.uploading": "Subiendo…"}
+{"mashup.styleLabel": "Estilo de mezcla"}
+{"mashup.styleCrossfadeBlurb": "A se desvanece, B entra en el punto de mezcla."}
+{"mashup.styleBeatMatch": "Al ritmo"}
+{"mashup.styleBeatMatchBlurb": "Tempo alineado y ritmo bloqueado — ambas canciones suenan juntas."}
+{"mashup.styleInterleave": "Intercalar verso-estribillo"}
+{"mashup.styleInterleaveBlurb": "Secciones alternadas — el verso de A, el estribillo de B, ida y vuelta."}
+{"mashup.blendPointLabel": "Punto de mezcla"}
+{"mashup.blendPointHint": "Dónde en la Canción A ocurre la mezcla."}
+{"mashup.balanceHint": "Desliza para destacar una canción sobre la otra."}
+{"mashup.crossfadeLabel": "Duración del crossfade"}
+{"mashup.titleLabel": "Título del mashup (opcional)"}
+{"mashup.titlePlaceholder": "ej. Midnight × Gold Rush"}
+{"mashup.submitSimple": "Mezclar mis canciones"}
+{"mashup.submitCustom": "Mezclar estas canciones"}
+{"mashup.needsTwoSongs": "Elige primero dos canciones — de tu biblioteca o sube audio."}
+{"mashup.analyzing": "Analizando los ritmos de ambas canciones…"}
+{"mashup.tempoMatching": "Igualando el tempo de la Canción B a la Canción A…"}
+{"mashup.blending": "Mezclando tu mashup…"}
+{"mashup.saving": "Guardando en tu biblioteca…"}
+{"mashup.failed": "El mashup falló — tus Visual Bucs fueron reembolsados."}
+{"mashup.resultTitle": "Tu mashup está listo"}
+{"mashup.handoffLyricVideo": "Crear video con letra"}
+{"mashup.handoffLyricVideoBlurb": "Video estilo karaoke · 300 VB"}
+{"mashup.handoffCoverArt": "Diseñar portada"}
+{"mashup.handoffCoverArtBlurb": "Arte dorado de lujo · 200 VB"}
+{"mashup.handoffAlbum": "Añadir al álbum"}
+{"mashup.handoffAlbumBlurb": "Ponlo en un álbum o EP"}
+{"mashup.handoffShare": "Compartir"}
+{"mashup.handoffShareBlurb": "Un toque — tu enlace de referido va adjunto"}
+{"mashup.working": "Trabajando…"}
+{"mashup.lyricVideoDone": "Video con letra listo"}
+{"mashup.coverArtDone": "Portada lista"}
+{"mashup.albumPick": "Elige un álbum…"}
+{"mashup.albumNew": "Título del nuevo álbum…"}
+{"mashup.albumCreateAdd": "Crear y añadir"}
+{"mashup.albumAdd": "Añadir al álbum"}
+{"mashup.albumAdded": "Añadido al álbum"}
+{"mashup.albumLoadFailed": "No se pudieron cargar los álbumes."}
+{"mashup.copied": "¡Copiado!"}
+{"mashup.shareText": "Mira mi mashup"}
+{"mashup.coverArtist": "Mashup de canciones"}
+{"mashup.tabHum": "Tararear"}
+{"repurpose.addCaptions": "Añadir subtítulos"}
+{"repurpose.modePack": "Paquete de contenido"}
+{"repurpose.badge": "Reutilizador de contenido"}
+{"repurpose.titlePrefix": "Un video entra,"}
+{"repurpose.titleSuffix": "un calendario de contenido sale"}
+{"repurpose.hero": "Sube un video — la IA lo mira y crea un paquete de 10 piezas: 3 clips verticales cortados automáticamente, 3 miniaturas IA, 5 conjuntos de texto + hashtags y descripciones optimizadas por plataforma para TikTok, Reels, Shorts y X."}
+{"repurpose.signInRequired": "Inicia sesión para reutilizar videos."}
+{"repurpose.step1.title": "Suelta tu video"}
+{"repurpose.step1.blurb": "MP4, MOV, WebM · hasta 80 MB"}
+{"repurpose.step1.chooseFile": "Elegir archivo de video"}
+{"repurpose.step1.fromCameraRoll": "Desde tu galería o exportaciones"}
+{"repurpose.step1.orPasteUrl": "O pega una URL de video"}
+{"repurpose.step1.urlPlaceholder": "https://… (desde el almacenamiento de tu proyecto)"}
+{"repurpose.step1.urlNote": "Las URL deben venir del almacenamiento de tu proyecto."}
+{"repurpose.building": "Creando tu paquete…"}
+{"repurpose.repurposeButton": "Reutilizar mi video · {{credits}} Visual Bucs"}
+{"repurpose.costNote": "{{pack}} Visual Bucs cubren todo: transcripción, análisis IA, 3 clips cortados automáticamente, 3 miniaturas IA. Los relanzamientos cuestan {{reroll}} Visual Bucs cada uno. Copiar y descargar es gratis."}
+{"repurpose.packReady": "piezas del paquete listas"}
+{"repurpose.renderingNote": "Los clips y las miniaturas se están renderizando en segundo plano — cierra la pestaña, estarán esperando."}
+{"repurpose.clips.title": "3 clips verticales"}
+{"repurpose.clips.blurb": "Corte automático 9:16 · listos para TikTok, Reels, Shorts"}
+{"repurpose.clips.newMoments": "Nuevos momentos · {{cost}}VB"}
+{"repurpose.clips.cutFailed": "El corte falló"}
+{"repurpose.clips.cutting": "Cortando…"}
+{"repurpose.thumbs.title": "3 miniaturas IA"}
+{"repurpose.thumbs.blurb": "Portadas 9:16 para tus clips"}
+{"repurpose.thumbs.newConcepts": "Nuevos conceptos · {{cost}}VB"}
+{"repurpose.thumbs.genFailed": "La generación falló"}
+{"repurpose.thumbs.painting": "Pintando…"}
+{"repurpose.thumbs.alt": "Concepto de miniatura {{n}}"}
+{"repurpose.captions.title": "5 conjuntos de texto + hashtags"}
+{"repurpose.captions.blurb": "Listos para publicar — copia cualquier conjunto gratis"}
+{"repurpose.platforms.title": "Descripciones por plataforma"}
+{"repurpose.platforms.blurb": "Ajustadas a cada algoritmo"}
+{"repurpose.platforms.noDesc": "No se generó descripción para esta plataforma."}
+{"repurpose.download": "Descargar"}
+{"repurpose.copyAll": "Copiar todo"}
+{"repurpose.copy": "Copiar"}
+{"repurpose.copied": "Copiado"}
+{"repurpose.reroll": "Relanzar · {{cost}}VB"}
+{"repurpose.error.copyFailed": "No se pudo copiar al portapapeles."}
+{"repurpose.error.noSource": "Sube un archivo de video o pega primero una URL de video."}
+{"repurpose.error.repurposeFailed": "La reutilización falló — inténtalo de nuevo."}
+{"repurpose.error.clipJobFailed": "La búsqueda del trabajo de clip falló."}
+{"repurpose.error.thumbJobFailed": "La búsqueda del trabajo de miniatura falló."}
+{"repurpose.error.clipCuttingFailed": "El corte del clip falló. Tus Visual Bucs del paquete cubren las salidas de texto — los clips se pueden recortar desde el editor de video."}
+{"repurpose.error.thumbFailed": "Las imágenes de miniatura no se generaron — los prompts de miniatura de abajo siguen funcionando con cualquier herramienta de imagen."}
+{"repurpose.error.lostJobs": "Se perdió el rastro de los trabajos en segundo plano — actualiza para comprobar."}
+{"repurpose.error.rerollFailed": "El relanzamiento falló — inténtalo de nuevo."}
+{"repurpose.error.thumbRerollFailed": "El relanzamiento de miniatura falló — inténtalo de nuevo."}
+{"artistVault.worldVoiceSection": "Voz del Mundo"}
+{"artistVault.worldVoiceHint": "Cómo suena este personaje cuando hablas como él en el Mundo. Natural = tu propia voz."}
+{"artistVault.voicePresetDeep": "Grave"}
+{"artistVault.voicePresetBright": "Brillante"}
+{"artistVault.voiceAdvanced": "Avanzado"}
+{"artistVault.voicePitch": "Tono"}
+{"artistVault.voiceFormant": "Tamaño corporal"}
+{"artistVault.voiceBody": "Resonancia"}
+{"artistVault.emptyProfilesTitle": "Tu bóveda está vacía"}
+{"artistVault.profilesTitle": "Bóveda Creativa"}
+{"catalogVault.title": "Bóveda del Catálogo"}
+{"catalogVault.copy": "Deja un legado. Un pago de 200 Visual Bucs mantiene la página de preguardado, la entrada del escaparate y los recursos de este lanzamiento en vivo en Bow Down Visuals — permanentemente. Sin renovaciones, sin retiradas."}
+{"catalogVault.guarantee1": "La página de preguardado queda en vivo para siempre"}
+{"catalogVault.guarantee2": "La entrada del escaparate nunca caduca"}
+{"catalogVault.guarantee3": "Arte + recursos de audio preservados"}
+{"catalogVault.vaultButton": "Guardar para siempre · 200 Visual Bucs"}
+{"catalogVault.vaulting": "Guardando…"}
+{"catalogVault.vaultFailed": "No se pudo guardar este lanzamiento — inténtalo de nuevo."}
+{"catalogVault.vaulted": "Guardado"}
+{"catalogVault.vaultedCopy": "\"{{title}}\" está guardado — su página de preguardado, entrada del escaparate y recursos quedan en vivo en Bow Down Visuals permanentemente."}
+{"generations.download": "Descargar"}
+{"hooks.tab.cta.label": "Generador de CTA"}
+{"hooks.tab.titles.label": "Títulos"}
+{"hooks.tab.dice.label": "Dado"}
+{"hooks.ctaSub": "Cada video necesita una llamada a la acción fuerte. Elige tu objetivo y escribiremos 10 CTA optimizados para conversión, los más fuertes primero."}
+{"hooks.ctaTopicLabel": "¿De qué trata el video?"}
+{"hooks.ctaTopicPlaceholder": "ej. Mi nuevo sencillo \"Golden Tide\" sale el viernes"}
+{"hooks.ctaGoalLabel": "¿Qué deberían hacer los espectadores?"}
+{"hooks.ctaGoal.subscribe.label": "Suscribirse"}
+{"hooks.ctaGoal.comment.label": "Comentar"}
+{"hooks.ctaGoal.share.label": "Compartir"}
+{"hooks.ctaGoal.follow.label": "Seguir"}
+{"hooks.ctaGoal.buy.label": "Comprar"}
+{"hooks.ctaGoal.stream.label": "Escuchar"}
+{"hooks.creditNoteCta": "50 Visual Bucs por generación · impulsado por Thy Cheat Code"}
+{"hooks.generateCtas": "Generar CTA"}
+{"hooks.cookingCtas": "Escribiendo tus CTA…"}
+{"hooks.yourCtas": "Tus CTA — ordenados por fuerza"}
+{"hooks.ctaPlacement.opener.label": "Apertura"}
+{"hooks.ctaPlacement.mid-roll.label": "Mitad del video"}
+{"hooks.ctaPlacement.closer.label": "Cierre"}
+{"hooks.ctaPlacement.pinned-comment.label": "Comentario fijado"}
+{"hooks.ctaStrengthLabel": "Fuerza"}
+{"hooks.addToScript": "Añadir al guion"}
+{"hooks.addedToScript": "En tu guion"}
+{"hooks.ctaHandoffTip": "Pulsa «Añadir al guion» para soltar un CTA en tu proyecto Hub — el Escritor de Guiones y la Voz en Off lo recogen desde ahí."}
+{"hooks.errNeedVideoTopic": "Dinos primero de qué trata el video."}
+{"hooks.errCtasFailed": "No se pudieron generar los CTA — inténtalo de nuevo."}
+{"hooks.fullIntelligenceCheck": "Revisión de inteligencia completa"}
+{"hooks.sendToScriptWriter": "Enviar al Escritor de Guiones"}
+{"hooks.captions.needBurnedIn": "¿Necesitas subtítulos incrustados en el video?"}
+{"importPage.viewLibrary": "Mis clips"}
+{"streamPack.goLive": "Paquete listo — configura tu directo en Go Live"}
+{"streamPack.libraryTitle": "Tu biblioteca de paquetes de directo"}
+{"streamPack.libraryNote": "Cada gráfico que generas se guarda aquí. Añade los que quieras a tu estudio de Go Live — esperarán en la bandeja de paquetes del estudio, listos para caer en una escena."}
+{"streamPack.libraryEmpty": "Nada guardado aún — genera un paquete arriba y aterrizará aquí."}
+{"streamPack.libraryLoading": "Cargando tu biblioteca…"}
+{"streamPack.libraryError": "Tu biblioteca no pudo cargar."}
+{"streamPack.libraryActionFailed": "Ese cambio no se guardó — inténtalo de nuevo."}
+{"streamPack.addToStudio": "Añadir a mi estudio"}
+{"streamPack.inStudio": "En mi estudio"}
+{"streamPack.removeFromStudio": "Quitar"}
+{"scriptWriter.teleprompterLaunch": "▶ Abrir teleprompter"}
+{"scriptWriter.teleprompterClose": "Cerrar teleprompter"}
+{"scriptWriter.teleprompterPlay": "Reproducir"}
+{"scriptWriter.teleprompterPause": "Pausar"}
+{"scriptWriter.teleprompterRestart": "Reiniciar desde arriba"}
+{"scriptWriter.teleprompterWpm": "Velocidad"}
+{"scriptWriter.teleprompterWpmValue": "{{wpm}} PPM"}
+{"scriptWriter.teleprompterFontSmaller": "Texto más pequeño"}
+{"scriptWriter.teleprompterFontLarger": "Texto más grande"}
+{"scriptWriter.teleprompterMirror": "Espejo para hardware de teleprompter"}
+{"scriptWriter.teleprompterFullscreen": "Pantalla completa"}
+{"scriptWriter.teleprompterWords": "{{count}} palabras"}
+{"scriptWriter.teleprompterReadTime": "~{{min}} min de lectura"}
+{"scriptWriter.teleprompterHint": "Espacio = reproducir/pausar · ↑↓ = velocidad · +/− = tamaño del texto · Esc = cerrar · clic en el guion = pausar"}
+{"scriptWriter.hookHintLabel": "Gancho ganador de tu plan de contenido"}
+{"scriptWriter.hookHintBlurb": "Abre con esta línea — fue diseñada para el bucle viral."}
+{"scriptWriter.dismiss": "Descartar"}
+{"scriptWriter.sendToScheduler": "Programador"}
+{"scriptWriter.sendToVoiceover": "Voz en off"}
+{"titles.sendToScheduler": "Enviar al programador"}
+{"mediaDetector.filesSkipped_one": "Se omitió 1 archivo — tipo no compatible o más de 25 MB."}
+{"mediaDetector.filesSkipped_other": "Se omitieron {{count}} archivos — tipo no compatible o más de 25 MB."}
+{"mediaDetector.badge": "Detector de medios IA"}
+{"mediaDetector.titleStart": "¿Real o"}
+{"mediaDetector.titleAi": "IA?"}
+{"mediaDetector.titleEnd": "Sábelo con certeza."}
+{"mediaDetector.subtitle": "Sube una imagen, video o archivo de audio — o pega un enlace — y obtén una evaluación forense de IA: veredicto, puntuación de confianza y las señales exactas que encontró."}
+{"mediaDetector.costPerCheck": "{{cost}} Visual Bucs por revisión."}
+{"mediaDetector.dropHint": "Suelta archivos aquí o haz clic para subir"}
+{"mediaDetector.fileTypes": "Imágenes, video, audio — hasta 25MB cada uno. Lotes compatibles."}
+{"mediaDetector.urlPlaceholder": "…o pega una URL de imagen"}
+{"mediaDetector.add": "Añadir"}
+{"mediaDetector.queueStatus": "{{count}} archivos · {{done}} revisados"}
+{"mediaDetector.clearAll": "Borrar todo"}
+{"mediaDetector.checkAll": "Revisar todo ({{cost}} Visual Bucs)"}
+{"mediaDetector.remove": "Quitar"}
+{"mediaDetector.analyze": "Analizar · {{cost}} Visual Bucs"}
+{"mediaDetector.analyzing": "Analizando señales de IA…"}
+{"mediaDetector.analyzingVideo": "Extrayendo fotogramas y luego analizando…"}
+{"mediaDetector.retry": "Reintentar"}
+{"mediaDetector.emptyTitle": "Nada que revisar aún"}
+{"mediaDetector.emptySubtitle": "Sube un archivo o pega una URL para ejecutar tu primera detección."}
+{"mediaDetector.verdictAi": "Probablemente generado por IA"}
+{"mediaDetector.verdictHuman": "Probablemente creado por humanos"}
+{"mediaDetector.verdictUncertain": "Incierto"}
+{"mediaDetector.detectedSignals": "Señales detectadas"}
+{"mediaDetector.pointsToAi": "apunta a IA"}
+{"mediaDetector.pointsToHuman": "apunta a humano"}
+{"mediaDetector.errorOutOfCredits": "Sin Visual Bucs."}
+{"mediaDetector.errorDetectionFailed": "La detección falló. Inténtalo de nuevo."}
+{"mediaDetector.errorDetectionFailedShort": "La detección falló."}
+{"randomizer.badge": "El dado de Thy Cheat Code"}
+{"randomizer.titlePrefix": "Aleatorizador"}
+{"randomizer.titleSuffix": "de Contenido"}
+{"randomizer.hero": "¿Atascado mirando una página en blanco? Tira el dado por una chispa gratis — o deja que la IA de Thy Cheat Code cocine cinco ideas frescas hechas para ti por 100 Visual Bucs."}
+{"randomizer.categoriesLabel": "Categorías del aleatorizador"}
+{"randomizer.categories.video-ideas.label": "Ideas de video"}
+{"randomizer.categories.video-ideas.blurb": "Conceptos frescos para tu próximo video musical o entrega de contenido."}
+{"randomizer.categories.hooks.label": "Ganchos"}
+{"randomizer.categories.hooks.blurb": "Aperturas de los primeros 3 segundos que detienen el desplazamiento."}
+{"randomizer.categories.thumbnails.label": "Miniaturas"}
+{"randomizer.categories.thumbnails.blurb": "Conceptos de alto clic para YouTube y más allá."}
+{"randomizer.categories.song-concepts.label": "Conceptos de canciones"}
+{"randomizer.categories.song-concepts.blurb": "Temas y ángulos sobre los que vale la pena escribir tu próxima pista."}
+{"randomizer.categories.niche-picker.label": "Selector de nicho"}
+{"randomizer.categories.niche-picker.blurb": "Ángulos de posicionamiento que podrías poseer como creador."}
+{"randomizer.categories.challenges.label": "Desafíos"}
+{"randomizer.categories.challenges.blurb": "Funciones forzadoras para producción y crecimiento."}
+{"randomizer.rollDice": "Tirar el dado"}
+{"randomizer.freeForever": "Gratis para siempre — tira cuanto quieras"}
+{"randomizer.yourRoll": "Tu tirada"}
+{"randomizer.orDeeper": "o ve más profundo"}
+{"randomizer.cooking": "Cocinando ideas…"}
+{"randomizer.signInToGenerate": "Inicia sesión para generar con IA"}
+{"randomizer.freshFromAi": "Fresco de la IA"}
+{"randomizer.crossLink.p1": "¿Te gusta una idea? Pregunta a"}
+{"randomizer.crossLink.p2": "en la burbuja de chat para convertirla en un plan completo."}
+{"myClips.extractAudio": "Extraer audio"}
+{"myClips.extractAudioDone": "Audio extraído"}
+{"myClips.extractAudioFailed": "La extracción de audio falló"}
+{"myClips.extractAudioRefunded": "Se te reembolsó automáticamente."}
+{"myClips.extracting": "Extrayendo…"}
+{"myClips.downloadMp3": "Descargar MP3"}
+{"myClips.pageTitle": "Mis clips"}
+{"myClips.pageDescription": "Tu biblioteca de clips promocionales generados."}
+{"myClips.title": "Mis clips generados"}
+{"myClips.generateNew": "Generar nuevo clip"}
+{"myClips.backToProjects": "Volver a Mis Proyectos"}
+{"myClips.noClips": "Aún no hay clips"}
+{"myClips.noClipsHint": "Los clips de escenas generados se guardan aquí automáticamente. Genera tu primer clip desde el Estudio de Escenas."}
+{"myClips.videoForSong": "Video para mi canción"}
+{"myClips.use": "Usar"}
+{"myClips.clipReady": "Clip listo"}
+{"myClips.ready": "Listo"}
+{"myClips.done": "Hecho"}
+{"myClips.attachToScene": "Adjuntar a escena del proyecto"}
+{"myClips.noCharge": "Sin cargo de Visual Bucs"}
+{"myClips.noProjects": "No se encontraron proyectos con escenas"}
+{"myClips.project": "Proyecto"}
+{"myClips.noScenes": "Aún no hay escenas guardadas"}
+{"myClips.scene": "Escena"}
+{"myClips.hasClip": "Tiene clip"}
+{"myClips.cancel": "Cancelar"}
+{"myClips.attaching": "Adjuntando…"}
+{"myClips.attachClip": "Adjuntar clip"}
+{"myClips.deleteConfirm": "¿Eliminar?"}
+{"myClips.yes": "Sí"}
+{"myClips.copied": "Copiado"}
+{"myClips.copyUrl": "Copiar URL"}
+{"myClips.clipAttached": "Clip adjuntado — ¡Clip listo!"}
+{"myClips.clipDeleted": "Clip eliminado"}
+{"myClips.errorLoadProjects": "No se pudieron cargar los proyectos"}
+{"myClips.errorAttach": "No se pudo adjuntar el clip"}
+{"myClips.errorAttachFailed": "La adjunción falló"}
+{"myClips.errorDelete": "La eliminación falló"}
+{"library.pageDescription": "Plantillas, presets y fuentes para creadores."}
+{"library.kicker": "Tu arsenal creativo"}
+{"library.headingB": "Biblioteca"}
+{"library.sub": "Plantillas, presets y fuentes que se conectan directo a tus herramientas. Elige una, pulsa Usar y sigue creando."}
+{"library.searchPlaceholder": "Buscar plantillas, presets, fuentes…"}
+{"library.tabTemplates": "Plantillas"}
+{"library.tabFonts": "Fuentes"}
+{"library.recentlyUsed": "Usados recientemente"}
+{"library.use": "Usar"}
+{"library.useFont": "Copiar fuente"}
+{"library.copied": "¡Copiado!"}
+{"library.browse": "Explorar la biblioteca"}
+{"library.noResults": "Nada encontrado — prueba otra búsqueda."}
+{"weekly_contest.aria": "Concurso semanal de creadores"}
+{"weekly_contest.label": "Concurso semanal de creadores"}
+{"weekly_contest.drops_in": "Empieza en"}
+{"weekly_contest.ends_in": "Termina en"}
+{"weekly_contest.entries": "{{count}} participaciones"}
+{"weekly_contest.enter_now": "Participar ahora"}
+{"weekly_contest.view_entries": "Ver participaciones"}
+{"weekly_contest.enter_hint": "Publica tu video y entra automáticamente — los ganadores reciben Visual Bucs del fondo de premios de esta semana de {{cap}}."}
+{"weekly_contest.judging_title": "La votación está abierta — cada voto mueve la corona"}
+{"weekly_contest.judging_sub": "Las participaciones están cerradas para \"{{title}}\". Reúne votos para tus favoritos — la corona de la comunidad decide."}
+{"weekly_contest.winners_in": "Ganadores en"}
+{"weekly_contest.vote_now": "Votar por la corona"}
+{"weekly_contest.winners_dropped": "Los ganadores acaban de caer"}
+{"weekly_contest.winners_sub": "\"{{title}}\" está coronado — premios pagados en Visual Bucs."}
+{"weekly_contest.a_creator": "un creador"}
+{"weekly_contest.see_winners": "Ver el círculo de ganadores"}
+{"weekly_contest.hall_of_fame": "Salón de la fama"}
+{"weekly_contest.next_drop": "El próximo concurso cae el lunes"}
+{"weekly_contest.next_drop_sub": "Un tema. Una semana. {{cap}} en juego. Siguiente: \"{{theme}}\" (#{{hashtag}})."}
+{"weekly_contest.admin_nudge": "Admin: el concurso de esta semana aún no está en vivo. Un toque lanza \"{{theme}}\" con el fondo de premios de {{cap}}."}
+{"weekly_contest.launching": "Lanzando…"}
+{"weekly_contest.launch_week": "Lanzar el concurso de esta semana"}
+{"weekly_contest.while_you_wait": "Mientras esperas: explora el salón de la fama"}
+{"weekly_contest.last_week": "Las coronas de la semana pasada"}
+{"weekly_contest.see_all": "Ver todo"}
+{"chooseArtist.dragHint": "Arrastra cualquier artista a un hueco de foco para elegir quién brilla dónde."}
+{"chooseArtist.startCreatingWith": "Empezar a crear con {{name}}"}
+{"collabs.brandDealsLink": "Ofertas de marcas"}
+{"collabs.collabExplainer": "Asociaciones de creador a creador — encuentra colaboradores, no patrocinadores. ¿Persigues dinero de marcas en su lugar? Mira "}
+{"community.replies.scheduleLink": "Planifica publicaciones en el Programador"}
+{"community.messagesLink": "Abrir mensajes directos →"}
+{"contests.winnersCircle": "Círculo de ganadores"}
+{"contests.share": "Compartir"}
+{"shows.setlistLink": "Crea tu setlist →"}
+{"tour.setlistLink": "Crea tu setlist →"}
+{"shoutouts.paidTitle": "Pago completo — ¡shoutout reservado!"}
+{"shoutouts.paidDesc": "Tu shoutout está pagado y aceptado. El creador lo grabará y te lo enviará dentro de su tiempo de entrega."}
+{"repurpose.modeLabel": "Modo"}
+{"myProjects.tabSongs": "Canciones"}
+{"analytics.statPosts": "Publicaciones"}
+{"analytics.hookLabel": "Gancho: “{{hook}}”"}
+{"myProjects.typeLyrics": "Letras"}
+{"myProjects.typeCaptions": "Subtítulos"}
+{"mashup.tabMashup": "Mashup"}
+{"mashup.priceBadge": "400 Visual Bucs"}
+{"mashup.modeSimple": "Turbo"}
+{"mashup.styleCrossfade": "Crossfade"}
+{"mashup.balanceLabel": "Balance"}
+{"mashup.bpmUnknown": "—"}
+{"repurpose.modeStreamVod": "Stream VOD"}
+{"myClips.extractAudioCost": "50 Visual Bucs"}
+{"linkInBio.profile.avatarUrlPlaceholder": "https://…"}
+{"linkInBio.links.urlPlaceholder": "https://…"}
+{"linkInBio.tipJar.placeholder": "https://bowdownvisuals.com/tips/your-handle"}
+{"library.headingA": "Thy"}

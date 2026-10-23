@@ -1,5 +1,5 @@
 /**
- * locale-waves-es.test.ts — Spanish (es) Stack-28 locale waves W1–W4
+ * locale-waves-es.test.ts — Spanish (es) Stack-28 locale waves W1–W5
  * (board items 72 / 81 / 90; audit a7-locale.md §5.3).
  *
  * Each wave closes a set of whole namespaces: every en key of a wave
@@ -494,6 +494,130 @@ describe("es W4 (Stack-28 appendix) — namespaces closed whole", () => {
   });
   it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
     for (const k of W4_LEGIT) {
+      expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
+      expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
+    }
+  });
+});
+
+const W5_NAMESPACES = ["myProjects", "mashup", "repurpose", "myClips", "hooks", "mediaDetector", "scriptWriter", "randomizer", "library", "artistVault", "catalogVault", "streamPack", "importPage", "titles", "viralityCheck", "retention", "interviewPrep", "trends", "email-list", "chooseArtist", "analytics", "audit", "generations", "introsOutros", "setlist", "hub", "linkInBio", "weekly_contest", "community", "shows", "discord-bot", "collabs", "extension", "contests", "team", "commentReplies", "shoutouts", "tour", "nfcCards"] as const;
+const W5_LEGIT: ReadonlySet<string> = new Set([
+  "library.tabPresets",
+  "linkInBio.profile.bio",
+  "artistVault.voicePresetNatural",
+  "analytics.creditsPerRun",
+  "artistVault.creditsCount",
+  "audit.platformInstagram",
+  "audit.platformTikTok",
+  "audit.platformYouTube",
+  "chooseArtist.eyebrow",
+  "collabs.bioLabel",
+  "commentReplies.batchSubline",
+  "commentReplies.toneHypeLabel",
+  "community.tabs.superfans.label",
+  "community.tones.hype",
+  "discord-bot.discord",
+  "discord-bot.discord_bot_shared_secret",
+  "discord-bot.discord_bot_token",
+  "discord-bot.discord_client_id",
+  "email-list.100_visual_bucs",
+  "email-list.join_2",
+  "email-list.thy_cheat_code",
+  "email-list.your_handle",
+  "extension.bdv",
+  "extension.chrome_extensions",
+  "extension.thy_cheat_code",
+  "generations.type.video",
+  "hooks.hashtagsLabel",
+  "hooks.heroTitleA",
+  "hooks.scoreOutOf",
+  "hooks.videoType.tutorial.label",
+  "hub.beta",
+  "importPage.formatAudio",
+  "importPage.formatVideo",
+  "importPage.kbSize",
+  "importPage.mbSize",
+  "importPage.urlPlaceholder",
+  "importPage.video",
+  "interviewPrep.artistNamePh",
+  "interviewPrep.audienceSizePh",
+  "interviewPrep.genrePh",
+  "interviewPrep.of100",
+  "interviewPrep.typePodcast",
+  "introsOutros.introLabel",
+  "introsOutros.outroLabel",
+  "library.headingA",
+  "linkInBio.links.urlPlaceholder",
+  "linkInBio.profile.avatarUrlPlaceholder",
+  "linkInBio.tipJar.placeholder",
+  "mashup.balanceLabel",
+  "mashup.bpmUnknown",
+  "mashup.modeSimple",
+  "mashup.priceBadge",
+  "mashup.styleCrossfade",
+  "mashup.tabMashup",
+  "myClips.extractAudioCost",
+  "myProjects.editor",
+  "myProjects.typePromoClip",
+  "myProjects.typeThumbnail",
+  "myProjects.typeThumbnailPrompt",
+  "myProjects.visualBucsUsed",
+  "nfcCards.bio",
+  "nfcCards.qrSvg",
+  "nfcCards.total",
+  "randomizer.crossLink.name",
+  "repurpose.modeSmart",
+  "repurpose.modeStreamVod",
+  "retention.awayDigest.bowRaceProgress",
+  "retention.dailyDrop.title",
+  "retention.drops.podcast-episode-thumbnail.title",
+  "retention.prefs.dailyDropEnabled.title",
+  "retention.quests_progress",
+  "scriptWriter.bRollLabel",
+  "scriptWriter.beatLabel",
+  "scriptWriter.lengthDeep",
+  "scriptWriter.lengthLong",
+  "scriptWriter.lengthMedium",
+  "scriptWriter.platformReels",
+  "scriptWriter.platformTiktok",
+  "scriptWriter.platformYoutube",
+  "scriptWriter.teleprompterTitle",
+  "setlist.durationPlaceholder",
+  "setlist.setlistFallback",
+  "shows.typeOpenMics",
+  "shows.typePodcasts",
+  "shows.typeShowcases",
+  "team.fundPlaceholder",
+  "team.spendingAmount",
+  "titles.costBadge",
+  "titles.platformInstagram",
+  "titles.platformTikTok",
+  "titles.platformYouTube",
+  "titles.toneHype",
+  "trends.nicheFitness",
+  "trends.nicheGaming",
+  "trends.platformInstagram",
+  "trends.platformTiktok",
+  "trends.platformYoutube",
+  "viralityCheck.hashtagsLabel",
+  "viralityCheck.hashtagsScoreLabel",
+  "viralityCheck.platformInstagram",
+  "viralityCheck.platformTiktok",
+  "viralityCheck.platformX",
+  "viralityCheck.platformYoutube",
+]);
+describe("es W5 (Stack-28 appendix) — namespaces closed whole", () => {
+  const keys = Object.keys(EN).filter((k) => W5_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
+  it("every en key of the wave namespaces is present and non-empty in es", () => {
+    const bad = keys.filter((k) => !(k in ES) || !nonEmpty(ES[k]));
+    expect(bad, `es W5 missing/empty: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("no es value is identical to en outside the legit allowlist", () => {
+    const bad = keys.filter((k) => k in ES && JSON.stringify(ES[k]) === JSON.stringify(EN[k]) && !W5_LEGIT.has(k));
+    expect(bad, `es W5 untranslated residue: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const k of W5_LEGIT) {
       expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
       expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
     }
