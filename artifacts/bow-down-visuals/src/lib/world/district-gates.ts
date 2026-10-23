@@ -29,13 +29,18 @@
  *     a small COMING plate under the name). No span, no header,
  *     no bar — nothing about it suggests you could walk through
  *     it. The east pair stand on the open plaza floor in front of
- *     the wall they used to be painted on; the promenade pair
- *     keep their Phase-1 spots, rebuilt as signposts.
+ *     the wall they used to be painted on; the Creator Heights
+ *     marker keeps its Phase-1 spot, rebuilt as a signpost.
  *
  * The six district names are Phase 1's and do not change. The
- * Stage Grounds (board item 31) are BUILT and their gate is open;
- * the remaining districts are later picks (board items 32–36) —
- * nothing beyond their gates or markers is built yet.
+ * Stage Grounds (board item 31) and the Listening Gardens
+ * (board item 32) are BUILT and their gates are open — the
+ * Gardens' marker was reclassified when its district was built:
+ * it stood at (−26, 33.8) on the promenade, and the gate now
+ * stands in a REAL new gap in the south wall on that same line
+ * (x −26, gap x −27.1…−24.9). The remaining districts are later
+ * picks (board items 33–36) — nothing beyond their gates or
+ * markers is built yet.
  */
 
 export type DistrictThresholdKind = "gate" | "marker";
@@ -90,8 +95,13 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
    * a clear metre west of the east wall's plaza face (28.025). */
   { name: "CREATION ROW", kind: "marker", x: 27.0, z: 14.5, axis: "z", plateRotY: -Math.PI / 2 },
   { name: "THE ATELIERS", kind: "marker", x: 27.0, z: 22.5, axis: "z", plateRotY: -Math.PI / 2 },
-  /* Markers — the promenade pair, at their Phase-1 spots. */
-  { name: "LISTENING GARDENS", kind: "marker", x: -26, z: 33.8, axis: "x", plateRotY: Math.PI },
+  /* The Listening Gardens are BUILT (item 32): the promenade
+   * marker is reclassified — this gate is OPEN, a true passage
+   * through a REAL new gap in the south wall on the marker's own
+   * line (x −26). No bar; the sub-plate reads OPEN. */
+  { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
+  /* Marker — the promenade's remaining signpost, at its
+   * Phase-1 spot. */
   { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI },
 ];
 
@@ -102,4 +112,5 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
 export const DISTRICT_GATE_GAPS: Record<string, { axis: "x" | "z"; at: number; min: number; max: number }> = {
   "STAGE GROUNDS": { axis: "z", at: -28.2, min: 18.4, max: 20.6 },
   "THE BOARDWALK": { axis: "x", at: 34.0, min: -1.1, max: 1.1 },
+  "LISTENING GARDENS": { axis: "x", at: 34.0, min: -27.1, max: -24.9 },
 };

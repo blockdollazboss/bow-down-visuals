@@ -171,6 +171,21 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     bounds: { minX: -54.4, maxX: -27.8, minZ: 9.6, maxZ: 36.4 },
     spawn: { x: -30.2, z: 19.5 },
   },
+  {
+    /* Stage C item 32: THE LISTENING GARDENS — the second built
+     * district, a gardens quarter south of the promenade through
+     * a new gap in the south wall (a true passage since this
+     * batch). Bounds + spawn mirror the client floor plan
+     * (lib/world/listening-gardens.ts via palace-layout.ts), a
+     * touch generous at the gate apron like every room's. The
+     * district is public look/listen space like the plaza: NO
+     * stage and NO jukebox here — the palace's one stage stays
+     * in the hall and its one jukebox in the Music Hall. */
+    roomId: "world:listening-gardens",
+    name: "Listening Gardens",
+    bounds: { minX: -39.4, maxX: -12.6, minZ: 33.6, maxZ: 60.4 },
+    spawn: { x: -26, z: 36.2 },
+  },
 ];
 
 /** One booked event on a room's slate (World Events, migration
