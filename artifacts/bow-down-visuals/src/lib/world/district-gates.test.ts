@@ -3,10 +3,10 @@
  *
  * Pins:
  * - the six Phase-1 district names survive, exactly six;
- * - only two thresholds are "gate"s, and each stands centred in
- *   a REAL wall gap (DISTRICT_GATE_GAPS) — a gate at a solid
+ * - only three thresholds are "gate"s, and each stands centred
+ *   in a REAL wall gap (DISTRICT_GATE_GAPS) — a gate at a solid
  *   wall is the dishonesty this item removes;
- * - the four others are "marker"s (signposts, not doorways) —
+ * - the three others are "marker"s (signposts, not doorways) —
  *   including the east pair, which used to be painted onto the
  *   unbroken east wall (x 28.2): markers stand OFF that wall on
  *   open floor, and no marker carries gate parts in the data
@@ -37,7 +37,10 @@ describe("district-gates", () => {
 
   it("gates stand only at real wall gaps, centred in them", () => {
     const gates = DISTRICT_THRESHOLDS.filter((d) => d.kind === "gate");
-    expect(gates.map((g) => g.name)).toEqual(["STAGE GROUNDS", "THE BOARDWALK"]);
+    /* DELIBERATELY moved in item 32: the Listening Gardens gate
+     * joined — its district is built, through a real new gap in
+     * the south wall on its old marker's line. */
+    expect(gates.map((g) => g.name)).toEqual(["STAGE GROUNDS", "THE BOARDWALK", "LISTENING GARDENS"]);
     for (const gate of gates) {
       const gap = DISTRICT_GATE_GAPS[gate.name]!;
       expect(gap.axis).toBe(gate.axis);
@@ -48,12 +51,13 @@ describe("district-gates", () => {
     }
   });
 
-  it("the other four are grounded markers, not doorways", () => {
+  it("the other three are grounded markers, not doorways", () => {
     const markers = DISTRICT_THRESHOLDS.filter((d) => d.kind === "marker");
+    /* DELIBERATELY moved in item 32: LISTENING GARDENS left the
+     * markers — it is an open gate now (below). */
     expect(markers.map((m) => m.name)).toEqual([
       "CREATION ROW",
       "THE ATELIERS",
-      "LISTENING GARDENS",
       "CREATOR HEIGHTS",
     ]);
     for (const m of markers) {
@@ -70,12 +74,21 @@ describe("district-gates", () => {
     }
   });
 
-  it("item 31: the Stage Grounds gate is OPEN — its district is built; every other threshold is not open", () => {
+  it("items 31+32: the Stage Grounds and Listening Gardens gates are OPEN — their districts are built; every other threshold is not open", () => {
     const stage = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
     expect(stage.kind).toBe("gate");
     expect(stage.open).toBe(true);
+    /* Item 32: the Gardens' marker was reclassified to an open
+     * gate in the south wall on its own line (x −26, z 34). */
+    const gardens = DISTRICT_THRESHOLDS.find((d) => d.name === "LISTENING GARDENS")!;
+    expect(gardens.kind).toBe("gate");
+    expect(gardens.open).toBe(true);
+    expect(gardens.x).toBe(-26);
+    expect(gardens.z).toBe(34.0);
     for (const d of DISTRICT_THRESHOLDS) {
-      if (d.name !== "STAGE GROUNDS") expect(d.open ?? false, d.name).toBe(false);
+      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS") {
+        expect(d.open ?? false, d.name).toBe(false);
+      }
     }
     expect(DISTRICT_OPEN_SUBPLATE).toBe("OPEN");
     /* The scene honours the classification: the bar is built

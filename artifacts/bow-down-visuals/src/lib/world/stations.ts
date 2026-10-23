@@ -53,6 +53,7 @@ import {
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
   STAGE_GROUNDS_ID,
+  LISTENING_GARDENS_ID,
   creatorSlugFromRoomId,
 } from "./palace-layout";
 
@@ -490,6 +491,28 @@ export const PALACE_STATIONS: PalaceStation[] = [
     tagline: "What's on at the palace — the live slate, read from the stage quarter.",
     x: -33.2,
     z: 19.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
+    websitePath: null,
+  },
+
+  /* ── Listening Gardens (Stage C item 32) ─────────────────────── */
+  {
+    /* The district's one door: the slate at the head of the
+     * entry path, where the gate walk meets the parterre lawn.
+     * It opens the Kingdom Board — the palace's live slate of
+     * what's on, who's where and what's live — the same panel
+     * the hall's, the monument's and the Stage Bill's boards
+     * carry, born world-native like them (never a website page).
+     * The district is look/listen space: no stage authority
+     * docks here, and guests read the slate exactly like
+     * members. */
+    id: "gardens-slate",
+    roomId: LISTENING_GARDENS_ID,
+    name: "The Gardens Slate",
+    tagline: "What's on at the palace — the live slate, read from the quiet of the gardens.",
+    x: -26,
+    z: 38.4,
     membersOnly: false,
     panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,

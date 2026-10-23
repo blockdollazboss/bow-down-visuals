@@ -137,6 +137,7 @@ import {
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
   STAGE_GROUNDS_ID,
+  LISTENING_GARDENS_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   palaceRoomLayout,
@@ -157,6 +158,11 @@ import {
   STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
   TRUSS, BANNER_POLES, BANNER_POLE, AUDIENCE_LAWN, STAGE_BENCHES, ENTRY_PATH, STAGE_LAMPS,
 } from "./stage-grounds";
+import {
+  GARDENS_INTERIOR, GARDENS_WALL_RUNS, GARDENS_PIERS, PARTERRE_LAWN, RILL,
+  RILL_BENCHES, GARDEN_HEDGES, NOOK_BENCHES, PAVILION, PAVILION_POSTS,
+  GARDENS_ENTRY_PATH, GARDENS_LAMPS, GARDENS_BANNER_POLES, GARDENS_BANNER_POLE,
+} from "./listening-gardens";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
@@ -2617,29 +2623,32 @@ export class KingsHallScene {
     if (!sun || !tgt) return;
     const look = hallLookFor(this.theme);
     const cam = sun.shadow.camera;
-    /* The Stage Grounds (item 31) stand outdoors under the same
-     * sky: standing there, the sun/moon keeps the plaza's aim and
-     * the shadow camera widens west to cover the district too —
-     * one light, still one shadow pass. */
-    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID;
+    /* The Stage Grounds (item 31) and the Listening Gardens
+     * (item 32) stand outdoors under the same sky: standing in a
+     * district, the sun/moon keeps the plaza's aim and the
+     * shadow camera widens to cover the district too — one
+     * light, still one shadow pass. The Gardens' aim centres
+     * south, on the parterre. */
+    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID;
     const inDistrict = this.currentRoom === STAGE_GROUNDS_ID;
+    const inGardens = this.currentRoom === LISTENING_GARDENS_ID;
     if (outdoors && look.sun.present) {
       // Day on the plaza: sun high in the southern sky, so the
       // palace facade and the monument throw real shadows.
       sun.position.set(16, 25, 47);
-      tgt.position.set(inDistrict ? -14 : 0, 0, 20);
+      tgt.position.set(inGardens ? -26 : inDistrict ? -14 : 0, 0, inGardens ? 47 : 20);
       sun.color.set(look.sun.color);
       sun.intensity = look.sun.intensity;
-      const fit = inDistrict ? 44 : 36;
+      const fit = inDistrict || inGardens ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else if (outdoors) {
       // Night on the plaza: moonlight — cool, dim, shadow-casting.
       sun.position.set(-14, 27, 42);
-      tgt.position.set(inDistrict ? -14 : 0, 0, 20);
+      tgt.position.set(inGardens ? -26 : inDistrict ? -14 : 0, 0, inGardens ? 47 : 20);
       sun.color.set(0x93a7d4);
       sun.intensity = 0.6;
-      const fit = inDistrict ? 44 : 36;
+      const fit = inDistrict || inGardens ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else {
@@ -2665,7 +2674,7 @@ export class KingsHallScene {
     const fog = this.scene.fog;
     if (!(fog instanceof THREE.Fog)) return;
     const look = hallLookFor(this.theme);
-    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID) {
+    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID || this.currentRoom === LISTENING_GARDENS_ID) {
       fog.near = look.theme === "light" ? 48 : 34;
       fog.far = look.theme === "light" ? 140 : 115;
     } else {
@@ -2885,6 +2894,7 @@ export class KingsHallScene {
     }
     this.buildCourtyardShell(group, look, mats, anim);
     this.buildStageGroundsShell(group, look, mats, anim);
+    this.buildListeningGardensShell(group, look, mats, anim);
     this.buildCreatorRoomShell(group, look, mats);
     this.applyRoomVisibility();
   }
@@ -3451,12 +3461,15 @@ export class KingsHallScene {
     // notch wall stands on the main grounds' south edge east of
     // the Creator Room (whose own north wall closes that line
     // west of it), and two short returns flank the Creator Rooms
-    // arch (item 41). Two gates pierce the runs: a 2.2 m gap in
-    // the west wall at z ≈ 19.5 (Stage Grounds) and one in the
-    // south promenade wall at x ≈ 0 (the Boardwalk). The
-    // Boardwalk gap stays barred and the walk rects end inside
-    // it; the Stage Grounds gap is walked through since item 31
-    // (its district is built — see buildStageGroundsShell).
+    // arch (item 41). Three gates pierce the runs: a 2.2 m gap
+    // in the west wall at z ≈ 19.5 (Stage Grounds), one in the
+    // south promenade wall at x ≈ 0 (the Boardwalk), and one in
+    // the south wall at x ≈ −26 (the Listening Gardens, on the
+    // old marker's line). The Boardwalk gap stays barred and the
+    // walk rects end inside it; the Stage Grounds gap is walked
+    // through since item 31 and the Gardens gap since item 32
+    // (their districts are built — see buildStageGroundsShell /
+    // buildListeningGardensShell).
     // Every run is a blocked rect in the layout, derived from
     // this same list.
     const lowWall = (w: number, d: number, x: number, z: number) => {
@@ -4457,6 +4470,384 @@ export class KingsHallScene {
     this.shellGroups.set(STAGE_GROUNDS_ID, g);
   }
 
+  /** The Listening Gardens shell (Stage C item 32): the gardens
+   *  quarter south of the promenade, built entirely from
+   *  listening-gardens.ts placement data — the same data
+   *  palace-layout registers as the room's blocked rects, so
+   *  every body built here is solid there. A look/listen
+   *  quarter: a parterre lawn around a still reflecting rill,
+   *  hedged listening nooks with benches, an open pavilion, and
+   *  the quarter's lamps and banners. The ground wears the
+   *  OUTDOOR system (the look's paving + whole-tile slabs, a
+   *  real lawn for the parterre — never interior marble). Draw
+   *  discipline: repeated pieces instance (slabs, hedge runs,
+   *  bench parts, lamp parts, pavilion posts, planting crowns).
+   *  Light discipline: ZERO new real lights — the lantern
+   *  standards glow by emissive glass + item-27 lantern-glow
+   *  sprites after dark. */
+  private buildListeningGardensShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const g = new THREE.Group();
+    const shadows = QUALITY[this.quality].shadows;
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; rotY?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(0, p.rotY ?? 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = shadows;
+      g.add(im);
+      return im;
+    };
+
+    /* The ground: the look's paving over the whole quarter (the
+     * shell floor), with the whole-tile wearing slabs instanced
+     * over it — palace-grounds' paving plan for this rect. */
+    const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
+    this.shellFloor(g, look, mats, GARDENS_INTERIOR, "paving", pavingSurface);
+    {
+      const slabs = pavingSlabsFor(GARDENS_INTERIOR);
+      const slabInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), slabs.length,
+      );
+      slabs.forEach((s, i) => {
+        dummy.position.set(s.cx, 0.015, s.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        slabInst.setMatrixAt(i, dummy.matrix);
+      });
+      slabInst.instanceMatrix.needsUpdate = true;
+      slabInst.receiveShadow = shadows;
+      g.add(slabInst);
+    }
+
+    /* The quarter's own enclosure: low marble walls with gold
+     * caps on the west, east and south (the plaza's language) —
+     * the north side is the promenade's south wall and its open
+     * gate. */
+    for (const run of GARDENS_WALL_RUNS) {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w, 1.05, run.d), mats.marbleFor(Math.max(run.w, run.d), 1.05),
+      );
+      wall.position.set(run.x, 0.525, run.z);
+      wall.castShadow = shadows;
+      g.add(wall);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w === 0.35 ? 0.47 : run.w, 0.07, run.d === 0.35 ? 0.47 : run.d), mats.gold,
+      );
+      cap.position.set(run.x, 1.09, run.z);
+      g.add(cap);
+    }
+    /* Grounded piers on the south wall's line (item 43's build). */
+    for (const p of GARDENS_PIERS) {
+      const pier = new THREE.Group();
+      pier.position.set(p.x, 0, p.z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), mats.marble);
+      plinth.position.y = 0.15;
+      pier.add(plinth);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 3.54, 0.62), mats.marble);
+      shaft.position.y = 0.3 + 3.54 / 2;
+      shaft.castShadow = shadows;
+      pier.add(shaft);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      cap.position.y = 3.93;
+      pier.add(cap);
+      g.add(pier);
+    }
+
+    /* The parterre lawn (the plaza lawns' construction: stone
+     * bed, textured grass inset, instanced edging) — stroll-
+     * across ground holding the rill, its benches and the
+     * parterre's planting crowns. No medallion here: the rill
+     * is this lawn's centrepiece, running through its heart. */
+    {
+      const panel = PARTERRE_LAWN;
+      const edging = lawnEdgingRuns(panel);
+      const edgeInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(2, 0.3), edging.length,
+      );
+      edging.forEach((b, i) => {
+        dummy.position.set(b.cx, b.cy + 0.025, b.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.updateMatrix();
+        edgeInst.setMatrixAt(i, dummy.matrix);
+      });
+      edgeInst.instanceMatrix.needsUpdate = true;
+      edgeInst.castShadow = shadows;
+      g.add(edgeInst);
+      const bed = new THREE.Mesh(
+        new THREE.BoxGeometry(panel.w, LAWN_BED.rimH, panel.d), mats.stoneFor(panel.w, LAWN_BED.rimH),
+      );
+      bed.position.set(panel.cx, LAWN_BED.rimH / 2, panel.cz);
+      bed.receiveShadow = shadows;
+      g.add(bed);
+      const grass = new THREE.Mesh(
+        new THREE.BoxGeometry(panel.w - LAWN_BED.inset * 2, 0.04, panel.d - LAWN_BED.inset * 2),
+        mats.lawnFor(panel.w - LAWN_BED.inset * 2, panel.d - LAWN_BED.inset * 2),
+      );
+      grass.position.set(panel.cx, panel.topY - 0.02, panel.cz);
+      grass.receiveShadow = shadows;
+      g.add(grass);
+      /* Planting crowns: the parterre pattern (palace-grounds'
+       * lawnPlantingSpots), one instanced draw, jitter + tint
+       * per crown from prop-variation (item 18) — the ring
+       * stands clear of the rill by the pattern's own radii. */
+      const spots = lawnPlantingSpots(panel);
+      const crownInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.44, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        spots.length,
+      );
+      const crownColor = new THREE.Color(0x2e5d33);
+      spots.forEach((s, i) => {
+        const cv = propVariation("crown", 700 + i);
+        dummy.position.set(s.x, panel.topY + 0.3 * cv.scaleY, s.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale, cv.scale * cv.scaleY, cv.scale);
+        dummy.updateMatrix();
+        crownInst.setMatrixAt(i, dummy.matrix);
+        crownInst.setColorAt(i, crownColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      crownInst.instanceMatrix.needsUpdate = true;
+      if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+      crownInst.castShadow = shadows;
+      g.add(crownInst);
+    }
+
+    /* The rill: a narrow reflecting strip down the lawn's
+     * middle — the plaza pool's construction stretched thin: a
+     * stone rim ring proud of the grass, a gold trim line, and
+     * still water held just under the lip, wearing the look's
+     * water texture (cloned, so its shimmer scroll is its own).
+     * The whole footprint is RILL_BLOCKED in the layout — a
+     * walker rounds it or crosses at its ends, never wades. */
+    {
+      const rimMat = mats.stoneFor(RILL.d, RILL.rimH);
+      const rimRuns: Array<{ w: number; d: number; x: number; z: number }> = [
+        { w: RILL.w, d: RILL.rimLip, x: RILL.cx, z: RILL.cz - RILL.d / 2 + RILL.rimLip / 2 },
+        { w: RILL.w, d: RILL.rimLip, x: RILL.cx, z: RILL.cz + RILL.d / 2 - RILL.rimLip / 2 },
+        { w: RILL.rimLip, d: RILL.d - RILL.rimLip * 2, x: RILL.cx - RILL.w / 2 + RILL.rimLip / 2, z: RILL.cz },
+        { w: RILL.rimLip, d: RILL.d - RILL.rimLip * 2, x: RILL.cx + RILL.w / 2 - RILL.rimLip / 2, z: RILL.cz },
+      ];
+      for (const r of rimRuns) {
+        const rim = new THREE.Mesh(new THREE.BoxGeometry(r.w, RILL.rimH, r.d), rimMat);
+        rim.position.set(r.x, RILL.rimH / 2 + PARTERRE_LAWN.topY, r.z);
+        rim.castShadow = shadows;
+        rim.receiveShadow = shadows;
+        g.add(rim);
+      }
+      const trim = new THREE.Mesh(
+        new THREE.BoxGeometry(RILL.w + 0.06, 0.04, RILL.d + 0.06), mats.goldDark,
+      );
+      trim.position.set(RILL.cx, RILL.rimH + PARTERRE_LAWN.topY - 0.02, RILL.cz);
+      g.add(trim);
+      const tint = poolWaterTint(look.theme);
+      const waterTex = hallTexture(look.waterTextureUrl, 0.4, 3).clone();
+      waterTex.needsUpdate = true;
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(RILL.w - RILL.rimLip * 2, RILL.d - RILL.rimLip * 2),
+        new THREE.MeshStandardMaterial({
+          map: waterTex, color: tint.color, roughness: tint.roughness,
+          metalness: 0.35, envMapIntensity: 0.9,
+        }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(RILL.cx, RILL.waterY + PARTERRE_LAWN.topY, RILL.cz);
+      g.add(water);
+      anim.waters.push({ tex: waterTex, jet: null });
+    }
+
+    /* The hedged listening nooks: clipped hedge runs (instanced
+     * unit boxes scaled to each run, foliage-tinted per run by
+     * item-18 variation) forming four three-sided enclosures
+     * that open toward the lawn. */
+    {
+      const hedgeInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        GARDEN_HEDGES.length,
+      );
+      const hedgeColor = new THREE.Color(0x274d2c);
+      GARDEN_HEDGES.forEach((h, i) => {
+        const cv = propVariation("crown", 800 + i);
+        dummy.position.set(h.cx, h.cy, h.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(h.w, h.h, h.d);
+        dummy.updateMatrix();
+        hedgeInst.setMatrixAt(i, dummy.matrix);
+        hedgeInst.setColorAt(i, hedgeColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      hedgeInst.instanceMatrix.needsUpdate = true;
+      if (hedgeInst.instanceColor) hedgeInst.instanceColor.needsUpdate = true;
+      hedgeInst.castShadow = shadows;
+      g.add(hedgeInst);
+    }
+
+    /* Benches: the nooks' benches (facing the lawn out of their
+     * hedges) and the rill benches (facing the water) — instanced
+     * seats, backs (on the side away from what they face) and
+     * legs, the plaza benches' construction turned to their
+     * views. Facing: a west piece faces east (+1), east −1. */
+    {
+      const benches: Array<{ x: number; z: number; facing: 1 | -1 }> = [
+        ...NOOK_BENCHES.map((b) => ({
+          x: b.x, z: b.z,
+          facing: (b.x < PARTERRE_LAWN.cx ? 1 : -1) as 1 | -1,
+        })),
+        ...RILL_BENCHES.map((b) => ({
+          x: b.x, z: b.z,
+          facing: (b.x < RILL.cx ? 1 : -1) as 1 | -1,
+        })),
+      ];
+      const seatPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      const backPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      const legPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      for (const b of benches) {
+        seatPlaces.push({ x: b.x, y: BENCH.seatY, z: b.z, rotY: Math.PI / 2 });
+        backPlaces.push({ x: b.x - b.facing * 0.24, y: BENCH.seatY + 0.28, z: b.z, rotY: Math.PI / 2 });
+        for (const endOff of [-0.8, 0.8]) {
+          legPlaces.push({ x: b.x, y: BENCH.seatY / 2, z: b.z + endOff, rotY: Math.PI / 2 });
+        }
+      }
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.09, BENCH.depth), mats.stoneFor(2, 0.4), seatPlaces);
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.5, 0.08), mats.stoneFor(2, 0.5), backPlaces);
+      instanced(new THREE.BoxGeometry(0.09, BENCH.seatY, BENCH.depth - 0.1), mats.darkMetal, legPlaces);
+    }
+
+    /* The pavilion: a low stone roundel (flat accent — walk
+     * over it, never collide), six slender posts (instanced),
+     * a gold ring beam on their heads, a shallow cloth cone
+     * roof with gold trim and a gold finial. You stand IN it
+     * and look back down the rill to the gate. */
+    {
+      const roundel = new THREE.Mesh(
+        new THREE.CylinderGeometry(PAVILION.roundelR, PAVILION.roundelR, 0.06, 28), mats.stoneFor(3, 0.2),
+      );
+      roundel.position.set(PAVILION.cx, 0.03, PAVILION.cz);
+      roundel.receiveShadow = shadows;
+      g.add(roundel);
+      instanced(
+        new THREE.CylinderGeometry(0.09, 0.12, PAVILION.postH, 10), mats.marble,
+        PAVILION_POSTS.map((p) => ({ x: p.x, y: PAVILION.postH / 2 + 0.06, z: p.z })),
+      );
+      const beam = new THREE.Mesh(new THREE.TorusGeometry(PAVILION.postR, 0.06, 8, 32), mats.gold);
+      beam.rotation.x = Math.PI / 2;
+      beam.position.set(PAVILION.cx, PAVILION.postH + 0.06, PAVILION.cz);
+      g.add(beam);
+      const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(PAVILION.roofR, PAVILION.roofH, 28), mats.fabric,
+      );
+      roof.position.set(PAVILION.cx, PAVILION.roofY + PAVILION.roofH / 2, PAVILION.cz);
+      roof.castShadow = shadows;
+      g.add(roof);
+      const roofTrim = new THREE.Mesh(new THREE.TorusGeometry(PAVILION.roofR * 0.99, 0.035, 8, 36), mats.gold);
+      roofTrim.rotation.x = Math.PI / 2;
+      roofTrim.position.set(PAVILION.cx, PAVILION.roofY + 0.02, PAVILION.cz);
+      g.add(roofTrim);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), mats.gold);
+      finial.position.set(PAVILION.cx, PAVILION.roofY + PAVILION.roofH + 0.1, PAVILION.cz);
+      g.add(finial);
+    }
+
+    /* The entry path: a marble strip on the gate's line from
+     * the promenade wall to the parterre, gold strips on its
+     * edges — the plaza spine's language, turned south. Flat
+     * accent, no collision, like every path on the grounds. */
+    {
+      const len = GARDENS_ENTRY_PATH.toZ - GARDENS_ENTRY_PATH.fromZ;
+      const cz = (GARDENS_ENTRY_PATH.fromZ + GARDENS_ENTRY_PATH.toZ) / 2;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(GARDENS_ENTRY_PATH.w, 0.016, len), mats.marble);
+      slab.position.set(GARDENS_ENTRY_PATH.cx, 0.022, cz);
+      g.add(slab);
+      for (const sx of [-1.03, 1.03]) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, len), mats.goldDark);
+        strip.position.set(GARDENS_ENTRY_PATH.cx + sx, 0.028, cz);
+        g.add(strip);
+      }
+    }
+
+    /* Banner poles flanking the pavilion approach: a dark pole,
+     * a gold crossarm, and a hanging banner in the look's cloth
+     * — the Stage Grounds' pole build, on the gardens' line. */
+    for (const p of GARDENS_BANNER_POLES) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, GARDENS_BANNER_POLE.h, 8), mats.darkMetal);
+      pole.position.set(p.x, GARDENS_BANNER_POLE.h / 2, p.z);
+      pole.castShadow = shadows;
+      g.add(pole);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8), mats.gold);
+      arm.rotation.z = Math.PI / 2;
+      arm.position.set(p.x, GARDENS_BANNER_POLE.h - 0.15, p.z);
+      g.add(arm);
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.7, 0.05), mats.fabric);
+      banner.position.set(p.x, GARDENS_BANNER_POLE.h - 1.05, p.z);
+      banner.castShadow = shadows;
+      g.add(banner);
+    }
+
+    /* The quarter's lantern standards — plaza-life's LAMP build,
+     * instanced: stone plinths, dark posts, gold cages, emissive
+     * glass, glow sprites after dark. Zero real lights. */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.42, 0.18, 0.42), mats.stoneFor(0.5, 0.2),
+        GARDENS_LAMPS.map((l) => ({ x: l.x, y: 0.09, z: l.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.055, 0.085, LAMP.postH, 10), mats.darkMetal,
+        GARDENS_LAMPS.map((l) => ({ x: l.x, y: 0.18 + LAMP.postH / 2, z: l.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.3, 0.36, 0.3), mats.gold,
+        GARDENS_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY, z: l.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      const glass = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.21, 0.27, 0.21),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        GARDENS_LAMPS.length,
+      );
+      GARDENS_LAMPS.forEach((l, i) => {
+        dummy.position.set(l.x, LAMP.headY, l.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        glass.setMatrixAt(i, dummy.matrix);
+      });
+      glass.instanceMatrix.needsUpdate = true;
+      g.add(glass);
+      instanced(
+        new THREE.ConeGeometry(0.3, 0.22, 4), mats.goldDark,
+        GARDENS_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY + 0.29, z: l.z, rotY: Math.PI / 4 })),
+      );
+      if (look.candles) {
+        GARDENS_LAMPS.forEach((l, i) => {
+          this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.31);
+        });
+      }
+    }
+
+    // The way back, labeled from the district side of the gate.
+    this.doorPlate(g, "THE KING'S PLAZA", -26, PALACE_DOOR_HEIGHT + 0.66, 34.45, 0, 2.6);
+
+    // The district's door-station: the Gardens Slate at the path's head.
+    this.buildStationMarkers(g, mats, LISTENING_GARDENS_ID);
+
+    group.add(g);
+    this.shellGroups.set(LISTENING_GARDENS_ID, g);
+  }
+
   /** Plaza life (Stage C batch C3), built entirely from
    *  plaza-life.ts placement data — the same data palace-layout
    *  derives PLAZA_LIFE_BLOCKED from, so every body built here is
@@ -5350,10 +5741,14 @@ export class KingsHallScene {
       /* The Stage Grounds and the plaza see each other through
        * the open west gate (item 31): standing in either, the
        * other stays built — the gate is a real sightline, and a
-       * vanishing district (or plaza) through it would be a lie. */
+       * vanishing district (or plaza) through it would be a lie.
+       * The Listening Gardens and the plaza share the same law
+       * through the open south gate (item 32). */
       const gateVisible =
         (id === STAGE_GROUNDS_ID && this.currentRoom === COURTYARD_ID) ||
-        (id === COURTYARD_ID && this.currentRoom === STAGE_GROUNDS_ID);
+        (id === COURTYARD_ID && this.currentRoom === STAGE_GROUNDS_ID) ||
+        (id === LISTENING_GARDENS_ID && this.currentRoom === COURTYARD_ID) ||
+        (id === COURTYARD_ID && this.currentRoom === LISTENING_GARDENS_ID);
       g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible || gateVisible;
     }
     const plaza = this.shellGroups.get(COURTYARD_ID);

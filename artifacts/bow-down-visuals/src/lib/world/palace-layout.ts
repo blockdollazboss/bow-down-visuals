@@ -36,6 +36,14 @@ import {
   STAGE_GROUNDS_WALK,
   STAGE_TALL_BLOCKED,
 } from "./stage-grounds";
+import {
+  GARDENS_BLOCKED,
+  GARDENS_CAM_CLAMP,
+  GARDENS_INTERIOR,
+  GARDENS_SPAWN,
+  GARDENS_TALL_BLOCKED,
+  GARDENS_WALK,
+} from "./listening-gardens";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -53,6 +61,11 @@ export const BRANDING_ATELIER_ID = "world:branding-atelier";
  * quarter west of the plaza, through the west wall's gate — now
  * a true passage. Its geometry lives in stage-grounds.ts. */
 export const STAGE_GROUNDS_ID = "world:stage-grounds";
+/* The second built district (Stage C item 32): the gardens
+ * quarter south of the promenade, through a new gap in the south
+ * wall on the old marker's line — now a true passage. Its
+ * geometry lives in listening-gardens.ts. */
+export const LISTENING_GARDENS_ID = "world:listening-gardens";
 
 export interface PalaceRect {
   minX: number;
@@ -121,11 +134,13 @@ export interface PlazaWallRun {
  *  ~0.18 m beyond the walk edge, the house clearance), so the
  *  visible wall and the walk clamp agree everywhere: no gap a
  *  walker can see through, no invisible wall where floor runs on.
- *  The two gate gaps (Stage Grounds west, Boardwalk south) are
- *  real gaps in the runs. The Boardwalk gap stays closed by its
- *  gate's gold bar and the walk rects end inside it; the Stage
- *  Grounds gap is a true passage since item 31 — the portal in
- *  PALACE_DOORS bridges it into the built district beyond. */
+ *  The gate gaps (Stage Grounds west, Boardwalk south,
+ *  Listening Gardens south) are real gaps in the runs. The
+ *  Boardwalk gap stays closed by its gate's gold bar and the
+ *  walk rects end inside it; the Stage Grounds gap is a true
+ *  passage since item 31 and the Listening Gardens gap since
+ *  item 32 — the portals in PALACE_DOORS bridge them into the
+ *  built districts beyond. */
 export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
   /* West wall x −28.2, split by the Stage Grounds gate gap
    * (z 18.4..20.6). */
@@ -137,8 +152,12 @@ export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
   { w: 0.35, d: 13.6, x: 28.2, z: 19.2 },
   { w: 0.35, d: 8.0, x: 28.2, z: 30.0 },
   /* South wall z 34.0 across the promenade, split by the
-   * Boardwalk gate gap (x −1.1..1.1). */
-  { w: 27.1, d: 0.35, x: -14.65, z: 34.0 },
+   * Boardwalk gate gap (x −1.1..1.1) and — since item 32 — the
+   * Listening Gardens gate gap (x −27.1..−24.9, on the old
+   * marker's line at x −26): two runs west of the Boardwalk gap
+   * carry the wall around the gardens' true passage. */
+  { w: 1.1, d: 0.35, x: -27.65, z: 34.0 },
+  { w: 23.8, d: 0.35, x: -13.0, z: 34.0 },
   { w: 1.25, d: 0.35, x: 1.725, z: 34.0 },
   /* The south-east yard's south run: from the Creator Room's east
    * wall to the east wall, closing the yard the SE floor patch
@@ -226,19 +245,21 @@ export interface PlazaGate {
   open?: boolean;
 }
 
-/** The six district thresholds. Two are true gates in real wall
- *  gaps (Stage Grounds in the west wall — OPEN since item 31, its
- *  district built; the Boardwalk in the south wall — still
- *  barred, its district unbuilt). Four are markers: the east pair
- *  stand on the open floor at x 27.0, a clear metre west of the
- *  east wall's plaza face — the shipped build painted them ON
- *  the solid wall, a fake passage; the promenade pair keep their
- *  Phase-1 spots. Every footprint below matches the body the
- *  scene builds. */
+/** The six district thresholds. Three are true gates in real
+ *  wall gaps (Stage Grounds in the west wall — OPEN since item
+ *  31, its district built; Listening Gardens in the south wall —
+ *  OPEN since item 32, its district built, reclassified from the
+ *  promenade marker that stood at (−26, 33.8); the Boardwalk in
+ *  the south wall — still barred, its district unbuilt). Three
+ *  are markers: the east pair stand on the open floor at x 27.0,
+ *  a clear metre west of the east wall's plaza face — the
+ *  shipped build painted them ON the solid wall, a fake passage;
+ *  the Creator Heights marker keeps its Phase-1 spot. Every
+ *  footprint below matches the body the scene builds. */
 export const PLAZA_GATES: PlazaGate[] = [
   { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
   { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
-  { name: "LISTENING GARDENS", kind: "marker", x: -26, z: 33.8, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
+  { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
   { name: "CREATION ROW", kind: "marker", x: 27.0, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
   { name: "THE ATELIERS", kind: "marker", x: 27.0, z: 22.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
   { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
@@ -450,6 +471,26 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     camClamp: STAGE_GROUNDS_CAM_CLAMP,
     spawn: { ...STAGE_GROUNDS_SPAWN },
   },
+  /* ── Stage C item 32: THE LISTENING GARDENS ────────────────────
+   * The second built district: a gardens quarter south of the
+   * promenade, through a new gap in the south wall on the old
+   * marker's line — since this batch a true passage (the
+   * PALACE_DOORS portal below), not a signpost's promise. One
+   * room, one presence, like every district: the quarter is
+   * public look/listen space exactly as the plaza is (no stage
+   * authority, no new verbs — sitting and listening are what
+   * it's for). Its plan lives in listening-gardens.ts; the
+   * server clamp box mirrors it (api-server lib/world-palace.ts). */
+  [LISTENING_GARDENS_ID]: {
+    id: LISTENING_GARDENS_ID,
+    name: "Listening Gardens",
+    walk: GARDENS_WALK,
+    blocked: [...GARDENS_BLOCKED],
+    camBlocked: [...GARDENS_TALL_BLOCKED],
+    interior: GARDENS_INTERIOR,
+    camClamp: GARDENS_CAM_CLAMP,
+    spawn: { ...GARDENS_SPAWN },
+  },
 };
 
 export interface PalaceDoor {
@@ -562,6 +603,24 @@ export const PALACE_DOORS: PalaceDoor[] = [
     portal: { minX: -28.6, maxX: -27.8, minZ: 18.55, maxZ: 20.45 },
     negRoom: STAGE_GROUNDS_ID,
     posRoom: COURTYARD_ID,
+  },
+  /* The Listening Gardens gate (item 32): the south wall's new
+   * gap (x −27.1..−24.9 at z 34.0), now a true passage. The
+   * portal spans the wall band with aprons on both faces; its x
+   * span stops inside the gate posts' footprints (posts at
+   * x −27.1 / −24.9, blocked in PLAZA_BLOCKED), so the walkable
+   * doorway is the honest opening between the posts. Membership
+   * flips at the wall plane: south of it is the district, north
+   * the plaza. */
+  {
+    roomId: LISTENING_GARDENS_ID,
+    axis: "z",
+    plane: 34.0,
+    spanMin: -27.1,
+    spanMax: -24.9,
+    portal: { minX: -26.95, maxX: -25.05, minZ: 33.6, maxZ: 34.4 },
+    negRoom: COURTYARD_ID,
+    posRoom: LISTENING_GARDENS_ID,
   },
 ];
 
