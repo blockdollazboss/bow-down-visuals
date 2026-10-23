@@ -531,6 +531,214 @@ export function parseBioAnalytics(data: unknown): BioAnalytics | null {
   };
 }
 
+/* ─── Promote Desk: link-in-bio FULL editing (Stack-100 #59) ────────
+   The desk stops being read-only: links, themes, slug, avatar and
+   the 100 VB publish all complete here on the bio-pages routes' own
+   rails —
+     POST /api/bio-pages            create a draft (free)
+     PUT  /api/bio-pages/:id        save edits (free)
+     POST /api/bio-publish/:id      publish (100 Visual Bucs; the
+                                    credit registry's own entry —
+                                    confirmedFetch prompts first)
+     POST /api/bio-pages/:id/unpublish   take it offline (free)
+   Validation mirrors the route's zod schema (bioSaveSchema) and its
+   URL rule, so the member hears a refusal at the desk in words, not
+   from a failed save. Themes are the db schema's BIO_THEMES — the
+   only keys the server accepts. */
+
+export const BIO_PUBLISH_COST_VISUAL_BUCS = 100;
+export const BIO_MAX_LINKS = 25;
+
+export const BIO_PAGE_THEMES = [
+  { key: "gold-royal", label: "Gold Royal" },
+  { key: "midnight-gold", label: "Midnight Gold" },
+  { key: "onyx-minimal", label: "Onyx Minimal" },
+] as const;
+
+export const BIO_SOCIAL_FIELDS = [
+  { key: "instagram", label: "Instagram" },
+  { key: "tiktok", label: "TikTok" },
+  { key: "youtube", label: "YouTube" },
+  { key: "x", label: "X" },
+  { key: "spotify", label: "Spotify" },
+  { key: "discord", label: "Discord" },
+] as const;
+
+export type BioSocialKey = (typeof BIO_SOCIAL_FIELDS)[number]["key"];
+
+export interface BioLinkDraft {
+  title: string;
+  url: string;
+  icon: string;
+}
+
+export interface BioPageDraft {
+  displayName: string;
+  headline: string;
+  bio: string;
+  avatarUrl: string;
+  slug: string;
+  theme: string;
+  links: BioLinkDraft[];
+  socials: Record<BioSocialKey, string>;
+  tipJarUrl: string;
+}
+
+export interface BioPageFull extends BioPageSummary {
+  bio: string;
+  avatarUrl: string | null;
+  theme: string;
+  links: BioLinkDraft[];
+  socials: Record<BioSocialKey, string>;
+  featuredCount: number;
+  tipJarUrl: string | null;
+}
+
+function parseBioLinkRows(v: unknown): BioLinkDraft[] {
+  if (!Array.isArray(v)) return [];
+  const out: BioLinkDraft[] = [];
+  for (const raw of v) {
+    const r = asRecord(raw);
+    out.push({
+      title: str(r["title"]) ?? "",
+      url: str(r["url"]) ?? "",
+      icon: str(r["icon"]) ?? "link",
+    });
+  }
+  return out;
+}
+
+function parseBioSocials(v: unknown): Record<BioSocialKey, string> {
+  const r = asRecord(v);
+  const out = {} as Record<BioSocialKey, string>;
+  for (const f of BIO_SOCIAL_FIELDS) out[f.key] = str(r[f.key]) ?? "";
+  return out;
+}
+
+/** The full editable page out of GET /api/bio-pages/me (or a
+ *  POST/PUT response's { page }). */
+export function parseBioPageFull(data: unknown): BioPageFull | null {
+  const single = asRecord(data)["page"];
+  const wrapped = single && Object.keys(single).length > 0 ? { pages: [single] } : data;
+  const pages = parseBioPages(wrapped);
+  const first = pages[0];
+  if (!first) return null;
+  const rawPages = asRecord(wrapped)["pages"];
+  const raw = Array.isArray(rawPages) ? asRecord(rawPages[0]) : {};
+  return {
+    ...first,
+    bio: str(raw["bio"]) ?? "",
+    avatarUrl: str(raw["avatarUrl"]),
+    theme: str(raw["theme"]) ?? "gold-royal",
+    links: parseBioLinkRows(raw["links"]),
+    socials: parseBioSocials(raw["socials"]),
+    featuredCount: Array.isArray(raw["featured"]) ? (raw["featured"] as unknown[]).length : 0,
+    tipJarUrl: str(raw["tipJarUrl"]),
+  };
+}
+
+export function bioDraftFromPage(page: BioPageFull): BioPageDraft {
+  return {
+    displayName: page.displayName,
+    headline: page.headline,
+    bio: page.bio,
+    avatarUrl: page.avatarUrl ?? "",
+    slug: page.slug,
+    theme: page.theme,
+    links: page.links.map((l) => ({ ...l })),
+    socials: { ...page.socials },
+    tipJarUrl: page.tipJarUrl ?? "",
+  };
+}
+
+export function emptyBioDraft(): BioPageDraft {
+  return {
+    displayName: "",
+    headline: "",
+    bio: "",
+    avatarUrl: "",
+    slug: "",
+    theme: "gold-royal",
+    links: [{ title: "", url: "", icon: "link" }],
+    socials: { instagram: "", tiktok: "", youtube: "", x: "", spotify: "", discord: "" },
+    tipJarUrl: "",
+  };
+}
+
+/** The route's URL rule (isAllowedUrl): site-relative, http(s),
+ *  mailto: or tel:. */
+export function isBioAllowedUrl(v: string): boolean {
+  if (/^\/(?!\/)/.test(v)) return true;
+  return /^(https?:\/\/|mailto:|tel:)/i.test(v);
+}
+
+export const BIO_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** The desk's refusal, in words, or null when the draft can save.
+ *  Mirrors bioSaveSchema: a display name, a well-formed slug when
+ *  one is typed, ≤25 links each with a title and an allowed URL. */
+export function validateBioDraft(draft: BioPageDraft): string | null {
+  if (!draft.displayName.trim()) return "Give the page a display name first.";
+  if (draft.slug.trim()) {
+    const slug = draft.slug.trim();
+    if (slug.length < 3 || slug.length > 40 || !BIO_SLUG_RE.test(slug)) {
+      return "The page address (slug) needs 3–40 lowercase letters, numbers and hyphens — e.g. my-name.";
+    }
+  }
+  if (draft.links.length > BIO_MAX_LINKS) return `A page holds at most ${BIO_MAX_LINKS} links.`;
+  for (const link of draft.links) {
+    if (!link.title.trim() && !link.url.trim()) continue; // untouched blank row
+    if (!link.title.trim()) return "Every link needs a title — or remove the empty row.";
+    if (!isBioAllowedUrl(link.url.trim())) {
+      return `“${link.title.trim()}” needs a real link — http(s), mailto:, tel: or a site page like /shop.`;
+    }
+  }
+  for (const f of BIO_SOCIAL_FIELDS) {
+    const v = draft.socials[f.key].trim();
+    if (v && !isBioAllowedUrl(v)) return `Your ${f.label} link needs to be http(s) or a site page.`;
+  }
+  if (draft.tipJarUrl.trim() && !isBioAllowedUrl(draft.tipJarUrl.trim())) {
+    return "The tip jar link needs to be http(s), mailto:, tel: or a site page.";
+  }
+  return null;
+}
+
+/** POST /api/bio-pages (create) and PUT /api/bio-pages/:id (save)
+ *  share the route's one schema — this body serves both. Blank link
+ *  rows are dropped; an empty slug is omitted so the server derives
+ *  (create) or keeps (update) the address. */
+export function buildBioSavePayload(draft: BioPageDraft): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    displayName: draft.displayName.trim(),
+    headline: draft.headline.trim(),
+    bio: draft.bio.trim(),
+    avatarUrl: draft.avatarUrl.trim() ? draft.avatarUrl.trim() : null,
+    links: draft.links
+      .filter((l) => l.title.trim() || l.url.trim())
+      .map((l) => ({ title: l.title.trim(), url: l.url.trim(), icon: l.icon || "link" })),
+    socials: Object.fromEntries(BIO_SOCIAL_FIELDS.map((f) => [f.key, draft.socials[f.key].trim()])),
+    theme: draft.theme,
+    tipJarUrl: draft.tipJarUrl.trim() ? draft.tipJarUrl.trim() : null,
+  };
+  if (draft.slug.trim()) payload["slug"] = draft.slug.trim();
+  return payload;
+}
+
+/** Publish readiness in the rail's own words: the route refuses a
+ *  page with no name or no links — the desk says it first. */
+export function bioPublishBlocker(draft: BioPageDraft): string | null {
+  if (!draft.displayName.trim()) return "Add a display name before publishing.";
+  const realLinks = draft.links.filter((l) => l.title.trim() && l.url.trim());
+  if (realLinks.length === 0) return "Add at least one link before publishing.";
+  return validateBioDraft(draft);
+}
+
+/** The { ok, url, slug } answer of POST /api/bio-publish/:id. */
+export function parseBioPublishResult(data: unknown): { url: string | null; slug: string | null } {
+  const d = asRecord(data);
+  return { url: str(d["url"]), slug: str(d["slug"]) };
+}
+
 /* ─── Promote Desk: Make a promo (POST /api/promo-generator) ──────── */
 
 export const PROMO_CONTENT_TYPES = [
@@ -821,20 +1029,6 @@ export interface BusinessFollowOn {
 }
 
 export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
-  {
-    id: "bio-page-layout-theme-editors",
-    title: "NATIVE FOLLOW-ON: Link-in-bio layout/theme editors",
-    desk: "promote",
-    benchPath: "/promote",
-    note: "Editing links, socials, featured items, themes, avatar and slug for the bio page — v1 shows status + analytics only.",
-  },
-  {
-    id: "bio-page-publish-management",
-    title: "NATIVE FOLLOW-ON: Bio-page publish/unpublish management",
-    desk: "promote",
-    benchPath: "/promote",
-    note: "Publishing (POST /api/bio-publish/:id, 100 Visual Bucs) and unpublishing (POST /api/bio-pages/:id/unpublish) were left out of v1 — the desk is read + create only.",
-  },
   {
     id: "press-kit-layout-editing",
     title: "NATIVE FOLLOW-ON: Press-kit layout editing",
