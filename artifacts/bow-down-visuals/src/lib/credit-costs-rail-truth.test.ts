@@ -21,6 +21,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CREDIT_COSTS } from "./credit-costs";
+import { DISTRIBUTION_TIERS, tierCredits } from "./distribution";
 
 function readApi(rel: string): string {
   const url = new URL(`../../../api-server/src/${rel}`, import.meta.url);
@@ -66,6 +67,31 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     { endpoint: "/api/music/export", file: "routes/music-export.ts", handler: "/music/export" },
     { endpoint: "/api/music/preview-render", file: "routes/music-export.ts", handler: "/music/preview-render" },
   ] as const;
+
+  // Stack-28 item 1 (A2-01): the FE distribution fallback constants are a
+  // LIVE display path (initial paint + any pricing-fetch failure, including
+  // the pre-spend confirmation). They displayed 10/20/30 while the rail
+  // charges 1,000/2,000/3,000 — a 100× understatement. The fallback now
+  // equals RELEASE_TIER_CREDITS; the rail never reads the FE constants, so
+  // no charge moved. Pin re-derives the rail side from the server source:
+  // single falls back to DISTRIBUTION_RELEASE_CREDITS, ep/album are
+  // env-overridable literals in RELEASE_TIER_CREDITS.
+  it("distribution fallback tiers == RELEASE_TIER_CREDITS (1000/2000/3000)", () => {
+    const single = deriveServerConstant("routes/generate/distribution.ts", "DISTRIBUTION_RELEASE_CREDITS");
+    expect(single).toBe(1000);
+    const src = readApi("routes/generate/distribution.ts");
+    const ep = src.match(/ep:\s*Number\(process\.env\[["'][A-Z0-9_]+["']\]\)\s*\|\|\s*(\d+)/);
+    const album = src.match(/album:\s*Number\(process\.env\[["'][A-Z0-9_]+["']\]\)\s*\|\|\s*(\d+)/);
+    expect(ep, "RELEASE_TIER_CREDITS.ep").toBeTruthy();
+    expect(album, "RELEASE_TIER_CREDITS.album").toBeTruthy();
+    const rail = { single, ep: Number(ep![1]), album: Number(album![1]) };
+    expect(rail).toEqual({ single: 1000, ep: 2000, album: 3000 });
+    for (const tier of DISTRIBUTION_TIERS) {
+      expect(tier.credits).toBe(rail[tier.type]);
+      expect(tierCredits(tier.type)).toBe(rail[tier.type]);
+    }
+    expect(tierCredits("unknown-type")).toBe(rail.single);
+  });
 
   for (const spec of FREE_RAILS) {
     it(`${spec.endpoint}: handler charges nothing and the registry displays 0`, () => {
