@@ -79,6 +79,10 @@ export default function ChallengePage() {
   const { toast } = useToast();
   const [data, setData] = useState<ChallengeData | null>(null);
   const [loading, setLoading] = useState(true);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; anything else is a
+     load error with retry (lib/public-load). */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [more, setMore] = useState<TrendingChallenge[]>([]);
   const [sort, setSort] = useState<"votes" | "views">("votes");
   const [votingId, setVotingId] = useState<string | null>(null);
@@ -95,14 +99,16 @@ export default function ChallengePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     (async () => {
       try {
         const res = await fetch(`/api/challenges/${encodeURIComponent(slug)}`);
-        if (!res.ok) throw new Error(String(res.status));
+        if (res.status === 404) { if (!cancelled) setData(null); return; }
+        if (!res.ok) { if (!cancelled) setLoadError(true); return; }
         const json = (await res.json()) as ChallengeData;
         if (!cancelled) setData(json);
       } catch {
-        if (!cancelled) setData(null);
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -115,7 +121,7 @@ export default function ChallengePage() {
       } catch { /* optional */ }
     })();
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   usePageTitle(
     challenge ? `${challenge.title} — Challenge` : "Challenge",
@@ -160,6 +166,16 @@ export default function ChallengePage() {
 
   if (loading) {
     return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  if (loadError) {
+    return (
+      <div className={`flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 px-6 text-center`} data-testid="challenge-load-error">
+        <Trophy className={`h-12 w-12 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
+        <h1 className={`text-xl font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>This challenge couldn't load.</h1>
+        <p className={isLight ? "text-[#6B5B36]" : "text-white/50"}>Something went wrong on our end — it may still be live.</p>
+        <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="rounded-full bg-primary px-6 py-2.5 font-bold text-black">Try again</button>
+      </div>
+    );
   }
   if (!data || !challenge) {
     return (

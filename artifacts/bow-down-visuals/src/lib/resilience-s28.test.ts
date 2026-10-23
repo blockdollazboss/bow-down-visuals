@@ -195,3 +195,47 @@ describe("#28 social-api: shared fetch timeout (A3-F6)", () => {
     }
   });
 });
+
+describe("#29 false-'not found' family: 404-only → not-found, else error+retry (A3-F7)", () => {
+  it("publicLoadOutcome: the classifier itself", async () => {
+    const { publicLoadOutcome, isNotFoundStatus } = await import("./public-load");
+    expect(publicLoadOutcome(404, false)).toBe("not-found");
+    expect(publicLoadOutcome(404, true)).toBe("not-found");
+    expect(publicLoadOutcome(500, false)).toBe("error");
+    expect(publicLoadOutcome(500, true)).toBe("error");
+    expect(publicLoadOutcome(null, false)).toBe("error"); // network rejection
+    expect(publicLoadOutcome(200, true)).toBe("ok");
+    expect(publicLoadOutcome(200, false)).toBe("error"); // malformed 200 ≠ not-found
+    expect(isNotFoundStatus(404)).toBe(true);
+    expect(isNotFoundStatus(500)).toBe(false);
+    expect(isNotFoundStatus(null)).toBe(false);
+  });
+
+  const family: Array<[string, string, string, string]> = [
+    // [file, status-check spelling, load-error testid, not-found render marker]
+    ["../pages/challenge.tsx", "res.status === 404", "challenge-load-error", "if (!data || !challenge)"],
+    ["../pages/albums/public.tsx", "r.status === 404", "album-load-error", "if (notFound || !album)"],
+    ["../pages/bio-public.tsx", "res.status === 404", "bio-load-error", "if (notFound || !page)"],
+    ["../pages/plan-public.tsx", "r.status === 404", "plan-load-error", "if (notFound || !payload || !plan)"],
+    ["../pages/press-public.tsx", "res.status === 404", "press-load-error", "if (notFound || !kit)"],
+    ["../pages/sync-one-sheet-public.tsx", "res.status === 404", "sync-sheet-load-error", "if (notFound || !sheet)"],
+    ["../pages/nfc-card-profile.tsx", "res.status === 404", "nfc-load-error", "if (notFound || !profile)"],
+    ["../pages/tip-page.tsx", "res.status === 404", "tip-load-error", "notFound || !data ?"],
+  ];
+  for (const [file, statusCheck, testid, notFoundMarker] of family) {
+    it(`${file}: failure ⇒ error+retry state, not-found only on 404`, () => {
+      const page = src(file);
+      expect(page).toContain(statusCheck);
+      expect(page).toContain(`data-testid="${testid}"`);
+      expect(page).toContain("setLoadError(true)");
+      expect(page).toContain("setRetryNonce((n) => n + 1)");
+      /* the old conflations are gone */
+      expect(page).not.toContain(".catch(() => setNotFound(true))");
+      expect(page).not.toContain("if (!cancelled) setNotFound(true);\n      } catch");
+      /* the error branch is gated BEFORE the not-found render */
+      const errAt = page.indexOf(`data-testid="${testid}"`);
+      expect(errAt).toBeGreaterThan(-1);
+      expect(page.indexOf(notFoundMarker, errAt)).toBeGreaterThan(errAt);
+    });
+  }
+});
