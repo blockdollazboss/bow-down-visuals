@@ -1,0 +1,638 @@
+{"linkInBio.tab": "プロフィールリンク"}
+{"linkInBio.hero.badge": "プロフィールリンク"}
+{"linkInBio.hero.title": "1つのページ。"}
+{"linkInBio.hero.titleAccent": "あなたのリンクすべて。"}
+{"linkInBio.hero.subtitle": "ファンのための豪華なゴールドのリンクインバイオページを作成。作成は無料 — 公開は{{cost}} Visual Bucsです。"}
+{"linkInBio.profile.title": "プロフィールヘッダー"}
+{"linkInBio.profile.prefill": "Artist Vaultから事前入力"}
+{"linkInBio.profile.prefillDone": "Vaultから事前入力しました"}
+{"linkInBio.profile.noVaults": "アーティストVaultはまだありません — Artist Vaultで作成すると即座に事前入力できます。"}
+{"linkInBio.profile.displayName": "表示名"}
+{"linkInBio.profile.displayNamePlaceholder": "アーティスト名"}
+{"linkInBio.profile.headline": "見出し"}
+{"linkInBio.profile.headlinePlaceholder": "歌手 · ソングライター · ストーリーテラー"}
+{"linkInBio.profile.bio": "自己紹介"}
+{"linkInBio.profile.bioPlaceholder": "ファンがフォローしたくなる2行。"}
+{"linkInBio.profile.avatarUrl": "アバター画像URL"}
+{"linkInBio.profile.slug": "ページハンドル"}
+{"linkInBio.profile.slugHint": "あなたの公開URL: bowdownvisuals.com/bio/{{slug}}"}
+{"linkInBio.profile.slugInvalid": "ハンドルは小文字、数字、ダッシュのみです。"}
+{"linkInBio.theme.title": "テーマ"}
+{"linkInBio.theme.goldRoyal": "ゴールドロイヤル"}
+{"linkInBio.theme.goldRoyalBlurb": "ブラック + 輝くゴールド — Bow Downのシグネチャールック"}
+{"linkInBio.theme.midnightGold": "ミッドナイトゴールド"}
+{"linkInBio.theme.midnightGoldBlurb": "深いブルーブラックに温かなゴールドのアクセント"}
+{"linkInBio.theme.onyxMinimal": "Onyx Minimal"}
+{"linkInBio.theme.onyxMinimalBlurb": "ピュアブラック、細いゴールドライン — 超クリーン"}
+{"linkInBio.links.title": "リンク"}
+{"linkInBio.links.add": "リンクを追加"}
+{"linkInBio.links.titlePlaceholder": "リンクタイトル（例：新シングル）"}
+{"linkInBio.links.icon": "アイコン"}
+{"linkInBio.links.moveUp": "上へ移動"}
+{"linkInBio.links.moveDown": "下へ移動"}
+{"linkInBio.links.remove": "リンクを削除"}
+{"linkInBio.links.empty": "まだリンクがありません — 上で最初のリンクを追加してください。"}
+{"linkInBio.links.needOne": "公開する前に少なくとも1つのリンクを追加してください。"}
+{"linkInBio.socials.title": "ソーシャルアイコン"}
+{"linkInBio.socials.hint": "プロフィールのURLを貼り付けると、ページにアイコンが表示されます。"}
+{"linkInBio.featured.title": "注目の作品"}
+{"linkInBio.featured.hint": "Hubプロジェクトから目立つ作品を取り込みます — ファンはあなたのショーケースやクリップに直接たどり着きます。"}
+{"linkInBio.featured.fromHub": "Hubプロジェクトから"}
+{"linkInBio.featured.noAssets": "Hubプロジェクトにまだアセットがありません — まず何か作成してください。"}
+{"linkInBio.featured.added": "追加済み"}
+{"linkInBio.featured.add": "追加"}
+{"linkInBio.featured.empty": "まだ注目作品がありません。曲、動画、サムネイルをハイライトしましょう。"}
+{"linkInBio.featured.remove": "削除"}
+{"linkInBio.tipJar.title": "チップジャー"}
+{"linkInBio.tipJar.hint": "チップページをリンクしてファンが応援できるようにします（例：/tips/your-handle）。"}
+{"linkInBio.actions.saveDraft": "下書きを保存"}
+{"linkInBio.actions.saving": "保存中…"}
+{"linkInBio.actions.publish": "公開 · {{cost}} Visual Bucs"}
+{"linkInBio.actions.publishing": "公開中…"}
+{"linkInBio.actions.unpublish": "非公開にする"}
+{"linkInBio.actions.unpublishing": "非公開化中…"}
+{"linkInBio.actions.viewPage": "ライブページを表示"}
+{"linkInBio.actions.share": "共有"}
+{"linkInBio.actions.copied": "コピーしました！"}
+{"linkInBio.actions.copyLink": "リンクをコピー"}
+{"linkInBio.actions.draftSaved": "下書きを保存しました。"}
+{"linkInBio.actions.published": "ページが公開されました！"}
+{"linkInBio.actions.unpublished": "ページを非公開にしました。"}
+{"linkInBio.actions.alreadyPublished": "このページはすでに公開されています。"}
+{"linkInBio.actions.statusLive": "公開中 — リンクを知っている人は誰でもこのページを見られます"}
+{"linkInBio.actions.statusDraft": "下書き — このページを見られるのはあなただけです"}
+{"linkInBio.actions.outOfCredits": "公開に必要なVisual Bucsが不足しています — チャージして公開しましょう。"}
+{"linkInBio.analytics.title": "クリック分析"}
+{"linkInBio.analytics.views": "ページビュー"}
+{"linkInBio.analytics.clicks": "リンククリック合計"}
+{"linkInBio.analytics.last7d": "クリック（7日間）"}
+{"linkInBio.analytics.perLink": "リンク別クリック"}
+{"linkInBio.analytics.noData": "まだクリックがありません — ページを共有して光る様子を見ましょう。"}
+{"linkInBio.errors.loadFailed": "プロフィールページを読み込めませんでした。"}
+{"linkInBio.errors.saveFailed": "下書きを保存できませんでした。"}
+{"linkInBio.errors.publishFailed": "ページを公開できませんでした。"}
+{"linkInBio.errors.needName": "まず表示名を追加してください。"}
+{"linkInBio.public.title": "プロフィールリンク"}
+{"linkInBio.public.description": "Bow Down Visualsで作成されたクリエイター向けリンクインバイオページ。"}
+{"linkInBio.public.notFound": "ページが見つかりません"}
+{"linkInBio.public.notFoundDetail": "このリンクインバイオページは存在しないか、オフラインになりました。"}
+{"linkInBio.public.share": "このページを共有"}
+{"linkInBio.preview": "プレビュー"}
+{"nfcCards.orderFailed": "注文に失敗しました"}
+{"nfcCards.orderFailedRetry": "注文に失敗しました — もう一度お試しください。"}
+{"nfcCards.saveFailed": "保存に失敗しました"}
+{"nfcCards.heroBadge": "NFCスマート名刺"}
+{"nfcCards.heroTitle": "あなたの名刺、"}
+{"nfcCards.heroTitleAccent": "でもタップできます。"}
+{"nfcCards.heroDescription": "NFCチップを内蔵したプレミアムな物理カード。どの電話にもタップするだけでデジタルカードが即座に開きます — リンク、予約、ソーシャル、すべて。再印刷なしでいつでも更新できます。"}
+{"nfcCards.how1t": "1. カードをデザイン"}
+{"nfcCards.how1d": "スタイルを選び、名前、リンク、写真を追加します。"}
+{"nfcCards.how2t": "2. 私たちがエンコード"}
+{"nfcCards.how2d": "NFCチップ + QRがあなたのデジタルカードにプログラムされます。"}
+{"nfcCards.how3t": "3. タップしてつながる"}
+{"nfcCards.how3d": "あなたの元へ発送。電話をタップ、QRをスキャン、クライアントを獲得。"}
+{"nfcCards.reservedTitle": "カードを予約しました！"}
+{"nfcCards.reservedDescription": "デジタルカードはすでに公開されています。制作の確認とお支払いのためにご連絡します — 本日の請求はありません。"}
+{"nfcCards.viewDigitalCard": "デジタルカードを表示"}
+{"nfcCards.alreadyReserved": "この予約はすでに完了しています — 重複は作成されませんでした。"}
+{"nfcCards.orderAnother": "もう1枚注文"}
+{"nfcCards.buildYourCard": "カードを作成"}
+{"nfcCards.quantity": "数量"}
+{"nfcCards.total": "合計"}
+{"nfcCards.detailsHint": "カードをタップした人が見る内容です。いつでも変更できます。"}
+{"nfcCards.displayNamePlaceholder": "表示名 *"}
+{"nfcCards.titlePlaceholder": "肩書き — 例：不動産業者、理容師、写真家"}
+{"nfcCards.bio": "自己紹介"}
+{"nfcCards.bioPlaceholder": "短い自己紹介"}
+{"nfcCards.linksLabel": "リンク（Instagram、予約、ウェブサイト…）"}
+{"nfcCards.linkLabelPlaceholder": "ラベル"}
+{"nfcCards.addLink": "リンクを追加"}
+{"nfcCards.fullNamePlaceholder": "氏名 *"}
+{"nfcCards.phonePlaceholder": "電話"}
+{"nfcCards.emailPlaceholder": "メール *"}
+{"nfcCards.streetPlaceholder": "住所 *"}
+{"nfcCards.cityPlaceholder": "市区町村 *"}
+{"nfcCards.statePlaceholder": "都道府県 *"}
+{"nfcCards.zipPlaceholder": "郵便番号 *"}
+{"nfcCards.shippingPrivacy": "あなたの情報はカードの制作と発送にのみ使用されます。"}
+{"nfcCards.reviewStyle": "スタイル"}
+{"nfcCards.reviewQuantity": "数量"}
+{"nfcCards.reviewDigitalCardFor": "デジタルカードの宛先"}
+{"nfcCards.reviewShipTo": "配送先"}
+{"nfcCards.reviewTotal": "確認時に支払う合計"}
+{"nfcCards.reserveFreeNote": "予約は無料です — 本日の請求はありません。制作パートナーとカードを確認した後、発送前にお支払いいただきます。"}
+{"nfcCards.back": "戻る"}
+{"nfcCards.continue": "続ける"}
+{"nfcCards.reserving": "予約中…"}
+{"nfcCards.reserveFree": "カードを予約 — 無料"}
+{"nfcCards.signInPromptPrefix": "求められます"}
+{"nfcCards.signIn": "サインイン"}
+{"nfcCards.signInPromptSuffix": "カードを予約するために。"}
+{"nfcCards.mySmartCards": "私のスマートカード"}
+{"nfcCards.noCardsYet": "まだカードがありません — 上で最初のカードを作成してください。"}
+{"nfcCards.taps": "{{count}}回タップ"}
+{"nfcCards.editCard": "カードを編集"}
+{"nfcCards.preview": "プレビュー"}
+{"nfcCards.orderHistory": "注文履歴"}
+{"nfcCards.questions": "よくある質問"}
+{"nfcCards.faq1q": "タップはどのように機能しますか？"}
+{"nfcCards.faq1a": "各カードにはNTAG213 NFCチップが内蔵されています。最新の電話にタップするとデジタルカードが即座に開きます — アプリは不要です。古い電話では背面に印刷されたQRをスキャンできます。"}
+{"nfcCards.faq2q": "注文後にリンクを変更できますか？"}
+{"nfcCards.faq2a": "はい — それがポイントです。カードはあなたのデジタルプロフィールを指し、いつでも編集できます：リンク、肩書き、自己紹介、写真。物理カードが古くなることはありません。"}
+{"nfcCards.faq3q": "支払いはいつですか？"}
+{"nfcCards.faq3a": "本日は無料で予約します。制作パートナーとカードが確認できたらお支払いいただき、カードが直接あなたへ発送されます。"}
+{"nfcCards.faq4q": "カードが届くまでどのくらいかかりますか？"}
+{"nfcCards.faq4a": "カードは受注生産です。お支払い確認後、制作と発送に2〜3週間かかります。各ステップでお知らせします。"}
+{"nfcCards.faq5q": "再注文やチーム用カードはできますか？"}
+{"nfcCards.faq5a": "はい — 任意の数量を注文でき、各カードに独自のデジタルプロフィールが付きます。チームパックは不動産業者、理容師、サロン、代理店に最適です。"}
+{"nfcCards.editDigitalCard": "デジタルカードを編集"}
+{"nfcCards.displayName": "表示名"}
+{"nfcCards.title": "肩書き"}
+{"nfcCards.cancel": "キャンセル"}
+{"nfcCards.save": "保存"}
+{"privacy.contactSupport": "お問い合わせ / サポート"}
+{"privacy.lastUpdated": "最終更新：2026年9月"}
+{"privacy.pageDescription": "Bow Down Visualsがあなたのデータをどう扱うか。"}
+{"privacy.pageTitle": "プライバシーポリシー"}
+{"privacy.section10ContactLink": "お問い合わせページ"}
+{"privacy.section10Intro": "プライバシーに関するご質問はメールで"}
+{"privacy.section10Middle": "またはこちらをご覧ください"}
+{"privacy.section10Title": "10. お問い合わせ"}
+{"privacy.section1Body": "Bow Down Visualsは、動画、音楽、画像、ボイスオーバー、リップシンク動画、歌詞、キャプション、サムネイル、プロモクリップなどのデジタルコンテンツを生成するためのAI搭載Visual Bucsを提供するデジタルクリエイタープラットフォームを運営しています。本ポリシーは、お客様の情報の収集、利用、保護方法について説明します。"}
+{"privacy.section1Title": "1. 私たちについて"}
+{"privacy.section2Item1Body": "登録時のメールアドレスとパスワード（ハッシュ化）、またはGoogleでサインインした場合の基本プロフィール情報"}
+{"privacy.section2Item1Label": "アカウント情報："}
+{"privacy.section2Item2Body": "Stripeが完全に処理します — カードの生データは保存しません"}
+{"privacy.section2Item2Label": "請求情報："}
+{"privacy.section2Item3Body": "Visual Bucsの使用量、ツールの操作、生成コンテンツのプロンプト"}
+{"privacy.section2Item3Label": "利用データ："}
+{"privacy.section2Item4Body": "AI出力をパーソナライズするために入力する情報（アーティスト名、ジャンル、スタイルの好み）"}
+{"privacy.section2Item4Label": "アーティストプロフィールデータ："}
+{"privacy.section2Item5Body": "登録時に使用された紹介コードと獲得した紹介報酬"}
+{"privacy.section2Item5Label": "紹介データ："}
+{"privacy.section2Item6Body": "セキュリティとパフォーマンスのためのブラウザの種類、IPアドレス、セッションデータ"}
+{"privacy.section2Item6Label": "技術データ："}
+{"privacy.section2Title": "2. 収集する情報"}
+{"privacy.section3Item1": "プラットフォームの運営と改善のため"}
+{"privacy.section3Item2": "支払い処理とサブスクリプション管理のため"}
+{"privacy.section3Item3": "AI生成出力をアーティストプロフィールに合わせてパーソナライズするため"}
+{"privacy.section3Item4": "アカウント関連メール（領収書、セキュリティ警告）の送信のため"}
+{"privacy.section3Item5": "法的義務の遵守のため"}
+{"privacy.section3Title": "3. 情報の利用方法"}
+{"privacy.section4Intro": "私たちはあなたの個人データを販売しません。データの共有は以下の場合のみです："}
+{"privacy.section4Item1Body": "支払い処理"}
+{"privacy.section4Item1Label": "Stripe"}
+{"privacy.section4Item2Body": "データベースと認証"}
+{"privacy.section4Item2Label": "Supabase"}
+{"privacy.section4Item3Body": "Googleでサインインした場合（Googleのプライバシーポリシーが適用されます）"}
+{"privacy.section4Item3Label": "Google"}
+{"privacy.section4Item4Body": "生成リクエストの実行のため（プロンプトはサードパーティAI APIで処理される場合があります）"}
+{"privacy.section4Item4Label": "AIプロバイダー"}
+{"privacy.section4Item5": "適用法で要求される場合の法執行機関"}
+{"privacy.section4Title": "4. データの共有"}
+{"privacy.section5Body": "認証に必要なセッションCookieを使用します。サードパーティの広告トラッカーは使用しません。分析を使用する場合、集計された利用データに限定されます。"}
+{"privacy.section5Title": "5. Cookieとトラッキング"}
+{"privacy.section6Body": "アカウントがアクティブな間、アカウントデータを保持します。いつでもお問い合わせにより削除をリクエストできます。請求記録は法律で要求される期間保持されます。"}
+{"privacy.section6Title": "6. データの保持"}
+{"privacy.section7Intro": "お住まいの地域によっては、個人データへのアクセス、訂正、削除の権利がある場合があります。これらの権利を行使するには、こちらまでご連絡ください"}
+{"privacy.section7Title": "7. あなたの権利"}
+{"privacy.section8Body": "暗号化された接続（HTTPS）、ハッシュ化されたパスワード、データベースの行レベルセキュリティなど、業界標準のセキュリティ対策を使用しています。100%安全なシステムはありません。アカウントには強力で固有のパスワードを使用してください。"}
+{"privacy.section8Title": "8. セキュリティ"}
+{"privacy.section9Body": "本ポリシーは随時更新される場合があります。重要な変更がある場合は、メールまたはアプリ内通知でお知らせします。"}
+{"privacy.section9Title": "9. 本ポリシーの変更"}
+{"privacy.title": "プライバシーポリシー"}
+{"promote.copyLabel": "{{label}}をコピー"}
+{"promote.copy": "コピー"}
+{"promote.copied": "コピーしました"}
+{"promote.hero.badge": "プロモコピージェネレーター"}
+{"promote.hero.title": "プロモコピー"}
+{"promote.hero.subtitle": "機能を選び、形式とトーンを選ぶ — ハッシュタグとCTA付きの投稿用コピーが完成。生成ごとに{{cost}} Visual Buc。"}
+{"promote.hero.back": "すべての機能に戻る"}
+{"promote.form.feature": "宣伝する機能"}
+{"promote.form.contentType": "コンテンツタイプ"}
+{"promote.form.tone": "トーン"}
+{"promote.form.angle": "強調する角度"}
+{"promote.form.optional": "（任意）"}
+{"promote.form.focusPlaceholder": "例：1 Visual Bucの価格、速さ、新しいアーティストに最適…"}
+{"promote.contentTypes.twitter.label": "X投稿"}
+{"promote.contentTypes.twitter.blurb": "リポスト向けの鋭い投稿"}
+{"promote.contentTypes.instagram.label": "IGキャプション"}
+{"promote.contentTypes.instagram.blurb": "魅力的なキャプション + ハッシュタグ"}
+{"promote.contentTypes.tiktok.label": "TikTokスクリプト"}
+{"promote.contentTypes.tiktok.blurb": "フック + ビート、話し言葉スタイル"}
+{"promote.contentTypes.email.label": "メール一斉送信"}
+{"promote.contentTypes.email.blurb": "件名 + 短い本文"}
+{"promote.contentTypes.banner.label": "バナーヘッドライン"}
+{"promote.contentTypes.banner.blurb": "スクロールを止める5本"}
+{"promote.contentTypes.ad.label": "広告コピー"}
+{"promote.contentTypes.ad.blurb": "見出し + プライマリテキスト"}
+{"promote.tones.hype": "ハイプ"}
+{"promote.tones.professional": "プロフェッショナル"}
+{"promote.tones.funny": "ファニー"}
+{"promote.tones.luxury": "ラグジュアリー"}
+{"promote.signIn.message": "プロモコンテンツを生成するにはサインインしてください。"}
+{"promote.signIn.cta": "サインイン"}
+{"promote.generate": "プロモを生成 · {{cost}} Visual Buc"}
+{"promote.generating": "プロモを作成中…"}
+{"promote.errorGenerationFailed": "プロモ生成に失敗しました — もう一度お試しください。"}
+{"promote.results.titlePrefix": "あなたのプロモ："}
+{"promote.results.regenerate": "再生成"}
+{"promote.results.headline": "見出し"}
+{"promote.results.copy": "コピー"}
+{"promote.results.alternate": "別案 {{n}}"}
+{"promote.results.cta": "コールトゥアクション"}
+{"promote.results.hashtags": "ハッシュタグ"}
+{"promote.tabs.promoCopy": "プロモコピー"}
+{"promote.tabs.linkInBio": "プロフィールリンク"}
+{"coach.copyPlan": "プランをコピー"}
+{"coach.tabMoneyTracker": "マネートラッカー"}
+{"coach.tabGroupPlan": "プラン"}
+{"coach.tabGroupTrack": "トラッキング"}
+{"coach.tabGroupEarn": "稼ぐ"}
+{"coach.tabGroupSell": "売る"}
+{"coach.tabGroupGrow": "成長"}
+{"coach.tabPlan": "マネープラン"}
+{"coach.tabNiche": "ニッチアナライザー"}
+{"coach.tabBrandDeals": "ブランド案件"}
+{"coach.tabShoutouts": "シャウトアウト"}
+{"coach.tabTips": "チップ"}
+{"coach.tabBeats": "ビート販売"}
+{"coach.tabMemberships": "メンバーシップ"}
+{"coach.tabDistribute": "配信"}
+{"coach.tabStorefronts": "ストアフロント"}
+{"coach.tabMyShop": "マイショップ"}
+{"coach.tabPressKit": "プレスキット"}
+{"coach.tabEmailList": "メールリスト"}
+{"coach.tabCollabs": "コラボ"}
+{"coach.tabContests": "コンテスト"}
+{"coach.tabReferrals": "紹介"}
+{"coach.tabTeam": "チーム"}
+{"coach.titleHighlight": "マネールーム"}
+{"nfcCardProfile.shareTitle": "デジタル名刺"}
+{"nfcCardProfile.notActive": "このカードは有効ではありません"}
+{"nfcCardProfile.notActiveDetail": "リンクの入力ミスの可能性があります。または所有者がこのデジタルカードを無効化しました。"}
+{"nfcCardProfile.backToSite": "← Bow Down Visualsに戻る"}
+{"nfcCardProfile.tapToConnect": "タップしてつながる"}
+{"nfcCardProfile.saveContact": "連絡先を保存"}
+{"nfcCardProfile.share": "共有"}
+{"nfcCardProfile.copied": "コピーしました！"}
+{"nfcCardProfile.poweredBy": "Powered by"}
+{"nfcCardProfile.nfcSmartCards": "NFCスマートカード"}
+{"qrLogin.title": "スキャンしてサインイン"}
+{"qrLogin.generating": "QRコードを生成中..."}
+{"qrLogin.scanInstructions": "電話のカメラでスキャンしてください。承認するには電話でログインしている必要があります。"}
+{"qrLogin.expiresIn": "コードは5分で期限切れになります"}
+{"qrLogin.approved": "承認されました！サインイン中..."}
+{"qrLogin.expired": "コードの期限が切れました"}
+{"qrLogin.generateNew": "新しいコードを生成"}
+{"qrLogin.failed": "コードの生成に失敗しました。もう一度お試しください。"}
+{"qrLogin.retry": "再試行"}
+{"mashup.tabCreate": "作成"}
+{"mashup.title": "ソングマッシュアップ"}
+{"mashup.subtitle": "2曲を選んで — 自分の曲でもアップロードでも — 1つのトラックに融合。テンポマッチ、ビートロック、ワンクリック。"}
+{"mashup.modeCustom": "高度"}
+{"mashup.songA": "曲A"}
+{"mashup.songB": "曲B"}
+{"mashup.pickFromLibrary": "ライブラリから選ぶ…"}
+{"mashup.uploadInstead": "またはオーディオをアップロード"}
+{"mashup.uploading": "アップロード中…"}
+{"mashup.styleLabel": "ブレンドスタイル"}
+{"mashup.styleCrossfadeBlurb": "Aがフェードアウトし、ブレンドポイントでBが入ります。"}
+{"mashup.styleBeatMatch": "ビートマッチ"}
+{"mashup.styleBeatMatchBlurb": "テンポを揃えビートをロック — 2曲が一緒に鳴ります。"}
+{"mashup.styleInterleave": "バース・コーラス交互"}
+{"mashup.styleInterleaveBlurb": "セクションを交互に — Aのバース、Bのコーラス、行き来します。"}
+{"mashup.blendPointLabel": "ブレンドポイント"}
+{"mashup.blendPointHint": "曲Aのどこでブレンドするか。"}
+{"mashup.balanceHint": "ドラッグして一方の曲を他方より前に出します。"}
+{"mashup.crossfadeLabel": "クロスフェードの長さ"}
+{"mashup.titleLabel": "マッシュアップのタイトル（任意）"}
+{"mashup.titlePlaceholder": "例：Midnight × Gold Rush"}
+{"mashup.submitSimple": "曲をマッシュアップ"}
+{"mashup.submitCustom": "この2曲を融合"}
+{"mashup.needsTwoSongs": "まず2曲選んでください — ライブラリから、またはオーディオをアップロード。"}
+{"mashup.analyzing": "両方の曲のビートを分析中…"}
+{"mashup.tempoMatching": "曲Bのテンポを曲Aに合わせています…"}
+{"mashup.blending": "マッシュアップをブレンド中…"}
+{"mashup.saving": "ライブラリに保存中…"}
+{"mashup.failed": "マッシュアップに失敗しました — Visual Bucsは返金されました。"}
+{"mashup.resultTitle": "マッシュアップが完成しました"}
+{"mashup.handoffLyricVideo": "リリックビデオを作成"}
+{"mashup.handoffLyricVideoBlurb": "カラオケ風ビデオ · 300 VB"}
+{"mashup.handoffCoverArt": "カバーアートを描く"}
+{"mashup.handoffCoverArtBlurb": "豪華なゴールドアートワーク · 200 VB"}
+{"mashup.handoffAlbum": "アルバムに追加"}
+{"mashup.handoffAlbumBlurb": "アルバムやEPに収録"}
+{"mashup.handoffShare": "共有"}
+{"mashup.handoffShareBlurb": "ワンタップ — 紹介リンク付き"}
+{"mashup.working": "処理中…"}
+{"mashup.lyricVideoDone": "リリックビデオが完成"}
+{"mashup.coverArtDone": "カバーアートが完成"}
+{"mashup.albumPick": "アルバムを選ぶ…"}
+{"mashup.albumNew": "新しいアルバムのタイトル…"}
+{"mashup.albumCreateAdd": "作成して追加"}
+{"mashup.albumAdd": "アルバムに追加"}
+{"mashup.albumAdded": "アルバムに追加しました"}
+{"mashup.albumLoadFailed": "アルバムを読み込めませんでした。"}
+{"mashup.copied": "コピーしました！"}
+{"mashup.shareText": "私のマッシュアップをチェック"}
+{"mashup.coverArtist": "ソングマッシュアップ"}
+{"mashup.tabHum": "鼻歌"}
+{"myClips.extractAudio": "オーディオを抽出"}
+{"myClips.extractAudioDone": "オーディオを抽出しました"}
+{"myClips.extractAudioFailed": "オーディオ抽出に失敗しました"}
+{"myClips.extractAudioRefunded": "自動的に返金されました。"}
+{"myClips.extracting": "抽出中…"}
+{"myClips.downloadMp3": "MP3をダウンロード"}
+{"myClips.pageTitle": "マイクリップ"}
+{"myClips.pageDescription": "生成したプロモクリップのライブラリ。"}
+{"myClips.title": "生成したクリップ"}
+{"myClips.generateNew": "新しいクリップを生成"}
+{"myClips.backToProjects": "マイプロジェクトに戻る"}
+{"myClips.noClips": "まだクリップがありません"}
+{"myClips.noClipsHint": "生成したシーンクリップはここに自動保存されます。シーンスタジオから最初のクリップを生成しましょう。"}
+{"myClips.videoForSong": "私の曲のビデオ"}
+{"myClips.use": "使用"}
+{"myClips.clipReady": "クリップ準備完了"}
+{"myClips.ready": "準備完了"}
+{"myClips.done": "完了"}
+{"myClips.attachToScene": "プロジェクトシーンに添付"}
+{"myClips.noCharge": "Visual Bucsは請求されません"}
+{"myClips.noProjects": "シーンのあるプロジェクトが見つかりません"}
+{"myClips.project": "プロジェクト"}
+{"myClips.noScenes": "まだ保存されたシーンがありません"}
+{"myClips.scene": "シーン"}
+{"myClips.hasClip": "クリップあり"}
+{"myClips.cancel": "キャンセル"}
+{"myClips.attaching": "添付中…"}
+{"myClips.attachClip": "クリップを添付"}
+{"myClips.deleteConfirm": "削除しますか？"}
+{"myClips.yes": "はい"}
+{"myClips.copied": "コピーしました"}
+{"myClips.copyUrl": "URLをコピー"}
+{"myClips.clipAttached": "クリップを添付しました — クリップ準備完了！"}
+{"myClips.clipDeleted": "クリップを削除しました"}
+{"myClips.errorLoadProjects": "プロジェクトを読み込めませんでした"}
+{"myClips.errorAttach": "クリップを添付できませんでした"}
+{"myClips.errorAttachFailed": "添付に失敗しました"}
+{"myClips.errorDelete": "削除に失敗しました"}
+{"myClips.noProjectsHint": "Visual Vibesを開いてまずシーンを再構築してください。"}
+{"myClips.noScenesHint": "Visual Vibesを開いてシーンを読み込み、戻ってきてこのクリップを添付してください。"}
+{"myClips.openEditor": "Visual Vibesを開く"}
+{"myClips.attachedDesc": "シーン{{index}}{{section}}に添付済み。Visual Vibesを開いて確認してください。"}
+{"mediaDetector.filesSkipped_other": "{{count}}件のファイルがスキップされました — 未対応のタイプか25MB超です。"}
+{"mediaDetector.badge": "AIメディア検出"}
+{"mediaDetector.titleStart": "本物か"}
+{"mediaDetector.titleAi": "AIか？"}
+{"mediaDetector.titleEnd": "確実に知る。"}
+{"mediaDetector.subtitle": "画像、動画、音声ファイルをアップロード — またはリンクを貼る — と、AIフォレンジック評価が得られます：判定、信頼度スコア、検出された正確な兆候。"}
+{"mediaDetector.costPerCheck": "チェックごとに{{cost}} Visual Bucs。"}
+{"mediaDetector.dropHint": "ファイルをここにドロップ、またはクリックしてアップロード"}
+{"mediaDetector.fileTypes": "画像、動画、音声 — 各25MBまで。バッチ対応。"}
+{"mediaDetector.urlPlaceholder": "…または画像URLを貼り付け"}
+{"mediaDetector.add": "追加"}
+{"mediaDetector.queueStatus": "{{count}}ファイル · {{done}}件チェック済み"}
+{"mediaDetector.clearAll": "すべてクリア"}
+{"mediaDetector.checkAll": "すべてチェック（{{cost}} Visual Bucs）"}
+{"mediaDetector.remove": "削除"}
+{"mediaDetector.analyze": "分析 · {{cost}} Visual Bucs"}
+{"mediaDetector.analyzing": "AIの兆候を分析中…"}
+{"mediaDetector.analyzingVideo": "フレームを抽出してから分析…"}
+{"mediaDetector.retry": "再試行"}
+{"mediaDetector.emptyTitle": "チェックするものがありません"}
+{"mediaDetector.emptySubtitle": "ファイルをアップロードするかURLを貼って、最初の検出を実行しましょう。"}
+{"mediaDetector.verdictAi": "AI生成の可能性が高い"}
+{"mediaDetector.verdictHuman": "人間が作成した可能性が高い"}
+{"mediaDetector.verdictUncertain": "不明"}
+{"mediaDetector.detectedSignals": "検出された兆候"}
+{"mediaDetector.pointsToAi": "AIを示唆"}
+{"mediaDetector.pointsToHuman": "人間を示唆"}
+{"mediaDetector.errorOutOfCredits": "Visual Bucsが不足しています。"}
+{"mediaDetector.errorDetectionFailed": "検出に失敗しました。もう一度お試しください。"}
+{"mediaDetector.errorDetectionFailedShort": "検出に失敗しました。"}
+{"repurpose.addCaptions": "キャプションを追加"}
+{"repurpose.modePack": "コンテンツパック"}
+{"repurpose.badge": "コンテンツリパーパサー"}
+{"repurpose.titlePrefix": "動画1本入れると、"}
+{"repurpose.titleSuffix": "コンテンツカレンダーが出てくる"}
+{"repurpose.hero": "動画をアップロードすると — AIがそれを見て10ピースパックを構築：自動カットの縦型クリップ3本、AIサムネイル3枚、キャプション + ハッシュタグセット5つ、そしてTikTok、Reels、Shorts、X向けのプラットフォーム最適化説明文。"}
+{"repurpose.signInRequired": "動画をリパーパスするにはサインインしてください。"}
+{"repurpose.step1.title": "動画を入れる"}
+{"repurpose.step1.blurb": "MP4、MOV、WebM · 80MBまで"}
+{"repurpose.step1.chooseFile": "動画ファイルを選ぶ"}
+{"repurpose.step1.fromCameraRoll": "カメラロールやエクスポートから"}
+{"repurpose.step1.orPasteUrl": "または動画URLを貼り付け"}
+{"repurpose.step1.urlPlaceholder": "https://…（プロジェクトストレージから）"}
+{"repurpose.step1.urlNote": "URLはプロジェクトストレージのものである必要があります。"}
+{"repurpose.building": "パックを構築中…"}
+{"repurpose.repurposeButton": "動画をリパーパス · {{credits}} Visual Bucs"}
+{"repurpose.costNote": "{{pack}} Visual Bucsですべてカバー：文字起こし、AI分析、自動カットクリップ3本、AIサムネイル3枚。リロールは各{{reroll}} Visual Bucs。コピーとダウンロードは無料です。"}
+{"repurpose.packReady": "パックのピースが準備完了"}
+{"repurpose.renderingNote": "クリップとサムネイルはバックグラウンドでレンダリングされます — タブを閉じても待っています。"}
+{"repurpose.clips.title": "縦型クリップ3本"}
+{"repurpose.clips.blurb": "自動カット9:16 · TikTok、Reels、Shorts対応"}
+{"repurpose.clips.newMoments": "新しいモーメント · {{cost}}VB"}
+{"repurpose.clips.cutFailed": "カットに失敗"}
+{"repurpose.clips.cutting": "カット中…"}
+{"repurpose.thumbs.title": "AIサムネイル3枚"}
+{"repurpose.thumbs.blurb": "クリップ用の9:16カバー"}
+{"repurpose.thumbs.newConcepts": "新しいコンセプト · {{cost}}VB"}
+{"repurpose.thumbs.genFailed": "生成に失敗"}
+{"repurpose.thumbs.painting": "描画中…"}
+{"repurpose.thumbs.alt": "サムネイルコンセプト{{n}}"}
+{"repurpose.captions.title": "キャプション + ハッシュタグセット5つ"}
+{"repurpose.captions.blurb": "投稿準備完了 — どのセットも無料でコピー"}
+{"repurpose.platforms.title": "プラットフォーム別説明文"}
+{"repurpose.platforms.blurb": "各アルゴリズムに合わせて調整"}
+{"repurpose.platforms.noDesc": "このプラットフォーム用の説明文は生成されませんでした。"}
+{"repurpose.download": "ダウンロード"}
+{"repurpose.copyAll": "すべてコピー"}
+{"repurpose.copy": "コピー"}
+{"repurpose.copied": "コピーしました"}
+{"repurpose.reroll": "リロール · {{cost}}VB"}
+{"repurpose.error.copyFailed": "クリップボードにコピーできませんでした。"}
+{"repurpose.error.noSource": "まず動画ファイルをアップロードするか、動画URLを貼り付けてください。"}
+{"repurpose.error.repurposeFailed": "リパーパスに失敗しました — もう一度お試しください。"}
+{"repurpose.error.clipJobFailed": "クリップジョブの検索に失敗しました。"}
+{"repurpose.error.thumbJobFailed": "サムネイルジョブの検索に失敗しました。"}
+{"repurpose.error.clipCuttingFailed": "クリップのカットに失敗しました。パックのVisual Bucsはテキスト出力をカバーします — クリップは動画エディターから再カットできます。"}
+{"repurpose.error.thumbFailed": "サムネイル画像を生成できませんでした — 以下のサムネイルプロンプトはどの画像ツールでも使えます。"}
+{"repurpose.error.lostJobs": "バックグラウンドジョブを見失いました — 更新して確認してください。"}
+{"repurpose.error.rerollFailed": "リロールに失敗しました — もう一度お試しください。"}
+{"repurpose.error.thumbRerollFailed": "サムネイルのリロールに失敗しました — もう一度お試しください。"}
+{"artistVault.worldVoiceSection": "ワールドボイス"}
+{"artistVault.worldVoiceHint": "ワールドでこのキャラクターとして話すときの声。ナチュラル = あなたの声そのまま。"}
+{"artistVault.voicePresetDeep": "ディープ"}
+{"artistVault.voicePresetBright": "ブライト"}
+{"artistVault.voicePitch": "ピッチ"}
+{"artistVault.voiceFormant": "体の大きさ"}
+{"artistVault.voiceBody": "共鳴"}
+{"artistVault.emptyProfilesTitle": "Vaultは空です"}
+{"artistVault.profilesTitle": "クリエイティブVault"}
+{"catalogVault.title": "カタログVault"}
+{"catalogVault.copy": "レガシーを残しましょう。200 Visual Bucsの一回払いで、このリリースのプレセーブページ、ストアフロント掲載、アセットがBow Down Visualsに永久に残ります。更新なし、削除なし。"}
+{"catalogVault.guarantee1": "プレセーブページが永久に残る"}
+{"catalogVault.guarantee2": "ストアフロント掲載が期限切れにならない"}
+{"catalogVault.guarantee3": "アートワーク + オーディオアセットが保存される"}
+{"catalogVault.vaultButton": "永久にVaultへ · 200 Visual Bucs"}
+{"catalogVault.vaulting": "Vault処理中…"}
+{"catalogVault.vaultFailed": "このリリースをVaultに入れられませんでした — もう一度お試しください。"}
+{"catalogVault.vaulted": "Vault済み"}
+{"catalogVault.vaultedCopy": "「{{title}}」はVaultに入りました — プレセーブページ、ストアフロント掲載、アセットがBow Down Visualsに永久に残ります。"}
+{"generations.download": "ダウンロード"}
+{"hooks.tab.cta.label": "CTAジェネレーター"}
+{"hooks.tab.titles.label": "タイトル"}
+{"hooks.tab.dice.label": "サイコロ"}
+{"hooks.ctaSub": "すべての動画には強いコールトゥアクションが必要です。目標を選ぶと、コンバージョンに最適化されたCTAを10個書きます。強い順に。"}
+{"hooks.ctaTopicLabel": "動画の内容は？"}
+{"hooks.ctaTopicPlaceholder": "例：新シングル「Golden Tide」が金曜日にリリース"}
+{"hooks.ctaGoalLabel": "視聴者に何をしてほしい？"}
+{"hooks.ctaGoal.subscribe.label": "登録する"}
+{"hooks.ctaGoal.comment.label": "コメントする"}
+{"hooks.ctaGoal.share.label": "共有する"}
+{"hooks.ctaGoal.follow.label": "フォローする"}
+{"hooks.ctaGoal.buy.label": "購入する"}
+{"hooks.ctaGoal.stream.label": "ストリーミングする"}
+{"hooks.creditNoteCta": "生成ごとに50 Visual Bucs · Thy Cheat Code提供"}
+{"hooks.generateCtas": "CTAを生成"}
+{"hooks.cookingCtas": "CTAを作成中…"}
+{"hooks.yourCtas": "あなたのCTA — 強さ順"}
+{"hooks.ctaPlacement.opener.label": "オープナー"}
+{"hooks.ctaPlacement.mid-roll.label": "ミッドロール"}
+{"hooks.ctaPlacement.closer.label": "クローザー"}
+{"hooks.ctaPlacement.pinned-comment.label": "固定コメント"}
+{"hooks.ctaStrengthLabel": "強さ"}
+{"hooks.addToScript": "スクリプトに追加"}
+{"hooks.addedToScript": "スクリプトに追加済み"}
+{"hooks.ctaHandoffTip": "「スクリプトに追加」をタップするとCTAがHubプロジェクトに入ります — Script Writerとボイスオーバーがそこから取得します。"}
+{"hooks.errNeedVideoTopic": "まず動画の内容を教えてください。"}
+{"hooks.errCtasFailed": "CTAを生成できませんでした — もう一度お試しください。"}
+{"hooks.fullIntelligenceCheck": "フルインテリジェンスチェック"}
+{"hooks.sendToScriptWriter": "Script Writerに送信"}
+{"hooks.captions.needBurnedIn": "動画に焼き付けキャプションが必要ですか？"}
+{"importPage.viewLibrary": "マイクリップ"}
+{"streamPack.goLive": "パック準備完了 — Go Liveで配信をセットアップ"}
+{"streamPack.libraryTitle": "ストリームパックライブラリ"}
+{"streamPack.libraryNote": "生成したすべてのグラフィックがここに保存されます。必要なものをGo Liveスタジオに追加すると、スタジオのパックトレイで待機し、シーンに落とし込む準備が整います。"}
+{"streamPack.libraryEmpty": "まだ保存がありません — 上でパックを生成するとここに届きます。"}
+{"streamPack.libraryLoading": "ライブラリを読み込み中…"}
+{"streamPack.libraryError": "ライブラリを読み込めませんでした。"}
+{"streamPack.libraryActionFailed": "その変更は保存されませんでした — もう一度お試しください。"}
+{"streamPack.addToStudio": "スタジオに追加"}
+{"streamPack.inStudio": "スタジオに追加済み"}
+{"streamPack.removeFromStudio": "削除"}
+{"scriptWriter.teleprompterLaunch": "▶ テレプロンプターを起動"}
+{"scriptWriter.teleprompterClose": "テレプロンプターを閉じる"}
+{"scriptWriter.teleprompterPlay": "再生"}
+{"scriptWriter.teleprompterPause": "一時停止"}
+{"scriptWriter.teleprompterRestart": "最初から再開"}
+{"scriptWriter.teleprompterWpm": "速度"}
+{"scriptWriter.teleprompterWpmValue": "{{wpm}} WPM"}
+{"scriptWriter.teleprompterFontSmaller": "文字を小さく"}
+{"scriptWriter.teleprompterFontLarger": "文字を大きく"}
+{"scriptWriter.teleprompterMirror": "テレプロンプター機器用にミラー"}
+{"scriptWriter.teleprompterFullscreen": "全画面"}
+{"scriptWriter.teleprompterWords": "{{count}}語"}
+{"scriptWriter.teleprompterReadTime": "読み上げ約{{min}}分"}
+{"scriptWriter.teleprompterHint": "スペース = 再生/一時停止 · ↑↓ = 速度 · +/− = 文字サイズ · Esc = 閉じる · スクリプトをクリック = 一時停止"}
+{"scriptWriter.hookHintLabel": "コンテンツプランの勝利フック"}
+{"scriptWriter.hookHintBlurb": "このセリフで始めましょう — バイラルループのために作られました。"}
+{"scriptWriter.dismiss": "閉じる"}
+{"scriptWriter.sendToScheduler": "スケジューラー"}
+{"scriptWriter.sendToVoiceover": "ボイスオーバー"}
+{"titles.sendToScheduler": "スケジューラーに送信"}
+{"library.pageDescription": "クリエイター向けのテンプレート、プリセット、フォント。"}
+{"library.kicker": "あなたのクリエイティブ武装"}
+{"library.headingB": "ライブラリ"}
+{"library.sub": "ツールに直接差し込めるテンプレート、プリセット、フォント。選んで「使用」を押して、作り続けましょう。"}
+{"library.searchPlaceholder": "テンプレート、プリセット、フォントを検索…"}
+{"library.tabTemplates": "テンプレート"}
+{"library.tabPresets": "プリセット"}
+{"library.tabFonts": "フォント"}
+{"library.recentlyUsed": "最近使用"}
+{"library.use": "使用"}
+{"library.useFont": "フォントをコピー"}
+{"library.copied": "コピーしました！"}
+{"library.browse": "ライブラリを閲覧"}
+{"library.noResults": "見つかりませんでした — 別の検索をお試しください。"}
+{"weekly_contest.aria": "週間クリエイターコンテスト"}
+{"weekly_contest.label": "週間クリエイターコンテスト"}
+{"weekly_contest.drops_in": "開始まで"}
+{"weekly_contest.ends_in": "終了まで"}
+{"weekly_contest.enter_now": "今すぐエントリー"}
+{"weekly_contest.view_entries": "エントリーを見る"}
+{"weekly_contest.enter_hint": "動画を公開すると自動でエントリーされます — 勝者は今週の{{cap}}プールからVisual Bucsで支払われます。"}
+{"weekly_contest.judging_title": "審査開始 — すべての投票が王冠を動かします"}
+{"weekly_contest.judging_sub": "「{{title}}」のエントリーは締め切られました。お気に入りに投票を集めましょう — コミュニティの王冠が決めます。"}
+{"weekly_contest.winners_in": "勝者発表まで"}
+{"weekly_contest.vote_now": "王冠に投票"}
+{"weekly_contest.winners_dropped": "勝者が発表されました"}
+{"weekly_contest.winners_sub": "「{{title}}」が王冠を獲得 — 賞金はVisual Bucsで支払われました。"}
+{"weekly_contest.a_creator": "クリエイター"}
+{"weekly_contest.see_winners": "勝者サークルを見る"}
+{"weekly_contest.hall_of_fame": "殿堂"}
+{"weekly_contest.next_drop": "次のコンテストは月曜日に開始"}
+{"weekly_contest.next_drop_sub": "1つのテーマ。1週間。{{cap}}がかかっています。次回：「{{theme}}」（#{{hashtag}}）。"}
+{"weekly_contest.admin_nudge": "管理者：今週のコンテストはまだ公開されていません。ワンタップで{{cap}}プールの「{{theme}}」を開始できます。"}
+{"weekly_contest.launching": "開始中…"}
+{"weekly_contest.launch_week": "今週のコンテストを開始"}
+{"weekly_contest.while_you_wait": "待つ間に：殿堂を閲覧"}
+{"weekly_contest.last_week": "先週の王冠"}
+{"weekly_contest.see_all": "すべて見る"}
+{"chooseArtist.dragHint": "アーティストを注目スロットにドラッグして、誰がどこで輝くかを選べます。"}
+{"chooseArtist.startCreatingWith": "{{name}}と作成を開始"}
+{"collabs.brandDealsLink": "ブランド案件"}
+{"collabs.collabExplainer": "クリエイター同士のパートナーシップ — スポンサーではなく協力者を見つけましょう。ブランドのお金を追うなら、こちらをご覧ください "}
+{"community.replies.scheduleLink": "スケジューラーで投稿を予約"}
+{"community.messagesLink": "ダイレクトメッセージを開く →"}
+{"contests.winnersCircle": "勝者サークル"}
+{"contests.share": "共有"}
+{"shows.setlistLink": "セットリストを作成 →"}
+{"tour.setlistLink": "セットリストを作成 →"}
+{"shoutouts.paidTitle": "支払い完了 — シャウトアウトを予約しました！"}
+{"shoutouts.paidDesc": "シャウトアウトは支払い済みで受理されました。クリエイターが録音し、納期以内にあなたへ送ります。"}
+{"randomizer.badge": "Thy Cheat Codeのサイコロ"}
+{"randomizer.titlePrefix": "コンテンツ"}
+{"randomizer.titleSuffix": "ランダマイザー"}
+{"randomizer.hero": "白紙を前に行き詰まっていますか？無料のひらめきにサイコロを振る — またはThy Cheat Code AIに100 Visual Bucsであなた向けの新鮮なアイデアを5つ作らせましょう。"}
+{"randomizer.categoriesLabel": "ランダマイザーのカテゴリー"}
+{"randomizer.categories.video-ideas.label": "動画アイデア"}
+{"randomizer.categories.video-ideas.blurb": "次のミュージックビデオやコンテンツドロップの新鮮なコンセプト。"}
+{"randomizer.categories.hooks.label": "フック"}
+{"randomizer.categories.hooks.blurb": "スクロールを止める最初の3秒のオープナー。"}
+{"randomizer.categories.thumbnails.label": "サムネイル"}
+{"randomizer.categories.thumbnails.blurb": "YouTubeなどの高クリック率コンセプト。"}
+{"randomizer.categories.song-concepts.label": "ソングコンセプト"}
+{"randomizer.categories.song-concepts.blurb": "次の曲を書く価値のあるテーマと角度。"}
+{"randomizer.categories.niche-picker.label": "ニッチピッカー"}
+{"randomizer.categories.niche-picker.blurb": "クリエイターとして自分のものにできるポジショニングの角度。"}
+{"randomizer.categories.challenges.label": "チャレンジ"}
+{"randomizer.categories.challenges.blurb": "生産と成長のための強制機能。"}
+{"randomizer.rollDice": "サイコロを振る"}
+{"randomizer.freeForever": "ずっと無料 — 好きなだけ振れます"}
+{"randomizer.yourRoll": "あなたの出目"}
+{"randomizer.orDeeper": "またはもっと深く"}
+{"randomizer.cooking": "アイデアを調理中…"}
+{"randomizer.signInToGenerate": "AIで生成するにはサインイン"}
+{"randomizer.freshFromAi": "AIから新鮮"}
+{"randomizer.crossLink.p1": "気に入ったアイデアがありますか？聞いてみましょう"}
+{"randomizer.crossLink.p2": "にチャットバブルで完全なプランに変えてもらう。"}
+{"artistVault.voicePresetNatural": "ナチュラル"}
+{"artistVault.voiceAdvanced": "高度な設定"}
+{"weekly_contest.entries": "エントリー{{count}}件"}
+{"mashup.tabMashup": "Mashup"}
+{"mashup.priceBadge": "400 Visual Bucs"}
+{"mashup.modeSimple": "Turbo"}
+{"mashup.styleCrossfade": "Crossfade"}
+{"mashup.balanceLabel": "Balance"}
+{"mashup.bpmUnknown": "—"}
+{"repurpose.modeLabel": "Mode"}
+{"repurpose.modeStreamVod": "Stream VOD"}
+{"nfcCards.qrSvg": "QR SVG"}
+{"myClips.extractAudioCost": "50 Visual Bucs"}
+{"linkInBio.profile.avatarUrlPlaceholder": "https://…"}
+{"linkInBio.links.urlPlaceholder": "https://…"}
+{"linkInBio.tipJar.placeholder": "https://bowdownvisuals.com/tips/your-handle"}
+{"library.headingA": "Thy"}
+{"mediaDetector.filesSkipped_one": "1件のファイルがスキップされました — 未対応のタイプか25MB超です。"}
+{"promote.hero.titleAccent": "プロモコピー"}
