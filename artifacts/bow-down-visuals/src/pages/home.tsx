@@ -235,7 +235,7 @@ function ShareRow({ label }: { label?: string }) {
   }
 
   const btn =
-    "flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/50 transition-all duration-200 hover:border-primary/50 hover:text-primary hover:bg-primary/10";
+    "flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/50 transition-all duration-200 hover:border-primary/50 hover:text-primary hover:bg-primary/10";
 
   return (
     <div data-dark-lock className="flex items-center gap-3">
