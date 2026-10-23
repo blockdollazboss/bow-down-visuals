@@ -16,9 +16,10 @@
  *   GET /api/content-id/claims                 (status rows, read-only)
  * The earnings payload itself is normalized by the house guard
  * (lib/earnings-data) — this module reuses it, never re-derives it.
- * Permanence elections and claim management stay on the website
- * (plan §3.1: read-only in-world; managing them is the transfer's
- * job) — nothing in this module or its board writes to either rail.
+ * This module's permanence/claims shaping stays the board's STATUS
+ * summary; Stack-100 #67's management writes (permanence elections,
+ * claim accept/dispute/resolve) live in lib/world/money-desks-2 +
+ * the MoneyActionsDesk under the board, on the same rails.
  *
  * The LOADS below carry the earnings page's patience discipline
  * (lib/earnings-data's loadEarnings — the page was fixed Oct 17
@@ -392,10 +393,10 @@ export interface ClaimStatus {
   detail: string;
 }
 
-/** Shape GET /api/content-id/claims into read-only status rows.
- *  The claim ACTIONS (accept / dispute / resolve) are management —
- *  they stay on the website; the board only reports where each
- *  claim stands. */
+/** Shape GET /api/content-id/claims into status rows for the
+ *  board's summary line. The claim ACTIONS (accept / dispute /
+ *  resolve) are worked in the MoneyActionsDesk (Stack-100 #67) on
+ *  this same rail; this summary only reports where claims stand. */
 export function normalizeClaims(payload: unknown): ClaimStatus[] {
   if (!isObj(payload) || !Array.isArray(payload["claims"])) return [];
   const out: ClaimStatus[] = [];

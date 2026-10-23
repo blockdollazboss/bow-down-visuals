@@ -96,6 +96,11 @@ export interface PortraitCardData {
   seat: number;
   followerCount: number;
   topTracks: PortraitTrack[];
+  /** The profile's tip-jar switch (Stack-100 #66): the card offers
+   *  tipping only when the creator's own profile carries it on —
+   *  the same gate the website's profile chrome uses before it
+   *  links the tip page. */
+  tipJarEnabled: boolean;
 }
 
 interface WireTrack {
@@ -132,6 +137,7 @@ export function portraitCardFromWire(
       bio?: unknown;
       avatar_url?: unknown;
       follower_count?: unknown;
+      tip_jar_enabled?: unknown;
     };
     top_tracks?: unknown;
   };
@@ -161,6 +167,7 @@ export function portraitCardFromWire(
     seat: member.position,
     followerCount: numOr(p.follower_count, 0),
     topTracks: tracks.slice(0, 5),
+    tipJarEnabled: p.tip_jar_enabled === true,
   };
 }
 

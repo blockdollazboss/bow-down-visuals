@@ -143,6 +143,22 @@ export const PALACE_STATIONS: PalaceStation[] = [
     websitePath: "/my-music",
   },
   {
+    /* Stack-100 #65: the Beats licensing marketplace — browse and
+     * preview are public (the browse rail is), licensing, selling
+     * and the seller dashboard pitch guests to sign in inside the
+     * panel. It stands on the Music Hall's north wall, east of the
+     * Charts desk. */
+    id: "beats-desk",
+    roomId: MUSIC_HALL_ID,
+    name: "Beat Marketplace",
+    tagline: "Beats to license — Basic, Premium, Exclusive and the producers' own custom licenses.",
+    x: -18.5,
+    z: 2.1,
+    membersOnly: false,
+    panel: { kind: "custom", id: "beats-desk" },
+    websitePath: "/beats",
+  },
+  {
     id: "charts-desk",
     roomId: MUSIC_HALL_ID,
     name: "The Charts",
