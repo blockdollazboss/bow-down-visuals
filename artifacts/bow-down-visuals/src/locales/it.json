@@ -2046,6 +2046,9 @@
       },
       "wallpapers": {
         "label": "Sfondi e temi"
+      },
+      "headshots": {
+        "label": "Ritratti"
       }
     },
     "title": "Kit di Branding"
@@ -2788,7 +2791,8 @@
         "label": "Dettaglio Premium",
         "blurb": "Dettaglio e ricchezza massimi"
       }
-    }
+    },
+    "useSong": "Usa canzone"
   },
   "create-simple": {
     "back_to_dashboard": "Torna alla Dashboard",
@@ -2815,8 +2819,30 @@
     "title": "Crea",
     "modes": {
       "wallpapers": "Sfondi e temi",
-      "wallpapersBlurb": "Sfondi, salvaschermo, temi abbinati"
-    }
+      "wallpapersBlurb": "Sfondi, salvaschermo, temi abbinati",
+      "songVideo": "Canzone + Video",
+      "songVideoBlurb": "Traccia più visual, un solo flusso",
+      "song": "Canzone",
+      "songBlurb": "Canzone IA da un prompt",
+      "video": "Video",
+      "videoBlurb": "Clip fatte per il tuo suono",
+      "hub": "Hub di creazione",
+      "hubBlurb": "Tutti gli strumenti, una bacheca",
+      "cartoon": "Cartone animato",
+      "cartoonBlurb": "Studio di cartoni animati",
+      "coverArt": "Cover art",
+      "coverArtBlurb": "Cover art che spicca",
+      "dreamCollab": "Collab da sogno",
+      "dreamCollabBlurb": "Crea con artisti IA",
+      "linkToHit": "Dal link alla hit",
+      "linkToHitBlurb": "Trasforma qualsiasi link in una hit",
+      "coverMotion": "Cover in movimento",
+      "coverMotionBlurb": "Dai vita alla cover art"
+    },
+    "pageTitle": "Crea",
+    "pageDescription": "Inizia qualsiasi cosa: una canzone + video, una canzone, un video o l'hub di creazione guidato.",
+    "subtitle": "Uno studio, dieci modi per iniziare. Scegli una corsia — ogni pezzo finito fluisce nel suo passo successivo naturale.",
+    "backToDashboard": "Torna alla dashboard"
   },
   "credit-history": {
     "dashboard": "Dashboard",
@@ -7613,57 +7639,58 @@
     "zipping": "Compressione…"
   },
   "release": {
-    "badge": "Thy Cheat Code's release tools",
-    "titlePrefix": "Release",
+    "badge": "Strumenti di uscita di Thy Cheat Code",
+    "titlePrefix": "Uscita",
     "titleSuffix": "Checklist",
-    "hero": "Drop day is won in the weeks before it. AI builds your week-by-week battle plan — distribution, playlists, teasers, press, pre-saves — then you check it off as you execute.",
-    "whatDropping": "What are you dropping?",
+    "hero": "Il giorno dell'uscita si vince nelle settimane precedenti. L'IA costruisce il tuo piano di battaglia settimana dopo settimana — distribuzione, playlist, teaser, stampa, pre-save — e tu spunti mentre esegui.",
+    "whatDropping": "Cosa stai per far uscire?",
     "types": {
       "single": {
-        "label": "Single",
-        "blurb": "One track, one moment"
+        "label": "Singolo",
+        "blurb": "Una traccia, un momento"
       },
       "ep": {
         "label": "EP",
-        "blurb": "3–6 tracks"
+        "blurb": "3–6 tracce"
       },
       "album": {
         "label": "Album",
-        "blurb": "7+ tracks, a era"
+        "blurb": "7+ tracce, un'era"
       }
     },
-    "releaseTitle": "Release title",
-    "titlePlaceholder": "e.g. Bow Down Anthem",
-    "genreVibe": "Genre / vibe",
-    "optional": "(optional)",
-    "genrePlaceholder": "e.g. hip-hop, R&B…",
-    "releaseDate": "Release date",
-    "building": "Building your battle plan…",
-    "buildPlan": "Build my release plan",
-    "signInToBuild": "Sign in to build your release plan",
-    "costNote": "{{cost}} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code",
-    "tasksDone": "{{done}} of {{total}} tasks done",
-    "preSaveTitle": "Pre-save power move",
-    "rebuild": "Rebuild plan ({{cost}} Visual Bucs)",
+    "releaseTitle": "Titolo dell'uscita",
+    "titlePlaceholder": "es. Bow Down Anthem",
+    "genreVibe": "Genere / vibe",
+    "optional": "(facoltativo)",
+    "genrePlaceholder": "es. hip-hop, R&B…",
+    "releaseDate": "Data di uscita",
+    "building": "Costruzione del tuo piano di battaglia…",
+    "buildPlan": "Costruisci il mio piano di uscita",
+    "signInToBuild": "Accedi per costruire il tuo piano di uscita",
+    "costNote": "{{cost}} Visual Bucs per piano IA · spuntare le attività è gratis · powered by Thy Cheat Code",
+    "tasksDone": "{{done}} di {{total}} attività fatte",
+    "preSaveTitle": "Mossa maestra del pre-save",
+    "rebuild": "Ricostruisci piano ({{cost}} Visual Bucs)",
     "tools": {
-      "playlist-pitcher": "Open Playlist Pitcher",
-      "content-scheduler": "Open Content Scheduler",
-      "press-kit": "Open Press Kit Builder",
-      "cover-art": "Open Cover Art Generator",
-      "email-list": "Open Email List Builder"
+      "playlist-pitcher": "Apri il Playlist Pitcher",
+      "content-scheduler": "Apri lo Scheduler dei contenuti",
+      "press-kit": "Apri il Press Kit Builder",
+      "cover-art": "Apri il Generatore di cover",
+      "email-list": "Apri il Costruttore di liste email"
     },
     "crossLinks": {
-      "p1": "Executing your plan? Pitch playlists with the",
+      "p1": "Stai eseguendo il tuo piano? Presenta le playlist con il",
       "playlistPitcher": "Playlist Pitcher",
-      "p2": "and schedule your teasers with the",
-      "scheduler": "Content Scheduler",
-      "p3": "."
+      "p2": "e pianifica i tuoi teaser con lo",
+      "scheduler": "Scheduler dei contenuti",
+      "p3": ".",
+      "distribute": "distribuirlo"
     },
     "error": {
-      "noTitle": "Give your release a title first — the plan is built around it.",
-      "noDate": "Pick a release date so the checklist can count backwards from it.",
-      "pastDate": "Release date must be in the future — a checklist for the past helps nobody.",
-      "planFailed": "Release plan failed — try again."
+      "noTitle": "Dai prima un titolo alla tua uscita — il piano si costruisce intorno a esso.",
+      "noDate": "Scegli una data di uscita così la checklist può contare alla rovescia da essa.",
+      "pastDate": "La data di uscita deve essere nel futuro — una checklist per il passato non aiuta nessuno.",
+      "planFailed": "Piano di uscita non riuscito — riprova."
     }
   },
   "outreach": {
@@ -8683,7 +8710,55 @@
     }
   },
   "presave": {
-    "tracklistTitle": "Elenco tracce"
+    "tracklistTitle": "Elenco tracce",
+    "artworkAlt": "Artwork di \"{{title}}\"",
+    "badge": "Pre-Save",
+    "badgeOut": "Fuori ora",
+    "drops": "Esce il {{date}}",
+    "dropsSoon": "Data di uscita presto",
+    "outNow": "Fuori ora — vai ad ascoltarlo!",
+    "cdDays": "Giorni",
+    "cdHours": "Ore",
+    "cdMins": "Min",
+    "cdSecs": "Sec",
+    "fansCount": "fan hanno pre-salvato",
+    "sharesCount": "condivisioni",
+    "followCta": "Pre-salva + ricevi l'avviso il giorno dell'uscita",
+    "followCtaOut": "Unisciti alla lista dei fan per le novità",
+    "followBlurb": "Lascia la tua email — ti aggiungiamo alla lista dei fan dell'artista (gratis).",
+    "emailPlaceholder": "La tua email",
+    "namePlaceholder": "Il tuo nome (facoltativo)",
+    "followBtn": "Pre-salvami",
+    "followBtnOut": "Unisciti alla lista",
+    "saving": "Salvataggio…",
+    "followed": "Sei sulla lista! {{artist}} ti scriverà il giorno dell'uscita.",
+    "alreadyFollowing": "Sei già sulla lista di {{artist}} — ci vediamo il giorno dell'uscita!",
+    "notifyNote": "Ricevi una sola email quando la musica esce. Niente spam, mai.",
+    "invalidEmail": "Inserisci un'email valida.",
+    "followFailed": "Impossibile salvare il tuo pre-save — riprova.",
+    "platformsCta": "Seguilo il giorno dell'uscita",
+    "streamNowOn": "Ascoltalo ora",
+    "streamOn": "Ascolta su {{platform}}",
+    "followOn": "Prendilo su {{platform}}",
+    "shareTitle": "Spargi la voce",
+    "shareToUnlock": "Condividi per sbloccare contenuti bonus",
+    "unlockBlurb": "Condividi questa uscita ovunque e sblocca contenuti bonus esclusivi dell'artista.",
+    "openBonus": "Apri i tuoi contenuti bonus",
+    "shareText": "\"{{title}}\" di {{artist}} esce presto — pre-salvalo",
+    "shareTextOut": "\"{{title}}\" di {{artist}} È FUORI ORA — vai ad ascoltarlo",
+    "copyLink": "Copia link",
+    "copied": "Copiato!",
+    "errors": {
+      "loadFailed": "Impossibile caricare questa uscita.",
+      "notFound": "Questo link di pre-save non esiste."
+    },
+    "footer": "Powered by Thy Cheat Code — il codice cheat del creatore di contenuti.",
+    "loading": "Caricamento uscita…",
+    "platformsTitle": "Ovunque il giorno dell'uscita",
+    "postToX": "Pubblica su X",
+    "shareRelease": "Condividi questa uscita",
+    "artistCta": "Sei tu l'artista?",
+    "promoteRelease": "Promuovi questa uscita →"
   },
   "press-kit": {
     "backToDashboard": "Torna alla dashboard",
@@ -9478,7 +9553,7 @@
     "notifyCopied": "Link nuovo copiato — invialo al tuo revisore",
     "notifyCopiedHint": "Aprirà il montaggio più recente con tutte le note precedenti intatte.",
     "notifyFailed": "Impossibile creare un link nuovo.",
-    "madeWith": "Made with",
+    "madeWith": "Fatto con",
     "madeWithHint": "Questa pagina di revisione è stata creata con Bow Down Visuals — the content creation cheat code.",
     "privateNote": "Link di revisione privato — solo chi ha questo URL può vederlo."
   },
@@ -11112,7 +11187,7 @@
     "suggestedPriceNote": "Prezzo suggerito — imposta il tuo prezzo reale qui sopra prima di approvare.",
     "taglineLabel": "Slogan",
     "taglinePh": "Soul notturno per cuori pesanti",
-    "title": "Move Home",
+    "title": "Sposta la tua casa",
     "updatesExistingNote": "(il tuo profilo esistente — l'approvazione lo aggiorna)",
     "verticalEducation": "Istruzione",
     "verticalFilm": "Cinema",
@@ -14469,5 +14544,112 @@
     "bragShareFailed": "Impossibile aprire la condivisione — riprova.",
     "trophyShelf": "Scaffale dei trofei",
     "trophyShelfSub": "Traguardi sbloccati con Bow Down Visuals"
+  },
+  "press-public": {
+    "backHome": "Torna alla home",
+    "cheatCodeTagline": "— il codice cheat del creatore di contenuti.",
+    "downloadPdf": "Scarica come PDF",
+    "epkLabel": "Press kit elettronico",
+    "madeWith": "Fatto con",
+    "notFoundMessage": "Questo press kit non esiste o non è pubblico.",
+    "notFoundTitle": "Press kit non trovato",
+    "photoAlt": "Foto {{index}} di {{name}}",
+    "sections": {
+      "achievements": "Risultati",
+      "bio": "Bio",
+      "bookingContact": "Booking e contatti",
+      "photos": "Foto",
+      "press": "Stampa",
+      "topTracks": "Tracce top"
+    },
+    "website": "Sito web"
+  },
+  "stabilize": {
+    "title": "Stabilizza",
+    "subtitle": "Liscia i video tremolanti — vidstab in due passaggi, un tocco",
+    "priceBadge": "{cost} VB / stabilizzazione",
+    "noClipsTitle": "Nessuna clip da stabilizzare",
+    "noClipsBody": "Aggiungi prima una clip video a una scena, poi liscia i tremolii.",
+    "clipToStabilize": "Clip da stabilizzare",
+    "fineTune": "Regolazione fine (facoltativo)",
+    "resetDefaults": "Ripristina predefiniti",
+    "shakeHandling": "Gestione tremolio",
+    "shakeHelp": "Più alto gestisce più tremolio.",
+    "shakeHigh": "Gestione massima del tremolio",
+    "shakeMid": "Gestione equilibrata del tremolio",
+    "shakeLow": "Tocco leggero",
+    "smoothness": "Fluidità",
+    "smoothHelp": "Più fluido, ma ritaglia di più.",
+    "smoothHigh": "Fluido come burro (più ritaglio)",
+    "smoothMid": "Fluidità equilibrata",
+    "smoothLow": "Levigatura sottile",
+    "stabilizeButton": "Stabilizza · {cost} VB",
+    "stabilizingButton": "Stabilizzazione…",
+    "stabilizingNote": "La stabilizzazione in due passaggi può richiedere un minuto.",
+    "resultTitle": "Stabilizzato",
+    "useInEditor": "Usa nell'editor",
+    "attaching": "Allegamento…",
+    "useInExport": "Usa nell'esportazione",
+    "download": "Scarica",
+    "successToast": "Clip stabilizzata",
+    "successToastDesc": "La tua clip lisciata è pronta.",
+    "timelineToast": "Aggiunta alla timeline",
+    "timelineToastDesc": "La clip stabilizzata ha sostituito la clip della scena.",
+    "errorGeneric": "Stabilizzazione non riuscita — riprova."
+  },
+  "lufs": {
+    "waveformUnavailable": "Forma d'onda non disponibile",
+    "errorJobNotFound": "Lavoro non trovato — potrebbe essere scaduto.",
+    "errorNormalizeFailed": "Normalizzazione non riuscita — sei stato rimborsato.",
+    "analyzeError": "Impossibile analizzare questo file. Prova un altro file audio.",
+    "errorNetwork": "Errore di rete — riprova.",
+    "errorAudioType": "Scegli un file audio (MP3, WAV, M4A, AAC, OGG, FLAC).",
+    "errorFileTooLarge": "Quel file supera i 50 MB. Taglialo o scegline uno più piccolo.",
+    "errorStartFailed": "Impossibile avviare la normalizzazione. Riprova.",
+    "meterDecodeError": "Impossibile decodificare questo file per la misurazione live.",
+    "title": "Misuratore di loudness LUFS",
+    "subtitle": "Misura il loudness reale, poi normalizza ai target di streaming — {cost} VB per normalizzazione. L'analisi è gratuita.",
+    "honestIntro": "Il loudness si misura in LUFS — quanto forte sembra davvero la tua traccia, non solo il suo livello di picco.",
+    "honestStrong": "L'analisi è gratuita; la normalizzazione rimisura l'output così i numeri sono reali.",
+    "dropPrompt": "Trascina qui il tuo audio o tocca per caricare",
+    "dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — fino a 50 MB",
+    "changeFile": "Cambia file",
+    "statIntegrated": "Integrato",
+    "statLra": "Intervallo di loudness",
+    "statTruePeak": "Picco reale",
+    "eburLabel": "Momentaneo / breve termine (misurato lato server)",
+    "momentary": "Momentaneo",
+    "shortTerm": "Breve termine",
+    "eburHint": "max / media sull'intera traccia.",
+    "liveMeterTitle": "Misuratore live (browser)",
+    "liveMeterNote": "Stima in tempo reale con pesatura K mentre il file suona — senza gating, per sentire. Il numero integrato del server sopra è quello ufficiale.",
+    "liveMeterStop": "Ferma",
+    "liveMeterPlay": "Riproduci misuratore live",
+    "targetLabel": "Target di normalizzazione",
+    "formatLabel": "Formato di output",
+    "formatWav": "WAV (16-bit)",
+    "formatMp3": "MP3 (320k)",
+    "normalizeButton": "Normalizza a {target} LUFS · {cost} VB",
+    "creditsRemaining": "Restano {n} Visual Bucs",
+    "statusUploading": "Caricamento…",
+    "statusQueued": "In coda — il lavoro gira sul server, puoi lasciare questa scheda.",
+    "statusProcessing": "Normalizzazione a {target} LUFS…",
+    "progressNote": "Normalizzazione del loudness in due passaggi: misurare, correggere e rimisurare l'output.",
+    "analyzing": "Misurazione del loudness…",
+    "normalizeComplete": "Normalizzato a {target} LUFS",
+    "before": "Prima",
+    "after": "Dopo",
+    "abOriginal": "Originale",
+    "abNormalized": "Normalizzato",
+    "pause": "Pausa",
+    "play": "Riproduci",
+    "labelOriginal": "Originale",
+    "labelNormalized": "Normalizzato",
+    "abHint": "Alterna tra i due — la posizione di riproduzione resta.",
+    "downloadButton": "Scarica",
+    "newButton": "Nuovo file",
+    "handoffTitle": "Passo successivo",
+    "handoffMaster": "Invia alla scheda Master →",
+    "handoffDistribute": "Distribuiscilo →"
   }
 }
