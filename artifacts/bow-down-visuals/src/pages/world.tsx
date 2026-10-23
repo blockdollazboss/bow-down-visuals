@@ -38,6 +38,7 @@ import {
   defaultWorldSocketUrl,
   worldGuestSessionId,
   fetchWorldDirectory,
+  fetchWorldEvents,
   HALL_ROOM_ID,
   type WorldStatus,
   type WorldSayEvent,
@@ -57,6 +58,14 @@ import {
   kingMomentLine,
   kingStripLine,
 } from "@/lib/world/king-moment";
+import { monumentBoardData } from "@/lib/world/monument-board";
+import {
+  directorySlate,
+  mergeSlates,
+  normalizeWorldEventSlate,
+  type PalaceSlateEvent,
+} from "@/lib/world/objective-strip";
+import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-quests";
 import {
   STAGE_TIP_PRESETS,
   stageTippedLine,
@@ -948,6 +957,57 @@ export default function WorldPage() {
       ctrl.abort();
     };
   }, []);
+
+  /* The Kingdom Board monument's words (item 16): the plate on
+     the plaza monument letters the board's real headlines — the
+     same reads the Kingdom Board station panel makes (directory
+     for who's here, the palace slate for today, the retention
+     leaderboard for standings). Refetched on the panel's own
+     cadence family: on mount, when the directory's who's-here
+     changes the picture, and every two minutes while the walker
+     stays; the scene repaints only when the words change.
+     Guests get who's-here + today (public reads) and an absent
+     leaderboard — the monument letters the standings as
+     members' business, exactly as the panel does. */
+  const [monumentEvents, setMonumentEvents] = useState<PalaceSlateEvent[]>([]);
+  const [monumentLeaderboard, setMonumentLeaderboard] = useState<Leaderboard | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const events = await fetchWorldEvents();
+        if (!cancelled) setMonumentEvents(normalizeWorldEventSlate(events));
+      } catch {
+        /* The directory slate still speaks. */
+      }
+      if (user && !isGuest) {
+        try {
+          const token = await getAccessToken().catch(() => null);
+          const res = await fetch("/api/retention/leaderboard", {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok && !cancelled) setMonumentLeaderboard(normalizeLeaderboard(await res.json()));
+        } catch {
+          /* Standings stay the last honest read. */
+        }
+      }
+    };
+    void load();
+    const id = window.setInterval(() => void load(), 120_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isGuest]);
+  useEffect(() => {
+    sceneRef.current?.setMonumentBoardData(monumentBoardData({
+      directory,
+      leaderboard: monumentLeaderboard,
+      events: mergeSlates(monumentEvents, directorySlate(directory)),
+      nowMs: Date.now(),
+    }));
+  }, [directory, monumentEvents, monumentLeaderboard, status]);
 
   /* Front Row honors: while a show runs, the seat arc shows before
      the stage, and the performer's Front Row members (their public
