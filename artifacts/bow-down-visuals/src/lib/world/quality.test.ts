@@ -338,7 +338,7 @@ describe("rungs fully applied (items 82/84/94: no side tables, no orphan maps)",
     const registrations = hallSceneSrc.match(/registerRungSurfaceTexture\(/g) ?? [];
     expect(registrations.length).toBeGreaterThanOrEqual(8);
     const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
-    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 3200);
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
     expect(applySegment).toContain("for (const tex of rungSurfaceTextures)");
     expect(applySegment).toContain("activeRungAnisotropy = rung.anisotropy;");
   });
@@ -352,8 +352,31 @@ describe("rungs fully applied (items 82/84/94: no side tables, no orphan maps)",
 
   it("a ladder step re-ranges embers and pollen from the rung's particleScale (item 82)", () => {
     const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
-    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 3200);
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
     expect(applySegment).toContain("e.field.length * rung.particleScale");
     expect(applySegment).toContain("pollen.field.length * rung.particleScale");
+  });
+});
+
+describe("reflector honesty (item 92: rung-sized target, both directions)", () => {
+  it("the reflector is born at the boot rung's size", () => {
+    const idx = hallSceneSrc.indexOf("new Reflector(");
+    expect(idx).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(idx, idx + 400);
+    expect(segment).toContain("textureWidth: q.reflectorSize");
+    expect(segment).toContain("textureHeight: q.reflectorSize");
+    expect(segment).toContain("clipBias: 0.003");
+  });
+
+  it("a step to the low rung shrinks the target to a stub instead of holding it", () => {
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 6500);
+    expect(applySegment).toContain("rung.reflectorSize > 0 ? rung.reflectorSize : 1");
+    expect(applySegment).toContain("getRenderTarget().setSize(targetSize, targetSize)");
+  });
+
+  it("the scene builds exactly one reflector (the clip treatment has no second surface to drift from)", () => {
+    const builds = hallSceneSrc.match(/new Reflector\(/g) ?? [];
+    expect(builds.length).toBe(1);
   });
 });

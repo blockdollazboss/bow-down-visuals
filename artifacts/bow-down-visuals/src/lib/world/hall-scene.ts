@@ -7394,8 +7394,16 @@ export class KingsHallScene {
       }
     }
     this.renderer.shadowMap.needsUpdate = true;
-    if (this.floorReflector && rung.reflectorSize > 0) {
-      this.floorReflector.getRenderTarget().setSize(rung.reflectorSize, rung.reflectorSize);
+    if (this.floorReflector) {
+      /* Item 92: the target is truly the rung's size in both
+       * directions. Stepping down resizes it (1024 → 512); stepping
+       * to the low rung (size 0 — the visibility gate never renders
+       * it) shrinks it to a 1×1 stub so the low rung does not keep
+       * a full-size half-float target (~8 MB at 1024²) allocated
+       * for a mirror it will never draw. Stepping back up restores
+       * the rung size before the gate can show it again. */
+      const targetSize = rung.reflectorSize > 0 ? rung.reflectorSize : 1;
+      this.floorReflector.getRenderTarget().setSize(targetSize, targetSize);
     }
     if (this.floorOverlayMat) {
       const look = hallLookFor(this.theme);
