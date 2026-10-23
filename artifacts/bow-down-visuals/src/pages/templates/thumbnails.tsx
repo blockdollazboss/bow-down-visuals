@@ -13,8 +13,8 @@ import {
   THUMBNAIL_CATEGORIES,
 } from "@/data/thumbnail-templates";
 
-/* ─── Public thumbnail template gallery ───
-   No login required. "Use this template" deep-links into the Thumbnail
+/* ─── Thumbnail template gallery (members) ───
+   Sign-in required to browse (access law: /templates* is locked for guests). "Use this template" deep-links into the Thumbnail
    Maker with ?template=<slug> — login + credits kick in at generation. */
 
 export default function ThumbnailTemplates() {
@@ -60,7 +60,7 @@ export default function ThumbnailTemplates() {
             <p className="mt-4 text-white/50 max-w-2xl mx-auto">
               Proven high-CTR thumbnail styles for every niche. Pick one, hit
               “Use this template,” and our AI generates it for your video —
-              free to browse, credits apply when you generate.
+              free to browse with your account, credits apply when you generate.
             </p>
           </div>
         </LuxReveal>

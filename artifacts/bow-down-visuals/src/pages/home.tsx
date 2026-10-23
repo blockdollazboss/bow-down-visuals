@@ -1087,7 +1087,7 @@ function TemplatesBand() {
               {t("home.templates.title", { defaultValue: "Start from a template, finish like a pro" })}
             </h2>
             <p className="max-w-xl text-white/50">
-              {t("home.templates.sub", { defaultValue: "Browse the free galleries, pick a style, and generate it with AI — no blank canvas, no guesswork." })}
+              {t("home.templates.sub", { defaultValue: "Sign in to browse the galleries free, pick a style, and generate it with AI — no blank canvas, no guesswork." })}
             </p>
           </div>
           <Link

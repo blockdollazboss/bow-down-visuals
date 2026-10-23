@@ -34,7 +34,7 @@ const CREATE_LINKS = [
   /* Hook Studio lives under Create (sidebar + registry agree) — its SEO
      page sits with the other Create tool pages, not under Promote. */
   { label: "AI Hook Generator", href: "/tools/ai-hook-generator" },
-  /* Public template galleries (SEO lead magnets) — internal links from
+  /* Template galleries (members; SEO lead magnets) — internal links from
      every page's footer are what make the galleries rank and convert. */
   { label: "Template Library", href: "/templates" },
   { label: "Video Templates", href: "/templates/videos" },

@@ -12,8 +12,8 @@ import { THUMBNAIL_TEMPLATES } from "@/data/thumbnail-templates";
 import { HOOK_TEMPLATES } from "@/data/hook-templates";
 import { CAPTION_PACKS } from "@/data/caption-templates";
 
-/* ─── Public template library hub ───
-   No login required. Galleries deep-link into tools with templates preloaded.
+/* ─── Template library hub (members) ───
+   Sign-in required to browse (access law: /templates* is locked for guests). Galleries deep-link into tools with templates preloaded.
    Counts are computed from the data files themselves — they can never
    drift away from the real template set. */
 
@@ -64,8 +64,8 @@ export default function TemplatesHub() {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   usePageTitle(
-    "Creator Templates — Free to Browse — Thumbnails, Hooks & Captions",
-    "Templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Free to browse — click any template to generate it with AI; credits apply when you generate."
+    "Creator Templates — Free to Browse With Your Account — Thumbnails, Hooks & Captions",
+    "Templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Free to browse with your account — click any template to generate it with AI; credits apply when you generate."
   );
 
   return (
@@ -76,7 +76,7 @@ export default function TemplatesHub() {
           "@type": "CollectionPage",
           name: "Creator Template Library",
           description:
-            "Creator templates: video edit templates, thumbnails, hooks, and captions — free to browse, credits apply when you generate.",
+            "Creator templates: video edit templates, thumbnails, hooks, and captions — free to browse with your account, credits apply when you generate.",
           url: "https://bowdownvisuals.com/templates",
         }}
       />
@@ -88,7 +88,7 @@ export default function TemplatesHub() {
               Template <span className={isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}>Library</span>
             </h1>
             <p className={`mt-4 max-w-2xl mx-auto ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-              Proven templates, free to browse. Pick one and our AI builds it
+              Proven templates, free to browse with your account. Pick one and our AI builds it
               for you — credits apply when you generate.
             </p>
           </div>
