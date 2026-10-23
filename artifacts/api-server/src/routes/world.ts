@@ -335,6 +335,304 @@ router.get("/world/directory", publicApiLimiter, (_req, res) => {
   });
 });
 
+/* ── The World's locks over REST (items 92–93) ────────────────────
+ * The admin lock VERBS as real client verbs. The store has existed
+ * since Lane F (migration 0179) and the join path already enforces
+ * it; until now only Thy Cheat Code's Tier-4 chat commands could
+ * write it, so the in-world host panel could show a Locked pill
+ * but never lock or unlock anything itself.
+ *
+ *   GET  /api/world/locks              the standing locks (admin)
+ *   POST /api/world/locks/door/lock    { roomId }
+ *   POST /api/world/locks/door/unlock  { roomId }
+ *   POST /api/world/locks/person/lock  { roomId, userId? | peerId? |
+ *                                        targetName?, displayName?,
+ *                                        minutes? }
+ *   POST /api/world/locks/person/unlock { roomId, userId? | targetName? }
+ *
+ * PEACE LAW (hard): every verb is gated fail-closed to ADMIN
+ * accounts — the exact check the operator's Tier-4 commands stand
+ * behind (isWorldAdminEmail: the ADMIN_EMAILS allowlist resolved
+ * from the verified session's email; an unset allowlist refuses
+ * everyone). requireAuth runs first, so a guest (no account, no
+ * session) is refused 401 and a signed-in non-admin 403; the
+ * server rejects non-admin calls regardless of what any client
+ * shows. No automatic moderation lives here — a verb fires only
+ * when an admin calls it.
+ *
+ * Targets are never guessed, mirroring the Tier-4 handlers: a
+ * peerId or a name resolves against the palace's presence truth
+ * (exactly one present person, in the named room when a name is
+ * shared); an explicit userId + displayName may lock a member who
+ * is not standing in the palace right now. A guest cannot be
+ * person-locked (a lock binds an account) and an admin cannot
+ * lock their own account. Locking a person who is standing in
+ * the locked room removes them from it, like the Tier-4 verb. */
+
+/** A person lock's default length, and its one-call ceiling —
+ *  the same bounds the Tier-4 handlers apply (1 hour default,
+ *  7 days max; a longer stay is an admin re-issuing it). */
+export const WORLD_LOCK_DEFAULT_MINUTES = 60;
+export const WORLD_LOCK_MAX_MINUTES = 7 * 24 * 60;
+
+/** Pure (exported for route tests): a requested lock length in
+ *  minutes — absent/invalid reads as the default, anything else
+ *  is rounded and clamped to [1, WORLD_LOCK_MAX_MINUTES]. */
+export function parseWorldLockMinutes(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) {
+    return WORLD_LOCK_DEFAULT_MINUTES;
+  }
+  return Math.max(1, Math.min(Math.round(raw), WORLD_LOCK_MAX_MINUTES));
+}
+
+function requireWorldAdmin(req: { userEmail?: string }, res: { status: (n: number) => { json: (b: unknown) => void } }): boolean {
+  if (isWorldAdminEmail(req.userEmail)) return true;
+  res.status(403).json({
+    error: "Admin only — the World's locks answer to admin accounts.",
+    code: "ADMIN_REQUIRED",
+  });
+  return false;
+}
+
+/** The mounted palace + its lock store, or a 503 already sent. */
+function worldLockSurface(res: { status: (n: number) => { json: (b: unknown) => void } }) {
+  const palace = activePalace;
+  const store = palace?.lockStore ?? null;
+  if (!palace || !store) {
+    res.status(503).json({
+      error: "The World isn't running in this process right now — nothing was changed.",
+      code: "WORLD_NOT_RUNNING",
+    });
+    return null;
+  }
+  return { palace, store };
+}
+
+function lockBodyRoomId(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const roomId = (body as Record<string, unknown>)["roomId"];
+  return typeof roomId === "string" && roomId.trim().length > 0 ? roomId.trim() : null;
+}
+
+function lockBodyString(body: unknown, key: string): string | null {
+  if (!body || typeof body !== "object") return null;
+  const v = (body as Record<string, unknown>)[key];
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+}
+
+router.get("/world/locks", requireAuth, (req, res) => {
+  if (!requireWorldAdmin(req, res)) return;
+  const surface = worldLockSurface(res);
+  if (!surface) return;
+  res.json({
+    doors: surface.store.doorLocks().map((d) => ({
+      roomId: d.roomId,
+      lockedByEmail: d.lockedByEmail,
+      createdAt: new Date(d.createdAt).toISOString(),
+    })),
+    persons: surface.store.personLocks().map((p) => ({
+      roomId: p.roomId,
+      userId: p.userId,
+      displayName: p.displayName,
+      lockedByEmail: p.lockedByEmail,
+      createdAt: new Date(p.createdAt).toISOString(),
+      expiresAt: new Date(p.expiresAt).toISOString(),
+    })),
+  });
+});
+
+router.post("/world/locks/door/lock", requireAuth, async (req, res) => {
+  if (!requireWorldAdmin(req, res)) return;
+  const surface = worldLockSurface(res);
+  if (!surface) return;
+  const roomId = lockBodyRoomId(req.body);
+  const room = roomId ? surface.palace.room(roomId) : undefined;
+  if (!roomId || !room) {
+    res.status(404).json({ error: "Name one of the palace's rooms — that room doesn't exist here.", code: "UNKNOWN_ROOM" });
+    return;
+  }
+  if (surface.store.isDoorLocked(room.roomId)) {
+    res.status(409).json({ error: `${room.roomName}'s door is already locked — nothing to change.`, code: "ALREADY_LOCKED" });
+    return;
+  }
+  try {
+    const state = await surface.store.lockDoor({
+      roomId: room.roomId,
+      lockedByUserId: req.userId!,
+      lockedByEmail: req.userEmail ?? null,
+    });
+    surface.palace.refreshDirectory();
+    res.json({
+      ok: true,
+      door: { roomId: state.roomId, locked: true, createdAt: new Date(state.createdAt).toISOString() },
+      rooms: surface.palace.directory(),
+    });
+  } catch (err) {
+    logger.error({ err }, "[world] door lock failed");
+    res.status(500).json({ error: "That lock didn't land — nothing was changed. Try again." });
+  }
+});
+
+router.post("/world/locks/door/unlock", requireAuth, async (req, res) => {
+  if (!requireWorldAdmin(req, res)) return;
+  const surface = worldLockSurface(res);
+  if (!surface) return;
+  const roomId = lockBodyRoomId(req.body);
+  const room = roomId ? surface.palace.room(roomId) : undefined;
+  if (!roomId || !room) {
+    res.status(404).json({ error: "Name one of the palace's rooms — that room doesn't exist here.", code: "UNKNOWN_ROOM" });
+    return;
+  }
+  try {
+    const standing = await surface.store.unlockDoor(room.roomId);
+    if (!standing) {
+      res.status(404).json({ error: `${room.roomName}'s door isn't locked — it's already open.`, code: "NOT_LOCKED" });
+      return;
+    }
+    surface.palace.refreshDirectory();
+    res.json({ ok: true, door: { roomId: room.roomId, locked: false }, rooms: surface.palace.directory() });
+  } catch (err) {
+    logger.error({ err }, "[world] door unlock failed");
+    res.status(500).json({ error: "That unlock didn't land — nothing was changed. Try again." });
+  }
+});
+
+router.post("/world/locks/person/lock", requireAuth, async (req, res) => {
+  if (!requireWorldAdmin(req, res)) return;
+  const surface = worldLockSurface(res);
+  if (!surface) return;
+  const roomId = lockBodyRoomId(req.body);
+  const room = roomId ? surface.palace.room(roomId) : undefined;
+  if (!roomId || !room) {
+    res.status(404).json({ error: "Name one of the palace's rooms — that room doesn't exist here.", code: "UNKNOWN_ROOM" });
+    return;
+  }
+  /* Resolve the target — never guessed. A peerId or a name binds
+   * against presence in the named room; an explicit userId binds
+   * the account directly (displayName from presence when the
+   * person is standing there, else from the request). */
+  const peerId = lockBodyString(req.body, "peerId");
+  const targetName = lockBodyString(req.body, "targetName");
+  const explicitUserId = lockBodyString(req.body, "userId");
+  let targetUserId: string | null = explicitUserId;
+  let displayName: string | null = lockBodyString(req.body, "displayName");
+  let presentPeerId: string | null = null;
+  if (peerId || targetName) {
+    const members = room.presentMembers();
+    const matches = peerId
+      ? members.filter((m) => m.peerId === peerId)
+      : members.filter((m) => m.displayName.trim().toLowerCase() === targetName!.toLowerCase());
+    if (matches.length === 0) {
+      res.status(404).json({ error: "That person isn't standing in this room right now — the lock reaches people who are here, or a member named by account id.", code: "TARGET_NOT_PRESENT" });
+      return;
+    }
+    if (matches.length > 1) {
+      res.status(409).json({ error: "More than one person here carries that name — name the exact peer instead. A lock is never guessed.", code: "TARGET_AMBIGUOUS" });
+      return;
+    }
+    const member = matches[0]!;
+    if (!member.userId) {
+      res.status(400).json({ error: `${member.displayName} is a guest — a lock binds a member's account, and a guest has none to bind.`, code: "TARGET_IS_GUEST" });
+      return;
+    }
+    targetUserId = member.userId;
+    displayName = member.displayName;
+    presentPeerId = member.peerId;
+  } else if (targetUserId) {
+    const standing = room.presentMembers().find((m) => m.userId === targetUserId);
+    if (standing) {
+      displayName = standing.displayName;
+      presentPeerId = standing.peerId;
+    }
+  }
+  if (!targetUserId) {
+    res.status(400).json({ error: "Name the person to lock out — a lock binds a who (userId, peerId, or targetName).", code: "TARGET_REQUIRED" });
+    return;
+  }
+  if (targetUserId === req.userId) {
+    res.status(400).json({ error: "That's your own account — an admin can't lock themselves out of their own palace.", code: "TARGET_IS_SELF" });
+    return;
+  }
+  if (!displayName) {
+    res.status(400).json({ error: "A lock for a member who isn't standing here needs their display name too.", code: "DISPLAY_NAME_REQUIRED" });
+    return;
+  }
+  const minutes = parseWorldLockMinutes((req.body as Record<string, unknown> | null)?.["minutes"]);
+  try {
+    const lock = await surface.store.lockPerson({
+      roomId: room.roomId,
+      userId: targetUserId,
+      displayName,
+      lockedByUserId: req.userId!,
+      lockedByEmail: req.userEmail ?? null,
+      minutes,
+    });
+    /* Standing in the locked room right now? The lock's first
+     * moment is the removal — same as the Tier-4 verb. */
+    const evicted = presentPeerId ? room.removePeer(presentPeerId, "locked") : false;
+    res.json({
+      ok: true,
+      evicted,
+      person: {
+        roomId: lock.roomId,
+        userId: lock.userId,
+        displayName: lock.displayName,
+        createdAt: new Date(lock.createdAt).toISOString(),
+        expiresAt: new Date(lock.expiresAt).toISOString(),
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "[world] person lock failed");
+    res.status(500).json({ error: "That lock didn't land — nothing was changed. Try again." });
+  }
+});
+
+router.post("/world/locks/person/unlock", requireAuth, async (req, res) => {
+  if (!requireWorldAdmin(req, res)) return;
+  const surface = worldLockSurface(res);
+  if (!surface) return;
+  const roomId = lockBodyRoomId(req.body);
+  const room = roomId ? surface.palace.room(roomId) : undefined;
+  if (!roomId || !room) {
+    res.status(404).json({ error: "Name one of the palace's rooms — that room doesn't exist here.", code: "UNKNOWN_ROOM" });
+    return;
+  }
+  let targetUserId = lockBodyString(req.body, "userId");
+  const targetName = lockBodyString(req.body, "targetName");
+  if (!targetUserId && targetName) {
+    /* The locked person is by definition NOT standing in the
+     * room, so presence can't resolve them — the store can: it
+     * carries the name the lock landed under (Tier-4's rule). */
+    const locks = surface.store
+      .personLocksByName(targetName)
+      .filter((l) => l.roomId === room.roomId);
+    if (locks.length === 0) {
+      res.status(404).json({ error: `There's no standing lock on anyone named “${targetName}” in this room — nothing to lift.`, code: "NOT_LOCKED" });
+      return;
+    }
+    if (locks.length > 1) {
+      res.status(409).json({ error: "More than one lock carries that name in this room — lift one by account id instead.", code: "TARGET_AMBIGUOUS" });
+      return;
+    }
+    targetUserId = locks[0]!.userId;
+  }
+  if (!targetUserId) {
+    res.status(400).json({ error: "Name whose lock to lift (userId or targetName).", code: "TARGET_REQUIRED" });
+    return;
+  }
+  try {
+    const standing = await surface.store.unlockPerson(room.roomId, targetUserId);
+    if (!standing) {
+      res.status(404).json({ error: "There's no standing lock on that member in this room — nothing to lift.", code: "NOT_LOCKED" });
+      return;
+    }
+    res.json({ ok: true, person: { roomId: room.roomId, userId: targetUserId, locked: false } });
+  } catch (err) {
+    logger.error({ err }, "[world] person unlock failed");
+    res.status(500).json({ error: "That unlock didn't land — nothing was changed. Try again." });
+  }
+});
+
 router.get("/world/screen-catalog", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
