@@ -783,7 +783,9 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
    world code, and these pins hold them: spawn, board locations,
    caps, guest rules, and the honesty line on the districts. (The
    district pin below was deliberately revisited after the owner's
-   Stack-100 order built all six districts open — see its comment.) */
+   Stack-100 order built all six districts open, and Stack-28's
+   A6-K2 pass completed that revisit by naming them — see its
+   comment.) */
 describe("operator knowledge — Stack-26 open-world corrections", () => {
   const API_SRC = path.resolve(HERE, "..", "..");
 
@@ -880,20 +882,25 @@ describe("operator knowledge — Stack-26 open-world corrections", () => {
     expect(worldEntry().access).toBe("public");
   });
 
-  /* DELIBERATELY REVISITED — the pin this replaces said, in its own
+  /* DELIBERATELY REVISITED — twice. The original pin said, in its own
      words: "If a district ever opens, this pin is the one that
      should be revisited — deliberately." The owner ordered all six
      districts built and open (Stack-100 order, Oct 22, 2026;
-     overhaul items 31–36 delivered them), so this pin now holds the
-     delivered reality instead of the Phase-1 interim: each district
-     is a real room in the palace layout, each threshold an open
-     gate in a real wall gap, the closed districtGate( kit and its
-     "closed-for-now" bar gone from the scene builder — the same
-     facts the overhaul's own district-gates tests pin. The
-     honesty half survives unchanged in spirit: the base names none
-     of the districts, so the operator cannot describe them in any
-     way the code contradicts. */
-  it("the six districts are built and open, and the base does not contradict the code about them", () => {
+     overhaul items 31–36 delivered them), and the first revisit held
+     the delivered reality in code — real layout rooms, open gates,
+     the closed districtGate( kit gone — while the base still named
+     none of them. Stack-28 (A6-K2) completes the revisit the audit
+     ordered: naming the districts is now the owner-ordered,
+     code-proven truth, so the honesty half of this pin is DELIBERATELY
+     REVERSED — the world description (the page's own meta, moved
+     first) must now CONTAIN all six district names and say their
+     gates stand open, and it must still never say "closed". This is
+     a correction toward newer truth, not a weakening: the code-truth
+     half below is unchanged and still re-derived from the layout,
+     the gates file, and the scene builder. The description also
+     carries the A6-K7 minimum line — the palace desks mirror the
+     site's Create / Brand / Promote / Money features. */
+  it("the six districts are built and open, and the base now names them as open", () => {
     const layout = read(path.join(FE_SRC, "lib", "world", "palace-layout.ts"));
     for (const name of ["Stage Grounds", "Listening Gardens", "Creation Row", "The Ateliers", "The Boardwalk", "Creator Heights"]) {
       expect(layout).toContain(`name: "${name}"`);
@@ -917,9 +924,145 @@ describe("operator knowledge — Stack-26 open-world corrections", () => {
     expect(scene).not.toContain("closed-for-now");
 
     const desc = worldEntry().description ?? "";
+    // DELIBERATE REVERSAL (Stack-28, A6-K2 — see the comment above):
+    // the description must now name every district it could not name
+    // before, state that they stand open, and still never say closed.
     for (const name of ["Stage Grounds", "The Boardwalk", "Listening Gardens", "Creation Row", "The Ateliers", "Creator Heights"]) {
-      expect(desc).not.toContain(name);
+      expect(desc).toContain(name);
     }
+    expect(desc).toContain("stand open");
     expect(desc.toLowerCase()).not.toContain("closed");
+    // The K7 minimum line: the in-world desks mirror the site's desks.
+    expect(desc).toContain("palace desks mirror the site's Create, Brand, Promote and Money features");
+  });
+});
+
+/* Stack-28 — the KB integration pass (A6-K1/K3/K4/K5/K6). The grand
+   push's surfaces were component-level (a desk docked into /create +
+   /branding-kit, an admin panel inside world.tsx), so the generator's
+   route/page coverage never saw them: the operator had no Wallpapers &
+   Themes entry at all and no knowledge of World locks, while two
+   regen-only corrections (the stale background-removal endpoint name,
+   the unattributed social-publish prices) waited on the same pass.
+   These pins hold the integrated truth. */
+describe("operator knowledge — Stack-28 KB integration", () => {
+  const API_SRC = path.resolve(HERE, "..", "..");
+  const byId = (id: string) => OPERATOR_FEATURES.find((f) => f.id === id);
+
+  /* A6-K1: the Wallpapers & Themes desk is a first-class docked entry.
+     Its two registry prices ride the entry (branded render 0 / free,
+     screensaver loop render 400); the clean (unbranded) render's 400
+     is NOT a registry price for the endpoint — it is the override
+     variant, carried on the render price and sourced from the server
+     constant the rail charges. */
+  it("wallpapers & themes is a first-class entry at the registry prices, clean render as the override variant", () => {
+    const f = byId("wallpapers-desk")!;
+    expect(f).toBeTruthy();
+    expect(f.name).toBe("Wallpapers & Themes");
+    expect(f.path).toBe("/create?panel=wallpapers");
+    expect(f.description).toContain("King's Set starter pack");
+    expect(f.description).toContain("Branded renders are free");
+    const render = f.prices.find((p) => p.endpoint === "/api/wallpapers/render")!;
+    expect(render).toBeTruthy();
+    expect(render.vb).toBe(0);
+    expect(render.source).toContain("credit-costs.ts");
+    expect(render.variants).toEqual([
+      expect.objectContaining({ feature: "Wallpaper Render (clean — unbranded)", vb: 400 }),
+    ]);
+    expect(render.variants![0]!.source).toContain("CLEAN_RENDER_COST");
+    expect(render.variants![0]!.source).toContain("routes/wallpapers.ts");
+    const saver = f.prices.find((p) => p.endpoint === "/api/wallpapers/screensaver-render")!;
+    expect(saver).toBeTruthy();
+    expect(saver.vb).toBe(400);
+    // The facts the operator reads carry BOTH render prices, labelled:
+    const facts = formatFeatureFacts(f);
+    expect(facts).toContain("Wallpaper Render (branded — free) — free");
+    expect(facts).toContain("Wallpaper Render (clean — unbranded) — 400 Visual Bucs");
+    expect(facts).toContain("Screensaver Loop Render — 400 Visual Bucs");
+    // And the desk is the first match for its own name:
+    expect(findFeatures("wallpapers")[0]?.id).toBe("wallpapers-desk");
+  });
+
+  /* The screensaver constant cross-check is the SAFE pair (400 == 400).
+     CLEAN_RENDER_COST must never be cross-checked against the render
+     endpoint's 0-cost branded registry entry — that disagreement is
+     the variant's whole point, recorded on the entry above. */
+  it("the screensaver constant cross-checks, and the clean constant is not naively cross-checked", () => {
+    const saver = OPERATOR_KB.crossChecks.find((c: any) => c.constant === "SCREENSAVER_RENDER_COST");
+    expect(saver).toMatchObject({ endpoint: "/api/wallpapers/screensaver-render", serverValue: 400, registryValue: 400, agree: true });
+    expect(OPERATOR_KB.crossChecks.some((c: any) => c.constant === "CLEAN_RENDER_COST")).toBe(false);
+  });
+
+  /* A6-K3: World locks — the grounding entry. Door lock vs person
+     lock, the durations re-derived from the route file's own
+     constants (default 60 minutes = 1 hour; max 7 * 24 * 60 = 7
+     days), the "not a glitch" card, and all five lock rails on both
+     the docked entry and the World entry itself. Locks are free —
+     no price may ride either entry for them. */
+  it("world locks are known: door vs person, 1 hour default, 7 days max, not a glitch", () => {
+    const routes = read(path.join(API_SRC, "routes", "world.ts"));
+    expect(routes).toMatch(/WORLD_LOCK_DEFAULT_MINUTES\s*=\s*60\b/);
+    expect(routes).toMatch(/WORLD_LOCK_MAX_MINUTES\s*=\s*7\s*\*\s*24\s*\*\s*60\b/);
+
+    const f = byId("world-locks")!;
+    expect(f).toBeTruthy();
+    expect(f.path).toBe("/world");
+    expect(f.prices).toEqual([]);
+    expect(f.endpoints).toEqual([
+      "/api/world/locks",
+      "/api/world/locks/door/lock",
+      "/api/world/locks/door/unlock",
+      "/api/world/locks/person/lock",
+      "/api/world/locks/person/unlock",
+    ]);
+    expect(f.description).toContain("lock a room's door");
+    expect(f.description).toContain("people inside stay");
+    expect(f.description).toContain("lock one person out");
+    expect(f.description).toContain("1 hour by default");
+    expect(f.description).toContain("up to 7 days");
+    expect(f.description).toContain("not a glitch");
+
+    const world = OPERATOR_FEATURES.find((x) => x.path === "/world")!;
+    for (const ep of f.endpoints) expect(world.endpoints).toContain(ep);
+    expect(world.prices).toEqual([]);
+  });
+
+  /* A6-K4: the stale endpoint name is gone from every entry — the
+     rail is /api/remove-video-background, and the editor family that
+     calls it names the real one. */
+  it("no entry lists the stale /api/video-background-removal endpoint", () => {
+    for (const f of OPERATOR_FEATURES) {
+      expect(f.endpoints, f.id).not.toContain("/api/video-background-removal");
+      for (const p of f.prices) expect(p.endpoint).not.toBe("/api/video-background-removal");
+    }
+    const editor = byId("video-editor")!;
+    expect(editor.endpoints).toContain("/api/remove-video-background");
+  });
+
+  /* A6-K5: the social-publish rails (100 VB each in the registry)
+     are attributed — the scheduler family that calls them carries
+     all three — and the Templates Hub entry now carries the 250 VB
+     template-apply price its gallery sibling always had. */
+  it("social publish prices are attributed at 100 VB, and the templates hub carries the 250", () => {
+    for (const ep of ["/api/social/facebook/publish", "/api/social/instagram/publish", "/api/social/tiktok/publish"]) {
+      const carriers = OPERATOR_FEATURES.filter((f) => f.prices.some((p) => p.endpoint === ep && p.vb === 100));
+      expect(carriers.length, ep).toBeGreaterThan(0);
+    }
+    const scheduler = byId("scheduler")!;
+    for (const ep of ["/api/social/facebook/publish", "/api/social/instagram/publish", "/api/social/tiktok/publish"]) {
+      expect(scheduler.prices.find((p) => p.endpoint === ep)!.vb).toBe(100);
+    }
+    const hub = byId("templates")!;
+    expect(hub.prices.find((p) => p.endpoint === "/api/video-template/apply")!.vb).toBe(250);
+  });
+
+  /* A6-K6: the Create entry counts the lanes that exist — ten, since
+     the Wallpapers panel joined — sourced from en.json, not the KB. */
+  it("the create entry counts ten ways to start, not nine", () => {
+    const create = byId("create")!;
+    expect(create.description).toContain("ten ways to start");
+    expect(create.description).not.toContain("nine ways");
+    const en = JSON.parse(read(path.join(FE_SRC, "locales", "en.json")));
+    expect(en.create.subtitle).toContain("ten ways to start");
   });
 });

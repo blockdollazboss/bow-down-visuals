@@ -313,7 +313,7 @@ function ActionButton({
 }
 
 export default function WorldPage() {
-  usePageTitle("The World — The King's Plaza", "Step into the King's Plaza: the palace's front square — the hall's stage and big screen, and your people, are all right here.");
+  usePageTitle("The World — The King's Plaza", "Step into the King's Plaza, the palace's front square. Six districts stand open around it: Stage Grounds, Listening Gardens, Creation Row, The Ateliers, The Boardwalk and Creator Heights. Inside, palace desks mirror the site's Create, Brand, Promote and Money features.");
   const { user, getAccessToken } = useAuth();
   /* The lock cards speak the visitor's language (world.* keys) —
    * the one part of this page's chrome on the translation rails. */

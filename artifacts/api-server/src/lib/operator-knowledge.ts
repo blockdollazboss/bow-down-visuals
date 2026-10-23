@@ -27,6 +27,18 @@ export interface OperatorPriceTier {
   vb: number;
 }
 
+/** One override-form variant of a price (e.g. the clean, unbranded
+    form of a render whose branded form is free): a second price the
+    SAME endpoint charges, sourced at generation time from the server
+    constant the rail charges for that variant. `vb` on the parent
+    price stays the registry's base price — neither overwrites the
+    other, because they are different facts about one endpoint. */
+export interface OperatorPriceVariant {
+  feature: string;
+  vb: number;
+  source: string;
+}
+
 export interface OperatorPrice {
   feature: string;
   vb: number;
@@ -37,6 +49,10 @@ export interface OperatorPrice {
       the complete price the operator quotes. */
   tiers?: OperatorPriceTier[];
   tiersSource?: string;
+  /** Override-form variants of this endpoint's price (see
+      OperatorPriceVariant), when the rail charges differently for an
+      override form of the same job. */
+  variants?: OperatorPriceVariant[];
 }
 
 /** A dollar-priced advertising placement (the takeover offers). Dollars
@@ -345,6 +361,12 @@ export function formatFeatureFacts(f: OperatorFeature): string {
         lines.push(`  Price: ${p.feature} — priced by length: ${tiers}.`);
       } else {
         lines.push(`  Price: ${p.feature} — ${p.vb === 0 ? "free" : `${p.vb.toLocaleString("en-US")} Visual Bucs`}.`);
+        // An override-form variant is a second true price for the same
+        // endpoint (clean vs branded) — quote it as its own line so the
+        // base line never has to carry two figures at once.
+        for (const v of p.variants ?? []) {
+          lines.push(`  Price: ${v.feature} — ${v.vb === 0 ? "free" : `${v.vb.toLocaleString("en-US")} Visual Bucs`}.`);
+        }
       }
     }
   }
@@ -402,6 +424,9 @@ export const KNOWN_VB_FIGURES: ReadonlySet<number> = (() => {
       // carries them — a quoted 800 / 1,200 VB song price is knowledge,
       // not invention, exactly because the entry states the tiers.
       for (const t of p.tiers ?? []) set.add(t.vb);
+      // Variant figures likewise: vouched by the sourced variant the
+      // price entry carries (e.g. the clean render's 400).
+      for (const v of p.variants ?? []) set.add(v.vb);
     }
     if (f.description) {
       for (const m of f.description.matchAll(/(\d[\d,]*)\s*(?:VB|Visual Bucs)/g)) {
