@@ -44,3 +44,23 @@ describe("item 35 — DAW rail hexes join the §18 bg sweep (A4-D1)", () => {
     expect(pianoRoll).toContain("bg-[#171208]");
   });
 });
+
+describe("item 36 — text-amber-100 opacity ladder is complete (A4-D2)", () => {
+  it.each([
+    ["90", "0.92"],
+    ["80", "0.88"],
+    ["75", "0.86"],
+    ["70", "0.85"],
+    ["60", "0.8"],
+    ["50", "0.74"],
+    ["40", "0.68"],
+  ])("text-amber-100/%s deepens to stepped antique gold", (rung, alpha) => {
+    expect(css).toContain(
+      `.light .text-amber-100\\/${rung}${GUARDED} { color: rgb(138 107 31 / ${alpha}); }`,
+    );
+  });
+
+  it("the base rule is untouched", () => {
+    expect(css).toContain(`.light .text-amber-100${GUARDED},`);
+  });
+});

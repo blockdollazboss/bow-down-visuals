@@ -461,6 +461,19 @@ html, body {
 .light .text-amber-100:not([data-dark-lock]):not([data-dark-lock] *),
 .light .text-yellow-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 .light .text-amber-100\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.88); }
+/* Stack-28 (A4-D2): the amber-100 ladder stopped at /80 — /40–/75 and
+   /90 had no rule, so My Music's subtitle (/60), purchase-row meta
+   (/50) and receipt rows (/40) printed #FEF3C7 at partial alpha on
+   ivory cards (≈1.1–1.5:1, effectively invisible), as did the
+   DistributionLegacyPanels royalty lines (/70), LipSyncStudio (/75)
+   and GuideMe (/90). The ladder now runs the full shipped range on
+   the same stepped antique-gold alphas as the #e8c86a family. */
+.light .text-amber-100\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-amber-100\/75:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-amber-100\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.85); }
+.light .text-amber-100\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-amber-100\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+.light .text-amber-100\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
 .light .text-amber-200:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 .light .text-amber-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
 .light .text-amber-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.9); }
