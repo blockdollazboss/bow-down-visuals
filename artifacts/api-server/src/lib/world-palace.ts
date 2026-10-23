@@ -133,6 +133,19 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "The King's Plaza",
     bounds: { minX: -27.9, maxX: 27.9, minZ: 11.1, maxZ: 33.8 },
     spawn: { x: 0, z: 31.5 },
+    /* Grounds height table (Stack-100 #2 item 49): the two lawn
+     * panels — the only raised walkable ground on the plaza. The
+     * rects mirror the client plan exactly (palace-grounds.ts
+     * LAWN_PANELS, cx ±16.75 / cz 19.2, 20.5 × 11.0, grass top
+     * 0.05 — carried into palace-layout.ts as raised grounds);
+     * a parity test in world-palace.test.ts pins both tables to
+     * the same numbers. Everything else on the plaza stands at 0:
+     * the hall steps, terraces and monument plinth are solid
+     * masses (blocked client-side), never standing ground. */
+    grounds: [
+      { minX: -27.0, maxX: -6.5, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+      { minX: 6.5, maxX: 27.0, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+    ],
   },
   /* The second ring (palace follow-on): the front rooms flank the
    * stage end of the hall; the Branding Atelier mirrors the Game
@@ -170,6 +183,10 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "Stage Grounds",
     bounds: { minX: -54.4, maxX: -27.8, minZ: 9.6, maxZ: 36.4 },
     spawn: { x: -30.2, z: 19.5 },
+    /* Height table (item 49): the audience lawn (stage-grounds.ts
+     * AUDIENCE_LAWN, cx −40.5 / cz 23.0, 17.0 × 15.0, top 0.05).
+     * The stage platform is a blocked mass, not standing ground. */
+    grounds: [{ minX: -49.0, maxX: -32.0, minZ: 15.5, maxZ: 30.5, height: 0.05 }],
   },
   {
     /* Stage C item 32: THE LISTENING GARDENS — the second built
@@ -185,6 +202,10 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "Listening Gardens",
     bounds: { minX: -39.4, maxX: -12.6, minZ: 33.6, maxZ: 60.4 },
     spawn: { x: -26, z: 36.2 },
+    /* Height table (item 49): the parterre lawn (listening-
+     * gardens.ts PARTERRE_LAWN, cx −26.0 / cz 47.0, 17.0 × 15.0,
+     * top 0.05). */
+    grounds: [{ minX: -34.5, maxX: -17.5, minZ: 39.5, maxZ: 54.5, height: 0.05 }],
   },
   {
     /* Stage C item 33: CREATION ROW — the third built district,
@@ -235,6 +256,13 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     name: "The Boardwalk",
     bounds: { minX: -13.4, maxX: 28.6, minZ: 33.6, maxZ: 60.4 },
     spawn: { x: 0, z: 36.2 },
+    /* Height table (item 49): the whole quarter stands on its
+     * timber deck — boardwalk.ts DECK_PLANK.h 0.03, the deck top
+     * proud of the underlay across the main deck and both north
+     * strips alike. The rect is the union of the client's walk +
+     * grounds (x −12.65..27.85, z 34.35..59.65); the bandstand
+     * platform (0.45) is a blocked mass, not standing ground. */
+    grounds: [{ minX: -12.65, maxX: 27.85, minZ: 34.35, maxZ: 59.65, height: 0.03 }],
   },
   {
     /* Stage C item 36: CREATOR HEIGHTS — the sixth built

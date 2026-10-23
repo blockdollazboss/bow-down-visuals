@@ -1162,3 +1162,100 @@ describe("presence truth — identity eviction", () => {
     expect(worldIdentityKey(guest())).toBeNull();
   });
 });
+
+describe("height — the figure carries a real y (items 48/49/53)", () => {
+  /* A room with one raised patch: a 4×4 lawn at height 0.4. */
+  const lawnRoom = () =>
+    new WorldRoom(new RoomHub(), {}, {
+      grounds: [{ minX: -2, maxX: 2, minZ: -2, maxZ: 2, height: 0.4 }],
+    });
+
+  it("groundHeightAt reads the table: patch height inside, 0 outside, max on overlap", () => {
+    const room = new WorldRoom(new RoomHub(), {}, {
+      grounds: [
+        { minX: -2, maxX: 2, minZ: -2, maxZ: 2, height: 0.4 },
+        { minX: 0, maxX: 4, minZ: 0, maxZ: 4, height: 0.7 },
+      ],
+    });
+    expect(room.groundHeightAt(0, 0)).toBe(0.7); // overlap takes the higher surface
+    expect(room.groundHeightAt(-1, -1)).toBe(0.4);
+    expect(room.groundHeightAt(9, 9)).toBe(0);
+    expect(new WorldRoom(new RoomHub()).groundHeightAt(0, 0)).toBe(0); // flat room
+  });
+
+  it("spawn lands ON the ground at the spawn point (item 53)", () => {
+    const room = new WorldRoom(new RoomHub(), {}, {
+      spawn: { x: 0, z: 0 },
+      grounds: [{ minX: -6, maxX: 6, minZ: -6, maxZ: 6, height: 0.4 }],
+    });
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"));
+    /* The spawn arc offsets x by (slot − 4.5) × 1.1 — still on the patch. */
+    expect(room.peerFor(a)!.y).toBe(0.4);
+    const welcome = a.sent.find((m) => m.type === "welcome");
+    expect(welcome.you.y).toBe(0.4);
+  });
+
+  it("a doorway landing (carry.at) settles at the DESTINATION's ground height (item 53)", () => {
+    const room = lawnRoom();
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"), { at: { x: 0, z: 0 } });
+    expect(room.peerFor(a)!.y).toBe(0.4);
+    const b = fakeSocket();
+    room.attach(b, member("Beta"), { at: { x: 8, z: 8 } });
+    expect(room.peerFor(b)!.y).toBe(0);
+  });
+
+  it("a claimed y within a step of the ground stands and broadcasts (item 48)", () => {
+    const room = lawnRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+    /* On the lawn (ground 0.4), mid-ease at 0.55 — inside the
+     * step-up tolerance (0.4 + 0.65), so the claim is believed. */
+    frame(a, room, { type: "move", x: 0, z: 0, y: 0.55, rotY: 0 }, 10_000);
+    const move = b.sent.find((m) => m.type === "peer.move");
+    expect(move.y).toBe(0.55);
+    expect(room.peerFor(a)!.y).toBe(0.55);
+  });
+
+  it("a claimed y beyond tolerance clamps TO the honest ground — the move still lands (item 49)", () => {
+    const room = lawnRoom();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+    /* Flying over the lawn: y 5 is no step from 0.4 — snapped to it. */
+    frame(a, room, { type: "move", x: 0, z: 0, y: 5, rotY: 0 }, 10_000);
+    let move = b.sent.filter((m) => m.type === "peer.move").pop();
+    expect(move.y).toBe(0.4);
+    expect(move.x).toBe(0); // clamped, never rejected
+    /* Buried under the flat floor: y −3 off the lawn snaps to 0. */
+    frame(a, room, { type: "move", x: 8, z: 8, y: -3, rotY: 0 }, 10_200);
+    move = b.sent.filter((m) => m.type === "peer.move").pop();
+    expect(move.y).toBe(0);
+    expect(room.peerFor(a)!.y).toBe(0);
+  });
+
+  it("a move with no y keeps the last truthful height (legacy clients walk flat)", () => {
+    const room = lawnRoom();
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"), { at: { x: 0, z: 0 } });
+    expect(room.peerFor(a)!.y).toBe(0.4);
+    frame(a, room, { type: "move", x: 1, z: 1, rotY: 0 }, 10_000);
+    expect(room.peerFor(a)!.y).toBe(0.4);
+  });
+
+  it("the DTO carries the height to late joiners' snapshots", () => {
+    const room = lawnRoom();
+    const a = fakeSocket();
+    room.attach(a, member("Alpha"), { at: { x: 0, z: 0 } });
+    const b = fakeSocket();
+    room.attach(b, member("Beta"));
+    const welcome = b.sent.find((m) => m.type === "welcome");
+    expect(welcome.peers.find((p: any) => p.displayName === "Alpha").y).toBe(0.4);
+  });
+});

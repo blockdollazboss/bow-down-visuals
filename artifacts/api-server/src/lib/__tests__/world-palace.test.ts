@@ -921,3 +921,63 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     palace.dispose();
   });
 });
+
+describe("grounds height tables (Stack-100 #2 item 49) — the server mirrors the client plan", () => {
+  /* The client authors these heights in its floor plan; the FE
+   * pins the same literals from its side (palace-layout.test.ts),
+   * so the two tables can never drift apart silently. Sources:
+   * lawns — palace-grounds.ts LAWN_PANELS / stage-grounds.ts
+   * AUDIENCE_LAWN / listening-gardens.ts PARTERRE_LAWN (grass top
+   * 0.05); the Boardwalk deck — boardwalk.ts DECK_PLANK.h 0.03
+   * across the union of its walk + grounds rects. */
+  it("pins every room's authored grounds rects", () => {
+    const groundsOf = (roomId: string) =>
+      PALACE_ROOM_DEFS.find((d) => d.roomId === roomId)?.grounds;
+    expect(groundsOf(PLAZA)).toEqual([
+      { minX: -27.0, maxX: -6.5, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+      { minX: 6.5, maxX: 27.0, minZ: 13.7, maxZ: 24.7, height: 0.05 },
+    ]);
+    expect(groundsOf("world:stage-grounds")).toEqual([
+      { minX: -49.0, maxX: -32.0, minZ: 15.5, maxZ: 30.5, height: 0.05 },
+    ]);
+    expect(groundsOf("world:listening-gardens")).toEqual([
+      { minX: -34.5, maxX: -17.5, minZ: 39.5, maxZ: 54.5, height: 0.05 },
+    ]);
+    expect(groundsOf("world:boardwalk")).toEqual([
+      { minX: -12.65, maxX: 27.85, minZ: 34.35, maxZ: 59.65, height: 0.03 },
+    ]);
+    /* Every other room is flat: no table, height 0 everywhere. */
+    for (const def of PALACE_ROOM_DEFS) {
+      if (
+        ![PLAZA, "world:stage-grounds", "world:listening-gardens", "world:boardwalk"].includes(
+          def.roomId,
+        )
+      ) {
+        expect(def.grounds).toBeUndefined();
+      }
+    }
+  });
+
+  it("the plaza spawn stands at 0 (the promenade), a lawn walker at 0.05", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const a = fakeSocket();
+    enter(palace, a, "Alpha");
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0);
+    /* Alpha strolls onto the west lawn and claims its height. */
+    frame(palace, a, { type: "move", x: -16.75, z: 19.2, y: 0.05, rotY: 0 }, 10_000);
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0.05);
+    /* A flying claim over the lawn snaps back to the grass. */
+    frame(palace, a, { type: "move", x: -16.75, z: 19.2, y: 4, rotY: 0 }, 10_200);
+    expect(palace.plazaRoom.peerFor(a)!.y).toBe(0.05);
+  });
+
+  it("a doorway transfer onto the Boardwalk settles at deck height (item 53)", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    frame(palace, b, { type: "room.enter", roomId: "world:boardwalk", x: 0, z: 36.2 });
+    const welcome = b.sent.filter((m) => m.type === "welcome").pop();
+    expect(welcome.you.y).toBe(0.03);
+    expect(palace.room("world:boardwalk")!.peerFor(b)!.y).toBe(0.03);
+  });
+});
