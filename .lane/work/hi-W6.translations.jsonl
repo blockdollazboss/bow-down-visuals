@@ -1,0 +1,421 @@
+{"milestones.loadFailed": "मील के पत्थर लोड नहीं हो सके।"}
+{"milestones.invalidCount": "एक मान्य स्ट्रीम संख्या दर्ज करें।"}
+{"milestones.logFailed": "वह मील का पत्थर दर्ज नहीं हो सका।"}
+{"milestones.logged": "मील का पत्थर दर्ज हो गया।"}
+{"milestones.loggedWithAward": "मील का पत्थर दर्ज — {{award}} अनलॉक!"}
+{"milestones.importFailed": "आयात विफल।"}
+{"milestones.imported": "{{imported}} आयात हुए, {{skipped}} छोड़े गए।"}
+{"milestones.nextUp": "अगला: {{label}}"}
+{"milestones.streams": "स्ट्रीम"}
+{"milestones.loggedFrom": "{{source}} के माध्यम से"}
+{"milestones.manual": "मैन्युअल"}
+{"milestones.celebrateCaption": "\"{{title}}\" अभी {{streams}} स्ट्रीम पर पहुँचा — जश्न में मेरी मदद करें!"}
+{"milestones.artistPlaceholder": "कलाकार का नाम"}
+{"milestones.card": "मील का पत्थर कार्ड"}
+{"milestones.cardTitle": "मील का पत्थर कार्ड डाउनलोड करें"}
+{"milestones.celebrate": "जश्न मनाएँ"}
+{"milestones.chooseFile": "CSV फ़ाइल चुनें"}
+{"milestones.countPlaceholder": "स्ट्रीम संख्या"}
+{"milestones.csvHelp": "ट्रैक, कलाकार, स्ट्रीम कॉलम वाली CSV।"}
+{"milestones.empty": "अभी कोई मील का पत्थर नहीं। अपनी पहली जीत दर्ज करें।"}
+{"milestones.history": "इतिहास"}
+{"milestones.honesty": "केवल असली संख्याएँ — चीट कोड स्ट्रीम नकली नहीं बनाता।"}
+{"milestones.importButton": "आयात करें"}
+{"milestones.importCsv": "CSV आयात करें"}
+{"milestones.importing": "आयात हो रहा है…"}
+{"milestones.loading": "लोड हो रहा है…"}
+{"milestones.logButton": "मील का पत्थर दर्ज करें"}
+{"milestones.logTitle": "एक मील का पत्थर दर्ज करें"}
+{"milestones.logging": "दर्ज हो रहा है…"}
+{"milestones.maxTier": "अधिकतम स्तर प्राप्त"}
+{"milestones.signIn": "मील के पत्थर ट्रैक करने के लिए साइन इन करें।"}
+{"milestones.signInCta": "साइन इन"}
+{"milestones.trackPlaceholder": "ट्रैक का शीर्षक"}
+{"milestones.unranked": "अश्रेणीबद्ध"}
+{"milestones.yourRace": "आपकी दौड़"}
+{"milestones.bragButton": "शेखी बघारें"}
+{"milestones.bragButtonWith": "{{headline}} की शेखी बघारें"}
+{"milestones.bragPrompt": "आपको {{label}} मिला — शेखी बघारें"}
+{"milestones.bragTitle": "शेखी बघारें"}
+{"milestones.bragHeadline": "{{headline}} — पक्का हो गया।"}
+{"milestones.bragRendering": "आपका शेखी कार्ड बन रहा है…"}
+{"milestones.bragAlt": "मील का पत्थर शेखी कार्ड: {{headline}}"}
+{"milestones.bragCaptionLabel": "कैप्शन"}
+{"milestones.bragPostToFeed": "BDV फ़ीड में पोस्ट करें"}
+{"milestones.bragPosting": "पोस्ट हो रहा है…"}
+{"milestones.bragPostedShort": "पोस्ट हुआ"}
+{"milestones.bragPosted": "आपकी टाइमलाइन पर पोस्ट हुआ"}
+{"milestones.bragViewFeed": "फ़ीड देखें"}
+{"milestones.bragShare": "साझा करें"}
+{"milestones.bragShareTitle": "मेरा मील का पत्थर"}
+{"milestones.bragCopyCaption": "कैप्शन कॉपी करें"}
+{"milestones.bragCopied": "कॉपी हुआ"}
+{"milestones.bragDownload": "PNG डाउनलोड करें"}
+{"milestones.bragDownloaded": "कार्ड डाउनलोड हुआ — शानदार लग रहा है।"}
+{"milestones.bragDesktopFallback": "कैप्शन कॉपी हुआ और कार्ड डाउनलोड हुआ — इसे अपनी X / IG / TikTok पोस्ट में जोड़ें।"}
+{"milestones.bragFootnote": "हर कार्ड पर Made with Bow Down Visuals + एक साइन-अप लिंक होता है — आपकी जीत आपके अगले प्रशंसक को भर्ती करती है।"}
+{"milestones.bragClose": "बंद करें"}
+{"milestones.bragRenderFailed": "कार्ड नहीं बन सका — फिर से कोशिश करें।"}
+{"milestones.bragUploadFailed": "कार्ड अपलोड नहीं हो सका — फिर से कोशिश करें।"}
+{"milestones.bragPostFailed": "पोस्ट नहीं हो सका — फिर से कोशिश करें।"}
+{"milestones.bragShareFailed": "शेयर शीट नहीं खुल सकी — फिर से कोशिश करें।"}
+{"milestones.trophyShelf": "ट्रॉफ़ी शेल्फ़"}
+{"milestones.trophyShelfSub": "Bow Down Visuals के साथ अनलॉक किए गए मील के पत्थर"}
+{"lufs.waveformUnavailable": "वेवफ़ॉर्म उपलब्ध नहीं"}
+{"lufs.errorJobNotFound": "कार्य नहीं मिला — शायद समाप्त हो गया हो।"}
+{"lufs.errorNormalizeFailed": "सामान्यीकरण विफल — आपको रिफ़ंड मिल गया।"}
+{"lufs.analyzeError": "यह फ़ाइल विश्लेषण नहीं हो सकी। कोई अन्य ऑडियो फ़ाइल आज़माएँ।"}
+{"lufs.errorNetwork": "नेटवर्क विफल — फिर से कोशिश करें।"}
+{"lufs.errorAudioType": "एक ऑडियो फ़ाइल चुनें (MP3, WAV, M4A, AAC, OGG, FLAC)।"}
+{"lufs.errorFileTooLarge": "वह फ़ाइल 50 MB से बड़ी है। उसे छोटा करें या छोटी फ़ाइल चुनें।"}
+{"lufs.errorStartFailed": "सामान्यीकरण शुरू नहीं हो सका। फिर से कोशिश करें।"}
+{"lufs.meterDecodeError": "लाइव मीटरिंग के लिए यह फ़ाइल डीकोड नहीं हो सकी।"}
+{"lufs.title": "LUFS लाउडनेस मीटर"}
+{"lufs.subtitle": "असली लाउडनेस मापें, फिर स्ट्रीमिंग लक्ष्यों पर सामान्य करें — प्रति सामान्यीकरण {cost} VB। विश्लेषण मुफ़्त है।"}
+{"lufs.honestIntro": "लाउडनेस LUFS में मापी जाती है — आपका ट्रैक वास्तव में कितना तेज़ लगता है, न कि केवल उसका पीक स्तर।"}
+{"lufs.honestStrong": "विश्लेषण मुफ़्त है; सामान्यीकरण आउटपुट को फिर से मापता है ताकि संख्याएँ असली हों।"}
+{"lufs.dropPrompt": "अपना ऑडियो यहाँ डालें या अपलोड करने के लिए टैप करें"}
+{"lufs.dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — 50 MB तक"}
+{"lufs.changeFile": "फ़ाइल बदलें"}
+{"lufs.statIntegrated": "एकीकृत"}
+{"lufs.statLra": "लाउडनेस रेंज"}
+{"lufs.statTruePeak": "ट्रू पीक"}
+{"lufs.eburLabel": "क्षणिक / लघु-अवधि (सर्वर पर मापा गया)"}
+{"lufs.momentary": "क्षणिक"}
+{"lufs.shortTerm": "लघु-अवधि"}
+{"lufs.eburHint": "पूरे ट्रैक पर अधिकतम / औसत।"}
+{"lufs.liveMeterTitle": "लाइव मीटर (ब्राउज़र)"}
+{"lufs.liveMeterNote": "फ़ाइल चलने के दौरान K-भारित वास्तविक-समय अनुमान — बिना गेटिंग के, अनुभव के लिए। ऊपर सर्वर का एकीकृत नंबर आधिकारिक है।"}
+{"lufs.liveMeterStop": "रोकें"}
+{"lufs.liveMeterPlay": "लाइव मीटर चलाएँ"}
+{"lufs.targetLabel": "सामान्यीकरण लक्ष्य"}
+{"lufs.formatLabel": "आउटपुट प्रारूप"}
+{"lufs.normalizeButton": "{target} LUFS पर सामान्य करें · {cost} VB"}
+{"lufs.creditsRemaining": "{n} Visual Bucs शेष"}
+{"lufs.statusUploading": "अपलोड हो रहा है…"}
+{"lufs.statusQueued": "कतार में — कार्य सर्वर पर चलता है, आप यह टैब छोड़ सकते हैं।"}
+{"lufs.statusProcessing": "{target} LUFS पर सामान्य हो रहा है…"}
+{"lufs.progressNote": "दो-पास लाउडनेस सामान्यीकरण: मापें, सुधारें, फिर आउटपुट फिर से मापें।"}
+{"lufs.analyzing": "लाउडनेस मापा जा रहा है…"}
+{"lufs.normalizeComplete": "{target} LUFS पर सामान्य हुआ"}
+{"lufs.before": "पहले"}
+{"lufs.after": "बाद में"}
+{"lufs.abOriginal": "मूल"}
+{"lufs.abNormalized": "सामान्यीकृत"}
+{"lufs.pause": "रोकें"}
+{"lufs.play": "चलाएँ"}
+{"lufs.labelOriginal": "मूल"}
+{"lufs.labelNormalized": "सामान्यीकृत"}
+{"lufs.abHint": "दोनों के बीच स्विच करें — प्लेबैक स्थिति बनी रहती है।"}
+{"lufs.downloadButton": "डाउनलोड"}
+{"lufs.newButton": "नई फ़ाइल"}
+{"lufs.handoffTitle": "अगला कदम"}
+{"lufs.handoffMaster": "मास्टर टैब में भेजें →"}
+{"lufs.handoffDistribute": "इसे वितरित करें →"}
+{"presave.badgeOut": "अभी उपलब्ध"}
+{"presave.dropsSoon": "रिलीज़ तारीख़ जल्द आ रही है"}
+{"presave.outNow": "अभी उपलब्ध — जाकर सुनें!"}
+{"presave.cdDays": "दिन"}
+{"presave.cdHours": "घंटे"}
+{"presave.cdMins": "मिनट"}
+{"presave.cdSecs": "सेकंड"}
+{"presave.fansCount": "प्रशंसकों ने इसे प्री-सेव किया"}
+{"presave.sharesCount": "शेयर"}
+{"presave.followCta": "इसे प्री-सेव करें + रिलीज़ के दिन सूचना पाएँ"}
+{"presave.followCtaOut": "नए गानों के लिए प्रशंसक सूची में शामिल हों"}
+{"presave.followBlurb": "अपना ईमेल छोड़ें — हम आपको कलाकार की प्रशंसक सूची में जोड़ते हैं (मुफ़्त)।"}
+{"presave.emailPlaceholder": "आपका ईमेल"}
+{"presave.namePlaceholder": "आपका नाम (वैकल्पिक)"}
+{"presave.followBtn": "मुझे प्री-सेव करें"}
+{"presave.followBtnOut": "सूची में शामिल हों"}
+{"presave.saving": "सेव हो रहा है…"}
+{"presave.followed": "आप सूची में हैं! {{artist}} रिलीज़ के दिन आपको ईमेल करेगा।"}
+{"presave.alreadyFollowing": "आप पहले से {{artist}} की सूची में हैं — रिलीज़ के दिन मिलते हैं!"}
+{"presave.notifyNote": "संगीत रिलीज़ होते ही आपको एक ईमेल मिलेगा। कोई स्पैम नहीं, कभी नहीं।"}
+{"presave.invalidEmail": "एक मान्य ईमेल दर्ज करें।"}
+{"presave.followFailed": "आपका प्री-सेव सेव नहीं हो सका — फिर से कोशिश करें।"}
+{"presave.platformsCta": "रिलीज़ के दिन उन्हें फ़ॉलो करें"}
+{"presave.streamNowOn": "अभी स्ट्रीम करें"}
+{"presave.streamOn": "{{platform}} पर स्ट्रीम करें"}
+{"presave.followOn": "{{platform}} पर प्राप्त करें"}
+{"presave.shareTitle": "बात फैलाएँ"}
+{"presave.shareToUnlock": "बोनस सामग्री अनलॉक करने के लिए साझा करें"}
+{"presave.unlockBlurb": "इस रिलीज़ को कहीं भी साझा करें और कलाकार से विशेष बोनस सामग्री अनलॉक करें।"}
+{"presave.openBonus": "अपनी बोनस सामग्री खोलें"}
+{"presave.shareText": "{{artist}} का \"{{title}}\" जल्द आ रहा है — इसे प्री-सेव करें"}
+{"presave.shareTextOut": "{{artist}} का \"{{title}}\" अभी उपलब्ध है — जाकर सुनें"}
+{"presave.copyLink": "लिंक कॉपी करें"}
+{"presave.copied": "कॉपी हुआ!"}
+{"presave.postToX": "X पर पोस्ट करें"}
+{"presave.shareRelease": "यह रिलीज़ साझा करें"}
+{"presave.artistCta": "क्या आप कलाकार हैं?"}
+{"presave.promoteRelease": "इस रिलीज़ का प्रचार करें →"}
+{"presave.artworkAlt": "\"{{title}}\" की कलाकृति"}
+{"presave.badge": "प्री-सेव"}
+{"presave.drops": "{{date}} को रिलीज़"}
+{"presave.errors.loadFailed": "यह रिलीज़ लोड नहीं हो सकी।"}
+{"presave.errors.notFound": "यह प्री-सेव लिंक मौजूद नहीं है।"}
+{"presave.footer": "Thy Cheat Code द्वारा संचालित — कंटेंट क्रिएटर का चीट कोड।"}
+{"presave.loading": "रिलीज़ लोड हो रही है…"}
+{"presave.platformsTitle": "रिलीज़ के दिन हर जगह उपलब्ध"}
+{"stabilize.title": "स्थिर करें"}
+{"stabilize.subtitle": "हिलते वीडियो को स्मूद करें — दो-पास vidstab, एक टैप"}
+{"stabilize.priceBadge": "{cost} VB / स्थिरीकरण"}
+{"stabilize.noClipsTitle": "स्थिर करने के लिए कोई क्लिप नहीं"}
+{"stabilize.noClipsBody": "पहले किसी दृश्य में वीडियो क्लिप जोड़ें, फिर कंपन स्मूद करें।"}
+{"stabilize.clipToStabilize": "स्थिर करने के लिए क्लिप"}
+{"stabilize.fineTune": "बारीक समायोजन (वैकल्पिक)"}
+{"stabilize.resetDefaults": "डिफ़ॉल्ट रीसेट करें"}
+{"stabilize.shakeHandling": "कंपन प्रबंधन"}
+{"stabilize.shakeHelp": "अधिक मान अधिक कंपन संभालता है।"}
+{"stabilize.shakeHigh": "अधिकतम कंपन प्रबंधन"}
+{"stabilize.shakeMid": "संतुलित कंपन प्रबंधन"}
+{"stabilize.shakeLow": "हल्का स्पर्श"}
+{"stabilize.smoothness": "स्मूदनेस"}
+{"stabilize.smoothHelp": "अधिक स्मूद, लेकिन अधिक क्रॉप करता है।"}
+{"stabilize.smoothHigh": "मक्खन-जैसा स्मूद (अधिक क्रॉप)"}
+{"stabilize.smoothMid": "संतुलित स्मूदनेस"}
+{"stabilize.smoothLow": "सूक्ष्म स्मूदिंग"}
+{"stabilize.stabilizeButton": "स्थिर करें · {cost} VB"}
+{"stabilize.stabilizingButton": "स्थिर हो रहा है…"}
+{"stabilize.stabilizingNote": "दो-पास स्थिरीकरण में एक मिनट लग सकता है।"}
+{"stabilize.resultTitle": "स्थिर हो गया"}
+{"stabilize.useInEditor": "एडिटर में उपयोग करें"}
+{"stabilize.attaching": "जोड़ा जा रहा है…"}
+{"stabilize.useInExport": "निर्यात में उपयोग करें"}
+{"stabilize.download": "डाउनलोड"}
+{"stabilize.successToast": "क्लिप स्थिर हुआ"}
+{"stabilize.successToastDesc": "आपकी स्मूद की गई क्लिप तैयार है।"}
+{"stabilize.timelineToast": "टाइमलाइन में जोड़ा गया"}
+{"stabilize.timelineToastDesc": "स्थिर क्लिप ने दृश्य की क्लिप को बदल दिया।"}
+{"stabilize.errorGeneric": "स्थिरीकरण विफल — फिर से कोशिश करें।"}
+{"create.pageTitle": "बनाएँ"}
+{"create.pageDescription": "कुछ भी शुरू करें: एक गाना + वीडियो, एक गाना, एक वीडियो, या निर्देशित क्रिएशन हब।"}
+{"create.subtitle": "एक स्टूडियो, शुरू करने के दस तरीके। एक लेन चुनें — हर तैयार कृति अपने स्वाभाविक अगले कदम में बहती है।"}
+{"create.backToDashboard": "डैशबोर्ड पर वापस"}
+{"create.modes.songVideo": "गाना + वीडियो"}
+{"create.modes.songVideoBlurb": "ट्रैक और दृश्य, एक ही प्रवाह"}
+{"create.modes.song": "गाना"}
+{"create.modes.songBlurb": "प्रॉम्प्ट से AI गाना"}
+{"create.modes.video": "वीडियो"}
+{"create.modes.videoBlurb": "आपकी ध्वनि के लिए बने क्लिप"}
+{"create.modes.hub": "क्रिएशन हब"}
+{"create.modes.hubBlurb": "सभी उपकरण, एक बोर्ड"}
+{"create.modes.cartoon": "कार्टून"}
+{"create.modes.cartoonBlurb": "कार्टून स्टूडियो"}
+{"create.modes.coverArt": "कवर आर्ट"}
+{"create.modes.coverArtBlurb": "अलग दिखने वाला कवर आर्ट"}
+{"create.modes.dreamCollab": "ड्रीम कोलैब"}
+{"create.modes.dreamCollabBlurb": "AI कलाकारों के साथ बनाएँ"}
+{"create.modes.linkToHit": "लिंक से हिट"}
+{"create.modes.linkToHitBlurb": "किसी भी लिंक को हिट में बदलें"}
+{"create.modes.coverMotion": "कवर मोशन"}
+{"create.modes.coverMotionBlurb": "कवर आर्ट को जीवंत करें"}
+{"privacy.contactSupport": "संपर्क / सहायता"}
+{"privacy.lastUpdated": "अंतिम अद्यतन: सितंबर 2026"}
+{"privacy.pageDescription": "Bow Down Visuals आपके डेटा को कैसे संभालता है।"}
+{"privacy.pageTitle": "गोपनीयता नीति"}
+{"privacy.section10ContactLink": "संपर्क पृष्ठ"}
+{"privacy.section10Intro": "गोपनीयता प्रश्न? ईमेल करें"}
+{"privacy.section10Middle": "या हमारा देखें"}
+{"privacy.section10Title": "10. संपर्क"}
+{"privacy.section1Body": "Bow Down Visuals एक डिजिटल क्रिएटर प्लेटफ़ॉर्म चलाता है जो AI Visual Bucs से वीडियो, संगीत, छवियाँ, वॉयसओवर, लिप-सिंक वीडियो, गीत, कैप्शन, थंबनेल, प्रोमो क्लिप और संबंधित डिजिटल सामग्री बनाता है। यह नीति बताती है कि हम आपकी जानकारी कैसे एकत्र, उपयोग और सुरक्षित करते हैं।"}
+{"privacy.section1Title": "1. हम कौन हैं"}
+{"privacy.section2Item1Body": "साइन अप करते समय ईमेल पता और पासवर्ड (हैश किया हुआ), या Google से साइन इन करने पर बुनियादी Google प्रोफ़ाइल जानकारी"}
+{"privacy.section2Item1Label": "खाता जानकारी:"}
+{"privacy.section2Item2Body": "पूरी तरह Stripe द्वारा संभाली जाती है — हम कभी कच्चे कार्ड नंबर संग्रहीत नहीं करते"}
+{"privacy.section2Item2Label": "बिलिंग जानकारी:"}
+{"privacy.section2Item3Body": "Visual Bucs का उपयोग, उपकरण इंटरैक्शन और जेनरेट की गई सामग्री के प्रॉम्प्ट"}
+{"privacy.section2Item3Label": "उपयोग डेटा:"}
+{"privacy.section2Item4Body": "AI आउटपुट को निजीकृत करने के लिए दर्ज की गई जानकारी (मंच नाम, शैली, स्टाइल प्राथमिकताएँ)"}
+{"privacy.section2Item4Label": "कलाकार प्रोफ़ाइल डेटा:"}
+{"privacy.section2Item5Body": "साइन-अप पर उपयोग किए गए रेफ़रल कोड और अर्जित रेफ़रल पुरस्कार"}
+{"privacy.section2Item5Label": "रेफ़रल डेटा:"}
+{"privacy.section2Item6Body": "सुरक्षा और प्रदर्शन के लिए ब्राउज़र प्रकार, IP पता और सत्र डेटा"}
+{"privacy.section2Item6Label": "तकनीकी डेटा:"}
+{"privacy.section2Title": "2. हम कौन सी जानकारी एकत्र करते हैं"}
+{"privacy.section3Item1": "प्लेटफ़ॉर्म चलाने और सुधारने के लिए"}
+{"privacy.section3Item2": "भुगतान संसाधित करने और सदस्यताएँ प्रबंधित करने के लिए"}
+{"privacy.section3Item3": "आपकी कलाकार प्रोफ़ाइल के अनुसार AI-जनित आउटपुट को निजीकृत करने के लिए"}
+{"privacy.section3Item4": "खाता-संबंधी ईमेल भेजने के लिए (रसीदें, सुरक्षा अलर्ट)"}
+{"privacy.section3Item5": "कानूनी दायित्वों का पालन करने के लिए"}
+{"privacy.section3Title": "3. हम आपकी जानकारी का उपयोग कैसे करते हैं"}
+{"privacy.section4Intro": "हम आपका व्यक्तिगत डेटा नहीं बेचते। हम डेटा केवल इनके साथ साझा करते हैं:"}
+{"privacy.section4Item1Body": "भुगतान प्रसंस्करण"}
+{"privacy.section4Item2Body": "डेटाबेस और प्रमाणीकरण"}
+{"privacy.section4Item3Body": "यदि आप Google से साइन इन करते हैं (Google की गोपनीयता नीति के अधीन)"}
+{"privacy.section4Item4Body": "जनरेशन अनुरोध चलाने के लिए (प्रॉम्प्ट तृतीय-पक्ष AI API द्वारा संसाधित हो सकते हैं)"}
+{"privacy.section4Item4Label": "AI प्रदाता"}
+{"privacy.section4Item5": "लागू कानून द्वारा आवश्यक होने पर प्राधिकरण"}
+{"privacy.section4Title": "4. डेटा साझाकरण"}
+{"privacy.section5Body": "हम प्रमाणीकरण के लिए आवश्यक सत्र कुकीज़ का उपयोग करते हैं। हम कोई तृतीय-पक्ष विज्ञापन ट्रैकर नहीं चलाते। विश्लेषण, यदि उपयोग किया जाता है, तो केवल समेकित उपयोग डेटा तक सीमित है।"}
+{"privacy.section5Title": "5. कुकीज़ और ट्रैकिंग"}
+{"privacy.section6Body": "जब तक आपका खाता सक्रिय है, हम आपका खाता डेटा रखते हैं। आप हमसे संपर्क करके कभी भी हटाने का अनुरोध कर सकते हैं। बिलिंग रिकॉर्ड कानून के अनुसार रखे जाते हैं।"}
+{"privacy.section6Title": "6. डेटा प्रतिधारण"}
+{"privacy.section7Intro": "आपके स्थान के आधार पर, आपको अपने व्यक्तिगत डेटा तक पहुँचने, उसे सुधारने या हटाने का अधिकार हो सकता है। इनमें से किसी भी अधिकार का प्रयोग करने के लिए, हमसे संपर्क करें"}
+{"privacy.section7Title": "7. आपके अधिकार"}
+{"privacy.section8Body": "हम उद्योग-मानक सुरक्षा उपायों का उपयोग करते हैं, जिनमें एन्क्रिप्टेड कनेक्शन (HTTPS), हैश किए गए पासवर्ड और हमारे डेटाबेस में पंक्ति-स्तरीय सुरक्षा शामिल है। कोई भी प्रणाली 100% सुरक्षित नहीं है; अपने खाते के लिए मज़बूत, अद्वितीय पासवर्ड का उपयोग करें।"}
+{"privacy.section8Title": "8. सुरक्षा"}
+{"privacy.section9Body": "हम समय-समय पर इस नीति को अद्यतन कर सकते हैं। हम आपको ईमेल या इन-ऐप सूचना द्वारा महत्वपूर्ण बदलावों की सूचना देंगे।"}
+{"privacy.section9Title": "9. इस नीति में बदलाव"}
+{"privacy.title": "गोपनीयता नीति"}
+{"promote.copyLabel": "{{label}} कॉपी करें"}
+{"promote.copy": "कॉपी करें"}
+{"promote.copied": "कॉपी हुआ"}
+{"promote.hero.subtitle": "एक सुविधा, एक प्रारूप और एक टोन चुनें — हैशटैग और CTA के साथ पोस्ट-तैयार कॉपी पाएँ। प्रति जनरेशन {{cost}} Visual Buc।"}
+{"promote.hero.back": "सभी सुविधाओं पर वापस"}
+{"promote.form.feature": "प्रचार करने की सुविधा"}
+{"promote.form.contentType": "सामग्री प्रकार"}
+{"promote.form.tone": "टोन"}
+{"promote.form.angle": "ज़ोर देने का कोण"}
+{"promote.form.optional": "(वैकल्पिक)"}
+{"promote.form.focusPlaceholder": "जैसे 1 Visual Buc की कीमत, यह कितना तेज़ है, नए कलाकारों के लिए बिल्कुल सही…"}
+{"promote.contentTypes.twitter.label": "X पोस्ट"}
+{"promote.contentTypes.twitter.blurb": "रीपोस्ट के लिए बना दमदार पोस्ट"}
+{"promote.contentTypes.instagram.label": "IG कैप्शन"}
+{"promote.contentTypes.instagram.blurb": "आकर्षक कैप्शन + हैशटैग"}
+{"promote.contentTypes.tiktok.label": "TikTok स्क्रिप्ट"}
+{"promote.contentTypes.tiktok.blurb": "हुक + बीट्स, बोली जाने वाली शैली"}
+{"promote.contentTypes.email.label": "ईमेल ब्लास्ट"}
+{"promote.contentTypes.email.blurb": "विषय पंक्ति + छोटा मुख्य भाग"}
+{"promote.contentTypes.banner.label": "बैनर हेडलाइन"}
+{"promote.contentTypes.banner.blurb": "5 स्क्रॉल-रोकने वाली"}
+{"promote.contentTypes.ad.label": "विज्ञापन कॉपी"}
+{"promote.contentTypes.ad.blurb": "हेडलाइन + मुख्य पाठ"}
+{"promote.tones.hype": "हाइप"}
+{"promote.tones.professional": "पेशेवर"}
+{"promote.tones.funny": "मज़ेदार"}
+{"promote.tones.luxury": "विलासी"}
+{"promote.signIn.message": "प्रोमो सामग्री बनाने के लिए साइन इन करें।"}
+{"promote.signIn.cta": "साइन इन"}
+{"promote.generate": "प्रोमो बनाएँ · {{cost}} Visual Buc"}
+{"promote.generating": "आपका प्रोमो लिखा जा रहा है…"}
+{"promote.errorGenerationFailed": "प्रोमो जनरेशन विफल — फिर से कोशिश करें।"}
+{"promote.results.titlePrefix": "आपका प्रोमो इसके लिए"}
+{"promote.results.regenerate": "फिर से बनाएँ"}
+{"promote.results.headline": "हेडलाइन"}
+{"promote.results.copy": "कॉपी"}
+{"promote.results.alternate": "विकल्प {{n}}"}
+{"promote.results.cta": "कार्रवाई का आह्वान"}
+{"promote.results.hashtags": "हैशटैग"}
+{"promote.tabs.promoCopy": "प्रोमो कॉपी"}
+{"promote.tabs.linkInBio": "बायो में लिंक"}
+{"promote.hero.titleAccent": "एक लॉन्च की तरह"}
+{"coach.copyPlan": "योजना कॉपी करें"}
+{"coach.tabMoneyTracker": "पैसा ट्रैकर"}
+{"coach.tabGroupPlan": "योजना"}
+{"coach.tabGroupTrack": "ट्रैक करें"}
+{"coach.tabGroupEarn": "कमाएँ"}
+{"coach.tabGroupSell": "बेचें"}
+{"coach.tabGroupGrow": "बढ़ें"}
+{"coach.tabPlan": "धन योजना"}
+{"coach.tabNiche": "निच विश्लेषक"}
+{"coach.tabBrandDeals": "ब्रांड डील"}
+{"coach.tabShoutouts": "शाउटआउट"}
+{"coach.tabTips": "टिप्स"}
+{"coach.tabBeats": "बीट्स बेचें"}
+{"coach.tabMemberships": "सदस्यताएँ"}
+{"coach.tabDistribute": "वितरित करें"}
+{"coach.tabStorefronts": "स्टोरफ़्रंट"}
+{"coach.tabMyShop": "मेरी दुकान"}
+{"coach.tabPressKit": "प्रेस किट"}
+{"coach.tabEmailList": "ईमेल सूची"}
+{"coach.tabCollabs": "कोलैब"}
+{"coach.tabContests": "प्रतियोगिताएँ"}
+{"coach.tabReferrals": "रेफ़रल"}
+{"coach.tabTeam": "टीम"}
+{"coach.titleHighlight": "धन कक्ष"}
+{"release.crossLinks.distribute": "इसे वितरित करें"}
+{"release.badge": "Thy Cheat Code रिलीज़ उपकरण"}
+{"release.titlePrefix": "रिलीज़"}
+{"release.titleSuffix": "जाँच सूची"}
+{"release.hero": "रिलीज़ का दिन उससे पहले के हफ़्तों में जीता जाता है। AI सप्ताह-दर-सप्ताह आपकी युद्ध योजना बनाता है — वितरण, प्लेलिस्ट, टीज़र, प्रेस, प्री-सेव — और आप निष्पादित करते हुए उन्हें टिक करते जाते हैं।"}
+{"release.whatDropping": "आप क्या रिलीज़ कर रहे हैं?"}
+{"release.types.single.label": "सिंगल"}
+{"release.types.single.blurb": "एक ट्रैक, एक क्षण"}
+{"release.types.ep.blurb": "3–6 ट्रैक"}
+{"release.types.album.label": "एल्बम"}
+{"release.types.album.blurb": "7+ ट्रैक, एक युग"}
+{"release.releaseTitle": "रिलीज़ शीर्षक"}
+{"release.titlePlaceholder": "जैसे Bow Down Anthem"}
+{"release.genreVibe": "शैली / वाइब"}
+{"release.optional": "(वैकल्पिक)"}
+{"release.genrePlaceholder": "जैसे हिप-हॉप, R&B…"}
+{"release.releaseDate": "रिलीज़ तारीख़"}
+{"release.building": "आपकी युद्ध योजना बन रही है…"}
+{"release.buildPlan": "मेरी रिलीज़ योजना बनाएँ"}
+{"release.signInToBuild": "अपनी रिलीज़ योजना बनाने के लिए साइन इन करें"}
+{"release.costNote": "प्रति AI योजना {{cost}} Visual Bucs · कार्यों को टिक करना मुफ़्त है · Thy Cheat Code द्वारा संचालित"}
+{"release.tasksDone": "{{total}} में से {{done}} कार्य पूरे"}
+{"release.preSaveTitle": "प्री-सेव मास्टरस्ट्रोक"}
+{"release.rebuild": "योजना फिर से बनाएँ ({{cost}} Visual Bucs)"}
+{"release.tools.playlist-pitcher": "प्लेलिस्ट पिचर खोलें"}
+{"release.tools.content-scheduler": "सामग्री शेड्यूलर खोलें"}
+{"release.tools.press-kit": "प्रेस किट बिल्डर खोलें"}
+{"release.tools.cover-art": "कवर आर्ट जेनरेटर खोलें"}
+{"release.tools.email-list": "ईमेल सूची बिल्डर खोलें"}
+{"release.crossLinks.p1": "अपनी योजना चला रहे हैं? इसके साथ प्लेलिस्ट पिच करें"}
+{"release.crossLinks.playlistPitcher": "प्लेलिस्ट पिचर"}
+{"release.crossLinks.p2": "और अपने टीज़र इसके साथ शेड्यूल करें"}
+{"release.crossLinks.scheduler": "सामग्री शेड्यूलर"}
+{"release.crossLinks.p3": "।"}
+{"release.error.noTitle": "पहले अपनी रिलीज़ को एक शीर्षक दें — योजना उसी के इर्द-गिर्द बनती है।"}
+{"release.error.noDate": "एक रिलीज़ तारीख़ चुनें ताकि जाँच सूची उससे उलटी गिनती कर सके।"}
+{"release.error.pastDate": "रिलीज़ तारीख़ भविष्य में होनी चाहिए — अतीत के लिए जाँच सूची किसी के काम की नहीं।"}
+{"release.error.planFailed": "रिलीज़ योजना विफल — फिर से कोशिश करें।"}
+{"press-public.backHome": "होम पर वापस"}
+{"press-public.cheatCodeTagline": "— कंटेंट क्रिएटर का चीट कोड।"}
+{"press-public.downloadPdf": "PDF के रूप में डाउनलोड करें"}
+{"press-public.epkLabel": "इलेक्ट्रॉनिक प्रेस किट"}
+{"press-public.madeWith": "इसके साथ बनाया गया"}
+{"press-public.notFoundMessage": "यह प्रेस किट मौजूद नहीं है या सार्वजनिक नहीं है।"}
+{"press-public.notFoundTitle": "प्रेस किट नहीं मिली"}
+{"press-public.photoAlt": "{{name}} की फ़ोटो {{index}}"}
+{"press-public.sections.achievements": "उपलब्धियाँ"}
+{"press-public.sections.bio": "जीवनी"}
+{"press-public.sections.bookingContact": "बुकिंग और संपर्क"}
+{"press-public.sections.photos": "फ़ोटो"}
+{"press-public.sections.press": "प्रेस"}
+{"press-public.sections.topTracks": "शीर्ष ट्रैक"}
+{"press-public.website": "वेबसाइट"}
+{"qrLogin.title": "साइन इन करने के लिए स्कैन करें"}
+{"qrLogin.generating": "QR कोड बनाया जा रहा है..."}
+{"qrLogin.scanInstructions": "अपने फ़ोन के कैमरे से स्कैन करें। स्वीकृत करने के लिए आप अपने फ़ोन पर साइन इन होने चाहिए।"}
+{"qrLogin.expiresIn": "कोड 5 मिनट में समाप्त होगा"}
+{"qrLogin.approved": "स्वीकृत! आपको साइन इन किया जा रहा है..."}
+{"qrLogin.expired": "कोड समाप्त"}
+{"qrLogin.generateNew": "नया कोड बनाएँ"}
+{"qrLogin.failed": "कोड नहीं बन सका। फिर से कोशिश करें।"}
+{"qrLogin.retry": "पुनः प्रयास"}
+{"nfcCardProfile.shareTitle": "डिजिटल बिज़नेस कार्ड"}
+{"nfcCardProfile.notActive": "यह कार्ड सक्रिय नहीं है"}
+{"nfcCardProfile.notActiveDetail": "लिंक ग़लत लिखा हो सकता है, या मालिक ने यह डिजिटल कार्ड बंद कर दिया हो।"}
+{"nfcCardProfile.backToSite": "← Bow Down Visuals पर वापस"}
+{"nfcCardProfile.tapToConnect": "जुड़ने के लिए टैप करें"}
+{"nfcCardProfile.saveContact": "संपर्क सहेजें"}
+{"nfcCardProfile.share": "साझा करें"}
+{"nfcCardProfile.copied": "कॉपी हुआ!"}
+{"nfcCardProfile.poweredBy": "द्वारा संचालित"}
+{"nfcCardProfile.nfcSmartCards": "NFC स्मार्ट कार्ड"}
+{"notFound.pageTitle": "पृष्ठ नहीं मिला"}
+{"notFound.pageDescription": "यह पृष्ठ मौजूद नहीं है — चलिए बनाने पर लौटें।"}
+{"notFound.heading": "तिजोरी में खो गए?"}
+{"notFound.description": "यह पृष्ठ नक्शे से बाहर निकल गया। लेकिन ताज अभी भी यहीं है — स्टूडियो पर लौटते हैं।"}
+{"notFound.backToHome": "होम पर वापस"}
+{"notFound.myProjects": "Thy Vision"}
+{"copyright.download_draft": "ड्राफ़्ट डाउनलोड करें"}
+{"locations.useInCoverArt": "कवर आर्ट में उपयोग करें"}
+{"cover-art.useSong": "गाना उपयोग करें"}
+{"brandingKit.tabs.headshots.label": "हेडशॉट"}
+{"promote.hero.badge": "प्रोमो कॉपी जेनरेटर"}
+{"promote.hero.title": "प्रोमो कॉपी"}
+{"review.madeWith": "इसके साथ बनाया गया"}
+{"moveHome.title": "अपना घर बदलें"}
+{"fog-lab.a_smoke_sprites": "A · धुआँ स्प्राइट"}
+{"fog-lab.b_particle_canvas": "B · कण कैनवास"}
+{"fog-lab.c_settled_layer": "C · स्थिर परत"}
+{"privacy.section4Item1Label": "Stripe"}
+{"privacy.section4Item2Label": "Supabase"}
+{"privacy.section4Item3Label": "Google"}
+{"lufs.formatWav": "WAV (16-bit)"}
+{"lufs.formatMp3": "MP3 (320k)"}

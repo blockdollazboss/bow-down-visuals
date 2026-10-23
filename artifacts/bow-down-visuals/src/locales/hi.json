@@ -2045,6 +2045,9 @@
       },
       "wallpapers": {
         "label": "वॉलपेपर और थीम"
+      },
+      "headshots": {
+        "label": "हेडशॉट"
       }
     },
     "title": "ब्रांडिंग किट"
@@ -2355,11 +2358,34 @@
     "subscribersPlaceholder": "सब्सक्राइबर्स",
     "subtitle": "क्रिएटर लूप का मनी हिस्सा: हर मोनेटाइज़ेशन प्रोग्राम में आपकी स्थिति, आपका निश वास्तव में कितना देता है, और आपके अगले 3 मनी मूव्स।",
     "threshold": "थ्रेशोल्ड: {{value}}",
-    "titleHighlight": "Money Room",
+    "titleHighlight": "धन कक्ष",
     "titleStart": "Thy",
     "videosPerWeek": "प्रति सप्ताह वीडियो",
     "whereDoYouPost": "आप कहां पोस्ट करते हैं?",
-    "yourNiche": "आपका निश"
+    "yourNiche": "आपका निश",
+    "copyPlan": "योजना कॉपी करें",
+    "tabMoneyTracker": "पैसा ट्रैकर",
+    "tabGroupPlan": "योजना",
+    "tabGroupTrack": "ट्रैक करें",
+    "tabGroupEarn": "कमाएँ",
+    "tabGroupSell": "बेचें",
+    "tabGroupGrow": "बढ़ें",
+    "tabPlan": "धन योजना",
+    "tabNiche": "निच विश्लेषक",
+    "tabBrandDeals": "ब्रांड डील",
+    "tabShoutouts": "शाउटआउट",
+    "tabTips": "टिप्स",
+    "tabBeats": "बीट्स बेचें",
+    "tabMemberships": "सदस्यताएँ",
+    "tabDistribute": "वितरित करें",
+    "tabStorefronts": "स्टोरफ़्रंट",
+    "tabMyShop": "मेरी दुकान",
+    "tabPressKit": "प्रेस किट",
+    "tabEmailList": "ईमेल सूची",
+    "tabCollabs": "कोलैब",
+    "tabContests": "प्रतियोगिताएँ",
+    "tabReferrals": "रेफ़रल",
+    "tabTeam": "टीम"
   },
   "collabs": {
     "accept": "स्वीकार करें",
@@ -2725,7 +2751,8 @@
     "work_title": "Work का शीर्षक",
     "work_type": "Work का प्रकार",
     "year_date_of_creation": "निर्माण का वर्ष / तिथि",
-    "your_filing_checklist": "आपकी filing checklist"
+    "your_filing_checklist": "आपकी filing checklist",
+    "download_draft": "ड्राफ़्ट डाउनलोड करें"
   },
   "cover-art": {
     "midnight_crown": "Midnight Crown",
@@ -2757,7 +2784,8 @@
         "label": "प्रीमियम डिटेल",
         "blurb": "अधिकतम डिटेल और समृद्धि"
       }
-    }
+    },
+    "useSong": "गाना उपयोग करें"
   },
   "create-simple": {
     "e_g_a_song_about_grinding_for_ye": "जैसे वर्षों की मेहनत के बाद आखिरकार मिली सफलता पर एक गीत...",
@@ -2784,8 +2812,30 @@
     "title": "बनाएँ",
     "modes": {
       "wallpapers": "वॉलपेपर और थीम",
-      "wallpapersBlurb": "वॉलपेपर, स्क्रीनसेवर, मेल खाते थीम"
-    }
+      "wallpapersBlurb": "वॉलपेपर, स्क्रीनसेवर, मेल खाते थीम",
+      "songVideo": "गाना + वीडियो",
+      "songVideoBlurb": "ट्रैक और दृश्य, एक ही प्रवाह",
+      "song": "गाना",
+      "songBlurb": "प्रॉम्प्ट से AI गाना",
+      "video": "वीडियो",
+      "videoBlurb": "आपकी ध्वनि के लिए बने क्लिप",
+      "hub": "क्रिएशन हब",
+      "hubBlurb": "सभी उपकरण, एक बोर्ड",
+      "cartoon": "कार्टून",
+      "cartoonBlurb": "कार्टून स्टूडियो",
+      "coverArt": "कवर आर्ट",
+      "coverArtBlurb": "अलग दिखने वाला कवर आर्ट",
+      "dreamCollab": "ड्रीम कोलैब",
+      "dreamCollabBlurb": "AI कलाकारों के साथ बनाएँ",
+      "linkToHit": "लिंक से हिट",
+      "linkToHitBlurb": "किसी भी लिंक को हिट में बदलें",
+      "coverMotion": "कवर मोशन",
+      "coverMotionBlurb": "कवर आर्ट को जीवंत करें"
+    },
+    "pageTitle": "बनाएँ",
+    "pageDescription": "कुछ भी शुरू करें: एक गाना + वीडियो, एक गाना, एक वीडियो, या निर्देशित क्रिएशन हब।",
+    "subtitle": "एक स्टूडियो, शुरू करने के दस तरीके। एक लेन चुनें — हर तैयार कृति अपने स्वाभाविक अगले कदम में बहती है।",
+    "backToDashboard": "डैशबोर्ड पर वापस"
   },
   "credit-history": {
     "dashboard": "डैशबोर्ड",
@@ -3285,10 +3335,10 @@
     "noMatches": "“{{query}}” से कुछ मेल नहीं खाता"
   },
   "fog-lab": {
-    "a_smoke_sprites": "A · Smoke sprites",
-    "b_particle_canvas": "B · Particle canvas",
+    "a_smoke_sprites": "A · धुआँ स्प्राइट",
+    "b_particle_canvas": "B · कण कैनवास",
     "back_to_homepage": "homepage पर वापस",
-    "c_settled_layer": "C · Settled layer"
+    "c_settled_layer": "C · स्थिर परत"
   },
   "gamers": {
     "copy": "कॉपी करें",
@@ -4266,7 +4316,8 @@
     "removeLocationTitle": "स्थान हटाएँ",
     "save": "सेव करें",
     "subtitle": "अपने संगीत वीडियो के लिए स्थान सहेजें - सिंहासन कक्ष, मंच, सड़कें, आसमान। जब आप दृश्य बनाते हैं तो विवरण टाइप करने के बजाय उन्हें दृष्टिगत रूप से चुनें।",
-    "uploadImage": "छवि अपलोड करें"
+    "uploadImage": "छवि अपलोड करें",
+    "useInCoverArt": "कवर आर्ट में उपयोग करें"
   },
   "logoMaker": {
     "back": "वापस",
@@ -7575,57 +7626,58 @@
     "zipping": "ज़िप बन रहा है…"
   },
   "release": {
-    "badge": "Thy Cheat Code's release tools",
-    "titlePrefix": "Release",
-    "titleSuffix": "Checklist",
-    "hero": "Drop day is won in the weeks before it. AI builds your week-by-week battle plan — distribution, playlists, teasers, press, pre-saves — then you check it off as you execute.",
-    "whatDropping": "What are you dropping?",
+    "badge": "Thy Cheat Code रिलीज़ उपकरण",
+    "titlePrefix": "रिलीज़",
+    "titleSuffix": "जाँच सूची",
+    "hero": "रिलीज़ का दिन उससे पहले के हफ़्तों में जीता जाता है। AI सप्ताह-दर-सप्ताह आपकी युद्ध योजना बनाता है — वितरण, प्लेलिस्ट, टीज़र, प्रेस, प्री-सेव — और आप निष्पादित करते हुए उन्हें टिक करते जाते हैं।",
+    "whatDropping": "आप क्या रिलीज़ कर रहे हैं?",
     "types": {
       "single": {
-        "label": "Single",
-        "blurb": "One track, one moment"
+        "label": "सिंगल",
+        "blurb": "एक ट्रैक, एक क्षण"
       },
       "ep": {
         "label": "EP",
-        "blurb": "3–6 tracks"
+        "blurb": "3–6 ट्रैक"
       },
       "album": {
-        "label": "Album",
-        "blurb": "7+ tracks, a era"
+        "label": "एल्बम",
+        "blurb": "7+ ट्रैक, एक युग"
       }
     },
-    "releaseTitle": "Release title",
-    "titlePlaceholder": "e.g. Bow Down Anthem",
-    "genreVibe": "Genre / vibe",
-    "optional": "(optional)",
-    "genrePlaceholder": "e.g. hip-hop, R&B…",
-    "releaseDate": "Release date",
-    "building": "Building your battle plan…",
-    "buildPlan": "Build my release plan",
-    "signInToBuild": "Sign in to build your release plan",
-    "costNote": "{{cost}} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code",
-    "tasksDone": "{{done}} of {{total}} tasks done",
-    "preSaveTitle": "Pre-save power move",
-    "rebuild": "Rebuild plan ({{cost}} Visual Bucs)",
+    "releaseTitle": "रिलीज़ शीर्षक",
+    "titlePlaceholder": "जैसे Bow Down Anthem",
+    "genreVibe": "शैली / वाइब",
+    "optional": "(वैकल्पिक)",
+    "genrePlaceholder": "जैसे हिप-हॉप, R&B…",
+    "releaseDate": "रिलीज़ तारीख़",
+    "building": "आपकी युद्ध योजना बन रही है…",
+    "buildPlan": "मेरी रिलीज़ योजना बनाएँ",
+    "signInToBuild": "अपनी रिलीज़ योजना बनाने के लिए साइन इन करें",
+    "costNote": "प्रति AI योजना {{cost}} Visual Bucs · कार्यों को टिक करना मुफ़्त है · Thy Cheat Code द्वारा संचालित",
+    "tasksDone": "{{total}} में से {{done}} कार्य पूरे",
+    "preSaveTitle": "प्री-सेव मास्टरस्ट्रोक",
+    "rebuild": "योजना फिर से बनाएँ ({{cost}} Visual Bucs)",
     "tools": {
-      "playlist-pitcher": "Open Playlist Pitcher",
-      "content-scheduler": "Open Content Scheduler",
-      "press-kit": "Open Press Kit Builder",
-      "cover-art": "Open Cover Art Generator",
-      "email-list": "Open Email List Builder"
+      "playlist-pitcher": "प्लेलिस्ट पिचर खोलें",
+      "content-scheduler": "सामग्री शेड्यूलर खोलें",
+      "press-kit": "प्रेस किट बिल्डर खोलें",
+      "cover-art": "कवर आर्ट जेनरेटर खोलें",
+      "email-list": "ईमेल सूची बिल्डर खोलें"
     },
     "crossLinks": {
-      "p1": "Executing your plan? Pitch playlists with the",
-      "playlistPitcher": "Playlist Pitcher",
-      "p2": "and schedule your teasers with the",
-      "scheduler": "Content Scheduler",
-      "p3": "."
+      "p1": "अपनी योजना चला रहे हैं? इसके साथ प्लेलिस्ट पिच करें",
+      "playlistPitcher": "प्लेलिस्ट पिचर",
+      "p2": "और अपने टीज़र इसके साथ शेड्यूल करें",
+      "scheduler": "सामग्री शेड्यूलर",
+      "p3": "।",
+      "distribute": "इसे वितरित करें"
     },
     "error": {
-      "noTitle": "Give your release a title first — the plan is built around it.",
-      "noDate": "Pick a release date so the checklist can count backwards from it.",
-      "pastDate": "Release date must be in the future — a checklist for the past helps nobody.",
-      "planFailed": "Release plan failed — try again."
+      "noTitle": "पहले अपनी रिलीज़ को एक शीर्षक दें — योजना उसी के इर्द-गिर्द बनती है।",
+      "noDate": "एक रिलीज़ तारीख़ चुनें ताकि जाँच सूची उससे उलटी गिनती कर सके।",
+      "pastDate": "रिलीज़ तारीख़ भविष्य में होनी चाहिए — अतीत के लिए जाँच सूची किसी के काम की नहीं।",
+      "planFailed": "रिलीज़ योजना विफल — फिर से कोशिश करें।"
     }
   },
   "outreach": {
@@ -8643,7 +8695,55 @@
     }
   },
   "presave": {
-    "tracklistTitle": "ट्रैक सूची"
+    "tracklistTitle": "ट्रैक सूची",
+    "artworkAlt": "\"{{title}}\" की कलाकृति",
+    "badge": "प्री-सेव",
+    "badgeOut": "अभी उपलब्ध",
+    "drops": "{{date}} को रिलीज़",
+    "dropsSoon": "रिलीज़ तारीख़ जल्द आ रही है",
+    "outNow": "अभी उपलब्ध — जाकर सुनें!",
+    "cdDays": "दिन",
+    "cdHours": "घंटे",
+    "cdMins": "मिनट",
+    "cdSecs": "सेकंड",
+    "fansCount": "प्रशंसकों ने इसे प्री-सेव किया",
+    "sharesCount": "शेयर",
+    "followCta": "इसे प्री-सेव करें + रिलीज़ के दिन सूचना पाएँ",
+    "followCtaOut": "नए गानों के लिए प्रशंसक सूची में शामिल हों",
+    "followBlurb": "अपना ईमेल छोड़ें — हम आपको कलाकार की प्रशंसक सूची में जोड़ते हैं (मुफ़्त)।",
+    "emailPlaceholder": "आपका ईमेल",
+    "namePlaceholder": "आपका नाम (वैकल्पिक)",
+    "followBtn": "मुझे प्री-सेव करें",
+    "followBtnOut": "सूची में शामिल हों",
+    "saving": "सेव हो रहा है…",
+    "followed": "आप सूची में हैं! {{artist}} रिलीज़ के दिन आपको ईमेल करेगा।",
+    "alreadyFollowing": "आप पहले से {{artist}} की सूची में हैं — रिलीज़ के दिन मिलते हैं!",
+    "notifyNote": "संगीत रिलीज़ होते ही आपको एक ईमेल मिलेगा। कोई स्पैम नहीं, कभी नहीं।",
+    "invalidEmail": "एक मान्य ईमेल दर्ज करें।",
+    "followFailed": "आपका प्री-सेव सेव नहीं हो सका — फिर से कोशिश करें।",
+    "platformsCta": "रिलीज़ के दिन उन्हें फ़ॉलो करें",
+    "streamNowOn": "अभी स्ट्रीम करें",
+    "streamOn": "{{platform}} पर स्ट्रीम करें",
+    "followOn": "{{platform}} पर प्राप्त करें",
+    "shareTitle": "बात फैलाएँ",
+    "shareToUnlock": "बोनस सामग्री अनलॉक करने के लिए साझा करें",
+    "unlockBlurb": "इस रिलीज़ को कहीं भी साझा करें और कलाकार से विशेष बोनस सामग्री अनलॉक करें।",
+    "openBonus": "अपनी बोनस सामग्री खोलें",
+    "shareText": "{{artist}} का \"{{title}}\" जल्द आ रहा है — इसे प्री-सेव करें",
+    "shareTextOut": "{{artist}} का \"{{title}}\" अभी उपलब्ध है — जाकर सुनें",
+    "copyLink": "लिंक कॉपी करें",
+    "copied": "कॉपी हुआ!",
+    "errors": {
+      "loadFailed": "यह रिलीज़ लोड नहीं हो सकी।",
+      "notFound": "यह प्री-सेव लिंक मौजूद नहीं है।"
+    },
+    "footer": "Thy Cheat Code द्वारा संचालित — कंटेंट क्रिएटर का चीट कोड।",
+    "loading": "रिलीज़ लोड हो रही है…",
+    "platformsTitle": "रिलीज़ के दिन हर जगह उपलब्ध",
+    "postToX": "X पर पोस्ट करें",
+    "shareRelease": "यह रिलीज़ साझा करें",
+    "artistCta": "क्या आप कलाकार हैं?",
+    "promoteRelease": "इस रिलीज़ का प्रचार करें →"
   },
   "press-kit": {
     "backToDashboard": "डैशबोर्ड पर वापस जाएँ",
@@ -9433,7 +9533,7 @@
     "notifyCopied": "नया लिंक कॉपी हुआ — अपने समीक्षक को भेजें",
     "notifyCopiedHint": "वे पिछले सभी नोटों समेत सबसे नया कट खोलेंगे।",
     "notifyFailed": "नया लिंक नहीं बन सका।",
-    "madeWith": "Made with",
+    "madeWith": "इसके साथ बनाया गया",
     "madeWithHint": "यह रिव्यू पेज Bow Down Visuals से बनाया गया था — the content creation cheat code.",
     "privateNote": "निजी रिव्यू लिंक — केवल वे लोग देख सकते हैं जिनके पास यह URL है।"
   },
@@ -11067,7 +11167,7 @@
     "suggestedPriceNote": "सुझाई गई कीमत — स्वीकृत करने से पहले ऊपर अपनी असली कीमत रखें।",
     "taglineLabel": "टैगलाइन",
     "taglinePh": "भारी दिलों के लिए देर-रात का सोल",
-    "title": "Move Home",
+    "title": "अपना घर बदलें",
     "updatesExistingNote": "(आपकी मौजूदा प्रोफ़ाइल — स्वीकृति इसे अद्यतित करती है)",
     "verticalEducation": "शिक्षा",
     "verticalFilm": "फ़िल्म",
@@ -14200,5 +14300,333 @@
       "share": "यह पेज शेयर करें"
     },
     "preview": "प्रीव्यू"
+  },
+  "press-public": {
+    "backHome": "होम पर वापस",
+    "cheatCodeTagline": "— कंटेंट क्रिएटर का चीट कोड।",
+    "downloadPdf": "PDF के रूप में डाउनलोड करें",
+    "epkLabel": "इलेक्ट्रॉनिक प्रेस किट",
+    "madeWith": "इसके साथ बनाया गया",
+    "notFoundMessage": "यह प्रेस किट मौजूद नहीं है या सार्वजनिक नहीं है।",
+    "notFoundTitle": "प्रेस किट नहीं मिली",
+    "photoAlt": "{{name}} की फ़ोटो {{index}}",
+    "sections": {
+      "achievements": "उपलब्धियाँ",
+      "bio": "जीवनी",
+      "bookingContact": "बुकिंग और संपर्क",
+      "photos": "फ़ोटो",
+      "press": "प्रेस",
+      "topTracks": "शीर्ष ट्रैक"
+    },
+    "website": "वेबसाइट"
+  },
+  "privacy": {
+    "contactSupport": "संपर्क / सहायता",
+    "lastUpdated": "अंतिम अद्यतन: सितंबर 2026",
+    "pageDescription": "Bow Down Visuals आपके डेटा को कैसे संभालता है।",
+    "pageTitle": "गोपनीयता नीति",
+    "section10ContactLink": "संपर्क पृष्ठ",
+    "section10Intro": "गोपनीयता प्रश्न? ईमेल करें",
+    "section10Middle": "या हमारा देखें",
+    "section10Title": "10. संपर्क",
+    "section1Body": "Bow Down Visuals एक डिजिटल क्रिएटर प्लेटफ़ॉर्म चलाता है जो AI Visual Bucs से वीडियो, संगीत, छवियाँ, वॉयसओवर, लिप-सिंक वीडियो, गीत, कैप्शन, थंबनेल, प्रोमो क्लिप और संबंधित डिजिटल सामग्री बनाता है। यह नीति बताती है कि हम आपकी जानकारी कैसे एकत्र, उपयोग और सुरक्षित करते हैं।",
+    "section1Title": "1. हम कौन हैं",
+    "section2Item1Body": "साइन अप करते समय ईमेल पता और पासवर्ड (हैश किया हुआ), या Google से साइन इन करने पर बुनियादी Google प्रोफ़ाइल जानकारी",
+    "section2Item1Label": "खाता जानकारी:",
+    "section2Item2Body": "पूरी तरह Stripe द्वारा संभाली जाती है — हम कभी कच्चे कार्ड नंबर संग्रहीत नहीं करते",
+    "section2Item2Label": "बिलिंग जानकारी:",
+    "section2Item3Body": "Visual Bucs का उपयोग, उपकरण इंटरैक्शन और जेनरेट की गई सामग्री के प्रॉम्प्ट",
+    "section2Item3Label": "उपयोग डेटा:",
+    "section2Item4Body": "AI आउटपुट को निजीकृत करने के लिए दर्ज की गई जानकारी (मंच नाम, शैली, स्टाइल प्राथमिकताएँ)",
+    "section2Item4Label": "कलाकार प्रोफ़ाइल डेटा:",
+    "section2Item5Body": "साइन-अप पर उपयोग किए गए रेफ़रल कोड और अर्जित रेफ़रल पुरस्कार",
+    "section2Item5Label": "रेफ़रल डेटा:",
+    "section2Item6Body": "सुरक्षा और प्रदर्शन के लिए ब्राउज़र प्रकार, IP पता और सत्र डेटा",
+    "section2Item6Label": "तकनीकी डेटा:",
+    "section2Title": "2. हम कौन सी जानकारी एकत्र करते हैं",
+    "section3Item1": "प्लेटफ़ॉर्म चलाने और सुधारने के लिए",
+    "section3Item2": "भुगतान संसाधित करने और सदस्यताएँ प्रबंधित करने के लिए",
+    "section3Item3": "आपकी कलाकार प्रोफ़ाइल के अनुसार AI-जनित आउटपुट को निजीकृत करने के लिए",
+    "section3Item4": "खाता-संबंधी ईमेल भेजने के लिए (रसीदें, सुरक्षा अलर्ट)",
+    "section3Item5": "कानूनी दायित्वों का पालन करने के लिए",
+    "section3Title": "3. हम आपकी जानकारी का उपयोग कैसे करते हैं",
+    "section4Intro": "हम आपका व्यक्तिगत डेटा नहीं बेचते। हम डेटा केवल इनके साथ साझा करते हैं:",
+    "section4Item1Body": "भुगतान प्रसंस्करण",
+    "section4Item1Label": "Stripe",
+    "section4Item2Body": "डेटाबेस और प्रमाणीकरण",
+    "section4Item2Label": "Supabase",
+    "section4Item3Body": "यदि आप Google से साइन इन करते हैं (Google की गोपनीयता नीति के अधीन)",
+    "section4Item3Label": "Google",
+    "section4Item4Body": "जनरेशन अनुरोध चलाने के लिए (प्रॉम्प्ट तृतीय-पक्ष AI API द्वारा संसाधित हो सकते हैं)",
+    "section4Item4Label": "AI प्रदाता",
+    "section4Item5": "लागू कानून द्वारा आवश्यक होने पर प्राधिकरण",
+    "section4Title": "4. डेटा साझाकरण",
+    "section5Body": "हम प्रमाणीकरण के लिए आवश्यक सत्र कुकीज़ का उपयोग करते हैं। हम कोई तृतीय-पक्ष विज्ञापन ट्रैकर नहीं चलाते। विश्लेषण, यदि उपयोग किया जाता है, तो केवल समेकित उपयोग डेटा तक सीमित है।",
+    "section5Title": "5. कुकीज़ और ट्रैकिंग",
+    "section6Body": "जब तक आपका खाता सक्रिय है, हम आपका खाता डेटा रखते हैं। आप हमसे संपर्क करके कभी भी हटाने का अनुरोध कर सकते हैं। बिलिंग रिकॉर्ड कानून के अनुसार रखे जाते हैं।",
+    "section6Title": "6. डेटा प्रतिधारण",
+    "section7Intro": "आपके स्थान के आधार पर, आपको अपने व्यक्तिगत डेटा तक पहुँचने, उसे सुधारने या हटाने का अधिकार हो सकता है। इनमें से किसी भी अधिकार का प्रयोग करने के लिए, हमसे संपर्क करें",
+    "section7Title": "7. आपके अधिकार",
+    "section8Body": "हम उद्योग-मानक सुरक्षा उपायों का उपयोग करते हैं, जिनमें एन्क्रिप्टेड कनेक्शन (HTTPS), हैश किए गए पासवर्ड और हमारे डेटाबेस में पंक्ति-स्तरीय सुरक्षा शामिल है। कोई भी प्रणाली 100% सुरक्षित नहीं है; अपने खाते के लिए मज़बूत, अद्वितीय पासवर्ड का उपयोग करें।",
+    "section8Title": "8. सुरक्षा",
+    "section9Body": "हम समय-समय पर इस नीति को अद्यतन कर सकते हैं। हम आपको ईमेल या इन-ऐप सूचना द्वारा महत्वपूर्ण बदलावों की सूचना देंगे।",
+    "section9Title": "9. इस नीति में बदलाव",
+    "title": "गोपनीयता नीति"
+  },
+  "promote": {
+    "copyLabel": "{{label}} कॉपी करें",
+    "copy": "कॉपी करें",
+    "copied": "कॉपी हुआ",
+    "hero": {
+      "badge": "प्रोमो कॉपी जेनरेटर",
+      "title": "प्रोमो कॉपी",
+      "titleAccent": "एक लॉन्च की तरह",
+      "subtitle": "एक सुविधा, एक प्रारूप और एक टोन चुनें — हैशटैग और CTA के साथ पोस्ट-तैयार कॉपी पाएँ। प्रति जनरेशन {{cost}} Visual Buc।",
+      "back": "सभी सुविधाओं पर वापस"
+    },
+    "form": {
+      "feature": "प्रचार करने की सुविधा",
+      "contentType": "सामग्री प्रकार",
+      "tone": "टोन",
+      "angle": "ज़ोर देने का कोण",
+      "optional": "(वैकल्पिक)",
+      "focusPlaceholder": "जैसे 1 Visual Buc की कीमत, यह कितना तेज़ है, नए कलाकारों के लिए बिल्कुल सही…"
+    },
+    "contentTypes": {
+      "twitter": {
+        "label": "X पोस्ट",
+        "blurb": "रीपोस्ट के लिए बना दमदार पोस्ट"
+      },
+      "instagram": {
+        "label": "IG कैप्शन",
+        "blurb": "आकर्षक कैप्शन + हैशटैग"
+      },
+      "tiktok": {
+        "label": "TikTok स्क्रिप्ट",
+        "blurb": "हुक + बीट्स, बोली जाने वाली शैली"
+      },
+      "email": {
+        "label": "ईमेल ब्लास्ट",
+        "blurb": "विषय पंक्ति + छोटा मुख्य भाग"
+      },
+      "banner": {
+        "label": "बैनर हेडलाइन",
+        "blurb": "5 स्क्रॉल-रोकने वाली"
+      },
+      "ad": {
+        "label": "विज्ञापन कॉपी",
+        "blurb": "हेडलाइन + मुख्य पाठ"
+      }
+    },
+    "tones": {
+      "hype": "हाइप",
+      "professional": "पेशेवर",
+      "funny": "मज़ेदार",
+      "luxury": "विलासी"
+    },
+    "signIn": {
+      "message": "प्रोमो सामग्री बनाने के लिए साइन इन करें।",
+      "cta": "साइन इन"
+    },
+    "generate": "प्रोमो बनाएँ · {{cost}} Visual Buc",
+    "generating": "आपका प्रोमो लिखा जा रहा है…",
+    "errorGenerationFailed": "प्रोमो जनरेशन विफल — फिर से कोशिश करें।",
+    "results": {
+      "titlePrefix": "आपका प्रोमो इसके लिए",
+      "regenerate": "फिर से बनाएँ",
+      "headline": "हेडलाइन",
+      "copy": "कॉपी",
+      "alternate": "विकल्प {{n}}",
+      "cta": "कार्रवाई का आह्वान",
+      "hashtags": "हैशटैग"
+    },
+    "tabs": {
+      "promoCopy": "प्रोमो कॉपी",
+      "linkInBio": "बायो में लिंक"
+    }
+  },
+  "qrLogin": {
+    "title": "साइन इन करने के लिए स्कैन करें",
+    "generating": "QR कोड बनाया जा रहा है...",
+    "scanInstructions": "अपने फ़ोन के कैमरे से स्कैन करें। स्वीकृत करने के लिए आप अपने फ़ोन पर साइन इन होने चाहिए।",
+    "expiresIn": "कोड 5 मिनट में समाप्त होगा",
+    "approved": "स्वीकृत! आपको साइन इन किया जा रहा है...",
+    "expired": "कोड समाप्त",
+    "generateNew": "नया कोड बनाएँ",
+    "failed": "कोड नहीं बन सका। फिर से कोशिश करें।",
+    "retry": "पुनः प्रयास"
+  },
+  "notFound": {
+    "pageTitle": "पृष्ठ नहीं मिला",
+    "pageDescription": "यह पृष्ठ मौजूद नहीं है — चलिए बनाने पर लौटें।",
+    "heading": "तिजोरी में खो गए?",
+    "description": "यह पृष्ठ नक्शे से बाहर निकल गया। लेकिन ताज अभी भी यहीं है — स्टूडियो पर लौटते हैं।",
+    "backToHome": "होम पर वापस",
+    "myProjects": "Thy Vision"
+  },
+  "nfcCardProfile": {
+    "shareTitle": "डिजिटल बिज़नेस कार्ड",
+    "notActive": "यह कार्ड सक्रिय नहीं है",
+    "notActiveDetail": "लिंक ग़लत लिखा हो सकता है, या मालिक ने यह डिजिटल कार्ड बंद कर दिया हो।",
+    "backToSite": "← Bow Down Visuals पर वापस",
+    "tapToConnect": "जुड़ने के लिए टैप करें",
+    "saveContact": "संपर्क सहेजें",
+    "share": "साझा करें",
+    "copied": "कॉपी हुआ!",
+    "poweredBy": "द्वारा संचालित",
+    "nfcSmartCards": "NFC स्मार्ट कार्ड"
+  },
+  "milestones": {
+    "loadFailed": "मील के पत्थर लोड नहीं हो सके।",
+    "invalidCount": "एक मान्य स्ट्रीम संख्या दर्ज करें।",
+    "logFailed": "वह मील का पत्थर दर्ज नहीं हो सका।",
+    "logged": "मील का पत्थर दर्ज हो गया।",
+    "loggedWithAward": "मील का पत्थर दर्ज — {{award}} अनलॉक!",
+    "importFailed": "आयात विफल।",
+    "imported": "{{imported}} आयात हुए, {{skipped}} छोड़े गए।",
+    "nextUp": "अगला: {{label}}",
+    "streams": "स्ट्रीम",
+    "loggedFrom": "{{source}} के माध्यम से",
+    "manual": "मैन्युअल",
+    "celebrateCaption": "\"{{title}}\" अभी {{streams}} स्ट्रीम पर पहुँचा — जश्न में मेरी मदद करें!",
+    "artistPlaceholder": "कलाकार का नाम",
+    "card": "मील का पत्थर कार्ड",
+    "cardTitle": "मील का पत्थर कार्ड डाउनलोड करें",
+    "celebrate": "जश्न मनाएँ",
+    "chooseFile": "CSV फ़ाइल चुनें",
+    "countPlaceholder": "स्ट्रीम संख्या",
+    "csvHelp": "ट्रैक, कलाकार, स्ट्रीम कॉलम वाली CSV।",
+    "empty": "अभी कोई मील का पत्थर नहीं। अपनी पहली जीत दर्ज करें।",
+    "history": "इतिहास",
+    "honesty": "केवल असली संख्याएँ — चीट कोड स्ट्रीम नकली नहीं बनाता।",
+    "importButton": "आयात करें",
+    "importCsv": "CSV आयात करें",
+    "importing": "आयात हो रहा है…",
+    "loading": "लोड हो रहा है…",
+    "logButton": "मील का पत्थर दर्ज करें",
+    "logTitle": "एक मील का पत्थर दर्ज करें",
+    "logging": "दर्ज हो रहा है…",
+    "maxTier": "अधिकतम स्तर प्राप्त",
+    "signIn": "मील के पत्थर ट्रैक करने के लिए साइन इन करें।",
+    "signInCta": "साइन इन",
+    "trackPlaceholder": "ट्रैक का शीर्षक",
+    "unranked": "अश्रेणीबद्ध",
+    "yourRace": "आपकी दौड़",
+    "bragButton": "शेखी बघारें",
+    "bragButtonWith": "{{headline}} की शेखी बघारें",
+    "bragPrompt": "आपको {{label}} मिला — शेखी बघारें",
+    "bragTitle": "शेखी बघारें",
+    "bragHeadline": "{{headline}} — पक्का हो गया।",
+    "bragRendering": "आपका शेखी कार्ड बन रहा है…",
+    "bragAlt": "मील का पत्थर शेखी कार्ड: {{headline}}",
+    "bragCaptionLabel": "कैप्शन",
+    "bragPostToFeed": "BDV फ़ीड में पोस्ट करें",
+    "bragPosting": "पोस्ट हो रहा है…",
+    "bragPostedShort": "पोस्ट हुआ",
+    "bragPosted": "आपकी टाइमलाइन पर पोस्ट हुआ",
+    "bragViewFeed": "फ़ीड देखें",
+    "bragShare": "साझा करें",
+    "bragShareTitle": "मेरा मील का पत्थर",
+    "bragCopyCaption": "कैप्शन कॉपी करें",
+    "bragCopied": "कॉपी हुआ",
+    "bragDownload": "PNG डाउनलोड करें",
+    "bragDownloaded": "कार्ड डाउनलोड हुआ — शानदार लग रहा है।",
+    "bragDesktopFallback": "कैप्शन कॉपी हुआ और कार्ड डाउनलोड हुआ — इसे अपनी X / IG / TikTok पोस्ट में जोड़ें।",
+    "bragFootnote": "हर कार्ड पर Made with Bow Down Visuals + एक साइन-अप लिंक होता है — आपकी जीत आपके अगले प्रशंसक को भर्ती करती है।",
+    "bragClose": "बंद करें",
+    "bragRenderFailed": "कार्ड नहीं बन सका — फिर से कोशिश करें।",
+    "bragUploadFailed": "कार्ड अपलोड नहीं हो सका — फिर से कोशिश करें।",
+    "bragPostFailed": "पोस्ट नहीं हो सका — फिर से कोशिश करें।",
+    "bragShareFailed": "शेयर शीट नहीं खुल सकी — फिर से कोशिश करें।",
+    "trophyShelf": "ट्रॉफ़ी शेल्फ़",
+    "trophyShelfSub": "Bow Down Visuals के साथ अनलॉक किए गए मील के पत्थर"
+  },
+  "stabilize": {
+    "title": "स्थिर करें",
+    "subtitle": "हिलते वीडियो को स्मूद करें — दो-पास vidstab, एक टैप",
+    "priceBadge": "{cost} VB / स्थिरीकरण",
+    "noClipsTitle": "स्थिर करने के लिए कोई क्लिप नहीं",
+    "noClipsBody": "पहले किसी दृश्य में वीडियो क्लिप जोड़ें, फिर कंपन स्मूद करें।",
+    "clipToStabilize": "स्थिर करने के लिए क्लिप",
+    "fineTune": "बारीक समायोजन (वैकल्पिक)",
+    "resetDefaults": "डिफ़ॉल्ट रीसेट करें",
+    "shakeHandling": "कंपन प्रबंधन",
+    "shakeHelp": "अधिक मान अधिक कंपन संभालता है।",
+    "shakeHigh": "अधिकतम कंपन प्रबंधन",
+    "shakeMid": "संतुलित कंपन प्रबंधन",
+    "shakeLow": "हल्का स्पर्श",
+    "smoothness": "स्मूदनेस",
+    "smoothHelp": "अधिक स्मूद, लेकिन अधिक क्रॉप करता है।",
+    "smoothHigh": "मक्खन-जैसा स्मूद (अधिक क्रॉप)",
+    "smoothMid": "संतुलित स्मूदनेस",
+    "smoothLow": "सूक्ष्म स्मूदिंग",
+    "stabilizeButton": "स्थिर करें · {cost} VB",
+    "stabilizingButton": "स्थिर हो रहा है…",
+    "stabilizingNote": "दो-पास स्थिरीकरण में एक मिनट लग सकता है।",
+    "resultTitle": "स्थिर हो गया",
+    "useInEditor": "एडिटर में उपयोग करें",
+    "attaching": "जोड़ा जा रहा है…",
+    "useInExport": "निर्यात में उपयोग करें",
+    "download": "डाउनलोड",
+    "successToast": "क्लिप स्थिर हुआ",
+    "successToastDesc": "आपकी स्मूद की गई क्लिप तैयार है।",
+    "timelineToast": "टाइमलाइन में जोड़ा गया",
+    "timelineToastDesc": "स्थिर क्लिप ने दृश्य की क्लिप को बदल दिया।",
+    "errorGeneric": "स्थिरीकरण विफल — फिर से कोशिश करें।"
+  },
+  "lufs": {
+    "waveformUnavailable": "वेवफ़ॉर्म उपलब्ध नहीं",
+    "errorJobNotFound": "कार्य नहीं मिला — शायद समाप्त हो गया हो।",
+    "errorNormalizeFailed": "सामान्यीकरण विफल — आपको रिफ़ंड मिल गया।",
+    "analyzeError": "यह फ़ाइल विश्लेषण नहीं हो सकी। कोई अन्य ऑडियो फ़ाइल आज़माएँ।",
+    "errorNetwork": "नेटवर्क विफल — फिर से कोशिश करें।",
+    "errorAudioType": "एक ऑडियो फ़ाइल चुनें (MP3, WAV, M4A, AAC, OGG, FLAC)।",
+    "errorFileTooLarge": "वह फ़ाइल 50 MB से बड़ी है। उसे छोटा करें या छोटी फ़ाइल चुनें।",
+    "errorStartFailed": "सामान्यीकरण शुरू नहीं हो सका। फिर से कोशिश करें।",
+    "meterDecodeError": "लाइव मीटरिंग के लिए यह फ़ाइल डीकोड नहीं हो सकी।",
+    "title": "LUFS लाउडनेस मीटर",
+    "subtitle": "असली लाउडनेस मापें, फिर स्ट्रीमिंग लक्ष्यों पर सामान्य करें — प्रति सामान्यीकरण {cost} VB। विश्लेषण मुफ़्त है।",
+    "honestIntro": "लाउडनेस LUFS में मापी जाती है — आपका ट्रैक वास्तव में कितना तेज़ लगता है, न कि केवल उसका पीक स्तर।",
+    "honestStrong": "विश्लेषण मुफ़्त है; सामान्यीकरण आउटपुट को फिर से मापता है ताकि संख्याएँ असली हों।",
+    "dropPrompt": "अपना ऑडियो यहाँ डालें या अपलोड करने के लिए टैप करें",
+    "dropFormats": "MP3 · WAV · M4A · AAC · OGG · FLAC — 50 MB तक",
+    "changeFile": "फ़ाइल बदलें",
+    "statIntegrated": "एकीकृत",
+    "statLra": "लाउडनेस रेंज",
+    "statTruePeak": "ट्रू पीक",
+    "eburLabel": "क्षणिक / लघु-अवधि (सर्वर पर मापा गया)",
+    "momentary": "क्षणिक",
+    "shortTerm": "लघु-अवधि",
+    "eburHint": "पूरे ट्रैक पर अधिकतम / औसत।",
+    "liveMeterTitle": "लाइव मीटर (ब्राउज़र)",
+    "liveMeterNote": "फ़ाइल चलने के दौरान K-भारित वास्तविक-समय अनुमान — बिना गेटिंग के, अनुभव के लिए। ऊपर सर्वर का एकीकृत नंबर आधिकारिक है।",
+    "liveMeterStop": "रोकें",
+    "liveMeterPlay": "लाइव मीटर चलाएँ",
+    "targetLabel": "सामान्यीकरण लक्ष्य",
+    "formatLabel": "आउटपुट प्रारूप",
+    "formatWav": "WAV (16-bit)",
+    "formatMp3": "MP3 (320k)",
+    "normalizeButton": "{target} LUFS पर सामान्य करें · {cost} VB",
+    "creditsRemaining": "{n} Visual Bucs शेष",
+    "statusUploading": "अपलोड हो रहा है…",
+    "statusQueued": "कतार में — कार्य सर्वर पर चलता है, आप यह टैब छोड़ सकते हैं।",
+    "statusProcessing": "{target} LUFS पर सामान्य हो रहा है…",
+    "progressNote": "दो-पास लाउडनेस सामान्यीकरण: मापें, सुधारें, फिर आउटपुट फिर से मापें।",
+    "analyzing": "लाउडनेस मापा जा रहा है…",
+    "normalizeComplete": "{target} LUFS पर सामान्य हुआ",
+    "before": "पहले",
+    "after": "बाद में",
+    "abOriginal": "मूल",
+    "abNormalized": "सामान्यीकृत",
+    "pause": "रोकें",
+    "play": "चलाएँ",
+    "labelOriginal": "मूल",
+    "labelNormalized": "सामान्यीकृत",
+    "abHint": "दोनों के बीच स्विच करें — प्लेबैक स्थिति बनी रहती है।",
+    "downloadButton": "डाउनलोड",
+    "newButton": "नई फ़ाइल",
+    "handoffTitle": "अगला कदम",
+    "handoffMaster": "मास्टर टैब में भेजें →",
+    "handoffDistribute": "इसे वितरित करें →"
   }
 }
