@@ -51,8 +51,11 @@ import { mediaUrl } from "@/lib/media-cdn";
    script. */
 const MEDIAPIPE_VERSION = "0.1.1675465747";
 const MEDIAPIPE_LOCAL = mediaUrl("engines/selfie-segmentation");
+/* The shipped same-origin copy (public/engines/selfie-segmentation) —
+   the fallback immediately after the R2 media bucket and before the CDN. */
+const MEDIAPIPE_ORIGIN = `${import.meta.env.BASE_URL}engines/selfie-segmentation`;
 const MEDIAPIPE_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@${MEDIAPIPE_VERSION}`;
-const MEDIAPIPE_BASES = [MEDIAPIPE_LOCAL, MEDIAPIPE_CDN];
+const MEDIAPIPE_BASES = [MEDIAPIPE_LOCAL, MEDIAPIPE_ORIGIN, MEDIAPIPE_CDN];
 let mediapipeBase = MEDIAPIPE_LOCAL;
 
 declare global {
