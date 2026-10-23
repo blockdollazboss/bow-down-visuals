@@ -68,6 +68,17 @@ import {
   ATELIERS_WALL_RUNS,
 } from "./ateliers";
 import { pavingSlabsFor, backdropGroundRects } from "./palace-grounds";
+import { readFileSync } from "node:fs";
+import {
+  ATELIER_BAYS,
+  ATELIER_CASCADE,
+  ATELIER_FABRIC_BOLTS,
+  ATELIER_MANNEQUINS,
+  BAY_KIT,
+  MANNEQUIN,
+} from "./ateliers";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const room = PALACE_LAYOUT[ATELIERS_ID]!;
 
@@ -303,5 +314,46 @@ describe("The Ateliers — the outdoor ground system (item 34)", () => {
       expect(overlaps(r, ATELIERS_INTERIOR), JSON.stringify(r)).toBe(false);
       expect(overlaps(r, ATELIERS_WALK), JSON.stringify(r)).toBe(false);
     }
+  });
+});
+
+describe("Ateliers — Stack-100 #2 finishing (items 31–33)", () => {
+  it("item 31: one mannequin per bay, in its mouth, solid from the same data", () => {
+    expect(ATELIER_MANNEQUINS).toHaveLength(ATELIER_BAYS.length);
+    for (const m of ATELIER_MANNEQUINS) {
+      expect(isWalkable(m.x, m.z)).toBe(false);
+      expect(ATELIERS_BLOCKED).toContainEqual({
+        minX: m.x - MANNEQUIN.blockHalf, maxX: m.x + MANNEQUIN.blockHalf,
+        minZ: m.z - MANNEQUIN.blockHalf, maxZ: m.z + MANNEQUIN.blockHalf,
+      });
+    }
+    /* The bays' mouths stay open beside the forms — a maker
+     * still stands in the bay. */
+    for (const bay of ATELIER_BAYS) expect(isWalkable(bay.x + 0.6, bay.z + bay.side * 0.9)).toBe(true);
+  });
+
+  it("item 32: the head is a proportioned head form — taller than wide, no borrowed texture", () => {
+    expect(MANNEQUIN.headRy).toBeGreaterThan(MANNEQUIN.headRx);
+    expect(MANNEQUIN.headRy).toBeLessThan(0.16);
+    expect(sceneSrc).toContain("MANNEQUIN.headRx, MANNEQUIN.headRy, MANNEQUIN.headRz");
+    expect(sceneSrc).not.toContain("guardCapsule");
+  });
+
+  it("item 33: fabric bolts vary in length, radius and colour, and every bolt lies on a bay table", () => {
+    expect(ATELIER_FABRIC_BOLTS.length).toBe(ATELIER_BAYS.length * 3);
+    expect(new Set(ATELIER_FABRIC_BOLTS.map((b) => b.len)).size).toBeGreaterThanOrEqual(3);
+    expect(new Set(ATELIER_FABRIC_BOLTS.map((b) => b.r)).size).toBeGreaterThanOrEqual(3);
+    expect(new Set(ATELIER_FABRIC_BOLTS.map((b) => b.color)).size).toBeGreaterThanOrEqual(5);
+    for (const b of ATELIER_FABRIC_BOLTS) {
+      const onTable = ATELIER_BAY_TABLES.some((t) =>
+        Math.abs(b.z - t.cz) < 0.01 && b.x - b.len / 2 >= t.cx - t.w / 2 - 0.01 && b.x + b.len / 2 <= t.cx + t.w / 2 + 0.35);
+      expect(onTable, JSON.stringify(b)).toBe(true);
+    }
+  });
+
+  it("item 33: the cascade bolt stands at the first table's edge and its drape reaches the floor", () => {
+    expect(ATELIER_CASCADE.drapeH).toBe(BAY_KIT.tableH);
+    expect(Math.abs(ATELIER_CASCADE.drapeX - ATELIER_CASCADE.boltX)).toBeLessThan(0.01);
+    expect(sceneSrc).toContain("ATELIER_CASCADE");
   });
 });

@@ -180,6 +180,7 @@ import {
   ATELIER_PLINTHS, ATELIER_PLINTH, ATELIER_CRATES, ATELIER_CRATE, ATELIER_STONE_STACKS,
   ATELIER_TOOL_BENCHES, ATELIERS_PLANTERS, ATELIERS_PLANTER_CROWNS, ATELIERS_LAMPS,
   ATELIERS_BANNER_POLES, ATELIERS_BANNER_POLE,
+  ATELIER_MANNEQUINS, MANNEQUIN, ATELIER_FABRIC_BOLTS, ATELIER_CASCADE,
 } from "./ateliers";
 import {
   BOARDWALK_FLOOR_RECTS, BOARDWALK_WALL_RUNS, BOARDWALK_PIERS, BOARDWALK_DECK_PLANKS,
@@ -5513,6 +5514,87 @@ export class KingsHallScene {
         }),
         ATELIER_BAY_PANELS.map((p) => ({ x: p.cx, y: p.cy, z: p.cz })),
       );
+    }
+
+    /* Stack-100 #2 items 31–33: the dress-form mannequins and
+     * the fabric bolts. One mannequin per bay stands in its
+     * mouth: a tripod stand, a cloth torso, a neck, and a real
+     * HEAD FORM — a smooth matte head proportioned like a
+     * tailor's form (item 32), never a textured sphere. The
+     * forms are solid from ATELIER_MANNEQUINS' own data. On
+     * every worktable lie three fabric bolts, varied in length,
+     * radius and colour (item 33), and at the first bay's table
+     * edge one bolt stands unrolled, its cloth draping to the
+     * floor — the cascade. */
+    {
+      instanced(
+        new THREE.CylinderGeometry(0.26, 0.3, 0.06, 12), mats.darkMetal,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: 0.03, z: m.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.03, 0.03, MANNEQUIN.torsoY - 0.35, 8), mats.darkMetal,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: (MANNEQUIN.torsoY - 0.35) / 2 + 0.06, z: m.z })),
+      );
+      instanced(
+        new THREE.CapsuleGeometry(0.17, 0.32, 6, 12), mats.fabric,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: MANNEQUIN.torsoY, z: m.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.045, 0.05, 0.12, 8), mats.darkMetal,
+        ATELIER_MANNEQUINS.map((m) => ({ x: m.x, y: MANNEQUIN.headY - 0.14, z: m.z })),
+      );
+      const headGeo = new THREE.SphereGeometry(1, 18, 14);
+      const heads = new THREE.InstancedMesh(
+        headGeo,
+        new THREE.MeshStandardMaterial({ color: 0xd8c9a8, roughness: 0.65, metalness: 0 }),
+        ATELIER_MANNEQUINS.length,
+      );
+      ATELIER_MANNEQUINS.forEach((m, i) => {
+        dummy.position.set(m.x, MANNEQUIN.headY, m.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(MANNEQUIN.headRx, MANNEQUIN.headRy, MANNEQUIN.headRz);
+        dummy.updateMatrix();
+        heads.setMatrixAt(i, dummy.matrix);
+      });
+      heads.instanceMatrix.needsUpdate = true;
+      heads.castShadow = shadows;
+      g.add(heads);
+
+      /* The bolts: unit cylinders scaled per bolt (length along
+       * X, its own radius), coloured per instance. */
+      const boltGeo = new THREE.CylinderGeometry(1, 1, 1, 14);
+      const bolts = new THREE.InstancedMesh(
+        boltGeo,
+        new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 }),
+        ATELIER_FABRIC_BOLTS.length,
+      );
+      const boltColor = new THREE.Color();
+      ATELIER_FABRIC_BOLTS.forEach((b, i) => {
+        dummy.position.set(b.x, b.y, b.z);
+        dummy.rotation.set(0, 0, Math.PI / 2);
+        dummy.scale.set(b.r, b.len, b.r);
+        dummy.updateMatrix();
+        bolts.setMatrixAt(i, dummy.matrix);
+        bolts.setColorAt(i, boltColor.setHex(b.color));
+      });
+      bolts.instanceMatrix.needsUpdate = true;
+      if (bolts.instanceColor) bolts.instanceColor.needsUpdate = true;
+      bolts.castShadow = shadows;
+      g.add(bolts);
+
+      /* The cascade: a standing bolt at the first table's edge
+       * and its cloth fall to the floor. */
+      const c = ATELIER_CASCADE;
+      const cascadeMat = new THREE.MeshStandardMaterial({ color: c.color, roughness: 0.9, metalness: 0 });
+      const standing = new THREE.Mesh(new THREE.CylinderGeometry(c.boltR, c.boltR, 1.3, 14), cascadeMat);
+      standing.rotation.z = Math.PI / 2;
+      standing.position.set(c.boltX, BAY_KIT.tableH + c.boltR, c.boltZ);
+      standing.castShadow = shadows;
+      g.add(standing);
+      const drape = new THREE.Mesh(new THREE.BoxGeometry(c.drapeW, c.drapeH, 0.03), cascadeMat);
+      drape.position.set(c.drapeX, c.drapeH / 2, c.drapeZ);
+      drape.castShadow = shadows;
+      g.add(drape);
     }
 
     /* The display vitrines: stone pedestals (instanced) carrying
