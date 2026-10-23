@@ -134,3 +134,7 @@ Standard for every wave: close the wave's missing keys AND translate its REAL id
 ## APPENDIX — real but unboarded (named overflow, next stack's first candidates)
 
 Locale waves beyond item 100 (A7 §5, exact): de-W4 (595), es-W4 (617), fr-W4 (627), it-W4 (534), pt-W4 (628), ar-W5 (486), de-W5 (700), es-W5 (664), fr-W5 (685), hi-W5 (666), it-W5 (672), ja-W5 (700), ko-W5 (654), pt-W5 (672), ar-W6 (447), de-W6 (479), es-W6 (567), fr-W6 (605), hi-W6 (515), it-W6 (459), ja-W6 (365), ko-W6 (360), pt-W6 (556), de-W7 (470), it-W7 (412) — 25 waves ≈ 13,900 keys. Plus: SecretChallengePopup's false "bundled through Vite" header comment (A5-X5, honesty nit), the A5-M7 note that the overflow-clip guard can mask future real overflows, and A6's minor desk observations (prompt chips clobber typed text; brand-palette latch is one-way; generate confirmation names the model "(Turbo)" vs registry "(Pro)").
+
+## CLOSURE LOG (coordinator, appended during Phase 3/4)
+
+- Item 46 adjacent finding (from L6, named for the next stack): `academy.catalogBadge` also says "free to browse" while the academy route is locked — same family as item 46, different surface; left untouched by L6 to hold its scope.
