@@ -272,8 +272,8 @@ describe("source pins — the wave-2 desks and their docks", () => {
     for (const needle of [
       "feedPagePath(view)", "feedPagePath(view, before)", "feedHasMore(page.length)",
       "mergeFeedPage(prev ?? [], page)", "DROPS_PATH", "normalizeDrops",
-      'data-testid="world-feed-view-chrono"', 'data-testid="world-feed-view-foryou"',
-      'data-testid="world-feed-view-drops"', 'data-testid="world-feed-load-more"',
+      'data-testid={`world-feed-view-${v.key}`}', "FEED_VIEWS.map",
+      'data-testid="world-feed-load-more"',
       'data-testid="world-feed-drops"',
       "repostPath(post.id)", "SAVES_PATH", "saveRemovePath(post.id)",
       "postDeletePath(post.id)", "pollVotePath(post.id)", "pollVotable(poll, isGuest)",
