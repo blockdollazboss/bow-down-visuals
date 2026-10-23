@@ -44,6 +44,14 @@ import {
   GARDENS_TALL_BLOCKED,
   GARDENS_WALK,
 } from "./listening-gardens";
+import {
+  ROW_BLOCKED,
+  ROW_CAM_CLAMP,
+  ROW_INTERIOR,
+  ROW_SPAWN,
+  ROW_TALL_BLOCKED,
+  ROW_WALK,
+} from "./creation-row";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -66,6 +74,11 @@ export const STAGE_GROUNDS_ID = "world:stage-grounds";
  * wall on the old marker's line — now a true passage. Its
  * geometry lives in listening-gardens.ts. */
 export const LISTENING_GARDENS_ID = "world:listening-gardens";
+/* The third built district (Stage C item 33): the makers' row
+ * east of the plaza, through a new gap in the east wall on the
+ * old marker's line — now a true passage. Its geometry lives in
+ * creation-row.ts. */
+export const CREATION_ROW_ID = "world:creation-row";
 
 export interface PalaceRect {
   minX: number;
@@ -135,21 +148,26 @@ export interface PlazaWallRun {
  *  visible wall and the walk clamp agree everywhere: no gap a
  *  walker can see through, no invisible wall where floor runs on.
  *  The gate gaps (Stage Grounds west, Boardwalk south,
- *  Listening Gardens south) are real gaps in the runs. The
- *  Boardwalk gap stays closed by its gate's gold bar and the
- *  walk rects end inside it; the Stage Grounds gap is a true
- *  passage since item 31 and the Listening Gardens gap since
- *  item 32 — the portals in PALACE_DOORS bridge them into the
- *  built districts beyond. */
+ *  Listening Gardens south, Creation Row east) are real gaps in
+ *  the runs. The Boardwalk gap stays closed by its gate's gold
+ *  bar and the walk rects end inside it; the Stage Grounds gap
+ *  is a true passage since item 31, the Listening Gardens gap
+ *  since item 32 and the Creation Row gap since item 33 — the
+ *  portals in PALACE_DOORS bridge them into the built districts
+ *  beyond. */
 export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
   /* West wall x −28.2, split by the Stage Grounds gate gap
    * (z 18.4..20.6). */
   { w: 0.35, d: 6.0, x: -28.2, z: 15.4 },
   { w: 0.35, d: 13.4, x: -28.2, z: 27.3 },
-  /* East wall x 28.2: the main run, then the continuation south
-   * past the creator wing (item 42 — the run used to stop at
-   * z 26 and leave the south-east grounds open to the void). */
-  { w: 0.35, d: 13.6, x: 28.2, z: 19.2 },
+  /* East wall x 28.2, split by the Creation Row gate gap
+   * (z 13.4..15.6, on the old marker's line at z 14.5 — item 33):
+   * a short run north of the gap, the main run south of it, then
+   * the continuation south past the creator wing (item 42 — the
+   * run used to stop at z 26 and leave the south-east grounds
+   * open to the void). */
+  { w: 0.35, d: 1.0, x: 28.2, z: 12.9 },
+  { w: 0.35, d: 10.4, x: 28.2, z: 20.8 },
   { w: 0.35, d: 8.0, x: 28.2, z: 30.0 },
   /* South wall z 34.0 across the promenade, split by the
    * Boardwalk gate gap (x −1.1..1.1) and — since item 32 — the
@@ -245,22 +263,25 @@ export interface PlazaGate {
   open?: boolean;
 }
 
-/** The six district thresholds. Three are true gates in real
+/** The six district thresholds. Four are true gates in real
  *  wall gaps (Stage Grounds in the west wall — OPEN since item
  *  31, its district built; Listening Gardens in the south wall —
  *  OPEN since item 32, its district built, reclassified from the
- *  promenade marker that stood at (−26, 33.8); the Boardwalk in
- *  the south wall — still barred, its district unbuilt). Three
- *  are markers: the east pair stand on the open floor at x 27.0,
- *  a clear metre west of the east wall's plaza face — the
- *  shipped build painted them ON the solid wall, a fake passage;
- *  the Creator Heights marker keeps its Phase-1 spot. Every
- *  footprint below matches the body the scene builds. */
+ *  promenade marker that stood at (−26, 33.8); Creation Row in
+ *  the east wall — OPEN since item 33, its district built,
+ *  reclassified from the plaza-floor marker that stood at
+ *  (27.0, 14.5); the Boardwalk in the south wall — still barred,
+ *  its district unbuilt). Two are markers: the Ateliers stands
+ *  on the open floor at x 27.0, a clear metre west of the east
+ *  wall's plaza face — the shipped build painted it ON the
+ *  solid wall, a fake passage; the Creator Heights marker keeps
+ *  its Phase-1 spot. Every footprint below matches the body the
+ *  scene builds. */
 export const PLAZA_GATES: PlazaGate[] = [
   { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
   { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
   { name: "LISTENING GARDENS", kind: "gate", x: -26, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: -0.22, open: true },
-  { name: "CREATION ROW", kind: "marker", x: 27.0, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
+  { name: "CREATION ROW", kind: "gate", x: 28.2, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: -0.22, barDz: 0, open: true },
   { name: "THE ATELIERS", kind: "marker", x: 27.0, z: 22.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
   { name: "CREATOR HEIGHTS", kind: "marker", x: 13.5, z: 24.6, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
 ];
@@ -491,6 +512,27 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     camClamp: GARDENS_CAM_CLAMP,
     spawn: { ...GARDENS_SPAWN },
   },
+  /* ── Stage C item 33: CREATION ROW ─────────────────────────────
+   * The third built district: a makers' row east of the plaza,
+   * through a new gap in the east wall on the old marker's line
+   * — since this batch a true passage (the PALACE_DOORS portal
+   * below), not a signpost's promise. One room, one presence,
+   * like every district: the quarter is public look/listen space
+   * exactly as the plaza is (no stage authority, no new verbs —
+   * the stalls and plinths are the craft on show, and the Row
+   * Slate is its one door). Its plan lives in creation-row.ts;
+   * the server clamp box mirrors it (api-server
+   * lib/world-palace.ts). */
+  [CREATION_ROW_ID]: {
+    id: CREATION_ROW_ID,
+    name: "Creation Row",
+    walk: ROW_WALK,
+    blocked: [...ROW_BLOCKED],
+    camBlocked: [...ROW_TALL_BLOCKED],
+    interior: ROW_INTERIOR,
+    camClamp: ROW_CAM_CLAMP,
+    spawn: { ...ROW_SPAWN },
+  },
 };
 
 export interface PalaceDoor {
@@ -621,6 +663,23 @@ export const PALACE_DOORS: PalaceDoor[] = [
     portal: { minX: -26.95, maxX: -25.05, minZ: 33.6, maxZ: 34.4 },
     negRoom: COURTYARD_ID,
     posRoom: LISTENING_GARDENS_ID,
+  },
+  /* The Creation Row gate (item 33): the east wall's new gap
+   * (z 13.4..15.6 at x 28.2), now a true passage. The portal
+   * spans the wall band with aprons on both faces; its z span
+   * stops inside the gate posts' footprints (posts at z 13.4 /
+   * 15.6, blocked in PLAZA_BLOCKED), so the walkable doorway is
+   * the honest opening between the posts. Membership flips at
+   * the wall plane: east of it is the district, west the plaza. */
+  {
+    roomId: CREATION_ROW_ID,
+    axis: "x",
+    plane: 28.2,
+    spanMin: 13.4,
+    spanMax: 15.6,
+    portal: { minX: 27.8, maxX: 28.6, minZ: 13.55, maxZ: 15.45 },
+    negRoom: COURTYARD_ID,
+    posRoom: CREATION_ROW_ID,
   },
 ];
 
