@@ -13,7 +13,11 @@ import { describe, expect, it } from "vitest";
  * These pins hold the doors on those direct URLs so the collision can
  * never quietly come back. */
 
+import { initialBeatMakerTab } from "./beat-maker-tab";
+import { loginPathWithNext, postLoginPath } from "./auth-next";
+
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+const aiAudio = read("../pages/ai-audio.tsx");
 
 const musicStudio = read("../components/editor/music/MusicStudio.tsx");
 const beatsPage = read("../pages/beats.tsx");
@@ -55,5 +59,36 @@ describe("S27-68 — the Sounds page SFX door lands on the AI Audio sfx tab", ()
     expect(path).toBe("/audio-studio");
     expect(params.get("tab")).toBe("aiaudio");
     expect(params.get("sub")).toBe("sfx");
+  });
+});
+
+describe("S27-69 — the Producer Tag door can actually reach the Tag tab", () => {
+  it("the Make Song door points directly at Audio Studio carrying aitab=tag", () => {
+    expect(makeSong).toContain('href="/audio-studio?tab=aiaudio&sub=beats&aitab=tag"');
+    expect(makeSong).not.toContain('href="/beat-maker?tab=tag"');
+    const { path, params } = door("/audio-studio?tab=aiaudio&sub=beats&aitab=tag");
+    expect(path).toBe("/audio-studio");
+    expect(params.get("tab")).toBe("aiaudio");
+    expect(params.get("sub")).toBe("beats");
+    expect(params.get("aitab")).toBe("tag");
+  });
+
+  it("BeatMakerModule opens on the Tag tab when aitab=tag", () => {
+    expect(initialBeatMakerTab("?tab=aiaudio&sub=beats&aitab=tag")).toBe("tag");
+    expect(initialBeatMakerTab("aitab=tag")).toBe("tag");
+  });
+
+  it("the plain beats door (sub=beats, no aitab) opens the beats tab, NOT the tag tab", () => {
+    expect(initialBeatMakerTab("?tab=aiaudio&sub=beats")).toBe("ai");
+    expect(initialBeatMakerTab("")).toBe("ai");
+    expect(initialBeatMakerTab("?tab=aiaudio&sub=sfx")).toBe("ai");
+  });
+
+  it("the legacy multi-value ?tab= channel still selects the Tag tab", () => {
+    expect(initialBeatMakerTab("?tab=aiaudio&tab=tag")).toBe("tag");
+  });
+
+  it("BeatMakerModule's opening tab is decided by the shared helper", () => {
+    expect(aiAudio).toContain("initialBeatMakerTab(window.location.search)");
   });
 });

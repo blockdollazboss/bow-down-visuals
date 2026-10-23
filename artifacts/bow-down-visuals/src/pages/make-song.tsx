@@ -470,7 +470,7 @@ export function MakeSongModule() {
         <div className="lux-card-static p-6 md:p-8">
           {/* Producer Tag Maker — secondary entry (lives in Beat Maker, no sidebar sprawl) */}
           <Link
-            href="/beat-maker?tab=tag"
+            href="/audio-studio?tab=aiaudio&sub=beats&aitab=tag"
             className="mb-6 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 hover:bg-primary/[0.12] transition-colors group"
           >
             <span className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/40 flex items-center justify-center shrink-0">
