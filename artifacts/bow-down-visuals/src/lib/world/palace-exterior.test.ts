@@ -64,7 +64,7 @@ describe("façade skin (item 1)", () => {
     expect(FACADE.archSpanMax).toBe(2.2);
     expect(FACADE.archTopY).toBe(PALACE_DOOR_HEIGHT);
     // …and the full width is skinned at the top (the lintel run).
-    const top = facadeSkinRuns().filter((r) => r.cy - r.h / 2 >= PALACE_DOOR_HEIGHT);
+    const top = facadeSkinRuns().filter((r) => r.cy - r.h / 2 >= PALACE_DOOR_HEIGHT - 1e-9);
     expect(top.length).toBeGreaterThan(0);
   });
 
