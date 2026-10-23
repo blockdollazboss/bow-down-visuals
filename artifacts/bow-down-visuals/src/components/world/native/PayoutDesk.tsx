@@ -81,12 +81,16 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
      the palace tab takes focus again (the dashboard waits a beat
      for the account.updated webhook the same way). */
   useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
     const onFocus = () => {
-      const t = setTimeout(() => void load(), 1500);
-      return () => clearTimeout(t);
+      if (t) clearTimeout(t);
+      t = setTimeout(() => void load(), 1500);
     };
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      if (t) clearTimeout(t);
+    };
   }, [load]);
 
   const goOnboard = async (path: "/api/connect/onboard" | "/api/connect/refresh") => {
