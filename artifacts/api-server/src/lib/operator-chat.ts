@@ -70,8 +70,16 @@ type ExecutorStatus = ExecutorOutcome["status"];
 
    The contract:
    - A door exists ONLY when the knowledge base matches the message to
-     a feature that carries a path. No match (or an empty path) → no
-     doors at all.
+     a feature that carries a CONCRETE path. No match (or an empty
+     path) → no doors at all.
+   - A parameterized knowledge entry ("/artist/:slug", "/sponsors/:id")
+     describes a page TEMPLATE, not a destination: a door built from
+     one would carry the literal placeholder and open nothing real.
+     Ranked matches are therefore walked in order and the first entry
+     whose path has no ":param" segment supplies the door; when every
+     match is a template, the reply carries no door. (The template
+     entries still ground the answer's facts — they are knowledge,
+     never destinations.)
    - The open door's path is the feature's knowledge-base path VERBATIM
      — deep links included (?tab= / ?panel= ride along untouched).
    - When the matched feature's page has a "Walk me through it" Guide
@@ -90,9 +98,20 @@ export interface OperatorDoor {
   path: string;
 }
 
+/** A knowledge path is a door destination only when it is concrete:
+    no ":param" segment (the query string never carries one). */
+function isConcretePath(path: string): boolean {
+  return path
+    .split("?")[0]!
+    .split("/")
+    .every((seg) => !seg.startsWith(":"));
+}
+
 export function buildReplyDoors(message: string): OperatorDoor[] {
-  const top = findFeatures(message, 1)[0];
-  if (!top || !top.path) return [];
+  const top = findFeatures(message, 8).find(
+    (f) => f.path && isConcretePath(f.path),
+  );
+  if (!top) return [];
   const doors: OperatorDoor[] = [
     { kind: "open", label: `Open ${top.name}`, path: top.path },
   ];
