@@ -60,9 +60,9 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 /* Worker 12 (PLATFORM TIERS + FEE ECONOMICS) owns the money math — this is
-   the ONE shared fee location. Base fee 10% (env PLATFORM_FEE_BPS); the
-   per-tier rates in that module are PROPOSED and pending user approval, so
-   the storefront uses the canonical base rate only. */
+   the ONE shared fee location. The base fee is a flat 5% (env
+   PLATFORM_FEE_BPS; owner ruling 2026-10-23) — the same rate the
+   shops/store rails charge, on every tier. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";

@@ -111,11 +111,12 @@ router.get("/creator-tiers/plans", publicApiLimiter, (_req, res) => {
       feePct: bpsToPct(p.feeBps),
       aiBoostsPerMonth: p.aiBoostsPerMonth,
       features: p.features,
-      // The money math: at what monthly sales does the fee drop pay for the sub?
+      // The money math: fee-savings break-even vs Free — null since the
+      // 2026-10-23 flat-5% ruling (no tier fee savings exist anymore).
       breakEvenSalesUsd: p.tier === "free" ? null : breakEvenSalesUsd(p.tier),
       savingsAt1kUsd: p.tier === "free" ? 0 : monthlySavingsUsd(p.tier, 1000),
     })),
-    note: "Prices and fee rates are proposed and pending owner approval. Stripe TEST mode only.",
+    note: "Prices approved 2026-10-07; the platform fee is a flat 5% on every tier (owner ruling 2026-10-23). Stripe TEST mode only.",
   });
 });
 

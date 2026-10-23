@@ -20,7 +20,19 @@ import { z } from "zod";
      - Subscription prices: pro $12/mo, elite $29/mo
      - Star ceilings:  free 1–3★ / pro 4–5★ / elite 6★
      - AI boost quotas: free 3 / pro 25 / elite 100 per month
-   Stripe stays in TEST mode until launch — no real card is billed until the user flips it live.               */
+   Stripe stays in TEST mode until launch — no real card is billed until the user flips it live.
+
+   ★ FEE RATES SUPERSEDED 2026-10-23 (owner ruling — "flat 5% everywhere"):
+     the tier fee ladder above is RETIRED. Every storefront/shop rail now
+     charges one flat 5% platform fee on every tier: the shops rail has
+     charged flat 5% since the owner's 2026-10-18 ruling
+     (STOREFRONT_PLATFORM_FEE_BPS, routes/generate/shops.ts; routes/store.ts
+     reuses it), and PLATFORM_FEE_BPS below — the rate routes/storefront.ts
+     actually charges — is aligned to the same 500. Displays, projections
+     and charge paths tell the single 5% story. Subscription prices and AI
+     boost quotas above are unaffected. Other products keep their own
+     ratified fees (memberships 10%, beats 15%, sponsors 15%, live
+     shopping 5%, Paid Series 5%) — they do not read this module.          */
 
 export const CREATOR_TIERS = ["free", "pro", "elite"] as const;
 export type CreatorTier = (typeof CREATOR_TIERS)[number];
@@ -36,15 +48,24 @@ function parseBps(raw: string | undefined, fallback: number): number {
 
 /**
  * Canonical base platform fee, basis points (100 bps = 1%).
- * Matches the existing storefront fee (10%). Env-overridable without a deploy.
+ * Flat 5% — the storefront/shop rate on every rail and every tier
+ * (owner ruling 2026-10-23). routes/storefront.ts charges through this
+ * constant. Env-overridable without a deploy.
  */
-export const PLATFORM_FEE_BPS: number = parseBps(process.env["PLATFORM_FEE_BPS"], 1000);
+export const PLATFORM_FEE_BPS: number = parseBps(process.env["PLATFORM_FEE_BPS"], 500);
 
-/** Per-tier fee rates. ★ APPROVED 2026-10-07. */
+/** Per-tier fee rates. feeSplitForTier feeds creator-tiers display +
+ * next-tier projections, and this map is the schedule those surfaces
+ * publish. The 10% / 7% / 5% ladder approved 2026-10-07 was never
+ * delivered by a sale rail and is retired: the owner ruled a flat 5%
+ * platform fee on every tier (2026-10-23), matching what the shops rail
+ * has charged since 2026-10-18 (STOREFRONT_PLATFORM_FEE_BPS in
+ * routes/generate/shops.ts; routes/store.ts reuses it) and what
+ * routes/storefront.ts charges through PLATFORM_FEE_BPS above. */
 export const TIER_FEE_BPS: Record<CreatorTier, number> = {
-  free: parseBps(process.env["PLATFORM_FEE_BPS_FREE"], PLATFORM_FEE_BPS),
-  pro: parseBps(process.env["PLATFORM_FEE_BPS_PRO"], 700), // 7% — approved 2026-10-07
-  elite: parseBps(process.env["PLATFORM_FEE_BPS_ELITE"], 500), // 5% — approved 2026-10-07
+  free: parseBps(process.env["PLATFORM_FEE_BPS_FREE"], 500), // flat 5% — the rail truth for every tier
+  pro: parseBps(process.env["PLATFORM_FEE_BPS_PRO"], 500), // flat 5%
+  elite: parseBps(process.env["PLATFORM_FEE_BPS_ELITE"], 500), // flat 5%
 };
 
 export interface FeeSplit {
@@ -172,7 +193,7 @@ export const TIER_PLANS: TierPlanDef[] = [
     features: [
       { label: "Your own subdomain site (you.bowdownvisuals.com)", detailsUrl: "/creator-pricing#feature-site" },
       { label: "Livestreaming to your fans", detailsUrl: "/creator-pricing#feature-streaming" },
-      { label: "Sell downloads, products & tickets — standard 10% fee", detailsUrl: "/creator-pricing#money-math" },
+      { label: "Sell downloads, products & tickets — flat 5% platform fee", detailsUrl: "/creator-pricing#money-math" },
       { label: "Basic site themes", detailsUrl: "/creator-pricing#feature-themes" },
       { label: "Basic analytics (plays, views, sales)", detailsUrl: "/analytics" },
       { label: "3 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
@@ -182,7 +203,7 @@ export const TIER_PLANS: TierPlanDef[] = [
   {
     tier: "pro",
     name: "Pro",
-    tagline: "Go pro, keep more of your money. The fee drop pays for itself.",
+    tagline: "Go pro: your own domain, unlimited products, pro analytics.",
     priceUsdPerMonth: 12, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_PRO",
     feeBps: TIER_FEE_BPS.pro,
@@ -190,7 +211,7 @@ export const TIER_PLANS: TierPlanDef[] = [
     features: [
       { label: "Everything in Free, plus:", detailsUrl: "/creator-pricing#money-math" },
       { label: "Your own custom domain (you.com, verified)", detailsUrl: "/storefronts" },
-      { label: "Only 7% platform fee — keep 3% more of every sale", detailsUrl: "/creator-pricing#money-math" },
+      { label: "Flat 5% platform fee — the same honest rate on every tier", detailsUrl: "/creator-pricing#money-math" },
       { label: "Unlimited products in your shop", detailsUrl: "/storefronts" },
       { label: "Premium gold-luxury themes", detailsUrl: "/creator-pricing#feature-themes" },
       { label: "Pro analytics dashboard (funnels, sources, cohorts)", detailsUrl: "/analytics" },
@@ -200,14 +221,14 @@ export const TIER_PLANS: TierPlanDef[] = [
   {
     tier: "elite",
     name: "Elite",
-    tagline: "Front of the line. The lowest fee on the platform.",
+    tagline: "Front of the line. Priority placement and the full boost stack.",
     priceUsdPerMonth: 29, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_ELITE",
     feeBps: TIER_FEE_BPS.elite,
     aiBoostsPerMonth: TIER_AI_BOOSTS.elite,
     features: [
       { label: "Everything in Pro, plus:", detailsUrl: "/creator-pricing#money-math" },
-      { label: "Only 5% platform fee — keep 5% more of every sale", detailsUrl: "/creator-pricing#money-math" },
+      { label: "Flat 5% platform fee — the same honest rate on every tier", detailsUrl: "/creator-pricing#money-math" },
       { label: "Priority placement in discovery", detailsUrl: "/creator-pricing#feature-discovery" },
       { label: "Dedicated support badge + priority support", detailsUrl: "/creator-pricing#feature-support" },
       { label: "100 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
@@ -217,8 +238,11 @@ export const TIER_PLANS: TierPlanDef[] = [
 
 /**
  * "Pays for itself" math: monthly sales volume (USD) at which the tier's
- * fee savings vs Free exactly cover the subscription price.
- * Pro: $12 / 3% = $400/mo. Elite: $29 / 5% = $580/mo.
+ * fee savings vs Free exactly cover the subscription price. Since
+ * Stack-28 item 4 the fee is a flat 5% on every tier (the rail truth),
+ * so there are no tier fee savings: this returns null and
+ * monthlySavingsUsd returns 0 — paid tiers pay for themselves with
+ * their features (domain, products, analytics, boosts), not a fee drop.
  */
 export function breakEvenSalesUsd(tier: Exclude<CreatorTier, "free">): number | null {
   const plan = TIER_PLANS.find((p) => p.tier === tier);
