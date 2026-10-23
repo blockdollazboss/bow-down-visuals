@@ -12,6 +12,32 @@
    the site media. Paths, dimensions and the approved logo widths are
    pinned by kings-set.test.ts against the files on disk. */
 
+/**
+ * Absolutify a King's Set asset path for the render rails.
+ *
+ * The set's paths are site-relative ("/wallpapers/…") because the desk
+ * also renders/downloads them same-origin, where relative is correct.
+ * But the wallpaper + screensaver rails validate every URL with an
+ * http(s)-only schema (routes/wallpapers.ts httpUrlSchema) and reject
+ * a relative path with 400 before any render — so the values the desk
+ * hands to those rails (the selected art, the screensaver video) must
+ * be absolute. Stack-28 item 13: absolutify ONCE, at selection time in
+ * the desk, so every downstream rail call inherits an http(s) URL.
+ * `origin` is injectable for tests; in the browser it defaults to the
+ * page's own origin. An already-absolute URL passes through unchanged.
+ */
+export function absoluteKingsSetUrl(path: string, origin?: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    origin ?? (typeof window !== "undefined" ? window.location.origin : undefined);
+  if (!base) return path;
+  try {
+    return new URL(path, base).href;
+  } catch {
+    return path;
+  }
+}
+
 export interface KingsSetPiece {
   id: "plaza" | "throne" | "stage";
   /** i18n leaf under wallpapers.kingset.* naming the piece. */
