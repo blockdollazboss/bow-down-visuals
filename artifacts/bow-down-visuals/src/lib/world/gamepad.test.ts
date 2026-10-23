@@ -44,7 +44,7 @@ describe("applyRadialDeadzone", () => {
 
 describe("pollGamepad", () => {
   it("a missing pad is a clean idle and resets the edges", () => {
-    const { intent, edges } = pollGamepad(null, { voice: true, view: true, interact: true, actions: {} });
+    const { intent, edges } = pollGamepad(null, { voice: true, view: true, interact: true, lt: true, actions: {} });
     expect(intent).toMatchObject({ moveX: 0, moveY: 0, sprint: false, toggleVoice: false });
     expect(edges).toEqual(IDLE_GAMEPAD_EDGES);
   });
@@ -87,6 +87,29 @@ describe("pollGamepad", () => {
     const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges);
     const again = pollGamepad(pad([0, 0, 0, 0], [4]), up.edges);
     expect(again.intent.interact).toBe(true);
+  });
+
+  it("LT steps the voice mode back — on the press edge only (item 59)", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [6]), IDLE_GAMEPAD_EDGES);
+    expect(down.intent.voiceBack).toBe(true);
+    const held = pollGamepad(pad([0, 0, 0, 0], [6]), down.edges);
+    expect(held.intent.voiceBack).toBe(false);
+    const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges);
+    const again = pollGamepad(pad([0, 0, 0, 0], [6]), up.edges);
+    expect(again.intent.voiceBack).toBe(true);
+  });
+
+  it("LT steals nothing: not sprint, not the forward voice step, not an action", () => {
+    const { intent } = pollGamepad(pad([0, 0, 0, 0], [6]), IDLE_GAMEPAD_EDGES);
+    expect(intent.sprint).toBe(false);
+    expect(intent.toggleVoice).toBe(false);
+    expect(intent.toggleView).toBe(false);
+    expect(intent.interact).toBe(false);
+    expect(intent.action).toBeNull();
+    // …and RT beside it keeps its own job: sprint, never voice-back.
+    const rt = pollGamepad(pad([0, 0, 0, 0], [7]), IDLE_GAMEPAD_EDGES).intent;
+    expect(rt.sprint).toBe(true);
+    expect(rt.voiceBack).toBe(false);
   });
 
   it("LB steals nothing: it is not an action, a toggle, or sprint", () => {

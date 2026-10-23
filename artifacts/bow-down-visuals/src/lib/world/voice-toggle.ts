@@ -193,6 +193,15 @@ export function nextVoiceMode(mode: VoiceMode): VoiceMode {
   return VOICE_MODES[(i + 1) % VOICE_MODES.length] ?? "proximity";
 }
 
+/** The gamepad's LT steps the same ring BACKWARD (Stack-100 #2
+ *  item 59): Deafen → Lobby → Proximity → Off → Deafen — the exact
+ *  inverse of nextVoiceMode, so A and LT together walk the ring
+ *  both ways and a step too far is one trigger-pull back. */
+export function prevVoiceMode(mode: VoiceMode): VoiceMode {
+  const i = VOICE_MODES.indexOf(mode);
+  return VOICE_MODES[(i - 1 + VOICE_MODES.length) % VOICE_MODES.length] ?? "deafen";
+}
+
 /* ── Device memory ────────────────────────────────────────────────────
    The mode is remembered on this device: deafen once and the hall
    greets you deafened next visit (announced on entry, so the room's

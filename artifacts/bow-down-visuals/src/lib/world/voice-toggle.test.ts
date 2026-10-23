@@ -24,6 +24,8 @@ import {
   canJoinVoice,
   gainPolicyForMode,
   nextVoiceMode,
+  prevVoiceMode,
+  VOICE_MODES,
   loadVoiceMode,
   storeVoiceMode,
   WORLD_VOICE_MODE_STORAGE_KEY,
@@ -197,6 +199,17 @@ describe("policies + the gamepad cycle", () => {
     expect(nextVoiceMode("proximity")).toBe("lobby");
     expect(nextVoiceMode("lobby")).toBe("deafen");
     expect(nextVoiceMode("deafen")).toBe("off");
+  });
+
+  it("LT steps the same ring backward, the exact inverse of A (item 59)", () => {
+    expect(prevVoiceMode("deafen")).toBe("lobby");
+    expect(prevVoiceMode("lobby")).toBe("proximity");
+    expect(prevVoiceMode("proximity")).toBe("off");
+    expect(prevVoiceMode("off")).toBe("deafen");
+    for (const mode of VOICE_MODES) {
+      expect(prevVoiceMode(nextVoiceMode(mode))).toBe(mode);
+      expect(nextVoiceMode(prevVoiceMode(mode))).toBe(mode);
+    }
   });
 });
 

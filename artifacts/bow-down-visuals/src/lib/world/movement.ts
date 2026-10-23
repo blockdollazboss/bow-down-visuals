@@ -62,8 +62,10 @@ export interface MoverState {
   settleVel: number;
   /** Actual speed (m/s) measured from fed positions last step. */
   speed: number;
-  /** Completed steps — the footstep hook (dust, sound) reads
-   *  increments of this counter. */
+  /** Completed steps — the footstep hook reads increments of
+   *  this counter: the scene's step-dust (step-dust.ts, item 57)
+   *  raises a puff per landed step. (No footstep SOUND exists —
+   *  the counter's only reader is the dust.) */
   stepCount: number;
 }
 
