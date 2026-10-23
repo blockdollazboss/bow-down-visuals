@@ -43,6 +43,10 @@ export default function TipPage() {
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; a network failure is a
+     load error with retry, never "this tip page is gone". */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [amount, setAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [fanName, setFanName] = useState("");
@@ -78,19 +82,27 @@ export default function TipPage() {
   useEffect(() => {
     if (!handle) return;
     setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     fetch(`/api/tips/page/${encodeURIComponent(handle)}`)
       .then(async (res) => {
         if (res.status === 404) {
           setNotFound(true);
           return;
         }
+        if (!res.ok) {
+          setLoadError(true);
+          return;
+        }
         const json = await res.json();
-        setData(json);
-        if (json.page?.suggestedAmounts?.length) setAmount(json.page.suggestedAmounts[0]);
+        if (json?.page) {
+          setData(json);
+          if (json.page?.suggestedAmounts?.length) setAmount(json.page.suggestedAmounts[0]);
+        } else setLoadError(true);
       })
-      .catch(() => setNotFound(true))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [handle]);
+  }, [handle, retryNonce]);
 
   const effectiveAmount = customAmount.trim() ? Number(customAmount) : amount;
 
@@ -144,6 +156,13 @@ export default function TipPage() {
       <main className="mx-auto max-w-xl px-4 pb-24 pt-28">
         {loading ? (
           <div className="flex justify-center pt-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : loadError ? (
+          <div className="pt-16 text-center" data-testid="tip-load-error">
+            <HandCoins className="mx-auto h-12 w-12 text-white/20" />
+            <h1 className="mt-4 text-2xl font-bold">This tip page couldn't load</h1>
+            <p className="mt-2 text-white/50">Something went wrong on our end — the page may still be live.</p>
+            <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-6 inline-block rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/70 hover:bg-white/[0.06]">Try again</button>
+          </div>
         ) : notFound || !data ? (
           <div className="pt-16 text-center">
             <HandCoins className="mx-auto h-12 w-12 text-white/20" />

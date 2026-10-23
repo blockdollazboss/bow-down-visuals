@@ -58,22 +58,30 @@ export default function PlanPublic() {
   const [payload, setPayload] = useState<PlanPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; other failures are a
+     load error with retry. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (!slug) { setNotFound(true); setLoading(false); return; }
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     fetch(`/api/content-plans/p/${encodeURIComponent(slug)}`)
       .then((r) => {
         if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) { setLoadError(true); return null; }
         return r.json();
       })
       .then((d) => {
-        if (d?.plan) setPayload(d as PlanPayload);
-        else setNotFound(true);
+        if (!d) return;
+        if (d.plan) setPayload(d as PlanPayload);
+        else setLoadError(true);
       })
-      .catch(() => setNotFound(true))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, retryNonce]);
 
   const plan = payload?.plan;
   usePageTitle(
@@ -96,6 +104,18 @@ export default function PlanPublic() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center bg-black px-5 text-center" data-testid="plan-load-error">
+        <p className="font-display text-2xl font-black text-white">This plan couldn't load</p>
+        <p className="mt-2 text-sm text-white/50">Something went wrong on our end — the plan may still be shared.</p>
+        <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-6 rounded-2xl bg-primary px-6 py-3 text-sm font-black text-black">
+          Try again
+        </button>
       </div>
     );
   }

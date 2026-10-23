@@ -46,19 +46,28 @@ export default function PublicPressKit() {
   const [kit, setKit] = useState<PressKit | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; other failures are a
+     load error with retry (previously a non-404 failure silently fell
+     through to the not-found render). */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     (async () => {
       try {
         const res = await fetch(`/api/press-kit/public/${encodeURIComponent(handle)}`);
         if (res.status === 404) { setNotFound(true); return; }
-        if (!res.ok) return;
+        if (!res.ok) { setLoadError(true); return; }
         const data = await res.json();
-        setKit(data.kit);
-      } catch { /* show loading state */ }
+        if (data?.kit) setKit(data.kit);
+        else setLoadError(true);
+      } catch { setLoadError(true); }
       finally { setLoading(false); }
     })();
-  }, [handle]);
+  }, [handle, retryNonce]);
 
   if (loading) {
     return (
@@ -67,6 +76,18 @@ export default function PublicPressKit() {
           <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
         </div>
 
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <div className="max-w-xl mx-auto px-5 py-32 text-center" data-testid="press-load-error">
+          <h1 className="text-3xl font-bold mb-3">This press kit couldn't load</h1>
+          <p className="text-white/50 mb-6">Something went wrong on our end — the kit may still be published.</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="rounded-xl bg-[#d4af37] px-6 py-2.5 font-bold text-black hover:bg-[#e5c158]">Try again</button>
+        </div>
       </div>
     );
   }

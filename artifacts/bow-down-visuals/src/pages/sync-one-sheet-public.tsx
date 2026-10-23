@@ -48,24 +48,33 @@ export default function SyncOneSheetPublic() {
   const [sheet, setSheet] = useState<PublicOneSheet | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  /* Stack-28 #29 / A3-F7: 404-only → not-found; other failures are a
+     load error with retry. */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setLoadError(false);
     (async () => {
       try {
         const res = await fetch(`/api/sync-pitch/public/${encodeURIComponent(token)}`);
+        if (res.status === 404) { if (!cancelled) setNotFound(true); return; }
+        if (!res.ok) { if (!cancelled) setLoadError(true); return; }
         const json = await res.json();
         if (cancelled) return;
-        if (res.ok && json.oneSheet) setSheet(json.oneSheet);
-        else setNotFound(true);
+        if (json.oneSheet) setSheet(json.oneSheet);
+        else setLoadError(true);
       } catch {
-        if (!cancelled) setNotFound(true);
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, retryNonce]);
 
   usePageTitle(
     sheet ? `${sheet.songTitle} — Sync One-Sheet` : t("syncPitch.publicTitle"),
@@ -76,6 +85,19 @@ export default function SyncOneSheetPublic() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
         <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-black px-5 text-center text-white" data-testid="sync-sheet-load-error">
+        <Link2Off className="h-10 w-10 text-white/25" aria-hidden="true" />
+        <h1 className="mt-4 text-2xl font-black">This one-sheet couldn't load</h1>
+        <p className="mt-2 max-w-sm text-sm text-white/50">Something went wrong on our end — the pitch may still be live.</p>
+        <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm font-black text-black transition hover:brightness-110">
+          Try again
+        </button>
       </div>
     );
   }

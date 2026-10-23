@@ -23,11 +23,19 @@ describe("group detail — feed settles separately from the group", () => {
     expect(page).toContain('setFeedError(friendlyLoadError(e, "the group feed"))');
   });
 
-  it("the group is applied before the feed is awaited, and a group failure returns before the feed load", () => {
+  it("the group is applied, page loading clears, THEN the feed fires un-awaited — and a group failure returns before the feed load", () => {
+    /* Pin corrected for Stack-28 #30 / A3-F9 (documented deliberate
+       revisit): S27-26 pinned "group applied before the feed is
+       awaited", but that very await gated the full-page spinner on
+       the slower feed fetch, defeating (a)–(c) in practice. The
+       newer truth keeps the S27-26 contract and strengthens the
+       sequencing: core data settles the page; the feed resolves in
+       its own section. */
     const groupSet = page.indexOf("setGroup(d.group)");
-    const feedAwait = page.indexOf("await loadFeed();");
+    const loadingCleared = page.indexOf("setLoading(false);\n    void loadFeed();");
     expect(groupSet).toBeGreaterThan(-1);
-    expect(feedAwait).toBeGreaterThan(groupSet);
+    expect(loadingCleared).toBeGreaterThan(groupSet);
+    expect(page).not.toContain("await loadFeed();");
     expect(page).toContain('setError(friendlyLoadError(e, "this group"));');
   });
 
