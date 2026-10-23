@@ -197,6 +197,7 @@ import {
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
+import { WorldNotificationsBell } from "@/components/world/WorldNotificationsBell";
 import { ObjectiveStrip } from "@/components/world/ObjectiveStrip";
 import {
   GUEST_EMOTE_PITCH,
@@ -2204,6 +2205,20 @@ export default function WorldPage() {
             {isFs ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             {isFs ? "Exit full screen" : "Full screen"}
           </button>
+        )}
+        {/* The inbox bell (stack-100 #78): the member's real
+            notifications rail in the chrome — unread badge, panel,
+            mark-read, and in-world navigation to the group / Post
+            Office a notification points at. Members only: the rail
+            is requireAuth and a guest holds no inbox. */}
+        {status === "inside" && !isGuest && (
+          <WorldNotificationsBell
+            isLight={isLight}
+            onOpenStation={(stationId) => {
+              const station = STATION_BY_ID.get(stationId);
+              if (station) setPanelTarget({ kind: "station", station });
+            }}
+          />
         )}
         {/* The standing switch (owner addendum, Oct 17): the plain
             way out of the palace to the 2D website — always in the

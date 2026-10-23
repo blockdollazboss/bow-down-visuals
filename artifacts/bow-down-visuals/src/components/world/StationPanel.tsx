@@ -32,6 +32,7 @@ import {
 } from "@/components/world/native";
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
+import { GroupsDesk } from "@/components/world/native/GroupsDesk";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
 import {
   CreatorRoomsDirectory,
@@ -1720,7 +1721,12 @@ export default function StationPanel(props: StationPanelProps) {
               {station.id === "post-office" ? (
                 <PostOfficeDesk isLight={isLight} />
               ) : station.id === "community-hall" ? (
-                <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                <div className="flex flex-col gap-6">
+                  <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                  {/* Groups + forums (stack-100 #76/#77): the Hall's
+                      promised crews, on the /api/groups rails. */}
+                  <GroupsDesk isLight={isLight} isGuest={isGuest} />
+                </div>
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
               )}
