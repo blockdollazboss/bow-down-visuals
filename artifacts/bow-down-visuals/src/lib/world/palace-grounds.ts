@@ -206,8 +206,10 @@ export const MONUMENT = {
   tier2: { size: 3.5, h: 0.24, topY: 0.48 },
   tier2Trim: { size: 3.64, h: 0.05 },
   tier3: { size: 2.7, h: 0.22, topY: 0.7 },
-  /** The stele: bevelled (wider at its foot), from tier3's top. */
-  stele: { baseW: 1.9, topW: 1.66, baseD: 0.56, topD: 0.46, baseY: 0.7, topY: 4.06 },
+  /** The stele: bevelled (wider at its foot), from tier3's top.
+   *  topD is the taper's consequence (topW × baseD/baseW ≈ 0.49),
+   *  recorded so the relief-band math follows the real surface. */
+  stele: { baseW: 1.9, topW: 1.66, baseD: 0.56, topD: 0.49, baseY: 0.7, topY: 4.06 },
   /** Gold relief bands across the stele's front/back. */
   reliefBandYs: [1.06, 3.72] as readonly number[],
   /** The plate drum — item 16's housing, untouched. */

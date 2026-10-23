@@ -3488,7 +3488,9 @@ export class KingsHallScene {
         new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(2, 0.3), edging.length,
       );
       edging.forEach((b, i) => {
-        dummy.position.set(b.cx, b.cy, b.cz);
+        /* +0.025: the curb stands a hair proud of the bed's top
+         * face — coplanar stone-on-stone would z-fight. */
+        dummy.position.set(b.cx, b.cy + 0.025, b.cz);
         dummy.rotation.set(0, 0, 0);
         dummy.scale.set(b.w, b.h, b.d);
         dummy.updateMatrix();
@@ -3637,11 +3639,15 @@ export class KingsHallScene {
       const stele = new THREE.Mesh(
         new THREE.CylinderGeometry(
           (M.stele.topW / 2) * Math.SQRT2, (M.stele.baseW / 2) * Math.SQRT2,
-          steleH, 4, 1,
+          steleH, 4, 1, false, Math.PI / 4, Math.PI * 2,
         ),
         mats.facadeMarbleFor(M.stele.baseW, steleH),
       );
-      stele.rotation.y = Math.PI / 4;
+      /* thetaStart π/4 puts the four faces square to the plaza
+       * (no mesh rotation), so this z-squash — the stele is
+       * shallower than it is wide — acts in world axes and the
+       * cross-section stays a true rectangle at every height
+       * (top depth = topW × baseD/baseW, as the plan records). */
       stele.scale.z = M.stele.baseD / M.stele.baseW;
       stele.position.y = M.stele.baseY + steleH / 2;
       stele.castShadow = shadows;
