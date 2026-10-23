@@ -274,3 +274,32 @@ describe("#31 email-list: four engagement panels load and fail independently (A3
     expect(campEmptyAt).toBeGreaterThan(campErrAt);
   });
 });
+
+describe("#32 LoyaltySettingsPanel: defaults never pose as saved rules (A3-F11)", () => {
+  const page = src("../components/reach/LoyaltySettingsPanel.tsx");
+  it("the panel resolves through explicit loading / no-profile / error phases", () => {
+    expect(page).toContain('data-testid="loyalty-loading"');
+    expect(page).toContain('data-testid="loyalty-load-error"');
+    expect(page).toContain("setNoProfile(true)");
+  });
+  it("a failed /me lookup is a load error, not 'create your profile first'", () => {
+    expect(page).not.toContain('apiJson<{ id?: string }>(getAccessToken, "/api/creator-profiles/me").catch(() => null)');
+    expect(page).toContain("A failed /me lookup is a LOAD error, not \"no profile\"");
+  });
+  it("the settings form renders ONLY from loaded values (loading/error branches gate it first)", () => {
+    const loadingAt = page.indexOf('data-testid="loyalty-rules-loading"');
+    const errorAt = page.indexOf('data-testid="loyalty-rules-error"');
+    const formAt = page.indexOf("<form", errorAt);
+    expect(loadingAt).toBeGreaterThan(-1);
+    expect(errorAt).toBeGreaterThan(loadingAt);
+    expect(formAt).toBeGreaterThan(errorAt);
+    expect(page).toContain("setForm({\n          enabled: s.enabled,");
+  });
+  it("the redemption queue settles independently — a loyalty failure leaves it working", () => {
+    const queueAt = page.indexOf("reachApi.redemptionQueue");
+    const loyaltyAt = page.indexOf("reachApi.loyalty(getAccessToken, pid)", queueAt);
+    expect(queueAt).toBeGreaterThan(-1);
+    expect(loyaltyAt).toBeGreaterThan(queueAt);
+    expect(page).toContain("setQueue(pendingRedemptionsFromPayload(q));");
+  });
+});

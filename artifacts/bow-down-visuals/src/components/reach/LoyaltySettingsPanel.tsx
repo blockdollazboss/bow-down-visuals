@@ -23,43 +23,92 @@ export default function LoyaltySettingsPanel() {
   const [queue, setQueue] = useState<Array<{ id: string; perkLabel: string; pointsCost: number; status: string }>>([]);
   const [note, setNote] = useState<string | null>(null);
   const [form, setForm] = useState({ enabled: true, watch: 10, chat: 2, tip: 5, customLabel: "", customCost: 1000 });
+  /* Stack-28 #32 / A3-F11: the panel now carries loading + error
+     states like its sibling DestinationKeysPanel. Until the saved
+     rules actually load, the form is NOT rendered — the hard-coded
+     defaults (enabled, 10/2/5, 1000) must never pose as the creator's
+     saved earn rules, and never be saveable over unseen settings. */
+  const [resolving, setResolving] = useState(true);
+  const [noProfile, setNoProfile] = useState(false);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const load = useCallback(
     async (pid: string) => {
-      const [s, q] = await Promise.all([
-        reachApi.loyalty(getAccessToken, pid),
-        reachApi.redemptionQueue(getAccessToken, pid).catch((): { redemptions: Array<{ id: string; userId: string; perkLabel: string; pointsCost: number; status: string; createdAt: string | null }> } => ({ redemptions: [] })),
-      ]);
-      setState(s);
-      setForm({
-        enabled: s.enabled,
-        watch: s.watchPointsPer10Min,
-        chat: s.chatPoints,
-        tip: s.tipPointsPer100Vb,
-        customLabel: s.customRewardLabel ?? "",
-        customCost: s.customRewardCost ?? 1000,
-      });
+      setLoyaltyLoading(true);
+      setLoadError(null);
+      /* The queue settles on its own first: a loyalty failure must
+         leave the redemption queue working (per-section law). */
+      const q = await reachApi.redemptionQueue(getAccessToken, pid).catch((): { redemptions: Array<{ id: string; userId: string; perkLabel: string; pointsCost: number; status: string; createdAt: string | null }> } => ({ redemptions: [] }));
       /* Guard (DTO batch #2): a success payload missing the list is the
          honest empty queue — the raw .filter used to throw inside load(). */
       setQueue(pendingRedemptionsFromPayload(q));
+      try {
+        const s = await reachApi.loyalty(getAccessToken, pid);
+        setState(s);
+        setForm({
+          enabled: s.enabled,
+          watch: s.watchPointsPer10Min,
+          chat: s.chatPoints,
+          tip: s.tipPointsPer100Vb,
+          customLabel: s.customRewardLabel ?? "",
+          customCost: s.customRewardCost ?? 1000,
+        });
+      } catch {
+        setLoadError("Your saved loyalty rules couldn't load — nothing below is your saved settings.");
+      } finally {
+        setLoyaltyLoading(false);
+      }
     },
     [getAccessToken],
   );
 
   useEffect(() => {
     (async () => {
+      setResolving(true);
+      setNoProfile(false);
+      setLoadError(null);
       try {
-        const me = await apiJson<{ id?: string }>(getAccessToken, "/api/creator-profiles/me").catch(() => null);
+        const me = await apiJson<{ id?: string }>(getAccessToken, "/api/creator-profiles/me");
         const pid = me?.id ?? null;
+        if (!pid) { setNoProfile(true); return; }
         setProfileId(pid);
-        if (pid) await load(pid);
+        await load(pid);
       } catch {
-        /* no profile → panel explains itself below */
+        /* A failed /me lookup is a LOAD error, not "no profile". */
+        setLoadError("Your loyalty settings couldn't load. Try again in a moment.");
+        setLoyaltyLoading(false);
+      } finally {
+        setResolving(false);
       }
     })();
-  }, [getAccessToken, load]);
+  }, [getAccessToken, load, retryNonce]);
 
-  if (!profileId) {
+  if (resolving) {
+    return (
+      <section className="mx-auto w-full max-w-5xl px-4 pb-10">
+        <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-white" data-testid="loyalty-loading">
+          <h2 className="flex items-center gap-2 text-lg font-black"><Trophy className="h-5 w-5 text-[#e8c86a]" /> Channel loyalty</h2>
+          <p className="mt-2 text-sm text-white/50">Loading your loyalty settings…</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (loadError && !profileId) {
+    return (
+      <section className="mx-auto w-full max-w-5xl px-4 pb-10">
+        <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-white" data-testid="loyalty-load-error">
+          <h2 className="flex items-center gap-2 text-lg font-black"><Trophy className="h-5 w-5 text-[#e8c86a]" /> Channel loyalty</h2>
+          <p className="mt-2 text-sm text-red-300">{loadError}</p>
+          <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="mt-3 rounded-full bg-[#e8c86a] px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.02]">Try again</button>
+        </div>
+      </section>
+    );
+  }
+
+  if (noProfile || !profileId) {
     return (
       <section className="mx-auto w-full max-w-5xl px-4 pb-10">
         <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-white">
@@ -80,6 +129,14 @@ export default function LoyaltySettingsPanel() {
           Fans earn your channel's points for watching, chatting and tipping, and spend them on perks you fulfill.
           Points are not Visual Bucs and can't be turned into Visual Bucs or money — they're your channel's own thank-you.
         </p>
+        {loyaltyLoading ? (
+          <p className="mt-4 text-sm text-white/50" data-testid="loyalty-rules-loading">Loading your saved rules…</p>
+        ) : loadError ? (
+          <div className="mt-4" data-testid="loyalty-rules-error">
+            <p className="text-sm text-red-300">{loadError}</p>
+            <button type="button" onClick={() => { if (profileId) void load(profileId); }} className="mt-3 rounded-full bg-[#e8c86a] px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.02]">Try again</button>
+          </div>
+        ) : (
         <form
           className="mt-4 grid gap-3 text-sm md:grid-cols-3"
           onSubmit={async (e) => {
@@ -132,6 +189,7 @@ export default function LoyaltySettingsPanel() {
           </label>
           <button type="submit" className="rounded-full bg-[#e8c86a] px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.02]">Save loyalty settings</button>
         </form>
+        )}
         {note && <p className="mt-3 text-sm text-white/60">{note}</p>}
         {state && <p className="mt-2 text-xs text-white/40">Perks on your menu: {state.perks.map((p) => `${p.label} (${p.cost})`).join(" · ")}</p>}
 
