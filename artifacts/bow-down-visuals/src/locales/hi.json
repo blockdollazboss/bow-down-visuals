@@ -1393,7 +1393,7 @@
     "photoShootLook": "फोटो शूट लुक",
     "backToDashboard": "डैशबोर्ड पर वापस जाएँ",
     "freeBadge": "मुफ़्त",
-    "profilesTitle": "Creative Vault",
+    "profilesTitle": "क्रिएटिव वॉल्ट",
     "profilesSubtitle": "अपने कलाकार के रूप, शैली, रंग और ब्रांड को एक बार सहेजें - फिर अपने सभी दृश्यों को सुसंगत रखने के लिए इसे किसी भी टूल पर लोड करें।",
     "tagArtistDescription": "कलाकार विवरण",
     "tagVisualStyle": "दृश्य शैली",
@@ -1508,7 +1508,17 @@
     "identityUrlRequired": "फ़ोटो के लिए एक मान्य छवि URL (https://…) जोड़ें.",
     "identityRemoveTitle": "केवल सेट से हटाता है — छवि फ़ाइल रखी जाती है",
     "identityRemoveAria": "पहचान सेट से फ़ोटो हटाएँ",
-    "identityUploadAria": "पहचान फ़ोटो अपलोड करें"
+    "identityUploadAria": "पहचान फ़ोटो अपलोड करें",
+    "worldVoiceSection": "वर्ल्ड वॉइस",
+    "worldVoiceHint": "जब आप वर्ल्ड में इस किरदार के रूप में बोलते हैं तो यह कैसा लगता है। Natural = आपकी अपनी आवाज़।",
+    "voicePresetDeep": "डीप",
+    "voicePresetNatural": "Natural",
+    "voicePresetBright": "ब्राइट",
+    "voiceAdvanced": "Advanced",
+    "voicePitch": "पिच",
+    "voiceFormant": "शरीर का आकार",
+    "voiceBody": "रेज़ोनेंस",
+    "emptyProfilesTitle": "आपका वॉल्ट खाली है"
   },
   "audioCleanup": {
     "abCleaned": "साफ़ किया गया",
@@ -2233,7 +2243,9 @@
     "spotlightBadge": "#{{n}} स्पॉटलाइट",
     "startCreating": "इस आर्टिस्ट के साथ बनाना शुरू करें",
     "subtitle": "अपना आर्टिस्ट चुनें — लाइट्स, कैमरा, और हम उनके लुक, साउंड और ब्रांड को आपके हर निर्माण से मिलाएंगे।",
-    "title": "कैमरे के सामने कौन है?"
+    "title": "कैमरे के सामने कौन है?",
+    "dragHint": "किसी भी आर्टिस्ट को किसी फ़ीचर स्लॉट पर ड्रैग करें ताकि चुन सकें कि कौन कहाँ चमकता है।",
+    "startCreatingWith": "{{name}} के साथ बनाना शुरू करें"
   },
   "clipMaker": {
     "analyzeNote": "AI आपके VOD को ट्रांसक्रिप्ट करता है और {{vibe}} क्षणों को क्लिप करने लायक ढूंढता है। आप केवल तभी भुगतान करते हैं जब हाइलाइट्स मिल जाते हैं।",
@@ -2380,7 +2392,7 @@
     "errorSaveFailed": "सेव नहीं हो सका — फिर कोशिश करें।",
     "errorSendFailed": "भेजा नहीं जा सका — फिर कोशिश करें।",
     "followersPlaceholder": "फ़ॉलोअर्स",
-    "freeBadge": "FREE",
+    "freeBadge": "मुफ़्त",
     "loginLink": "लॉग इन",
     "loginPrompt": "क्रिएटर ब्राउज़ करने और कोलैब रिक्वेस्ट भेजने के लिए।",
     "matchCostNote": "प्रति रिपोर्ट 100 Visual Bucs।",
@@ -2420,7 +2432,9 @@
     "wantsLabel": "चाहते हैं: ",
     "watchOutFor": "इन बातों का ध्यान रखें",
     "whyItWorks": "यह क्यों काम करेगा",
-    "youBadge": "आप"
+    "youBadge": "आप",
+    "brandDealsLink": "ब्रांड डील",
+    "collabExplainer": "क्रिएटर-टू-क्रिएटर साझेदारियाँ — सहयोगी खोजें, स्पॉन्सर नहीं। इसके बजाय ब्रांड का पैसा चाहिए? देखें "
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",
@@ -2526,7 +2540,11 @@
         "label": "सुपरफ़ैन अलर्ट",
         "desc": "एक टॉप समर्थक आया है — शुक्रिया कहें"
       }
-    }
+    },
+    "replies": {
+      "scheduleLink": "शेड्यूलर में पोस्ट शेड्यूल करें"
+    },
+    "messagesLink": "डायरेक्ट मैसेज खोलें →"
   },
   "contact": {
     "your_name": "आपका नाम",
@@ -2608,7 +2626,9 @@
     "winner_announcement": "विजेता घोषणा",
     "winner_draw": "विजेता ड्रॉ",
     "winner_index": "विजेता इंडेक्स:",
-    "your_contests": "आपके कॉन्टेस्ट"
+    "your_contests": "आपके कॉन्टेस्ट",
+    "winnersCircle": "विजेता सर्कल",
+    "share": "शेयर करें"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "पूरा कॉन्ट्रैक्ट यहां पेस्ट करें — जो PDF या डॉक्यूमेंट उन्होंने भेजा है, वहां से कॉपी करें। जितना पूरा होगा, एनालिसिस उतनी बेहतर होगी।",
@@ -3317,7 +3337,8 @@
       "video": "वीडियो",
       "song": "गीत",
       "voice": "वॉइस"
-    }
+    },
+    "download": "डाउनलोड करें"
   },
   "goLive": {
     "pageTitle": "लाइव हो जाओ",
@@ -3427,6 +3448,15 @@
       },
       "preflight": {
         "label": "वायरैलिटी प्री-फ्लाइट"
+      },
+      "cta": {
+        "label": "CTA जनरेटर"
+      },
+      "titles": {
+        "label": "शीर्षक"
+      },
+      "dice": {
+        "label": "पासा"
       }
     },
     "videoType": {
@@ -3501,7 +3531,60 @@
     "errNeedTitle": "पहले अपने वीडियो को टाइटल दें — प्री-फ्लाइट सबसे पहले यही चेक करता है।",
     "errHooksFailed": "हुक जेनरेशन फेल हो गया — फिर कोशिश करें।",
     "errCaptionsFailed": "कैप्शन जेनरेशन फेल हो गया — फिर कोशिश करें।",
-    "errScoringFailed": "स्कोरिंग फेल हो गई — फिर कोशिश करें।"
+    "errScoringFailed": "स्कोरिंग फेल हो गई — फिर कोशिश करें।",
+    "ctaSub": "हर वीडियो को मज़बूत कॉल टू एक्शन चाहिए। अपना लक्ष्य चुनें और हम 10 रूपांतरण-अनुकूलित CTA लिखेंगे, सबसे मज़बूत पहले।",
+    "ctaTopicLabel": "वीडियो किस बारे में है?",
+    "ctaTopicPlaceholder": "उदा. मेरा नया सिंगल 'Golden Tide' शुक्रवार को आएगा",
+    "ctaGoalLabel": "दर्शकों को क्या करना चाहिए?",
+    "ctaGoal": {
+      "subscribe": {
+        "label": "सब्सक्राइब करें"
+      },
+      "comment": {
+        "label": "कमेंट करें"
+      },
+      "share": {
+        "label": "शेयर करें"
+      },
+      "follow": {
+        "label": "फॉलो करें"
+      },
+      "buy": {
+        "label": "खरीदें"
+      },
+      "stream": {
+        "label": "स्ट्रीम करें"
+      }
+    },
+    "creditNoteCta": "प्रति जनरेशन 50 Visual Bucs · Thy Cheat Code द्वारा संचालित",
+    "generateCtas": "CTA जनरेट करें",
+    "cookingCtas": "आपके CTA लिखे जा रहे हैं…",
+    "yourCtas": "आपके CTA — ताक़त के हिसाब से रैंक",
+    "ctaPlacement": {
+      "opener": {
+        "label": "ओपनर"
+      },
+      "mid-roll": {
+        "label": "मिड-रोल"
+      },
+      "closer": {
+        "label": "क्लोज़र"
+      },
+      "pinned-comment": {
+        "label": "पिन किया गया कमेंट"
+      }
+    },
+    "ctaStrengthLabel": "ताक़त",
+    "addToScript": "स्क्रिप्ट में जोड़ें",
+    "addedToScript": "आपकी स्क्रिप्ट में",
+    "ctaHandoffTip": "\"स्क्रिप्ट में जोड़ें\" पर टैप करके CTA अपने हब प्रोजेक्ट में डालें — Script Writer और Voiceover इसे वहाँ से उठा लेंगे।",
+    "errNeedVideoTopic": "पहले बताएं वीडियो किस बारे में है।",
+    "errCtasFailed": "CTA जनरेट नहीं हो सके — फिर से कोशिश करें।",
+    "fullIntelligenceCheck": "पूर्ण इंटेलिजेंस जाँच",
+    "sendToScriptWriter": "Script Writer को भेजें",
+    "captions": {
+      "needBurnedIn": "वीडियो में जले हुए कैप्शन चाहिए?"
+    }
   },
   "hub": {
     "allProjectTypes": "सभी project types",
@@ -3585,10 +3668,11 @@
     "startFailed": "इम्पोर्ट शुरू नहीं हो सका।",
     "starting": "आपका इम्पोर्ट शुरू हो रहा है…",
     "tagline": "लिंक पेस्ट करें, अपनी लाइब्रेरी में लाएं — {{cost}} Visual Bucs",
-    "title": "Media Importer",
+    "title": "मीडिया इम्पोर्टर",
     "urlPlaceholder": "https://www.youtube.com/watch?v=…",
     "video": "वीडियो",
-    "worksWith": "{{platforms}} और ऑडियो/वीडियो फ़ाइलों के डायरेक्ट लिंक (MP3, MP4, WAV, …) के साथ काम करता है। 500 MB तक की फ़ाइलें।"
+    "worksWith": "{{platforms}} और ऑडियो/वीडियो फ़ाइलों के डायरेक्ट लिंक (MP3, MP4, WAV, …) के साथ काम करता है। 500 MB तक की फ़ाइलें।",
+    "viewLibrary": "मेरे क्लिप"
   },
   "interviewPrep": {
     "answerLabel": "आपका जवाब — ऐसे कहें जैसे माइक पर हों",
@@ -5004,7 +5088,17 @@
     "regenerate": "पुनः बनाएं ({{cost}} Visual Bucs)",
     "retry": "पुनः प्रयास करें",
     "themeLabel": "थीम",
-    "yourPack": "आपका पैक"
+    "yourPack": "आपका पैक",
+    "goLive": "पैक तैयार — Go Live में अपना स्ट्रीम सेट अप करें",
+    "libraryTitle": "आपकी स्ट्रीम पैक लाइब्रेरी",
+    "libraryNote": "आपका जनरेट किया गया हर ग्राफ़िक यहाँ सहेजा जाता है। जो आप चाहते हैं उन्हें अपने Go Live स्टूडियो में जोड़ें — वे स्टूडियो के पैक ट्रे में इंतज़ार करेंगे, किसी सीन में गिरने के लिए तैयार।",
+    "libraryEmpty": "अभी कुछ सहेजा नहीं है — ऊपर एक पैक जनरेट करें और यह यहाँ आ जाएगा।",
+    "libraryLoading": "आपकी लाइब्रेरी लोड हो रही है…",
+    "libraryError": "आपकी लाइब्रेरी लोड नहीं हो सकी।",
+    "libraryActionFailed": "वह बदलाव सहेजा नहीं गया — फिर से कोशिश करें।",
+    "addToStudio": "मेरे स्टूडियो में जोड़ें",
+    "inStudio": "मेरे स्टूडियो में",
+    "removeFromStudio": "हटाएँ"
   },
   "team": {
     "accept": "स्वीकार करें",
@@ -5072,7 +5166,7 @@
   },
   "scriptWriter": {
     "audienceLabel": "ऑडियंस",
-    "audiencePlaceholder": "e.g. bedroom producers",
+    "audiencePlaceholder": "उदा. बेडरूम प्रोड्यूसर",
     "bRollLabel": "B-roll:",
     "beatLabel": "बीट {{n}}",
     "copyHookLabel": "Hook कॉपी करें",
@@ -5080,7 +5174,7 @@
     "copyTitleLabel": "Title कॉपी करें",
     "creditsFooter": "{{used}} Visual Bucs उपयोग किए गए · {{remaining}} शेष",
     "ctaGoalLabel": "CTA लक्ष्य",
-    "ctaGoalPlaceholder": "e.g. join my Discord",
+    "ctaGoalPlaceholder": "उदा. मेरा Discord जॉइन करें",
     "ctaTitle": "कॉल टू एक्शन",
     "errorGenerationFailed": "Studio में रुकावट आई — फिर से प्रयास करें।",
     "errorGeneric": "कुछ गलत हुआ।",
@@ -5125,8 +5219,27 @@
     "toneInspirationalBlurb": "स्टोरी-ड्रिवन, इमोशनल",
     "toneLabel": "टोन",
     "topicLabel": "Video किस बारे में है?",
-    "topicPlaceholder": "e.g. How I produced my first beat in one night",
-    "writeScriptButton": "मेरी script लिखें · {{cost}} Visual Bucs"
+    "topicPlaceholder": "उदा. मैंने एक रात में अपनी पहली बीट कैसे बनाई",
+    "writeScriptButton": "मेरी script लिखें · {{cost}} Visual Bucs",
+    "teleprompterLaunch": "▶ टेलीप्रॉम्प्टर लॉन्च करें",
+    "teleprompterClose": "टेलीप्रॉम्प्टर बंद करें",
+    "teleprompterPlay": "चलाएं",
+    "teleprompterPause": "रोकें",
+    "teleprompterRestart": "शुरुआत से फिर से शुरू करें",
+    "teleprompterWpm": "गति",
+    "teleprompterWpmValue": "{{wpm}} WPM",
+    "teleprompterFontSmaller": "छोटा टेक्स्ट",
+    "teleprompterFontLarger": "बड़ा टेक्स्ट",
+    "teleprompterMirror": "टेलीप्रॉम्प्टर हार्डवेयर के लिए मिरर",
+    "teleprompterFullscreen": "फ़ुल स्क्रीन",
+    "teleprompterWords": "{{count}} शब्द",
+    "teleprompterReadTime": "~{{min}} मिनट पढ़ने का समय",
+    "teleprompterHint": "Space = चलाएं/रोकें · ↑↓ = गति · +/− = टेक्स्ट आकार · Esc = बंद करें · स्क्रिप्ट पर क्लिक = रोकें",
+    "hookHintLabel": "आपके कंटेंट प्लान से विजेता हुक",
+    "hookHintBlurb": "इस लाइन से शुरुआत करें — यह वायरल लूप के लिए बनाई गई थी।",
+    "dismiss": "खारिज करें",
+    "sendToScheduler": "शेड्यूलर",
+    "sendToVoiceover": "वॉइसओवर"
   },
   "setlist": {
     "addButton": "जोड़ें",
@@ -5136,7 +5249,7 @@
     "aiFlowDirectorTitle": "AI फ़्लो डायरेक्टर",
     "artistPlaceholder": "आर्टिस्ट (वैकल्पिक)",
     "backToDashboard": "← डैशबोर्ड पर वापस जाएं",
-    "defaultTitle": "Setlist Builder",
+    "defaultTitle": "सेटलिस्ट बिल्डर",
     "deleteSong": "हटाएं",
     "directingLabel": "डायरेक्ट हो रहा है…",
     "directorsNotes": "डायरेक्टर के नोट्स",
@@ -5413,12 +5526,14 @@
     "viewDeliveredVideo": "डिलीवर वीडियो देखें",
     "yourNameLabel": "आपका नाम",
     "yourNamePlaceholder": "यह शाउटआउट किसके लिए है?",
-    "yourShoutoutPage": "आपका शाउटआउट पेज"
+    "yourShoutoutPage": "आपका शाउटआउट पेज",
+    "paidTitle": "पेमेंट पूरा — शाउटआउट बुक हो गया!",
+    "paidDesc": "आपका शाउटआउट भुगतान और स्वीकार हो गया है। क्रिएटर इसे रिकॉर्ड करेगा और उनके डिलीवरी समय में आपको भेजेगा।"
   },
   "shows": {
     "artistNameLabel": "आपका artist नाम",
     "artistNamePlaceholder": "e.g. TRGDY TRBLZ",
-    "bioPlaceholder": "e.g. High-energy hip-hop artist, 2 years performing, opened for…",
+    "bioPlaceholder": "उदा. हाई-एनर्जी हिप-हॉप आर्टिस्ट, 2 साल से परफ़ॉर्म कर रहा हूँ, इनके लिए ओपन किया…",
     "cityLabel": "आपका शहर / क्षेत्र",
     "cityPlaceholder": "e.g. Atlanta, GA",
     "coachBody": "open mics आपकी live muscle बनाते हैं, showcases आप पर industry की नज़र डालते हैं, और festivals long game हैं। इसी क्रम में hunt करें — और हमेशा अपने pitch के साथ live video भेजें। Bookers वही book करते हैं जिसे वे",
@@ -5469,7 +5584,8 @@
     "windowNext30Days": "अगले 30 दिन",
     "windowNext6Months": "अगले 6 महीने",
     "windowNext90Days": "अगले 90 दिन",
-    "yourStages": "आपके stages"
+    "yourStages": "आपके stages",
+    "setlistLink": "अपनी सेटलिस्ट बनाएँ →"
   },
   "signup": {
     "agreeAnd": "और",
@@ -6106,7 +6222,8 @@
     "topicLabel": "वीडियो टॉपिक",
     "topicPlaceholder": "जैसे: \"मेरा नया सिंगल, 3 बजे रात को ग्राइंड करने के बारे में\" या \"मेरे पहले स्टूडियो सेशन के बिहाइंड द सीन्स\"",
     "topicRequired": "पहले बताएं वीडियो किस बारे में है।",
-    "topicSub": "एक टॉपिक अंदर, पूरी पैकेजिंग बाहर।"
+    "topicSub": "एक टॉपिक अंदर, पूरी पैकेजिंग बाहर।",
+    "sendToScheduler": "शेड्यूलर को भेजें"
   },
   "tour": {
     "addDateFree": "Tour date जोड़ें · निःशुल्क",
@@ -6145,7 +6262,7 @@
     "needTwoDatesUnlock": "Optimizer unlock करने के लिए कम से कम 2 tour dates जोड़ें।",
     "noDates": "अभी तक कोई dates नहीं — ऊपर अपना पहला show जोड़ें और optimizer बाकी कर देगा।",
     "notesLabel": "नोट्स",
-    "notesPlaceholder": "Load-in time, promoter contact, ticket link…",
+    "notesPlaceholder": "लोड-इन समय, प्रमोटर संपर्क, टिकट लिंक…",
     "optimizeButton": "{{count}} stops optimize करें · {{cost}} Visual Bucs",
     "optimizeFailed": "Optimizer में रुकावट आई — फिर से प्रयास करें।",
     "optimizerSub": "प्रति plan {{cost}} Visual Bucs · optimal stop order + पूर्ण budget breakdown",
@@ -6180,7 +6297,8 @@
     "uncheckAria": "{{label}} अनचेक करें",
     "venueLabel": "वेन्यू",
     "venuePlaceholder": "e.g. The Masquerade",
-    "yourDates": "आपकी dates"
+    "yourDates": "आपकी dates",
+    "setlistLink": "अपनी सेटलिस्ट बनाएँ →"
   },
   "translate": {
     "badge": "AI वीडियो ट्रांसलेटर",
@@ -7644,67 +7762,71 @@
     "pipelineSubtitle": "हर डील को पिच से भुगतान तक ट्रैक करें।"
   },
   "repurpose": {
-    "badge": "Content Repurposer",
-    "titlePrefix": "One video in,",
-    "titleSuffix": "content calendar out",
-    "hero": "Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized descriptions for TikTok, Reels, Shorts, and X.",
-    "signInRequired": "Sign in to repurpose videos.",
+    "badge": "कंटेंट रीपर्पसर",
+    "titlePrefix": "एक वीडियो अंदर,",
+    "titleSuffix": "एक कंटेंट कैलेंडर बाहर",
+    "hero": "एक वीडियो अपलोड करें — AI इसे देखता है और 10-पीस पैक बनाता है: 3 ऑटो-कट वर्टिकल क्लिप, 3 AI थंबनेल, 5 कैप्शन + हैशटैग सेट, और TikTok, Reels, Shorts और X के लिए प्लेटफ़ॉर्म-अनुकूलित विवरण।",
+    "signInRequired": "वीडियो रीपर्पस करने के लिए साइन इन करें।",
     "step1": {
-      "title": "Drop your video",
-      "blurb": "MP4, MOV, WebM · up to 80 MB",
-      "chooseFile": "Choose video file",
-      "fromCameraRoll": "From your camera roll or exports",
-      "orPasteUrl": "Or paste a video URL",
-      "urlPlaceholder": "https://… (from your project storage)",
-      "urlNote": "URLs must come from your project storage."
+      "title": "अपना वीडियो डालें",
+      "blurb": "MP4, MOV, WebM · 80 MB तक",
+      "chooseFile": "वीडियो फ़ाइल चुनें",
+      "fromCameraRoll": "अपने कैमरा रोल या एक्सपोर्ट से",
+      "orPasteUrl": "या वीडियो URL पेस्ट करें",
+      "urlPlaceholder": "https://… (आपके प्रोजेक्ट स्टोरेज से)",
+      "urlNote": "URL आपके प्रोजेक्ट स्टोरेज से आने चाहिए।"
     },
-    "building": "Building your pack…",
-    "repurposeButton": "Repurpose my video · {{credits}} Visual Bucs",
-    "costNote": "{{pack}} Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails. Re-rolls are {{reroll}} Visual Buc each. Copying and downloading are free.",
-    "packReady": "pack pieces ready",
-    "renderingNote": "Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.",
+    "building": "आपका पैक बनाया जा रहा है…",
+    "repurposeButton": "मेरा वीडियो रीपर्पस करें · {{credits}} Visual Bucs",
+    "costNote": "{{pack}} Visual Bucs में सब कुछ शामिल है: ट्रांसक्रिप्शन, AI विश्लेषण, 3 ऑटो-कट क्लिप, 3 AI थंबनेल। रीरोल हर एक {{reroll}} Visual Bucs। कॉपी और डाउनलोड मुफ़्त है।",
+    "packReady": "पैक पीस तैयार",
+    "renderingNote": "क्लिप और थंबनेल बैकग्राउंड में रेंडर होते हैं — टैब बंद कर दें, वे आपका इंतज़ार करेंगे।",
     "clips": {
-      "title": "3 vertical clips",
-      "blurb": "Auto-cut 9:16 · ready for TikTok, Reels, Shorts",
-      "newMoments": "New moments · {{cost}}VB",
-      "cutFailed": "Cut failed",
-      "cutting": "Cutting…"
+      "title": "3 वर्टिकल क्लिप",
+      "blurb": "ऑटो-कट 9:16 · TikTok, Reels, Shorts के लिए तैयार",
+      "newMoments": "नए मोमेंट · {{cost}}VB",
+      "cutFailed": "कट विफल",
+      "cutting": "काटा जा रहा है…"
     },
     "thumbs": {
-      "title": "3 AI thumbnails",
-      "blurb": "9:16 covers for your clips",
-      "newConcepts": "New concepts · {{cost}}VB",
-      "genFailed": "Generation failed",
-      "painting": "Painting…",
-      "alt": "Thumbnail concept {{n}}"
+      "title": "3 AI थंबनेल",
+      "blurb": "आपके क्लिप के लिए 9:16 कवर",
+      "newConcepts": "नए कॉन्सेप्ट · {{cost}}VB",
+      "genFailed": "जनरेशन विफल",
+      "painting": "बनाया जा रहा है…",
+      "alt": "थंबनेल कॉन्सेप्ट {{n}}"
     },
     "captions": {
-      "title": "5 caption + hashtag sets",
-      "blurb": "Ready to post — copy any set free"
+      "title": "5 कैप्शन + हैशटैग सेट",
+      "blurb": "पोस्ट करने के लिए तैयार — कोई भी सेट मुफ़्त में कॉपी करें"
     },
     "platforms": {
-      "title": "Platform descriptions",
-      "blurb": "Tuned for each algorithm",
-      "noDesc": "No description generated for this platform."
+      "title": "प्लेटफ़ॉर्म-विशिष्ट विवरण",
+      "blurb": "हर एल्गोरिथ्म के हिसाब से",
+      "noDesc": "इस प्लेटफ़ॉर्म के लिए कोई विवरण जनरेट नहीं हुआ।"
     },
-    "download": "Download",
-    "copyAll": "Copy all",
-    "copy": "Copy",
-    "copied": "Copied",
-    "reroll": "Re-roll · {{cost}}VB",
+    "download": "डाउनलोड करें",
+    "copyAll": "सब कॉपी करें",
+    "copy": "कॉपी करें",
+    "copied": "कॉपी हो गया",
+    "reroll": "रीरोल · {{cost}}VB",
     "error": {
-      "copyFailed": "Couldn't copy to clipboard.",
-      "noSource": "Upload a video file or paste a video URL first.",
-      "repurposeFailed": "Repurposing failed — try again.",
-      "clipJobFailed": "Clip job lookup failed.",
-      "thumbJobFailed": "Thumbnail job lookup failed.",
-      "clipCuttingFailed": "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.",
-      "thumbFailed": "Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.",
-      "lostJobs": "Lost track of the background jobs — refresh to check.",
-      "rerollFailed": "Re-roll failed — try again.",
-      "thumbRerollFailed": "Thumbnail re-roll failed — try again."
+      "copyFailed": "क्लिपबोर्ड पर कॉपी नहीं हो सका।",
+      "noSource": "पहले वीडियो फ़ाइल अपलोड करें या वीडियो URL पेस्ट करें।",
+      "repurposeFailed": "रीपर्पस विफल — फिर से कोशिश करें।",
+      "clipJobFailed": "क्लिप जॉब लुकअप विफल।",
+      "thumbJobFailed": "थंबनेल जॉब लुकअप विफल।",
+      "clipCuttingFailed": "क्लिप कटिंग विफल। आपके पैक Visual Bucs टेक्स्ट आउटपुट कवर करते हैं — क्लिप वीडियो एडिटर से फिर से काटे जा सकते हैं।",
+      "thumbFailed": "थंबनेल इमेज जनरेट नहीं हो सकीं — नीचे दिए गए थंबनेल प्रॉम्प्ट किसी भी इमेज टूल के साथ काम करते हैं।",
+      "lostJobs": "बैकग्राउंड जॉब का ट्रैक खो गया — जांचने के लिए रीफ़्रेश करें।",
+      "rerollFailed": "रीरोल विफल — फिर से कोशिश करें।",
+      "thumbRerollFailed": "थंबनेल रीरोल विफल — फिर से कोशिश करें।"
     },
-    "modeSmart": "स्मार्ट क्लिप"
+    "modeSmart": "स्मार्ट क्लिप",
+    "addCaptions": "कैप्शन जोड़ें",
+    "modeLabel": "Mode",
+    "modePack": "कंटेंट पैक",
+    "modeStreamVod": "Stream VOD"
   },
   "smartClips": {
     "title": "स्मार्ट क्लिप — पहले पल खोजें",
@@ -8126,51 +8248,51 @@
     }
   },
   "randomizer": {
-    "badge": "Thy Cheat Code's dice",
-    "titlePrefix": "Content",
-    "titleSuffix": "Randomizer",
-    "hero": "Stuck staring at a blank page? Roll the dice for a free spark — or let Thy Cheat Code AI cook up five fresh, made-for-you ideas for 100 Visual Bucs.",
-    "categoriesLabel": "Randomizer categories",
+    "badge": "Thy Cheat Code के पासे",
+    "titlePrefix": "कंटेंट",
+    "titleSuffix": "रैंडमाइज़र",
+    "hero": "खाली पेज देखकर अटके हैं? मुफ़्त चिंगारी के लिए पासा फेंकें — या Thy Cheat Code AI को 100 Visual Bucs में आपके लिए बनाए गए पाँच ताज़ा आइडिया बनाने दें।",
+    "categoriesLabel": "रैंडमाइज़र श्रेणियाँ",
     "categories": {
       "video-ideas": {
-        "label": "Video Ideas",
-        "blurb": "Fresh concepts for your next music video or content drop."
+        "label": "वीडियो आइडिया",
+        "blurb": "आपके अगले म्यूज़िक वीडियो या कंटेंट ड्रॉप के लिए ताज़ा कॉन्सेप्ट।"
       },
       "hooks": {
-        "label": "Hooks",
-        "blurb": "First-3-second openers that stop the scroll."
+        "label": "हुक",
+        "blurb": "पहले-3-सेकंड के ओपनर जो स्क्रॉल रोक देते हैं।"
       },
       "thumbnails": {
-        "label": "Thumbnails",
-        "blurb": "High-click-through concepts for YouTube and beyond."
+        "label": "थंबनेल",
+        "blurb": "YouTube और उसके आगे के लिए हाई-क्लिक-थ्रू कॉन्सेप्ट।"
       },
       "song-concepts": {
-        "label": "Song Concepts",
-        "blurb": "Themes and angles worth writing your next track about."
+        "label": "सॉन्ग कॉन्सेप्ट",
+        "blurb": "थीम और एंगल जिन पर आपका अगला ट्रैक लिखना सार्थक है।"
       },
       "niche-picker": {
-        "label": "Niche Picker",
-        "blurb": "Positioning angles you could own as a creator."
+        "label": "नीश पिकर",
+        "blurb": "पोज़िशनिंग एंगल जो आप क्रिएटर के रूप में अपने बना सकते हैं।"
       },
       "challenges": {
-        "label": "Challenges",
-        "blurb": "Forcing functions for output and growth."
+        "label": "चुनौतियाँ",
+        "blurb": "आउटपुट और ग्रोथ के लिए मजबूर करने वाले फ़ंक्शन।"
       }
     },
-    "rollDice": "Roll the dice",
-    "freeForever": "Free forever — roll as much as you want",
-    "yourRoll": "Your roll",
-    "orDeeper": "or go deeper",
-    "cooking": "Cooking up ideas…",
+    "rollDice": "पासा फेंकें",
+    "freeForever": "हमेशा मुफ़्त — जितना चाहें फेंकें",
+    "yourRoll": "आपका रोल",
+    "orDeeper": "या और गहराई में जाएँ",
+    "cooking": "आइडिया बनाए जा रहे हैं…",
     "generateAi": "Generate 5 fresh with AI",
-    "signInToGenerate": "Sign in to generate with AI",
-    "costPerRoll": "{{cost}} Visual Bucs per AI roll · powered by Thy Cheat Code",
-    "freshFromAi": "Fresh from the AI",
-    "reroll": "Re-roll ({{cost}} Visual Bucs)",
+    "signInToGenerate": "AI से जनरेट करने के लिए साइन इन करें",
+    "costPerRoll": "प्रति AI रोल {{cost}} Visual Bucs · Thy Cheat Code द्वारा संचालित",
+    "freshFromAi": "AI से ताज़ा",
+    "reroll": "फिर से फेंकें ({{cost}} Visual Bucs)",
     "crossLink": {
-      "p1": "Like an idea? Ask",
+      "p1": "कोई आइडिया पसंद आया? पूछें",
       "name": "Thy Cheat Code",
-      "p2": "in the chat bubble to turn it into a full plan."
+      "p2": "से चैट बबल में इसे पूर्ण प्लान में बदलने के लिए।"
     },
     "error": {
       "aiRollFailed": "AI roll failed — try again."
@@ -8241,7 +8363,93 @@
     "openInBuilder": "बिल्डर में खोलें",
     "tabWebsites": "वेबसाइटें",
     "websiteVersionMeta": "संस्करण {{version}} · {{count}} फ़ाइलें",
-    "failedOpenHubProject": "हब प्रोजेक्ट खोला नहीं जा सका. कृपया फिर कोशिश करें."
+    "failedOpenHubProject": "हब प्रोजेक्ट खोला नहीं जा सका. कृपया फिर कोशिश करें.",
+    "pageDescription": "आपके सभी गाने, वीडियो और क्रिएटिव प्रोजेक्ट एक ही जगह।",
+    "subheading": "सहेजे गए प्रोजेक्ट, बिना सहेजे ड्राफ़्ट और आपके सभी जनरेट किए गए सीन क्लिप — सब एक ही जगह।",
+    "backToDashboard": "डैशबोर्ड पर वापस",
+    "tabProjects": "प्रोजेक्ट",
+    "tabDrafts": "ड्राफ़्ट",
+    "tabClips": "जनरेट किए गए क्लिप",
+    "tabHistory": "जनरेशन इतिहास",
+    "tryAgain": "फिर से कोशिश करें",
+    "noProjects": "अभी कोई सहेजा गया प्रोजेक्ट नहीं",
+    "noProjectsHint": "कंटेंट जनरेट करें और प्रोजेक्ट सहेजें क्लिक करें — यह यहाँ दिखेगा।",
+    "goToDashboard": "डैशबोर्ड पर जाएँ",
+    "noDrafts": "कोई सहेजा गया ड्राफ़्ट नहीं",
+    "noDraftsHint": "काम करते समय ड्राफ़्ट अपने आप सहेजे जाते हैं। प्रोजेक्ट शुरू करें और आपकी प्रगति यहाँ दिखेगी।",
+    "startProject": "प्रोजेक्ट शुरू करें",
+    "draftsHint": "काम करते समय ड्राफ़्ट अपने आप सहेजे जाते हैं। किसी प्रोजेक्ट पर वापस जाने और जहाँ छोड़ा था वहीं से शुरू करने के लिए रिकवर पर क्लिक करें।",
+    "noClips": "अभी कोई जनरेट किया गया क्लिप नहीं",
+    "noClipsHint": "अपने म्यूज़िक वीडियो प्रोजेक्ट में सीन क्लिप जनरेट करें — वे यहाँ अपने आप सहेजे जाएँगे।",
+    "clipsSaved": "{{count}} क्लिप सहेजे गए — हर क्लिप जॉब पूरा होते ही अपने आप सहेजे जाते हैं।",
+    "noHistory": "अभी कोई जनरेशन इतिहास नहीं",
+    "noHistoryHint": "अभी कोई जनरेशन इतिहास नहीं है। कुछ बनाने के बाद आपकी AI जनरेशन यहाँ दिखेंगी।",
+    "startGenerating": "जनरेट करना शुरू करें",
+    "generationsLogged": "{{count}} जनरेशन लॉग किए गए — नए पहले।",
+    "failedLoadProjects": "प्रोजेक्ट लोड नहीं हो सके",
+    "failedLoadDrafts": "ड्राफ़्ट लोड नहीं हो सके",
+    "failedLoadClips": "क्लिप लोड नहीं हो सके",
+    "failedLoadHistory": "जनरेशन इतिहास लोड नहीं हो सका",
+    "failedDeleteProject": "प्रोजेक्ट हटाना विफल। कृपया फिर से कोशिश करें।",
+    "failedDeleteDraft": "ड्राफ़्ट हटाना विफल। कृपया फिर से कोशिश करें।",
+    "failedDeleteClip": "क्लिप हटाना विफल। कृपया फिर से कोशिश करें।",
+    "hubProjectsTitle": "हब प्रोजेक्ट",
+    "hubProjectsHint": "आपके हब से सिंक किया गया हर प्रोजेक्ट, नए पहले। सबसे नया वह प्रोजेक्ट है जो अभी आपके हब में खुला है।",
+    "hubProjectsCurrent": "वर्तमान",
+    "hubProjectsOpenInHub": "हब में खोलें",
+    "hubProjectsCapNote": "आपके 100 सबसे नए हब प्रोजेक्ट दिखाए जा रहे हैं।",
+    "noHubProjects": "अभी कोई हब प्रोजेक्ट सिंक नहीं है। हब में बनाए गए प्रोजेक्ट यहाँ दिखेंगे।",
+    "failedLoadHubProjects": "हब प्रोजेक्ट लोड नहीं हो सके",
+    "deleteHubProject": "हब प्रोजेक्ट हटाएँ",
+    "deleteHubProjectConfirm": "\"{{name}}\" हब प्रोजेक्ट को अपने अकाउंट से हटाएँ? यह उसकी सिंक की गई कॉपी हटा देता है।",
+    "failedDeleteHubProject": "हब प्रोजेक्ट हटाना विफल। कृपया फिर से कोशिश करें।",
+    "typeStartFromScratch": "स्क्रैच से शुरू करें",
+    "typeVideoForMySong": "मेरे गाने के लिए वीडियो",
+    "typeRunwayClip": "AI वीडियो क्लिप",
+    "typeLipSyncClip": "लिप सिंक क्लिप",
+    "typeThumbnail": "थंबनेल",
+    "typeLyrics": "बोल",
+    "typeVideoPlan": "वीडियो प्लान",
+    "typeScenePrompt": "सीन प्रॉम्प्ट",
+    "typeCaptions": "कैप्शन",
+    "typePromoClip": "प्रोमो क्लिप",
+    "typeThumbnailPrompt": "थंबनेल प्रॉम्प्ट",
+    "typeGeneration": "जनरेशन",
+    "statusSaved": "सहेजा गया",
+    "statusSaveFailed": "सहेजना विफल",
+    "statusGenerated": "जनरेट हो गया",
+    "visualBucsRefunded": "Visual Bucs रिफ़ंड हो गए",
+    "visualBucsUsed": "{{count}} Visual Bucs",
+    "previewClip": "क्लिप प्रीव्यू",
+    "openProject": "प्रोजेक्ट खोलें",
+    "copyContent": "कंटेंट कॉपी करें",
+    "open": "खोलें",
+    "deleteProject": "प्रोजेक्ट हटाएँ",
+    "deleteProjectConfirm": "\"{{title}}\" हटाएँ? यह वापस नहीं होगा।",
+    "runwayClipsSaved": "{{count}} सीन क्लिप सहेजे गए",
+    "unsavedDraft": "बिना सहेजा ड्राफ़्ट",
+    "deleteDraftConfirm": "यह ड्राफ़्ट हटाएँ? यह वापस नहीं होगा।",
+    "generatedContentIncluded": "जनरेट किया गया कंटेंट शामिल है",
+    "downloadBackupJson": "बैकअप JSON डाउनलोड करें",
+    "recover": "रिकवर करें",
+    "deleteClipConfirm": "यह क्लिप हटाएँ? यह वापस नहीं होगा।",
+    "openVideoUrl": "वीडियो URL खोलें",
+    "editor": "Editor",
+    "hidePrompt": "प्रॉम्प्ट छिपाएँ ▲",
+    "showPrompt": "प्रॉम्प्ट दिखाएँ ▼",
+    "analysisFailed": "विश्लेषण विफल",
+    "analysisFailedRetry": "विश्लेषण विफल। कृपया फिर से कोशिश करें।",
+    "copied": "कॉपी हो गया!",
+    "copyAll": "सब कॉपी करें",
+    "analyzing": "विश्लेषण हो रहा है...",
+    "reanalyzeSections": "सेक्शन फिर से विश्लेषण करें",
+    "findHookVerses": "हुक और वर्स खोजें",
+    "analysisComplete": "विश्लेषण पूरा",
+    "noContentSaved": "कोई कंटेंट सहेजा नहीं गया।",
+    "generationsLink": "जनरेशन इतिहास →",
+    "importLink": "मीडिया इम्पोर्ट करें →",
+    "tabMyClips": "मेरे क्लिप",
+    "tabSongs": "गाने"
   },
   "podcast": {
     "episode": {
@@ -10213,7 +10421,22 @@
     }
   },
   "library": {
-    "pageTitle": "लाइब्रेरी"
+    "pageTitle": "लाइब्रेरी",
+    "pageDescription": "क्रिएटर्स के लिए टेम्प्लेट, प्रीसेट और फ़ॉन्ट।",
+    "kicker": "आपका क्रिएटिव शस्त्रागार",
+    "headingA": "Thy",
+    "headingB": "लाइब्रेरी",
+    "sub": "टेम्प्लेट, प्रीसेट और फ़ॉन्ट जो सीधे आपके टूल में प्लग होते हैं। एक चुनें, उपयोग करें दबाएं, बनाते रहें।",
+    "searchPlaceholder": "टेम्प्लेट, प्रीसेट, फ़ॉन्ट खोजें…",
+    "tabTemplates": "टेम्प्लेट",
+    "tabPresets": "प्रीसेट",
+    "tabFonts": "फ़ॉन्ट",
+    "recentlyUsed": "हाल ही में उपयोग किए गए",
+    "use": "उपयोग करें",
+    "useFont": "फ़ॉन्ट कॉपी करें",
+    "copied": "कॉपी हो गया!",
+    "browse": "लाइब्रेरी ब्राउज़ करें",
+    "noResults": "कुछ नहीं मिला — दूसरी खोज आज़माएँ।"
   },
   "retention": {
     "streak_title": "क्रिएशन स्ट्रीक",
@@ -13619,5 +13842,363 @@
       "beats": "मार्केटप्लेस पर बीट बेचें",
       "sounds": "ट्रेंडिंग साउंड खोजें"
     }
+  },
+  "weekly_contest": {
+    "aria": "साप्ताहिक क्रिएटर प्रतियोगिता",
+    "label": "साप्ताहिक क्रिएटर प्रतियोगिता",
+    "drops_in": "शुरू होने में",
+    "ends_in": "समाप्त होने में",
+    "entries": "{{count}} प्रविष्टियाँ",
+    "enter_now": "अभी प्रवेश करें",
+    "view_entries": "प्रविष्टियाँ देखें",
+    "enter_hint": "अपना वीडियो पब्लिश करें और यह अपने आप प्रवेश हो जाता है — विजेताओं को इस सप्ताह के {{cap}} पूल से Visual Bucs में भुगतान किया जाता है।",
+    "judging_title": "जजिंग खुली है — हर वोट ताज हिलाता है",
+    "judging_sub": "\"{{title}}\" के लिए प्रविष्टियाँ बंद हैं। अपने पसंदीदा के लिए वोट जुटाएँ — समुदाय का ताज तय करता है।",
+    "winners_in": "विजेता आने में",
+    "vote_now": "ताज के लिए वोट करें",
+    "winners_dropped": "विजेता अभी-अभी आए",
+    "winners_sub": "\"{{title}}\" को ताज पहनाया गया है — पुरस्कार Visual Bucs में भुगतान किए गए।",
+    "a_creator": "एक क्रिएटर",
+    "see_winners": "विजेता सर्कल देखें",
+    "hall_of_fame": "हॉल ऑफ़ फ़ेम",
+    "next_drop": "अगली प्रतियोगिता सोमवार को आती है",
+    "next_drop_sub": "एक थीम। एक सप्ताह। {{cap}} दांव पर। अगली: \"{{theme}}\" (#{{hashtag}})।",
+    "admin_nudge": "एडमिन: इस सप्ताह की प्रतियोगिता अभी लाइव नहीं है। एक टैप से {{cap}} पूल के साथ \"{{theme}}\" लॉन्च करें।",
+    "launching": "लॉन्च हो रहा है…",
+    "launch_week": "इस सप्ताह की प्रतियोगिता लॉन्च करें",
+    "while_you_wait": "जब आप प्रतीक्षा करें: हॉल ऑफ़ फ़ेम ब्राउज़ करें",
+    "last_week": "पिछले सप्ताह के ताज",
+    "see_all": "सब देखें"
+  },
+  "catalogVault": {
+    "title": "कैटलॉग वॉल्ट",
+    "copy": "विरासत छोड़ें। एक बार का 200 Visual Bucs भुगतान इस रिलीज़ के प्री-सेव पेज, स्टोरफ़्रंट एंट्री और एसेट्स को Bow Down Visuals पर लाइव रखता है — हमेशा के लिए। कोई रिन्यूअल नहीं, कोई डिलीट नहीं।",
+    "guarantee1": "प्री-सेव पेज हमेशा लाइव रहता है",
+    "guarantee2": "स्टोरफ़्रंट एंट्री कभी एक्सपायर नहीं होती",
+    "guarantee3": "आर्टवर्क + ऑडियो एसेट सुरक्षित रखे जाते हैं",
+    "vaultButton": "हमेशा के लिए वॉल्ट करें · 200 Visual Bucs",
+    "vaulting": "वॉल्ट हो रहा है…",
+    "vaultFailed": "इस रिलीज़ को वॉल्ट नहीं किया जा सका — फिर से कोशिश करें।",
+    "vaulted": "वॉल्ट हो गया",
+    "vaultedCopy": "\"{{title}}\" वॉल्ट हो गया है — इसका प्री-सेव पेज, स्टोरफ़्रंट एंट्री और एसेट Bow Down Visuals पर हमेशा लाइव रहते हैं।"
+  },
+  "mashup": {
+    "tabCreate": "बनाएँ",
+    "tabMashup": "Mashup",
+    "title": "सॉन्ग मैशअप",
+    "subtitle": "दो गाने चुनें — अपने या अपलोड किए गए — और उन्हें एक ट्रैक में मिला दें। टेम्पो मैच, ताल लॉक, एक क्लिक।",
+    "priceBadge": "400 Visual Bucs",
+    "modeSimple": "Turbo",
+    "modeCustom": "Advanced",
+    "songA": "गाना A",
+    "songB": "गाना B",
+    "pickFromLibrary": "अपनी लाइब्रेरी से चुनें…",
+    "uploadInstead": "या ऑडियो अपलोड करें",
+    "uploading": "अपलोड हो रहा है…",
+    "styleLabel": "ब्लेंड स्टाइल",
+    "styleCrossfade": "Crossfade",
+    "styleCrossfadeBlurb": "A फ़ेड-आउट होता है, B ब्लेंड पॉइंट पर आता है।",
+    "styleBeatMatch": "बीट मैच्ड",
+    "styleBeatMatchBlurb": "टेम्पो संरेखित और ताल लॉक — दोनों गाने एक साथ बजते हैं।",
+    "styleInterleave": "वर्स-कोरस इंटरलीव",
+    "styleInterleaveBlurb": "बदलते सेक्शन — A का वर्स, B का कोरस, आगे-पीछे।",
+    "blendPointLabel": "ब्लेंड पॉइंट",
+    "blendPointHint": "गाना A में ब्लेंड कहाँ होता है।",
+    "balanceLabel": "Balance",
+    "balanceHint": "एक गाने को दूसरे के मुकाबले आगे लाने के लिए ड्रैग करें।",
+    "crossfadeLabel": "क्रॉसफ़ेड लंबाई",
+    "titleLabel": "मैशअप शीर्षक (वैकल्पिक)",
+    "titlePlaceholder": "उदा. Midnight × Gold Rush",
+    "submitSimple": "मेरे गाने मैशअप करें",
+    "submitCustom": "इन गानों को मिलाएँ",
+    "needsTwoSongs": "पहले दो गाने चुनें — अपनी लाइब्रेरी से या ऑडियो अपलोड करें।",
+    "analyzing": "दोनों गानों की ताल का विश्लेषण हो रहा है…",
+    "tempoMatching": "गाना B का टेम्पो गाना A से मिलाया जा रहा है…",
+    "blending": "आपका मैशअप मिलाया जा रहा है…",
+    "saving": "आपकी लाइब्रेरी में सहेजा जा रहा है…",
+    "failed": "मैशअप विफल — आपके Visual Bucs रिफ़ंड कर दिए गए।",
+    "resultTitle": "आपका मैशअप तैयार है",
+    "bpmUnknown": "—",
+    "handoffLyricVideo": "लिरिक वीडियो बनाएँ",
+    "handoffLyricVideoBlurb": "कराओके-स्टाइल वीडियो · 300 VB",
+    "handoffCoverArt": "कवर आर्ट बनाएँ",
+    "handoffCoverArtBlurb": "शानदार गोल्ड आर्टवर्क · 200 VB",
+    "handoffAlbum": "एल्बम में जोड़ें",
+    "handoffAlbumBlurb": "इसे किसी एल्बम या EP पर डालें",
+    "handoffShare": "शेयर करें",
+    "handoffShareBlurb": "एक टैप — आपका रेफ़रल लिंक जुड़ा है",
+    "working": "काम हो रहा है…",
+    "lyricVideoDone": "लिरिक वीडियो तैयार",
+    "coverArtDone": "कवर आर्ट तैयार",
+    "albumPick": "एल्बम चुनें…",
+    "albumNew": "नए एल्बम का शीर्षक…",
+    "albumCreateAdd": "बनाएँ और जोड़ें",
+    "albumAdd": "एल्बम में जोड़ें",
+    "albumAdded": "एल्बम में जोड़ा गया",
+    "albumLoadFailed": "एल्बम लोड नहीं हो सके।",
+    "copied": "कॉपी हो गया!",
+    "shareText": "मेरा मैशअप देखें",
+    "coverArtist": "सॉन्ग मैशअप",
+    "tabHum": "गुनगुनाएँ"
+  },
+  "mediaDetector": {
+    "badge": "AI मीडिया डिटेक्टर",
+    "titleStart": "असली या",
+    "titleAi": "AI?",
+    "titleEnd": "पक्का जानें।",
+    "subtitle": "कोई इमेज, वीडियो या ऑडियो फ़ाइल अपलोड करें — या कोई लिंक पेस्ट करें — और AI फ़ोरेंसिक मूल्यांकन पाएं: फैसला, कॉन्फ़िडेंस स्कोर और वे सटीक संकेत जो मिले।",
+    "costPerCheck": "प्रति जाँच {{cost}} Visual Bucs।",
+    "dropHint": "फ़ाइलें यहाँ डालें या अपलोड करने के लिए क्लिक करें",
+    "filesSkipped_one": "1 फ़ाइल छोड़ी गई — असमर्थित प्रकार या 25 MB से अधिक।",
+    "filesSkipped_other": "{{count}} फ़ाइलें छोड़ी गईं — असमर्थित प्रकार या 25 MB से अधिक।",
+    "fileTypes": "इमेज, वीडियो, ऑडियो — हर एक 25 MB तक। बैच समर्थित हैं।",
+    "urlPlaceholder": "…या कोई इमेज URL पेस्ट करें",
+    "add": "जोड़ें",
+    "queueStatus": "{{count}} फ़ाइलें · {{done}} जांची गईं",
+    "clearAll": "सब साफ़ करें",
+    "checkAll": "सब जांचें ({{cost}} Visual Bucs)",
+    "remove": "हटाएँ",
+    "analyze": "विश्लेषण करें · {{cost}} Visual Bucs",
+    "analyzing": "AI संकेतों का विश्लेषण हो रहा है…",
+    "analyzingVideo": "फ़्रेम निकाले जा रहे हैं, फिर विश्लेषण…",
+    "retry": "फिर से कोशिश करें",
+    "emptyTitle": "जांचने के लिए अभी कुछ नहीं",
+    "emptySubtitle": "अपनी पहली डिटेक्शन चलाने के लिए फ़ाइल अपलोड करें या URL पेस्ट करें।",
+    "verdictAi": "संभावित AI-जनरेटेड",
+    "verdictHuman": "संभावित मानव-निर्मित",
+    "verdictUncertain": "अनिश्चित",
+    "detectedSignals": "मिले संकेत",
+    "pointsToAi": "AI की ओर इशारा",
+    "pointsToHuman": "मानव की ओर इशारा",
+    "errorOutOfCredits": "Visual Bucs खत्म।",
+    "errorDetectionFailed": "डिटेक्शन विफल। फिर से कोशिश करें।",
+    "errorDetectionFailedShort": "डिटेक्शन विफल।"
+  },
+  "nfcCards": {
+    "orderFailed": "ऑर्डर विफल",
+    "orderFailedRetry": "ऑर्डर विफल — कृपया फिर से कोशिश करें।",
+    "saveFailed": "सहेजना विफल",
+    "heroBadge": "NFC स्मार्ट बिज़नेस कार्ड",
+    "heroTitle": "आपका बिज़नेस कार्ड,",
+    "heroTitleAccent": "लेकिन यह टैप होता है।",
+    "heroDescription": "अंदर NFC चिप वाला प्रीमियम फिज़िकल कार्ड। इसे किसी भी फ़ोन पर टैप करें और आपका डिजिटल कार्ड तुरंत खुल जाता है — लिंक, बुकिंग, सोशल, सब कुछ। इसे कभी भी अपडेट करें, दोबारा प्रिंट किए बिना।",
+    "how1t": "1. अपना कार्ड डिज़ाइन करें",
+    "how1d": "स्टाइल चुनें, अपना नाम, लिंक और फ़ोटो जोड़ें।",
+    "how2t": "2. हम इसे एन्कोड करते हैं",
+    "how2d": "आपकी NFC चिप + QR आपके डिजिटल कार्ड से कोड किए जाते हैं।",
+    "how3t": "3. टैप करें और जुड़ें",
+    "how3d": "आपके दरवाज़े तक भेजा जाता है। फ़ोन टैप करें, QR स्कैन करें, क्लाइंट जीतें।",
+    "reservedTitle": "कार्ड रिज़र्व हो गया!",
+    "reservedDescription": "आपका डिजिटल कार्ड पहले से लाइव है। हम प्रोडक्शन की पुष्टि करने और पेमेंट लेने के लिए संपर्क करेंगे — आज कुछ भी चार्ज नहीं होगा।",
+    "viewDigitalCard": "अपना डिजिटल कार्ड देखें",
+    "alreadyReserved": "यह रिज़र्वेशन पहले ही हो चुका था — कोई डुप्लिकेट नहीं बनाया गया।",
+    "orderAnother": "एक और कार्ड ऑर्डर करें",
+    "buildYourCard": "अपना कार्ड बनाएँ",
+    "quantity": "मात्रा",
+    "total": "कुल",
+    "detailsHint": "जब लोग आपका कार्ड टैप करते हैं तो यही देखते हैं। आप इसे कभी भी बदल सकते हैं।",
+    "displayNamePlaceholder": "डिस्प्ले नाम *",
+    "titlePlaceholder": "टाइटल — उदा. रियल्टर, बार्बर, फ़ोटोग्राफ़र",
+    "bioPlaceholder": "छोटी बायो",
+    "linksLabel": "लिंक (Instagram, बुकिंग, वेबसाइट…)",
+    "linkLabelPlaceholder": "लेबल",
+    "addLink": "लिंक जोड़ें",
+    "fullNamePlaceholder": "पूरा नाम *",
+    "phonePlaceholder": "फ़ोन",
+    "emailPlaceholder": "ईमेल *",
+    "streetPlaceholder": "सड़क का पता *",
+    "cityPlaceholder": "शहर *",
+    "statePlaceholder": "राज्य *",
+    "zipPlaceholder": "ZIP कोड *",
+    "shippingPrivacy": "आपकी जानकारी केवल आपका कार्ड बनाने और भेजने के लिए उपयोग होती है।",
+    "reviewStyle": "स्टाइल",
+    "reviewQuantity": "मात्रा",
+    "reviewDigitalCardFor": "डिजिटल कार्ड किसके लिए",
+    "reviewShipTo": "यहाँ भेजें",
+    "reviewTotal": "पुष्टि पर देय कुल",
+    "reserveFreeNote": "रिज़र्व करना मुफ़्त है — आज कुछ भी चार्ज नहीं होगा। हम अपने प्रोडक्शन पार्टनर के साथ आपके कार्ड की पुष्टि करेंगे, फिर शिपिंग से पहले पेमेंट लेंगे।",
+    "back": "वापस",
+    "continue": "जारी रखें",
+    "reserving": "रिज़र्व हो रहा है…",
+    "reserveFree": "मेरा कार्ड रिज़र्व करें — मुफ़्त",
+    "signInPromptPrefix": "आपसे कहा जाएगा",
+    "signIn": "साइन इन करें",
+    "signInPromptSuffix": "अपना कार्ड रिज़र्व करने के लिए।",
+    "mySmartCards": "मेरे स्मार्ट कार्ड",
+    "noCardsYet": "अभी कोई कार्ड नहीं — ऊपर पहला बनाएँ।",
+    "taps": "{{count}} टैप",
+    "editCard": "कार्ड संपादित करें",
+    "qrSvg": "QR SVG",
+    "preview": "प्रीव्यू",
+    "orderHistory": "ऑर्डर इतिहास",
+    "questions": "प्रश्न",
+    "faq1q": "टैप कैसे काम करता है?",
+    "faq1a": "हर कार्ड के अंदर NTAG213 NFC चिप होती है। इसे किसी भी आधुनिक फ़ोन पर टैप करें और आपका डिजिटल कार्ड तुरंत खुल जाता है — किसी ऐप की ज़रूरत नहीं। पुराने फ़ोन पीछे छपा QR स्कैन कर सकते हैं।",
+    "faq2q": "क्या मैं ऑर्डर के बाद अपने लिंक बदल सकता हूँ?",
+    "faq2a": "हाँ — यही तो बात है। आपका कार्ड आपकी डिजिटल प्रोफ़ाइल की ओर इशारा करता है, जिसे आप कभी भी संपादित कर सकते हैं: लिंक, टाइटल, बायो, फ़ोटो। फिज़िकल कार्ड कभी पुराना नहीं होता।",
+    "faq3q": "मैं पेमेंट कब करता हूँ?",
+    "faq3a": "आज आप मुफ़्त में रिज़र्व करते हैं। जब आपका कार्ड हमारे प्रोडक्शन पार्टनर के साथ कन्फ़र्म हो जाता है, तो हम पेमेंट लेते हैं और आपका कार्ड सीधे आपको भेज दिया जाता है।",
+    "faq4q": "मेरा कार्ड मिलने में कितना समय लगेगा?",
+    "faq4a": "कार्ड ऑर्डर पर बनाए जाते हैं। पेमेंट कन्फ़र्मेशन के बाद प्रोडक्शन और शिपिंग के लिए 2–3 सप्ताह का समय रखें। हम हर स्टेप पर आपको अपडेट रखेंगे।",
+    "faq5q": "क्या मैं अपनी टीम के लिए दोबारा ऑर्डर या कार्ड ले सकता हूँ?",
+    "faq5a": "हाँ — कोई भी मात्रा ऑर्डर करें, और हर कार्ड को अपनी डिजिटल प्रोफ़ाइल मिलती है। टीम पैक रियल्टर, बार्बर, सैलून और एजेंसियों के लिए बेहतरीन हैं।",
+    "editDigitalCard": "डिजिटल कार्ड संपादित करें",
+    "displayName": "डिस्प्ले नाम",
+    "title": "टाइटल",
+    "bio": "बायो",
+    "cancel": "रद्द करें",
+    "save": "सहेजें"
+  },
+  "myClips": {
+    "pageTitle": "मेरे क्लिप",
+    "pageDescription": "आपकी जनरेट की गई प्रोमो क्लिप लाइब्रेरी।",
+    "title": "मेरे जनरेट किए गए क्लिप",
+    "generateNew": "नया क्लिप जनरेट करें",
+    "backToProjects": "मेरे प्रोजेक्ट पर वापस",
+    "noClips": "अभी कोई क्लिप नहीं",
+    "noClipsHint": "जनरेट किए गए सीन क्लिप यहाँ अपने आप सहेजे जाते हैं। सीन स्टूडियो से अपना पहला क्लिप जनरेट करें।",
+    "videoForSong": "मेरे गाने के लिए वीडियो",
+    "use": "उपयोग करें",
+    "clipReady": "क्लिप तैयार",
+    "ready": "तैयार",
+    "done": "हो गया",
+    "attachToScene": "प्रोजेक्ट सीन से जोड़ें",
+    "noCharge": "कोई Visual Bucs चार्ज नहीं",
+    "noProjects": "सीन वाला कोई प्रोजेक्ट नहीं मिला",
+    "noProjectsHint": "Visual Vibes खोलें और पहले सीन फिर से बनाएँ।",
+    "project": "प्रोजेक्ट",
+    "noScenes": "अभी कोई सीन सहेजा नहीं गया",
+    "noScenesHint": "Visual Vibes खोलें, अपने सीन लोड करें, फिर वापस आकर यह क्लिप जोड़ें।",
+    "openEditor": "Visual Vibes खोलें",
+    "scene": "सीन",
+    "hasClip": "क्लिप है",
+    "cancel": "रद्द करें",
+    "attaching": "जोड़ा जा रहा है…",
+    "attachClip": "क्लिप जोड़ें",
+    "deleteConfirm": "हटाएँ?",
+    "yes": "हाँ",
+    "copied": "कॉपी हो गया",
+    "copyUrl": "URL कॉपी करें",
+    "clipAttached": "क्लिप जुड़ गया — क्लिप तैयार!",
+    "attachedDesc": "सीन {{index}}{{section}} से जुड़ा है। इसे देखने के लिए Visual Vibes खोलें।",
+    "clipDeleted": "क्लिप हटाया गया",
+    "errorLoadProjects": "प्रोजेक्ट लोड नहीं हो सके",
+    "errorAttach": "क्लिप जोड़ा नहीं जा सका",
+    "errorAttachFailed": "जोड़ना विफल",
+    "errorDelete": "हटाना विफल",
+    "extractAudio": "ऑडियो निकालें",
+    "extractAudioCost": "50 Visual Bucs",
+    "extractAudioDone": "ऑडियो निकाला गया",
+    "extractAudioFailed": "ऑडियो निकालना विफल",
+    "extractAudioRefunded": "आपको अपने आप रिफ़ंड कर दिया गया है।",
+    "extracting": "निकाला जा रहा है…",
+    "downloadMp3": "MP3 डाउनलोड करें"
+  },
+  "linkInBio": {
+    "tab": "बायो में लिंक",
+    "hero": {
+      "badge": "बायो में लिंक",
+      "title": "एक पेज।",
+      "titleAccent": "आपके सभी लिंक।",
+      "subtitle": "अपने फैंस के लिए शानदार गोल्डन लिंक-इन-बायो पेज बनाएँ। लिखना मुफ़्त है — पब्लिश करना {{cost}} Visual Bucs है।"
+    },
+    "profile": {
+      "title": "प्रोफ़ाइल हेडर",
+      "prefill": "Artist Vault से प्रीफ़िल करें",
+      "prefillDone": "वॉल्ट से प्रीफ़िल हो गया",
+      "noVaults": "अभी कोई आर्टिस्ट वॉल्ट नहीं है — तुरंत प्रीफ़िल करने के लिए Artist Vault में एक बनाएं।",
+      "displayName": "डिस्प्ले नाम",
+      "displayNamePlaceholder": "आपका आर्टिस्ट नाम",
+      "headline": "हेडलाइन",
+      "headlinePlaceholder": "गायक · गीतकार · कहानीकार",
+      "bio": "बायो",
+      "bioPlaceholder": "दो लाइनें जो किसी फैन को फॉलो करने पर मजबूर कर दें।",
+      "avatarUrl": "अवतार इमेज URL",
+      "avatarUrlPlaceholder": "https://…",
+      "slug": "पेज हैंडल",
+      "slugHint": "आपका सार्वजनिक URL: bowdownvisuals.com/bio/{{slug}}",
+      "slugInvalid": "हैंडल छोटे अक्षरों, अंकों और डैश में होना चाहिए।"
+    },
+    "theme": {
+      "title": "थीम",
+      "goldRoyal": "गोल्ड रॉयल",
+      "goldRoyalBlurb": "काला + चमकता सोना — Bow Down का सिग्नेचर लुक",
+      "midnightGold": "मिडनाइट गोल्ड",
+      "midnightGoldBlurb": "गहरा ब्लू-ब्लैक, गर्म गोल्ड एक्सेंट के साथ",
+      "onyxMinimal": "Onyx Minimal",
+      "onyxMinimalBlurb": "शुद्ध काला, पतली गोल्ड लाइनें — बेहद साफ़"
+    },
+    "links": {
+      "title": "लिंक",
+      "add": "लिंक जोड़ें",
+      "titlePlaceholder": "लिंक शीर्षक (उदा. नया सिंगल)",
+      "urlPlaceholder": "https://…",
+      "icon": "आइकन",
+      "moveUp": "ऊपर ले जाएँ",
+      "moveDown": "नीचे ले जाएँ",
+      "remove": "लिंक हटाएँ",
+      "empty": "अभी कोई लिंक नहीं — ऊपर पहला जोड़ें।",
+      "needOne": "पब्लिश करने से पहले कम से कम एक लिंक जोड़ें।"
+    },
+    "socials": {
+      "title": "सोशल आइकन",
+      "hint": "अपने प्रोफ़ाइल के URL पेस्ट करें — आइकन आपके पेज पर दिखेंगे।"
+    },
+    "featured": {
+      "title": "फ़ीचर्ड वर्क",
+      "hint": "अपने हब प्रोजेक्ट से स्टैंडआउट वर्क खींचें — फैंस सीधे आपके शोकेस और क्लिप पर पहुँचेंगे।",
+      "fromHub": "हब प्रोजेक्ट से",
+      "noAssets": "अभी आपके हब प्रोजेक्ट में कोई एसेट नहीं है — पहले कुछ बनाएँ।",
+      "added": "जुड़ गया",
+      "add": "जोड़ें",
+      "empty": "अभी कुछ फ़ीचर नहीं है। कोई गाना, वीडियो या थंबनेल हाइलाइट करें।",
+      "remove": "हटाएँ"
+    },
+    "tipJar": {
+      "title": "टिप जार",
+      "hint": "अपने टिप पेज को लिंक करें ताकि फैंस प्यार दिखा सकें (उदा. /tips/your-handle)।",
+      "placeholder": "https://bowdownvisuals.com/tips/your-handle"
+    },
+    "actions": {
+      "saveDraft": "ड्राफ़्ट सहेजें",
+      "saving": "सहेजा जा रहा है…",
+      "publish": "पब्लिश करें · {{cost}} Visual Bucs",
+      "publishing": "पब्लिश हो रहा है…",
+      "unpublish": "अनपब्लिश करें",
+      "unpublishing": "अनपब्लिश हो रहा है…",
+      "viewPage": "लाइव पेज देखें",
+      "share": "शेयर करें",
+      "copied": "कॉपी हो गया!",
+      "copyLink": "लिंक कॉपी करें",
+      "draftSaved": "ड्राफ़्ट सहेजा गया।",
+      "published": "आपका पेज लाइव है!",
+      "unpublished": "पेज अनपब्लिश हो गया।",
+      "alreadyPublished": "यह पेज पहले से पब्लिश है।",
+      "statusLive": "लाइव — लिंक वाला कोई भी व्यक्ति इस पेज को देख सकता है",
+      "statusDraft": "ड्राफ़्ट — केवल आप इस पेज को देख सकते हैं",
+      "outOfCredits": "पब्लिश करने के लिए पर्याप्त Visual Bucs नहीं हैं — लाइव होने के लिए टॉप अप करें।"
+    },
+    "analytics": {
+      "title": "क्लिक एनालिटिक्स",
+      "views": "पेज व्यू",
+      "clicks": "कुल लिंक क्लिक",
+      "last7d": "क्लिक (7 दिन)",
+      "perLink": "प्रति लिंक क्लिक",
+      "noData": "अभी कोई क्लिक नहीं — अपना पेज शेयर करें और इसे जगमगाते देखें।"
+    },
+    "errors": {
+      "loadFailed": "आपके बायो पेज लोड नहीं हो सके।",
+      "saveFailed": "ड्राफ़्ट सहेजा नहीं जा सका।",
+      "publishFailed": "पेज पब्लिश नहीं हो सका।",
+      "needName": "पहले डिस्प्ले नाम जोड़ें।"
+    },
+    "public": {
+      "title": "बायो में लिंक",
+      "description": "क्रिएटर्स के लिए लिंक-इन-बायो पेज, Bow Down Visuals के साथ बनाए गए।",
+      "notFound": "पेज नहीं मिला",
+      "notFoundDetail": "यह लिंक-इन-बायो पेज मौजूद नहीं है या ऑफ़लाइन कर दिया गया है।",
+      "share": "यह पेज शेयर करें"
+    },
+    "preview": "प्रीव्यू"
   }
 }
