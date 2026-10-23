@@ -1993,7 +1993,18 @@
     "tipsTitle": "इसे सफल बनाएं",
     "title": "ब्रांड डील",
     "titleAccent": "फ़ाइंडर",
-    "verifyPrefix": "सत्यापित करें:"
+    "verifyPrefix": "सत्यापित करें:",
+    "finderExplainer": "यह finder है — AI उन ब्रांडों को खोजता है जो आप पर फिट बैठते हैं। जब कोई ब्रांड creators के आवेदन के लिए deal पोस्ट करता है, तो वह है ",
+    "marketplaceLink": "स्पॉन्सर मार्केटप्लेस",
+    "tabs": {
+      "finder": "फ़ाइंडर",
+      "marketplace": "मार्केटप्लेस"
+    },
+    "related": {
+      "label": "संबंधित:",
+      "sponsorDashboard": "Sponsor डैशबोर्ड",
+      "postDeal": "एक deal पोस्ट करें"
+    }
   },
   "brandingKit": {
     "eyebrow": "ब्रांड आइडेंटिटी",
@@ -2126,7 +2137,8 @@
     "trackPackage": "पैकेज ट्रैक करें",
     "trackingLabel": "ट्रैकिंग:",
     "viewOrders": "मेरे ऑर्डर देखें",
-    "zipPlaceholder": "ZIP"
+    "zipPlaceholder": "ZIP",
+    "contactForQuote": "कोट के लिए संपर्क करें"
   },
   "captionStyler": {
     "autoEmoji": "ऑटो-इमोजी",
@@ -2614,7 +2626,9 @@
       "publishing": "पब्लिशिंग",
       "distribution": "डिस्ट्रीब्यूशन",
       "other": "अन्य"
-    }
+    },
+    "copy_analysis": "विश्लेषण कॉपी करें",
+    "download_analysis": "डाउनलोड करें"
   },
   "copyright": {
     "ai_filing_assistant": "AI फाइलिंग असिस्टेंट",
@@ -3293,7 +3307,7 @@
     "pageTitle": "लाइव हो जाओ",
     "pageDescription": "स्ट्रीम डैशबोर्ड - अपनी Discord स्ट्रीम की घोषणा करें और अपने समुदाय का प्रचार करें।",
     "untitledStream": "शीर्षक रहित स्ट्रीम",
-    "failedToPostDiscord": "Discord पर पोस्ट करने में वि��ल.",
+    "failedToPostDiscord": "Discord पर पोस्ट करने में विफल।",
     "titleRequiredTitle": "अपनी स्ट्रीम को एक शीर्षक दें",
     "titleRequiredDesc": "आपके Discord क्रू को पता होना चाहिए कि वे किसके लिए आ रहे हैं।",
     "liveToastTitle": "आप लाइव हैं! 🔴",
@@ -3773,7 +3787,8 @@
     "uploadLogo": "अपना लोगो अपलोड करने के लिए क्लिक करें",
     "uploadToContinue": "जारी रखने के लिए लोगो अपलोड करें",
     "uploadedLogoAlt": "अपलोड किया गया लोगो",
-    "whatMaking": "हम क्या बना रहे हैं?"
+    "whatMaking": "हम क्या बना रहे हैं?",
+    "useMyLogo": "या पहले से बनाया हुआ लोगो इस्तेमाल करें"
   },
   "jewelryShop": {
     "back": "वापस",
@@ -3818,14 +3833,15 @@
     "streetPh": "स्ट्रीट एड्रेस *",
     "studioLink": "पूरी तरह कस्टम डिज़ाइन चाहिए? Logo-to-Luxury स्टूडियो खोलें",
     "total": "कुल:",
-    "zipPh": "ZIP *"
+    "zipPh": "ZIP कोड *",
+    "designCarried": "आपका studio डिज़ाइन आगे लाया गया — नीचे उसकी समीक्षा करें।"
   },
   "labelPitch": {
     "advancedSuffix": " bio, stats व lyrics (बेहतर package)",
     "allGenres": "सभी genres",
-    "analysisEnergy": "Energy",
-    "analysisGenre": "Genre",
-    "analysisMood": "Mood",
+    "analysisEnergy": "ऊर्जा",
+    "analysisGenre": "जॉनर",
+    "analysisMood": "मूड",
     "analysisSoundsLike": "ऐसा लगता है",
     "artistBioPlaceholder": "Artist bio — आप कहां से हैं, आपकी कहानी, career की खास बातें…",
     "artistNamePlaceholder": "Artist का नाम",
@@ -3842,7 +3858,7 @@
     "copyTemplate": "{{label}} कॉपी करें",
     "deleteSubmissionAria": "Submission हटाएं",
     "descriptionPlaceholder": "गाने का वर्णन करें — यह किस बारे में है, इसे क्या खास बनाता है…",
-    "energyLabel": "Energy — {{energy}}/100",
+    "energyLabel": "ऊर्जा — {{energy}}/100",
     "errAutoNoSong": "Auto को कोई गाना नहीं मिला — अपनी library से एक चुनें या मैन्युअली दर्ज करें।",
     "errDeleteSubmission": "वह submission हटाया नहीं जा सका।",
     "errKitFailed": "Demo kit विफल रहा — फिर से प्रयास करें।",
@@ -3854,14 +3870,14 @@
     "generatePackage": "Demo Package बनाएं — {{credits}} Visual Bucs",
     "genrePlaceholder": "Genre (e.g. Melodic Rap)",
     "genres": {
-      "afrobeats": "afrobeats",
-      "country": "country",
-      "edm": "edm",
-      "hip-hop": "hip-hop",
-      "latin": "latin",
-      "pop": "pop",
-      "r&b": "r&b",
-      "rock": "rock"
+      "afrobeats": "अफ्रोबीट्स",
+      "country": "कंट्री",
+      "edm": "ईडीएम",
+      "hip-hop": "हिप-हॉप",
+      "latin": "लैटिन",
+      "pop": "पॉप",
+      "r&b": "आर एंड बी",
+      "rock": "रॉक"
     },
     "heroBadge": "लेबल पिच",
     "heroSubtitle": "AI आपके गाने का विश्लेषण करता है, फिर एक professional demo submission package बनाता है — email, आपका one-sheet और follow-up। Labels बिना पूर्व परिचय के भेजे गए demos से शायद ही कभी sign करते हैं, लेकिन सही package ऐसे दरवाज़े खोलता है जिन्हें talent अकेला नहीं खोल सकता।",
@@ -3887,8 +3903,8 @@
     "save": "सहेजें",
     "sentOn": "{{date}} को भेजा गया",
     "showAdvanced": "+ जोड़ें",
-    "signedSuffix": " · {{count}} signed",
-    "socialStatsPlaceholder": "Social/streaming stats (e.g. 50K monthly listeners, 120K TikTok followers)",
+    "signedSuffix": " · {{count}} साइन हुए",
+    "socialStatsPlaceholder": "सोशल/streaming आंकड़े (उदा. 50K मासिक श्रोता, 120K TikTok followers)",
     "songAnalysis": "सॉन्ग एनालिसिस",
     "songTitlePlaceholder": "Song title *",
     "sourceAuto": "✨ तेज़ (AI चुनता है)",
@@ -3909,8 +3925,8 @@
     "targetLabelHint": "(वैकल्पिक — email को personalize करता है)",
     "tempoPlaceholder": "Tempo (e.g. 140 BPM)",
     "trackerLabelNamePlaceholder": "Label का नाम *",
-    "trackerMany": "{{count}} submissions",
-    "trackerOne": "{{count}} submission",
+    "trackerMany": "{{count}} सबमिशन",
+    "trackerOne": "{{count}} सबमिशन",
     "trackerTitle": "सबमिशन ट्रैकर",
     "typeAll": "सभी types",
     "typeImprint": "इम्प्रिंट",
@@ -3920,13 +3936,15 @@
     "typeMajor": "मेजर लेबल",
     "typeMajors": "मेजर्स",
     "untitledSong": "बिना शीर्षक वाला गाना",
-    "yourSong": "आपका गाना"
+    "yourSong": "आपका गाना",
+    "distributeThisSong": "इस गाने को डिस्ट्रिब्यूट करें",
+    "scheduleAnnouncement": "घोषणा शेड्यूल करें"
   },
   "liveShopping": {
     "addProduct": "प्रोडक्ट जोड़ें",
     "addProductsFirst": "पहले प्रोडक्ट जोड़ें, फिर यहां एक पिन करें।",
     "aiWriteButton": "AI से लिखें · 100 Visual Bucs",
-    "badge": "Live Shopping",
+    "badge": "लाइव शॉपिंग",
     "buyerNamePlaceholder": "खरीदार का नाम (वैकल्पिक)",
     "cancel": "रद्द करें",
     "catalogTitle": "प्रोडक्ट कैटलॉग",
@@ -3938,7 +3956,7 @@
     "confirmDeleteProduct": "यह प्रोडक्ट डिलीट करें?",
     "crossLinkEnd": "।",
     "crossLinkStart": "स्ट्रीम पर ड्रॉप चला रहे हैं? मैचिंग ग्राफ़िक्स पाएं",
-    "crossLinkText": "Stream Pack Generator",
+    "crossLinkText": "स्ट्रीम पैक जनरेटर",
     "dashboardTitle": "सेल्स डैशबोर्ड",
     "defaultBuyer": "एक व्यूअर",
     "delete": "डिलीट करें",
@@ -4099,7 +4117,7 @@
     "heroDisclaimer": "केवल जानकारी के लिए — कानूनी सलाह नहीं। जटिल स्थितियों के लिए बिज़नेस अटॉर्नी से सलाह लें।",
     "heroSubtitle": "LLC बनाने के लिए क्रिएटर को जो कुछ चाहिए — AI से कुछ भी पूछें, अपने राज्य और कला के अनुरूप फाइलिंग योजना पाएं, फिर मुफ़्त स्टेप-बाय-स्टेप चेकलिस्ट पर काम करें।",
     "heroTitleGuide": "गाइड",
-    "heroTitleStart": "LLC Formation ",
+    "heroTitleStart": "LLC गठन ",
     "myState": "मेरा राज्य…",
     "noStatesMatch": "“{{q}}” से कोई राज्य मेल नहीं खाता।",
     "ongoingNote": "वर्ष 1 के बाद चालू: ~{{amount}}/वर्ष ({{detail}} + एजेंट)।",
@@ -4615,7 +4633,7 @@
     "postDeal": "एक सौदा पोस्ट करें",
     "tabEarnings": "कमाई",
     "tabMyApplications": "मेरे आवेदन",
-    "tabMyDeals": "मेरे सौद��"
+    "tabMyDeals": "मेरे deals"
   },
   "sponsorDealDetail": {
     "accept": "स्वीकार करें",
@@ -4688,7 +4706,8 @@
     "winsLabel": "आपकी जीत (वैकल्पिक)",
     "winsPlaceholder": "जैसे: मेरे पिछले ड्रॉप पर 2M व्यूज़, इनके लिए ओपन किया…",
     "writingPitch": "लिखा जा रहा है…",
-    "yourDeal": "आपकी डील"
+    "yourDeal": "आपकी डील",
+    "writeSponsorRead": "Sponsor read लिखें"
   },
   "sponsors": {
     "emptyNoDeals": "अभी तक कोई सक्रिय डील नहीं",
@@ -4860,7 +4879,7 @@
     "heroTitleAccent": "खुद की शॉप खोलें",
     "hostLabel": "होस्ट",
     "manageShop": "My Shop में प्रबंधित करें",
-    "myShopLink": "My Shop",
+    "myShopLink": "मेरी दुकान",
     "pageTitle": "अपना स्टोरफ़्रंट बनाएं",
     "productDescPlaceholder": "संक्षिप्त विवरण (वैकल्पिक)",
     "productFeeLine": "{{price}} पर सूचीबद्ध · 5% प्लेटफ़ॉर्म शुल्क के बाद आप {{keep}} रखते हैं",
@@ -4921,7 +4940,8 @@
     "searchPlaceholder": "खोजें दुकानें, निर्माता, वाइब्स...",
     "startBuilding": "निर्माण प्रारंभ करें",
     "verifiedDomain": "सत्यापित डोमेन: {{domain}}",
-    "visitShop": "दुकान पर जाएँ"
+    "visitShop": "दुकान पर जाएँ",
+    "domainsLink": "कस्टम डोमेन कनेक्ट करें →"
   },
   "streamPack": {
     "allOn": "सब चालू",
@@ -5936,11 +5956,13 @@
     "notFoundBody": "इस हैंडल में अभी तक टिप जार नहीं है। लिंक को दोबारा जांचें.",
     "notFoundTitle": "टिप पेज नहीं मिला",
     "recordFailed": "आपकी टिप रिकॉर्ड नहीं की जा सकी.",
-    "recordedBody": "{{name}} आपके ${{amount}} टिप इरादे को देखेगा। भुगतान जल्द ही आ रहे हैं - आज कुछ भी शुल्क नह��ं लिया गया।",
+    "recordedBody": "{{name}} आपका ${{amount}} टिप इरादा देखेगा। पेमेंट जल्द आ रहे हैं — आज कुछ भी चार्ज नहीं हुआ।",
     "recordedTitle": "टिप रिकॉर्ड की गई!",
     "sendTipButton": "${{amount}} टिप भेजें",
     "tipHeading": "टिप",
-    "tipStats": "अब तक {{count}} टिप्स · कुल ${{total}}"
+    "tipStats": "अब तक {{count}} टिप्स · कुल ${{total}}",
+    "paidTitle": "टिप भेजी गई!",
+    "paidBody": "{{name}} को आपकी ${{amount}} टिप अभी मिली — उनके काम का समर्थन करने के लिए धन्यवाद।"
   },
   "tips": {
     "anonymousFan": "अज्ञात फ़ैन",
@@ -5979,7 +6001,8 @@
     "titleHighlight": "टिप जार",
     "titlePrefix": "आपका",
     "totalsTitle": "टिप जार कुल योग",
-    "updateButton": "टिप पेज अपडेट करें"
+    "updateButton": "टिप पेज अपडेट करें",
+    "shareTipPage": "टिप पेज शेयर करें"
   },
   "titles": {
     "allTagsCopyLabel": "सभी टैग्स",
@@ -7623,82 +7646,83 @@
     "download": "डाउनलोड करें"
   },
   "royalties": {
-    "eyebrow": "Royalty Tracker",
-    "titlePrefix": "Every stream. Every platform.",
-    "titleSuffix": "One dashboard.",
-    "subtitle": "Import your distributor CSVs and watch your catalog earn. The dashboard is free — only the AI earnings insights cost Visual Bucs.",
-    "signIn": "Sign in to track your royalties.",
-    "loading": "Loading your royalty dashboard…",
-    "free": "Free",
+    "eyebrow": "रॉयल्टी ट्रैकर",
+    "titlePrefix": "हर stream। हर प्लेटफ़ॉर्म।",
+    "titleSuffix": "एक डैशबोर्ड।",
+    "subtitle": "अपने distributor CSV इम्पोर्ट करें और अपने catalog को कमाते देखें। डैशबोर्ड मुफ़्त है — केवल AI कमाई insights में Visual Bucs लगते हैं।",
+    "signIn": "अपनी royalties ट्रैक करने के लिए साइन इन करें।",
+    "loading": "आपका royalty डैशबोर्ड लोड हो रहा है…",
+    "free": "मुफ़्त",
     "totals": {
-      "earnings": "Total earnings",
-      "entries": "{{num}} entries tracked",
-      "streams": "Total streams",
-      "acrossPlatforms": "across all platforms",
-      "songs": "Songs earning",
-      "platforms": "{{num}} platforms reporting"
+      "earnings": "कुल कमाई",
+      "entries": "{{num}} प्रविष्टियाँ ट्रैक की गईं",
+      "streams": "कुल streams",
+      "acrossPlatforms": "सभी प्लेटफ़ॉर्म पर",
+      "songs": "कमाने वाले गाने",
+      "platforms": "{{num}} प्लेटफ़ॉर्म रिपोर्ट कर रहे हैं"
     },
     "insights": {
       "title": "AI earnings insights",
       "cost": "{{cost}} Visual Buc",
-      "analyze": "Analyze my earnings",
-      "needData": "Import some royalty data below first — I need numbers to analyze."
+      "analyze": "मेरी कमाई का विश्लेषण करें",
+      "needData": "पहले नीचे कुछ royalty डेटा इम्पोर्ट करें — विश्लेषण के लिए मुझे संख्याएँ चाहिए।"
     },
-    "monthlyTrend": "Monthly trend",
-    "perSong": "Per song",
-    "perPlatform": "Per platform",
+    "monthlyTrend": "मासिक रुझान",
+    "perSong": "प्रति गाना",
+    "perPlatform": "प्रति प्लेटफ़ॉर्म",
     "streams": "{{num}} streams",
     "empty": {
-      "title": "No royalty data yet",
-      "desc": "Export a CSV from your distributor (DistroKid, TuneCore, CD Baby — they all export them) and paste it below. We'll do the rest."
+      "title": "अभी कोई royalty डेटा नहीं",
+      "desc": "अपने distributor (DistroKid, TuneCore, CD Baby — सभी export करते हैं) से एक CSV export करें और नीचे पेस्ट करें। बाकी हम करेंगे।"
     },
     "import": {
-      "title": "Import distributor CSV",
-      "desc": "We auto-detect common distributor columns (song, platform, period, streams, amount). Accepts MM/DD/YYYY or YYYY-MM-DD dates.",
-      "button": "Import entries",
-      "success": "Imported {{num}} entries.",
-      "warnings": "{{num}} row(s) skipped."
+      "title": "Distributor CSV इम्पोर्ट करें",
+      "desc": "हम आम distributor कॉलम (गाना, प्लेटफ़ॉर्म, अवधि, streams, राशि) अपने आप पहचानते हैं। MM/DD/YYYY या YYYY-MM-DD तिथियाँ स्वीकार हैं।",
+      "button": "प्रविष्टियाँ इम्पोर्ट करें",
+      "success": "{{num}} प्रविष्टियाँ इम्पोर्ट हुईं।",
+      "warnings": "{{num}} पंक्ति(याँ) छोड़ी गईं।"
     },
     "platforms": {
-      "title": "Platform connections",
-      "desc1": "Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists — their auto-sync is honestly",
-      "comingSoon": "coming soon",
-      "desc2": ". CSV import works for everything today.",
-      "connected": "Connected{{account}}",
-      "notConnected": "Not connected",
-      "autoSyncSoon": "Auto-sync coming soon",
-      "connect": "Connect"
+      "title": "प्लेटफ़ॉर्म कनेक्शन",
+      "desc1": "Spotify, Apple Music, और YouTube indie कलाकारों के लिए self-serve royalty API नहीं देते — उनका auto-sync ईमानदारी से",
+      "comingSoon": "जल्द आ रहा है",
+      "desc2": "। CSV इम्पोर्ट आज हर चीज़ के लिए काम करता है।",
+      "connected": "कनेक्टेड{{account}}",
+      "notConnected": "कनेक्ट नहीं",
+      "autoSyncSoon": "Auto-sync जल्द आ रहा है",
+      "connect": "कनेक्ट करें"
     },
     "payouts": {
-      "title": "Payout tracking",
-      "record": "Record payout",
-      "cancel": "Cancel",
+      "title": "Payout ट्रैकिंग",
+      "record": "Payout रिकॉर्ड करें",
+      "cancel": "रद्द करें",
       "distributor": "Distributor",
       "status": {
-        "expected": "expected",
-        "received": "received",
-        "partial": "partial",
-        "overdue": "overdue"
+        "expected": "अपेक्षित",
+        "received": "प्राप्त",
+        "partial": "आंशिक",
+        "overdue": "देय तिथि पार"
       },
-      "periodStart": "Period start",
-      "periodEnd": "Period end",
-      "expectedAmount": "Expected amount",
-      "receivedAmount": "Received amount (optional)",
-      "save": "Save payout",
-      "empty": "No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.",
-      "expected": "Expected",
-      "received": "Received",
-      "statusExpected": "Expected",
-      "statusReceived": "Received",
-      "statusPartial": "Partial",
-      "statusOverdue": "Overdue"
+      "periodStart": "अवधि शुरू",
+      "periodEnd": "अवधि समाप्त",
+      "expectedAmount": "अपेक्षित राशि",
+      "receivedAmount": "प्राप्त राशि (वैकल्पिक)",
+      "save": "Payout सेव करें",
+      "empty": "अभी कोई payout रिकॉर्ड नहीं। Distributor आमतौर पर रिपोर्टिंग अवधि के 1–3 महीने बाद भुगतान करते हैं।",
+      "expected": "अपेक्षित",
+      "received": "प्राप्त",
+      "statusExpected": "अपेक्षित",
+      "statusReceived": "प्राप्त",
+      "statusPartial": "आंशिक",
+      "statusOverdue": "देय तिथि पार",
+      "statusLabel": "स्थिति"
     },
-    "disclaimer": "Royalty figures come from your own imports — always reconcile against your distributor's official statements before making financial decisions. AI insights are analytical guidance, not financial advice.",
+    "disclaimer": "Royalty आंकड़े आपके अपने इम्पोर्ट से आते हैं — वित्तीय निर्णय लेने से पहले हमेशा अपने distributor के आधिकारिक स्टेटमेंट से मिलान करें। AI insights विश्लेषणात्मक मार्गदर्शन हैं, वित्तीय सलाह नहीं।",
     "error": {
-      "importFailed": "Import failed.",
-      "insightsFailed": "Insights failed — try again.",
-      "payoutRequired": "Distributor, period dates, and expected amount are required.",
-      "payoutSaveFailed": "Couldn't save that payout."
+      "importFailed": "इम्पोर्ट विफल रहा।",
+      "insightsFailed": "Insights विफल रहे — फिर से प्रयास करें।",
+      "payoutRequired": "Distributor, अवधि तिथियाँ, और अपेक्षित राशि आवश्यक हैं।",
+      "payoutSaveFailed": "वह payout सेव नहीं हो सका।"
     }
   },
   "playlistPitch": {
@@ -7826,125 +7850,182 @@
   },
   "refundPolicy": {
     "nav": {
-      "contactSupport": "Contact / Support"
+      "contactSupport": "संपर्क / सहायता"
     },
-    "pageTitle": "Refund Policy",
-    "pageDescription": "Our refund policy for Visual Bucs and purchases.",
-    "title": "Refund Policy",
-    "lastUpdated": "Last updated: September 2026",
+    "pageTitle": "रिफ़ंड नीति",
+    "pageDescription": "Visual Bucs और खरीद के लिए हमारी रिफ़ंड नीति।",
+    "title": "रिफ़ंड नीति",
+    "lastUpdated": "अंतिम अपडेट: सितंबर 2026",
     "whatWeSell": {
-      "title": "What We Sell",
-      "p1": "Bow Down Visuals sells ",
-      "strong": "digital AI creator Visual Bucs",
-      "p2": " — pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos, lyrics, thumbnails, caption sets, promo clips, and other digital creator content. All products are digital and delivered instantly upon Visual Buc use. No physical goods are sold or shipped."
+      "title": "हम क्या बेचते हैं",
+      "p1": "Bow Down Visuals बेचता है ",
+      "strong": "डिजिटल AI creator Visual Bucs",
+      "p2": " — पहले से खरीदी गई इकाइयाँ जिनसे videos, music, images, voiceovers, lip-synced videos, lyrics, thumbnails, caption sets, promo clips, और अन्य डिजिटल creator कंटेंट जनरेट होते हैं। सभी प्रोडक्ट डिजिटल हैं और Visual Buc इस्तेमाल पर तुरंत डिलीवर होते हैं। कोई भौतिक सामान बेचा या शिप नहीं किया जाता।"
     },
     "generalPolicy": {
-      "title": "Digital Products — General Policy",
-      "p1": "Because our products are digital and consumed immediately upon generation, ",
-      "strong": " all sales are generally final",
-      "p2": ". Once Visual Bucs have been used to generate content, those Visual Bucs cannot be refunded. Bonus Visual Bucs earned through referrals or promotions have no cash value and are non-refundable."
+      "title": "डिजिटल प्रोडक्ट — सामान्य नीति",
+      "p1": "क्योंकि हमारे प्रोडक्ट डिजिटल हैं और जनरेशन पर तुरंत उपभोग हो जाते हैं, ",
+      "strong": " सभी बिक्री आम तौर पर अंतिम होती हैं",
+      "p2": "। एक बार Visual Bucs कंटेंट जनरेट करने में इस्तेमाल हो जाने के बाद, वे Visual Bucs रिफ़ंड नहीं हो सकते। रेफ़रल या प्रमोशन से कमाए गए बोनस Visual Bucs का कोई नकद मूल्य नहीं है और वे non-refundable हैं।"
     },
     "whenWeRefund": {
-      "title": "When We Do Issue Refunds",
-      "intro": "We will issue a full or partial refund in the following situations:",
+      "title": "हम रिफ़ंड कब जारी करते हैं",
+      "intro": "हम निम्न स्थितियों में पूरा या आंशिक रिफ़ंड जारी करेंगे:",
       "technical": {
-        "title": "Technical failure:",
-        "desc": " Visual Bucs were deducted but no content was generated due to a platform error on our end."
+        "title": "तकनीकी विफलता:",
+        "desc": " Visual Bucs कट गए, लेकिन हमारी ओर से प्लेटफ़ॉर्म त्रुटि के कारण कोई कंटेंट जनरेट नहीं हुआ।"
       },
       "duplicate": {
-        "title": "Duplicate charge:",
-        "desc": " You were charged more than once for the same subscription period or purchase."
+        "title": "डुप्लिकेट शुल्क:",
+        "desc": " एक ही सब्सक्रिप्शन अवधि या खरीद के लिए आपसे एक से ज़्यादा बार शुल्क लिया गया।"
       },
       "unauthorized": {
-        "title": "Unauthorized charge:",
-        "desc": " You believe your account was accessed without your authorization."
+        "title": "अनधिकृत शुल्क:",
+        "desc": " आपको लगता है कि आपके अकाउंट तक आपकी अनुमति के बिना पहुँचा गया।"
       },
       "firstSub": {
-        "title": "Within 48 hours of first subscription:",
-        "desc": " If you subscribed and have not yet used any Visual Bucs, you may request a full refund within 48 hours of your first payment."
+        "title": "पहले सब्सक्रिप्शन के 48 घंटों के भीतर:",
+        "desc": " यदि आपने सब्सक्राइब किया है और अभी कोई Visual Bucs इस्तेमाल नहीं किए हैं, तो आप अपने पहले पेमेंट के 48 घंटों के भीतर पूरे रिफ़ंड का अनुरोध कर सकते हैं।"
       }
     },
     "cancellations": {
-      "title": "Subscription Cancellations",
-      "p1": "You may cancel your subscription at any time. Cancellation stops future billing; you retain access to your remaining Visual Bucs and subscription benefits through the end of the current billing period. ",
-      "strong": "Partial-month refunds are not issued for cancellations mid-cycle."
+      "title": "सब्सक्रिप्शन रद्दीकरण",
+      "p1": "आप कभी भी अपना सब्सक्रिप्शन रद्द कर सकते हैं। रद्दीकरण भविष्य की बिलिंग रोकता है; वर्तमान बिलिंग अवधि के अंत तक आपके शेष Visual Bucs और सब्सक्रिप्शन लाभों तक आपकी एक्सेस बनी रहती है। ",
+      "strong": "चक्र के बीच में रद्दीकरण पर आंशिक-महीने के रिफ़ंड जारी नहीं किए जाते।"
     },
     "howTo": {
-      "title": "How to Request a Refund",
-      "intro1": "To request a refund, contact us within ",
-      "strong": "7 days",
-      "intro2": " of the charge:",
-      "email": "Email: ",
-      "subject1": "Subject: ",
-      "subject2": "Refund Request — [your email]",
-      "include": "Include: date of charge, amount, and a brief description of the issue",
-      "response": "We aim to respond within 2 business days. Approved refunds are returned to your original payment method within 5–10 business days depending on your bank."
+      "title": "रिफ़ंड का अनुरोध कैसे करें",
+      "intro1": "रिफ़ंड का अनुरोध करने के लिए, शुल्क के ",
+      "strong": "7 दिनों",
+      "intro2": " के भीतर हमसे संपर्क करें:",
+      "email": "ईमेल: ",
+      "subject1": "विषय: ",
+      "subject2": "Refund Request — [आपका ईमेल]",
+      "include": "शामिल करें: शुल्क की तिथि, राशि, और समस्या का संक्षिप्त विवरण",
+      "response": "हम 2 व्यावसायिक दिनों के भीतर जवाब देने का लक्ष्य रखते हैं। स्वीकृत रिफ़ंड आपके बैंक के अनुसार 5–10 व्यावसायिक दिनों के भीतर आपकी मूल पेमेंट विधि पर वापस किए जाते हैं।"
     },
     "questions": {
-      "title": "Questions?",
-      "p1": "Visit our ",
-      "contactLink": "Contact / Support page",
-      "p2": " or email "
+      "title": "प्रश्न हैं?",
+      "p1": "हमारे ",
+      "contactLink": "संपर्क / सहायता पेज",
+      "p2": " पर जाएं या ईमेल करें "
     }
   },
   "referrals": {
     "error": {
-      "loadFailed": "Couldn't load referrals."
+      "loadFailed": "रेफ़रल लोड नहीं हो सके।"
     },
-    "shareText": "Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get {{reward}} free Visual Bucs to start!",
-    "titlePrefix": "Promoter",
+    "shareText": "Bow Down Visuals पर मेरे साथ जुड़ें — कंटेंट creators के लिए AI studio। मेरे लिंक से साइन अप करें और शुरू करने के लिए {{reward}} मुफ़्त Visual Bucs पाएं!",
+    "titlePrefix": "प्रमोटर",
     "titleSuffix": "HQ",
     "hero": {
-      "p1": "This is your job now. Climb the Kingpin ranks — more stars, bigger cut. New creators get",
-      "reward": "{{num}} free Visual Bucs",
-      "p2": ", and you earn up to",
-      "cut": "40% of everything they buy",
-      "p3": "for",
-      "days": "{{days}} days",
+      "p1": "अब यह आपकी नौकरी है। Kingpin ranks चढ़ें — ज़्यादा स्टार, बड़ा हिस्सा। नए creators को मिलते हैं",
+      "reward": "{{num}} मुफ़्त Visual Bucs",
+      "p2": ", और आप कमाते हैं तक",
+      "cut": "उनकी हर खरीद का 40%",
+      "p3": "के लिए",
+      "days": "{{days}} दिन",
       "p4": "."
     },
     "signup": {
-      "link": "Sign up",
-      "suffix": "to get your referral link."
+      "link": "साइन अप",
+      "suffix": "करके अपना रेफ़रल लिंक पाएं।"
     },
     "rank": {
-      "cut": "{{pct}}% cut on every active referral",
-      "notRanked": "Not ranked yet",
-      "firstStar": "Your first referral earns your first star",
-      "moreTo": "{{num}} more to",
-      "nextReward": "{{pct}}% + {{bonus}} VB bonus",
-      "top": "Top of the mountain. The Don."
+      "cut": "हर सक्रिय रेफ़रल पर {{pct}}% हिस्सा",
+      "notRanked": "अभी rank नहीं मिला",
+      "firstStar": "आपका पहला रेफ़रल आपका पहला स्टार दिलाता है",
+      "moreTo": "{{num}} और चाहिए",
+      "nextReward": "{{pct}}% + {{bonus}} VB बोनस",
+      "top": "पहाड़ की चोटी। The Don।",
+      "myRanks": "आपके ranks",
+      "thisWeek": "इस सप्ताह",
+      "thisMonth": "इस महीने",
+      "allTime": "सर्वकालिक",
+      "unranked": "बिना rank"
     },
     "stats": {
-      "joined": "Creators joined",
-      "earning": "Earning now",
-      "earned": "Visual Bucs earned"
+      "joined": "शामिल हुए creators",
+      "earning": "अभी कमा रहे हैं",
+      "earned": "कमाए गए Visual Bucs"
     },
     "link": {
-      "title": "Your referral link",
-      "copy": "Copy",
-      "copied": "Copied"
+      "title": "आपका रेफ़रल लिंक",
+      "copy": "कॉपी करें",
+      "copied": "कॉपी हुआ"
     },
     "share": {
-      "title": "Share it"
+      "title": "इसे शेयर करें"
     },
     "tracker": {
-      "title": "Your referrals",
-      "empty": "Nobody's joined through your link yet — share it above and they'll show up here.",
+      "title": "आपके रेफ़रल",
+      "empty": "अभी तक कोई आपके लिंक से शामिल नहीं हुआ — ऊपर शेयर करें और वे यहाँ दिखेंगे।",
       "creator": "Creator #{{n}}",
-      "joined": "Joined",
+      "joined": "शामिल हुए",
       "earned": "+{{amount}} VB",
-      "earning": "Earning · {{days}}d left",
-      "ended": "Window ended"
+      "earning": "कमा रहे हैं · {{days}}d बचे",
+      "ended": "विंडो समाप्त"
     },
     "ladder": {
       "title": "Kingpin ranks",
       "you": "YOU",
-      "requirement": "{{min}}+ creators · {{pct}}% cut",
-      "bonus": "+{{bonus}} VB bonus",
-      "bonusClaimed": "✓{{bonus}} VB bonus claimed"
+      "requirement": "{{min}}+ creators · {{pct}}% हिस्सा",
+      "bonus": "+{{bonus}} VB बोनस",
+      "bonusClaimed": "✓{{bonus}} VB बोनस क्लेम हुआ"
     },
-    "footer": "You earn {{pct}}% of each referred creator's Visual Buc purchases, paid in Visual Bucs, for {{days}} days after they join. Payouts land automatically when they buy."
+    "footer": "आप हर रेफ़र किए गए creator की Visual Buc खरीद का {{pct}}% कमाते हैं, Visual Bucs में भुगतान, उनके शामिल होने के {{days}} दिनों तक। उनकी खरीद पर payouts अपने आप आ जाते हैं।",
+    "contest": {
+      "title": "मासिक Viral Contest",
+      "pool": "{{total}} Visual Bucs पुरस्कार पूल",
+      "endsIn": "समाप्ति में",
+      "days": "d",
+      "hours": "h",
+      "mins": "m",
+      "secs": "s",
+      "rulesTitle": "कैसे जीतें",
+      "prizesTitle": "पुरस्कार",
+      "prizeFor": "#{{rank}} — {{prize}} VB",
+      "standingsTitle": "इस महीने की दौड़",
+      "lastWinnersTitle": "पिछले महीने के विजेता",
+      "noWinners": "अभी कोई contest तय नहीं हुआ — पहले legend बनें।",
+      "qualified": "योग्य",
+      "needMore": "योग्य होने के लिए {{n}} और साइनअप चाहिए",
+      "you": "आप",
+      "yourSpots": "इस महीने आपके साइनअप: {{n}}",
+      "shareWin": "{{name}} ने अभी-अभी Bow Down Visuals Monthly Viral Contest जीता — {{signups}} creators भर्ती करने के लिए {{prize}} Visual Bucs! क्या लगता है, आप उनसे ज़्यादा भर्ती कर सकते हैं? {{link}}",
+      "share": "शेयर करें",
+      "copied": "कॉपी हुआ",
+      "copy": "कॉपी करें",
+      "signups": "साइनअप",
+      "revenue": "कमाए गए VB"
+    },
+    "leaderboard": {
+      "title": "Recruiter Leaderboard",
+      "weekly": "साप्ताहिक",
+      "monthly": "मासिक",
+      "allTime": "सर्वकालिक",
+      "empty": "बोर्ड पर अभी कोई recruiter नहीं — पहला स्थान पूरी तरह खुला है।",
+      "signups": "साइनअप",
+      "revenue": "जनरेट हुए VB",
+      "yourRank": "आपका rank: #{{rank}}",
+      "you": "आप"
+    },
+    "sharekit": {
+      "title": "Share kit",
+      "subtitle": "वन-क्लिक पोस्ट। कॉपी करें, फैलाएं, भर्ती करें।",
+      "copy": "कॉपी करें",
+      "copied": "कॉपी हुआ",
+      "templates": {
+        "x": "इसे X पर पोस्ट करें",
+        "threads": "Threads / Instagram",
+        "tiktok": "TikTok caption",
+        "chat": "Discord / WhatsApp"
+      },
+      "postX": "मैं Bow Down Visuals पर अपना creator साम्राज्य बना रहा हूँ — creators के लिए AI studio। मेरे लिंक से जुड़ें और शुरू करने के लिए {{reward}} मुफ़्त Visual Bucs पाएं: {{link}}",
+      "postThreads": "POV: आपको कंटेंट निर्माण का cheat code मिल गया। Bow Down Visuals = AI thumbnails, hooks, videos, music — सब कुछ। मेरे लिंक के साथ {{reward}} मुफ़्त Visual Bucs से शुरू करें: {{link}}",
+      "postTiktok": "यह AI studio मेरे लिए thumbnails, hooks और videos बनाता है। मेरे लिंक से जुड़ने पर {{reward}} मुफ़्त Visual Bucs पाएं: {{link}}",
+      "postChat": "Yo — Bow Down Visuals creators के लिए AI cheat code है। मेरा लिंक इस्तेमाल करें और हम दोनों जीतें: आपको {{reward}} मुफ़्त Visual Bucs मिलते हैं, मैं recruiter ranks चढ़ता हूँ। {{link}}"
+    }
   },
   "randomizer": {
     "badge": "Thy Cheat Code's dice",
@@ -8414,7 +8495,182 @@
     }
   },
   "pricing": {
-    "pageTitle": "कीमतें"
+    "pageTitle": "कीमतें",
+    "betaNotice": {
+      "cta": "जल्दी एक्सेस के लिए बीटा सूची में शामिल हों →",
+      "label": "बीटा सूचना:",
+      "text": "Bow Down Visuals अभी बीटा में है। पेमेंट अभी लाइव नहीं हैं।"
+    },
+    "bottomCta": {
+      "joinBeta": "बीटा में शामिल हों",
+      "text": "बीटा सदस्य founding rate लॉक करते हैं और लॉन्च के दिन 100 बोनस Visual Bucs पाते हैं।",
+      "title": "जल्दी शामिल हों।",
+      "tryTools": "Tools आज़माएं"
+    },
+    "cancelledBanner": {
+      "text": "पेमेंट रद्द हुआ। कोई Visual Bucs नहीं जोड़े गए।"
+    },
+    "creditPacks": {
+      "buyButton": "Visual Bucs खरीदें",
+      "checkoutFailed": "चेकआउट विफल रहा। कृपया फिर से प्रयास करें।",
+      "networkError": "नेटवर्क त्रुटि। कृपया फिर से प्रयास करें।",
+      "packs": {
+        "10": {
+          "credits": "1,000 Visual Bucs",
+          "price": "$9"
+        },
+        "50": {
+          "credits": "5,000 Visual Bucs",
+          "price": "$39"
+        },
+        "150": {
+          "credits": "15,000 Visual Bucs",
+          "price": "$99"
+        },
+        "500": {
+          "credits": "50,000 Visual Bucs",
+          "price": "$249"
+        }
+      },
+      "processing": "प्रोसेस हो रहा है…",
+      "signInNote": "Visual Bucs खरीदने के लिए आपको साइन इन होना ज़रूरी है।",
+      "subtitle": "बिना सब्सक्रिप्शन के अतिरिक्त Visual Bucs चाहिए? कभी भी टॉप अप करें।",
+      "testModeLead": "पेमेंट अभी",
+      "testModeStrong": "टेस्ट मोड",
+      "testModeTail": "में हैं। कोई असली पैसा चार्ज नहीं होता।",
+      "title": "टेस्ट Visual Buc पैक"
+    },
+    "faq": {
+      "a1": "जब भी आप AI generation चलाते हैं — गाना बनाना, वीडियो प्लान जनरेट करना, प्रोमो क्लिप बनाना, या म्यूज़िक वीडियो क्लिप तैयार करना — Visual Bucs इस्तेमाल होते हैं। हर एक्शन आपके मासिक Visual Bucs बैलेंस से कटता है।",
+      "a2": "अभी नहीं। Bow Down Visuals अभी बीटा में है। पेमेंट जल्द आ रहे हैं। अपना founding rate लॉक करने और बिलिंग लाइव होने पर जल्दी एक्सेस पाने के लिए अभी बीटा सूची में शामिल हों।",
+      "a3": "हाँ। बीटा उपयोगकर्ता एक स्टार्टर Visual Bucs बैलेंस के साथ चुनिंदा tools टेस्ट कर सकते हैं। साइन अप करें, creator tools देखें, और हमें फीडबैक दें। पूरी एक्सेस पेड लॉन्च के साथ खुलेगी।",
+      "a4": "हाँ — म्यूज़िक वीडियो क्लिप जनरेशन एक प्रीमियम एक्शन है और स्टैंडर्ड टेक्स्ट जनरेशन से ज़्यादा Visual Bucs इस्तेमाल करता है। प्रति क्लिप सटीक लागत लॉन्च पर कन्फ़र्म की जाएगी।",
+      "a5": "हाँ। बिलिंग लाइव होने के बाद, आप अपनी अकाउंट सेटिंग्स से कभी भी अपग्रेड, डाउनग्रेड, या रद्द कर सकते हैं। कोई कॉन्ट्रैक्ट नहीं। कोई रद्दीकरण शुल्क नहीं।",
+      "a6": "AI song vocals और पूरी beat generation की योजना है, लेकिन अभी पूरी तरह लॉन्च नहीं हुई हैं। अभी प्लेटफ़ॉर्म पेशेवर lyrics, hooks, verses, AI music prompts, video treatments, और promo content बनाता है — आपकी रिलीज़ को डायरेक्ट और प्रोड्यूस करने के लिए जो कुछ भी चाहिए।",
+      "q1": "Visual Bucs क्या हैं?",
+      "q2": "क्या पेमेंट अभी लाइव हैं?",
+      "q3": "क्या मैं बीटा के दौरान Bow Down Visuals इस्तेमाल कर सकता हूँ?",
+      "q4": "क्या म्यूज़िक वीडियो क्लिप में Visual Bucs लगते हैं?",
+      "q5": "क्या मैं बाद में रद्द कर सकता हूँ?",
+      "q6": "क्या यह अभी vocals के साथ असली गाने बनाता है?",
+      "title": "अक्सर पूछे जाने वाले प्रश्न"
+    },
+    "hero": {
+      "disclaimer": "कोई मुफ़्त generation नहीं। कोई छिपा हुआ compute शुल्क नहीं। बनाने से पहले Visual Buc लागत देखें।",
+      "kicker": "मूल्य निर्धारण",
+      "subtitle": "Street Punk से Kingpin तक चढ़ें — आपका rank जितना ऊँचा, उतनी ज़्यादा ताक़त, Visual Bucs, ऑटोमेशन, और नियंत्रण आप अनलॉक करते हैं।",
+      "titleLine1": "अपना चुनें",
+      "titleLine2": "Rank",
+      "videoAriaLabel": "Thy Cheat Code लेवल अप कर रहा है"
+    },
+    "jsonLd": {
+      "description": "कंटेंट creators के लिए AI-संचालित creative studio, song lyrics, music video treatments, promo clips, और thumbnails के लिए सब्सक्रिप्शन प्लान के साथ।",
+      "offerCatalogName": "Bow Down Visuals Plans"
+    },
+    "pageDescription": "अपना rank चुनें — छह स्टार-रेटेड creator प्लान।",
+    "planCard": {
+      "bestFor": "इसके लिए सर्वश्रेष्ठ: {{bestFor}}",
+      "perMonth": "/महीना",
+      "wantedStarsAria": "6 में से {{stars}} wanted स्टार"
+    },
+    "plans": {
+      "comingSoonNote": "बिलिंग अभी लाइव नहीं है। सभी प्लान बटन बीटा सूची में शामिल करते हैं।",
+      "crimeBoss": {
+        "badge": "विशेष",
+        "bestFor": "उच्च-वॉल्यूम creators",
+        "credits": "150,000 Visual Bucs मासिक",
+        "cta": "Crime Boss बनें",
+        "features": {
+          "f1": "Shot Caller में सब कुछ",
+          "f2": "प्राथमिकता generation कतार",
+          "f3": "जहाँ समर्थित हो, 4K आउटपुट",
+          "f4": "नए AI मॉडलों तक जल्दी एक्सेस",
+          "f5": "उन्नत क्रॉस-प्लेटफ़ॉर्म एनालिटिक्स",
+          "f6": "विशेष Crime Boss टेम्पलेट और स्टाइल"
+        },
+        "name": "Crime Boss"
+      },
+      "gangster": {
+        "bestFor": "गंभीर फुल-टाइम creators",
+        "credits": "25,000 Visual Bucs मासिक",
+        "cta": "Gangster बनें",
+        "features": {
+          "f1": "Hustler में सब कुछ",
+          "f2": "Lip Sync",
+          "f3": "Mastering + stem separation",
+          "f4": "उन्नत इफ़ेक्ट और ट्रांज़िशन",
+          "f5": "Upscaling और watermark सफ़ाई",
+          "f6": "बैच creative वेरिएशन"
+        },
+        "name": "Gangster"
+      },
+      "hustler": {
+        "badge": "सबसे लोकप्रिय",
+        "bestFor": "सक्रिय सोलो creators",
+        "credits": "10,000 Visual Bucs मासिक",
+        "cta": "Hustler तक Rank Up करें",
+        "features": {
+          "f1": "Street Punk में सब कुछ",
+          "f2": "वीडियो क्लिप जनरेशन",
+          "f3": "पूरी Visual Vibes एक्सेस",
+          "f4": "Creator Vault + Photo Shoot",
+          "f5": "Artist Voice Lock",
+          "f6": "Character वीडियो संदर्भ"
+        },
+        "name": "Hustler"
+      },
+      "kingpin": {
+        "badge": "टॉप Tier",
+        "bestFor": "लेबल, एजेंसियाँ और पावर उपयोगकर्ता",
+        "credits": "400,000 Visual Bucs मासिक",
+        "cta": "Kingpin Crown हासिल करें",
+        "features": {
+          "f1": "Crime Boss में सब कुछ",
+          "f2": "जहाँ समर्थित हो, 8K डिलीवरी",
+          "f3": "कस्टम स्टाइल ट्रेनिंग",
+          "f4": "White-label क्लाइंट डिलीवरेबल",
+          "f5": "API एक्सेस और ऑटोमेशन",
+          "f6": "समर्पित अकाउंट मैनेजर"
+        },
+        "name": "Kingpin"
+      },
+      "shotCaller": {
+        "bestFor": "टीमें और creator ब्रांड",
+        "credits": "60,000 Visual Bucs मासिक",
+        "cta": "Shot Caller बनें",
+        "features": {
+          "f1": "Gangster में सब कुछ",
+          "f2": "टीम वर्कस्पेस और सदस्य भूमिकाएँ",
+          "f3": "साझा vault और ब्रांड लाइब्रेरी",
+          "f4": "समीक्षा और अनुमोदन वर्कफ़्लो",
+          "f5": "सोशल शेड्यूलिंग और पब्लिशिंग",
+          "f6": "बल्क एसेट निर्माण"
+        },
+        "name": "Shot Caller"
+      },
+      "streetPunk": {
+        "bestFor": "नए creators",
+        "credits": "2,500 Visual Bucs मासिक",
+        "cta": "Street Punk बनें",
+        "features": {
+          "f1": "Music Maker",
+          "f2": "म्यूज़िक वीडियो प्लान और treatments",
+          "f3": "प्रोमो क्लिप योजना",
+          "f4": "Hook Studio + virality check",
+          "f5": "Thumbnail Maker और Logo Maker",
+          "f6": "Thy Cheat Code निर्देशित सेटअप"
+        },
+        "name": "Street Punk"
+      }
+    },
+    "wantedMeter": {
+      "ariaLabel": "Rank का पूर्वावलोकन",
+      "hint": "स्टार पर होवर करें, फिर किसी लेवल पर टैप करके उसके प्लान पर जाएं",
+      "hoverLabel_one": "{{count}} स्टार — {{name}} · ${{price}}/mo",
+      "hoverLabel_other": "{{count}} स्टार — {{name}} · ${{price}}/mo",
+      "starOption_one": "{{count}} स्टार — {{name}} ${{price}}/महीना",
+      "starOption_other": "{{count}} स्टार — {{name}} ${{price}}/महीना"
+    }
   },
   "scheduler": {
     "titlePrefix": "Thy",
@@ -8942,123 +9198,123 @@
     "planFallbackTitle": "मेरी कंटेंट योजना"
   },
   "syncPitch": {
-    "tabSync": "Sync Pitch Kit",
-    "subTabOneSheet": "One-Sheets",
-    "subTabBriefs": "Brief Board",
-    "subTabTracker": "Pitch Tracker",
-    "statusSent": "Sent",
-    "statusPending": "Pending",
-    "statusPlaced": "Placed",
-    "statusDead": "Dead",
+    "tabSync": "Sync पिच किट",
+    "subTabOneSheet": "वन-शीट्स",
+    "subTabBriefs": "ब्रीफ़ बोर्ड",
+    "subTabTracker": "पिच ट्रैकर",
+    "statusSent": "भेजा गया",
+    "statusPending": "लंबित",
+    "statusPlaced": "प्लेस हुआ",
+    "statusDead": "बंद",
     "typeTv": "TV",
-    "typeFilm": "Film",
-    "typeAd": "Ad",
-    "typeGame": "Game",
-    "yourSong": "Your song",
-    "enterManually": "Enter manually",
-    "fromLibrary": "From library ({{count}})",
-    "pickSong": "Pick a song from your library…",
-    "untitledSong": "Untitled song",
+    "typeFilm": "फ़िल्म",
+    "typeAd": "विज्ञापन",
+    "typeGame": "गेम",
+    "yourSong": "आपका गाना",
+    "enterManually": "मैन्युअल रूप से दर्ज करें",
+    "fromLibrary": "लाइब्रेरी से ({{count}})",
+    "pickSong": "अपनी लाइब्रेरी से एक गाना चुनें…",
+    "untitledSong": "बिना शीर्षक गाना",
     "songTitlePlaceholder": "Song title",
     "artistNamePlaceholder": "Artist name",
     "genrePlaceholder": "Genre (e.g. dark pop)",
-    "moodPlaceholder": "Mood tags, comma separated (e.g. brooding, triumphant)",
+    "moodPlaceholder": "Mood tags, कॉमा से अलग (उदा. brooding, triumphant)",
     "bpmPlaceholder": "BPM (e.g. 92)",
     "keyPlaceholder": "Key (e.g. A minor)",
-    "descriptionPlaceholder": "Describe the song — story, vibe, what it's about…",
-    "instrumentalAvailable": "Instrumental version available",
-    "stemsAvailable": "Stems available",
-    "stemsHint": "Supervisors ask for instrumental and stems first — tick what you actually have.",
-    "advancedDetails": "Details & contact info",
+    "descriptionPlaceholder": "गाने का वर्णन करें — कहानी, vibe, यह किस बारे में है…",
+    "instrumentalAvailable": "Instrumental संस्करण उपलब्ध",
+    "stemsAvailable": "Stems उपलब्ध",
+    "stemsHint": "Supervisor पहले instrumental और stems मांगते हैं — जो आपके पास वास्तव में है, उसी पर टिक करें।",
+    "advancedDetails": "विवरण और संपर्क जानकारी",
     "contactNamePlaceholder": "Contact name",
     "contactEmailPlaceholder": "Contact email",
-    "generateSheet": "Generate Sync One-Sheet · {{cost}} VB",
-    "writingSheet": "Writing your one-sheet…",
-    "signInPrompt": "Sign in to generate a sync one-sheet.",
-    "titleRequired": "Give your song a title first.",
-    "kitFailed": "The one-sheet didn't come together. Try again.",
-    "copied": "Copied",
-    "copyLabel": "Copy {{label}}",
-    "copyAria": "Copy {{label}} to clipboard",
-    "copyEmailLabel": "email",
-    "copyShareLink": "Copy share link",
-    "shareSheet": "Share",
-    "linkCopied": "Copied!",
-    "view": "View",
-    "hide": "Hide",
-    "myOneSheets": "My One-Sheets",
-    "noSheets": "No one-sheets yet — generate one above and start pitching.",
-    "deleteSheet": "Delete this one-sheet",
-    "trackThisPitch": "Track this pitch",
-    "oneSheetBadge": "Sync one-sheet",
+    "generateSheet": "Sync One-Sheet जनरेट करें · {{cost}} VB",
+    "writingSheet": "आपकी one-sheet लिखी जा रही है…",
+    "signInPrompt": "Sync one-sheet जनरेट करने के लिए साइन इन करें।",
+    "titleRequired": "पहले अपने गाने को एक शीर्षक दें।",
+    "kitFailed": "One-sheet नहीं बन पाई। फिर से प्रयास करें।",
+    "copied": "कॉपी हुआ",
+    "copyLabel": "{{label}} कॉपी करें",
+    "copyAria": "{{label}} को क्लिपबोर्ड पर कॉपी करें",
+    "copyEmailLabel": "ईमेल",
+    "copyShareLink": "शेयर लिंक कॉपी करें",
+    "shareSheet": "शेयर करें",
+    "linkCopied": "कॉपी हुआ!",
+    "view": "देखें",
+    "hide": "छिपाएं",
+    "myOneSheets": "मेरी One-Sheets",
+    "noSheets": "अभी कोई one-sheet नहीं — ऊपर एक जनरेट करें और पिचिंग शुरू करें।",
+    "deleteSheet": "इस one-sheet को डिलीट करें",
+    "trackThisPitch": "इस pitch को ट्रैक करें",
+    "oneSheetBadge": "Sync वन-शीट",
     "statBpm": "BPM",
-    "statKey": "Key",
-    "statInstrumental": "Instrumental",
-    "statStems": "Stems",
-    "yes": "Yes",
-    "no": "No",
-    "moodTagsLabel": "Mood tags",
-    "soundsLikeLabel": "Sounds like",
-    "comparableArtists": "Comparable artists",
-    "syncUsesLabel": "Made for sync",
-    "contactLabel": "Licensing contact",
-    "supervisorEmail": "Music supervisor pitch email",
-    "subjectLabel": "Subject",
-    "bodyLabel": "Body",
-    "licensingNotesLabel": "Licensing notes",
-    "handoffStems": "Make instrumental / stems",
-    "handoffStemsDesc": "Strip or separate your track in Stems",
-    "handoffSponsor": "Send to sponsor outreach",
-    "handoffSponsorDesc": "Adapt this pitch for brand placements",
-    "tagInstrumental": "Instrumental",
-    "tagStems": "Stems",
-    "briefsIntro": "Create briefs for the placements you want — TV, film, ads, games — then match your catalog songs against them.",
-    "newBrief": "New brief",
+    "statKey": "कुंजी",
+    "statInstrumental": "इंस्ट्रुमेंटल",
+    "statStems": "स्टेम्स",
+    "yes": "हाँ",
+    "no": "नहीं",
+    "moodTagsLabel": "मूड टैग्स",
+    "soundsLikeLabel": "ऐसा लगता है",
+    "comparableArtists": "तुलनीय कलाकार",
+    "syncUsesLabel": "Sync के लिए बनाया गया",
+    "contactLabel": "लाइसेंसिंग संपर्क",
+    "supervisorEmail": "Music supervisor pitch ईमेल",
+    "subjectLabel": "विषय",
+    "bodyLabel": "मुख्य भाग",
+    "licensingNotesLabel": "लाइसेंसिंग नोट्स",
+    "handoffStems": "Instrumental / stems बनाएं",
+    "handoffStemsDesc": "अपने ट्रैक को Stems में अलग करें",
+    "handoffSponsor": "Sponsor outreach को भेजें",
+    "handoffSponsorDesc": "इस pitch को ब्रांड placements के लिए ढालें",
+    "tagInstrumental": "इंस्ट्रुमेंटल",
+    "tagStems": "स्टेम्स",
+    "briefsIntro": "जिन placements को आप चाहते हैं — TV, फ़िल्म, विज्ञापन, गेम — उनके लिए brief बनाएं, फिर अपने catalog गानों को उनसे मिलाएं।",
+    "newBrief": "नया brief",
     "briefTitlePlaceholder": "Brief title (e.g. Indie drama trailer)",
     "briefMoodPlaceholder": "Mood (e.g. hopeful, cinematic)",
     "budgetPlaceholder": "Budget range (e.g. $1k–$5k)",
-    "briefNotesPlaceholder": "Notes, reference tracks, delivery format…",
-    "briefTitleRequired": "Give the brief a title first.",
-    "saveBrief": "Save brief",
-    "cancel": "Cancel",
-    "saveFailed": "Couldn't save. Try again.",
-    "deleteBrief": "Delete this brief",
-    "noBriefs": "No briefs yet — create one to start matching your songs.",
-    "matchSongs": "Match songs",
-    "hideMatches": "Hide",
-    "matchScore": "Match {{score}}",
-    "pitchThis": "Pitch this",
-    "noMatches": "No one-sheets to match yet — generate a one-sheet first.",
-    "noMoodTags": "No mood tags",
-    "noMood": "No mood set",
-    "deadlineLabel": "due {{date}}",
-    "newSheetFromBrief": "New sheet",
-    "logPitch": "Log pitch",
-    "pitchesCount": "pitches",
-    "placedCount": "placed",
+    "briefNotesPlaceholder": "नोट्स, संदर्भ ट्रैक, डिलीवरी फ़ॉर्मेट…",
+    "briefTitleRequired": "पहले brief को एक शीर्षक दें।",
+    "saveBrief": "Brief सेव करें",
+    "cancel": "रद्द करें",
+    "saveFailed": "सेव नहीं हो सका। फिर से प्रयास करें।",
+    "deleteBrief": "इस brief को डिलीट करें",
+    "noBriefs": "अभी कोई brief नहीं — अपने गानों का मिलान शुरू करने के लिए एक बनाएं।",
+    "matchSongs": "गाने मिलाएं",
+    "hideMatches": "छिपाएं",
+    "matchScore": "मिलान {{score}}",
+    "pitchThis": "इसे पिच करें",
+    "noMatches": "मिलान के लिए अभी कोई one-sheet नहीं — पहले एक one-sheet जनरेट करें।",
+    "noMoodTags": "कोई mood tag नहीं",
+    "noMood": "कोई mood सेट नहीं",
+    "deadlineLabel": "देय {{date}}",
+    "newSheetFromBrief": "नई sheet",
+    "logPitch": "Pitch लॉग करें",
+    "pitchesCount": "पिचें",
+    "placedCount": "प्लेस हुए",
     "targetPlaceholder": "Target (supervisor, show, brand…)",
     "notesPlaceholder": "Notes…",
-    "savePitch": "Save pitch",
-    "deletePitch": "Delete this pitch",
-    "noPitches": "No sync pitches logged yet.",
-    "noTarget": "No target yet",
-    "updateFailed": "Couldn't update. Try again.",
-    "markStatus": "Mark {{status}}",
-    "placedPrompt": "Placed! Log the income to your Money Tracker:",
+    "savePitch": "Pitch सेव करें",
+    "deletePitch": "इस pitch को डिलीट करें",
+    "noPitches": "अभी कोई sync pitch लॉग नहीं।",
+    "noTarget": "अभी कोई लक्ष्य नहीं",
+    "updateFailed": "अपडेट नहीं हो सका। फिर से प्रयास करें।",
+    "markStatus": "{{status}} चिह्नित करें",
+    "placedPrompt": "प्लेस हुआ! आय को अपने Money Tracker में लॉग करें:",
     "amountPlaceholder": "$ amount",
-    "incomeAmountRequired": "Enter the placement amount first.",
-    "logToMoney": "Log to Money Tracker",
-    "moneyLogFailed": "Couldn't log the income. Try again.",
-    "publicBadge": "Sync One-Sheet",
-    "publicTitle": "Sync One-Sheet",
-    "publicDescription": "A sync licensing one-sheet for an independent song.",
-    "publicNotFound": "One-sheet not found",
-    "publicNotFoundDesc": "This link may be expired or mistyped.",
-    "publicHome": "Go home",
-    "publicCta": "Pitch your own music for TV, film, ads & games",
-    "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
-    "publicCtaButton": "Make my sync one-sheet",
-    "madeWith": "Made with Bow Down Visuals"
+    "incomeAmountRequired": "पहले placement राशि दर्ज करें।",
+    "logToMoney": "Money Tracker में लॉग करें",
+    "moneyLogFailed": "आय लॉग नहीं हो सकी। फिर से प्रयास करें।",
+    "publicBadge": "Sync वन-शीट",
+    "publicTitle": "Sync वन-शीट",
+    "publicDescription": "एक स्वतंत्र गाने के लिए sync लाइसेंसिंग one-sheet।",
+    "publicNotFound": "One-sheet नहीं मिली",
+    "publicNotFoundDesc": "यह लिंक समाप्त हो सकता है या ग़लत लिखा गया हो सकता है।",
+    "publicHome": "होम जाएं",
+    "publicCta": "अपने संगीत को TV, फ़िल्म, विज्ञापनों और गेम के लिए पिच करें",
+    "publicCtaDesc": "Bow Down Visuals one-sheet लिखता है, आपके गानों को briefs से मिलाता है, और हर pitch को ट्रैक करता है — मिनटों में।",
+    "publicCtaButton": "मेरी sync one-sheet बनाएं",
+    "madeWith": "Bow Down Visuals के साथ बनाया गया"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals संख्याओं में",
@@ -11158,5 +11414,219 @@
     "slideshowTitle": "स्लाइडशो पैक",
     "slideshowBlurb": "आपके सेट की छवियों का एक फ़ोल्डर, किसी स्लाइडशो स्क्रीनसेवर को देने के लिए तैयार — कोई वीडियो नहीं, बस आपकी कला स्क्रीन पर घूमती हुई।",
     "slideshowButton": "स्लाइडशो पैक डाउनलोड करें (.zip)"
+  },
+  "memberships": {
+    "badge": "Fan Clubs",
+    "titleStart": "Fan",
+    "titleAccent": "Memberships",
+    "subtitle": "अपने सबसे बड़े प्रशंसकों के लिए पेड tiers लॉन्च करें — विशेष कंटेंट, जल्दी एक्सेस, behind-the-scenes। सेट अप मुफ़्त।",
+    "paymentsNotice": "पेमेंट लाइव हैं (टेस्ट मोड) — प्रशंसक सुरक्षित चेकआउट से जुड़ते हैं और पेमेंट कन्फ़र्म होते ही यहाँ दिखते हैं। कभी कोई नकली लेनदेन नहीं।",
+    "signInPrompt": "अपना fan club बनाने के लिए साइन इन करें।",
+    "signIn": "साइन इन करें",
+    "dismiss": "बंद करें",
+    "retry": "फिर से प्रयास करें",
+    "errorLoad": "आपका fan club लोड नहीं हो सका — फिर से प्रयास करें।",
+    "errorSaveTier": "Tier सेव नहीं हो सका — फिर से प्रयास करें।",
+    "errorDeleteTier": "Tier डिलीट नहीं हो सका — फिर से प्रयास करें।",
+    "errorAddMember": "सदस्य जोड़ा नहीं जा सका — फिर से प्रयास करें।",
+    "errorUpdateMember": "सदस्य अपडेट नहीं हो सका — फिर से प्रयास करें।",
+    "errorRemoveMember": "सदस्य हटाया नहीं जा सका — फिर से प्रयास करें।",
+    "errorUpdateTier": "Tier अपडेट नहीं हो सका — फिर से प्रयास करें।",
+    "errorDuplicateMember": "वह प्रशंसक पहले से इस tier पर है।",
+    "errorSuggester": "AI suggester अटक गया — Visual Bucs रिफ़ंड हुए, फिर से प्रयास करें।",
+    "confirmDeleteTier": "इस tier और इसके ट्रैक किए गए सदस्यों को डिलीट करें? यह वापस नहीं होगा।",
+    "confirmRemoveMember": "इस सदस्य को ट्रैकिंग से हटाएं?",
+    "dashboardTitle": "सदस्य डैशबोर्ड",
+    "activeMembers": "सक्रिय सदस्य",
+    "monthlyRevenue": "मासिक राजस्व",
+    "afterFee": "10% प्लेटफ़ॉर्म शुल्क के बाद {{amount}}",
+    "churn": "चर्न",
+    "pastDue": "देय तिथि पार",
+    "tierStats": "{{count}} सदस्य · {{amount}}/mo",
+    "buildTier": "एक Tier बनाएं",
+    "editTier": "Tier संपादित करें",
+    "tierNamePlaceholder": "Tier का नाम (उदा. Gold Circle)",
+    "pricePlaceholder": "कीमत / महीना",
+    "descriptionPlaceholder": "यह tier किस बारे में है? (वैकल्पिक)",
+    "perkPlaceholder": "एक perk जोड़ें, फिर Enter दबाएं (उदा. हर वीडियो तक जल्दी एक्सेस)",
+    "addPerk": "जोड़ें",
+    "removePerk": "Perk हटाएं",
+    "createTier": "Tier बनाएं",
+    "saveTier": "Tier सेव करें",
+    "cancel": "रद्द करें",
+    "editTierAria": "Tier संपादित करें",
+    "deleteTierAria": "Tier डिलीट करें",
+    "pauseTier": "Tier रोकें",
+    "resumeTier": "Tier फिर शुरू करें",
+    "tierPaused": "रोका गया",
+    "tierPausedNote": "प्रशंसकों से छिपा — रोके रहने पर कोई नया शामिल नहीं हो सकता।",
+    "perMonth": "/mo",
+    "tierOption": "{{name}} — {{price}}/mo",
+    "aiSuggesterTitle": "Tier Suggester",
+    "aiCost": "100 Visual Bucs",
+    "aiDescription": "AI को अपना niche बताएं और यह 3 tiers डिज़ाइन करता है — नाम, कीमतें, और ठोस perks। कोई भी सुझाव सीधे tier builder में लागू करें।",
+    "nichePlaceholder": "आपका niche (उदा. Music production)",
+    "audienceStarting": "शुरुआती",
+    "audienceGrowing": "बढ़ता हुआ",
+    "audienceEstablished": "स्थापित",
+    "suggestButton": "मेरे Tiers सुझाएं",
+    "useTier": "यह Tier इस्तेमाल करें",
+    "membersTitle": "सदस्य",
+    "membersNote": "चेकआउट कन्फ़र्म होते ही भुगतान करने वाले सदस्य यहाँ अपने आप दिखते हैं। आप नीचे off-platform सदस्यों को मैन्युअल रूप से भी जोड़ सकते हैं।",
+    "pickTier": "एक tier चुनें…",
+    "fanPlaceholder": "प्रशंसक ईमेल या हैंडल",
+    "addMember": "सदस्य जोड़ें",
+    "statusActive": "सक्रिय",
+    "statusPastDue": "देय तिथि पार",
+    "statusCanceled": "रद्द",
+    "removeMemberAria": "सदस्य हटाएं",
+    "memberMeta": "{{tier}} · {{price}}/mo · शामिल हुए {{date}}",
+    "noMembers": "अभी कोई सदस्य ट्रैक नहीं।"
+  },
+  "merch": {
+    "back": "वापस",
+    "title": "Merch डिज़ाइनर",
+    "subtitle": "आपके ब्रांड के लिए AI-डिज़ाइन किया गया merch — प्रति डिज़ाइन बैच 300 Visual Bucs",
+    "tabs": {
+      "design": "डिज़ाइन स्टूडियो",
+      "store": "मेरी दुकान",
+      "merch": "मर्च"
+    },
+    "products": {
+      "t-shirt": {
+        "label": "टी-शर्ट",
+        "blurb": "क्लासिक crew tee"
+      },
+      "hoodie": {
+        "label": "हूडी",
+        "blurb": "भारी pullover"
+      },
+      "cap": {
+        "label": "कैप",
+        "blurb": "Snapback / dad hat"
+      },
+      "poster": {
+        "label": "पोस्टर",
+        "blurb": "18\"×24\" matte प्रिंट"
+      }
+    },
+    "styles": {
+      "streetwear": {
+        "label": "स्ट्रीटवियर",
+        "blurb": "बोल्ड ग्राफ़िक्स, शहरी ऊर्जा"
+      },
+      "minimal": {
+        "label": "मिनिमल",
+        "blurb": "साफ़, सूक्ष्म, सदाबहार"
+      },
+      "vintage": {
+        "label": "विंटेज",
+        "blurb": "Retro, घिसा हुआ, क्लासिक"
+      },
+      "luxury-gold": {
+        "label": "लक्ज़री गोल्ड",
+        "blurb": "काला और सोना, प्रीमियम"
+      }
+    },
+    "productLabel": "प्रोडक्ट",
+    "styleLabel": "स्टाइल",
+    "designTitleLabel": "डिज़ाइन शीर्षक",
+    "titlePlaceholder": "उदा. Shark King Tour Tee",
+    "describeLabel": "अपने डिज़ाइन का वर्णन करें",
+    "describeHint": "(बाकी AI संभालता है)",
+    "descriptionPlaceholder": "उदा. बिजली के साथ ताज पहनी हुई shark, नीचे बोल्ड सोने के अक्षरों में 'BOW DOWN'",
+    "generateButton": "2 mockups जनरेट करें · 300 Visual Bucs",
+    "creditsRemaining": "{{count}} Visual Bucs शेष",
+    "designing": "आपका merch डिज़ाइन हो रहा है…",
+    "designingDetail": "2 प्रोडक्ट mockups render हो रहे हैं — थोड़ा रुकें।",
+    "mockupsReady": "2 mockups तैयार",
+    "suggestedRetail": "सुझाई गई खुदरा कीमत {{price}}",
+    "mockupAlt": "Merch मॉकअप",
+    "download": "डाउनलोड करें",
+    "saved": "सेव हुआ",
+    "saveToStore": "दुकान में सेव करें",
+    "newBatch": "नया बैच",
+    "dropshipTitle": "Dropship मॉडल:",
+    "dropshipDesc": "आप डिज़ाइन करते हैं, निर्माता सीधे प्रिंट और शिप करते हैं — Bow Down Visuals कभी inventory नहीं छूता। चेकआउट",
+    "comingSoon": "जल्द आ रहा है",
+    "dropshipEnd": "; लिस्टिंग मुफ़्त है।",
+    "loadingStore": "आपकी दुकान लोड हो रही है…",
+    "noDesigns": "अभी कोई डिज़ाइन नहीं",
+    "noDesignsDetail": "Design Studio में एक बैच जनरेट करें, फिर अपने पसंदीदा यहाँ सेव करें।",
+    "startDesigning": "डिज़ाइन शुरू करें",
+    "pricePlaceholder": "29.99",
+    "setPrice": "कीमत तय करें",
+    "listForSale": "बिक्री के लिए लिस्ट करें",
+    "unlist": "लिस्ट से हटाएं",
+    "deleteDesign": "डिज़ाइन डिलीट करें",
+    "baseCost": "आधार लागत",
+    "platformFee": "प्लेटफ़ॉर्म शुल्क (भविष्य)",
+    "yourProfit": "आपका मुनाफ़ा",
+    "marginPct": "{{pct}}% मार्जिन",
+    "previewCheckout": "चेकआउट का पूर्वावलोकन",
+    "priceNote": "कीमतें और लिस्टिंग कभी भी मुफ़्त में बदले जा सकते हैं। 15% प्लेटफ़ॉर्म शुल्क केवल चेकआउट लाइव होने पर लागू होता है।",
+    "errorGenerate": "डिज़ाइन जनरेट नहीं हो सके — कोई Visual Bucs चार्ज नहीं हुए।",
+    "errorNetwork": "नेटवर्क त्रुटि — कृपया फिर से प्रयास करें। कोई Visual Bucs चार्ज नहीं हुए।",
+    "confirmDelete": "इस डिज़ाइन को डिलीट करें? यह वापस नहीं होगा।",
+    "checkoutSoon": "चेकआउट जल्द आ रहा है।",
+    "myShopLink": "इसे मेरी दुकान में बेचें"
+  },
+  "moneyTracker": {
+    "title": "मनी ट्रैकर",
+    "subtitle": "अपने नंबर जानें — हर डॉलर अंदर, हर डॉलर बाहर।",
+    "income": "आय",
+    "expense": "खर्च",
+    "expenses": "खर्चे",
+    "netProfit": "शुद्ध लाभ",
+    "allTime": "सर्वकालिक",
+    "prevMonth": "पिछला महीना",
+    "nextMonth": "अगला महीना",
+    "addEntry": "प्रविष्टि जोड़ें",
+    "closeForm": "बंद करें",
+    "newEntry": "नई प्रविष्टि",
+    "category": "श्रेणी",
+    "amount": "राशि (USD)",
+    "date": "तिथि",
+    "note": "नोट",
+    "notePlaceholder": "उदा. Brand X sponsorship payout",
+    "source": "स्रोत",
+    "sourcePlaceholder": "उदा. YouTube, Shopify, ब्रांड नाम",
+    "saveEntry": "प्रविष्टि सेव करें",
+    "saving": "सेव हो रहा है…",
+    "breakdownIncome": "श्रेणी के अनुसार आय",
+    "breakdownExpense": "श्रेणी के अनुसार खर्चे",
+    "entriesThisMonth": "प्रविष्टियाँ — {{month}}",
+    "emptyMonth": "इस महीने अभी कुछ लॉग नहीं हुआ। अपने नंबर जानना शुरू करने के लिए अपनी पहली प्रविष्टि जोड़ें।",
+    "addFirst": "अपनी पहली प्रविष्टि जोड़ें",
+    "loading": "आपके नंबर लोड हो रहे हैं…",
+    "retry": "फिर से प्रयास करें",
+    "confirmDelete": "डिलीट करें",
+    "cancelDelete": "रखें",
+    "deleteEntry": "प्रविष्टि डिलीट करें",
+    "signInPrompt": "अपने creator पैसे को ट्रैक करने के लिए साइन इन करें।",
+    "errorLoad": "आपकी धन प्रविष्टियाँ लोड नहीं हो सकीं।",
+    "errorSave": "प्रविष्टि सेव नहीं हो सकी।",
+    "errorDelete": "प्रविष्टि डिलीट नहीं हो सकी।",
+    "errorAmount": "$0 से ज़्यादा राशि दर्ज करें।",
+    "errorDate": "एक वैध तिथि चुनें।",
+    "prefilledInvoice": "एक पेड इनवॉइस से इनवॉइस payout पहले से भरा गया — समीक्षा करें और सेव करें।",
+    "cat_sponsor_deals": "Sponsor deals",
+    "cat_merch_sales": "Merch बिक्री",
+    "cat_streaming_royalties": "Streaming royalties",
+    "cat_ad_revenue": "विज्ञापन राजस्व",
+    "cat_subscriptions": "सब्सक्रिप्शन",
+    "cat_affiliate": "एफिलिएट",
+    "cat_invoice_payout": "इनवॉइस payout",
+    "cat_other_income": "अन्य आय",
+    "cat_equipment": "उपकरण",
+    "cat_software": "सॉफ़्टवेयर",
+    "cat_ads": "विज्ञापन",
+    "cat_travel": "यात्रा",
+    "cat_contractors": "ठेकेदार",
+    "cat_production": "प्रोडक्शन",
+    "cat_other_expense": "अन्य खर्च",
+    "addIncomeFromDeal": "आय के रूप में लॉग करें",
+    "dealPaidNote": "इस payout को अपने Money Tracker में ट्रैक करें।",
+    "viewRoyalties": "रॉयल्टीज़"
   }
 }
