@@ -172,7 +172,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
       "sponsorDealDetail.winsPlaceholder",
     ]],
     [T_KARAT, ["contests.e_g_24k_gold_chain_shoutout"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   de: grouped(

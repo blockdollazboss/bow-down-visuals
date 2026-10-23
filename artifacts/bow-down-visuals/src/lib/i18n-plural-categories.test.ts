@@ -175,7 +175,7 @@ describe("arabic renders — catalog-wide, no English fallback", () => {
     expect(render("ar", "beats.beatCount", 11)).toBe("11 لحن");
     expect(render("ar", "beats.beatCount", 100)).toBe("100 لحن");
     expect(render("ar", "chooseArtist.hiddenCount", 2)).toBe("+2 فنانان آخران — عرض أفضل 10 لديك");
-    expect(render("ar", "clipMaker.cutClips", 2)).toBe("قص 2 مقطعين · 7 نقاط");
+    expect(render("ar", "clipMaker.cutClips", 2)).toBe("قص 2 مقطعين · 7 Visual Bucs");
     expect(render("ar", "clipMaker.highlightsFound", 2)).toBe("تم العثور على 2 لحظتين مميزتين");
     expect(render("ar", "lyricVideo.unmatchedLines", 2)).toBe(
       "تعذّرت مطابقة 2 سطرين بثقة — تحقق من توقيتهما أدناه.",
