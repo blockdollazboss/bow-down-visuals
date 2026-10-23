@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 import type { SocialAccountInfo } from "./ConnectedAccounts";
 
 /* Caption composer + draft uploader for the TikTok auto-post DRAFTS tier.
@@ -34,6 +35,7 @@ const PROGRESS_STAGES = [
 ];
 
 export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
+  const tiktokPostCost = getCreditCost("/api/social/tiktok/publish")?.cost ?? 100;
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -210,7 +212,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <TikTokIcon className="h-5 w-5 text-white" /> Send to TikTok drafts
             </h3>
-            <p className="text-xs text-white/40 mt-1">200 Visual Bucs · lands in your TikTok inbox — you post it in the app</p>
+            <p className="text-xs text-white/40 mt-1">{tiktokPostCost} Visual Bucs · lands in your TikTok inbox — you post it in the app</p>
           </div>
           {!uploading && (
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
@@ -323,7 +325,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4" /> Send to TikTok drafts · 200 Visual Bucs
+                  <Send className="h-4 w-4" /> Send to TikTok drafts · {tiktokPostCost} Visual Bucs
                 </>
               )}
             </Button>

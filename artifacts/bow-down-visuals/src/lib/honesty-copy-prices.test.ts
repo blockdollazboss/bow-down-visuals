@@ -74,6 +74,23 @@ describe("S27-21 social publishing copy prices (100, derived)", () => {
     expect(src).toContain('getCreditCost("/api/social/facebook/publish")');
     expect(src.match(/\{facebookPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
   });
+
+  // Stack-28 #7/#8 (A2-02/A2-03): the Instagram and TikTok modals were
+  // the two S27-21 misses — both hardcoded 200 while their rails charge
+  // 100. They now derive from the registry exactly like Facebook's.
+  it("InstagramPostModal carries no 200 Visual Bucs and derives the Instagram cost in both spots", () => {
+    const src = readComponent("InstagramPostModal.tsx");
+    expect(src).not.toContain("200 Visual Bucs");
+    expect(src).toContain('getCreditCost("/api/social/instagram/publish")');
+    expect(src.match(/\{instagramPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
+  });
+
+  it("TikTokPostModal carries no 200 Visual Bucs and derives the TikTok cost in both spots", () => {
+    const src = readComponent("TikTokPostModal.tsx");
+    expect(src).not.toContain("200 Visual Bucs");
+    expect(src).toContain('getCreditCost("/api/social/tiktok/publish")');
+    expect(src.match(/\{tiktokPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
+  });
 });
 
 describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
