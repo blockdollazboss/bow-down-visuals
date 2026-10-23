@@ -6,10 +6,12 @@
    API's retention-drops routes). The card surfaces only TODAY's drop.
    This seam reads the catalogue route — every def with its real tool
    href, today's flag, and the member's own archived flags — so the
-   Treasury can list the whole slate: USE any template (the href is
-   the real rail into the tool, the same way today's drop has always
-   been used) and ARCHIVE the ones a member doesn't want in their
-   active list (per-member state, reversible, migration 0161).
+   Treasury can list the whole slate: USE any template (in-world it
+   opens the matching native desk — dailyDropStationForKind, item
+   97; the href remains the website rail and the in-world fallback
+   for kinds with no native desk) and ARCHIVE the ones a member
+   doesn't want in their active list (per-member state, reversible,
+   migration 0161).
 
    Everything here is a pure guard over the wire shape: a payload
    that fails the guard is the panel's error state, never rows. */
@@ -94,6 +96,29 @@ export function splitDailyDropCatalog(drops: DailyDropCatalogEntry[]): {
     active: drops.filter((d) => !d.archived),
     archived: drops.filter((d) => d.archived),
   };
+}
+
+/** The native in-world desk a drop's "Use" opens (stack-100 item
+ *  97): the walker stays in the world and the matching desk's panel
+ *  opens, instead of the raw website href ejecting them to the 2D
+ *  tool. The match is by kind — the same tool the href names:
+ *  - thumbnail → the Thumbnail Desk (the Create Wing's native
+ *    thumbnail bench — singles, variations, A/B, CTR).
+ *  - video → the Visual Vibes Editor door (video templates live in
+ *    the editor in-world, per the parity map).
+ *  - hook / caption → null: Hook Studio has NO native desk yet, so
+ *    there is no honest in-world target — those rows keep the
+ *    explicit website transfer rather than a fake door. */
+export function dailyDropStationForKind(kind: DailyDropKind): string | null {
+  switch (kind) {
+    case "thumbnail":
+      return "thumbnail-desk";
+    case "video":
+      return "visual-vibes-editor";
+    case "hook":
+    case "caption":
+      return null;
+  }
 }
 
 /** Apply a confirmed archive/unarchive answer to the local slate.

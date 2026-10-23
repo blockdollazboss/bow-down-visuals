@@ -414,16 +414,17 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(items.some((i) => i.includes("The full storyboard flow"))).toBe(false);
     expect(items.some((i) => i.includes("4-variation Thumbnail Maker mode (200 VB) and the A/B thumbnail test benches (v1 is"))).toBe(false);
     expect(items.some((i) => i.includes("Full preset panels"))).toBe(false);
-    /* Remaining after Stack-100 #49–#52 shipped: ONLY the
-       jukebox-from-Create-Wing rail. The arrangement timeline,
-       harmony AI mode, .lrc/cover action-row extras and the
-       thumbnail improve rail must NOT still be logged as gaps. */
+    /* Stack-100 #49–#52 shipped the Song Desk finishers, the CTR
+       apply rail and the Audio Desk deep end; #47 shipped the
+       jukebox-from-Create-Wing rail (palace-wide queueing). The
+       log's honest remainder is now EMPTY — nothing the desks'
+       website pages do is missing in-world. */
     expect(items.some((i) => i.includes("Arrangement timeline editing"))).toBe(false);
     expect(items.some((i) => i.includes("Harmony AI mode"))).toBe(false);
     expect(items.some((i) => i.includes("synced-lyrics .lrc export"))).toBe(false);
     expect(items.some((i) => i.includes("thumbnail-test/improve"))).toBe(false);
-    expect(items.some((i) => i.includes("jukebox FROM the Create Wing"))).toBe(true);
-    expect(items.every((i) => i.startsWith("song-desk:"))).toBe(true);
+    expect(items.some((i) => i.includes("jukebox FROM the Create Wing"))).toBe(false);
+    expect(CREATE_DESK_NATIVE_FOLLOWONS).toHaveLength(0);
   });
 
   it("result excerpts trim long packages honestly", () => {

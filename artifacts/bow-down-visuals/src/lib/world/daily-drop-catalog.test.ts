@@ -18,10 +18,13 @@ import {
   DAILY_DROP_CATALOG_PATH,
   DAILY_DROP_UNARCHIVE_PATH,
   applyDropArchive,
+  dailyDropStationForKind,
   normalizeDailyDropCatalog,
   splitDailyDropCatalog,
   type DailyDropCatalogEntry,
+  type DailyDropKind,
 } from "./daily-drop-catalog";
+import { STATION_BY_ID } from "./stations";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const catalogSrc = read("../../components/world/native/DailyDropCatalog.tsx");
@@ -97,6 +100,25 @@ describe("normalizeDailyDropCatalog", () => {
   });
 });
 
+describe("dailyDropStationForKind (item 97: Use opens the native desk)", () => {
+  it("thumbnail drops open the Thumbnail Desk; video drops open the Editor door", () => {
+    expect(dailyDropStationForKind("thumbnail")).toBe("thumbnail-desk");
+    expect(dailyDropStationForKind("video")).toBe("visual-vibes-editor");
+  });
+
+  it("every named station is a real palace station", () => {
+    for (const kind of ["thumbnail", "caption", "video", "hook"] as DailyDropKind[]) {
+      const id = dailyDropStationForKind(kind);
+      if (id !== null) expect(STATION_BY_ID.has(id), `${kind} → ${id}`).toBe(true);
+    }
+  });
+
+  it("hook and caption drops have no native desk yet — no fake door", () => {
+    expect(dailyDropStationForKind("hook")).toBeNull();
+    expect(dailyDropStationForKind("caption")).toBeNull();
+  });
+});
+
 describe("splitDailyDropCatalog + applyDropArchive", () => {
   it("splits the slate into active and archived lists", () => {
     const drops = [drop(), drop({ key: "b", archived: true }), drop({ key: "c" })];
@@ -129,7 +151,13 @@ describe("the Treasury dock (source pins)", () => {
     expect(catalogSrc).toContain("DAILY_DROP_UNARCHIVE_PATH");
   });
 
-  it("USE is the def's href as an explicit in-world transfer (new tab, walker stays)", () => {
+  it("USE opens the matching native desk in-world (item 97); the href transfer remains only for kinds with no native desk", () => {
+    /* The desk match is decided by the pure seam, and the row calls
+       the page's panel swap with it — no ejection to the website. */
+    expect(catalogSrc).toContain("dailyDropStationForKind(entry.kind)");
+    expect(catalogSrc).toContain("onClick={() => onOpenStation(stationId)}");
+    /* Hook/caption rows (no native desk) still carry the honest
+       explicit transfer — the def's href in a new tab. */
     expect(catalogSrc).toContain("href={entry.href}");
     expect(catalogSrc).toContain('target="_blank"');
     expect(catalogSrc).toContain("world-daily-drop-use-");
@@ -153,10 +181,13 @@ describe("the Treasury dock (source pins)", () => {
   });
 
   it("docked in the Treasury panel, directly under the day's drop card", () => {
-    expect(panelSrc).toContain("<DailyDropCatalog isLight={isLight} />");
+    expect(panelSrc).toContain("<DailyDropCatalog isLight={isLight} onOpenStation={onOpenStation} />");
     expect(panelSrc.indexOf("<DailyDropCatalog")).toBeGreaterThan(
       panelSrc.indexOf("<DailyDropCard inWorld />"),
     );
+    /* The panel swap is threaded from the page through the
+       treasury-daily case, the same way TreasuryQuests gets it. */
+    expect(panelSrc).toContain("<TreasuryDaily isLight={isLight} onOpenStation={props.onOpenStation} />");
   });
 });
 

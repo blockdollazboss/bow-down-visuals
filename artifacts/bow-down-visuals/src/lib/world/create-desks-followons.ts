@@ -39,10 +39,10 @@ export interface NativeFollowOn {
 }
 
 export const CREATE_DESK_NATIVE_FOLLOWONS: readonly NativeFollowOn[] = [
-  /* ── Song Desk ─────────────────────────────────────────────────── */
-  {
-    desk: "song-desk",
-    item: "Hearing a desk-published song on the jukebox FROM the Create Wing: the chip lights the moment the publish lands (Ring 2, 2.2) and fires jukebox.add like every other surface, but the room authority only runs a jukebox in the Music Hall — an add sent from another room never lands. Palace-wide queueing (or carrying the pick across the doorway) is the remaining rail; today the song plays when the creator taps the chip in the Music Hall itself",
-    todayVia: "The Jukebox panel in the Music Hall",
-  },
+  /* EMPTY — every logged follow-on has shipped in-world:
+   * Ring 2 (2.3–2.11), Stack-100 items 49–52 (Song Desk finishers,
+   * CTR apply rail, Audio Desk deep end I + II) and Stack-100
+   * item 47 (jukebox-from-the-Create-Wing: palace-wide queueing
+   * landed server-side). New gaps get logged here as they are
+   * found — the log is a tracked list, not a silent shortfall. */
 ];
