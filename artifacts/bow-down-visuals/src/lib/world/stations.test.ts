@@ -41,7 +41,13 @@ describe("the station registry", () => {
 
   it("ids are unique; every station is fully dressed (name, pitch, panel, transfer)", () => {
     expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(PALACE_STATIONS.length);
-    expect(PALACE_STATIONS.length).toBe(31);
+    /* 41 since item 31 (Stage Bill), Stack-100 #61 (Packs desk),
+     * item 32 (Gardens Slate), Stack-100 #65 (Beat Marketplace),
+     * Stack-100 #74 (Jewelry Bench), item 33 (Row Slate),
+     * item 34 (Ateliers Slate), item 35 (Boardwalk Slate) and
+     * item 97's closing part (the Hook Desk) and item 36
+     * (Heights Slate). */
+    expect(PALACE_STATIONS.length).toBe(41);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -64,12 +70,22 @@ describe("the station registry", () => {
       expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
       expect(s.panel.kind, s.id).not.toBe("page");
     }
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(20);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(22);
     /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
      * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
-     * + the plaza monument's Kingdom Board (Open World Phase 1),
-     * born world-native like the six — they never had a page. */
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(10);
+     * + the plaza monument's Kingdom Board (Open World Phase 1)
+     * + the Stage Grounds' Stage Bill (item 31, on the same
+     * Kingdom Board panel) + the Visual Buc Packs desk
+     * (Stack-100 #61) + the Listening Gardens' Gardens Slate
+     * (item 32, on the same panel again) + the Beat Marketplace
+     * (Stack-100 #65) + Creation Row's Row Slate (item 33, on
+     * the same panel again) + the Ateliers' Ateliers Slate
+     * (item 34, on the same panel again) + the Boardwalk's
+     * Boardwalk Slate (item 35, on the same panel again) + the
+     * Heights' Heights Slate (item 36, on the same panel
+     * again), born world-native like the six — they never had
+     * a page. */
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "custom").length).toBe(18);
     expect(PALACE_STATIONS.filter((s) => s.panel.kind === "stepthrough").length).toBe(1);
   });
 
@@ -87,16 +103,18 @@ describe("the station registry", () => {
       "cover-art-desk": "create",
       "audio-desk": "create",
       "thumbnail-desk": "create",
+      "hook-desk": "create",
       "crowns-desk": "shop",
       "branding-kit-desk": "business",
       "branding-shop-desk": "shop",
       "press-kit-desk": "business",
+      "jewelry-bench": "business",
       marketplace: "shop",
       "community-hall": "social",
       "promote-room": "business",
       "get-paid-room": "board",
     };
-    expect(Object.keys(patterns).length).toBe(20);
+    expect(Object.keys(patterns).length).toBe(22);
     for (const [id, pattern] of Object.entries(patterns)) {
       expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern });
     }
@@ -108,6 +126,7 @@ describe("the station registry", () => {
       "post-office": "/messages",
       jukebox: null,
       "listening-booth": "/my-music",
+      "beats-desk": "/beats",
       "charts-desk": "/charts",
       "arcade-cabinets": "/arcade",
       "marble-table": "/party",
@@ -119,9 +138,11 @@ describe("the station registry", () => {
       "cover-art-desk": "/create?panel=coverart",
       "audio-desk": "/audio-studio",
       "thumbnail-desk": "/thumbnail-studio",
+      "hook-desk": "/hooks",
       "daily-drop": null,
       "shark-drops": null,
       "quest-board": null,
+      "packs-desk": null,
       "front-row-gallery": null,
       "season-marks-wall": null,
       "crowns-desk": "/memberships",
@@ -129,12 +150,19 @@ describe("the station registry", () => {
       "branding-kit-desk": "/branding-kit",
       "branding-shop-desk": "/branding-kit?tab=shop",
       "press-kit-desk": "/press-kit",
+      "jewelry-bench": "/branding-kit?tab=jewelry",
       "kingdom-board-plaza": null,
       marketplace: "/storefronts",
       "community-hall": "/community",
       "promote-room": "/promote",
       "get-paid-room": "/earnings",
       "creator-rooms": null,
+      "stage-bill": null,
+      "gardens-slate": null,
+      "row-slate": null,
+      "ateliers-slate": null,
+      "boardwalk-slate": null,
+      "heights-slate": null,
     };
     expect(Object.keys(table).length).toBe(PALACE_STATIONS.length);
     for (const s of PALACE_STATIONS) {
@@ -158,6 +186,7 @@ describe("the station registry", () => {
       ["daily-drop", "treasury-daily"],
       ["shark-drops", "treasury-shark"],
       ["quest-board", "treasury-quests"],
+      ["packs-desk", "treasury-packs"],
     ] as const) {
       expect(byId(id).roomId).toBe("world:treasury");
       expect(byId(id).panel).toEqual({ kind: "custom", id: customId });
@@ -195,10 +224,11 @@ describe("the station registry", () => {
      * custom, it never had a website page to transfer to. */
     expect(plaza.membersOnly).toBe(false);
     expect(plaza.websitePath).toBe(hall.websitePath);
-    /* The monument stands at (0, 19.7); the station point is its
-     * south face, where a walker stands to read it. */
+    /* The monument stands at (0, 19.7); the station point is on
+     * the open plaza just south of its solid plinth (overhaul
+     * stage 3), where a walker stands to read its face. */
     expect(plaza.x).toBe(0);
-    expect(plaza.z).toBe(21.4);
+    expect(plaza.z).toBe(22.6);
     /* The plaza census: the monument board plus the colonnade
      * five, in registry order — nothing moved, nothing lost. */
     expect(stationsInRoom("world:courtyard").map((s) => s.id)).toEqual([
@@ -209,19 +239,19 @@ describe("the station registry", () => {
       "get-paid-room",
       "creator-rooms",
     ]);
-    /* Standing at the monument's south face offers the board. */
-    expect(nearestStation("world:courtyard", 0, 21.4)?.id).toBe("kingdom-board-plaza");
+    /* Standing at the station point south of the monument offers the board. */
+    expect(nearestStation("world:courtyard", 0, 22.6)?.id).toBe("kingdom-board-plaza");
   });
 
   it("guests never reach the create desks — every create station is members-only (stack-20 round 2, #3/#4 gate)", () => {
     /* The publish rail and the jukebox chip live behind these
        doors; the gate is the registry flag the world enforces at
-       walk-up, and it must stay on for all six desks — the two
+       walk-up, and it must stay on for all seven desks — the two
        song desks (publish + chip) named explicitly. */
     const createStations = PALACE_STATIONS.filter(
       (s) => s.panel.kind === "native" && s.panel.pattern === "create",
     );
-    expect(createStations.length).toBe(6);
+    expect(createStations.length).toBe(7);
     for (const s of createStations) expect(s.membersOnly, s.id).toBe(true);
     expect(STATION_BY_ID.get("song-desk")!.membersOnly).toBe(true);
     expect(STATION_BY_ID.get("song-video-desk")!.membersOnly).toBe(true);

@@ -13,7 +13,7 @@
  *  - guests count (they are present), by their tab session key
  *  - a connection with no identity key counts once, as itself
  *  - creator rooms join only while someone is home (the directory's
- *    own rule); the eight palace rooms always list
+ *    own rule); the palace rooms always list
  */
 import { describe, it, expect } from "vitest";
 import { WorldPalace } from "../world-palace";
@@ -51,8 +51,10 @@ describe("WorldPalace.presenceSnapshot", () => {
     const music = snap.rooms.find((r) => r.id === "world:music-hall")!;
     expect(music.count).toBe(1);
     expect(music.members).toEqual(["Cy the Guest"]);
-    // the eight palace rooms always list, empty ones at zero
-    expect(snap.rooms).toHaveLength(8);
+    // the fourteen palace rooms always list, empty ones at zero
+    // (fourteen since item 36 added the Creator Heights
+    // district; thirteen was item 35's Boardwalk count)
+    expect(snap.rooms).toHaveLength(14);
     expect(snap.rooms.find((r) => r.id === "world:treasury")!.count).toBe(0);
   });
 

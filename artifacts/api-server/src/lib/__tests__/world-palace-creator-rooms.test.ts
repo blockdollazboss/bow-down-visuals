@@ -135,7 +135,7 @@ describe("materialized creator rooms", () => {
     expect(hallWalker.sent.some((m) => m.type === "peer.move")).toBe(false);
   });
 
-  it("refuses the stage and the jukebox — the room has neither", async () => {
+  it("refuses the stage; a jukebox offer forwards to the Music Hall (item 47)", async () => {
     const stageResolver = vi.fn(async () => null);
     const jukeboxResolver = vi.fn(async () => null);
     const palace = new WorldPalace(new RoomHub(), {
@@ -150,11 +150,18 @@ describe("materialized creator rooms", () => {
     frame(palace, a, { type: "stage.claim", streamId: "00000000-0000-4000-8000-000000000000" });
     frame(palace, a, { type: "jukebox.add", trackId: "track:00000000-0000-4000-8000-000000000000" });
     await flush();
-    /* Neither resolver is ever consulted from a creator room —
-     * the authorities live in their own rooms only. */
+    /* The stage authority never leaves the hall — a creator room's
+     * claim is refused outright, its resolver never consulted. */
     expect(stageResolver).not.toHaveBeenCalled();
-    expect(jukeboxResolver).not.toHaveBeenCalled();
     expect(a.sent.some((m) => m.type === "stage.state")).toBe(false);
+    /* The jukebox is different by design (the Portrait Card's
+     * contract: a press in ANY room offers the track to the Music
+     * Hall jukebox): the offer forwards, the Music Hall's one
+     * authority consults the resolver, and its refusal — this pick
+     * doesn't verify — travels back to the asker here. The creator
+     * room itself still runs no box: no jukebox.state ever lands. */
+    expect(jukeboxResolver).toHaveBeenCalledTimes(1);
+    expect(a.sent.filter((m) => m.type === "jukebox.denied").pop()?.reason).toBe("unplayable");
     expect(a.sent.some((m) => m.type === "jukebox.state")).toBe(false);
   });
 });

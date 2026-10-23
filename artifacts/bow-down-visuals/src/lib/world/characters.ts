@@ -142,14 +142,14 @@ export async function fetchVaultCharacters(
   return normalizeVaultCharacters(await res.json(), currentUserId);
 }
 
-/* ── Manage verbs (rename / remove) ───────────────────────────────────
+/* ── Manage verbs (rename / remove / create / restyle) ───────────────
    The picker is where a member meets their characters in the World,
-   so it carries the two vault manage verbs the server already rails:
+   so it carries the vault manage verbs the server already rails:
    PUT /api/artist-vaults/:id (owner-scoped) and DELETE
    /api/artist-vaults/:id (owner-scoped soft delete — the row is
-   hidden, never destroyed). Everything else about a character —
-   portrait, look, locked regalia, voice — is edited in the Creative
-   Vault; nothing here touches an appearance field. */
+   hidden, never destroyed). Since stack-100 #98 it also carries
+   creation (POST /api/artist-vaults) and appearance editing (the
+   same PUT, full round-trip) — see the #98 section below. */
 
 /** The PUT body for renaming one vault row. The server's update is a
  *  FULL-body write: any field left out is stored back as null, so a
@@ -159,7 +159,7 @@ export async function fetchVaultCharacters(
  *  server never touches it on PUT), so the living loop survives.
  *  `voiceProfile` rides along only when the row carries the field:
  *  absent means the server leaves the stored profile untouched. */
-export function buildVaultRenameBody(row: unknown, newName: string): Record<string, unknown> {
+function vaultRowPick(row: unknown) {
   const r = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
   const pick = (...keys: string[]): string | null => {
     for (const k of keys) {
@@ -169,6 +169,11 @@ export function buildVaultRenameBody(row: unknown, newName: string): Record<stri
     }
     return null;
   };
+  return { r, pick };
+}
+
+export function buildVaultRenameBody(row: unknown, newName: string): Record<string, unknown> {
+  const { r, pick } = vaultRowPick(row);
   const body: Record<string, unknown> = {
     artistName: newName.trim(),
     artistType: pick("artist_type", "artistType"),
@@ -191,6 +196,99 @@ export function buildVaultRenameBody(row: unknown, newName: string): Record<stri
   };
   const voiceProfile = r["voice_profile"] ?? r["voiceProfile"];
   if (voiceProfile !== undefined) body["voiceProfile"] = voiceProfile;
+  return body;
+}
+
+/* ── Creation + appearance editing (stack-100 #98) ──────────────────
+   The picker used to stop at pick/rename/remove: making a character
+   or restyling one was a Creative Vault link-out. Both verbs ride
+   the vault's own rails — POST /api/artist-vaults (create) and the
+   same full-body PUT the rename rides (appearance) — with the same
+   round-trip discipline: the PUT writes EVERY field back, so an
+   appearance save starts from the row as it stands now and changes
+   only the fields the editor touched. The fields edited in-world
+   are the look itself: type, genre, voice, visual style, hair,
+   tattoos, jewelry, clothing, brand colors, theme, personality,
+   description and the portrait URL. Locked rules / consistency
+   fields are preserved by the round-trip, never edited here. */
+
+export interface VaultAppearance {
+  artistType: string | null;
+  genre: string | null;
+  voiceStyle: string | null;
+  visualStyle: string | null;
+  hair: string | null;
+  tattoos: string | null;
+  jewelry: string | null;
+  clothingStyle: string | null;
+  brandColors: string | null;
+  themeId: string | null;
+  personality: string | null;
+  artistDescription: string | null;
+  referenceImageUrl: string | null;
+}
+
+export const VAULT_APPEARANCE_KEYS = [
+  "artistType", "genre", "voiceStyle", "visualStyle", "hair", "tattoos",
+  "jewelry", "clothingStyle", "brandColors", "themeId", "personality",
+  "artistDescription", "referenceImageUrl",
+] as const satisfies readonly (keyof VaultAppearance)[];
+
+/** The stored row's appearance, in the editor's shape (snake_case
+ *  or camelCase — the vault read has worn both). */
+export function vaultAppearanceFromRow(row: unknown): VaultAppearance {
+  const { pick } = vaultRowPick(row);
+  return {
+    artistType: pick("artist_type", "artistType"),
+    genre: pick("genre"),
+    voiceStyle: pick("voice_style", "voiceStyle"),
+    visualStyle: pick("visual_style", "visualStyle"),
+    hair: pick("hair"),
+    tattoos: pick("tattoos"),
+    jewelry: pick("jewelry"),
+    clothingStyle: pick("clothing_style", "clothingStyle"),
+    brandColors: pick("brand_colors", "brandColors"),
+    themeId: pick("theme_id", "themeId"),
+    personality: pick("personality"),
+    artistDescription: pick("description", "artistDescription"),
+    referenceImageUrl: pick("reference_image_url", "referenceImageUrl"),
+  };
+}
+
+/** The full-body PUT for an appearance save: the rename round-trip,
+ *  with the patch's fields laid over it. A field ABSENT from the
+ *  patch keeps the row's stored value; a field present (even as an
+ *  empty string) is written — trimmed, empty becoming null, exactly
+ *  as the Creative Vault page saves. */
+export function buildVaultAppearanceBody(
+  row: unknown,
+  patch: Partial<VaultAppearance> & { artistName?: string },
+): Record<string, unknown> {
+  const { pick } = vaultRowPick(row);
+  const currentName = pick("artist_name", "artistName") ?? "";
+  const body = buildVaultRenameBody(row, patch.artistName ?? currentName);
+  for (const key of VAULT_APPEARANCE_KEYS) {
+    if (!(key in patch)) continue;
+    const v = patch[key];
+    body[key] = typeof v === "string" ? (v.trim() ? v.trim() : null) : (v ?? null);
+  }
+  return body;
+}
+
+/** The POST body for a brand-new character: the name plus the
+ *  appearance fields, empty strings becoming null, the theme
+ *  defaulting to Gold Royalty like the vault page's own form. */
+export function buildVaultCreateBody(input: {
+  artistName: string;
+  appearance?: Partial<VaultAppearance>;
+}): Record<string, unknown> {
+  const body: Record<string, unknown> = { artistName: input.artistName.trim() };
+  const a = input.appearance ?? {};
+  for (const key of VAULT_APPEARANCE_KEYS) {
+    const v = a[key];
+    body[key] = typeof v === "string" ? (v.trim() ? v.trim() : null) : (v ?? null);
+  }
+  if (!body["themeId"]) body["themeId"] = "gold-royalty";
   return body;
 }
 
@@ -264,4 +362,95 @@ export async function removeVaultCharacter(
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(await vaultErrorMessage(res, "Couldn't remove the character. Please try again."));
+}
+
+/* ── #98 fetch verbs: read one row, create, save appearance ──────── */
+
+async function fetchVaultRow(
+  getAccessToken: () => Promise<string | null>,
+  id: string,
+  fetchFn: typeof fetch,
+): Promise<{ row: Record<string, unknown>; headers: Record<string, string> }> {
+  const token = await getAccessToken().catch(() => null);
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const listRes = await fetchFn("/api/artist-vaults", { headers });
+  if (!listRes.ok) throw new Error(`artist-vaults ${listRes.status}`);
+  const payload: unknown = await listRes.json();
+  const rows: unknown[] = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray((payload as { vaults?: unknown }).vaults)
+      ? ((payload as { vaults: unknown[] }).vaults)
+      : [];
+  const row = rows.find(
+    (x) => x && typeof x === "object" && (x as Record<string, unknown>)["id"] === id,
+  ) as Record<string, unknown> | undefined;
+  if (!row) throw new Error("That character isn't in your vault anymore.");
+  return { row, headers };
+}
+
+function assertVaultRowOwned(row: Record<string, unknown>, currentUserId?: string | null): void {
+  const ownerRaw = row["user_id"] ?? row["userId"];
+  if (typeof currentUserId === "string" && currentUserId !== "" && ownerRaw !== currentUserId) {
+    throw new Error("Only the owner can restyle this character.");
+  }
+}
+
+/** Read one character's stored appearance (for the editor's initial
+ *  values) — the same list read the picker itself rides. */
+export async function fetchVaultAppearance(
+  getAccessToken: () => Promise<string | null>,
+  id: string,
+  currentUserId?: string | null,
+  fetchFn: typeof fetch = fetch,
+): Promise<{ name: string; appearance: VaultAppearance }> {
+  const { row } = await fetchVaultRow(getAccessToken, id, fetchFn);
+  assertVaultRowOwned(row, currentUserId);
+  const { pick } = vaultRowPick(row);
+  return { name: pick("artist_name", "artistName") ?? "", appearance: vaultAppearanceFromRow(row) };
+}
+
+/** Create a new character in the member's vault (POST
+ *  /api/artist-vaults — the Creative Vault's own create rail).
+ *  Returns the new row's id; the caller re-reads the vault so the
+ *  picker shows the row exactly as the server stored it. */
+export async function createVaultCharacter(
+  getAccessToken: () => Promise<string | null>,
+  input: { artistName: string; appearance?: Partial<VaultAppearance> },
+  fetchFn: typeof fetch = fetch,
+): Promise<string> {
+  if (!input.artistName.trim()) throw new Error("Give the character a name first.");
+  const token = await getAccessToken().catch(() => null);
+  const res = await fetchFn("/api/artist-vaults", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(buildVaultCreateBody(input)),
+  });
+  if (!res.ok) throw new Error(await vaultErrorMessage(res, "Couldn't create the character. Please try again."));
+  const data = (await res.json().catch(() => ({}))) as { id?: unknown };
+  if (typeof data.id !== "string" || !data.id) throw new Error("The vault didn't hand back the new character.");
+  return data.id;
+}
+
+/** Save an appearance edit on one of the member's OWN characters:
+ *  re-read the row as it stands now, refuse a row that isn't theirs
+ *  (before any write), then PUT the full round-trip body with the
+ *  patch laid over it — the rename's discipline, widened. */
+export async function saveVaultAppearance(
+  getAccessToken: () => Promise<string | null>,
+  id: string,
+  patch: Partial<VaultAppearance> & { artistName?: string },
+  currentUserId?: string | null,
+  fetchFn: typeof fetch = fetch,
+): Promise<void> {
+  const { row, headers } = await fetchVaultRow(getAccessToken, id, fetchFn);
+  assertVaultRowOwned(row, currentUserId);
+  const res = await fetchFn(`/api/artist-vaults/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(buildVaultAppearanceBody(row, patch)),
+  });
+  if (!res.ok) throw new Error(await vaultErrorMessage(res, "Couldn't save the new look. Please try again."));
 }

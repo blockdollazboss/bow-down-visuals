@@ -18,10 +18,14 @@ import {
   VoiceMesh,
   gainForDistance,
   gainForPolicy,
+  mapRtcConnectionState,
+  summarizeVoiceConnections,
+  voiceConnectionHeadline,
   VOICE_MAX_DISTANCE,
   type RtcPeerConnectionLike,
   type RtcDescriptionLike,
   type VoiceSink,
+  type VoicePeerConnectionState,
 } from "./voice";
 
 class FakePc implements RtcPeerConnectionLike {
@@ -30,8 +34,10 @@ class FakePc implements RtcPeerConnectionLike {
   remote: RtcDescriptionLike | null = null;
   iceAdded: unknown[] = [];
   closed = false;
+  connectionState = "new";
   ontrack: ((ev: { streams: unknown[] }) => void) | null = null;
   onicecandidate: ((ev: { candidate: unknown }) => void) | null = null;
+  onconnectionstatechange: (() => void) | null = null;
 
   addTrack(track: unknown, stream: unknown): void {
     this.tracks.push({ track, stream });
@@ -59,6 +65,10 @@ class FakePc implements RtcPeerConnectionLike {
   }
   emitIce(candidate: unknown): void {
     this.onicecandidate?.({ candidate });
+  }
+  emitConnState(state: string): void {
+    this.connectionState = state;
+    this.onconnectionstatechange?.();
   }
 }
 
@@ -251,6 +261,137 @@ describe("mute, proximity, teardown", () => {
     expect(mesh.levelFor("peer-a")).toBeCloseTo(0.42);
     mesh.dropPeer("peer-a");
     expect(mesh.levelFor("peer-a")).toBe(0);
+  });
+});
+
+describe("connection state — the honest surface (item 100)", () => {
+  it("mapRtcConnectionState translates the browser's words without flattering them", () => {
+    expect(mapRtcConnectionState("connected")).toBe("connected");
+    expect(mapRtcConnectionState("completed")).toBe("connected");
+    expect(mapRtcConnectionState("failed")).toBe("failed");
+    expect(mapRtcConnectionState("closed")).toBe("failed");
+    // Still trying is "connecting" — including a transient disconnect.
+    expect(mapRtcConnectionState("new")).toBe("connecting");
+    expect(mapRtcConnectionState("checking")).toBe("connecting");
+    expect(mapRtcConnectionState("disconnected")).toBe("connecting");
+    expect(mapRtcConnectionState(undefined)).toBe("connecting");
+    expect(mapRtcConnectionState("garbage")).toBe("connecting");
+  });
+
+  function makeStateMesh() {
+    const snapshots: Array<Map<string, VoicePeerConnectionState>> = [];
+    const signals: Array<{ to: string; data: any }> = [];
+    const pcs = new Map<string, FakePc>();
+    const mesh = new VoiceMesh({
+      sendSignal: (to, data) => signals.push({ to, data }),
+      createPeerConnection: () => {
+        const pc = new FakePc();
+        pcs.set(`pc-${pcs.size}`, pc);
+        return pc;
+      },
+      createSink: () => new FakeSink(),
+      onPeerConnectionStates: (states) => snapshots.push(new Map(states)),
+    });
+    const micTrack = { enabled: true };
+    const localStream = { getAudioTracks: () => [micTrack] };
+    return { mesh, signals, pcs, snapshots, localStream };
+  }
+
+  it("a fresh pair reads connecting, the browser's verdict moves it, snapshots follow", async () => {
+    const { mesh, pcs, snapshots, localStream } = makeStateMesh();
+    mesh.start(localStream as never);
+    await mesh.handleVoiceState(["peer-a"]);
+    expect(mesh.connectionStateFor("peer-a")).toBe("connecting");
+    expect(snapshots.length).toBeGreaterThan(0);
+    expect(snapshots[snapshots.length - 1]!.get("peer-a")).toBe("connecting");
+
+    const pc = onlyPc(pcs);
+    pc.emitConnState("connected");
+    expect(mesh.connectionStateFor("peer-a")).toBe("connected");
+    pc.emitConnState("failed");
+    expect(mesh.connectionStateFor("peer-a")).toBe("failed");
+    expect(snapshots[snapshots.length - 1]!.get("peer-a")).toBe("failed");
+  });
+
+  it("a landed stream is connected even without a state verdict — and a fake-PC pair never claims it early", async () => {
+    const { mesh, pcs, localStream } = makeStateMesh();
+    mesh.start(localStream as never);
+    await mesh.handleVoiceState(["peer-a"]);
+    expect(mesh.connectionStateFor("peer-a")).toBe("connecting");
+    onlyPc(pcs).emitTrack({ id: "stream-a" });
+    expect(mesh.connectionStateFor("peer-a")).toBe("connected");
+    // A later real failure still overrides the stream's good news.
+    onlyPc(pcs).emitConnState("failed");
+    expect(mesh.connectionStateFor("peer-a")).toBe("failed");
+  });
+
+  it("dropPeer removes the pair from the snapshot; unknown peers read undefined", async () => {
+    const { mesh, snapshots, localStream } = makeStateMesh();
+    mesh.start(localStream as never);
+    await mesh.handleVoiceState(["peer-a"]);
+    mesh.dropPeer("peer-a");
+    expect(mesh.connectionStateFor("peer-a")).toBeUndefined();
+    expect(snapshots[snapshots.length - 1]!.size).toBe(0);
+  });
+
+  it("retryPeer tears the dead pair down and offers fresh on a new connection", async () => {
+    const { mesh, pcs, signals, localStream } = makeStateMesh();
+    mesh.start(localStream as never);
+    await mesh.handleVoiceState(["peer-a"]);
+    const deadPc = onlyPc(pcs);
+    deadPc.emitConnState("failed");
+    signals.length = 0;
+
+    expect(await mesh.retryPeer("peer-a")).toBe(true);
+    expect(deadPc.closed).toBe(true);
+    expect(mesh.peerCount).toBe(1);
+    expect(mesh.connectionStateFor("peer-a")).toBe("connecting");
+    expect(signals).toEqual([{ to: "peer-a", data: { kind: "offer", sdp: "fake-offer-sdp" } }]);
+    // The retry rides a NEW peer connection, not the corpse.
+    const fresh = [...pcs.values()][1]!;
+    expect(fresh).not.toBe(deadPc);
+    expect(fresh.tracks).toHaveLength(1); // mic re-attached
+  });
+
+  it("retryPeer refuses unknown peers and a mesh that already left", async () => {
+    const { mesh, localStream } = makeStateMesh();
+    mesh.start(localStream as never);
+    expect(await mesh.retryPeer("nobody")).toBe(false);
+    await mesh.handleVoiceState(["peer-a"]);
+    mesh.leave();
+    expect(await mesh.retryPeer("peer-a")).toBe(false);
+  });
+});
+
+describe("summarizeVoiceConnections + headline — one truthful aggregate", () => {
+  const S = (entries: Array<[string, VoicePeerConnectionState]>) => new Map(entries);
+
+  it("empty mesh, all-connected, still-connecting", () => {
+    expect(summarizeVoiceConnections(S([])).state).toBe("empty");
+    expect(voiceConnectionHeadline(summarizeVoiceConnections(S([])))).toBe("");
+    const all = summarizeVoiceConnections(S([["a", "connected"], ["b", "connected"]]));
+    expect(all.state).toBe("connected");
+    expect(voiceConnectionHeadline(all)).toBe("Voice connected");
+    const pending = summarizeVoiceConnections(S([["a", "connected"], ["b", "connecting"]]));
+    expect(pending.state).toBe("connecting");
+    expect(voiceConnectionHeadline(pending)).toBe("Voice connecting…");
+  });
+
+  it("some failed = partial, with the failed ids named for the retry button", () => {
+    const sum = summarizeVoiceConnections(
+      S([["a", "connected"], ["b", "failed"], ["c", "failed"]]),
+    );
+    expect(sum.state).toBe("partial");
+    expect(sum.failedPeerIds).toEqual(["b", "c"]);
+    expect(voiceConnectionHeadline(sum)).toContain("couldn't be reached");
+  });
+
+  it("every pair failed = failed, and the headline says why in plain words", () => {
+    const sum = summarizeVoiceConnections(S([["a", "failed"]]));
+    expect(sum.state).toBe("failed");
+    const headline = voiceConnectionHeadline(sum);
+    expect(headline).toContain("Voice couldn't connect");
+    expect(headline).toContain("text");
   });
 });
 

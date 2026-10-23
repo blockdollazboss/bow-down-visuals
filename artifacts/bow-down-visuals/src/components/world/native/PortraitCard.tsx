@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   NativeCard, NativeLoadingState, NativeErrorState, TransferFooter,
 } from "@/components/world/native";
+import { PortraitTip } from "@/components/world/native/PortraitTip";
 import type { CourtMember } from "@/lib/royal-court";
 import {
   portraitWebsitePath, portraitProfilePath, portraitFollowPath,
@@ -322,6 +323,12 @@ export function PortraitCard({
               isLight={isLight}
             />
           </div>
+          {/* Stack-100 #66: tip this creator right from the card —
+              only when their profile carries the tip jar on (the
+              website profile chrome's own gate). */}
+          {card.tipJarEnabled && (
+            <PortraitTip slug={card.slug} isLight={isLight} isGuest={isGuest} />
+          )}
           <p className={`mt-2 text-[11px] ${muted}`}>
             Joining and buying happen at the shop stands and on their full profile — the card&rsquo;s
             transfer below opens it.

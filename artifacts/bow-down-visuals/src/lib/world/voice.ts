@@ -23,9 +23,14 @@
  * mute the toggle machine orders alongside it.
  *
  * NAT note: connections use a public STUN server for candidate
- * gathering. There is no TURN relay configured in v1 — on the small
- * share of networks where peer-to-peer is fully blocked, a pair simply
- * won't hear each other; the room, presence and text still work.
+ * gathering, plus a TURN relay when the server's voice config
+ * supplies one (lib/world/voice-ice — the config seam, item 100).
+ * No relay is configured by default, so on the small share of
+ * networks where peer-to-peer is fully blocked a pair still can't
+ * connect — but that is no longer silent: every peer connection's
+ * state is tracked and surfaced (see VoicePeerConnectionState), a
+ * failed pair says so plainly in the voice UI, and Retry re-offers
+ * instead of leaving dead air unexplained.
  *
  * Everything RTC/media is behind injected deps so the mesh logic is
  * unit-tested in node with fake peer connections.
@@ -37,6 +42,7 @@
  */
 
 import { SpeechLevelTracker, rmsFromTimeDomain } from "./lips";
+import { buildIceServers, type IceServerConfig } from "./voice-ice";
 
 export const VOICE_FULL_HEAR_DISTANCE = 2; // metres: full volume inside this
 export const VOICE_MAX_DISTANCE = 16; // metres: silence beyond this
@@ -85,6 +91,79 @@ export interface RtcPeerConnectionLike {
   close(): void;
   ontrack: ((ev: { streams: unknown[] }) => void) | null;
   onicecandidate: ((ev: { candidate: unknown }) => void) | null;
+  /** The browser connection state ("new" | "connecting" | "connected"
+   *  | "disconnected" | "failed" | "closed"). Optional: fakes and
+   *  older wiring omit it and their peers simply stay "connecting"
+   *  until a stream lands — never falsely "connected". */
+  connectionState?: string;
+  onconnectionstatechange?: (() => void) | null;
+}
+
+/** A peer connection's state in the three words the UI is allowed
+ *  to say. "disconnected" maps to connecting on purpose: the browser
+ *  is still trying (ICE restart), so the honest word is that the
+ *  connection is being (re)made — it only becomes "failed" when the
+ *  browser gives up and says failed. */
+export type VoicePeerConnectionState = "connecting" | "connected" | "failed";
+
+export function mapRtcConnectionState(raw: string | undefined | null): VoicePeerConnectionState {
+  if (raw === "connected" || raw === "completed") return "connected";
+  if (raw === "failed" || raw === "closed") return "failed";
+  return "connecting";
+}
+
+export interface VoiceConnectionSummary {
+  total: number;
+  connected: number;
+  connecting: number;
+  failed: number;
+  failedPeerIds: string[];
+  /** empty = nobody else in voice · connected = every pair live ·
+   *  connecting = pairs still being made, none failed ·
+   *  partial = some live, some failed · failed = every pair failed */
+  state: "empty" | "connected" | "connecting" | "partial" | "failed";
+}
+
+/** Roll per-peer states into the one aggregate the UI shows. Pure. */
+export function summarizeVoiceConnections(
+  states: ReadonlyMap<string, VoicePeerConnectionState>,
+): VoiceConnectionSummary {
+  let connected = 0;
+  let connecting = 0;
+  let failed = 0;
+  const failedPeerIds: string[] = [];
+  for (const [peerId, s] of states) {
+    if (s === "connected") connected++;
+    else if (s === "failed") {
+      failed++;
+      failedPeerIds.push(peerId);
+    } else connecting++;
+  }
+  const total = states.size;
+  let state: VoiceConnectionSummary["state"];
+  if (total === 0) state = "empty";
+  else if (failed === total) state = "failed";
+  else if (failed > 0) state = "partial";
+  else if (connected === total) state = "connected";
+  else state = "connecting";
+  return { total, connected, connecting, failed, failedPeerIds, state };
+}
+
+/** The headline the voice UI shows for a summary — plain words, no
+ *  dead air dressed up as success. Empty state reads as no headline. */
+export function voiceConnectionHeadline(summary: VoiceConnectionSummary): string {
+  switch (summary.state) {
+    case "empty":
+      return "";
+    case "connected":
+      return "Voice connected";
+    case "connecting":
+      return "Voice connecting…";
+    case "partial":
+      return "Voice connected — but some people here couldn't be reached";
+    case "failed":
+      return "Voice couldn't connect — your network may be blocking peer-to-peer voice. You can still walk the hall and use text.";
+  }
 }
 
 /** One remote voice: its stream + the volume control over it. The
@@ -106,6 +185,10 @@ export interface VoiceMeshDeps {
   createSink(peerId: string, stream: unknown): VoiceSink;
   /** Called when a peer's audio stream first arrives (UI "speaking" hooks). */
   onRemoteStream?: (peerId: string) => void;
+  /** Called with the FULL per-peer connection-state snapshot whenever
+   *  any pair's state changes (and when peers come and go), so the UI
+   *  can show the truth instead of assuming silence means success. */
+  onPeerConnectionStates?: (states: ReadonlyMap<string, VoicePeerConnectionState>) => void;
 }
 
 interface MeshPeer {
@@ -114,6 +197,7 @@ interface MeshPeer {
   /** ICE candidates that arrived before the remote description. */
   pendingIce: unknown[];
   hasRemote: boolean;
+  connState: VoicePeerConnectionState;
 }
 
 export class VoiceMesh {
@@ -126,6 +210,43 @@ export class VoiceMesh {
 
   get peerCount(): number {
     return this.peers.size;
+  }
+
+  /** One peer's tracked connection state (undefined once dropped). */
+  connectionStateFor(peerId: string): VoicePeerConnectionState | undefined {
+    return this.peers.get(peerId)?.connState;
+  }
+
+  /** A snapshot of every pair's connection state — what the UI
+   *  renders and summarizeVoiceConnections rolls up. */
+  connectionStates(): Map<string, VoicePeerConnectionState> {
+    const out = new Map<string, VoicePeerConnectionState>();
+    for (const [peerId, peer] of this.peers) out.set(peerId, peer.connState);
+    return out;
+  }
+
+  /** Retry ONE failed (or stuck) pair: tear its dead connection down
+   *  and offer fresh. The glare rule bends here on purpose — for a
+   *  connection that never came up, a re-offer from either side is
+   *  the only recovery there is, and the pair's signaling is idle, so
+   *  there is no live negotiation to collide with. Returns false
+   *  when there is nothing to retry (unknown peer, or I've left). */
+  async retryPeer(peerId: string): Promise<boolean> {
+    const peer = this.peers.get(peerId);
+    if (!peer || !this.localStream) return false;
+    this.dropPeer(peerId);
+    await this.offerTo(peerId).catch(() => undefined);
+    return true;
+  }
+
+  private emitConnectionStates(): void {
+    this.deps.onPeerConnectionStates?.(this.connectionStates());
+  }
+
+  private setConnState(peer: MeshPeer, next: VoicePeerConnectionState): void {
+    if (peer.connState === next) return;
+    peer.connState = next;
+    this.emitConnectionStates();
   }
 
   get isMuted(): boolean {
@@ -211,6 +332,7 @@ export class VoiceMesh {
     } catch {
       /* already closed */
     }
+    this.emitConnectionStates();
   }
 
   /** End my voice session entirely (mic stream itself is owned by the
@@ -257,8 +379,15 @@ export class VoiceMesh {
     const existing = this.peers.get(peerId);
     if (existing) return existing;
     const pc = this.deps.createPeerConnection();
-    const peer: MeshPeer = { pc, sink: null, pendingIce: [], hasRemote: false };
+    const peer: MeshPeer = { pc, sink: null, pendingIce: [], hasRemote: false, connState: "connecting" };
     this.peers.set(peerId, peer);
+    this.emitConnectionStates();
+    /* Track the browser's own verdict on this pair. A PC without the
+     *  hook (test fakes) keeps the honest default: "connecting" until
+     *  a stream actually lands (ontrack below), never assumed live. */
+    pc.onconnectionstatechange = () => {
+      this.setConnState(peer, mapRtcConnectionState(pc.connectionState));
+    };
     if (this.localStream) {
       for (const track of this.localStream.getAudioTracks()) {
         pc.addTrack(track, this.localStream);
@@ -272,6 +401,10 @@ export class VoiceMesh {
       if (stream === undefined) return;
       peer.sink?.dispose();
       peer.sink = this.deps.createSink(peerId, stream);
+      /* Media is actually flowing — that IS connected, whatever the
+       *  state hook said (or couldn't say, on a fake). A later real
+       *  failure still overrides via onconnectionstatechange. */
+      if (peer.connState === "connecting") this.setConnState(peer, "connected");
       this.deps.onRemoteStream?.(peerId);
     };
     return peer;
@@ -295,9 +428,15 @@ export class VoiceMesh {
 /* ── Browser wiring (used by the world page; the mesh itself stays
    dependency-injected and testable) ─────────────────────────────────── */
 
-export function createBrowserPeerConnection(): RtcPeerConnectionLike {
+/** Build a browser peer connection from a session's ICE servers —
+ *  the list lib/world/voice-ice built from the server's voice config
+ *  (STUN default, plus a TURN relay when one is configured). Defaults
+ *  to exactly the STUN-only config the mesh has always used. */
+export function createBrowserPeerConnection(
+  iceServers: IceServerConfig[] = buildIceServers(null),
+): RtcPeerConnectionLike {
   return new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    iceServers: iceServers as RTCIceServer[],
   }) as unknown as RtcPeerConnectionLike;
 }
 

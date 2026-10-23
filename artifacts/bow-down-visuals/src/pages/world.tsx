@@ -3,10 +3,10 @@ import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
-  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause,
+  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
-  Megaphone, Bell, BellOff, X, Coins, Gem,
+  Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen,
 } from "lucide-react";
 import {
   WORLD_ACTIONS,
@@ -40,6 +40,7 @@ import {
   defaultWorldSocketUrl,
   worldGuestSessionId,
   fetchWorldDirectory,
+  fetchWorldEvents,
   HALL_ROOM_ID,
   type WorldStatus,
   type WorldSayEvent,
@@ -53,6 +54,17 @@ import {
   type PalaceDirectoryEntry,
 } from "@/lib/world/world-client";
 import {
+  canUseWorldLockVerbs,
+  doorLockVerb,
+  fetchWorldLocks,
+  lockWorldDoor,
+  unlockWorldDoor,
+  lockWorldPerson,
+  unlockWorldPerson,
+  type WorldLocksDto,
+  type WorldPersonLockDto,
+} from "@/lib/world/admin-locks";
+import {
   isKingMomentLive,
   kingClaimedLine,
   kingDeniedLine,
@@ -60,6 +72,14 @@ import {
   kingMomentLine,
   kingStripLine,
 } from "@/lib/world/king-moment";
+import { monumentBoardData } from "@/lib/world/monument-board";
+import {
+  directorySlate,
+  mergeSlates,
+  normalizeWorldEventSlate,
+  type PalaceSlateEvent,
+} from "@/lib/world/objective-strip";
+import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-quests";
 import {
   STAGE_TIP_PRESETS,
   stageTippedLine,
@@ -123,6 +143,7 @@ import {
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
+import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk, LiveScheduleDesk, LiveControllerDesk, LiveWatchDesk, LivePremiereDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
 import { fetchPublicCourt } from "@/lib/royal-court";
@@ -131,14 +152,24 @@ import {
   createBrowserPeerConnection,
   createBrowserVoiceSink,
   createLocalLevelTap,
+  summarizeVoiceConnections,
+  voiceConnectionHeadline,
+  type VoicePeerConnectionState,
   type VoiceSignalData,
 } from "@/lib/world/voice";
+import { fetchVoiceIceServers } from "@/lib/world/voice-ice";
 import {
   loadViewMode,
   storeViewMode,
   toggledViewMode,
   type HallViewMode,
 } from "@/lib/world/view-mode";
+import {
+  loadQualityPreference,
+  nextQualityPreference,
+  qualityPreferenceLabel,
+  type QualityPreference,
+} from "@/lib/world/quality";
 import {
   initialVoiceToggle,
   reduceVoiceToggle,
@@ -170,10 +201,15 @@ import {
   reconcileStoredPick,
   renameVaultCharacter,
   removeVaultCharacter,
+  createVaultCharacter,
+  fetchVaultAppearance,
+  saveVaultAppearance,
   type VaultCharacter,
+  type VaultAppearance,
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
+import { WorldNotificationsBell } from "@/components/world/WorldNotificationsBell";
 import { ObjectiveStrip } from "@/components/world/ObjectiveStrip";
 import {
   GUEST_EMOTE_PITCH,
@@ -426,9 +462,16 @@ export default function WorldPage() {
   const [voiceProfile, setVoiceProfile] = useState<CharacterVoiceProfile>(NEUTRAL_VOICE_PROFILE);
   const voiceProfileRef = useRef<CharacterVoiceProfile>(NEUTRAL_VOICE_PROFILE);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  /* Honest voice connection state (item 100): the mesh reports every
+     pair's real connection state; the footer shows the aggregate and
+     a failed pair gets plain words + a retry, never silent dead air.
+     Members only — this state only ever exists inside a voice
+     session, which guests can't start. */
+  const [voiceConnStates, setVoiceConnStates] = useState<Map<string, VoicePeerConnectionState>>(new Map());
   /* Camera: first person, or third — pulled behind your figure so
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
+  const [qualityPref, setQualityPref] = useState<QualityPreference>(() => loadQualityPreference());
   /* The avatar action my figure is performing (the action bar's
      state; the scene reports its own endings — a finished bow,
      a walk that ended the dance — through onSelfAction). */
@@ -544,6 +587,16 @@ export default function WorldPage() {
   const hostMutedRef = useRef(false);
   const rosterSigRef = useRef("");
   const [removeArm, setRemoveArm] = useState<string | null>(null);
+  /* The World's locks (items 92–93): the admin lock verbs' state —
+     the two-tap lock-out arm, the standing locks on this room, and
+     the honest note the last verb landed with. Admin-only: the
+     panel that renders these stands behind isAdmin, the handlers
+     re-check canUseWorldLockVerbs, and the server rejects
+     non-admin calls regardless (peace law). */
+  const [lockArm, setLockArm] = useState<string | null>(null);
+  const [worldLocks, setWorldLocks] = useState<WorldLocksDto | null>(null);
+  const [lockNote, setLockNote] = useState<string | null>(null);
+  const [lockBusy, setLockBusy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myPeerId, setMyPeerId] = useState<string | null>(null);
   /* Fullscreen + controller presence (view states only — the render
@@ -766,6 +819,93 @@ export default function WorldPage() {
     }
   }, [tutorialClaimBusy, getAccessToken, refreshTutorial]);
 
+  /* The World's locks (items 92–93): read the standing locks for
+   * the host panel, and fire the four admin verbs. Every handler
+   * re-checks the display gate before the call; the server gates
+   * fail-closed on ADMIN_EMAILS regardless. A landed verb refreshes
+   * the standing list, and a door verb also takes the fresh
+   * directory the server carried back — the Locked pill updates
+   * in the same moment, never on a later poll. */
+  const refreshWorldLocks = useCallback(async () => {
+    if (!canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+    try {
+      const token = await getAccessToken();
+      setWorldLocks(await fetchWorldLocks(token));
+    } catch {
+      /* The panel keeps its last known locks. */
+    }
+  }, [isAdmin, isGuest, getAccessToken]);
+
+  useEffect(() => {
+    if (hostPanelOpen && status === "inside") void refreshWorldLocks();
+  }, [hostPanelOpen, status, roomId, refreshWorldLocks]);
+
+  const runDoorLockVerb = useCallback(async () => {
+    if (lockBusy || !canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+    const entry = directory.find((r) => r.id === roomId);
+    if (!entry) return;
+    setLockBusy(true);
+    setLockNote(null);
+    try {
+      const token = await getAccessToken();
+      const result =
+        doorLockVerb(entry) === "unlock"
+          ? await unlockWorldDoor(token, roomId)
+          : await lockWorldDoor(token, roomId);
+      if (result.rooms) setDirectory(result.rooms);
+      setLockNote(
+        result.door.locked
+          ? `${entry.name}'s door is locked — everyone inside stays, nobody new joins.`
+          : `${entry.name}'s door is open again.`,
+      );
+      await refreshWorldLocks();
+    } catch (err) {
+      setLockNote(err instanceof Error ? err.message : "That lock didn't land — nothing was changed.");
+    } finally {
+      setLockBusy(false);
+    }
+  }, [lockBusy, isAdmin, isGuest, directory, roomId, getAccessToken, refreshWorldLocks]);
+
+  const runPersonLock = useCallback(
+    async (peer: WorldPeer) => {
+      if (lockBusy || !canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+      setLockBusy(true);
+      setLockNote(null);
+      try {
+        const token = await getAccessToken();
+        const result = await lockWorldPerson(token, { roomId, peerId: peer.peerId, minutes: 60 });
+        setLockNote(
+          `${result.person.displayName ?? peer.displayName} is locked out of this room for 1 hour${result.evicted ? " — they're out now" : ""}.`,
+        );
+        await refreshWorldLocks();
+      } catch (err) {
+        setLockNote(err instanceof Error ? err.message : "That lock didn't land — nothing was changed.");
+      } finally {
+        setLockBusy(false);
+      }
+    },
+    [lockBusy, isAdmin, isGuest, roomId, getAccessToken, refreshWorldLocks],
+  );
+
+  const runPersonUnlock = useCallback(
+    async (lock: WorldPersonLockDto) => {
+      if (lockBusy || !canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest })) return;
+      setLockBusy(true);
+      setLockNote(null);
+      try {
+        const token = await getAccessToken();
+        await unlockWorldPerson(token, { roomId: lock.roomId, userId: lock.userId });
+        setLockNote(`${lock.displayName} can walk into this room again, right now.`);
+        await refreshWorldLocks();
+      } catch (err) {
+        setLockNote(err instanceof Error ? err.message : "That unlock didn't land — nothing was changed.");
+      } finally {
+        setLockBusy(false);
+      }
+    },
+    [lockBusy, isAdmin, isGuest, getAccessToken, refreshWorldLocks],
+  );
+
   /* Entry runs the check (and a mid-visit level change re-runs it —
    * evaluateLevel makes repeats harmless: equal is "none"). */
   useEffect(() => {
@@ -903,6 +1043,13 @@ export default function WorldPage() {
     sceneRef.current?.setViewMode(viewMode);
   }, [viewMode]);
 
+  /* Quality preference (item 22): the scene persists it itself and
+   * pins (or un-pins) the adaptive ladder — the page just carries
+   * the choice, exactly like the view mode. */
+  useEffect(() => {
+    sceneRef.current?.setQualityPreference(qualityPref);
+  }, [qualityPref]);
+
   const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
 
   /* Fullscreen: the standard API on the room container. The
@@ -959,6 +1106,57 @@ export default function WorldPage() {
       ctrl.abort();
     };
   }, []);
+
+  /* The Kingdom Board monument's words (item 16): the plate on
+     the plaza monument letters the board's real headlines — the
+     same reads the Kingdom Board station panel makes (directory
+     for who's here, the palace slate for today, the retention
+     leaderboard for standings). Refetched on the panel's own
+     cadence family: on mount, when the directory's who's-here
+     changes the picture, and every two minutes while the walker
+     stays; the scene repaints only when the words change.
+     Guests get who's-here + today (public reads) and an absent
+     leaderboard — the monument letters the standings as
+     members' business, exactly as the panel does. */
+  const [monumentEvents, setMonumentEvents] = useState<PalaceSlateEvent[]>([]);
+  const [monumentLeaderboard, setMonumentLeaderboard] = useState<Leaderboard | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const events = await fetchWorldEvents();
+        if (!cancelled) setMonumentEvents(normalizeWorldEventSlate(events));
+      } catch {
+        /* The directory slate still speaks. */
+      }
+      if (user && !isGuest) {
+        try {
+          const token = await getAccessToken().catch(() => null);
+          const res = await fetch("/api/retention/leaderboard", {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok && !cancelled) setMonumentLeaderboard(normalizeLeaderboard(await res.json()));
+        } catch {
+          /* Standings stay the last honest read. */
+        }
+      }
+    };
+    void load();
+    const id = window.setInterval(() => void load(), 120_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isGuest]);
+  useEffect(() => {
+    sceneRef.current?.setMonumentBoardData(monumentBoardData({
+      directory,
+      leaderboard: monumentLeaderboard,
+      events: mergeSlates(monumentEvents, directorySlate(directory)),
+      nowMs: Date.now(),
+    }));
+  }, [directory, monumentEvents, monumentLeaderboard, status]);
 
   /* Front Row honors: while a show runs, the seat arc shows before
      the stage, and the performer's Front Row members (their public
@@ -1152,6 +1350,28 @@ export default function WorldPage() {
     if (walkInAsRef.current === id) setWalkInAs(null);
   };
 
+  /* Creation + appearance (stack-100 #98): the picker creates and
+     restyles on the vault's own rails. After a write the vault is
+     re-read whole — the picker shows the rows exactly as the server
+     stored them, portrait included, never a locally-invented row. */
+  const refreshVaultCharacters = async () => {
+    const chars = await fetchVaultCharacters(getAccessToken, fetch, user?.id ?? null);
+    setVaultChars(chars);
+    setVaultLoadFailed(false);
+    const reconciled = reconcileStoredPick(chars, walkInAsRef.current);
+    if (reconciled !== walkInAsRef.current) setWalkInAs(reconciled);
+  };
+  const handleCreateVaultCharacter = async (input: { artistName: string; appearance: Partial<VaultAppearance> }) => {
+    await createVaultCharacter(getAccessToken, input);
+    await refreshVaultCharacters();
+  };
+  const handleLoadVaultAppearance = async (id: string) =>
+    fetchVaultAppearance(getAccessToken, id, user?.id ?? null);
+  const handleSaveVaultAppearance = async (id: string, patch: Partial<VaultAppearance>) => {
+    await saveVaultAppearance(getAccessToken, id, patch, user?.id ?? null);
+    await refreshVaultCharacters();
+  };
+
   /* The pick: remembered on the device, and handed to the hall
      connection whenever it changes (the client also applies it on
      entry when it was chosen before the door opened). */
@@ -1210,6 +1430,17 @@ export default function WorldPage() {
     micStreamRef.current = null;
     clientRef.current?.leaveVoice();
     setMuted(false);
+    setVoiceConnStates(new Map());
+  };
+
+  /* Retry every pair the browser gave up on (item 100): each failed
+     connection is torn down and offered fresh by the mesh. */
+  const retryFailedVoicePeers = () => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    for (const peerId of summarizeVoiceConnections(voiceConnStates).failedPeerIds) {
+      void mesh.retryPeer(peerId).catch(() => undefined);
+    }
   };
 
   const dispatchVoice = (action: VoiceToggleAction) => {
@@ -1292,6 +1523,7 @@ export default function WorldPage() {
       const scene = new KingsHallScene(canvas, currentHallTheme());
       sceneRef.current = scene;
       scene.setViewMode(loadViewMode());
+      scene.setQualityPreference(loadQualityPreference());
       void scene.isVrSupported().then((ok) => {
         if (!cancelled) setXrSupported(ok);
       });
@@ -1905,10 +2137,20 @@ export default function WorldPage() {
         shapingParamsFor(currentVoiceProfile(), charVoiceRef.current),
       ).catch(() => null);
       shaperRef.current = shaper;
+      /* ICE servers for this session (item 100): the server's voice
+         config — STUN as always, plus a TURN relay when the owner
+         has one configured. The fetch fails open to the STUN-only
+         default, so a config hiccup never costs working voice. */
+      const token = await getAccessToken().catch(() => null);
+      const iceServers = await fetchVoiceIceServers(
+        (url, init) => fetch(url, init),
+        token,
+      );
       const mesh = new VoiceMesh({
         sendSignal: (to, data) => client.sendSignal(to, data),
-        createPeerConnection: createBrowserPeerConnection,
+        createPeerConnection: () => createBrowserPeerConnection(iceServers),
         createSink: createBrowserVoiceSink,
+        onPeerConnectionStates: (states) => setVoiceConnStates(new Map(states)),
       });
       meshRef.current = mesh;
       mesh.start(shaper?.outputStream ?? stream);
@@ -1986,6 +2228,10 @@ export default function WorldPage() {
           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border-white/15 text-white/75 hover:text-white"
     }`;
+  /* The voice connection truth for the footer (item 100): rolled up
+     from the mesh's per-pair states — never assumed from "in voice". */
+  const voiceConnSummary = summarizeVoiceConnections(voiceConnStates);
+  const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary);
   /* The voice modes in the words the control speaks them. */
   const voiceModeLabels: Record<VoiceMode, string> = {
     off: "Off",
@@ -2058,6 +2304,20 @@ export default function WorldPage() {
             {isFs ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             {isFs ? "Exit full screen" : "Full screen"}
           </button>
+        )}
+        {/* The inbox bell (stack-100 #78): the member's real
+            notifications rail in the chrome — unread badge, panel,
+            mark-read, and in-world navigation to the group / Post
+            Office a notification points at. Members only: the rail
+            is requireAuth and a guest holds no inbox. */}
+        {status === "inside" && !isGuest && (
+          <WorldNotificationsBell
+            isLight={isLight}
+            onOpenStation={(stationId) => {
+              const station = STATION_BY_ID.get(stationId);
+              if (station) setPanelTarget({ kind: "station", station });
+            }}
+          />
         )}
         {/* The standing switch (owner addendum, Oct 17): the plain
             way out of the palace to the 2D website — always in the
@@ -2334,6 +2594,9 @@ export default function WorldPage() {
           isLight={isLight}
           onRename={handleRenameVaultCharacter}
           onRemove={handleRemoveVaultCharacter}
+          onCreate={handleCreateVaultCharacter}
+          onLoadAppearance={handleLoadVaultAppearance}
+          onSaveAppearance={handleSaveVaultAppearance}
         />
       ) : null}
 
@@ -2815,6 +3078,9 @@ export default function WorldPage() {
             isLight={isLight}
             onRename={handleRenameVaultCharacter}
             onRemove={handleRemoveVaultCharacter}
+            onCreate={handleCreateVaultCharacter}
+            onLoadAppearance={handleLoadVaultAppearance}
+            onSaveAppearance={handleSaveVaultAppearance}
           />
         </div>
       )}
@@ -2877,11 +3143,7 @@ export default function WorldPage() {
                   )
                 ) : (
                   <span className={`inline-flex flex-wrap items-center gap-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                    To perform live, start your stream first —{" "}
-                    <Link href="/go-live" className={`font-bold underline underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      open the Go Live studio
-                    </Link>{" "}
-                    — then come back and take the stage.
+                    To perform live, start your stream first — in the Live studio right below, without leaving the hall — then take the stage.
                   </span>
                 )}
                 {stageScreen?.mode === "video" && (
@@ -2964,6 +3226,25 @@ export default function WorldPage() {
               </div>
             </div>
           )}
+
+          {/* Live Wave I (stack-100 #85–#87): the Go Live studio,
+              its guests & backstage, and the guest door — in-world,
+              on the 2D studio's own rails. This panel is members-only
+              (!isGuest above), so palace guests never reach these
+              desks and gain no voice from them. */}
+          <div className={`mt-4 space-y-5 border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-[#d4af37]/20"}`} data-testid="world-live-desks">
+            <LiveStudioDesk isLight={isLight} onStreamChange={() => void loadStageTools()} />
+            <LiveBackstageDesk isLight={isLight} />
+            <LiveGuestJoinDesk isLight={isLight} />
+            {/* Live Wave II (stack-100 #88–#91): scheduling, the
+                Stream Controller deck, live-watch parity for the
+                stream on the big screen, and premiere scheduling —
+                same members-only panel, same real rails. */}
+            <LiveScheduleDesk isLight={isLight} />
+            <LiveControllerDesk isLight={isLight} />
+            <LiveWatchDesk isLight={isLight} screen={stageScreen ? { mode: stageScreen.mode, streamId: stageScreen.streamId } : null} />
+            <LivePremiereDesk isLight={isLight} />
+          </div>
         </div>
       )}
 
@@ -3005,6 +3286,30 @@ export default function WorldPage() {
                         className={`rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
                       >
                         {p.hostMuted ? "Unmute voice" : "Mute voice"}
+                      </button>
+                    )}
+                    {!p.guest && (
+                      <button
+                        type="button"
+                        data-testid="world-host-lock-person"
+                        disabled={lockBusy}
+                        onClick={() => {
+                          if (lockArm === p.peerId) {
+                            setLockArm(null);
+                            void runPersonLock(p);
+                          } else {
+                            setLockArm(p.peerId);
+                          }
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${
+                          lockArm === p.peerId
+                            ? "border-red-500 bg-red-500 text-white"
+                            : isLight
+                              ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                              : "border-white/15 text-white/75 hover:text-white"
+                        }`}
+                      >
+                        {lockArm === p.peerId ? "Tap again to lock out 1h" : "Lock out"}
                       </button>
                     )}
                     <button
@@ -3079,6 +3384,81 @@ export default function WorldPage() {
               </p>
             )}
           </form>
+
+          {/* The World's locks (items 92–93): the door verb for the
+              room the admin stands in, and this room's standing
+              person locks with their lift buttons. Admin-only —
+              this whole panel stands behind isAdmin, the handlers
+              re-check the gate, and the server rejects non-admin
+              calls regardless. Results land immediately: a door
+              verb carries the fresh directory back (the Locked
+              pill moves in the same moment) and the standing list
+              is re-read after every verb. */}
+          {canUseWorldLockVerbs({ admin: isAdmin, guest: isGuest }) && (
+            <div className="mt-3" data-testid="world-host-locks">
+              <p
+                className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}
+              >
+                <Lock className="h-4 w-4 text-[#d4af37]" /> The door &amp; the locks
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {(() => {
+                  const entry = directory.find((r) => r.id === roomId);
+                  const verb = entry ? doorLockVerb(entry) : "lock";
+                  return (
+                    <button
+                      type="button"
+                      data-testid="world-host-door-lock"
+                      disabled={lockBusy || !entry}
+                      onClick={() => void runDoorLockVerb()}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                    >
+                      {verb === "unlock" ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                      {verb === "unlock" ? "Unlock this room's door" : "Lock this room's door"}
+                    </button>
+                  );
+                })()}
+                <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                  {directory.find((r) => r.id === roomId)?.locked
+                    ? "This door is locked — people inside stay, nobody new joins."
+                    : "This door is open."}
+                </span>
+              </div>
+              {worldLocks && worldLocks.persons.filter((l) => l.roomId === roomId).length > 0 && (
+                <div className="mt-2 space-y-1.5" data-testid="world-host-person-locks">
+                  {worldLocks.persons
+                    .filter((l) => l.roomId === roomId)
+                    .map((l) => (
+                      <div
+                        key={`${l.roomId}:${l.userId}`}
+                        className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                      >
+                        <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                          {l.displayName}
+                        </span>
+                        <span className={`text-[11px] font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                          locked out until {new Date(l.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="world-host-unlock-person"
+                          disabled={lockBusy}
+                          onClick={() => void runPersonUnlock(l)}
+                          className={`ml-auto rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                        >
+                          Lift lock
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+              {lockNote && (
+                <p className={`mt-1.5 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-host-lock-note">
+                  {lockNote}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -3249,6 +3629,19 @@ export default function WorldPage() {
             {status === "inside" && (
               <button
                 type="button"
+                onClick={() => setQualityPref((q) => nextQualityPreference(q))}
+                data-testid="world-quality-control"
+                aria-label="Graphics quality"
+                title="Graphics quality — Auto adapts to your device"
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+              >
+                <Gauge className="h-4 w-4" />
+                Quality: {qualityPreferenceLabel(qualityPref)}
+              </button>
+            )}
+            {status === "inside" && (
+              <button
+                type="button"
                 onClick={toggleViewMode}
                 data-testid="world-view-toggle"
                 aria-pressed={viewMode === "third"}
@@ -3374,6 +3767,41 @@ export default function WorldPage() {
                   <span className={`max-w-[240px] text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
                     Deafened — you hear nobody, and your mic is muted. Your name plate shows it.
                   </span>
+                )}
+                {/* Honest connection state (item 100): while in voice,
+                    the footer says how the mesh is actually doing —
+                    connecting, connected, or plainly failed with the
+                    reason and a retry — instead of silent dead air.
+                    Alone in voice there is nobody to connect to, so
+                    no chip shows at all. */}
+                {voiceSwitch.inVoice && voiceConnHeadline && (
+                  <span
+                    data-testid="world-voice-conn-state"
+                    data-state={voiceConnSummary.state}
+                    className={`inline-flex max-w-xs items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold ${
+                      voiceConnSummary.state === "failed" || voiceConnSummary.state === "partial"
+                        ? "border-red-400/40 bg-red-500/10 text-red-300"
+                        : voiceConnSummary.state === "connected"
+                          ? isLight
+                            ? "border-emerald-700/30 bg-emerald-600/10 text-emerald-800"
+                            : "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                          : isLight
+                            ? "border-[#7A5A12]/30 bg-black/5 text-[#6B5B36]"
+                            : "border-white/15 bg-white/5 text-white/60"
+                    }`}
+                  >
+                    {voiceConnHeadline}
+                  </span>
+                )}
+                {voiceSwitch.inVoice && voiceConnSummary.failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={retryFailedVoicePeers}
+                    data-testid="world-voice-retry"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                  >
+                    Retry connection
+                  </button>
                 )}
                 {hostMuted && !voiceSwitch.inVoice && (
                   <span className="inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-300" data-testid="world-host-muted-badge">

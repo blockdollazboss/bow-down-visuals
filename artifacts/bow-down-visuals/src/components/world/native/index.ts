@@ -27,6 +27,7 @@ export {
 export { ListeningBooth, type ListeningBoothProps } from "./ListeningBooth";
 export { ShopStand, type ShopStandProps } from "./ShopStands";
 export { CreateDeskPanel, type CreateDeskPanelProps } from "./CreateDeskPanel";
+export { HookDesk } from "./HookDesk";
 export {
   SongDesk,
   VideoDesk,

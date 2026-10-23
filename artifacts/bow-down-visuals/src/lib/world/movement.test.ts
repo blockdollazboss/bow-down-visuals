@@ -140,6 +140,34 @@ describe("settle — the stop has weight", () => {
   });
 });
 
+describe("reduced motion (item 44) — bobScale silences the vertical, never the gait", () => {
+  it("bobScale 0: the body walks at pace with zero bob and zero settle, lean intact", () => {
+    const s = createMover(0, 0);
+    const pos = { x: s.px, z: s.pz };
+    for (let i = 0; i < 90; i++) {
+      stepMover(s, pos, FORWARD.x, FORWARD.z, 0, 1 / 60, 0);
+      pos.x += s.vx / 60;
+      pos.z += s.vz / 60;
+      expect(Math.abs(s.bobY)).toBe(0);
+    }
+    expect(Math.abs(s.vz)).toBeGreaterThan(MOVER_WALK_SPEED * 0.95); // pace reached
+    expect(s.stepCount).toBeGreaterThan(4); // the stride still counts (footstep hooks live)
+    expect(s.leanPitch).toBeLessThan(0); // posture still leans into the pace
+    // And the stop settles silently too.
+    for (let i = 0; i < 60; i++) {
+      stepMover(s, pos, 0, 0, 0, 1 / 60, 0);
+      expect(Math.abs(s.bobY)).toBe(0);
+    }
+  });
+
+  it("bobScale defaults to 1 — existing callers keep the full gait", () => {
+    const s = createMover(0, 0);
+    drive(s, FORWARD, 0, 1.5);
+    expect(s.bobAmp).toBeGreaterThan(0.9);
+    expect(Math.abs(s.bobY)).toBeGreaterThan(0); // mid-stride at pace, the bob is alive
+  });
+});
+
 describe("teleports re-anchor cleanly", () => {
   it("a spawn jump doesn't spin the gait or throw the body", () => {
     const s = createMover(0, 0);

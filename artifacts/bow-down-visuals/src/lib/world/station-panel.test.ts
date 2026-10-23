@@ -126,6 +126,8 @@ describe("the Treasury — three customs, verified native (Lane 8)", () => {
     "daily-drop": "treasury-daily",
     "shark-drops": "treasury-shark",
     "quest-board": "treasury-quests",
+    /* Stack-100 #61: the packs desk joins the Treasury customs. */
+    "packs-desk": "treasury-packs",
   };
 
   it("every Treasury station resolves to its custom panel for members — never a page mount", () => {

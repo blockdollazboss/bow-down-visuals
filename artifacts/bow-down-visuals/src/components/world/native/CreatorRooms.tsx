@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
   Check,
@@ -9,8 +9,11 @@ import {
   Lock,
   Music2,
   Paintbrush,
+  Minus,
   Play,
+  Plus,
   ShoppingBag,
+  Trash2,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +55,30 @@ import {
   roomDressingStyleWords,
 } from "@/lib/world/creator-room-dressing";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { centsToDisplay, type CartLine } from "@/lib/shops";
+import {
+  CHECKOUT_TRANSFER_LABEL,
+  addToCartLines,
+  checkoutCompletedInWorld,
+  detailedMarketCart,
+  hostedCheckoutUrl,
+  marketCartCount,
+  marketCartTotalCents,
+  marketOrderFromPayload,
+  marketPendingKey,
+  setCartLineQty,
+  type MarketOrder,
+} from "@/lib/world/shop-stands";
+import {
+  apiErrorLine,
+  parseRoomCatalog,
+  roomCartKey,
+  roomItemRail,
+  roomMarketProducts,
+  storeCheckoutPayload,
+  storefrontCheckoutPayload,
+  type RoomStoreItem,
+} from "@/lib/world/money-desks";
 import { isSameShelfItem } from "@/lib/world/shelf";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { PortraitCard } from "./PortraitCard";
@@ -1100,48 +1127,62 @@ export function CreatorRoomStation({
       {evoHeader}
       {dressingDesk}
       {officeBlock}
-      <CreatorStorePanel detail={detail} isLight={isLight} />
+      <CreatorStorePanel detail={detail} isLight={isLight} isGuest={isGuest} />
     </div>
   );
 }
 
-/* ─── Their Store: the profile store catalog on the shop rails ────── */
+/* ─── Their Store: the profile store catalog, sold in the room ─────
+   Stack-100 #64. The catalog is the profile store DTO
+   (GET /api/creator-profiles/:slug/store-catalog) — every item is
+   sold on the rail that sells it on the website, classified by
+   lib/world/money-desks roomItemRail:
+   - the creator's SHOP products ride the Marketplace rails, with
+     the Marketplace stand's own cart: local lines persisted under
+     the shop page's cart key (the room cart and the stand cart
+     for this shop are ONE cart), quantities, and ONE
+     POST /api/storefronts/checkout for the whole cart — the
+     order records PENDING, the hosted payment page opens in a
+     NEW TAB (the sanctioned transfer), and only a server-confirmed
+     paid order (verify on focus/reopen) ever renders as paid.
+     The fee line is the stand's: sellers keep 95%, the 5%
+     platform fee comes out of the seller's cut, never on top.
+   - tracks and videos ride the profile store rail
+     (POST /api/store/checkout, the store-buy page's exact body,
+     name-your-price honored against the creator's minimum) —
+     hosted checkout in a new tab, members only (the rail is
+     auth-required; guests get the sign-in pitch, never a doomed
+     button);
+   - store products ride POST /api/storefront/checkout with the
+     product page's quantity — same treatment;
+   - a kind no rail sells keeps the website buy door, labelled as
+     what it is.
+   The old panel's blanket "Buy on the website" is gone: buying
+   completes from this room now. */
 
-interface StoreCatalogItem {
-  id: string;
-  kind: string;
-  title: string;
-  artworkUrl: string | null;
-  price: string;
-  buyUrl: string;
+/** The one way a hosted payment page opens from the room store:
+ *  a new tab, at the checkout moment, on the walker's click — the
+ *  stands' uniform seam (§3.9). */
+function openCheckoutTab(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function parseStoreCatalog(payload: unknown): StoreCatalogItem[] {
-  if (!payload || typeof payload !== "object") return [];
-  const items = (payload as { items?: unknown }).items;
-  if (!Array.isArray(items)) return [];
-  const out: StoreCatalogItem[] = [];
-  for (const raw of items) {
-    if (!raw || typeof raw !== "object") continue;
-    const r = raw as Record<string, unknown>;
-    const id = typeof r["id"] === "string" ? r["id"] : "";
-    const buyUrl = typeof r["buyUrl"] === "string" ? r["buyUrl"] : "";
-    if (!id || !buyUrl) continue;
-    out.push({
-      id,
-      kind: typeof r["kind"] === "string" ? r["kind"] : "item",
-      title: typeof r["title"] === "string" ? r["title"] : "Untitled",
-      artworkUrl: typeof r["artworkUrl"] === "string" ? r["artworkUrl"] : null,
-      price: typeof r["price"] === "string" ? r["price"] : "",
-      buyUrl,
-    });
-  }
-  return out;
-}
-
-function CreatorStorePanel({ detail, isLight }: { detail: CreatorRoomDetail; isLight: boolean }) {
-  const [items, setItems] = useState<StoreCatalogItem[] | null>(null);
+function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDetail; isLight: boolean; isGuest: boolean }) {
+  const { getAccessToken } = useAuth();
+  const authHeaders = async (): Promise<Record<string, string>> => {
+    const token = await getAccessToken().catch(() => null);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+  const [items, setItems] = useState<RoomStoreItem[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [pwywInputs, setPwywInputs] = useState<Record<string, string>>({});
+  const [qtyInputs, setQtyInputs] = useState<Record<string, number>>({});
+
+  const handle = detail.storefront?.handle ?? null;
+  const shopId = detail.storefront?.id ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -1151,7 +1192,7 @@ function CreatorStorePanel({ detail, isLight }: { detail: CreatorRoomDetail; isL
           `/api/creator-profiles/${encodeURIComponent(detail.slug)}/store-catalog`,
         );
         if (!res.ok) throw new Error("catalog");
-        const parsed = parseStoreCatalog(await res.json());
+        const parsed = parseRoomCatalog(await res.json());
         if (!cancelled) setItems(parsed);
       } catch {
         if (!cancelled) setFailed(true);
@@ -1162,67 +1203,362 @@ function CreatorStorePanel({ detail, isLight }: { detail: CreatorRoomDetail; isL
     };
   }, [detail.slug]);
 
+  /* ── The market cart (the Marketplace stand's own discipline) ── */
+  const marketProducts = useMemo(() => (items ? roomMarketProducts(items) : []), [items]);
+  const cartStorageKey = roomCartKey(handle, detail.slug);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const cartLoaded = useRef(false);
+  useEffect(() => {
+    cartLoaded.current = false;
+    try {
+      const raw = localStorage.getItem(cartStorageKey);
+      const parsed = raw ? (JSON.parse(raw) as CartLine[]) : [];
+      setCart(Array.isArray(parsed) ? parsed.filter((l) => l && typeof l.productId === "string") : []);
+    } catch {
+      setCart([]);
+    }
+    cartLoaded.current = true;
+  }, [cartStorageKey]);
+  useEffect(() => {
+    if (!cartLoaded.current) return;
+    try {
+      localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+    } catch { /* storage blocked — the cart just won't persist */ }
+  }, [cart, cartStorageKey]);
+
+  const detailed = useMemo(() => detailedMarketCart(cart, marketProducts), [cart, marketProducts]);
+  const total = marketCartTotalCents(detailed);
+  const count = marketCartCount(detailed);
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [placing, setPlacing] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [paidOrder, setPaidOrder] = useState<MarketOrder | null>(null);
+  const [pendingNote, setPendingNote] = useState<string | null>(null);
+  const [refreshingOrder, setRefreshingOrder] = useState(false);
+
+  const refreshOrder = async () => {
+    if (!handle || refreshingOrder) return;
+    let sessionId: string | null = null;
+    try { sessionId = localStorage.getItem(marketPendingKey(handle)); } catch { /* storage blocked */ }
+    if (!sessionId) return;
+    setRefreshingOrder(true);
+    try {
+      const res = await fetch("/api/storefronts/checkout/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error("verify");
+      const order = marketOrderFromPayload(data["order"] ?? data);
+      if (order?.paid) {
+        setPaidOrder(order);
+        setPendingNote(null);
+        setCart([]);
+        try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
+      } else if (order?.status === "expired") {
+        setPendingNote("That checkout expired before payment — the order was never charged. Your cart is still here whenever you're ready.");
+        try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
+      } else {
+        setPendingNote("Your order is saved as pending — payment hasn't confirmed yet. Finish at the hosted checkout, then check again here.");
+      }
+    } catch {
+      setPendingNote("Your order is saved as pending — its status couldn't be refreshed just now. Nothing about it was changed.");
+    } finally {
+      setRefreshingOrder(false);
+    }
+  };
+  const refreshOrderRef = useRef(refreshOrder);
+  refreshOrderRef.current = refreshOrder;
+  useEffect(() => {
+    if (!handle) return;
+    void refreshOrderRef.current();
+    const onFocus = () => void refreshOrderRef.current();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle]);
+
+  const checkoutCart = async () => {
+    if (!shopId || detailed.length === 0 || placing) return;
+    setPlacing(true);
+    setOrderError(null);
+    setPendingNote(null);
+    try {
+      const res = await fetch("/api/storefronts/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopId,
+          items: detailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
+          buyerEmail: buyerEmail.trim() || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Checkout didn't start — nothing was charged."));
+      if (checkoutCompletedInWorld(data)) {
+        const order = marketOrderFromPayload(data);
+        if (order?.paid) setPaidOrder(order);
+        setCart([]);
+        return;
+      }
+      const url = hostedCheckoutUrl(data);
+      if (url) {
+        if (typeof data.sessionId === "string" && handle) {
+          try { localStorage.setItem(marketPendingKey(handle), data.sessionId); } catch { /* storage blocked */ }
+        }
+        openCheckoutTab(url);
+        setPendingNote("Your checkout opened in a new tab — finish paying there. This room keeps your place and your cart, and confirms the order here when the payment lands.");
+        return;
+      }
+      throw new Error("Checkout didn't return a payment page — nothing was charged.");
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : "Checkout didn't start — nothing was charged, and your cart is untouched.");
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  /* ── The single-item rails (store + storefront products) ── */
+  const buySingle = async (item: RoomStoreItem) => {
+    if (busyId) return;
+    if (isGuest) {
+      setNote("Buying rides your account — sign in on the website (the footer below) and come back through this door; the goods will be waiting.");
+      return;
+    }
+    const rail = roomItemRail(item);
+    setBusyId(item.id);
+    setBuyError(null);
+    setNote(null);
+    try {
+      if (rail === "store") {
+        const shaped = storeCheckoutPayload(item, pwywInputs[item.id] ?? "");
+        if (!shaped.ok) throw new Error(shaped.problem);
+        const res = await fetch("/api/store/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          body: JSON.stringify(shaped.body),
+        });
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        const url = hostedCheckoutUrl(data);
+        if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+        openCheckoutTab(url);
+        setNote(`Checkout for “${item.title}” opened in a new tab — finish paying there; your download lands with the payment.`);
+        return;
+      }
+      if (rail === "storefront") {
+        const res = await fetch("/api/storefront/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          body: JSON.stringify(storefrontCheckoutPayload(item, qtyInputs[item.id] ?? 1)),
+        });
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        const url = hostedCheckoutUrl(data);
+        if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+        openCheckoutTab(url);
+        setNote(`Checkout for “${item.title}” opened in a new tab — finish paying there.`);
+        return;
+      }
+    } catch (e) {
+      setBuyError(e instanceof Error ? e.message : "Checkout failed — nothing was charged.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const mutedCls = isLight ? "text-[#6B5B36]" : "text-white/55";
+  const cardCls = isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/25 bg-white/5";
+  const chipCls = `inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`;
+
   return (
     <div className="space-y-2">
-      <p className={`inline-flex items-center gap-2 px-1 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+      <p className={`inline-flex items-center gap-2 px-1 text-xs font-semibold ${mutedCls}`}>
         <ShoppingBag className="h-4 w-4 text-[#d4af37]" />
         {detail.storefront
-          ? `${detail.displayName} also runs ${detail.storefront.name} — their shopfront stands in the King's Plaza Marketplace too.`
-          : `${detail.displayName}'s store, on their profile's own rails.`}
+          ? `${detail.displayName} also runs ${detail.storefront.name} — its goods cart and check out right here, on the Marketplace rails.`
+          : `${detail.displayName}'s store, on their profile's own rails — bought right here in the room.`}
       </p>
       {failed ? (
-        <p className={`px-1 py-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+        <p className={`px-1 py-2 text-sm ${mutedCls}`}>
           The store wouldn&rsquo;t open — the goods are fine, the stand slipped.
         </p>
       ) : items === null ? (
-        <p className={`inline-flex items-center gap-2 px-1 py-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+        <p className={`inline-flex items-center gap-2 px-1 py-2 text-sm ${mutedCls}`}>
           <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Setting out the goods…
         </p>
       ) : items.length === 0 ? (
-        <p className={`px-1 py-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+        <p className={`px-1 py-2 text-sm ${mutedCls}`}>
           Nothing is for sale here yet — the stand is built, the shelves fill when{" "}
           {detail.displayName} lists their first piece.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {items.map((item) => (
-            <div
-              key={`${item.kind}-${item.id}`}
-              className={`flex flex-col gap-1.5 rounded-2xl border px-3 py-3 ${
-                isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/25 bg-white/5"
-              }`}
-            >
-              {item.artworkUrl ? (
-                <img src={item.artworkUrl} alt="" className="aspect-square w-full rounded-xl object-cover" />
-              ) : (
-                <span className="flex aspect-square w-full items-center justify-center rounded-xl bg-[#d4af37]/10">
-                  <ShoppingBag className="h-7 w-7 text-[#d4af37]" />
-                </span>
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {items.map((item) => {
+              const rail = roomItemRail(item);
+              return (
+                <div
+                  key={`${item.kind}-${item.id}`}
+                  data-testid="world-room-store-item"
+                  className={`flex flex-col gap-1.5 rounded-2xl border px-3 py-3 ${cardCls}`}
+                >
+                  {item.artworkUrl ? (
+                    <img src={item.artworkUrl} alt="" className="aspect-square w-full rounded-xl object-cover" />
+                  ) : (
+                    <span className="flex aspect-square w-full items-center justify-center rounded-xl bg-[#d4af37]/10">
+                      <ShoppingBag className="h-7 w-7 text-[#d4af37]" />
+                    </span>
+                  )}
+                  <span className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                    {item.title}
+                  </span>
+                  {item.price && (
+                    <span className={`text-xs font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                      {item.price}
+                    </span>
+                  )}
+                  {rail === "market" ? (
+                    <button
+                      type="button"
+                      data-testid="world-room-store-add"
+                      onClick={() => setCart((c) => addToCartLines(c, item.id))}
+                      className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add to cart
+                    </button>
+                  ) : rail === "store" ? (
+                    <>
+                      {item.pwyw?.enabled && (
+                        <input
+                          value={pwywInputs[item.id] ?? ""}
+                          onChange={(e) => setPwywInputs((m) => ({ ...m, [item.id]: e.target.value }))}
+                          inputMode="decimal"
+                          placeholder={`Your price — min $${(item.pwyw.minCents / 100).toFixed(2)}`}
+                          aria-label={`Your price for ${item.title}`}
+                          className={`w-full rounded-xl border px-2.5 py-1.5 text-xs outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        data-testid="world-room-store-buy"
+                        onClick={() => void buySingle(item)}
+                        disabled={busyId === item.id}
+                        className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                      >
+                        {busyId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShoppingBag className="h-3.5 w-3.5" />}
+                        {CHECKOUT_TRANSFER_LABEL}
+                      </button>
+                    </>
+                  ) : rail === "storefront" ? (
+                    <>
+                      <span className="inline-flex items-center gap-1.5">
+                        <button type="button" aria-label="One less" onClick={() => setQtyInputs((m) => ({ ...m, [item.id]: Math.max(1, (m[item.id] ?? 1) - 1) }))} className={chipCls}><Minus className="h-3 w-3" /></button>
+                        <span className="w-5 text-center text-xs font-bold">{qtyInputs[item.id] ?? 1}</span>
+                        <button type="button" aria-label="One more" onClick={() => setQtyInputs((m) => ({ ...m, [item.id]: Math.min(99, (m[item.id] ?? 1) + 1) }))} className={chipCls}><Plus className="h-3 w-3" /></button>
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="world-room-store-buy"
+                        onClick={() => void buySingle(item)}
+                        disabled={busyId === item.id}
+                        className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                      >
+                        {busyId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShoppingBag className="h-3.5 w-3.5" />}
+                        {CHECKOUT_TRANSFER_LABEL}
+                      </button>
+                    </>
+                  ) : item.buyUrl ? (
+                    <a
+                      href={item.buyUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                    >
+                      Buy on the website
+                    </a>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          {(detailed.length > 0 || paidOrder || pendingNote) && shopId && (
+            <div className={`rounded-2xl border px-3 py-3 ${cardCls}`} data-testid="world-room-store-cart">
+              <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                Your cart{count > 0 ? ` (${count})` : ""}
+              </p>
+              {detailed.map((l) => (
+                <div key={l.productId} className="flex flex-wrap items-center gap-2 py-1.5">
+                  <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{l.product.name}</span>
+                  <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty)}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <button type="button" aria-label="One less" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={chipCls}><Minus className="h-3 w-3" /></button>
+                    <span className="w-5 text-center text-sm font-bold">{l.qty}</span>
+                    <button type="button" aria-label="One more" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={chipCls}><Plus className="h-3 w-3" /></button>
+                    <button type="button" aria-label="Remove from cart" onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={chipCls}><Trash2 className="h-3 w-3" /></button>
+                  </span>
+                </div>
+              ))}
+              {detailed.length > 0 && !paidOrder && (
+                <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className={mutedCls}>Total</span>
+                    <span className="text-lg font-black">{centsToDisplay(total)}</span>
+                  </div>
+                  <input
+                    value={buyerEmail}
+                    onChange={(e) => setBuyerEmail(e.target.value)}
+                    type="email"
+                    placeholder="Email for your receipt (optional)"
+                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+                  />
+                  {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}
+                  <button type="button" data-testid="world-room-store-checkout" onClick={() => void checkoutCart()} disabled={placing} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                    {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
+                    {CHECKOUT_TRANSFER_LABEL} · {centsToDisplay(total)}
+                  </button>
+                  <p className={`text-[11px] ${mutedCls}`}>
+                    Sellers keep 95% — the 5% platform fee comes out of the seller&rsquo;s cut, never on top of your price.
+                  </p>
+                </div>
               )}
-              <span className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                {item.title}
-              </span>
-              {item.price && (
-                <span className={`text-xs font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                  {item.price}
-                </span>
+              {pendingNote && !paidOrder && (
+                <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-room-store-pending">
+                  <p className="flex items-start gap-2 text-xs font-semibold text-amber-300">
+                    <Loader2 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${refreshingOrder ? "animate-spin" : ""}`} />
+                    <span>{pendingNote}</span>
+                  </p>
+                  <p className={`text-[11px] ${mutedCls}`}>
+                    This order is pending — it is not paid yet, and it will never be shown as paid until the payment confirms.
+                  </p>
+                  <button type="button" onClick={() => void refreshOrder()} disabled={refreshingOrder} className={chipCls}>
+                    Check again
+                  </button>
+                </div>
               )}
-              <a
-                href={item.buyUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
-              >
-                Buy on the website
-              </a>
+              {paidOrder && (
+                <div className="mt-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-room-store-paid">
+                  <p className={`flex items-start gap-2 text-xs font-bold ${isLight ? "text-[#4a6b1f]" : "text-emerald-300"}`}>
+                    <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Paid — {centsToDisplay(paidOrder.gross_cents)} confirmed by the payment rail.
+                      {paidOrder.lines.length > 0 && <> Yours: {paidOrder.lines.map((l) => l.productName ?? "your piece").join(", ")}.</>}
+                    </span>
+                  </p>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
+      {note && <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
+      {buyError && <p className="px-1 text-xs font-semibold text-red-400">{buyError}</p>}
       <p className={`inline-flex items-center gap-1.5 px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         <Home className="h-3.5 w-3.5 text-[#d4af37]" />
-        Buying finishes on the website, as at every palace stand — the room shows the goods,
-        the till lives on the site.
+        Buying finishes at the hosted checkout, in a new tab — the room keeps your place, and the
+        cart here is the same cart as this creator&rsquo;s Marketplace stand.
       </p>
     </div>
   );

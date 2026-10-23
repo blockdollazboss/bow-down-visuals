@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Send, Check, X, Ban, Plus, Pin, MessageCircle, Star, BarChart3, Loader2,
   Paperclip, Search, Link2, Sparkles, Music2, Clapperboard, Image as ImageIcon,
+  Repeat2, Bookmark, Trash2, Clock3, Flame, Radio,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { EmojiTray, KingTokenText, ReactionSticker } from "@/components/social/KingEmoji";
@@ -10,6 +11,9 @@ import {
   NativeCard, NativeLoadingState, NativeEmptyState, NativeErrorState,
 } from "@/components/world/native";
 import type { FeedPost } from "@/lib/social-api";
+import { PostAssistBlock } from "./PostAssist";
+import { ModerationBench } from "./SocialWave2";
+import { appendAssistDraft } from "@/lib/world/post-assist";
 import {
   DM_CONVERSATIONS_PATH, DM_START_PATH, DM_ATTACHMENT_UPLOAD_PATH,
   dmMessagesPath, dmSendPath, dmRequestActionPath, profileResolvePath,
@@ -21,7 +25,13 @@ import {
   dmThreadHighlightSegments,
   COMMUNITY_SUPERFANS_PATH, COMMUNITY_SENTIMENT_PATH,
   GENERATE_COMMUNITY_POST_PATH, COMMUNITY_POST_PLATFORMS_PATH, POSTS_PATH,
-  REACT_PATH, reactRemovePath, feedPath, postRepliesPath, postReplyPath,
+  REACT_PATH, reactRemovePath, postRepliesPath, postReplyPath,
+  FEED_VIEWS, feedPagePath, feedHasMore, mergeFeedPage,
+  DROPS_PATH, normalizeDrops,
+  SAVES_PATH, repostPath, saveRemovePath, postDeletePath, pollVotePath,
+  pollTotalVotes, pollPercent, pollVotable, feedVerbAllowed, postIsOwn,
+  MY_PROFILE_PATH,
+  type FeedView, type DropItem,
   postReplyDraftPath, normalizePostReplyDraft, postReplyDraftSaveDecision,
   COMMENT_REPLIES_PATH, COMMENT_REPLIES_META_PATH,
   REPLY_DRAFT_TONES, replyDraftBatch,
@@ -43,8 +53,9 @@ import {
      as readable cards with in-world react + full nested threads,
      superfan/sentiment highlights run against the board's own
      posts, and a Pin-a-post composer on the generate-community-
-     post family. Moderation stays transfer-only in v1 (the board
-     says so, plainly, above its transfer footer).
+     post family. (Wave II, #82: the admin moderation bench now
+     docks at the board's foot — SocialWave2's ModerationBench,
+     admin-only and fail-closed, on the admin page's own rails.)
    Both fetch with the member token (the useAuthHeaders pattern the
    custom panels use) and keep honest loading/empty/failed states. */
 
@@ -1059,12 +1070,15 @@ function ThreadReplyNode({
 }
 
 function NoticePostCard({
-  post, isLight, isGuest, authHeaders,
+  post, isLight, isGuest, authHeaders, myProfileId, onDeleted, onReposted,
 }: {
   post: FeedPost;
   isLight: boolean;
   isGuest: boolean;
   authHeaders: () => Promise<Record<string, string>>;
+  myProfileId: string | null;
+  onDeleted: (id: string) => void;
+  onReposted: () => void;
 }) {
   const [emoji, setEmoji] = useState<string | null>(post.viewer_emoji);
   const [counts, setCounts] = useState<Record<string, number>>(post.reaction_counts ?? {});
@@ -1196,6 +1210,93 @@ function NoticePostCard({
     }
   }
 
+  /* ── Feed verbs (#80) — PostCard's exact rails ──────────────────
+     Repost, save/bookmark, delete-own and poll vote, in-world.
+     Optimistic where the card is optimistic (save), confirmed where
+     the card confirms (repost lands once; a failed verb says so and
+     never stands). Delete is offered only on the walker's own post
+     (postIsOwn) and still rides the author-only server gate. */
+  const [saved, setSaved] = useState(post.viewer_saved);
+  const [reposted, setReposted] = useState(false);
+  const [repostCount, setRepostCount] = useState(post.repost_count);
+  const [poll, setPoll] = useState(post.poll);
+  const [voting, setVoting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [verbNote, setVerbNote] = useState<string | null>(null);
+  const canVerb = feedVerbAllowed(isGuest);
+  const own = postIsOwn(post, myProfileId);
+  const removed = !!post.moderation_removed;
+
+  async function toggleSave() {
+    const next = !saved;
+    setSaved(next);
+    setVerbNote(null);
+    try {
+      if (next) {
+        await apiJson(authHeaders, SAVES_PATH, {
+          method: "POST", body: { kind: "post", target_id: post.id },
+        });
+      } else {
+        const res = await fetch(saveRemovePath(post.id), {
+          method: "DELETE", headers: await authHeaders(),
+        });
+        if (!res.ok) throw new Error("unsave");
+      }
+    } catch {
+      setSaved(!next);
+      setVerbNote("That save didn't land — try again.");
+    }
+  }
+
+  async function doRepost() {
+    if (reposted) return;
+    setVerbNote(null);
+    try {
+      await apiJson(authHeaders, repostPath(post.id), { method: "POST" });
+      setReposted(true);
+      setRepostCount((n) => n + 1);
+      onReposted();
+    } catch {
+      setVerbNote("That repost didn't land — try again.");
+    }
+  }
+
+  async function vote(optionId: string) {
+    if (voting || !pollVotable(poll, isGuest)) return;
+    setVoting(true);
+    setVerbNote(null);
+    try {
+      const d = await apiJson<{ poll: NonNullable<FeedPost["poll"]> }>(
+        authHeaders, pollVotePath(post.id),
+        { method: "POST", body: { option_id: optionId } },
+      );
+      if (d.poll) setPoll(d.poll);
+    } catch {
+      setVerbNote("That vote didn't land — try again.");
+    } finally {
+      setVoting(false);
+    }
+  }
+
+  async function doDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    setVerbNote(null);
+    try {
+      const res = await fetch(postDeletePath(post.id), {
+        method: "DELETE", headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("delete");
+      onDeleted(post.id);
+    } catch {
+      setVerbNote("That delete didn't land — the post is still yours.");
+      setConfirmingDelete(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   /* Load (or reload) the thread. A failure lands in the failed
      state — the thread renders a failure with a retry, NEVER the
      "no replies yet" copy: an unloaded thread is not an empty one. */
@@ -1270,6 +1371,58 @@ function NoticePostCard({
             <KingTokenText body={post.body} theme={isLight ? "light" : "dark"} />
           </p>
         )}
+        {post.why && (
+          <p className={`mt-1 text-[11px] ${muted}`} data-testid="world-feed-why">{post.why.label}</p>
+        )}
+        {removed && (
+          <p
+            className={`mt-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
+              isLight ? "border-red-700/40 bg-red-500/10 text-red-800" : "border-red-400/40 bg-red-400/10 text-red-300"
+            }`}
+            data-testid="world-feed-removed"
+          >
+            Removed by moderation{post.removal_reason ? ` — ${post.removal_reason}` : ""}. Only you can see this post now.
+          </p>
+        )}
+        {/* The poll (#80): vote in-world on the card's own rail; a
+            member who already voted (or a guest) reads the standing. */}
+        {!removed && poll && (
+          <div className="mt-2 space-y-1.5" data-testid="world-feed-poll">
+            {poll.options.map((o) => {
+              const pct = pollPercent(poll, o.id);
+              const mine = poll.viewer_option_id === o.id;
+              const votable = pollVotable(poll, isGuest);
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  disabled={!votable || voting}
+                  onClick={() => void vote(o.id)}
+                  data-testid="world-feed-poll-option"
+                  aria-pressed={mine}
+                  className={`relative w-full overflow-hidden rounded-xl border px-3 py-1.5 text-left text-xs ${
+                    mine
+                      ? "border-[#d4af37] text-[#e8c86a]"
+                      : isLight ? "border-[#C9A84C]/40 text-[#2a1e07]" : "border-white/10 text-white/80"
+                  } ${votable ? "hover:border-[#d4af37]/70" : ""}`}
+                >
+                  <span className="absolute inset-y-0 left-0 bg-[#d4af37]/15" style={{ width: `${pct}%` }} />
+                  <span className="relative flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5">
+                      {mine && <Check className="h-3.5 w-3.5" />}
+                      {o.option_text}
+                    </span>
+                    <span className={muted}>{pct}%</span>
+                  </span>
+                </button>
+              );
+            })}
+            <p className={`text-[11px] ${muted}`}>
+              {pollTotalVotes(poll)} vote{pollTotalVotes(poll) === 1 ? "" : "s"}
+              {isGuest ? " — sign in to vote." : poll.viewer_option_id ? " — your vote is in." : ""}
+            </p>
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {BOARD_REACTIONS.map((r) => (
             <button
@@ -1289,7 +1442,109 @@ function NoticePostCard({
             <MessageCircle className="h-3.5 w-3.5" />
             {threadToggleLabel(replyCount, repliesOpen && threadState === "ready")}
           </button>
+          {/* Feed verbs (#80): members only — guests never see a
+              dead button; the rails are requireAuth regardless. */}
+          {!removed && canVerb && (
+            <>
+              <button
+                type="button"
+                onClick={() => void doRepost()}
+                disabled={reposted}
+                data-testid="world-feed-repost"
+                aria-pressed={reposted}
+                className={`${chipBtn(isLight)} ${reposted ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+              >
+                <Repeat2 className="h-3.5 w-3.5" />
+                Repost{repostCount > 0 ? ` ${repostCount}` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => void toggleSave()}
+                data-testid="world-feed-save"
+                aria-pressed={saved}
+                className={`${chipBtn(isLight)} ${saved ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                {saved ? "Saved" : "Save"}
+              </button>
+              {own && !confirmingDelete && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  data-testid="world-feed-delete"
+                  className={chipBtn(isLight)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              )}
+              {own && confirmingDelete && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void doDelete()}
+                    disabled={deleting}
+                    data-testid="world-feed-delete-confirm"
+                    className={`${chipBtn(isLight)} border-red-400/60 font-black text-red-400`}
+                  >
+                    {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    Delete it for good?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(false)}
+                    data-testid="world-feed-delete-cancel"
+                    className={chipBtn(isLight)}
+                  >
+                    Keep it
+                  </button>
+                </>
+              )}
+            </>
+          )}
+          {/* A removed post's only verb is its author's delete. */}
+          {removed && canVerb && own && !confirmingDelete && (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              data-testid="world-feed-delete"
+              className={chipBtn(isLight)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+          )}
+          {removed && canVerb && own && confirmingDelete && (
+            <>
+              <button
+                type="button"
+                onClick={() => void doDelete()}
+                disabled={deleting}
+                data-testid="world-feed-delete-confirm"
+                className={`${chipBtn(isLight)} border-red-400/60 font-black text-red-400`}
+              >
+                {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete it for good?
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                data-testid="world-feed-delete-cancel"
+                className={chipBtn(isLight)}
+              >
+                Keep it
+              </button>
+            </>
+          )}
         </div>
+        {verbNote && (
+          <p
+            className={`mt-1.5 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}
+            data-testid="world-feed-verb-note"
+          >
+            {verbNote}
+          </p>
+        )}
         {repliesOpen && (
           <div className="mt-2 space-y-1.5" data-testid="world-community-thread">
             {threadState === "loading" ? (
@@ -1547,11 +1802,91 @@ function ReplyDraftsBench({
   );
 }
 
+/* ─── The feed composer (with Post Assist, #58) ──────────────────────
+   The Hall's own post box: write, or let "Write It For Me" draft
+   into the box (POST /api/posts/assist, 100 VB, confirmed), then
+   post on the feed's own rail (POST /api/posts, free). The assist
+   never posts — the member's tap on Post does. */
+function FeedComposerCard({
+  isLight, authHeaders, onPosted,
+}: {
+  isLight: boolean;
+  authHeaders: () => Promise<Record<string, string>>;
+  onPosted: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+
+  async function post() {
+    if (posting || !postBodyReady(body)) return;
+    setPosting(true);
+    setNote(null);
+    try {
+      await apiJson(authHeaders, POSTS_PATH, { method: "POST", body: { body: body.trim() } });
+      setBody("");
+      setNote("Posted — it's live on the board below.");
+      onPosted();
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "The post didn't land — try again.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <NativeCard isLight={isLight} title="Write a post">
+      <div data-testid="world-feed-composer">
+        <PostAssistBlock isLight={isLight} onDraft={(draft) => setBody((b) => appendAssistDraft(b, draft))} />
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Say it to the Hall…"
+          rows={3}
+          maxLength={500}
+          className={`${inputCls(isLight)} mt-2`}
+          data-testid="world-feed-composer-body"
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className={`text-[11px] ${muted}`}>{body.length}/500 — posting is free.</span>
+          <button
+            type="button"
+            onClick={() => void post()}
+            disabled={posting || !postBodyReady(body)}
+            className={`${goldBtn} ml-auto`}
+            data-testid="world-feed-composer-post"
+          >
+            {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Post to the board
+          </button>
+        </div>
+        {note && (
+          <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
+        )}
+      </div>
+    </NativeCard>
+  );
+}
+
 export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
   const authHeaders = useAuthHeaders();
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
   const [feedFailed, setFeedFailed] = useState(false);
   const [tick, setTick] = useState(0);
+  /* Feed parity (#79): the 2D feed's three views — Latest (chrono),
+     For You (ranked, every post says why) and New Drops (the
+     discovery releases wire) — with the page's own cursor
+     pagination (limit 20, `before` = last post's created_at). */
+  const [view, setView] = useState<FeedView>("chrono");
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [drops, setDrops] = useState<DropItem[] | null>(null);
+  const [dropsFailed, setDropsFailed] = useState(false);
+  /* My own profile id unlocks the delete verb on my own posts
+     (#80) — read from the owner rail; a failure just means the
+     verb isn't offered (the server gate stands regardless). */
+  const [myProfileId, setMyProfileId] = useState<string | null>(null);
   const [superfans, setSuperfans] = useState<Superfan[] | null>(null);
   const [sentiment, setSentiment] = useState<SentimentReport | null>(null);
   const [scanBusy, setScanBusy] = useState<"superfans" | "sentiment" | null>(null);
@@ -1565,19 +1900,72 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
 
   useEffect(() => {
+    if (isGuest) return;
     let cancelled = false;
-    setFeedFailed(false);
     (async () => {
       try {
-        const d = await apiJson<{ posts: FeedPost[] }>(authHeaders, feedPath(12));
-        if (!cancelled) setPosts(Array.isArray(d.posts) ? d.posts : []);
+        const d = await apiJson<{ id?: unknown }>(authHeaders, MY_PROFILE_PATH);
+        if (!cancelled && typeof d.id === "string") setMyProfileId(d.id);
+      } catch { /* no profile yet, or the read slipped — no own-verbs offered */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest]);
+
+  /* First page of the current view. A view switch (or a board
+     refresh via tick) restarts the river from the top. */
+  useEffect(() => {
+    let cancelled = false;
+    setFeedFailed(false);
+    if (view === "drops") {
+      setDrops(null);
+      setDropsFailed(false);
+      (async () => {
+        try {
+          const d = await apiJson<unknown>(authHeaders, DROPS_PATH);
+          if (!cancelled) setDrops(normalizeDrops(d));
+        } catch {
+          if (!cancelled) setDropsFailed(true);
+        }
+      })();
+      return () => { cancelled = true; };
+    }
+    setPosts(null);
+    setHasMore(false);
+    (async () => {
+      try {
+        const d = await apiJson<{ posts: FeedPost[] }>(authHeaders, feedPagePath(view));
+        if (!cancelled) {
+          const page = Array.isArray(d.posts) ? d.posts : [];
+          setPosts(page);
+          setHasMore(feedHasMore(page.length));
+        }
       } catch {
         if (!cancelled) setFeedFailed(true);
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+  }, [tick, view]);
+
+  /* The next page: cursor = the last loaded post's created_at,
+     exactly feed.tsx's load(false). Only the post views paginate —
+     the Drops wire is one 40-row read, like its 2D home. */
+  async function loadMore() {
+    if (loadingMore || view === "drops" || !posts || posts.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const before = posts[posts.length - 1]!.created_at;
+      const d = await apiJson<{ posts: FeedPost[] }>(authHeaders, feedPagePath(view, before));
+      const page = Array.isArray(d.posts) ? d.posts : [];
+      setPosts((prev) => mergeFeedPage(prev ?? [], page));
+      setHasMore(feedHasMore(page.length));
+    } catch {
+      setScanNote("The next page of the board wouldn't load — the posts above are safe; try again.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -1717,6 +2105,12 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         )}
       </NativeCard>
 
+      {/* The feed composer — your own words, posted straight to the
+          board (POST /api/posts), with Post Assist ("Write It For
+          Me", #58) drafting into it on the website composer's rail.
+          Members only: guests read the board, they don't post. */}
+      {!isGuest && <FeedComposerCard isLight={isLight} authHeaders={authHeaders} onPosted={() => setTick((n) => n + 1)} />}
+
       {/* Pin a post — draft with the generate-community-post family,
           then pin the chosen words to the board (POST /api/posts). */}
       <NativeCard isLight={isLight} title="Pin a post">
@@ -1778,12 +2172,91 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         <ReplyDraftsBench isLight={isLight} authHeaders={authHeaders} onPosted={() => setTick((n) => n + 1)} />
       )}
 
-      {/* The notice board itself. */}
+      {/* The notice board itself — with the feed's own views (#79):
+          Latest / For You / New Drops, switched in place. */}
       <div>
-        <p className={`mb-1.5 px-1 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          On the board
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5 px-1">
+          <p className={`mr-1 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+            On the board
+          </p>
+          {FEED_VIEWS.map((v) => {
+            const Icon = v.key === "chrono" ? Clock3 : v.key === "foryou" ? Flame : Radio;
+            return (
+              <button
+                key={v.key}
+                type="button"
+                role="tab"
+                aria-selected={view === v.key}
+                onClick={() => setView(v.key)}
+                data-testid={`world-feed-view-${v.key}`}
+                className={`${chipBtn(isLight)} ${view === v.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {v.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className={`mb-2 px-1 text-[11px] ${muted}`}>
+          {view === "drops"
+            ? "New Drops — every release from creators you follow, last 30 days."
+            : view === "chrono"
+              ? "Chronological — your timeline, no algorithm overlords."
+              : "For You — ranked by who you follow and what you engage with. Every post says why it's here. No paid boosting."}
         </p>
-        {feedFailed ? (
+        {view === "drops" ? (
+          dropsFailed ? (
+            <NativeErrorState
+              isLight={isLight}
+              title="The drops wire wouldn't load"
+              message={
+                isGuest
+                  ? "The wire reads for members — sign in on the website and the Hall will show the drops."
+                  : "The drops are fine — the wire just couldn't fetch them."
+              }
+              onRetry={() => setTick((n) => n + 1)}
+            />
+          ) : drops === null ? (
+            <NativeLoadingState isLight={isLight} message="Reading the drops wire…" />
+          ) : drops.length === 0 ? (
+            <NativeEmptyState
+              isLight={isLight}
+              message="No drops in the last 30 days."
+              detail="Follow more creators and their releases land here the moment they land."
+            />
+          ) : (
+            <div className="space-y-2" data-testid="world-feed-drops">
+              {drops.map((d) => (
+                <NativeCard key={`${d.kind}-${d.id}`} isLight={isLight}>
+                  <div className="flex items-center gap-3" data-testid="world-feed-drop">
+                    {d.thumb ? (
+                      <img src={d.thumb} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${isLight ? "bg-[#C9A84C]/15" : "bg-white/5"}`}>
+                        {d.kind === "video" ? <Clapperboard className="h-5 w-5 text-[#d4af37]" /> : <Music2 className="h-5 w-5 text-[#d4af37]" />}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                        {d.title}
+                        {d.source === "discovery" && (
+                          <span className="ml-2 rounded-full border border-[#d4af37]/60 px-1.5 py-px text-[9px] font-black uppercase text-[#e8c86a]">
+                            Discovery
+                          </span>
+                        )}
+                      </p>
+                      <p className={`truncate text-xs ${muted}`}>
+                        {d.display_name ?? "Creator"}
+                        {d.why ? ` · ${d.why.label}` : ""}
+                        {` · ${new Date(d.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                      </p>
+                    </div>
+                  </div>
+                </NativeCard>
+              ))}
+            </div>
+          )
+        ) : feedFailed ? (
           <NativeErrorState
             isLight={isLight}
             title="The notice board wouldn't open"
@@ -1803,18 +2276,47 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
             detail="Pin the first post above — the Hall notices."
           />
         ) : (
-          <div className="space-y-2">
-            {posts.map((p) => (
-              <NoticePostCard key={p.id} post={p} isLight={isLight} isGuest={isGuest} authHeaders={authHeaders} />
-            ))}
-          </div>
+          <>
+            <div className="space-y-2">
+              {posts.map((p) => (
+                <NoticePostCard
+                  key={p.id}
+                  post={p}
+                  isLight={isLight}
+                  isGuest={isGuest}
+                  authHeaders={authHeaders}
+                  myProfileId={myProfileId}
+                  onDeleted={(id) => setPosts((prev) => (prev ?? []).filter((x) => x.id !== id))}
+                  onReposted={() => { /* the repost landed on the author's board; this river keeps its order */ }}
+                />
+              ))}
+            </div>
+            {hasMore ? (
+              <div className="mt-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => void loadMore()}
+                  disabled={loadingMore}
+                  className={chipBtn(isLight)}
+                  data-testid="world-feed-load-more"
+                >
+                  {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Load more posts
+                </button>
+              </div>
+            ) : (
+              <p className={`mt-3 text-center text-[11px] ${muted}`} data-testid="world-feed-caught-up">
+                You&rsquo;re all caught up.
+              </p>
+            )}
+          </>
         )}
       </div>
 
-      <p className={`px-1 text-[11px] ${muted}`}>
-        Moderation stays on the website in this version — it&rsquo;s a workbench, not a hangout
-        action. The Hall&rsquo;s transfer below opens it.
-      </p>
+      {/* The moderation bench (#82) — ADMIN-ONLY: it renders only
+          on a confirmed admin status and every verb rides the
+          admin rails, which re-check server-side regardless. */}
+      {!isGuest && <ModerationBench isLight={isLight} />}
     </div>
   );
 }

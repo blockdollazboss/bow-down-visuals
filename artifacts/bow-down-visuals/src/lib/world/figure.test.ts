@@ -47,8 +47,8 @@ describe("figure measurements", () => {
 
   it("the canvas matches the art's aspect (cover-fit lands edge-to-edge)", () => {
     const { w, h } = defaultFigureCanvasSize(0.5);
-    expect(h).toBe(768);
-    expect(w).toBe(384);
+    expect(h).toBe(1536);
+    expect(w).toBe(768);
     expect(defaultFigureCanvasSize(2).w).toBeLessThanOrEqual(1024);
     expect(defaultFigureCanvasSize(0).w).toBeGreaterThanOrEqual(128);
   });

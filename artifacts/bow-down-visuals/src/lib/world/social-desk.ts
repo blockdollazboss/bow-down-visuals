@@ -42,8 +42,36 @@
  * posts, so the analysis is about THIS room's conversation, and the
  * run only happens on an explicit tap with its price shown.
  *
- * Moderation (POST /api/community/moderate) is deliberately NOT
- * here: it stays transfer-only in v1 (see SOCIAL_NATIVE_FOLLOW_ONS).
+ * Moderation was transfer-only in v1; Social Wave II (stack-100
+ * #82) promoted it: the ADMIN bench rides the admin page's own
+ * rails (GET /api/admin/status gates it, fail-closed; the queues
+ * and the content-removal rail live below). The community page's
+ * charged AI scan (POST /api/community/moderate) is a member tool,
+ * not the admin bench, and is not part of that promotion.
+ *
+ * Social Wave II rails (stack-100 #79–#84, verbatim from the 2D
+ * pages — feed.tsx, PostCard.tsx, DropsWire, explore.tsx,
+ * discovery/search.tsx, admin.tsx, artist-public/artist-setup):
+ *   GET  /api/feed?mode=chrono|foryou&limit=20&before=…  → { posts }
+ *   GET  /api/discovery/feed?limit=40                    → { items } (New Drops)
+ *   POST /api/posts/:id/repost                           (PostCard)
+ *   POST /api/saves            { kind:"post", target_id } (PostCard save)
+ *   DELETE /api/saves/post/:id                           (PostCard unsave)
+ *   DELETE /api/posts/:id                                (author-only, server-gated)
+ *   POST /api/posts/:id/poll/vote  { option_id } → { poll }
+ *   GET  /api/explore                                    → { shorts, creators, posts, events, groups }
+ *   GET  /api/discovery/search?q=…&type=…                → { creators, tracks, videos, playlists }
+ *   GET  /api/admin/status                               → { isAdmin }
+ *   GET  /api/admin/reports · /api/admin/dmca-reports     → { reports }
+ *   PATCH /api/admin/reports/:id · /api/admin/dmca-reports/:id  { status }
+ *   GET  /api/admin/content/removed                      → { content }
+ *   GET  /api/admin/content/:id                          → { content }
+ *   PATCH /api/admin/content/:id  { removed, reason?, note? }
+ *   GET  /api/creator-profiles/me                        → owner profile (+ referral_code)
+ *   GET  /api/creator-profiles/:slug                     → { profile, counts, top_tracks, top_videos, playlists }
+ *   PUT  /api/creator-profiles/me                        { bio, display_name, social_links, … }
+ *   GET|PUT /api/creator-profiles/me/layout              { layout }
+ *   GET|PUT /api/creator-profiles/me/theme-settings      { colorway, headingFont, bodyFont }
  */
 import type { FeedPost } from "@/lib/social-api";
 
@@ -589,17 +617,439 @@ export function threadReactAllowed(isGuest: boolean): boolean {
   return !isGuest;
 }
 
+/* ═══ Social Wave II (stack-100 #79–#84) ═══════════════════════════
+   The Hall's second social wave: the feed grows its 2D views and
+   verbs, Explore + search move in, the ADMIN moderation bench is
+   promoted off the website, and the walker's own public profile
+   becomes viewable + editable in-world. Every rail below is the
+   2D page's own — traced, never invented. */
+
+/* ─── #79 Feed views + pagination ──────────────────────────────────
+   feed.tsx's exact contract: mode=chrono|foryou, limit=20, and the
+   `before` cursor is the last loaded post's created_at. The Drops
+   view is a different rail entirely (DropsWire): the discovery
+   releases wire, limit=40, no cursor. */
+
+export const FEED_PAGE_SIZE = 20;
+
+export type FeedMode = "chrono" | "foryou";
+export type FeedView = FeedMode | "drops";
+
+export const FEED_VIEWS: { key: FeedView; label: string }[] = [
+  { key: "chrono", label: "Latest" },
+  { key: "foryou", label: "For You" },
+  { key: "drops", label: "New Drops" },
+];
+
+export function feedPagePath(mode: FeedMode, before?: string | null): string {
+  const q = new URLSearchParams({ mode, limit: String(FEED_PAGE_SIZE) });
+  if (before) q.set("before", before);
+  return `/api/feed?${q.toString()}`;
+}
+
+/** feed.tsx's rule: a full page means there may be more; a short
+ *  page is the end of the river. */
+export function feedHasMore(pageLength: number): boolean {
+  return pageLength === FEED_PAGE_SIZE;
+}
+
+/** Append a fetched page to the loaded river, deduped by id — the
+ *  cursor is a timestamp, and a post sharing the boundary second
+ *  must never render twice. */
+export function mergeFeedPage<T extends { id: string }>(
+  existing: readonly T[],
+  page: readonly T[],
+): T[] {
+  const seen = new Set(existing.map((p) => p.id));
+  return [...existing, ...page.filter((p) => !seen.has(p.id))];
+}
+
+export const DROPS_PATH = "/api/discovery/feed?limit=40";
+
+/** One New Drops row (DropsWire's FeedItem over discovery's
+ *  TrackLite): a release — track or video — from a followed creator. */
+export interface DropItem {
+  id: string;
+  kind: "track" | "video";
+  title: string;
+  slug?: string;
+  display_name?: string;
+  thumb: string | null;
+  created_at: string;
+  source?: "following" | "discovery";
+  why?: { kind: string; label: string } | null;
+}
+
+export function normalizeDrops(payload: unknown): DropItem[] {
+  const items = (payload as { items?: unknown } | null | undefined)?.items;
+  if (!Array.isArray(items)) return [];
+  return items.filter(
+    (i): i is DropItem =>
+      !!i && typeof i === "object" && typeof (i as DropItem).id === "string",
+  );
+}
+
+/* ─── #80 Feed verbs (PostCard's exact rails) ────────────────────── */
+
+export const SAVES_PATH = "/api/saves";
+
+export function repostPath(postId: string): string {
+  return `/api/posts/${encodeURIComponent(postId)}/repost`;
+}
+
+export function saveRemovePath(postId: string): string {
+  return `/api/saves/post/${encodeURIComponent(postId)}`;
+}
+
+export function postDeletePath(postId: string): string {
+  return `/api/posts/${encodeURIComponent(postId)}`;
+}
+
+export function pollVotePath(postId: string): string {
+  return `/api/posts/${encodeURIComponent(postId)}/poll/vote`;
+}
+
+/** Member verbs are members-only in-world exactly as on the rails:
+ *  guests read the board (and a poll's standing), they never tap.
+ *  Mirrors threadReplyAllowed/threadReactAllowed. */
+export function feedVerbAllowed(isGuest: boolean): boolean {
+  return !isGuest;
+}
+
+/** Delete is the author's own verb — PostCard renders it for every
+ *  card and the server 403s strangers; in-world we only OFFER it on
+ *  the walker's own posts (profile id match), and the server still
+ *  enforces regardless of what the client shows. */
+export function postIsOwn(
+  post: { profile_id: string },
+  myProfileId: string | null,
+): boolean {
+  return !!myProfileId && post.profile_id === myProfileId;
+}
+
+export interface PollLike {
+  options: Array<{ id: string; option_text: string; vote_count: number }>;
+  viewer_option_id: string | null;
+}
+
+export function pollTotalVotes(poll: PollLike): number {
+  return poll.options.reduce((a, o) => a + (o.vote_count || 0), 0);
+}
+
+export function pollPercent(poll: PollLike, optionId: string): number {
+  const total = pollTotalVotes(poll);
+  if (total <= 0) return 0;
+  const opt = poll.options.find((o) => o.id === optionId);
+  return opt ? Math.round((opt.vote_count / total) * 100) : 0;
+}
+
+/** A poll takes a vote only from a member who hasn't voted — the
+ *  card disables on viewer_option_id; one member, one vote, and
+ *  the server refuses a second regardless. */
+export function pollVotable(poll: PollLike | null, isGuest: boolean): boolean {
+  return !!poll && !isGuest && !poll.viewer_option_id;
+}
+
+/* ─── #81 Explore + discovery search ─────────────────────────────── */
+
+export const EXPLORE_PATH = "/api/explore";
+
+export type DiscoverySearchType = "all" | "creator" | "track" | "video" | "playlist";
+
+export const DISCOVERY_SEARCH_TYPES: { key: DiscoverySearchType; label: string }[] = [
+  { key: "all", label: "Everything" },
+  { key: "creator", label: "Creators" },
+  { key: "track", label: "Audio" },
+  { key: "video", label: "Videos" },
+  { key: "playlist", label: "Playlists" },
+];
+
+/** discovery/search.tsx's exact query: q + type ride every search;
+ *  an empty box never fires the rail (the page renders no results
+ *  state until a query commits). */
+export function discoverySearchPath(query: string, type: DiscoverySearchType): string | null {
+  const q = query.trim();
+  if (!q) return null;
+  const params = new URLSearchParams({ q, type });
+  return `/api/discovery/search?${params.toString()}`;
+}
+
+export interface SearchCreatorHit {
+  id: string; slug: string; display_name: string;
+  avatar_url: string | null; vertical?: string; follower_count?: number;
+}
+export interface SearchWorkHit {
+  id: string; title: string; slug?: string; display_name?: string;
+}
+export interface DiscoverySearchResults {
+  creators: SearchCreatorHit[];
+  tracks: SearchWorkHit[];
+  videos: SearchWorkHit[];
+  playlists: SearchWorkHit[];
+}
+
+export function normalizeSearchResults(payload: unknown): DiscoverySearchResults {
+  const p = (payload ?? {}) as Record<string, unknown>;
+  const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  return {
+    creators: arr<SearchCreatorHit>(p["creators"]),
+    tracks: arr<SearchWorkHit>(p["tracks"]),
+    videos: arr<SearchWorkHit>(p["videos"]),
+    playlists: arr<SearchWorkHit>(p["playlists"]),
+  };
+}
+
+export function searchHasResults(r: DiscoverySearchResults): boolean {
+  return r.creators.length + r.tracks.length + r.videos.length + r.playlists.length > 0;
+}
+
+/* ─── #82 The admin moderation bench ───────────────────────────────
+   admin.tsx's bench, verbatim rails: the member-report queue, the
+   DMCA queue, and the content-removal rail. EVERY one is
+   requireAuth + requireAdmin server-side (ADMIN_EMAILS allowlist,
+   fail-closed when unset) — the bench additionally gates its own
+   rendering on GET /api/admin/status, so a non-admin never even
+   sees a verb. Peace law: the client showing a button is never
+   the enforcement; the server re-checks on every call. */
+
+export const ADMIN_STATUS_PATH = "/api/admin/status";
+export const ADMIN_REPORTS_PATH = "/api/admin/reports";
+export const ADMIN_DMCA_REPORTS_PATH = "/api/admin/dmca-reports";
+export const ADMIN_CONTENT_REMOVED_PATH = "/api/admin/content/removed";
+
+/** The two queues share one workflow vocabulary (the server's
+ *  CONTENT_REPORT_STATUSES / DMCA_REPORT_STATUSES — identical). */
+export const REPORT_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
+
+export type AdminQueueKind = "reports" | "dmca-reports";
+
+export function adminQueuePath(kind: AdminQueueKind): string {
+  return kind === "reports" ? ADMIN_REPORTS_PATH : ADMIN_DMCA_REPORTS_PATH;
+}
+
+export function adminQueueItemPath(kind: AdminQueueKind, id: string): string {
+  return `${adminQueuePath(kind)}/${encodeURIComponent(id)}`;
+}
+
+export function adminContentPath(id: string): string {
+  return `/api/admin/content/${encodeURIComponent(id)}`;
+}
+
+/** The bench renders ONLY on a confirmed admin status. Anything
+ *  else — member, guest, a failed status read — renders nothing:
+ *  fail-closed, like the server. */
+export function moderationBenchVisible(isAdmin: boolean | null): boolean {
+  return isAdmin === true;
+}
+
+export interface AdminReportRow {
+  id: string;
+  status: string;
+  createdAt: string | null;
+  /* member-report fields */
+  reporterUserId?: string;
+  targetType?: string;
+  targetId?: string;
+  targetSummary?: string;
+  reason?: string;
+  note?: string | null;
+  /* dmca fields */
+  reporterName?: string;
+  reporterEmail?: string;
+  reporterOrg?: string | null;
+  description?: string;
+  infringingUrls?: string[];
+}
+
+export interface AdminContentState {
+  id: string;
+  kind: "post" | "comment";
+  body: string;
+  author: { slug: string; displayName: string } | null;
+  removed: boolean;
+  removalReason: string | null;
+}
+
+export function normalizeAdminReports(payload: unknown): AdminReportRow[] {
+  const rows = (payload as { reports?: unknown } | null | undefined)?.reports;
+  return Array.isArray(rows) ? (rows as AdminReportRow[]) : [];
+}
+
+export function normalizeAdminContent(payload: unknown): AdminContentState | null {
+  const c = (payload as { content?: unknown } | null | undefined)?.content;
+  if (!c || typeof c !== "object") return null;
+  const row = c as AdminContentState;
+  return typeof row.id === "string" ? row : null;
+}
+
+export function normalizeRemovedContent(payload: unknown): AdminContentState[] {
+  const rows = (payload as { content?: unknown } | null | undefined)?.content;
+  return Array.isArray(rows) ? (rows as AdminContentState[]) : [];
+}
+
+/* ─── #83/#84 Own profile — view as a visitor, edit as the owner ──
+   The public read is the artist page's own payload (profile +
+   counts + top tracks/videos); the owner read adds referral_code.
+   Edits ride the SAME three rails artist-setup + the profile
+   editor ride: PUT /creator-profiles/me (bio/name/socials/…),
+   PUT …/me/layout (blocks, server-validated), PUT
+   …/me/theme-settings (colorway/fonts, server-validated). */
+
+export const MY_PROFILE_PATH = "/api/creator-profiles/me";
+export const MY_LAYOUT_PATH = "/api/creator-profiles/me/layout";
+export const MY_THEME_SETTINGS_PATH = "/api/creator-profiles/me/theme-settings";
+
+export function publicProfilePath(slug: string): string {
+  return `/api/creator-profiles/${encodeURIComponent(slug)}`;
+}
+
+export interface OwnProfile {
+  id: string;
+  slug: string;
+  display_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  vertical: string | null;
+  is_public: boolean;
+  follower_count: number;
+  total_plays: number;
+  social_links: Record<string, string>;
+  referral_code: string | null;
+}
+
+export interface PublicProfileView {
+  profile: OwnProfile;
+  counts: { tracks: number; videos: number; playlists: number };
+  topTracks: { id: string; title: string; play_count?: number }[];
+  topVideos: { id: string; title: string; view_count?: number }[];
+}
+
+function asOwnProfile(raw: unknown): OwnProfile | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p["id"] !== "string" || typeof p["slug"] !== "string") return null;
+  return {
+    id: p["id"],
+    slug: p["slug"],
+    display_name: typeof p["display_name"] === "string" ? p["display_name"] : "Creator",
+    bio: typeof p["bio"] === "string" ? p["bio"] : null,
+    avatar_url: typeof p["avatar_url"] === "string" ? p["avatar_url"] : null,
+    banner_url: typeof p["banner_url"] === "string" ? p["banner_url"] : null,
+    vertical: typeof p["vertical"] === "string" ? p["vertical"] : null,
+    is_public: p["is_public"] !== false,
+    follower_count: typeof p["follower_count"] === "number" ? p["follower_count"] : 0,
+    total_plays: typeof p["total_plays"] === "number" ? p["total_plays"] : 0,
+    social_links:
+      p["social_links"] && typeof p["social_links"] === "object"
+        ? (p["social_links"] as Record<string, string>)
+        : {},
+    referral_code: typeof p["referral_code"] === "string" ? p["referral_code"] : null,
+  };
+}
+
+/** The owner read (GET /me) is the bare profile object. */
+export function normalizeOwnProfile(payload: unknown): OwnProfile | null {
+  return asOwnProfile(payload);
+}
+
+/** The visitor read (GET /:slug) wraps the profile with counts and
+ *  the top shelves. A private/missing profile 404s server-side, so
+ *  a payload without a profile is honestly "no page to show". */
+export function normalizePublicProfile(payload: unknown): PublicProfileView | null {
+  const p = (payload ?? {}) as Record<string, unknown>;
+  const profile = asOwnProfile(p["profile"]);
+  if (!profile) return null;
+  const counts = (p["counts"] ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" ? v : 0);
+  const rows = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  return {
+    profile,
+    counts: { tracks: num(counts["tracks"]), videos: num(counts["videos"]), playlists: num(counts["playlists"]) },
+    topTracks: rows(p["top_tracks"]),
+    topVideos: rows(p["top_videos"]),
+  };
+}
+
+/** artist-setup.tsx's social platform set, verbatim. */
+export const SOCIAL_PLATFORMS = [
+  "instagram", "tiktok", "youtube", "x", "twitch", "spotify", "website",
+] as const;
+
+/** Editor rows: the platform set first (blank where unset), then
+ *  any extra keys the profile already carries — nothing is dropped
+ *  by opening the editor. */
+export function socialLinkRows(
+  links: Record<string, string> | null | undefined,
+): { platform: string; url: string }[] {
+  const src = links ?? {};
+  const rows = SOCIAL_PLATFORMS.map((platform) => ({
+    platform: platform as string,
+    url: typeof src[platform] === "string" ? src[platform] : "",
+  }));
+  for (const key of Object.keys(src)) {
+    if (!(SOCIAL_PLATFORMS as readonly string[]).includes(key)) {
+      rows.push({ platform: key, url: typeof src[key] === "string" ? src[key] : "" });
+    }
+  }
+  return rows;
+}
+
+/** Rows back to the wire shape: trimmed, blanks dropped (an emptied
+ *  field unlinks the platform — the setup page's own semantics of
+ *  saving the record as edited). */
+export function socialLinksFromRows(
+  rows: readonly { platform: string; url: string }[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of rows) {
+    const url = r.url.trim();
+    if (url) out[r.platform] = url;
+  }
+  return out;
+}
+
+/** The basics patch gate, mirroring updateMeSchema on the server:
+ *  display_name 1–80 trimmed, bio ≤ 2000. The server re-validates;
+ *  this keeps the desk from firing a save it knows will 400. */
+export function profileBasicsReady(displayName: string, bio: string): boolean {
+  const name = displayName.trim();
+  return name.length >= 1 && name.length <= 80 && bio.length <= 2000;
+}
+
+/** The share link artist-setup/profile-sections build: my public
+ *  page, with my referral code riding along (?ref=CODE). Null when
+ *  no code has been minted — the desk says so instead of faking
+ *  a link. */
+export function referralShareUrl(
+  origin: string,
+  slug: string,
+  code: string | null | undefined,
+): string | null {
+  if (!code) return null;
+  return `${origin}/artist/${encodeURIComponent(slug)}?ref=${encodeURIComponent(code)}`;
+}
+
 /* ─── The parity follow-on log (NATIVE-PLAN §3.4, v1 scope line) ───
-   Everything behind these two stations that stays TRANSFER-ONLY in
-   v1, named so the next lane promotes benches deliberately, never
-   by drift. The desk components surface the moderation line to the
-   walker; the rest live here as the program's record. */
-export const SOCIAL_NATIVE_FOLLOW_ONS = [
-  {
-    id: "moderation-bench",
-    label: "Community moderation bench (POST /api/community/moderate)",
-    note: "An admin workbench, not a hangout action — stays on the website via the Community Hall transfer in v1.",
-  },
+   Everything behind these two stations that stays TRANSFER-ONLY,
+   named so the next lane promotes benches deliberately, never
+   by drift. Social Wave II (#79–#84) promoted the last entry —
+   the log is empty, on purpose, and the test pins it empty. */
+export const SOCIAL_NATIVE_FOLLOW_ONS: readonly {
+  id: string; label: string; note: string;
+}[] = [];
+
+/* Social Wave II promotions (stack-100 #79–#84), built and no
+   longer follow-ons — named here so the record shows what
+   graduated, in the board's own numbering. */
+export const SOCIAL_WAVE2_PROMOTIONS = [
+  { id: "feed-views-pagination", item: "79", label: "Feed parity: Latest / For You / New Drops views + cursor pagination in the Hall" },
+  { id: "feed-verbs", item: "80", label: "Feed verbs in-world: repost, save, delete own post, poll vote" },
+  { id: "explore-search", item: "81", label: "Explore + creator/work search in the Hall" },
+  { id: "moderation-bench", item: "82", label: "Admin moderation bench in the Hall (admin-only, fail-closed)" },
+  { id: "own-profile-view", item: "83", label: "Own-profile view in-world (my public page as visitors see it)" },
+  { id: "profile-editing", item: "84", label: "Profile editing in-world (bio, blocks, theme, socials, referral)" },
 ] as const;
 
 /* Ring 2 promotions (UPGRADE-PROGRAM §2.17–2.19), built and no longer
