@@ -33,7 +33,9 @@ function flat(o: unknown, p = "", out: Record<string, unknown> = {}): Record<str
 const EN = flat(load("en"));
 const ES = flat(load("es"));
 const nonEmpty = (v: unknown): boolean =>
-  Array.isArray(v) ? v.length > 0 && v.every((x) => typeof x === "string" && x.trim() !== "") : typeof v === "string" && v.trim() !== "";
+  Array.isArray(v)
+    ? v.length > 0 && v.every((x) => (typeof x === "string" ? x.trim() !== "" : x != null))
+    : typeof v === "string" && v.trim() !== "";
 
 const W1_NAMESPACES = ["pricing", "referrals", "merch", "memberships", "royalties", "moneyTracker", "refundPolicy", "myShop", "jewelry", "llcGuide", "brandingShop", "tips", "storefrontBuilder", "liveShopping", "contracts", "jewelryShop", "tipPage", "shop", "storefronts", "syncPitch", "brandDeals", "labelPitch", "distribute", "brandCalculator", "sponsors", "sponsorsPost", "sponsorDealDetail", "playlistPitch"] as const;
 const W1_LEGIT: ReadonlySet<string> = new Set([
@@ -152,6 +154,92 @@ describe("es W1 (Stack-28 #72) — namespaces closed whole", () => {
   });
   it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
     for (const k of W1_LEGIT) {
+      expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
+      expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
+    }
+  });
+});
+
+const W2_NAMESPACES = ["retentionDoctor", "retentionDelight", "invite", "fomoFeed", "planPublic", "home", "delight", "academy", "common", "features", "waitlist", "auth", "signup", "betaAccess", "promo-clip", "splitScreen", "productPhotoStudio", "carouselMaker", "videoTemplates", "movies", "motionGraphics"] as const;
+const W2_LEGIT: ReadonlySet<string> = new Set([
+  "academy.coachRole",
+  "academy.hoursPlaceholder",
+  "academy.lessonMinutes",
+  "auth.passwordPlaceholder",
+  "betaAccess.badgeBeta",
+  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.fontDisplay",
+  "carouselMaker.fontSans",
+  "carouselMaker.fontSerif",
+  "common.beta",
+  "common.premium",
+  "common.visualBucs",
+  "features.cheat_code",
+  "home.demo.hiphop.label",
+  "home.demo.pop.label",
+  "home.demo.rnb.label",
+  "home.extTitleA",
+  "home.faqKicker",
+  "home.formats.podcasts.title",
+  "home.formats.streamers.title",
+  "home.vaultBodyB",
+  "movies.comparables",
+  "movies.epLabel",
+  "movies.logline",
+  "movies.streamUrlPlaceholder",
+  "productPhotoStudio.confirmFeature",
+  "productPhotoStudio.credits",
+  "productPhotoStudio.modelIdeogram",
+  "productPhotoStudio.modelNano",
+  "productPhotoStudio.packshot",
+  "productPhotoStudio.pastePlaceholder",
+  "productPhotoStudio.title",
+  "promo-clip.clips.count_one",
+  "promo-clip.clips.count_other",
+  "promo-clip.clipsSelector.clipFallback",
+  "promo-clip.creditBadge",
+  "promo-clip.genres.afrobeats",
+  "promo-clip.genres.country",
+  "promo-clip.genres.dancehall",
+  "promo-clip.genres.drill",
+  "promo-clip.genres.gospel",
+  "promo-clip.genres.hipHop",
+  "promo-clip.genres.pop",
+  "promo-clip.genres.rnb",
+  "promo-clip.genres.rock",
+  "promo-clip.genres.trap",
+  "promo-clip.platforms.reels",
+  "promo-clip.platforms.shorts",
+  "promo-clip.platforms.tiktok",
+  "promo-clip.tags.ctas",
+  "promo-clip.tags.hashtags",
+  "retentionDelight.prefs_sharkDrops",
+  "retentionDoctor.atPlaceholder",
+  "retentionDoctor.dropPlaceholder",
+  "retentionDoctor.platform_instagram",
+  "retentionDoctor.platform_tiktok",
+  "retentionDoctor.platform_x",
+  "retentionDoctor.platform_youtube",
+  "retentionDoctor.type_tutorial",
+  "retentionDoctor.type_vlog",
+  "splitScreen.cellN",
+  "splitScreen.modeSimple",
+  "videoTemplates.kindVideo",
+  "waitlist.badgeBeta"
+]);
+
+describe("es W2 (Stack-28 #81) — namespaces closed whole", () => {
+  const keys = Object.keys(EN).filter((k) => W2_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
+  it("every en key of the wave namespaces is present and non-empty in es", () => {
+    const bad = keys.filter((k) => !(k in ES) || !nonEmpty(ES[k]));
+    expect(bad, `es W2 missing/empty: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("no es value is identical to en outside the legit allowlist", () => {
+    const bad = keys.filter((k) => k in ES && JSON.stringify(ES[k]) === JSON.stringify(EN[k]) && !W2_LEGIT.has(k));
+    expect(bad, `es W2 untranslated residue: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
+  });
+  it("the legit allowlist names only keys still identical to en (no stale entries)", () => {
+    for (const k of W2_LEGIT) {
       expect(EN[k], `allowlist entry ${k} missing from en`).toBeDefined();
       expect(JSON.stringify(ES[k]), `allowlist entry ${k} no longer identical — drop it`).toBe(JSON.stringify(EN[k]));
     }
