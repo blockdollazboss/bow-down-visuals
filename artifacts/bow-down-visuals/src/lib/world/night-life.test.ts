@@ -14,9 +14,11 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   EMBER_RISE_HEIGHT,
+  FAKE_POOL,
   createEmberField,
   emberCountForTier,
   emberOffsetAt,
+  fakePoolOpacity,
   lanternGlowScale,
 } from "./night-life";
 
@@ -72,5 +74,15 @@ describe("night-life embers", () => {
     const ladder = read("./quality.ts");
     expect(ladder).toContain("candleLights: false");
     expect(ladder).toContain('tier: "low"');
+  });
+
+  it("fake light pools (Stack-100 #2): grounded radii, and pools strengthen as real lights thin out", () => {
+    expect(FAKE_POOL.lamp.radius).toBeGreaterThan(0.8);
+    expect(FAKE_POOL.brazier.radius).toBeGreaterThan(FAKE_POOL.lamp.radius);
+    for (const kind of ["lamp", "brazier"] as const) {
+      expect(fakePoolOpacity(kind, "low")).toBeGreaterThan(fakePoolOpacity(kind, "high"));
+      expect(fakePoolOpacity(kind, "medium")).toBeGreaterThan(0);
+      expect(fakePoolOpacity(kind, "high")).toBeLessThan(0.5);
+    }
   });
 });

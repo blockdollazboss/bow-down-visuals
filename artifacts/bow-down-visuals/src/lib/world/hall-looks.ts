@@ -178,3 +178,21 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
 export function hallLookFor(theme: HallTheme): HallLook {
   return HALL_LOOKS[theme];
 }
+
+/* ── Day/night crossfade (Stack-100 #2 light round) ──────────────
+ * A theme switch rebuilds the look group in one frame: geometry
+ * swaps instantly (it must — the two looks are different builds),
+ * but the LIGHT used to snap with it, a hard exposure/background
+ * cut that read as a glitch. The scene now eases the exposure,
+ * background and fog colour from the old look's values to the
+ * new one's over LOOK_FADE_MS with a smoothstep — the world
+ * crossfades even though its furniture swaps. */
+export const LOOK_FADE_MS = 900;
+
+/** Crossfade progress 0..1 for an elapsed time: smoothstepped,
+ *  clamped, done at LOOK_FADE_MS. */
+export function lookFadeProgress(elapsedMs: number): number {
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return 0;
+  const t = Math.min(1, elapsedMs / LOOK_FADE_MS);
+  return t * t * (3 - 2 * t);
+}

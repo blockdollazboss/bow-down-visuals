@@ -74,6 +74,7 @@ import {
   detectInitialTier,
   loadQualityPreference,
   resolveTier,
+  shadowRefreshDue,
   steppedTextureSize,
   storeQualityPreference,
   type QualityPreference,
@@ -88,7 +89,7 @@ import {
   reflectorShouldRender,
 } from "./visibility";
 import { capsuleBodyHex } from "./capsule-color";
-import { HALL_SCREEN, hallLookFor, type HallLook, type HallTheme } from "./hall-looks";
+import { HALL_SCREEN, hallLookFor, lookFadeProgress, type HallLook, type HallTheme } from "./hall-looks";
 import { mediaUrl } from "../media-cdn";
 import {
   coverTransform,
@@ -202,7 +203,8 @@ import {
   HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD,
 } from "./creator-heights";
 import {
-  createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
+  createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale,
+  FAKE_POOL, fakePoolOpacity, type EmberParticle,
 } from "./night-life";
 import {
   POOL, FOUNTAIN, FOUNTAIN_FALL, WET_EDGE, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
@@ -1533,6 +1535,18 @@ export class KingsHallScene {
    *  drift — never under reduced motion, and never the PMREM
    *  capture (its uTime stays 0: reflections are the average). */
   private skyDomeMaterial: THREE.ShaderMaterial | null = null;
+  /** Brazier point lights (plaza + hall dais — ONE class) that
+   *  cast shadows on the top rung (item 13): re-registered per
+   *  look build, re-ruled per ladder step. */
+  private brazierShadowLights: THREE.PointLight[] = [];
+  /** Day/night crossfade state: the previous look's exposure /
+   *  background / fog the tick eases away from (null = no fade). */
+  private lookFade: {
+    fromExposure: number; toExposure: number;
+    fromBg: THREE.Color; toBg: THREE.Color;
+    fromFog: THREE.Color; toFog: THREE.Color;
+    startedAtMs: number;
+  } | null = null;
   private floorOverlayMat: THREE.MeshPhysicalMaterial | null = null;
   /** Every scoped point/spot light in the current look, with its
    *  world position + range (item 24) — judged per room change. */
@@ -1571,7 +1585,11 @@ export class KingsHallScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = q.shadows;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    /* Item 14: plain PCF, deliberately — PCFSoftShadowMap IGNORES
+     * shadow.radius in three.js, so the rung's softness table
+     * (2/3/4) would be a lie under it. Under PCF the radius is
+     * real, and the top rung's 4 reads soft. */
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     /* Overhaul stage 3 (perf audit E4): every shadow caster in the
      * palace is architecture — static — and figures ground with
      * painted blobs, so the shadow map is rendered on demand
@@ -1620,6 +1638,18 @@ export class KingsHallScene {
   private applyLook(theme: HallTheme): void {
     const look = hallLookFor(theme);
 
+    /* Day/night crossfade: capture the OUTGOING look's light
+     * values before teardown — the tick eases exposure, background
+     * and fog colour from these to the new look's over
+     * LOOK_FADE_MS. First build has nothing to fade from. */
+    const fadeFrom = this.lookGroup
+      ? {
+          fromExposure: this.renderer.toneMappingExposure,
+          fromBg: (this.scene.background as THREE.Color | null)?.clone() ?? new THREE.Color(look.background),
+          fromFog: this.scene.fog instanceof THREE.Fog ? this.scene.fog.color.clone() : new THREE.Color(look.fogColor),
+        }
+      : null;
+
     // Tear down the previous look — never the shared texture cache,
     // never the screen material (the reel keeps playing across a
     // re-skin), and avatars are not part of the look group.
@@ -1634,10 +1664,24 @@ export class KingsHallScene {
       this.envTarget = null;
     }
     this.lookAnim = EMPTY_ANIM;
+    this.brazierShadowLights = [];
 
     this.renderer.toneMappingExposure = look.exposure;
     this.scene.background = new THREE.Color(look.background);
     this.scene.fog = new THREE.Fog(look.fogColor, look.fogNear, look.fogFar);
+    if (fadeFrom) {
+      this.lookFade = {
+        ...fadeFrom,
+        toExposure: look.exposure,
+        toBg: new THREE.Color(look.background),
+        toFog: new THREE.Color(look.fogColor),
+        startedAtMs: performance.now(),
+      };
+      // The tick starts the ease FROM the old look's values.
+      this.renderer.toneMappingExposure = fadeFrom.fromExposure;
+      (this.scene.background as THREE.Color).copy(fadeFrom.fromBg);
+      this.scene.fog.color.copy(fadeFrom.fromFog);
+    }
     this.envTarget = buildSkyEnvironment(this.renderer, look);
     this.scene.environment = this.envTarget.texture;
     this.scene.environmentIntensity = look.environmentIntensity;
@@ -1646,6 +1690,7 @@ export class KingsHallScene {
     this.buildLook(group, look);
     this.scene.add(group);
     this.lookGroup = group;
+    this.applyLocalShadowLights();
     this.collectScopedLights(group);
     this.applyLightScoping();
     // Fresh lights + fog for the room we stand in (aimSun also
@@ -2895,6 +2940,7 @@ export class KingsHallScene {
     if (QUALITY[this.quality].shadows) {
       sun.castShadow = true;
       sun.shadow.mapSize.set(QUALITY[this.quality].shadowMapSize, QUALITY[this.quality].shadowMapSize);
+      sun.shadow.radius = QUALITY[this.quality].shadowRadius;
       sun.shadow.camera.left = -20;
       sun.shadow.camera.right = 20;
       sun.shadow.camera.top = 20;
@@ -3066,6 +3112,9 @@ export class KingsHallScene {
         light.position.set(x, 1.35, -11.3);
         group.add(light);
         anim.flickerLights.push({ light, base: 26, phase: Math.random() * 20 });
+        /* Item 13: the dais braziers join the one shadow-casting
+         * local light class (ruled in applyLocalShadowLights). */
+        this.brazierShadowLights.push(light);
       }
     }
   }
@@ -4427,11 +4476,15 @@ export class KingsHallScene {
         }
         g.add(brazier);
         if (look.candles) this.addEmbers(g, anim, bx, 0.82, bz, `${bx},${bz}`);
+        if (look.candles) this.addFakePool(g, bx, bz, "brazier");
         if (look.candles && QUALITY[this.quality].brazierLights) {
           const light = new THREE.PointLight(0xff9040, 22, 12, 1.9);
           light.position.set(bx, 1.35, bz);
           g.add(light);
           anim.flickerLights.push({ light, base: 22, phase: Math.random() * 20 });
+          /* Item 13: the plaza braziers join the one shadow-casting
+           * local light class (ruled in applyLocalShadowLights). */
+          this.brazierShadowLights.push(light);
         }
       }
     }
@@ -7265,6 +7318,9 @@ export class KingsHallScene {
       if (look.candles) {
         PLAZA_LAMPS.forEach((l, i) => {
           this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.31);
+          /* Fake light pool: the lamps carry NO real light — the
+           * pool is what grounds their glow on the paving. */
+          this.addFakePool(g, l.x, l.z, "lamp");
         });
       }
     }
@@ -8113,6 +8169,55 @@ export class KingsHallScene {
     });
   }
 
+  /** Item 13 [PICK — conservative top-rung version]: the brazier
+   *  point lights (plaza + hall dais, ONE class) cast shadows on
+   *  the HIGH rung only. Cube maps at 512, near/far fitted to the
+   *  light's own range, radius from the rung's softness table.
+   *  The flames flicker in INTENSITY only — positions are static,
+   *  so the frozen-map discipline keeps their shadows honest and
+   *  the cost lands on refresh frames, never per frame. This is
+   *  also the hall's indoor night shadow light: indoors after
+   *  dark the directional is out (the look's sun is absent), and
+   *  the dais braziers are the fire the room is lit by. */
+  private applyLocalShadowLights(): void {
+    const rung = QUALITY[this.quality];
+    for (const light of this.brazierShadowLights) {
+      light.castShadow = rung.localShadowLights;
+      if (rung.localShadowLights) {
+        light.shadow.mapSize.set(512, 512);
+        light.shadow.camera.near = 0.3;
+        light.shadow.camera.far = light.distance > 0 ? light.distance : 12;
+        light.shadow.radius = rung.shadowRadius;
+        light.shadow.bias = -0.005;
+        if (light.shadow.map) {
+          light.shadow.map.dispose();
+          light.shadow.map = null;
+        }
+      }
+    }
+    if (rung.localShadowLights) this.renderer.shadowMap.needsUpdate = true;
+  }
+
+  /** A fake light pool (night-life's FAKE_POOL): an additive
+   *  radial glow laid on the ground under a flame that carries
+   *  no (or not enough) real light — the plaza lamps above all.
+   *  Dressing, not a light: no shadow, no cost beyond one quad. */
+  private addFakePool(group: THREE.Group, x: number, z: number, kind: "lamp" | "brazier", groundY = 0.02): void {
+    const r = FAKE_POOL[kind].radius;
+    const pool = new THREE.Mesh(
+      new THREE.CircleGeometry(r, 24),
+      new THREE.MeshBasicMaterial({
+        map: flameTexture(), transparent: true,
+        opacity: fakePoolOpacity(kind, this.quality),
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(x, groundY, z);
+    pool.renderOrder = 2;
+    group.add(pool);
+  }
+
   /** Item 24: switch off lights whose range provably cannot reach
    *  the walker's current room (visibility.ts carries the proof);
    *  everything that could reach stays on — the look inside an
@@ -8214,6 +8319,7 @@ export class KingsHallScene {
       this.sunLight.castShadow = rung.shadows;
       if (rung.shadows && rung.shadowMapSize > 0) {
         this.sunLight.shadow.mapSize.set(rung.shadowMapSize, rung.shadowMapSize);
+        this.sunLight.shadow.radius = rung.shadowRadius;
         this.sunLight.shadow.bias = -0.0004;
         this.sunLight.shadow.normalBias = 0.03;
         if (this.sunLight.shadow.map) {
@@ -8222,6 +8328,9 @@ export class KingsHallScene {
         }
       }
     }
+    /* Item 13/14: a ladder step re-rules the local shadow lights
+     * and the softness they carry, in the same pass. */
+    this.applyLocalShadowLights();
     this.renderer.shadowMap.needsUpdate = true;
     if (this.floorReflector) {
       /* Item 92: the target is truly the rung's size in both
@@ -8612,6 +8721,29 @@ export class KingsHallScene {
     ) {
       this.lastPose = pose;
       this.onPose?.(pose.x, pose.z, pose.rotY);
+    }
+
+    /* Item 18: the frozen shadow map re-renders on the slow
+     * cadence while ANIMATED casters exist (swaying banners, the
+     * spinning wheel) — their shadows track instead of resting at
+     * the build pose. Static scenes and reduced motion pay
+     * nothing (the sway itself is still under reduced motion). */
+    if (
+      !this.reducedMotion &&
+      shadowRefreshDue(this.frameIndex, anim.bannerSways.length + anim.spinners.length, this.renderer.shadowMap.enabled)
+    ) {
+      this.renderer.shadowMap.needsUpdate = true;
+    }
+
+    /* Day/night crossfade: ease exposure / background / fog from
+     * the outgoing look's values until the fade completes. */
+    if (this.lookFade) {
+      const p = lookFadeProgress(performance.now() - this.lookFade.startedAtMs);
+      this.renderer.toneMappingExposure =
+        this.lookFade.fromExposure + (this.lookFade.toExposure - this.lookFade.fromExposure) * p;
+      if (this.scene.background instanceof THREE.Color) this.scene.background.lerpColors(this.lookFade.fromBg, this.lookFade.toBg, p);
+      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerpColors(this.lookFade.fromFog, this.lookFade.toFog, p);
+      if (p >= 1) this.lookFade = null;
     }
 
     this.renderer.render(this.scene, this.camera);
