@@ -385,6 +385,34 @@ const textureCache = new Map<string, THREE.Texture>();
  * from — most current phones/desktops support 16). */
 let maxTextureAnisotropy = 8;
 
+/* Stack-100 #2 items 82/84/94 — the rung's anisotropy, applied
+ * honestly everywhere a surface map is born and re-applied on every
+ * ladder step. Two facts used to break the ladder's word: textures
+ * were created at the DEVICE ceiling (a low-rung scene still decoded
+ * its surfaces at anisotropy 16 until some later step happened to
+ * re-range the colour cache), and the derived PBR sets + brushed
+ * gold maps were never re-ranged at all — the tier pass iterated the
+ * colour textureCache only, so the maps that carry the palace's
+ * grazing-angle detail (floor/rect PBR sets, the fabric set, and the
+ * gold maps the district gates' caps and headers wear) kept whatever
+ * they were born with forever. Now: every surface texture is born at
+ * surfaceAnisotropy() (the ACTIVE rung capped by the device), and
+ * the non-cache sets register here so applyTierToRenderer re-ranges
+ * them alongside the colour cache on every step. */
+let activeRungAnisotropy = 16;
+const rungSurfaceTextures = new Set<THREE.Texture>();
+
+function surfaceAnisotropy(): number {
+  return Math.min(activeRungAnisotropy, maxTextureAnisotropy);
+}
+
+/** Born at the active rung's anisotropy and registered for every
+ *  future ladder step (see the note above). */
+function registerRungSurfaceTexture(tex: THREE.Texture): void {
+  tex.anisotropy = surfaceAnisotropy();
+  rungSurfaceTextures.add(tex);
+}
+
 function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Texture {
   const key = `${url}@${repeatX}x${repeatY}`;
   const hit = textureCache.get(key);
@@ -420,7 +448,7 @@ function hallTexture(url: string, repeatX: number, repeatY: number): THREE.Textu
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(repeatX, repeatY);
-  tex.anisotropy = maxTextureAnisotropy;
+  tex.anisotropy = surfaceAnisotropy();
   textureCache.set(key, tex);
   return tex;
 }
@@ -1440,6 +1468,7 @@ export class KingsHallScene {
      * every other rung axis and MSAA follows on the next entry. */
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, powerPreference: "high-performance" });
     maxTextureAnisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy() || 8);
+    activeRungAnisotropy = q.anisotropy;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1559,7 +1588,7 @@ export class KingsHallScene {
     ): THREE.MeshStandardMaterial => {
       const rep = repeatForSize(widthM, heightM, metresPerTile);
       const pbr = derivedPbrTextures(url, kind, rep.x, rep.y);
-      for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
+      for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) registerRungSurfaceTexture(t);
       return new THREE.MeshStandardMaterial({
         map: hallTexture(url, rep.x, rep.y),
         normalMap: pbr.normalMap, normalScale: new THREE.Vector2(0.6, 0.6),
@@ -1602,12 +1631,16 @@ export class KingsHallScene {
      * subtle streak normal — under the sky env, so it reads as
      * metal. roughness scalar is 1: the map carries the value. */
     const goldMaps = brushedGoldTextures("bright", 2, 2);
+    registerRungSurfaceTexture(goldMaps.normalMap);
+    registerRungSurfaceTexture(goldMaps.roughnessMap);
     const gold = new THREE.MeshStandardMaterial({
       color: 0xd9b45c, metalness: 1, roughness: 1,
       roughnessMap: goldMaps.roughnessMap, normalMap: goldMaps.normalMap,
       normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.35,
     });
     const goldDarkMaps = brushedGoldTextures("dark", 2, 2);
+    registerRungSurfaceTexture(goldDarkMaps.normalMap);
+    registerRungSurfaceTexture(goldDarkMaps.roughnessMap);
     const goldDark = new THREE.MeshStandardMaterial({
       color: 0x9a7a24, metalness: 1, roughness: 1,
       roughnessMap: goldDarkMaps.roughnessMap, normalMap: goldDarkMaps.normalMap,
@@ -1624,6 +1657,7 @@ export class KingsHallScene {
     const ceiling = marbleSurface("marble-rough", 28, 30, { color: ceilingTint, envMapIntensity: 0.55 });
     const fabricRep = repeatForSize(1.8, 1.8, FABRIC_METRES_PER_TILE);
     const fabricPbr = derivedPbrTextures(look.throneFabricTextureUrl, "fabric", fabricRep.x, fabricRep.y);
+    for (const t of [fabricPbr.normalMap, fabricPbr.roughnessMap, fabricPbr.aoMap]) registerRungSurfaceTexture(t);
     const fabric = new THREE.MeshStandardMaterial({
       map: hallTexture(look.throneFabricTextureUrl, fabricRep.x, fabricRep.y),
       normalMap: fabricPbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
@@ -2051,7 +2085,7 @@ export class KingsHallScene {
     const floorRep = repeatForSize(28, 30, MARBLE_METRES_PER_TILE);
     const floorMap = hallTexture(look.marbleTextureUrl, floorRep.x, floorRep.y);
     const floorPbr = derivedPbrTextures(look.marbleTextureUrl, "marble-floor", floorRep.x, floorRep.y);
-    for (const t of [floorPbr.normalMap, floorPbr.roughnessMap, floorPbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
+    for (const t of [floorPbr.normalMap, floorPbr.roughnessMap, floorPbr.aoMap]) registerRungSurfaceTexture(t);
     const overlay = new THREE.Mesh(
       new THREE.PlaneGeometry(28, 30),
       new THREE.MeshPhysicalMaterial({
@@ -2623,7 +2657,7 @@ export class KingsHallScene {
     sun.target.position.set(7, 0, -5);
     if (QUALITY[this.quality].shadows) {
       sun.castShadow = true;
-      sun.shadow.mapSize.set(this.quality === "high" ? 2048 : 1024, this.quality === "high" ? 2048 : 1024);
+      sun.shadow.mapSize.set(QUALITY[this.quality].shadowMapSize, QUALITY[this.quality].shadowMapSize);
       sun.shadow.camera.left = -20;
       sun.shadow.camera.right = 20;
       sun.shadow.camera.top = 20;
@@ -2967,7 +3001,7 @@ export class KingsHallScene {
     const rep = repeatForSize(w, d, surface?.metresPerTile ?? MARBLE_METRES_PER_TILE);
     const map = hallTexture(texUrl, rep.x, rep.y);
     const pbr = derivedPbrTextures(texUrl, kind, rep.x, rep.y);
-    for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
+    for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) registerRungSurfaceTexture(t);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(w, d),
       new THREE.MeshPhysicalMaterial({
@@ -3022,6 +3056,8 @@ export class KingsHallScene {
    *  hall; shells get exactly this one). */
   private shellLantern(g: THREE.Group, look: HallLook, x: number, z: number): void {
     const lanternGoldMaps = brushedGoldTextures("bright", 1, 1);
+    registerRungSurfaceTexture(lanternGoldMaps.normalMap);
+    registerRungSurfaceTexture(lanternGoldMaps.roughnessMap);
     const matsGold = new THREE.MeshStandardMaterial({
       color: 0xd9b45c, metalness: 1, roughness: 1,
       roughnessMap: lanternGoldMaps.roughnessMap, normalMap: lanternGoldMaps.normalMap,
@@ -7365,14 +7401,37 @@ export class KingsHallScene {
       const look = hallLookFor(this.theme);
       this.floorOverlayMat.opacity = rung.reflectorSize > 0 ? look.floorOverlayOpacity : 0.97;
     }
+    activeRungAnisotropy = rung.anisotropy;
     textureCache.forEach((tex) => {
-      tex.anisotropy = Math.min(rung.anisotropy, maxTextureAnisotropy);
+      tex.anisotropy = surfaceAnisotropy();
       tex.needsUpdate = true;
     });
+    /* Items 82/84/94: the tier pass reaches EVERY surface map, not
+     * just the colour cache — the derived PBR sets and the brushed
+     * gold maps (the district gates' caps and headers, the lantern
+     * gilt) registered at birth, so a step re-ranges them too. */
+    for (const tex of rungSurfaceTextures) {
+      tex.anisotropy = surfaceAnisotropy();
+      tex.needsUpdate = true;
+    }
     const dust = this.lookAnim.dust;
     if (dust) {
       const total = dust.geometry.getAttribute("position")?.count ?? 0;
       dust.geometry.setDrawRange(0, Math.floor(total * rung.particleScale));
+    }
+    /* Item 82: the rung's particleScale drives the ember and pollen
+     * fields too, not just the dust — a step down used to leave the
+     * braziers pouring a high-rung ember count forever. The fields
+     * were BUILT from a tier count (night-life's table); the draw
+     * range is the rung fraction of the built field, so it can never
+     * exceed what was built, and the tick (which pours every field
+     * position each frame) needs no change. */
+    for (const e of this.lookAnim.embers) {
+      e.points.geometry.setDrawRange(0, Math.floor(e.field.length * rung.particleScale));
+    }
+    if (this.lookAnim.pollen) {
+      const pollen = this.lookAnim.pollen;
+      pollen.points.geometry.setDrawRange(0, Math.floor(pollen.field.length * rung.particleScale));
     }
   }
 

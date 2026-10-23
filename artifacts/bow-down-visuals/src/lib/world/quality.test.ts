@@ -318,3 +318,42 @@ describe("user quality control (item 85: chrome control, persisted)", () => {
     expect(worldPageSrc).toContain("scene.setQualityPreference(loadQualityPreference())");
   });
 });
+
+describe("rungs fully applied (items 82/84/94: no side tables, no orphan maps)", () => {
+  it("anisotropy reads 16/8/4 honestly across the ladder (item 84)", () => {
+    expect(rungFor("high").anisotropy).toBe(16);
+    expect(rungFor("medium").anisotropy).toBe(8);
+    expect(rungFor("low").anisotropy).toBe(4);
+  });
+
+  it("no texture is born at the raw device ceiling — births read the active rung", () => {
+    expect(hallSceneSrc).not.toContain("t.anisotropy = maxTextureAnisotropy");
+    expect(hallSceneSrc).toContain("tex.anisotropy = surfaceAnisotropy();");
+    expect(hallSceneSrc).toContain("activeRungAnisotropy = q.anisotropy;");
+  });
+
+  it("the derived PBR sets and brushed gold maps register for the tier pass (item 94)", () => {
+    // surface() + floor + rect-floor PBR sets, the fabric set, and
+    // the gold maps (gates' caps/headers, lantern gilt).
+    const registrations = hallSceneSrc.match(/registerRungSurfaceTexture\(/g) ?? [];
+    expect(registrations.length).toBeGreaterThanOrEqual(8);
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 3200);
+    expect(applySegment).toContain("for (const tex of rungSurfaceTextures)");
+    expect(applySegment).toContain("activeRungAnisotropy = rung.anisotropy;");
+  });
+
+  it("the sun's shadow size reads the rung — no per-tier side table (item 82)", () => {
+    expect(hallSceneSrc).not.toContain('this.quality === "high" ? 2048 : 1024');
+    expect(hallSceneSrc).toContain(
+      "sun.shadow.mapSize.set(QUALITY[this.quality].shadowMapSize, QUALITY[this.quality].shadowMapSize)",
+    );
+  });
+
+  it("a ladder step re-ranges embers and pollen from the rung's particleScale (item 82)", () => {
+    const applyIdx = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    const applySegment = hallSceneSrc.slice(applyIdx, applyIdx + 3200);
+    expect(applySegment).toContain("e.field.length * rung.particleScale");
+    expect(applySegment).toContain("pollen.field.length * rung.particleScale");
+  });
+});
