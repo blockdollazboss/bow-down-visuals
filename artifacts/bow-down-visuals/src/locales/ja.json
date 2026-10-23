@@ -2287,7 +2287,8 @@
     "vibeHypeBlurb": "名プレイ＆大勝利",
     "vibeHypeLabel": "盛り上がり",
     "vibeWholesomeBlurb": "ほっこりする瞬間",
-    "vibeWholesomeLabel": "ほっこり"
+    "vibeWholesomeLabel": "ほっこり",
+    "addCaptions": "キャプションを追加"
   },
   "coach": {
     "buildPlan": "マネープランを作る",
@@ -5654,7 +5655,9 @@
     "whatYouGetVocalDirection": "ボーカルディレクション",
     "discardDraftButton": "下書きを破棄する",
     "projectSaved": "プロジェクトを保存しました",
-    "recoveryFailedTitle": "復元に失敗しました"
+    "recoveryFailedTitle": "復元に失敗しました",
+    "guidedTabLabel": "ガイド付き",
+    "simpleTabLabel": "Turbo"
   },
   "songs": {
     "cancelButton": "キャンセル",
@@ -5886,7 +5889,12 @@
     "uploadFace": "顔写真をアップロード",
     "variationAlt": "サムネイルバリエーション {{n}}",
     "variationBadge": "バリエーション {{n}}",
-    "variationDetail": "{{count}}バリエーション{{suffix}} · {{aspectRatio}}"
+    "variationDetail": "{{count}}バリエーション{{suffix}} · {{aspectRatio}}",
+    "videoReferenceAttached": "リファレンスとして動画を添付しました",
+    "removeVideoReference": "動画リファレンスを削除",
+    "sendToVideoStudio": "動画スタジオへ送る",
+    "artworkModeLabel": "アートワークパック",
+    "useAsThumbnail": "サムネイルとして使う…"
   },
   "thumbnailTest": {
     "analyzing": "分析中…",
@@ -5928,7 +5936,8 @@
     "uploadCta": "2〜4枚のサムネイルをここにドロップ、またはクリックして選択",
     "uploadFormats": "PNG/JPG/WebP · {{uploaded}}/{{max}}枚アップロード済み",
     "weaknessesLabel": "弱み",
-    "winnerBadge": "勝者"
+    "winnerBadge": "勝者",
+    "filesSkipped_other": "{{count}}件のファイルがスキップされました — 画像のみ、各最大10 MB、最大{{max}}ファイルまで。"
   },
   "thumbnails": {
     "backToDashboard": "ダッシュボードに戻る",
@@ -5954,7 +5963,8 @@
     "removedToast": "ライブラリから削除しました",
     "removing": "削除中…",
     "untitled": "無題のサムネイル",
-    "viewFullSize": "{{title}} をフルサイズで表示"
+    "viewFullSize": "{{title}} をフルサイズで表示",
+    "fromProject": "このプロジェクトから"
   },
   "tipPage": {
     "amountRequired": "まず金額を選ぶか入力してください。",
@@ -6231,10 +6241,10 @@
   },
   "upscale": {
     "afterAlt": "After — アップスケール後の画像",
-    "afterLabel": "After",
+    "afterLabel": "アフター",
     "back": "戻る",
     "beforeAlt": "Before — 元の画像",
-    "beforeLabel": "Before",
+    "beforeLabel": "ビフォア",
     "compareAriaLabel": "Before/After比較",
     "compareHint": "ハンドルをドラッグ — またはフォーカスして← →キーで比較",
     "creditsRemaining": "残り{{count}} Visual Bucs",
@@ -6296,7 +6306,21 @@
     "videoUpscaleComplete": "アップスケール完了 — {{target}}",
     "videoUpscaleFailedRefunded": "アップスケールに失敗しました — 300 Visual Bucsを返金しました。",
     "videoUpscalerSub": "クリップを1080pや4Kに — {{cost}} Visual Bucs",
-    "videoUpscalerTitle": "動画アップスケーラー"
+    "videoUpscalerTitle": "動画アップスケーラー",
+    "tabEnhance": "エンハンス",
+    "tabEnhanceShort": "エンハンス",
+    "modeLabel": "アップスケールモード",
+    "modeClassic": "クラシック（ffmpeg）",
+    "modeClassicDesc": "高速なピクセルリサンプリング",
+    "modeGenerative": "生成的AI",
+    "modeGenerativeDesc": "AIによるディテール再構成（プレミアム）",
+    "genFraming": "生成的AIアップスケールは、上のクラシックアップスケーラーとは別の製品です：モデルがピクセルを単にリサンプリングするのではなく、もっともらしいディテールを再構成します。プレミアム価格、プレミアムな結果 — クラシックな300 VBのffmpegアップスケールは、その隣で引き続き利用できます。",
+    "genChecking": "生成的アップスケールのプロバイダーを確認中…",
+    "genNotConfigured": "生成的AIアップスケーリングはまだ接続されていません — サイトオーナーがプロバイダーキーを追加する必要があります。上のクラシックなffmpegアップスケーラーは今すぐ使えます。請求はされません。",
+    "genStatusFailed": "アップスケールサービスに到達できませんでした。",
+    "genDisabledTitle": "有効化するにはプロバイダーキーを接続",
+    "genButton": "{{target}}への生成的アップスケール（1500 VB — 価格は未定）",
+    "genPriceNote": "プレースホルダー価格 — 本番化の前に、実際の価格にはオーナーの承認が必要です。クラシックなffmpegアップスケールは300 VBのままです。"
   },
   "videoEditor": {
     "activeSceneNoClip": "アクティブなシーンにクリップがありません — 音声は再生中です",
@@ -7042,7 +7066,34 @@
     "voiceEditsTitle": "ボイス編集"
   },
   "videoTemplatesPage": {
-    "applyPrice": "適用に {{count}} Visual Bucs"
+    "applyPrice": "適用に {{count}} Visual Bucs",
+    "copyFailed": "リンクをコピーできませんでした。",
+    "ctaButton": "Visual Vibesを開く",
+    "ctaSub": "すべてのテンプレートはVisual Vibesの中でワンタップで適用できます — クリップをスロットに対応させ、テキストを編集すれば、キャプション、サムネイル、クリップ、スケジューリングのハンドオフが組み込まれた完成動画ができます。",
+    "ctaTitle": "あなたの番を作る準備はできましたか？",
+    "kicker": "無料テンプレートギャラリー",
+    "linkCopied": "シェアリンクをコピーしました — あなたの紹介コードが含まれています",
+    "copyShareLink": "シェアリンクをコピー",
+    "outcomeLabel": "制作対象",
+    "seoP1": "編集テンプレートは完成動画への最速の道です：カット、トランジション、テキスト処理が事前にデザインされているので、あなたは自分のクリップと写真を入れるだけ。各テンプレートはサーバー側で、放送スタイルのトランジション — スライド、ワイプ、アイリスリビール、パンチの効いた放射状カット — と、大胆な金のテキスト処理でレンダリングされるため、結果はテンプレートっぽくなく、デザインされたものに見えます。",
+    "seoP2": "テンプレートを選ぶと、テンプレートが事前選択された状態でVisual Vibesで開きます。メディアをスロットに対応させ、テキストオーバーレイを書き直し、任意でミュージックベッドを追加して、適用 — ワンタップで完全な編集がレンダリングされます。そこから、完成した動画をキャプション、サムネイルメーカー、スマートクリップ、ソーシャルスケジューラーへそのまま渡せます。",
+    "seoTitle": "編集テンプレートがインターネットを破壊する理由",
+    "slotsLabel": "{{count}}個のメディアスロット",
+    "sub": "テンプレートを選び、クリップと写真を入れるだけで、滑らかな自動編集動画ができます — カット、トランジション、テキストの焼き込み付き。アカウントで無料で閲覧でき、レンダリング時にVisual Bucsが適用されます。",
+    "titleA": "動画編集",
+    "titleB": "テンプレート",
+    "useTemplate": "このテンプレートを使う",
+    "searchPlaceholder": "テンプレートを検索 — 「lyric」「promo」「travel」を試して…",
+    "sortFeatured": "注目 — 私たちのおすすめ",
+    "sortAz": "名前 A–Z",
+    "sortShortest": "短い順",
+    "sortMostClips": "クリップ数が多い順",
+    "resultsCount": "{{count}}件のテンプレート",
+    "noResultsTitle": "その検索に一致するテンプレートはありません",
+    "noResultsSub": "別の単語を試すか、検索をクリアして全ライブラリを閲覧してください。",
+    "clearSearch": "検索をクリア",
+    "remake": "これをリメイク",
+    "shareTemplate": "このテンプレートをシェア"
   },
   "viralityCheck": {
     "bestPostingTime": "最適な投稿時間",
@@ -7282,7 +7333,8 @@
     "toolSub": "自分の動画からロゴを除去 — {{cost}} Visual Buc",
     "toolTitle": "透かし除去",
     "videoFileError": "動画ファイルを選択してください。",
-    "videoSizeError": "この動画は80 MBのアップロード上限を超えています。"
+    "videoSizeError": "この動画は80 MBのアップロード上限を超えています。",
+    "sendToVideoEditor": "Visual Vibesへ送る"
   },
   "websiteBuilder": {
     "applyEditButton": "編集を適用 — {{cost}} Visual Bucs",
@@ -9683,7 +9735,16 @@
     "title": "オーディオスタジオ"
   },
   "thumbnailStudio": {
-    "title": "サムネイルスタジオ"
+    "title": "サムネイルスタジオ",
+    "subtitle": "スクロールを止めるサムネイルを生成し、AIでA/Bテストし、ライブラリを閲覧 — すべて同じスタジオで。",
+    "tabs": {
+      "generate": "生成",
+      "abtest": "A/Bテスト",
+      "library": "ライブラリ",
+      "aria": "サムネイルスタジオのセクション",
+      "enhance": "エンハンス",
+      "background": "背景"
+    }
   },
   "wave9": {
     "directEdit": {
@@ -12405,5 +12466,721 @@
     "addHint": "再生ヘッドの位置に配置",
     "addedToast": "モーショングラフィックを追加しました",
     "addedToastDesc": "再生ヘッドの位置でタイムラインに配置しました。"
+  },
+  "cartoonStudio": {
+    "pageTitle": "カートゥーンスタジオ",
+    "pageDescription": "カートゥーン動画を作り、カートゥーンキャラクターをデザインし、写真をカートゥーン化 — すべて同じスタジオで。",
+    "backToDashboard": "ダッシュボードへ戻る",
+    "costBadge": "動画 400 VB · 画像 200 VB",
+    "title": "カートゥーンスタジオ",
+    "subtitle": "カートゥーンはコンテンツ制作の一部です。カートゥーンクリップを生成し、キャラクターをデザインし、どんな写真もカートゥーン化 — 滑らかなワークフローで。",
+    "tabsAria": "カートゥーンスタジオのセクション",
+    "tabVideo": "カートゥーン動画",
+    "tabCharacters": "キャラクター",
+    "tabCartoonize": "カートゥーン化",
+    "styleLabel": "カートゥーンスタイル",
+    "style3dToonName": "3Dトゥーン",
+    "styleClassic2dName": "クラシック2D",
+    "styleComicName": "コミックブック",
+    "promptLabel": "カートゥーン動画を説明",
+    "videoPromptPlaceholder": "ネオンキャンディの海を航海する勇敢なサメの船長、ポップコーンでできたカモメたち…",
+    "durationLabel": "長さ",
+    "aspectLabel": "アスペクト比",
+    "generateVideo": "カートゥーン動画を生成（{{cost}} VB）",
+    "videoFeatureName": "カートゥーン動画",
+    "videoStarted": "カートゥーン動画を開始しました",
+    "videoStartedDesc": "カートゥーンクリップをレンダリング中 — 少々お待ちください。",
+    "characterLabel": "カートゥーンキャラクターを説明",
+    "characterPlaceholder": "曲がったアンテナ、丸いお腹、大きくて優しい目をした眠そうなロボットバリスタ…",
+    "generateCharacter": "キャラクターシートを生成（{{cost}} VB）",
+    "characterFeatureName": "カートゥーンキャラクターシート",
+    "characterResultAlt": "生成されたカートゥーンキャラクターシート",
+    "uploadPrompt": "タップして、カートゥーン化する写真をアップロード",
+    "uploadPreviewAlt": "カートゥーン化する写真",
+    "removePhoto": "写真を削除",
+    "cartoonizeButton": "写真をカートゥーン化（{{cost}} VB）",
+    "cartoonizeFeatureName": "写真をカートゥーン化",
+    "cartoonizeResultAlt": "カートゥーン化された写真",
+    "generating": "生成中…",
+    "generationFailed": "生成に失敗しました。Visual Bucsは請求されていません。",
+    "networkError": "生成中にネットワークエラー。Visual Bucsは請求されていません。",
+    "download": "ダウンロード",
+    "alsoTry": "こちらも試そう",
+    "alsoTryMusicVideo": "カートゥーンミュージックビデオスタイル",
+    "alsoTryEditRecipe": "キッズ / カートゥーン編集レシピ",
+    "styleAnimeName": "Anime"
+  },
+  "bgStudio": {
+    "uploadNotImage": "画像ファイルを選んでください。",
+    "uploadedTitle": "写真をアップロードしました",
+    "uploadedDesc": "次に背景を取り除きましょう。",
+    "uploadFailed": "アップロードに失敗しました。もう一度お試しください。",
+    "step1": "写真をアップロード",
+    "step2": "背景を取り除く",
+    "step3": "背景を置き換える",
+    "uploading": "アップロード中…",
+    "dropHint": "写真をここにドロップ、またはタップして選択",
+    "photoReady": "写真の準備完了",
+    "changePhoto": "写真を変更",
+    "removeCta": "背景を取り除く",
+    "removing": "背景を取り除き中…",
+    "removeFailed": "背景の除去に失敗しました。",
+    "noOutput": "出力画像が返されませんでした。",
+    "advanced": "手動：除去の強さ",
+    "aggressiveness": "除去の強さ",
+    "aggressivenessHint": "高いほどエッジのピクセルを多く除去します — ぼやけた背景や影のある背景に使ってください。",
+    "before": "ビフォア",
+    "after": "アフター",
+    "detectedColor": "検出された背景色",
+    "kind": {
+      "color": "色",
+      "gradient": "グラデーション",
+      "ai": "AI背景"
+    },
+    "custom": "カスタム",
+    "checkingAi": "AIの利用可否を確認中…",
+    "aiNotConnected": "AI背景はこのサーバーにまだ接続されていません。代わりに単色またはプリセットシーンを選んでください。",
+    "customPrompt": "カスタム背景プロンプト",
+    "promptPlaceholder": "背景を説明 — 例：夜明けの金の砂漠の砂丘、柔らかな光",
+    "provider": "モデル",
+    "generateCta": "背景を生成",
+    "generating": "背景を生成中…",
+    "backdropFailed": "背景の生成に失敗しました。",
+    "priceTbdNote": "下書き価格 — 最終ではありません。無料の色とグラデーションは一切料金がかかりません。",
+    "composeFailed": "最終画像を合成できませんでした。",
+    "compositing": "合成中…",
+    "result": "あなたの新しい写真",
+    "startOver": "最初からやり直す",
+    "download": "PNGをダウンロード"
+  },
+  "headshotStudio": {
+    "eyebrow": "プロフィール写真",
+    "title": "ヘッドショット",
+    "subtitle": "高そうに見えるプロフィール写真。フローを選べば、残りはAIが担当します。",
+    "flows": {
+      "autopilot": "Turboモード",
+      "preset": "スタイルプリセット",
+      "manual": "手動プロンプト"
+    },
+    "autopilot": {
+      "blurb": "ワンタップ。AIが最も映えるスタジオルックを自動で選びます — 照明、背景、フレーミング、すべて。",
+      "costNote": "ヘッドショットが成功した場合のみ請求されます。"
+    },
+    "styleLabel": "スタイル",
+    "presetNames": {
+      "studio": "スタジオ",
+      "stage": "ステージ",
+      "street": "ストリート",
+      "luxury": "ラグジュアリー"
+    },
+    "presets": {
+      "studio": "クラシックなスタジオポートレート — クリーンな背景、柔らかなプロの照明。",
+      "stage": "ステージ上のルック — 背後にスポットライトと観客のエネルギー。",
+      "street": "ストリート誌風 — ゴールデンアワー、都会的、自信に満ちた。",
+      "luxury": "ラグジュアリー誌風 — 大理石、金、ハイエンドファッション。"
+    },
+    "manualLabel": "あなたのプロンプト — 完全コントロール",
+    "manualPlaceholder": "例：ドラマチックな白黒ヘッドショット、硬い影、フィルムノワールの雰囲気、カメラから目をそらして…",
+    "refLabel": "顔リファレンス（任意）",
+    "refPlaceholder": "写真URLを貼り付けてあなたのアイデンティティを固定 — ヘッドショットはあなたの顔を保持します。",
+    "modelLabel": "エンジン",
+    "models": {
+      "nano": "Turboレンダー",
+      "nanoHint": "高速 · あなたの顔を固定",
+      "ideogram": "ポートレートレンダー",
+      "ideogramHint": "別のレンダースタイル"
+    },
+    "featureName": "ヘッドショット",
+    "generate": "ヘッドショットを生成",
+    "generating": "生成中…",
+    "visualBucs": "Visual Bucs",
+    "costNote": "ヘッドショットが成功した場合のみ請求されます。",
+    "errors": {
+      "describeFirst": "まずヘッドショットのルックを説明してください。",
+      "outOfCredits": "Visual Bucsが不足しています。続けるにはVisual Bucsを購入してください。",
+      "failed": "ヘッドショットの生成に失敗しました。Visual Bucsは請求されていません。",
+      "tryOtherEngine": "上のもう一方のエンジンを試すか、オーナーにAPIキーの接続を依頼してください。"
+    },
+    "resultLabel": "あなたのヘッドショット",
+    "resultAlt": "生成されたAIヘッドショット",
+    "download": "ダウンロード"
+  },
+  "colorGrade": {
+    "title": "カラーグレード",
+    "subtitle": "AIカラーグレード — ワンタップでクリップに焼き込み",
+    "priceBadge": "{cost} VB / グレード · プレビュー無料",
+    "clipToGrade": "グレードするクリップ",
+    "manualTitle": "手動ホイール — ライブプレビュー",
+    "freePreview": "無料プレビュー",
+    "reset": "リセット",
+    "temp": "色温度",
+    "tempHint": "クール ↔ ウォーム",
+    "tint": "色合い",
+    "tintHint": "グリーン ↔ マゼンタ",
+    "exposure": "露出",
+    "exposureHint": "暗い ↔ 明るい",
+    "contrast": "コントラスト",
+    "contrastHint": "フラット ↔ パンチの効いた",
+    "saturation": "彩度",
+    "saturationHint": "落ち着いた ↔ 鮮やか",
+    "burnManual": "手動ルックを焼き込む · {cost} VB",
+    "burnManualNote": "手動ホイールはライブでプレビューされます。焼き込みでは最も近いAIプリセットが適用されます。",
+    "autoGrade": "オートグレード · {cost} VB",
+    "autoGradeNote": "フィードに最適なルックを選びます — VibrantはSNSで映えます。",
+    "presetGridTitle": "ワンタップグレード — タップで焼き込み",
+    "noClips": "タイムラインにまだクリップがありません",
+    "noClipsHint": "まずシーンにクリップを追加してから、グレードしてください。",
+    "loadingPresets": "プリセットを読み込み中…",
+    "gradedWith": "{preset}でグレードしました",
+    "useInExport": "エクスポートで使う",
+    "replaceSceneClip": "シーンクリップを置き換え",
+    "download": "ダウンロード",
+    "copyLink": "リンクをコピー",
+    "linkCopied": "リンクをコピーしました",
+    "autoGradeDone": "オートグレード完了",
+    "gradeBurnedIn": "グレードを焼き込みました",
+    "gradingFailed": "カラーグレードに失敗しました — Visual Bucsは使われていません。",
+    "userCancelled": "キャンセルしました — 請求なし。",
+    "shareNote": "旅するために作られたワンクリックシェア — Bow Down Visualsのアトリビューションがすべての出力に付きます。"
+  },
+  "photoEnhance": {
+    "featureName": "フォトエンハンス",
+    "title": "エンハンスする写真をアップロード",
+    "uploadTitle": "エンハンスする写真をアップロード",
+    "uploadHint": "JPGまたはPNG、最大12 MB。古い写真、ノイズの多い写真、白黒写真も歓迎です。",
+    "errorNotImage": "そのファイルは画像ではありません。",
+    "errorTooLarge": "そのファイルは大きすぎます（最大12 MB）。",
+    "errorUpload": "アップロードに失敗しました。もう一度お試しください。",
+    "errorNoPhoto": "まず写真をアップロードしてください。",
+    "errorNoOps": "操作を選んでください。",
+    "errorFailed": "エンハンスに失敗しました。Visual Bucsは請求されていません。",
+    "errorCredits": "Visual Bucsが不足しています。続けるにはVisual Bucsを購入してください。",
+    "errorNotConnected": "フォトエンハンスはまだ接続されていません — AI画像サービスがサーバーにセットアップされる必要があります。",
+    "beforeAfter": "ビフォア / アフター — 仕切りをドラッグ",
+    "previewOriginal": "あなたの写真",
+    "startOver": "最初からやり直す",
+    "before": "ビフォア",
+    "after": "アフター",
+    "compareSlider": "ビフォアとアフターを比較",
+    "enhancing": "写真をエンハンス中…",
+    "applied": "適用済み：{{ops}}",
+    "download": "ダウンロード",
+    "autopilotTitle": "すべてをエンハンス",
+    "autopilotHint": "ワンタップ：アップスケール、ノイズ除去、ダメージ修復 — 残りはAIが選びます。",
+    "autopilotButton": "すべてをエンハンス",
+    "costNote": "エンハンスごとに{{cost}} Visual Bucs",
+    "pickOps": "または操作を選ぶ",
+    "colorizeHint": "カラー化は白黒写真にのみ適用されます。復元は傷、ほこり、色あせを修復します。",
+    "advanced": "高度な設定 — 強さスライダー",
+    "runSelected": "選択した操作でエンハンス",
+    "ops": {
+      "upscale": "アップスケール",
+      "denoise": "ノイズ除去",
+      "restore": "復元",
+      "colorize": "カラー化"
+    }
+  },
+  "speedRamp": {
+    "title": "スピードランプ",
+    "subtitle": "スローモーション、スピードプリセット＆アニメーションランプ — プロスタイル",
+    "priceBadge": "{slow} VB スローモーション · {preset} VB プリセット",
+    "clipToRetime": "リタイミングするクリップ",
+    "noClips": "タイムラインにまだクリップがありません",
+    "noClipsHint": "まずシーンにクリップを追加してから、ここでリタイミングしてください。",
+    "slowmo": {
+      "title": "なめらかなスローモーション",
+      "desc": "オプティカルフローのスローモーション。ワンタップ、各{cost} VB。",
+      "simple": "Turbo",
+      "buttery": "なめらか",
+      "dramatic": "ドラマチック",
+      "extreme": "エクストリーム",
+      "rendered": "スローモーションをレンダリングしました",
+      "renderedDesc": "スローモーションクリップの準備ができました。"
+    },
+    "presets": {
+      "title": "スピードプリセット",
+      "desc": "0.25xから4xまでの一定速度。"
+    },
+    "ramps": {
+      "title": "スピードランプ",
+      "desc": "アニメーションする速度カーブ — ゆっくり入り、勢いよく抜ける。",
+      "presetOnlyNote": "ランプは現在プリセットカーブのみです — カスタム描画カーブには今後のアップデートが必要です。"
+    },
+    "applyPreset": "適用",
+    "rendering": "レンダリング中…",
+    "applyPresetDesc": "この速度を適用",
+    "result": {
+      "applied": "速度を適用しました",
+      "rampApplied": "ランプを適用しました"
+    },
+    "useInEditor": "エディターで使う",
+    "attaching": "添付中…",
+    "inTimeline": "タイムラインの中",
+    "multiRatioExport": "マルチ比率エクスポート",
+    "download": "ダウンロード",
+    "errors": {
+      "slowmoFailed": "スローモーションに失敗しました — Visual Bucsは使われていません。",
+      "speedFailed": "速度変更に失敗しました — Visual Bucsは使われていません。",
+      "loadingPresets": "プリセットを読み込み中…"
+    }
+  },
+  "captionTemplates": {
+    "title": "アニメーションキャプションテンプレート",
+    "subtitle": "単語ごとにアニメーションするスタイル — タップで適用",
+    "badge": "新着",
+    "demoTimingLive": "ライブの単語タイミング",
+    "demoTimingSynth": "デモタイミング",
+    "appliesAs": "適用形式",
+    "apply": "適用",
+    "applied": "適用済み",
+    "handoffTitle": "キャプション → クリップ",
+    "handoffDesc": "キャプション付き動画をそのままプロモクリップやエクスポートへ。",
+    "gotoClips": "プロモクリップを作る",
+    "gotoExport": "エクスポートへ",
+    "tpl": {
+      "bounce-words": {
+        "name": "バウンスワード",
+        "desc": "単語が次々に跳ねて入る"
+      },
+      "typewriter-words": {
+        "name": "タイプライター",
+        "desc": "単語ごとのタイプライター表示"
+      },
+      "highlight-box": {
+        "name": "ハイライトボックス",
+        "desc": "アクティブな単語をハイライトボックスで"
+      },
+      "punch-words": {
+        "name": "パンチワード",
+        "desc": "単語がインパクトとともに打ち込まれる"
+      },
+      "glow-sweep": {
+        "name": "グロースイープ",
+        "desc": "輝きが各単語を横切る"
+      },
+      "neon-pulse": {
+        "name": "ネオンパルス",
+        "desc": "ネオンに脈打つ単語ハイライト"
+      },
+      "slide-words": {
+        "name": "スライドワード",
+        "desc": "単語が上に滑って定位置へ"
+      },
+      "pop-words": {
+        "name": "ポップワード",
+        "desc": "遊び心のあるポップな単語アニメーション"
+      }
+    }
+  },
+  "photoShoot": {
+    "scenePacks": {
+      "title": "シーンパック",
+      "packs": {
+        "neonStage": {
+          "name": "ネオンステージ",
+          "blurb": "電気的なライブエネルギーのショット — カバーアート級、シングルカバーのために作られました。"
+        },
+        "rooftopGolden": {
+          "name": "ルーフトップゴールデンアワー",
+          "blurb": "暖かな、誌面風プレスキットショット — 柔らかな金の光、背後に街のスカイライン。"
+        },
+        "studioNoir": {
+          "name": "スタジオノワール",
+          "blurb": "ムーディーな黒スタジオのポートレート — プロフィール写真と配信ブランディングのためのもの。"
+        },
+        "streetLuxury": {
+          "name": "ストリートラグジュアリー",
+          "blurb": "SNS向けの夜の街の見せつけ — 濡れたアスファルト、ネオンの輝き、フレームに高級車。"
+        },
+        "palaceThrone": {
+          "name": "宮殿の玉座",
+          "blurb": "完全なBow Downの王族 — 玉座、金のホール、神の光線。ヒーローブランディングのショット。"
+        }
+      },
+      "tags": {
+        "albumArt": "アルバムアート",
+        "singleCover": "シングルカバー",
+        "tourPromo": "ツアープロモ",
+        "pressKit": "プレスキット",
+        "bioPhoto": "プロフィール写真",
+        "magazineStyle": "雑誌スタイル",
+        "profilePic": "プロフィール写真",
+        "streamBranding": "配信ブランディング",
+        "logoAdjacent": "ロゴ隣接",
+        "socialContent": "ソーシャルコンテンツ",
+        "dropAnnouncements": "ドロップ告知",
+        "merchTieIn": "マーチ連携",
+        "heroBranding": "ヒーローブランディング",
+        "announcementGraphics": "告知グラフィック"
+      }
+    }
+  },
+  "avatarPresenter": {
+    "title": "アバタープレゼンター",
+    "subtitle": "あなたの動画をプレゼンするトーキングヘッドのホスト。",
+    "checking": "アバタープロバイダーを確認中…",
+    "notConfigured": "AIアバターはまだ接続されていません — トーキングヘッドのプレゼンターを生成するには、サイトオーナーがHeyGenまたはHedraのAPIキーを追加する必要があります。あなたの動画プランには、後で使えるようプレゼンターの選択が記録されます。",
+    "ready": "アバタープロバイダーが接続されました。",
+    "modeNone": "プレゼンターなし",
+    "modeAvatar": "AIアバタープレゼンター",
+    "avatarLabel": "アバター",
+    "avatarPlaceholder": "アバターを選ぶ…",
+    "scriptLabel": "プレゼンターの台本",
+    "scriptPlaceholder": "プレゼンターに何を言わせますか？（プランと一緒に保存されます — 生成はプロバイダーが接続されるとアンロックされます）",
+    "savedNote": "プレゼンターの選択は動画プランと一緒に保存されます。生成自体はプロバイダーキーが追加されるまで無効のままで、請求はされません。"
+  },
+  "mixMaster": {
+    "back": "戻る",
+    "title": "ミックス＆マスター",
+    "subtitle": "プロのサウンド、エンジニア不要",
+    "honestFraming": "本物のDSPパイプライン — ステムごとのゲインステージング、EQ、コンプレッション、ジャンルパンニング、そしてトゥルーピークリミッティング付きの完全なマスタリングチェーン。それは",
+    "honestFramingBold": "素晴らしい録音を組み立て磨き上げます。クリッピング、音程のずれたボーカル、悪いアレンジを直すことはできません。",
+    "honestFramingEnd": "出荷前に、ラウドネスを一致させたA/Bで自分の耳を信じてください。",
+    "tabMaster": "マスター",
+    "tabMix": "ミックス",
+    "tabMixStems": "· ステム",
+    "genreLabel": "ジャンルのサウンド",
+    "intensityLabel": "処理の強さ",
+    "loudnessLabel": "目標ラウドネス",
+    "genres": {
+      "hip-hop": {
+        "blurb": "重い低音、前にあるボーカル。",
+        "label": "Hip-Hop"
+      },
+      "pop": {
+        "blurb": "磨き上げられ、明るく、ラジオの輝き。",
+        "label": "Pop"
+      },
+      "rnb": {
+        "blurb": "滑らかで暖かく、シルキーなボーカル。",
+        "label": "R&B"
+      },
+      "edm": {
+        "blurb": "最大のエネルギー、大きく広く。",
+        "label": "EDM"
+      },
+      "rock": {
+        "blurb": "荒々しいギター、前に出るドラム。",
+        "label": "Rock"
+      },
+      "lofi": {
+        "blurb": "ほこりっぽく、暖かく、穏やか。",
+        "label": "Lo-Fi"
+      },
+      "afrobeat": {
+        "blurb": "弾むパーカッション、ログドラム。",
+        "label": "Afrobeat"
+      },
+      "gospel": {
+        "blurb": "大きく、気持ちを上げるクワイアの明瞭さ。",
+        "label": "Gospel"
+      },
+      "podcast": {
+        "blurb": "話し声の明瞭さ — 穏やかなダイナミクス。",
+        "label": "Podcast"
+      },
+      "trap": {
+        "blurb": "叩きつける808 — 重い低音の重量感。",
+        "label": "Trap"
+      }
+    },
+    "intensities": {
+      "subtle": {
+        "label": "控えめ",
+        "blurb": "穏やかな仕上げ、ダイナミクスはそのまま。"
+      },
+      "balanced": {
+        "label": "バランス",
+        "blurb": "ほとんどのトラックにとってのスイートスポット。"
+      },
+      "aggressive": {
+        "label": "アグレッシブ",
+        "blurb": "大きく、パンチが効いて、目の前にある感じ。"
+      }
+    },
+    "loudness": {
+      "streaming": {
+        "label": "ストリーミング",
+        "blurb": "Spotify / Apple Music対応。"
+      },
+      "club": {
+        "label": "クラブ",
+        "blurb": "大きなシステム向けに大きくパンチの効いた。"
+      },
+      "radio": {
+        "label": "ラジオ",
+        "blurb": "放送に適した一貫性。"
+      }
+    },
+    "stemTypes": {
+      "vocals": "ボーカル",
+      "drums": "ドラム",
+      "bass": "ベース",
+      "keys": "キーボード",
+      "guitar": "ギター",
+      "strings": "ストリングス",
+      "beat": "ビート",
+      "other": "ステム",
+      "fx": "FX"
+    },
+    "errorAudioFile": "音声ファイルを選んでください（WAV、MP3、AIFF、FLAC、M4A、OGG）。",
+    "errorFileTooLarge": "そのファイルは100 MBを超えています — 小さいミックスを使ってください。",
+    "errorNetwork": "ネットワークエラー — もう一度お試しください。",
+    "errorNotAudio": "それらのファイルは音声ではありません — WAV、MP3、AIFF、FLAC、M4AまたはOGGを使ってください。",
+    "referenceTrack": "リファレンストラック",
+    "beforeAfter": "ビフォア / アフター",
+    "before": "ビフォア",
+    "after": "アフター",
+    "dropMixHint": "完成したミックスをここにドロップ",
+    "fileTypes": "MP3、WAV、FLAC · 最大100 MB",
+    "dropStemsHint": "ステムをここにドロップ",
+    "listeningTo": "再生中",
+    "masterReport": "マスターレポート",
+    "referenceHint": "リファレンストラックを選ぶ",
+    "referenceLoudness": "リファレンスのラウドネス",
+    "dynamicRange": "ダイナミックレンジ",
+    "vocalBuried": "埋もれている",
+    "vocalLevel": "ボーカルレベル",
+    "vocalUpfront": "前に出ている",
+    "tabQuick": "エクスプレスマスター",
+    "tabQuickDesc": "完成したステレオミックスをアップロード — プリセットを選べば、400 Visual Bucsでラジオ対応のマスターができます。高速、ノブなし。"
+  },
+  "harmony": {
+    "buttonLabel": "ハーモニーを追加 — バッキングボーカル",
+    "buttonCost": "300 Visual Bucs",
+    "title": "ハーモニージェネレーター",
+    "subtitle": "「{{title}}」のためのバッキングボーカルハーモニー",
+    "close": "閉じる",
+    "vb": "Visual Bucs",
+    "engineLabel": "ハーモニーエンジン",
+    "modeClassicLabel": "クラシックダブル",
+    "modeClassicShort": "クラシック",
+    "modeClassicBlurb": "同じ声のピッチ保持ダブル — 三度、五度、オクターブの上下。スタジオ品質、常時利用可能。",
+    "modeAiLabel": "AIハーモニー",
+    "modeAiShort": "AI",
+    "modeAiBlurb": "各ハーモニーパートがAIによって異なるバッキングシンガーの声に再ボイスされます — クローンではなく本物のシンガーのように聞こえます。",
+    "alwaysAvailable": "✓ 常時利用可能",
+    "aiNeedsSetup": "⚠ スタジオボイスのセットアップが必要です — サポートにお問い合わせください",
+    "aiCheckNote": "利用可否はスタジオとライブで確認されます",
+    "styleLabel": "ハーモニースタイル",
+    "loadingStyles": "スタイルを読み込み中…",
+    "partsLine": "{{parts}}",
+    "keyHintLabel": "キーのヒント",
+    "optional": "（任意）",
+    "keyHintPlaceholder": "例：C、Am、F#",
+    "keyHintHint": "アレンジの文脈としてハーモニーと一緒に保存されます。",
+    "mixLabel": "ハーモニーミックスレベル",
+    "mixLow": "控えめ",
+    "mixHigh": "前に出す",
+    "lyricsLabel": "歌詞",
+    "lyricsOptional": "（リリックビデオへのハンドオフ用）",
+    "lyricsPlaceholder": "歌詞を貼り付けるとワンクリックでリリックビデオが作れます…",
+    "generateCta": "ハーモニーを構築 · {{cost}} Visual Bucs",
+    "confirmFeature": "ハーモニージェネレーター（{{mode}}）",
+    "needAudio": "ハーモニーには曲の結果から再生可能な音声URLが必要です。",
+    "generating": "「{{title}}」のハーモニーを構築中…",
+    "generatingClassicHint": "ダブルをピッチシフトしてミックスしています — このまま開いておいてください。",
+    "generatingAiHint": "パートをピッチシフトし、各バッキングシンガーを再ボイスして、ミックスしています — このまま開いておいてください。",
+    "generateFailed": "ハーモニーの生成に失敗しました。もう一度お試しください。",
+    "outOfCredits": "これにはVisual Bucsが不足しています（{{cost}}）。残高をチャージして作り続けましょう。",
+    "aiNotConfigured": "AIハーモニーはスタジオでまだオンになっていません — バッキングシンガーの声が設定されていません。クラシックダブルは今すぐ使えて、素晴らしい音がします。",
+    "useClassicInstead": "代わりにクラシックダブルを構築 · {{cost}} Visual Bucs",
+    "createdTitle": "ハーモニーを構築しました",
+    "createdDesc": "「{{title}}」はあなたの曲ライブラリにあります。",
+    "hubMixDetail": "ハーモニーミックス",
+    "hubStemDetail": "ハーモニーステム",
+    "stemsLabel": "ハーモニーステム",
+    "mixLabelShort": "ハーモニーミックス",
+    "download": "ダウンロード",
+    "mixIntoSong": "曲にミックス",
+    "mixedIn": "ミックス済み",
+    "mixedIntoSongDetail": "ハーモニー入りの作業バージョン",
+    "mixedIntoSongTitle": "ハーモニーをミックスしました",
+    "mixedIntoSongDesc": "ハーモニーミックスは、プロジェクトにおけるあなたの曲の作業バージョンになりました。",
+    "sendToMixMaster": "ミックス＆マスターへ送る",
+    "lyricVideo": "リリックビデオを作る",
+    "lyricVideoReady": "リリックビデオの準備完了",
+    "lyricVideoFailed": "リリックビデオに失敗しました。もう一度お試しください。",
+    "coverArt": "カバーアートをデザイン",
+    "coverArtReady": "カバーアートの準備完了",
+    "coverArtFailed": "カバーアートに失敗しました。もう一度お試しください。",
+    "coverArtAlt": "{{title}}のカバーアート",
+    "coverArtMood": "ハーモニー豊かなボーカルトラックのためのカバーアートワーク",
+    "addToAlbum": "アルバムに追加",
+    "share": "シェアリンクをコピー",
+    "copied": "コピーしました！",
+    "shareCopiedTitle": "シェアテキストをコピーしました",
+    "shareCopiedDesc": "どこにでも貼り付けてください — あなたの紹介リンクが中に入っています。",
+    "copyFailedTitle": "コピーに失敗しました",
+    "copyFailedDesc": "ブラウザがクリップボードへのアクセスをブロックしました。",
+    "shareText": "「{{title}}」 — 新鮮なハーモニー {{madeWith}} 🎵\n{{mixUrl}}\nチートコードを手に入れよう：{{link}}",
+    "lyricsNeededTitle": "歌詞が必要です",
+    "lyricsNeededDesc": "リリックビデオを作るには、上の曲の歌詞を追加してください。",
+    "lrcFailed": "歌詞からリリックタイミングを構築できませんでした。",
+    "unknownArtist": "不明なアーティスト",
+    "done": "完了"
+  },
+  "deverb": {
+    "abCleaned": "リバーブ除去済み",
+    "abHint": "切り替えて比べてください — エコーの違いは尾の部分に現れます。",
+    "abOriginal": "オリジナル",
+    "checkingAvailability": "利用可否を確認中…",
+    "creditsRemaining": "残り{n} Visual Bucs",
+    "deverbButton": "エコーを除去 · {cost} VB",
+    "deverbComplete": "リバーブ除去が完了しました — 下のオリジナルと比べてください。",
+    "downloadButton": "ダウンロード",
+    "dropFormats": "MP3、WAV、M4A、AAC、OGG、FLAC · 最大50 MB",
+    "dropPrompt": "エコーのかかった音声をここにドロップ、またはクリックして参照",
+    "errorAudioType": "音声ファイルのみ許可されます（MP3、WAV、M4A、AAC、OGG、FLAC）。",
+    "errorDeverbFailed": "リバーブ除去ジョブが失敗しました。返金されました。",
+    "errorFileTooLarge": "そのファイルは大きすぎます — リバーブ除去のアップロードは50 MBまでです。",
+    "errorJobNotFound": "ジョブが見つかりません — 期限切れの可能性があります。",
+    "errorNetwork": "ネットワークエラー — 接続を確認してもう一度お試しください。",
+    "errorPricingPending": "リバーブ除去の価格がまだ承認されていないため、このツールは無効です。クレジットは請求されていません。",
+    "errorProviderNotConfigured": "リバーブ除去はまだ利用できません — AIプロバイダーが接続されていません。クレジットは請求されていません。",
+    "errorStartFailed": "リバーブ除去ジョブを開始できませんでした。もう一度お試しください。",
+    "featureName": "リバーブ除去",
+    "fileSizeChange": "{size} MB — クリックして別のファイルを選ぶ",
+    "gatedPricingPending": "リバーブ除去プロバイダーは接続されていますが、ジョブごとの価格がまだ承認されていません。このタブは価格が承認されるとアンロックされます。",
+    "gatedProviderMissing": "AIリバーブ除去プロバイダーが接続されていません — サーバーにプロバイダーキー（DEVERB_API_KEY）がありません。このタブは、プロバイダーが接続され価格が承認されると自動でアンロックされます。",
+    "gatedTeaser": "エコーのかかった部屋の音声 — ポッドキャスト、ボイスオーバー、配信クリップ、ボーカルテイク — をアップロードすると、ドライで近接マイクのように聞こえる対話とボーカルが返ってきます。機能が公開されるまで支払いはありません。",
+    "gatedTitle": "リバーブ除去はまだ利用できません",
+    "gatedUnknown": "リバーブ除去は現在利用できません。後ほどもう一度確認してください。",
+    "handoffLabel": "次に使う",
+    "handoffPodcast": "ポッドキャストスタジオ",
+    "handoffSong": "ソングフロー",
+    "handoffVoiceover": "ボイスオーバースタジオ",
+    "honestIntro": "AIリバーブ除去は部屋のエコーを取り除きます。ノイズではありません —",
+    "honestRest": "。テイクにシューという音がある場合は、まずクリーンアップタブと組み合わせてから、ここでリバーブを除去してください。",
+    "honestStrong": "歪みや重い背景ノイズを直すことはありません",
+    "labelCleaned": "リバーブ除去済み",
+    "labelOriginal": "オリジナル",
+    "modeDialogueBlurb": "ポッドキャスト、ボイスオーバー、配信クリップ。発話から部屋のトーンとエコーを取り除きます。",
+    "modeDialogueLabel": "ダイアログ分離",
+    "modeLabel": "リバーブ除去モード",
+    "modeVocalBlurb": "部屋で録音された曲のボーカル。ミックスのためにテイクをドライにします。",
+    "modeVocalLabel": "ボーカルリバーブ除去",
+    "newDeverbButton": "新規",
+    "pause": "一時停止",
+    "play": "再生",
+    "progressNote": "サーバー側ジョブ — 実行中にタブを切り替えたりこのページを閉じたりしても安全です。",
+    "statusProcessing": "リバーブ除去が部屋のエコーを取り除いています…",
+    "statusQueued": "キュー待ち — あなたのリバーブ除去ジョブが順番を待っています",
+    "statusUploading": "アップロード中…",
+    "subtitle": "対話とボーカルから部屋のエコーを取り除く · ジョブごとに{cost} VB",
+    "title": "リバーブ除去 / ダイアログ分離",
+    "waveformUnavailable": "波形は利用できません",
+    "whyNoDsp": "なぜ即時の無料版がないのか？部屋のエコーの除去はAIの仕事です — 通常のノイズフィルターはシュー音と低音のうなりを切るだけで、壁に跳ね返った音を元に戻すことはできません。偽物を出すのではなく、このツールは本物のAIリバーブ除去プロバイダーを待ちます。"
+  },
+  "fillerRemover": {
+    "title": "フィラーワードリムーバー",
+    "subtitle": "えー、あーを自動でカット — {{cost}} Visual Bucs",
+    "noClip": "シーンに動画クリップを追加すると、フィラーワードリムーバーがアンロックされます。",
+    "groupClassic": "定番フィラー",
+    "groupHedges": "ヘッジフレーズ",
+    "groupRisky": "リスキーな単語",
+    "riskyHint": "デフォルトはオフ — これらも本物の単語です",
+    "customWordsLabel": "あなたの単語",
+    "customWordsPlaceholder": "例：basically、literally…",
+    "add": "追加",
+    "removeWord": "単語を削除",
+    "silenceLabel": "無音の間をカット",
+    "minPauseLabel": "最小の間",
+    "analyzeButton": "フィラーを探す · {{cost}} Visual Bucs",
+    "creditsRemaining": "残り{{n}} Visual Bucs",
+    "stagequeued": "キューに入っています…",
+    "stagedownloading": "あなたの動画をダウンロード中…",
+    "stageextracting-audio": "音声を抽出中…",
+    "stagetranscribing": "AIで文字起こし中 — すべての「えー」と「あー」を聞き取っています…",
+    "stagedetecting": "フィラーワードと無音を探しています…",
+    "progressNote": "これは当社のサーバーで実行されます — このタブを閉じても安全です。カットリストはここで待っています。",
+    "cutsFound": "{{n}}件のカットが見つかりました",
+    "ofDuration": "合計{{d}}",
+    "selectAll": "すべて",
+    "selectNone": "なし",
+    "noCutsTitle": "すでにクリーンです",
+    "noCutsDesc": "フィラーワードも長い間も見つかりませんでした — このテイクは引き締まっています。",
+    "kindFiller": "フィラー",
+    "kindSilence": "間",
+    "timeSaved": "{{n}}件のカットで節約",
+    "renderButton": "クリーンな動画をレンダリング · {{n}}件のカット",
+    "startOver": "最初からやり直す",
+    "renderStagequeued": "レンダリングキューに入っています…",
+    "renderStagedownloading": "あなたの動画をダウンロード中…",
+    "renderStagecutting": "フィラーを切り取っています…",
+    "renderStageuploading": "クリーンな動画をアップロード中…",
+    "doneTitle": "完了 — {{n}}件のカットを除去し、{{saved}}を節約",
+    "useInEditor": "エディターで使う",
+    "usedInEditorTitle": "エディターに追加しました",
+    "usedInEditorDesc": "クリーンな動画がシーンのクリップと置き換わりました。",
+    "download": "ダウンロード",
+    "newRun": "新しい実行",
+    "nextTitle": "次は何か",
+    "nextDesc": "クリーンな動画はハブプロジェクトにあります。キャプションタブを開いてAIキャプションを付け、次にエクスポートでマルチ比率バージョンを作り、スケジューラーからスケジュールしてください。",
+    "hubAssetLabel": "クリーンな動画",
+    "hubAssetDetail": "フィラーワードリムーバー · {{n}}件のカット · {{saved}}を節約",
+    "renderCompleteTitle": "クリーンな動画の準備完了",
+    "renderCompleteDesc": "ハブプロジェクトに保存しました — 次はキャプションです。",
+    "errorAnalyze": "動画を分析できませんでした — もう一度お試しください。",
+    "errorRender": "レンダリングが失敗し、あなたのVisual Bucsは返金されました。"
+  },
+  "mastering": {
+    "back": "戻る",
+    "title": "マスタリング",
+    "subtitle": "あなたのミックスからリリース対応のマスター — {{cost}} Visual Bucs",
+    "honestFraming": "本物のDSPチェーン — サブソニッククリーンアップ、グルーコンプレッション、スイートニングEQ、ステレオワイドニング、そしてトゥルーピークリミッティング付きのツーパスラウドネス正規化。それは",
+    "honestFramingBold": "良いミックスを磨き上げます。悪いミックスを直すことはできません。",
+    "honestFramingEnd": "出荷前にA/B比較で自分の耳を信じてください。",
+    "errorFailed": "マスタリングに失敗しました — あなたのVisual Bucsは返金されました。",
+    "errorAudioFile": "音声ファイルを選んでください（WAV、MP3、AIFF、FLAC、M4A、OGG）。",
+    "errorFileTooLarge": "そのファイルは100 MBを超えています — 小さいミックスを使ってください。",
+    "errorStartFailed": "マスタリングを開始できませんでした。",
+    "errorNetwork": "ネットワークエラー — もう一度お試しください。",
+    "dropHint": "ミックスをここにドロップ、またはクリックして参照",
+    "fileTypes": "WAV、MP3、AIFF、FLAC、M4A、OGG — 最大100 MB",
+    "fileSize": "{{size}} MB — クリックして変更",
+    "presetLabel": "マスタリングプリセット",
+    "presets": {
+      "streaming": {
+        "label": "ストリーミング",
+        "blurb": "Spotify / Apple Music対応 — クリーンでダイナミック。"
+      },
+      "club": {
+        "label": "クラブ",
+        "blurb": "大きなサウンドシステム向けに大きくパンチの効いた。"
+      },
+      "radio": {
+        "label": "ラジオ",
+        "blurb": "放送に適したボーカルの存在感。"
+      },
+      "lofi": {
+        "label": "Lo-Fi",
+        "blurb": "穏やかで暖かくダイナミック、柔らかな高音域。"
+      }
+    },
+    "signInToMaster": "マスターするにはサインイン",
+    "masterButton": "私のトラックをマスター — {{cost}} Visual Bucs",
+    "creditsRemaining": "残り{{count}} Visual Bucs",
+    "statusUploading": "ミックスをアップロード中…",
+    "statusQueued": "キュー待ち — チェーンを温めています…",
+    "statusProcessing": "マスタリング進行中…",
+    "processingDetail": "ラウドネスを分析 → ツーパス正規化 → WAV + MP3をレンダリング。タブを閉じても安全です — ジョブはサーバーで実行されます。",
+    "masterComplete": "マスターが完了しました — 下のオリジナルと比べてください。",
+    "beforeAfter": "ビフォア / アフター",
+    "before": "ビフォア",
+    "after": "アフター",
+    "listeningTo": "再生中：",
+    "originalMix": "あなたのオリジナルミックス",
+    "masteredVersion": "マスターされたバージョン",
+    "positionPreserved": "— 切り替えても位置は保持されます。",
+    "loudnessReport": "ラウドネスレポート",
+    "mixLoudness": "ミックスのラウドネス",
+    "masterLoudness": "マスターのラウドネス",
+    "truePeakMix": "トゥルーピーク（ミックス）",
+    "targetCeiling": "目標シーリング",
+    "dynamicRange": "ダイナミックレンジ（ミックス）：{{value}} LU — チェーンを通しても保持され、潰されません。",
+    "downloadWav": "WAV（24-bit）",
+    "downloadMp3": "MP3（320k）",
+    "masterAnother": "別のトラックをマスター"
   }
 }
