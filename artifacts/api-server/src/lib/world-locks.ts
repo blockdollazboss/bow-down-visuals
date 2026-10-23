@@ -150,7 +150,7 @@ export class WorldLockStore implements WorldLockChecker {
    *  surface (items 92–93): the standing list an admin reads
    *  before lifting one. Expired locks prune themselves on the
    *  way out, like every other read. */
-  personLocks(now = Date.now()): WorldPersonLockState[] {
+  listPersonLocks(now = Date.now()): WorldPersonLockState[] {
     const out: WorldPersonLockState[] = [];
     for (const lock of [...this.personLocks.values()]) {
       if (this.personLockedUntil(lock.roomId, lock.userId, now) === null) continue;
@@ -160,7 +160,7 @@ export class WorldLockStore implements WorldLockChecker {
   }
 
   /** Every standing door lock, for the same admin surface. */
-  doorLocks(): WorldDoorLockState[] {
+  listDoorLocks(): WorldDoorLockState[] {
     return [...this.doorLocks.values()];
   }
 

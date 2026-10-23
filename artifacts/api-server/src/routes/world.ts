@@ -424,13 +424,14 @@ router.get("/world/locks", requireAuth, (req, res) => {
   if (!requireWorldAdmin(req, res)) return;
   const surface = worldLockSurface(res);
   if (!surface) return;
+  try {
   res.json({
-    doors: surface.store.doorLocks().map((d) => ({
+    doors: surface.store.listDoorLocks().map((d) => ({
       roomId: d.roomId,
       lockedByEmail: d.lockedByEmail,
       createdAt: new Date(d.createdAt).toISOString(),
     })),
-    persons: surface.store.personLocks().map((p) => ({
+    persons: surface.store.listPersonLocks().map((p) => ({
       roomId: p.roomId,
       userId: p.userId,
       displayName: p.displayName,
@@ -439,6 +440,10 @@ router.get("/world/locks", requireAuth, (req, res) => {
       expiresAt: new Date(p.expiresAt).toISOString(),
     })),
   });
+  } catch (err) {
+    logger.error({ err }, "[world] lock list failed");
+    res.status(500).json({ error: "Couldn't read the standing locks. Try again." });
+  }
 });
 
 router.post("/world/locks/door/lock", requireAuth, async (req, res) => {
