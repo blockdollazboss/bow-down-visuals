@@ -60,7 +60,11 @@ Facet-verification summary (facets partly stale, as warned):
 
 ## Verification (numbers only from finished logs in .lane/)
 - FULL FE suite: 311 files / 4,213 tests ALL PASSED — .lane/final-fe-full.log
-- FULL API suite: 413 files / 5,227 tests ALL PASSED — .lane/final-api-full.log
+- FULL API suite: 408 files / 5,141 tests ALL PASSED — .lane/final-api-full.log
+  (CORRECTION: an earlier draft of this record quoted 413/5,227 — wrong;
+  the finished log's own summary line, re-read after the run completed,
+  is 408 files / 5,141 tests, exit 0. The FE figure 311/4,213 was and
+  is correct.)
 - FE world suite: 101 files / 1,855 tests PASSED — .lane/final-fe-world.log
 - API targeted (voice-config, live-streams own/full/ingest, live-control,
   distribution + router-order): 7 files / 140 tests — .lane/final-api-targeted.log
@@ -73,5 +77,5 @@ Facet-verification summary (facets partly stale, as warned):
 - Typechecks at finished tip: lib build 0, API 0, FE 0 —
   .lane/final-build-libs.log, .lane/final-api-typecheck.log,
   .lane/final-fe-typecheck.log
-- Branch tip: 7595efcf (stack28/world-studio). No push, no migration,
+- Branch tip: 5615434b (record commit; code tip 7595efcf) (stack28/world-studio). No push, no migration,
   no env set anywhere, no relay stood up, no file deletions.
