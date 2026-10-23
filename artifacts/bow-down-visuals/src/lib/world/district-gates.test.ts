@@ -3,12 +3,12 @@
  *
  * Pins:
  * - the six Phase-1 district names survive, exactly six;
- * - only five thresholds are "gate"s, and each stands centred
+ * - all six thresholds are "gate"s, and each stands centred
  *   in a REAL wall gap (DISTRICT_GATE_GAPS) — a gate at a solid
  *   wall is the dishonesty this item removes;
- * - the one other is a "marker" (a signpost, not a doorway):
- *   markers stand OFF the walls on open floor, and no marker
- *   carries gate parts in the data (no bar offsets);
+ * - no threshold is a "marker" any more (item 36 built the last
+ *   district): the marker classification survives only as the
+ *   honest form an unbuilt district would take;
  * - hall-scene builds thresholds from this table alone (source
  *   pin): no stamped gate kit, no floating plate call at the
  *   old 2.33 height for a district name.
@@ -44,8 +44,12 @@ describe("district-gates", () => {
      * in item 34: the Ateliers gate joined — its district is
      * built south of Creation Row, through a real new gap in
      * the east wall's south run (not on its old marker's line:
-     * east of z 22.5 is the Row's built quarter). */
-    expect(gates.map((g) => g.name)).toEqual(["STAGE GROUNDS", "THE BOARDWALK", "CREATION ROW", "THE ATELIERS", "LISTENING GARDENS"]);
+     * east of z 22.5 is the Row's built quarter). DELIBERATELY
+     * moved in item 36: the Creator Heights gate joined — its
+     * district is built as an enclave on the plaza's north-east
+     * quadrant, through a real new gap in the enclave's own
+     * west wall on its old marker's exact spot (13.5, 24.6). */
+    expect(gates.map((g) => g.name)).toEqual(["STAGE GROUNDS", "THE BOARDWALK", "CREATION ROW", "THE ATELIERS", "LISTENING GARDENS", "CREATOR HEIGHTS"]);
     for (const gate of gates) {
       const gap = DISTRICT_GATE_GAPS[gate.name]!;
       expect(gap.axis).toBe(gate.axis);
@@ -56,16 +60,17 @@ describe("district-gates", () => {
     }
   });
 
-  it("the other one is a grounded marker, not a doorway", () => {
+  it("no markers remain — every district is built (item 36 closed the last one)", () => {
     const markers = DISTRICT_THRESHOLDS.filter((d) => d.kind === "marker");
     /* DELIBERATELY moved in item 32: LISTENING GARDENS left the
      * markers — it is an open gate now (below). DELIBERATELY
      * moved in item 33: CREATION ROW left the markers the same
      * way. DELIBERATELY moved in item 34: THE ATELIERS left the
-     * markers the same way — CREATOR HEIGHTS is the last one. */
-    expect(markers.map((m) => m.name)).toEqual([
-      "CREATOR HEIGHTS",
-    ]);
+     * markers the same way. DELIBERATELY moved in item 36:
+     * CREATOR HEIGHTS — the last marker — left the same way,
+     * and the list is empty: a marker is a promise, and no
+     * promises remain unbuilt. */
+    expect(markers.map((m) => m.name)).toEqual([]);
     for (const m of markers) {
       /* No closure bar — a marker has nothing to close. */
       expect(m.barDx).toBeUndefined();
@@ -73,7 +78,7 @@ describe("district-gates", () => {
     }
   });
 
-  it("items 31+32+33+34+35: the Stage Grounds, Listening Gardens, Creation Row, Ateliers and Boardwalk gates are OPEN — their districts are built; every other threshold is not open", () => {
+  it("items 31+32+33+34+35+36: the Stage Grounds, Listening Gardens, Creation Row, Ateliers, Boardwalk and Creator Heights gates are OPEN — their districts are built; every threshold is open", () => {
     const stage = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
     expect(stage.kind).toBe("gate");
     expect(stage.open).toBe(true);
@@ -108,8 +113,18 @@ describe("district-gates", () => {
     expect(boardwalk.open).toBe(true);
     expect(boardwalk.x).toBe(0);
     expect(boardwalk.z).toBe(34.0);
+    /* Item 36: the Heights' marker was reclassified to an open
+     * gate on its exact spot (13.5, 24.6) — in the enclave's own
+     * west wall on the marker's line (x 13.5), the one line that
+     * opens into the quarter itself, every outward line being
+     * built over. */
+    const heights = DISTRICT_THRESHOLDS.find((d) => d.name === "CREATOR HEIGHTS")!;
+    expect(heights.kind).toBe("gate");
+    expect(heights.open).toBe(true);
+    expect(heights.x).toBe(13.5);
+    expect(heights.z).toBe(24.6);
     for (const d of DISTRICT_THRESHOLDS) {
-      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS" && d.name !== "CREATION ROW" && d.name !== "THE ATELIERS" && d.name !== "THE BOARDWALK") {
+      if (d.name !== "STAGE GROUNDS" && d.name !== "LISTENING GARDENS" && d.name !== "CREATION ROW" && d.name !== "THE ATELIERS" && d.name !== "THE BOARDWALK" && d.name !== "CREATOR HEIGHTS") {
         expect(d.open ?? false, d.name).toBe(false);
       }
     }

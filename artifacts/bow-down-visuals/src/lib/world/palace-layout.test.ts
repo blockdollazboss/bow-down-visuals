@@ -27,6 +27,7 @@ import {
   GAME_ROOMS_ID,
   CREATE_WING_ID,
   COURTYARD_ID,
+  HEIGHTS_ID,
   TREASURY_ID,
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
@@ -133,22 +134,46 @@ describe("the King's Plaza (Open World Phase 1)", () => {
   it("the courtyard keeps its id and takes the plaza's name, grounds and spawn", () => {
     const plaza = PALACE_LAYOUT[COURTYARD_ID]!;
     expect(plaza.name).toBe("The King's Plaza");
-    expect(plaza.walk).toEqual({ minX: -27.85, maxX: 27.85, minZ: 12.55, maxZ: 25.7 });
+    /* DELIBERATELY moved in item 36: the main walk rect ends at
+     * the Creator Heights enclave's west wall face (x 13.15) —
+     * the enclave stands on the north-east quadrant now — and
+     * the north-east lane + south bridge lane ride as grounds,
+     * keeping the Row and Ateliers gates reachable on foot. */
+    expect(plaza.walk).toEqual({ minX: -27.85, maxX: 13.15, minZ: 12.55, maxZ: 25.7 });
     expect(plaza.grounds).toEqual([
       { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
       /* The south-east yard (item 34) — the enclosed floor east
        * of the Creator Room, walkable since the Ateliers batch:
-       * the way to the Ateliers gate in the east wall. */
-      { minX: 16.6, maxX: 27.85, minZ: 25.6, maxZ: 33.6 },
+       * the way to the Ateliers gate in the east wall. Its north
+       * edge was DELIBERATELY trimmed in item 36 to start south
+       * of the Heights enclave's south wall. */
+      { minX: 16.6, maxX: 27.85, minZ: 25.9, maxZ: 33.6 },
       /* The arch spur (item 41) — added by Stage B cluster 4. */
       { minX: 2.35, maxX: 10.65, minZ: 25.6, maxZ: 26.0 },
+      /* The north-east lane (item 36) — the plaza strip north
+       * of the Heights enclave: the way to the Row gate. */
+      { minX: 13.15, maxX: 27.85, minZ: 12.55, maxZ: 15.45 },
+      /* The south bridge lane (item 36) — the plaza strip
+       * between the enclave's south wall and the Creator Rooms
+       * building, in two overlapping bands: the way to the
+       * south-east yard. */
+      { minX: 10.65, maxX: 13.3, minZ: 25.6, maxZ: 26.2 },
+      { minX: 13.3, maxX: 16.75, minZ: 25.88, maxZ: 26.2 },
     ]);
     expect(plaza.spawn).toEqual({ x: 0, z: 31.5 });
   });
 
   it("the grounds are one room: east lawns, west lawns and the promenade all read plaza", () => {
     expect(isWalkable(-24, 20)).toBe(true); // west grounds
-    expect(isWalkable(24, 20)).toBe(true); // east grounds
+    /* DELIBERATELY moved in item 36: the old east-lawn point
+     * (24, 20) stands inside the Creator Heights enclave now —
+     * a residents'-court bench stands exactly there, solid like
+     * every bench — and the enclave's open court beside it reads
+     * HEIGHTS, not plaza. The plaza's own east ground is the
+     * north-east lane and the south-east yard now. */
+    expect(isWalkable(24, 20)).toBe(false); // the Heights bench
+    expect(isWalkable(24, 17)).toBe(true); // the enclave's court edge
+    expect(roomAt(24, 17, HALL_ROOM_ID)).toBe(HEIGHTS_ID);
     expect(isWalkable(-20, 30)).toBe(true); // the promenade
     expect(roomAt(-24, 20, HALL_ROOM_ID)).toBe(COURTYARD_ID);
     expect(roomAt(0, 31.5, HALL_ROOM_ID)).toBe(COURTYARD_ID);
@@ -278,9 +303,19 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     expect(brazierBonk.x).toBe(-3.7);
     const gateBonk = resolvePalaceMove({ x: 13.5, z: 23.6, room: COURTYARD_ID }, 13.5, 24.6);
     expect(gateBonk.z).toBe(23.6);
+    /* DELIBERATELY moved in item 36: the freestanding marker at
+     * (13.5, 24.6) is an OPEN gate now — the diagonal that used
+     * to slide along the marker's plinth CROSSES through the
+     * gate's portal into Creator Heights. The gate's POSTS stay
+     * solid: a step aimed at the north post stops dead. */
     const gateSlide = resolvePalaceMove({ x: 12.9, z: 23.9, room: COURTYARD_ID }, 14.1, 24.9);
     expect(gateSlide.x).toBeCloseTo(14.1);
-    expect(gateSlide.z).toBe(23.9);
+    expect(gateSlide.z).toBeCloseTo(24.9);
+    expect(gateSlide.room).toBe(HEIGHTS_ID);
+    expect(gateSlide.entered).toBe(HEIGHTS_ID);
+    const postBonk = resolvePalaceMove({ x: 12.9, z: 23.6, room: COURTYARD_ID }, 13.5, 23.6);
+    expect(postBonk.x).toBe(12.9);
+    expect(postBonk.entered).toBeNull();
   });
 
   it("item 39: the plaza's working points stay walkable — spawn, paths, stations, the arch portal", () => {
@@ -366,7 +401,13 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
   });
 
   it("item 42: visible wall and walk clamp agree — no invisible wall, no see-through gap", () => {
-    expect(isWalkable(24, 25.5)).toBe(true);
+    /* DELIBERATELY moved in item 36: (24, 25.5) stands against
+     * the Creator Heights enclave's south wall now — the wall's
+     * face band, not floor. The wall is a real blocked run (in
+     * the Heights' list), so the clamp still agrees with the
+     * visible wall; the yard beyond is reached by the south
+     * bridge lane, pinned end to end in creator-heights.test. */
+    expect(isWalkable(24, 25.5)).toBe(false);
     /* DELIBERATELY moved in item 34: the south-east yard is
      * walkable plaza ground now — the way to the Ateliers gate —
      * so the old notch line and the yard beyond it both walk,
@@ -378,9 +419,13 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     expect(isWalkable(24, 30)).toBe(true);
     expect(isWalkable(24, 33.9)).toBe(false);
     expect(isWalkable(28.2, 33.5)).toBe(false);
-    const res = resolvePalaceMove({ x: 24, z: 25.4, room: COURTYARD_ID }, 24, 26.4);
-    expect(res.z).toBeCloseTo(26.4);
-    expect(res.room).toBe(COURTYARD_ID);
+    /* DELIBERATELY moved in item 36: the straight step south
+     * from the old main-grounds line now meets the Heights
+     * enclave's south wall and stops at it — the yard is
+     * reached around the enclave, by the bridge lane. */
+    const res = resolvePalaceMove({ x: 24, z: 25.2, room: HEIGHTS_ID }, 24, 26.4);
+    expect(res.z).toBe(25.2);
+    expect(res.room).toBe(HEIGHTS_ID);
     /* DELIBERATELY moved in item 31: (−28.0, 19.5) stands in the
      * Stage Grounds gate's portal — the gap is a true passage
      * now, so the point IS walkable. The wall beside the gate
@@ -430,9 +475,9 @@ describe("the second ring (palace follow-on)", () => {
       expect(PALACE_LAYOUT[id]).toBeDefined();
       expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
     }
-    /* Thirteen since item 35 added the Boardwalk district room
-     * (twelve was item 34's Ateliers count). */
-    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(13);
+    /* Fourteen since item 36 added the Creator Heights district
+     * room (thirteen was item 35's Boardwalk count). */
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(14);
   });
 
   it("the front doors open beside the stage, never through it", () => {

@@ -527,7 +527,11 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
        * it hid. The yard's edges are all real: the Creator
        * Room's east wall west, the east wall (and its gate)
        * east, the south run south. */
-      { minX: 16.6, maxX: 27.85, minZ: 25.6, maxZ: 33.6 },
+      /* DELIBERATELY trimmed in item 36: the yard's north edge
+       * used to start at z 25.6, under what is now the Creator
+       * Heights enclave's south wall (z 25.525..25.875) — it
+       * starts south of that wall now, at its face. */
+      { minX: 16.6, maxX: 27.85, minZ: 25.9, maxZ: 33.6 },
       /* The arch spur (item 41): the promenade's eastward arm
        * along the Creator Room's north wall face, from the
        * promenade's edge to the arch — its band runs to the
@@ -542,19 +546,27 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
        * the Creator Heights enclave's north wall, from the main
        * walk's new east edge to the east wall — the way a walker
        * still reaches the Creation Row gate (z 14.5) on foot.
-       * Its south edge is the enclave's north wall itself
-       * (blocked, in the Heights' list); its north edge is the
-       * hall's façade wall. */
-      { minX: 13.15, maxX: 27.85, minZ: 12.55, maxZ: 16.15 },
+       * It stops at the enclave wall's face clearance (the
+       * promenade's own measure: grounds end ~0.2 m short of the
+       * wall face), so no lane point stands inside the wall or
+       * its piers (blocked, in the Heights' list); its north
+       * edge is the hall's façade wall. */
+      { minX: 13.15, maxX: 27.85, minZ: 12.55, maxZ: 15.45 },
       /* The south bridge lane (item 36): the narrow plaza strip
        * between the Heights enclave's south wall and the Creator
        * Rooms building's north wall, from the arch spur east to
        * the south-east yard — the way a walker still reaches
        * the yard (and the Ateliers gate) on foot now that the
-       * main walk ends at the enclave's west wall. Its usable
-       * band runs south of the enclave's wall and the gate's
-       * south post (both blocked, in their rooms' lists). */
-      { minX: 10.65, maxX: 16.75, minZ: 25.6, maxZ: 26.05 },
+       * main walk ends at the enclave's west wall. Two bands:
+       * the west band runs from the main walk's south edge past
+       * the arch's east pillar (the pillar is the plaza's own
+       * blocked, so the band may run up to it); the east band
+       * runs wholly south of the enclave's south wall and the
+       * gate's south post (blocked, in the Heights' and the
+       * plaza's lists), and the two bands overlap at the lane's
+       * middle so a step may pass between them. */
+      { minX: 10.65, maxX: 13.3, minZ: 25.6, maxZ: 26.2 },
+      { minX: 13.3, maxX: 16.75, minZ: 25.88, maxZ: 26.2 },
     ],
     /* Solid footprints, derived from the dressing plan above
      * (PLAZA_BLOCKED): the monument's plinth — its board station
