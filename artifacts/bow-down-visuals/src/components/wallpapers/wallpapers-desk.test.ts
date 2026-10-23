@@ -62,6 +62,47 @@ describe("Stack-28 item 12 — screensaver Generate video drives the real runway
   });
 });
 
+/** The makePack() function body. */
+function makePackBody(): string {
+  const start = desk.indexOf("async function makePack()");
+  expect(start, "makePack exists").toBeGreaterThan(-1);
+  const end = desk.indexOf("async function applyPack()", start);
+  expect(end, "applyPack follows makePack").toBeGreaterThan(start);
+  return desk.slice(start, end);
+}
+
+describe("Stack-28 item 14 — clean theme pack: one up-front confirmation, no discarded paid render", () => {
+  it("confirms ONCE for the whole pack (2 × clean render) before any render runs", () => {
+    const body = makePackBody();
+    expect(body).toContain("confirmSpend({");
+    expect(body).toContain("cost: CLEAN_RENDER_COST * 2");
+    expect(body).toContain('feature: "Clean Theme Pack"');
+    // The confirmation precedes the first render call.
+    expect(body.indexOf("confirmSpend({")).toBeLessThan(body.indexOf("renderOne("));
+    // Exactly one confirmation site in the pack flow.
+    expect(body.match(/confirmSpend/g)).toHaveLength(1);
+  });
+
+  it("both pack renders ride the up-front confirmation (skipConfirm) — no second prompt exists to cancel", () => {
+    const body = makePackBody();
+    const renders = body.match(/renderOne\(THEME_PACK_PRESET_KEYS\.(phone|desktop), currentArt, \{ skipConfirm: true \}\)/g) ?? [];
+    expect(renders).toHaveLength(2);
+  });
+
+  it("a failed desktop render keeps the paid phone render in desk state", () => {
+    const body = makePackBody();
+    // The catch path re-adds the phone render instead of discarding it.
+    expect(body).toContain("if (phone) setRenders((prev) => [phone!, ...prev]);");
+  });
+
+  it("the single-render path keeps its own per-render confirmation (renderOne without skipConfirm)", () => {
+    const start = desk.indexOf("async function renderSelected()");
+    const slice = desk.slice(start, desk.indexOf("/* ── Theme pack", start));
+    expect(slice).toContain("renderOne(presetKey, currentArt)");
+    expect(slice).not.toContain("skipConfirm");
+  });
+});
+
 describe("Stack-28 item 13 — King's Set selections are absolutified for the rails", () => {
   it("both selection buttons absolutify: Use this art (still) and Use as screensaver (loop)", () => {
     expect(desk).toContain("setCurrentArt(absoluteKingsSetUrl(piece.stillUrl))");

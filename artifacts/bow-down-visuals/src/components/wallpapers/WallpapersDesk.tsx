@@ -6,6 +6,7 @@ import {
   Palette, Smartphone, Sparkles, Store, Tablet, User, Video,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,7 @@ export function WallpapersDesk() {
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { confirmSpend } = useCreditConfirm();
   const { toast } = useToast();
 
   /* Source */
@@ -191,7 +193,14 @@ export function WallpapersDesk() {
   }
 
   /* ── Exact-size render (branded free / clean 400) ──────────────────── */
-  async function renderOne(targetPresetKey: string, sourceUrl: string): Promise<RenderedImage | null> {
+  /* opts.skipConfirm: the caller has already taken ONE confirmation
+     covering this render (the theme pack's up-front pack confirmation,
+     Stack-28 item 14) — never ask twice for the same spend. */
+  async function renderOne(
+    targetPresetKey: string,
+    sourceUrl: string,
+    opts?: { skipConfirm?: boolean },
+  ): Promise<RenderedImage | null> {
     const target = wallpaperPresetByKey(targetPresetKey);
     const res = await confirmedFetch("/api/wallpapers/render", {
       method: "POST",
@@ -202,7 +211,7 @@ export function WallpapersDesk() {
         branded,
         ...(branded ? { logoUrl: brandKit?.logoUrl ?? undefined, brandName } : {}),
       }),
-      ...(branded
+      ...(branded || opts?.skipConfirm
         ? { skipConfirm: true }
         : { overrideCost: CLEAN_RENDER_COST, overrideFeature: "Clean Wallpaper Render" }),
     });
@@ -237,17 +246,44 @@ export function WallpapersDesk() {
   }
 
   /* ── Theme pack ────────────────────────────────────────────────────── */
+  /* Stack-28 item 14 — ONE up-front pack confirmation. Shape chosen:
+     a single confirmSpend for the whole clean pack (2 × clean render)
+     BEFORE any render runs, then both renders ride skipConfirm — the
+     established batch pattern (ClipGeneratorSection "Create All" and
+     AutoClipSection confirm once, then fetch with skipConfirm). The
+     old flow confirmed per render: cancelling the second (desktop)
+     confirmation returned early and threw the already-paid phone
+     render out of desk state. Now cancelling happens before any
+     charge, and if the desktop render itself fails after the phone
+     render landed, the paid phone render is kept in the renders list
+     (visible + downloadable) instead of being discarded. Server
+     charges are unchanged: the rail still charges per render and
+     refunds a failed render itself. */
   async function makePack() {
     if (!currentArt || packBusy) return;
     setPackBusy(true);
     setPackError(null);
     setApplied(false);
     setListedId(null);
+    let phone: RenderedImage | null = null;
     try {
-      const phone = await renderOne(THEME_PACK_PRESET_KEYS.phone, currentArt);
-      if (!phone) return; // cancelled at the confirmation
-      const desktop = await renderOne(THEME_PACK_PRESET_KEYS.desktop, currentArt);
-      if (!desktop) return;
+      if (!branded) {
+        const ok = await confirmSpend({
+          cost: CLEAN_RENDER_COST * 2,
+          feature: "Clean Theme Pack",
+        });
+        if (!ok) return; // cancelled up front — nothing charged, nothing rendered
+      }
+      phone = await renderOne(THEME_PACK_PRESET_KEYS.phone, currentArt, { skipConfirm: true });
+      if (!phone) return;
+      const desktop = await renderOne(THEME_PACK_PRESET_KEYS.desktop, currentArt, { skipConfirm: true });
+      if (!desktop) {
+        // Defensive: with the pack confirmation taken, renderOne only
+        // returns null if a fetch layer declines — keep the paid phone
+        // render in state rather than discarding it.
+        setRenders((prev) => [phone!, ...prev]);
+        return;
+      }
       const brandPalette = (brandKit?.colors ?? []).map((c) => c.hex).filter(Boolean);
       const palette = useBrandPalette && brandPalette.length > 0
         ? brandPalette
@@ -256,6 +292,9 @@ export function WallpapersDesk() {
       setRenders((prev) => [phone, desktop, ...prev]);
       if (!listTitle) setListTitle(t("wallpapers.listDefaultTitle", { defaultValue: "My wallpaper & theme pack" }));
     } catch (e) {
+      // A paid phone render survives a failed desktop render: it stays
+      // in Your renders (and in the user's generation history).
+      if (phone) setRenders((prev) => [phone!, ...prev]);
       setPackError(e instanceof Error ? e.message : t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." }));
     } finally {
       setPackBusy(false);
