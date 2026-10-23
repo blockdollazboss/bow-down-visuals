@@ -202,7 +202,6 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     ["LEGIT: en's '7pm' rendered on the 24-hour clock ('19:00') — verified value-equal", ["press-kit.pressRelease.placeholders.topic"]],
     [T_SPLIT, ["llcGuide.checklistTitleEnd", "llcGuide.checklistTitleStart"]],
     [T_PCT, ["websiteBuilder.feeNote", "websiteBuilder.ownershipStrong"]],
-    [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
     [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
   ),
   pt: grouped(
