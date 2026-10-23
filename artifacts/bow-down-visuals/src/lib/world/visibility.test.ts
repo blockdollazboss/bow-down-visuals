@@ -19,7 +19,7 @@ import {
   reflectorZone,
   walkRectForRoom,
 } from "./visibility";
-import { COURTYARD_ID, CREATION_ROW_ID, HALL_ROOM_ID, LISTENING_GARDENS_ID, MUSIC_HALL_ID, STAGE_GROUNDS_ID, creatorRoomId } from "./palace-layout";
+import { ATELIERS_ID, COURTYARD_ID, CREATION_ROW_ID, HALL_ROOM_ID, LISTENING_GARDENS_ID, MUSIC_HALL_ID, STAGE_GROUNDS_ID, creatorRoomId } from "./palace-layout";
 
 const FACING_STAGE = Math.PI; // heading convention: yaw π looks toward −Z... (see below)
 /* In visibility.ts the camera forward in atan2(dx,dz) space is
@@ -40,6 +40,8 @@ describe("areaForRoom", () => {
     expect(areaForRoom(LISTENING_GARDENS_ID)).toBe("plaza");
     /* Creation Row (item 33) is outdoor like the plaza. */
     expect(areaForRoom(CREATION_ROW_ID)).toBe("plaza");
+    /* The Ateliers (item 34) are outdoor like the plaza. */
+    expect(areaForRoom(ATELIERS_ID)).toBe("plaza");
     expect(areaForRoom(MUSIC_HALL_ID)).toBe("indoor");
     expect(areaForRoom(creatorRoomId("someone"))).toBe("creator");
   });

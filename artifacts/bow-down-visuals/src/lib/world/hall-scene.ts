@@ -5400,7 +5400,7 @@ export class KingsHallScene {
     {
       const cratePlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
       ATELIER_CRATES.forEach((c, i) => {
-        const cv = propVariation("crate", 500 + i);
+        const cv = propVariation("trough", 500 + i);
         cratePlaces.push({ x: c.x, y: ATELIER_CRATE.size / 2, z: c.z, rotY: cv.rotY });
         cratePlaces.push({ x: c.x + 0.06, y: ATELIER_CRATE.size * 1.5, z: c.z - 0.04, rotY: cv.rotY + 0.35 });
       });
