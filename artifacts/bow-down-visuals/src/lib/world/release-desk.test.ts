@@ -10,6 +10,7 @@ import {
   buildStrategyPayload,
   checklistPasses,
   draftFromRelease,
+  draftWithSong,
   emptyReleaseDraft,
   parseBarcodeResult,
   parseMetadataResult,
@@ -19,6 +20,7 @@ import {
   parseReleaseDetail,
   parseReleaseList,
   parseReleasePricing,
+  parseReleaseSongs,
   parseSplitsSave,
   parseStrategyResult,
   parseSubmitChecklist,
@@ -182,6 +184,31 @@ describe("wizard draft — payload + validation mirror the 2D wizard", () => {
   });
 });
 
+describe("song library — the wizard's music step", () => {
+  it("parses /api/songs rows and prefills blanks only, like the 2D wizard", () => {
+    const songs = parseReleaseSongs({
+      songs: [{ id: "s1", title: "Lib Song", audio_url: "https://x/lib.wav", genre: "Soul", isrc: "USXYZ2499999", cover_art_url: "https://x/lib.png", lyrics: "words" }, { title: "no id" }],
+    });
+    expect(songs).toHaveLength(1);
+    const d = emptyReleaseDraft();
+    d.title = "Typed Title";
+    const withSong = draftWithSong(d, songs[0]!);
+    expect(withSong.songId).toBe("s1");
+    expect(withSong.audioUrl).toBe("https://x/lib.wav");
+    expect(withSong.title).toBe("Typed Title"); // typed wins
+    expect(withSong.genre).toBe("Soul");
+    expect(withSong.artworkUrl).toBe("https://x/lib.png");
+    expect(draftWithSong(withSong, null).songId).toBeNull();
+  });
+
+  it("songId rides only on create", () => {
+    const d = emptyReleaseDraft();
+    d.songId = "s1";
+    expect(buildReleasePayload(d)).not.toHaveProperty("songId");
+    expect(buildReleasePayload(d, { forCreate: true })["songId"]).toBe("s1");
+  });
+});
+
 describe("splits / barcode / submit answers", () => {
   it("builds the splits PUT body like the 2D editor (blank role/email absent)", () => {
     expect(
@@ -325,6 +352,7 @@ describe("Release Desk component (source pins)", () => {
       "/platforms",
       "/api/distribution/metadata",
       "/api/distribution/strategy",
+      "/api/songs",
     ]) {
       expect(desk, rail).toContain(rail);
     }

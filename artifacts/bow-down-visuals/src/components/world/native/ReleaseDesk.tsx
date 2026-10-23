@@ -20,6 +20,7 @@ import {
   buildStrategyPayload,
   checklistPasses,
   draftFromRelease,
+  draftWithSong,
   emptyReleaseDraft,
   parseBarcodeResult,
   parseMetadataResult,
@@ -29,6 +30,7 @@ import {
   parseReleaseDetail,
   parseReleaseList,
   parseReleasePricing,
+  parseReleaseSongs,
   parseSplitsSave,
   parseStrategyResult,
   parseSubmitChecklist,
@@ -45,6 +47,7 @@ import {
   type ReleaseDraft,
   type ReleasePrefill,
   type ReleasePricing,
+  type ReleaseSong,
   type SmartlinkSettings,
   type StrategyResult,
 } from "@/lib/world/release-desk";
@@ -106,12 +109,18 @@ function ReleaseFormFields({
   isLight,
   draft,
   set,
+  setDraft,
   locked,
+  songs,
 }: {
   isLight: boolean;
   draft: ReleaseDraft;
   set: (patch: Partial<ReleaseDraft>) => void;
+  setDraft: (d: ReleaseDraft) => void;
   locked: boolean;
+  /** The member's song library (create mode) — picking one is the
+   *  wizard's music step: it links the song and prefills from it. */
+  songs?: ReleaseSong[];
 }) {
   const togglePlatform = (key: string) =>
     set({
@@ -121,6 +130,28 @@ function ReleaseFormFields({
     });
   return (
     <div className="space-y-2" data-testid="world-release-form">
+      {songs ? (
+        <label className="block">
+          <span className={fieldLabel(isLight)}>Start from your song library</span>
+          <select
+            aria-label="Pick a song from your library"
+            data-testid="world-release-song-picker"
+            className={inputCls(isLight)}
+            style={{ colorScheme: isLight ? "light" : "dark" }}
+            value={draft.songId ?? ""}
+            disabled={locked}
+            onChange={(e) => {
+              const song = songs.find((s) => s.id === e.target.value) ?? null;
+              setDraft(draftWithSong(draft, song));
+            }}
+          >
+            <option value="">No library song — I'll paste the audio link</option>
+            {songs.map((s) => (
+              <option key={s.id} value={s.id}>{s.title}</option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
           <span className={fieldLabel(isLight)}>Release title</span>
@@ -283,6 +314,7 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
   const [tick, setTick] = useState(0);
 
   const [selected, setSelected] = useState<ReleaseDetail | null>(null);
+  const [songs, setSongs] = useState<ReleaseSong[]>([]);
   const [draft, setDraft] = useState<ReleaseDraft>(() => emptyReleaseDraft(prefill));
   const [creating, setCreating] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -328,6 +360,22 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
   useEffect(() => {
     void load();
   }, [load]);
+
+  /* The wizard's music step: the member's song library (best-effort —
+   *  an empty library still leaves the audio-link field working). */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/songs", { headers: await authHeaders() });
+        if (!cancelled && res.ok) setSongs(parseReleaseSongs(await res.json().catch(() => null)));
+      } catch { /* the link field is the fallback, never a dead end */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* A fresh cover prefill (#55) reseeds a NEW release draft. */
   useEffect(() => {
@@ -403,7 +451,7 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       const res = await fetch(url, {
         method: creating ? "POST" : "PATCH",
         headers: await jsonHeaders(),
-        body: JSON.stringify(buildReleasePayload(draft)),
+        body: JSON.stringify(buildReleasePayload(draft, { forCreate: creating })),
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -780,7 +828,7 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
         ) : null}
       </div>
 
-      <ReleaseFormFields isLight={isLight} draft={draft} set={set} locked={locked} />
+      <ReleaseFormFields isLight={isLight} draft={draft} set={set} setDraft={setDraft} locked={locked} songs={creating ? songs : undefined} />
 
       {error ? <p className={noteCls} data-testid="world-release-error">{error}</p> : null}
       {note ? <p className={okCls} data-testid="world-release-note">{note}</p> : null}

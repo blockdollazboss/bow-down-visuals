@@ -163,6 +163,7 @@ export interface ReleaseDetail {
   aggregator: string | null;
   presaveSlug: string | null;
   splitShareSlug: string | null;
+  songId: string | null;
   royaltySplits: RoyaltySplit[];
   checklist: ReleaseChecklistItem[];
   platformStatuses: ReleasePlatformStatus[];
@@ -238,6 +239,7 @@ export function parseReleaseDetail(data: unknown): ReleaseDetail | null {
     status: str(r["status"]) ?? "draft",
     creditsCharged: num(r["creditsCharged"]) ?? 0,
     aggregator: str(r["aggregator"]),
+    songId: str(r["songId"]),
     presaveSlug: str(r["presaveSlug"]),
     splitShareSlug: str(r["splitShareSlug"]),
     royaltySplits,
@@ -291,6 +293,59 @@ export interface ReleaseDraft {
   preorderDate: string;
   tracks: ReleaseTrack[];
   lyrics: string;
+  /** The linked song-library row (create only — the rail verifies
+   *  ownership and prefills audio/metadata from it). */
+  songId: string | null;
+}
+
+/* ─── Song library (GET /api/songs) — the wizard's music step ─────── */
+
+export interface ReleaseSong {
+  id: string;
+  title: string;
+  audioUrl: string;
+  genre: string | null;
+  isrc: string | null;
+  coverArtUrl: string | null;
+  lyrics: string | null;
+}
+
+export function parseReleaseSongs(data: unknown): ReleaseSong[] {
+  const rows = asRecord(data)["songs"];
+  if (!Array.isArray(rows)) return [];
+  const out: ReleaseSong[] = [];
+  for (const raw of rows) {
+    const s = asRecord(raw);
+    const id = str(s["id"]);
+    if (!id) continue;
+    out.push({
+      id,
+      title: str(s["title"]) ?? "Untitled song",
+      audioUrl: str(s["audio_url"]) ?? "",
+      genre: str(s["genre"]),
+      isrc: str(s["isrc"]),
+      coverArtUrl: str(s["cover_art_url"]),
+      lyrics: str(s["lyrics"]),
+    });
+  }
+  return out;
+}
+
+/** The 2D wizard's selectSong prefills: picking a library song fills
+ *  the audio, and fills title/track/genre/ISRC/artwork ONLY where
+ *  the wizard is still blank — what the creator typed always wins. */
+export function draftWithSong(draft: ReleaseDraft, song: ReleaseSong | null): ReleaseDraft {
+  if (!song) return { ...draft, songId: null };
+  const next: ReleaseDraft = { ...draft, songId: song.id, audioUrl: song.audioUrl };
+  if (!next.title.trim()) next.title = song.title;
+  if (next.tracks.length === 1 && !next.tracks[0]!.title.trim()) {
+    next.tracks = [{ title: song.title, isrc: next.tracks[0]!.isrc }];
+  }
+  if (song.genre && !next.genre.trim()) next.genre = song.genre;
+  if (song.isrc && !next.isrc.trim()) next.isrc = song.isrc;
+  if (song.coverArtUrl && !next.artworkUrl.trim()) next.artworkUrl = song.coverArtUrl;
+  if (song.lyrics && !next.lyrics.trim()) next.lyrics = song.lyrics;
+  return next;
 }
 
 /** A creation handed to the desk (Stack-100 #55: the Cover Desk's
@@ -326,6 +381,7 @@ export function emptyReleaseDraft(prefill?: ReleasePrefill | null): ReleaseDraft
     preorderDate: "",
     tracks: [{ title: prefill?.title ?? "", isrc: "" }],
     lyrics: "",
+    songId: null,
   };
 }
 
@@ -355,6 +411,7 @@ export function draftFromRelease(r: ReleaseDetail): ReleaseDraft {
     preorderDate: r.preorderDate ?? "",
     tracks: r.tracks.length > 0 ? r.tracks.map((t) => ({ ...t })) : [{ title: r.title, isrc: "" }],
     lyrics: typeof r.metadata?.["lyrics"] === "string" ? (r.metadata["lyrics"] as string) : "",
+    songId: r.songId,
   };
 }
 
@@ -367,8 +424,10 @@ function territoriesOf(draft: ReleaseDraft): string[] {
 
 /** The create/edit body — the 2D wizard's own field discipline:
  *  blanks ride only when the rail treats them as real values; the
- *  same body serves POST (create) and PATCH (edit a draft). */
-export function buildReleasePayload(draft: ReleaseDraft): Record<string, unknown> {
+ *  same body serves POST (create) and PATCH (edit a draft). The
+ *  song-library link rides only on create (the 2D edit flow never
+ *  re-links a release's song). */
+export function buildReleasePayload(draft: ReleaseDraft, opts?: { forCreate?: boolean }): Record<string, unknown> {
   const body: Record<string, unknown> = {
     title: draft.title.trim(),
     artistName: draft.artistName.trim(),
@@ -398,6 +457,7 @@ export function buildReleasePayload(draft: ReleaseDraft): Record<string, unknown
     preorderDate: draft.preorderDate.trim(),
   };
   if (draft.lyrics.trim()) body["lyrics"] = draft.lyrics.trim();
+  if (opts?.forCreate && draft.songId) body["songId"] = draft.songId;
   return body;
 }
 
