@@ -365,7 +365,8 @@ export class RvmEngine implements MattingEngine {
       this._settlePending(seq, (p) => p.resolve(null));
       return result;
     }
-    if (this._pending?.seq !== seq) {
+    const pendingSeq = this._pendingSeq();
+    if (pendingSeq === null || pendingSeq !== seq) {
       /* Settled meanwhile (dispose / worker death): the promise
          already has its answer; just release the bitmap. */
       bitmap.close();
@@ -405,6 +406,10 @@ export class RvmEngine implements MattingEngine {
   }
 
   /* ------------------------------------------------------------ internal */
+
+  private _pendingSeq(): number | null {
+    return this._pending?.seq ?? null;
+  }
 
   private _settlePending(seq: number, settle: (p: PendingFrame) => void): void {
     const pending = this._pending;
@@ -489,7 +494,7 @@ export class RvmEngine implements MattingEngine {
       return;
     }
     if (msg.type === "frame-error") {
-      const seq = (msg as { seq?: unknown }).seq;
+      const seq = (data as { seq?: unknown }).seq;
       if (typeof seq !== "number") return;
       this._settlePending(seq, (p) =>
         p.reject(new RvmEngineError("INFERENCE_FAILED", "The Pro background engine failed on a frame.")),

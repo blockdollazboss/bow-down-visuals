@@ -1676,7 +1676,7 @@ export default function BroadcastStudio() {
         </p>
         {phase !== "off" && (
           <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="engine-status">
-            Background engine: {engineKind === "standard" ? "On" : "Off"}
+            Background engine: {engineKind === "off" ? "Off" : "On"}
           </p>
         )}
         <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">

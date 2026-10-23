@@ -290,15 +290,17 @@ describe("segmentation engine loading", () => {
   });
 });
 
-describe("one light engine — quality is refinement, not an engine choice", () => {
-  it("auto (the default) loads ONLY the vendored MediaPipe script — the ONNX global is never even read", async () => {
+describe("two engines — quality is the creator's only choice (Pro restored, Oct 23, 2026)", () => {
+  it("auto (the default) leads with the Pro engine — with no Worker in this browser it falls back to the light engine at the sharpest refinement", async () => {
     const BackgroundChanger = await loadChanger();
-    // Booby-trap: anything in the studio path that so much as READS
-    // the heavy engine's runtime global fails this test loudly.
+    // Booby-trap: the PAGE must never touch the ONNX runtime, even
+    // while selecting the Pro engine — ORT loads inside the Pro
+    // engine's worker, never here. (This environment has no Worker
+    // at all, so the Pro attempt fails fast and honestly.)
     Object.defineProperty(win, "ort", {
       configurable: true,
       get() {
-        throw new Error("the studio must never touch the ONNX runtime");
+        throw new Error("the page must never touch the ONNX runtime — it lives in the Pro engine's worker");
       },
     });
     const statuses: string[] = [];
@@ -317,7 +319,7 @@ describe("one light engine — quality is refinement, not an engine choice", () 
       expect(changer.segmentationAvailable).toBe(true);
       expect(changer.engineError).toBeNull();
       expect(statuses).toEqual(["standard"]);
-      // Auto starts at the sharpest refinement step.
+      // Auto's light-engine ladder starts at the sharpest step.
       expect(changer.getRefinementStep()).toBe(0);
     } finally {
       await changer.stop();
@@ -325,7 +327,7 @@ describe("one light engine — quality is refinement, not an engine choice", () 
     }
   });
 
-  it("'pro' quality runs the SAME light engine — it pins the sharpest refinement, not a heavier engine", async () => {
+  it("'pro' quality leads with the Pro engine too — unavailable here, the light engine serves at the sharpest refinement instead of going raw", async () => {
     const BackgroundChanger = await loadChanger();
     const statuses: string[] = [];
     const changer = new BackgroundChanger({ mode: "green", quality: "pro", onEngineStatus: (k) => statuses.push(k) });
@@ -387,7 +389,7 @@ describe("one light engine — quality is refinement, not an engine choice", () 
     await changer.stop();
   });
 
-  it("auto steps the refinement DOWN when the engine runs slow — and stops at the floor (no second engine exists)", async () => {
+  it("auto steps the (fallback) light engine's refinement DOWN when it runs slow — and stops at its floor", async () => {
     const BackgroundChanger = await loadChanger();
     const statuses: string[] = [];
     const changer = new BackgroundChanger({ mode: "green", onEngineStatus: (k) => statuses.push(k) });
@@ -419,8 +421,10 @@ describe("one light engine — quality is refinement, not an engine choice", () 
       for (let i = 0; i < 60 && changer.getRefinementStep() === 0; i++) await stepFrame();
       expect(changer.getRefinementStep()).toBe(1);
       // Sustained slowness walks to the lightest step — and STAYS:
-      // the floor is an honest stay, never an engine swap or a
-      // dropout, and the status never re-reports.
+      // the light engine is the floor of the whole ladder (its
+      // degrade verdict steps the output canvas down instead —
+      // a no-op at this test's 720p frame), the engine never drops
+      // out, and the status never re-reports.
       for (let i = 0; i < 120 && changer.getRefinementStep() === 1; i++) await stepFrame();
       expect(changer.getRefinementStep()).toBe(2);
       for (let i = 0; i < 80; i++) await stepFrame();
@@ -434,7 +438,7 @@ describe("one light engine — quality is refinement, not an engine choice", () 
     }
   }, 30000);
 
-  it("setQuality re-runs selection live and re-pins the refinement (standard → pro)", async () => {
+  it("setQuality re-runs selection live (standard → pro): the Pro engine is attempted, the light engine re-adopted at the sharpest refinement", async () => {
     const BackgroundChanger = await loadChanger();
     const changer = new BackgroundChanger({ mode: "green", quality: "standard" });
     const started = changer.start();
@@ -447,10 +451,12 @@ describe("one light engine — quality is refinement, not an engine choice", () 
     expect(changer.getRefinementStep()).toBe(1);
     await changer.setQuality("pro");
     expect(changer.getQuality()).toBe("pro");
-    expect(changer.getEngineKind()).toBe("standard"); // the same one engine
+    expect(changer.getEngineKind()).toBe("standard"); // Pro unavailable here — light serves
     expect(changer.getRefinementStep()).toBe(0);
-    // No new script was fetched for the "pro" switch.
+    // No new script was fetched for the "pro" switch (the load is
+    // cached; a fresh segmenter instance is constructed instead).
     expect(scripts).toHaveLength(1);
+    expect(FakeSegmenter.instances).toHaveLength(2);
     await changer.stop();
   });
 });
@@ -536,18 +542,32 @@ describe("premium quality + motion build (Oct 23, 2026)", () => {
   });
 });
 
-describe("one-engine truth (source contract)", () => {
+describe("two-engine truth (source contract)", () => {
   const src = readFileSync(new URL("./background-changer.ts", import.meta.url), "utf8");
 
-  it("the heavy engine is never constructed, stepped, or degraded to in the studio path", () => {
-    expect(src).not.toContain("new RvmEngine");
-    expect(src).not.toContain("RVM_MAX_STEP");
-    expect(src).not.toContain("RvmEngineError");
-    expect(src).not.toContain("_degradeToStandard");
+  it("the Pro engine IS selected in the studio path — constructed, governed, and degraded from", () => {
+    expect(src).toContain("new RvmEngine()");
+    expect(src).toContain("_degradeToStandard");
+    expect(src).toContain("RVM_MAX_STEP");
+    expect(src).toContain("RvmEngineError");
   });
 
-  it("the shared matting contract is imported type-only (erased at runtime)", () => {
-    expect(src).toContain('import type { EngineMatte, MattingEngine } from "./rvm-engine";');
+  it("the Pro client is imported at runtime, but ONNX itself never enters the page", () => {
+    expect(src).toContain("import { RvmEngine, RvmEngineError, RVM_MAX_STEP");
+    /* The runtime, the session, and the model all live in the
+       worker (rvm-worker.js, pinned in rvm-engine.test.ts): the
+       changer holds no ORT surface at all. */
+    expect(src).not.toContain("InferenceSession");
+    expect(src).not.toContain("ort.all.min.js");
+    expect(src).not.toContain("window.ort");
+  });
+
+  it("engine failure degrades in order: Pro falls back to Standard before anything lands raw", () => {
+    /* The candidate order IS the fallback order. */
+    expect(src).toContain('this.config.quality === "standard" ? ["standard"] : ["pro", "standard"]');
+    /* And the failure-cap park falls through to the other engine. */
+    expect(src).toContain("this._parkedKinds.add(engine.kind)");
+    expect(src).toContain("fallbackLeft");
   });
 });
 
@@ -800,5 +820,264 @@ describe("freeze fix (Oct 21, 2026) — raw-first, opt-in effects, init timeout,
     expect(changer.segmentationAvailable).toBe(true);
     expect(changer.engineError).toBeNull();
     await changer.stop();
+  }, 30000);
+});
+
+/* ------------------------------------------------ Pro engine (worker) rig */
+
+/**
+ * Fake for the Pro engine's dedicated worker (the real one is
+ * public/engines/rvm/rvm-worker.js; rvm-engine.test.ts fakes the
+ * same protocol for the client). Behaviours: 'auto' answers init
+ * and every frame with a small matte; 'hang-init' never answers
+ * init; 'frame-error' answers every frame with an error.
+ */
+type ProWorkerBehavior = "auto" | "hang-init" | "frame-error";
+
+class FakeProWorker {
+  static instances: FakeProWorker[] = [];
+  static behavior: ProWorkerBehavior = "auto";
+  messages: Array<{ type?: string; seq?: number }> = [];
+  terminated = false;
+  private _messageListeners: Array<(ev: { data?: unknown }) => void> = [];
+
+  constructor() {
+    FakeProWorker.instances.push(this);
+  }
+
+  addEventListener(type: "message" | "error", listener: (ev: { data?: unknown }) => void): void {
+    if (type === "message") this._messageListeners.push(listener);
+  }
+
+  terminate(): void {
+    this.terminated = true;
+  }
+
+  emit(data: unknown): void {
+    queueMicrotask(() => {
+      for (const l of this._messageListeners) l({ data });
+    });
+  }
+
+  postMessage(message: unknown): void {
+    const msg = message as { type?: string; seq?: number };
+    this.messages.push(msg);
+    if (msg.type === "init") {
+      if (FakeProWorker.behavior !== "hang-init") this.emit({ type: "ready", provider: "wasm" });
+    } else if (msg.type === "frame") {
+      if (FakeProWorker.behavior === "frame-error") {
+        this.emit({ type: "frame-error", seq: msg.seq, message: "inference boom" });
+      } else if (FakeProWorker.behavior === "auto") {
+        const alpha = new Float32Array(8).fill(0.5);
+        this.emit({ type: "matte", seq: msg.seq, alpha: alpha.buffer, width: 4, height: 2, ms: 5 });
+      }
+    }
+  }
+
+  framesSent(): number {
+    return this.messages.filter((m) => m.type === "frame").length;
+  }
+}
+
+describe("Pro engine restored (Oct 23, 2026) — selection, fallback, degrade, park", () => {
+  beforeEach(() => {
+    FakeProWorker.instances = [];
+    FakeProWorker.behavior = "auto";
+    vi.stubGlobal("Worker", FakeProWorker);
+    vi.stubGlobal("createImageBitmap", async (video: { videoWidth: number; videoHeight: number }) => ({
+      width: video.videoWidth,
+      height: video.videoHeight,
+      close(): void {},
+    }));
+  });
+
+  it("auto starts on the Pro engine: kind 'pro', NO MediaPipe script is fetched, and a worker matte composites", async () => {
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ mode: "green", onEngineStatus: (k) => statuses.push(k) });
+    const { stream } = await changer.start();
+    await flush();
+    await flush();
+    expect(stream).toBeTruthy();
+    expect(changer.getEngineKind()).toBe("pro");
+    expect(changer.segmentationAvailable).toBe(true);
+    expect(changer.engineError).toBeNull();
+    expect(statuses).toEqual(["pro"]);
+    expect(scripts).toHaveLength(0); // the light engine was never even loaded
+    expect(FakeSegmenter.instances).toHaveLength(0);
+    expect(changer.getProStep()).toBe(0);
+    /* A frame goes to the worker; its matte composites. */
+    const canvas = changer.canvas as unknown as FakeCanvas;
+    const before = canvas.ctx.calls.filter((c) => c === "drawImage").length;
+    rafCallbacks[rafCallbacks.length - 1]?.();
+    await flush();
+    await flush();
+    expect(FakeProWorker.instances[0].framesSent()).toBe(1);
+    const after = canvas.ctx.calls.filter((c) => c === "drawImage").length;
+    expect(after).toBeGreaterThan(before);
+    await changer.stop();
+    expect(FakeProWorker.instances[0].terminated).toBe(true);
+  });
+
+  it("'standard' quality never constructs the Pro worker — the light engine is its whole story", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green", quality: "standard" });
+    const started = changer.start();
+    await flush();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(FakeProWorker.instances).toHaveLength(0);
+    await changer.stop();
+  });
+
+  it("a Pro worker that never answers init times out under the SAME cap and falls back to the light engine", async () => {
+    FakeProWorker.behavior = "hang-init";
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({
+      mode: "green",
+      engineInitTimeoutMs: 40,
+      onEngineStatus: (k) => statuses.push(k),
+    });
+    const { stream } = await changer.start(); // resolves on the camera (raw-first)
+    expect(stream).toBeTruthy();
+    /* The 40ms cap fires on the hung Pro init; selection moves on
+       to the light engine. Its script appears next — answer it the
+       moment it does, so the fallback's own init lands well inside
+       the same 40ms cap (the cap is per engine init). */
+    const deadline = Date.now() + 2000;
+    while (scripts.length === 0 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2));
+    }
+    expect(scripts).toHaveLength(1);
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.segmentationAvailable).toBe(true);
+    expect(changer.engineError).toBeNull();
+    expect(statuses).toEqual(["standard"]);
+    await changer.stop();
+  });
+
+  it("Pro inferences that keep failing park the Pro engine and fall through to the light engine", async () => {
+    const { MAX_CONSECUTIVE_INFERENCE_FAILURES } = await import("./background-changer");
+    FakeProWorker.behavior = "frame-error";
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ mode: "green", onEngineStatus: (k) => statuses.push(k) });
+    await changer.start();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("pro");
+    const stepFrame = async () => {
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await flush();
+      await flush();
+    };
+    for (let i = 0; i < MAX_CONSECUTIVE_INFERENCE_FAILURES; i++) await stepFrame();
+    await flush();
+    const worker = FakeProWorker.instances[0];
+    expect(worker.framesSent()).toBe(MAX_CONSECUTIVE_INFERENCE_FAILURES);
+    expect(worker.terminated).toBe(true); // the parked engine is stood down
+    /* The park ran selection again: the light engine is loading. */
+    expect(scripts).toHaveLength(1);
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.segmentationAvailable).toBe(true);
+    expect(changer.engineError).toBeNull();
+    expect(statuses).toEqual(["pro", "standard"]);
+    /* The parked Pro engine receives no further frames — the loop
+       now drives the light engine (one send pends on results). */
+    await stepFrame();
+    expect(worker.framesSent()).toBe(MAX_CONSECUTIVE_INFERENCE_FAILURES);
+    expect(FakeSegmenter.instances[0].sendCount).toBe(1);
+    const mask = new FakeCanvas();
+    mask.width = 256;
+    mask.height = 144;
+    FakeSegmenter.instances[0].resultsCb?.({ image: null, segmentationMask: mask });
+    await flush();
+    await changer.stop();
+  }, 30000);
+
+  it("auto walks the Pro steps down on sustained slowness, then degrades to the light engine", async () => {
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ mode: "green", onEngineStatus: (k) => statuses.push(k) });
+    await changer.start();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("pro");
+    expect(changer.getProStep()).toBe(0);
+    // Every performance.now() call jumps 100ms, so each worker
+    // round trip reads as ~100ms — far over the ladder's slow line.
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    try {
+      const stepFrame = async () => {
+        rafCallbacks[rafCallbacks.length - 1]?.();
+        await flush();
+        await flush();
+      };
+      for (let i = 0; i < 120 && changer.getProStep() === 0; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(1);
+      for (let i = 0; i < 120 && changer.getProStep() === 1; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(2);
+      for (let i = 0; i < 120 && changer.getProStep() === 2; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(3);
+      /* At the Pro floor, sustained slowness degrades: the light
+         engine starts loading (its script appears) while the Pro
+         engine keeps serving until the swap. */
+      for (let i = 0; i < 200 && scripts.length === 0; i++) await stepFrame();
+      expect(scripts).toHaveLength(1);
+      expect(changer.getEngineKind()).toBe("pro"); // not swapped yet
+      win.SelfieSegmentation = FakeSegmenter;
+      scripts[0].onload?.();
+      await flush();
+      await flush();
+      expect(changer.getEngineKind()).toBe("standard");
+      expect(changer.getRefinementStep()).toBe(0); // auto's ladder restarts sharpest
+      expect(statuses).toEqual(["pro", "standard"]);
+    } finally {
+      nowSpy.mockRestore();
+      await changer.stop();
+    }
+  }, 30000);
+
+  it("'pro' quality walks its internal steps on slowness but NEVER degrades engines under the creator", async () => {
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const changer = new BackgroundChanger({ mode: "green", quality: "pro", onEngineStatus: (k) => statuses.push(k) });
+    await changer.start();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("pro");
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    try {
+      const stepFrame = async () => {
+        rafCallbacks[rafCallbacks.length - 1]?.();
+        await flush();
+        await flush();
+      };
+      for (let i = 0; i < 400 && changer.getProStep() < 3; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(3);
+      /* Far past the floor: still Pro, still no light-engine load. */
+      for (let i = 0; i < 120; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(3);
+      expect(changer.getEngineKind()).toBe("pro");
+      expect(scripts).toHaveLength(0);
+      expect(statuses).toEqual(["pro"]);
+    } finally {
+      nowSpy.mockRestore();
+      await changer.stop();
+    }
   }, 30000);
 });
