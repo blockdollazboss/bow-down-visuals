@@ -110,3 +110,23 @@ describe("#26 broadcast: channels and inbox settle independently (A3-F4)", () =>
     expect(page).not.toContain('loadState === "loading"');
   });
 });
+
+describe("#27 artist-setup: failed load ≠ brand-new creator (A3-F5)", () => {
+  const page = src("../pages/artist-setup.tsx");
+  it("the load catch sets a load-error state — it never constructs an emptyProfile", () => {
+    const catchAt = page.indexOf("} catch {\n        if (!cancelled) setLoadError(true);");
+    expect(catchAt).toBeGreaterThan(-1);
+    expect(page).not.toContain("setProfile(emptyProfile())");
+  });
+  it("the genuine no-profile branch still builds the prefilled new-creator profile", () => {
+    expect(page).toContain("setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar }))");
+  });
+  it("the error state renders before the editor/lightning branches, with a retry that reloads", () => {
+    const errAt = page.indexOf('data-testid="artist-setup-load-error"');
+    const lightningAt = page.indexOf("if (!exists && lightning)");
+    expect(errAt).toBeGreaterThan(-1);
+    expect(lightningAt).toBeGreaterThan(errAt);
+    expect(page).toContain("setRetryNonce((n) => n + 1)");
+    expect(page).toContain("}, [retryNonce]);");
+  });
+});

@@ -203,6 +203,12 @@ export default function ArtistSetup() {
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [exists, setExists] = useState(false);
   const [loading, setLoading] = useState(true);
+  /* Stack-28 #27 / A3-F5: a FAILED load is not "no profile yet". It
+     gets its own error state + retry and never constructs the
+     new-creator emptyProfile (whose save walks the create branch
+     against an existing profile). */
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [reveal, setReveal] = useState(false);
   /* Lightning mode: first-run express wizard (60 seconds to a live page).
@@ -236,13 +242,13 @@ export default function ArtistSetup() {
           if (!cancelled) setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar }));
         }
       } catch {
-        if (!cancelled) setProfile(emptyProfile());
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [retryNonce]);
 
   const patch = (p: Partial<CreatorProfile>) => setProfile((prev) => (prev ? { ...prev, ...p } : prev));
 
@@ -285,6 +291,24 @@ export default function ArtistSetup() {
       toast({ title: "Couldn't reach the vault", description: "Try again in a moment." });
     }
   };
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center" data-testid="artist-setup-load-error">
+        <p className="text-lg font-bold text-white">Your profile couldn't load.</p>
+        <p className="max-w-sm text-sm text-white/50">
+          Something went wrong reaching it — your profile is still there. Try again before making any changes.
+        </p>
+        <button
+          type="button"
+          onClick={() => { setLoadError(false); setLoading(true); setRetryNonce((n) => n + 1); }}
+          className="mt-2 rounded-full bg-primary px-6 py-2.5 font-bold text-black hover:brightness-110"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !profile) {
     return (
