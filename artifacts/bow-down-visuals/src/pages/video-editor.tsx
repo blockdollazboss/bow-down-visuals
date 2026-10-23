@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
@@ -75,33 +75,37 @@ import {
 } from "@/lib/compare-slider";
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
-import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
-import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
-import { StockLibraryPanel } from "@/components/editor/sections/StockLibraryPanel";
-import { AssetLibraryPanel } from "@/components/editor/sections/AssetLibraryPanel";
-import TemplatesTabPanel from "@/components/video-editor/TemplatesTabPanel";
-import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
-import { AiCaptionSuite } from "@/components/editor/sections/AiCaptionSuite";
-import { EffectsSection } from "@/components/editor/sections/EffectsSection";
-import { ExportSection } from "@/components/editor/sections/ExportSection";
-import { MusicStudio } from "@/components/editor/music/MusicStudio";
-import { BrandingSection } from "@/components/editor/sections/BrandingSection";
-import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
-import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
-import { TimelineSection } from "@/components/editor/sections/TimelineSection";
-import { MotionGraphicsSection } from "@/components/editor/sections/MotionGraphicsSection";
-import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
-import { VoiceDirectedEditsSection } from "@/components/editor/sections/VoiceDirectedEditsSection";
-import { AICopilotPanel } from "@/components/editor/sections/AICopilotPanel";
-import { BeatSyncSection } from "@/components/editor/sections/BeatSyncSection";
-import { TimelineTemplatesSection } from "@/components/editor/sections/TimelineTemplatesSection";
-import { BackgroundReplaceSection } from "@/components/editor/sections/BackgroundReplaceSection";
-import { StabilizeSection } from "@/components/editor/sections/StabilizeSection";
-import { SpeedRampSection } from "@/components/editor/sections/SpeedRampSection";
-import { CaptionTemplatesSection } from "@/components/editor/sections/CaptionTemplatesSection";
-import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
-import { CanvasGeneratorSection } from "@/components/editor/sections/CanvasGeneratorSection";
-import { KeyframesSection } from "@/components/editor/sections/KeyframesSection";
+/* Stack-28 #51: editor section panels are lazy — each renders only when
+   its rail tab is active, so the editor shell chunk no longer carries all
+   ~30 sections (incl. the 225 KB LipSyncSection) on first editor load.
+   Both panel asides render inside <Suspense> boundaries below. */
+const ClipGeneratorSection = lazy(() => import("@/components/editor/sections/ClipGeneratorSection").then((m) => ({ default: m.ClipGeneratorSection })));
+const ScreenRecorderPanel = lazy(() => import("@/components/editor/sections/ScreenRecorderPanel").then((m) => ({ default: m.ScreenRecorderPanel })));
+const StockLibraryPanel = lazy(() => import("@/components/editor/sections/StockLibraryPanel").then((m) => ({ default: m.StockLibraryPanel })));
+const AssetLibraryPanel = lazy(() => import("@/components/editor/sections/AssetLibraryPanel").then((m) => ({ default: m.AssetLibraryPanel })));
+const TemplatesTabPanel = lazy(() => import("@/components/video-editor/TemplatesTabPanel"));
+const CaptionsSection = lazy(() => import("@/components/editor/sections/CaptionsSection").then((m) => ({ default: m.CaptionsSection })));
+const AiCaptionSuite = lazy(() => import("@/components/editor/sections/AiCaptionSuite").then((m) => ({ default: m.AiCaptionSuite })));
+const EffectsSection = lazy(() => import("@/components/editor/sections/EffectsSection").then((m) => ({ default: m.EffectsSection })));
+const ExportSection = lazy(() => import("@/components/editor/sections/ExportSection").then((m) => ({ default: m.ExportSection })));
+const MusicStudio = lazy(() => import("@/components/editor/music/MusicStudio").then((m) => ({ default: m.MusicStudio })));
+const BrandingSection = lazy(() => import("@/components/editor/sections/BrandingSection").then((m) => ({ default: m.BrandingSection })));
+const LipSyncSection = lazy(() => import("@/components/editor/sections/LipSyncSection").then((m) => ({ default: m.LipSyncSection })));
+const PreProductionSection = lazy(() => import("@/components/editor/sections/PreProductionSection").then((m) => ({ default: m.PreProductionSection })));
+const TimelineSection = lazy(() => import("@/components/editor/sections/TimelineSection").then((m) => ({ default: m.TimelineSection })));
+const MotionGraphicsSection = lazy(() => import("@/components/editor/sections/MotionGraphicsSection").then((m) => ({ default: m.MotionGraphicsSection })));
+const StudioEditorSection = lazy(() => import("@/components/editor/sections/StudioEditorSection").then((m) => ({ default: m.StudioEditorSection })));
+const VoiceDirectedEditsSection = lazy(() => import("@/components/editor/sections/VoiceDirectedEditsSection").then((m) => ({ default: m.VoiceDirectedEditsSection })));
+const AICopilotPanel = lazy(() => import("@/components/editor/sections/AICopilotPanel").then((m) => ({ default: m.AICopilotPanel })));
+const BeatSyncSection = lazy(() => import("@/components/editor/sections/BeatSyncSection").then((m) => ({ default: m.BeatSyncSection })));
+const TimelineTemplatesSection = lazy(() => import("@/components/editor/sections/TimelineTemplatesSection").then((m) => ({ default: m.TimelineTemplatesSection })));
+const BackgroundReplaceSection = lazy(() => import("@/components/editor/sections/BackgroundReplaceSection").then((m) => ({ default: m.BackgroundReplaceSection })));
+const StabilizeSection = lazy(() => import("@/components/editor/sections/StabilizeSection").then((m) => ({ default: m.StabilizeSection })));
+const SpeedRampSection = lazy(() => import("@/components/editor/sections/SpeedRampSection").then((m) => ({ default: m.SpeedRampSection })));
+const CaptionTemplatesSection = lazy(() => import("@/components/editor/sections/CaptionTemplatesSection").then((m) => ({ default: m.CaptionTemplatesSection })));
+const ProToolsSection = lazy(() => import("@/components/editor/sections/ProToolsSection").then((m) => ({ default: m.ProToolsSection })));
+const CanvasGeneratorSection = lazy(() => import("@/components/editor/sections/CanvasGeneratorSection").then((m) => ({ default: m.CanvasGeneratorSection })));
+const KeyframesSection = lazy(() => import("@/components/editor/sections/KeyframesSection").then((m) => ({ default: m.KeyframesSection })));
 import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
 import {
   buildProToolsCssFilter,
@@ -112,18 +116,18 @@ import { TimelineDock } from "@/components/editor/TimelineDock";
 import TemplatePicker from "@/components/TemplatePicker";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import type { HubAsset } from "@/lib/hub-project";
-import PromoClip from "@/pages/promo-clip";
-import LyricVideo from "@/pages/lyric-video";
-import Translate from "@/pages/translate";
-import Repurpose from "@/pages/repurpose";
-import Upscale from "@/pages/upscale";
-import CartoonStudio from "@/pages/cartoon-studio";
-import ThumbnailStudio from "@/pages/thumbnail-studio";
-import { VisualVibesSection } from "@/components/editor/sections/VisualVibesSection";
-import LocationsPage from "@/pages/locations";
-import { StyleStealerSection } from "@/components/editor/sections/StyleStealerSection";
-import { MemeMachineSection } from "@/components/editor/sections/MemeMachineSection";
-import { ThreeSecondLabSection } from "@/components/editor/sections/ThreeSecondLabSection";
+const PromoClip = lazy(() => import("@/pages/promo-clip"));
+const LyricVideo = lazy(() => import("@/pages/lyric-video"));
+const Translate = lazy(() => import("@/pages/translate"));
+const Repurpose = lazy(() => import("@/pages/repurpose"));
+const Upscale = lazy(() => import("@/pages/upscale"));
+const CartoonStudio = lazy(() => import("@/pages/cartoon-studio"));
+const ThumbnailStudio = lazy(() => import("@/pages/thumbnail-studio"));
+const VisualVibesSection = lazy(() => import("@/components/editor/sections/VisualVibesSection").then((m) => ({ default: m.VisualVibesSection })));
+const LocationsPage = lazy(() => import("@/pages/locations"));
+const StyleStealerSection = lazy(() => import("@/components/editor/sections/StyleStealerSection").then((m) => ({ default: m.StyleStealerSection })));
+const MemeMachineSection = lazy(() => import("@/components/editor/sections/MemeMachineSection").then((m) => ({ default: m.MemeMachineSection })));
+const ThreeSecondLabSection = lazy(() => import("@/components/editor/sections/ThreeSecondLabSection").then((m) => ({ default: m.ThreeSecondLabSection })));
 import { ToolPanelShell } from "@/components/editor/ToolPanelShell";
 import { ALIGN_CREDITS as LYRIC_ALIGN_CREDITS, RENDER_CREDITS as LYRIC_RENDER_CREDITS } from "@/lib/lyric-video";
 import {
@@ -2218,6 +2222,7 @@ export default function VideoEditor() {
 
               {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
               <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-r vv-border overflow-y-auto hidden md:block">
+              <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
                 <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
                   <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
                     {{
@@ -2918,6 +2923,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
                 </div>
+              </Suspense>
               </aside>
 
               {/* ── DRAGGABLE DIVIDER: resize the tool panel — snaps to 5 positions (double-click resets) ── */}
@@ -3250,6 +3256,7 @@ export default function VideoEditor() {
               )}
 
               {/* ── RIGHT PANEL: CREATE MORE + FINISH sections ── */}
+              <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
               <aside style={{ width: rightPanelCollapsed ? 0 : rightPanelWidth, display: rightPanelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-l vv-border overflow-y-auto hidden md:block">
                 <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
                   <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
@@ -3536,6 +3543,7 @@ export default function VideoEditor() {
                   )}
                 </div>
               </aside>
+              </Suspense>
 
               {/* ── RIGHT RAIL: CREATE MORE + FINISH icon nav ── */}
               <nav className="w-[68px] shrink-0 vv-marble-rail border-l vv-border flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Create more and finish">
