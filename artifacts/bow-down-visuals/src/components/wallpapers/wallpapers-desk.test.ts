@@ -106,6 +106,16 @@ describe("Stack-28 item 14 — clean theme pack: one up-front confirmation, no d
   });
 });
 
+describe("Stack-28 item 16 — store listing attaches the full set it promises", () => {
+  it("listPack posts mediaUrls [phoneUrl, desktopUrl]", () => {
+    const start = desk.indexOf("async function listPack()");
+    expect(start, "listPack exists").toBeGreaterThan(-1);
+    const slice = desk.slice(start, desk.indexOf("async function downloadZip(", start));
+    expect(slice).toContain("mediaUrls: [pack.phoneUrl, pack.desktopUrl]");
+    expect(slice).not.toContain("mediaUrls: [pack.phoneUrl]");
+  });
+});
+
 describe("Stack-28 item 13 — King's Set selections are absolutified for the rails", () => {
   it("both selection buttons absolutify: Use this art (still) and Use as screensaver (loop)", () => {
     expect(desk).toContain("setCurrentArt(absoluteKingsSetUrl(piece.stillUrl))");

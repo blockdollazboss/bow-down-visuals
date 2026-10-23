@@ -338,7 +338,11 @@ export function WallpapersDesk() {
           title: listTitle.trim() || t("wallpapers.listDefaultTitle", { defaultValue: "My wallpaper & theme pack" }),
           description: t("wallpapers.listDescription", { defaultValue: "The full set: phone wallpaper, lock screen and desktop wallpaper, matched to one palette." }),
           priceCents,
-          mediaUrls: [pack.phoneUrl],
+          /* Stack-28 item 16: the listing description promises the
+             full set (phone + lock + desktop); the lock screen IS the
+             phone render by design, so phone + desktop are the whole
+             set — attach both, not just the phone render. */
+          mediaUrls: [pack.phoneUrl, pack.desktopUrl],
           inventory: -1,
         }),
       });
