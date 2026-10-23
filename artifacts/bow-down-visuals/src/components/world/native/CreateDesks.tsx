@@ -23,6 +23,9 @@ import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
 import { CreatorProfileCreateCard } from "./CreatorProfileCreate";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import { CoverSongModal } from "@/components/song/CoverSongModal";
+import { LrcExportModal } from "@/components/song/LrcExportModal";
+import { LRC_AI_ALIGN_CREDITS } from "@/lib/lrc";
 import {
   AI_EDIT_STYLE_DEFS,
   applyAiTransitionsToClips,
@@ -49,6 +52,10 @@ import {
   buildEditorProjectPayload,
   buildMusicAudioPayload,
   buildPublishTrackPayload,
+  coverSourceForSong,
+  lrcSourceForSong,
+  packageLyricsOf,
+  songCoverCost,
   buildRunwayClipPayload,
   buildSongPayloadAdvanced,
   buildSongPayloadTurbo,
@@ -321,6 +328,9 @@ export function SongDesk(props: CreateDeskProps) {
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [genHistoryId, setGenHistoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Stack-100 #49: the finished-song finishers (cover + .lrc). */
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [lrcOpen, setLrcOpen] = useState(false);
   const editor = useEditorSeed(props);
   const draft = useDraftSaver();
 
@@ -511,6 +521,50 @@ export function SongDesk(props: CreateDeskProps) {
                 costVisualBucs={rail.audioCost}
                 onMakeAudio={() => void rail.makeAudio()}
               />
+              {/* Stack-100 #49 — the finished-song finishers: the
+                  site's OWN CoverSongModal + LrcExportModal docked
+                  on this result (same rails, prices and credit
+                  confirmation as make-song: cover 400 VB on
+                  /api/song-cover; .lrc tap-to-sync free or AI
+                  align 200 VB). They open only once the desk holds
+                  the real hosted audio both modals require. */}
+              {rail.audioUrl ? (
+                <div className="mt-3 flex flex-wrap gap-1.5" data-testid="world-song-finishers">
+                  <button
+                    type="button"
+                    data-testid="world-song-finisher-cover"
+                    onClick={() => setCoverOpen(true)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+                    }`}
+                  >
+                    Make a cover · {songCoverCost().toLocaleString("en-US")} Visual Bucs
+                  </button>
+                  {lrcSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName, rawResult }) ? (
+                    <button
+                      type="button"
+                      data-testid="world-song-finisher-lrc"
+                      onClick={() => setLrcOpen(true)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
+                      }`}
+                    >
+                      Synced lyrics (.lrc) · free to tap-sync, {LRC_AI_ALIGN_CREDITS} Visual Bucs to auto-align
+                    </button>
+                  ) : null}
+                  <CoverSongModal
+                    open={coverOpen}
+                    onClose={() => setCoverOpen(false)}
+                    source={coverSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName })}
+                    initialLyrics={packageLyricsOf(rawResult)}
+                  />
+                  <LrcExportModal
+                    open={lrcOpen}
+                    onClose={() => setLrcOpen(false)}
+                    source={lrcSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName, rawResult })}
+                  />
+                </div>
+              ) : null}
               <ResultChips
                 isLight={isLight}
                 onSendToEditor={
