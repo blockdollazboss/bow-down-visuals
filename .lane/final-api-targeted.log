@@ -1,0 +1,180 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server[39m
+
+[19:38:26.721] [31mERROR[39m (14047): [36m[distribution] release announcement failed — release stays packaged[39m
+    [35mreleaseId[39m: "22e82eae-7bab-40a8-9536-d447d9e20dba"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    \nparams: 368df6bc-0bac-49b8-91f8-4d2148400c12: relation \"creator_profiles\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, slug FROM creator_profiles WHERE user_id = '368df6bc-0bac-49b8-91f8-4d2148400c12' LIMIT 1\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1
+              
+          params: 368df6bc-0bac-49b8-91f8-4d2148400c12
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at announceRelease (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:1263:24)
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:1427:5
+          caused by: Error: relation "creator_profiles" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = '368df6bc-0bac-49b8-91f8-4d2148400c12' LIMIT 1
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    ",
+      "params": [
+        "368df6bc-0bac-49b8-91f8-4d2148400c12"
+      ]
+    }
+[19:38:26.777] [31mERROR[39m (14047): [36m[distribution] release announcement failed — release stays packaged[39m
+    [35mreleaseId[39m: "5f7a3dee-9372-41b3-97bb-73f3951028c8"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    \nparams: 368df6bc-0bac-49b8-91f8-4d2148400c12: relation \"creator_profiles\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, slug FROM creator_profiles WHERE user_id = '368df6bc-0bac-49b8-91f8-4d2148400c12' LIMIT 1\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1
+              
+          params: 368df6bc-0bac-49b8-91f8-4d2148400c12
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at announceRelease (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:1263:24)
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:1427:5
+          caused by: Error: relation "creator_profiles" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = '368df6bc-0bac-49b8-91f8-4d2148400c12' LIMIT 1
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    ",
+      "params": [
+        "368df6bc-0bac-49b8-91f8-4d2148400c12"
+      ]
+    }
+[19:38:26.803] [31mERROR[39m (14047): [36m[distribution] aggregator submission failed[39m
+    err: {
+      "type": "Error",
+      "message": "boom",
+      "stack":
+          Error: boom
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/__tests__/distribution.test.ts:558:70
+              at file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20
+    }
+[19:38:26.890] [31mERROR[39m (14047): [36m[distribution] metadata generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.testState.openAiImpl (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/__tests__/distribution.test.ts:609:13)
+              at Object.create (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/__tests__/distribution.test.ts:69:54)
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:532:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[19:38:26.904] [31mERROR[39m (14047): [36m[distribution] metadata generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "Model returned no usable metadata",
+      "stack":
+          Error: Model returned no usable metadata
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:589:13
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[19:38:26.952] [31mERROR[39m (14047): [36m[distribution] strategy generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.testState.openAiImpl (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/__tests__/distribution.test.ts:670:13)
+              at Object.create (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/__tests__/distribution.test.ts:69:54)
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:630:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[19:38:28.449] [31mERROR[39m (14047): [36m[distribution] release announcement failed — release stays packaged[39m
+    [35mreleaseId[39m: "1746710b-f317-43c1-8007-82e7ed822979"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    \nparams: 368df6bc-0bac-49b8-91f8-4d2148400c12: relation \"creator_profiles\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, slug FROM creator_profiles WHERE user_id = '368df6bc-0bac-49b8-91f8-4d2148400c12' LIMIT 1\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1
+              
+          params: 368df6bc-0bac-49b8-91f8-4d2148400c12
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at announceRelease (/home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:1263:24)
+              at /home/hatch/workspace/bdv-wt-w28-studio/artifacts/api-server/src/routes/generate/distribution.ts:1427:5
+          caused by: Error: relation "creator_profiles" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = '368df6bc-0bac-49b8-91f8-4d2148400c12' LIMIT 1
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    ",
+      "params": [
+        "368df6bc-0bac-49b8-91f8-4d2148400c12"
+      ]
+    }
+ [32m✓[39m src/routes/__tests__/distribution.test.ts [2m([22m[2m72 tests[22m[2m)[22m[33m 3443[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/distribution-router-order.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 458[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/live-streams-own.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 540[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/live-control.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 396[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/live-streams.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 455[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/live-streams-ingest-key.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 583[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/world-voice-config.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 294[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m140 passed[39m[22m[90m (140)[39m
+[2m   Start at [22m 19:38:18
+[2m   Duration [22m 28.40s[2m (import 57%, tests 25%, transform 17%, worker 1%)[22m
+
+[2m     Import [22m [33m174 modules were evaluated 304 times[39m[2m · 13.86s total, 57% of tracked time[22m
+[2m            [22m [2m~5.93s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

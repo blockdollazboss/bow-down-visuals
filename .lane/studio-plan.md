@@ -59,4 +59,19 @@ Facet-verification summary (facets partly stale, as warned):
 - 100 TURN readiness code-side — DONE (ephemeral HMAC creds, both modes pinned)
 
 ## Verification (numbers only from finished logs in .lane/)
-- (filled at the end)
+- FULL FE suite: 311 files / 4,213 tests ALL PASSED — .lane/final-fe-full.log
+- FULL API suite: 413 files / 5,227 tests ALL PASSED — .lane/final-api-full.log
+- FE world suite: 101 files / 1,855 tests PASSED — .lane/final-fe-world.log
+- API targeted (voice-config, live-streams own/full/ingest, live-control,
+  distribution + router-order): 7 files / 140 tests — .lane/final-api-targeted.log
+- API world routes (locks + events): 2 files / 25 tests — .lane/final-api-worldroutes.log
+- FE live-adjacent (stream-controller, guest-honesty, go-live): 6 files / 62
+  tests — .lane/final-fe-live.log
+- Item logs: item100-voice-config.log (12/12), item65-66.log (54/54),
+  item98-api2.log (11/11), item98-fe.log (40/40), item99-fe2.log (34/34),
+  item99-api.log (76/76)
+- Typechecks at finished tip: lib build 0, API 0, FE 0 —
+  .lane/final-build-libs.log, .lane/final-api-typecheck.log,
+  .lane/final-fe-typecheck.log
+- Branch tip: 7595efcf (stack28/world-studio). No push, no migration,
+  no env set anywhere, no relay stood up, no file deletions.
