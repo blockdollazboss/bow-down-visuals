@@ -51,8 +51,9 @@ describe("WorldPalace.presenceSnapshot", () => {
     const music = snap.rooms.find((r) => r.id === "world:music-hall")!;
     expect(music.count).toBe(1);
     expect(music.members).toEqual(["Cy the Guest"]);
-    // the eight palace rooms always list, empty ones at zero
-    expect(snap.rooms).toHaveLength(8);
+    // the nine palace rooms always list, empty ones at zero
+    // (nine since item 31 added the Stage Grounds district)
+    expect(snap.rooms).toHaveLength(9);
     expect(snap.rooms.find((r) => r.id === "world:treasury")!.count).toBe(0);
   });
 

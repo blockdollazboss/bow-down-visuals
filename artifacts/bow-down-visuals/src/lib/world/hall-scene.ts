@@ -4450,6 +4450,9 @@ export class KingsHallScene {
     // The way back, labeled from the district side of the gate.
     this.doorPlate(g, "THE KING'S PLAZA", -28.45, PALACE_DOOR_HEIGHT + 0.66, 19.5, -Math.PI / 2, 2.6);
 
+    // The district's door-station: the Stage Bill at the path's head.
+    this.buildStationMarkers(g, mats, STAGE_GROUNDS_ID);
+
     group.add(g);
     this.shellGroups.set(STAGE_GROUNDS_ID, g);
   }

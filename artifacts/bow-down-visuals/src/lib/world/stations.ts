@@ -52,6 +52,7 @@ import {
   TREASURY_ID,
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
+  STAGE_GROUNDS_ID,
   creatorSlugFromRoomId,
 } from "./palace-layout";
 
@@ -454,6 +455,27 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: 24.4,
     membersOnly: false,
     panel: { kind: "custom", id: "creator-rooms" },
+    websitePath: null,
+  },
+
+  /* ── Stage Grounds (Stage C item 31) ─────────────────────────── */
+  {
+    /* The district's one door: the bill at the head of the entry
+     * path, where the gate walk meets the audience lawn. It opens
+     * the Kingdom Board — the palace's live slate of what's on,
+     * who's where and what's live — the same panel the hall's and
+     * the monument's boards carry, born world-native like them
+     * (never a website page). The district is look/listen space:
+     * no stage authority docks here, and guests read the bill
+     * exactly like members. */
+    id: "stage-bill",
+    roomId: STAGE_GROUNDS_ID,
+    name: "The Stage Bill",
+    tagline: "What's on at the palace — the live slate, read from the stage quarter.",
+    x: -33.2,
+    z: 19.5,
+    membersOnly: false,
+    panel: { kind: "custom", id: "kingdom-board" },
     websitePath: null,
   },
 ];
