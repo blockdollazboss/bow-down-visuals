@@ -52,6 +52,14 @@ export interface HallLook {
   /** PBR texture maps (public assets, loaded with the world chunk). */
   marbleTextureUrl: string;
   throneFabricTextureUrl: string;
+  /** Exterior stone courses for the palace façade + roofline
+   *  (Stage C item 1/2, art lane item 10): dark ashlar at night,
+   *  warm light ashlar by day. */
+  facadeStoneTextureUrl: string;
+  /** Gold-vein marble for the façade's accent pieces (plinth,
+   *  pilasters, pediment, dome): black/gold at night, cream/gold
+   *  by day — the Living Night Palace direction and its twin. */
+  facadeMarbleTextureUrl: string;
   /** Legacy: the floor's old whole-tile repeat count. Repeats are
    *  per-metre now (pbr-materials.repeatForSize, overhaul item 7) —
    *  hall-scene no longer reads this; kept as look history. */
@@ -100,6 +108,8 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     environmentIntensity: 0.55,
     marbleTextureUrl: `${TEXTURE_BASE}/marble-cream.jpg`,
     throneFabricTextureUrl: `${TEXTURE_BASE}/brocade-gold.jpg`,
+    facadeStoneTextureUrl: `${TEXTURE_BASE}/stone-light.jpg`,
+    facadeMarbleTextureUrl: `${TEXTURE_BASE}/marble-cream-goldvein.jpg`,
     floorRepeat: 3,
     floorOverlayOpacity: 0.5,
     floorRoughness: 0.07,
@@ -128,6 +138,8 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     environmentIntensity: 0.3,
     marbleTextureUrl: `${TEXTURE_BASE}/marble-black.jpg`,
     throneFabricTextureUrl: `${TEXTURE_BASE}/velvet-black.jpg`,
+    facadeStoneTextureUrl: `${TEXTURE_BASE}/stone-dark.jpg`,
+    facadeMarbleTextureUrl: `${TEXTURE_BASE}/marble-black-goldvein.jpg`,
     floorRepeat: 3,
     floorOverlayOpacity: 0.58,
     floorRoughness: 0.06,
