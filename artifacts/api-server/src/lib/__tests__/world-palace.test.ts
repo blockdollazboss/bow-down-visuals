@@ -371,6 +371,63 @@ describe("the Ateliers district (Stage C item 34)", () => {
   });
 });
 
+describe("the Boardwalk district (Stage C item 35)", () => {
+  const BOARDWALK = "world:boardwalk";
+
+  it("the def mirrors the client floor plan (lib/world/boardwalk.ts): name, clamp box, gate spawn", () => {
+    const def = PALACE_ROOM_DEFS.find((d) => d.roomId === BOARDWALK);
+    expect(def?.name).toBe("The Boardwalk");
+    /* The client's walk rect is x −12.65..27.85, z 38.35..59.65
+     * with its grounds strips reaching z 34.35; the clamp is a
+     * touch generous at the gate apron, like every room's, and
+     * the spawn is just inside the gate on the entry corridor. */
+    expect(def?.bounds).toEqual({ minX: -13.4, maxX: 28.6, minZ: 33.6, maxZ: 60.4 });
+    expect(def?.spawn).toEqual({ x: 0, z: 36.2 });
+    /* No stage, no jukebox: the palace's one stage stays in the
+     * hall and its one jukebox in the Music Hall. */
+    expect(def?.stageEnabled).toBeUndefined();
+    expect(def?.jukeboxEnabled).toBeUndefined();
+  });
+
+  it("transfers through the south gate: welcome names the district, the crossing point is carried, no screen or jukebox rides it", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    b.sent = [];
+    frame(palace, b, { type: "room.enter", roomId: BOARDWALK, x: 0, z: 34.3, rotY: 0 });
+    const welcome = b.sent.find((m) => m.type === "welcome");
+    expect(welcome.room).toEqual({ id: BOARDWALK, name: "The Boardwalk" });
+    expect(welcome.you.x).toBe(0);
+    expect(welcome.you.z).toBe(34.3);
+    expect(welcome.screen).toBeUndefined();
+    expect(welcome.jukebox).toBeUndefined();
+    expect(palace.plazaRoom.peerFor(b)).toBeNull();
+    expect(palace.roomOf(b)?.roomId).toBe(BOARDWALK);
+    const directory = b.sent.filter((m) => m.type === "palace.directory").pop();
+    expect(directory.rooms.find((r: any) => r.id === BOARDWALK)).toMatchObject({
+      count: 1,
+      members: ["Beta"],
+      live: false,
+    });
+  });
+
+  it("moves roam the whole quarter and clamp at its south wall", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    frame(palace, b, { type: "room.enter", roomId: BOARDWALK, x: 0, z: 34.3 });
+    const room = palace.room(BOARDWALK)!;
+    // The deck's heart, by the bandstand.
+    frame(palace, b, { type: "move", x: 7.6, z: 44.0, rotY: 0 }, 1_000);
+    expect(room.peerFor(b)?.x).toBe(7.6);
+    expect(room.peerFor(b)?.z).toBe(44.0);
+    // Beyond the district the clamp holds the edge.
+    frame(palace, b, { type: "move", x: 99, z: 99, rotY: 0 }, 2_000);
+    expect(room.peerFor(b)?.x).toBe(28.6);
+    expect(room.peerFor(b)?.z).toBe(60.4);
+  });
+});
+
 describe("doorway transfers", () => {
   it("moves the peer: despawn there, join here, same peerId, character + flags carried", () => {
     const palace = new WorldPalace(new RoomHub());
@@ -579,7 +636,7 @@ const ROYAL_COURT = "world:royal-court";
 const BRANDING = "world:branding-atelier";
 
 describe("the second ring (palace follow-on)", () => {
-  it("the registry serves twelve rooms, hall included (eight + the Stage Grounds, Listening Gardens, Creation Row and Ateliers districts, items 31+32+33+34)", () => {
+  it("the registry serves thirteen rooms, hall included (eight + the Stage Grounds, Listening Gardens, Creation Row, Ateliers and Boardwalk districts, items 31+32+33+34+35)", () => {
     const palace = new WorldPalace(new RoomHub());
     const ids = palace.directory().map((r) => r.id);
     expect(ids).toEqual([
@@ -595,6 +652,7 @@ describe("the second ring (palace follow-on)", () => {
       "world:listening-gardens",
       "world:creation-row",
       "world:ateliers",
+      "world:boardwalk",
     ]);
     expect(palace.directory().find((r) => r.id === TREASURY)?.name).toBe("Treasury");
     expect(palace.directory().find((r) => r.id === ROYAL_COURT)?.name).toBe("Royal Court Chamber");

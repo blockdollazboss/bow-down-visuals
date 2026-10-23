@@ -384,10 +384,14 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     /* DELIBERATELY moved in item 31: (−28.0, 19.5) stands in the
      * Stage Grounds gate's portal — the gap is a true passage
      * now, so the point IS walkable. The wall beside the gate
-     * stays solid, and the Boardwalk's barred gap stays closed. */
+     * stays solid.
+     * DELIBERATELY moved in item 35: (0, 33.9) stands in the
+     * Boardwalk gate's portal — its barred gap is a true passage
+     * now too, so the point IS walkable; the Boardwalk suite
+     * pins the passage end to end. */
     expect(isWalkable(-28.0, 19.5)).toBe(true);
     expect(isWalkable(-28.2, 16.0)).toBe(false);
-    expect(isWalkable(0, 33.9)).toBe(false);
+    expect(isWalkable(0, 33.9)).toBe(true);
   });
 
   it("item 44: the camera collides with tall props only — pull-in stops clear of the monument", () => {
@@ -426,9 +430,9 @@ describe("the second ring (palace follow-on)", () => {
       expect(PALACE_LAYOUT[id]).toBeDefined();
       expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
     }
-    /* Twelve since item 34 added the Ateliers district room
-     * (eleven was item 33's Creation Row count). */
-    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(12);
+    /* Thirteen since item 35 added the Boardwalk district room
+     * (twelve was item 34's Ateliers count). */
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(13);
   });
 
   it("the front doors open beside the stage, never through it", () => {

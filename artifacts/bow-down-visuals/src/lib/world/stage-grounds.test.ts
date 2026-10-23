@@ -11,7 +11,8 @@
  *     step sequence crosses the plaza, the portal and the wall
  *     plane into the district (membership flips at the plane),
  *     and back again; the wall beside the gate stays solid and
- *     the still-unbuilt Boardwalk gate stays barred;
+ *     the Boardwalk gate stayed barred then — it opened in
+ *     item 35, and this suite's pin moved with it;
  *   - every solid the scene builds from stage-grounds.ts (stage,
  *     shell, stacks, truss, benches, lamps, poles, piers, the
  *     quarter's own walls) is honestly blocked from the same data;
@@ -119,7 +120,7 @@ describe("Stage Grounds — the room and its door (item 31)", () => {
     expect(back.entered).toBe(COURTYARD_ID);
   });
 
-  it("the wall beside the gate stays solid, and the unbuilt Boardwalk gate stays barred", () => {
+  it("the wall beside the gate stays solid (the Boardwalk gate: opened in item 35 — see below)", () => {
     expect(isWalkable(-28.2, 16.0)).toBe(false);
     const bonk = resolvePalaceMove({ x: -27.5, z: 16.0, room: COURTYARD_ID }, -28.6, 16.0);
     expect(bonk.x).toBe(-27.5);
@@ -128,7 +129,10 @@ describe("Stage Grounds — the room and its door (item 31)", () => {
      * BETWEEN them, never through them. */
     expect(isWalkable(-28.2, 18.4)).toBe(false);
     expect(isWalkable(-28.2, 20.6)).toBe(false);
-    expect(isWalkable(0, 34.0)).toBe(false);
+    /* DELIBERATELY moved in item 35: the Boardwalk gate is
+     * OPEN — its gap is a true passage now, so (0, 34.0) walks;
+     * the Boardwalk suite pins the passage end to end. */
+    expect(isWalkable(0, 34.0)).toBe(true);
   });
 });
 
