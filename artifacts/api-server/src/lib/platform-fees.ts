@@ -20,7 +20,19 @@ import { z } from "zod";
      - Subscription prices: pro $12/mo, elite $29/mo
      - Star ceilings:  free 1–3★ / pro 4–5★ / elite 6★
      - AI boost quotas: free 3 / pro 25 / elite 100 per month
-   Stripe stays in TEST mode until launch — no real card is billed until the user flips it live.               */
+   Stripe stays in TEST mode until launch — no real card is billed until the user flips it live.
+
+   ★ FEE RATES SUPERSEDED 2026-10-23 (owner ruling — "flat 5% everywhere"):
+     the tier fee ladder above is RETIRED. Every storefront/shop rail now
+     charges one flat 5% platform fee on every tier: the shops rail has
+     charged flat 5% since the owner's 2026-10-18 ruling
+     (STOREFRONT_PLATFORM_FEE_BPS, routes/generate/shops.ts; routes/store.ts
+     reuses it), and PLATFORM_FEE_BPS below — the rate routes/storefront.ts
+     actually charges — is aligned to the same 500. Displays, projections
+     and charge paths tell the single 5% story. Subscription prices and AI
+     boost quotas above are unaffected. Other products keep their own
+     ratified fees (memberships 10%, beats 15%, sponsors 15%, live
+     shopping 5%, Paid Series 5%) — they do not read this module.          */
 
 export const CREATOR_TIERS = ["free", "pro", "elite"] as const;
 export type CreatorTier = (typeof CREATOR_TIERS)[number];
@@ -36,19 +48,20 @@ function parseBps(raw: string | undefined, fallback: number): number {
 
 /**
  * Canonical base platform fee, basis points (100 bps = 1%).
- * Matches the existing storefront fee (10%). Env-overridable without a deploy.
+ * Flat 5% — the storefront/shop rate on every rail and every tier
+ * (owner ruling 2026-10-23). routes/storefront.ts charges through this
+ * constant. Env-overridable without a deploy.
  */
-export const PLATFORM_FEE_BPS: number = parseBps(process.env["PLATFORM_FEE_BPS"], 1000);
+export const PLATFORM_FEE_BPS: number = parseBps(process.env["PLATFORM_FEE_BPS"], 500);
 
-/** Per-tier fee rates — DISPLAY + PROJECTION ONLY (Stack-28 item 4, A2-09).
- * The 10% / 7% / 5% ladder approved 2026-10-07 was never delivered by a
- * sale rail: every shop/store checkout charges the flat 5%
- * STOREFRONT_PLATFORM_FEE_BPS (routes/generate/shops.ts, owner ruling
- * 2026-10-18; routes/store.ts reuses the same constant), regardless of
- * tier. feeSplitForTier feeds only creator-tiers display + next-tier
- * projections, so the ladder now records the flat 5% truth on every
- * tier. PLATFORM_FEE_BPS above is untouched — a separate legacy surface
- * still reads it. No charge moved: nothing that charges reads this map. */
+/** Per-tier fee rates. feeSplitForTier feeds creator-tiers display +
+ * next-tier projections, and this map is the schedule those surfaces
+ * publish. The 10% / 7% / 5% ladder approved 2026-10-07 was never
+ * delivered by a sale rail and is retired: the owner ruled a flat 5%
+ * platform fee on every tier (2026-10-23), matching what the shops rail
+ * has charged since 2026-10-18 (STOREFRONT_PLATFORM_FEE_BPS in
+ * routes/generate/shops.ts; routes/store.ts reuses it) and what
+ * routes/storefront.ts charges through PLATFORM_FEE_BPS above. */
 export const TIER_FEE_BPS: Record<CreatorTier, number> = {
   free: parseBps(process.env["PLATFORM_FEE_BPS_FREE"], 500), // flat 5% — the rail truth for every tier
   pro: parseBps(process.env["PLATFORM_FEE_BPS_PRO"], 500), // flat 5%

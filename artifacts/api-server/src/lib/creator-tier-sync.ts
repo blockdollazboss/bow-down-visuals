@@ -140,7 +140,7 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
         `You're ${tierName} 👑`,
         `<p style="margin:0 0 12px;">Your <strong style="color:#d4af37;">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
 <ul style="color:#ccc;font-size:14px;line-height:1.8;margin:0 0 16px;padding-left:20px;">
-<li>Lower platform fees on everything you sell</li>
+<li>One flat 5% platform fee on everything you sell</li>
 <li>Higher AI generation limits across the studio</li>
 <li>Priority placement in discovery and charts</li>
 </ul>
