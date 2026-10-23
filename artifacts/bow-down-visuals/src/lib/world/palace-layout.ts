@@ -26,9 +26,10 @@
  * purpose — the clamp is anti-wall-parking, not physics).
  */
 
-import { HALL_STEPS_BLOCKED, MONUMENT_BLOCKED, TERRACE_BLOCKED } from "./palace-grounds";
+import { HALL_STEPS, LAWN_PANELS, MONUMENT, MONUMENT_BLOCKED, TERRACES } from "./palace-grounds";
 import { PLAZA_LIFE_BLOCKED } from "./plaza-life";
 import {
+  AUDIENCE_LAWN,
   STAGE_BLOCKED,
   STAGE_GROUNDS_CAM_CLAMP,
   STAGE_GROUNDS_INTERIOR,
@@ -43,6 +44,7 @@ import {
   GARDENS_SPAWN,
   GARDENS_TALL_BLOCKED,
   GARDENS_WALK,
+  PARTERRE_LAWN,
 } from "./listening-gardens";
 import {
   ROW_BLOCKED,
@@ -68,6 +70,7 @@ import {
   BOARDWALK_SPAWN,
   BOARDWALK_TALL_BLOCKED,
   BOARDWALK_WALK,
+  DECK_PLANK,
 } from "./boardwalk";
 import {
   HEIGHTS_BLOCKED,
@@ -132,6 +135,134 @@ export interface PalaceRect {
   maxZ: number;
 }
 
+/** A climbable step zone (Stack-100 #2, finishing round-1 item 38):
+ *  ground inside `rect` stands at `topY` instead of the room's
+ *  floor. Zones are authored from the same placement data the
+ *  scene builds the masses from (palace-grounds' hall steps,
+ *  terraces and monument tiers; the districts' lawn panels), so a
+ *  visible step and the height a walker stands at can never drift
+ *  apart. Movement may only ENTER a zone across a rise of at most
+ *  STEP_UP_MAX and only LEAVE it across a drop of at most
+ *  STEP_DOWN_MAX — a terrace's side is a wall, its steps are the
+ *  way up. The server mirrors these numbers (api-server
+ *  lib/world-palace.ts grounds tables) and validates every reported height
+ *  against them. */
+export interface PalaceStepZone {
+  rect: PalaceRect;
+  topY: number;
+}
+
+/** The tallest single rise a walker may step up (m). The world's
+ *  steepest authored rises: terrace tiers 0.33, the hall platform
+ *  edge 0.36 — 0.4 clears them all with a hand's breadth. */
+export const STEP_UP_MAX = 0.4;
+/** The deepest single drop a walker may step down (m). Beyond it
+ *  the edge is a wall: you descend by the steps, never by falling. */
+export const STEP_DOWN_MAX = 0.4;
+
+const stepZone = (cx: number, cz: number, w: number, d: number, topY: number): PalaceStepZone => ({
+  rect: { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 },
+  topY,
+});
+
+/** The monument's three plinth tiers as climbable rings (the
+ *  stele/drum core stays blocked — see MONUMENT_CORE_BLOCKED).
+ *  Derived from palace-grounds' MONUMENT, the same data the
+ *  scene builds the plinth from. */
+export const MONUMENT_STEPS: readonly PalaceStepZone[] = [
+  stepZone(MONUMENT.cx, MONUMENT.cz, MONUMENT.tier1.size, MONUMENT.tier1.size, MONUMENT.tier1.topY),
+  stepZone(MONUMENT.cx, MONUMENT.cz, MONUMENT.tier2.size, MONUMENT.tier2.size, MONUMENT.tier2.topY),
+  stepZone(MONUMENT.cx, MONUMENT.cz, MONUMENT.tier3.size, MONUMENT.tier3.size, MONUMENT.tier3.topY),
+];
+
+/** The monument's solid heart: the stele + plate drum footprint
+ *  (drum 1.74 m square) with a walker's clearance. The tiers
+ *  around it are steps now; this stays a wall. */
+export const MONUMENT_CORE_BLOCKED: PalaceRect = {
+  minX: MONUMENT.cx - 0.98,
+  maxX: MONUMENT.cx + 0.98,
+  minZ: MONUMENT.cz - 0.98,
+  maxZ: MONUMENT.cz + 0.98,
+};
+
+/** The ceremonial hall steps as climbable zones: three treads
+ *  (0.12 / 0.24 / 0.36) marching toward the façade + the platform
+ *  (0.36), mirrored on both sides of the arch approach. Derived
+ *  from palace-grounds' HALL_STEPS / hallStepRuns geometry. */
+export const HALL_STEP_ZONES: readonly PalaceStepZone[] = (() => {
+  const out: PalaceStepZone[] = [];
+  const { z0, z1, rises, treadD, sideX0, sideX1, platformTopY } = HALL_STEPS;
+  for (const sx of [-1, 1] as const) {
+    const minX = sx < 0 ? -sideX1 : sideX0;
+    const maxX = sx < 0 ? -sideX0 : sideX1;
+    rises.forEach((topY, i) => {
+      out.push({
+        rect: { minX, maxX, minZ: z0 + treadD * i, maxZ: z0 + treadD * (i + 1) },
+        topY,
+      });
+    });
+    out.push({
+      rect: { minX, maxX, minZ: z0 + treadD * rises.length, maxZ: z1 },
+      topY: platformTopY,
+    });
+  }
+  return out;
+})();
+
+/** The grounds' edge terraces as climbable zones: three tiers
+ *  rising toward the wall (0.30 / 0.62 / 0.95), west mass at
+ *  TERRACES.z0..z1, east mass at its displaced band. Derived from
+ *  palace-grounds' TERRACES / terraceRuns geometry. */
+export const TERRACE_ZONES: readonly PalaceStepZone[] = (() => {
+  const out: PalaceStepZone[] = [];
+  const stepD = TERRACES.depthX / TERRACES.tops.length;
+  for (const sx of [-1, 1] as const) {
+    const minZ = sx > 0 ? TERRACES.eastZ0 : TERRACES.z0;
+    const maxZ = sx > 0 ? TERRACES.eastZ1 : TERRACES.z1;
+    TERRACES.tops.forEach((topY, i) => {
+      const inner = TERRACES.wallX - TERRACES.depthX + i * stepD;
+      out.push({
+        rect:
+          sx > 0
+            ? { minX: inner, maxX: inner + stepD, minZ, maxZ }
+            : { minX: -(inner + stepD), maxX: -inner, minZ, maxZ },
+        topY,
+      });
+    });
+  }
+  return out;
+})();
+
+/** The plaza's lawns as step zones — WITH the item-36 clip the
+ *  scene build applies: the Creator Heights enclave stands on the
+ *  east panel's eastern share (its wall at x 13.5), so the built
+ *  east lawn is only the strip west of the wall (cx 10.0, w 7.0 —
+ *  hall-scene's lawn build). Deriving the zone from the raw panel
+ *  would call the enclave's own ground "lawn" and let a step pass
+ *  through its wall on the zone's say-so; the zone follows the
+ *  BUILT panel, like everything else here. */
+export const LAWN_ZONES: readonly PalaceStepZone[] = LAWN_PANELS.map((p) =>
+  p.cx > 0 ? stepZone(10.0, p.cz, 7.0, p.d, p.topY) : stepZone(p.cx, p.cz, p.w, p.d, p.topY),
+);
+
+/** The Boardwalk's deck as step zones: the whole quarter stands
+ *  on its timber deck, whose top is DECK_PLANK.h (0.03) proud of
+ *  the underlay — the main deck and both north strips alike
+ *  (boardwalk.ts BOARDWALK_FLOOR_RECTS decks them all). */
+export const BOARDWALK_STEPS: readonly PalaceStepZone[] = [
+  { rect: { ...BOARDWALK_WALK }, topY: DECK_PLANK.h },
+  ...BOARDWALK_GROUNDS.map((g) => ({ rect: { ...g }, topY: DECK_PLANK.h })),
+];
+
+/** The plaza's step zones: lawns (0.05), the hall steps, the
+ *  terraces, the monument tiers. */
+export const PLAZA_STEPS: readonly PalaceStepZone[] = [
+  ...LAWN_ZONES,
+  ...HALL_STEP_ZONES,
+  ...TERRACE_ZONES,
+  ...MONUMENT_STEPS,
+];
+
 export interface PalaceRoomLayout {
   id: string;
   name: string;
@@ -150,6 +281,12 @@ export interface PalaceRoomLayout {
    *  Board monument's plinth). A point inside a blocked rect is
    *  not walkable even when it stands in `walk`/`grounds`. */
   blocked?: PalaceRect[];
+  /** Climbable step zones standing inside this room's walkable
+   *  ground (Stack-100 #2): each zone's floor stands at its topY.
+   *  A zone never overrides a `blocked` rect — a real solid inside
+   *  a zone (the monument's stele core, a planter on a lawn) still
+   *  wins. See PalaceStepZone. */
+  steps?: readonly PalaceStepZone[];
   /** The subset of `blocked` tall enough to reach the third-person
    *  camera (which rides at 2.45 m): the camera pull-in (item 44)
    *  collides with these only — low walls, planters and braziers
@@ -386,24 +523,25 @@ const gateRects = (gate: PlazaGate): PalaceRect[] => {
  *  pillars. A step into any of them resolves like a wall — slide
  *  or stop — never a walk through a visible body. */
 export const PLAZA_BLOCKED: PalaceRect[] = [
-  /* The Kingdom Board monument's plinth — Stage C item 17 grew
-   * the monument (4.46 m trim square at (0, 19.7)), and its
-   * blocked rect grew with it, derived from palace-grounds'
-   * MONUMENT_BLOCKED in the same batch (the old 3.7 m square was
-   * banked in overhaul stage 3 for the old 3.55 m trim). */
-  MONUMENT_BLOCKED,
+  /* The Kingdom Board monument's solid heart — the stele + drum
+   * core. Stage C item 17 grew the monument (4.46 m trim square
+   * at (0, 19.7)) and blocked the whole footprint; Stack-100 #2
+   * finishes item 38: the three plinth tiers are climbable step
+   * zones now (MONUMENT_STEPS), and only the core stays a wall.
+   * The CAMERA still treats the whole monument as tall
+   * (PLAZA_TALL_BLOCKED keeps MONUMENT_BLOCKED). */
+  MONUMENT_CORE_BLOCKED,
   ...PLAZA_WALL_RUNS.map(wallRunRect),
   ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
   ...PLAZA_PLANTERS.map((p) => rectAround(p.x, p.z, p.alongZ ? 0.44 : 1.0, p.alongZ ? 1.0 : 0.44)),
   ...PLAZA_BRAZIERS.map((b) => rectAround(b.x, b.z, 0.46, 0.46)),
   ...PLAZA_GATES.flatMap(gateRects),
   ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
-  /* Stage C item 38: the ceremonial hall steps flanking the arch
-   * approach and the edge terraces — visual elevation AROUND the
-   * walk paths, honestly blocked from the same placement data
-   * (palace-grounds) the scene builds the masses from. */
-  ...HALL_STEPS_BLOCKED,
-  ...TERRACE_BLOCKED,
+  /* Stack-100 #2 (finishing Stage C item 38): the ceremonial
+   * hall steps and the edge terraces are NO LONGER blocked —
+   * they are climbable step zones (HALL_STEP_ZONES /
+   * TERRACE_ZONES in the courtyard's `steps`), entered and left
+   * across rises/drops of at most STEP_UP_MAX / STEP_DOWN_MAX. */
   /* Stage C batch C3 (items 28/29/30): the plaza life — the
    * reflecting pool, the lamp standards, the benches, table sets,
    * urns and market stalls — derived from plaza-life's placement
@@ -576,6 +714,7 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
      * edge — plus every planter, column pier, brazier, gate and
      * wall run on the plaza (item 39). */
     blocked: PLAZA_BLOCKED,
+    steps: PLAZA_STEPS,
     camBlocked: PLAZA_TALL_BLOCKED,
     interior: { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 34.0 },
     camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },
@@ -596,6 +735,7 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     name: "Stage Grounds",
     walk: STAGE_GROUNDS_WALK,
     blocked: [...STAGE_BLOCKED],
+    steps: [stepZone(AUDIENCE_LAWN.cx, AUDIENCE_LAWN.cz, AUDIENCE_LAWN.w, AUDIENCE_LAWN.d, AUDIENCE_LAWN.topY)],
     camBlocked: [...STAGE_TALL_BLOCKED],
     interior: STAGE_GROUNDS_INTERIOR,
     camClamp: STAGE_GROUNDS_CAM_CLAMP,
@@ -616,6 +756,7 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     name: "Listening Gardens",
     walk: GARDENS_WALK,
     blocked: [...GARDENS_BLOCKED],
+    steps: [stepZone(PARTERRE_LAWN.cx, PARTERRE_LAWN.cz, PARTERRE_LAWN.w, PARTERRE_LAWN.d, PARTERRE_LAWN.topY)],
     camBlocked: [...GARDENS_TALL_BLOCKED],
     interior: GARDENS_INTERIOR,
     camClamp: GARDENS_CAM_CLAMP,
@@ -687,6 +828,7 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     name: "The Boardwalk",
     walk: BOARDWALK_WALK,
     grounds: [...BOARDWALK_GROUNDS],
+    steps: BOARDWALK_STEPS,
     blocked: [...BOARDWALK_BLOCKED],
     camBlocked: [...BOARDWALK_TALL_BLOCKED],
     interior: BOARDWALK_INTERIOR,
@@ -1045,6 +1187,48 @@ export function isWalkable(x: number, z: number): boolean {
   return false;
 }
 
+/** The step zone standing at a point, if any: the highest zone
+ *  whose rect holds the point — unless ANY room blocks the point.
+ *  A real solid inside a zone always wins over the zone: the
+ *  monument's stele core and a planter on a terrace (the owning
+ *  room's list), and just as much a NEIGHBOUR room's solid the
+ *  zone's rect reaches into — the clipped east lawn runs to the
+ *  Creator Heights wall line, and without the cross-room rule
+ *  the zone would call the wall's own footprint standable grass
+ *  and let a step pass along inside the wall. */
+export function stepZoneAt(x: number, z: number): PalaceStepZone | null {
+  for (const room of allRooms()) {
+    if (room.blocked?.some((b) => pointInRect(x, z, b))) return null;
+  }
+  let best: PalaceStepZone | null = null;
+  for (const room of allRooms()) {
+    if (!room.steps) continue;
+    for (const s of room.steps) {
+      if (pointInRect(x, z, s.rect) && (!best || s.topY > best.topY)) best = s;
+    }
+  }
+  return best;
+}
+
+/** The height of the ground under a point (Stack-100 #2): the
+ *  topY of the step zone standing there, else the room floor (0).
+ *  This is the one height truth — the client eases figures to it,
+ *  and the server validates reported heights against its mirror
+ *  (api-server lib/world-heights.ts). */
+export function groundHeightAt(x: number, z: number): number {
+  return stepZoneAt(x, z)?.topY ?? 0;
+}
+
+/** A point a body may STAND on: ordinary walkable ground, or a
+ *  step zone (zones stand inside walkable ground whose legacy
+ *  blocked entry the climbable-Y finish retired — the zone is
+ *  the authority for its own footprint). Height transitions are
+ *  gated separately by segmentWalkable. */
+export function isStandable(x: number, z: number): boolean {
+  if (isWalkable(x, z)) return true;
+  return stepZoneAt(x, z) !== null;
+}
+
 /**
  * Which room a position belongs to. Inside a portal, the wall plane
  * decides: which side of the wall you're on is the room you're in.
@@ -1084,14 +1268,26 @@ export interface PalaceMoveResult {
   entered: string | null;
 }
 
-/** A segment may only pass through walkable ground — sampled finely
- *  enough that a 0.4 m wall can never be tunneled between samples. */
+/** A segment may only pass through standable ground — sampled
+ *  finely enough that a 0.4 m wall can never be tunneled between
+ *  samples. Stack-100 #2: samples also carry the ground's height —
+ *  a step may climb at most STEP_UP_MAX and drop at most
+ *  STEP_DOWN_MAX between one sample and the next, so stairs and
+ *  terraces are climbed by their treads and a terrace's side
+ *  (a 0.95 m drop) refuses like the wall it is. */
 function segmentWalkable(x0: number, z0: number, x1: number, z1: number): boolean {
   const dist = Math.hypot(x1 - x0, z1 - z0);
   const steps = Math.max(1, Math.ceil(dist / 0.12));
+  let prevH = groundHeightAt(x0, z0);
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
-    if (!isWalkable(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t)) return false;
+    const sx = x0 + (x1 - x0) * t;
+    const sz = z0 + (z1 - z0) * t;
+    if (!isStandable(sx, sz)) return false;
+    const h = groundHeightAt(sx, sz);
+    if (h - prevH > STEP_UP_MAX) return false;
+    if (prevH - h > STEP_DOWN_MAX) return false;
+    prevH = h;
   }
   return true;
 }

@@ -16,6 +16,24 @@
  *
  *   client → server
  *     { type: "move", x, y, z, rotY }        position sync (throttled)
+ *                                            — x/z are the floor plane;
+ *                                            y is the figure's HEIGHT
+ *                                            above the room floor
+ *                                            (Stack-100 #2 item 48).
+ *                                            The y field is old: in
+ *                                            the flat-plane era it
+ *                                            travelled as a constant
+ *                                            0 stub (the second floor
+ *                                            axis wore the name in the
+ *                                            top-down code before the
+ *                                            palace went 3D and that
+ *                                            axis became z). It is a
+ *                                            real height now, and the
+ *                                            room CLAMPS it against
+ *                                            its grounds height table
+ *                                            (item 49) — never trusts
+ *                                            it, never rejects the
+ *                                            move over it.
  *     { type: "action", action }             perform an avatar action
  *                                            (bow/wave/cheer/clap/spin
  *                                            once; dance/sit toggle —
@@ -841,11 +859,43 @@ export const ACTION_SNAPSHOT_MS = 2500;
  * constructs one WorldRoom per palace room with its own id, bounds
  * and spawn — and only the hall gets the stage/screen authority.
  */
+/** One patch of raised ground inside a room: a rect of floor
+ *  whose standing surface sits `height` metres above the room's
+ *  base floor (Stack-100 #2 item 49). The palace registry authors
+ *  these per room in world-palace.ts, mirroring the client floor
+ *  plan's authored step zones (lib/world/palace-layout.ts
+ *  PalaceStepZone — lawns at 0.05, hall steps to 0.36, terraces
+ *  to 0.95, monument tiers to 0.70, the Boardwalk deck at 0.03);
+ *  a parity test pins the two tables together. Ground outside
+ *  every rect is height 0. Overlapping rects take the MAX height
+ *  (the highest surface is the one a body stands on). */
+export interface WorldGroundRect {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  height: number;
+}
+
+/** Height honesty (item 49): a walker's claimed y is believed
+ *  only within a step of the ground under them — above
+ *  ground + STEP_UP or below ground − STEP_DOWN the claim is
+ *  clamped TO the honest ground height (never rejected: the move
+ *  still lands, presence stays truthful, no rejection storms).
+ *  The tolerances sit a slack step above the client's own step
+ *  limits (palace-layout.ts STEP_UP_MAX / STEP_DOWN_MAX, both
+ *  0.4) so an honestly easing client mid-climb is never snapped. */
+export const WORLD_STEP_UP_TOLERANCE_M = 0.65;
+export const WORLD_STEP_DOWN_TOLERANCE_M = 0.75;
+
 export interface WorldRoomOptions {
   roomId?: string;
   name?: string;
   bounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
   spawn?: { x: number; z: number };
+  /** Raised-ground patches for this room (item 49) — see
+   *  WorldGroundRect. Absent = the room is flat at height 0. */
+  grounds?: WorldGroundRect[];
   stageEnabled?: boolean;
   /** Runs a jukebox (the Music Hall's queue + shared playback).
    *  Every other room refuses the jukebox frames. */
@@ -903,6 +953,9 @@ export interface WorldPeerDto {
    *  the dance already in progress). */
   action: WorldActionId | null;
   x: number;
+  /** Height above the room floor (item 48): the server's clamped
+   *  truth, mirrored from the walker's moves against the room's
+   *  grounds table — remote figures render at this y (item 54). */
   y: number;
   z: number;
   rotY: number;
@@ -1061,6 +1114,9 @@ export class WorldRoom {
   readonly roomName: string;
   private readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   private readonly spawnPoint: { x: number; z: number };
+  /** This room's raised-ground patches (item 49) — the height
+   *  table spawn placement and move clamping read. */
+  private readonly grounds: WorldGroundRect[];
   /** Stage/screen authority lives in exactly one room: the hall.
    *  Other rooms refuse the stage frames (the screen is not theirs
    *  to hold) instead of growing a second authority. */
@@ -1184,6 +1240,7 @@ export class WorldRoom {
     this.roomName = opts.name ?? "The King's Hall";
     this.bounds = opts.bounds ?? HALL_BOUNDS;
     this.spawnPoint = opts.spawn ?? { x: 0, z: 9.5 };
+    this.grounds = opts.grounds ?? [];
     this.stageEnabled = opts.stageEnabled ?? this.roomId === WORLD_ROOM_ID;
     this.jukeboxEnabled = opts.jukeboxEnabled ?? false;
   }
@@ -1231,6 +1288,38 @@ export class WorldRoom {
       x: clamp(x, this.bounds.minX, this.bounds.maxX),
       z: clamp(z, this.bounds.minZ, this.bounds.maxZ),
     };
+  }
+
+  /** The honest ground height under a point (item 49): the
+   *  highest authored patch containing it, else the room's base
+   *  floor, 0. Spawn, doorway landings and gate settles place the
+   *  figure at exactly this (item 53) — nobody materializes sunk
+   *  into a lawn or floating over the deck. */
+  groundHeightAt(x: number, z: number): number {
+    let h = 0;
+    for (const g of this.grounds) {
+      if (x >= g.minX && x <= g.maxX && z >= g.minZ && z <= g.maxZ) {
+        h = Math.max(h, g.height);
+      }
+    }
+    return h;
+  }
+
+  /** Validate a walker's claimed height against the ground under
+   *  them (item 49): within a step's tolerance of the ground the
+   *  claim stands (an easing client mid-climb is believed);
+   *  beyond it the height snaps TO the ground — the move is never
+   *  rejected over height, so presence stays truthful without
+   *  rejection storms. */
+  clampHeight(x: number, z: number, claimedY: number): number {
+    const ground = this.groundHeightAt(x, z);
+    if (
+      claimedY > ground + WORLD_STEP_UP_TOLERANCE_M ||
+      claimedY < ground - WORLD_STEP_DOWN_TOLERANCE_M
+    ) {
+      return ground;
+    }
+    return claimedY;
   }
 
   voiceSize(): number {
@@ -1413,6 +1502,13 @@ export class WorldRoom {
      * inside each other. */
     const slot = this.counter % 10;
     const at = carry?.at ? this.clampToBounds(carry.at.x, carry.at.z) : null;
+    /* Item 53: wherever the figure lands — the room's spawn arc
+     *  or a doorway's clamped crossing point — it lands ON the
+     *  ground there: the landing height is the destination's own
+     *  ground height at the landing point, never a carried-over
+     *  height from the room behind the door. */
+    const startX = at ? at.x : this.spawnPoint.x + (slot - 4.5) * 1.1;
+    const startZ = at ? at.z : this.spawnPoint.z;
     const peer: WorldPeer = {
       ...identity,
       peerId,
@@ -1437,9 +1533,9 @@ export class WorldRoom {
       lastTipAt: 0,
       tutorialVerbsFired: new Set(),
       lastQuestMomentKey: null,
-      x: at ? at.x : this.spawnPoint.x + (slot - 4.5) * 1.1,
-      y: 0,
-      z: at ? at.z : this.spawnPoint.z,
+      x: startX,
+      y: this.groundHeightAt(startX, startZ),
+      z: startZ,
       /* Heading convention (shared with the client): rotY 0 faces the
        * stage/screen at the front of the hall (-Z). */
       rotY: carry?.at?.rotY ?? 0,
@@ -2250,7 +2346,13 @@ export class WorldRoom {
         const prevZ = peer.z;
         peer.x = clamp(finiteOr(frame["x"], peer.x), this.bounds.minX, this.bounds.maxX);
         peer.z = clamp(finiteOr(frame["z"], peer.z), this.bounds.minZ, this.bounds.maxZ);
-        peer.y = 0;
+        /* Height (items 48/49): the claimed y is validated
+         *  against the ground under the clamped point — believed
+         *  within a step's tolerance, clamped to the honest
+         *  ground beyond it. A frame with no usable y keeps the
+         *  last truthful height (a legacy client walks flat at
+         *  its spawn height, never snapped mid-room). */
+        peer.y = this.clampHeight(peer.x, peer.z, finiteOr(frame["y"], peer.y));
         const rot = finiteOr(frame["rotY"], peer.rotY);
         peer.rotY = Math.atan2(Math.sin(rot), Math.cos(rot));
         /* Walking ends a held toggle action (dance, sit) — the pose
