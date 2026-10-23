@@ -241,3 +241,43 @@ describe("law — wave II docks in the same members-only panel, free rails only"
     expect(LIVE_NATIVE_FOLLOW_ONS.join(" ")).not.toContain("stays with #90");
   });
 });
+
+/* ── Item 98 (Stack-100 #2) — controller deck executor truth ─────────
+   The Go Live studio's live state is published on the real rails and
+   the in-world deck drives the real studio off that state:
+   - server-side, every broadcast start path writes started_at
+     (pinned over HTTP in the api-server live-streams-own suite);
+   - BroadcastStudio publishes THAT start (its liveSince state,
+     corrected by the live poll to the server's started_at) as the
+     controller state's liveSince — never a Date.now()-elapsed
+     reconstruction;
+   - the deck itself is socket-driven (D-89c's "2s polling" claim
+     verified stale): its only interval is the local 1s ack sweeper. */
+describe("item 98 — the deck drives the real studio off rail-published state", () => {
+  const studioSrc = read("../../components/go-live/BroadcastStudio.tsx");
+
+  it("BroadcastStudio's controller state publishes the real liveSince, not a reconstruction", () => {
+    expect(studioSrc).toContain("liveSince: isLivePhase ? liveSince : null");
+    expect(studioSrc).not.toContain("Date.now() - elapsed * 1000");
+    /* …and the live poll adopts the server-written started_at. */
+    expect(studioSrc).toContain("started_at");
+    expect(studioSrc).toContain("setLiveSince");
+  });
+
+  it("the in-world controller desk polls NOTHING: state arrives over the socket; the 1s sweeper is local ack expiry only", () => {
+    const deskStart = deskSrc.indexOf("export function LiveControllerDesk");
+    const deskEnd = deskSrc.indexOf("export function LiveWatchDesk");
+    const block = deskSrc.slice(deskStart, deskEnd);
+    expect(block).toContain("new ControllerRemoteClient(");
+    expect(block).toContain("sweepPending");
+    expect(block).not.toContain("fetch(");
+    /* The phone remote (same client) is likewise socket-only. */
+    expect(controllerPageSrc).toContain("new ControllerRemoteClient(");
+    expect(controllerPageSrc).not.toContain("fetch(");
+  });
+
+  it('"Studio not open" is spoken only off the socket presence truth (stageConnected), never a timer or a guess', () => {
+    expect(controllerStatusLine({ started: true, socketUp: true, stageConnected: false, live: false, label: null })).toBe("Studio not open");
+    expect(controllerStatusLine({ started: true, socketUp: true, stageConnected: true, live: false, label: null })).not.toBe("Studio not open");
+  });
+});

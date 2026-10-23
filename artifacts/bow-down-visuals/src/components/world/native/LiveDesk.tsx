@@ -346,7 +346,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
           )}
           {leftover && (
             <div className="flex flex-wrap items-center gap-2" data-testid="world-live-leftover">
-              <span className={`text-sm ${strong}`}>You&rsquo;re already live: <b>{leftover.title}</b> ({leftover.viewerCount} watching)</span>
+              <span className={`text-sm ${strong}`}>You&rsquo;re already live: <b>{leftover.title}</b> ({leftover.viewerCount} watching{leftover.startedAt ? ` · since ${new Date(leftover.startedAt).toLocaleTimeString()}` : ""})</span>
               <button type="button" onClick={() => void endLeftover()} disabled={endingLeftover} className={redBtn} data-testid="world-live-end-leftover">
                 {endingLeftover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />} End that stream
               </button>
@@ -1563,7 +1563,13 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
     clientRef.current = client;
     void client.start();
     /* Sweep expired ack beats even when the studio goes quiet —
-       the phone remote's own rhythm. */
+       the phone remote's own rhythm. Item 98 / D-89c justification:
+       this 1s interval is NOT status polling — the deck's state
+       arrives over the controller SOCKET (presence + state.sync
+       frames, ControllerRemoteClient) and nothing here fetches on
+       a timer. The sweeper only expires LOCAL pending-ack beats so
+       a press the studio never confirmed stops showing as pending;
+       it makes no network call and fabricates no liveness. */
     const sweeper = window.setInterval(() => client.sweepPending(), 1000);
     return () => {
       window.clearInterval(sweeper);
