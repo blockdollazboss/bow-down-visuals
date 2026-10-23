@@ -664,8 +664,8 @@ export default function LlcGuide() {
               className={`${inputClass} pl-10`}
             />
           </div>
-          <div className="mt-3 max-h-96 overflow-y-auto rounded-2xl border border-white/10">
-            <table className="w-full text-left text-sm">
+          <div className="mt-3 max-h-96 overflow-y-auto overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full min-w-[420px] text-left text-sm">
               <thead className={`sticky top-0 ${isLight ? "bg-[#F4E7C3]" : "bg-[#0d0b08]"}`}>
                 <tr className={`text-[10px] uppercase tracking-widest ${isLight ? "text-[#6B5B36]" : "text-white/35"}`}>
                   <th className="px-4 py-3 font-bold">{t("llcGuide.thState")}</th>

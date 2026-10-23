@@ -783,7 +783,9 @@ export default function LiveShopping() {
                       {dashboard.per_stream.length === 0 ? (
                         <p className="p-6 text-center text-sm text-white/40">{t("liveShopping.noStreams")}</p>
                       ) : (
-                        <table className="w-full text-sm">
+                        /* Stack-28 #55: horizontal scroll escape at 390px (store-dashboard pattern) */
+                        <div className="overflow-x-auto">
+                        <table className="w-full min-w-[480px] text-sm">
                           <thead>
                             <tr className="border-b border-white/10 bg-white/[0.02] text-left text-xs uppercase tracking-wider text-white/40">
                               <th className="px-5 py-3">{t("liveShopping.thStream")}</th>
@@ -803,6 +805,7 @@ export default function LiveShopping() {
                             ))}
                           </tbody>
                         </table>
+                        </div>
                       )}
                     </div>
                   </section>
