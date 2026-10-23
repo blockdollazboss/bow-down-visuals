@@ -10,6 +10,7 @@ import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import { loginPathWithNext } from "@/lib/auth-next";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
    The tier upgrade page. Sells the MONEY MATH, not vibes:
@@ -17,8 +18,11 @@ import { SocialProofBand } from "@/components/SocialProofBand";
    Real USD only — Visual Bucs copy never appears here.
 
    Link-graph (both ways, never a dead end):
-     - ?returnTo=… is honored everywhere: checkout success/cancel links BACK
-       to what the creator was doing, and a "← Back" link is always visible.
+     - ?returnTo=… is THIS page's own param: checkout success/cancel links
+       BACK to what the creator was doing, and a "← Back" link is always
+       visible. /login does NOT read it — the signed-out checkout bounce
+       rides the shared ?next= contract (loginPathWithNext) carrying this
+       page and its returnTo, so sign-in lands back here, context intact.
      - Every feature row links to its feature details (detailsUrl).
      - TierBadge / MoneyWidgets / UpgradeNudge all link HERE.             */
 
@@ -83,7 +87,7 @@ export default function CreatorPricing() {
     if (tier === "free") return; // free tier has no checkout
     const paidTier: "pro" | "elite" = tier;
     if (!user) {
-      window.location.href = `/login?returnTo=${encodeURIComponent(`/creator-pricing?returnTo=${encodeURIComponent(returnTo)}`)}`;
+      window.location.href = loginPathWithNext("/creator-pricing", `returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
     setBuying(paidTier);

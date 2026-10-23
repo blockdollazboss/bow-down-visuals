@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
+import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
@@ -1181,7 +1182,10 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
   const { t } = useTranslation();
   const [tab, setTab] = useState<"ai" | "seq" | "tag">(() => {
     try {
-      return new URLSearchParams(window.location.search).getAll("tab").includes("tag") ? "tag" : "ai";
+      /* ?aitab=tag is the live channel (the host page owns ?tab=, so a
+         second tab value can't survive the trip); the legacy
+         multi-value ?tab= check still works inside initialBeatMakerTab. */
+      return initialBeatMakerTab(window.location.search);
     } catch {
       return "ai";
     }

@@ -260,7 +260,7 @@ export default function ViralSoundFinder() {
         {/* cross-link: make a custom sound in the AI Audio hub */}
         <div className="relative mt-6 flex justify-center">
           <Link
-            href="/ai-audio?tab=sfx"
+            href="/audio-studio?tab=aiaudio&sub=sfx"
             className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.06] px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/[0.12]"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
