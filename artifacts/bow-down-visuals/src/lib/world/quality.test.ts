@@ -196,9 +196,10 @@ describe("FrameTimeMonitor (item 22: adaptive ladder)", () => {
     const w = feed(mon, 25, 400, 0);
     expect(mon.current).toBe("medium");
     // A short overload burst right after the step changes nothing:
-    // the sustain streak must rebuild AND the cooldown must pass.
+    // the cooldown must pass before any further step, however hot
+    // the streak already is. (10 samples ≈ 167 ms « 5 s cooldown.)
     let t = w.t;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 10; i++) {
       t += 16.7;
       expect(mon.sample(25, t)).toBeNull();
     }
