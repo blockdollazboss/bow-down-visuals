@@ -6,6 +6,7 @@
  * LOW keeps the brazier lights (the night plaza's only lights).
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   QUALITY_RUNGS,
   FrameTimeMonitor,
@@ -222,5 +223,98 @@ describe("FrameTimeMonitor (item 22: adaptive ladder)", () => {
     const mon = new FrameTimeMonitor("high");
     feed(mon, 10, 80, 0);
     expect(mon.averageMs).toBeCloseTo(10, 0);
+  });
+});
+
+/* ── Stack-100 #2 items 81/83/85: the wiring pins ──────────────────
+ * Audit facet E found the ladder's original sin: the frame
+ * governor's decisions fired into a void closure in the page, the
+ * scene applied a device-hint rung once at construction, and the
+ * page's own rAF loop fought the scene over pixel ratio with a
+ * hardcoded cap. The overhaul rewired all three (the monitor now
+ * lives in the scene and steps it directly; the page owns no
+ * pixel-ratio code; the chrome carries the quality control), but
+ * nothing PINNED the wiring — a future refactor could void it
+ * again in silence. These source pins (the house pattern for
+ * scene/page behaviour this node suite cannot execute) hold the
+ * seams: governor → scene, one pixel-ratio owner, chrome control.
+ */
+const readSrc = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+const hallSceneSrc = readSrc("./hall-scene.ts");
+const worldPageSrc = readSrc("../../pages/world.tsx");
+
+describe("governor wiring (item 81: decisions reach the live scene)", () => {
+  it("the frame loop feeds the monitor and applies every step it returns", () => {
+    const feedIdx = hallSceneSrc.indexOf("this.frameMonitor.sample(");
+    expect(feedIdx).toBeGreaterThan(-1);
+    const feedSegment = hallSceneSrc.slice(feedIdx, feedIdx + 220);
+    expect(feedSegment).toContain("if (stepped) this.applyTierToRenderer(stepped);");
+  });
+
+  it("the monitor only drives the ladder in Auto (an explicit pin is never overridden)", () => {
+    const feedIdx = hallSceneSrc.indexOf("this.frameMonitor.sample(");
+    const guardSegment = hallSceneSrc.slice(Math.max(0, feedIdx - 160), feedIdx);
+    expect(guardSegment).toContain('this.qualityPref === "auto"');
+  });
+
+  it("an explicit preference applies its rung to the renderer and persists", () => {
+    const start = hallSceneSrc.indexOf("setQualityPreference(pref: QualityPreference)");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 700);
+    expect(segment).toContain("storeQualityPreference(pref)");
+    expect(segment).toContain("this.applyTierToRenderer(pref)");
+  });
+
+  it("the boot rung comes from the persisted preference over the device guess", () => {
+    const start = hallSceneSrc.indexOf("this.qualityPref = loadQualityPreference();");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 300);
+    expect(segment).toContain("new FrameTimeMonitor(detected)");
+    expect(segment).toContain("resolveTier(this.qualityPref, detected)");
+  });
+});
+
+describe("one pixel-ratio owner (item 83: the scene, from the rung)", () => {
+  it("applyTierToRenderer sets pixel ratio from the rung — and only from the rung", () => {
+    const start = hallSceneSrc.indexOf("private applyTierToRenderer(");
+    expect(start).toBeGreaterThan(-1);
+    const segment = hallSceneSrc.slice(start, start + 1400);
+    expect(segment).toContain(
+      "this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, rung.pixelRatio))",
+    );
+  });
+
+  it("the page contains no pixel-ratio code and no governor callback at all", () => {
+    expect(worldPageSrc).not.toContain("setPixelRatio");
+    expect(worldPageSrc).not.toContain("onTier");
+    expect(worldPageSrc).not.toContain("devicePixelRatio");
+  });
+
+  it("every setPixelRatio in the scene reads a rung cap (no hardcoded target)", () => {
+    const sites = hallSceneSrc.match(/setPixelRatio\([^)]*\)/g) ?? [];
+    expect(sites.length).toBeGreaterThanOrEqual(2);
+    for (const site of sites) {
+      expect(site).toContain("pixelRatio");
+      // The cap argument (after the comma) is a rung field, never a
+      // numeric literal — the `|| 1` devicePixelRatio fallback is
+      // the only digit allowed, and it precedes the comma.
+      expect(site).not.toMatch(/,\s*\d/);
+    }
+  });
+});
+
+describe("user quality control (item 85: chrome control, persisted)", () => {
+  it("the World chrome carries the quality control, cycling the shared preference", () => {
+    const idx = worldPageSrc.indexOf('data-testid="world-quality-control"');
+    expect(idx).toBeGreaterThan(-1);
+    const segment = worldPageSrc.slice(Math.max(0, idx - 500), idx + 800);
+    expect(segment).toContain("nextQualityPreference");
+    expect(segment).toContain("qualityPreferenceLabel(qualityPref)");
+  });
+
+  it("the page state is seeded from storage and forwarded to the scene", () => {
+    expect(worldPageSrc).toContain("useState<QualityPreference>(() => loadQualityPreference())");
+    expect(worldPageSrc).toContain("sceneRef.current?.setQualityPreference(qualityPref)");
+    expect(worldPageSrc).toContain("scene.setQualityPreference(loadQualityPreference())");
   });
 });
