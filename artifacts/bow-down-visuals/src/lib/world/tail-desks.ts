@@ -194,6 +194,7 @@ export interface GiveawayContest {
   endsAt: string | null;
   status: string;
   winnerEntryId: string | null;
+  drawAudit: { algorithm?: string; seed?: string; entryCount?: number; winnerIndex?: number; drawnAt?: string } | null;
   announcementImageUrl: string | null;
   entryCount: number;
   createdAt: string | null;
@@ -221,6 +222,10 @@ export function normalizeGiveawayContest(row: unknown): GiveawayContest | null {
     endsAt: strOrNull(r["endsAt"]),
     status: str(r["status"]) || "draft",
     winnerEntryId: strOrNull(r["winnerEntryId"]),
+    drawAudit:
+      r["drawAudit"] && typeof r["drawAudit"] === "object"
+        ? (r["drawAudit"] as GiveawayContest["drawAudit"])
+        : null,
     announcementImageUrl: strOrNull(r["announcementImageUrl"]),
     entryCount: typeof r["entryCount"] === "number" ? r["entryCount"] : 0,
     createdAt: strOrNull(r["createdAt"]),

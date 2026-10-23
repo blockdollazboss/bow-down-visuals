@@ -194,7 +194,11 @@ import {
   reconcileStoredPick,
   renameVaultCharacter,
   removeVaultCharacter,
+  createVaultCharacter,
+  fetchVaultAppearance,
+  saveVaultAppearance,
   type VaultCharacter,
+  type VaultAppearance,
 } from "@/lib/world/characters";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
@@ -1323,6 +1327,28 @@ export default function WorldPage() {
     await removeVaultCharacter(getAccessToken, id);
     setVaultChars((prev) => (prev ?? []).filter((c) => c.id !== id));
     if (walkInAsRef.current === id) setWalkInAs(null);
+  };
+
+  /* Creation + appearance (stack-100 #98): the picker creates and
+     restyles on the vault's own rails. After a write the vault is
+     re-read whole — the picker shows the rows exactly as the server
+     stored them, portrait included, never a locally-invented row. */
+  const refreshVaultCharacters = async () => {
+    const chars = await fetchVaultCharacters(getAccessToken, fetch, user?.id ?? null);
+    setVaultChars(chars);
+    setVaultLoadFailed(false);
+    const reconciled = reconcileStoredPick(chars, walkInAsRef.current);
+    if (reconciled !== walkInAsRef.current) setWalkInAs(reconciled);
+  };
+  const handleCreateVaultCharacter = async (input: { artistName: string; appearance: Partial<VaultAppearance> }) => {
+    await createVaultCharacter(getAccessToken, input);
+    await refreshVaultCharacters();
+  };
+  const handleLoadVaultAppearance = async (id: string) =>
+    fetchVaultAppearance(getAccessToken, id, user?.id ?? null);
+  const handleSaveVaultAppearance = async (id: string, patch: Partial<VaultAppearance>) => {
+    await saveVaultAppearance(getAccessToken, id, patch, user?.id ?? null);
+    await refreshVaultCharacters();
   };
 
   /* The pick: remembered on the device, and handed to the hall
@@ -2496,6 +2522,9 @@ export default function WorldPage() {
           isLight={isLight}
           onRename={handleRenameVaultCharacter}
           onRemove={handleRemoveVaultCharacter}
+          onCreate={handleCreateVaultCharacter}
+          onLoadAppearance={handleLoadVaultAppearance}
+          onSaveAppearance={handleSaveVaultAppearance}
         />
       ) : null}
 
@@ -2930,6 +2959,9 @@ export default function WorldPage() {
             isLight={isLight}
             onRename={handleRenameVaultCharacter}
             onRemove={handleRemoveVaultCharacter}
+            onCreate={handleCreateVaultCharacter}
+            onLoadAppearance={handleLoadVaultAppearance}
+            onSaveAppearance={handleSaveVaultAppearance}
           />
         </div>
       )}
