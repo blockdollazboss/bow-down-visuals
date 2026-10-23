@@ -2194,23 +2194,23 @@
       },
       "karaoke": {
         "blurb": "क्लासिक वर्ड स्वीप",
-        "label": "Karaoke"
+        "label": "कराओके"
       },
       "luxuryGold": {
         "blurb": "गोल्ड-ऑन-ब्लैक ब्रांड स्टाइल",
-        "label": "Luxury Gold"
+        "label": "लक्ज़री गोल्ड"
       },
       "minimal": {
         "blurb": "साफ़ और शांत",
-        "label": "Minimal"
+        "label": "मिनिमल"
       },
       "neon": {
         "blurb": "चमकता सियान पॉप",
-        "label": "Neon"
+        "label": "नियॉन"
       }
     },
     "subtitle": "Hormozi-स्टाइल एनिमेटेड कैप्शन, आपके वीडियो में बर्न किए हुए।",
-    "title": "Caption Styler",
+    "title": "कैप्शन स्टाइलर",
     "titleAi": "AI"
   },
   "chooseArtist": {
@@ -2287,7 +2287,8 @@
     "vibeHypeBlurb": "क्लच खेल और बड़ी जीत",
     "vibeHypeLabel": "हाइप",
     "vibeWholesomeBlurb": "अहसास-अच्छे पल",
-    "vibeWholesomeLabel": "होलसम"
+    "vibeWholesomeLabel": "होलसम",
+    "addCaptions": "कैप्शन जोड़ें"
   },
   "coach": {
     "buildPlan": "मेरा मनी प्लान बनाएं",
@@ -4509,7 +4510,7 @@
     "toastSaveFirstTitle": "पहले अपना प्रोजेक्ट सहेजें",
     "toastSaveFirstDesc": "Next Actions में Save Project इस्तेमाल करें।",
     "toastScenesSavedTitle": "सीन सहेजे गए",
-    "sectionDirectorsTreatment": "Director's Treatment",
+    "sectionDirectorsTreatment": "डायरेक्टर का ट्रीटमेंट",
     "sectionVisualConcept": "विज़ुअल कॉन्सेप्ट",
     "sectionColorPalette": "कलर पैलेट",
     "sectionMainLocations": "मुख्य लोकेशन",
@@ -5654,7 +5655,9 @@
     "whatYouGetVocalDirection": "वोकल निर्देशन",
     "discardDraftButton": "ड्राफ्ट छोड़ें",
     "projectSaved": "प्रोजेक्ट सेव हो गया",
-    "recoveryFailedTitle": "बहाली विफल"
+    "recoveryFailedTitle": "बहाली विफल",
+    "guidedTabLabel": "निर्देशित",
+    "simpleTabLabel": "Turbo"
   },
   "songs": {
     "cancelButton": "रद्द करें",
@@ -5863,7 +5866,7 @@
     "progressDreaming": "4 variations सोचे जा रहे हैं…",
     "progressRendering": "4 में से 1 variation render हो रहा है…",
     "promptLabel": "Thumbnail में क्या दिखना चाहिए?",
-    "promptPlaceholder": "e.g. Me on a golden throne holding a microphone, dramatic spotlight, confetti falling…",
+    "promptPlaceholder": "उदा. मैं सोने के सिंहासन पर माइक्रोफ़ोन पकड़े हुए, नाटकीय स्पॉटलाइट, गिरती कॉन्फ़ेटी…",
     "promptRequiredError": "पहले अपने thumbnail का कुछ शब्दों में वर्णन करें।",
     "removeFaceAria": "Face photo हटाएं",
     "resultsTitle": "अपना विजेता चुनें",
@@ -5886,7 +5889,12 @@
     "uploadFace": "Face photo अपलोड करें",
     "variationAlt": "थंबनेल वेरिएशन {{n}}",
     "variationBadge": "वेरिएशन {{n}}",
-    "variationDetail": "{{count}} वेरिएशन{{suffix}} · {{aspectRatio}}"
+    "variationDetail": "{{count}} वेरिएशन{{suffix}} · {{aspectRatio}}",
+    "videoReferenceAttached": "वीडियो संदर्भ के रूप में जुड़ा",
+    "removeVideoReference": "वीडियो संदर्भ हटाएं",
+    "sendToVideoStudio": "वीडियो स्टूडियो को भेजें",
+    "artworkModeLabel": "आर्टवर्क पैक",
+    "useAsThumbnail": "इसके लिए थंबनेल के रूप में उपयोग करें…"
   },
   "thumbnailTest": {
     "analyzing": "विश्लेषण हो रहा है…",
@@ -5904,7 +5912,7 @@
     "improvedHeading": "बेहतर वर्ज़न",
     "nichePlaceholder": "नीश, जैसे hip-hop, gaming, finance (वैकल्पिक)",
     "pageSubtitle": "थंबनेल के 2–4 वेरिएंट अपलोड करें। AI हर एक को उन चीज़ों पर स्कोर करता है जो असल में क्लिक दिलाती हैं — क्यूरियॉसिटी, रीडेबिलिटी, इमोशन, कंट्रास्ट — और बाकियों के लिए ख़ास सुधारों के साथ आपके विनर की भविष्यवाणी करता है।",
-    "pageTitle": "Thumbnail A/B Tester",
+    "pageTitle": "थंबनेल A/B टेस्टर",
     "predictedWinner": "अनुमानित विनर: थंबनेल {{n}}",
     "removeThumbnailAria": "थंबनेल {{n}} हटाएं",
     "runTestButton": "टेस्ट चलाएं · {{cost}} Visual Bucs",
@@ -5928,7 +5936,9 @@
     "uploadCta": "यहां 2–4 थंबनेल छोड़ें, या ब्राउज़ करने के लिए क्लिक करें",
     "uploadFormats": "PNG/JPG/WebP · {{uploaded}}/{{max}} अपलोड हुए",
     "weaknessesLabel": "कमज़ोरियां",
-    "winnerBadge": "विनर"
+    "winnerBadge": "विनर",
+    "filesSkipped_one": "1 फ़ाइल छोड़ी गई — केवल इमेज, प्रत्येक 10 MB तक, अधिकतम {{max}} फ़ाइलें।",
+    "filesSkipped_other": "{{count}} फ़ाइलें छोड़ी गईं — केवल इमेज, प्रत्येक 10 MB तक, अधिकतम {{max}} फ़ाइलें।"
   },
   "thumbnails": {
     "backToDashboard": "डैशबोर्ड पर वापस",
@@ -5954,7 +5964,8 @@
     "removedToast": "लाइब्रेरी से हटा दिया गया",
     "removing": "हटाया जा रहा है…",
     "untitled": "शीर्षकहीन थंबनेल",
-    "viewFullSize": "{{title}} को पूरे आकार में देखें"
+    "viewFullSize": "{{title}} को पूरे आकार में देखें",
+    "fromProject": "इस प्रोजेक्ट से"
   },
   "tipPage": {
     "amountRequired": "पहले कोई राशि चुनें या दर्ज करें.",
@@ -6273,7 +6284,7 @@
     "statusUpscalingVideo": "आपके वीडियो को उन्नत किया जा रहा है...",
     "tabImage": "इमेज अपस्केल",
     "tabImageShort": "छवि",
-    "tabListLabel": "उच्चस्तर��य एवं स्वच्छ उपकरण",
+    "tabListLabel": "अपस्केल और क्लीन टूल",
     "tabVideo": "वीडियो अपस्केल",
     "tabVideoShort": "वीडियो",
     "tabWatermark": "वॉटरमार्क हटाना",
@@ -6296,7 +6307,21 @@
     "videoUpscaleComplete": "अपस्केल पूर्ण - {{target}}",
     "videoUpscaleFailedRefunded": "अपस्केल विफल - आपके 300 Visual Bucs वापस कर दिए गए।",
     "videoUpscalerSub": "अपनी क्लिप को 1080p या 4K पर बढ़ाएं - {{cost}} Visual Bucs",
-    "videoUpscalerTitle": "वीडियो अपस्केलर"
+    "videoUpscalerTitle": "वीडियो अपस्केलर",
+    "tabEnhance": "एन्हांस",
+    "tabEnhanceShort": "एन्हांस",
+    "modeLabel": "अपस्केल मोड",
+    "modeClassic": "क्लासिक (ffmpeg)",
+    "modeClassicDesc": "तेज़ पिक्सेल रीसैंपलिंग",
+    "modeGenerative": "जनरेटिव AI",
+    "modeGenerativeDesc": "AI विवरण पुनर्निर्माण (प्रीमियम)",
+    "genFraming": "जनरेटिव AI अपस्केल ऊपर के क्लासिक अपस्केलर से एक अलग प्रोडक्ट है: एक मॉडल केवल पिक्सेल रीसैंपल करने के बजाय विश्वसनीय विवरण पुनर्निर्मित करता है। प्रीमियम कीमत, प्रीमियम परिणाम — क्लासिक 300 VB ffmpeg अपस्केल इसके बगल में उपलब्ध रहता है।",
+    "genChecking": "जनरेटिव अपस्केल प्रदाता जांचा जा रहा है…",
+    "genNotConfigured": "जनरेटिव AI अपस्केलिंग अभी कनेक्ट नहीं है — साइट मालिक को एक प्रदाता कुंजी जोड़नी होगी। ऊपर का क्लासिक ffmpeg अपस्केलर अभी काम करता है। आपसे शुल्क नहीं लिया जाएगा।",
+    "genStatusFailed": "अपस्केल सेवा तक नहीं पहुँचा जा सका।",
+    "genDisabledTitle": "सक्षम करने के लिए एक प्रदाता कुंजी कनेक्ट करें",
+    "genButton": "{{target}} तक जनरेटिव अपस्केल (1500 VB — कीमत TBD)",
+    "genPriceNote": "प्लेसहोल्डर कीमत — असली कीमत को लाइव होने से पहले मालिक की मंज़ूरी चाहिए। क्लासिक ffmpeg अपस्केल 300 VB रहता है।"
   },
   "videoEditor": {
     "activeSceneNoClip": "सक्रिय सीन में कोई क्लिप नहीं — ऑडियो फिर भी बज रहा है",
@@ -7042,7 +7067,34 @@
     "voiceEditsTitle": "वॉइस एडिट"
   },
   "videoTemplatesPage": {
-    "applyPrice": "लागू करने के लिए {{count}} Visual Bucs"
+    "applyPrice": "लागू करने के लिए {{count}} Visual Bucs",
+    "copyFailed": "लिंक कॉपी नहीं हो सका।",
+    "ctaButton": "Visual Vibes खोलें",
+    "ctaSub": "हर टेम्पलेट Visual Vibes के अंदर एक टैप में लागू होता है — अपने क्लिप को स्लॉट में मैप करें, टेक्स्ट संपादित करें, और कैप्शन, थंबनेल, क्लिप, और शेड्यूलिंग handoffs के साथ एक तैयार वीडियो पाएं।",
+    "ctaTitle": "अपना बनाने के लिए तैयार हैं?",
+    "kicker": "मुफ़्त टेम्पलेट गैलरी",
+    "linkCopied": "शेयर लिंक कॉपी हुआ — इसमें आपका रेफ़रल कोड है",
+    "copyShareLink": "शेयर लिंक कॉपी करें",
+    "outcomeLabel": "इसके लिए बनाया गया",
+    "seoP1": "एडिट टेम्पलेट तैयार वीडियो का सबसे तेज़ रास्ता हैं: कट, ट्रांज़िशन, और टेक्स्ट ट्रीटमेंट पहले से डिज़ाइन किए गए हैं, इसलिए आपको बस अपने क्लिप और फ़ोटो डालने हैं। ऊपर का हर टेम्पलेट broadcast-स्टाइल ट्रांज़िशन — स्लाइड, वाइप, आइरिस रिवील, और दमदार रेडियल कट — के साथ-साथ बोल्ड सोने के टेक्स्ट ट्रीटमेंट के साथ सर्वर-साइड render होता है, इसलिए परिणाम डिज़ाइन किया हुआ लगता है, टेम्पलेटेड नहीं।",
+    "seoP2": "कोई भी टेम्पलेट चुनकर इसे Visual Vibes में टेम्पलेट पहले से चुने हुए खोलें। अपना मीडिया स्लॉट में मैप करें, टेक्स्ट ओवरले फिर से लिखें, एक वैकल्पिक म्यूज़िक बेड जोड़ें, और लागू करें — एक टैप पूरा एडिट render करता है। वहाँ से, तैयार वीडियो को सीधे कैप्शन, थंबनेल मेकर, स्मार्ट क्लिप, या सोशल शेड्यूलर को सौंपें।",
+    "seoTitle": "एडिट टेम्पलेट इंटरनेट क्यों तोड़ते हैं",
+    "slotsLabel": "{{count}} मीडिया स्लॉट",
+    "sub": "एक टेम्पलेट चुनें, अपने क्लिप और फ़ोटो डालें, और एक चिकना auto-edited वीडियो पाएं — कट, ट्रांज़िशन, और टेक्स्ट जले हुए। अपने अकाउंट के साथ ब्राउज़ मुफ़्त; render करने पर Visual Bucs लागू होते हैं।",
+    "titleA": "वीडियो एडिट",
+    "titleB": "टेम्पलेट",
+    "useTemplate": "यह टेम्पलेट उपयोग करें",
+    "searchPlaceholder": "टेम्पलेट खोजें — “lyric”, “promo”, “travel” आज़माएं…",
+    "sortFeatured": "फ़ीचर्ड — हमारी पसंद",
+    "sortAz": "नाम A–Z",
+    "sortShortest": "सबसे छोटे पहले",
+    "sortMostClips": "सबसे ज़्यादा क्लिप पहले",
+    "resultsCount": "{{count}} टेम्पलेट",
+    "noResultsTitle": "कोई टेम्पलेट उस खोज से मेल नहीं खाता",
+    "noResultsSub": "एक अलग शब्द आज़माएं, या पूरी लाइब्रेरी ब्राउज़ करने के लिए खोज साफ़ करें।",
+    "clearSearch": "खोज साफ़ करें",
+    "remake": "इसे फिर बनाएं",
+    "shareTemplate": "यह टेम्पलेट शेयर करें"
   },
   "viralityCheck": {
     "bestPostingTime": "पोस्ट करने का बेस्ट समय",
@@ -7271,7 +7323,7 @@
     "presetTopLeftBlurb": "प्रीव्यू वॉटरमार्क",
     "presetTopRight": "शीर्ष दाईं ओर",
     "presetTopRightBlurb": "चैनल लोगो",
-    "progressNote": "यह हमारे सर्वर पर चलता है - इस टैब को बंद करना सुरक्षित है। आपका साफ़ किया गया वीडियो आपकी लाइब���रेरी में इंतज़ार कर रहा होगा।",
+    "progressNote": "यह हमारे सर्वर पर चलता है — इस टैब को बंद करना सुरक्षित है। आपका साफ़ किया गया वीडियो आपकी लाइब्रेरी में इंतज़ार कर रहा होगा।",
     "removalComplete": "वॉटरमार्क हटा दिया गया",
     "removalFailedRefunded": "हटाना विफल - आपके {{bucs}} Visual Bucs वापस कर दिए गए।",
     "removeButton": "वॉटरमार्क हटाएं · {{cost}} Visual Bucs",
@@ -7282,7 +7334,8 @@
     "toolSub": "अपने स्वयं के वीडियो से लोगो साफ़ करें - {{cost}} Visual Bucs",
     "toolTitle": "वॉटरमार्क हटाना",
     "videoFileError": "कृपया एक वीडियो फ़ाइल चुनें.",
-    "videoSizeError": "यह वीडियो 80 एमबी अपलोड सीमा से अधिक है।"
+    "videoSizeError": "यह वीडियो 80 एमबी अपलोड सीमा से अधिक है।",
+    "sendToVideoEditor": "Visual Vibes को भेजें"
   },
   "websiteBuilder": {
     "applyEditButton": "एडिट लागू करें — {{cost}} Visual Bucs",
@@ -9685,7 +9738,16 @@
     "title": "ऑडियो स्टूडियो"
   },
   "thumbnailStudio": {
-    "title": "थंबनेल स्टूडियो"
+    "title": "थंबनेल स्टूडियो",
+    "subtitle": "स्क्रॉल-रोकने वाले थंबनेल जनरेट करें, AI के साथ A/B टेस्ट करें, और अपनी लाइब्रेरी ब्राउज़ करें — सब एक ही स्टूडियो में।",
+    "tabs": {
+      "generate": "जनरेट करें",
+      "abtest": "A/B टेस्ट",
+      "library": "लाइब्रेरी",
+      "aria": "थंबनेल स्टूडियो अनुभाग",
+      "enhance": "एन्हांस",
+      "background": "पृष्ठभूमि"
+    }
   },
   "wave9": {
     "directEdit": {
@@ -12409,5 +12471,721 @@
     "errorBody": "हमारी ओर से कुछ गड़बड़ हुई — आपने जो बनाया था, कुछ नहीं खोया। एक सेकंड दें और फिर से प्रयास करें, महाराज।",
     "errorRetry": "फिर से प्रयास करें",
     "emptyVaultCta": "अपना वॉल्ट भरें"
+  },
+  "mixMaster": {
+    "back": "वापस",
+    "title": "मिक्स और मास्टर",
+    "subtitle": "पेशेवर साउंड, कोई इंजीनियर आवश्यक नहीं",
+    "honestFraming": "एक असली DSP पाइपलाइन — प्रति-stem gain staging, EQ, compression, जॉनर panning, फिर true-peak limiting के साथ पूरी mastering श्रृंखला। यह",
+    "honestFramingBold": "बढ़िया रिकॉर्डिंग को जोड़ता और चमकाता है; यह clipping, बेसुरे vocals, या ख़राब arrangement ठीक नहीं कर सकता।",
+    "honestFramingEnd": "इसे भेजने से पहले loudness-matched A/B पर अपने कानों पर भरोसा करें।",
+    "tabMaster": "मास्टर",
+    "tabMix": "मिक्स",
+    "tabMixStems": "· स्टेम्स",
+    "genreLabel": "जॉनर साउंड",
+    "intensityLabel": "प्रोसेसिंग तीव्रता",
+    "loudnessLabel": "लक्ष्य loudness",
+    "genres": {
+      "hip-hop": {
+        "label": "हिप-हॉप",
+        "blurb": "भारी लो एंड, आगे के vocals।"
+      },
+      "pop": {
+        "label": "पॉप",
+        "blurb": "पॉलिश्ड, उज्ज्वल, रेडियो चमक।"
+      },
+      "rnb": {
+        "label": "आर एंड बी",
+        "blurb": "मुलायम, गर्म, रेशमी vocals।"
+      },
+      "edm": {
+        "label": "ईडीएम",
+        "blurb": "अधिकतम ऊर्जा, विशाल और चौड़ा।"
+      },
+      "rock": {
+        "label": "रॉक",
+        "blurb": "कर्कश गिटार, ड्रम आगे।"
+      },
+      "lofi": {
+        "label": "लो-फ़ाई",
+        "blurb": "धूलदार, गर्म, मधुर।"
+      },
+      "afrobeat": {
+        "label": "अफ्रोबीट",
+        "blurb": "उछलता percussion, log drums।"
+      },
+      "gospel": {
+        "label": "गॉस्पेल",
+        "blurb": "विशाल, उत्साहवर्धक गायक-मंडली स्पष्टता।"
+      },
+      "podcast": {
+        "blurb": "बोले गए शब्द की स्पष्टता — सौम्य dynamics।",
+        "label": "पॉडकास्ट"
+      },
+      "trap": {
+        "blurb": "दमदार 808s — भारी लो-एंड वज़न।",
+        "label": "ट्रैप"
+      }
+    },
+    "intensities": {
+      "subtle": {
+        "label": "सूक्ष्म",
+        "blurb": "सौम्य चमक, dynamics बरकरार।"
+      },
+      "balanced": {
+        "label": "संतुलित",
+        "blurb": "अधिकांश ट्रैक के लिए मीठा स्थान।"
+      },
+      "aggressive": {
+        "label": "आक्रामक",
+        "blurb": "ज़ोरदार, दमदार, सामने।"
+      }
+    },
+    "loudness": {
+      "streaming": {
+        "label": "स्ट्रीमिंग",
+        "blurb": "Spotify / Apple Music तैयार।"
+      },
+      "club": {
+        "label": "क्लब",
+        "blurb": "बड़े सिस्टम के लिए ज़ोरदार और दमदार।"
+      },
+      "radio": {
+        "label": "रेडियो",
+        "blurb": "प्रसारण-अनुकूल स्थिरता।"
+      }
+    },
+    "stemTypes": {
+      "vocals": "वोकल्स",
+      "drums": "ड्रम",
+      "bass": "बास",
+      "keys": "कीज़",
+      "guitar": "गिटार",
+      "strings": "स्ट्रिंग्स",
+      "fx": "FX",
+      "beat": "बीट",
+      "other": "स्टेम"
+    },
+    "errorAudioFile": "कृपया एक ऑडियो फ़ाइल चुनें (WAV, MP3, AIFF, FLAC, M4A, OGG)।",
+    "errorFileTooLarge": "वह फ़ाइल 100 MB से ऊपर है — कृपया एक छोटा मिक्स उपयोग करें।",
+    "errorNetwork": "नेटवर्क त्रुटि — कृपया फिर से प्रयास करें।",
+    "errorNotAudio": "वे फ़ाइलें ऑडियो नहीं हैं — WAV, MP3, AIFF, FLAC, M4A या OGG उपयोग करें।",
+    "referenceTrack": "संदर्भ ट्रैक",
+    "beforeAfter": "पहले / बाद",
+    "before": "पहले",
+    "after": "बाद",
+    "dropMixHint": "अपना तैयार मिक्स यहाँ डालें",
+    "fileTypes": "MP3, WAV, FLAC · 100 MB तक",
+    "dropStemsHint": "अपने stems यहाँ डालें",
+    "listeningTo": "सुन रहे हैं",
+    "masterReport": "मास्टर रिपोर्ट",
+    "referenceHint": "एक संदर्भ ट्रैक चुनें",
+    "referenceLoudness": "संदर्भ loudness",
+    "dynamicRange": "डायनेमिक रेंज",
+    "vocalBuried": "दबा हुआ",
+    "vocalLevel": "वोकल लेवल",
+    "vocalUpfront": "सामने",
+    "tabQuick": "एक्सप्रेस मास्टर",
+    "tabQuickDesc": "एक तैयार stereo मिक्स अपलोड करें — एक प्रीसेट चुनें, 400 Visual Bucs में रेडियो-तैयार मास्टर पाएं। तेज़, कोई घुंडी नहीं।"
+  },
+  "harmony": {
+    "buttonLabel": "हार्मनी जोड़ें — बैकिंग वोकल्स",
+    "buttonCost": "300 Visual Bucs",
+    "title": "हार्मनी जनरेटर",
+    "subtitle": "“{{title}}” के लिए बैकिंग-वोकल हार्मनी",
+    "close": "बंद करें",
+    "vb": "Visual Bucs",
+    "engineLabel": "हार्मनी इंजन",
+    "modeClassicLabel": "क्लासिक डबल्स",
+    "modeClassicShort": "क्लासिक",
+    "modeClassicBlurb": "उसी आवाज़ के pitch-preserving डबल्स — ऊपर या नीचे thirds, fifths, octaves। स्टूडियो-गुणवत्ता, हमेशा चालू।",
+    "modeAiLabel": "AI हार्मनी",
+    "modeAiShort": "AI",
+    "modeAiBlurb": "हर हार्मनी भाग को AI द्वारा एक अलग बैकिंग-गायक आवाज़ में फिर से आवाज़ दी जाती है — असली गायकों जैसी लगती है, क्लोन नहीं।",
+    "alwaysAvailable": "✓ हमेशा उपलब्ध",
+    "aiNeedsSetup": "⚠ स्टूडियो वॉइस सेटअप चाहिए — सपोर्ट से पूछें",
+    "aiCheckNote": "उपलब्धता स्टूडियो के साथ लाइव जांची गई",
+    "styleLabel": "हार्मनी स्टाइल",
+    "loadingStyles": "स्टाइल लोड हो रही हैं…",
+    "keyHintLabel": "Key संकेत",
+    "optional": "(वैकल्पिक)",
+    "keyHintPlaceholder": "उदा. C, Am, F#",
+    "keyHintHint": "व्यवस्था संदर्भ के रूप में हार्मनी के साथ सेव हुआ।",
+    "mixLabel": "हार्मनी मिक्स लेवल",
+    "mixLow": "सूक्ष्म",
+    "mixHigh": "सामने",
+    "lyricsLabel": "लिरिक्स",
+    "lyricsOptional": "(लिरिक-वीडियो handoff के लिए)",
+    "lyricsPlaceholder": "वन-क्लिक लिरिक वीडियो अनलॉक करने के लिए lyrics पेस्ट करें…",
+    "generateCta": "हार्मनी बनाएं · {{cost}} Visual Bucs",
+    "confirmFeature": "हार्मनी जनरेटर ({{mode}})",
+    "needAudio": "हार्मनी को गाने के परिणाम से एक चलने योग्य ऑडियो URL चाहिए।",
+    "generating": "“{{title}}” के लिए हार्मनी बन रही हैं…",
+    "generatingClassicHint": "डबल्स को pitch-shift किया जा रहा है और मिक्स हो रहा है — इसे खुला रखें।",
+    "generatingAiHint": "भागों को pitch-shift किया जा रहा है, हर बैकिंग गायक को फिर आवाज़ दी जा रही है, फिर मिक्स — इसे खुला रखें।",
+    "generateFailed": "हार्मनी जनरेशन विफल रहा। कृपया फिर से प्रयास करें।",
+    "outOfCredits": "इसके लिए पर्याप्त Visual Bucs नहीं हैं ({{cost}})। बनाते रहने के लिए अपना बैलेंस टॉप अप करें।",
+    "aiNotConfigured": "AI हार्मनी स्टूडियो में अभी चालू नहीं हैं — बैकिंग-गायक आवाज़ें कॉन्फ़िगर नहीं हैं। क्लासिक डबल्स अभी काम करते हैं और बढ़िया लगते हैं।",
+    "useClassicInstead": "इसके बजाय क्लासिक डबल्स बनाएं · {{cost}} Visual Bucs",
+    "createdTitle": "हार्मनी बन गईं",
+    "createdDesc": "“{{title}}” आपकी गाना लाइब्रेरी में है।",
+    "hubMixDetail": "हार्मनी मिक्स",
+    "hubStemDetail": "हार्मनी स्टेम",
+    "stemsLabel": "हार्मनी स्टेम्स",
+    "mixLabelShort": "हार्मनी मिक्स",
+    "download": "डाउनलोड करें",
+    "mixIntoSong": "गाने में मिक्स करें",
+    "mixedIn": "मिक्स हुआ",
+    "mixedIntoSongDetail": "हार्मनी वाला कार्यशील संस्करण",
+    "mixedIntoSongTitle": "हार्मनी मिक्स हुईं",
+    "mixedIntoSongDesc": "हार्मनी मिक्स अब प्रोजेक्ट में आपके गाने का कार्यशील संस्करण है।",
+    "sendToMixMaster": "मिक्स और मास्टर को भेजें",
+    "lyricVideo": "लिरिक वीडियो बनाएं",
+    "lyricVideoReady": "लिरिक वीडियो तैयार",
+    "lyricVideoFailed": "लिरिक वीडियो विफल रहा। कृपया फिर से प्रयास करें।",
+    "coverArt": "कवर आर्ट डिज़ाइन करें",
+    "coverArtReady": "कवर आर्ट तैयार",
+    "coverArtFailed": "कवर आर्ट विफल रहा। कृपया फिर से प्रयास करें।",
+    "coverArtAlt": "{{title}} कवर आर्ट",
+    "coverArtMood": "हार्मनी-समृद्ध वोकल ट्रैक के लिए कवर आर्टवर्क",
+    "addToAlbum": "एल्बम में जोड़ें",
+    "share": "शेयर लिंक कॉपी करें",
+    "copied": "कॉपी हुआ!",
+    "shareCopiedTitle": "शेयर टेक्स्ट कॉपी हुआ",
+    "shareCopiedDesc": "इसे कहीं भी पेस्ट करें — आपका रेफ़रल लिंक अंदर है।",
+    "copyFailedTitle": "कॉपी विफल रहा",
+    "copyFailedDesc": "आपके ब्राउज़र ने क्लिपबोर्ड एक्सेस रोकी।",
+    "shareText": "“{{title}}” — ताज़ा हार्मनी {{madeWith}} 🎵\n{{mixUrl}}\nचीट कोड पाएं: {{link}}",
+    "lyricsNeededTitle": "लिरिक्स चाहिए",
+    "lyricsNeededDesc": "लिरिक वीडियो बनाने के लिए ऊपर गाने के lyrics जोड़ें।",
+    "lrcFailed": "Lyrics से लिरिक टाइमिंग नहीं बन सकी।",
+    "unknownArtist": "अज्ञात कलाकार",
+    "done": "हो गया",
+    "partsLine": "{{parts}}"
+  },
+  "deverb": {
+    "abCleaned": "डी-रीवर्ब किया गया",
+    "abHint": "आगे-पीछे टॉगल करें — गूंज का अंतर tails में रहता है।",
+    "abOriginal": "मूल",
+    "checkingAvailability": "उपलब्धता जांची जा रही है…",
+    "creditsRemaining": "{n} Visual Bucs शेष",
+    "deverbButton": "गूंज हटाएं · {cost} VB",
+    "deverbComplete": "डी-रीवर्ब पूर्ण — नीचे मूल से तुलना करें।",
+    "downloadButton": "डाउनलोड करें",
+    "dropFormats": "MP3, WAV, M4A, AAC, OGG, FLAC · 50 MB तक",
+    "dropPrompt": "गूंजदार ऑडियो यहाँ डालें, या ब्राउज़ करने के लिए क्लिक करें",
+    "errorAudioType": "केवल ऑडियो फ़ाइलों की अनुमति है (MP3, WAV, M4A, AAC, OGG, FLAC)।",
+    "errorDeverbFailed": "डी-रीवर्ब जॉब विफल रहा। आपको रिफ़ंड मिला।",
+    "errorFileTooLarge": "वह फ़ाइल बहुत बड़ी है — डी-रीवर्ब अपलोड 50 MB तक सीमित हैं।",
+    "errorJobNotFound": "जॉब नहीं मिला — यह समाप्त हो सकता है।",
+    "errorNetwork": "नेटवर्क त्रुटि — कृपया अपना कनेक्शन जांचें और फिर से प्रयास करें।",
+    "errorPricingPending": "डी-रीवर्ब मूल्य निर्धारण अभी स्वीकृत नहीं हुआ है, इसलिए tool अक्षम है। कोई क्रेडिट चार्ज नहीं हुआ।",
+    "errorProviderNotConfigured": "डी-रीवर्ब अभी उपलब्ध नहीं है — AI प्रदाता कनेक्ट नहीं हुआ है। कोई क्रेडिट चार्ज नहीं हुआ।",
+    "errorStartFailed": "डी-रीवर्ब जॉब शुरू नहीं हो सका। कृपया फिर से प्रयास करें।",
+    "featureName": "डी-रीवर्ब",
+    "fileSizeChange": "{size} MB — एक अलग फ़ाइल चुनने के लिए क्लिक करें",
+    "gatedPricingPending": "डी-रीवर्ब प्रदाता कनेक्ट है, लेकिन प्रति-जॉब कीमत अभी स्वीकृत नहीं हुई है। मूल्य निर्धारण स्वीकृत होते ही यह टैब अनलॉक होगा।",
+    "gatedProviderMissing": "AI डी-रीवर्ब प्रदाता कनेक्ट नहीं हुआ है — सर्वर के पास उसकी प्रदाता कुंजी (DEVERB_API_KEY) नहीं है। प्रदाता जुड़ने और कीमत स्वीकृत होते ही यह टैब अपने आप अनलॉक होगा।",
+    "gatedTeaser": "गूंजदार कमरे का ऑडियो अपलोड करें — पॉडकास्ट, वॉइसओवर, स्ट्रीम क्लिप, या वोकल टेक — और सूखा, क्लोज़-माइक जैसा संवाद और वोकल वापस पाएं। Feature लाइव होने तक कुछ भुगतान नहीं।",
+    "gatedTitle": "डी-रीवर्ब अभी उपलब्ध नहीं है",
+    "gatedUnknown": "डी-रीवर्ब अभी अनुपलब्ध है। कृपया जल्द फिर जांचें।",
+    "handoffLabel": "इसे आगे उपयोग करें",
+    "handoffPodcast": "पॉडकास्ट स्टूडियो",
+    "handoffSong": "सॉन्ग फ़्लो",
+    "handoffVoiceover": "वॉइसओवर स्टूडियो",
+    "honestIntro": "AI डी-रीवर्ब कमरे की गूंज हटाता है, शोर नहीं —",
+    "honestRest": "। यदि आपका टेक फुसफुसाहट भरा है तो पहले Cleanup टैब के साथ जोड़ें, फिर यहाँ डी-रीवर्ब करें।",
+    "honestStrong": "यह विकृति या भारी पृष्ठभूमि शोर ठीक नहीं करेगा",
+    "labelCleaned": "डी-रीवर्ब किया गया",
+    "labelOriginal": "मूल",
+    "modeDialogueBlurb": "पॉडकास्ट, वॉइसओवर, स्ट्रीम क्लिप। भाषण से कमरे का टोन और गूंज हटाता है।",
+    "modeDialogueLabel": "डायलॉग आइसोलेट",
+    "modeLabel": "डी-रीवर्ब मोड",
+    "modeVocalBlurb": "कमरे में रिकॉर्ड किए गए गाने के वोकल। मिक्सिंग के लिए टेक को सूखा करता है।",
+    "modeVocalLabel": "वोकल डी-रीवर्ब",
+    "newDeverbButton": "नया",
+    "pause": "रोकें",
+    "play": "चलाएं",
+    "progressNote": "सर्वर-साइड जॉब — इसके चलते टैब बदलना या यह पेज बंद करना सुरक्षित है।",
+    "statusProcessing": "डी-रीवर्ब कमरे की गूंज हटा रहा है…",
+    "statusQueued": "कतार में — आपका डी-रीवर्ब जॉब अपनी बारी की प्रतीक्षा कर रहा है",
+    "statusUploading": "अपलोड हो रहा है…",
+    "subtitle": "संवाद और वोकल से कमरे की गूंज हटाएं · प्रति जॉब {cost} VB",
+    "title": "डी-रीवर्ब / डायलॉग आइसोलेट",
+    "waveformUnavailable": "वेवफ़ॉर्म अनुपलब्ध",
+    "whyNoDsp": "कोई तुरंत मुफ़्त संस्करण क्यों नहीं? कमरे की गूंज हटाना AI का काम है — साधारण नॉइज़ फ़िल्टर केवल फुसफुसाहट और गड़गड़ाहट काटते हैं, वे दीवारों से टकराई ध्वनि को वापस नहीं ला सकते। नकली भेजने के बजाय, यह tool असली AI डी-रीवर्ब प्रदाता की प्रतीक्षा करता है।"
+  },
+  "fillerRemover": {
+    "title": "फ़िलर-शब्द रिमूवर",
+    "subtitle": "ums, uhs और मृत हवा अपने आप काटें — {{cost}} Visual Bucs",
+    "noClip": "फ़िलर रिमूवर अनलॉक करने के लिए एक सीन में वीडियो क्लिप जोड़ें।",
+    "groupClassic": "क्लासिक फ़िलर",
+    "groupHedges": "हेज वाक्यांश",
+    "groupRisky": "जोखिम भरे शब्द",
+    "riskyHint": "डिफ़ॉल्ट रूप से बंद — ये असली शब्द भी हैं",
+    "customWordsLabel": "आपके शब्द",
+    "customWordsPlaceholder": "उदा. basically, literally…",
+    "add": "जोड़ें",
+    "removeWord": "शब्द हटाएं",
+    "silenceLabel": "मृत-हवा ठहराव काटें",
+    "minPauseLabel": "न्यूनतम ठहराव",
+    "analyzeButton": "फ़िलर खोजें · {{cost}} Visual Bucs",
+    "creditsRemaining": "{{n}} Visual Bucs शेष",
+    "stagequeued": "कतार में…",
+    "stagedownloading": "आपका वीडियो डाउनलोड हो रहा है…",
+    "stageextracting-audio": "ऑडियो निकाला जा रहा है…",
+    "stagetranscribing": "AI से ट्रांसक्राइब हो रहा है — हर um और uh सुना जा रहा है…",
+    "stagedetecting": "फ़िलर शब्द और मृत हवा खोजी जा रही है…",
+    "progressNote": "यह हमारे सर्वर पर चलता है — इस टैब को बंद करना सुरक्षित है। कट सूची यहाँ इंतज़ार कर रही होगी।",
+    "cutsFound": "{{n}} कट मिले",
+    "ofDuration": "कुल {{d}}",
+    "selectAll": "सभी",
+    "selectNone": "कोई नहीं",
+    "noCutsTitle": "पहले से साफ़",
+    "noCutsDesc": "कोई फ़िलर शब्द या लंबे ठहराव नहीं मिले — यह टेक कसा हुआ है।",
+    "kindFiller": "फ़िलर",
+    "kindSilence": "ठहराव",
+    "timeSaved": "{{n}} कट में बचाया गया",
+    "renderButton": "साफ़ वीडियो render करें · {{n}} कट",
+    "startOver": "फिर से शुरू करें",
+    "renderStagequeued": "Render कतार में…",
+    "renderStagedownloading": "आपका वीडियो डाउनलोड हो रहा है…",
+    "renderStagecutting": "फ़िलर काटे जा रहे हैं…",
+    "renderStageuploading": "साफ़ वीडियो अपलोड हो रहा है…",
+    "doneTitle": "हो गया — {{n}} कट हटाए गए, {{saved}} बचाया गया",
+    "useInEditor": "एडिटर में उपयोग करें",
+    "usedInEditorTitle": "एडिटर में जोड़ा गया",
+    "usedInEditorDesc": "साफ़ वीडियो ने सीन के क्लिप की जगह ली।",
+    "download": "डाउनलोड करें",
+    "newRun": "नई रन",
+    "nextTitle": "आगे क्या",
+    "nextDesc": "आपका साफ़ वीडियो hub प्रोजेक्ट में है। AI कैप्शन के लिए Captions टैब खोलें, फिर मल्टी-रेशियो संस्करणों के लिए Export, फिर Scheduler से इसे शेड्यूल करें।",
+    "hubAssetLabel": "साफ़ वीडियो",
+    "hubAssetDetail": "फ़िलर-शब्द रिमूवर · {{n}} कट · {{saved}} बचाया गया",
+    "renderCompleteTitle": "साफ़ वीडियो तैयार",
+    "renderCompleteDesc": "आपके hub प्रोजेक्ट में सेव हुआ — कैप्शन अगले हैं।",
+    "errorAnalyze": "वीडियो का विश्लेषण नहीं हो सका — फिर से प्रयास करें।",
+    "errorRender": "Render विफल रहा और आपके Visual Bucs रिफ़ंड हुए।"
+  },
+  "mastering": {
+    "back": "वापस",
+    "title": "मास्टरिंग",
+    "subtitle": "आपके मिक्स से रिलीज़-तैयार मास्टर — {{cost}} Visual Bucs",
+    "honestFraming": "एक असली DSP श्रृंखला — सबसोनिक सफ़ाई, ग्लू compression, मीठा EQ, stereo विस्तार, फिर true-peak limiting के साथ दो-पास loudness normalization। यह",
+    "honestFramingBold": "एक अच्छे मिक्स को चमकाता है; यह ख़राब मिक्स ठीक नहीं कर सकता।",
+    "honestFramingEnd": "इसे भेजने से पहले A/B तुलना पर अपने कानों पर भरोसा करें।",
+    "errorFailed": "मास्टरिंग विफल रही — आपके Visual Bucs रिफ़ंड हुए।",
+    "errorAudioFile": "कृपया एक ऑडियो फ़ाइल चुनें (WAV, MP3, AIFF, FLAC, M4A, OGG)।",
+    "errorFileTooLarge": "वह फ़ाइल 100 MB से ऊपर है — कृपया एक छोटा मिक्स उपयोग करें।",
+    "errorStartFailed": "मास्टरिंग शुरू नहीं हो सकी।",
+    "errorNetwork": "नेटवर्क त्रुटि — कृपया फिर से प्रयास करें।",
+    "dropHint": "अपना मिक्स यहाँ डालें, या ब्राउज़ करने के लिए क्लिक करें",
+    "fileTypes": "WAV, MP3, AIFF, FLAC, M4A, OGG — 100 MB तक",
+    "fileSize": "{{size}} MB — बदलने के लिए क्लिक करें",
+    "presetLabel": "मास्टरिंग प्रीसेट",
+    "presets": {
+      "streaming": {
+        "label": "स्ट्रीमिंग",
+        "blurb": "Spotify / Apple Music तैयार — साफ़ और डायनेमिक।"
+      },
+      "club": {
+        "label": "क्लब",
+        "blurb": "बड़े साउंड सिस्टम के लिए ज़ोरदार और दमदार।"
+      },
+      "radio": {
+        "label": "रेडियो",
+        "blurb": "प्रसारण-अनुकूल वोकल उपस्थिति।"
+      },
+      "lofi": {
+        "label": "लो-फ़ाई",
+        "blurb": "सौम्य, गर्म और डायनेमिक, हल्के ऊपरी सिरे के साथ।"
+      }
+    },
+    "signInToMaster": "मास्टर करने के लिए साइन इन करें",
+    "masterButton": "मेरा ट्रैक मास्टर करें — {{cost}} Visual Bucs",
+    "creditsRemaining": "{{count}} Visual Bucs शेष",
+    "statusUploading": "आपका मिक्स अपलोड हो रहा है…",
+    "statusQueued": "कतार में — श्रृंखला गर्म हो रही है…",
+    "statusProcessing": "मास्टरिंग जारी है…",
+    "processingDetail": "Loudness का विश्लेषण → दो-पास normalization → WAV + MP3 render। इस टैब को बंद करना सुरक्षित है — जॉब सर्वर पर चलता है।",
+    "masterComplete": "मास्टर पूर्ण — नीचे अपने मूल से तुलना करें।",
+    "beforeAfter": "पहले / बाद",
+    "before": "पहले",
+    "after": "बाद",
+    "listeningTo": "सुन रहे हैं:",
+    "originalMix": "आपका मूल मिक्स",
+    "masteredVersion": "मास्टर किया गया संस्करण",
+    "positionPreserved": "— पलटने पर स्थिति बनी रहती है।",
+    "loudnessReport": "Loudness रिपोर्ट",
+    "mixLoudness": "मिक्स loudness",
+    "masterLoudness": "मास्टर loudness",
+    "truePeakMix": "True peak (मिक्स)",
+    "targetCeiling": "लक्ष्य सीमा-छत",
+    "dynamicRange": "डायनेमिक रेंज (मिक्स): {{value}} LU — श्रृंखला में बरकरार रखी गई, कुचली नहीं गई।",
+    "downloadWav": "WAV (24-bit)",
+    "downloadMp3": "MP3 (320k)",
+    "masterAnother": "एक और ट्रैक मास्टर करें"
+  },
+  "cartoonStudio": {
+    "pageTitle": "कार्टून स्टूडियो",
+    "pageDescription": "कार्टून वीडियो बनाएं, कार्टून किरदार डिज़ाइन करें, और फ़ोटो को कार्टून बनाएं — सब एक ही स्टूडियो में।",
+    "backToDashboard": "डैशबोर्ड पर वापस",
+    "costBadge": "वीडियो 400 VB · इमेज 200 VB",
+    "title": "कार्टून स्टूडियो",
+    "subtitle": "कार्टून कंटेंट निर्माण का हिस्सा हैं। कार्टून क्लिप जनरेट करें, किरदार डिज़ाइन करें, या किसी फ़ोटो को कार्टून बनाएं — एक सहज वर्कफ़्लो।",
+    "tabsAria": "कार्टून स्टूडियो अनुभाग",
+    "tabVideo": "कार्टून वीडियो",
+    "tabCharacters": "किरदार",
+    "tabCartoonize": "कार्टून बनाएं",
+    "styleLabel": "कार्टून स्टाइल",
+    "styleAnimeName": "एनीमे",
+    "style3dToonName": "3D टून",
+    "styleClassic2dName": "क्लासिक 2D",
+    "styleComicName": "कॉमिक बुक",
+    "promptLabel": "अपने कार्टून वीडियो का वर्णन करें",
+    "videoPromptPlaceholder": "एक बहादुर शार्क कप्तान नियॉन कैंडी महासागर में नौकायन करता हुआ, पॉपकॉर्न से बने सीगल…",
+    "durationLabel": "अवधि",
+    "aspectLabel": "आस्पेक्ट रेशियो",
+    "generateVideo": "कार्टून वीडियो जनरेट करें ({{cost}} VB)",
+    "videoFeatureName": "कार्टून वीडियो",
+    "videoStarted": "कार्टून वीडियो शुरू हुआ",
+    "videoStartedDesc": "आपका कार्टून क्लिप render हो रहा है — इसमें एक या दो मिनट लगते हैं।",
+    "characterLabel": "अपने कार्टून किरदार का वर्णन करें",
+    "characterPlaceholder": "एक नींद भरा रोबोट बैरिस्टा, टेढ़ा एंटीना, गोल पेट, बड़ी दयालु आँखें…",
+    "generateCharacter": "किरदार शीट जनरेट करें ({{cost}} VB)",
+    "characterFeatureName": "कार्टून किरदार शीट",
+    "characterResultAlt": "जनरेट की गई कार्टून किरदार शीट",
+    "uploadPrompt": "कार्टून बनाने के लिए फ़ोटो अपलोड करने के लिए टैप करें",
+    "uploadPreviewAlt": "कार्टून बनाई जाने वाली फ़ोटो",
+    "removePhoto": "फ़ोटो हटाएं",
+    "cartoonizeButton": "फ़ोटो को कार्टून बनाएं ({{cost}} VB)",
+    "cartoonizeFeatureName": "फ़ोटो को कार्टून बनाएं",
+    "cartoonizeResultAlt": "कार्टून बनाई गई फ़ोटो",
+    "generating": "जनरेट हो रहा है…",
+    "generationFailed": "जनरेशन विफल रहा। Visual Bucs चार्ज नहीं हुए।",
+    "networkError": "जनरेट करते समय नेटवर्क त्रुटि। Visual Bucs चार्ज नहीं हुए।",
+    "download": "डाउनलोड करें",
+    "alsoTry": "यह भी आज़माएं",
+    "alsoTryMusicVideo": "कार्टून म्यूज़िक वीडियो स्टाइल",
+    "alsoTryEditRecipe": "बच्चे / कार्टून एडिट रेसिपी"
+  },
+  "bgStudio": {
+    "uploadNotImage": "कृपया एक इमेज फ़ाइल चुनें।",
+    "uploadedTitle": "फ़ोटो अपलोड हुई",
+    "uploadedDesc": "अब पृष्ठभूमि हटाएं।",
+    "uploadFailed": "अपलोड विफल रहा। फिर से प्रयास करें।",
+    "step1": "एक फ़ोटो अपलोड करें",
+    "step2": "पृष्ठभूमि हटाएं",
+    "step3": "पृष्ठभूमि बदलें",
+    "uploading": "अपलोड हो रहा है…",
+    "dropHint": "एक फ़ोटो यहाँ डालें, या चुनने के लिए टैप करें",
+    "photoReady": "फ़ोटो तैयार",
+    "changePhoto": "फ़ोटो बदलें",
+    "removeCta": "पृष्ठभूमि हटाएं",
+    "removing": "पृष्ठभूमि हटाई जा रही है…",
+    "removeFailed": "पृष्ठभूमि हटाना विफल रहा।",
+    "noOutput": "कोई आउटपुट इमेज नहीं मिली।",
+    "advanced": "मैन्युअल: हटाने की शक्ति",
+    "aggressiveness": "हटाने की शक्ति",
+    "aggressivenessHint": "ऊँचा होने पर किनारे के ज़्यादा पिक्सेल हटते हैं — धुंधली या छायादार पृष्ठभूमि के लिए उपयोग करें।",
+    "before": "पहले",
+    "after": "बाद",
+    "detectedColor": "पहचाना गया पृष्ठभूमि रंग",
+    "kind": {
+      "color": "रंग",
+      "gradient": "ग्रेडिएंट",
+      "ai": "AI बैकड्रॉप"
+    },
+    "custom": "कस्टम",
+    "checkingAi": "AI उपलब्धता जांची जा रही है…",
+    "aiNotConnected": "AI बैकड्रॉप इस सर्वर पर अभी कनेक्ट नहीं हैं। इसके बजाय एक ठोस रंग या प्रीसेट सीन चुनें।",
+    "customPrompt": "कस्टम बैकड्रॉप प्रॉम्प्ट",
+    "promptPlaceholder": "बैकड्रॉप का वर्णन करें — उदा. सुबह के समय सोने के रेगिस्तानी टीले, हल्की रोशनी",
+    "provider": "मॉडल",
+    "generateCta": "बैकड्रॉप जनरेट करें",
+    "generating": "बैकड्रॉप जनरेट हो रहा है…",
+    "backdropFailed": "बैकड्रॉप जनरेशन विफल रहा।",
+    "priceTbdNote": "ड्राफ़्ट कीमत — अंतिम नहीं। मुफ़्त रंग और ग्रेडिएंट की कभी कोई लागत नहीं होती।",
+    "composeFailed": "अंतिम इमेज नहीं बन सकी।",
+    "compositing": "कंपोज़िट हो रहा है…",
+    "result": "आपकी नई फ़ोटो",
+    "startOver": "फिर से शुरू करें",
+    "download": "PNG डाउनलोड करें"
+  },
+  "headshotStudio": {
+    "eyebrow": "प्रोफ़ाइल तस्वीरें",
+    "title": "हेडशॉट",
+    "subtitle": "एक प्रोफ़ाइल तस्वीर जो महंगी लगे। एक फ़्लो चुनें — बाकी AI संभालता है।",
+    "flows": {
+      "autopilot": "Turbo मोड",
+      "preset": "स्टाइल प्रीसेट",
+      "manual": "मैन्युअल प्रॉम्प्ट"
+    },
+    "autopilot": {
+      "blurb": "एक टैप। AI सबसे आकर्षक स्टूडियो लुक अपने आप चुनता है — लाइटिंग, बैकड्रॉप, फ्रेमिंग, सब कुछ।",
+      "costNote": "केवल तभी चार्ज होता है जब हेडशॉट सफल हो।"
+    },
+    "styleLabel": "स्टाइल",
+    "presetNames": {
+      "studio": "स्टूडियो",
+      "stage": "स्टेज",
+      "street": "स्ट्रीट",
+      "luxury": "लक्ज़री"
+    },
+    "presets": {
+      "studio": "क्लासिक स्टूडियो पोर्ट्रेट — साफ़ बैकड्रॉप, हल्की प्रो लाइटिंग।",
+      "stage": "ऑन-स्टेज लुक — स्पॉटलाइट और पीछे भीड़ की ऊर्जा।",
+      "street": "स्ट्रीट एडिटोरियल — गोल्डन आवर, शहरी, आत्मविश्वासी।",
+      "luxury": "लक्ज़री एडिटोरियल — मार्बल, सोना, हाई-एंड फ़ैशन।"
+    },
+    "manualLabel": "आपका प्रॉम्प्ट — पूरा नियंत्रण",
+    "manualPlaceholder": "उदा. नाटकीय ब्लैक-एंड-व्हाइट हेडशॉट, कठोर छाया, फ़िल्म नॉयर मूड, कैमरे से दूर देखते हुए…",
+    "refLabel": "चेहरे का संदर्भ (वैकल्पिक)",
+    "refPlaceholder": "अपनी पहचान लॉक करने के लिए फ़ोटो URL पेस्ट करें — हेडशॉट आपका चेहरा रखता है।",
+    "modelLabel": "इंजन",
+    "models": {
+      "nano": "Turbo रेंडर",
+      "nanoHint": "तेज़ · आपका चेहरा लॉक करता है",
+      "ideogram": "पोर्ट्रेट रेंडर",
+      "ideogramHint": "वैकल्पिक रेंडर स्टाइल"
+    },
+    "featureName": "हेडशॉट",
+    "generate": "हेडशॉट जनरेट करें",
+    "generating": "जनरेट हो रहा है…",
+    "visualBucs": "Visual Bucs",
+    "costNote": "केवल तभी चार्ज होता है जब हेडशॉट सफल हो।",
+    "errors": {
+      "describeFirst": "पहले हेडशॉट लुक का वर्णन करें।",
+      "outOfCredits": "पर्याप्त Visual Bucs नहीं हैं। जारी रखने के लिए कृपया और Visual Bucs खरीदें।",
+      "failed": "हेडशॉट जनरेशन विफल रहा। Visual Bucs चार्ज नहीं हुए।",
+      "tryOtherEngine": "ऊपर दूसरा इंजन आज़माएं — या मालिक से API कुंजी कनेक्ट करने को कहें।"
+    },
+    "resultLabel": "आपका हेडशॉट",
+    "resultAlt": "जनरेट किया गया AI हेडशॉट",
+    "download": "डाउनलोड करें"
+  },
+  "colorGrade": {
+    "title": "कलर ग्रेड",
+    "subtitle": "AI कलर ग्रेड — एक टैप, क्लिप में जला हुआ",
+    "priceBadge": "{cost} VB / ग्रेड · पूर्वावलोकन मुफ़्त",
+    "clipToGrade": "ग्रेड करने का क्लिप",
+    "manualTitle": "मैन्युअल व्हील — लाइव पूर्वावलोकन",
+    "freePreview": "मुफ़्त पूर्वावलोकन",
+    "reset": "रीसेट करें",
+    "temp": "तापमान",
+    "tempHint": "ठंडा ↔ गर्म",
+    "tint": "टिंट",
+    "tintHint": "हरा ↔ मैजेंटा",
+    "exposure": "एक्सपोज़र",
+    "exposureHint": "गहरा ↔ उज्ज्वल",
+    "contrast": "कॉन्ट्रास्ट",
+    "contrastHint": "सपाट ↔ दमदार",
+    "saturation": "सैचुरेशन",
+    "saturationHint": "फीका ↔ जीवंत",
+    "burnManual": "मैन्युअल लुक जलाएं · {cost} VB",
+    "burnManualNote": "मैन्युअल व्हील लाइव पूर्वावलोकन देते हैं; burn-in सबसे निकटतम AI प्रीसेट लागू करता है।",
+    "autoGrade": "ऑटो-ग्रेड · {cost} VB",
+    "autoGradeNote": "फ़ीड के लिए सर्वश्रेष्ठ लुक चुनता है — Vibrant सोशल पर उभरता है।",
+    "presetGridTitle": "वन-टैप ग्रेड — टैप पर जले हुए",
+    "noClips": "टाइमलाइन पर अभी कोई क्लिप नहीं",
+    "noClipsHint": "पहले एक सीन में क्लिप जोड़ें, फिर इसे ग्रेड करें।",
+    "loadingPresets": "प्रीसेट लोड हो रहे हैं…",
+    "gradedWith": "{preset} से ग्रेड किया गया",
+    "useInExport": "एक्सपोर्ट में उपयोग करें",
+    "replaceSceneClip": "सीन क्लिप बदलें",
+    "download": "डाउनलोड करें",
+    "copyLink": "लिंक कॉपी करें",
+    "linkCopied": "लिंक कॉपी हुआ",
+    "autoGradeDone": "ऑटो-ग्रेड हो गया",
+    "gradeBurnedIn": "ग्रेड जला दिया गया",
+    "gradingFailed": "कलर ग्रेड विफल रहा — कोई Visual Bucs खर्च नहीं हुए।",
+    "userCancelled": "रद्द हुआ — कोई शुल्क नहीं।",
+    "shareNote": "यात्रा के लिए बनी वन-क्लिक शेयरिंग — Bow Down Visuals attribution हर आउटपुट के साथ चलता है।"
+  },
+  "photoEnhance": {
+    "featureName": "फ़ोटो एन्हांस",
+    "title": "एन्हांस करने के लिए फ़ोटो अपलोड करें",
+    "uploadTitle": "एन्हांस करने के लिए फ़ोटो अपलोड करें",
+    "uploadHint": "JPG या PNG, 12 MB तक। पुरानी, शोर भरी, या ब्लैक-एंड-व्हाइट फ़ोटो स्वागत योग्य हैं।",
+    "errorNotImage": "वह फ़ाइल एक इमेज नहीं है।",
+    "errorTooLarge": "वह फ़ाइल बहुत बड़ी है (अधिकतम 12 MB)।",
+    "errorUpload": "अपलोड विफल रहा। फिर से प्रयास करें।",
+    "errorNoPhoto": "पहले एक फ़ोटो अपलोड करें।",
+    "errorNoOps": "कम से कम एक ऑपरेशन चुनें।",
+    "errorFailed": "एन्हांसमेंट विफल रहा। Visual Bucs चार्ज नहीं हुए।",
+    "errorCredits": "पर्याप्त Visual Bucs नहीं हैं। जारी रखने के लिए कृपया और Visual Bucs खरीदें।",
+    "errorNotConnected": "फ़ोटो एन्हांस अभी कनेक्ट नहीं है — AI इमेज सेवा को सर्वर पर अभी सेट अप करना बाकी है।",
+    "beforeAfter": "पहले / बाद — डिवाइडर खींचें",
+    "previewOriginal": "आपकी फ़ोटो",
+    "startOver": "फिर से शुरू करें",
+    "before": "पहले",
+    "after": "बाद",
+    "compareSlider": "पहले और बाद की तुलना करें",
+    "enhancing": "आपकी फ़ोटो एन्हांस हो रही है…",
+    "applied": "लागू हुआ: {{ops}}",
+    "download": "डाउनलोड करें",
+    "autopilotTitle": "सब कुछ एन्हांस करें",
+    "autopilotHint": "एक टैप: अपस्केल, डीनॉइज़, और क्षति मरम्मत — बाकी AI चुनता है।",
+    "autopilotButton": "सब कुछ एन्हांस करें",
+    "costNote": "प्रति एन्हांसमेंट {{cost}} Visual Bucs",
+    "pickOps": "या ऑपरेशन चुनें",
+    "colorizeHint": "कलराइज़ केवल ब्लैक-एंड-व्हाइट फ़ोटो पर लागू होता है। रीस्टोर खरोंच, धूल, और फीकापन मरम्मत करता है।",
+    "advanced": "उन्नत — शक्ति स्लाइडर",
+    "runSelected": "चुने हुए के साथ एन्हांस करें",
+    "ops": {
+      "upscale": "अपस्केल",
+      "denoise": "डीनॉइज़",
+      "restore": "रीस्टोर",
+      "colorize": "कलराइज़"
+    }
+  },
+  "speedRamp": {
+    "title": "स्पीड रैंप",
+    "subtitle": "स्लो-मो, स्पीड प्रीसेट और एनिमेटेड रैंप — प्रो-स्टाइल",
+    "priceBadge": "{slow} VB स्लो-मो · {preset} VB प्रीसेट",
+    "clipToRetime": "रीटाइम करने का क्लिप",
+    "noClips": "टाइमलाइन पर अभी कोई क्लिप नहीं",
+    "noClipsHint": "पहले एक सीन में क्लिप जोड़ें, फिर यहाँ रीटाइम करें।",
+    "slowmo": {
+      "title": "मक्खन जैसा स्लो-मो",
+      "desc": "ऑप्टिकल-फ़्लो स्लो मोशन। एक टैप, प्रत्येक {cost} VB।",
+      "simple": "सिंपल",
+      "buttery": "मक्खन जैसा",
+      "dramatic": "नाटकीय",
+      "extreme": "चरम",
+      "rendered": "स्लो-मो render हुआ",
+      "renderedDesc": "आपका स्लो-मोशन क्लिप तैयार है।"
+    },
+    "presets": {
+      "title": "स्पीड प्रीसेट",
+      "desc": "0.25x से 4x तक स्थिर गति।"
+    },
+    "ramps": {
+      "title": "स्पीड रैंप",
+      "desc": "एनिमेटेड स्पीड वक्र — धीरे अंदर, तेज़ बाहर।",
+      "presetOnlyNote": "रैंप अभी प्रीसेट वक्र हैं — कस्टम-खींचे वक्रों के लिए भविष्य का अपडेट चाहिए।"
+    },
+    "applyPreset": "लागू करें",
+    "rendering": "रेंडर हो रहा है…",
+    "applyPresetDesc": "यह गति लागू करें",
+    "result": {
+      "applied": "गति लागू हुई",
+      "rampApplied": "रैंप लागू हुआ"
+    },
+    "useInEditor": "एडिटर में उपयोग करें",
+    "attaching": "जोड़ा जा रहा है…",
+    "inTimeline": "टाइमलाइन में",
+    "multiRatioExport": "मल्टी-रेशियो एक्सपोर्ट",
+    "download": "डाउनलोड करें",
+    "errors": {
+      "slowmoFailed": "स्लो मोशन विफल रहा — कोई Visual Bucs खर्च नहीं हुए।",
+      "speedFailed": "गति परिवर्तन विफल रहा — कोई Visual Bucs खर्च नहीं हुए।",
+      "loadingPresets": "प्रीसेट लोड हो रहे हैं…"
+    }
+  },
+  "captionTemplates": {
+    "title": "एनिमेटेड कैप्शन टेम्पलेट",
+    "subtitle": "शब्द-दर-शब्द एनिमेटेड स्टाइल — लागू करने के लिए टैप करें",
+    "badge": "नया",
+    "demoTimingLive": "लाइव शब्द टाइमिंग",
+    "demoTimingSynth": "डेमो टाइमिंग",
+    "appliesAs": "इस रूप में लागू होता है",
+    "apply": "लागू करें",
+    "applied": "लागू हुआ",
+    "handoffTitle": "कैप्शन → क्लिप",
+    "handoffDesc": "अपने कैप्शन वाले वीडियो को सीधे प्रोमो क्लिप या एक्सपोर्ट में ले जाएं।",
+    "gotoClips": "प्रोमो क्लिप बनाएं",
+    "gotoExport": "एक्सपोर्ट पर जाएं",
+    "tpl": {
+      "bounce-words": {
+        "name": "उछलते शब्द",
+        "desc": "शब्द एक-एक करके उछलकर आते हैं"
+      },
+      "typewriter-words": {
+        "name": "टाइपराइटर",
+        "desc": "शब्द-दर-शब्द टाइपराइटर रिवील"
+      },
+      "highlight-box": {
+        "name": "हाइलाइट बॉक्स",
+        "desc": "सक्रिय शब्द एक हाइलाइट बॉक्स में"
+      },
+      "punch-words": {
+        "name": "दमदार शब्द",
+        "desc": "शब्द प्रभाव के साथ धमाके से आते हैं"
+      },
+      "glow-sweep": {
+        "name": "ग्लो स्वीप",
+        "desc": "एक चमक हर शब्द पर फिरती है"
+      },
+      "neon-pulse": {
+        "name": "नियॉन पल्स",
+        "desc": "नियॉन धड़कते शब्द हाइलाइट"
+      },
+      "slide-words": {
+        "name": "स्लाइड शब्द",
+        "desc": "शब्द ऊपर स्लाइड होकर जगह पर आते हैं"
+      },
+      "pop-words": {
+        "name": "पॉप शब्द",
+        "desc": "चंचल पॉपिंग शब्द एनिमेशन"
+      }
+    }
+  },
+  "photoShoot": {
+    "scenePacks": {
+      "title": "सीन पैक",
+      "packs": {
+        "neonStage": {
+          "name": "नियॉन स्टेज",
+          "blurb": "इलेक्ट्रिक लाइव-ऊर्जा शॉट — कवर-आर्ट स्तर, सिंगल कवर के लिए बनाया गया।"
+        },
+        "rooftopGolden": {
+          "name": "रूफ़टॉप गोल्डन आवर",
+          "blurb": "गर्म, एडिटोरियल प्रेस-किट शॉट — हल्की सोने की रोशनी, पीछे शहर की स्काईलाइन।"
+        },
+        "studioNoir": {
+          "name": "स्टूडियो नॉयर",
+          "blurb": "मूडी ब्लैक-स्टूडियो पोर्ट्रेट — आपकी प्रोफ़ाइल तस्वीर और स्ट्रीम ब्रांडिंग के लिए।"
+        },
+        "streetLuxury": {
+          "name": "स्ट्रीट लक्ज़री",
+          "blurb": "सोशल के लिए नाइट-सिटी फ़्लेक्स — गीला ऐस्फाल्ट, नियॉन चमक, फ्रेम में लक्ज़री कार।"
+        },
+        "palaceThrone": {
+          "name": "पैलेस थ्रोन",
+          "blurb": "पूर्ण Bow Down रॉयल्टी — सिंहासन, सोने का हॉल, गॉड-रे। हीरो-ब्रांडिंग शॉट।"
+        }
+      },
+      "tags": {
+        "albumArt": "एल्बम आर्ट",
+        "singleCover": "सिंगल कवर",
+        "tourPromo": "टूर प्रोमो",
+        "pressKit": "प्रेस किट",
+        "bioPhoto": "बायो फ़ोटो",
+        "magazineStyle": "मैगज़ीन स्टाइल",
+        "profilePic": "प्रोफ़ाइल तस्वीर",
+        "streamBranding": "स्ट्रीम ब्रांडिंग",
+        "logoAdjacent": "लोगो-निकट",
+        "socialContent": "सोशल कंटेंट",
+        "dropAnnouncements": "ड्रॉप घोषणाएँ",
+        "merchTieIn": "Merch टाई-इन",
+        "heroBranding": "हीरो ब्रांडिंग",
+        "announcementGraphics": "घोषणा ग्राफ़िक्स"
+      }
+    }
+  },
+  "avatarPresenter": {
+    "title": "अवतार प्रस्तुतकर्ता",
+    "subtitle": "एक बोलता-सिर होस्ट जो आपका वीडियो प्रस्तुत करता है।",
+    "checking": "अवतार प्रदाता जांचा जा रहा है…",
+    "notConfigured": "AI अवतार अभी कनेक्ट नहीं हैं — बोलते-सिर प्रस्तुतकर्ता जनरेट करने से पहले साइट मालिक को HeyGen या Hedra API कुंजी जोड़नी होगी। आपकी वीडियो योजना बाद के लिए प्रस्तुतकर्ता चुनाव नोट करेगी।",
+    "ready": "अवतार प्रदाता कनेक्ट है।",
+    "modeNone": "कोई प्रस्तुतकर्ता नहीं",
+    "modeAvatar": "AI अवतार प्रस्तुतकर्ता",
+    "avatarLabel": "अवतार",
+    "avatarPlaceholder": "एक अवतार चुनें…",
+    "scriptLabel": "प्रस्तुतकर्ता स्क्रिप्ट",
+    "scriptPlaceholder": "प्रस्तुतकर्ता को क्या कहना चाहिए? (आपकी योजना के साथ सेव हुआ — जनरेशन प्रदाता कनेक्ट होने पर अनलॉक होता है)",
+    "savedNote": "आपका प्रस्तुतकर्ता चुनाव वीडियो योजना के साथ सेव है। प्रदाता कुंजी जुड़ने तक जनरेशन खुद अक्षम रहता है — आपसे शुल्क नहीं लिया जाएगा।"
   }
 }
