@@ -136,6 +136,7 @@ import {
   TREASURY_ID,
   ROYAL_COURT_ID,
   BRANDING_ATELIER_ID,
+  STAGE_GROUNDS_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   palaceRoomLayout,
@@ -150,7 +151,12 @@ import {
 } from "./palace-layout";
 import { stationsInRoom } from "./stations";
 import { propVariation } from "./prop-variation";
-import { DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
+import { DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS, type DistrictThreshold } from "./district-gates";
+import {
+  STAGE_GROUNDS_INTERIOR, STAGE_WALL_RUNS, STAGE_PIERS, STAGE_PLATFORM,
+  STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
+  TRUSS, BANNER_POLES, BANNER_POLE, AUDIENCE_LAWN, STAGE_BENCHES, ENTRY_PATH, STAGE_LAMPS,
+} from "./stage-grounds";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale, type EmberParticle,
 } from "./night-life";
@@ -184,6 +190,7 @@ import {
 } from "./pbr-materials";
 import {
   PAVING_SLABS,
+  pavingSlabsFor,
   LAWN_PANELS,
   LAWN_BED,
   PARTERRE_MEDALLION,
@@ -2610,22 +2617,30 @@ export class KingsHallScene {
     if (!sun || !tgt) return;
     const look = hallLookFor(this.theme);
     const cam = sun.shadow.camera;
-    if (this.currentRoom === COURTYARD_ID && look.sun.present) {
+    /* The Stage Grounds (item 31) stand outdoors under the same
+     * sky: standing there, the sun/moon keeps the plaza's aim and
+     * the shadow camera widens west to cover the district too —
+     * one light, still one shadow pass. */
+    const outdoors = this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID;
+    const inDistrict = this.currentRoom === STAGE_GROUNDS_ID;
+    if (outdoors && look.sun.present) {
       // Day on the plaza: sun high in the southern sky, so the
       // palace facade and the monument throw real shadows.
       sun.position.set(16, 25, 47);
-      tgt.position.set(0, 0, 20);
+      tgt.position.set(inDistrict ? -14 : 0, 0, 20);
       sun.color.set(look.sun.color);
       sun.intensity = look.sun.intensity;
-      cam.left = -36; cam.right = 36; cam.top = 36; cam.bottom = -36;
+      const fit = inDistrict ? 44 : 36;
+      cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
-    } else if (this.currentRoom === COURTYARD_ID) {
+    } else if (outdoors) {
       // Night on the plaza: moonlight — cool, dim, shadow-casting.
       sun.position.set(-14, 27, 42);
-      tgt.position.set(0, 0, 20);
+      tgt.position.set(inDistrict ? -14 : 0, 0, 20);
       sun.color.set(0x93a7d4);
       sun.intensity = 0.6;
-      cam.left = -36; cam.right = 36; cam.top = 36; cam.bottom = -36;
+      const fit = inDistrict ? 44 : 36;
+      cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else {
       sun.position.set(-13.5, 10.5, -1);
@@ -2650,7 +2665,7 @@ export class KingsHallScene {
     const fog = this.scene.fog;
     if (!(fog instanceof THREE.Fog)) return;
     const look = hallLookFor(this.theme);
-    if (this.currentRoom === COURTYARD_ID) {
+    if (this.currentRoom === COURTYARD_ID || this.currentRoom === STAGE_GROUNDS_ID) {
       fog.near = look.theme === "light" ? 48 : 34;
       fog.far = look.theme === "light" ? 140 : 115;
     } else {
@@ -2869,6 +2884,7 @@ export class KingsHallScene {
       this.buildIndoorShell(group, look, mats, roomId);
     }
     this.buildCourtyardShell(group, look, mats, anim);
+    this.buildStageGroundsShell(group, look, mats, anim);
     this.buildCreatorRoomShell(group, look, mats);
     this.applyRoomVisibility();
   }
@@ -3385,7 +3401,11 @@ export class KingsHallScene {
      * owns its own floor south-east (interior x 2.6..16.4,
      * z 26.4..38) — one rect over both would z-fight it. Tile
      * instead: the main grounds, then the promenade, abutting at
-     * z 26 with no overlap. The finish is the item-6 paving now. */
+     * z 26 with no overlap. The finish is the item-6 paving now.
+     * (The west gate gap at z 18.4..20.6 is a true passage since
+     * item 31 — the Stage Grounds shell floors the ground beyond
+     * it and the gate's bar is gone; the Boardwalk gap in the
+     * south wall stays barred, its district unbuilt.) */
     /* Outdoor ground system (Stage C item 6): the broad plaza
      * floor is real PAVING now — the look's setts with derived
      * joint relief — not the hall's interior marble dragged
@@ -3433,11 +3453,12 @@ export class KingsHallScene {
     // west of it), and two short returns flank the Creator Rooms
     // arch (item 41). Two gates pierce the runs: a 2.2 m gap in
     // the west wall at z ≈ 19.5 (Stage Grounds) and one in the
-    // south promenade wall at x ≈ 0 (the Boardwalk) — the walk
-    // rects end at ±27.85 / 33.6, so no gap can ever be walked
-    // through; each gate's gold bar (below) makes the closure
-    // visible. Every run is a blocked rect in the layout, derived
-    // from this same list.
+    // south promenade wall at x ≈ 0 (the Boardwalk). The
+    // Boardwalk gap stays barred and the walk rects end inside
+    // it; the Stage Grounds gap is walked through since item 31
+    // (its district is built — see buildStageGroundsShell).
+    // Every run is a blocked rect in the layout, derived from
+    // this same list.
     const lowWall = (w: number, d: number, x: number, z: number) => {
       /* The long runs (up to 27 m) get a per-metre material — the
        * shared prop marble would stretch one tile across the whole
@@ -3987,6 +4008,10 @@ export class KingsHallScene {
      *   the closure is the visible truth — the walk rects end at
      *   the wall, so nothing could walk through anyway. After
      *   dark the gate carries a lantern glow (item 27).
+     *   OPEN GATE (item 31) — the Stage Grounds gate since its
+     *   district was built: same posts and header, NO bar, and
+     *   the sub-plate reads OPEN — the passage is real, and the
+     *   walk truth runs through it into the district beyond.
      *   MARKER — a named district signpost, NOT a doorway: a
      *   plinth, one grounded post, the name plate mounted ON the
      *   post, a COMING plate under it, a lantern glow after dark.
@@ -4022,17 +4047,23 @@ export class KingsHallScene {
       );
       header.position.set(x, 1.8 * v.scaleY, z);
       g.add(header);
-      const bar = new THREE.Mesh(
-        axis === "x" ? new THREE.BoxGeometry(2.2, 0.07, 0.07) : new THREE.BoxGeometry(0.07, 0.07, 2.2),
-        mats.gold,
-      );
-      bar.position.set(x + (def.barDx ?? 0), 0.55, z + (def.barDz ?? 0));
-      g.add(bar);
+      /* A CLOSED gate wears its gold bar; an OPEN gate (item 31:
+       * the district beyond is built) wears none — the passage
+       * between the posts is the visible truth, and its sub-plate
+       * reads OPEN where a closed gate's reads COMING. */
+      if (!def.open) {
+        const bar = new THREE.Mesh(
+          axis === "x" ? new THREE.BoxGeometry(2.2, 0.07, 0.07) : new THREE.BoxGeometry(0.07, 0.07, 2.2),
+          mats.gold,
+        );
+        bar.position.set(x + (def.barDx ?? 0), 0.55, z + (def.barDz ?? 0));
+        g.add(bar);
+      }
       /* The plate SEATS on the header: plate height at width 2.6
        * is 0.57, so its centre sits header-top + half-height —
        * grounded, not floating at the old 2.33. */
       this.doorPlate(g, name, x, 1.86 * v.scaleY + 0.285, z, plateRotY, 2.6);
-      this.doorPlate(g, DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3);
+      this.doorPlate(g, def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE, x, 1.58, z, plateRotY, 1.3);
       if (look.candles) {
         const lx = axis === "x" ? x : x + (def.barDx ?? 0);
         const lz = axis === "x" ? z + (def.barDz ?? 0) : z;
@@ -4089,6 +4120,343 @@ export class KingsHallScene {
     group.add(g);
     this.shellGroups.set(COURTYARD_ID, g);
   }
+  /** The Stage Grounds shell (Stage C item 31): the outdoor stage
+   *  quarter west of the plaza, built entirely from
+   *  stage-grounds.ts placement data — the same data palace-layout
+   *  registers as the room's blocked rects, so every body built
+   *  here is solid there. The ground wears the OUTDOOR system
+   *  (the look's paving + whole-tile slabs, a real lawn for the
+   *  audience ground — never interior marble). Draw discipline:
+   *  repeated pieces instance (slabs, bench parts, lamp parts,
+   *  truss heads, speaker cabinets). Light discipline: ZERO new
+   *  real lights — the truss lamps and lamp standards glow by
+   *  emissive glass + item-27 lantern-glow sprites after dark. */
+  private buildStageGroundsShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
+    const g = new THREE.Group();
+    const shadows = QUALITY[this.quality].shadows;
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; rotY?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.rotation.set(0, p.rotY ?? 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = shadows;
+      g.add(im);
+      return im;
+    };
+
+    /* The ground: the look's paving over the whole quarter (the
+     * shell floor), with the whole-tile wearing slabs instanced
+     * over it — palace-grounds' paving plan for this rect. */
+    const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
+    this.shellFloor(g, look, mats, STAGE_GROUNDS_INTERIOR, "paving", pavingSurface);
+    {
+      const slabs = pavingSlabsFor(STAGE_GROUNDS_INTERIOR);
+      const slabInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), slabs.length,
+      );
+      slabs.forEach((s, i) => {
+        dummy.position.set(s.cx, 0.015, s.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        slabInst.setMatrixAt(i, dummy.matrix);
+      });
+      slabInst.instanceMatrix.needsUpdate = true;
+      slabInst.receiveShadow = shadows;
+      g.add(slabInst);
+    }
+
+    /* The quarter's own enclosure: low marble walls with gold
+     * caps on the west, north and south (the plaza's language) —
+     * the east side is the plaza's west wall and its open gate. */
+    for (const run of STAGE_WALL_RUNS) {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w, 1.05, run.d), mats.marbleFor(Math.max(run.w, run.d), 1.05),
+      );
+      wall.position.set(run.x, 0.525, run.z);
+      wall.castShadow = shadows;
+      g.add(wall);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(run.w === 0.35 ? 0.47 : run.w, 0.07, run.d === 0.35 ? 0.47 : run.d), mats.gold,
+      );
+      cap.position.set(run.x, 1.09, run.z);
+      g.add(cap);
+    }
+    /* Grounded piers on the west wall's line (item 43's build). */
+    for (const p of STAGE_PIERS) {
+      const pier = new THREE.Group();
+      pier.position.set(p.x, 0, p.z);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.9), mats.marble);
+      plinth.position.y = 0.15;
+      pier.add(plinth);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 3.54, 0.62), mats.marble);
+      shaft.position.y = 0.3 + 3.54 / 2;
+      shaft.castShadow = shadows;
+      pier.add(shaft);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.18, 0.86), mats.gold);
+      cap.position.y = 3.93;
+      pier.add(cap);
+      g.add(pier);
+    }
+
+    /* The stage: a stone platform with a gold trim line on its
+     * front edge, the backdrop shell behind it (back wall + two
+     * returns in façade marble), and the curtain on the shell's
+     * face — fabric on a gold rod, in the look's cloth. */
+    {
+      const plat = STAGE_PLATFORM;
+      const platform = new THREE.Mesh(
+        new THREE.BoxGeometry(plat.w, plat.h, plat.d), mats.stoneFor(plat.w, plat.h),
+      );
+      platform.position.set(plat.cx, plat.cy, plat.cz);
+      platform.castShadow = shadows;
+      platform.receiveShadow = shadows;
+      g.add(platform);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, plat.d), mats.gold);
+      trim.position.set(plat.cx + plat.w / 2 + 0.01, plat.h - 0.05, plat.cz);
+      g.add(trim);
+      const back = STAGE_SHELL_BACK;
+      const backWall = new THREE.Mesh(
+        new THREE.BoxGeometry(back.w, back.h, back.d), mats.facadeMarbleFor(back.d, back.h),
+      );
+      backWall.position.set(back.cx, back.cy, back.cz);
+      backWall.castShadow = shadows;
+      g.add(backWall);
+      for (const ret of STAGE_SHELL_RETURNS) {
+        const wall = new THREE.Mesh(
+          new THREE.BoxGeometry(ret.w, ret.h, ret.d), mats.facadeMarbleFor(ret.w, ret.h),
+        );
+        wall.position.set(ret.cx, ret.cy, ret.cz);
+        wall.castShadow = shadows;
+        g.add(wall);
+      }
+      /* A gold crown strip across the shell's top front edge. */
+      const crown = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, back.d), mats.gold);
+      crown.position.set(back.cx + back.w / 2 + 0.02, back.h - 0.07, back.cz);
+      g.add(crown);
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, STAGE_CURTAIN.d + 0.5, 8), mats.gold);
+      rod.rotation.x = Math.PI / 2;
+      rod.position.set(STAGE_CURTAIN.cx + 0.12, STAGE_CURTAIN.cy + STAGE_CURTAIN.h / 2 + 0.12, STAGE_CURTAIN.cz);
+      g.add(rod);
+      const curtain = new THREE.Mesh(
+        new THREE.BoxGeometry(STAGE_CURTAIN.w, STAGE_CURTAIN.h, STAGE_CURTAIN.d), mats.fabric,
+      );
+      curtain.position.set(STAGE_CURTAIN.cx, STAGE_CURTAIN.cy, STAGE_CURTAIN.cz);
+      curtain.castShadow = shadows;
+      g.add(curtain);
+    }
+
+    /* Speaker stacks: a stone plinth and three dark cabinets
+     * each, gold-dark grilles on the audience face — instanced. */
+    {
+      instanced(
+        new THREE.BoxGeometry(1.5, 0.12, 1.5), mats.stoneFor(1.5, 0.2),
+        SPEAKER_STACKS.map((s) => ({ x: s.x, y: 0.06, z: s.z })),
+      );
+      const cabinets: Array<{ x: number; y: number; z: number }> = [];
+      const grilles: Array<{ x: number; y: number; z: number }> = [];
+      for (const s of SPEAKER_STACKS) {
+        for (let k = 0; k < SPEAKER_STACK.cabinets; k++) {
+          const y = 0.12 + SPEAKER_STACK.cabinetH / 2 + k * SPEAKER_STACK.cabinetH;
+          cabinets.push({ x: s.x, y, z: s.z });
+          grilles.push({ x: s.x + SPEAKER_STACK.w / 2 + 0.03, y, z: s.z });
+        }
+      }
+      instanced(new THREE.BoxGeometry(SPEAKER_STACK.w, SPEAKER_STACK.cabinetH - 0.04, SPEAKER_STACK.d), mats.darkMetal, cabinets);
+      instanced(new THREE.BoxGeometry(0.05, SPEAKER_STACK.cabinetH - 0.2, SPEAKER_STACK.d - 0.25), mats.goldDark, grilles);
+    }
+
+    /* The lighting truss: two dark posts, a crossbar over the
+     * stage's front line, and five emissive lamp heads under it
+     * (lit amber after dark, pale by day — the lamp-glass law),
+     * each carrying a lantern-glow sprite after dark. No real
+     * light rides the truss. */
+    {
+      instanced(
+        new THREE.CylinderGeometry(0.07, 0.09, TRUSS.postH, 10), mats.darkMetal,
+        TRUSS.postZs.map((z) => ({ x: TRUSS.postX, y: TRUSS.postH / 2, z })),
+      );
+      const barLen = TRUSS.postZs[TRUSS.postZs.length - 1]! - TRUSS.postZs[0]! + 0.6;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, barLen), mats.darkMetal);
+      bar.position.set(TRUSS.postX, TRUSS.barY, (TRUSS.postZs[0]! + TRUSS.postZs[TRUSS.postZs.length - 1]!) / 2);
+      bar.castShadow = shadows;
+      g.add(bar);
+      const glassStyle = lampGlassStyle(look.theme);
+      const heads = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.24, 0.2, 0.24),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        TRUSS.headZs.length,
+      );
+      TRUSS.headZs.forEach((z, i) => {
+        dummy.position.set(TRUSS.postX, TRUSS.headY, z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        heads.setMatrixAt(i, dummy.matrix);
+      });
+      heads.instanceMatrix.needsUpdate = true;
+      g.add(heads);
+      if (look.candles) {
+        TRUSS.headZs.forEach((z, i) => {
+          this.addLanternGlow(g, anim, TRUSS.postX, TRUSS.headY, z, 0.95, i * 1.93);
+        });
+      }
+    }
+
+    /* Banner poles flanking the truss line: a dark pole, a gold
+     * crossarm, and a hanging banner in the look's cloth. */
+    for (const p of BANNER_POLES) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, BANNER_POLE.h, 8), mats.darkMetal);
+      pole.position.set(p.x, BANNER_POLE.h / 2, p.z);
+      pole.castShadow = shadows;
+      g.add(pole);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8), mats.gold);
+      arm.rotation.x = Math.PI / 2;
+      arm.position.set(p.x, BANNER_POLE.h - 0.15, p.z);
+      g.add(arm);
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 0.95), mats.fabric);
+      banner.position.set(p.x, BANNER_POLE.h - 1.05, p.z);
+      banner.castShadow = shadows;
+      g.add(banner);
+    }
+
+    /* The audience lawn (the plaza lawns' construction: stone
+     * bed, textured grass inset, instanced edging) — stroll-across
+     * ground holding the bench rows. */
+    {
+      const panel = AUDIENCE_LAWN;
+      const edging = lawnEdgingRuns(panel);
+      const edgeInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(2, 0.3), edging.length,
+      );
+      edging.forEach((b, i) => {
+        dummy.position.set(b.cx, b.cy + 0.025, b.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.updateMatrix();
+        edgeInst.setMatrixAt(i, dummy.matrix);
+      });
+      edgeInst.instanceMatrix.needsUpdate = true;
+      edgeInst.castShadow = shadows;
+      g.add(edgeInst);
+      const bed = new THREE.Mesh(
+        new THREE.BoxGeometry(panel.w, LAWN_BED.rimH, panel.d), mats.stoneFor(panel.w, LAWN_BED.rimH),
+      );
+      bed.position.set(panel.cx, LAWN_BED.rimH / 2, panel.cz);
+      bed.receiveShadow = shadows;
+      g.add(bed);
+      const grass = new THREE.Mesh(
+        new THREE.BoxGeometry(panel.w - LAWN_BED.inset * 2, 0.04, panel.d - LAWN_BED.inset * 2),
+        mats.lawnFor(panel.w - LAWN_BED.inset * 2, panel.d - LAWN_BED.inset * 2),
+      );
+      grass.position.set(panel.cx, panel.topY - 0.02, panel.cz);
+      grass.receiveShadow = shadows;
+      g.add(grass);
+    }
+
+    /* Bench rows facing the stage: instanced seats, backs (on the
+     * east side, away from the stage they face) and legs — the
+     * plaza benches' construction, turned west. */
+    {
+      const seatPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      const backPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      const legPlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
+      for (const b of STAGE_BENCHES) {
+        seatPlaces.push({ x: b.x, y: BENCH.seatY, z: b.z, rotY: Math.PI / 2 });
+        backPlaces.push({ x: b.x + 0.24, y: BENCH.seatY + 0.28, z: b.z, rotY: Math.PI / 2 });
+        for (const endOff of [-0.8, 0.8]) {
+          legPlaces.push({ x: b.x, y: BENCH.seatY / 2, z: b.z + endOff, rotY: Math.PI / 2 });
+        }
+      }
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.09, BENCH.depth), mats.stoneFor(2, 0.4), seatPlaces);
+      instanced(new THREE.BoxGeometry(BENCH.len, 0.5, 0.08), mats.stoneFor(2, 0.5), backPlaces);
+      instanced(new THREE.BoxGeometry(0.09, BENCH.seatY, BENCH.depth - 0.1), mats.darkMetal, legPlaces);
+    }
+
+    /* The entry path: a marble strip on the gate's line from the
+     * plaza wall to the lawn, gold strips on its edges — the
+     * plaza spine's language, turned west. Flat accent, no
+     * collision, like every path on the grounds. */
+    {
+      const len = ENTRY_PATH.toX - ENTRY_PATH.fromX;
+      const cx = (ENTRY_PATH.fromX + ENTRY_PATH.toX) / 2;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(len, 0.016, ENTRY_PATH.w), mats.marble);
+      slab.position.set(cx, 0.022, ENTRY_PATH.cz);
+      g.add(slab);
+      for (const sz of [-1.03, 1.03]) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(len, 0.012, 0.07), mats.goldDark);
+        strip.position.set(cx, 0.028, ENTRY_PATH.cz + sz);
+        g.add(strip);
+      }
+    }
+
+    /* The quarter's lamp standards — plaza-life's LAMP build,
+     * instanced: stone plinths, dark posts, gold cages, emissive
+     * glass, glow sprites after dark. Zero real lights. */
+    {
+      instanced(
+        new THREE.BoxGeometry(0.42, 0.18, 0.42), mats.stoneFor(0.5, 0.2),
+        STAGE_LAMPS.map((l) => ({ x: l.x, y: 0.09, z: l.z })),
+      );
+      instanced(
+        new THREE.CylinderGeometry(0.055, 0.085, LAMP.postH, 10), mats.darkMetal,
+        STAGE_LAMPS.map((l) => ({ x: l.x, y: 0.18 + LAMP.postH / 2, z: l.z })),
+      );
+      instanced(
+        new THREE.BoxGeometry(0.3, 0.36, 0.3), mats.gold,
+        STAGE_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY, z: l.z })),
+      );
+      const glassStyle = lampGlassStyle(look.theme);
+      const glass = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.21, 0.27, 0.21),
+        new THREE.MeshStandardMaterial({
+          color: glassStyle.color, emissive: glassStyle.emissive,
+          emissiveIntensity: glassStyle.emissiveIntensity, roughness: 0.4,
+        }),
+        STAGE_LAMPS.length,
+      );
+      STAGE_LAMPS.forEach((l, i) => {
+        dummy.position.set(l.x, LAMP.headY, l.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        glass.setMatrixAt(i, dummy.matrix);
+      });
+      glass.instanceMatrix.needsUpdate = true;
+      g.add(glass);
+      instanced(
+        new THREE.ConeGeometry(0.3, 0.22, 4), mats.goldDark,
+        STAGE_LAMPS.map((l) => ({ x: l.x, y: LAMP.headY + 0.29, z: l.z, rotY: Math.PI / 4 })),
+      );
+      if (look.candles) {
+        STAGE_LAMPS.forEach((l, i) => {
+          this.addLanternGlow(g, anim, l.x, LAMP.headY, l.z, LAMP.glowBase, i * 1.47);
+        });
+      }
+    }
+
+    // The way back, labeled from the district side of the gate.
+    this.doorPlate(g, "THE KING'S PLAZA", -28.45, PALACE_DOOR_HEIGHT + 0.66, 19.5, -Math.PI / 2, 2.6);
+
+    // The district's door-station: the Stage Bill at the path's head.
+    this.buildStationMarkers(g, mats, STAGE_GROUNDS_ID);
+
+    group.add(g);
+    this.shellGroups.set(STAGE_GROUNDS_ID, g);
+  }
+
   /** Plaza life (Stage C batch C3), built entirely from
    *  plaza-life.ts placement data — the same data palace-layout
    *  derives PLAZA_LIFE_BLOCKED from, so every body built here is
@@ -4979,7 +5347,14 @@ export class KingsHallScene {
       const creatorVisible =
         id === CREATOR_SHELL_KEY &&
         (isCreatorRoomId(this.currentRoom) || this.currentRoom === COURTYARD_ID);
-      g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible;
+      /* The Stage Grounds and the plaza see each other through
+       * the open west gate (item 31): standing in either, the
+       * other stays built — the gate is a real sightline, and a
+       * vanishing district (or plaza) through it would be a lie. */
+      const gateVisible =
+        (id === STAGE_GROUNDS_ID && this.currentRoom === COURTYARD_ID) ||
+        (id === COURTYARD_ID && this.currentRoom === STAGE_GROUNDS_ID);
+      g.visible = this.currentRoom === HALL_ROOM_ID || this.currentRoom === id || creatorVisible || gateVisible;
     }
     const plaza = this.shellGroups.get(COURTYARD_ID);
     if (plaza) this.plazaBaseVisible = plaza.visible;

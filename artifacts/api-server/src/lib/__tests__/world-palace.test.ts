@@ -147,6 +147,62 @@ describe("the plaza grounds (Open World Phase 1)", () => {
   });
 });
 
+describe("the Stage Grounds district (Stage C item 31)", () => {
+  const STAGE = "world:stage-grounds";
+
+  it("the def mirrors the client floor plan (lib/world/stage-grounds.ts): name, clamp box, gate spawn", () => {
+    const def = PALACE_ROOM_DEFS.find((d) => d.roomId === STAGE);
+    expect(def?.name).toBe("Stage Grounds");
+    /* The client's walk rect is x −53.85..−28.55, z 10.35..35.65;
+     * the clamp is a touch generous at the gate apron, like every
+     * room's, and the spawn is just inside the gate. */
+    expect(def?.bounds).toEqual({ minX: -54.4, maxX: -27.8, minZ: 9.6, maxZ: 36.4 });
+    expect(def?.spawn).toEqual({ x: -30.2, z: 19.5 });
+    /* No stage, no jukebox: the palace's one stage stays in the
+     * hall and its one jukebox in the Music Hall. */
+    expect(def?.stageEnabled).toBeUndefined();
+    expect(def?.jukeboxEnabled).toBeUndefined();
+  });
+
+  it("transfers through the west gate: welcome names the district, the crossing point is carried, no screen or jukebox rides it", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    b.sent = [];
+    frame(palace, b, { type: "room.enter", roomId: STAGE, x: -28.7, z: 19.5, rotY: -1.6 });
+    const welcome = b.sent.find((m) => m.type === "welcome");
+    expect(welcome.room).toEqual({ id: STAGE, name: "Stage Grounds" });
+    expect(welcome.you.x).toBe(-28.7);
+    expect(welcome.you.z).toBe(19.5);
+    expect(welcome.screen).toBeUndefined();
+    expect(welcome.jukebox).toBeUndefined();
+    expect(palace.plazaRoom.peerFor(b)).toBeNull();
+    expect(palace.roomOf(b)?.roomId).toBe(STAGE);
+    const directory = b.sent.filter((m) => m.type === "palace.directory").pop();
+    expect(directory.rooms.find((r: any) => r.id === STAGE)).toMatchObject({
+      count: 1,
+      members: ["Beta"],
+      live: false,
+    });
+  });
+
+  it("moves roam the whole quarter and clamp at its west wall", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const b = fakeSocket();
+    enter(palace, b, "Beta");
+    frame(palace, b, { type: "room.enter", roomId: STAGE, x: -28.7, z: 19.5 });
+    const room = palace.room(STAGE)!;
+    // The audience lawn's heart.
+    frame(palace, b, { type: "move", x: -40, z: 23, rotY: 0 }, 1_000);
+    expect(room.peerFor(b)?.x).toBe(-40);
+    expect(room.peerFor(b)?.z).toBe(23);
+    // Beyond the district the clamp holds the edge.
+    frame(palace, b, { type: "move", x: -99, z: 99, rotY: 0 }, 2_000);
+    expect(room.peerFor(b)?.x).toBe(-54.4);
+    expect(room.peerFor(b)?.z).toBe(36.4);
+  });
+});
+
 describe("doorway transfers", () => {
   it("moves the peer: despawn there, join here, same peerId, character + flags carried", () => {
     const palace = new WorldPalace(new RoomHub());
@@ -355,7 +411,7 @@ const ROYAL_COURT = "world:royal-court";
 const BRANDING = "world:branding-atelier";
 
 describe("the second ring (palace follow-on)", () => {
-  it("the registry serves eight rooms, hall included", () => {
+  it("the registry serves nine rooms, hall included (eight + the Stage Grounds district, item 31)", () => {
     const palace = new WorldPalace(new RoomHub());
     const ids = palace.directory().map((r) => r.id);
     expect(ids).toEqual([
@@ -367,6 +423,7 @@ describe("the second ring (palace follow-on)", () => {
       TREASURY,
       ROYAL_COURT,
       BRANDING,
+      "world:stage-grounds",
     ]);
     expect(palace.directory().find((r) => r.id === TREASURY)?.name).toBe("Treasury");
     expect(palace.directory().find((r) => r.id === ROYAL_COURT)?.name).toBe("Royal Court Chamber");

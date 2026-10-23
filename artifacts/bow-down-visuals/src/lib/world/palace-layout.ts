@@ -28,6 +28,14 @@
 
 import { HALL_STEPS_BLOCKED, MONUMENT_BLOCKED, TERRACE_BLOCKED } from "./palace-grounds";
 import { PLAZA_LIFE_BLOCKED } from "./plaza-life";
+import {
+  STAGE_BLOCKED,
+  STAGE_GROUNDS_CAM_CLAMP,
+  STAGE_GROUNDS_INTERIOR,
+  STAGE_GROUNDS_SPAWN,
+  STAGE_GROUNDS_WALK,
+  STAGE_TALL_BLOCKED,
+} from "./stage-grounds";
 
 export const HALL_ROOM_ID = "world:kings-hall";
 export const MUSIC_HALL_ID = "world:music-hall";
@@ -41,6 +49,10 @@ export const COURTYARD_ID = "world:courtyard";
 export const TREASURY_ID = "world:treasury";
 export const ROYAL_COURT_ID = "world:royal-court";
 export const BRANDING_ATELIER_ID = "world:branding-atelier";
+/* The first built district (Stage C item 31): the outdoor stage
+ * quarter west of the plaza, through the west wall's gate — now
+ * a true passage. Its geometry lives in stage-grounds.ts. */
+export const STAGE_GROUNDS_ID = "world:stage-grounds";
 
 export interface PalaceRect {
   minX: number;
@@ -110,8 +122,10 @@ export interface PlazaWallRun {
  *  visible wall and the walk clamp agree everywhere: no gap a
  *  walker can see through, no invisible wall where floor runs on.
  *  The two gate gaps (Stage Grounds west, Boardwalk south) are
- *  real gaps in the runs — each is closed by its gate's gold bar,
- *  and the walk rects end inside them, so nothing leaks. */
+ *  real gaps in the runs. The Boardwalk gap stays closed by its
+ *  gate's gold bar and the walk rects end inside it; the Stage
+ *  Grounds gap is a true passage since item 31 — the portal in
+ *  PALACE_DOORS bridges it into the built district beyond. */
 export const PLAZA_WALL_RUNS: PlazaWallRun[] = [
   /* West wall x −28.2, split by the Stage Grounds gate gap
    * (z 18.4..20.6). */
@@ -188,10 +202,11 @@ export interface PlazaGate {
   name: string;
   x: number;
   z: number;
-  /** "gate": a barred threshold standing in a REAL gap in a real
-   *  wall (posts ±1.1 m, gold header, gold bar). "marker": a named
-   *  district signpost on open floor — one post on a 0.78 m plinth,
-   *  no span, no bar, nothing that implies a passage (item 37's
+  /** "gate": a threshold standing in a REAL gap in a real wall
+   *  (posts ±1.1 m, gold header; a CLOSED gate adds a gold bar,
+   *  an OPEN gate is a true passage). "marker": a named district
+   *  signpost on open floor — one post on a 0.78 m plinth, no
+   *  span, no bar, nothing that implies a passage (item 37's
    *  honest classification; mirrors district-gates.ts, which
    *  drives the scene build — the two lists must agree, and a
    *  palace-layout test pins that they do). */
@@ -200,20 +215,28 @@ export interface PlazaGate {
   axis: "x" | "z";
   plateRotY: number;
   /** The gold bar's offset from centre (wall gates' bars ride the
-   *  wall's plaza face). Markers have no bar. */
+   *  wall's plaza face). Markers have no bar; neither does an
+   *  OPEN gate. */
   barDx: number;
   barDz: number;
+  /** Gates only: the district beyond is built and this gate is a
+   *  true passage — its collision is its two posts alone, and the
+   *  doorway portal (PALACE_DOORS) carries walkers through.
+   *  Mirrors district-gates.ts' `open`. */
+  open?: boolean;
 }
 
 /** The six district thresholds. Two are true gates in real wall
- *  gaps (Stage Grounds in the west wall, the Boardwalk in the
- *  south wall). Four are markers: the east pair stand on the open
- *  floor at x 27.0, a clear metre west of the east wall's plaza
- *  face — the shipped build painted them ON the solid wall, a
- *  fake passage; the promenade pair keep their Phase-1 spots.
- *  Every footprint below matches the body the scene builds. */
+ *  gaps (Stage Grounds in the west wall — OPEN since item 31, its
+ *  district built; the Boardwalk in the south wall — still
+ *  barred, its district unbuilt). Four are markers: the east pair
+ *  stand on the open floor at x 27.0, a clear metre west of the
+ *  east wall's plaza face — the shipped build painted them ON
+ *  the solid wall, a fake passage; the promenade pair keep their
+ *  Phase-1 spots. Every footprint below matches the body the
+ *  scene builds. */
 export const PLAZA_GATES: PlazaGate[] = [
-  { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0 },
+  { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
   { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
   { name: "LISTENING GARDENS", kind: "marker", x: -26, z: 33.8, axis: "x", plateRotY: Math.PI, barDx: 0, barDz: 0 },
   { name: "CREATION ROW", kind: "marker", x: 27.0, z: 14.5, axis: "z", plateRotY: -Math.PI / 2, barDx: 0, barDz: 0 },
@@ -239,12 +262,22 @@ const rectAround = (x: number, z: number, hx: number, hz: number): PalaceRect =>
 
 const wallRunRect = (run: PlazaWallRun): PalaceRect => rectAround(run.x, run.z, run.w / 2, run.d / 2);
 
-const gateRect = (gate: PlazaGate): PalaceRect =>
-  gate.kind === "marker"
-    ? rectAround(gate.x, gate.z, 0.39, 0.39)
-    : gate.axis === "x"
-      ? rectAround(gate.x, gate.z, 1.26, 0.16)
-      : rectAround(gate.x, gate.z, 0.16, 1.26);
+/** A threshold's solid footprints. A marker is its plinth; a
+ *  CLOSED gate is its whole span (posts + the bar between them —
+ *  nothing passes); an OPEN gate is its two posts alone, at
+ *  ±1.1 m along the span — the passage between them is walkable
+ *  ground, bridged by the gate's portal. */
+const gateRects = (gate: PlazaGate): PalaceRect[] => {
+  if (gate.kind === "marker") return [rectAround(gate.x, gate.z, 0.39, 0.39)];
+  if (gate.open) {
+    return gate.axis === "x"
+      ? [rectAround(gate.x - 1.1, gate.z, 0.2, 0.2), rectAround(gate.x + 1.1, gate.z, 0.2, 0.2)]
+      : [rectAround(gate.x, gate.z - 1.1, 0.2, 0.2), rectAround(gate.x, gate.z + 1.1, 0.2, 0.2)];
+  }
+  return gate.axis === "x"
+    ? [rectAround(gate.x, gate.z, 1.26, 0.16)]
+    : [rectAround(gate.x, gate.z, 0.16, 1.26)];
+};
 
 /** The plaza's solid footprints (item 39), derived from the
  *  dressing plan above: the monument's plinth, every wall run,
@@ -262,7 +295,7 @@ export const PLAZA_BLOCKED: PalaceRect[] = [
   ...PLAZA_COLUMNS.map((c) => rectAround(c.x, c.z, 0.45, 0.45)),
   ...PLAZA_PLANTERS.map((p) => rectAround(p.x, p.z, p.alongZ ? 0.44 : 1.0, p.alongZ ? 1.0 : 0.44)),
   ...PLAZA_BRAZIERS.map((b) => rectAround(b.x, b.z, 0.46, 0.46)),
-  ...PLAZA_GATES.map(gateRect),
+  ...PLAZA_GATES.flatMap(gateRects),
   ...CREATOR_ARCH_PILLARS.map((p) => rectAround(p.x, p.z, 0.275, 0.275)),
   /* Stage C item 38: the ceremonial hall steps flanking the arch
    * approach and the edge terraces — visual elevation AROUND the
@@ -397,6 +430,26 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
     camClamp: { minX: -28.0, maxX: 28.0, minZ: 12.6, maxZ: 33.9 },
     spawn: { x: 0, z: 31.5 },
   },
+  /* ── Stage C item 31: THE STAGE GROUNDS ────────────────────────
+   * The first built district: an outdoor stage quarter west of
+   * the plaza, through the west wall's gate — since this batch a
+   * true passage (the PALACE_DOORS portal below), not a barred
+   * promise. One room, one presence, like every district-to-be:
+   * the quarter is public look/listen space exactly as the plaza
+   * is (no stage authority, no new verbs — the palace's one
+   * stage stays in the hall). Its plan lives in stage-grounds.ts;
+   * the server clamp box mirrors it (api-server
+   * lib/world-palace.ts). */
+  [STAGE_GROUNDS_ID]: {
+    id: STAGE_GROUNDS_ID,
+    name: "Stage Grounds",
+    walk: STAGE_GROUNDS_WALK,
+    blocked: [...STAGE_BLOCKED],
+    camBlocked: [...STAGE_TALL_BLOCKED],
+    interior: STAGE_GROUNDS_INTERIOR,
+    camClamp: STAGE_GROUNDS_CAM_CLAMP,
+    spawn: { ...STAGE_GROUNDS_SPAWN },
+  },
 };
 
 export interface PalaceDoor {
@@ -491,6 +544,23 @@ export const PALACE_DOORS: PalaceDoor[] = [
     spanMax: 2.2,
     portal: { minX: -2.15, maxX: 2.15, minZ: 11.05, maxZ: 13.7 },
     negRoom: HALL_ROOM_ID,
+    posRoom: COURTYARD_ID,
+  },
+  /* The Stage Grounds gate (item 31): the west wall's real gap
+   * (z 18.4..20.6 at x −28.2), now a true passage. The portal
+   * spans the wall band with aprons on both faces; its z span
+   * stops inside the gate posts' footprints (posts at z 18.4 /
+   * 20.6, blocked in PLAZA_BLOCKED), so the walkable doorway is
+   * the honest opening between the posts. Membership flips at
+   * the wall plane: west of it is the district, east the plaza. */
+  {
+    roomId: STAGE_GROUNDS_ID,
+    axis: "x",
+    plane: -28.2,
+    spanMin: 18.4,
+    spanMax: 20.6,
+    portal: { minX: -28.6, maxX: -27.8, minZ: 18.55, maxZ: 20.45 },
+    negRoom: STAGE_GROUNDS_ID,
     posRoom: COURTYARD_ID,
   },
 ];

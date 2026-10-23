@@ -240,7 +240,12 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
       const postB = gate.axis === "x" ? { x: gate.x + 1.1, z: gate.z } : { x: gate.x, z: gate.z + 1.1 };
       expect(inBlocked(postA.x, postA.z)).toBe(true);
       expect(inBlocked(postB.x, postB.z)).toBe(true);
-      expect(inBlocked(gate.x, gate.z)).toBe(true);
+      /* A CLOSED gate's centre is solid (posts + bar). An OPEN
+       * gate's centre is the passage itself — DELIBERATELY moved
+       * in item 31 for the Stage Grounds gate, whose district is
+       * built: its centre must NOT be blocked. */
+      if (gate.open) expect(inBlocked(gate.x, gate.z)).toBe(false);
+      else expect(inBlocked(gate.x, gate.z)).toBe(true);
     }
     for (const p of CREATOR_ARCH_PILLARS) {
       expect(isWalkable(p.x, p.z)).toBe(false);
@@ -316,7 +321,7 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     expect(west[0]!.z - west[0]!.d / 2).toBeCloseTo(12.4);
     expect(west[west.length - 1]!.z + west[west.length - 1]!.d / 2).toBeCloseTo(34.0);
     const westGap = (west[1]!.z - west[1]!.d / 2) - (west[0]!.z + west[0]!.d / 2);
-    expect(westGap).toBeCloseTo(2.2); // the Stage Grounds gate gap, barred by its gate
+    expect(westGap).toBeCloseTo(2.2); // the Stage Grounds gate gap — a true passage since item 31
     const east = PLAZA_WALL_RUNS.filter((r) => r.x === 28.2 && r.w === 0.35).sort((a, b) => a.z - b.z);
     expect(east[0]!.z - east[0]!.d / 2).toBeCloseTo(12.4);
     expect(east[east.length - 1]!.z + east[east.length - 1]!.d / 2).toBeCloseTo(34.0);
@@ -335,7 +340,12 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
     expect(isWalkable(24, 30)).toBe(false);
     const res = resolvePalaceMove({ x: 24, z: 25.4, room: COURTYARD_ID }, 24, 26.4);
     expect(res.z).toBe(25.4);
-    expect(isWalkable(-28.0, 19.5)).toBe(false);
+    /* DELIBERATELY moved in item 31: (−28.0, 19.5) stands in the
+     * Stage Grounds gate's portal — the gap is a true passage
+     * now, so the point IS walkable. The wall beside the gate
+     * stays solid, and the Boardwalk's barred gap stays closed. */
+    expect(isWalkable(-28.0, 19.5)).toBe(true);
+    expect(isWalkable(-28.2, 16.0)).toBe(false);
     expect(isWalkable(0, 33.9)).toBe(false);
   });
 
@@ -361,6 +371,10 @@ describe("gate data agreement — layout (collision) vs district-gates (scene bu
       const g = PLAZA_GATES.find((p) => p.name === t.name);
       expect(g, `layout is missing ${t.name}`).toBeDefined();
       expect({ x: g!.x, z: g!.z, kind: g!.kind }).toEqual({ x: t.x, z: t.z, kind: t.kind });
+      /* And the same openness (item 31): the scene's gate build
+       * and the layout's collision must never disagree about
+       * whether a gate is a passage. */
+      expect(g!.open ?? false, t.name).toBe(t.open ?? false);
     }
   });
 });
@@ -371,7 +385,8 @@ describe("the second ring (palace follow-on)", () => {
       expect(PALACE_LAYOUT[id]).toBeDefined();
       expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
     }
-    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(8);
+    /* Nine since item 31 added the Stage Grounds district room. */
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(9);
   });
 
   it("the front doors open beside the stage, never through it", () => {

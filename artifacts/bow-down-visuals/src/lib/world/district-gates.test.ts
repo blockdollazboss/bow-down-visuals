@@ -17,7 +17,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { DISTRICT_GATE_GAPS, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS } from "./district-gates";
+import { DISTRICT_GATE_GAPS, DISTRICT_OPEN_SUBPLATE, DISTRICT_SUBPLATE, DISTRICT_THRESHOLDS } from "./district-gates";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const sceneSrc = read("./hall-scene.ts");
@@ -68,6 +68,21 @@ describe("district-gates", () => {
       expect(m.x).toBeLessThan(28.0);
       expect(m.x).toBeGreaterThan(25);
     }
+  });
+
+  it("item 31: the Stage Grounds gate is OPEN — its district is built; every other threshold is not open", () => {
+    const stage = DISTRICT_THRESHOLDS.find((d) => d.name === "STAGE GROUNDS")!;
+    expect(stage.kind).toBe("gate");
+    expect(stage.open).toBe(true);
+    for (const d of DISTRICT_THRESHOLDS) {
+      if (d.name !== "STAGE GROUNDS") expect(d.open ?? false, d.name).toBe(false);
+    }
+    expect(DISTRICT_OPEN_SUBPLATE).toBe("OPEN");
+    /* The scene honours the classification: the bar is built
+     * only for a closed gate, and the sub-plate is chosen by
+     * openness — an open gate can never render barred or COMING. */
+    expect(sceneSrc).toContain("if (!def.open)");
+    expect(sceneSrc).toContain("def.open ? DISTRICT_OPEN_SUBPLATE : DISTRICT_SUBPLATE");
   });
 
   it("hall-scene builds thresholds from the table, not a stamped kit", () => {

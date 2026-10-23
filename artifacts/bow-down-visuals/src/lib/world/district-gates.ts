@@ -17,9 +17,13 @@
  * may make from it:
  *   - "gate" — a true threshold: the posts flank a REAL gap in a
  *     real wall (the west wall's gap at z 18.4–20.6, the south
- *     wall's gap at x −1.1…1.1). The gold bar across names the
- *     closure — the district is coming, the gap is real, and the
- *     walk rects end at the wall, so the bar is the truth.
+ *     wall's gap at x −1.1…1.1). A CLOSED gate's gold bar across
+ *     names the closure — the district is coming, the gap is
+ *     real, and the walk rects end at the wall, so the bar is
+ *     the truth. An OPEN gate (`open: true`) is a true passage:
+ *     no bar, an OPEN plate under the name, and the walk truth
+ *     (palace-layout's portal) runs through the gap into the
+ *     built district beyond.
  *   - "marker" — a named district MARKER, not a doorway: one
  *     grounded signpost (plinth, post, plate mounted ON the post,
  *     a small COMING plate under the name). No span, no header,
@@ -29,8 +33,9 @@
  *     keep their Phase-1 spots, rebuilt as signposts.
  *
  * The six district names are Phase 1's and do not change. The
- * districts themselves are a later pick (board items 31–36) —
- * nothing beyond a gate or marker is built here.
+ * Stage Grounds (board item 31) are BUILT and their gate is open;
+ * the remaining districts are later picks (board items 32–36) —
+ * nothing beyond their gates or markers is built yet.
  */
 
 export type DistrictThresholdKind = "gate" | "marker";
@@ -49,14 +54,25 @@ export interface DistrictThreshold {
   plateRotY: number;
   /** Gates only: the closure bar's offset toward the plaza face
    *  of the wall (the bar rides the wall's inner face, as the
-   *  shipped east bars did — but only where a gap is real). */
+   *  shipped east bars did — but only where a gap is real).
+   *  Meaningless on an OPEN gate: it carries no bar. */
   barDx?: number;
   barDz?: number;
+  /** Gates only: the district beyond is BUILT and this gate is a
+   *  true passage — no bar, the sub-plate reads OPEN, and
+   *  palace-layout's walk truth runs through the gap. Absent =
+   *  the gate is closed and the district is still coming. */
+  open?: boolean;
 }
 
-/** The small plate every threshold carries under its name — the
- *  Phase-1 honesty, lettered: the district is COMING, not open. */
+/** The small plate every CLOSED threshold carries under its name
+ *  — the Phase-1 honesty, lettered: the district is COMING, not
+ *  open. */
 export const DISTRICT_SUBPLATE = "COMING";
+
+/** The sub-plate an OPEN gate carries instead: the district
+ *  beyond it is built, and the gate is a passage, not a promise. */
+export const DISTRICT_OPEN_SUBPLATE = "OPEN";
 
 export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
   /* True gates — real gaps in real walls. The west wall runs
@@ -64,7 +80,10 @@ export const DISTRICT_THRESHOLDS: DistrictThreshold[] = [
    * its gap centres z 19.5; the south wall runs x −28.2…−1.1
    * and 1.1…2.35 across the promenade span, so its gap centres
    * x 0. */
-  { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0 },
+  /* The Stage Grounds are BUILT (item 31): this gate is OPEN —
+   * a true passage through the west wall's real gap into the
+   * stage quarter beyond. No bar; the sub-plate reads OPEN. */
+  { name: "STAGE GROUNDS", kind: "gate", x: -28.2, z: 19.5, axis: "z", plateRotY: Math.PI / 2, barDx: 0.22, barDz: 0, open: true },
   { name: "THE BOARDWALK", kind: "gate", x: 0, z: 34.0, axis: "x", plateRotY: Math.PI },
   /* Markers — the east pair, off the wall and on the floor as
    * signposts a walker reads, not a door they try. x 27.0 stands

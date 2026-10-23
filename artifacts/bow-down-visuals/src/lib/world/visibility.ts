@@ -26,6 +26,7 @@ import {
   COURTYARD_ID,
   HALL_ROOM_ID,
   PALACE_LAYOUT,
+  STAGE_GROUNDS_ID,
   CREATOR_ROOM_TEMPLATE,
   isCreatorRoomId,
   type PalaceRect,
@@ -37,12 +38,15 @@ export const ARCH = { planeZ: 12.2, spanMin: -2.2, spanMax: 2.2, centerX: 0 } as
 /** Coarse areas the perf systems switch on. Side rooms (Music
  *  Hall, Game Rooms, Create Wing, Treasury, Royal Court, Branding
  *  Atelier) are "indoor" like the hall; the plaza is "outdoor";
- *  a creator room is its own area south of the plaza. */
+ *  a creator room is its own area south of the plaza. The Stage
+ *  Grounds (item 31) are outdoor like the plaza they open off —
+ *  same sky, same fog law, same sun. */
 export type WorldArea = "hall" | "indoor" | "plaza" | "creator";
 
 export function areaForRoom(roomId: string): WorldArea {
   if (roomId === HALL_ROOM_ID) return "hall";
   if (roomId === COURTYARD_ID) return "plaza";
+  if (roomId === STAGE_GROUNDS_ID) return "plaza";
   if (isCreatorRoomId(roomId)) return "creator";
   return "indoor";
 }

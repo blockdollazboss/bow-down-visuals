@@ -19,7 +19,7 @@ import {
   reflectorZone,
   walkRectForRoom,
 } from "./visibility";
-import { COURTYARD_ID, HALL_ROOM_ID, MUSIC_HALL_ID, creatorRoomId } from "./palace-layout";
+import { COURTYARD_ID, HALL_ROOM_ID, MUSIC_HALL_ID, STAGE_GROUNDS_ID, creatorRoomId } from "./palace-layout";
 
 const FACING_STAGE = Math.PI; // heading convention: yaw π looks toward −Z... (see below)
 /* In visibility.ts the camera forward in atan2(dx,dz) space is
@@ -34,6 +34,8 @@ describe("areaForRoom", () => {
   it("classifies hall / plaza / side room / creator room", () => {
     expect(areaForRoom(HALL_ROOM_ID)).toBe("hall");
     expect(areaForRoom(COURTYARD_ID)).toBe("plaza");
+    /* The Stage Grounds (item 31) are outdoor like the plaza. */
+    expect(areaForRoom(STAGE_GROUNDS_ID)).toBe("plaza");
     expect(areaForRoom(MUSIC_HALL_ID)).toBe("indoor");
     expect(areaForRoom(creatorRoomId("someone"))).toBe("creator");
   });

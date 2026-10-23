@@ -410,11 +410,15 @@ export const BACKDROP_WINGS: readonly BackdropWing[] = [
 /** Garden masses: rounded planting mounds ringing the grounds
  *  beyond the walls — hedges by night silhouette, pale topiary
  *  masses by day. (x, z, radius, height) spheres squashed to
- *  mounds; instanced by the scene. */
+ *  mounds; instanced by the scene. The three WEST mounds moved
+ *  out past x −66 in Stage C item 31: the ground they used to
+ *  mound (x −53..−31, z 1..46) is the built Stage Grounds
+ *  district now — they ring the district's own west wall instead,
+ *  so the ring stays coherent around the grown palace. */
 export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; h: number }> = [
-  { x: -38, z: 8, r: 7, h: 3.2 },
-  { x: -44, z: 24, r: 9, h: 4.0 },
-  { x: -38, z: 40, r: 6.5, h: 2.8 },
+  { x: -66, z: 4, r: 7, h: 3.2 },
+  { x: -68, z: 24, r: 9, h: 4.0 },
+  { x: -66, z: 44, r: 6.5, h: 2.8 },
   { x: -20, z: 48, r: 8, h: 3.4 },
   { x: 20, z: 48, r: 8, h: 3.4 },
   { x: 38, z: 40, r: 6.5, h: 2.8 },
