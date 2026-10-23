@@ -26,7 +26,15 @@ import {
   brushedGoldTextures,
   rippleHeightField,
   rippleNormalTexture,
+  MATERIAL_NORMAL_SCALES,
+  GOLD_METRES_PER_TILE,
+  DERIVATION_MAX_PX,
+  HERO_DERIVATION_MAX_PX,
+  derivationMaxPxFor,
 } from "./pbr-materials";
+import { readFileSync } from "node:fs";
+
+const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
 
 const W = 64;
 const H = 64;
@@ -235,6 +243,74 @@ describe("brushed gold (item 12)", () => {
       return s / (m.roughness.length / 4);
     };
     expect(mean(brushedMetalMaps(64, 5, "bright"))).toBeLessThan(mean(brushedMetalMaps(64, 5, "dark")));
+  });
+});
+
+describe("materials round 2 (Stack-100 #2 items 9–12)", () => {
+  it("per-kind height logic: joints bite deepest, lawn barely dents, marble keeps the original carve", () => {
+    expect(PBR_KIND_PARAMS.paving.veinDepth).toBeGreaterThan(PBR_KIND_PARAMS.marble.veinDepth);
+    expect(PBR_KIND_PARAMS.stone.veinDepth).toBeGreaterThan(PBR_KIND_PARAMS.marble.veinDepth);
+    expect(PBR_KIND_PARAMS.lawn.veinDepth).toBeLessThan(PBR_KIND_PARAMS.marble.veinDepth);
+    expect(PBR_KIND_PARAMS.marble.veinDepth).toBe(0.5);
+    expect(PBR_KIND_PARAMS.marble.undulation).toBe(0.3);
+    // Same image, different kind → different heightfields now.
+    const hp = derivePbrMaps(creamVein, W, H, "paving");
+    const hm = derivePbrMaps(creamVein, W, H, "marble");
+    const vein = 32 * W + 32;
+    expect(hp.heightField[vein]!).toBeLessThan(hm.heightField[vein]!);
+  });
+
+  it("the relief table is ONE table and the scene reads it (no scattered normal-scale magic)", () => {
+    expect(MATERIAL_NORMAL_SCALES.surface).toBe(0.6);
+    expect(MATERIAL_NORMAL_SCALES.fabric).toBe(0.5);
+    expect(MATERIAL_NORMAL_SCALES.gold).toBe(0.35);
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.surface");
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.fabric");
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.gold");
+    expect(sceneSrc).toContain("MATERIAL_NORMAL_SCALES.water");
+  });
+
+  it("the stone kind is actually used: stoneFor derives as stone ( facet B-M2 companion )", () => {
+    expect(sceneSrc).toContain('FACADE_STONE_METRES_PER_TILE, "stone"');
+    expect(sceneSrc).not.toContain('FACADE_STONE_METRES_PER_TILE, "marble-rough"');
+  });
+
+  it("derivation caps: hero kinds (paving, stone) derive at 1024, the rest at 512", () => {
+    expect(derivationMaxPxFor("paving")).toBe(HERO_DERIVATION_MAX_PX);
+    expect(derivationMaxPxFor("stone")).toBe(HERO_DERIVATION_MAX_PX);
+    expect(derivationMaxPxFor("marble")).toBe(DERIVATION_MAX_PX);
+    expect(derivationMaxPxFor("lawn")).toBe(DERIVATION_MAX_PX);
+    expect(HERO_DERIVATION_MAX_PX).toBe(1024);
+    expect(DERIVATION_MAX_PX).toBe(512);
+  });
+
+  it("gold repeats are per-metre: goldFor exists and derives its repeat from surface size", () => {
+    expect(GOLD_METRES_PER_TILE).toBeGreaterThan(0);
+    expect(sceneSrc).toContain("goldFor: goldSized(\"bright\")");
+    expect(sceneSrc).toContain("repeatForSize(widthM, heightM, GOLD_METRES_PER_TILE)");
+    // Different sizes hit different brushed texture repeats.
+    const a = brushedGoldTextures("bright", 1, 1);
+    const b = brushedGoldTextures("bright", 4, 2);
+    expect(a.normalMap.repeat.x).toBe(1);
+    expect(b.normalMap.repeat.x).toBe(4);
+  });
+
+  it("env intensity is per-material, not one global (facet B-M3 verified stale — pinned)", () => {
+    // makeMaterials assigns distinct envMapIntensity per surface
+    // family: lawn .3, paving .45, stone/fabric .5, walls .55,
+    // marble .7, deep gold .9, bright gold 1.35.
+    const body = sceneSrc.slice(sceneSrc.indexOf("private makeMaterials"), sceneSrc.indexOf("private buildLook"));
+    for (const v of ["0.3", "0.45", "0.5", "0.55", "0.7", "0.9", "1.35"]) {
+      expect(body).toContain(`envMapIntensity: ${v}`);
+    }
+    expect(body).toContain("envMapIntensity: 1.35");
+  });
+
+  it("no bumpMap/bumpScale anywhere (facet B-M1 verified stale — relief is derived normals)", () => {
+    expect(sceneSrc).not.toContain("bumpScale");
+    // The only "bumpMap" in the scene is a comment saying there is none.
+    expect(sceneSrc).not.toContain("bumpMap: pbr");
+    expect(sceneSrc).not.toContain("bumpMap: hallTexture");
   });
 });
 

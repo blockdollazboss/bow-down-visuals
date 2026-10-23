@@ -230,6 +230,8 @@ import {
   derivedPbrTextures,
   brushedGoldTextures,
   rippleNormalTexture,
+  MATERIAL_NORMAL_SCALES,
+  GOLD_METRES_PER_TILE,
   enhanceLoadedTexture,
   type PbrKind,
 } from "./pbr-materials";
@@ -1298,6 +1300,11 @@ function disposeObjectTree(root: THREE.Object3D): void {
 interface LookMaterials {
   gold: THREE.MeshStandardMaterial;
   goldDark: THREE.MeshStandardMaterial;
+  /** Per-metre gold factories (Stack-100 #2 materials round 2):
+   *  a hero gold surface (monument bands, gate caps/headers) gets
+   *  brushed maps repeated from ITS size, not the shared 2×2. */
+  goldFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  goldDarkFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
   marble: THREE.MeshStandardMaterial;
   marbleWall: THREE.MeshStandardMaterial;
   ceiling: THREE.MeshStandardMaterial;
@@ -1679,7 +1686,7 @@ export class KingsHallScene {
       for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) registerRungSurfaceTexture(t);
       return new THREE.MeshStandardMaterial({
         map: hallTexture(url, rep.x, rep.y),
-        normalMap: pbr.normalMap, normalScale: new THREE.Vector2(0.6, 0.6),
+        normalMap: pbr.normalMap, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.surface, MATERIAL_NORMAL_SCALES.surface),
         roughnessMap: pbr.roughnessMap, roughness: 1,
         aoMap: pbr.aoMap,
         color: opts.color, metalness: opts.metalness ?? 0.05, envMapIntensity: opts.envMapIntensity,
@@ -1717,24 +1724,41 @@ export class KingsHallScene {
     /* Gold (item 12): brushed-metal maps — roughness that varies
      * along the brush (bright ≈ 0.14–0.34, deep ≈ 0.30–0.54) and a
      * subtle streak normal — under the sky env, so it reads as
-     * metal. roughness scalar is 1: the map carries the value. */
-    const goldMaps = brushedGoldTextures("bright", 2, 2);
-    registerRungSurfaceTexture(goldMaps.normalMap);
-    registerRungSurfaceTexture(goldMaps.roughnessMap);
-    const gold = new THREE.MeshStandardMaterial({
-      color: 0xd9b45c, metalness: 1, roughness: 1,
-      roughnessMap: goldMaps.roughnessMap, normalMap: goldMaps.normalMap,
-      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.35,
-    });
-    const goldDarkMaps = brushedGoldTextures("dark", 2, 2);
-    registerRungSurfaceTexture(goldDarkMaps.normalMap);
-    registerRungSurfaceTexture(goldDarkMaps.roughnessMap);
-    const goldDark = new THREE.MeshStandardMaterial({
-      color: 0x9a7a24, metalness: 1, roughness: 1,
-      roughnessMap: goldDarkMaps.roughnessMap, normalMap: goldDarkMaps.normalMap,
-      normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 0.9,
-      emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
-    });
+     * metal. roughness scalar is 1: the map carries the value.
+     * Round 2: gold is built by ONE maker, and goldFor/goldDarkFor
+     * give a surface a material whose brushed repeat derives from
+     * ITS size in metres (GOLD_METRES_PER_TILE) — the shared
+     * gold/goldDark below are the maker's 2×2 default, unchanged
+     * for the hundreds of small gilt pieces that share them. */
+    const makeGold = (variant: "bright" | "dark", repX: number, repY: number): THREE.MeshStandardMaterial => {
+      const maps = brushedGoldTextures(variant, repX, repY);
+      registerRungSurfaceTexture(maps.normalMap);
+      registerRungSurfaceTexture(maps.roughnessMap);
+      return variant === "bright"
+        ? new THREE.MeshStandardMaterial({
+            color: 0xd9b45c, metalness: 1, roughness: 1,
+            roughnessMap: maps.roughnessMap, normalMap: maps.normalMap,
+            normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.gold, MATERIAL_NORMAL_SCALES.gold), envMapIntensity: 1.35,
+          })
+        : new THREE.MeshStandardMaterial({
+            color: 0x9a7a24, metalness: 1, roughness: 1,
+            roughnessMap: maps.roughnessMap, normalMap: maps.normalMap,
+            normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.gold, MATERIAL_NORMAL_SCALES.gold), envMapIntensity: 0.9,
+            emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
+          });
+    };
+    const gold = makeGold("bright", 2, 2);
+    const goldDark = makeGold("dark", 2, 2);
+    const goldCache = new Map<string, THREE.MeshStandardMaterial>();
+    const goldSized = (variant: "bright" | "dark") => (widthM: number, heightM: number): THREE.MeshStandardMaterial => {
+      const key = `${variant}|${widthM.toFixed(2)}x${heightM.toFixed(2)}`;
+      const hit = goldCache.get(key);
+      if (hit) return hit;
+      const rep = repeatForSize(widthM, heightM, GOLD_METRES_PER_TILE);
+      const mat = makeGold(variant, rep.x, rep.y);
+      goldCache.set(key, mat);
+      return mat;
+    };
     /* The shared prop marble: nominal 2 m surface (columns, stage,
      * monument, troughs — all in that size class). Big flat runs
      * (walls, ceilings, plaza walls) go through the *For factories
@@ -1748,7 +1772,7 @@ export class KingsHallScene {
     for (const t of [fabricPbr.normalMap, fabricPbr.roughnessMap, fabricPbr.aoMap]) registerRungSurfaceTexture(t);
     const fabric = new THREE.MeshStandardMaterial({
       map: hallTexture(look.throneFabricTextureUrl, fabricRep.x, fabricRep.y),
-      normalMap: fabricPbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
+      normalMap: fabricPbr.normalMap, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.fabric, MATERIAL_NORMAL_SCALES.fabric),
       roughnessMap: fabricPbr.roughnessMap, roughness: 1,
       aoMap: fabricPbr.aoMap,
       metalness: 0, envMapIntensity: 0.5,
@@ -1756,10 +1780,15 @@ export class KingsHallScene {
     const darkMetal = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.55, metalness: 0.5 });
     return {
       gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal,
+      goldFor: goldSized("bright"),
+      goldDarkFor: goldSized("dark"),
       wallFor: sized("wall", "marble-rough", { envMapIntensity: 0.55 }),
       marbleFor: sized("marble", "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
       ceilingFor: sized("ceiling", "marble-rough", { color: ceilingTint, envMapIntensity: 0.55 }),
-      stoneFor: sizedUrl("stone", look.facadeStoneTextureUrl, FACADE_STONE_METRES_PER_TILE, "marble-rough", { envMapIntensity: 0.5 }),
+      /* Round 2: the façade stone finally derives as the STONE
+       * kind it is — it used to borrow marble-rough's carve, and
+       * the dedicated "stone" kind sat unused. */
+      stoneFor: sizedUrl("stone", look.facadeStoneTextureUrl, FACADE_STONE_METRES_PER_TILE, "stone", { envMapIntensity: 0.5 }),
       facadeMarbleFor: sizedUrl("facade-marble", look.facadeMarbleTextureUrl, FACADE_MARBLE_METRES_PER_TILE, "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
       pavingFor: sizedUrl("paving", look.pavingTextureUrl, PAVING_METRES_PER_TILE, "paving", { envMapIntensity: 0.45 }),
       lawnFor: sizedUrl("lawn", look.lawnTextureUrl, LAWN_METRES_PER_TILE, "lawn", { envMapIntensity: 0.3 }),
@@ -1903,7 +1932,8 @@ export class KingsHallScene {
       new THREE.PlaneGeometry(FACADE_WINDOW_W, FACADE_WINDOW_H),
       new THREE.MeshStandardMaterial({
         color: style.color, emissive: style.emissive,
-        emissiveIntensity: style.emissiveIntensity, roughness: style.roughness, metalness: 0.1,
+        emissiveIntensity: style.emissiveIntensity, roughness: style.roughness,
+        metalness: style.metalness, envMapIntensity: style.envMapIntensity,
       }),
       FACADE_WINDOWS.map((w) => ({ x: w.x, y: w.y, z: FACADE_WINDOW_GLASS_Z })),
     );
@@ -2077,7 +2107,7 @@ export class KingsHallScene {
       new THREE.RingGeometry(BACKDROP.moatInnerR, BACKDROP.moatOuterR, 48, 1, Math.PI * 0.72, Math.PI * 0.95),
       new THREE.MeshStandardMaterial({
         map: moatTex,
-        normalMap: moatNormal, normalScale: new THREE.Vector2(0.15, 0.15),
+        normalMap: moatNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
         color: night ? 0xbfd4de : 0xdfe9e4,
         roughness: 0.12, metalness: 0.05, envMapIntensity: 1.3,
       }),
@@ -5024,7 +5054,7 @@ export class KingsHallScene {
         new THREE.PlaneGeometry(RILL.w - RILL.rimLip * 2, RILL.d - RILL.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
-          normalMap: rillNormal, normalScale: new THREE.Vector2(0.18, 0.18),
+          normalMap: rillNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
@@ -5066,7 +5096,7 @@ export class KingsHallScene {
         new THREE.CircleGeometry(f.rimR - 0.08, 28),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
-          normalMap: basinNormal, normalScale: new THREE.Vector2(0.18, 0.18),
+          normalMap: basinNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
@@ -6330,7 +6360,7 @@ export class KingsHallScene {
         new THREE.PlaneGeometry(BOARDWALK_BASIN.w - BOARDWALK_BASIN.rimLip * 2, BOARDWALK_BASIN.d - BOARDWALK_BASIN.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
-          normalMap: basinNormal, normalScale: new THREE.Vector2(0.18, 0.18),
+          normalMap: basinNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.05, envMapIntensity: 1.2, transparent: true, opacity: 0.94,
         }),
       );
@@ -6985,7 +7015,7 @@ export class KingsHallScene {
         new THREE.PlaneGeometry(POOL.w - POOL.rimLip * 2, POOL.d - POOL.rimLip * 2),
         new THREE.MeshStandardMaterial({
           map: waterTex, color: tint.color, roughness: tint.roughness,
-          normalMap: poolNormal, normalScale: new THREE.Vector2(0.2, 0.2),
+          normalMap: poolNormal, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.water, MATERIAL_NORMAL_SCALES.water),
           metalness: 0.35, envMapIntensity: 0.9,
         }),
       );
