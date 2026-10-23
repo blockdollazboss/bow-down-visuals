@@ -7,9 +7,10 @@ import { useHubProject } from "@/lib/hub-project";
 import { downloadImage } from "@/lib/download-image";
 import { promoCardFileName, promoCardSharePayload } from "@/lib/promo-card-history";
 import { NativeCard } from "./NativeCard";
+import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
-import { NativeBoard, NativeBoardRow } from "./NativeBoard";
+import { NativeBoard } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
@@ -68,9 +69,6 @@ import {
   buildPromoCardsPayload,
   parsePromoCards,
   PROMO_CARD_STYLES,
-  parseReleases,
-  releaseDeskLine,
-  parseVaultedCount,
   buildCoachPayload,
   parseCoachTodayAction,
   type PressKitSummary,
@@ -78,7 +76,6 @@ import {
   type BioAnalytics,
   type PromoResult,
   type PromoCardItem,
-  type ReleaseSummary,
   type CoachTodayAction,
 } from "@/lib/world/business-desks";
 
@@ -1305,7 +1302,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const { addAsset } = useHubProject();
 
   const [bio, setBio] = useState<SectionState<{ page: BioPageSummary; analytics: BioAnalytics | null }>>(loading());
-  const [releases, setReleases] = useState<SectionState<{ list: ReleaseSummary[]; vaulted: number }>>(loading());
   const [tick, setTick] = useState(0);
 
   /* A promo card's Schedule tap hands the card to the in-world
@@ -1364,20 +1360,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         if (!cancelled) setBio({ status: "ready", data: { page, analytics } });
       } catch {
         if (!cancelled) setBio({ status: "failed", data: null });
-      }
-    })();
-    (async () => {
-      try {
-        const [rRes, vRes] = await Promise.all([
-          fetch("/api/distribution/releases", { headers: await authHeaders() }),
-          fetch("/api/catalog-vault/status", { headers: await authHeaders() }),
-        ]);
-        if (!rRes.ok) throw new Error("releases");
-        const list = parseReleases((await rRes.json()) as unknown);
-        const vaulted = vRes.ok ? parseVaultedCount((await vRes.json()) as unknown) : 0;
-        if (!cancelled) setReleases({ status: "ready", data: { list, vaulted } });
-      } catch {
-        if (!cancelled) setReleases({ status: "failed", data: null });
       }
     })();
     return () => {
@@ -1546,7 +1528,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
   const retryAll = () => {
     setBio(loading());
-    setReleases(loading());
     setTick((n) => n + 1);
   };
 
@@ -1725,24 +1706,13 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           best-time, calendar, edit and cancel all complete here. */}
       <SchedulerDeskSection isLight={isLight} prefill={cardPrefill} prefillNonce={cardPrefillNonce} />
 
+      {/* The Release Desk, finished in-world (Stack-100 #53/#54):
+          the full distribution wizard + the smartlink surface
+          complete here on the /distribute page's own rails. */}
+      <ReleaseDeskSection isLight={isLight} />
+
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
-          <NativeCard isLight={isLight} title="Release Desk">
-            {releases.status === "loading" ? (
-              <NativeLoadingState isLight={isLight} message="Checking your releases…" />
-            ) : releases.status === "failed" || !releases.data ? (
-              <NativeErrorState isLight={isLight} message="Your releases wouldn't open — nothing about them changed." onRetry={retryAll} />
-            ) : (
-              <div className="space-y-1.5">
-                <p className={`text-sm ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>{releaseDeskLine(releases.data.list, releases.data.vaulted)}</p>
-                {releases.data.list.slice(0, 3).map((r) => (
-                  <NativeBoardRow key={r.id} isLight={isLight} title={r.title} detail={r.artistName || undefined} meta={`${r.releaseType} · ${r.status}`} />
-                ))}
-                <div className="flex justify-end pt-1"><RowTransfer websitePath="/distribute" isLight={isLight} /></div>
-              </div>
-            )}
-          </NativeCard>
-
           <NativeCard isLight={isLight} title="Coach — today's next action">
             {coach ? (
               <div className="space-y-1.5">

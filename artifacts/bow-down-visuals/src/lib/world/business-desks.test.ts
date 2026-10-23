@@ -574,7 +574,6 @@ describe("parity follow-on log — thorough, each bench named", () => {
   it("covers every bench the task names for this lane", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     for (const required of [
-      "release-wizard",
       "bio-page-layout-theme-editors",
       "press-kit-layout-editing",
       "branding-jewelry-bench",
@@ -583,6 +582,11 @@ describe("parity follow-on log — thorough, each bench named", () => {
     ]) {
       expect(ids, required).toContain(required);
     }
+    // The Release wizard graduated (Stack-100 #53/#54): create/edit,
+    // metadata, splits, UPC/barcode, submit and the smartlink surface
+    // are native at the Promote Room's Release Desk, so it leaves the
+    // follow-on log.
+    expect(ids).not.toContain("release-wizard");
     // Headshots graduated: the bench is native at the Branding Kit Desk
     // now, so it leaves the follow-on log.
     expect(ids).not.toContain("branding-headshots-bench");

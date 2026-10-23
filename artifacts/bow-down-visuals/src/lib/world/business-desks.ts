@@ -822,13 +822,6 @@ export interface BusinessFollowOn {
 
 export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
   {
-    id: "release-wizard",
-    title: "NATIVE FOLLOW-ON: Release wizard (full distribution flow)",
-    desk: "release",
-    benchPath: "/distribute",
-    note: "Create/edit releases, metadata, splits, UPC/barcode, platform delivery tracking, pre-save and submit — v1 shows distribution status only.",
-  },
-  {
     id: "bio-page-layout-theme-editors",
     title: "NATIVE FOLLOW-ON: Link-in-bio layout/theme editors",
     desk: "promote",
