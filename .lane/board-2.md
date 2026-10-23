@@ -202,6 +202,9 @@ direction). Everything else is buildable now.
 
 ## PARITY RE-WALK — HONESTY & FINISH (68–84)
 
+**[STATUSES — parity lane stack28/world-parity tip 44be26f1, merged 8381c17e; evidence .lane/parity-plan.md + finished logs final-fe-world.log (101 files / 1,838 tests PASS) / final-api-world.log (32 / 422 PASS), both typechecks 0:]**
+**97 DONE** (payload channel built — panel-payload.ts, Daily Drop Use + HookDesk + Thumbnail consumers, defensive parse; 1 pin correction justified in commit 22dc7c0a). **71 DONE** (scheduler receipt names title + when + channels). **79 DONE** (stream key labelled untested until an encoder connects). **70 PINNED** (no local count increment exists; counts are server DTO reads). **68, 69, 72, 73, 74, 75, 76, 77, 78, 80 PINNED — facet D claims verified STALE against the shipped tree** (no Preview button / no humAudioUrl / no AI-toggle gate copy / no price badge / drop kind union is exactly {caption, hook, thumbnail, video} with all kinds routed / no "today's bench" copy / one my-studio station, zero getStatus / no WorldTutorialOverlay, tutorial refreshes on room change / no JOIN_VOICE, timers already in TimerRef callbacks / PostAssist already names the in-world composer). All pins in parity-rewalk.test.ts + live-desk.test.ts. Item 74's build half is moot — the stranded kinds do not exist; item 97's D-97c/D-97d sub-claims likewise pinned stale (Schedule-it already opens inline with a typed prefill; no wallpaper surface exists in-world).
+
 68. **Hook Desk Preview works**: the Preview button does what it says in-world —
     today it only saves a draft and tells you to view it on the page you are
     already standing in (D-H1).
