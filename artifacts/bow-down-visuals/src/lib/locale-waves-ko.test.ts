@@ -33,7 +33,7 @@ function load(locale: string): Record<string, unknown> {
 
 function flat(o: unknown, p = "", out: Record<string, Leaf> = {}): Record<string, Leaf> {
   if (Array.isArray(o)) {
-    out[p] = o as string[];
+    o.forEach((v, i) => flat(v, p ? `${p}.${i}` : `${i}`, out));
   } else if (o && typeof o === "object") {
     for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
       flat(v, p ? `${p}.${k}` : k, out);
@@ -54,6 +54,12 @@ export const KO_WAVES: Record<string, string[]> = {
     "storefronts", "jewelry", "jewelryShop", "brandingShop", "liveShopping",
     "llcGuide", "syncPitch", "brandDeals", "distribute", "sponsors", "sponsorsPost",
     "sponsorDealDetail", "labelPitch", "brandCalculator", "playlistPitch",
+  ],
+  W2: [
+    "retentionDoctor", "retentionDelight", "invite", "fomoFeed", "planPublic",
+    "delight", "home", "academy", "common", "auth", "features", "waitlist",
+    "promo-clip", "splitScreen", "productPhotoStudio", "carouselMaker",
+    "videoTemplates", "movies", "motionGraphics",
   ],
 };
 
@@ -96,6 +102,43 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "brandDeals.audiences.k10_50k", "brandDeals.audiences.k1_10k",
     "brandDeals.audiences.k250plus", "brandDeals.audiences.k50_250k",
   ],
+  W2: [
+    // time-format example / platform names
+    "retentionDoctor.atPlaceholder", "retentionDoctor.platform_tiktok",
+    "retentionDoctor.platform_instagram", "retentionDoctor.platform_youtube",
+    "retentionDoctor.platform_x", "promo-clip.platforms.tiktok",
+    "promo-clip.platforms.reels", "promo-clip.platforms.shorts",
+    // genre names (established loanwords / abbreviations)
+    "home.demo.rnb.label", "promo-clip.genres.rnb", "promo-clip.genres.pop",
+    "promo-clip.genres.afrobeats", "promo-clip.genres.dancehall", "promo-clip.genres.gospel",
+    // brand fragments / stylized brand lines
+    "home.manifestoTitleA", "home.manifestoTitleB", "home.extTitleA",
+    "common.visualBucs",
+    // proper-noun / number / format example placeholders
+    "academy.nichePlaceholder", "academy.hoursPlaceholder", "auth.emailPlaceholder",
+    "auth.passwordPlaceholder", "productPhotoStudio.pastePlaceholder",
+    "carouselMaker.brandColorsPlaceholder",
+    // brand currency / placeholder-only
+    "promo-clip.creditBadge", "productPhotoStudio.credits",
+    // house mode names (kept in English across the existing ko catalog)
+    "splitScreen.modeSimple", "splitScreen.modeCustom",
+    // episode abbreviation label
+    "movies.epLabel",
+    // home studio lineup array leaves (pre-existing): tool/product names
+    // and "NNN VB" price cells — two cost cells are the numeric-parity
+    // suite's documented AMBIGUOUS old-lineup cells, left untouched there too
+    "home.studio.0.tools.0.cost", "home.studio.0.tools.1.title",
+    "home.studio.0.tools.1.cost", "home.studio.0.tools.2.title",
+    "home.studio.0.tools.2.cost", "home.studio.1.tools.0.title",
+    "home.studio.1.tools.0.cost", "home.studio.1.tools.1.title",
+    "home.studio.1.tools.2.cost", "home.studio.2.tools.0.cost",
+    "home.studio.2.tools.1.cost", "home.studio.2.tools.2.title",
+    "home.studio.3.tools.0.cost", "home.studio.3.tools.1.cost",
+    "home.studio.3.tools.2.cost",
+    // home credit-pack array leaves: numbers + brand currency alone
+    "home.creditPacks.0.credits", "home.creditPacks.1.credits",
+    "home.creditPacks.2.credits", "home.creditPacks.3.credits",
+  ],
 };
 
 const placeholders = (v: Leaf): string[] => {
@@ -115,14 +158,7 @@ describe("Stack-28 ko locale waves", () => {
         for (const k of keys) {
           const v = KO[k];
           if (v === undefined) { missing.push(`${k} (absent)`); continue; }
-          if (Array.isArray(v)) {
-            const e = EN[k];
-            if (!Array.isArray(e) || v.length !== e.length || v.some((x) => !x.trim())) {
-              missing.push(`${k} (array shape)`);
-            }
-          } else if (!v.trim()) {
-            missing.push(`${k} (empty)`);
-          }
+          if (typeof v !== "string" || !v.trim()) missing.push(`${k} (empty)`);
         }
         expect(missing).toEqual([]);
       });
