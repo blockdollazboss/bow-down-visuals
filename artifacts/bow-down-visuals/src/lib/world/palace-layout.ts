@@ -341,12 +341,14 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
       { minX: -27.85, maxX: 2.35, minZ: 25.6, maxZ: 33.6 },
       /* The arch spur (item 41): the promenade's eastward arm
        * along the Creator Room's north wall face, from the
-       * promenade's edge to the arch portal (x 8.4..) — a walker
-       * can now stroll the promenade and turn east to the arch
-       * without crossing open floor. The spur's z band stops at
-       * the wall face (26.05); the arch's flanking return walls
-       * stand in it as blocked rects (PLAZA_WALL_RUNS). */
-      { minX: 2.35, maxX: 8.45, minZ: 25.6, maxZ: 26.05 },
+       * promenade's edge to the arch — its band runs to the
+       * portal's east edge (10.65) so the arch's forecourt is
+       * plaza ground in its own right, and stops at the wall
+       * face (z 26.0): south of that is the wall, and the room
+       * beyond is still entered through the portal alone. The
+       * arch's flanking return walls stand in the band as
+       * blocked rects (PLAZA_WALL_RUNS). */
+      { minX: 2.35, maxX: 10.65, minZ: 25.6, maxZ: 26.0 },
     ],
     /* Solid footprints, derived from the dressing plan above
      * (PLAZA_BLOCKED): the monument's plinth — its board station
@@ -697,7 +699,9 @@ export function pullInCamera(
   from: { x: number; z: number },
   desired: { x: number; z: number },
 ): { x: number; z: number } {
-  if (cameraPointFree(roomId, desired.x, desired.z)) return { x: desired.x, z: desired.z };
+  /* The whole segment is walked, never just the endpoint: a spot
+   * BEYOND a prop can be perfectly free while the ray to it
+   * passes straight through the prop's body. */
   const dist = Math.hypot(desired.x - from.x, desired.z - from.z);
   const steps = Math.max(1, Math.ceil(dist / 0.1));
   let last = { x: from.x, z: from.z };

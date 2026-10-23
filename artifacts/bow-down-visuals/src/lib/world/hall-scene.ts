@@ -2875,8 +2875,10 @@ export class KingsHallScene {
      * turned east–west, from the main path's edge to the Creator
      * Rooms arch's forecourt, so the arch is ARRIVED at, not
      * floated past. It runs along the creator wall's face on the
-     * layout's spur grounds (z 25.6..26.05 walkable), passing
-     * between the two return walls that flank the forecourt. */
+     * layout's spur grounds (z 25.6..26.05 walkable); the two
+     * return walls flank the forecourt at its end, standing on
+     * the path's line like gateposts — the walk baffles around
+     * the west return's end and in between the pair. */
     {
       const spurFromX = 1.8;
       const spurToX = 10.6;
