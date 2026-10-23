@@ -296,7 +296,12 @@ function extractApp() {
     const file = m[2].replace("@/", "artifacts/bow-down-visuals/src/");
     pageImport.set(m[1], file);
   }
-  const lazyRe = /const\s+([A-Z][A-Za-z0-9]*)\s*=\s*(?:lazy|lazyWithRetry)\(\(\)\s*=>\s*import\("(@\/pages\/[^"]+)"\)\)/g;
+  /* Stack-28 regen note: the SEO slug components are lazy-loaded through
+     a named-export adapter — import("…").then((m) => ({ default: m.X }))
+     — which the plain form of this pattern missed, silently dropping
+     component/pageFile for all 20 slug routes and orphaning the three
+     seo page files as UNREVIEWED. The optional .then(…) arm covers it. */
+  const lazyRe = /const\s+([A-Z][A-Za-z0-9]*)\s*=\s*(?:lazy|lazyWithRetry)\(\(\)\s*=>\s*import\("(@\/pages\/[^"]+)"\)(?:\.then\([\s\S]*?\))?\)/g;
   while ((m = lazyRe.exec(src))) {
     pageImport.set(m[1], m[2].replace("@/", "artifacts/bow-down-visuals/src/"));
   }
@@ -852,7 +857,13 @@ function apiLiterals(rawSrc) {
 function pageSources(pageFileAbs) {
   const texts = [read(pageFileAbs)];
   const src = texts[0];
-  const importRe = /from\s+"(@\/[^"]+|\.\.?\/[^"]+)"/g;
+  /* Stack-28 regen note: one-hop sources arrive by static `from "…"`
+     imports AND by dynamic `import("…")` — the editor's section panels
+     were converted to lazy dynamic imports by the chunk-splitting work,
+     and a from-only scan silently lost every endpoint those sections
+     call (the video-editor entry dropped from 102 endpoints to 20).
+     Both specifier forms are the same one hop. */
+  const importRe = /(?:from\s+|import\s*\(\s*)"(@\/[^"]+|\.\.?\/[^"]+)"/g;
   let m;
   while ((m = importRe.exec(src))) {
     const spec = m[1];

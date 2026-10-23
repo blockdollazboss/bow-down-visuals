@@ -1,24 +1,24 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "c1f1640ee9fcbae9db13d39231b8b767496a3157",
+  "baseCommit": "6cc14c93f03139e7bb6a0c98e94f5b9df29818e2",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-22",
+  "generatedAt": "2026-10-23",
   "counts": {
     "routesInApp": 226,
     "pageFiles": 179,
-    "features": 235,
+    "features": 237,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
-    "pricedActions": 216,
+    "pricedActions": 217,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 225,
+    "withDescriptions": 227,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -146,6 +146,14 @@
       "serverValue": 500,
       "serverSource": "artifacts/api-server/src/routes/generate/sample-pack-pricing.ts",
       "registryValue": 500,
+      "agree": true
+    },
+    {
+      "constant": "SCREENSAVER_RENDER_COST",
+      "endpoint": "/api/wallpapers/screensaver-render",
+      "serverValue": 400,
+      "serverSource": "artifacts/api-server/src/routes/wallpapers.ts",
+      "registryValue": 400,
       "agree": true
     }
   ],
@@ -4153,11 +4161,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4168,10 +4180,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4188,6 +4210,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4224,6 +4252,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4252,11 +4292,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4267,10 +4311,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4287,6 +4341,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4323,6 +4383,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4351,11 +4423,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4366,10 +4442,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4386,6 +4472,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4422,6 +4514,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4450,11 +4554,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4465,10 +4573,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4485,6 +4603,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4521,6 +4645,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4549,11 +4685,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4564,10 +4704,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4584,6 +4734,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4620,6 +4776,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4648,11 +4816,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4663,10 +4835,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4683,6 +4865,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4719,6 +4907,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4747,11 +4947,15 @@
         "/api/branding-shop/orders",
         "/api/branding-shop/orders/:param/refresh",
         "/api/branding-shop/upload-logo",
+        "/api/generate-artist-image",
+        "/api/generate-artist-image/:param",
         "/api/generate-headshot",
         "/api/generate-intro-outro",
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-runway-clip",
+        "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
         "/api/jewelry/design",
         "/api/jewelry/estimate",
@@ -4762,10 +4966,20 @@
         "/api/merch/designs",
         "/api/merch/designs/:param",
         "/api/merch/designs/:param/order",
+        "/api/storefront/products",
         "/api/stream-pack/catalog",
-        "/api/stream-pack/generate"
+        "/api/stream-pack/generate",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Headshot (price TBD)",
           "vb": 100,
@@ -4782,6 +4996,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Video Clip",
+          "vb": 400,
+          "endpoint": "/api/generate-runway-clip",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4818,6 +5038,18 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -5474,8 +5706,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -5531,9 +5767,21 @@
           "vb": 100,
           "endpoint": "/api/transcribe",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "description": "One studio, nine ways to start. Pick a lane — every finished piece flows into its natural next step.",
+      "description": "One studio, ten ways to start. Pick a lane — every finished piece flows into its natural next step.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"create.subtitle\" (page's own string)",
       "nextSteps": [
         {
@@ -5570,8 +5818,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -5626,6 +5878,18 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -5685,8 +5949,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -5741,6 +6009,18 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -5799,8 +6079,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -5856,6 +6140,18 @@
           "vb": 100,
           "endpoint": "/api/transcribe",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "nextSteps": [
@@ -5895,8 +6191,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -5973,6 +6273,18 @@
           "vb": 100,
           "endpoint": "/api/transcribe",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "description": "Describe your vibe and let AI write the lyrics, hooks, and verses — then generate a full AI-produced track in your artist's locked voice.",
@@ -6036,8 +6348,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -6092,6 +6408,18 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -6151,8 +6479,12 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/storefront/products",
         "/api/transcribe",
-        "/api/upload-clip"
+        "/api/upload-clip",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
       ],
       "prices": [
         {
@@ -6208,6 +6540,18 @@
           "vb": 100,
           "endpoint": "/api/transcribe",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "description": "Turn your song into a full video plan — AI treatment, scene storyboards, and generated clips with your artist's face locked in.",
@@ -6243,6 +6587,58 @@
         "pageName": "Make a Music Video",
         "route": "/make-video"
       }
+    },
+    {
+      "id": "wallpapers-desk",
+      "name": "Wallpapers & Themes",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"wallpapers.title\"",
+      "path": "/create?panel=wallpapers",
+      "stage": "create",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/create.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/generate-artist-image",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render",
+        "/api/wallpapers/screensaver-render"
+      ],
+      "prices": [
+        {
+          "feature": "Generate Artist Image (Pro)",
+          "vb": 200,
+          "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "variants": [
+            {
+              "feature": "Wallpaper Render (clean — unbranded)",
+              "vb": 400,
+              "source": "artifacts/api-server/src/routes/wallpapers.ts CLEAN_RENDER_COST — server charge for this variant of the endpoint (CREDIT_COSTS records the endpoint's base price)"
+            }
+          ]
+        },
+        {
+          "feature": "Screensaver Loop Render",
+          "vb": 400,
+          "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Wallpapers, lock screens, screensavers and matched theme packs for phones, tablets and computers — pick or generate art, render it at exact device pixels, and build a profile theme from its colors. Branded renders are free, and the King's Set starter pack is waiting on the desk.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": [
+        {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "creator-pricing",
@@ -9567,8 +9963,11 @@
         "/api/social/accounts",
         "/api/social/accounts/:param",
         "/api/social/facebook/auth-url",
+        "/api/social/facebook/publish",
         "/api/social/instagram/auth-url",
+        "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
+        "/api/social/tiktok/publish",
         "/api/songs",
         "/api/trend-jacker/draft",
         "/api/trend-predictor/forecast",
@@ -9594,6 +9993,24 @@
           "feature": "Hook Studio",
           "vb": 100,
           "endpoint": "/api/hook-studio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Facebook",
+          "vb": 100,
+          "endpoint": "/api/social/facebook/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Instagram",
+          "vb": 100,
+          "endpoint": "/api/social/instagram/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to TikTok",
+          "vb": 100,
+          "endpoint": "/api/social/tiktok/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9650,8 +10067,11 @@
         "/api/social/accounts",
         "/api/social/accounts/:param",
         "/api/social/facebook/auth-url",
+        "/api/social/facebook/publish",
         "/api/social/instagram/auth-url",
+        "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
+        "/api/social/tiktok/publish",
         "/api/songs",
         "/api/trend-jacker/draft",
         "/api/trend-predictor/forecast",
@@ -9677,6 +10097,24 @@
           "feature": "Hook Studio",
           "vb": 100,
           "endpoint": "/api/hook-studio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Facebook",
+          "vb": 100,
+          "endpoint": "/api/social/facebook/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Instagram",
+          "vb": 100,
+          "endpoint": "/api/social/instagram/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to TikTok",
+          "vb": 100,
+          "endpoint": "/api/social/tiktok/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9733,8 +10171,11 @@
         "/api/social/accounts",
         "/api/social/accounts/:param",
         "/api/social/facebook/auth-url",
+        "/api/social/facebook/publish",
         "/api/social/instagram/auth-url",
+        "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
+        "/api/social/tiktok/publish",
         "/api/songs",
         "/api/trend-jacker/draft",
         "/api/trend-predictor/forecast",
@@ -9760,6 +10201,24 @@
           "feature": "Hook Studio",
           "vb": 100,
           "endpoint": "/api/hook-studio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Facebook",
+          "vb": 100,
+          "endpoint": "/api/social/facebook/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Instagram",
+          "vb": 100,
+          "endpoint": "/api/social/instagram/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to TikTok",
+          "vb": 100,
+          "endpoint": "/api/social/tiktok/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9882,8 +10341,11 @@
         "/api/social/accounts",
         "/api/social/accounts/:param",
         "/api/social/facebook/auth-url",
+        "/api/social/facebook/publish",
         "/api/social/instagram/auth-url",
+        "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
+        "/api/social/tiktok/publish",
         "/api/team-seats",
         "/api/team-seats/:param",
         "/api/team-seats/accept",
@@ -9894,6 +10356,24 @@
           "feature": "Social Proof (free)",
           "vb": 0,
           "endpoint": "/api/social-proof/refresh",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Facebook",
+          "vb": 100,
+          "endpoint": "/api/social/facebook/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to Instagram",
+          "vb": 100,
+          "endpoint": "/api/social/instagram/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to TikTok",
+          "vb": 100,
+          "endpoint": "/api/social/tiktok/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -10438,10 +10918,19 @@
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/templates/index.tsx",
       "component": "TemplatesHub",
-      "endpoints": [],
-      "prices": [],
+      "endpoints": [
+        "/api/video-template/apply"
+      ],
+      "prices": [
+        {
+          "feature": "Apply Video Template",
+          "vb": 250,
+          "endpoint": "/api/video-template/apply",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
-      "description": "Templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Free to browse — click any template to generate it with AI; credits apply when you generate.",
+      "description": "Templates for creators: YouTube thumbnail templates, video hook templates, and caption packs. Free to browse with your account — click any template to generate it with AI; credits apply when you generate.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/templates/index.tsx usePageTitle meta description"
     },
     {
@@ -10504,7 +10993,8 @@
         "/api/credits/claim-trial",
         "/api/referrals/me",
         "/api/retention/prefs",
-        "/api/shares"
+        "/api/shares",
+        "/api/video-template/apply"
       ],
       "prices": [
         {
@@ -11546,6 +12036,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -11577,7 +12068,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -12018,6 +12508,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -12049,7 +12540,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -12386,6 +12876,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -12417,7 +12908,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -12776,6 +13266,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -12807,7 +13298,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -13171,6 +13661,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -13202,7 +13693,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -13560,6 +14050,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -13591,7 +14082,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -13950,6 +14440,7 @@
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
         "/api/referrals/me",
+        "/api/remove-video-background",
         "/api/repurpose/analyze",
         "/api/repurpose/jobs/:param",
         "/api/repurpose/reroll",
@@ -13981,7 +14472,6 @@
         "/api/upscale",
         "/api/upscale/:param",
         "/api/upscale/image",
-        "/api/video-background-removal",
         "/api/video-template/apply",
         "/api/video-template/job/:param",
         "/api/video-template/templates",
@@ -14431,6 +14921,7 @@
         "/api/live-streams/status",
         "/api/playlists/mine",
         "/api/projects",
+        "/api/retention/leaderboard",
         "/api/retention/level-check",
         "/api/retention/level-check/celebrate",
         "/api/retention/quests",
@@ -14444,15 +14935,42 @@
         "/api/world/events",
         "/api/world/events/mine",
         "/api/world/jukebox-catalog",
+        "/api/world/locks",
+        "/api/world/locks/door/lock",
+        "/api/world/locks/door/unlock",
+        "/api/world/locks/person/lock",
+        "/api/world/locks/person/unlock",
         "/api/world/screen",
         "/api/world/screen-catalog",
         "/api/world/tutorial",
-        "/api/world/tutorial/claim"
+        "/api/world/tutorial/claim",
+        "/api/world/voice-config"
       ],
       "prices": [],
       "nextSteps": [],
-      "description": "Step into the King's Plaza: the palace's front square — the hall's stage and big screen, and your people, are all right here.",
+      "description": "Step into the King's Plaza, the palace's front square. Six districts stand open around it: Stage Grounds, Listening Gardens, Creation Row, The Ateliers, The Boardwalk and Creator Heights. Inside, palace desks mirror the site's Create, Brand, Promote and Money features.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/world.tsx usePageTitle meta description"
+    },
+    {
+      "id": "world-locks",
+      "name": "World Locks",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/world",
+      "stage": "world",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/world.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/world/locks",
+        "/api/world/locks/door/lock",
+        "/api/world/locks/door/unlock",
+        "/api/world/locks/person/lock",
+        "/api/world/locks/person/unlock"
+      ],
+      "prices": [],
+      "description": "Palace admins can lock a room's door — the people inside stay, and nobody new joins — or lock one person out of a room for a time: 1 hour by default, up to 7 days. A lock is not a glitch: the World shows an honest card saying which lock it is and, for a person lock, how long is left.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
     }
   ],
   "excluded": [
