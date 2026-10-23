@@ -415,7 +415,7 @@ router.use(improvePromptRouter);
 router.use(directorLookRouter);
 router.use(improveStyleRouter);
 router.use(autoEditRouter);
-router.use(aiCopilotRouter);
+router.use("/ai-copilot", aiCopilotRouter); // /api/ai-copilot/analyze — the router defines POST /analyze; the FE (AICopilotPanel) and the G14 refund test both address it under this prefix
 router.use(aiEditPlanRouter);
 router.use(mixPlanRouter);
 router.use(musicAudioRouter);
