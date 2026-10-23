@@ -168,12 +168,29 @@ import { createMover, stepMover, type MoverState } from "./movement";
 import {
   MARBLE_METRES_PER_TILE,
   FABRIC_METRES_PER_TILE,
+  PAVING_METRES_PER_TILE,
+  LAWN_METRES_PER_TILE,
   repeatForSize,
   derivedPbrTextures,
   brushedGoldTextures,
   enhanceLoadedTexture,
   type PbrKind,
 } from "./pbr-materials";
+import {
+  PAVING_SLABS,
+  LAWN_PANELS,
+  LAWN_BED,
+  PARTERRE_MEDALLION,
+  lawnEdgingRuns,
+  lawnPlantingSpots,
+  MONUMENT,
+  BACKDROP,
+  BACKDROP_WINGS,
+  BACKDROP_GARDENS,
+  backdropWindowStyle,
+  hallStepRuns,
+  terraceRuns,
+} from "./palace-grounds";
 import {
   buildSkyEnvironment,
   buildVisibleSkyDome,
@@ -1169,6 +1186,11 @@ interface LookMaterials {
    *  from the art lane's new textures, per look. */
   stoneFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
   facadeMarbleFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  /** Grounds factories (Stage C items 6/8): the plaza's outdoor
+   *  paving and its lawns, per-metre repeats from the art lane's
+   *  grounds textures, per look. */
+  pavingFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  lawnFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
 }
 
 interface LookAnim {
@@ -1559,6 +1581,8 @@ export class KingsHallScene {
       ceilingFor: sized("ceiling", "marble-rough", { color: ceilingTint, envMapIntensity: 0.55 }),
       stoneFor: sizedUrl("stone", look.facadeStoneTextureUrl, FACADE_STONE_METRES_PER_TILE, "marble-rough", { envMapIntensity: 0.5 }),
       facadeMarbleFor: sizedUrl("facade-marble", look.facadeMarbleTextureUrl, FACADE_MARBLE_METRES_PER_TILE, "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
+      pavingFor: sizedUrl("paving", look.pavingTextureUrl, PAVING_METRES_PER_TILE, "paving", { envMapIntensity: 0.45 }),
+      lawnFor: sizedUrl("lawn", look.lawnTextureUrl, LAWN_METRES_PER_TILE, "lawn", { envMapIntensity: 0.3 }),
     };
   }
 
@@ -1595,6 +1619,7 @@ export class KingsHallScene {
      * room shell (room-culled from indoors, exactly when the
      * roofline must still read from a raised camera). */
     this.buildPalaceExterior(group, look, mats);
+    this.buildBackdropGrounds(group, look);
     this.buildVisibleSky(group, look, anim);
     this.lookAnim = anim;
   }
@@ -1805,6 +1830,129 @@ export class KingsHallScene {
       orb.position.set(DOME.cx, DOME.finialBaseY + 0.12, DOME.cz);
       g.add(orb);
     }
+
+    group.add(g);
+  }
+
+  /** The backdrop ring (Stage C item 5), built from
+   *  palace-grounds' BACKDROP data: beyond the plaza's 1.05 m
+   *  perimeter wall the world used to end in void. Now a ground
+   *  skirt runs out toward the sky dome, a moat strip glints
+   *  south and east, garden masses mound the middle distance, and
+   *  distant palace wings stand in the fog with a few lit windows
+   *  echoing the façade. Everything is silhouette, not detail:
+   *  MeshBasicMaterial masses (unlit — at 40–80 m through the
+   *  courtyard fog, shading is fog), FOG LEFT ON for every piece
+   *  (depth is the point — the fog does the modelling), emissive
+   *  windows only, never a real light. A handful of draws: three
+   *  wing boxes + instanced windows + instanced garden mounds +
+   *  skirt + moat. It lives on the look group like the exterior —
+   *  never in a room shell (the grounds are where it's seen from)
+   *  and never in the hall group. Nothing here is walkable ground
+   *  and nothing needs a blocked rect: it all stands outside
+   *  every walk rect, inside the 90 m dome (palace-grounds pins
+   *  both). */
+  private buildBackdropGrounds(group: THREE.Group, look: HallLook): void {
+    const g = new THREE.Group();
+    const night = look.theme === "dark";
+    const dummy = new THREE.Object3D();
+
+    /* The ground skirt: one great disc under everything beyond
+     * the grounds, coloured to fall away into the fog — near-black
+     * green at dusk, hazy warm green-cream by day. */
+    const skirt = new THREE.Mesh(
+      new THREE.CircleGeometry(BACKDROP.skirtR, 40),
+      new THREE.MeshBasicMaterial({ color: night ? 0x0a0f0a : 0x9aa578 }),
+    );
+    skirt.rotation.x = -Math.PI / 2;
+    skirt.position.set(BACKDROP.moatCenter.x, BACKDROP.skirtY, BACKDROP.moatCenter.z);
+    g.add(skirt);
+
+    /* The moat glint: a flat ring segment of the look's water,
+     * glossy enough to catch the sky env — a still strip, no
+     * animation (water life is item 28's, elsewhere). A standard
+     * material (it must shade + fog), three segments' worth of
+     * ring facing the plaza's open sides. */
+    const waterRep = repeatForSize(8, 8, 4);
+    const water = new THREE.Mesh(
+      new THREE.RingGeometry(BACKDROP.moatInnerR, BACKDROP.moatOuterR, 48, 1, Math.PI * 0.72, Math.PI * 0.95),
+      new THREE.MeshStandardMaterial({
+        map: hallTexture(look.waterTextureUrl, waterRep.x, waterRep.y),
+        color: night ? 0xbfd4de : 0xdfe9e4,
+        roughness: 0.12, metalness: 0.05, envMapIntensity: 1.3,
+      }),
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(BACKDROP.moatCenter.x, BACKDROP.moatY, BACKDROP.moatCenter.z);
+    g.add(water);
+
+    /* The distant wings: unlit stone masses. Their colour is a
+     * fog-veiled silhouette tone per look (dark masses at night,
+     * pale wings in haze by day) — the fog finishes the blend. */
+    const wingMat = new THREE.MeshBasicMaterial({ color: night ? 0x11131c : 0xd8cba6 });
+    for (const wing of BACKDROP_WINGS) {
+      const mass = new THREE.Mesh(new THREE.BoxGeometry(wing.w, wing.h, wing.d), wingMat);
+      mass.position.set(wing.cx, wing.cy, wing.cz);
+      g.add(mass);
+      // A low gold-vein roofline cap per wing — one thin box that
+      // catches the look's accent language at skyline scale.
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(wing.w + 0.8, 0.5, wing.d + 0.8),
+        new THREE.MeshBasicMaterial({ color: night ? 0x241a08 : 0xcbb37e }),
+      );
+      cap.position.set(wing.cx, wing.cy + wing.h / 2 + 0.25, wing.cz);
+      g.add(cap);
+    }
+    /* The wings' windows: ONE instanced draw of emissive planes
+     * on the wings' plaza-facing sides (south faces for the two
+     * northern wings, the north face for the southern pavilion),
+     * echoing the façade's lit windows at distance. */
+    const winStyle = backdropWindowStyle(look.theme);
+    const winPlaces: Array<{ x: number; y: number; z: number; rotY: number }> = [];
+    for (const wing of BACKDROP_WINGS) {
+      const south = wing.cz < BACKDROP.moatCenter.z;
+      for (const win of wing.windows) {
+        winPlaces.push({
+          x: wing.cx + win.dx,
+          y: win.dy,
+          z: wing.cz + (south ? wing.d / 2 + 0.06 : -wing.d / 2 - 0.06),
+          rotY: south ? 0 : Math.PI,
+        });
+      }
+    }
+    const winInst = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1.5, 2.1),
+      new THREE.MeshStandardMaterial({
+        color: winStyle.color, emissive: winStyle.emissive,
+        emissiveIntensity: winStyle.emissiveIntensity, roughness: 0.4, metalness: 0.1,
+      }),
+      winPlaces.length,
+    );
+    winPlaces.forEach((p, i) => {
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.rotation.set(0, p.rotY, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      winInst.setMatrixAt(i, dummy.matrix);
+    });
+    winInst.instanceMatrix.needsUpdate = true;
+    g.add(winInst);
+
+    /* Garden masses: instanced squashed spheres — hedges in the
+     * dark look's deep green, pale gold-green topiary by day. */
+    const gardenMat = new THREE.MeshBasicMaterial({ color: night ? 0x0d2013 : 0x7d9a52 });
+    const gardenInst = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(1, 12, 8), gardenMat, BACKDROP_GARDENS.length,
+    );
+    BACKDROP_GARDENS.forEach((m, i) => {
+      dummy.position.set(m.x, 0, m.z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(m.r, m.h, m.r);
+      dummy.updateMatrix();
+      gardenInst.setMatrixAt(i, dummy.matrix);
+    });
+    gardenInst.instanceMatrix.needsUpdate = true;
+    g.add(gardenInst);
 
     group.add(g);
   }
@@ -2706,6 +2854,11 @@ export class KingsHallScene {
     g: THREE.Group, look: HallLook, mats: LookMaterials,
     rect: { minX: number; maxX: number; minZ: number; maxZ: number },
     kind: PbrKind,
+    /* Stage C item 6: an alternate wearing surface for OUTDOOR
+     * floors — the courtyard passes the look's paving (its own
+     * texture + tile size). Indoor shells omit it and keep the
+     * marble exactly as before. */
+    surface?: { url: string; metresPerTile: number },
   ): void {
     const w = rect.maxX - rect.minX;
     const d = rect.maxZ - rect.minZ;
@@ -2715,9 +2868,10 @@ export class KingsHallScene {
      * tiles, so every rect snapped to a different texel density.
      * Derived PBR maps ride along (item 9); roughness is encoded
      * in the kind's map, so the scalar is 1. */
-    const rep = repeatForSize(w, d, MARBLE_METRES_PER_TILE);
-    const map = hallTexture(look.marbleTextureUrl, rep.x, rep.y);
-    const pbr = derivedPbrTextures(look.marbleTextureUrl, kind, rep.x, rep.y);
+    const texUrl = surface?.url ?? look.marbleTextureUrl;
+    const rep = repeatForSize(w, d, surface?.metresPerTile ?? MARBLE_METRES_PER_TILE);
+    const map = hallTexture(texUrl, rep.x, rep.y);
+    const pbr = derivedPbrTextures(texUrl, kind, rep.x, rep.y);
     for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(w, d),
@@ -3206,15 +3360,43 @@ export class KingsHallScene {
      * owns its own floor south-east (interior x 2.6..16.4,
      * z 26.4..38) — one rect over both would z-fight it. Tile
      * instead: the main grounds, then the promenade, abutting at
-     * z 26 with no overlap. Same rough outdoor finish as before. */
-    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, "marble-rough");
-    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, "marble-rough");
+     * z 26 with no overlap. The finish is the item-6 paving now. */
+    /* Outdoor ground system (Stage C item 6): the broad plaza
+     * floor is real PAVING now — the look's setts with derived
+     * joint relief — not the hall's interior marble dragged
+     * outdoors. The three rects keep their footprints; the marble
+     * survives as the accent language it is indoors (the central
+     * path, the arch spur, the monument ring below). */
+    const pavingSurface = { url: look.pavingTextureUrl, metresPerTile: PAVING_METRES_PER_TILE };
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 28.2, minZ: 12.4, maxZ: 26.0 }, "paving", pavingSurface);
+    this.shellFloor(g, look, mats, { minX: -28.2, maxX: 2.6, minZ: 26.0, maxZ: 34.0 }, "paving", pavingSurface);
     /* The south-east patch (overhaul stage 3): east of the Creator
      * Room's floor and south of the main grounds, the shipped plan
      * laid NO floor at all — background void showed under the east
      * lawn's edge. This rect abuts the creator floor (x 16.4) and
      * the main grounds (z 26) without overlapping either. */
-    this.shellFloor(g, look, mats, { minX: 16.4, maxX: 28.2, minZ: 26.0, maxZ: 34.0 }, "marble-rough");
+    this.shellFloor(g, look, mats, { minX: 16.4, maxX: 28.2, minZ: 26.0, maxZ: 34.0 }, "paving", pavingSurface);
+    /* The wearing course: whole-tile paving slabs (palace-grounds'
+     * PAVING_SLABS — every slab exactly one texture tile, so the
+     * sett joints stay even and integral per the art manifest),
+     * instanced in ONE draw a hair above the underlay rects. The
+     * underlay catches the margins no whole tile fits. */
+    {
+      const slabInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(4, 0.03, 4), mats.pavingFor(4, 4), PAVING_SLABS.length,
+      );
+      const dummy = new THREE.Object3D();
+      PAVING_SLABS.forEach((s, i) => {
+        dummy.position.set(s.cx, 0.015, s.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        slabInst.setMatrixAt(i, dummy.matrix);
+      });
+      slabInst.instanceMatrix.needsUpdate = true;
+      slabInst.receiveShadow = QUALITY[this.quality].shadows;
+      g.add(slabInst);
+    }
 
     // Low marble walls with a gold cap on the open sides (the
     // fourth side is the hall's own back wall + the arch through
@@ -3285,19 +3467,83 @@ export class KingsHallScene {
     };
     PLAZA_COLUMNS.forEach((c, i) => column(c.x, c.z, i));
 
-    /* Lawn panels on the east and west grounds — flat green fields
-     * flanking the marble heart of the plaza (the centre,
-     * |x| ≤ 6.5, stays marble). The green follows the look the way
-     * the braziers follow look.candles: deep in the midnight look
-     * (candles lit), a rich grass green in the golden-hour look. */
-    const lawnMat = new THREE.MeshStandardMaterial({
-      color: look.candles ? 0x1f4d26 : 0x478f36, roughness: 1, metalness: 0,
-    });
-    for (const sx of [-1, 1] as const) {
-      const lawn = new THREE.Mesh(new THREE.BoxGeometry(20.5, 0.05, 11.0), lawnMat);
-      lawn.position.set(sx * 16.75, 0.025, 19.2);
-      lawn.receiveShadow = QUALITY[this.quality].shadows;
-      g.add(lawn);
+    /* Lawns & planting (Stage C item 8): the two flat plastic
+     * slabs are real lawns now. Each panel keeps EXACTLY its
+     * shipped footprint (20.5 × 11.0 at (±16.75, 19.2)) and its
+     * walk semantics (grass was stroll-across ground and stays
+     * so — nothing here is blocked), but it is built as a garden:
+     * a shallow ashlar bed, textured grass at per-metre repeats
+     * in the look's lawn (deep dusk green / bright day green),
+     * stone edging on the rim, a gold parterre medallion at its
+     * heart, and low planting masses in the planter-crown
+     * language (item-18 variation, instanced). */
+    {
+      const shadows = QUALITY[this.quality].shadows;
+      const dummy = new THREE.Object3D();
+      const grassW = LAWN_PANELS[0]!.w - LAWN_BED.inset * 2;
+      const grassD = LAWN_PANELS[0]!.d - LAWN_BED.inset * 2;
+      /* Edging: one instanced draw for all eight rim runs. */
+      const edging = LAWN_PANELS.flatMap((p) => lawnEdgingRuns(p));
+      const edgeInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(2, 0.3), edging.length,
+      );
+      edging.forEach((b, i) => {
+        dummy.position.set(b.cx, b.cy, b.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.updateMatrix();
+        edgeInst.setMatrixAt(i, dummy.matrix);
+      });
+      edgeInst.instanceMatrix.needsUpdate = true;
+      edgeInst.castShadow = shadows;
+      g.add(edgeInst);
+      /* Planting crowns: one instanced draw for both lawns'
+       * parterres, jitter + tint per crown from prop-variation. */
+      const spots = LAWN_PANELS.flatMap((p, pi) =>
+        lawnPlantingSpots(p).map((s, si) => ({ ...s, index: pi * 100 + si })),
+      );
+      const crownInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.44, 1),
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+        spots.length,
+      );
+      const crownColor = new THREE.Color(0x2e5d33);
+      spots.forEach((s, i) => {
+        const cv = propVariation("crown", s.index);
+        dummy.position.set(s.x, LAWN_PANELS[0]!.topY + 0.18, s.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale * 1.25, cv.scale * cv.scaleY * 0.72, cv.scale * 1.25);
+        dummy.updateMatrix();
+        crownInst.setMatrixAt(i, dummy.matrix);
+        crownInst.setColorAt(i, crownColor.clone().offsetHSL(cv.hueShift, 0, cv.lightnessShift));
+      });
+      crownInst.instanceMatrix.needsUpdate = true;
+      if (crownInst.instanceColor) crownInst.instanceColor.needsUpdate = true;
+      crownInst.castShadow = shadows;
+      g.add(crownInst);
+      for (const panel of LAWN_PANELS) {
+        const bed = new THREE.Mesh(
+          new THREE.BoxGeometry(panel.w, LAWN_BED.rimH, panel.d),
+          mats.stoneFor(panel.w, LAWN_BED.rimH),
+        );
+        bed.position.set(panel.cx, LAWN_BED.rimH / 2, panel.cz);
+        bed.receiveShadow = shadows;
+        g.add(bed);
+        const grass = new THREE.Mesh(
+          new THREE.BoxGeometry(grassW, 0.04, grassD), mats.lawnFor(grassW, grassD),
+        );
+        grass.position.set(panel.cx, panel.topY - 0.02, panel.cz);
+        grass.receiveShadow = shadows;
+        g.add(grass);
+        const medallion = new THREE.Mesh(
+          new THREE.RingGeometry(PARTERRE_MEDALLION.innerR, PARTERRE_MEDALLION.outerR, 40),
+          mats.goldDark,
+        );
+        medallion.rotation.x = -Math.PI / 2;
+        medallion.position.set(panel.cx, panel.topY + 0.006, panel.cz);
+        medallion.renderOrder = 3;
+        g.add(medallion);
+      }
     }
 
     /* The marble path: from the hall arch (0, 12.4) south through
@@ -3344,81 +3590,235 @@ export class KingsHallScene {
     }
 
     /* ── The Kingdom Board monument (0, 19.7), plaza centre ──────
-     * A stepped marble plinth, a gold-trimmed stele ~3.2 m tall,
-     * gold finials at the plinth corners, and a gold ring inlay in
-     * the ground around it. The stele's plate drum — a square
-     * marble housing at reading height — wears the board's
-     * lettered plate on ALL FOUR faces (item 16): the words are
-     * the board's real headlines (monument-board.ts), the same
-     * canvas whichever way a walker approaches, repainted through
-     * setMonumentBoardData when the board's reads change. The
-     * live board itself still opens in the station panel at the
-     * board station (its marker stands on the open plaza just
-     * south of the plinth, built by buildStationMarkers like
-     * every station). No mirror, no lights of its own. */
+     * GROWN (Stage C item 17), built from palace-grounds'
+     * MONUMENT plan: a three-tier stepped plinth (the tiers are
+     * item 38's massing steps up the plinth) in gold-vein marble,
+     * a taller BEVELLED stele wearing gold relief bands and a
+     * relief panel, urn finials on pedestals at the plinth
+     * corners in place of the old 0.09 m spheres, a real crown —
+     * fluted cap, orb and spike — where the flat cone sat, and a
+     * wider gold ring inlay in the ground around it. The stele's
+     * plate drum is UNCHANGED — same 1.74 m housing at the same
+     * centre height, same four faces at the same size — so item
+     * 16's lettered plate (the board's real headlines,
+     * monument-board.ts, repainted through setMonumentBoardData)
+     * renders exactly as it did. The live board itself still
+     * opens in the station panel at the board station (its marker
+     * stands on the open plaza just south of the plinth, built by
+     * buildStationMarkers like every station). No mirror, no
+     * lights of its own. The grown plinth's blocked rect grew in
+     * the same batch (palace-layout's MONUMENT_BLOCKED). */
     {
+      const M = MONUMENT;
       const monument = new THREE.Group();
-      monument.position.set(0, 0, 19.7);
-      const tier1 = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.22, 3.4), mats.marble);
-      tier1.position.y = 0.11;
-      tier1.castShadow = QUALITY[this.quality].shadows;
-      monument.add(tier1);
-      const tierTrim = new THREE.Mesh(new THREE.BoxGeometry(3.55, 0.05, 3.55), mats.goldDark);
-      tierTrim.position.y = 0.245;
-      monument.add(tierTrim);
-      const tier2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.22, 2.5), mats.marble);
-      tier2.position.y = 0.38;
-      monument.add(tier2);
-      const stele = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.2, 0.42), mats.marble);
-      stele.position.y = 0.49 + 1.6;
-      stele.castShadow = QUALITY[this.quality].shadows;
+      monument.position.set(M.cx, 0, M.cz);
+      const shadows = QUALITY[this.quality].shadows;
+      const tier = (size: number, h: number, topY: number) => {
+        const t = new THREE.Mesh(new THREE.BoxGeometry(size, h, size), mats.facadeMarbleFor(size, h));
+        t.position.y = topY - h / 2;
+        t.castShadow = shadows;
+        t.receiveShadow = shadows;
+        monument.add(t);
+      };
+      const trim = (size: number, h: number, y: number, mat: THREE.Material) => {
+        const t = new THREE.Mesh(new THREE.BoxGeometry(size, h, size), mat);
+        t.position.y = y;
+        monument.add(t);
+      };
+      tier(M.tier1.size, M.tier1.h, M.tier1.topY);
+      trim(M.tier1Trim.size, M.tier1Trim.h, M.tier1.topY + M.tier1Trim.h / 2, mats.goldDark);
+      tier(M.tier2.size, M.tier2.h, M.tier2.topY);
+      trim(M.tier2Trim.size, M.tier2Trim.h, M.tier2.topY + M.tier2Trim.h / 2, mats.gold);
+      tier(M.tier3.size, M.tier3.h, M.tier3.topY);
+      /* The bevelled stele: a four-sided frustum (cylinder with
+       * 4 radial segments, turned to the square) — wider at its
+       * foot, narrower at the crown, in gold-vein marble. */
+      const steleH = M.stele.topY - M.stele.baseY;
+      const stele = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          (M.stele.topW / 2) * Math.SQRT2, (M.stele.baseW / 2) * Math.SQRT2,
+          steleH, 4, 1,
+        ),
+        mats.facadeMarbleFor(M.stele.baseW, steleH),
+      );
+      stele.rotation.y = Math.PI / 4;
+      stele.scale.z = M.stele.baseD / M.stele.baseW;
+      stele.position.y = M.stele.baseY + steleH / 2;
+      stele.castShadow = shadows;
       monument.add(stele);
-      for (const trimY of [0.56, 3.62]) {
-        const trim = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.09, 0.5), mats.gold);
-        trim.position.y = trimY;
-        monument.add(trim);
+      /* Relief banding: gold bands proud of the stele's front and
+       * back faces at the plan's heights — widths following the
+       * frustum's taper at those heights. */
+      for (const bandY of M.reliefBandYs) {
+        const t = (bandY - M.stele.baseY) / steleH;
+        const wAt = M.stele.baseW + (M.stele.topW - M.stele.baseW) * t;
+        const dAt = M.stele.baseD + (M.stele.topD - M.stele.baseD) * t;
+        for (const sz of [-1, 1] as const) {
+          const band = new THREE.Mesh(new THREE.BoxGeometry(wAt + 0.1, 0.11, 0.05), mats.gold);
+          band.position.set(0, bandY, sz * (dAt / 2 + 0.012));
+          monument.add(band);
+        }
       }
-      const crownCap = new THREE.Mesh(new THREE.ConeGeometry(1.05, 0.5, 4), mats.gold);
-      crownCap.rotation.y = Math.PI / 4;
-      crownCap.position.y = 3.94;
-      monument.add(crownCap);
+      /* The relief panel: a gold relief in a dark-gold frame on
+       * the stele's south face, below the plate drum. */
+      {
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.045), mats.goldDark);
+        panel.position.set(0, 1.42, M.stele.baseD / 2 + 0.03);
+        monument.add(panel);
+        const relief = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.44, 0.03), mats.gold);
+        relief.position.set(0, 1.42, M.stele.baseD / 2 + 0.055);
+        monument.add(relief);
+      }
       /* The plate drum: a square housing around the stele at
        * reading height, so the plate has four equal faces to
-       * live on (the stele's own section, 1.6 × 0.42, could only
-       * ever letter two). One shared texture — the board reads
-       * the same from every approach — re-mapped in place by
+       * live on (the stele's own section could only ever letter
+       * two). One shared texture — the board reads the same from
+       * every approach — re-mapped in place by
        * setMonumentBoardData when the words change. */
-      const drum = new THREE.Mesh(new THREE.BoxGeometry(1.74, 2.1, 1.74), mats.marble);
-      drum.position.y = 2.09;
-      drum.castShadow = QUALITY[this.quality].shadows;
+      const drum = new THREE.Mesh(
+        new THREE.BoxGeometry(M.drum.size, M.drum.h, M.drum.size), mats.facadeMarbleFor(M.drum.size, M.drum.h),
+      );
+      drum.position.y = M.drum.centerY;
+      drum.castShadow = shadows;
       monument.add(drum);
       const plateTex = kingdomBoardPlateTexture(look.theme);
       for (const [fx, fz, rotY] of [
-        [0, 0.88, 0],
-        [0, -0.88, Math.PI],
-        [0.88, 0, Math.PI / 2],
-        [-0.88, 0, -Math.PI / 2],
+        [0, M.drum.faceOffset, 0],
+        [0, -M.drum.faceOffset, Math.PI],
+        [M.drum.faceOffset, 0, Math.PI / 2],
+        [-M.drum.faceOffset, 0, -Math.PI / 2],
       ] as Array<[number, number, number]>) {
         const faceMat = new THREE.MeshBasicMaterial({ map: plateTex, toneMapped: false });
-        const face = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.96), faceMat);
-        face.position.set(fx, 2.09, fz);
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(M.drum.faceW, M.drum.faceH), faceMat);
+        face.position.set(fx, M.drum.centerY, fz);
         face.rotation.y = rotY;
         monument.add(face);
         this.monumentFaceMats.push(faceMat);
       }
-      for (const fx of [-1.5, 1.5]) {
-        for (const fz of [-1.5, 1.5]) {
-          const finial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), mats.gold);
-          finial.position.set(fx, 0.31, fz);
-          monument.add(finial);
+      /* The crown: a fluted gold cap (12-segment cone, wider and
+       * taller than the old flat 4-sided cone), an orb on its
+       * neck, and a spike — a finial with presence at plaza
+       * scale. */
+      const crownCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.3, M.crown.capR, M.crown.capTopY - M.crown.capBaseY, 12),
+        mats.gold,
+      );
+      crownCap.position.y = (M.crown.capBaseY + M.crown.capTopY) / 2;
+      crownCap.castShadow = shadows;
+      monument.add(crownCap);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(M.crown.orbR, 14, 12), mats.gold);
+      orb.position.y = M.crown.orbY;
+      monument.add(orb);
+      const spike = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.055, M.crown.spikeTopY - M.crown.orbY, 8), mats.gold,
+      );
+      spike.position.y = (M.crown.orbY + M.crown.spikeTopY) / 2;
+      monument.add(spike);
+      /* Urn finials on the plinth corners, replacing the 0.09 m
+       * spheres: a marble pedestal on tier 2's surface at each
+       * corner, a gold urn (foot, belly, lip) and a small gold
+       * ball crown. */
+      for (const fx of [-M.urns.at, M.urns.at]) {
+        for (const fz of [-M.urns.at, M.urns.at]) {
+          const pedestal = new THREE.Mesh(
+            new THREE.BoxGeometry(0.34, M.urns.pedestalH, 0.34), mats.facadeMarbleFor(0.34, M.urns.pedestalH),
+          );
+          pedestal.position.set(fx, M.tier2.topY + M.urns.pedestalH / 2, fz);
+          monument.add(pedestal);
+          const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.07, 10), mats.gold);
+          foot.position.set(fx, M.urns.urnBaseY + 0.035, fz);
+          monument.add(foot);
+          const belly = new THREE.Mesh(new THREE.SphereGeometry(M.urns.urnR, 12, 10), mats.gold);
+          belly.scale.y = 1.25;
+          belly.position.set(fx, M.urns.urnBaseY + 0.07 + M.urns.urnR * 1.1, fz);
+          monument.add(belly);
+          const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.1, 0.07, 10), mats.gold);
+          lip.position.set(fx, M.urns.urnTopY - 0.1, fz);
+          monument.add(lip);
+          const ball = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), mats.gold);
+          ball.position.set(fx, M.urns.urnTopY, fz);
+          monument.add(ball);
         }
       }
-      const ring = new THREE.Mesh(new THREE.RingGeometry(2.55, 2.65, 56), mats.goldDark);
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(M.ring.innerR, M.ring.outerR, 56), mats.goldDark,
+      );
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.016;
       ring.renderOrder = 3;
       monument.add(ring);
       g.add(monument);
+    }
+
+    /* Elevation (Stage C item 38): ceremonial steps flanking the
+     * hall-arch approach and stepped terraces massing the
+     * grounds' east/west edges — visual elevation AROUND the walk
+     * paths. The movement plane stays flat (no Y in
+     * resolvePalaceMove; climbable steps are parked, not faked):
+     * the path itself stays clear, and every mass stands behind
+     * an honest blocked rect derived from this same data in
+     * palace-layout (HALL_STEPS_BLOCKED / TERRACE_BLOCKED). */
+    {
+      const shadows = QUALITY[this.quality].shadows;
+      const dummy = new THREE.Object3D();
+      const steps = hallStepRuns();
+      const stepInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(3.5, 0.4), steps.length,
+      );
+      steps.forEach((b, i) => {
+        dummy.position.set(b.cx, b.cy, b.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.updateMatrix();
+        stepInst.setMatrixAt(i, dummy.matrix);
+      });
+      stepInst.instanceMatrix.needsUpdate = true;
+      stepInst.castShadow = shadows;
+      stepInst.receiveShadow = shadows;
+      g.add(stepInst);
+      /* Gold nosing on the hall platforms' front edges. */
+      for (const sx of [-1, 1] as const) {
+        const nosing = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.05, 0.06), mats.gold);
+        nosing.position.set(sx * 3.85, 0.36, 15.19);
+        g.add(nosing);
+      }
+      const terraces = terraceRuns();
+      const terraceInst = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1), mats.stoneFor(3.2, 0.6), terraces.length,
+      );
+      terraces.forEach((b, i) => {
+        dummy.position.set(b.cx, b.cy, b.cz);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.updateMatrix();
+        terraceInst.setMatrixAt(i, dummy.matrix);
+      });
+      terraceInst.instanceMatrix.needsUpdate = true;
+      terraceInst.castShadow = shadows;
+      terraceInst.receiveShadow = shadows;
+      g.add(terraceInst);
+      /* Planting on the terraces' top steps: crown masses in the
+       * planter language, one instanced draw, on blocked ground. */
+      const terraceCrowns: Array<{ x: number; z: number }> = [];
+      for (const sx of [-1, 1] as const) {
+        for (const cz of [14.1, 15.0, 15.9]) terraceCrowns.push({ x: sx * 27.06, z: cz });
+      }
+      const tcInst = new THREE.InstancedMesh(
+        new THREE.IcosahedronGeometry(0.44, 1),
+        new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0, flatShading: true }),
+        terraceCrowns.length,
+      );
+      terraceCrowns.forEach((s, i) => {
+        const cv = propVariation("crown", 500 + i);
+        dummy.position.set(s.x, 1.12, s.z);
+        dummy.rotation.set(0, cv.rotY, 0);
+        dummy.scale.set(cv.scale * 1.3, cv.scale * cv.scaleY * 0.8, cv.scale * 1.3);
+        dummy.updateMatrix();
+        tcInst.setMatrixAt(i, dummy.matrix);
+      });
+      tcInst.instanceMatrix.needsUpdate = true;
+      tcInst.castShadow = shadows;
+      g.add(tcInst);
     }
 
     // Planters along the side walls and down the promenade: marble

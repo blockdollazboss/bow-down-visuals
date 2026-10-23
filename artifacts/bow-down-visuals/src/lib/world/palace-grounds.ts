@@ -25,8 +25,10 @@
  *      before) — it grows AROUND that heart: a wider stepped
  *      plinth, a taller bevelled stele, relief banding, and a real
  *      crown-and-orb finial in place of the 0.09 m spheres.
- *   3. The backdrop ring (item 5) lives beyond the perimeter wall
- *      and INSIDE the 90 m sky dome, built from fog-accepting
+ *   3. The backdrop ring (item 5) lives beyond the perimeter wall,
+ *      inside the camera's far plane from every plaza viewpoint
+ *      (and inside the 90 m sky dome from the plaza's heart),
+ *      built from fog-accepting
  *      materials on purpose: the per-area courtyard fog is what
  *      gives it depth. Silhouettes, not detail — unlit masses, a
  *      handful of draws, emissive windows only (never a light).
@@ -62,8 +64,9 @@ const rectOf = (b: GroundsBox): PalaceRect => ({
  * a rect spans whole tiles). The shipped rects are NOT whole
  * tiles at 4 m/tile (56.4 m wide = 14.1 tiles), so the paving is
  * laid as a grid of whole-tile slabs — 4 m × 4 m each — with the
- * uncovered margins (≤0.4 m at the edges) left to the rects' own
- * underlay. The marble language survives as the accent it always
+ * uncovered margins left to the rects' own underlay (the same
+ * paving texture at a fractional repeat: the setts continue, only
+ * the wearing slabs are guaranteed whole tiles). The marble language survives as the accent it always
  * was indoors: the central path, the arch spur, the gold trim. */
 
 /** Paving slab size: exactly one texture tile (4 m at
@@ -211,8 +214,11 @@ export const MONUMENT = {
   drum: { size: 1.74, h: 2.1, centerY: 2.09, faceOffset: 0.88, faceW: 1.4, faceH: 1.96 },
   /** The crown: cap, orb, spike. */
   crown: { capBaseY: 4.06, capTopY: 4.62, capR: 1.18, orbY: 4.86, orbR: 0.21, spikeTopY: 5.42 },
-  /** Urn finials on the plinth's corners (replacing the spheres). */
-  urns: { at: 1.92, pedestalH: 0.3, urnBaseY: 0.54, urnTopY: 1.06, urnR: 0.19 },
+  /** Urn finials on the plinth's corners (replacing the spheres):
+   *  pedestals stand on tier 2's surface (half-width 1.75), so the
+   *  corner line is ±1.55 and the urn base sits at tier2Top +
+   *  pedestalH. */
+  urns: { at: 1.55, pedestalH: 0.3, urnBaseY: 0.78, urnTopY: 1.38, urnR: 0.19 },
   /** The ground ring inlay around the plinth. */
   ring: { innerR: 3.0, outerR: 3.12 },
 } as const;
@@ -378,23 +384,23 @@ export interface BackdropWing {
 
 export const BACKDROP_WINGS: readonly BackdropWing[] = [
   {
-    cx: -52, cy: 5, cz: -34, w: 34, h: 10, d: 10,
+    cx: -44, cy: 5, cz: -26, w: 30, h: 10, d: 9,
     windows: [
-      { dx: -12, dy: 6.5 }, { dx: -4, dy: 6.5 }, { dx: 5, dy: 6.5 }, { dx: 12, dy: 6.5 },
-      { dx: -8, dy: 3 }, { dx: 1, dy: 3 }, { dx: 10, dy: 3 },
+      { dx: -11, dy: 6.5 }, { dx: -4, dy: 6.5 }, { dx: 4, dy: 6.5 }, { dx: 11, dy: 6.5 },
+      { dx: -7, dy: 3 }, { dx: 1, dy: 3 }, { dx: 9, dy: 3 },
     ],
   },
   {
-    cx: 54, cy: 6, cz: -30, w: 38, h: 12, d: 11,
+    cx: 46, cy: 6, cz: -24, w: 32, h: 12, d: 10,
     windows: [
-      { dx: -14, dy: 7.5 }, { dx: -5, dy: 7.5 }, { dx: 4, dy: 7.5 }, { dx: 13, dy: 7.5 },
-      { dx: -9, dy: 3.5 }, { dx: 0, dy: 3.5 }, { dx: 9, dy: 3.5 },
+      { dx: -12, dy: 7.5 }, { dx: -4, dy: 7.5 }, { dx: 4, dy: 7.5 }, { dx: 12, dy: 7.5 },
+      { dx: -8, dy: 3.5 }, { dx: 0, dy: 3.5 }, { dx: 8, dy: 3.5 },
     ],
   },
   /* A far garden pavilion south-east, low and wide — the skyline
    * behind the Boardwalk gate. */
   {
-    cx: 46, cy: 3, cz: 52, w: 26, h: 6, d: 9,
+    cx: 40, cy: 3, cz: 46, w: 24, h: 6, d: 8,
     windows: [{ dx: -7, dy: 3.4 }, { dx: 0, dy: 3.4 }, { dx: 7, dy: 3.4 }],
   },
 ];
