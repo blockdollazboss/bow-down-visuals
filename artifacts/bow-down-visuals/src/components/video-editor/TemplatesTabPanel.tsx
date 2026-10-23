@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { VIDEO_TEMPLATE_APPLY_COST } from "@/data/video-templates";
 import SplitScreenPanel from "./SplitScreenPanel";
 
 /* ─── Video edit templates tab ───
@@ -107,7 +108,13 @@ export default function TemplatesTabPanel({
   const [, navigate] = useLocation();
 
   const [catalog, setCatalog] = useState<CatalogTemplate[] | null>(null);
-  const [price, setPrice] = useState(250);
+  /* Stack-28 item 17: initialised from the registry-derived gallery
+     constant, not a second 250 literal — the server catalog load
+     below still overwrites it with the rail's own price before the
+     apply CTA is reachable. 0 only if the registry entry ever
+     vanished (the gallery hides its chip in that case; here the
+     server price lands on the same load that enables the CTA). */
+  const [price, setPrice] = useState<number>(VIDEO_TEMPLATE_APPLY_COST ?? 0);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("browse");
   const [selected, setSelected] = useState<CatalogTemplate | null>(null);

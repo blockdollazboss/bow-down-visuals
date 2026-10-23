@@ -61,6 +61,16 @@ describe("video template gallery price == rail charge", () => {
     expect(page).not.toMatch(/\b250\b/);
   });
 
+  it("the editor panel initialises its price from the same registry-derived constant (Stack-28 item 17)", () => {
+    const panel = readSrc("components/video-editor/TemplatesTabPanel.tsx");
+    expect(panel).toContain("VIDEO_TEMPLATE_APPLY_COST");
+    expect(panel).toContain("useState<number>(VIDEO_TEMPLATE_APPLY_COST ?? 0)");
+    expect(panel).not.toContain("useState(250)");
+    // The server catalog still overwrites the initial value with the
+    // rail's own price before the apply CTA is reachable.
+    expect(panel).toContain("if (typeof data.price === \"number\") setPrice(data.price);");
+  });
+
   it("applyPrice exists in all 10 catalogs with the count + brand intact", () => {
     const catalogs = ["en", "ar", "de", "es", "fr", "hi", "it", "ja", "ko", "pt"] as const;
     for (const lang of catalogs) {
