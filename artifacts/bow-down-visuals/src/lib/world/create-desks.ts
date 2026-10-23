@@ -707,7 +707,10 @@ export function schedulePrefillForMedia(
   return { mediaUrl, mediaType, caption };
 }
 
-/** cover-art.tsx's result "Distribute" rail. */
+/** cover-art.tsx's result "Distribute" rail — the 2D page's own
+ *  handoff URL. The in-world Cover Desk's "Release it" chip no
+ *  longer rides it (Stack-100 #55: the chip opens the in-world
+ *  Release Desk prefilled instead); this stays for the 2D shape. */
 export function distributeHrefForCover(coverUrl: string, title: string): string {
   return `/distribute?cover=${encodeURIComponent(coverUrl)}&title=${encodeURIComponent(title)}`;
 }

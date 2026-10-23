@@ -68,7 +68,6 @@ import {
   aiEditPlanOfResponse,
   coverArtCost,
   coverInMotionCost,
-  distributeHrefForCover,
   interpretTaskPoll,
   musicAudioCost,
   profileIdOfProfilesResponse,
@@ -1549,7 +1548,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                releaseHref={distributeHrefForCover(coverUrl, songTitle)}
+                releasePrefill={{ coverUrl, title: songTitle }}
                 schedulePrefill={motionUrl ? schedulePrefillForMedia(motionUrl, "video", "My cover visualizer — made with Bow Down Visuals") : undefined}
                 onMakeAnother={() => {
                   setState("idle");

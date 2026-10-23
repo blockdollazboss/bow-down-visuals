@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { BadgeCheck, ChevronDown, Disc3, ListMusic, Music, PenLine, Rocket, Scissors, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { jukeboxChipStateOf, jukeboxTrackIdOf } from "@/lib/world/create-desks";
+import type { ReleasePrefill } from "@/lib/world/release-desk";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
+import { ReleaseDeskStandalone } from "./ReleaseDesk";
 import { SchedulerComposeStandalone } from "./SchedulerDesk";
 
 /* ─── Shared bits for the Create Wing desks (NATIVE-PLAN §3.6) ──────
@@ -159,9 +161,11 @@ export interface ResultChipsProps {
    *  here, prefilled — the post completes in-world, never a
    *  target=_blank exit to the 2D scheduler. */
   schedulePrefill?: SchedulerPrefill;
-  /** The distribute handoff stays a user-clicked door for now
-   *  (its in-world desk is a different board item). */
-  releaseHref?: string;
+  /** The finished asset handed to the IN-WORLD release desk
+   *  (Stack-100 #55): the chip opens the distribution wizard right
+   *  here, prefilled with the cover — the release completes
+   *  in-world, never a target=_blank exit to /distribute. */
+  releasePrefill?: ReleasePrefill;
   onSaveDraft?: () => void;
   draftSaved?: boolean;
   onMakeAnother: () => void;
@@ -170,6 +174,7 @@ export interface ResultChipsProps {
 export function ResultChips(props: ResultChipsProps) {
   const { isLight } = props;
   const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [releaseOpen, setReleaseOpen] = useState(false);
   const chipCls = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
@@ -253,16 +258,16 @@ export function ResultChips(props: ResultChipsProps) {
           <Rocket className="h-3.5 w-3.5" /> Schedule it
         </button>
       ) : null}
-      {props.releaseHref ? (
-        <a
+      {props.releasePrefill ? (
+        <button
+          type="button"
           data-testid="world-create-chip-release"
-          href={props.releaseHref}
-          target="_blank"
-          rel="noreferrer"
+          aria-expanded={releaseOpen}
+          onClick={() => setReleaseOpen((v) => !v)}
           className={chipCls}
         >
           <Disc3 className="h-3.5 w-3.5" /> Release it
-        </a>
+        </button>
       ) : null}
       {props.onSaveDraft ? (
         <button
@@ -286,6 +291,11 @@ export function ResultChips(props: ResultChipsProps) {
       {schedulerOpen && props.schedulePrefill ? (
         <div className="w-full">
           <SchedulerComposeStandalone isLight={isLight} prefill={props.schedulePrefill} />
+        </div>
+      ) : null}
+      {releaseOpen && props.releasePrefill ? (
+        <div className="w-full">
+          <ReleaseDeskStandalone isLight={isLight} prefill={props.releasePrefill} />
         </div>
       ) : null}
     </div>
