@@ -130,3 +130,68 @@ describe("#27 artist-setup: failed load ≠ brand-new creator (A3-F5)", () => {
     expect(page).toContain("}, [retryNonce]);");
   });
 });
+
+describe("#28 social-api: shared fetch timeout (A3-F6)", () => {
+  it("signalWithTimeout aborts a stalled request after the timeout", async () => {
+    const { signalWithTimeout } = await import("./social-api");
+    const { signal } = signalWithTimeout(undefined, 25);
+    expect(signal!.aborted).toBe(false);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(signal!.aborted).toBe(true);
+  });
+  it("opt-out (null / 0) never installs a timeout — long legitimate calls are documented to use it", async () => {
+    const { signalWithTimeout } = await import("./social-api");
+    for (const opt of [null, 0] as const) {
+      const { signal, cancel } = signalWithTimeout(undefined, opt);
+      expect(signal).toBeUndefined();
+      cancel();
+    }
+    const page = src("../lib/social-api.ts");
+    expect(page).toContain("timeoutMs: null");
+    expect(page).toContain("API_FETCH_TIMEOUT_MS = 15_000");
+  });
+  it("a caller signal still aborts through the merged signal", async () => {
+    const { signalWithTimeout } = await import("./social-api");
+    const caller = new AbortController();
+    const { signal, cancel } = signalWithTimeout(caller.signal, 60_000);
+    caller.abort();
+    expect(signal!.aborted).toBe(true);
+    cancel();
+  });
+  it("cancel() disarms the timer — a settled request is not aborted after the fact", async () => {
+    const { signalWithTimeout } = await import("./social-api");
+    const { signal, cancel } = signalWithTimeout(undefined, 25);
+    cancel();
+    await new Promise((r) => setTimeout(r, 60));
+    expect(signal!.aborted).toBe(false);
+  });
+  it("apiFetch times out a fetch that only settles on abort (the stalled-connection case)", async () => {
+    const { apiFetch } = await import("./social-api");
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = ((_input: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as typeof fetch;
+    try {
+      await expect(
+        apiFetch(async () => null, "/api/stalled", undefined, { timeoutMs: 25 }),
+      ).rejects.toThrow("aborted");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+  it("apiFetch with the documented opt-out lets a slow-but-live call complete", async () => {
+    const { apiFetch } = await import("./social-api");
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      await new Promise((r) => setTimeout(r, 40));
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    try {
+      const res = await apiFetch(async () => null, "/api/slow", undefined, { timeoutMs: null });
+      expect(res.status).toBe(200);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
