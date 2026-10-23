@@ -329,7 +329,16 @@ describe("Stage B cluster 4 — plaza collision, enclosure, arch, camera (items 
       expect(east[i]!.z - east[i]!.d / 2).toBeLessThanOrEqual(east[i - 1]!.z + east[i - 1]!.d / 2 + 1e-9);
     }
     const south = PLAZA_WALL_RUNS.filter((r) => r.z === 34.0 && r.d === 0.35);
-    expect(south.some((r) => r.x - r.w / 2 <= -28.2 + 1e-9 && r.x + r.w / 2 >= -1.1 - 1e-9)).toBe(true);
+    /* DELIBERATELY moved in item 32: no single run spans
+     * −28.2..−1.1 any more — the Listening Gardens gate gap
+     * (x −27.1..−24.9, a true passage) pierces that stretch.
+     * The wall now covers it as two runs flanking the gap, and
+     * the gap is exactly the gate's 2.2 m. */
+    expect(south.some((r) => r.x - r.w / 2 <= -28.2 + 1e-9 && r.x + r.w / 2 >= -27.1 - 1e-9)).toBe(true);
+    expect(south.some((r) => r.x - r.w / 2 <= -24.9 + 1e-9 && r.x + r.w / 2 >= -1.1 - 1e-9)).toBe(true);
+    const gardensRunWest = south.filter((r) => r.x + r.w / 2 <= -24.9).sort((a, b) => a.x - b.x).pop()!;
+    const gardensRunEast = south.filter((r) => r.x - r.w / 2 >= -27.1).sort((a, b) => a.x - b.x)[0]!;
+    expect((gardensRunEast.x - gardensRunEast.w / 2) - (gardensRunWest.x + gardensRunWest.w / 2)).toBeCloseTo(2.2);
     expect(south.some((r) => r.x - r.w / 2 <= 16.6 + 1e-9 && r.x + r.w / 2 >= 28.2 - 1e-9)).toBe(true);
     expect(PLAZA_WALL_RUNS).toContainEqual({ w: 11.8, d: 0.35, x: 22.3, z: 26.05 });
   });
@@ -385,8 +394,9 @@ describe("the second ring (palace follow-on)", () => {
       expect(PALACE_LAYOUT[id]).toBeDefined();
       expect(PALACE_DOORS.filter((d) => d.roomId === id)).toHaveLength(1);
     }
-    /* Nine since item 31 added the Stage Grounds district room. */
-    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(9);
+    /* Ten since item 32 added the Listening Gardens district
+     * room (nine was item 31's Stage Grounds count). */
+    expect(Object.keys(PALACE_LAYOUT)).toHaveLength(10);
   });
 
   it("the front doors open beside the stage, never through it", () => {

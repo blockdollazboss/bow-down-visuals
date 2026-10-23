@@ -223,7 +223,7 @@ export interface PalaceDirectoryEntry {
   /** Creator rooms only: the room owner's profile slug — the
    *  directory row IS a creator's place, and surfaces that render
    *  it (the entry strip, the Kingdom Board) link it to the room's
-   *  data by this slug. Absent on the eight palace rooms. */
+   *  data by this slug. Absent on the palace rooms. */
   slug?: string;
 }
 
@@ -574,7 +574,7 @@ export class WorldPalace {
 
   /** A truthful headcount snapshot for read-only callers (the
    *  Cloud Operator's "who's in the palace" tool): the same room
-   *  set the directory lists — the eight palace rooms always,
+   *  set the directory lists — the palace rooms always,
    *  creator rooms only while someone is home — but counted the
    *  honest way: only peers the staleness sweep would NOT reap
    *  (WorldRoom.presentPeers), deduplicated by presence key, so a
