@@ -39,9 +39,11 @@ export type CreateDeskId =
   | "song-video-desk"
   | "cover-art-desk"
   | "thumbnail-desk"
-  | "audio-desk";
+  | "audio-desk"
+  | "hook-desk";
 
-/** The six Create Wing stations whose panel pattern is "create". */
+/** The seven Create Wing stations whose panel pattern is "create"
+ *  (the Hook Desk joined with Stack-100 item 97's closing part). */
 export const CREATE_DESK_IDS: readonly CreateDeskId[] = [
   "song-desk",
   "video-desk",
@@ -49,6 +51,7 @@ export const CREATE_DESK_IDS: readonly CreateDeskId[] = [
   "cover-art-desk",
   "thumbnail-desk",
   "audio-desk",
+  "hook-desk",
 ];
 
 export function isCreateDeskId(id: string): id is CreateDeskId {

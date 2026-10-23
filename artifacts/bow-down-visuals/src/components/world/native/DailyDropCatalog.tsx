@@ -27,11 +27,12 @@ import {
    This section is the whole slate, docked in the Treasury under the
    day's drop card:
    • USE — opens the matching NATIVE desk in-world (stack-100 item
-     97): a thumbnail drop opens the Thumbnail Desk, a video drop
-     opens the Visual Vibes Editor door where the video templates
-     live. Hook and caption drops keep the def's real tool href as
-     an explicit new-tab transfer — Hook Studio has no native desk
-     yet, and a fake door would be worse than an honest transfer.
+     97, closed in full): a thumbnail drop opens the Thumbnail
+     Desk, a video drop opens the Visual Vibes Editor door where
+     the video templates live, and hook + caption drops open the
+     Hook Desk — Hook Studio's native desk in the Create Wing.
+     Every kind has a native desk now; the def's href remains only
+     as the fallback when no panel swap is wired.
    • ARCHIVE — per-member tidy-up (daily_drop_archives, migration
      0161): the row moves to the Archived list below and stays
      usable; unarchive brings it back. Archiving filters the
