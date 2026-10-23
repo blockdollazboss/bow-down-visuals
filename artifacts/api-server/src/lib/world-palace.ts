@@ -217,6 +217,25 @@ export const PALACE_ROOM_DEFS: PalaceRoomDef[] = [
     bounds: { minX: 27.8, maxX: 54.6, minZ: 27.1, maxZ: 53.9 },
     spawn: { x: 30.2, z: 40.5 },
   },
+  {
+    /* Stage C item 35: THE BOARDWALK — the fifth built district,
+     * a waterfront quarter south of the plaza between the
+     * Listening Gardens and the Ateliers, through the south
+     * wall's gate (a true passage since this batch — its bar is
+     * off). Bounds + spawn mirror the client floor plan
+     * (lib/world/boardwalk.ts via palace-layout.ts), a touch
+     * generous at the gate apron like every room's: the box
+     * covers the main deck (x −12.65..27.85, z 38.35..59.65) and
+     * both north strips (the entry corridor west of the Creator
+     * Rooms building and the east pocket, z from 34.35). The
+     * district is public look/listen space like the plaza: NO
+     * stage and NO jukebox here — the palace's one stage stays
+     * in the hall and its one jukebox in the Music Hall. */
+    roomId: "world:boardwalk",
+    name: "The Boardwalk",
+    bounds: { minX: -13.4, maxX: 28.6, minZ: 33.6, maxZ: 60.4 },
+    spawn: { x: 0, z: 36.2 },
+  },
 ];
 
 /** One booked event on a room's slate (World Events, migration
