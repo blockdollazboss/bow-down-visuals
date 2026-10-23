@@ -184,3 +184,54 @@ describe("ar-W2 (Stack-28 #79) retention/invite + video namespaces fully transla
     checkWave(W2_NS, W2_ALLOW);
   });
 });
+
+/* ar-W3 (item 88) — image/video studio tools + audio (harmony/mixMaster/
+   mastering/samples). Legit identicals: brand/price formats ("300 Visual
+   Bucs", "200 Visual Bucs", "{{num}} Visual Bucs", "VB"), the Turbo tab
+   name, platform names (Spotify/YouTube/Apple Music/SoundCloud), format
+   labels (MP3 (320k), WAV (24-bit), 1080p Full HD, 4K Ultra HD), the
+   Hormozi style name (proper noun), and placeholder-only strings.
+   REMAINING in this wave (not pinned here): thumbnailTest — its only gap
+   is the filesSkipped plural family (2 en keys). Completing it raises
+   ar's carried-family count 33 → 34, which breaks the hard-pinned count
+   in i18n-plural-categories.test.ts ("ar carries all 33 families");
+   that file is outside this lane's ownership, so the family stays
+   untranslated until its owner bumps the pin to 34. */
+const W3_NS = [
+  "bgStudio", "headshotStudio", "colorGrade", "photoEnhance", "speedRamp",
+  "captionTemplates", "videoTemplatesPage", "photoShoot", "upscale",
+  "avatarPresenter", "thumbnailStudio", "thumbnailMaker", "makeVideo",
+  "songAndVideo", "thumbnail", "thumbnails", "clipMaker",
+  "watermarkRemoval", "logoMaker", "captionStyler", "harmony", "mixMaster",
+  "deverb", "fillerRemover", "lrcExport", "mastering", "samples",
+];
+const W3_ALLOW = new Set([
+  "captionStyler.styles.hormozi.label",
+  "harmony.buttonCost",
+  "harmony.partsLine",
+  "harmony.vb",
+  "headshotStudio.visualBucs",
+  "logoMaker.vb",
+  "lrcExport.aiCost",
+  "makeVideo.priceBadge",
+  "makeVideo.refundedNoticeSuffix",
+  "mastering.downloadMp3",
+  "mastering.downloadWav",
+  "samples.bpm",
+  "samples.credits",
+  "songAndVideo.costBadge",
+  "songAndVideo.simpleTabLabel",
+  "thumbnail.platformAppleMusic",
+  "thumbnail.platformSoundCloud",
+  "thumbnail.platformSpotify",
+  "thumbnail.platformYouTube",
+  "thumbnailMaker.portraitBlurb",
+  "upscale.target1080p",
+  "upscale.target4k",
+]);
+
+describe("ar-W3 (Stack-28 #88) studio-tool namespaces fully translated", () => {
+  it("every en key present, non-empty, placeholders intact, no untranslated residue", () => {
+    checkWave(W3_NS, W3_ALLOW);
+  });
+});

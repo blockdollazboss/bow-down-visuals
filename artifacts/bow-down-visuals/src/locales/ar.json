@@ -2303,7 +2303,8 @@
     "vibeHypeBlurb": "لقطات حاسمة وانتصارات كبيرة",
     "vibeHypeLabel": "حماس",
     "vibeWholesomeBlurb": "لحظات مبهجة",
-    "vibeWholesomeLabel": "دافئ"
+    "vibeWholesomeLabel": "دافئ",
+    "addCaptions": "إضافة تعليقات"
   },
   "coach": {
     "buildPlan": "ابنِ خطة المال الخاصة بي",
@@ -4572,7 +4573,7 @@
     "genreHipHop": "هيب هوب",
     "genreDrill": "دريل",
     "genreTrap": "تراب",
-    "genreRB": "R&B",
+    "genreRB": "آر أند بي",
     "genrePop": "بوب",
     "genreAfrobeats": "أفروبيتس",
     "genreDancehall": "دانسهول",
@@ -4604,7 +4605,7 @@
     "videoStyleKids": "أغنية أطفال",
     "videoStyleRomanticRB": "مشهد رومانسي R&B",
     "videoStyleDocumentary": "أسلوب وثائقي",
-    "platformTiktok": "TikTok / Reels / Shorts - 9:16",
+    "platformTiktok": "TikTok / ريلز / المقاطع القصيرة - 9:16",
     "platformYoutube": "فيديو موسيقي YouTube - 16:9",
     "platformSquare": "منشور سوشيال مربع - 1:1",
     "platformAll": "كل الصيغ",
@@ -5588,7 +5589,7 @@
     "genreKidsMusic": "موسيقى أطفال",
     "genreOther": "أخرى",
     "genrePop": "بوب",
-    "genreRB": "R&B",
+    "genreRB": "آر أند بي",
     "genreRock": "روك",
     "genreTrap": "تراب",
     "locationIdeasPlaceholder": "صف أفكار المواقع — شوارع المدينة، سطح مبنى، شاطئ، مستودع مهجور، استوديو، مدن محددة أو أجواء معينة…",
@@ -5702,7 +5703,9 @@
     "whatYouGetVocalDirection": "إخراج الصوت",
     "discardDraftButton": "تجاهل المسودة",
     "projectSaved": "تم حفظ المشروع",
-    "recoveryFailedTitle": "فشلت الاستعادة"
+    "recoveryFailedTitle": "فشلت الاستعادة",
+    "guidedTabLabel": "موجّه",
+    "simpleTabLabel": "Turbo"
   },
   "songs": {
     "cancelButton": "إلغاء",
@@ -5934,7 +5937,12 @@
     "uploadFace": "رفع صورة وجه",
     "variationAlt": "نسخة الصورة المصغّرة {{n}}",
     "variationBadge": "النسخة {{n}}",
-    "variationDetail": "{{count}} نسخة{{suffix}} · {{aspectRatio}}"
+    "variationDetail": "{{count}} نسخة{{suffix}} · {{aspectRatio}}",
+    "artworkModeLabel": "حزمة الأعمال الفنية",
+    "removeVideoReference": "إزالة مرجع الفيديو",
+    "sendToVideoStudio": "إرسال إلى استوديو الفيديو",
+    "useAsThumbnail": "الاستخدام كصورة مصغرة لـ…",
+    "videoReferenceAttached": "أُرفق الفيديو كمرجع"
   },
   "thumbnailTest": {
     "analyzing": "جارٍ التحليل…",
@@ -6002,7 +6010,8 @@
     "removedToast": "أُزيلت من المكتبة",
     "removing": "جارٍ الإزالة…",
     "untitled": "صورة مصغرة بلا عنوان",
-    "viewFullSize": "عرض {{title}} بالحجم الكامل"
+    "viewFullSize": "عرض {{title}} بالحجم الكامل",
+    "fromProject": "من هذا المشروع"
   },
   "tipPage": {
     "amountRequired": "اختر مبلغاً أو أدخل مبلغاً أولاً.",
@@ -6344,7 +6353,21 @@
     "videoUpscaleComplete": "اكتمل التحسين — {{target}}",
     "videoUpscaleFailedRefunded": "فشل التحسين — تم استرداد 300 Visual Bucs الخاصة بك.",
     "videoUpscalerSub": "ارفع مقاطعك إلى 1080p أو 4K — {{cost}} Visual Bucs",
-    "videoUpscalerTitle": "محسّن الفيديو"
+    "videoUpscalerTitle": "محسّن الفيديو",
+    "genButton": "ترقية توليدية إلى {{target}} (1500 VB — السعر قيد التحديد)",
+    "genChecking": "جارٍ التحقق من مزود الترقية التوليدية…",
+    "genDisabledTitle": "اربط مفتاح مزود للتفعيل",
+    "genFraming": "الترقية التوليدية بالذكاء الاصطناعي منتج مختلف عن المرقّي الكلاسيكي أعلاه: نموذج يعيد بناء تفاصيل معقولة بدلاً من مجرد إعادة عيّنة البكسلات. سعر مميز، نتيجة مميزة — ترقية ffmpeg الكلاسيكية 300 VB تبقى متاحة بجانبها.",
+    "genNotConfigured": "الترقية التوليدية بالذكاء الاصطناعي غير متصلة بعد — مالك الموقع يحتاج إضافة مفتاح مزود. مرقّي ffmpeg الكلاسيكي أعلاه يعمل الآن. لن تُخصم.",
+    "genPriceNote": "سعر مؤقت — السعر الحقيقي يحتاج موافقة المالك قبل الإطلاق. ترقية ffmpeg الكلاسيكية تبقى 300 VB.",
+    "genStatusFailed": "تعذّر الوصول إلى خدمة الترقية.",
+    "modeClassic": "كلاسيكي (ffmpeg)",
+    "modeClassicDesc": "إعادة عيّنة بكسل سريعة",
+    "modeGenerative": "ذكاء اصطناعي توليدي",
+    "modeGenerativeDesc": "إعادة بناء تفاصيل بالذكاء الاصطناعي (مميز)",
+    "modeLabel": "وضع الترقية",
+    "tabEnhance": "تحسين",
+    "tabEnhanceShort": "تحسين"
   },
   "videoEditor": {
     "activeSceneNoClip": "المشهد النشط بلا مقطع — الصوت ما زال يعمل",
@@ -7090,7 +7113,34 @@
     "voiceEditsTitle": "تحريرات صوتية"
   },
   "videoTemplatesPage": {
-    "applyPrice": "{{count}} Visual Bucs للتطبيق"
+    "applyPrice": "{{count}} Visual Bucs للتطبيق",
+    "copyFailed": "تعذّر نسخ الرابط.",
+    "ctaButton": "فتح Visual Vibes",
+    "ctaSub": "كل قالب ينطبق بضغطة واحدة داخل Visual Vibes — طابق مقاطعك مع الخانات، حرّر النص، واحصل على فيديو منتهٍ مع تعليقات وصورة مصغرة ومقاطع وتسليمات جدولة مدمجة.",
+    "ctaTitle": "جاهز لصناعة قالبك؟",
+    "kicker": "معرض قوالب مجاني",
+    "linkCopied": "نُسخ رابط المشاركة — يحمل كود إحالتك",
+    "copyShareLink": "نسخ رابط المشاركة",
+    "outcomeLabel": "مصنوع لـ",
+    "seoP1": "قوالب التحرير هي أسرع طريق إلى فيديو منتهٍ: القصات والانتقالات ومعالجات النص مصممة مسبقاً، فكل ما تفعله هو إسقاط مقاطعك وصورك الخاصة. كل قالب أعلاه يُعرض على الخادم بانتقالات بنمط البث — شرائح، مسحات، كشوف قزحية، وقصات شعاعية قوية — بالإضافة إلى معالجات نص ذهبية جريئة، فتبدو النتيجة مصممة، لا مقولبة.",
+    "seoP2": "اختر أي قالب لفتحه في Visual Vibes مع القالب محدد مسبقاً. طابق وسائطك في الخانات، أعد كتابة التراكبات النصية، أضف فراشاً موسيقياً اختيارياً، وطبّق — ضغطة واحدة تعرض التحرير الكامل. من هناك، سلّم الفيديو المنتهي مباشرة إلى التعليقات أو صانع الصور المصغرة أو المقاطع الذكية أو مجدول التواصل الاجتماعي.",
+    "seoTitle": "لماذا تكسر قوالب التحرير الإنترنت",
+    "slotsLabel": "{{count}} خانة وسائط",
+    "sub": "اختر قالباً، أسقط مقاطعك وصورك، واحصل على فيديو محرر تلقائياً أنيق — قصات وانتقالات ونص محروقة. مجاني للتصفح بحسابك؛ Visual Bucs تنطبق عند العرض.",
+    "titleA": "تحرير الفيديو",
+    "titleB": "القوالب",
+    "useTemplate": "استخدام هذا القالب",
+    "searchPlaceholder": "ابحث في القوالب — جرّب “كلمات”، “ترويج”، “سفر”…",
+    "sortFeatured": "مميزة — اختياراتنا",
+    "sortAz": "الاسم A–Z",
+    "sortShortest": "الأقصر أولاً",
+    "sortMostClips": "الأكثر مقاطع أولاً",
+    "resultsCount": "{{count}} قالب",
+    "noResultsTitle": "لا قوالب تطابق ذلك البحث",
+    "noResultsSub": "جرّب كلمة مختلفة، أو امسح البحث لتصفح المكتبة الكاملة.",
+    "clearSearch": "مسح البحث",
+    "remake": "إعادة صناعة هذا",
+    "shareTemplate": "مشاركة هذا القالب"
   },
   "viralityCheck": {
     "bestPostingTime": "أفضل وقت للنشر",
@@ -7330,7 +7380,8 @@
     "toolSub": "نظّف الشعارات من فيديوهاتك — {{cost}} Visual Bucs",
     "toolTitle": "إزالة العلامة المائية",
     "videoFileError": "اختر ملف فيديو من فضلك.",
-    "videoSizeError": "يتجاوز هذا الفيديو حد الرفع 80MB."
+    "videoSizeError": "يتجاوز هذا الفيديو حد الرفع 80MB.",
+    "sendToVideoEditor": "إرسال إلى Visual Vibes"
   },
   "websiteBuilder": {
     "applyEditButton": "تطبيق التعديل — {{cost}} Visual Bucs",
@@ -7421,63 +7472,63 @@
     "viewingOldVersion": "أنت تعرض الإصدار {{version}} — استعادته أو التعديل من هنا يحفظ إصدارًا جديدًا. لا يُستبدل أي شيء أبدًا."
   },
   "mastering": {
-    "back": "Back",
+    "back": "رجوع",
     "title": "AI Mastering",
-    "subtitle": "Release-ready masters from your mix — {{cost}} Visual Bucs",
-    "honestFraming": "A real DSP chain — subsonic cleanup, glue compression, sweetening EQ, stereo widening, then two-pass loudness normalization with true-peak limiting. It",
-    "honestFramingBold": "polishes a good mix; it can't fix a bad one.",
-    "honestFramingEnd": "Trust your ears on the A/B comparison before you ship it.",
-    "errorFailed": "Mastering failed — your Visual Bucs were refunded.",
-    "errorAudioFile": "Please choose an audio file (WAV, MP3, AIFF, FLAC, M4A, OGG).",
-    "errorFileTooLarge": "That file is over 100 MB — please use a smaller mix.",
-    "errorStartFailed": "Could not start mastering.",
-    "errorNetwork": "Network error — please try again.",
-    "dropHint": "Drop your mix here, or click to browse",
-    "fileTypes": "WAV, MP3, AIFF, FLAC, M4A, OGG — up to 100 MB",
-    "fileSize": "{{size}} MB — click to change",
-    "presetLabel": "Mastering preset",
+    "subtitle": "ماستر جاهز للإصدار من مزيجك — {{cost}} Visual Bucs",
+    "honestFraming": "سلسلة DSP حقيقية — تنظيف دون صوتي، ضغط غراء، EQ تحلية، توسيع ستيريو، ثم تطبيع جهارة بمرحلتين مع تحديد قمة حقيقية. إنها",
+    "honestFramingBold": "تصقل مزيجاً جيداً؛ لا يمكنها إصلاح سيئ.",
+    "honestFramingEnd": "ثق بأذنيك على مقارنة A/B قبل الشحن.",
+    "errorFailed": "فشل الماستر — استُردت Visual Bucs الخاصة بك.",
+    "errorAudioFile": "اختر ملف صوت (WAV، MP3، AIFF، FLAC، M4A، OGG).",
+    "errorFileTooLarge": "ذلك الملف أكثر من 100 MB — استخدم مزيجاً أصغر.",
+    "errorStartFailed": "تعذّر بدء الماستر.",
+    "errorNetwork": "خطأ في الشبكة — حاول مجدداً.",
+    "dropHint": "أسقط مزيجك هنا، أو انقر للتصفح",
+    "fileTypes": "WAV، MP3، AIFF، FLAC، M4A، OGG — حتى 100 MB",
+    "fileSize": "{{size}} MB — انقر للتغيير",
+    "presetLabel": "إعداد الماستر",
     "presets": {
       "streaming": {
-        "label": "Streaming",
-        "blurb": "Spotify / Apple Music ready — clean and dynamic."
+        "label": "بث",
+        "blurb": "جاهز لـ Spotify / Apple Music — نظيف وديناميكي."
       },
       "club": {
-        "label": "Club",
-        "blurb": "Loud and punchy for big sound systems."
+        "label": "نادي",
+        "blurb": "عالٍ وقوي لأنظمة الصوت الكبيرة."
       },
       "radio": {
-        "label": "Radio",
-        "blurb": "Broadcast-friendly vocal presence."
+        "label": "راديو",
+        "blurb": "حضور صوتي مناسب للبث."
       },
       "lofi": {
-        "label": "Lo-Fi",
-        "blurb": "Gentle, warm and dynamic with a soft top end."
+        "label": "لو-فاي",
+        "blurb": "لطيف، دافئ وديناميكي بنهاية علوية ناعمة."
       }
     },
-    "signInToMaster": "Sign in to master",
-    "masterButton": "Master my track — {{cost}} Visual Bucs",
-    "creditsRemaining": "{{count}} Visual Bucs remaining",
-    "statusUploading": "Uploading your mix…",
-    "statusQueued": "Queued — warming up the chain…",
-    "statusProcessing": "Mastering in progress…",
-    "processingDetail": "Analyzing loudness → two-pass normalization → rendering WAV + MP3. Safe to close this tab — the job runs on the server.",
-    "masterComplete": "Master complete — compare it against your original below.",
-    "beforeAfter": "Before / After",
-    "before": "Before",
-    "after": "After",
-    "listeningTo": "Listening to:",
-    "originalMix": "your original mix",
-    "masteredVersion": "the mastered version",
-    "positionPreserved": "— position is preserved when you flip.",
-    "loudnessReport": "Loudness report",
-    "mixLoudness": "Mix loudness",
-    "masterLoudness": "Master loudness",
-    "truePeakMix": "True peak (mix)",
-    "targetCeiling": "Target ceiling",
-    "dynamicRange": "Dynamic range (mix): {{value}} LU — preserved through the chain, not crushed.",
+    "signInToMaster": "سجّل الدخول للماستر",
+    "masterButton": "ماستر مساري — {{cost}} Visual Bucs",
+    "creditsRemaining": "{{count}} Visual Bucs متبقية",
+    "statusUploading": "جارٍ رفع مزيجك…",
+    "statusQueued": "في الطابور — جارٍ تسخين السلسلة…",
+    "statusProcessing": "الماستر قيد التقدم…",
+    "processingDetail": "تحليل الجهارة ← تطبيع بمرحلتين ← عرض WAV + MP3. آمن إغلاق هذا التبويب — المهمة تعمل على الخادم.",
+    "masterComplete": "اكتمل الماستر — قارنه بأصلك أدناه.",
+    "beforeAfter": "قبل / بعد",
+    "before": "قبل",
+    "after": "بعد",
+    "listeningTo": "الاستماع إلى:",
+    "originalMix": "مزيجك الأصلي",
+    "masteredVersion": "النسخة الممسترة",
+    "positionPreserved": "— الموقع محفوظ عند القلب.",
+    "loudnessReport": "تقرير جهارة الصوت",
+    "mixLoudness": "جهارة المزيج",
+    "masterLoudness": "جهارة الماستر",
+    "truePeakMix": "القمة الحقيقية (المزيج)",
+    "targetCeiling": "السقف المستهدف",
+    "dynamicRange": "النطاق الديناميكي (المزيج): {{value}} LU — محفوظ عبر السلسلة، لا مسحوق.",
     "downloadWav": "WAV (24-bit)",
     "downloadMp3": "MP3 (320k)",
-    "masterAnother": "Master another track"
+    "masterAnother": "ماستر مسار آخر"
   },
   "release": {
     "badge": "Thy Cheat Code's release tools",
@@ -8231,57 +8282,57 @@
     }
   },
   "samples": {
-    "back": "Back",
-    "title": "Sample Pack Generator",
-    "subtitle": "Custom drum kits, loops & FX in your genre, BPM, and key — {{cost}} Visual Bucs for {{size}} samples",
+    "back": "رجوع",
+    "title": "مولّد حزم العينات",
+    "subtitle": "أطقم طبول وحلقات ومؤثرات مخصصة في نوعك و BPM ومفتاحك — {{cost}} Visual Bucs لـ {{size}} عينة",
     "honesty": {
-      "p1": "Drums and FX are",
-      "synth": "synthesized with DSP",
-      "p2": "(labeled Synth); melodies and basslines are",
-      "ai": "AI-composed",
-      "p3": "(labeled AI). Every file is really rendered as a 44.1kHz WAV — nothing faked. Royalty-free: use them in your own productions."
+      "p1": "الطبول والمؤثرات",
+      "synth": "مُصنّعة بـ DSP",
+      "p2": "(موسومة Synth)؛ الألحان والباسات",
+      "ai": "مؤلف بالذكاء الاصطناعي",
+      "p3": "(موسومة AI). كل ملف يُعرض فعلاً كـ WAV 44.1kHz — لا شيء مزيف. خالٍ من حقوق الملكية: استخدمها في إنتاجاتك الخاصة."
     },
-    "buildTitle": "Build your pack",
-    "genre": "Genre",
+    "buildTitle": "ابنِ حزمتك",
+    "genre": "النوع",
     "genres": {
-      "trap": "Trap",
-      "hip-hop": "Hip-Hop",
-      "drill": "Drill",
-      "rnb": "R&B",
-      "afrobeats": "Afrobeats",
-      "house": "House",
-      "techno": "Techno",
-      "drum-and-bass": "Drum & Bass",
-      "lofi": "Lo-Fi",
-      "pop": "Pop"
+      "trap": "تراب",
+      "hip-hop": "هيب هوب",
+      "drill": "دريل",
+      "rnb": "آر أند بي",
+      "afrobeats": "أفروبيتس",
+      "house": "هاوس",
+      "techno": "تكنو",
+      "drum-and-bass": "درام أند باس",
+      "lofi": "لو-فاي",
+      "pop": "بوب"
     },
-    "key": "Key",
-    "keyNote": "(melodies & bass follow this)",
-    "tempo": "Tempo",
+    "key": "المفتاح",
+    "keyNote": "(الألحان والباس يتبعان هذا)",
+    "tempo": "الإيقاع",
     "bpm": "{{bpm}} BPM",
-    "packSize": "Pack size",
+    "packSize": "حجم الحزمة",
     "credits": "{{num}} Visual Bucs",
-    "sampleTypes": "Sample types",
-    "sampleTypesNote": "(leave empty for a balanced mix)",
-    "cooking": "Cooking your pack…",
-    "generate": "Generate pack · {{cost}} Visual Bucs",
-    "signIn": "Sign in",
-    "signInSuffix": " to generate packs.",
-    "yourPack": "Your pack — {{num}} samples",
-    "creditsLeft": "{{num}} Visual Bucs left",
-    "zipping": "Zipping…",
-    "downloadZip": "Download pack ZIP",
-    "aiGenerated": "AI-generated",
-    "synthesized": "Synthesized",
-    "downloadWav": "Download WAV",
-    "licenseFallback": "Royalty-free — use in your own productions, no attribution required.",
+    "sampleTypes": "أنواع العينات",
+    "sampleTypesNote": "(اتركه فارغاً لمزيج متوازن)",
+    "cooking": "جارٍ طبخ حزمتك…",
+    "generate": "توليد حزمة · {{cost}} Visual Bucs",
+    "signIn": "تسجيل الدخول",
+    "signInSuffix": " لتوليد الحزم.",
+    "yourPack": "حزمتك — {{num}} عينة",
+    "creditsLeft": "{{num}} Visual Bucs متبقية",
+    "zipping": "جارٍ الضغط…",
+    "downloadZip": "تنزيل حزمة ZIP",
+    "aiGenerated": "مولّد بالذكاء الاصطناعي",
+    "synthesized": "مُصنّعة",
+    "downloadWav": "تنزيل WAV",
+    "licenseFallback": "خالٍ من حقوق الملكية — استخدمها في إنتاجاتك الخاصة، بدون إسناد مطلوب.",
     "progress": {
-      "charging": "Charging Visual Bucs and warming up the studio…"
+      "charging": "جارٍ خصم Visual Bucs وتسخين الاستوديو…"
     },
     "error": {
-      "generationFailed": "Generation failed",
-      "zipFailed": "ZIP failed",
-      "zipDownloadFailed": "ZIP download failed"
+      "generationFailed": "فشل التوليد",
+      "zipFailed": "فشل ZIP",
+      "zipDownloadFailed": "فشل تنزيل ZIP"
     }
   },
   "memberships": {
@@ -9712,99 +9763,120 @@
     "shareShop": "مشاركة"
   },
   "mixMaster": {
-    "back": "Back",
+    "back": "رجوع",
     "title": "AI Mix & Master",
-    "subtitle": "Professional sound, no engineer required",
-    "honestFraming": "A real DSP pipeline — per-stem gain staging, EQ, compression, genre panning, then a full mastering chain with true-peak limiting. It",
-    "honestFramingBold": "assembles and polishes great recordings; it can't fix clipping, out-of-tune vocals, or a bad arrangement.",
-    "honestFramingEnd": "Trust your ears on the loudness-matched A/B before you ship it.",
+    "subtitle": "صوت احترافي، بدون مهندس مطلوب",
+    "honestFraming": "خط أنابيب DSP حقيقي — تجهيز كسب لكل مسار، EQ، ضغط، توزيع نوع، ثم سلسلة ماستر كاملة مع تحديد قمة حقيقية. إنه",
+    "honestFramingBold": "يجمع ويصقل تسجيلات رائعة؛ لا يمكنه إصلاح القص، أو الأصوات خارج النغمة، أو ترتيب سيئ.",
+    "honestFramingEnd": "ثق بأذنيك على A/B المتطابقة في جهارة الصوت قبل الشحن.",
     "tabMaster": "AI Master",
     "tabMix": "AI Mix",
-    "tabMixStems": "· Stems",
-    "genreLabel": "Genre sound",
-    "intensityLabel": "Processing intensity",
-    "loudnessLabel": "Target loudness",
+    "tabMixStems": "· المسارات",
+    "genreLabel": "صوت النوع",
+    "intensityLabel": "شدة المعالجة",
+    "loudnessLabel": "جهارة الصوت المستهدفة",
     "genres": {
       "hip-hop": {
-        "label": "Hip-Hop",
-        "blurb": "Heavy low end, forward vocals."
+        "label": "هيب هوب",
+        "blurb": "نهاية منخفضة ثقيلة، أصوات أمامية."
       },
       "pop": {
-        "label": "Pop",
-        "blurb": "Polished, bright, radio sheen."
+        "label": "بوب",
+        "blurb": "مصقول، ساطع، لمعان راديو."
       },
       "rnb": {
-        "label": "R&B",
-        "blurb": "Smooth, warm, silky vocals."
+        "label": "آر أند بي",
+        "blurb": "أصوات ناعمة، دافئة، حريرية."
       },
       "edm": {
-        "label": "EDM",
-        "blurb": "Maximum energy, huge and wide."
+        "label": "إلكترونية",
+        "blurb": "طاقة قصوى، ضخم وواسع."
       },
       "rock": {
-        "label": "Rock",
-        "blurb": "Gritty guitars, drums up front."
+        "label": "روك",
+        "blurb": "غيتارات خشنة، طبول في المقدمة."
       },
       "lofi": {
-        "label": "Lo-Fi",
-        "blurb": "Dusty, warm, mellow."
+        "label": "لو-فاي",
+        "blurb": "مغبر، دافئ، هادئ."
       },
       "afrobeat": {
-        "label": "Afrobeat",
-        "blurb": "Bouncy percussion, log drums."
+        "label": "أفروبيت",
+        "blurb": "إيقاع نطاط، طبول لوغ."
       },
       "gospel": {
-        "label": "Gospel",
-        "blurb": "Big, uplifting choir clarity."
+        "label": "غوسبل",
+        "blurb": "وضوح جوقة كبير وملهم."
+      },
+      "podcast": {
+        "blurb": "وضوح كلمة منطوقة — ديناميكيات لطيفة.",
+        "label": "بودكاست"
+      },
+      "trap": {
+        "blurb": "808 ضاربة بقوة — وزن نهاية منخفضة ثقيل.",
+        "label": "تراب"
       }
     },
     "intensities": {
       "subtle": {
-        "label": "Subtle",
-        "blurb": "Gentle polish, dynamics intact."
+        "label": "خفيف",
+        "blurb": "صقل لطيف، ديناميكيات سليمة."
       },
       "balanced": {
-        "label": "Balanced",
-        "blurb": "The sweet spot for most tracks."
+        "label": "متوازن",
+        "blurb": "النقطة المثالية لمعظم المسارات."
       },
       "aggressive": {
-        "label": "Aggressive",
-        "blurb": "Loud, punchy, in-your-face."
+        "label": "عنيف",
+        "blurb": "عالٍ، قوي، في وجهك."
       }
     },
     "loudness": {
       "streaming": {
-        "label": "Streaming",
-        "blurb": "Spotify / Apple Music ready."
+        "label": "بث",
+        "blurb": "جاهز لـ Spotify / Apple Music."
       },
       "club": {
-        "label": "Club",
-        "blurb": "Loud and punchy for big systems."
+        "label": "نادي",
+        "blurb": "عالٍ وقوي للأنظمة الكبيرة."
       },
       "radio": {
-        "label": "Radio",
-        "blurb": "Broadcast-friendly consistency."
+        "label": "راديو",
+        "blurb": "اتساق مناسب للبث."
       }
     },
     "stemTypes": {
-      "vocals": "Vocals",
-      "drums": "Drums",
-      "bass": "Bass",
-      "keys": "Keys",
-      "guitar": "Guitar",
-      "strings": "Strings",
-      "fx": "FX",
-      "beat": "Beat",
-      "other": "Stem"
+      "vocals": "أصوات",
+      "drums": "طبول",
+      "bass": "باس",
+      "keys": "مفاتيح",
+      "guitar": "غيتار",
+      "strings": "أوتار",
+      "fx": "مؤثرات",
+      "beat": "إيقاع",
+      "other": "مسار"
     },
-    "errorAudioFile": "Please choose an audio file (WAV, MP3, AIFF, FLAC, M4A, OGG).",
-    "errorFileTooLarge": "That file is over 100 MB — please use a smaller mix.",
-    "errorNetwork": "Network error — please try again.",
-    "errorNotAudio": "Those files aren't audio — use WAV, MP3, AIFF, FLAC, M4A or OGG.",
-    "referenceTrack": "Reference track",
-    "beforeAfter": "Before / After",
-    "before": "Before",
-    "after": "After"
+    "errorAudioFile": "اختر ملف صوت (WAV، MP3، AIFF، FLAC، M4A، OGG).",
+    "errorFileTooLarge": "ذلك الملف أكثر من 100 MB — استخدم مزيجاً أصغر.",
+    "errorNetwork": "خطأ في الشبكة — حاول مجدداً.",
+    "errorNotAudio": "تلك الملفات ليست صوتاً — استخدم WAV، MP3، AIFF، FLAC، M4A أو OGG.",
+    "referenceTrack": "المسار المرجعي",
+    "beforeAfter": "قبل / بعد",
+    "before": "قبل",
+    "after": "بعد",
+    "dropMixHint": "أسقط مزيجك المنتهي هنا",
+    "dropStemsHint": "أسقط مساراتك هنا",
+    "dynamicRange": "النطاق الديناميكي",
+    "fileTypes": "MP3، WAV، FLAC · حتى 100 MB",
+    "listeningTo": "الاستماع إلى",
+    "masterReport": "تقرير الماستر",
+    "referenceHint": "اختر مساراً مرجعياً",
+    "referenceLoudness": "جهارة المرجع",
+    "tabQuick": "ماستر سريع",
+    "tabQuickDesc": "ارفع مزيج ستيريو منتهياً واحداً — اختر إعداداً، احصل على ماستر جاهز للراديو بـ 400 Visual Bucs. سريع، بدون مقابض.",
+    "vocalBuried": "مدفون",
+    "vocalLevel": "مستوى الصوت",
+    "vocalUpfront": "بارز"
   },
   "movies": {
     "badge": "أفلام ومسلسلات ويب",
@@ -10698,7 +10770,16 @@
     "title": "استوديو الصوت"
   },
   "thumbnailStudio": {
-    "title": "استوديو الصور المصغّرة"
+    "title": "استوديو الصور المصغرة",
+    "subtitle": "ولّد صوراً مصغرة توقف التمرير، اختبرها A/B بالذكاء الاصطناعي، وتصفح مكتبتك — كلها في استوديو واحد.",
+    "tabs": {
+      "generate": "توليد",
+      "abtest": "اختبار A/B",
+      "library": "المكتبة",
+      "aria": "أقسام استوديو الصور المصغرة",
+      "enhance": "تحسين",
+      "background": "الخلفية"
+    }
   },
   "wave9": {
     "directEdit": {
@@ -13076,5 +13157,552 @@
     "alsoTry": "جرّب أيضاً",
     "alsoTryMusicVideo": "نمط فيديو موسيقي كرتوني",
     "alsoTryEditRecipe": "وصفة تحرير أطفال / كرتون"
+  },
+  "bgStudio": {
+    "uploadNotImage": "اختر ملف صورة.",
+    "uploadedTitle": "رُفعت الصورة",
+    "uploadedDesc": "الآن أزل الخلفية.",
+    "uploadFailed": "فشل الرفع. حاول مجدداً.",
+    "step1": "رفع صورة",
+    "step2": "إزالة الخلفية",
+    "step3": "استبدال الخلفية",
+    "uploading": "جارٍ الرفع…",
+    "dropHint": "أسقط صورة هنا، أو اضغط لاختيار واحدة",
+    "photoReady": "الصورة جاهزة",
+    "changePhoto": "تغيير الصورة",
+    "removeCta": "إزالة الخلفية",
+    "removing": "جارٍ إزالة الخلفية…",
+    "removeFailed": "فشلت إزالة الخلفية.",
+    "noOutput": "لم تُعد أي صورة إخراج.",
+    "advanced": "يدوي: قوة الإزالة",
+    "aggressiveness": "قوة الإزالة",
+    "aggressivenessHint": "الأعلى يزيل المزيد من بكسلات الحواف — استخدمه للخلفيات الضبابية أو الظلية.",
+    "before": "قبل",
+    "after": "بعد",
+    "detectedColor": "لون الخلفية المكتشف",
+    "kind": {
+      "color": "لون",
+      "gradient": "تدرج",
+      "ai": "خلفية ذكاء اصطناعي"
+    },
+    "custom": "مخصص",
+    "checkingAi": "جارٍ التحقق من توفر الذكاء الاصطناعي…",
+    "aiNotConnected": "خلفيات الذكاء الاصطناعي غير متصلة على هذا الخادم بعد. اختر لوناً صلباً أو مشهداً معيناً بدلاً من ذلك.",
+    "customPrompt": "موجه خلفية مخصص",
+    "promptPlaceholder": "صِف الخلفية — مثال: كثبان صحراوية ذهبية عند الفجر، ضوء ناعم",
+    "provider": "النموذج",
+    "generateCta": "توليد الخلفية",
+    "generating": "جارٍ توليد الخلفية…",
+    "backdropFailed": "فشل توليد الخلفية.",
+    "priceTbdNote": "سعر مسودة — ليس نهائياً. الألوان والتدرجات المجانية لا تكلّف شيئاً أبداً.",
+    "composeFailed": "تعذّر تركيب الصورة النهائية.",
+    "compositing": "جارٍ التركيب…",
+    "result": "صورتك الجديدة",
+    "startOver": "البدء من جديد",
+    "download": "تنزيل PNG"
+  },
+  "headshotStudio": {
+    "eyebrow": "صور الملف الشخصي",
+    "title": "الصور الشخصية",
+    "subtitle": "صورة ملف شخصي تبدو باهظة. اختر تدفقاً — الذكاء الاصطناعي يتولى الباقي.",
+    "flows": {
+      "autopilot": "وضع Turbo",
+      "preset": "إعدادات النمط",
+      "manual": "موجه يدوي"
+    },
+    "autopilot": {
+      "blurb": "ضغطة واحدة. الذكاء الاصطناعي يختار إطلالة الاستوديو الأكثر إطراءً تلقائياً — الإضاءة، الخلفية، التأطير، كل شيء.",
+      "costNote": "يُخصم فقط إذا نجحت الصورة الشخصية."
+    },
+    "styleLabel": "النمط",
+    "presetNames": {
+      "studio": "استوديو",
+      "stage": "مسرح",
+      "street": "شارع",
+      "luxury": "فاخر"
+    },
+    "presets": {
+      "studio": "بورتريه استوديو كلاسيكي — خلفية نظيفة، إضاءة احترافية ناعمة.",
+      "stage": "إطلالة على المسرح — أضواء كاشفة وطاقة جمهور خلفك.",
+      "street": "تحرير شارع — الساعة الذهبية، حضري، واثق.",
+      "luxury": "تحرير فاخر — رخام، ذهب، أزياء راقية."
+    },
+    "manualLabel": "موجهك — تحكم كامل",
+    "manualPlaceholder": "مثال: صورة شخصية درامية بالأبيض والأسود، ظلال قاسية، مزاج فيلم نوار، النظر بعيداً عن الكاميرا…",
+    "refLabel": "مرجع الوجه (اختياري)",
+    "refPlaceholder": "الصق رابط صورة لقفل هويتك — الصورة الشخصية تحتفظ بوجهك.",
+    "modelLabel": "المحرك",
+    "models": {
+      "nano": "عرض Turbo",
+      "nanoHint": "سريع · يقفل وجهك",
+      "ideogram": "عرض بورتريه",
+      "ideogramHint": "نمط عرض بديل"
+    },
+    "featureName": "صورة شخصية",
+    "generate": "توليد صورة شخصية",
+    "generating": "جارٍ التوليد…",
+    "visualBucs": "Visual Bucs",
+    "costNote": "يُخصم فقط إذا نجحت الصورة الشخصية.",
+    "errors": {
+      "describeFirst": "صِف إطلالة الصورة الشخصية أولاً.",
+      "outOfCredits": "Visual Bucs غير كافية. اشترِ المزيد من Visual Bucs للمتابعة.",
+      "failed": "فشل توليد الصورة الشخصية. لم تُخصم Visual Bucs.",
+      "tryOtherEngine": "جرّب المحرك الآخر أعلاه — أو اطلب من المالك ربط مفتاح API."
+    },
+    "resultLabel": "صورتك الشخصية",
+    "resultAlt": "صورة شخصية مولّدة بالذكاء الاصطناعي",
+    "download": "تنزيل"
+  },
+  "colorGrade": {
+    "title": "تدرج الألوان",
+    "subtitle": "تدرجات ألوان بالذكاء الاصطناعي — ضغطة واحدة، تُحرق في المقطع",
+    "priceBadge": "{cost} VB / تدرج · المعاينة مجانية",
+    "clipToGrade": "المقطع للتدرج",
+    "manualTitle": "عجلات يدوية — معاينة مباشرة",
+    "freePreview": "معاينة مجانية",
+    "reset": "إعادة ضبط",
+    "temp": "درجة الحرارة",
+    "tempHint": "بارد ↔ دافئ",
+    "tint": "الصبغة",
+    "tintHint": "أخضر ↔ أرجواني",
+    "exposure": "التعريض",
+    "exposureHint": "داكن ↔ ساطع",
+    "contrast": "التباين",
+    "contrastHint": "مسطح ↔ قوي",
+    "saturation": "التشبع",
+    "saturationHint": "باهت ↔ حيوي",
+    "burnManual": "حرق الإطلالة اليدوية · {cost} VB",
+    "burnManualNote": "العجلات اليدوية تعاين مباشرة؛ الحرق يطبّق أقرب إعداد ذكاء اصطناعي.",
+    "autoGrade": "تدرج تلقائي · {cost} VB",
+    "autoGradeNote": "يختار أفضل إطلالة للموجز — الحيوي يبرز على التواصل الاجتماعي.",
+    "presetGridTitle": "تدرجات بضغطة واحدة — تُحرق عند الضغط",
+    "noClips": "لا مقاطع على الخط الزمني بعد",
+    "noClipsHint": "أضف مقطعاً إلى مشهد أولاً، ثم درّجه.",
+    "loadingPresets": "جارٍ تحميل الإعدادات…",
+    "gradedWith": "دُرّج بـ {preset}",
+    "useInExport": "الاستخدام في التصدير",
+    "replaceSceneClip": "استبدال مقطع المشهد",
+    "download": "تنزيل",
+    "copyLink": "نسخ الرابط",
+    "linkCopied": "نُسخ الرابط",
+    "autoGradeDone": "اكتمل التدرج التلقائي",
+    "gradeBurnedIn": "حُرق التدرج",
+    "gradingFailed": "فشل تدرج الألوان — لم تُنفق أي Visual Bucs.",
+    "userCancelled": "أُلغي — بدون خصم.",
+    "shareNote": "مشاركة بضغطة واحدة مصممة للسفر — إسناد Bow Down Visuals يرافق كل إخراج."
+  },
+  "photoEnhance": {
+    "featureName": "تحسين الصورة",
+    "title": "رفع صورة للتحسين",
+    "uploadTitle": "رفع صورة للتحسين",
+    "uploadHint": "JPG أو PNG، حتى 12 MB. الصور القديمة أو المشوشة أو الأبيض والأسود مرحب بها.",
+    "errorNotImage": "ذلك الملف ليس صورة.",
+    "errorTooLarge": "ذلك الملف كبير جداً (12 MB كحد أقصى).",
+    "errorUpload": "فشل الرفع. حاول مجدداً.",
+    "errorNoPhoto": "ارفع صورة أولاً.",
+    "errorNoOps": "اختر عملية واحدة على الأقل.",
+    "errorFailed": "فشل التحسين. لم تُخصم Visual Bucs.",
+    "errorCredits": "Visual Bucs غير كافية. اشترِ المزيد من Visual Bucs للمتابعة.",
+    "errorNotConnected": "تحسين الصورة غير متصل بعد — خدمة صور الذكاء الاصطناعي ما زالت تحتاج إعداداً على الخادم.",
+    "beforeAfter": "قبل / بعد — اسحب الفاصل",
+    "previewOriginal": "صورتك",
+    "startOver": "البدء من جديد",
+    "before": "قبل",
+    "after": "بعد",
+    "compareSlider": "مقارنة قبل وبعد",
+    "enhancing": "جارٍ تحسين صورتك…",
+    "applied": "طُبّق: {{ops}}",
+    "download": "تنزيل",
+    "autopilotTitle": "تحسين كل شيء",
+    "autopilotHint": "ضغطة واحدة: ترقية، إزالة ضوضاء، وإصلاح التلف — الذكاء الاصطناعي يختار الباقي.",
+    "autopilotButton": "تحسين كل شيء",
+    "costNote": "{{cost}} Visual Bucs لكل تحسين",
+    "pickOps": "أو اختر العمليات",
+    "colorizeHint": "التلوين ينطبق فقط على الصور الأبيض والأسود. الاستعادة تصلح الخدوش والغبار والبهتان.",
+    "advanced": "متقدم — منزلقات القوة",
+    "runSelected": "تحسين بالمختار",
+    "ops": {
+      "upscale": "ترقية",
+      "denoise": "إزالة الضوضاء",
+      "restore": "استعادة",
+      "colorize": "تلوين"
+    }
+  },
+  "speedRamp": {
+    "title": "منحدر السرعة",
+    "subtitle": "حركة بطيئة، إعدادات سرعة ومنحدرات متحركة — نمط احترافي",
+    "priceBadge": "{slow} VB حركة بطيئة · {preset} VB إعدادات",
+    "clipToRetime": "المقطع لإعادة التوقيت",
+    "noClips": "لا مقاطع على الخط الزمني بعد",
+    "noClipsHint": "أضف مقطعاً إلى مشهد أولاً، ثم أعد توقيته هنا.",
+    "slowmo": {
+      "title": "حركة بطيئة زبدية",
+      "desc": "حركة بطيئة بتدفق بصري. ضغطة واحدة، {cost} VB لكل واحدة.",
+      "simple": "بسيطة",
+      "buttery": "زبدية",
+      "dramatic": "درامية",
+      "extreme": "قصوى",
+      "rendered": "عُرضت الحركة البطيئة",
+      "renderedDesc": "مقطع حركتك البطيئة جاهز."
+    },
+    "presets": {
+      "title": "إعدادات السرعة",
+      "desc": "سرعات ثابتة من 0.25x إلى 4x."
+    },
+    "ramps": {
+      "title": "منحدرات السرعة",
+      "desc": "منحنيات سرعة متحركة — بطيئة للداخل، انفجار للخارج.",
+      "presetOnlyNote": "المنحدرات منحنيات معينة حالياً — المنحنيات المرسومة خصيصاً تحتاج تحديثاً مستقبلياً."
+    },
+    "applyPreset": "تطبيق",
+    "rendering": "جارٍ العرض…",
+    "applyPresetDesc": "تطبيق هذه السرعة",
+    "result": {
+      "applied": "طُبّقت السرعة",
+      "rampApplied": "طُبّق المنحدر"
+    },
+    "useInEditor": "الاستخدام في المحرر",
+    "attaching": "جارٍ الإرفاق…",
+    "inTimeline": "في الخط الزمني",
+    "multiRatioExport": "تصدير متعدد النسب",
+    "download": "تنزيل",
+    "errors": {
+      "slowmoFailed": "فشلت الحركة البطيئة — لم تُنفق أي Visual Bucs.",
+      "speedFailed": "فشل تغيير السرعة — لم تُنفق أي Visual Bucs.",
+      "loadingPresets": "جارٍ تحميل الإعدادات…"
+    }
+  },
+  "captionTemplates": {
+    "title": "قوالب تعليقات متحركة",
+    "subtitle": "أنماط متحركة كلمة بكلمة — اضغط للتطبيق",
+    "badge": "جديد",
+    "demoTimingLive": "توقيتات كلمات مباشرة",
+    "demoTimingSynth": "توقيتات تجريبية",
+    "appliesAs": "ينطبق كـ",
+    "apply": "تطبيق",
+    "applied": "طُبّق",
+    "handoffTitle": "التعليقات ← المقاطع",
+    "handoffDesc": "خذ فيديوك المعلّق مباشرة إلى مقاطع ترويجية أو تصدير.",
+    "gotoClips": "صناعة مقاطع ترويجية",
+    "gotoExport": "الذهاب إلى التصدير",
+    "tpl": {
+      "bounce-words": {
+        "name": "كلمات نطاطة",
+        "desc": "الكلمات تنط واحدة تلو الأخرى"
+      },
+      "typewriter-words": {
+        "name": "آلة كاتبة",
+        "desc": "كشف آلة كاتبة كلمة بكلمة"
+      },
+      "highlight-box": {
+        "name": "صندوق إبراز",
+        "desc": "الكلمة النشطة في صندوق إبراز"
+      },
+      "punch-words": {
+        "name": "كلمات ضاربة",
+        "desc": "الكلمات تضرب بقوة"
+      },
+      "glow-sweep": {
+        "name": "مسح متوهج",
+        "desc": "توهج يمسح كل كلمة"
+      },
+      "neon-pulse": {
+        "name": "نبض نيون",
+        "desc": "إبرازات كلمات نابضة بالنيون"
+      },
+      "slide-words": {
+        "name": "كلمات منزلقة",
+        "desc": "الكلمات تنزلق للأعلى إلى مكانها"
+      },
+      "pop-words": {
+        "name": "كلمات منبثقة",
+        "desc": "حركة كلمات منبثقة مرحة"
+      }
+    }
+  },
+  "photoShoot": {
+    "scenePacks": {
+      "title": "حزم المشاهد",
+      "packs": {
+        "neonStage": {
+          "name": "مسرح نيون",
+          "blurb": "لقطة طاقة حية كهربائية — بمستوى فن الغلاف، مصنوعة لغلاف الأغنية المنفردة."
+        },
+        "rooftopGolden": {
+          "name": "سطح الساعة الذهبية",
+          "blurb": "لقطة حزمة صحفية تحريرية دافئة — ضوء ذهبي ناعم، أفق مدينة خلفك."
+        },
+        "studioNoir": {
+          "name": "استوديو نوار",
+          "blurb": "بورتريه استوديو أسود مزاجي — لقطة صورة ملفك الشخصي وعلامة بثك."
+        },
+        "streetLuxury": {
+          "name": "فخامة الشارع",
+          "blurb": "استعراض مدينة ليلية للتواصل الاجتماعي — أسفلت مبلل، توهج نيون، سيارة فاخرة في الإطار."
+        },
+        "palaceThrone": {
+          "name": "عرش القصر",
+          "blurb": "ملكية Bow Down كاملة — عرش، قاعة ذهبية، أشعة إلهية. لقطة العلامة البطلة."
+        }
+      },
+      "tags": {
+        "albumArt": "فن الألبوم",
+        "singleCover": "غلاف منفرد",
+        "tourPromo": "ترويج الجولة",
+        "pressKit": "حزمة صحفية",
+        "bioPhoto": "صورة السيرة",
+        "magazineStyle": "نمط مجلة",
+        "profilePic": "صورة الملف الشخصي",
+        "streamBranding": "علامة البث",
+        "logoAdjacent": "بجوار الشعار",
+        "socialContent": "محتوى اجتماعي",
+        "dropAnnouncements": "إعلانات الإصدار",
+        "merchTieIn": "ربط المنتجات",
+        "heroBranding": "علامة بطلة",
+        "announcementGraphics": "رسومات الإعلانات"
+      }
+    }
+  },
+  "avatarPresenter": {
+    "title": "مقدم الأفاتار",
+    "subtitle": "مضيف رأس متكلم يقدم فيديوك.",
+    "checking": "جارٍ التحقق من مزود الأفاتار…",
+    "notConfigured": "أفاتارات الذكاء الاصطناعي غير متصلة بعد — مالك الموقع يحتاج إضافة مفتاح HeyGen أو Hedra API قبل أن تولّد مقدمات الرأس المتكلم. خطة فيديوك ستلاحظ اختيار المقدم لاحقاً.",
+    "ready": "مزود الأفاتار متصل.",
+    "modeNone": "لا مقدم",
+    "modeAvatar": "مقدم أفاتار بالذكاء الاصطناعي",
+    "avatarLabel": "الأفاتار",
+    "avatarPlaceholder": "اختر أفاتاراً…",
+    "scriptLabel": "نص المقدم",
+    "scriptPlaceholder": "ماذا يجب أن يقول المقدم؟ (يُحفظ مع خطتك — يُفتح التوليد عند اتصال المزود)",
+    "savedNote": "اختيار مقدمك محفوظ مع خطة الفيديو. التوليد نفسه يبقى معطّلاً حتى يُضاف مفتاح المزود — لن تُخصم."
+  },
+  "harmony": {
+    "buttonLabel": "إضافة تناغمات — أصوات خلفية",
+    "buttonCost": "300 Visual Bucs",
+    "title": "مولّد التناغم",
+    "subtitle": "تناغمات صوتية خلفية لـ “{{title}}”",
+    "close": "إغلاق",
+    "vb": "Visual Bucs",
+    "engineLabel": "محرك التناغم",
+    "modeClassicLabel": "مضاعفات كلاسيكية",
+    "modeClassicShort": "كلاسيكي",
+    "modeClassicBlurb": "مضاعفات تحافظ على النغمة لنفس الصوت — أثلاث، أخماس، أوكتافات للأعلى أو الأسفل. جودة استوديو، متاحة دائماً.",
+    "modeAiLabel": "تناغمات ذكاء اصطناعي",
+    "modeAiShort": "ذكاء اصطناعي",
+    "modeAiBlurb": "كل جزء تناغم يُعاد صوته إلى صوت مغنٍّ خلفي مميز بالذكاء الاصطناعي — يبدو كمغنين حقيقيين، لا نسخ.",
+    "alwaysAvailable": "✓ متاح دائماً",
+    "aiNeedsSetup": "⚠ يحتاج إعداد صوت الاستوديو — اسأل الدعم",
+    "aiCheckNote": "يُتحقق من التوفر مباشرة مع الاستوديو",
+    "styleLabel": "نمط التناغم",
+    "loadingStyles": "جارٍ تحميل الأنماط…",
+    "partsLine": "{{parts}}",
+    "keyHintLabel": "تلميح المفتاح",
+    "optional": "(اختياري)",
+    "keyHintPlaceholder": "مثال: C، Am، F#",
+    "keyHintHint": "يُحفظ مع التناغم كسياق ترتيب.",
+    "mixLabel": "مستوى مزيج التناغم",
+    "mixLow": "خفيف",
+    "mixHigh": "بارز",
+    "lyricsLabel": "الكلمات",
+    "lyricsOptional": "(لتسليم فيديو الكلمات)",
+    "lyricsPlaceholder": "الصق الكلمات لفتح فيديوهات كلمات بضغطة واحدة…",
+    "generateCta": "بناء التناغمات · {{cost}} Visual Bucs",
+    "confirmFeature": "مولّد التناغم ({{mode}})",
+    "needAudio": "التناغمات تحتاج رابط صوت قابل للتشغيل من نتيجة الأغنية.",
+    "generating": "جارٍ بناء تناغمات “{{title}}”…",
+    "generatingClassicHint": "جارٍ إزاحة نغمة المضاعفات والمزج — أبقِ هذا مفتوحاً.",
+    "generatingAiHint": "جارٍ إزاحة نغمة الأجزاء، إعادة صوت كل مغنٍّ خلفي، ثم المزج — أبقِ هذا مفتوحاً.",
+    "generateFailed": "فشل توليد التناغم. حاول مجدداً.",
+    "outOfCredits": "Visual Bucs غير كافية لهذا ({{cost}}). اشحن رصيدك لمواصلة الإنشاء.",
+    "aiNotConfigured": "تناغمات الذكاء الاصطناعي غير مفعّلة في الاستوديو بعد — أصوات المغنين الخلفيين غير مهيأة. المضاعفات الكلاسيكية تعمل الآن وتبدو رائعة.",
+    "useClassicInstead": "بناء مضاعفات كلاسيكية بدلاً من ذلك · {{cost}} Visual Bucs",
+    "createdTitle": "بُنيت التناغمات",
+    "createdDesc": "“{{title}}” في مكتبة أغانيك.",
+    "hubMixDetail": "مزيج التناغم",
+    "hubStemDetail": "مسار التناغم",
+    "stemsLabel": "مسارات التناغم",
+    "mixLabelShort": "مزيج التناغم",
+    "download": "تنزيل",
+    "mixIntoSong": "مزج في الأغنية",
+    "mixedIn": "مُمزج",
+    "mixedIntoSongDetail": "نسخة عمل بالتناغمات",
+    "mixedIntoSongTitle": "مُزجت التناغمات",
+    "mixedIntoSongDesc": "مزيج التناغم هو الآن نسخة عمل أغنيتك في المشروع.",
+    "sendToMixMaster": "إرسال إلى المزج والماستر",
+    "lyricVideo": "صناعة فيديو كلمات",
+    "lyricVideoReady": "فيديو الكلمات جاهز",
+    "lyricVideoFailed": "فشل فيديو الكلمات. حاول مجدداً.",
+    "coverArt": "تصميم فن الغلاف",
+    "coverArtReady": "فن الغلاف جاهز",
+    "coverArtFailed": "فشل فن الغلاف. حاول مجدداً.",
+    "coverArtAlt": "فن غلاف {{title}}",
+    "coverArtMood": "عمل فني لغلاف مسار صوتي غني بالتناغم",
+    "addToAlbum": "إضافة إلى الألبوم",
+    "share": "نسخ رابط المشاركة",
+    "copied": "نُسخ!",
+    "shareCopiedTitle": "نُسخ نص المشاركة",
+    "shareCopiedDesc": "الصقه في أي مكان — رابط إحالتك بداخله.",
+    "copyFailedTitle": "فشل النسخ",
+    "copyFailedDesc": "متصفحك حظر الوصول إلى الحافظة.",
+    "shareText": "“{{title}}” — تناغمات طازجة {{madeWith}} 🎵\n{{mixUrl}}\nاحصل على كود الغش: {{link}}",
+    "lyricsNeededTitle": "الكلمات مطلوبة",
+    "lyricsNeededDesc": "أضف كلمات الأغنية أعلاه لصناعة فيديو كلمات.",
+    "lrcFailed": "تعذّر بناء توقيت الكلمات من الكلمات.",
+    "unknownArtist": "فنان غير معروف",
+    "done": "تم"
+  },
+  "deverb": {
+    "abCleaned": "أُزيل الصدى",
+    "abHint": "بدّل ذهاباً وإياباً — فرق الصدى يعيش في الذيول.",
+    "abOriginal": "الأصلي",
+    "checkingAvailability": "جارٍ التحقق من التوفر…",
+    "creditsRemaining": "{n} Visual Bucs متبقية",
+    "deverbButton": "إزالة الصدى · {cost} VB",
+    "deverbComplete": "اكتملت إزالة الصدى — قارن الأصلي أدناه.",
+    "downloadButton": "تنزيل",
+    "dropFormats": "MP3، WAV، M4A، AAC، OGG، FLAC · حتى 50 MB",
+    "dropPrompt": "أسقط صوتاً به صدى هنا، أو انقر للتصفح",
+    "errorAudioType": "يُسمح بملفات الصوت فقط (MP3، WAV، M4A، AAC، OGG، FLAC).",
+    "errorDeverbFailed": "فشلت مهمة إزالة الصدى. استُردت أموالك.",
+    "errorFileTooLarge": "ذلك الملف كبير جداً — رفوعات إزالة الصدى محدودة بـ 50 MB.",
+    "errorJobNotFound": "المهمة غير موجودة — قد تكون انتهت.",
+    "errorNetwork": "خطأ في الشبكة — تحقق من اتصالك وحاول مجدداً.",
+    "errorPricingPending": "تسعير إزالة الصدى لم يُعتمد بعد، لذا الأداة معطّلة. لم تُخصم أي أرصدة.",
+    "errorProviderNotConfigured": "إزالة الصدى غير متاحة بعد — مزود الذكاء الاصطناعي لم يُربط. لم تُخصم أي أرصدة.",
+    "errorStartFailed": "تعذّر بدء مهمة إزالة الصدى. حاول مجدداً.",
+    "featureName": "إزالة الصدى",
+    "fileSizeChange": "{size} MB — انقر لاختيار ملف مختلف",
+    "gatedPricingPending": "مزود إزالة الصدى متصل، لكن سعر المهمة لم يُعتمد بعد. يُفتح هذا التبويب بمجرد اعتماد التسعير.",
+    "gatedProviderMissing": "مزود إزالة الصدى بالذكاء الاصطناعي لم يُربط — الخادم يفتقد مفتاح مزوده (DEVERB_API_KEY). سيُفتح هذا التبويب تلقائياً بمجرد ربط المزود واعتماد السعر.",
+    "gatedTeaser": "ارفع صوت غرفة به صدى — بودكاست، تعليقات صوتية، مقاطع بث، أو لقطات صوتية — واحصل على حوار وأصوات جافة تبدو بميكروفون قريب. لا شيء للدفع حتى تُطلق الميزة.",
+    "gatedTitle": "إزالة الصدى غير متاحة بعد",
+    "gatedUnknown": "إزالة الصدى غير متاحة حالياً. تحقق قريباً.",
+    "handoffLabel": "استخدمه تالياً",
+    "handoffPodcast": "استوديو البودكاست",
+    "handoffSong": "تدفق الأغنية",
+    "handoffVoiceover": "استوديو التعليق الصوتي",
+    "honestIntro": "إزالة الصدى بالذكاء الاصطناعي تزيل صدى الغرفة، لا الضوضاء —",
+    "honestRest": ". قرّنها بتبويب التنظيف أولاً إذا كانت لقطتك بها أزيز، ثم أزل الصدى هنا.",
+    "honestStrong": "لن تصلح التشويه أو ضوضاء الخلفية الثقيلة",
+    "labelCleaned": "أُزيل الصدى",
+    "labelOriginal": "الأصلي",
+    "modeDialogueBlurb": "بودكاست، تعليقات صوتية، مقاطع بث. ينزع نغمة الغرفة والصدى من الكلام.",
+    "modeDialogueLabel": "عزل الحوار",
+    "modeLabel": "وضع إزالة الصدى",
+    "modeVocalBlurb": "أصوات أغاني مسجلة في غرفة. يجفف اللقطة للمزج.",
+    "modeVocalLabel": "إزالة صدى الصوت",
+    "newDeverbButton": "جديد",
+    "pause": "إيقاف مؤقت",
+    "play": "تشغيل",
+    "progressNote": "مهمة على الخادم — آمن تبديل التبويبات أو إغلاق هذه الصفحة أثناء تشغيلها.",
+    "statusProcessing": "إزالة الصدى تزيل صدى الغرفة…",
+    "statusQueued": "في الطابور — مهمة إزالة الصدى الخاصة بك تنتظر دورها",
+    "statusUploading": "جارٍ الرفع…",
+    "subtitle": "نزع صدى الغرفة من الحوار والأصوات · {cost} VB لكل مهمة",
+    "title": "إزالة الصدى / عزل الحوار",
+    "waveformUnavailable": "الموجة غير متاحة",
+    "whyNoDsp": "لماذا لا توجد نسخة فورية مجانية؟ إزالة صدى الغرفة عمل ذكاء اصطناعي — مرشحات الضوضاء العادية تقطع الأزيز والدمدمة فقط، لا يمكنها إلغاء ارتداد الصوت عن الجدران. بدلاً من شحن مزيف، تنتظر هذه الأداة مزود إزالة الصدى الحقيقي بالذكاء الاصطناعي."
+  },
+  "fillerRemover": {
+    "title": "مزيل كلمات الحشو",
+    "subtitle": "قص الـ ums والـ uhs والهواء الميت تلقائياً — {{cost}} Visual Bucs",
+    "noClip": "أضف مقطع فيديو إلى مشهد لفتح مزيل الحشو.",
+    "groupClassic": "حشوات كلاسيكية",
+    "groupHedges": "عبارات تحوط",
+    "groupRisky": "كلمات محفوفة بالمخاطر",
+    "riskyHint": "مغلقة افتراضياً — هذه كلمات حقيقية أيضاً",
+    "customWordsLabel": "كلماتك",
+    "customWordsPlaceholder": "مثال: أساساً، حرفياً…",
+    "add": "إضافة",
+    "removeWord": "إزالة كلمة",
+    "silenceLabel": "قص فترات الهواء الميت",
+    "minPauseLabel": "أدنى فترة",
+    "analyzeButton": "العثور على الحشوات · {{cost}} Visual Bucs",
+    "creditsRemaining": "{{n}} Visual Bucs متبقية",
+    "stagequeued": "في الطابور…",
+    "stagedownloading": "جارٍ تنزيل فيديوك…",
+    "stageextracting-audio": "جارٍ استخراج الصوت…",
+    "stagetranscribing": "جارٍ النسخ بالذكاء الاصطناعي — الاستماع لكل um و uh…",
+    "stagedetecting": "جارٍ العثور على كلمات الحشو والهواء الميت…",
+    "progressNote": "يعمل هذا على خوادمنا — آمن إغلاق هذا التبويب. قائمة القصات ستكون في انتظارك هنا.",
+    "cutsFound": "{{n}} قص موجود",
+    "ofDuration": "{{d}} الإجمالي",
+    "selectAll": "الكل",
+    "selectNone": "لا شيء",
+    "noCutsTitle": "نظيف بالفعل",
+    "noCutsDesc": "لم يُعثر على كلمات حشو أو فترات طويلة — هذه اللقطة محكمة.",
+    "kindFiller": "حشو",
+    "kindSilence": "فترة",
+    "timeSaved": "وفّر عبر {{n}} قص",
+    "renderButton": "عرض فيديو نظيف · {{n}} قص",
+    "startOver": "البدء من جديد",
+    "renderStagequeued": "في طابور العرض…",
+    "renderStagedownloading": "جارٍ تنزيل فيديوك…",
+    "renderStagecutting": "جارٍ قص الحشوات…",
+    "renderStageuploading": "جارٍ رفع الفيديو النظيف…",
+    "doneTitle": "تم — أُزيل {{n}} قص، وُفّر {{saved}}",
+    "useInEditor": "الاستخدام في المحرر",
+    "usedInEditorTitle": "أُضيف إلى المحرر",
+    "usedInEditorDesc": "استبدل الفيديو النظيف مقطع المشهد.",
+    "download": "تنزيل",
+    "newRun": "تشغيل جديد",
+    "nextTitle": "ما التالي",
+    "nextDesc": "فيديوك النظيف في مشروع المحور. افتح تبويب التعليقات لتعليقات الذكاء الاصطناعي، ثم التصدير لنسخ متعددة النسب، ثم جدولته من المجدول.",
+    "hubAssetLabel": "فيديو نظيف",
+    "hubAssetDetail": "مزيل كلمات الحشو · {{n}} قص · وُفّر {{saved}}",
+    "renderCompleteTitle": "الفيديو النظيف جاهز",
+    "renderCompleteDesc": "حُفظ في مشروع محورك — التعليقات هي التالية.",
+    "errorAnalyze": "تعذّر تحليل الفيديو — حاول مجدداً.",
+    "errorRender": "فشل العرض واستُردت Visual Bucs الخاصة بك."
+  },
+  "lrcExport": {
+    "buttonLabel": "تصدير كلمات متزامنة (.lrc)",
+    "buttonSub": "ضغط مرافق مجاني · محاذاة ذكاء اصطناعي {{credits}} Visual Bucs",
+    "downloadTimedLyrics": "تنزيل كلمات مؤقّتة (.lrc)",
+    "badge": "تصدير كلمات متزامنة",
+    "title": "كلمات متزامنة",
+    "close": "إغلاق",
+    "freeBadge": "مجاني",
+    "tapTab": "اضغط للمزامنة",
+    "aiTab": "محاذاة ذكاء اصطناعي",
+    "aiCost": "{{credits}} VB",
+    "play": "تشغيل",
+    "pause": "إيقاف مؤقت",
+    "tapHint": "شغّل الأغنية واضغط عند غناء كل سطر — {{done}} من {{total}} خُتمت.",
+    "tapButton": "اضغط",
+    "redoLast": "إعادة الأخير",
+    "restart": "إعادة بدء",
+    "reviewButton": "مراجعة وتصدير",
+    "reusedNote": "توقيت معاد استخدامه من محاذاة الذكاء الاصطناعي الخاصة بك — بدون رسوم إضافية.",
+    "aiTitle": "محاذاة كلمات بالذكاء الاصطناعي",
+    "aiBlurb": "نفس المحاذي الدقيق من تدفق فيديو الكلمات يستمع إلى أغنيتك ويختم كل سطر بتوقيت على مستوى الكلمة. يكلّف حوسبة مزود حقيقية، لذا السعر معروض مقدماً.",
+    "aiButton": "محاذاة كلماتي بالذكاء الاصطناعي — {{credits}} Visual Bucs",
+    "aiPriceNote": "يُخصم من محاذي فيديو الكلمات — نفس المحرك، نفس السعر، بدون زيادة.",
+    "aligning": "جارٍ الاستماع إلى أغنيتك…",
+    "alignDoneTitle": "حُوذيت الكلمات",
+    "alignDoneDesc": "راجع التوقيت، ثم صدّر ملف .lrc الخاص بك.",
+    "alignFailed": "فشلت محاذاة الذكاء الاصطناعي — لم تُنفق أي Visual Bucs.",
+    "outOfCredits": "Visual Bucs غير كافية لمحاذاة الذكاء الاصطناعي — الضغط للمزامنة مجاني دائماً.",
+    "noLyrics": "لم يُعثر على كلمات لهذه الأغنية.",
+    "reviewHint": "اضبط بدقة أي طابع زمني (دقيقة:ثانية.عشر)، أزل الأسطر التي لا تريدها، ثم صدّر.",
+    "backToTap": "رجوع إلى الضغط",
+    "lineTimeLabel": "وقت بدء السطر {{n}}",
+    "removeLine": "إزالة السطر {{n}}",
+    "noTimedLines": "لا أسطر مؤقّتة بعد — اختمها بالضغط للمزامنة أو شغّل محاذاة الذكاء الاصطناعي.",
+    "validNote": "LRC صالح — {{count}} سطر مؤقّت، جاهز للموزعين الذين يقبلون LRC.",
+    "invalidTitle": "أصلح هذه قبل التصدير",
+    "download": "تنزيل .lrc",
+    "copy": "نسخ LRC",
+    "copied": "نُسخ!",
+    "copyFailed": "فشل النسخ — حدّد نص المعاينة يدوياً.",
+    "addToRelease": "إضافة إلى أصول الإصدار",
+    "savedBadge": "حُفظ في الأصول",
+    "savedTitle": "أُضيف إلى أصول الإصدار",
+    "savedDesc": "ملف .lrc الخاص بك في صينية أصول هذا المشروع — أرفقه عند بناء الإصدار على صفحة التوزيع.",
+    "assetLabel": "كلمات متزامنة (.lrc) — {{title}}",
+    "assetDetail": "كلمات مؤقّتة LRC — جاهزة للتقديم إلى الموزعين الذين يقبلون ملفات LRC.",
+    "openDistribute": "المتابعة إلى التوزيع",
+    "honestyNote": "ملف .lrc هذا للتقديم إلى الموزعين الذين يقبلون LRC (Apple Music إلخ). تسليم الكلمات المتزامنة فعلياً إلى منصة بث يحتاج شريك توزيع — هذه الأداة تجهّز الملف، ولا تسلّم الكلمات إلى أي منصة."
   }
 }
