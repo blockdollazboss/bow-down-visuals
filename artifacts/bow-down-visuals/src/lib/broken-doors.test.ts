@@ -92,3 +92,23 @@ describe("S27-69 — the Producer Tag door can actually reach the Tag tab", () =
     expect(aiAudio).toContain("initialBeatMakerTab(window.location.search)");
   });
 });
+
+describe("S27-70 — creator-pricing's signed-out checkout bounce uses ?next=", () => {
+  it("the bounce is built with loginPathWithNext, never /login?returnTo=", () => {
+    expect(creatorPricing).toContain(
+      'loginPathWithNext("/creator-pricing", `returnTo=${encodeURIComponent(returnTo)}`)',
+    );
+    expect(creatorPricing).not.toContain("/login?returnTo=");
+    expect(creatorPricing).not.toContain("honored everywhere");
+  });
+
+  it("the bounce round-trips: after sign-in the user lands back on pricing with returnTo intact", () => {
+    const bounce = loginPathWithNext("/creator-pricing", `returnTo=${encodeURIComponent("/earnings")}`);
+    expect(bounce.startsWith("/login?next=")).toBe(true);
+    const loginSearch = bounce.slice("/login".length);
+    const landed = postLoginPath(loginSearch);
+    expect(landed.startsWith("/creator-pricing?")).toBe(true);
+    const landedParams = new URLSearchParams(landed.slice(landed.indexOf("?") + 1));
+    expect(landedParams.get("returnTo")).toBe("/earnings");
+  });
+});
