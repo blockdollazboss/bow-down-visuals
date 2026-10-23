@@ -2287,7 +2287,8 @@
     "vibeHypeBlurb": "클러치 플레이 & 대승",
     "vibeHypeLabel": "하이프",
     "vibeWholesomeBlurb": "훈훈한 순간",
-    "vibeWholesomeLabel": "훈훈"
+    "vibeWholesomeLabel": "훈훈",
+    "addCaptions": "캡션 추가"
   },
   "coach": {
     "buildPlan": "내 머니 플랜 만들기",
@@ -5654,7 +5655,9 @@
     "whatYouGetVocalDirection": "보컬 디렉션",
     "discardDraftButton": "초안 버리기",
     "projectSaved": "프로젝트 저장됨",
-    "recoveryFailedTitle": "복원 실패"
+    "recoveryFailedTitle": "복원 실패",
+    "guidedTabLabel": "가이드",
+    "simpleTabLabel": "Turbo"
   },
   "songs": {
     "cancelButton": "취소",
@@ -5886,7 +5889,12 @@
     "uploadFace": "얼굴 사진 업로드",
     "variationAlt": "썸네일 변형 {{n}}",
     "variationBadge": "변형 {{n}}",
-    "variationDetail": "{{count}}개 변형{{suffix}} · {{aspectRatio}}"
+    "variationDetail": "{{count}}개 변형{{suffix}} · {{aspectRatio}}",
+    "videoReferenceAttached": "비디오가 레퍼런스로 첨부됨",
+    "removeVideoReference": "비디오 레퍼런스 제거",
+    "sendToVideoStudio": "비디오 스튜디오로 보내기",
+    "artworkModeLabel": "아트워크 팩",
+    "useAsThumbnail": "썸네일로 사용…"
   },
   "thumbnailTest": {
     "analyzing": "분석 중…",
@@ -5928,7 +5936,9 @@
     "uploadCta": "여기에 썸네일 2~4개를 드롭하거나 클릭해서 찾아보세요",
     "uploadFormats": "PNG/JPG/WebP · {{uploaded}}/{{max}} 업로드됨",
     "weaknessesLabel": "약점",
-    "winnerBadge": "승자"
+    "winnerBadge": "승자",
+    "filesSkipped_one": "파일 1개가 건너뛰어졌습니다 — 이미지만, 각각 최대 10 MB, 최대 {{max}}개 파일.",
+    "filesSkipped_other": "파일 {{count}}개가 건너뛰어졌습니다 — 이미지만, 각각 최대 10 MB, 최대 {{max}}개 파일."
   },
   "thumbnails": {
     "backToDashboard": "대시보드로 돌아가기",
@@ -5954,7 +5964,8 @@
     "removedToast": "라이브러리에서 제거됨",
     "removing": "제거 중…",
     "untitled": "제목 없는 썸네일",
-    "viewFullSize": "{{title}} 전체 크기로 보기"
+    "viewFullSize": "{{title}} 전체 크기로 보기",
+    "fromProject": "이 프로젝트에서"
   },
   "tipPage": {
     "amountRequired": "먼저 금액을 선택하거나 입력하세요.",
@@ -6296,7 +6307,21 @@
     "videoUpscaleComplete": "업스케일 완료 — {{target}}",
     "videoUpscaleFailedRefunded": "업스케일 실패 — 300 Visual Bucs가 환불되었습니다.",
     "videoUpscalerSub": "클립을 1080p나 4K로 — {{cost}} Visual Bucs",
-    "videoUpscalerTitle": "비디오 업스케일러"
+    "videoUpscalerTitle": "비디오 업스케일러",
+    "tabEnhance": "향상",
+    "tabEnhanceShort": "향상",
+    "modeLabel": "업스케일 모드",
+    "modeClassic": "클래식 (ffmpeg)",
+    "modeClassicDesc": "빠른 픽셀 리샘플링",
+    "modeGenerative": "생성형 AI",
+    "modeGenerativeDesc": "AI 디테일 재구성 (프리미엄)",
+    "genFraming": "생성형 AI 업스케일은 위의 클래식 업스케일러와 다른 상품입니다: 모델이 픽셀을 리샘플링만 하지 않고 그럴듯한 디테일을 재구성합니다. 프리미엄 가격, 프리미엄 결과 — 클래식 300 VB ffmpeg 업스케일은 그 옆에 그대로 있습니다.",
+    "genChecking": "생성형 업스케일 제공자 확인 중…",
+    "genNotConfigured": "생성형 AI 업스케일은 아직 연결되지 않았습니다 — 사이트 소유자가 제공자 키를 추가해야 합니다. 위의 클래식 ffmpeg 업스케일러는 지금 바로 작동합니다. 청구되지 않습니다.",
+    "genStatusFailed": "업스케일 서비스에 연결할 수 없었습니다.",
+    "genDisabledTitle": "활성화하려면 제공자 키를 연결하세요",
+    "genButton": "{{target}}로 생성형 업스케일 (1500 VB — 가격 미정)",
+    "genPriceNote": "임시 가격 — 실제 가격은 출시 전에 소유자 승인이 필요합니다. 클래식 ffmpeg 업스케일은 300 VB 그대로입니다."
   },
   "videoEditor": {
     "activeSceneNoClip": "활성 씬에 클립이 없습니다 — 오디오는 계속 재생됩니다",
@@ -7042,7 +7067,34 @@
     "voiceEditsTitle": "음성 편집"
   },
   "videoTemplatesPage": {
-    "applyPrice": "적용 시 {{count}} Visual Bucs"
+    "applyPrice": "적용 시 {{count}} Visual Bucs",
+    "copyFailed": "링크를 복사할 수 없었습니다.",
+    "ctaButton": "Visual Vibes 열기",
+    "ctaSub": "모든 템플릿은 Visual Vibes 안에서 한 번의 탭으로 적용됩니다 — 클립을 슬롯에 매핑하고, 텍스트를 편집하고, 캡션, 썸네일, 클립, 예약 핸드오프가 내장된 완성 비디오를 받으세요.",
+    "ctaTitle": "당신 것을 만들 준비가 됐나요?",
+    "kicker": "무료 템플릿 갤러리",
+    "linkCopied": "공유 링크가 복사됐습니다 — 추천 코드가 들어 있습니다",
+    "copyShareLink": "공유 링크 복사",
+    "outcomeLabel": "제작 목적",
+    "seoP1": "편집 템플릿은 완성 비디오로 가는 가장 빠른 길입니다: 컷, 전환, 텍스트 처리가 미리 디자인되어 있어, 당신은 자기 클립과 사진만 넣으면 됩니다. 위의 각 템플릿은 방송 스타일 전환 — 슬라이드, 와이프, 아이리스 리빌, 강렬한 방사형 컷 — 과 굵은 금색 텍스트 처리로 서버에서 렌더링되어, 결과는 템플릿 같지 않고 디자인된 것처럼 보입니다.",
+    "seoP2": "템플릿을 선택하면 템플릿이 미리 선택된 상태로 Visual Vibes에서 열립니다. 미디어를 슬롯에 매핑하고, 텍스트 오버레이를 다시 쓰고, 선택 음악 베드를 추가하고, 적용하세요 — 한 번의 탭으로 전체 편집이 렌더링됩니다. 거기서 완성 비디오를 캡션, 썸네일 메이커, 스마트 클립, 또는 소셜 스케줄러로 바로 넘기세요.",
+    "seoTitle": "편집 템플릿이 인터넷을 깨는 이유",
+    "slotsLabel": "미디어 슬롯 {{count}}개",
+    "sub": "템플릿을 고르고, 클립과 사진을 넣으면, 매끈한 자동 편집 비디오를 받습니다 — 컷, 전환, 텍스트가 구워져 있습니다. 계정으로 무료로 둘러보세요; 렌더링할 때 Visual Bucs가 적용됩니다.",
+    "titleA": "비디오 편집",
+    "titleB": "템플릿",
+    "useTemplate": "이 템플릿 사용",
+    "searchPlaceholder": "템플릿 검색 — “lyric”, “promo”, “travel”을 시도해 보세요…",
+    "sortFeatured": "추천 — 우리의 선택",
+    "sortAz": "이름 A–Z",
+    "sortShortest": "짧은 순",
+    "sortMostClips": "클립 많은 순",
+    "resultsCount": "템플릿 {{count}}개",
+    "noResultsTitle": "그 검색과 일치하는 템플릿이 없습니다",
+    "noResultsSub": "다른 단어를 시도하거나, 검색을 지우고 전체 라이브러리를 둘러보세요.",
+    "clearSearch": "검색 지우기",
+    "remake": "이것 리메이크",
+    "shareTemplate": "이 템플릿 공유"
   },
   "viralityCheck": {
     "bestPostingTime": "최적 게시 시간",
@@ -7282,7 +7334,8 @@
     "toolSub": "내 비디오의 로고를 깨끗하게 제거 — {{cost}} Visual Bucs",
     "toolTitle": "워터마크 제거",
     "videoFileError": "비디오 파일을 선택하세요.",
-    "videoSizeError": "이 비디오는 80 MB 업로드 제한을 초과합니다."
+    "videoSizeError": "이 비디오는 80 MB 업로드 제한을 초과합니다.",
+    "sendToVideoEditor": "Visual Vibes로 보내기"
   },
   "websiteBuilder": {
     "applyEditButton": "수정 적용 — {{cost}} Visual Bucs",
@@ -9685,7 +9738,16 @@
     "title": "오디오 스튜디오"
   },
   "thumbnailStudio": {
-    "title": "썸네일 스튜디오"
+    "title": "썸네일 스튜디오",
+    "subtitle": "스크롤을 멈추는 썸네일을 생성하고, AI로 A/B 테스트하고, 라이브러리를 둘러보세요 — 하나의 스튜디오에서.",
+    "tabs": {
+      "generate": "생성",
+      "library": "라이브러리",
+      "aria": "썸네일 스튜디오 섹션",
+      "enhance": "향상",
+      "background": "배경",
+      "abtest": "A/B Test"
+    }
   },
   "wave9": {
     "directEdit": {
@@ -12409,5 +12471,770 @@
     "addHint": "재생 헤드에 배치됨",
     "addedToast": "모션 그래픽 추가됨",
     "addedToastDesc": "재생 헤드 위치에 타임라인에 배치됐습니다."
+  },
+  "cartoonStudio": {
+    "pageTitle": "카툰 스튜디오",
+    "pageDescription": "카툰 비디오를 만들고, 카툰 캐릭터를 디자인하고, 사진을 카툰화하세요 — 하나의 스튜디오에서.",
+    "backToDashboard": "대시보드로 돌아가기",
+    "costBadge": "비디오 400 VB · 이미지 200 VB",
+    "title": "카툰 스튜디오",
+    "subtitle": "카툰은 콘텐츠 제작의 일부입니다. 카툰 클립을 생성하고, 캐릭터를 디자인하고, 어떤 사진이든 카툰화하세요 — 하나의 매끄러운 워크플로우.",
+    "tabsAria": "카툰 스튜디오 섹션",
+    "tabVideo": "카툰 비디오",
+    "tabCharacters": "캐릭터",
+    "tabCartoonize": "카툰화",
+    "styleLabel": "카툰 스타일",
+    "styleAnimeName": "애니메",
+    "style3dToonName": "3D 툰",
+    "styleClassic2dName": "클래식 2D",
+    "styleComicName": "코믹북",
+    "promptLabel": "카툰 비디오를 설명하세요",
+    "videoPromptPlaceholder": "네온 캔디 바다를 항해하는 용감한 상어 선장, 팝콘으로 만든 갈매기…",
+    "durationLabel": "길이",
+    "aspectLabel": "화면 비율",
+    "generateVideo": "카툰 비디오 생성 ({{cost}} VB)",
+    "videoFeatureName": "카툰 비디오",
+    "videoStarted": "카툰 비디오가 시작됐습니다",
+    "videoStartedDesc": "카툰 클립을 렌더링 중입니다 — 한두 분 정도 걸립니다.",
+    "characterLabel": "카툰 캐릭터를 설명하세요",
+    "characterPlaceholder": "삐뚤어진 안테나, 둥근 배, 크고 친절한 눈을 가진 졸린 로봇 바리스타…",
+    "generateCharacter": "캐릭터 시트 생성 ({{cost}} VB)",
+    "characterFeatureName": "카툰 캐릭터 시트",
+    "characterResultAlt": "생성된 카툰 캐릭터 시트",
+    "uploadPrompt": "탭하여 카툰화할 사진을 업로드하세요",
+    "uploadPreviewAlt": "카툰화할 사진",
+    "removePhoto": "사진 제거",
+    "cartoonizeButton": "사진 카툰화 ({{cost}} VB)",
+    "cartoonizeFeatureName": "사진 카툰화",
+    "cartoonizeResultAlt": "카툰화된 사진",
+    "generating": "생성 중…",
+    "generationFailed": "생성에 실패했습니다. Visual Bucs가 청구되지 않았습니다.",
+    "networkError": "생성 중 네트워크 오류. Visual Bucs가 청구되지 않았습니다.",
+    "download": "다운로드",
+    "alsoTry": "이것도 시도해 보세요",
+    "alsoTryMusicVideo": "카툰 뮤직비디오 스타일",
+    "alsoTryEditRecipe": "키즈 / 카툰 편집 레시피"
+  },
+  "bgStudio": {
+    "uploadNotImage": "이미지 파일을 선택하세요.",
+    "uploadedTitle": "사진이 업로드됐습니다",
+    "uploadedDesc": "이제 배경을 제거하세요.",
+    "uploadFailed": "업로드에 실패했습니다. 다시 시도하세요.",
+    "step1": "사진 업로드",
+    "step2": "배경 제거",
+    "step3": "배경 교체",
+    "uploading": "업로드 중…",
+    "dropHint": "사진을 여기에 놓거나, 탭하여 하나를 선택하세요",
+    "photoReady": "사진 준비 완료",
+    "changePhoto": "사진 변경",
+    "removeCta": "배경 제거",
+    "removing": "배경 제거 중…",
+    "removeFailed": "배경 제거에 실패했습니다.",
+    "noOutput": "출력 이미지가 반환되지 않았습니다.",
+    "advanced": "수동: 제거 강도",
+    "aggressiveness": "제거 강도",
+    "aggressivenessHint": "높을수록 가장자리 픽셀을 더 제거합니다 — 흐릿하거나 그림자가 있는 배경에 사용하세요.",
+    "before": "전",
+    "after": "후",
+    "detectedColor": "감지된 배경 색상",
+    "kind": {
+      "color": "색상",
+      "gradient": "그라데이션",
+      "ai": "AI 배경"
+    },
+    "custom": "커스텀",
+    "checkingAi": "AI 사용 가능 여부 확인 중…",
+    "aiNotConnected": "AI 배경은 이 서버에 아직 연결되지 않았습니다. 대신 단색이나 프리셋 장면을 선택하세요.",
+    "customPrompt": "커스텀 배경 프롬프트",
+    "promptPlaceholder": "배경을 설명하세요 — 예: 새벽의 황금 사막 모래언덕, 부드러운 빛",
+    "provider": "모델",
+    "generateCta": "배경 생성",
+    "generating": "배경 생성 중…",
+    "backdropFailed": "배경 생성에 실패했습니다.",
+    "priceTbdNote": "초안 가격 — 최종이 아닙니다. 무료 색상과 그라데이션은 절대 비용이 들지 않습니다.",
+    "composeFailed": "최종 이미지를 합성할 수 없었습니다.",
+    "compositing": "합성 중…",
+    "result": "새 사진",
+    "startOver": "처음부터",
+    "download": "PNG 다운로드"
+  },
+  "headshotStudio": {
+    "eyebrow": "프로필 사진",
+    "title": "헤드샷",
+    "subtitle": "비싸 보이는 프로필 사진. 플로우를 고르세요 — 나머지는 AI가 합니다.",
+    "flows": {
+      "autopilot": "Turbo 모드",
+      "preset": "스타일 프리셋",
+      "manual": "수동 프롬프트"
+    },
+    "autopilot": {
+      "blurb": "한 번의 탭. AI가 가장 잘 보이는 스튜디오 룩을 자동으로 고릅니다 — 조명, 배경, 프레이밍, 전부.",
+      "costNote": "헤드샷이 성공할 때만 청구됩니다."
+    },
+    "styleLabel": "스타일",
+    "presetNames": {
+      "studio": "스튜디오",
+      "stage": "무대",
+      "street": "스트리트",
+      "luxury": "럭셔리"
+    },
+    "presets": {
+      "studio": "클래식 스튜디오 초상 — 깔끔한 배경, 부드러운 프로 조명.",
+      "stage": "무대 위 룩 — 뒤에 스포트라이트와 관중의 에너지.",
+      "street": "스트리트 에디토리얼 — 골든 아워, 도시적, 자신감 있는.",
+      "luxury": "럭셔리 에디토리얼 — 대리석, 금, 하이엔드 패션."
+    },
+    "manualLabel": "내 프롬프트 — 완전 제어",
+    "manualPlaceholder": "예: 드라마틱한 흑백 헤드샷, 강한 그림자, 필름 누아르 무드, 카메라를 보지 않는…",
+    "refLabel": "얼굴 레퍼런스 (선택)",
+    "refPlaceholder": "신원을 고정하려면 사진 URL을 붙여 넣으세요 — 헤드샷이 당신의 얼굴을 유지합니다.",
+    "modelLabel": "엔진",
+    "models": {
+      "nano": "Turbo 렌더",
+      "nanoHint": "빠름 · 얼굴 고정",
+      "ideogram": "포트레이트 렌더",
+      "ideogramHint": "대체 렌더 스타일"
+    },
+    "featureName": "헤드샷",
+    "generate": "헤드샷 생성",
+    "generating": "생성 중…",
+    "visualBucs": "Visual Bucs",
+    "costNote": "헤드샷이 성공할 때만 청구됩니다.",
+    "errors": {
+      "describeFirst": "먼저 헤드샷 룩을 설명하세요.",
+      "outOfCredits": "Visual Bucs가 부족합니다. 계속하려면 Visual Bucs를 더 구매하세요.",
+      "failed": "헤드샷 생성에 실패했습니다. Visual Bucs가 청구되지 않았습니다.",
+      "tryOtherEngine": "위의 다른 엔진을 시도하거나 — 소유자에게 API 키 연결을 요청하세요."
+    },
+    "resultLabel": "내 헤드샷",
+    "resultAlt": "생성된 AI 헤드샷",
+    "download": "다운로드"
+  },
+  "colorGrade": {
+    "title": "컬러 그레이드",
+    "subtitle": "AI 컬러 그레이드 — 한 번의 탭, 클립에 구워집니다",
+    "priceBadge": "{cost} VB / 그레이드 · 미리보기 무료",
+    "clipToGrade": "그레이드할 클립",
+    "manualTitle": "수동 휠 — 라이브 미리보기",
+    "freePreview": "무료 미리보기",
+    "reset": "초기화",
+    "temp": "온도",
+    "tempHint": "차가움 ↔ 따뜻함",
+    "tint": "틴트",
+    "tintHint": "그린 ↔ 마젠타",
+    "exposure": "노출",
+    "exposureHint": "어두움 ↔ 밝음",
+    "contrast": "대비",
+    "contrastHint": "평탄함 ↔ 강렬함",
+    "saturation": "채도",
+    "saturationHint": "은은함 ↔ 선명함",
+    "burnManual": "수동 룩 굽기 · {cost} VB",
+    "burnManualNote": "수동 휠은 라이브로 미리보기됩니다; 굽기는 가장 가까운 AI 프리셋을 적용합니다.",
+    "autoGrade": "자동 그레이드 · {cost} VB",
+    "autoGradeNote": "피드에 가장 좋은 룩을 고릅니다 — Vibrant는 소셜에서 돋보입니다.",
+    "presetGridTitle": "원탭 그레이드 — 탭하면 구워집니다",
+    "noClips": "타임라인에 아직 클립이 없습니다",
+    "noClipsHint": "먼저 장면에 클립을 추가한 뒤 그레이드하세요.",
+    "loadingPresets": "프리셋 불러오는 중…",
+    "gradedWith": "{preset}으로 그레이드됨",
+    "useInExport": "내보내기에 사용",
+    "replaceSceneClip": "장면 클립 교체",
+    "download": "다운로드",
+    "copyLink": "링크 복사",
+    "linkCopied": "링크 복사됨",
+    "autoGradeDone": "자동 그레이드 완료",
+    "gradeBurnedIn": "그레이드가 구워졌습니다",
+    "gradingFailed": "컬러 그레이드에 실패했습니다 — Visual Bucs가 사용되지 않았습니다.",
+    "userCancelled": "취소됨 — 청구 없음.",
+    "shareNote": "퍼지도록 만들어진 원클릭 공유 — 모든 출력에 Bow Down Visuals 표시가 함께 갑니다."
+  },
+  "photoEnhance": {
+    "featureName": "포토 인핸스",
+    "title": "향상할 사진 업로드",
+    "uploadTitle": "향상할 사진 업로드",
+    "uploadHint": "JPG 또는 PNG, 최대 12 MB. 오래되고, 노이즈 많고, 흑백인 사진도 환영합니다.",
+    "errorNotImage": "그 파일은 이미지가 아닙니다.",
+    "errorTooLarge": "그 파일은 너무 큽니다 (최대 12 MB).",
+    "errorUpload": "업로드에 실패했습니다. 다시 시도하세요.",
+    "errorNoPhoto": "먼저 사진을 업로드하세요.",
+    "errorNoOps": "최소 하나의 작업을 선택하세요.",
+    "errorFailed": "향상에 실패했습니다. Visual Bucs가 청구되지 않았습니다.",
+    "errorCredits": "Visual Bucs가 부족합니다. 계속하려면 Visual Bucs를 더 구매하세요.",
+    "errorNotConnected": "포토 인핸스가 아직 연결되지 않았습니다 — AI 이미지 서비스를 서버에 설정해야 합니다.",
+    "beforeAfter": "전 / 후 — 구분선을 드래그하세요",
+    "previewOriginal": "내 사진",
+    "startOver": "처음부터",
+    "before": "전",
+    "after": "후",
+    "compareSlider": "전후 비교",
+    "enhancing": "사진 향상 중…",
+    "applied": "적용됨: {{ops}}",
+    "download": "다운로드",
+    "autopilotTitle": "전부 향상",
+    "autopilotHint": "한 번의 탭: 업스케일, 노이즈 제거, 손상 복구 — 나머지는 AI가 고릅니다.",
+    "autopilotButton": "전부 향상",
+    "costNote": "향상당 {{cost}} Visual Bucs",
+    "pickOps": "또는 작업 선택",
+    "colorizeHint": "컬러화는 흑백 사진에만 적용됩니다. 복원은 스크래치, 먼지, 바램을 고칩니다.",
+    "advanced": "고급 — 강도 슬라이더",
+    "runSelected": "선택한 것으로 향상",
+    "ops": {
+      "upscale": "업스케일",
+      "denoise": "노이즈 제거",
+      "restore": "복원",
+      "colorize": "컬러화"
+    }
+  },
+  "speedRamp": {
+    "title": "스피드 램프",
+    "subtitle": "슬로모션, 속도 프리셋 & 애니메이션 램프 — 프로 스타일",
+    "priceBadge": "{slow} VB 슬로모션 · {preset} VB 프리셋",
+    "clipToRetime": "리타임할 클립",
+    "noClips": "타임라인에 아직 클립이 없습니다",
+    "noClipsHint": "먼저 장면에 클립을 추가한 뒤 여기서 리타임하세요.",
+    "slowmo": {
+      "title": "버터 같은 슬로모션",
+      "desc": "옵티컬 플로우 슬로모션. 한 번의 탭, 각각 {cost} VB.",
+      "simple": "심플",
+      "buttery": "버터리",
+      "dramatic": "드라마틱",
+      "extreme": "익스트림",
+      "rendered": "슬로모션 렌더링 완료",
+      "renderedDesc": "슬로모션 클립이 준비됐습니다."
+    },
+    "presets": {
+      "title": "속도 프리셋",
+      "desc": "0.25x부터 4x까지의 일정한 속도."
+    },
+    "ramps": {
+      "title": "스피드 램프",
+      "desc": "애니메이션 속도 곡선 — 천천히 들어와, 터지듯 나갑니다.",
+      "presetOnlyNote": "램프는 지금은 프리셋 곡선입니다 — 직접 그리는 곡선은 향후 업데이트가 필요합니다."
+    },
+    "applyPreset": "적용",
+    "rendering": "렌더링 중…",
+    "applyPresetDesc": "이 속도 적용",
+    "result": {
+      "applied": "속도 적용됨",
+      "rampApplied": "램프 적용됨"
+    },
+    "useInEditor": "에디터에서 사용",
+    "attaching": "붙이는 중…",
+    "inTimeline": "타임라인에 있음",
+    "multiRatioExport": "다중 비율 내보내기",
+    "download": "다운로드",
+    "errors": {
+      "slowmoFailed": "슬로모션에 실패했습니다 — Visual Bucs가 사용되지 않았습니다.",
+      "speedFailed": "속도 변경에 실패했습니다 — Visual Bucs가 사용되지 않았습니다.",
+      "loadingPresets": "프리셋 불러오는 중…"
+    }
+  },
+  "captionTemplates": {
+    "title": "애니메이션 캡션 템플릿",
+    "subtitle": "단어별 애니메이션 스타일 — 탭하여 적용",
+    "badge": "신규",
+    "demoTimingLive": "라이브 단어 타이밍",
+    "demoTimingSynth": "데모 타이밍",
+    "appliesAs": "적용 형태",
+    "apply": "적용",
+    "applied": "적용됨",
+    "handoffTitle": "캡션 → 클립",
+    "handoffDesc": "캡션이 달린 비디오를 바로 프로모 클립이나 내보내기로 가져가세요.",
+    "gotoClips": "프로모 클립 만들기",
+    "gotoExport": "내보내기로 가기",
+    "tpl": {
+      "bounce-words": {
+        "name": "바운스 단어",
+        "desc": "단어가 하나씩 튀어 들어옵니다"
+      },
+      "typewriter-words": {
+        "name": "타자기",
+        "desc": "단어별 타자기 리빌"
+      },
+      "highlight-box": {
+        "name": "하이라이트 박스",
+        "desc": "하이라이트 박스 안의 활성 단어"
+      },
+      "punch-words": {
+        "name": "펀치 단어",
+        "desc": "단어가 임팩트와 함께 박힙니다"
+      },
+      "glow-sweep": {
+        "name": "글로우 스윕",
+        "desc": "빛이 각 단어를 스칩니다"
+      },
+      "neon-pulse": {
+        "name": "네온 펄스",
+        "desc": "네온으로 뛰는 단어 하이라이트"
+      },
+      "slide-words": {
+        "name": "슬라이드 단어",
+        "desc": "단어가 위로 슬라이드해 자리 잡습니다"
+      },
+      "pop-words": {
+        "name": "팝 단어",
+        "desc": "장난스러운 팝 단어 애니메이션"
+      }
+    }
+  },
+  "photoShoot": {
+    "scenePacks": {
+      "title": "장면 팩",
+      "packs": {
+        "neonStage": {
+          "name": "네온 무대",
+          "blurb": "전기 같은 라이브 에너지 샷 — 커버 아트 수준, 싱글 커버를 위해 제작."
+        },
+        "rooftopGolden": {
+          "name": "루프탑 골든 아워",
+          "blurb": "따뜻한 에디토리얼 프레스 키트 샷 — 부드러운 황금빛, 뒤에 도시 스카이라인."
+        },
+        "studioNoir": {
+          "name": "스튜디오 누아르",
+          "blurb": "무디한 블랙 스튜디오 초상 — 프로필 사진과 스트림 브랜딩용."
+        },
+        "streetLuxury": {
+          "name": "스트리트 럭셔리",
+          "blurb": "소셜을 위한 밤 도시 플렉스 — 젖은 아스팔트, 네온 빛, 프레임 안의 럭셔리 카."
+        },
+        "palaceThrone": {
+          "name": "궁전 왕좌",
+          "blurb": "완전한 Bow Down 로열티 — 왕좌, 금 홀, 신의 광선. 히어로 브랜딩 샷."
+        }
+      },
+      "tags": {
+        "albumArt": "앨범 아트",
+        "singleCover": "싱글 커버",
+        "tourPromo": "투어 프로모",
+        "pressKit": "프레스 키트",
+        "bioPhoto": "바이오 사진",
+        "magazineStyle": "매거진 스타일",
+        "profilePic": "프로필 사진",
+        "streamBranding": "스트림 브랜딩",
+        "logoAdjacent": "로고 인접",
+        "socialContent": "소셜 콘텐츠",
+        "dropAnnouncements": "발매 발표",
+        "merchTieIn": "머치 연계",
+        "heroBranding": "히어로 브랜딩",
+        "announcementGraphics": "발표 그래픽"
+      }
+    }
+  },
+  "avatarPresenter": {
+    "title": "아바타 프레젠터",
+    "subtitle": "비디오를 발표하는 말하는 헤드 호스트.",
+    "checking": "아바타 제공자 확인 중…",
+    "notConfigured": "AI 아바타는 아직 연결되지 않았습니다 — 말하는 헤드 프레젠터가 생성되려면 사이트 소유자가 HeyGen 또는 Hedra API 키를 추가해야 합니다. 비디오 플랜에는 나중을 위해 프레젠터 선택이 기록됩니다.",
+    "ready": "아바타 제공자가 연결됐습니다.",
+    "modeNone": "프레젠터 없음",
+    "modeAvatar": "AI 아바타 프레젠터",
+    "avatarLabel": "아바타",
+    "avatarPlaceholder": "아바타 선택…",
+    "scriptLabel": "프레젠터 스크립트",
+    "scriptPlaceholder": "프레젠터가 무슨 말을 해야 하나요? (플랜과 함께 저장됩니다 — 제공자가 연결되면 생성이 열립니다)",
+    "savedNote": "프레젠터 선택은 비디오 플랜과 함께 저장됩니다. 제공자 키가 추가될 때까지 생성 자체는 비활성 상태로 유지됩니다 — 청구되지 않습니다."
+  },
+  "mixMaster": {
+    "back": "뒤로",
+    "title": "믹스 & 마스터",
+    "subtitle": "전문적인 사운드, 엔지니어 없이",
+    "honestFraming": "실제 DSP 파이프라인 — 스템별 게인 스테이징, EQ, 컴프레션, 장르 패닝, 그 뒤 트루피크 리미팅이 있는 풀 마스터링 체인. 이것은",
+    "honestFramingBold": "훌륭한 녹음을 조립하고 다듬습니다; 클리핑, 음정 나간 보컬, 나쁜 편곡은 고칠 수 없습니다.",
+    "honestFramingEnd": "출시 전에 라우드니스가 맞춰진 A/B를 귀로 믿으세요.",
+    "tabMaster": "마스터",
+    "tabMix": "믹스",
+    "tabMixStems": "· 스템",
+    "genreLabel": "장르 사운드",
+    "intensityLabel": "처리 강도",
+    "loudnessLabel": "목표 라우드니스",
+    "genres": {
+      "hip-hop": {
+        "label": "힙합",
+        "blurb": "묵직한 저음, 앞으로 나온 보컬."
+      },
+      "pop": {
+        "blurb": "다듬어진, 밝은, 라디오 광택.",
+        "label": "Pop"
+      },
+      "rnb": {
+        "blurb": "부드럽고, 따뜻하고, 실키한 보컬.",
+        "label": "R&B"
+      },
+      "edm": {
+        "blurb": "최대 에너지, 거대하고 넓게.",
+        "label": "EDM"
+      },
+      "rock": {
+        "blurb": "거친 기타, 앞에 있는 드럼.",
+        "label": "Rock"
+      },
+      "lofi": {
+        "label": "로파이",
+        "blurb": "먼지 낀, 따뜻한, 부드러운."
+      },
+      "afrobeat": {
+        "label": "아프로비트",
+        "blurb": "통통 튀는 퍼커션, 로그 드럼."
+      },
+      "gospel": {
+        "blurb": "크고, 고양되는 합창의 선명함.",
+        "label": "Gospel"
+      },
+      "podcast": {
+        "blurb": "말의 선명함 — 부드러운 다이나믹스.",
+        "label": "팟캐스트"
+      },
+      "trap": {
+        "blurb": "강하게 때리는 808 — 묵직한 저음 무게.",
+        "label": "트랩"
+      }
+    },
+    "intensities": {
+      "subtle": {
+        "label": "은은함",
+        "blurb": "부드러운 다듬기, 다이나믹스 그대로."
+      },
+      "balanced": {
+        "label": "균형",
+        "blurb": "대부분의 트랙에 가장 좋은 지점."
+      },
+      "aggressive": {
+        "label": "공격적",
+        "blurb": "크고, 펀치 있고, 얼굴 앞으로."
+      }
+    },
+    "loudness": {
+      "streaming": {
+        "label": "스트리밍",
+        "blurb": "Spotify / Apple Music 준비 완료."
+      },
+      "club": {
+        "label": "클럽",
+        "blurb": "큰 시스템을 위해 크고 펀치 있게."
+      },
+      "radio": {
+        "label": "라디오",
+        "blurb": "방송 친화적인 일관성."
+      }
+    },
+    "stemTypes": {
+      "vocals": "보컬",
+      "drums": "드럼",
+      "bass": "베이스",
+      "keys": "건반",
+      "guitar": "기타",
+      "strings": "현악",
+      "fx": "FX",
+      "beat": "비트",
+      "other": "스템"
+    },
+    "errorAudioFile": "오디오 파일을 선택하세요 (WAV, MP3, AIFF, FLAC, M4A, OGG).",
+    "errorFileTooLarge": "그 파일은 100 MB를 넘습니다 — 더 작은 믹스를 사용하세요.",
+    "errorNetwork": "네트워크 오류 — 다시 시도하세요.",
+    "errorNotAudio": "그 파일들은 오디오가 아닙니다 — WAV, MP3, AIFF, FLAC, M4A 또는 OGG를 사용하세요.",
+    "referenceTrack": "레퍼런스 트랙",
+    "beforeAfter": "전 / 후",
+    "before": "전",
+    "after": "후",
+    "dropMixHint": "완성된 믹스를 여기에 놓으세요",
+    "fileTypes": "MP3, WAV, FLAC · 최대 100 MB",
+    "dropStemsHint": "스템을 여기에 놓으세요",
+    "listeningTo": "듣는 중",
+    "masterReport": "마스터 리포트",
+    "referenceHint": "레퍼런스 트랙 선택",
+    "referenceLoudness": "레퍼런스 라우드니스",
+    "dynamicRange": "다이나믹 레인지",
+    "vocalBuried": "묻힘",
+    "vocalLevel": "보컬 레벨",
+    "vocalUpfront": "앞에 있음",
+    "tabQuick": "익스프레스 마스터",
+    "tabQuickDesc": "완성된 스테레오 믹스 하나를 업로드하세요 — 프리셋을 고르면 400 Visual Bucs로 라디오 준비가 된 마스터를 받습니다. 빠르고, 노브 없음."
+  },
+  "harmony": {
+    "buttonLabel": "하모니 추가 — 백킹 보컬",
+    "buttonCost": "300 Visual Bucs",
+    "title": "하모니 생성기",
+    "subtitle": "“{{title}}”를 위한 백킹 보컬 하모니",
+    "close": "닫기",
+    "vb": "Visual Bucs",
+    "engineLabel": "하모니 엔진",
+    "modeClassicLabel": "클래식 더블",
+    "modeClassicShort": "클래식",
+    "modeClassicBlurb": "같은 목소리의 피치 보존 더블 — 삼도, 오도, 옥타브 위 또는 아래. 스튜디오 품질, 항상 켜져 있습니다.",
+    "modeAiLabel": "AI 하모니",
+    "modeAiShort": "AI",
+    "modeAiBlurb": "각 하모니 파트가 AI로 구별되는 백킹 싱어 목소리로 다시 보이스됩니다 — 클론이 아니라 실제 가수처럼 들립니다.",
+    "alwaysAvailable": "✓ 항상 사용 가능",
+    "aiNeedsSetup": "⚠ 스튜디오 보이스 설정 필요 — 지원에 문의하세요",
+    "aiCheckNote": "스튜디오와 라이브로 사용 가능 여부 확인",
+    "styleLabel": "하모니 스타일",
+    "loadingStyles": "스타일 불러오는 중…",
+    "partsLine": "{{parts}}",
+    "keyHintLabel": "키 힌트",
+    "optional": "(선택)",
+    "keyHintPlaceholder": "예: C, Am, F#",
+    "keyHintHint": "편곡 컨텍스트로 하모니와 함께 저장됩니다.",
+    "mixLabel": "하모니 믹스 레벨",
+    "mixLow": "은은함",
+    "mixHigh": "앞에 있음",
+    "lyricsLabel": "가사",
+    "lyricsOptional": "(가사 비디오 핸드오프용)",
+    "lyricsPlaceholder": "원클릭 가사 비디오를 열려면 가사를 붙여 넣으세요…",
+    "generateCta": "하모니 만들기 · {{cost}} Visual Bucs",
+    "confirmFeature": "하모니 생성기 ({{mode}})",
+    "needAudio": "하모니에는 노래 결과에서 재생 가능한 오디오 URL이 필요합니다.",
+    "generating": "“{{title}}”의 하모니 만드는 중…",
+    "generatingClassicHint": "더블을 피치 시프트하고 믹싱 중 — 이 화면을 열어 두세요.",
+    "generatingAiHint": "파트를 피치 시프트하고, 각 백킹 싱어를 다시 보이스한 뒤, 믹싱 중 — 이 화면을 열어 두세요.",
+    "generateFailed": "하모니 생성에 실패했습니다. 다시 시도하세요.",
+    "outOfCredits": "이것에 대한 Visual Bucs가 부족합니다 ({{cost}}). 계속 만들려면 잔액을 충전하세요.",
+    "aiNotConfigured": "AI 하모니는 스튜디오에서 아직 켜지지 않았습니다 — 백킹 싱어 목소리가 구성되지 않았습니다. 클래식 더블은 지금 바로 작동하고 훌륭하게 들립니다.",
+    "useClassicInstead": "대신 클래식 더블 만들기 · {{cost}} Visual Bucs",
+    "createdTitle": "하모니가 만들어졌습니다",
+    "createdDesc": "“{{title}}”가 노래 라이브러리에 있습니다.",
+    "hubMixDetail": "하모니 믹스",
+    "hubStemDetail": "하모니 스템",
+    "stemsLabel": "하모니 스템",
+    "mixLabelShort": "하모니 믹스",
+    "download": "다운로드",
+    "mixIntoSong": "노래에 믹스하기",
+    "mixedIn": "믹스됨",
+    "mixedIntoSongDetail": "하모니가 있는 작업 버전",
+    "mixedIntoSongTitle": "하모니가 믹스됐습니다",
+    "mixedIntoSongDesc": "하모니 믹스가 이제 프로젝트에서 노래의 작업 버전입니다.",
+    "sendToMixMaster": "믹스 & 마스터로 보내기",
+    "lyricVideo": "가사 비디오 만들기",
+    "lyricVideoReady": "가사 비디오 준비 완료",
+    "lyricVideoFailed": "가사 비디오에 실패했습니다. 다시 시도하세요.",
+    "coverArt": "커버 아트 디자인",
+    "coverArtReady": "커버 아트 준비 완료",
+    "coverArtFailed": "커버 아트에 실패했습니다. 다시 시도하세요.",
+    "coverArtAlt": "{{title}} 커버 아트",
+    "coverArtMood": "하모니가 풍부한 보컬 트랙을 위한 커버 아트워크",
+    "addToAlbum": "앨범에 추가",
+    "share": "공유 링크 복사",
+    "copied": "복사됐습니다!",
+    "shareCopiedTitle": "공유 텍스트 복사됨",
+    "shareCopiedDesc": "어디에나 붙여 넣으세요 — 추천 링크가 안에 있습니다.",
+    "copyFailedTitle": "복사 실패",
+    "copyFailedDesc": "브라우저가 클립보드 접근을 차단했습니다.",
+    "shareText": "“{{title}}” — 신선한 하모니 {{madeWith}} 🎵\n{{mixUrl}}\n치트 코드 받기: {{link}}",
+    "lyricsNeededTitle": "가사 필요",
+    "lyricsNeededDesc": "가사 비디오를 만들려면 위에 노래 가사를 추가하세요.",
+    "lrcFailed": "가사에서 가사 타이밍을 만들 수 없었습니다.",
+    "unknownArtist": "알 수 없는 아티스트",
+    "done": "완료"
+  },
+  "deverb": {
+    "abCleaned": "디리버브됨",
+    "abHint": "앞뒤로 전환해 보세요 — 에코 차이는 테일에 있습니다.",
+    "abOriginal": "원본",
+    "checkingAvailability": "사용 가능 여부 확인 중…",
+    "creditsRemaining": "남은 Visual Bucs {n}",
+    "deverbButton": "에코 제거 · {cost} VB",
+    "deverbComplete": "디리버브 완료 — 아래 원본과 비교하세요.",
+    "downloadButton": "다운로드",
+    "dropFormats": "MP3, WAV, M4A, AAC, OGG, FLAC · 최대 50 MB",
+    "dropPrompt": "에코가 있는 오디오를 여기에 놓거나, 클릭하여 찾아보세요",
+    "errorAudioType": "오디오 파일만 허용됩니다 (MP3, WAV, M4A, AAC, OGG, FLAC).",
+    "errorDeverbFailed": "디리버브 작업에 실패했습니다. 환불됐습니다.",
+    "errorFileTooLarge": "그 파일은 너무 큽니다 — 디리버브 업로드는 50 MB로 제한됩니다.",
+    "errorJobNotFound": "작업을 찾을 수 없습니다 — 만료됐을 수 있습니다.",
+    "errorNetwork": "네트워크 오류 — 연결을 확인하고 다시 시도하세요.",
+    "errorPricingPending": "디리버브 가격이 아직 승인되지 않아 도구가 비활성화되어 있습니다. 크레딧이 청구되지 않았습니다.",
+    "errorProviderNotConfigured": "디리버브는 아직 사용할 수 없습니다 — AI 제공자가 연결되지 않았습니다. 크레딧이 청구되지 않았습니다.",
+    "errorStartFailed": "디리버브 작업을 시작할 수 없었습니다. 다시 시도하세요.",
+    "featureName": "디리버브",
+    "fileSizeChange": "{size} MB — 클릭하여 다른 파일을 선택하세요",
+    "gatedPricingPending": "디리버브 제공자는 연결됐지만, 작업당 가격이 아직 승인되지 않았습니다. 가격이 승인되면 이 탭이 열립니다.",
+    "gatedProviderMissing": "AI 디리버브 제공자가 연결되지 않았습니다 — 서버에 제공자 키(DEVERB_API_KEY)가 없습니다. 제공자가 연결되고 가격이 승인되면 이 탭이 자동으로 열립니다.",
+    "gatedTeaser": "에코가 있는 방 오디오 — 팟캐스트, 보이스오버, 스트림 클립, 보컬 테이크 — 를 업로드하고, 건조하고 클로즈 마이크처럼 들리는 대사와 보컬을 받으세요. 기능이 출시될 때까지 지불할 것은 없습니다.",
+    "gatedTitle": "디리버브는 아직 사용할 수 없습니다",
+    "gatedUnknown": "디리버브는 현재 사용할 수 없습니다. 곧 다시 확인하세요.",
+    "handoffLabel": "다음에 사용",
+    "handoffPodcast": "팟캐스트 스튜디오",
+    "handoffSong": "노래 플로우",
+    "handoffVoiceover": "보이스오버 스튜디오",
+    "honestIntro": "AI 디리버브는 방 에코를 제거합니다, 노이즈가 아닙니다 —",
+    "honestRest": ". 테이크에 쉭쉭 소리가 나면 먼저 클린업 탭과 함께 쓰세요, 그 뒤 여기서 디리버브하세요.",
+    "honestStrong": "왜곡이나 무거운 배경 노이즈는 고치지 못합니다",
+    "labelCleaned": "디리버브됨",
+    "labelOriginal": "원본",
+    "modeDialogueBlurb": "팟캐스트, 보이스오버, 스트림 클립. 말에서 방 톤과 에코를 벗깁니다.",
+    "modeDialogueLabel": "다이얼로그 분리",
+    "modeLabel": "디리버브 모드",
+    "modeVocalBlurb": "방에서 녹음한 노래 보컬. 믹싱을 위해 테이크를 건조하게 만듭니다.",
+    "modeVocalLabel": "보컬 디리버브",
+    "newDeverbButton": "신규",
+    "pause": "일시정지",
+    "play": "재생",
+    "progressNote": "서버 측 작업 — 실행되는 동안 탭을 바꾸거나 이 페이지를 닫아도 안전합니다.",
+    "statusProcessing": "디리버브가 방 에코를 제거 중…",
+    "statusQueued": "대기 중 — 디리버브 작업이 순서를 기다리고 있습니다",
+    "statusUploading": "업로드 중…",
+    "subtitle": "대사와 보컬에서 방 에코 벗기기 · 작업당 {cost} VB",
+    "title": "디리버브 / 다이얼로그 분리",
+    "waveformUnavailable": "웨이브폼을 사용할 수 없습니다",
+    "whyNoDsp": "왜 즉시 무료 버전이 없나요? 방 에코를 제거하는 건 AI 작업입니다 — 일반 노이즈 필터는 쉭쉭 소리와 럼블만 자를 뿐, 벽에 반사된 소리를 되돌릴 수 없습니다. 가짜를 내보내느니, 이 도구는 실제 AI 디리버브 제공자를 기다립니다."
+  },
+  "fillerRemover": {
+    "title": "필러 단어 제거기",
+    "subtitle": "음, 어, 죽은 공기를 자동으로 자르기 — {{cost}} Visual Bucs",
+    "noClip": "필러 제거기를 열려면 장면에 비디오 클립을 추가하세요.",
+    "groupClassic": "클래식 필러",
+    "groupHedges": "헤지 구절",
+    "groupRisky": "위험한 단어",
+    "riskyHint": "기본 꺼짐 — 이것들도 실제 단어입니다",
+    "customWordsLabel": "내 단어",
+    "customWordsPlaceholder": "예: basically, literally…",
+    "add": "추가",
+    "removeWord": "단어 제거",
+    "silenceLabel": "죽은 공기 일시정지 자르기",
+    "minPauseLabel": "최소 일시정지",
+    "analyzeButton": "필러 찾기 · {{cost}} Visual Bucs",
+    "creditsRemaining": "남은 Visual Bucs {{n}}",
+    "stagequeued": "대기열에 있습니다…",
+    "stagedownloading": "비디오 다운로드 중…",
+    "stageextracting-audio": "오디오 추출 중…",
+    "stagetranscribing": "AI로 전사 중 — 모든 음과 어를 듣고 있습니다…",
+    "stagedetecting": "필러 단어 & 죽은 공기 찾는 중…",
+    "progressNote": "서버에서 실행됩니다 — 이 탭을 닫아도 안전합니다. 컷 목록이 여기에 기다리고 있을 겁니다.",
+    "cutsFound": "컷 {{n}}개 발견",
+    "ofDuration": "전체 {{d}}",
+    "selectAll": "전부",
+    "selectNone": "없음",
+    "noCutsTitle": "이미 깨끗합니다",
+    "noCutsDesc": "필러 단어나 긴 일시정지가 없습니다 — 이 테이크는 탄탄합니다.",
+    "kindFiller": "필러",
+    "kindSilence": "일시정지",
+    "timeSaved": "컷 {{n}}개에서 절약됨",
+    "renderButton": "정리된 비디오 렌더링 · 컷 {{n}}개",
+    "startOver": "처음부터",
+    "renderStagequeued": "렌더 대기열에 있습니다…",
+    "renderStagedownloading": "비디오 다운로드 중…",
+    "renderStagecutting": "필러를 잘라내는 중…",
+    "renderStageuploading": "정리된 비디오 업로드 중…",
+    "doneTitle": "완료 — 컷 {{n}}개 제거, {{saved}} 절약",
+    "useInEditor": "에디터에서 사용",
+    "usedInEditorTitle": "에디터에 추가됨",
+    "usedInEditorDesc": "정리된 비디오가 장면의 클립을 교체했습니다.",
+    "download": "다운로드",
+    "newRun": "새 실행",
+    "nextTitle": "다음은 무엇인가요",
+    "nextDesc": "정리된 비디오는 허브 프로젝트에 있습니다. AI 캡션을 위해 캡션 탭을 열고, 다중 비율 버전을 위해 내보내기한 뒤, 스케줄러에서 예약하세요.",
+    "hubAssetLabel": "정리된 비디오",
+    "hubAssetDetail": "필러 단어 제거기 · 컷 {{n}}개 · {{saved}} 절약",
+    "renderCompleteTitle": "정리된 비디오 준비 완료",
+    "renderCompleteDesc": "허브 프로젝트에 저장됐습니다 — 캡션이 다음입니다.",
+    "errorAnalyze": "비디오를 분석할 수 없었습니다 — 다시 시도하세요.",
+    "errorRender": "렌더링에 실패했고 Visual Bucs가 환불됐습니다."
+  },
+  "mastering": {
+    "back": "뒤로",
+    "title": "마스터링",
+    "subtitle": "믹스에서 출시 준비가 된 마스터 — {{cost}} Visual Bucs",
+    "honestFraming": "실제 DSP 체인 — 서브소닉 클린업, 글루 컴프레션, 스위트닝 EQ, 스테레오 와이드닝, 그 뒤 트루피크 리미팅이 있는 투패스 라우드니스 정규화. 이것은",
+    "honestFramingBold": "좋은 믹스를 다듬습니다; 나쁜 믹스는 고칠 수 없습니다.",
+    "honestFramingEnd": "출시 전에 A/B 비교를 귀로 믿으세요.",
+    "errorFailed": "마스터링에 실패했습니다 — Visual Bucs가 환불됐습니다.",
+    "errorAudioFile": "오디오 파일을 선택하세요 (WAV, MP3, AIFF, FLAC, M4A, OGG).",
+    "errorFileTooLarge": "그 파일은 100 MB를 넘습니다 — 더 작은 믹스를 사용하세요.",
+    "errorStartFailed": "마스터링을 시작할 수 없었습니다.",
+    "errorNetwork": "네트워크 오류 — 다시 시도하세요.",
+    "dropHint": "믹스를 여기에 놓거나, 클릭하여 찾아보세요",
+    "fileTypes": "WAV, MP3, AIFF, FLAC, M4A, OGG — 최대 100 MB",
+    "fileSize": "{{size}} MB — 클릭하여 변경",
+    "presetLabel": "마스터링 프리셋",
+    "presets": {
+      "streaming": {
+        "label": "스트리밍",
+        "blurb": "Spotify / Apple Music 준비 완료 — 깨끗하고 다이나믹하게."
+      },
+      "club": {
+        "label": "클럽",
+        "blurb": "큰 사운드 시스템을 위해 크고 펀치 있게."
+      },
+      "radio": {
+        "label": "라디오",
+        "blurb": "방송 친화적인 보컬 존재감."
+      },
+      "lofi": {
+        "label": "로파이",
+        "blurb": "부드럽고, 따뜻하고, 다이나믹하며 부드러운 탑 엔드."
+      }
+    },
+    "signInToMaster": "마스터하려면 로그인하세요",
+    "masterButton": "내 트랙 마스터하기 — {{cost}} Visual Bucs",
+    "creditsRemaining": "남은 Visual Bucs {{count}}",
+    "statusUploading": "믹스 업로드 중…",
+    "statusQueued": "대기 중 — 체인을 예열 중…",
+    "statusProcessing": "마스터링 진행 중…",
+    "processingDetail": "라우드니스 분석 → 투패스 정규화 → WAV + MP3 렌더링. 이 탭을 닫아도 안전합니다 — 작업은 서버에서 실행됩니다.",
+    "masterComplete": "마스터 완료 — 아래 원본과 비교하세요.",
+    "beforeAfter": "전 / 후",
+    "before": "전",
+    "after": "후",
+    "listeningTo": "듣는 중:",
+    "originalMix": "원본 믹스",
+    "masteredVersion": "마스터된 버전",
+    "positionPreserved": "— 뒤집어도 위치는 유지됩니다.",
+    "loudnessReport": "라우드니스 리포트",
+    "mixLoudness": "믹스 라우드니스",
+    "masterLoudness": "마스터 라우드니스",
+    "truePeakMix": "트루 피크 (믹스)",
+    "targetCeiling": "목표 천장",
+    "dynamicRange": "다이나믹 레인지 (믹스): {{value}} LU — 체인을 통과하며 유지되고, 뭉개지지 않습니다.",
+    "downloadWav": "WAV (24-bit)",
+    "masterAnother": "다른 트랙 마스터하기",
+    "downloadMp3": "MP3 (320k)"
+  },
+  "lrcExport": {
+    "buttonLabel": "싱크된 가사 내보내기 (.lrc)",
+    "buttonSub": "무료 탭얼롱 · AI 정렬 {{credits}} Visual Bucs",
+    "downloadTimedLyrics": "타이밍 가사 다운로드 (.lrc)",
+    "badge": "싱크된 가사 내보내기",
+    "title": "싱크된 가사",
+    "close": "닫기",
+    "freeBadge": "무료",
+    "tapTab": "탭하여 싱크",
+    "aiTab": "AI 정렬",
+    "aiCost": "{{credits}} VB",
+    "play": "재생",
+    "pause": "일시정지",
+    "tapHint": "노래를 재생하고 각 줄이 불릴 때 탭하세요 — {{total}}개 중 {{done}}개 찍힘.",
+    "tapButton": "탭",
+    "redoLast": "마지막 다시 하기",
+    "restart": "재시작",
+    "reviewButton": "검토 & 내보내기",
+    "reusedNote": "AI 정렬에서 타이밍을 재사용했습니다 — 추가 청구 없음.",
+    "aiTitle": "AI 가사 정렬",
+    "aiBlurb": "가사 비디오 플로우와 같은 정밀 정렬기가 노래를 듣고 모든 줄에 단어 수준 타이밍을 찍습니다. 실제 제공자 컴퓨팅 비용이 들기 때문에 가격은 미리 표시됩니다.",
+    "aiPriceNote": "가사 비디오 정렬기가 청구합니다 — 같은 엔진, 같은 가격, 마크업 없음.",
+    "aiButton": "내 가사 AI 정렬 — {{credits}} Visual Bucs",
+    "aligning": "노래를 듣는 중…",
+    "alignDoneTitle": "가사 정렬 완료",
+    "alignDoneDesc": "타이밍을 검토한 뒤 .lrc 파일을 내보내세요.",
+    "alignFailed": "AI 정렬에 실패했습니다 — Visual Bucs가 사용되지 않았습니다.",
+    "outOfCredits": "AI 정렬용 Visual Bucs가 부족합니다 — 탭하여 싱크는 항상 무료입니다.",
+    "noLyrics": "이 노래의 가사를 찾을 수 없습니다.",
+    "reviewHint": "타임스탬프(m:ss.t)를 미세 조정하고, 원하지 않는 줄을 제거한 뒤, 내보내세요.",
+    "backToTap": "탭으로 돌아가기",
+    "lineTimeLabel": "{{n}}줄 시작 시간",
+    "removeLine": "{{n}}줄 제거",
+    "noTimedLines": "아직 타이밍이 찍힌 줄이 없습니다 — 탭하여 싱크로 찍거나 AI 정렬을 실행하세요.",
+    "validNote": "유효한 LRC — 타이밍 줄 {{count}}개, LRC를 받는 유통사에 제출할 준비가 됐습니다.",
+    "invalidTitle": "내보내기 전에 이것들을 고치세요",
+    "download": ".lrc 다운로드",
+    "copy": "LRC 복사",
+    "copied": "복사됐습니다!",
+    "copyFailed": "복사 실패 — 미리보기 텍스트를 직접 선택하세요.",
+    "addToRelease": "릴리스 에셋에 추가",
+    "savedBadge": "에셋에 저장됨",
+    "savedTitle": "릴리스 에셋에 추가됨",
+    "savedDesc": ".lrc가 이 프로젝트의 에셋 트레이에 있습니다 — 유통 페이지에서 릴리스를 만들 때 첨부하세요.",
+    "assetLabel": "싱크된 가사 (.lrc) — {{title}}",
+    "assetDetail": "LRC 타이밍 가사 — LRC 파일을 받는 유통사에 제출할 준비가 됐습니다.",
+    "openDistribute": "유통으로 계속",
+    "honestyNote": "이 .lrc 파일은 LRC를 받는 유통사(Apple Music 등)에 제출하기 위한 것입니다. 스트리밍 플랫폼으로의 실제 싱크 가사 전달에는 유통 파트너가 필요합니다 — 이 도구는 파일을 준비할 뿐, 어떤 플랫폼에도 가사를 전달하지 않습니다."
   }
 }

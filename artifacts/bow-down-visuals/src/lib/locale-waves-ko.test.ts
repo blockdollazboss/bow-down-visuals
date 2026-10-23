@@ -61,6 +61,14 @@ export const KO_WAVES: Record<string, string[]> = {
     "promo-clip", "splitScreen", "productPhotoStudio", "carouselMaker",
     "videoTemplates", "movies", "motionGraphics",
   ],
+  W3: [
+    "cartoonStudio", "bgStudio", "headshotStudio", "colorGrade", "photoEnhance",
+    "speedRamp", "captionTemplates", "videoTemplatesPage", "photoShoot", "upscale",
+    "avatarPresenter", "thumbnailStudio", "makeVideo", "thumbnailMaker",
+    "songAndVideo", "thumbnail", "thumbnailTest", "thumbnails", "clipMaker",
+    "watermarkRemoval", "logoMaker", "captionStyler", "mixMaster", "harmony",
+    "deverb", "fillerRemover", "mastering", "lrcExport",
+  ],
 };
 
 /** Legit-identical allowlists, per wave — see header for the classes. */
@@ -138,6 +146,22 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // home credit-pack array leaves: numbers + brand currency alone
     "home.creditPacks.0.credits", "home.creditPacks.1.credits",
     "home.creditPacks.2.credits", "home.creditPacks.3.credits",
+  ],
+  W3: [
+    // brand currency / placeholder-only / punctuation
+    "headshotStudio.visualBucs", "makeVideo.priceBadge", "makeVideo.unknownStep",
+    "makeVideo.refundedNoticeSuffix", "songAndVideo.costBadge", "harmony.buttonCost",
+    "harmony.vb", "harmony.partsLine", "lrcExport.aiCost",
+    // genre / format / platform names
+    "makeVideo.genreRB", "makeVideo.platformTiktok", "songAndVideo.genreRB",
+    "thumbnail.platformAppleMusic", "thumbnail.platformSoundCloud",
+    "thumbnail.platformSpotify", "thumbnail.platformYouTube",
+    "mixMaster.genres.pop.label", "mixMaster.genres.rnb.label",
+    "mixMaster.genres.edm.label", "mixMaster.genres.rock.label",
+    "mixMaster.genres.gospel.label", "mastering.downloadWav", "mastering.downloadMp3",
+    // abbreviations / house mode + format labels / proper name
+    "logoMaker.vb", "captionStyler.styles.hormozi.label", "thumbnailStudio.tabs.abtest",
+    "songAndVideo.simpleTabLabel", "mixMaster.stemTypes.fx", "harmony.modeAiShort",
   ],
 };
 
