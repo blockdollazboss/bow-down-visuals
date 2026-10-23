@@ -415,6 +415,22 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "business" },
     websitePath: "/press-kit",
   },
+  {
+    /* The Jewelry Bench (Stack-100 #74): the Atelier's missing desk —
+       the Logo-to-Luxury Studio's bench (design preview, STL,
+       estimate, guide, NFC, consultant) on its own /api/jewelry
+       rails. Stands on the Atelier's south wall between the branding
+       kit and the press kit, clear of both prompts. */
+    id: "jewelry-bench",
+    roomId: BRANDING_ATELIER_ID,
+    name: "Jewelry Bench",
+    tagline: "Your logo, cast in gold — design it, price it, get it made.",
+    x: 21,
+    z: 8,
+    membersOnly: false,
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/branding-kit?tab=jewelry",
+  },
 
   /* ── Courtyard ───────────────────────────────────────────────── */
   {
