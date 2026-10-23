@@ -7,17 +7,38 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 router.get("/credits/history", requireAuth, async (req, res) => {
-  try {
-    const userId = req.userId!;
-    const [purchases, usage] = await Promise.all([
-      getPaymentHistory(userId),
-      getCreditUsage(userId),
-    ]);
-    res.json({ purchases, usage });
-  } catch (err: unknown) {
-    req.log.error({ err }, "credits/history error");
+  const userId = req.userId!;
+  /* Per-ledger settle (earnings.ts pattern, S27-39): purchases and usage
+     are independent ledgers, so one failing returns the other's data with
+     the failed side's empty shape ([]) and partial: true — never a fake
+     history and never a whole-page 500 over a single ledger. Only when
+     BOTH ledgers fail does the request keep the old 500. */
+  const settle = async <T,>(
+    source: string,
+    fn: () => Promise<T[]>,
+  ): Promise<{ items: T[]; failed: boolean }> => {
+    try {
+      return { items: await fn(), failed: false };
+    } catch (err) {
+      req.log.error({ err, source }, "credits/history ledger failed");
+      return { items: [], failed: true };
+    }
+  };
+
+  const purchases = await settle("purchases", () => getPaymentHistory(userId));
+  const usage = await settle("usage", () => getCreditUsage(userId));
+
+  if (purchases.failed && usage.failed) {
     res.status(500).json({ error: "Failed to load Visual Buc history." });
+    return;
   }
+
+  res.json({
+    purchases: purchases.items,
+    usage: usage.items,
+    /* Additive + backward-compatible: older clients ignore this. */
+    partial: purchases.failed || usage.failed,
+  });
 });
 
 /* ── One-time trial credits ─────────────────────────────────────────────

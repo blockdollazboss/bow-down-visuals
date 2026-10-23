@@ -584,27 +584,38 @@ async function loadPinnedMediaRow(
  * podcaster's episodes are products, an educator's course videos too.
  */
 async function profileExtras(profile: typeof creatorProfilesTable.$inferSelect) {
+  /* S27-38: each source settles on its own (the handler's existing
+     best-effort pattern for the recruiter badge / referral code) — one
+     failing read degrades only its own flags to their empty defaults
+     instead of taking the whole public profile down with it. */
+  const safeRows = async <T,>(q: PromiseLike<T[]>): Promise<T[]> => {
+    try {
+      return await q;
+    } catch {
+      return [];
+    }
+  };
   const [tracks, videos, domainShops, shopRows] = await Promise.all([
-    db.select({ price: profileTracksTable.downloadPriceCents }).from(profileTracksTable).where(and(
+    safeRows(db.select({ price: profileTracksTable.downloadPriceCents }).from(profileTracksTable).where(and(
       eq(profileTracksTable.profileId, profile.id),
       eq(profileTracksTable.isPublished, true),
-    )),
-    db.select({ price: profileVideosTable.downloadPriceCents }).from(profileVideosTable).where(and(
+    ))),
+    safeRows(db.select({ price: profileVideosTable.downloadPriceCents }).from(profileVideosTable).where(and(
       eq(profileVideosTable.profileId, profile.id),
       eq(profileVideosTable.isPublished, true),
-    )),
-    db.select({ id: shopsTable.id }).from(shopsTable).where(and(
+    ))),
+    safeRows(db.select({ id: shopsTable.id }).from(shopsTable).where(and(
       eq(shopsTable.user_id, profile.userId),
       eq(shopsTable.domain_verified, true),
-    )).limit(1),
+    )).limit(1)),
     /* The creator's public shop handle (customer shops rail) — the
        profile's Merch shelf links to /shop/<handle>; without it the
        shelf had nowhere public to point. Any shop counts: the public
        storefront page serves by handle regardless of custom-domain
        verification. */
-    db.select({ handle: shopsTable.handle }).from(shopsTable).where(
+    safeRows(db.select({ handle: shopsTable.handle }).from(shopsTable).where(
       eq(shopsTable.user_id, profile.userId),
-    ).limit(1),
+    ).limit(1)),
   ]);
   const hasProduct = tracks.length + videos.length > 0;
   const hasPrice =
@@ -888,12 +899,24 @@ async function resolvePlaylistItems(
       if (item?.kind === "video" && item.id) videoIds.add(item.id);
     }
   }
+  /* S27-38: every read here settles on its own — a failing item/profile/
+     sound/entitlement read degrades to its empty default (no resolved
+     items for that source; entitlements fail CLOSED to an empty set, so
+     a paid series still reads locked, never leaked) instead of taking
+     the whole public profile down. */
+  const safeRows = async <T,>(q: PromiseLike<T[]>): Promise<T[]> => {
+    try {
+      return await q;
+    } catch {
+      return [];
+    }
+  };
   const [tracks, videos] = await Promise.all([
     trackIds.size
-      ? db.select().from(profileTracksTable).where(inArray(profileTracksTable.id, [...trackIds]))
+      ? safeRows(db.select().from(profileTracksTable).where(inArray(profileTracksTable.id, [...trackIds])))
       : Promise.resolve([] as TrackRow[]),
     videoIds.size
-      ? db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, [...videoIds]))
+      ? safeRows(db.select().from(profileVideosTable).where(inArray(profileVideosTable.id, [...videoIds])))
       : Promise.resolve([] as VideoRow[]),
   ]);
   /* Item artists: batch-resolve each item profile's slug + owner user id so
@@ -901,18 +924,19 @@ async function resolvePlaylistItems(
      artists), falling back to the playlist owner's slug when unknown. */
   const profileIds = [...new Set([...tracks, ...videos].map((r) => r.profileId))];
   const profiles = profileIds.length
-    ? await db.select().from(creatorProfilesTable)
-      .where(inArray(creatorProfilesTable.id, profileIds))
+    ? await safeRows(db.select().from(creatorProfilesTable)
+      .where(inArray(creatorProfilesTable.id, profileIds)))
     : [] as Array<typeof creatorProfilesTable.$inferSelect>;
   const metaByProfile = new Map(profiles.map((pr) => [pr.id, { slug: pr.slug, userId: pr.userId }]));
-  const sounds = await soundMapFor(videos, profileSlug);
+  const sounds = await soundMapFor(videos, profileSlug)
+    .catch((): Awaited<ReturnType<typeof soundMapFor>> => new Map());
   const trackById = new Map(tracks.map((t) => [t.id, t]));
   const videoById = new Map(videos.map((v) => [v.id, v]));
   /* Paid Series: one batched entitlement read for every priced series in
      the batch (completed digital_sales rows only — refunds lock again). */
   const purchased = await purchasedSeriesIds(
     viewer.userId, playlists.filter(isPaidSeriesRow).map((p) => p.id),
-  );
+  ).catch(() => new Set<string>());
   /* Stored media values may be storage refs (mirrored at save) — mint
      fresh URLs for covers + resolved artwork on every read. */
   return await refreshSupabaseStorageUrlsDeep(
@@ -1155,17 +1179,36 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
       return;
     }
 
+    /* S27-38: every auxiliary aggregate settles on its own — the same
+       best-effort discipline this handler already applies to the
+       recruiter badge, social proof, resolvePaidPlan and the referral
+       code below. A failing source degrades to its empty shape ([], or
+       zero counts) and the profile itself still renders; only the
+       profile row read above may fail the request. */
+    const settleAux = async <T,>(
+      source: string,
+      fn: () => Promise<T>,
+      fallback: T,
+    ): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err) {
+        req.log?.error?.({ err, source }, "creator-profiles/:slug auxiliary source failed");
+        return fallback;
+      }
+    };
+
     const [topTracks, topVideos, profilePlaylists, counts] = await Promise.all([
-      db.select().from(profileTracksTable)
+      settleAux("topTracks", () => db.select().from(profileTracksTable)
         .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
-        .orderBy(desc(profileTracksTable.playCount)).limit(5),
-      db.select().from(profileVideosTable)
+        .orderBy(desc(profileTracksTable.playCount)).limit(5), [] as TrackRow[]),
+      settleAux("topVideos", () => db.select().from(profileVideosTable)
         .where(and(eq(profileVideosTable.profileId, profile.id), eq(profileVideosTable.isPublished, true)))
-        .orderBy(desc(profileVideosTable.viewCount)).limit(5),
-      db.select().from(playlistsTable)
+        .orderBy(desc(profileVideosTable.viewCount)).limit(5), [] as VideoRow[]),
+      settleAux("profilePlaylists", () => db.select().from(playlistsTable)
         .where(and(eq(playlistsTable.ownerProfileId, profile.id), eq(playlistsTable.isPublic, true)))
-        .orderBy(desc(playlistsTable.createdAt)).limit(5),
-      db.select({ trackCount: count() }).from(profileTracksTable)
+        .orderBy(desc(playlistsTable.createdAt)).limit(5), [] as PlaylistRow[]),
+      settleAux("counts", () => db.select({ trackCount: count() }).from(profileTracksTable)
         .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
         .then(async (trackRows) => {
           const videoRows = await db.select({ videoCount: count() }).from(profileVideosTable)
@@ -1177,21 +1220,47 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
             videos: videoRows[0]?.videoCount ?? 0,
             playlists: playlistRows[0]?.playlistCount ?? 0,
           };
-        }),
+        }), { tracks: 0, videos: 0, playlists: 0 }),
     ]);
 
     /* The profile-song pin leads its area: the pinned track/video is
        first in top_tracks / top_videos (flagged is_pinned) even when
        its play/view count wouldn't have made the top 5. */
     const [pinnedTrackRow, pinnedVideoRow] = await Promise.all([
-      loadPinnedMediaRow(profile, "track"),
-      loadPinnedMediaRow(profile, "video"),
+      settleAux("pinnedTrack", () => loadPinnedMediaRow(profile, "track"), null),
+      settleAux("pinnedVideo", () => loadPinnedMediaRow(profile, "video"), null),
     ]);
     const ledTracks = leadWithPinned(topTracks, pinnedTrackRow).slice(0, 5);
     const ledVideos = leadWithPinned(topVideos, pinnedVideoRow).slice(0, 5);
 
-    const sounds = await soundMapFor(ledVideos, profile.slug);
-    const extras = await profileExtras(profile);
+    const sounds = await settleAux(
+      "sounds",
+      () => soundMapFor(ledVideos, profile.slug),
+      new Map() as Awaited<ReturnType<typeof soundMapFor>>,
+    );
+    /* profileExtras settles each of its own sources internally; this
+       outer guard is the belt-and-braces so an extras surprise still
+       cannot take the profile down — the fallback is built from the
+       profile row itself, exactly like the internal defaults. */
+    const extras = await settleAux("profileExtras", () => profileExtras(profile), {
+      has_downloads: false,
+      has_social_links: Object.keys((profile.socialLinks ?? {}) as Record<string, string>).length > 0,
+      has_stream_schedule: (profile.streamSchedule ?? []).length > 0,
+      has_media_kit: profile.mediaKit !== null,
+      shop_handle: null as string | null,
+      monetization_checklist: {
+        has_product: false,
+        has_price: false,
+        has_tip_jar: profile.tipJarEnabled ?? false,
+        has_domain: false,
+        has_audience: (profile.followerCount ?? 0) > 0,
+      },
+      money_moves_done: [
+        profile.tipJarEnabled ?? false,
+        (profile.followerCount ?? 0) > 0,
+      ].filter(Boolean).length,
+      money_moves_total: 5,
+    });
     /* Virality wave: recruiter badge (Kingpin tier) for the profile header. */
     const recruiterBadge = await getRecruiterBadgeForUser(profile.userId).catch(() => null);
     /* Stack 3, item 7: the free-tier branding rule — the public page
@@ -1268,8 +1337,20 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
       top_videos: ledVideos.map((v) => enrichVideo(v, profile.slug, sounds, profile.userId, isProfilePin(profile, "video", v.id))),
       /* Embedded playlists resolve viewer-aware (Paid Series): a buyer
          sees their series unlocked right on the Grand Stage; everyone
-         else sees the locked shelf with the preview open. */
-      playlists: await resolvePlaylistItems(profilePlaylists, profile.slug, await seriesViewerFor(req)),
+         else sees the locked shelf with the preview open. S27-38:
+         resolution settles its own sources internally; if it (or the
+         viewer lookup) still fails, the shelf renders with its raw
+         playlist rows and no resolved items rather than 500ing the
+         profile. */
+      playlists: await settleAux(
+        "playlists",
+        async () => resolvePlaylistItems(
+          profilePlaylists,
+          profile.slug,
+          await settleAux("seriesViewer", () => seriesViewerFor(req), ANON_SERIES_VIEWER),
+        ),
+        profilePlaylists.map((p) => toPlaylistDto(p, profile.slug, [])),
+      ),
     }));
   } catch (err) {
     req.log.error({ err }, "creator-profiles/:slug error");
