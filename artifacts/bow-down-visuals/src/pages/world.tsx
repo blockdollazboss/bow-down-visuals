@@ -2259,7 +2259,7 @@ export default function WorldPage() {
   /* The voice connection truth for the footer (item 100): rolled up
      from the mesh's per-pair states — never assumed from "in voice". */
   const voiceConnSummary = summarizeVoiceConnections(voiceConnStates);
-  const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary);
+  const voiceConnHeadline = voiceConnectionHeadline(voiceConnSummary, peopleCount);
   /* The voice modes in the words the control speaks them. */
   const voiceModeLabels: Record<VoiceMode, string> = {
     off: "Off",
@@ -3800,8 +3800,10 @@ export default function WorldPage() {
                     the footer says how the mesh is actually doing —
                     connecting, connected, or plainly failed with the
                     reason and a retry — instead of silent dead air.
-                    Alone in voice there is nobody to connect to, so
-                    no chip shows at all. */}
+                    Item 63: alone in voice (nobody to connect to) is
+                    a room state too — the chip shows the honest quiet
+                    caption at any occupant count, mixed rooms
+                    included, instead of showing nothing. */}
                 {voiceSwitch.inVoice && voiceConnHeadline && (
                   <span
                     data-testid="world-voice-conn-state"
