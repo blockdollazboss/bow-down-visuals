@@ -147,7 +147,7 @@ export const ROW_STALLS: readonly RowStall[] = [
   { x: 49.0, z: 20.4, side: -1 },
 ];
 
-export const STALL = {
+export const STALL_KIT = {
   /** Post offsets from the stall's centre, and their height. */
   postDx: 1.9,
   postDz: 1.4,
@@ -168,10 +168,10 @@ export const STALL = {
 /** One stall's post positions. */
 export function stallPosts(stall: RowStall): Array<{ x: number; z: number }> {
   return [
-    { x: stall.x - STALL.postDx, z: stall.z - STALL.postDz },
-    { x: stall.x + STALL.postDx, z: stall.z - STALL.postDz },
-    { x: stall.x - STALL.postDx, z: stall.z + STALL.postDz },
-    { x: stall.x + STALL.postDx, z: stall.z + STALL.postDz },
+    { x: stall.x - STALL_KIT.postDx, z: stall.z - STALL_KIT.postDz },
+    { x: stall.x + STALL_KIT.postDx, z: stall.z - STALL_KIT.postDz },
+    { x: stall.x - STALL_KIT.postDx, z: stall.z + STALL_KIT.postDz },
+    { x: stall.x + STALL_KIT.postDx, z: stall.z + STALL_KIT.postDz },
   ];
 }
 
@@ -182,8 +182,8 @@ export const ROW_STALL_POSTS: ReadonlyArray<{ x: number; z: number }> =
  *  stall's mouth stays open floor a maker stands in). */
 export function stallBench(stall: RowStall): GroundsBox {
   return {
-    cx: stall.x, cy: STALL.benchH / 2, cz: stall.z - stall.side * STALL.benchBackOff,
-    w: STALL.benchW, h: STALL.benchH, d: STALL.benchD,
+    cx: stall.x, cy: STALL_KIT.benchH / 2, cz: stall.z - stall.side * STALL_KIT.benchBackOff,
+    w: STALL_KIT.benchW, h: STALL_KIT.benchH, d: STALL_KIT.benchD,
   };
 }
 
@@ -290,7 +290,7 @@ export const ROW_BANNER_POLE = { h: 4.2, blockHalf: 0.2 } as const;
 export const ROW_BLOCKED: readonly PalaceRect[] = [
   ...ROW_WALL_RUNS.map((r) => rectAround(r.x, r.z, r.w / 2, r.d / 2)),
   ...ROW_PIERS.map((p) => rectAround(p.x, p.z, 0.45, 0.45)),
-  ...ROW_STALL_POSTS.map((p) => rectAround(p.x, p.z, STALL.postBlockHalf, STALL.postBlockHalf)),
+  ...ROW_STALL_POSTS.map((p) => rectAround(p.x, p.z, STALL_KIT.postBlockHalf, STALL_KIT.postBlockHalf)),
   ...ROW_STALL_BENCHES.map(rectOf),
   ...ROW_PLINTHS.map((p) => rectAround(p.x, p.z, PLINTH.blockHalf, PLINTH.blockHalf)),
   ...ROW_CRATES.map((c) => rectAround(c.x, c.z, CRATE.blockHalf, CRATE.blockHalf)),
@@ -309,5 +309,5 @@ export const ROW_BLOCKED: readonly PalaceRect[] = [
 export const ROW_TALL_BLOCKED: readonly PalaceRect[] = [
   ...ROW_PIERS.map((p) => rectAround(p.x, p.z, 0.45, 0.45)),
   ...ROW_BANNER_POLES.map((p) => rectAround(p.x, p.z, ROW_BANNER_POLE.blockHalf, ROW_BANNER_POLE.blockHalf)),
-  ...ROW_STALL_POSTS.map((p) => rectAround(p.x, p.z, STALL.postBlockHalf, STALL.postBlockHalf)),
+  ...ROW_STALL_POSTS.map((p) => rectAround(p.x, p.z, STALL_KIT.postBlockHalf, STALL_KIT.postBlockHalf)),
 ];

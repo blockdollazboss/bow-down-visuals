@@ -165,7 +165,7 @@ import {
   GARDENS_ENTRY_PATH, GARDENS_LAMPS, GARDENS_BANNER_POLES, GARDENS_BANNER_POLE,
 } from "./listening-gardens";
 import {
-  ROW_INTERIOR, ROW_WALL_RUNS, ROW_PIERS, ROW_STREET, ROW_STALLS, STALL,
+  ROW_INTERIOR, ROW_WALL_RUNS, ROW_PIERS, ROW_STREET, ROW_STALLS, STALL_KIT,
   ROW_STALL_POSTS, ROW_STALL_BENCHES, ROW_PLINTHS, PLINTH, ROW_CRATES, CRATE,
   ROW_CANVAS_STACKS, ROW_TOOL_BENCHES, ROW_PLANTERS, ROW_PLANTER_CROWNS,
   ROW_LAMPS, ROW_BANNER_POLES, ROW_BANNER_POLE,
@@ -4976,28 +4976,28 @@ export class KingsHallScene {
      * mouth stays open floor — a maker stands in it. */
     {
       instanced(
-        new THREE.CylinderGeometry(0.07, 0.09, STALL.postH, 10), mats.darkMetal,
-        ROW_STALL_POSTS.map((p) => ({ x: p.x, y: STALL.postH / 2, z: p.z })),
+        new THREE.CylinderGeometry(0.07, 0.09, STALL_KIT.postH, 10), mats.darkMetal,
+        ROW_STALL_POSTS.map((p) => ({ x: p.x, y: STALL_KIT.postH / 2, z: p.z })),
       );
       for (const s of ROW_STALLS) {
-        const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL.canopyW + 0.1, 0.05, STALL.canopyD + 0.1), mats.goldDark);
-        trim.position.set(s.x, STALL.canopyY - 0.04, s.z);
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW + 0.1, 0.05, STALL_KIT.canopyD + 0.1), mats.goldDark);
+        trim.position.set(s.x, STALL_KIT.canopyY - 0.04, s.z);
         g.add(trim);
-        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL.canopyW, 0.08, STALL.canopyD), mats.fabric);
-        canopy.position.set(s.x, STALL.canopyY, s.z);
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(STALL_KIT.canopyW, 0.08, STALL_KIT.canopyD), mats.fabric);
+        canopy.position.set(s.x, STALL_KIT.canopyY, s.z);
         canopy.castShadow = shadows;
         g.add(canopy);
       }
       instanced(
-        new THREE.BoxGeometry(STALL.benchW, STALL.benchH, STALL.benchD), mats.stoneFor(STALL.benchW, STALL.benchH),
+        new THREE.BoxGeometry(STALL_KIT.benchW, STALL_KIT.benchH, STALL_KIT.benchD), mats.stoneFor(STALL_KIT.benchW, STALL_KIT.benchH),
         ROW_STALL_BENCHES.map((b) => ({ x: b.cx, y: b.cy, z: b.cz })),
       );
       const trims: Array<{ x: number; y: number; z: number }> = [];
       ROW_STALLS.forEach((s, i) => {
         const b = ROW_STALL_BENCHES[i]!;
-        trims.push({ x: b.cx, y: STALL.benchH - 0.06, z: b.cz + s.side * (STALL.benchD / 2 + 0.02) });
+        trims.push({ x: b.cx, y: STALL_KIT.benchH - 0.06, z: b.cz + s.side * (STALL_KIT.benchD / 2 + 0.02) });
       });
-      instanced(new THREE.BoxGeometry(STALL.benchW, 0.05, 0.05), mats.gold, trims);
+      instanced(new THREE.BoxGeometry(STALL_KIT.benchW, 0.05, 0.05), mats.gold, trims);
     }
 
     /* The display plinths: stone pedestals (instanced) with a
@@ -5024,7 +5024,7 @@ export class KingsHallScene {
     {
       const cratePlaces: Array<{ x: number; y: number; z: number; rotY?: number }> = [];
       ROW_CRATES.forEach((c, i) => {
-        const cv = propVariation("crate", 300 + i);
+        const cv = propVariation("trough", 300 + i);
         cratePlaces.push({ x: c.x, y: CRATE.size / 2, z: c.z, rotY: cv.rotY });
         cratePlaces.push({ x: c.x + 0.06, y: CRATE.size * 1.5, z: c.z - 0.04, rotY: cv.rotY + 0.35 });
       });
