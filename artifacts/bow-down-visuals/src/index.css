@@ -1032,7 +1032,17 @@ html, body {
   --tw-gradient-to: rgb(250 247 240 / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
 }
-.light .to-\[\#0b0603\]:not([data-dark-lock]):not([data-dark-lock] *) {
+.light .to-\[\#0b0603\]:not([data-dark-lock]):not([data-dark-lock] *),
+/* Stack-28 (A4-A1/A2/A3): to-[#0d0a04] and to-[#0d0d0d] had no rule —
+   their from-[#…] partners remap to ivory, so unconditional panels
+   graded ivory into a near-black slab in light: the Series Studio
+   section (stream/playlist), the gamers unselected chips and the
+   social AttachmentView product card all sank their (remapped, dark)
+   labels into the black end. Both ends now fade to ivory like
+   to-[#0b0603]; the 620 isLight-branched uses keep their authored
+   dark branches in dark and are repainted consistently in light. */
+.light .to-\[\#0d0a04\]:not([data-dark-lock]):not([data-dark-lock] *),
+.light .to-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *) {
   --tw-gradient-to: rgb(250 247 240 / 0.95) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
 }

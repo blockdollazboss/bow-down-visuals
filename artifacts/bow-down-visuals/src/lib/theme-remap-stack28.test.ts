@@ -106,3 +106,23 @@ describe("item 38 — pale 100/200 variants deepen to their 700 steps (A4-D3)", 
     expect(css).toContain(`.light .text-red-100${GUARDED}`);
   });
 });
+
+describe("item 39 — gradient ends to-[#0d0a04] / to-[#0d0d0d] fade to ivory (A4-A1/A2/A3)", () => {
+  it.each(["0d0a04", "0d0d0d"])("to-[#%s] has a guarded .light rule", (hex) => {
+    expect(css).toContain(`.light .to-\\[\\#${hex}\\]${GUARDED}`);
+  });
+
+  it("the ends land on the to-[#0b0603] ivory value", () => {
+    const anchor = css.indexOf(".light .to-\\[\\#0d0a04\\]");
+    expect(anchor).toBeGreaterThan(-1);
+    expect(css.slice(anchor, anchor + 500)).toContain(
+      "--tw-gradient-to: rgb(250 247 240 / 0.95) var(--tw-gradient-to-position);",
+    );
+  });
+
+  it("the from-[#171208] / from-[#14100a] partners were already covered (pairing intact)", () => {
+    expect(css).toContain(`.light .from-\\[\\#171208\\]${GUARDED}`);
+    expect(css).toContain(`.light .from-\\[\\#14100a\\]${GUARDED}`);
+    expect(css).toContain(`.light .from-\\[\\#1a1408\\]${GUARDED}`);
+  });
+});
