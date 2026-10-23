@@ -338,44 +338,58 @@ export function WallpapersDesk() {
   }
 
   /* ── Screensaver ───────────────────────────────────────────────────── */
+  /* Stack-28 item 12: this used to POST /api/generate-video — an endpoint
+     that never existed (pinned dead by S27-73), so every click failed and,
+     with no registry entry, confirmedFetch showed no spend confirmation
+     despite the 400 VB label. The real rail is /api/generate-runway-clip
+     (gen4.5, flat 400 Visual Bucs, charged server-side only when the clip
+     succeeds), the same submit+poll pattern MusicVideoTimeline, Scene
+     Studio and Video Studio use: POST { promptText, ratio, model } →
+     { taskId }, then GET /api/generate-runway-clip/:taskId →
+     { status: "processing" | "succeeded" | "failed" | "cancelled", url }.
+     Because the endpoint IS in the credit-cost registry (400), routing
+     through confirmedFetch restores the pre-spend confirmation. */
   async function generateVideo() {
     if (!videoPrompt.trim() || generatingVideo) return;
     setGeneratingVideo(true);
     setVideoError(null);
     try {
-      const res = await confirmedFetch("/api/generate-video", {
+      const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: videoPrompt.trim(), duration: 5, aspectRatio: "16:9" }),
+        body: JSON.stringify({
+          promptText: videoPrompt.trim(),
+          ratio: "1280:720",
+          model: "gen4.5",
+        }),
       });
-      if (!res) return;
-      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data.message === "string" ? data.message : t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
-      const direct = [data.url, data.videoUrl, data.thumbnailImageUrl].find((v) => typeof v === "string") as string | undefined;
-      if (direct) {
-        setVideoUrl(direct);
-        refreshProfile();
-        void loadAssets();
-        return;
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as {
+        taskId?: string; error?: string; message?: string;
+      };
+      if (!res.ok || !data.taskId) {
+        throw new Error(data.message ?? data.error ?? t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
       }
-      const taskId = typeof data.taskId === "string" ? data.taskId : typeof data.id === "string" ? data.id : null;
-      if (!taskId) throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
       const token = await getAccessToken();
       for (let i = 0; i < 60; i++) {
         await sleep(3000);
-        const poll = await fetch(`/api/generate-video/${taskId}`, {
+        const poll = await fetch(`/api/generate-runway-clip/${data.taskId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        const pdata = (await poll.json().catch(() => ({}))) as Record<string, unknown>;
-        const url = [pdata.url, pdata.videoUrl].find((v) => typeof v === "string") as string | undefined;
-        if ((pdata.status === "succeeded" || pdata.status === "completed") && url) {
-          setVideoUrl(url);
+        const pdata = (await poll.json().catch(() => ({}))) as {
+          status?: string; url?: string | null; error?: string;
+        };
+        if (pdata.status === "succeeded" && pdata.url) {
+          setVideoUrl(pdata.url);
           refreshProfile();
           void loadAssets();
           return;
         }
-        if (pdata.status === "failed" || pdata.status === "cancelled") {
+        if (pdata.status === "succeeded") {
           throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
+        }
+        if (pdata.status === "failed" || pdata.status === "cancelled") {
+          throw new Error(pdata.error ?? t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
         }
       }
       throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
