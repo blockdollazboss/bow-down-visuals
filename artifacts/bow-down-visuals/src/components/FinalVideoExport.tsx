@@ -1940,8 +1940,11 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
                 {skipReason && <p className="text-[9px] text-red-400/60 mt-0.5">{skipReason}</p>}
                 {isDupe && <p className="text-[9px] text-red-400 font-bold mt-0.5">{t("videoExport.dupeUrlNote")}</p>}
               </div>
-              <span className={`text-[10px] font-bold pt-0.5 ${scene.provider === "Runway" ? "text-purple-400" : "text-white/25"}`}>
-                {scene.provider === "Runway" ? t("videoExport.sceneClip") : scene.provider || "—"}
+              <span className="text-[10px] font-bold pt-0.5 text-white/25">
+                {/* Provider names are internal data only — the displayed
+                    label is the neutral scene-clip label for every
+                    provider (no other company names on the site). */}
+                {scene.provider ? t("videoExport.sceneClip") : "—"}
               </span>
               <span className={`text-[10px] font-bold pt-0.5 ${statusColor(scene)}`}>
                 {statusLabel(scene, t)}
@@ -2054,7 +2057,7 @@ function ExportFileCheckTable({
                   <Field label={t("videoExport.fSceneNumber")} value={String(row.sceneNumber)} />
                   <Field label={t("videoExport.fSceneTitle")} value={row.sceneTitle || "—"} />
                   <Field label={t("videoExport.fClipDbId")} value={row.clipDbId || "—"} mono />
-                  <Field label={t("videoExport.colProvider")} value={row.provider || "—"} />
+                  <Field label={t("videoExport.colProvider")} value={row.provider ? t("videoExport.sceneClip") : "—"} />
                   <Field label={t("videoExport.fApproved")} node={yn(row.approved)} />
                   <Field label={t("videoExport.colSelected")} node={yn(row.selected)} />
 
