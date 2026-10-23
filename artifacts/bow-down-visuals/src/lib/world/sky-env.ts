@@ -23,11 +23,13 @@
  * reflections now come from a sky, in both themes, and the gold
  * (pbr-materials' brushed maps) has a sun/moon to glint with.
  *
- * Scope note: this is the ENV REFLECTION source only. The visible
- * sky dome art (board items 3/4) is the owner's Gate-1 pick and is
- * NOT built here — scene.background stays the look's flat colour
- * until that pick lands. The dome below exists inside the PMREM
- * capture, not in the walked scene.
+ * Stage C update (items 3/4, the owner's Gate-1 pick — Living
+ * Night Palace): the SAME sky definition now also builds the
+ * VISIBLE dome the walked scene wears (buildVisibleSky), so the
+ * sky you see and the sky the gold reflects are one sky by
+ * construction — one palette, one shader, two radii. The day dome
+ * carries the sun disc + drifting cloud sprites; the night dome
+ * carries the star field + moon disc the shader already paints.
  */
 import * as THREE from "three";
 import type { HallLook } from "./hall-looks";
@@ -144,15 +146,16 @@ export const SKY_DOME_FRAGMENT_SHADER = /* glsl */ `
   }
 `;
 
-/** Build the small sky scene the PMREM is captured from: the
- *  gradient dome alone (it wraps the capture camera completely —
- *  below-horizon directions read the dome's ground band, so no
- *  separate ground mesh is needed). */
-export function buildSkyScene(look: HallLook): THREE.Scene {
-  const palette = skyPaletteFor(look);
-  const scene = new THREE.Scene();
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(50, 32, 16),
+/** One dome mesh from a palette — THE sky construction, shared by
+ *  the PMREM capture scene and the visible sky so the two can
+ *  never diverge (items 3/4 + 21). The material never writes depth
+ *  and never takes fog: it is the background of the world, and a
+ *  fogged dome would read as a wall of flat colour at the fog
+ *  distance. (ShaderMaterial ignores scene.fog unless built with
+ *  fog support — this one is not.) */
+export function buildSkyDomeMesh(palette: SkyPalette, radius: number): THREE.Mesh {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 32, 16),
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
@@ -170,8 +173,83 @@ export function buildSkyScene(look: HallLook): THREE.Scene {
       fragmentShader: SKY_DOME_FRAGMENT_SHADER,
     }),
   );
-  scene.add(dome);
+}
+
+/** Build the small sky scene the PMREM is captured from: the
+ *  gradient dome alone (it wraps the capture camera completely —
+ *  below-horizon directions read the dome's ground band, so no
+ *  separate ground mesh is needed). */
+export function buildSkyScene(look: HallLook): THREE.Scene {
+  const scene = new THREE.Scene();
+  scene.add(buildSkyDomeMesh(skyPaletteFor(look), 50));
   return scene;
+}
+
+/* ── The visible sky (items 3 + 4) ────────────────────────────────
+ * The dome the walker actually sees. Radius 90: inside the
+ * camera's 120 m far plane with room to spare, and the scene
+ * re-centres the sky group on the camera each frame, so the dome
+ * never gets closer on one side than the other. It is pure
+ * background: frustumCulled off (it is everywhere), renderOrder
+ * first, depthWrite off — it can never occlude the world, and the
+ * portal culling / LOD systems never see it (it lives outside
+ * every room group). */
+
+export const SKY_DOME_RADIUS = 90;
+
+/** The visible dome for a look — the identical palette + shader
+ *  the PMREM bakes from (skyPaletteFor), at the visible radius. */
+export function buildVisibleSkyDome(look: HallLook): THREE.Mesh {
+  const dome = buildSkyDomeMesh(skyPaletteFor(look), SKY_DOME_RADIUS);
+  dome.frustumCulled = false;
+  dome.renderOrder = -100;
+  return dome;
+}
+
+export interface SkyCloudDef {
+  /** Rest position on the dome (relative to the sky group's
+   *  centre): high, spread around the palace, never near the
+   *  sun disc's line at spawn. */
+  baseX: number;
+  y: number;
+  z: number;
+  /** Sprite size in metres (soft billboarded puffs). */
+  w: number;
+  h: number;
+  /** Drift speed, m/s — a breath, not weather. */
+  speed: number;
+  opacity: number;
+}
+
+/** The day sky's drifting clouds (item 3). Night wears none — the
+ *  moon and stars own it. Positions are fixed data (deterministic
+ *  on every visit, like the gold's brushing); the drift wraps
+ *  inside ±CLOUD_WRAP_X so a cloud never pops at the dome's edge. */
+export const SKY_CLOUDS: readonly SkyCloudDef[] = [
+  { baseX: -52, y: 34, z: -38, w: 30, h: 10, speed: 0.55, opacity: 0.5 },
+  { baseX: -18, y: 42, z: -64, w: 38, h: 12, speed: 0.4, opacity: 0.42 },
+  { baseX: 24, y: 30, z: -52, w: 24, h: 8, speed: 0.7, opacity: 0.55 },
+  { baseX: 58, y: 46, z: -20, w: 34, h: 11, speed: 0.35, opacity: 0.38 },
+  { baseX: -64, y: 26, z: 30, w: 26, h: 9, speed: 0.6, opacity: 0.45 },
+  { baseX: 8, y: 50, z: 44, w: 40, h: 12, speed: 0.3, opacity: 0.35 },
+  { baseX: 66, y: 28, z: 52, w: 22, h: 8, speed: 0.65, opacity: 0.48 },
+];
+
+export const CLOUD_WRAP_X = 110;
+
+/** A cloud's drifted X at time t: base + speed·t, wrapped into
+ *  [−WRAP, +WRAP) so the field circulates forever with no pop. */
+export function cloudDriftX(def: SkyCloudDef, tSec: number): number {
+  const span = CLOUD_WRAP_X * 2;
+  let x = (def.baseX + def.speed * tSec + CLOUD_WRAP_X) % span;
+  if (x < 0) x += span;
+  return x - CLOUD_WRAP_X;
+}
+
+/** Does this look wear clouds? Day only — the night sky's life is
+ *  its stars, moon and the braziers below. */
+export function skyHasClouds(look: HallLook): boolean {
+  return look.theme === "light";
 }
 
 /** Bake the sky into the PMREM environment target scene.environment

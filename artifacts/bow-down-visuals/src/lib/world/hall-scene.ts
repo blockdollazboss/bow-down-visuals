@@ -24,6 +24,15 @@
  * overlay, with per-look light rigs. A quality ladder keeps phone-class
  * hardware (headsets included) honest: low tiers drop the planar
  * reflection, shadow maps and the extra point lights, in that order.
+ * Stage C (items 1–4): the palace has an EXTERIOR now — a stone
+ * façade with pilasters, lit windows, cornice, pediment and
+ * banners skinning the hall's back wall (palace-exterior.ts holds
+ * the placement data and its walk-line laws), a roofline of slabs,
+ * parapets, turrets and a dome so the palace reads solid from any
+ * raised angle, and a real sky: the visible dome is built from the
+ * very sky definition sky-env.ts PMREMs for reflections (sun +
+ * drifting clouds by day, stars + moon by night), following the
+ * camera as pure background.
  * Imported ONLY via dynamic import from the /world page, so three.js
  * ships in the world chunk and nowhere else.
  *
@@ -165,7 +174,40 @@ import {
   enhanceLoadedTexture,
   type PbrKind,
 } from "./pbr-materials";
-import { buildSkyEnvironment } from "./sky-env";
+import {
+  buildSkyEnvironment,
+  buildVisibleSkyDome,
+  skyHasClouds,
+  cloudDriftX,
+  SKY_CLOUDS,
+  type SkyCloudDef,
+} from "./sky-env";
+import {
+  FACADE,
+  FACADE_CORNICE,
+  FACADE_CORNICE_TRIM,
+  FACADE_PILASTER_XS,
+  FACADE_STONE_METRES_PER_TILE,
+  FACADE_MARBLE_METRES_PER_TILE,
+  FACADE_WINDOWS,
+  FACADE_WINDOW_GLASS_Z,
+  FACADE_WINDOW_W,
+  FACADE_WINDOW_H,
+  FACADE_BANNERS,
+  BANNER,
+  PEDIMENT,
+  ROOF_SLABS,
+  ROOF_PARAPETS,
+  TURRETS,
+  TURRET,
+  DOME,
+  facadeSkinRuns,
+  facadePlinthRuns,
+  facadePilaster,
+  facadeWindowFrameBars,
+  facadeWindowStyle,
+  type ExteriorBox,
+} from "./palace-exterior";
 
 /** A peer's figure chases its network target at most this fast
  *  (m/s) — a touch over run pace, so a sprinting peer reads as
@@ -377,6 +419,33 @@ function glowTexture(stops: Array<[number, string]>): THREE.CanvasTexture {
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(c);
+}
+
+let cloudTex: THREE.CanvasTexture | null = null;
+/** A soft cloud puff for the day sky (item 3): overlapping radial
+ *  blobs, white fading to nothing — a sprite, never a mesh, so the
+ *  whole day-sky life costs a handful of billboards. */
+function cloudTexture(): THREE.CanvasTexture {
+  if (cloudTex) return cloudTex;
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 128;
+  const g = c.getContext("2d")!;
+  const blob = (x: number, y: number, r: number, a: number) => {
+    const grad = g.createRadialGradient(x, y, 1, x, y, r);
+    grad.addColorStop(0, `rgba(255,252,244,${a})`);
+    grad.addColorStop(0.6, `rgba(255,248,232,${a * 0.45})`);
+    grad.addColorStop(1, "rgba(255,248,232,0)");
+    g.fillStyle = grad;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+  };
+  blob(128, 70, 62, 0.85);
+  blob(84, 76, 44, 0.7);
+  blob(176, 76, 46, 0.7);
+  blob(110, 58, 40, 0.6);
+  blob(152, 60, 38, 0.6);
+  cloudTex = new THREE.CanvasTexture(c);
+  return cloudTex;
 }
 
 let flameTex: THREE.CanvasTexture | null = null;
@@ -1095,6 +1164,11 @@ interface LookMaterials {
   wallFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
   marbleFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
   ceilingFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  /** Exterior factories (Stage C items 1/2): the façade's stone
+   *  courses and its gold-vein accent marble, per-metre repeats
+   *  from the art lane's new textures, per look. */
+  stoneFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
+  facadeMarbleFor: (widthM: number, heightM: number) => THREE.MeshStandardMaterial;
 }
 
 interface LookAnim {
@@ -1108,9 +1182,12 @@ interface LookAnim {
   /* Lantern glows on the district thresholds (item 27): they
    * breathe on lanternGlowScale, not the flame scale curve. */
   lanternGlows: Array<{ sprite: THREE.Sprite; base: number; phase: number }>;
+  /* The day sky's drifting clouds (item 3): sprites riding the
+   * visible sky dome, drifted on sky-env's wrapped cloudDriftX. */
+  clouds: Array<{ sprite: THREE.Sprite; def: SkyCloudDef }>;
 }
 
-const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [] };
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [] };
 
 /* ── The scene ──────────────────────────────────────────────────────── */
 
@@ -1247,6 +1324,10 @@ export class KingsHallScene {
    *  so the portal cull (item 23) can rest the whole interior when
    *  the arch provably cannot be seen from the plaza. */
   private hallGroup: THREE.Group | null = null;
+  /** The visible sky group (items 3/4): re-centred on the camera
+   *  per frame in servicePerfSystems so the dome is always the
+   *  same distance in every direction. */
+  private skyGroup: THREE.Group | null = null;
   private floorOverlayMat: THREE.MeshPhysicalMaterial | null = null;
   /** Every scoped point/spot light in the current look, with its
    *  world position + range (item 24) — judged per room change. */
@@ -1391,21 +1472,27 @@ export class KingsHallScene {
      * surface's size in metres. Scalar roughness is 1 wherever a
      * roughness MAP is attached — the map encodes the absolute
      * value, the scalar would only double-apply it. */
-    const marbleSurface = (
+    const surface = (
+      url: string, metresPerTile: number,
       kind: PbrKind, widthM: number, heightM: number,
       opts: { color?: number; envMapIntensity: number; metalness?: number },
     ): THREE.MeshStandardMaterial => {
-      const rep = repeatForSize(widthM, heightM, MARBLE_METRES_PER_TILE);
-      const pbr = derivedPbrTextures(look.marbleTextureUrl, kind, rep.x, rep.y);
+      const rep = repeatForSize(widthM, heightM, metresPerTile);
+      const pbr = derivedPbrTextures(url, kind, rep.x, rep.y);
       for (const t of [pbr.normalMap, pbr.roughnessMap, pbr.aoMap]) t.anisotropy = maxTextureAnisotropy;
       return new THREE.MeshStandardMaterial({
-        map: hallTexture(look.marbleTextureUrl, rep.x, rep.y),
+        map: hallTexture(url, rep.x, rep.y),
         normalMap: pbr.normalMap, normalScale: new THREE.Vector2(0.6, 0.6),
         roughnessMap: pbr.roughnessMap, roughness: 1,
         aoMap: pbr.aoMap,
         color: opts.color, metalness: opts.metalness ?? 0.05, envMapIntensity: opts.envMapIntensity,
       });
     };
+    const marbleSurface = (
+      kind: PbrKind, widthM: number, heightM: number,
+      opts: { color?: number; envMapIntensity: number; metalness?: number },
+    ): THREE.MeshStandardMaterial =>
+      surface(look.marbleTextureUrl, MARBLE_METRES_PER_TILE, kind, widthM, heightM, opts);
     const sizedCache = new Map<string, THREE.MeshStandardMaterial>();
     const sized = (
       tag: string, kind: PbrKind,
@@ -1415,6 +1502,17 @@ export class KingsHallScene {
       const hit = sizedCache.get(key);
       if (hit) return hit;
       const mat = marbleSurface(kind, widthM, heightM, opts);
+      sizedCache.set(key, mat);
+      return mat;
+    };
+    const sizedUrl = (
+      tag: string, url: string, metresPerTile: number, kind: PbrKind,
+      opts: { color?: number; envMapIntensity: number; metalness?: number },
+    ) => (widthM: number, heightM: number): THREE.MeshStandardMaterial => {
+      const key = `${tag}|${widthM.toFixed(2)}x${heightM.toFixed(2)}`;
+      const hit = sizedCache.get(key);
+      if (hit) return hit;
+      const mat = surface(url, metresPerTile, kind, widthM, heightM, opts);
       sizedCache.set(key, mat);
       return mat;
     };
@@ -1459,12 +1557,14 @@ export class KingsHallScene {
       wallFor: sized("wall", "marble-rough", { envMapIntensity: 0.55 }),
       marbleFor: sized("marble", "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
       ceilingFor: sized("ceiling", "marble-rough", { color: ceilingTint, envMapIntensity: 0.55 }),
+      stoneFor: sizedUrl("stone", look.facadeStoneTextureUrl, FACADE_STONE_METRES_PER_TILE, "marble-rough", { envMapIntensity: 0.5 }),
+      facadeMarbleFor: sizedUrl("facade-marble", look.facadeMarbleTextureUrl, FACADE_MARBLE_METRES_PER_TILE, "marble", { envMapIntensity: 0.7, metalness: 0.06 }),
     };
   }
 
   private buildLook(group: THREE.Group, look: HallLook): void {
     const mats = this.makeMaterials(look);
-    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [] };
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [] };
     this.monumentFaceMats = [];
     this.lodItems = [];
     /* The hall's own build rides in ONE subgroup (item 23 portal
@@ -1488,7 +1588,225 @@ export class KingsHallScene {
     if (look.dust) anim.dust = this.buildDust(hall);
     if (look.haze) this.buildHaze(hall, anim);
     this.buildRoomShells(group, look, mats, anim);
+    /* Stage C (items 1–4): the palace's outside + the real sky.
+     * Both live on the look group itself — never inside the hall
+     * group (portal-culled from the plaza, exactly when the
+     * façade is the thing being looked at) and never inside a
+     * room shell (room-culled from indoors, exactly when the
+     * roofline must still read from a raised camera). */
+    this.buildPalaceExterior(group, look, mats);
+    this.buildVisibleSky(group, look, anim);
     this.lookAnim = anim;
+  }
+
+  /** The visible sky (items 3 + 4): ONE dome from sky-env's single
+   *  sky definition — the same palette + shader the PMREM bakes
+   *  the environment reflections from, so the sky you see is the
+   *  sky the gold reflects. Day adds the drifting cloud sprites;
+   *  night's stars + moon are already in the dome shader (the
+   *  palette's star field and disc). No lights, no fog, depth
+   *  never written — pure background that follows the camera. */
+  private buildVisibleSky(group: THREE.Group, look: HallLook, anim: LookAnim): void {
+    const sky = new THREE.Group();
+    sky.add(buildVisibleSkyDome(look));
+    if (skyHasClouds(look)) {
+      const tex = cloudTexture();
+      for (const def of SKY_CLOUDS) {
+        const sprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: tex, transparent: true, opacity: def.opacity,
+            depthWrite: false, fog: false,
+          }),
+        );
+        sprite.position.set(def.baseX, def.y, def.z);
+        sprite.scale.set(def.w, def.h, 1);
+        sprite.renderOrder = -99;
+        sky.add(sprite);
+        anim.clouds.push({ sprite, def });
+      }
+    }
+    group.add(sky);
+    this.skyGroup = sky;
+  }
+
+  /** The palace exterior (items 1 + 2), built entirely from
+   *  palace-exterior.ts placement data: the façade skin in the
+   *  look's stone courses with gold-vein marble accents, instanced
+   *  pilasters / window frames / turrets, emissive window glass
+   *  (lit at night, pale by day — never a real light), cornice,
+   *  pediment, static banners; and the roofline — slabs over every
+   *  roofed block, parapets, corner turrets and the central dome —
+   *  so the palace reads solid from any angle. The hall interior,
+   *  its arch and its door logic are untouched: the skin abuts the
+   *  back wall's outer face and every ground-level piece stays
+   *  inside the plaza walk line (palace-exterior's pinned laws). */
+  private buildPalaceExterior(group: THREE.Group, look: HallLook, mats: LookMaterials): void {
+    const g = new THREE.Group();
+    const shadows = QUALITY[this.quality].shadows;
+    const box = (b: ExteriorBox, mat: THREE.Material, cast = false): THREE.Mesh => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), mat);
+      mesh.position.set(b.cx, b.cy, b.cz);
+      mesh.receiveShadow = shadows;
+      mesh.castShadow = cast && shadows;
+      g.add(mesh);
+      return mesh;
+    };
+    const dummy = new THREE.Object3D();
+    const instanced = (
+      geo: THREE.BufferGeometry, mat: THREE.Material,
+      places: Array<{ x: number; y: number; z: number; sy?: number }>,
+    ): THREE.InstancedMesh => {
+      const im = new THREE.InstancedMesh(geo, mat, places.length);
+      places.forEach((p, i) => {
+        dummy.position.set(p.x, p.y, p.z);
+        dummy.scale.set(1, p.sy ?? 1, 1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      g.add(im);
+      return im;
+    };
+
+    /* ── Item 1: the façade ── */
+    for (const run of facadeSkinRuns()) box(run, mats.stoneFor(run.w, run.h));
+    for (const run of facadePlinthRuns()) box(run, mats.facadeMarbleFor(run.w, run.h));
+    // Pilasters: one instanced shaft set (gold-vein marble) + one
+    // instanced capital/base set (gold) — two draws for eight
+    // dressed columns.
+    const pilasters = FACADE_PILASTER_XS.map((x) => facadePilaster(x));
+    instanced(
+      new THREE.BoxGeometry(0.66, FACADE.topY, 0.26),
+      mats.facadeMarbleFor(0.66, FACADE.topY),
+      pilasters.map((p) => ({ x: p.shaft.cx, y: p.shaft.cy, z: p.shaft.cz })),
+    );
+    instanced(
+      new THREE.BoxGeometry(0.86, 1, 0.3),
+      mats.gold,
+      pilasters.flatMap((p) => [
+        { x: p.capital.cx, y: p.capital.cy, z: p.capital.cz, sy: p.capital.h },
+        { x: p.base.cx, y: p.base.cy, z: p.base.cz, sy: p.base.h },
+      ]),
+    );
+    // Windows: instanced emissive glass + instanced gold frames.
+    const style = facadeWindowStyle(look.theme);
+    instanced(
+      new THREE.PlaneGeometry(FACADE_WINDOW_W, FACADE_WINDOW_H),
+      new THREE.MeshStandardMaterial({
+        color: style.color, emissive: style.emissive,
+        emissiveIntensity: style.emissiveIntensity, roughness: style.roughness, metalness: 0.1,
+      }),
+      FACADE_WINDOWS.map((w) => ({ x: w.x, y: w.y, z: FACADE_WINDOW_GLASS_Z })),
+    );
+    {
+      const bars = FACADE_WINDOWS.flatMap((w) => facadeWindowFrameBars(w));
+      const frame = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mats.gold, bars.length);
+      bars.forEach((b, i) => {
+        dummy.position.set(b.cx, b.cy, b.cz);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        frame.setMatrixAt(i, dummy.matrix);
+      });
+      frame.instanceMatrix.needsUpdate = true;
+      g.add(frame);
+    }
+    // Cornice + its gold trim line (high above the walk line, so
+    // it projects to throw its shadow line across the stone).
+    box(FACADE_CORNICE, mats.stoneFor(FACADE_CORNICE.w, FACADE_CORNICE.h), true);
+    box(FACADE_CORNICE_TRIM, mats.gold);
+    // Pediment: gold-vein tympanum, two raking gold slabs, finial.
+    {
+      const shape = new THREE.Shape();
+      shape.moveTo(-PEDIMENT.halfWidth, 0);
+      shape.lineTo(PEDIMENT.halfWidth, 0);
+      shape.lineTo(0, PEDIMENT.apexY - PEDIMENT.baseY);
+      shape.closePath();
+      const tympanum = new THREE.Mesh(
+        new THREE.ShapeGeometry(shape),
+        mats.facadeMarbleFor(PEDIMENT.halfWidth * 2, PEDIMENT.apexY - PEDIMENT.baseY),
+      );
+      tympanum.position.set(PEDIMENT.centerX, PEDIMENT.baseY, PEDIMENT.z);
+      tympanum.castShadow = shadows;
+      g.add(tympanum);
+      for (const sx of [-1, 1] as const) {
+        const slab = new THREE.Mesh(
+          new THREE.BoxGeometry(PEDIMENT.slabLength + 0.3, 0.18, 0.24), mats.gold,
+        );
+        slab.position.set(
+          sx * PEDIMENT.halfWidth / 2,
+          (PEDIMENT.baseY + PEDIMENT.apexY) / 2 + 0.06,
+          PEDIMENT.z + 0.08,
+        );
+        slab.rotation.z = -sx * PEDIMENT.slabTiltRad;
+        slab.castShadow = shadows;
+        g.add(slab);
+      }
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), mats.gold);
+      finial.position.set(PEDIMENT.centerX, PEDIMENT.finialY, PEDIMENT.z + 0.08);
+      g.add(finial);
+    }
+    // Banners flanking the arch — static cloth panels in the
+    // look's throne fabric with gold rod + hem bar (the waving
+    // life is item 26's, later).
+    for (const banner of FACADE_BANNERS) {
+      const panelH = BANNER.topY - BANNER.bottomY;
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(BANNER.w, panelH, 0.045), mats.fabric);
+      panel.position.set(banner.x, BANNER.bottomY + panelH / 2, BANNER.z);
+      panel.castShadow = shadows;
+      g.add(panel);
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, BANNER.w + 0.34, 8), mats.gold);
+      rod.rotation.z = Math.PI / 2;
+      rod.position.set(banner.x, BANNER.rodY, BANNER.z);
+      g.add(rod);
+      const hem = new THREE.Mesh(new THREE.BoxGeometry(BANNER.w, 0.07, 0.07), mats.gold);
+      hem.position.set(banner.x, BANNER.bottomY, BANNER.z);
+      g.add(hem);
+    }
+
+    /* ── Item 2: roofline & silhouette ── */
+    for (const slab of ROOF_SLABS) box(slab, mats.stoneFor(slab.w, slab.d));
+    for (const p of ROOF_PARAPETS) box(p, mats.stoneFor(Math.max(p.w, p.d), p.h));
+    // Corner turrets: instanced shafts + instanced gold cone caps.
+    instanced(
+      new THREE.CylinderGeometry(TURRET.radius, TURRET.radius * 1.08, TURRET.topY - TURRET.baseY, 14),
+      mats.facadeMarbleFor(TURRET.radius * 2, TURRET.topY - TURRET.baseY),
+      TURRETS.map((t) => ({ x: t.x, y: (TURRET.baseY + TURRET.topY) / 2, z: t.z })),
+    );
+    instanced(
+      new THREE.ConeGeometry(TURRET.radius + 0.2, TURRET.capApexY - TURRET.topY, 14),
+      mats.gold,
+      TURRETS.map((t) => ({ x: t.x, y: (TURRET.topY + TURRET.capApexY) / 2, z: t.z })),
+    );
+    // The central dome: drum + hemisphere in gold-vein marble, a
+    // gold finial spike at the crown.
+    {
+      const drum = new THREE.Mesh(
+        new THREE.CylinderGeometry(DOME.drumRadius, DOME.drumRadius * 1.05, DOME.drumTopY - DOME.drumBaseY, 24),
+        mats.facadeMarbleFor(DOME.drumRadius * 2, DOME.drumTopY - DOME.drumBaseY),
+      );
+      drum.position.set(DOME.cx, (DOME.drumBaseY + DOME.drumTopY) / 2, DOME.cz);
+      drum.castShadow = shadows;
+      g.add(drum);
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(DOME.domeRadius, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+        mats.facadeMarbleFor(DOME.domeRadius * 2, DOME.domeRadius),
+      );
+      shell.position.set(DOME.cx, DOME.drumTopY, DOME.cz);
+      shell.castShadow = shadows;
+      g.add(shell);
+      const spike = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.06, DOME.finialTopY - DOME.finialBaseY, 8), mats.gold,
+      );
+      spike.position.set(DOME.cx, (DOME.finialBaseY + DOME.finialTopY) / 2, DOME.cz);
+      g.add(spike);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), mats.gold);
+      orb.position.set(DOME.cx, DOME.finialBaseY + 0.12, DOME.cz);
+      g.add(orb);
+    }
+
+    group.add(g);
   }
 
   /** The mirror floor: a true planar reflection under a polished
@@ -3947,6 +4265,11 @@ export class KingsHallScene {
     this.camera.getWorldPosition(SCRATCH_VEC);
     const camX = SCRATCH_VEC.x;
     const camZ = SCRATCH_VEC.z;
+    /* The visible sky (items 3/4) rides the camera: the dome is
+     * centred on the walker, so its 90 m radius is the distance
+     * in EVERY direction — always inside the far plane, never
+     * fogged into a wall (its shader takes no fog). */
+    if (this.skyGroup) this.skyGroup.position.set(camX, 0, camZ);
     const area = areaForRoom(this.currentRoom);
     if (this.hallGroup) {
       this.hallGroup.visible = !hallInteriorCulled(camX, camZ, this.yaw, area);
@@ -4330,6 +4653,9 @@ export class KingsHallScene {
     for (const l of anim.lanternGlows) {
       const sc = lanternGlowScale(l.base, t, l.phase);
       l.sprite.scale.set(sc, sc, 1);
+    }
+    for (const c of anim.clouds) {
+      c.sprite.position.x = cloudDriftX(c.def, t);
     }
 
     // Report my pose when it meaningfully changed (client throttles).
