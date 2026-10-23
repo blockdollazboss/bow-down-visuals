@@ -66,28 +66,33 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
   "/api/export-quality/estimate": { cost: 0, feature: "Export Size Estimate (free)" },
   "/api/export-quality": { cost: 150, feature: "Quality-Controlled Export" },
-  "/api/export-doctor/export": { cost: 400, feature: "Export Clip" },
+  // Export Doctor rails are FREE — routes/generate/export-doctor.ts
+  // contains zero credit logic (no chargeCredits/deductCredits at
+  // all; verified Stack-28 A2-05). The registry records 0 for all
+  // 13 export-doctor endpoints so the spend confirmation and the
+  // operator quote "free" instead of the old phantom 100–400 VB.
+  "/api/export-doctor/export": { cost: 0, feature: "Export Clip (free)" },
   "/api/carousel/export": { cost: 100, feature: "Carousel Export" },
   "/api/books/ai/assist": { cost: 100, feature: "Thy Books AI Writing Assist" },
   "/api/books/cover/generate": { cost: 200, feature: "Thy Books AI Cover Generation" },
-  "/api/export-doctor/export-audio": { cost: 200, feature: "Export Audio" },
-  "/api/export-doctor/export-all": { cost: 400, feature: "Export All Clips" },
-  "/api/export-doctor/export-all-audio": { cost: 200, feature: "Export All Audio" },
-  "/api/export-doctor/export-all-captions": { cost: 200, feature: "Export Captions" },
-  "/api/export-doctor/export-all-effects": { cost: 200, feature: "Export Effects" },
-  "/api/export-doctor/export-all-overlays": { cost: 200, feature: "Export Overlays" },
-  "/api/export-doctor/export-overlays-range": { cost: 200, feature: "Export Overlays Range" },
-  "/api/export-doctor/export-effects-range": { cost: 200, feature: "Export Effects Range" },
+  "/api/export-doctor/export-audio": { cost: 0, feature: "Export Audio (free)" },
+  "/api/export-doctor/export-all": { cost: 0, feature: "Export All Clips (free)" },
+  "/api/export-doctor/export-all-audio": { cost: 0, feature: "Export All Audio (free)" },
+  "/api/export-doctor/export-all-captions": { cost: 0, feature: "Export Captions (free)" },
+  "/api/export-doctor/export-all-effects": { cost: 0, feature: "Export Effects (free)" },
+  "/api/export-doctor/export-all-overlays": { cost: 0, feature: "Export Overlays (free)" },
+  "/api/export-doctor/export-overlays-range": { cost: 0, feature: "Export Overlays Range (free)" },
+  "/api/export-doctor/export-effects-range": { cost: 0, feature: "Export Effects Range (free)" },
   // ── Video processing (editor tools) ──────────────────────────
   "/api/stabilize": { cost: 300, feature: "Video Stabilization" },
   "/api/apply-speed": { cost: 150, feature: "Speed Preset" },
   "/api/color-grade": { cost: 150, feature: "Color Grade" },
   // PLACEHOLDER — NOT USER-APPROVED: AI background plate generation (gated, no key yet)
   "/api/bg-generate": { cost: 200, feature: "Background Plate (price TBD)" },
-  "/api/export-doctor/export-effects-transitions": { cost: 200, feature: "Export Transitions" },
+  "/api/export-doctor/export-effects-transitions": { cost: 0, feature: "Export Transitions (free)" },
   "/api/video-template/apply": { cost: 250, feature: "Apply Video Template" },
   "/api/split-screen/apply": { cost: 200, feature: "Split-Screen Grid" },
-  "/api/export-doctor/export-audio-sync-short": { cost: 200, feature: "Export Audio Sync" },
+  "/api/export-doctor/export-audio-sync-short": { cost: 0, feature: "Export Audio Sync (free)" },
   "/api/export-multi-ratio": { cost: 100, feature: "Multi-Ratio Export (per ratio)" },
   // Subject-tracking reframe — mirrors REFRAME_COST in the server route
   // (routes/generate/auto-reframe.ts, env REFRAME_CREDITS, default 200).
@@ -96,8 +101,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // in the spend confirmation before anything charges.
   "/api/auto-reframe": { cost: 200, feature: "Smart Reframe — Subject Tracking" },
   "/api/extract-audio": { cost: 50, feature: "Extract Audio" },
-  "/api/export-doctor/repair-normalize": { cost: 100, feature: "Repair: Normalize Clip" },
-  "/api/export-doctor/repair-clip": { cost: 100, feature: "Repair Clip" },
+  "/api/export-doctor/repair-normalize": { cost: 0, feature: "Repair: Normalize Clip (free)" },
+  "/api/export-doctor/repair-clip": { cost: 0, feature: "Repair Clip (free)" },
   // Mirrors PRO_TOOLS_AI_CREDITS in the server route
   // (routes/generate/pro-tools-ai.ts, env PRO_TOOLS_AI_CREDITS,
   // default 100) — the rail charges 100 Visual Bucs.
