@@ -76,6 +76,7 @@ const roomItem = (over: Partial<RoomStoreItem> = {}): RoomStoreItem => ({
   artworkUrl: null,
   priceCents: 1999,
   price: "$19.99",
+  buyUrl: "/shop/x",
   pwyw: null,
   ...over,
 });

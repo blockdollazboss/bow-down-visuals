@@ -331,6 +331,10 @@ export interface RoomStoreItem {
   priceCents: number;
   /** The server's formatted price line. */
   price: string;
+  /** The website buy page for this item — kept for the kinds no
+   *  in-world rail sells (roomItemRail null), never as the primary
+   *  door for a kind a rail DOES sell. */
+  buyUrl: string;
   pwyw: { enabled: boolean; minCents: number } | null;
 }
 
@@ -369,6 +373,7 @@ export function parseRoomCatalog(payload: unknown): RoomStoreItem[] {
       artworkUrl: typeof r["artworkUrl"] === "string" ? r["artworkUrl"] : null,
       priceCents: r["priceCents"],
       price: typeof r["price"] === "string" ? r["price"] : "",
+      buyUrl: typeof r["buyUrl"] === "string" ? r["buyUrl"] : "",
       pwyw,
     });
   }
