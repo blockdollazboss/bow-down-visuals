@@ -181,6 +181,24 @@ describe("Stack-28 #10 Distribute sandbox qualifier at the sell + confirm moment
   });
 });
 
+describe("Stack-28 #11 Go Live World entry copy names the Plaza, not the Hall", () => {
+  // A2-12: entry lands on the King's Plaza in the open world; the Go
+  // Live hub card and the shell button still invited users into "the
+  // King's Hall" as if it were the whole World. (These strings are
+  // hardcoded in the components — no locale catalog carries them, so
+  // there is no catalog copy to align.)
+  it("go-live.tsx card + EnterWorldButton labels name the King's Plaza", () => {
+    const goLive = readFileSync(new URL("../pages/go-live.tsx", import.meta.url), "utf8");
+    expect(goLive).toContain("The World — step into the King's Plaza");
+    expect(goLive).toContain("Enter the World");
+    expect(goLive).not.toContain("step into the King's Hall");
+    expect(goLive).not.toContain("Enter the hall");
+    const btn = readComponent("EnterWorldButton.tsx");
+    expect(btn).toContain("Enter the World — step into the King's Plaza");
+    expect(btn).not.toContain("step into the King's Hall");
+  });
+});
+
 describe("S27-25 FinalVideoExport never displays a raw provider name", () => {
   it("scene list and check table render the neutral sceneClip label for any provider", () => {
     const src = readComponent("FinalVideoExport.tsx");
