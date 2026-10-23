@@ -64,3 +64,19 @@ describe("item 36 — text-amber-100 opacity ladder is complete (A4-D2)", () => 
     expect(css).toContain(`.light .text-amber-100${GUARDED},`);
   });
 });
+
+describe("item 37 — border remap gaps closed (A4-E1/E2)", () => {
+  it("border-white/12 takes the [0.12] bracket value", () => {
+    expect(css).toContain(
+      `.light .border-white\\/12${GUARDED} { border-color: rgb(231 217 188 / 0.85); }`,
+    );
+    expect(css).toContain(`.light .border-white\\/\\[0\\.12\\]${GUARDED}`);
+  });
+
+  it("border-white/[0.09] joins the [0.06]–[0.10] champagne group", () => {
+    expect(css).toContain(`.light .border-white\\/\\[0\\.09\\]${GUARDED},`);
+    const anchor = css.indexOf(".light .border-white\\/\\[0\\.09\\]");
+    expect(anchor).toBeGreaterThan(-1);
+    expect(css.slice(anchor, anchor + 400)).toContain("{ border-color: #EDE3CB; }");
+  });
+});

@@ -567,6 +567,12 @@ html, body {
 .light .border-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.22); }
 .light .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.18); }
 .light .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
+/* Stack-28 (A4-E1): border-white/12 (26+ uses — ManualDAW, SongWorkflow,
+   ArrangementStudio, PianoRoll, RoyalCourtPicker…) had no rung between
+   /10 and /15, so transport buttons, workflow steps and picker chips
+   became borderless white blobs on ivory. It takes the [0.12] bracket
+   value, matching its bracket twin below. */
+.light .border-white\/12:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
 .light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
 .light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(237 227 203 / 0.6); }
 .light .border-zinc-700:not([data-dark-lock]):not([data-dark-lock] *),
@@ -582,6 +588,11 @@ html, body {
 .light .border-white\/\[0\.06\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.07\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.08\]:not([data-dark-lock]):not([data-dark-lock] *),
+/* Stack-28 (A4-E2): [0.09] fell between the covered brackets — the
+   CommandCenter platform pills and the StemFxChainEditor /
+   ArrangementStudio FX-step cards lost their outlines on the
+   remapped marble fill. It joins its neighbours' rung. */
+.light .border-white\/\[0\.09\]:not([data-dark-lock]):not([data-dark-lock] *),
 .light .border-white\/\[0\.10\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: #EDE3CB; }
 .light .border-white\/\[0\.12\]:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(231 217 188 / 0.85); }
 /* Remaining uncovered brackets (audit 2026-10-13, D-8): [0.04] joins the
