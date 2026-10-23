@@ -129,6 +129,11 @@ const StyleStealerSection = lazy(() => import("@/components/editor/sections/Styl
 const MemeMachineSection = lazy(() => import("@/components/editor/sections/MemeMachineSection").then((m) => ({ default: m.MemeMachineSection })));
 const ThreeSecondLabSection = lazy(() => import("@/components/editor/sections/ThreeSecondLabSection").then((m) => ({ default: m.ThreeSecondLabSection })));
 import { ToolPanelShell } from "@/components/editor/ToolPanelShell";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  EDITOR_RIGHT_SECTION_IDS, EDITOR_SECTION_IDS,
+  type EditorSectionId,
+} from "@/lib/editor-sections";
 import { ALIGN_CREDITS as LYRIC_ALIGN_CREDITS, RENDER_CREDITS as LYRIC_RENDER_CREDITS } from "@/lib/lyric-video";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
@@ -147,7 +152,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "templates" | "timeline" | "beat-sync" | "edit-recipes" | "music" | "captions" | "effects" | "motion" | "branding" | "export" | "lip-sync" | "studio" | "voice-edits" | "pre-production" | "pro-tools" | "promo-clips" | "lyric-video" | "translate" | "repurpose" | "upscale" | "cartoonize" | "thumbnails" | "vibes" | "locations" | "style-stealer" | "meme-machine" | "three-second-lab" | "copilot";
+type EditorTab = EditorSectionId;
 
 /* ── CSS filter maps for effects live preview ──
  * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
@@ -376,6 +381,29 @@ export default function VideoEditor() {
   /* Independent tab state per side — both panels can show different content. */
   const [leftTab, setLeftTab] = useState<EditorTab>("clips");
   const [rightTab, setRightTab] = useState<EditorTab>("thumbnails");
+  /* ── Mobile section sheet (Stack-28 #53, A5-M1): below 768px both
+     desktop panels are hidden md:block, so a rail tap opens the active
+     section in a bottom sheet instead (see the Sheet at the page root).
+     isMobileViewport mirrors the md breakpoint (768px) exactly. ── */
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobileViewport(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      setIsMobileViewport(e.matches);
+      if (!e.matches) setMobileSheetOpen(false);
+    };
+    if (typeof mq.addEventListener === "function") mq.addEventListener("change", onChange);
+    return () => {
+      if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", onChange);
+    };
+  }, []);
   /* Thy Library transition deep-link (?transition=<slug>): scenes load async,
      so the mapped transition parks here until scenes arrive, then applies
      to every clip exactly once. */
@@ -397,11 +425,7 @@ export default function VideoEditor() {
   };
   /* Right-side tabs: CREATE MORE + FINISH — output/distribution workflow.
      Left side builds the video; right side amplifies and finishes it. */
-  const RIGHT_TABS = new Set([
-    "promo-clips", "lyric-video", "thumbnails", "meme-machine",
-    "three-second-lab", "translate", "repurpose",
-    "edit-recipes", "studio", "pro-tools", "export",
-  ]);
+  const RIGHT_TABS = new Set<string>(EDITOR_RIGHT_SECTION_IDS);
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     try {
       const v = Number(localStorage.getItem("bdv:panelWidth"));
@@ -964,7 +988,7 @@ export default function VideoEditor() {
      Used by old-URL redirects (e.g. /promo-clip → /video-editor?tab=promo-clips).
      Validates against known tab ids; setTab's built-in guard keeps Simple-mode
      users on safe tabs. */
-  const RAIL_TAB_IDS: EditorTab[] = ["clips", "templates", "copilot", "timeline", "beat-sync", "edit-recipes", "music", "captions", "effects", "motion", "branding", "export", "lip-sync", "studio", "voice-edits", "pre-production", "pro-tools", "promo-clips", "lyric-video", "translate", "repurpose", "upscale", "cartoonize", "thumbnails", "vibes", "locations", "style-stealer", "meme-machine", "three-second-lab"];
+  const RAIL_TAB_IDS: EditorTab[] = EDITOR_SECTION_IDS;
 
   /* 3-Second Lab: prefill the video description from the timeline's opening
      (first scene lyric/action or first caption line). */
@@ -1950,316 +1974,62 @@ export default function VideoEditor() {
       : t("videoEditor.tipNoApprovedClips"),
   ].filter(Boolean) as string[];
 
-  return (
-    <>
-    <style>{`
-      .vv-marble-page { background: var(--vv-marble-page); }
-      .vv-marble-panel { background: var(--vv-marble-panel); }
-      .vv-marble-rail { background: var(--vv-marble-rail); }
-      .vv-ink { color: var(--vv-ink); }
-      .vv-hover-ink:hover { color: var(--vv-ink); }
-      .vv-border { border-color: var(--vv-border); }
-      .vv-border-soft { border-color: var(--vv-border-soft); }
-      .vv-border-faint { border-color: var(--vv-border-faint); }
-      .vv-border-strong { border-color: var(--vv-border); }
-      .vv-hover-border-strong:hover { border-color: var(--vv-border); }
-      .vv-ink-20 { color: color-mix(in srgb, var(--vv-ink) 20%, transparent); }
-      .vv-ink-25 { color: color-mix(in srgb, var(--vv-ink) 25%, transparent); }
-      .vv-ink-30 { color: color-mix(in srgb, var(--vv-ink) 30%, transparent); }
-      .vv-ink-35 { color: color-mix(in srgb, var(--vv-ink) 35%, transparent); }
-      .vv-ink-40 { color: color-mix(in srgb, var(--vv-ink) 40%, transparent); }
-      .vv-ink-45 { color: color-mix(in srgb, var(--vv-ink) 45%, transparent); }
-      .vv-ink-50 { color: color-mix(in srgb, var(--vv-ink) 50%, transparent); }
-      .vv-ink-55 { color: color-mix(in srgb, var(--vv-ink) 55%, transparent); }
-      .vv-ink-60 { color: color-mix(in srgb, var(--vv-ink) 60%, transparent); }
-      .vv-ink-70 { color: color-mix(in srgb, var(--vv-ink) 70%, transparent); }
-      .vv-ink-80 { color: color-mix(in srgb, var(--vv-ink) 80%, transparent); }
-      .vv-ink-85 { color: color-mix(in srgb, var(--vv-ink) 85%, transparent); }
-      .vv-wash-2 { background-color: var(--vv-wash-2); }
-      .vv-wash-3 { background-color: var(--vv-wash-3); }
-      .vv-wash-4 { background-color: var(--vv-wash-4); }
-      .vv-wash-5 { background-color: var(--vv-wash-5); }
-      .vv-wash-10 { background-color: var(--vv-wash-10); }
-      .vv-hover-wash-3:hover { background-color: var(--vv-wash-3); }
-      .vv-hover-wash-5:hover { background-color: var(--vv-wash-5); }
-      .vv-hover-wash-10:hover { background-color: var(--vv-wash-10); }
-    `}</style>
-    <div className="h-screen flex flex-col vv-marble-page vv-ink overflow-hidden" style={vvVars}>
-      <VideoBanner onHeightChange={setHeaderHeight} />
-      {/* Live collaborator cursors overlay */}
-      <CollaboratorCursors collaborators={collaborators} />
-
-      <div className="flex-1 flex flex-col min-h-0 relative">
-        <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
-
-        {!projectId ? (
-          <NoProject />
-        ) : (loading || !barcodeDone) ? (
-          <WittyLoader onComplete={() => setBarcodeDone(true)} />
-        ) : loadError ? (
-          <div className="py-20 text-center space-y-3">
-            <p className="text-red-400 font-semibold">{loadError}</p>
-            <Link href="/my-projects"><Button variant="outline" className="vv-border vv-wash-5 vv-ink vv-hover-wash-10">{t("videoEditor.backToProjects")}</Button></Link>
-          </div>
-        ) : (
-          <>
-            {/* ── CapCut-style slim top bar ── */}
-            <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b vv-border vv-marble-panel">
-              {/* Theme-aware wordmark — light: dark bronze, dark: gold. Links home. */}
-              <Link
-                href="/"
-                className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
-                title="Bow Down Visuals — home"
-                aria-label="Bow Down Visuals home"
-              >
-                <Crown className="h-4 w-4 text-[#C9A84C] shrink-0" />
-                <span
-                  className="text-[11px] font-black tracking-[0.18em] whitespace-nowrap"
-                  style={{
-                    fontFamily: '"Cinzel", Georgia, serif',
-                    color: isLight ? "#2A2118" : "#E8C96A",
-                  }}
-                >
-                  BOW&nbsp;DOWN
-                </span>
-                <span
-                  className="hidden sm:inline text-[11px] font-black tracking-[0.18em] whitespace-nowrap"
-                  style={{
-                    fontFamily: '"Cinzel", Georgia, serif',
-                    color: isLight ? "#2A2118" : "#E8C96A",
-                  }}
-                >
-                  VISUALS
-                </span>
-              </Link>
-              <div className="w-px h-5 vv-wash-10" aria-hidden="true" />
-              <Link href="/my-projects" className="flex items-center gap-2 vv-ink-50 vv-hover-ink transition-colors">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="text-xs font-bold hidden sm:inline">{t("videoEditor.projectsNav")}</span>
-              </Link>
-              <div className="w-px h-5 vv-wash-10" aria-hidden="true" />
-              <div className="flex items-center gap-2 min-w-0">
-                <Clapperboard className="h-4 w-4 text-primary shrink-0" />
-                <h1 className="text-sm font-bold vv-ink tracking-tight truncate">{project?.title || t("videoEditor.untitledProject")}</h1>
-              </div>
-              <SaveIndicator state={saveState} />
-              {/* ── Live collaborators (Supabase presence) ── */}
-              {collaborators.length > 0 && (
-                <div
-                  className="flex items-center -space-x-1.5 shrink-0"
-                  title={`Live now: ${collaborators.map((c) => c.name).join(", ")}`}
-                  data-testid="collaborator-indicator"
-                >
-                  {collaborators.slice(0, 4).map((c) => (
-                    <div
-                      key={c.userId}
-                      title={c.name}
-                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[11px] font-bold vv-ink"
-                      style={{ backgroundColor: c.color }}
-                    >
-                      {c.name.charAt(0).toUpperCase()}
-                    </div>
-                  ))}
-                  {collaborators.length > 4 && (
-                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[11px] font-bold vv-ink-70">
-                      +{collaborators.length - 4}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="flex-1" />
-              <Button
-                onClick={() => setShowTemplatePicker(true)}
-                size="sm"
-                variant="ghost"
-                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30"
-                title={t("videoEditor.changeTemplateTitle")}
-                data-testid="btn-template-picker"
-              >
-                <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
-              </Button>
-              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
-                <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
-              </Button>
-              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
-                <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
-              </Button>
-              <Button onClick={() => setTab("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
-                <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
-              </Button>
-              {/* ── Simple / Pro editor mode switch — drives the site-wide
-                  Creator Level (UserModeContext): Simple keeps the guided
-                  dock (prompt bar, templates, auto captions, auto music);
-                  Pro reveals the full dock, unchanged. Persisted per user
-                  by the context (localStorage bdv_user_mode_<id>) and
-                  shared with the sidebar star picker — one source of truth.
-                  Pro is plan-gated: when the plan caps the level below the
-                  advanced band, the segment renders locked and links to
-                  plans, mirroring the sidebar's locked stars. ── */}
-              <div
-                className="flex items-center rounded-lg border vv-border vv-wash-5 p-0.5 shrink-0"
-                role="radiogroup"
-                aria-label={t("videoEditor.editorMode", { defaultValue: "Editor mode" })}
-                data-testid="editor-mode-switch"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={isSimple}
-                  onClick={() => setMode("simple")}
-                  className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
-                  data-testid="editor-mode-simple"
-                >
-                  {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
-                </button>
-                {gateStars >= 4 ? (
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={!isSimple}
-                    onClick={() => setMode("advanced")}
-                    className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
-                    data-testid="editor-mode-pro"
-                  >
-                    {t("videoEditor.modePro", { defaultValue: "Advanced" })}
-                  </button>
-                ) : (
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center gap-1 px-2.5 h-10 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
-                    title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks at Creator Level 4 (Shot Caller) — stars are earned from your work" })}
-                    data-testid="editor-mode-pro-locked"
-                  >
-                    <Lock className="h-3 w-3" /> {t("videoEditor.modePro", { defaultValue: "Advanced" })}
-                  </Link>
-                )}
-              </div>
-              <label
-                className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
-                title={t("videoEditor.autosaveTitle")}
-                data-testid="autosave-toggle-wrap"
-              >
-                <Switch
-                  checked={autosaveEnabled}
-                  onCheckedChange={setAutosaveEnabled}
-                  className="scale-[0.8]"
-                  data-testid="autosave-toggle"
-                  aria-label={t("videoEditor.autosave")}
-                />
-                <span className="text-xs vv-ink-50 hidden lg:inline">{t("videoEditor.autosave")}</span>
-              </label>
-              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-10" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
-                <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
-              </Button>
-              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10" data-testid="btn-save-editor">
-                <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
-              </Button>
-              <Button onClick={() => setTab("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-10" data-testid="btn-export-topbar">
-                <Download className="h-3.5 w-3.5" /> {t("videoEditor.export")}
-              </Button>
-            </div>
-
-            {/* ── CapCut 3-pane layout: rail · panel · preview · inspector ── */}
-            <div className="flex-1 flex min-h-0 relative" style={{ paddingBottom: dockHeight }}>
-
-              {/* ── LEFT RAIL: icon nav ── */}
-              <nav className="w-[68px] shrink-0 vv-marble-rail border-r vv-border flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
-                {orderedRailTabs([
-                    // ── 1. PLAN & SOURCE ──
-                    { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
-                    { id: "clips", label: t("videoEditor.railMedia"), icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
-                    { id: "templates", label: t("videoEditor.railTemplates"), icon: <LayoutTemplate className="h-5 w-5" />, testId: "rail-templates" },
-                    { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
-                    // ── 2. BUILD ──
-                    { id: "copilot", label: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }), icon: <Brain className="h-5 w-5" />, testId: "rail-copilot" },
-                    { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
-                    { id: "beat-sync", label: t("videoEditor.railBeatSync"), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-beat-sync" },
-                    { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
-                    { id: "effects", label: t("videoEditor.railEffects"), icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
-                    { id: "motion", label: t("videoEditor.railMotion", { defaultValue: "Motion" }), icon: <Wand2 className="h-5 w-5" />, testId: "rail-motion" },
-                    { id: "lip-sync", label: t("videoEditor.railLipSync"), icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
-                    { id: "voice-edits", label: t("videoEditor.railVoiceEdits"), icon: <MessageSquareText className="h-5 w-5" />, testId: "rail-voice-edits" },
-                    { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
-                    // ── 3. STYLE & POLISH ──
-                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
-                    { id: "style-stealer", label: t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }), icon: <Fingerprint className="h-5 w-5" />, testId: "rail-style-stealer" },
-                    { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
-                    { id: "upscale", label: t("videoEditor.railUpscale", { defaultValue: "Upscale" }), icon: <Maximize className="h-5 w-5" />, testId: "rail-upscale" },
-                    { id: "cartoonize", label: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }), icon: <Sparkles className="h-5 w-5" />, testId: "rail-cartoonize" },
-                    // ── 4. CREATE MORE ──
-                    { id: "promo-clips", label: t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }), icon: <Film className="h-5 w-5" />, testId: "rail-promo-clips" },
-                    { id: "lyric-video", label: t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-lyric-video" },
-                    { id: "thumbnails", label: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }), icon: <ImageIcon className="h-5 w-5" />, testId: "rail-thumbnails" },
-                    { id: "meme-machine", label: t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }), icon: <Laugh className="h-5 w-5" />, testId: "rail-meme-machine" },
-                    { id: "three-second-lab", label: t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }), icon: <Timer className="h-5 w-5" />, testId: "rail-three-second-lab" },
-                    { id: "translate", label: t("videoEditor.railTranslate", { defaultValue: "Translate" }), icon: <Languages className="h-5 w-5" />, testId: "rail-translate" },
-                    { id: "repurpose", label: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }), icon: <Repeat className="h-5 w-5" />, testId: "rail-repurpose" },
-                    // ── 5. FINISH ──
-                    { id: "edit-recipes", label: t("videoEditor.railEditRecipes"), icon: <Scissors className="h-5 w-5" />, testId: "rail-edit-recipes" },
-                    { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
-                    { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
-                    { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
-                  ])
-                    .filter((item) => !RIGHT_TABS.has(item.id))
-                    .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "captions"] as string[]).includes(item.id))
-                    .map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setTab(item.id as EditorTab)}
-                        data-testid={item.testId}
-                        data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
-                        title={item.label}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
-                          leftTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "vv-ink-45 vv-hover-ink vv-hover-wash-5 border-transparent"
-                        }`}
-                      >
-                        {item.icon}
-                        <span className="text-[11px] font-bold leading-none">{item.label}</span>
-                      </button>
-                    ))}
-              </nav>
-
-              {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
-              <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-r vv-border overflow-y-auto hidden md:block">
-              <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
-                <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
-                  <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
-                    {{
-                      clips: t("videoEditor.railMedia"),
-                      templates: t("videoEditor.railTemplates"),
-                      copilot: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }),
-                      music: t("videoEditor.railAudio"),
-                      timeline: t("videoEditor.railTimeline"),
-                      "beat-sync": t("videoEditor.railBeatSync"),
-                      "edit-recipes": t("videoEditor.railEditRecipes"),
-                      captions: t("videoEditor.railText"),
-                      effects: t("videoEditor.railEffects"),
-                      motion: t("videoEditor.railMotion", { defaultValue: "Motion" }),
-                      branding: t("videoEditor.railBrand"),
-                      "lip-sync": t("videoEditor.railLipSync"),
-                      "pre-production": t("videoEditor.railPrePro"),
-                      export: t("videoEditor.railExport"),
-                      studio: t("videoEditor.railAdvanced"),
-                      "voice-edits": t("videoEditor.railVoiceEdits"),
-                      "pro-tools": t("videoEditor.railProTools"),
-                      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
-                      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
-                      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
-                      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
-                      upscale: t("videoEditor.railUpscale", { defaultValue: "Upscale" }),
-                      cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
-                      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
-                      vibes: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }),
-                      locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
-                      "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
-                      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
-                      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
-                    }[leftTab]}
-                  </h2>
-                </div>
+  /* ── Panel titles + bodies (Stack-28 #53) ─────────────────────────
+     editorTabTitle is the one title map for every section id (typed
+     Record<EditorTab, string>, so a registry id without a title is a
+     type error). renderLeftPanelBody / renderRightPanelBody are the
+     ONLY renders of the section panels: the desktop asides call them
+     with their side's active tab, and the mobile section sheet calls
+     them with the unified active tab — same lazy section components,
+     no duplicated implementations. While the mobile sheet is open the
+     (CSS-hidden) desktop asides render no sections at all, so a section
+     is never mounted twice; the left panel keeps only the playback
+     engine mounted, exactly as before. ── */
+  const editorTabTitle = (id: EditorTab): string =>
+    ({
+      clips: t("videoEditor.railMedia"),
+      templates: t("videoEditor.railTemplates"),
+      copilot: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }),
+      music: t("videoEditor.railAudio"),
+      timeline: t("videoEditor.railTimeline"),
+      "beat-sync": t("videoEditor.railBeatSync"),
+      "edit-recipes": t("videoEditor.railEditRecipes"),
+      captions: t("videoEditor.railText"),
+      effects: t("videoEditor.railEffects"),
+      motion: t("videoEditor.railMotion", { defaultValue: "Motion" }),
+      branding: t("videoEditor.railBrand"),
+      "lip-sync": t("videoEditor.railLipSync"),
+      "pre-production": t("videoEditor.railPrePro"),
+      export: t("videoEditor.railExport"),
+      studio: t("videoEditor.railAdvanced"),
+      "voice-edits": t("videoEditor.railVoiceEdits"),
+      "pro-tools": t("videoEditor.railProTools"),
+      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
+      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
+      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
+      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
+      upscale: t("videoEditor.railUpscale", { defaultValue: "Upscale" }),
+      cartoonize: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }),
+      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
+      vibes: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }),
+      locations: t("videoEditor.railLocations", { defaultValue: "Locations" }),
+      "style-stealer": t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }),
+      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
+      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
+    } as Record<EditorTab, string>)[id] ?? "";
+  const mobileSectionInSheet = isMobileViewport && mobileSheetOpen;
+  const openSectionFromRail = (id: EditorTab) => {
+    setTab(id);
+    if (isMobileViewport) setMobileSheetOpen(true);
+  };
+  const renderLeftPanelBody = (activeTab: EditorTab, opts: { includeEngine: boolean; includeSections: boolean }) => {
+    const { includeEngine, includeSections } = opts;
+    return (
                 <div className="p-4">
-                  {/* TimelinePreviewPlayer — always mounted (it IS the playback engine), visually hidden */}
+                  {/* TimelinePreviewPlayer — always mounted (it IS the playback engine), visually hidden.
+                      Only the desktop panel mounts it (includeEngine) — the mobile sheet reuses
+                      this same engine instance through the shared refs, never a second one. */}
+                  {includeEngine && (
                   <div className="hidden">
                     <TimelinePreviewPlayer
                       ref={timelinePlayerRef}
@@ -2278,8 +2048,10 @@ export default function VideoEditor() {
                       audioOffsetSec={settings.musicStudio.videoAudio.startSec ?? 0}
                     />
                   </div>
+                  )}
 
-                  {leftTab === "timeline" && (
+                  {includeSections && (<>
+                  {activeTab === "timeline" && (
                     <ToolPanelShell
                       tool="timeline"
                       kicker={t("videoEditor.railTimeline", { defaultValue: "Timeline" })}
@@ -2318,7 +2090,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "beat-sync" && (
+                  {activeTab === "beat-sync" && (
                     <ToolPanelShell
                       tool="beat-sync"
                       kicker={t("videoEditor.railBeatSync", { defaultValue: "Beat Sync" })}
@@ -2343,7 +2115,7 @@ export default function VideoEditor() {
                   )}
 
 
-                  {leftTab === "clips" && (
+                  {activeTab === "clips" && (
                     <ToolPanelShell
                       tool="clips"
                       kicker={t("videoEditor.railMedia", { defaultValue: "Media" })}
@@ -2543,7 +2315,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                       )}
 
-                  {leftTab === "templates" && (
+                  {activeTab === "templates" && (
                     <ToolPanelShell
                       tool="templates"
                       kicker={t("videoEditor.railTemplates", { defaultValue: "Templates" })}
@@ -2563,7 +2335,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "music" && (
+                  {activeTab === "music" && (
                     <ToolPanelShell
                       tool="music"
                       kicker={t("videoEditor.railAudio", { defaultValue: "Audio" })}
@@ -2602,7 +2374,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "captions" && (
+                  {activeTab === "captions" && (
                     <ToolPanelShell
                       tool="captions"
                       kicker={t("videoEditor.railText", { defaultValue: "Text" })}
@@ -2667,7 +2439,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "effects" && (
+                  {activeTab === "effects" && (
                     <ToolPanelShell
                       tool="effects"
                       kicker={t("videoEditor.railEffects", { defaultValue: "Effects" })}
@@ -2702,7 +2474,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "motion" && (
+                  {activeTab === "motion" && (
                     <ToolPanelShell
                       tool="motion"
                       kicker={t("videoEditor.railMotion", { defaultValue: "Motion" })}
@@ -2729,7 +2501,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "branding" && (
+                  {activeTab === "branding" && (
                     <ToolPanelShell
                       tool="branding"
                       kicker={t("videoEditor.railBrand", { defaultValue: "Brand" })}
@@ -2747,7 +2519,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "lip-sync" && (
+                  {activeTab === "lip-sync" && (
                     <ToolPanelShell
                       tool="lip-sync"
                       kicker={t("videoEditor.railLipSync", { defaultValue: "Lip Sync" })}
@@ -2768,7 +2540,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "pre-production" && project && (
+                  {activeTab === "pre-production" && project && (
                     <ToolPanelShell
                       tool="pre-production"
                       kicker={t("videoEditor.railPrePro", { defaultValue: "Pre-Pro" })}
@@ -2789,7 +2561,7 @@ export default function VideoEditor() {
 
 
 
-                  {leftTab === "copilot" && (
+                  {activeTab === "copilot" && (
                     <ToolPanelShell
                       tool="copilot"
                       kicker={t("videoEditor.railCopilot", { defaultValue: "AI" })}
@@ -2814,7 +2586,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "voice-edits" && (
+                  {activeTab === "voice-edits" && (
                     <ToolPanelShell
                       tool="voice-edits"
                       kicker={t("videoEditor.railVoiceEdits", { defaultValue: "Voice" })}
@@ -2836,7 +2608,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
 
-                  {leftTab === "upscale" && (
+                  {activeTab === "upscale" && (
                     <ToolPanelShell
                       tool="upscale"
                       kicker={t("videoEditor.railUpscale", { defaultValue: "Upscale" })}
@@ -2846,7 +2618,7 @@ export default function VideoEditor() {
                       <Upscale embedded />
                     </ToolPanelShell>
                   )}
-                  {leftTab === "cartoonize" && (
+                  {activeTab === "cartoonize" && (
                     <ToolPanelShell
                       tool="cartoonize"
                       kicker={t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" })}
@@ -2857,7 +2629,7 @@ export default function VideoEditor() {
                       <CartoonStudio initialTab="cartoonize" embedded />
                     </ToolPanelShell>
                   )}
-                  {leftTab === "vibes" && (
+                  {activeTab === "vibes" && (
                     <ToolPanelShell
                       tool="vibes"
                       kicker={t("videoEditor.railVibes", { defaultValue: "Visual Vibes" })}
@@ -2900,7 +2672,7 @@ export default function VideoEditor() {
                       <VisualVibesSection settings={settings} setSettings={setSettings} bare />
                     </ToolPanelShell>
                   )}
-                  {leftTab === "locations" && (
+                  {activeTab === "locations" && (
                     <ToolPanelShell
                       tool="locations"
                       kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
@@ -2910,7 +2682,7 @@ export default function VideoEditor() {
                       <LocationsPage embedded />
                     </ToolPanelShell>
                   )}
-                  {leftTab === "style-stealer" && (
+                  {activeTab === "style-stealer" && (
                     <ToolPanelShell
                       tool="style-stealer"
                       kicker={t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" })}
@@ -2922,7 +2694,565 @@ export default function VideoEditor() {
                       <StyleStealerSection settings={settings} setSettings={setSettings} bare />
                     </ToolPanelShell>
                   )}
+                  </>
+                  )}
                 </div>
+    );
+  };
+  const renderRightPanelBody = (activeTab: EditorTab, opts: { includeSections: boolean }) => {
+    const { includeSections } = opts;
+    return (
+                <div className="p-4">
+                  {includeSections && (<>
+                  {activeTab === "promo-clips" && (
+                    <ToolPanelShell
+                      tool="promo-clips"
+                      kicker={t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" })}
+                      title={t("promo-clip.title")}
+                      subtitle={t("promo-clip.subtitle")}
+                      price={t("promo-clip.creditBadge")}
+                    >
+                      <PromoClip embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "lyric-video" && (
+                    <ToolPanelShell
+                      tool="lyric-video"
+                      kicker={t("lyricVideo.badge")}
+                      title={<>{t("lyricVideo.titlePrefix")}<span className={isLight ? "text-violet-700" : "text-violet-300"}>{t("lyricVideo.titleHighlight")}</span></>}
+                      subtitle={t("lyricVideo.subtitle", { alignCredits: LYRIC_ALIGN_CREDITS, renderCredits: LYRIC_RENDER_CREDITS })}
+                    >
+                      <LyricVideo embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "thumbnails" && (
+                    <ToolPanelShell
+                      tool="thumbnails"
+                      kicker={t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" })}
+                      title={t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
+                      subtitle={t("thumbnailStudio.subtitle", {
+                        defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
+                      })}
+                      price={t("thumbnailMaker.costBadge")}
+                    >
+                      <ThumbnailStudio defaultTab="generate" embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "meme-machine" && (
+                    <ToolPanelShell
+                      tool="meme-machine"
+                      kicker={t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" })}
+                      title={t("videoEditor.memeMachineTitle", { defaultValue: "Meme Machine" })}
+                      subtitle={t("videoEditor.memeMachineDesc", {
+                        defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines. Apply drops the winner onto your timeline as styled captions.",
+                      })}
+                    >
+                      <MemeMachineSection settings={settings} setSettings={setSettings} bare />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "three-second-lab" && (
+                    <ToolPanelShell
+                      tool="three-second-lab"
+                      kicker={t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" })}
+                      title={t("videoEditor.labTitle", { defaultValue: "3-Second Lab" })}
+                      subtitle={t("videoEditor.labDesc", {
+                        defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power.",
+                      })}
+                    >
+                      <ThreeSecondLabSection openingHint={threeSecondLabHint} bare />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "translate" && (
+                    <ToolPanelShell
+                      tool="translate"
+                      kicker={t("translate.badge")}
+                      title={t("translate.pageTitle")}
+                      subtitle={t("translate.pageSubtitle")}
+                    >
+                      <Translate embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "repurpose" && (
+                    <ToolPanelShell
+                      tool="repurpose"
+                      kicker={t("repurpose.badge")}
+                      title={<>{t("repurpose.titlePrefix")} <span className={isLight ? "text-teal-700" : "text-teal-300"}>{t("repurpose.titleSuffix")}</span></>}
+                      subtitle={t("repurpose.hero")}
+                    >
+                      <Repurpose embedded />
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "edit-recipes" && (
+                    <ToolPanelShell
+                      tool="edit-recipes"
+                      kicker={t("videoEditor.railEditRecipes", { defaultValue: "Edit Recipes" })}
+                      title={t("videoEditor.editRecipesTitle", { defaultValue: "Edit Recipes" })}
+                      subtitle={t("videoEditor.editRecipesDesc", {
+                        defaultValue: "One-tap edit recipes — proven formulas for viral cuts.",
+                      })}
+                    >
+                    <div className="p-4">
+                      <TimelineTemplatesSection
+                        scenes={scenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        audioUrl={previewAudioUrl}
+                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
+                        beatGrid={beatGrid}
+                        projectKey={projectId || "default"}
+                      />
+                    </div>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "studio" && (
+                    <ToolPanelShell
+                      tool="studio"
+                      kicker={t("videoEditor.railAdvanced", { defaultValue: "Advanced" })}
+                      title={t("videoEditor.studioTitle", { defaultValue: "Studio" })}
+                      subtitle={t("videoEditor.studioDesc", {
+                        defaultValue: "Advanced studio controls for precision editing.",
+                      })}
+                    >
+                    <>
+                    <StudioEditorSection
+                      scenes={scenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      setScenes={setScenes}
+                      currentTime={previewEngineState?.currentTime ?? 0}
+                      audioDuration={previewEngineState?.audioDuration ?? null}
+                      isPlaying={previewEngineState?.isPlaying ?? false}
+                      audioUrl={previewAudioUrl}
+                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+                      onRestart={() => timelinePlayerRef.current?.restart()}
+                      onGoToExport={() => setTab("export")}
+                      onGoToMusic={() => setTab("music")}
+                      selectedIdx={selectedIdx}
+                      setSelectedIdx={setSelectedIdx}
+                    />
+                    {/* Wave 9 Voice-Directed Edits moved to its own rail tab for direct reachability. */}
+                    </>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "pro-tools" && (
+                    <ToolPanelShell
+                      tool="pro-tools"
+                      kicker={t("videoEditor.railProTools", { defaultValue: "Pro Tools" })}
+                      title={t("videoEditor.proToolsTitle", { defaultValue: "Pro Tools" })}
+                      subtitle={t("videoEditor.proToolsDesc", {
+                        defaultValue: "Professional-grade tools for power creators.",
+                      })}
+                    >
+                    <>
+                      <ProToolsSection
+                        scenes={resolvedScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        videoRef={liveVideoRef}
+                        onReplaceClipVideo={(sceneId, url) =>
+                          setScenes((prev) =>
+                            prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                          )
+                        }
+                      />
+                      <KeyframesSection
+                        scenes={resolvedScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                      />
+                      {/* Wave 9 — Background Replace: AI background swap for talking-head clips
+                          (honest 503 until a segmentation provider is wired; green-screen clips
+                          are pointed at the working Chroma Key tool). */}
+                      <div className="mt-6">
+                        <BackgroundReplaceSection
+                          scene={selectedIdx != null ? resolvedScenes[selectedIdx] ?? null : null}
+                          settings={settings}
+                          setSettings={setSettings}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                        />
+                      </div>
+                      {/* Wave — Stabilize: smooth shaky footage (vidstab two-pass) */}
+                      <div className="mt-6">
+                        <StabilizeSection
+                          scenes={resolvedScenes}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                          onGoToExport={(videoUrl) => {
+                            if (videoUrl) setLutHandoffUrl(videoUrl);
+                            setTab("export");
+                          }}
+                        />
+                      </div>
+                      {/* Wave — Speed ramp: buttery slow-mo, speed presets, ramp curves */}
+                      <div className="mt-6">
+                        <SpeedRampSection
+                          scenes={resolvedScenes}
+                          onReplaceClipVideo={(sceneId, url) =>
+                            setScenes((prev) =>
+                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                            )
+                          }
+                          onGoToExport={(videoUrl) => {
+                            if (videoUrl) setLutHandoffUrl(videoUrl);
+                            setTab("export");
+                          }}
+                        />
+                      </div>
+                    </>
+                    </ToolPanelShell>
+                  )}
+
+                  {activeTab === "export" && (
+                    <ToolPanelShell
+                      tool="export"
+                      kicker={t("videoEditor.railExport", { defaultValue: "Export" })}
+                      title={t("videoEditor.exportTitle", { defaultValue: "Export" })}
+                      subtitle={t("videoEditor.exportDesc", {
+                        defaultValue: "Render your finished video and ship it everywhere.",
+                      })}
+                    >
+                    <>
+                    <ExportSection
+                      // NOTE: resolvedScenes (not raw scenes) so the export uses
+                      // lip-synced clip URLs wherever the user enabled lip sync —
+                      // what you see in the master player is what gets exported.
+                      scenes={resolvedScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      projectId={project!.id}
+                      audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                      rawProjectAudioUrl={audioUrl}
+                      masterAudioUrl={previewAudioUrl}
+                      onGoToMusicStudio={() => setTab("music")}
+                      onRenderMissingMix={requestMissingMixRender}
+                      canRenderMissingMix={canDirectRenderMissingMix}
+                      directRenderStatus={directAudioExportStatus}
+                      onGoToEffects={() => setTab("effects")}
+                      masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
+                      projectDurationSec={previewEngineState?.audioDuration ?? 0}
+                      isSimple={isSimple}
+                      topic={songTitle || undefined}
+                      handoffVideoUrl={lutHandoffUrl}
+                      onReplaceClipVideo={(sceneId, url) =>
+                        setScenes((prev) =>
+                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                        )
+                      }
+                    />
+                    {/* Spotify Canvas Generator — docked in the export/promo
+                        chain (DistroKid Canvas parity). Deep-linked via
+                        ?tab=export&canvas=1 from song results / cover art. */}
+                    <div className="mt-6">
+                      <CanvasGeneratorSection
+                        audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                        songTitle={songTitle || undefined}
+                        artistName={artistName || undefined}
+                      />
+                    </div>
+                    </>
+                    </ToolPanelShell>
+                  )}
+                  </>
+                  )}
+                </div>
+    );
+  };
+  return (
+    <>
+    <style>{`
+      .vv-marble-page { background: var(--vv-marble-page); }
+      .vv-marble-panel { background: var(--vv-marble-panel); }
+      .vv-marble-rail { background: var(--vv-marble-rail); }
+      .vv-ink { color: var(--vv-ink); }
+      .vv-hover-ink:hover { color: var(--vv-ink); }
+      .vv-border { border-color: var(--vv-border); }
+      .vv-border-soft { border-color: var(--vv-border-soft); }
+      .vv-border-faint { border-color: var(--vv-border-faint); }
+      .vv-border-strong { border-color: var(--vv-border); }
+      .vv-hover-border-strong:hover { border-color: var(--vv-border); }
+      .vv-ink-20 { color: color-mix(in srgb, var(--vv-ink) 20%, transparent); }
+      .vv-ink-25 { color: color-mix(in srgb, var(--vv-ink) 25%, transparent); }
+      .vv-ink-30 { color: color-mix(in srgb, var(--vv-ink) 30%, transparent); }
+      .vv-ink-35 { color: color-mix(in srgb, var(--vv-ink) 35%, transparent); }
+      .vv-ink-40 { color: color-mix(in srgb, var(--vv-ink) 40%, transparent); }
+      .vv-ink-45 { color: color-mix(in srgb, var(--vv-ink) 45%, transparent); }
+      .vv-ink-50 { color: color-mix(in srgb, var(--vv-ink) 50%, transparent); }
+      .vv-ink-55 { color: color-mix(in srgb, var(--vv-ink) 55%, transparent); }
+      .vv-ink-60 { color: color-mix(in srgb, var(--vv-ink) 60%, transparent); }
+      .vv-ink-70 { color: color-mix(in srgb, var(--vv-ink) 70%, transparent); }
+      .vv-ink-80 { color: color-mix(in srgb, var(--vv-ink) 80%, transparent); }
+      .vv-ink-85 { color: color-mix(in srgb, var(--vv-ink) 85%, transparent); }
+      .vv-wash-2 { background-color: var(--vv-wash-2); }
+      .vv-wash-3 { background-color: var(--vv-wash-3); }
+      .vv-wash-4 { background-color: var(--vv-wash-4); }
+      .vv-wash-5 { background-color: var(--vv-wash-5); }
+      .vv-wash-10 { background-color: var(--vv-wash-10); }
+      .vv-hover-wash-3:hover { background-color: var(--vv-wash-3); }
+      .vv-hover-wash-5:hover { background-color: var(--vv-wash-5); }
+      .vv-hover-wash-10:hover { background-color: var(--vv-wash-10); }
+    `}</style>
+    <div className="h-screen flex flex-col vv-marble-page vv-ink overflow-hidden" style={vvVars}>
+      <VideoBanner onHeightChange={setHeaderHeight} />
+      {/* Live collaborator cursors overlay */}
+      <CollaboratorCursors collaborators={collaborators} />
+
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
+
+        {!projectId ? (
+          <NoProject />
+        ) : (loading || !barcodeDone) ? (
+          <WittyLoader onComplete={() => setBarcodeDone(true)} />
+        ) : loadError ? (
+          <div className="py-20 text-center space-y-3">
+            <p className="text-red-400 font-semibold">{loadError}</p>
+            <Link href="/my-projects"><Button variant="outline" className="vv-border vv-wash-5 vv-ink vv-hover-wash-10">{t("videoEditor.backToProjects")}</Button></Link>
+          </div>
+        ) : (
+          <>
+            {/* ── CapCut-style slim top bar ── */}
+            <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b vv-border vv-marble-panel">
+              {/* Theme-aware wordmark — light: dark bronze, dark: gold. Links home. */}
+              <Link
+                href="/"
+                className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
+                title="Bow Down Visuals — home"
+                aria-label="Bow Down Visuals home"
+              >
+                <Crown className="h-4 w-4 text-[#C9A84C] shrink-0" />
+                <span
+                  className="text-[11px] font-black tracking-[0.18em] whitespace-nowrap"
+                  style={{
+                    fontFamily: '"Cinzel", Georgia, serif',
+                    color: isLight ? "#2A2118" : "#E8C96A",
+                  }}
+                >
+                  BOW&nbsp;DOWN
+                </span>
+                <span
+                  className="hidden sm:inline text-[11px] font-black tracking-[0.18em] whitespace-nowrap"
+                  style={{
+                    fontFamily: '"Cinzel", Georgia, serif',
+                    color: isLight ? "#2A2118" : "#E8C96A",
+                  }}
+                >
+                  VISUALS
+                </span>
+              </Link>
+              <div className="w-px h-5 vv-wash-10" aria-hidden="true" />
+              <Link href="/my-projects" className="flex items-center gap-2 vv-ink-50 vv-hover-ink transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="text-xs font-bold hidden sm:inline">{t("videoEditor.projectsNav")}</span>
+              </Link>
+              <div className="w-px h-5 vv-wash-10" aria-hidden="true" />
+              <div className="flex items-center gap-2 min-w-0">
+                <Clapperboard className="h-4 w-4 text-primary shrink-0" />
+                <h1 className="text-sm font-bold vv-ink tracking-tight truncate">{project?.title || t("videoEditor.untitledProject")}</h1>
+              </div>
+              <SaveIndicator state={saveState} />
+              {/* ── Live collaborators (Supabase presence) ── */}
+              {collaborators.length > 0 && (
+                <div
+                  className="flex items-center -space-x-1.5 shrink-0"
+                  title={`Live now: ${collaborators.map((c) => c.name).join(", ")}`}
+                  data-testid="collaborator-indicator"
+                >
+                  {collaborators.slice(0, 4).map((c) => (
+                    <div
+                      key={c.userId}
+                      title={c.name}
+                      className="h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[11px] font-bold vv-ink"
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                  ))}
+                  {collaborators.length > 4 && (
+                    <div className="h-6 w-6 rounded-full border-2 border-black vv-wash-10 flex items-center justify-center text-[11px] font-bold vv-ink-70">
+                      +{collaborators.length - 4}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex-1" />
+              <Button
+                onClick={() => setShowTemplatePicker(true)}
+                size="sm"
+                variant="ghost"
+                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30"
+                title={t("videoEditor.changeTemplateTitle")}
+                data-testid="btn-template-picker"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
+              </Button>
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
+                <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
+              </Button>
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
+                <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
+              </Button>
+              <Button onClick={() => openSectionFromRail("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
+                <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
+              </Button>
+              {/* ── Simple / Pro editor mode switch — drives the site-wide
+                  Creator Level (UserModeContext): Simple keeps the guided
+                  dock (prompt bar, templates, auto captions, auto music);
+                  Pro reveals the full dock, unchanged. Persisted per user
+                  by the context (localStorage bdv_user_mode_<id>) and
+                  shared with the sidebar star picker — one source of truth.
+                  Pro is plan-gated: when the plan caps the level below the
+                  advanced band, the segment renders locked and links to
+                  plans, mirroring the sidebar's locked stars. ── */}
+              <div
+                className="flex items-center rounded-lg border vv-border vv-wash-5 p-0.5 shrink-0"
+                role="radiogroup"
+                aria-label={t("videoEditor.editorMode", { defaultValue: "Editor mode" })}
+                data-testid="editor-mode-switch"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isSimple}
+                  onClick={() => setMode("simple")}
+                  className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                  data-testid="editor-mode-simple"
+                >
+                  {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
+                </button>
+                {gateStars >= 4 ? (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!isSimple}
+                    onClick={() => setMode("advanced")}
+                    className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
+                    data-testid="editor-mode-pro"
+                  >
+                    {t("videoEditor.modePro", { defaultValue: "Advanced" })}
+                  </button>
+                ) : (
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-1 px-2.5 h-10 rounded-md text-[11px] font-black vv-ink-50 vv-hover-ink transition-colors"
+                    title={t("videoEditor.modeProLocked", { defaultValue: "Advanced mode unlocks at Creator Level 4 (Shot Caller) — stars are earned from your work" })}
+                    data-testid="editor-mode-pro-locked"
+                  >
+                    <Lock className="h-3 w-3" /> {t("videoEditor.modePro", { defaultValue: "Advanced" })}
+                  </Link>
+                )}
+              </div>
+              <label
+                className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
+                title={t("videoEditor.autosaveTitle")}
+                data-testid="autosave-toggle-wrap"
+              >
+                <Switch
+                  checked={autosaveEnabled}
+                  onCheckedChange={setAutosaveEnabled}
+                  className="scale-[0.8]"
+                  data-testid="autosave-toggle"
+                  aria-label={t("videoEditor.autosave")}
+                />
+                <span className="text-xs vv-ink-50 hidden lg:inline">{t("videoEditor.autosave")}</span>
+              </label>
+              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-10" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
+                <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
+              </Button>
+              <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10" data-testid="btn-save-editor">
+                <Save className="h-3.5 w-3.5" /> {t("videoEditor.save")}
+              </Button>
+              <Button onClick={() => openSectionFromRail("export")} size="sm" className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 h-10" data-testid="btn-export-topbar">
+                <Download className="h-3.5 w-3.5" /> {t("videoEditor.export")}
+              </Button>
+            </div>
+
+            {/* ── CapCut 3-pane layout: rail · panel · preview · inspector ── */}
+            <div className="flex-1 flex min-h-0 relative" style={{ paddingBottom: dockHeight }}>
+
+              {/* ── LEFT RAIL: icon nav ── */}
+              <nav className="w-[68px] shrink-0 vv-marble-rail border-r vv-border flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
+                {orderedRailTabs([
+                    // ── 1. PLAN & SOURCE ──
+                    { id: "pre-production", label: t("videoEditor.railPrePro"), icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
+                    { id: "clips", label: t("videoEditor.railMedia"), icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
+                    { id: "templates", label: t("videoEditor.railTemplates"), icon: <LayoutTemplate className="h-5 w-5" />, testId: "rail-templates" },
+                    { id: "music", label: t("videoEditor.railAudio"), icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
+                    // ── 2. BUILD ──
+                    { id: "copilot", label: t("videoEditor.railCopilot", { defaultValue: "AI Copilot" }), icon: <Brain className="h-5 w-5" />, testId: "rail-copilot" },
+                    { id: "timeline", label: t("videoEditor.railTimeline"), icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
+                    { id: "beat-sync", label: t("videoEditor.railBeatSync"), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-beat-sync" },
+                    { id: "captions", label: t("videoEditor.railText"), icon: <Captions className="h-5 w-5" />, testId: "rail-captions" },
+                    { id: "effects", label: t("videoEditor.railEffects"), icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
+                    { id: "motion", label: t("videoEditor.railMotion", { defaultValue: "Motion" }), icon: <Wand2 className="h-5 w-5" />, testId: "rail-motion" },
+                    { id: "lip-sync", label: t("videoEditor.railLipSync"), icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
+                    { id: "voice-edits", label: t("videoEditor.railVoiceEdits"), icon: <MessageSquareText className="h-5 w-5" />, testId: "rail-voice-edits" },
+                    { id: "branding", label: t("videoEditor.railBrand"), icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
+                    // ── 3. STYLE & POLISH ──
+                    { id: "vibes", label: t("videoEditor.railVibes", { defaultValue: "Visual Vibes" }), icon: <Palette className="h-5 w-5" />, testId: "rail-vibes" },
+                    { id: "style-stealer", label: t("videoEditor.railStyleStealer", { defaultValue: "Style Stealer" }), icon: <Fingerprint className="h-5 w-5" />, testId: "rail-style-stealer" },
+                    { id: "locations", label: t("videoEditor.railLocations", { defaultValue: "Locations" }), icon: <MapPin className="h-5 w-5" />, testId: "rail-locations" },
+                    { id: "upscale", label: t("videoEditor.railUpscale", { defaultValue: "Upscale" }), icon: <Maximize className="h-5 w-5" />, testId: "rail-upscale" },
+                    { id: "cartoonize", label: t("videoEditor.railCartoonize", { defaultValue: "Cartoonize" }), icon: <Sparkles className="h-5 w-5" />, testId: "rail-cartoonize" },
+                    // ── 4. CREATE MORE ──
+                    { id: "promo-clips", label: t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }), icon: <Film className="h-5 w-5" />, testId: "rail-promo-clips" },
+                    { id: "lyric-video", label: t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }), icon: <AudioWaveform className="h-5 w-5" />, testId: "rail-lyric-video" },
+                    { id: "thumbnails", label: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }), icon: <ImageIcon className="h-5 w-5" />, testId: "rail-thumbnails" },
+                    { id: "meme-machine", label: t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }), icon: <Laugh className="h-5 w-5" />, testId: "rail-meme-machine" },
+                    { id: "three-second-lab", label: t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }), icon: <Timer className="h-5 w-5" />, testId: "rail-three-second-lab" },
+                    { id: "translate", label: t("videoEditor.railTranslate", { defaultValue: "Translate" }), icon: <Languages className="h-5 w-5" />, testId: "rail-translate" },
+                    { id: "repurpose", label: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }), icon: <Repeat className="h-5 w-5" />, testId: "rail-repurpose" },
+                    // ── 5. FINISH ──
+                    { id: "edit-recipes", label: t("videoEditor.railEditRecipes"), icon: <Scissors className="h-5 w-5" />, testId: "rail-edit-recipes" },
+                    { id: "studio", label: t("videoEditor.railAdvanced"), icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
+                    { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
+                    { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
+                  ])
+                    .filter((item) => !RIGHT_TABS.has(item.id))
+                    .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "captions"] as string[]).includes(item.id))
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => openSectionFromRail(item.id as EditorTab)}
+                        data-testid={item.testId}
+                        data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
+                        title={item.label}
+                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
+                          leftTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "vv-ink-45 vv-hover-ink vv-hover-wash-5 border-transparent"
+                        }`}
+                      >
+                        {item.icon}
+                        <span className="text-[11px] font-bold leading-none">{item.label}</span>
+                      </button>
+                    ))}
+              </nav>
+
+              {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
+              <aside style={{ width: panelCollapsed ? 0 : panelWidth, display: panelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-r vv-border overflow-y-auto hidden md:block">
+              <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
+                <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
+                  <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
+                    {editorTabTitle(leftTab)}
+                  </h2>
+                </div>
+                {renderLeftPanelBody(leftTab, { includeEngine: true, includeSections: !mobileSectionInSheet })}
               </Suspense>
               </aside>
 
@@ -3260,288 +3590,10 @@ export default function VideoEditor() {
               <aside style={{ width: rightPanelCollapsed ? 0 : rightPanelWidth, display: rightPanelCollapsed ? "none" : undefined }} className="shrink-0 vv-marble-panel border-l vv-border overflow-y-auto hidden md:block">
                 <div className="h-12 shrink-0 flex items-center px-4 border-b vv-border sticky top-0 vv-marble-panel z-10">
                   <h2 className="text-xs font-black vv-ink uppercase tracking-widest">
-                    {({
-                      "promo-clips": t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" }),
-                      "lyric-video": t("videoEditor.railLyricVideo", { defaultValue: "Lyric Video" }),
-                      thumbnails: t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" }),
-                      "meme-machine": t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" }),
-                      "three-second-lab": t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" }),
-                      translate: t("videoEditor.railTranslate", { defaultValue: "Translate" }),
-                      repurpose: t("videoEditor.railRepurpose", { defaultValue: "Repurpose" }),
-                      "edit-recipes": t("videoEditor.railEditRecipes"),
-                      studio: t("videoEditor.railAdvanced"),
-                      "pro-tools": t("videoEditor.railProTools"),
-                      export: t("videoEditor.railExport"),
-                    } as Record<string, string>)[rightTab] ?? ""}
+                    {editorTabTitle(rightTab)}
                   </h2>
                 </div>
-                <div className="p-4">
-                  {rightTab === "promo-clips" && (
-                    <ToolPanelShell
-                      tool="promo-clips"
-                      kicker={t("videoEditor.railPromoClips", { defaultValue: "Promo Clips" })}
-                      title={t("promo-clip.title")}
-                      subtitle={t("promo-clip.subtitle")}
-                      price={t("promo-clip.creditBadge")}
-                    >
-                      <PromoClip embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "lyric-video" && (
-                    <ToolPanelShell
-                      tool="lyric-video"
-                      kicker={t("lyricVideo.badge")}
-                      title={<>{t("lyricVideo.titlePrefix")}<span className={isLight ? "text-violet-700" : "text-violet-300"}>{t("lyricVideo.titleHighlight")}</span></>}
-                      subtitle={t("lyricVideo.subtitle", { alignCredits: LYRIC_ALIGN_CREDITS, renderCredits: LYRIC_RENDER_CREDITS })}
-                    >
-                      <LyricVideo embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "thumbnails" && (
-                    <ToolPanelShell
-                      tool="thumbnails"
-                      kicker={t("videoEditor.railThumbnails", { defaultValue: "Thumbnails" })}
-                      title={t("thumbnailStudio.title", { defaultValue: "Thumbnail Studio" })}
-                      subtitle={t("thumbnailStudio.subtitle", {
-                        defaultValue: "Generate scroll-stopping thumbnails, A/B test them with AI, and browse your library — all in one studio.",
-                      })}
-                      price={t("thumbnailMaker.costBadge")}
-                    >
-                      <ThumbnailStudio defaultTab="generate" embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "meme-machine" && (
-                    <ToolPanelShell
-                      tool="meme-machine"
-                      kicker={t("videoEditor.railMemeMachine", { defaultValue: "Meme Machine" })}
-                      title={t("videoEditor.memeMachineTitle", { defaultValue: "Meme Machine" })}
-                      subtitle={t("videoEditor.memeMachineDesc", {
-                        defaultValue: "Describe the moment, pick a meme format — AI writes the punchlines. Apply drops the winner onto your timeline as styled captions.",
-                      })}
-                    >
-                      <MemeMachineSection settings={settings} setSettings={setSettings} bare />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "three-second-lab" && (
-                    <ToolPanelShell
-                      tool="three-second-lab"
-                      kicker={t("videoEditor.railThreeSecondLab", { defaultValue: "3-Second Lab" })}
-                      title={t("videoEditor.labTitle", { defaultValue: "3-Second Lab" })}
-                      subtitle={t("videoEditor.labDesc", {
-                        defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power.",
-                      })}
-                    >
-                      <ThreeSecondLabSection openingHint={threeSecondLabHint} bare />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "translate" && (
-                    <ToolPanelShell
-                      tool="translate"
-                      kicker={t("translate.badge")}
-                      title={t("translate.pageTitle")}
-                      subtitle={t("translate.pageSubtitle")}
-                    >
-                      <Translate embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "repurpose" && (
-                    <ToolPanelShell
-                      tool="repurpose"
-                      kicker={t("repurpose.badge")}
-                      title={<>{t("repurpose.titlePrefix")} <span className={isLight ? "text-teal-700" : "text-teal-300"}>{t("repurpose.titleSuffix")}</span></>}
-                      subtitle={t("repurpose.hero")}
-                    >
-                      <Repurpose embedded />
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "edit-recipes" && (
-                    <ToolPanelShell
-                      tool="edit-recipes"
-                      kicker={t("videoEditor.railEditRecipes", { defaultValue: "Edit Recipes" })}
-                      title={t("videoEditor.editRecipesTitle", { defaultValue: "Edit Recipes" })}
-                      subtitle={t("videoEditor.editRecipesDesc", {
-                        defaultValue: "One-tap edit recipes — proven formulas for viral cuts.",
-                      })}
-                    >
-                    <div className="p-4">
-                      <TimelineTemplatesSection
-                        scenes={scenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        audioUrl={previewAudioUrl}
-                        durationSec={previewEngineState?.audioDuration ?? songDuration ?? null}
-                        beatGrid={beatGrid}
-                        projectKey={projectId || "default"}
-                      />
-                    </div>
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "studio" && (
-                    <ToolPanelShell
-                      tool="studio"
-                      kicker={t("videoEditor.railAdvanced", { defaultValue: "Advanced" })}
-                      title={t("videoEditor.studioTitle", { defaultValue: "Studio" })}
-                      subtitle={t("videoEditor.studioDesc", {
-                        defaultValue: "Advanced studio controls for precision editing.",
-                      })}
-                    >
-                    <>
-                    <StudioEditorSection
-                      scenes={scenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      setScenes={setScenes}
-                      currentTime={previewEngineState?.currentTime ?? 0}
-                      audioDuration={previewEngineState?.audioDuration ?? null}
-                      isPlaying={previewEngineState?.isPlaying ?? false}
-                      audioUrl={previewAudioUrl}
-                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
-                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
-                      onRestart={() => timelinePlayerRef.current?.restart()}
-                      onGoToExport={() => setTab("export")}
-                      onGoToMusic={() => setTab("music")}
-                      selectedIdx={selectedIdx}
-                      setSelectedIdx={setSelectedIdx}
-                    />
-                    {/* Wave 9 Voice-Directed Edits moved to its own rail tab for direct reachability. */}
-                    </>
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "pro-tools" && (
-                    <ToolPanelShell
-                      tool="pro-tools"
-                      kicker={t("videoEditor.railProTools", { defaultValue: "Pro Tools" })}
-                      title={t("videoEditor.proToolsTitle", { defaultValue: "Pro Tools" })}
-                      subtitle={t("videoEditor.proToolsDesc", {
-                        defaultValue: "Professional-grade tools for power creators.",
-                      })}
-                    >
-                    <>
-                      <ProToolsSection
-                        scenes={resolvedScenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        videoRef={liveVideoRef}
-                        onReplaceClipVideo={(sceneId, url) =>
-                          setScenes((prev) =>
-                            prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                          )
-                        }
-                      />
-                      <KeyframesSection
-                        scenes={resolvedScenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                      />
-                      {/* Wave 9 — Background Replace: AI background swap for talking-head clips
-                          (honest 503 until a segmentation provider is wired; green-screen clips
-                          are pointed at the working Chroma Key tool). */}
-                      <div className="mt-6">
-                        <BackgroundReplaceSection
-                          scene={selectedIdx != null ? resolvedScenes[selectedIdx] ?? null : null}
-                          settings={settings}
-                          setSettings={setSettings}
-                          onReplaceClipVideo={(sceneId, url) =>
-                            setScenes((prev) =>
-                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                            )
-                          }
-                        />
-                      </div>
-                      {/* Wave — Stabilize: smooth shaky footage (vidstab two-pass) */}
-                      <div className="mt-6">
-                        <StabilizeSection
-                          scenes={resolvedScenes}
-                          onReplaceClipVideo={(sceneId, url) =>
-                            setScenes((prev) =>
-                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                            )
-                          }
-                          onGoToExport={(videoUrl) => {
-                            if (videoUrl) setLutHandoffUrl(videoUrl);
-                            setTab("export");
-                          }}
-                        />
-                      </div>
-                      {/* Wave — Speed ramp: buttery slow-mo, speed presets, ramp curves */}
-                      <div className="mt-6">
-                        <SpeedRampSection
-                          scenes={resolvedScenes}
-                          onReplaceClipVideo={(sceneId, url) =>
-                            setScenes((prev) =>
-                              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                            )
-                          }
-                          onGoToExport={(videoUrl) => {
-                            if (videoUrl) setLutHandoffUrl(videoUrl);
-                            setTab("export");
-                          }}
-                        />
-                      </div>
-                    </>
-                    </ToolPanelShell>
-                  )}
-
-                  {rightTab === "export" && (
-                    <ToolPanelShell
-                      tool="export"
-                      kicker={t("videoEditor.railExport", { defaultValue: "Export" })}
-                      title={t("videoEditor.exportTitle", { defaultValue: "Export" })}
-                      subtitle={t("videoEditor.exportDesc", {
-                        defaultValue: "Render your finished video and ship it everywhere.",
-                      })}
-                    >
-                    <>
-                    <ExportSection
-                      // NOTE: resolvedScenes (not raw scenes) so the export uses
-                      // lip-synced clip URLs wherever the user enabled lip sync —
-                      // what you see in the master player is what gets exported.
-                      scenes={resolvedScenes}
-                      settings={settings}
-                      setSettings={setSettings}
-                      projectId={project!.id}
-                      audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
-                      rawProjectAudioUrl={audioUrl}
-                      masterAudioUrl={previewAudioUrl}
-                      onGoToMusicStudio={() => setTab("music")}
-                      onRenderMissingMix={requestMissingMixRender}
-                      canRenderMissingMix={canDirectRenderMissingMix}
-                      directRenderStatus={directAudioExportStatus}
-                      onGoToEffects={() => setTab("effects")}
-                      masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
-                      projectDurationSec={previewEngineState?.audioDuration ?? 0}
-                      isSimple={isSimple}
-                      topic={songTitle || undefined}
-                      handoffVideoUrl={lutHandoffUrl}
-                      onReplaceClipVideo={(sceneId, url) =>
-                        setScenes((prev) =>
-                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
-                        )
-                      }
-                    />
-                    {/* Spotify Canvas Generator — docked in the export/promo
-                        chain (DistroKid Canvas parity). Deep-linked via
-                        ?tab=export&canvas=1 from song results / cover art. */}
-                    <div className="mt-6">
-                      <CanvasGeneratorSection
-                        audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
-                        songTitle={songTitle || undefined}
-                        artistName={artistName || undefined}
-                      />
-                    </div>
-                    </>
-                    </ToolPanelShell>
-                  )}
-                </div>
+                {renderRightPanelBody(rightTab, { includeSections: !mobileSectionInSheet })}
               </aside>
               </Suspense>
 
@@ -3567,7 +3619,7 @@ export default function VideoEditor() {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setTab(item.id as EditorTab)}
+                        onClick={() => openSectionFromRail(item.id as EditorTab)}
                         data-testid={item.testId}
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
@@ -3786,6 +3838,39 @@ export default function VideoEditor() {
         </div>
       )}
     </div>
+    {/* ── MOBILE SECTION SHEET (Stack-28 #53): below 768px the desktop
+        panels are hidden, so the active editor section opens here as a
+        bottom sheet (the design system's Sheet, bottom side) in the
+        editor's own marble language — vvVars is passed explicitly
+        because the sheet portals to the document root, outside the
+        editor root that defines the --vv-* vars. It renders the SAME
+        panel-body helpers as the desktop asides, routed by the section
+        registry side. Closing returns to the canvas; the transport
+        dock below is untouched and stays mounted. ── */}
+    <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+      <SheetContent
+        side="bottom"
+        data-testid="editor-mobile-sheet"
+        style={vvVars}
+        className="md:hidden h-[84dvh] max-h-[84dvh] p-0 flex flex-col gap-0 vv-marble-panel border-t vv-border rounded-t-2xl"
+      >
+        <SheetHeader className="h-12 shrink-0 flex flex-row items-center px-4 border-b vv-border space-y-0 text-left">
+          <SheetTitle className="text-xs font-black vv-ink uppercase tracking-widest">
+            {editorTabTitle(tab)}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            {t("videoEditor.mobileSheetDesc", { defaultValue: "Editor section panel. Close to return to the canvas." })}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto" data-testid="editor-mobile-sheet-body">
+          <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
+            {RIGHT_TABS.has(tab)
+              ? renderRightPanelBody(tab, { includeSections: true })
+              : renderLeftPanelBody(tab, { includeEngine: false, includeSections: true })}
+          </Suspense>
+        </div>
+      </SheetContent>
+    </Sheet>
     {showTemplatePicker && (
       <TemplatePicker
         activeId={templateId}
