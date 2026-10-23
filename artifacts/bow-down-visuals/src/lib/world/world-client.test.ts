@@ -169,13 +169,18 @@ describe("outbound frames", () => {
   it("sendMove throttles to ~10/s on the injected clock", async () => {
     const nowRef = { t: 1_000 };
     const { client, socket } = await inside(nowRef);
-    client.sendMove(1, 1, 0);
+    client.sendMove(1, 1, 0, 0);
     nowRef.t = 1_050;
-    client.sendMove(2, 2, 0); // inside the window — dropped
+    client.sendMove(2, 2, 0, 0.05); // inside the window — dropped
     nowRef.t = 1_150;
-    client.sendMove(3, 3, 0);
+    client.sendMove(3, 3, 0, 0.36);
     const moves = socket.sent.filter((f) => f.type === "move");
     expect(moves.map((m: any) => m.x)).toEqual([1, 3]);
+    /* The height rides every move frame (item 48): the frame's y
+     * is the figure's real height above the floor — the flat era's
+     * constant-0 stub is gone. */
+    expect(moves.map((m: any) => m.y)).toEqual([0, 0.36]);
+    expect(moves[1]).toEqual({ type: "move", x: 3, y: 0.36, z: 3, rotY: 0 });
   });
 
   it("a member's say goes out trimmed; empty says never leave", async () => {
