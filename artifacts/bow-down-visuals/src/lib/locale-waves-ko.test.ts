@@ -69,6 +69,12 @@ export const KO_WAVES: Record<string, string[]> = {
     "watermarkRemoval", "logoMaker", "captionStyler", "mixMaster", "harmony",
     "deverb", "fillerRemover", "mastering", "lrcExport",
   ],
+  W4: [
+    "samples", "vocalPolish", "vocalTune", "songRework", "producerTag",
+    "audioStudio", "singingVoice", "stems", "bgReplace", "aiAudio", "songs",
+    "beatMaker", "beats", "sounds", "makeSong", "translate", "sfx", "lyricVideo",
+    "voiceover", "scheduler", "myProjects", "mashup",
+  ],
 };
 
 /** Legit-identical allowlists, per wave — see header for the classes. */
@@ -162,6 +168,30 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // abbreviations / house mode + format labels / proper name
     "logoMaker.vb", "captionStyler.styles.hormozi.label", "thumbnailStudio.tabs.abtest",
     "songAndVideo.simpleTabLabel", "mixMaster.stemTypes.fx", "harmony.modeAiShort",
+  ],
+  W4: [
+    // genre / platform / format names and abbreviations
+    "samples.genres.rnb", "samples.bpm", "stems.midi", "stems.wav",
+    "beatMaker.bpmLabel", "beatMaker.track808", "beats.bpmLabel",
+    "sounds.platformReels", "sounds.platformShorts", "sounds.platformTiktok",
+    "makeSong.genreRB", "sfx.titleAccent", "vocalTune.semitones",
+    "scheduler.platforms.instagram.label", "scheduler.platforms.instagram.sub",
+    "scheduler.platforms.tiktok.label", "scheduler.platforms.facebook.label",
+    "scheduler.communityPosts.platformLabels.youtube-community",
+    "scheduler.communityPosts.platformLabels.x",
+    "scheduler.communityPosts.platformLabels.instagram",
+    "scheduler.communityPosts.platformLabels.threads",
+    // brand currency / prices / placeholder-only values
+    "samples.credits", "vocalPolish.buttonCost", "vocalPolish.strengthValue",
+    "vocalPolish.keyShiftValue", "vocalPolish.tempoValue",
+    "makeSong.priceBadge", "translate.creditsLabel", "translate.perMinuteCost",
+    "voiceover.creditsEstimate", "scheduler.bestTime.cost", "scheduler.bestTime.bucs",
+    "myProjects.visualBucsUsed", "mashup.priceBadge",
+    // proper-noun / example placeholders (incl. example lyrics)
+    "beatMaker.titlePlaceholder", "beatMaker.bpmValue", "beats.titlePlaceholder",
+    "beats.keyPlaceholder", "beats.moodTagsPlaceholder", "lyricVideo.lyricsPlaceholder",
+    // brand fragment / house mode names / punctuation
+    "scheduler.titlePrefix", "mashup.modeSimple", "mashup.modeCustom", "mashup.bpmUnknown",
   ],
 };
 
