@@ -606,9 +606,22 @@ export function LipSyncStudio({
               <ul className="text-[11px] text-amber-100/75 leading-relaxed list-disc pl-4 space-y-1">
                 <li>
                   <span className="font-bold text-amber-100">
-                    400 Visual Bucs
+                    300 Visual Bucs per scene
                   </span>{" "}
-                  for the final export (charged only if the export succeeds).
+                  for lip sync — the same per-clip price as a single-clip
+                  preview, charged for each scene before it runs. Scenes
+                  longer than the provider limit are skipped and never
+                  charged.
+                </li>
+                <li>
+                  The final export is{" "}
+                  <span className="font-bold text-amber-100">free</span>{" "}
+                  when it carries the watermark. A clean export costs{" "}
+                  <span className="font-bold text-amber-100">
+                    400 Visual Bucs
+                  </span>
+                  , reserved when the export starts and charged only when
+                  it succeeds.
                 </li>
                 <li>
                   <span className="font-bold text-amber-100">

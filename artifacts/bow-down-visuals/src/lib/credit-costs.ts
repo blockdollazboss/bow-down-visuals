@@ -63,6 +63,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate/ai-edit-plan": { cost: 100, feature: "Edit Plan" },
   "/api/auto-video-plan": { cost: 200, feature: "Auto Video Plan" },
   "/api/lip-sync": { cost: 300, feature: "Lip Sync" },
+  "/api/lip-sync/run-all": { cost: 300, feature: "Lip Sync — Run All (per scene)" },
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
   "/api/export-quality/estimate": { cost: 0, feature: "Export Size Estimate (free)" },
   "/api/export-quality": { cost: 400, feature: "Quality-Controlled Export" },

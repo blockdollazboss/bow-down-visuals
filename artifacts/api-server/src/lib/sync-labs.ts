@@ -159,16 +159,53 @@ export function normalizeProviderStatus(job: SyncLabsJob): string {
  */
 export const SYNC_LABS_REMOVED_FIELDS = ["synergize", "pads"] as const;
 
+/**
+ * A-09 (Stack-100 #3): the editor's lip-sync Strength control
+ * (low / medium / high) maps to Sync.so's documented generation option
+ * `options.temperature` — "controls how expressive lipsync can be;
+ * 0 is least expressive, 1 is most expressive" (Sync.so v2 schema).
+ * Unknown/absent strength sends no options at all, keeping the payload
+ * byte-identical to before.
+ *
+ * Provider truth (Sync.so's own sync-3 option schema): sync-3 "handles
+ * this natively, so this option is ignored by sync-3" — the field IS
+ * honored by lipsync-2, the env-switchable fallback model. The value
+ * reaches the provider call either way, and the editor labels the
+ * control accordingly rather than pretending sync-3 exposes the dial.
+ */
+export function lipSyncTemperatureForStrength(
+  strength: string | null | undefined,
+): number | null {
+  switch ((strength ?? "").toLowerCase().trim()) {
+    case "low":
+      return 0.25;
+    case "medium":
+      return 0.5;
+    case "high":
+      return 0.85;
+    default:
+      return null;
+  }
+}
+
 /** Build and log the sanitized Sync Labs payload (never logs the API key). */
-function buildSyncLabsPayload(clipUrl: string, audioUrl: string) {
+export function buildSyncLabsPayload(
+  clipUrl: string,
+  audioUrl: string,
+  strength?: string | null,
+) {
+  const temperature = lipSyncTemperatureForStrength(strength);
   return {
     model: SYNC_LABS_MODEL,
     input: [
       { type: "video", url: clipUrl },
       { type: "audio", url: audioUrl },
     ],
-    // NOTE: no "options" block — all previously-sent fields (synergize, pads)
-    // are not part of the Sync Labs v2 API and caused HTTP 422.
+    // NOTE: the only "options" field ever sent is `temperature` (above),
+    // which IS part of the Sync Labs v2 schema. The previously-sent
+    // fields (synergize, pads) are not part of the v2 API and caused
+    // HTTP 422 — they stay removed (SYNC_LABS_REMOVED_FIELDS).
+    ...(temperature !== null ? { options: { temperature } } : {}),
   };
 }
 
@@ -176,13 +213,15 @@ export async function syncLabsSubmit(
   clipUrl: string,
   audioUrl: string,
   apiKey: string,
+  strength?: string | null,
 ): Promise<string> {
-  const payload = buildSyncLabsPayload(clipUrl, audioUrl);
+  const payload = buildSyncLabsPayload(clipUrl, audioUrl, strength);
 
   // Log the sanitized payload (keys only — no API key, no full URLs in prod)
   const payloadKeys = [
     "model",
     ...payload.input.map((i) => `input[${i.type}]`),
+    ...("options" in payload ? ["options.temperature"] : []),
   ];
   logger.info("[lip-sync] Sync Labs payload keys: %s", payloadKeys.join(", "));
   logger.info("[lip-sync] Removed fields: %s", SYNC_LABS_REMOVED_FIELDS.join(", "));

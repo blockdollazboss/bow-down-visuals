@@ -32,6 +32,21 @@ export interface LipSyncJobParams {
   sceneStartSec: number;
   sceneEndSec: number;
   provider?: string | null;
+  /* A-09 (Stack-100 #3): the editor's four lip-sync controls, persisted
+     with the job instead of being silently discarded at the route.
+     - audioSourceType: already honored client-side — the submitted
+       audioUrl IS the chosen stem (vocal stem vs full mix); recorded
+       here as the job's provenance.
+     - strength: reaches the provider call as options.temperature via
+       the poller (see lib/sync-labs.ts lipSyncTemperatureForStrength).
+     - preserveFaceIdentity / preserveArtistLook: Sync.so exposes no
+       such options on any model — sync-3 preserves identity and look
+       intrinsically. Recorded as the creator's stated intent; the UI
+       labels them honestly as always-on. */
+  audioSourceType?: string | null;
+  strength?: string | null;
+  preserveFaceIdentity?: boolean | null;
+  preserveArtistLook?: boolean | null;
 }
 
 export interface LipSyncJobError {
