@@ -186,7 +186,7 @@ export interface TierGateKnock {
 }
 
 export const TIER_GATE_HISTORY_NOTE =
-  "Nothing you posted while a member is ever deleted — your threads and replies stay in the room, under your name.";
+  "Your posts are never deleted when a membership ends — your threads and replies stay in the room, under your name.";
 
 export function buildTierGateKnock(opts: {
   channel: { id: string; name: string; description: string };
