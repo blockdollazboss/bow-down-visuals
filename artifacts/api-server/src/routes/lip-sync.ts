@@ -38,6 +38,8 @@ import {
   buildChargeIdempotencyKey,
 } from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordLipSyncHistory } from "../lib/payment-record";
@@ -1168,12 +1170,16 @@ router.get("/lip-sync/scene-test/:jobId", requireAuth, (req, res) => {
    immediately with a runId, so the user navigating away (or closing the tab)
    does NOT affect the run — only their status polling stops; the run keeps
    going and they can resume watching it later via GET /api/lip-sync/run/:id.
-   Limitation: the orchestration state lives in this process's memory, so a
-   server restart/deploy mid-run kills the orchestration (unlike
-   /api/export-final-video jobs, runs are not persisted and not recovered on
-   boot). The per-scene lip-sync sub-jobs and the final export job themselves
-   live in their own durable/in-process stores and keep their own progress;
-   only the run-all orchestration would need to be re-started.
+   Durability (Stack-100 #3, A-08): the run record is ALSO a lip_sync_runs
+   row (migration 0217) — inserted at creation and updated on every patch —
+   and boot recovery (recoverInterruptedLipSyncRuns, called from index.ts)
+   re-drives rows left in 'running': scenes already done/skipped/failed on
+   the record are not re-submitted (the A-06 charge is idempotent per
+   user/run/scene regardless), remaining scenes re-enter from the row's
+   params snapshot, and a run whose export was already enqueued re-joins
+   that durable export job instead of starting a second one. The in-memory
+   Map remains the live working copy; the row is what a poll falls back to
+   after a restart.
    Also note: the captured userSupabase client carries the request's JWT,
    which can expire on very long runs — the final project save uses the
    service-role client (ownership verified up front), and the export runs
@@ -1215,6 +1221,116 @@ setInterval(
   },
   30 * 60 * 1000,
 ).unref();
+
+/* ── Durable run rows (A-08, migration 0217) ──────────────────────────
+   The Map above is the live working copy; these helpers mirror it into
+   lip_sync_runs so a restart never strands a run. Writes fail OPEN
+   (logged, run continues in-memory) so a missing table pre-migration
+   degrades to the old behavior instead of breaking run-all. */
+
+/** Everything boot recovery needs to re-drive a run — the RunAllContext
+    minus the request JWT and logger. Resume runs under the service-role
+    client with ownership re-verified from the row's user_id/project_id
+    (the pattern the project save below already uses). */
+interface RunAllParamsSnapshot {
+  scenes: RunAllSceneInput[];
+  timings: RunAllTiming[];
+  resolvedAudio: { url: string; src: string; missing: boolean };
+  userPlan?: string;
+}
+
+async function insertRunRow(record: RunAllRecord, params: RunAllParamsSnapshot): Promise<void> {
+  try {
+    await db.execute(sql`
+      INSERT INTO lip_sync_runs
+        (id, user_id, project_id, state, scenes, export_state, export_job_id, video_url, error, params)
+      VALUES (${record.runId}, ${record.userId}, ${record.projectId}, ${record.state},
+              ${JSON.stringify(record.scenes)}::jsonb, ${record.exportState},
+              ${record.exportJobId ?? null}, ${record.videoUrl ?? null}, ${record.error ?? null},
+              ${JSON.stringify(params)}::jsonb)
+      ON CONFLICT (id) DO NOTHING
+    `);
+  } catch (err) {
+    logger.error({ err, runId: record.runId }, "[run-all] run row insert failed (continuing in-memory)");
+  }
+}
+
+function persistRunRecord(record: RunAllRecord): void {
+  void db
+    .execute(sql`
+      UPDATE lip_sync_runs
+      SET state = ${record.state}, scenes = ${JSON.stringify(record.scenes)}::jsonb,
+          export_state = ${record.exportState}, export_job_id = ${record.exportJobId ?? null},
+          video_url = ${record.videoUrl ?? null}, error = ${record.error ?? null},
+          updated_at = now()
+      WHERE id = ${record.runId}
+    `)
+    .catch((err) => logger.error({ err, runId: record.runId }, "[run-all] run row update failed"));
+}
+
+function runRowToRecord(row: Record<string, unknown>): RunAllRecord {
+  return {
+    runId: String(row["id"]),
+    userId: String(row["user_id"]),
+    projectId: String(row["project_id"]),
+    state: (row["state"] as RunAllRecord["state"]) ?? "running",
+    scenes: (row["scenes"] ?? []) as RunAllScene[],
+    exportState: (row["export_state"] as RunAllRecord["exportState"]) ?? "pending",
+    exportJobId: (row["export_job_id"] as string | null) ?? undefined,
+    videoUrl: (row["video_url"] as string | null) ?? undefined,
+    error: (row["error"] as string | null) ?? undefined,
+    createdAt: new Date(String(row["created_at"])).toISOString(),
+    updatedAt: new Date(String(row["updated_at"])).toISOString(),
+  };
+}
+
+async function loadRunRow(runId: string): Promise<RunAllRecord | null> {
+  try {
+    const r = await db.execute(sql`SELECT * FROM lip_sync_runs WHERE id = ${runId} LIMIT 1`);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return row ? runRowToRecord(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/* Boot recovery (A-08): re-drive runs a previous process left 'running'
+   and sweep terminal rows past the 2h retention the Map sweep uses.
+   Called once from index.ts after listen. */
+export async function recoverInterruptedLipSyncRuns(): Promise<void> {
+  try {
+    await db.execute(sql`
+      DELETE FROM lip_sync_runs
+      WHERE state IN ('done', 'failed') AND updated_at < now() - interval '2 hours'
+    `);
+    const r = await db.execute(sql`
+      SELECT * FROM lip_sync_runs WHERE state = 'running'
+      ORDER BY created_at ASC LIMIT 50
+    `);
+    for (const row of r.rows as Record<string, unknown>[]) {
+      const record = runRowToRecord(row);
+      if (!lipSyncRuns.has(record.runId)) lipSyncRuns.set(record.runId, record);
+      const params = (row["params"] ?? {}) as RunAllParamsSnapshot;
+      if (!Array.isArray(params.scenes) || !Array.isArray(params.timings) || !params.resolvedAudio) {
+        logger.error({ runId: record.runId }, "[run-all] recovery: params snapshot incomplete — run left as-is");
+        continue;
+      }
+      logger.info({ runId: record.runId }, "[run-all] recovering interrupted run");
+      void processRunAll(record.runId, {
+        userId: record.userId,
+        projectId: record.projectId,
+        scenes: params.scenes,
+        timings: params.timings,
+        resolvedAudio: params.resolvedAudio,
+        log: logger,
+        userSupabase: getSupabaseAdmin(),
+        userPlan: params.userPlan,
+      });
+    }
+  } catch (err) {
+    logger.error({ err }, "[run-all] boot recovery failed");
+  }
+}
 
 /** Scene-timing timestamp parser — mirrors the console script exactly. */
 function parseSceneTimestamp(ts: unknown): { d: number; explicit: boolean } {
@@ -1364,7 +1480,11 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
   const getRun = () => lipSyncRuns.get(runId);
   const patchRun = (patch: Partial<RunAllRecord>) => {
     const r = getRun();
-    if (r) lipSyncRuns.set(runId, { ...r, ...patch, updatedAt: now() });
+    if (r) {
+      const next = { ...r, ...patch, updatedAt: now() };
+      lipSyncRuns.set(runId, next);
+      persistRunRecord(next);
+    }
   };
   const patchScene = (index: number, patch: Partial<RunAllScene>) => {
     const r = getRun();
@@ -1372,7 +1492,9 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
     const scenes = r.scenes.map((s) =>
       s.index === index ? { ...s, ...patch } : s,
     );
-    lipSyncRuns.set(runId, { ...r, scenes, updatedAt: now() });
+    const next = { ...r, scenes, updatedAt: now() };
+    lipSyncRuns.set(runId, next);
+    persistRunRecord(next);
   };
 
   /* sceneId → successful lip-sync result; applied to the project in one save */
@@ -1386,6 +1508,19 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
     for (let i = 0; i < ctx.scenes.length; i++) {
       const s = ctx.scenes[i]!;
       const t = ctx.timings[i]!;
+
+      /* Recovery (A-08): a scene the durable record already settled is
+         never re-submitted — done scenes seed their saved result,
+         skipped/failed scenes stand (original clip kept). Only scenes
+         left queued/syncing by a dead process re-enter the pipeline;
+         the A-06 charge is idempotent per user/run/scene regardless. */
+      const prior = getRun()?.scenes[i];
+      if (prior?.state === "done" && prior.lipSyncUrl) {
+        if (s.id) lipSyncResults.set(s.id, { url: prior.lipSyncUrl, jobId: "" });
+        continue;
+      }
+      if (prior?.state === "skipped" || prior?.state === "failed") continue;
+
       patchScene(i, { state: "syncing" });
 
       if (t.dur > PROVIDER_LIMIT_SEC) {
@@ -1486,6 +1621,14 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
 
     /* ── 3. Final export (mirrors script §7 — lip-sync-first clip URLs plus
        the project's captions / watermark / branding / effects / transitions) ── */
+    const priorAtExport = getRun();
+    if (priorAtExport?.exportState === "done" && priorAtExport.videoUrl) {
+      /* Recovery (A-08): the export already finished before the
+         restart — only the final run patch was lost. Land it and stop. */
+      patchRun({ state: "done", exportState: "done", videoUrl: priorAtExport.videoUrl });
+      ctx.log.info({ runId, videoUrl: priorAtExport.videoUrl }, "[run-all] DONE (recovered)");
+      return;
+    }
     patchRun({ exportState: "running" });
 
     const resolvedClipUrls = ctx.scenes.map((s) => {
@@ -1548,21 +1691,31 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
       fitMode: exp["fitMode"] ?? "fill",
     };
 
-    const exportJob = await createExportJob(ctx.userId, ctx.projectId, payload);
-    patchRun({ exportJobId: exportJob.id });
+    /* Recovery (A-08): a run whose export was already enqueued before
+       the restart re-joins that durable export job (its own boot
+       recovery re-drives the worker) instead of paying for a second. */
+    const priorRun = getRun();
+    let exportJobId: string;
+    if (priorRun?.exportJobId && priorRun.exportState === "running") {
+      exportJobId = priorRun.exportJobId;
+    } else {
+      const exportJob = await createExportJob(ctx.userId, ctx.projectId, payload);
+      exportJobId = exportJob.id;
+      patchRun({ exportJobId });
 
-    const statusRef: ExportStatusRef = { current: null };
-    const exportCtx: ExportJobContext = {
-      body: payload,
-      userId: ctx.userId,
-      userPlan: ctx.userPlan,
-      userSupabase: ctx.userSupabase as ExportJobContext["userSupabase"],
-      log: ctx.log,
-      statusRef,
-    };
-    enqueueExport(() => runExportJobInBackground(exportJob.id, exportCtx));
+      const statusRef: ExportStatusRef = { current: null };
+      const exportCtx: ExportJobContext = {
+        body: payload,
+        userId: ctx.userId,
+        userPlan: ctx.userPlan,
+        userSupabase: ctx.userSupabase as ExportJobContext["userSupabase"],
+        log: ctx.log,
+        statusRef,
+      };
+      enqueueExport(() => runExportJobInBackground(exportJobId, exportCtx));
+    }
 
-    const videoUrl = await waitForExportJob(exportJob.id);
+    const videoUrl = await waitForExportJob(exportJobId);
     patchRun({ state: "done", exportState: "done", videoUrl });
     ctx.log.info({ runId, videoUrl }, "[run-all] DONE");
   } catch (err) {
@@ -1707,7 +1860,7 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
     /* ── Create the run record and return immediately ── */
     const runId = randomUUID();
     const stamp = new Date().toISOString();
-    lipSyncRuns.set(runId, {
+    const record: RunAllRecord = {
       runId,
       userId: req.userId!,
       projectId: projectId.trim(),
@@ -1720,6 +1873,19 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
       exportState: "pending",
       createdAt: stamp,
       updatedAt: stamp,
+    };
+    const ctxScenes = scenes.map((s) => ({
+      id: (s["id"] as string | undefined) ?? null,
+      clipUrl: sceneUrl(s) as string,
+    }));
+    lipSyncRuns.set(runId, record);
+    /* Durable row first (A-08) — fail-open inside the helper, so a
+       pre-migration table degrades to the in-memory behavior. */
+    await insertRunRow(record, {
+      scenes: ctxScenes,
+      timings,
+      resolvedAudio,
+      userPlan: req.userPlan,
     });
 
     req.log.info(
@@ -1730,10 +1896,7 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
     void processRunAll(runId, {
       userId: req.userId!,
       projectId: projectId.trim(),
-      scenes: scenes.map((s) => ({
-        id: (s["id"] as string | undefined) ?? null,
-        clipUrl: sceneUrl(s) as string,
-      })),
+      scenes: ctxScenes,
       timings,
       resolvedAudio,
       log: req.log ?? logger,
@@ -1753,10 +1916,16 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
    GET /api/lip-sync/run/:runId
    Poll a one-click run-all job. Returns per-scene progress + export state.
 ────────────────────────────────────────────────────────────────────────── */
-router.get("/lip-sync/run/:runId", requireAuth, (req, res) => {
+router.get("/lip-sync/run/:runId", requireAuth, async (req, res) => {
   const rawId = req.params["runId"];
   const runId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
-  const run = lipSyncRuns.get(runId);
+  let run = lipSyncRuns.get(runId);
+  if (!run) {
+    /* Not in this process's memory — the durable row (A-08) still
+       answers after a restart, and rehydrates the cache. */
+    run = (await loadRunRow(runId)) ?? undefined;
+    if (run) lipSyncRuns.set(runId, run);
+  }
   if (!run || run.userId !== req.userId) {
     res.status(404).json({ error: "Run not found or expired", code: "not_found" });
     return;

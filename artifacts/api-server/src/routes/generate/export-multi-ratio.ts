@@ -15,6 +15,8 @@ import {
 import { enqueueExport } from "../../lib/export-jobs";
 import { logger } from "../../lib/logger";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -102,10 +104,15 @@ interface MultiRatioJob {
   refunded?: number;
 }
 
-/* Single-node job store. Every queued job row is short-lived and its
-   outputs are durable in Supabase storage; a server restart mid-render
-   refunds any ratio that never completed (see the finally block in the
-   worker). */
+/* Job store (Stack-100 #3, A-08): the live working copy stays in this
+   Map, but every job is ALSO a multi_ratio_jobs row (migration 0218),
+   written at creation and on every transition. The full cost is charged
+   up front, so the row is the money record: if the process dies
+   mid-render, boot recovery (recoverInterruptedMultiRatioJobs) settles
+   the row — refunding every ratio that never completed — instead of the
+   charge stranding with no job to poll. Outputs are durable in storage
+   and their URLs live on the row's ratios, so a post-restart poll still
+   delivers finished ratios. */
 const jobs = new Map<string, MultiRatioJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const JOB_TTL_MS = 2 * 60 * 60 * 1000;
@@ -116,6 +123,125 @@ function pruneJobs(): void {
     if ((job.state === "done" || job.state === "failed") && now - job.updatedAt > JOB_TTL_MS) {
       jobs.delete(id);
     }
+  }
+  void db
+    .execute(sql`
+      DELETE FROM multi_ratio_jobs
+      WHERE state IN ('done', 'failed') AND updated_at < now() - interval '2 hours'
+    `)
+    .catch(() => undefined);
+}
+
+async function insertMultiRatioRow(job: MultiRatioJob): Promise<void> {
+  try {
+    await db.execute(sql`
+      INSERT INTO multi_ratio_jobs
+        (id, user_id, video_url, cost_total, cost_per_ratio, ratios, state, error, refunded)
+      VALUES (${job.id}, ${job.userId}, ${job.videoUrl}, ${job.costTotal}, ${job.costPerRatio},
+              ${JSON.stringify(job.ratios)}::jsonb, ${job.state}, ${job.error ?? null}, ${job.refunded ?? null})
+      ON CONFLICT (id) DO NOTHING
+    `);
+  } catch (err) {
+    logger.error({ err, jobId: job.id }, "[export-multi-ratio] job row insert failed (continuing in-memory)");
+  }
+}
+
+async function persistMultiRatioJob(job: MultiRatioJob): Promise<void> {
+  try {
+    await db.execute(sql`
+      UPDATE multi_ratio_jobs
+      SET ratios = ${JSON.stringify(job.ratios)}::jsonb, state = ${job.state},
+          error = ${job.error ?? null}, refunded = ${job.refunded ?? null}, updated_at = now()
+      WHERE id = ${job.id}
+    `);
+  } catch (err) {
+    logger.error({ err, jobId: job.id }, "[export-multi-ratio] job row update failed");
+  }
+}
+
+function multiRatioRowToJob(row: Record<string, unknown>): MultiRatioJob {
+  return {
+    id: String(row["id"]),
+    userId: String(row["user_id"]),
+    videoUrl: String(row["video_url"]),
+    /* Render inputs are process-local (not columns); a row read back is
+       only ever terminal or about to be settled by recovery, never
+       re-rendered, so the defaults below are display-only. */
+    mode: "pad",
+    attribution: false,
+    topic: undefined,
+    costTotal: Number(row["cost_total"] ?? 0),
+    costPerRatio: Number(row["cost_per_ratio"] ?? 0),
+    ratios: (row["ratios"] ?? []) as RatioResult[],
+    state: (row["state"] as MultiRatioJob["state"]) ?? "queued",
+    createdAt: new Date(String(row["created_at"])).getTime(),
+    updatedAt: new Date(String(row["updated_at"])).getTime(),
+    error: (row["error"] as string | null) ?? undefined,
+    refunded: row["refunded"] == null ? undefined : Number(row["refunded"]),
+  };
+}
+
+async function loadMultiRatioJob(id: string): Promise<MultiRatioJob | null> {
+  try {
+    const r = await db.execute(sql`SELECT * FROM multi_ratio_jobs WHERE id = ${id} LIMIT 1`);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return row ? multiRatioRowToJob(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/* The one settlement path (A-08): refunds every ratio that never
+   completed and lands the terminal state — called by the worker when a
+   job finishes (normally or by exception) AND by boot recovery for
+   rows a dead process left queued/active. Exactly-once rests on the
+   state guard: a settled job is terminal, and settle no-ops on
+   terminal jobs. */
+async function settleMultiRatioJob(
+  job: MultiRatioJob,
+  opts: { interrupted?: boolean; error?: string } = {},
+): Promise<void> {
+  if (job.state === "done" || job.state === "failed") return;
+  const notDone = job.ratios.filter((r) => r.state !== "done").length;
+  const refund = notDone * job.costPerRatio;
+  if (refund > 0) {
+    await refundCredits(job.userId, refund, {
+      action: job.ratios.some((r) => r.state === "done")
+        ? "Multi-Ratio Export — Partial Refund"
+        : "Multi-Ratio Export — Full Refund",
+    }).catch(() => {});
+    job.refunded = (job.refunded ?? 0) + refund;
+  }
+  if (opts.interrupted) {
+    job.state = "failed";
+    job.error = "interrupted_by_restart";
+  } else if (job.ratios.some((r) => r.state === "done")) {
+    job.state = "done";
+  } else {
+    job.state = "failed";
+    job.error = opts.error ?? job.ratios.find((r) => r.error)?.error ?? "All ratio renders failed.";
+  }
+  job.updatedAt = Date.now();
+  await persistMultiRatioJob(job);
+}
+
+/* Boot recovery (A-08): settle every job a previous process left
+   queued/active — refund the ratios that never completed, keep the
+   finished ratios' durable URLs on the row, mark it failed
+   'interrupted_by_restart'. Called once from index.ts after listen. */
+export async function recoverInterruptedMultiRatioJobs(): Promise<void> {
+  try {
+    const r = await db.execute(sql`
+      SELECT * FROM multi_ratio_jobs WHERE state IN ('queued', 'active')
+      ORDER BY created_at ASC LIMIT 100
+    `);
+    for (const row of r.rows as Record<string, unknown>[]) {
+      const job = multiRatioRowToJob(row);
+      await settleMultiRatioJob(job, { interrupted: true });
+      logger.info({ jobId: job.id, refunded: job.refunded ?? 0 }, "[export-multi-ratio] recovered interrupted job");
+    }
+  } catch (err) {
+    logger.error({ err }, "[export-multi-ratio] boot recovery failed");
   }
 }
 
@@ -232,6 +358,7 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
     updatedAt: Date.now(),
   };
   jobs.set(job.id, job);
+  await insertMultiRatioRow(job);
   pruneJobs();
 
   // Background render through the shared single-slot export queue so a
@@ -241,9 +368,14 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
   res.status(202).json({ ...publicJob(job), creditsRemaining: creditsAfter });
 });
 
-router.get("/export-multi-ratio/job/:jobId", requireAuth, (req, res) => {
+router.get("/export-multi-ratio/job/:jobId", requireAuth, async (req, res) => {
   const jobIdParam = req.params.jobId;
-  const job = typeof jobIdParam === "string" ? jobs.get(jobIdParam) : undefined;
+  let job = typeof jobIdParam === "string" ? jobs.get(jobIdParam) : undefined;
+  if (!job && typeof jobIdParam === "string") {
+    /* Not in this process's memory — the durable row (A-08) still
+       answers, e.g. after a restart settled or finished the job. */
+    job = (await loadMultiRatioJob(jobIdParam)) ?? undefined;
+  }
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found." });
     return;
@@ -382,6 +514,7 @@ async function runMultiRatioJob(jobId: string): Promise<void> {
   if (!job || job.state !== "queued") return;
   job.state = "active";
   job.updatedAt = Date.now();
+  void persistMultiRatioJob(job);
 
   const workDir = await mkdtemp(join(tmpdir(), "multi-ratio-"));
   const inputPath = join(workDir, "input.mp4");
@@ -428,46 +561,24 @@ async function runMultiRatioJob(jobId: string): Promise<void> {
         ratio.error = message;
       } finally {
         job.updatedAt = Date.now();
+        void persistMultiRatioJob(job);
       }
     }
 
-    const doneCount = job.ratios.filter((r) => r.state === "done").length;
-    const failedCount = job.ratios.filter((r) => r.state === "failed").length;
+    /* Settle (A-08): refund every ratio that never completed and land
+       the terminal state on the durable row — the same function boot
+       recovery calls for jobs a dead process left behind. */
     settled = true;
-
-    if (doneCount === 0) {
-      // Total failure: refund everything.
-      await refundCredits(job.userId, job.costTotal, {
-        action: "Multi-Ratio Export — Full Refund",
-      }).catch(() => {});
-      job.refunded = job.costTotal;
-      job.state = "failed";
-      job.error = job.ratios[0]?.error ?? "All ratio renders failed.";
-    } else {
-      job.state = "done";
-      if (failedCount > 0) {
-        // Partial failure: refund each failed ratio.
-        const refund = failedCount * job.costPerRatio;
-        await refundCredits(job.userId, refund, {
-          action: "Multi-Ratio Export — Partial Refund",
-        }).catch(() => {});
-        job.refunded = refund;
-      }
-    }
-    job.updatedAt = Date.now();
+    await settleMultiRatioJob(job);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Multi-ratio export failed.";
     logger.error({ err: message, jobId }, "[export-multi-ratio] job failed");
     if (!settled) {
-      // Job never got off the ground — refund in full.
-      await refundCredits(job.userId, job.costTotal, {
-        action: "Multi-Ratio Export — Full Refund",
-      }).catch(() => {});
-      job.refunded = job.costTotal;
+      /* Never settled (e.g. the source download failed before any
+         ratio rendered): settle refunds everything not done — which
+         here is the full charge. */
+      await settleMultiRatioJob(job, { error: message });
     }
-    job.state = "failed";
-    job.error = message;
-    job.updatedAt = Date.now();
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }

@@ -11,6 +11,8 @@ import { registerPartyWs } from "./routes/party";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
+import { recoverInterruptedLipSyncRuns } from "./routes/lip-sync";
+import { recoverInterruptedMultiRatioJobs } from "./routes/generate/export-multi-ratio";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
@@ -57,6 +59,16 @@ const server = app.listen(port, (err) => {
   // Runs after listen so the server is already serving polls for recovered jobs.
   recoverInterruptedExportJobs().catch((recoveryErr) =>
     logger.error({ recoveryErr }, "Export job recovery failed"),
+  );
+
+  // A-08 (Stack-100 #3): re-drive lip-sync run-all orchestrations a
+  // previous process left 'running', and settle multi-ratio jobs it
+  // left queued/active (refunding every ratio that never completed).
+  recoverInterruptedLipSyncRuns().catch((recoveryErr) =>
+    logger.error({ recoveryErr }, "Lip-sync run recovery failed"),
+  );
+  recoverInterruptedMultiRatioJobs().catch((recoveryErr) =>
+    logger.error({ recoveryErr }, "Multi-ratio job recovery failed"),
   );
 
   // Sweep Instagram publish attempts orphaned by a previous process
