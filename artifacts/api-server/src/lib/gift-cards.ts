@@ -132,6 +132,11 @@ export function validateDenominations(input: unknown): { ok: true; denominations
   return { ok: true, denominations };
 }
 
+/* NOTE on casts: amount params in arithmetic below carry ::int —
+   pg-mem (the house test engine) binds params as text, and text
+   arithmetic silently corrupts; real Postgres infers the type from
+   context, so the cast is a no-op there and load-bearing in tests. */
+
 /* ── Fail-closed plumbing ──────────────────────────────────────────── */
 
 export class GiftCardsUnavailable extends Error {
@@ -283,9 +288,9 @@ export async function reserveGiftCard(args: {
 
   const held = await exec(sql`
     UPDATE gift_cards
-    SET reserved_cents = reserved_cents + ${args.amountCents}, updated_at = now()
+    SET reserved_cents = reserved_cents + ${args.amountCents}::int, updated_at = now()
     WHERE id = ${args.cardId} AND status = 'active'
-      AND balance_cents - reserved_cents >= ${args.amountCents}
+      AND balance_cents - reserved_cents >= ${args.amountCents}::int
     RETURNING id
   `);
   if (held.rows.length === 0) return null;
@@ -303,8 +308,8 @@ export async function reserveGiftCard(args: {
     /* Lost a race on the same (rail, ref): undo our hold, use theirs. */
     await exec(sql`
       UPDATE gift_cards
-      SET reserved_cents = reserved_cents - ${args.amountCents}, updated_at = now()
-      WHERE id = ${args.cardId} AND reserved_cents >= ${args.amountCents}
+      SET reserved_cents = reserved_cents - ${args.amountCents}::int, updated_at = now()
+      WHERE id = ${args.cardId} AND reserved_cents >= ${args.amountCents}::int
     `);
     const again = await exec(sql`
       SELECT * FROM gift_card_reservations
@@ -335,12 +340,12 @@ export async function redeemReservation(args: {
   const amount = Number(reservation.amount_cents);
   const debited = await exec(sql`
     UPDATE gift_cards
-    SET balance_cents = balance_cents - ${amount},
-        reserved_cents = reserved_cents - ${amount},
-        status = CASE WHEN balance_cents - ${amount} = 0 THEN 'depleted' ELSE status END,
+    SET balance_cents = balance_cents - ${amount}::int,
+        reserved_cents = reserved_cents - ${amount}::int,
+        status = CASE WHEN balance_cents - ${amount}::int = 0 THEN 'depleted' ELSE status END,
         updated_at = now()
     WHERE id = ${reservation.gift_card_id}
-      AND balance_cents >= ${amount} AND reserved_cents >= ${amount}
+      AND balance_cents >= ${amount}::int AND reserved_cents >= ${amount}::int
     RETURNING balance_cents
   `);
   if (debited.rows.length === 0) return null;
@@ -373,8 +378,8 @@ export async function releaseReservation(reservationId: string): Promise<void> {
   if (!row) return;
   await exec(sql`
     UPDATE gift_cards
-    SET reserved_cents = reserved_cents - ${Number(row["amount_cents"])}, updated_at = now()
-    WHERE id = ${String(row["gift_card_id"])} AND reserved_cents >= ${Number(row["amount_cents"])}
+    SET reserved_cents = reserved_cents - ${Number(row["amount_cents"])}::int, updated_at = now()
+    WHERE id = ${String(row["gift_card_id"])} AND reserved_cents >= ${Number(row["amount_cents"])}::int
   `);
 }
 
@@ -399,10 +404,10 @@ export async function clawbackUnspentBalance(cardId: string): Promise<{ refunded
   if (amount <= 0 && Number(card.reserved_cents) > 0) return null; // holds in flight — refuse
   const updated = await exec(sql`
     UPDATE gift_cards
-    SET balance_cents = balance_cents - ${amount},
+    SET balance_cents = balance_cents - ${amount}::int,
         status = 'refunded', updated_at = now()
     WHERE id = ${cardId} AND status IN ('active','depleted')
-      AND balance_cents - reserved_cents >= ${amount}
+      AND balance_cents - reserved_cents >= ${amount}::int
     RETURNING balance_cents
   `);
   if (updated.rows.length === 0) return null;
