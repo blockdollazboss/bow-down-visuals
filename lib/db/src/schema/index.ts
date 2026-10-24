@@ -94,6 +94,7 @@ export * from "./content-id";
 export * from "./team-seats";
 export * from "./milestones";
 export * from "./presave";
+export * from "./product-drops";
 export * from "./creator-platform";
 export * from "./royal-court";
 export * from "./profile-hosting";

@@ -42,6 +42,10 @@
  *   GET    /storefront/bookings                   auth: my bookings as buyer + as seller
  *   POST   /storefront/orders/:id/booking-cancel  auth: cancel a calendar booking (+ Stripe refund)
  *   GET    /storefront/deliver/:token             public: token-gated instant delivery (digital)
+ *   PUT    /storefront/products/:id/drop          auth: schedule/reschedule a timed drop (#25)
+ *   DELETE /storefront/products/:id/drop          auth: cancel a scheduled drop
+ *   GET    /storefront/products/:id/drop          auth: drop + capture list (owner)
+ *   POST   /storefront/products/:id/drop/capture  public: join the drop list (email capture)
  *   GET    /storefront/promote/email              auth: email-list broadcast hook (links, not rebuilds)
  *   GET    /storefront/money-checklist            auth: earnings + money checklist + next-move nudge
  *
@@ -57,7 +61,7 @@
 import { Router } from "express";
 import Stripe from "stripe";
 import { z } from "zod";
-import { createHmac, randomBytes } from "crypto";
+import { createHmac, randomBytes, randomUUID } from "crypto";
 import { db, EMAIL_FREE_SUBSCRIBER_LIMIT } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
@@ -100,6 +104,7 @@ import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../l
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
 
 /* Mirror-on-save (2026-10-13 law): product media is re-hosted into
    permanent storage at save time (kind inferred from the URL extension —
@@ -127,6 +132,10 @@ async function presentProduct(p: ProductRow, bumpOffer?: BumpOfferPayload | null
     /* The live add-on offer (feature #13): resolved, or null when the
        product has no bump a buyer could actually take right now. */
     bump: bumpOffer !== undefined ? bumpOffer : await resolveBumpOffer(p),
+    /* Timed drop (#25): the product's drop state rides every payload,
+       or null when the product has no drop (or drops aren't deployed
+       yet — the read degrades, never errors). */
+    drop: dropDto(await loadDropForProduct(p.id)),
     mediaUrls: await Promise.all(pub.mediaUrls.map((u) => refreshSupabaseStorageUrl(u))),
   };
 }
@@ -555,6 +564,130 @@ async function fetchProduct(id: string, onlyActive: boolean): Promise<ProductRow
   return (r.rows[0] as unknown as ProductRow | undefined) ?? null;
 }
 
+/* ── Timed product drops (#25) ─────────────────────────────────────────
+   A drop is a row in product_drops (held migration — see the schema in
+   lib/db/src/schema/product-drops.ts). drop_at is a timestamptz: ONE
+   UTC instant; clients render the countdown in the viewer's local
+   time from the ISO string. State is COMPUTED at read time from
+   (status, drop_at, now): 'scheduled' + future = upcoming (the product
+   page IS the drop page; checkout/claim refuse), 'scheduled' + past =
+   due — the product reads as live immediately, even before the
+   sweeper flips the status and fans out the one drop-day email
+   (lib/product-drop-notify.ts). Nothing can publish early: every
+   buy path gates on this same computation.
+   Until the migration lands, reads degrade to "no drop" (42P01) and
+   writes answer 503 drop_unavailable — products behave as before. */
+interface DropRow extends Record<string, unknown> {
+  id: string; product_id: string; profile_id: string; user_id: string;
+  drop_at: string | Date; status: string; notified_at: string | Date | null;
+}
+
+function isMissingDropTables(err: unknown): boolean {
+  return isUndefinedTable(err) || /relation .* does not exist|undefined_table/i.test(pgErrorText(err));
+}
+
+async function loadDropForProduct(productId: string): Promise<DropRow | null> {
+  try {
+    const r = await db.execute(sql`
+      SELECT id, product_id, profile_id, user_id, drop_at, status, notified_at
+      FROM product_drops WHERE product_id = ${productId} LIMIT 1
+    `);
+    return (r.rows[0] as unknown as DropRow | undefined) ?? null;
+  } catch (err) {
+    if (isMissingDropTables(err)) return null;
+    throw err;
+  }
+}
+
+async function loadDropCaptureCount(dropId: string): Promise<number> {
+  try {
+    const r = await db.execute(sql`SELECT COUNT(*) AS c FROM product_drop_captures WHERE drop_id = ${dropId}`);
+    return Number((r.rows[0] as { c: string | number } | undefined)?.c ?? 0);
+  } catch (err) {
+    if (isMissingDropTables(err)) return 0;
+    throw err;
+  }
+}
+
+/** The computed drop state for a product payload / a buy gate. */
+function dropState(drop: DropRow | null, now: Date = new Date()): {
+  state: "none" | "upcoming" | "live" | "cancelled";
+  isUpcoming: boolean;
+  dropAt: string | null;
+} {
+  if (!drop) return { state: "none", isUpcoming: false, dropAt: null };
+  const dropAtMs = new Date(drop.drop_at as string).getTime();
+  const iso = Number.isFinite(dropAtMs) ? new Date(dropAtMs).toISOString() : null;
+  if (drop.status === "cancelled") return { state: "cancelled", isUpcoming: false, dropAt: iso };
+  if (drop.status === "live" || dropAtMs <= now.getTime()) {
+    return { state: "live", isUpcoming: false, dropAt: iso };
+  }
+  return { state: "upcoming", isUpcoming: true, dropAt: iso };
+}
+
+function dropDto(drop: DropRow | null) {
+  if (!drop) return null;
+  const s = dropState(drop);
+  if (s.state === "cancelled") return null;
+  return {
+    id: String(drop.id),
+    state: s.state,
+    isUpcoming: s.isUpcoming,
+    /* UTC instant (ISO 8601) — the client renders local time. */
+    dropAt: s.dropAt,
+    notifiedAt: drop.notified_at ? new Date(drop.notified_at as string).toISOString() : null,
+  };
+}
+
+/* The presave fan-list handoff, mirrored for drops (distribution.ts):
+   reuse the creator's oldest email list, or create one named after
+   them on first capture. Captures subscribe with source 'drop'. */
+function slugifyDropHandle(base: string): string {
+  const clean = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 34);
+  return clean || "fans";
+}
+
+async function ensureDropCreatorList(userId: string, creatorName: string): Promise<{ id: string; handle: string }> {
+  const existing = await db.execute(sql`
+    SELECT id, handle FROM email_lists WHERE user_id = ${userId} ORDER BY created_at ASC LIMIT 1
+  `);
+  const row = existing.rows[0] as { id: string; handle: string } | undefined;
+  if (row) return { id: row.id, handle: row.handle };
+  const base = `${slugifyDropHandle(creatorName)}-fans`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const handle = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const taken = await db.execute(sql`SELECT id FROM email_lists WHERE handle = ${handle} LIMIT 1`);
+    if (taken.rows.length > 0) continue;
+    const created = await db.execute(sql`
+      INSERT INTO email_lists (user_id, name, handle, description)
+      VALUES (${userId}, ${`${creatorName} fans`}, ${handle}, ${"Fans from product drop pages."})
+      RETURNING id, handle
+    `);
+    const createdRow = created.rows[0] as { id: string; handle: string };
+    return { id: createdRow.id, handle: createdRow.handle };
+  }
+  throw new Error("handle_unavailable");
+}
+
+async function subscribeDropFan(listId: string, email: string, name: string): Promise<void> {
+  const existing = await db.execute(sql`
+    SELECT id, unsubscribed_at FROM email_subscribers WHERE list_id = ${listId} AND email = ${email} LIMIT 1
+  `);
+  const row = existing.rows[0] as { id: string; unsubscribed_at: string | null } | undefined;
+  if (!row) {
+    await db.execute(sql`
+      INSERT INTO email_subscribers (list_id, email, name, source, confirmed)
+      VALUES (${listId}, ${email}, ${name || null}, ${"drop"}, ${true})
+    `);
+    return;
+  }
+  await db.execute(sql`
+    UPDATE email_subscribers
+    SET unsubscribed_at = NULL, name = CASE WHEN ${name} <> '' THEN ${name} ELSE name END, source = ${"drop"}
+    WHERE id = ${row.id}
+  `);
+}
+
 async function resolveProfile(slug?: string, profileId?: string): Promise<{ id: string; slug: string; displayName: string } | null> {
   let r;
   if (profileId && UUID_RE.test(profileId)) {
@@ -645,8 +778,21 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
     }
     const { feeCents, creatorCents } = splitTotals(Number(p.price_cents));
     const isFree = Number(p.price_cents) === 0;
+    const presented = await presentProduct(p);
+    /* Drop page payload (#25): while the drop is upcoming this same
+       page renders the countdown + capture instead of the buy box. */
+    const drop = presented.drop
+      ? {
+          ...presented.drop,
+          captureCount: presented.drop.isUpcoming
+            ? await loadDropCaptureCount(presented.drop.id)
+            : 0,
+          productUrl: `/storefront/product/${p.id}`,
+        }
+      : null;
     res.json({
-      product: await presentProduct(p),
+      product: presented,
+      drop,
       free: isFree,
       feeSplit: {
         priceCents: Number(p.price_cents), price: money(Number(p.price_cents)),
@@ -1061,6 +1207,17 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     const p = await fetchProduct(productId, true);
     if (!p) {
       res.status(404).json({ error: "NOT_FOR_SALE", message: "This product isn't for sale right now." });
+      return;
+    }
+    /* Timed drop gate (#25): an upcoming drop is never buyable early —
+       the drop moment is computed from drop_at (UTC), not the sweeper. */
+    const checkoutDrop = dropState(await loadDropForProduct(productId));
+    if (checkoutDrop.isUpcoming) {
+      res.status(400).json({
+        error: "DROP_NOT_LIVE",
+        message: "This product drops soon — join the drop list on its page and you'll get one email the moment it's live.",
+        dropAt: checkoutDrop.dropAt,
+      });
       return;
     }
     /* A $0 lead magnet never reaches Stripe (migration 0190): there is
@@ -2048,6 +2205,17 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
     const p = await fetchProduct(productId, true);
     if (!p) {
       res.status(404).json({ error: "NOT_FOR_SALE", message: "This product isn't available right now." });
+      return;
+    }
+    /* Timed drop gate (#25): a free product on an upcoming drop is
+       claimed at the drop moment, not before. */
+    const claimDrop = dropState(await loadDropForProduct(productId));
+    if (claimDrop.isUpcoming) {
+      res.status(400).json({
+        error: "DROP_NOT_LIVE",
+        message: "This product drops soon — join the drop list on its page and you'll get one email the moment it's live.",
+        dropAt: claimDrop.dropAt,
+      });
       return;
     }
     if (Number(p.price_cents) !== 0) {
@@ -3448,6 +3616,213 @@ router.get("/storefront/money-checklist", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err }, "[storefront] money checklist failed");
     res.status(500).json({ error: "Could not load your money checklist." });
+  }
+});
+
+/* ═══════════════════ TIMED DROPS (#25) ═══════════════════════════════
+   Dock: PROMOTE — a drop hangs off the storefront product itself. The
+   creator schedules/cancels it from the product's row in the store
+   dashboard (PUT/DELETE …/drop); fans meet it on the product's own
+   public page, which renders the countdown + capture while the drop is
+   upcoming. No standalone drop page, no parallel email list: captures
+   subscribe the fan to the creator's existing email list (source
+   'drop') and the drop-day email rides the house sender exactly once
+   (lib/product-drop-notify.ts). Times are UTC instants end to end —
+   dropAt is an ISO string the client renders in local time. */
+
+const DropScheduleSchema = z.object({
+  /* ISO 8601 instant (with offset, normally Z). Stored as timestamptz. */
+  dropAt: z.string().trim().min(1).max(64),
+});
+
+const DROP_UNAVAILABLE = {
+  error: "drop_unavailable",
+  message: "Drops aren't switched on yet — try again in a bit.",
+} as const;
+
+router.put("/storefront/products/:id/drop", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  const parsed = DropScheduleSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: "Invalid drop.", details: parsed.error.issues }); return; }
+  const dropAt = new Date(parsed.data.dropAt);
+  if (!Number.isFinite(dropAt.getTime())) {
+    res.status(400).json({ error: "DROP_DATE_INVALID", message: "Pick a real date and time for the drop." });
+    return;
+  }
+  if (dropAt.getTime() <= Date.now()) {
+    res.status(400).json({ error: "DROP_DATE_PAST", message: "A drop has to be in the future — pick a later moment." });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) { res.status(404).json({ error: "NO_PROFILE" }); return; }
+    const p = await fetchProduct(id, false);
+    if (!p || p.profile_id !== profile.id) { res.status(404).json({ error: "Product not found." }); return; }
+    const existing = await loadDropForProduct(id);
+    if (existing && dropState(existing).state === "live") {
+      res.status(409).json({
+        error: "DROP_ALREADY_LIVE",
+        message: "This drop already went live. Cancel it first if you want to run a fresh drop for this product.",
+      });
+      return;
+    }
+    if (existing && existing.status === "cancelled") {
+      /* A fresh cycle on the cancelled row: the old cycle's captures
+         and delivery ledger belong to that drop, not this one. */
+      await db.execute(sql`DELETE FROM product_drop_captures WHERE drop_id = ${existing.id}`);
+      await db.execute(sql`DELETE FROM product_drop_deliveries WHERE drop_id = ${existing.id}`);
+    }
+    const dropId = existing ? String(existing.id) : randomUUID();
+    if (existing) {
+      await db.execute(sql`
+        UPDATE product_drops
+        SET drop_at = ${dropAt}, status = 'scheduled', notified_at = NULL, updated_at = now()
+        WHERE id = ${existing.id}
+      `);
+    } else {
+      await db.execute(sql`
+        INSERT INTO product_drops (id, product_id, profile_id, user_id, drop_at, status)
+        VALUES (${dropId}, ${id}, ${profile.id}, ${req.userId!}, ${dropAt}, 'scheduled')
+      `);
+    }
+    /* Scheduling a drop puts the product on its drop page: active, but
+       gated by the drop computation on every public read until the
+       moment arrives. */
+    if (!p.is_active) {
+      await db.execute(sql`UPDATE store_products SET is_active = true, updated_at = now() WHERE id = ${id}`);
+    }
+    const drop = await loadDropForProduct(id);
+    logger.info({ userId: req.userId, productId: id, dropAt: dropAt.toISOString() }, "[storefront] product drop scheduled");
+    res.json({ drop: drop ? { ...dropDto(drop), captureCount: await loadDropCaptureCount(String(drop.id)) } : null });
+  } catch (err) {
+    if (isMissingDropTables(err)) { res.status(503).json(DROP_UNAVAILABLE); return; }
+    logger.error({ err, id }, "[storefront] drop schedule failed");
+    res.status(500).json({ error: "Could not schedule this drop." });
+  }
+});
+
+router.delete("/storefront/products/:id/drop", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) { res.status(404).json({ error: "NO_PROFILE" }); return; }
+    const drop = await loadDropForProduct(id);
+    if (!drop || String(drop.profile_id) !== profile.id) {
+      res.status(404).json({ error: "No drop scheduled for this product." });
+      return;
+    }
+    if (dropState(drop).state === "live") {
+      res.status(409).json({ error: "DROP_ALREADY_LIVE", message: "This drop already went live — it's just a normal product now." });
+      return;
+    }
+    await db.execute(sql`UPDATE product_drops SET status = 'cancelled', updated_at = now() WHERE id = ${drop.id}`);
+    logger.info({ userId: req.userId, productId: id }, "[storefront] product drop cancelled");
+    res.json({ ok: true, drop: null });
+  } catch (err) {
+    if (isMissingDropTables(err)) { res.status(503).json(DROP_UNAVAILABLE); return; }
+    logger.error({ err, id }, "[storefront] drop cancel failed");
+    res.status(500).json({ error: "Could not cancel this drop." });
+  }
+});
+
+router.get("/storefront/products/:id/drop", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) { res.status(404).json({ error: "NO_PROFILE" }); return; }
+    const p = await fetchProduct(id, false);
+    if (!p || p.profile_id !== profile.id) { res.status(404).json({ error: "Product not found." }); return; }
+    const drop = await loadDropForProduct(id);
+    if (!drop || drop.status === "cancelled") { res.json({ drop: null, captures: [], captureCount: 0 }); return; }
+    const capRes = await db.execute(sql`
+      SELECT email, name, created_at FROM product_drop_captures
+      WHERE drop_id = ${drop.id} ORDER BY created_at DESC LIMIT 50
+    `);
+    const captures = (capRes.rows as Array<Record<string, unknown>>).map((r) => ({
+      email: String(r["email"]),
+      name: r["name"] ? String(r["name"]) : null,
+      capturedAt: new Date(r["created_at"] as string).toISOString(),
+    }));
+    res.json({
+      drop: { ...dropDto(drop), captureCount: await loadDropCaptureCount(String(drop.id)) },
+      captures,
+      captureCount: await loadDropCaptureCount(String(drop.id)),
+    });
+  } catch (err) {
+    if (isMissingDropTables(err)) { res.status(503).json(DROP_UNAVAILABLE); return; }
+    logger.error({ err, id }, "[storefront] drop load failed");
+    res.status(500).json({ error: "Could not load this drop." });
+  }
+});
+
+const DropCaptureSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address.").max(254),
+  name: z.string().trim().max(120).optional().default(""),
+});
+
+router.post("/storefront/products/:id/drop/capture", publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  const parsed = DropCaptureSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a valid email address.", code: "invalid_email" });
+    return;
+  }
+  try {
+    const p = await fetchProduct(id, true);
+    if (!p) { res.status(404).json({ error: "Product not found or no longer for sale." }); return; }
+    const drop = await loadDropForProduct(id);
+    const state = dropState(drop);
+    if (!drop || state.state === "cancelled") {
+      res.status(404).json({ error: "NO_DROP", message: "This product doesn't have a drop coming up." });
+      return;
+    }
+    if (!state.isUpcoming) {
+      res.status(409).json({
+        error: "DROP_LIVE",
+        message: "This one already dropped — it's live now, grab it while it's here.",
+        dropAt: state.dropAt,
+      });
+      return;
+    }
+    const email = parsed.data.email.toLowerCase();
+    const name = parsed.data.name.trim();
+    /* Idempotent capture: re-joining updates the name, never duplicates.
+       (Existence is read first rather than the presave follow's xmax
+       trick — same semantics, and the verification harness's engine
+       has no xmax.) */
+    const prior = await db.execute(sql`
+      SELECT id FROM product_drop_captures WHERE drop_id = ${drop.id} AND email = ${email} LIMIT 1
+    `);
+    const inserted = prior.rows.length === 0;
+    await db.execute(sql`
+      INSERT INTO product_drop_captures (drop_id, product_id, email, name, source)
+      VALUES (${drop.id}, ${id}, ${email}, ${name || null}, ${"drop"})
+      ON CONFLICT (drop_id, email) DO UPDATE SET
+        name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE product_drop_captures.name END
+    `);
+    /* Also join the creator's email list — the fan-list handoff, same
+       as a presave follow. Non-fatal: the capture row is the drop's
+       record; list trouble never loses a fan. */
+    try {
+      const list = await ensureDropCreatorList(String(drop.user_id), p.artist_name);
+      await subscribeDropFan(list.id, email, name);
+    } catch (err) {
+      logger.warn({ err }, "[storefront] drop email-list subscribe failed (non-fatal)");
+    }
+    res.json({
+      ok: true,
+      alreadyCaptured: !inserted,
+      captureCount: await loadDropCaptureCount(String(drop.id)),
+      dropAt: state.dropAt,
+    });
+  } catch (err) {
+    if (isMissingDropTables(err)) { res.status(503).json(DROP_UNAVAILABLE); return; }
+    logger.error({ err, id }, "[storefront] drop capture failed");
+    res.status(500).json({ error: "Couldn't join the drop list — try again." });
   }
 });
 

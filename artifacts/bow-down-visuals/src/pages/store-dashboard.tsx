@@ -17,11 +17,13 @@ import {
   listDiscounts, createDiscount, updateDiscount, deleteDiscount,
   logSaleToTracker, confirmServiceBooking,
   previewShopifyImport, commitShopifyImport, downloadShopifyExport,
+  scheduleProductDrop, cancelProductDrop, getProductDrop,
   KIND_LABELS, KIND_EMOJI, dollarsToCents, usd,
   type StoreProductDTO, type StoreOrderDTO, type DiscountCodeDTO,
   type MoneyChecklist, type CreateProductInput, type StoreProductKind,
   type ShopifyImportResultDTO, type ShopifyExportKind,
 } from "@/lib/storefront-api";
+import { formatDropLocal } from "@/lib/product-drop";
 import PromoteButton from "@/components/storefront/PromoteButton";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import {
@@ -457,6 +459,143 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
         </span>
       )}
       {msg && <p className="mt-1 text-[10px] text-red-400">{msg}</p>}
+/* ── Timed drop controls (#25) ───────────────────────────────────────────
+   Docked in the product's own row (PROMOTE): the creator picks the drop
+   moment in THEIR local time (datetime-local), the browser converts it
+   to a UTC instant (toISOString) and the server stores that instant —
+   fans everywhere count down to the same moment, each shown their own
+   local time. While upcoming, the product page is the drop page
+   (countdown + capture onto the creator's email list) and the product
+   can't be bought early; at the moment it goes live and the capture
+   list gets exactly one email. */
+function DropControls({ product, getToken, onChanged }: {
+  product: StoreProductDTO;
+  getToken: () => Promise<string>;
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [when, setWhen] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [captureCount, setCaptureCount] = useState<number | null>(null);
+  const drop = product.drop;
+  const isUpcoming = !!drop?.isUpcoming;
+
+  const loadCount = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const r = await getProductDrop(token, product.id);
+      setCaptureCount(r.captureCount);
+    } catch { /* count is a nicety — the controls still work without it */ }
+  }, [getToken, product.id]);
+
+  useEffect(() => { if (open && isUpcoming) loadCount(); }, [open, isUpcoming, loadCount]);
+
+  const schedule = async () => {
+    setErr("");
+    if (!when) { setErr("Pick the drop date and time."); return; }
+    const moment = new Date(when);
+    if (!Number.isFinite(moment.getTime()) || moment.getTime() <= Date.now()) {
+      setErr("A drop has to be in the future — pick a later moment.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const token = await getToken();
+      await scheduleProductDrop(token, product.id, moment.toISOString());
+      setOpen(false);
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't schedule this drop.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async () => {
+    setErr("");
+    setBusy(true);
+    try {
+      const token = await getToken();
+      await cancelProductDrop(token, product.id);
+      setOpen(false);
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't cancel this drop.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const inputCls = "w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]";
+
+  return (
+    <div className="inline-block text-left align-top">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black ${
+          isUpcoming
+            ? "bg-amber-500/20 text-amber-300"
+            : drop
+              ? "bg-green-500/15 text-green-300"
+              : "border border-white/15 text-white/60 hover:text-white"
+        }`}
+        title={isUpcoming ? "Timed drop scheduled" : "Schedule a timed drop"}
+      >
+        <CalendarClock className="h-3.5 w-3.5" />
+        {isUpcoming ? `Drops ${formatDropLocal(drop?.dropAt) ?? ""}` : drop ? "Dropped ✓" : "Drop"}
+      </button>
+      {open && (
+        <div className="mt-2 w-64 rounded-xl border border-white/10 bg-[#14100a] p-3 shadow-xl">
+          {drop && !isUpcoming ? (
+            <p className="text-xs text-white/60">
+              This drop went live{drop.dropAt ? ` ${formatDropLocal(drop.dropAt)}` : ""} — it&apos;s a normal product now.
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] font-bold text-white/70">
+                {isUpcoming ? "Move or cancel the drop" : "Schedule a timed drop"}
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-white/40">
+                Until the moment, the product page is a countdown + email capture (fans join your list).
+                At the moment it goes live and everyone on the list gets one email.
+              </p>
+              {isUpcoming && (
+                <p className="mt-2 text-[11px] font-bold text-amber-300">
+                  {captureCount === null ? "Loading the list…" : `${captureCount} fan${captureCount === 1 ? "" : "s"} on the drop list`}
+                </p>
+              )}
+              <input
+                type="datetime-local"
+                value={when}
+                onChange={(e) => setWhen(e.target.value)}
+                className={`${inputCls} mt-2`}
+                aria-label="Drop date and time (your local time)"
+              />
+              <p className="mt-1 text-[10px] text-white/35">Your local time — fans see it in theirs.</p>
+              {err && <p className="mt-2 text-[11px] font-bold text-red-400">{err}</p>}
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={schedule}
+                  disabled={busy}
+                  className="rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-4 py-1.5 text-xs font-black text-black hover:brightness-110 disabled:opacity-60"
+                >
+                  {busy ? "Saving…" : isUpcoming ? "Move drop" : "Schedule drop"}
+                </button>
+                {isUpcoming && (
+                  <button
+                    onClick={cancel}
+                    disabled={busy}
+                    className="rounded-full border border-red-400/40 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-400/10 disabled:opacity-60"
+                  >
+                    Cancel drop
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -863,7 +1002,10 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                     <AffiliateCell p={p} getToken={getToken} onChanged={load} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <PromoteButton product={p} />
+                    <div className="flex items-start justify-end gap-2">
+                      <DropControls product={p} getToken={getToken} onChanged={() => { load(); onChanged(); }} />
+                      <PromoteButton product={p} />
+                    </div>
                   </td>
                 </tr>
                 {bumpEditId === p.id && (

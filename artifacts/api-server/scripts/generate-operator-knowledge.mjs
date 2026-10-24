@@ -1152,6 +1152,14 @@ const DOCKED_FEATURES = [
       text: "Attach one of your other products as an add-on to a store product: the buyer sees it on the product page with a tick box and can add it to the same single checkout, at its listed price or a percent off you set. It shows as its own line on the order. Set it up in the store dashboard's Products tab.",
     },
     endpoints: ["/api/storefront/products/:param/bump", "/api/storefront/checkout"],
+    id: "product-drops",
+    name: { text: "Product Drops" },
+    path: "/storefront/product/:id",
+    hostPath: "/store/dashboard",
+    description: {
+      text: "Schedule any store product to drop at a future moment: until then its page is a countdown with an email capture (fans join your list), it cannot be bought early, and at the moment it goes live and everyone on the list gets exactly one email. Set it up from the product's row in the store dashboard — the Drop button next to Promote.",
+    },
+    endpoints: ["/api/storefront/products/:param/drop", "/api/storefront/products/:param/drop/capture"],
     pricedEndpoints: [],
   },
   {
