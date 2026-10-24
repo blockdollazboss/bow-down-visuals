@@ -19,6 +19,7 @@
  *
  * Endpoints:
  *   GET    /api/store/item/:kind/:id   public: item + fee split for the buy page
+ *   PUT    /api/store/item/:kind/:id/bump  auth: set/clear the item's order-bump add-on (owner)
  *   POST   /api/store/checkout         auth: create a Stripe Checkout Session
  *   POST   /api/store/verify           auth: verify a paid session, record the
  *                                         sale idempotently, mint a download token
@@ -47,6 +48,14 @@ import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+/* Order bumps (Stack-100 #3, feature #13): one add-on offer per item,
+   ticked at checkout, charged in the same Stripe session. All bump
+   money math lives in lib/order-bumps.ts. */
+import {
+  bumpUnitCents,
+  splitOrderAmounts,
+  MAX_BUMP_PERCENT_OFF,
+} from "../lib/order-bumps";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 
@@ -84,6 +93,11 @@ export function buildStoreCheckoutKey(args: {
   itemId: string;
   amountCents: number;
   completedSaleCount: number;
+  /** Order bump (feature #13): present only when the buyer ticked the
+   *  add-on, so bump-free purchase intents keep their historic keys. */
+  bumpKind?: string | null;
+  bumpItemId?: string | null;
+  bumpLineCents?: number;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -93,6 +107,9 @@ export function buildStoreCheckoutKey(args: {
       itemId: args.itemId,
       amountCents: args.amountCents,
       completedSaleCount: args.completedSaleCount,
+      ...(args.bumpItemId
+        ? { bumpKind: args.bumpKind ?? "", bumpItemId: args.bumpItemId, bumpLineCents: args.bumpLineCents ?? 0 }
+        : {}),
     },
   });
 }
@@ -271,6 +288,139 @@ async function resolveSellableItem(
   return { notWired: true };
 }
 
+/* ── Order bumps (feature #13 — digital store rail) ────────────────────
+   The storefront rail's pattern (routes/storefront.ts) carried here:
+   a seller attaches ONE add-on item (same seller, seller-set price or
+   seller-set % off) to an item; the buyer can tick it at checkout and
+   it rides the same Stripe session as a second line, recorded as its
+   own line ON the sale row (digital_sales.bump_*). Persistence is the
+   lane's REPORTED migration (.lane/MIGRATION-NEEDED.md): the
+   attachment lives in a new digital_bump_offers table (items span
+   three catalog tables, so no single product table could hold it).
+   Every read is defensive — absent table/columns mean "no offer", so
+   the rail behaves byte-identically until the migration lands. */
+
+export interface DigitalBumpConfig {
+  bumpKind: string;
+  bumpItemId: string;
+  /** 0 = the add-on sells at its listed price. */
+  percentOff: number;
+}
+
+async function fetchDigitalBumpConfig(kind: string, id: string): Promise<DigitalBumpConfig | null> {
+  try {
+    const r = await db.execute(sql`
+      SELECT bump_kind, bump_item_id, percent_off
+      FROM digital_bump_offers
+      WHERE item_kind = ${kind} AND item_id = ${id}
+      LIMIT 1
+    `);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    if (!row) return null;
+    const bumpKind = String(row["bump_kind"] ?? "");
+    const bumpItemId = String(row["bump_item_id"] ?? "");
+    const percentOff = Number(row["percent_off"] ?? 0);
+    if (!DIGITAL_ITEM_KINDS.includes(bumpKind as (typeof DIGITAL_ITEM_KINDS)[number])) return null;
+    if (!UUID_RE.test(bumpItemId)) return null;
+    if (!Number.isInteger(percentOff) || percentOff < 0 || percentOff > MAX_BUMP_PERCENT_OFF) return null;
+    return { bumpKind, bumpItemId, percentOff };
+  } catch {
+    return null;
+  }
+}
+
+/** Which creator profile owns a catalog item — regardless of whether
+    it is currently sellable (attach-time ownership checks must work
+    on unpublished items too). Null when the item doesn't exist. */
+async function resolveItemOwnerProfileId(kind: string, id: string): Promise<string | null> {
+  if (!UUID_RE.test(id)) return null;
+  if (kind === "series") {
+    const r = await db.execute(sql`
+      SELECT owner_profile_id AS profile_id FROM playlists WHERE id = ${id} AND kind = 'series' LIMIT 1
+    `);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return row ? String(row["profile_id"]) : null;
+  }
+  if (kind === "track" || kind === "video") {
+    const table = kind === "track" ? "profile_tracks" : "profile_videos";
+    const r = await db.execute(sql`
+      SELECT profile_id FROM ${sql.raw(table)} WHERE id = ${id} LIMIT 1
+    `);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return row ? String(row["profile_id"]) : null;
+  }
+  return null;
+}
+
+type DigitalBumpResolution =
+  | { ok: true; item: SellableItem }
+  | { ok: false; code: string; message: string };
+
+/** May the configured add-on actually be sold as a bump right now?
+    Same-seller only; downloadable kinds only — a series is an access
+    unlock, and one sale row cannot honestly unlock a second series;
+    never a name-your-price item (it has no seller-set price for a
+    bump to charge) and never a $0 item. */
+async function resolveDigitalBumpTarget(
+  mainProfileId: string,
+  cfg: DigitalBumpConfig,
+): Promise<DigitalBumpResolution> {
+  if (cfg.bumpKind === "series") {
+    return { ok: false, code: "BUMP_KIND", message: "A series can't be an add-on — it unlocks access rather than delivering a file." };
+  }
+  const item = await resolveSellableItem(cfg.bumpKind, cfg.bumpItemId);
+  if ("notForSale" in item || "notWired" in item) {
+    return { ok: false, code: "BUMP_NOT_OFFERED", message: "That add-on isn't for sale right now." };
+  }
+  if (item.profileId !== mainProfileId) {
+    return { ok: false, code: "BUMP_OTHER_SELLER", message: "The add-on has to be one of the same creator's items." };
+  }
+  if (item.pwywEnabled || Math.round(item.priceCents) <= 0) {
+    return { ok: false, code: "BUMP_FREE", message: "A free or name-your-price item can't be a paid add-on." };
+  }
+  return { ok: true, item };
+}
+
+export interface DigitalBumpOfferPayload {
+  kind: string;
+  id: string;
+  title: string;
+  listPriceCents: number;
+  listPrice: string;
+  percentOff: number;
+  priceCents: number;
+  price: string;
+  buyUrl: string;
+}
+
+function digitalBumpOfferPayload(item: SellableItem, cfg: DigitalBumpConfig): DigitalBumpOfferPayload {
+  const unit = bumpUnitCents(item.priceCents, cfg.percentOff);
+  return {
+    kind: item.itemKind,
+    id: cfg.bumpItemId,
+    title: item.title,
+    listPriceCents: item.priceCents,
+    listPrice: money(item.priceCents),
+    percentOff: cfg.percentOff,
+    priceCents: unit,
+    price: money(unit),
+    buyUrl: `/store/buy/${item.itemKind}/${cfg.bumpItemId}`,
+  };
+}
+
+/** The buyer-facing live offer for an item, or null. */
+async function resolveDigitalBumpOffer(
+  kind: string,
+  id: string,
+  mainProfileId: string,
+): Promise<DigitalBumpOfferPayload | null> {
+  const cfg = await fetchDigitalBumpConfig(kind, id);
+  if (!cfg) return null;
+  const resolved = await resolveDigitalBumpTarget(mainProfileId, cfg);
+  if (!resolved.ok) return null;
+  return digitalBumpOfferPayload(resolved.item, cfg);
+}
+
 async function mintDownloadLink(saleId: string, fileUrl: string) {
   const token = mintToken();
   const expiresAt = new Date(Date.now() + DOWNLOAD_TTL_HOURS * 3600 * 1000);
@@ -325,7 +475,11 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
     const artworkUrl = item.artworkUrl
       ? await refreshSupabaseStorageUrl(item.artworkUrl)
       : null;
+    /* Order bump (feature #13): the live add-on offer, resolved —
+       null when this item has no add-on a buyer could take right now. */
+    const bump = await resolveDigitalBumpOffer(kind, id, item.profileId);
     res.json({
+      bump,
       item: {
         kind: item.itemKind,
         id,
@@ -360,12 +514,115 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
   }
 });
 
+/* ── PUT /api/store/item/:kind/:id/bump — order-bump attachment ────────
+   One add-on per item (feature #13). Attach-time hard rules mirror the
+   storefront rail: the add-on must be the SAME seller's item, never
+   the item itself, never a series (an unlock, not a deliverable), and
+   never a free / name-your-price item (no seller-set price to charge).
+   An unpublished add-on may be attached — the buyer-facing offer
+   simply stays hidden until it's sellable, and the response says
+   whether the offer is live right now. The write names the
+   digital_bump_offers table outright, so pre-migration this one
+   surface answers an honest 500 (every read stays defensive). */
+const SetDigitalBumpSchema = z.object({
+  bumpKind: ItemKindSchema.nullable().default(null),
+  bumpItemId: z.string().regex(UUID_RE, "bumpItemId must be a UUID").nullable().default(null),
+  percentOff: z.number().int().min(0).max(MAX_BUMP_PERCENT_OFF).default(0),
+});
+
+router.put("/store/item/:kind/:id/bump", requireAuth, publicApiLimiter, async (req, res) => {
+  const kind = String(req.params.kind ?? "");
+  const id = String(req.params.id ?? "");
+  if (!DIGITAL_ITEM_KINDS.includes(kind as (typeof DIGITAL_ITEM_KINDS)[number]) || !UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid item." });
+    return;
+  }
+  const parsed = SetDigitalBumpSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid bump setting.", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const owner = await resolveItemOwnerProfileId(kind, id);
+    if (!owner || owner !== profile.id) {
+      res.status(404).json({ error: "Item not found." });
+      return;
+    }
+    const { bumpKind, bumpItemId, percentOff } = parsed.data;
+    if (bumpItemId) {
+      if (!bumpKind) {
+        res.status(400).json({ error: "bumpKind is required when bumpItemId is set." });
+        return;
+      }
+      if (bumpKind === kind && bumpItemId === id) {
+        res.status(400).json({ error: "BUMP_SELF", message: "An item can't be its own add-on." });
+        return;
+      }
+      if (bumpKind === "series") {
+        res.status(400).json({
+          error: "BUMP_KIND",
+          message: "A series can't be an add-on — it unlocks access rather than delivering a file.",
+        });
+        return;
+      }
+      const targetOwner = await resolveItemOwnerProfileId(bumpKind, bumpItemId);
+      if (!targetOwner || targetOwner !== profile.id) {
+        res.status(400).json({
+          error: "BUMP_NOT_YOURS",
+          message: "The add-on has to be one of your own items.",
+        });
+        return;
+      }
+      /* A currently-sellable target must still be a valid bump: no
+         name-your-price (no seller-set price to charge). An
+         unpublished target may be attached — its offer stays hidden
+         until it's sellable. */
+      const target = await resolveSellableItem(bumpKind, bumpItemId);
+      if (!("notForSale" in target) && !("notWired" in target) && target.pwywEnabled) {
+        res.status(400).json({
+          error: "BUMP_FREE",
+          message: "A name-your-price item can't be a paid add-on — it has no set price to charge.",
+        });
+        return;
+      }
+      await db.execute(sql`
+        INSERT INTO digital_bump_offers (item_kind, item_id, bump_kind, bump_item_id, percent_off, updated_at)
+        VALUES (${kind}, ${id}, ${bumpKind}, ${bumpItemId}, ${percentOff}, now())
+        ON CONFLICT (item_kind, item_id) DO UPDATE
+          SET bump_kind = EXCLUDED.bump_kind,
+              bump_item_id = EXCLUDED.bump_item_id,
+              percent_off = EXCLUDED.percent_off,
+              updated_at = now()
+      `);
+    } else {
+      await db.execute(sql`
+        DELETE FROM digital_bump_offers WHERE item_kind = ${kind} AND item_id = ${id}
+      `);
+    }
+    const cfg = await fetchDigitalBumpConfig(kind, id);
+    const offer = cfg ? await resolveDigitalBumpOffer(kind, id, profile.id) : null;
+    logger.info({ userId: req.userId, kind, id, bumpKind, bumpItemId, percentOff }, "[store] item bump updated");
+    res.json({ bumpConfig: cfg, offerLive: offer !== null, bump: offer });
+  } catch (err) {
+    logger.error({ err, kind, id }, "[store] item bump update failed");
+    res.status(500).json({ error: "Could not update the add-on offer." });
+  }
+});
+
 /* ── POST /api/store/checkout — create a Stripe Checkout Session ──────── */
 const CheckoutSchema = z.object({
   kind: ItemKindSchema,
   id: z.string().regex(UUID_RE, "id must be a UUID"),
   /* Name-your-price amount (PWYW items only; enforced server-side). */
   amountCents: z.number().int().positive().max(100_000_00).optional(),
+  /* Order bump (feature #13): the buyer ticked the add-on. The server
+     re-resolves the offer and its price — the tick alone buys nothing. */
+  includeBump: z.boolean().default(false),
 });
 
 router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -427,14 +684,46 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         return;
       }
     }
-    const { feeCents, creatorCents } = splitFee(chargeCents);
+    /* Order bump (feature #13): the buyer ticked the add-on. The
+       offer and its price are re-resolved HERE from the seller's
+       setting — a tick with no live offer refuses the whole checkout
+       rather than quietly charging for the main item alone or
+       inventing a price. */
+    let bump: { item: SellableItem; unitCents: number; grossCents: number; percentOff: number } | null = null;
+    let bumpCfg: DigitalBumpConfig | null = null;
+    if (parsed.data.includeBump) {
+      const cfg = await fetchDigitalBumpConfig(kind, id);
+      bumpCfg = cfg;
+      if (!cfg) {
+        res.status(400).json({
+          error: "BUMP_NOT_OFFERED",
+          message: "This item doesn't have an add-on offer.",
+        });
+        return;
+      }
+      const resolvedBump = await resolveDigitalBumpTarget(item.profileId, cfg);
+      if (!resolvedBump.ok) {
+        res.status(400).json({ error: resolvedBump.code, message: resolvedBump.message });
+        return;
+      }
+      const unit = bumpUnitCents(resolvedBump.item.priceCents, cfg.percentOff);
+      bump = { item: resolvedBump.item, unitCents: unit, grossCents: unit, percentOff: cfg.percentOff };
+    }
+
+    const totalCents = chargeCents + (bump?.grossCents ?? 0);
+    /* One fee split for the session (flat 5%), attributed across the
+       lines by lib/order-bumps — with no bump these are exactly the
+       numbers splitFee(chargeCents) produced before the feature. */
+    const checkoutSplits = splitOrderAmounts(totalCents, bump?.grossCents ?? 0, PLATFORM_FEE_BPS);
+    const feeCents = checkoutSplits.totalFeeCents;
+    const creatorCents = checkoutSplits.totalCreatorCents;
     /* Purchase sequence for the session idempotency key (see
        buildStoreCheckoutKey). A read failure throws into the catch
        below — no session is minted, so the failure is closed. */
     const countResult = await db.execute(sql`
       SELECT COUNT(*)::int AS c FROM digital_sales
       WHERE buyer_user_id = ${req.userId!} AND item_kind = ${kind}
-        AND item_id = ${id} AND amount_cents = ${chargeCents}
+        AND item_id = ${id} AND amount_cents = ${totalCents}
     `);
     const completedSaleCount = Number(
       (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
@@ -443,8 +732,11 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
       userId: req.userId!,
       kind,
       itemId: id,
-      amountCents: chargeCents,
+      amountCents: totalCents,
       completedSaleCount,
+      bumpKind: bump?.item.itemKind ?? null,
+      bumpItemId: bumpCfg?.bumpItemId ?? null,
+      bumpLineCents: bump?.grossCents ?? 0,
     });
     const baseUrl = getBaseUrl(req);
     /* Same stored artwork value flows to Stripe as the checkout image:
@@ -452,6 +744,9 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
        it to a signed URL here too. */
     const artworkUrl = item.artworkUrl
       ? await refreshSupabaseStorageUrl(item.artworkUrl)
+      : null;
+    const bumpArtworkUrl = bump?.item.artworkUrl
+      ? await refreshSupabaseStorageUrl(bump.item.artworkUrl)
       : null;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -470,6 +765,25 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
           },
           quantity: 1,
         },
+        ...(bump
+          ? [
+              {
+                price_data: {
+                  currency: "usd",
+                  unit_amount: bump.unitCents,
+                  product_data: {
+                    name: `${bump.item.title} — ${bump.item.artistName} (add-on)`,
+                    description:
+                      bump.percentOff > 0
+                        ? `Digital download · add-on · ${bump.percentOff}% off`
+                        : "Digital download · add-on",
+                    images: bumpArtworkUrl ? [bumpArtworkUrl] : undefined,
+                  },
+                },
+                quantity: 1,
+              },
+            ]
+          : []),
       ],
       success_url: `${baseUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/store/buy/${kind}/${id}`,
@@ -480,14 +794,39 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         item_id: id,
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
+        /* Bump line (feature #13): verify re-derives every split from
+           the session total + this amount — these are the only bump
+           facts it trusts, and all were written by this box. */
+        bump_item_kind: bump?.item.itemKind ?? "",
+        bump_item_id: bumpCfg?.bumpItemId ?? "",
+        bump_amount_cents: String(bump?.grossCents ?? 0),
       },
     }, { idempotencyKey });
 
     logger.info(
-      { userId: req.userId, kind, id, priceCents: chargeCents, pwyw: item.pwywEnabled, sessionId: session.id },
+      { userId: req.userId, kind, id, priceCents: chargeCents, totalCents, bumpItemId: bumpCfg?.bumpItemId ?? null, pwyw: item.pwywEnabled, sessionId: session.id },
       "[store] checkout session created"
     );
-    res.json({ url: session.url, sessionId: session.id, amountCents: chargeCents, amount: money(chargeCents) });
+    res.json({
+      url: session.url,
+      sessionId: session.id,
+      amountCents: totalCents,
+      amount: money(totalCents),
+      mainAmountCents: chargeCents,
+      bump: bump
+        ? {
+            kind: bump.item.itemKind,
+            id: bumpCfg?.bumpItemId ?? "",
+            title: bump.item.title,
+            unitCents: bump.unitCents,
+            grossCents: bump.grossCents,
+            gross: money(bump.grossCents),
+            percentOff: bump.percentOff,
+            feeCents: checkoutSplits.bump?.feeCents ?? 0,
+            creatorCents: checkoutSplits.bump?.creatorCents ?? 0,
+          }
+        : null,
+    });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg, kind, id }, "[store] checkout failed");
@@ -582,20 +921,74 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
   }
 
   const amountCents = session.amount_total ?? 0;
-  const { feeCents, creatorCents } = splitFee(amountCents);
+  /* Bump facts (feature #13): only what checkout wrote into metadata.
+     Every split below is re-derived from the session total + this
+     amount — never trusted from the client or the metadata fees. */
+  const bumpKind = meta["bump_item_kind"] || null;
+  const bumpItemId = meta["bump_item_id"] || null;
+  const bumpAmountCents = bumpKind && bumpItemId ? Number(meta["bump_amount_cents"] ?? 0) : 0;
+  if (
+    (bumpKind || bumpItemId) &&
+    (!bumpKind ||
+      !bumpItemId ||
+      !DIGITAL_ITEM_KINDS.includes(bumpKind as (typeof DIGITAL_ITEM_KINDS)[number]) ||
+      !UUID_RE.test(bumpItemId) ||
+      !Number.isInteger(bumpAmountCents) ||
+      bumpAmountCents <= 0 ||
+      bumpAmountCents >= amountCents)
+  ) {
+    res.status(400).json({ error: "This session's add-on details don't add up." });
+    return;
+  }
+  const splits = splitOrderAmounts(amountCents, bumpAmountCents, PLATFORM_FEE_BPS);
+  const feeCents = splits.totalFeeCents;
+  const creatorCents = splits.totalCreatorCents;
+
+  /* The add-on's delivery facts, re-resolved now. If it vanished after
+     payment the sale still records (below) and the response states
+     the exact add-on refund owed — the storefront rail's honesty
+     pattern — instead of failing the whole paid order. */
+  let bumpTitle = "Add-on";
+  let bumpFileUrl: string | null = null;
+  if (splits.bump && bumpKind && bumpItemId) {
+    try {
+      const bumpItem = await resolveSellableItem(bumpKind, bumpItemId);
+      if (!("notForSale" in bumpItem) && !("notWired" in bumpItem)) {
+        bumpTitle = bumpItem.title;
+        bumpFileUrl = bumpItem.fileUrl || null;
+      }
+    } catch {
+      /* Delivery re-resolution is best-effort; the line still records. */
+    }
+  }
+  const bumpDeliverable = splits.bump !== null && bumpFileUrl !== null;
 
   try {
     /* ── IDEMPOTENCY: Stripe may redirect/verify twice; stripe_session_id is
        UNIQUE, so the second attempt is a harmless no-op. ─────────────── */
-    const inserted = await db.execute(sql`
-      INSERT INTO digital_sales
-        (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
-         amount_cents, platform_fee_cents, creator_amount_cents)
-      VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
-              ${amountCents}, ${feeCents}, ${creatorCents})
-      ON CONFLICT (stripe_session_id) DO NOTHING
-      RETURNING id
-    `);
+    const inserted = splits.bump
+      ? await db.execute(sql`
+          INSERT INTO digital_sales
+            (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+             amount_cents, platform_fee_cents, creator_amount_cents,
+             bump_item_kind, bump_item_id, bump_title, bump_amount_cents,
+             bump_platform_fee_cents, bump_creator_amount_cents)
+          VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
+                  ${amountCents}, ${feeCents}, ${creatorCents},
+                  ${bumpKind}, ${bumpItemId}, ${bumpTitle}, ${splits.bump.grossCents},
+                  ${splits.bump.feeCents}, ${splits.bump.creatorCents})
+          ON CONFLICT (stripe_session_id) DO NOTHING
+          RETURNING id
+        `)
+      : await db.execute(sql`
+          INSERT INTO digital_sales
+            (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+             amount_cents, platform_fee_cents, creator_amount_cents)
+          VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
+                  ${amountCents}, ${feeCents}, ${creatorCents})
+          ON CONFLICT (stripe_session_id) DO NOTHING
+          RETURNING id
+        `);
     let saleId: string;
     let duplicate = false;
     if (inserted.rows.length > 0) {
@@ -620,6 +1013,14 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       ? null
       : (await findReusableDownloadLink(saleId, fileUrl)) ?? (await mintDownloadLink(saleId, fileUrl));
 
+    /* Bump delivery (feature #13): the add-on's own download link,
+       under the SAME sale id — minted once, reused on a duplicate
+       verify exactly like the main link, so a double-verify can never
+       multiply links or re-charge anything. */
+    const bumpLink = bumpDeliverable && bumpFileUrl
+      ? (await findReusableDownloadLink(saleId, bumpFileUrl)) ?? (await mintDownloadLink(saleId, bumpFileUrl))
+      : null;
+
     /* ── "YOU JUST GOT PAID" — the money finale. Best-effort: the sale is
        already recorded; a notification failure must never fail the purchase.
        The relay pings the creator in chat (exactly-once via the
@@ -636,7 +1037,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
           userId: String(crow["user_id"]),
           status: "completed",
           title: "You just got paid 👑",
-          message: `“${itemTitle}” just sold for ${money(amountCents)} — ${money(creatorCents)} is now in your pending payout. The cheat code works.`,
+          message: `“${itemTitle}” just sold for ${money(amountCents)} — ${money(creatorCents)} is now in your pending payout. The cheat code works.${splits.bump ? ` Includes the “${bumpTitle}” add-on (${money(splits.bump.grossCents)}).` : ""}`,
         });
       }
     } catch (notifyErr) {
@@ -655,6 +1056,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
 <div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;">
 <div style="color:#d4af37;font-weight:700;font-size:16px;">${escapeHtml(itemTitle)}</div>
 ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistName)}</div>` : ""}
+${splits.bump ? `<div style="color:#ccc;font-size:13px;margin-top:4px;">Includes add-on: ${escapeHtml(bumpTitle)} — ${emailMoney(splits.bump.grossCents)}</div>` : ""}
 <div style="color:#eee;font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
 <div style="color:#888;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>
 </div>
@@ -682,7 +1084,50 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
         amount: money(amountCents),
         platformFeeCents: feeCents,
         creatorAmountCents: creatorCents,
+        /* Receipt lines (feature #13): the main line plus the bump
+           line when one rode the session — gross / fee / net per
+           line, always summing to the sale totals above. */
+        lines: [
+          {
+            kind: "main" as const,
+            itemKind: kind,
+            itemId,
+            title: itemTitle,
+            grossCents: splits.main.grossCents,
+            platformFeeCents: splits.main.feeCents,
+            creatorAmountCents: splits.main.creatorCents,
+          },
+          ...(splits.bump && bumpKind && bumpItemId
+            ? [
+                {
+                  kind: "bump" as const,
+                  itemKind: bumpKind,
+                  itemId: bumpItemId,
+                  title: bumpTitle,
+                  grossCents: splits.bump.grossCents,
+                  platformFeeCents: splits.bump.feeCents,
+                  creatorAmountCents: splits.bump.creatorCents,
+                },
+              ]
+            : []),
+        ],
       },
+      /* The add-on's own download link (feature #13), when the
+         add-on is still deliverable. */
+      bumpDownload: bumpLink
+        ? {
+            token: bumpLink.token,
+            url: `/api/store/download/${bumpLink.token}`,
+            expiresAt: bumpLink.expiresAt.toISOString(),
+            maxUses: DOWNLOAD_MAX_USES,
+          }
+        : null,
+      /* Paid for an add-on that can no longer be delivered: the sale
+         stands, and this states the exact refund the creator owes. */
+      bumpNote:
+        splits.bump && !bumpDeliverable
+          ? `The add-on “${bumpTitle}” is no longer available — the creator owes you a ${money(splits.bump.grossCents)} refund for the add-on.`
+          : null,
       /* Link graph: no dead ends after payment — the highest-trust moment. */
       item: {
         kind,
@@ -837,21 +1282,45 @@ router.get("/store/download/:token", publicApiLimiter, async (req, res) => {
 /* ── GET /api/store/purchases — buyer's library ────────────────────────── */
 router.get("/store/purchases", requireAuth, async (req, res) => {
   try {
-    const result = await db.execute(sql`
-      SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents, ds.created_at,
-             ds.stripe_session_id,
-             cp.display_name AS artist_name, cp.slug AS artist_slug,
-             COALESCE(t.title, v.title, pl.title) AS item_title,
-             COALESCE(t.artwork_url, v.thumbnail_url, pl.cover_url) AS artwork_url
-      FROM digital_sales ds
-      LEFT JOIN creator_profiles cp ON cp.id = ds.profile_id
-      LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
-      LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
-      LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
-      WHERE ds.buyer_user_id = ${req.userId!}
-      ORDER BY ds.created_at DESC
-      LIMIT 200
-    `);
+    /* The bump columns ride a best-effort select (feature #13): on a
+       database where the migration hasn't landed yet the plain select
+       keeps purchases working exactly as before (a bump sale can only
+       exist once the columns do, so nothing is lost). */
+    let result: Awaited<ReturnType<typeof db.execute>>;
+    try {
+      result = await db.execute(sql`
+        SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents, ds.created_at,
+               ds.stripe_session_id,
+               ds.bump_item_kind, ds.bump_item_id, ds.bump_title, ds.bump_amount_cents,
+               cp.display_name AS artist_name, cp.slug AS artist_slug,
+               COALESCE(t.title, v.title, pl.title) AS item_title,
+               COALESCE(t.artwork_url, v.thumbnail_url, pl.cover_url) AS artwork_url
+        FROM digital_sales ds
+        LEFT JOIN creator_profiles cp ON cp.id = ds.profile_id
+        LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
+        LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+        LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
+        WHERE ds.buyer_user_id = ${req.userId!}
+        ORDER BY ds.created_at DESC
+        LIMIT 200
+      `);
+    } catch {
+      result = await db.execute(sql`
+        SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents, ds.created_at,
+               ds.stripe_session_id,
+               cp.display_name AS artist_name, cp.slug AS artist_slug,
+               COALESCE(t.title, v.title, pl.title) AS item_title,
+               COALESCE(t.artwork_url, v.thumbnail_url, pl.cover_url) AS artwork_url
+        FROM digital_sales ds
+        LEFT JOIN creator_profiles cp ON cp.id = ds.profile_id
+        LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
+        LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+        LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
+        WHERE ds.buyer_user_id = ${req.userId!}
+        ORDER BY ds.created_at DESC
+        LIMIT 200
+      `);
+    }
     /* Refresh at the response boundary: the joined artwork_url /
        thumbnail_url is stored as a storage ref (r2:// / supabase://),
        which clients cannot render — mint a fresh signed URL per row. */
@@ -863,6 +1332,14 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
         const itemId = String(row["item_id"]);
         const slug = String(row["artist_slug"] ?? "");
         const rawArtwork = (row["artwork_url"] as string | null) ?? null;
+        /* Receipt lines (feature #13): main + bump, re-derived from
+           the recorded sale total and bump line the same way verify
+           derived them — the two lines always sum to amountCents. */
+        const purchaseSplits = splitOrderAmounts(
+          cents,
+          Number(row["bump_amount_cents"] ?? 0) || 0,
+          PLATFORM_FEE_BPS,
+        );
         return {
           id: String(row["id"]),
           itemKind: kind,
@@ -873,6 +1350,30 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           artworkUrl: rawArtwork ? await refreshSupabaseStorageUrl(rawArtwork) : null,
           amountCents: cents,
           amount: money(cents),
+          lines: [
+            {
+              kind: "main" as const,
+              itemKind: kind,
+              itemId,
+              title: String(row["item_title"] ?? "Content"),
+              grossCents: purchaseSplits.main.grossCents,
+              platformFeeCents: purchaseSplits.main.feeCents,
+              creatorAmountCents: purchaseSplits.main.creatorCents,
+            },
+            ...(purchaseSplits.bump
+              ? [
+                  {
+                    kind: "bump" as const,
+                    itemKind: String(row["bump_item_kind"] ?? ""),
+                    itemId: String(row["bump_item_id"] ?? ""),
+                    title: String(row["bump_title"] ?? "Add-on"),
+                    grossCents: purchaseSplits.bump.grossCents,
+                    platformFeeCents: purchaseSplits.bump.feeCents,
+                    creatorAmountCents: purchaseSplits.bump.creatorCents,
+                  },
+                ]
+              : []),
+          ],
           purchasedAt: String(row["created_at"]),
           receiptId: String(row["stripe_session_id"] ?? row["id"]),
           /* Link graph: library → drop page, creator profile. A series
@@ -971,18 +1472,38 @@ router.get("/store/sales", requireAuth, async (req, res) => {
       return;
     }
     const profileId = profile.id;
-    const sales = await db.execute(sql`
-      SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
-             ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
-             COALESCE(t.title, v.title, pl.title) AS item_title
-      FROM digital_sales ds
-      LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
-      LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
-      LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
-      WHERE ds.profile_id = ${profileId}
-      ORDER BY ds.created_at DESC
-      LIMIT 500
-    `);
+    /* Bump columns ride a best-effort select, like purchases
+       (feature #13) — pre-migration the plain select is used. */
+    let sales: Awaited<ReturnType<typeof db.execute>>;
+    try {
+      sales = await db.execute(sql`
+        SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
+               ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
+               ds.bump_item_kind, ds.bump_item_id, ds.bump_title,
+               ds.bump_amount_cents, ds.bump_platform_fee_cents, ds.bump_creator_amount_cents,
+               COALESCE(t.title, v.title, pl.title) AS item_title
+        FROM digital_sales ds
+        LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
+        LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+        LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
+        WHERE ds.profile_id = ${profileId}
+        ORDER BY ds.created_at DESC
+        LIMIT 500
+      `);
+    } catch {
+      sales = await db.execute(sql`
+        SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
+               ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
+               COALESCE(t.title, v.title, pl.title) AS item_title
+        FROM digital_sales ds
+        LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
+        LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+        LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
+        WHERE ds.profile_id = ${profileId}
+        ORDER BY ds.created_at DESC
+        LIMIT 500
+      `);
+    }
     const byKind = await db.execute(sql`
       SELECT ds.item_kind,
              COUNT(*)::int AS sales,
@@ -1012,6 +1533,9 @@ router.get("/store/sales", requireAuth, async (req, res) => {
       const net = Number(row["creator_amount_cents"]);
       const kind = String(row["item_kind"]);
       const itemId = String(row["item_id"]);
+      /* Receipt lines (feature #13): recorded per-line splits ride
+         the row itself; the sale totals above stay whole-session. */
+      const saleSplits = splitOrderAmounts(gross, Number(row["bump_amount_cents"] ?? 0) || 0, PLATFORM_FEE_BPS);
       return {
         id: String(row["id"]),
         itemKind: kind,
@@ -1023,6 +1547,30 @@ router.get("/store/sales", requireAuth, async (req, res) => {
         platformFee: money(fee),
         creatorCents: net,
         creatorAmount: money(net),
+        lines: [
+          {
+            kind: "main" as const,
+            itemKind: kind,
+            itemId,
+            title: String(row["item_title"] ?? "Content"),
+            grossCents: saleSplits.main.grossCents,
+            platformFeeCents: saleSplits.main.feeCents,
+            creatorAmountCents: saleSplits.main.creatorCents,
+          },
+          ...(saleSplits.bump
+            ? [
+                {
+                  kind: "bump" as const,
+                  itemKind: String(row["bump_item_kind"] ?? ""),
+                  itemId: String(row["bump_item_id"] ?? ""),
+                  title: String(row["bump_title"] ?? "Add-on"),
+                  grossCents: saleSplits.bump.grossCents,
+                  platformFeeCents: saleSplits.bump.feeCents,
+                  creatorAmountCents: saleSplits.bump.creatorCents,
+                },
+              ]
+            : []),
+        ],
         soldAt: String(row["created_at"]),
         loggedToTracker: loggedIds.has(String(row["id"])),
         /* Link graph: every sale links back to the drop page. */
