@@ -63,9 +63,14 @@ export const BOOKING_REMINDER_LEAD_MS = 24 * 3600_000;
  *  storefront_* family the other booking pings already use. */
 export const BOOKING_REMINDER_JOB_TYPE = "storefront_booking_reminder";
 
-/** Max bookings claimed per sweep; the poller ticks every 30s, so a
- *  backlog drains quickly without one tick doing unbounded work. */
-export const BOOKING_REMINDER_BATCH = 100;
+/** Max candidate bookings scanned per sweep (oldest first, the same
+ *  500 the bookings list serves). Slot instants live in the note
+ *  trailer, so due-ness is judged in JS after decode — non-due rows
+ *  (past, far-future) occupy scan slots. At current booking volume
+ *  that is a non-issue; the real fix is the bookings lane's already-
+ *  named hardening follow-up (a service_bookings table), which would
+ *  make the lead window SQL-filterable. */
+export const BOOKING_REMINDER_BATCH = 500;
 
 /* Minimal structural runner — the real @workspace/db and the pg-mem
    test db both satisfy it (same raw-SQL convention as storefront.ts). */
