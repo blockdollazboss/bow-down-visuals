@@ -16,6 +16,13 @@ import { OutOfCreditsError, CreditsDisabledError } from "../lib/credits";
 import { bioSchema, generateBiosForUser, BIO_COST } from "./generate/bio-generator";
 import * as earnings from "./earnings";
 import { logger } from "../lib/logger";
+import {
+  WEBHOOK_EVENT_TYPES,
+  createWebhookEndpoint,
+  normalizeEventTypes,
+  toPublicEndpoint,
+  drizzleWebhookStore,
+} from "../lib/api-webhooks";
 
 const router = Router();
 
@@ -97,6 +104,111 @@ router.delete("/api-keys/:id", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "[api-keys] revoke failed");
     res.status(500).json({ error: "Failed to revoke API key." });
+  }
+});
+
+/* ═══ Webhook management — session-authed, docked in Settings → Developer
+   (Stack-100 #3 wave 3, lane 20). Same ownership model as the API keys:
+   every query is scoped to req.userId, so another creator's endpoint id
+   reads as "not found". The signing secret rides the create response
+   EXACTLY ONCE and is never stored or returned again. Until the webhook
+   migration lands these routes fail honestly (500 on create/list) and
+   event emission fails closed — nothing fires, nothing pretends to. ═══ */
+
+const createWebhookSchema = z.object({
+  url: z.string().trim().min(1).max(2048),
+  events: z.array(z.string()).min(1).max(WEBHOOK_EVENT_TYPES.length),
+});
+
+router.get("/api-webhooks", requireAuth, async (req, res) => {
+  try {
+    const rows = await drizzleWebhookStore.listEndpoints(req.userId!);
+    res.json({ webhooks: rows.map(toPublicEndpoint), availableEventTypes: WEBHOOK_EVENT_TYPES });
+  } catch (err) {
+    req.log.error({ err }, "[api-webhooks] list failed");
+    res.status(500).json({ error: "Failed to load webhooks." });
+  }
+});
+
+router.post("/api-webhooks", requireAuth, async (req, res) => {
+  const parsed = createWebhookSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_request", message: "Give the endpoint an https URL and pick at least one event type." });
+    return;
+  }
+  const events = normalizeEventTypes(parsed.data.events);
+  if (!events) {
+    res.status(400).json({
+      error: "invalid_event_type",
+      message: `Event types must come from: ${WEBHOOK_EVENT_TYPES.join(", ")}.`,
+    });
+    return;
+  }
+  try {
+    const result = await createWebhookEndpoint(req.userId!, parsed.data.url, events);
+    if (!result.ok) {
+      res.status(400).json({ error: "invalid_url", message: `That endpoint URL can't be used (${result.reason}). Webhook URLs must be https and resolve to a public address.` });
+      return;
+    }
+    // The secret rides this ONE response — never stored, never returned again.
+    res.status(201).json({ webhook: result.endpoint, secret: result.secret });
+  } catch (err) {
+    req.log.error({ err }, "[api-webhooks] create failed");
+    res.status(500).json({ error: "Failed to create webhook." });
+  }
+});
+
+router.patch("/api-webhooks/:id", requireAuth, async (req, res) => {
+  const status = (req.body as { status?: unknown } | undefined)?.status;
+  if (status !== "paused" && status !== "active") {
+    res.status(400).json({ error: "invalid_request", message: "Status must be \"paused\" or \"active\"." });
+    return;
+  }
+  try {
+    // Resume also clears the failure counter + disabled stamp: a creator
+    // who revives an auto-disabled endpoint starts from a clean slate.
+    const patch =
+      status === "active"
+        ? { status, consecutiveFailures: 0, disabledAt: null }
+        : { status };
+    const updated = await drizzleWebhookStore.updateEndpoint(req.userId!, String(req.params.id), patch);
+    if (!updated) {
+      res.status(404).json({ error: "not_found", message: "No webhook with that id belongs to you." });
+      return;
+    }
+    res.json({ updated: true, status });
+  } catch (err) {
+    req.log.error({ err }, "[api-webhooks] update failed");
+    res.status(500).json({ error: "Failed to update webhook." });
+  }
+});
+
+router.delete("/api-webhooks/:id", requireAuth, async (req, res) => {
+  try {
+    const deleted = await drizzleWebhookStore.deleteEndpoint(req.userId!, String(req.params.id));
+    if (!deleted) {
+      res.status(404).json({ error: "not_found", message: "No webhook with that id belongs to you." });
+      return;
+    }
+    res.json({ deleted: true });
+  } catch (err) {
+    req.log.error({ err }, "[api-webhooks] delete failed");
+    res.status(500).json({ error: "Failed to delete webhook." });
+  }
+});
+
+router.get("/api-webhooks/:id/deliveries", requireAuth, async (req, res) => {
+  try {
+    const owned = await drizzleWebhookStore.getEndpoint(req.userId!, String(req.params.id));
+    if (!owned) {
+      res.status(404).json({ error: "not_found", message: "No webhook with that id belongs to you." });
+      return;
+    }
+    const deliveries = await drizzleWebhookStore.listDeliveries(req.userId!, owned.id, 50);
+    res.json({ deliveries });
+  } catch (err) {
+    req.log.error({ err }, "[api-webhooks] deliveries failed");
+    res.status(500).json({ error: "Failed to load delivery history." });
   }
 });
 

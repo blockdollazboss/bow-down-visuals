@@ -15,6 +15,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { emitNewMemberWebhook } from "../../lib/api-webhooks";
 
 const router = Router();
 
@@ -542,6 +543,17 @@ router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, 
     } else {
       const [inserted] = await db.insert(fanMembersTable).values(values).returning();
       member = inserted!;
+      // Public-API webhook (lane 20): brand-new member row only (an
+      // existing-row refresh above is a renewal, not a join).
+      // Fire-and-forget — never fails or rolls back the join.
+      emitNewMemberWebhook(tier.user_id, {
+        memberId: member.id,
+        tierId,
+        fanUserId: recipientUserId,
+        status: member.status,
+        priceCents: member.price_cents,
+        billingPeriod: member.billing_period,
+      });
     }
     res.status(201).json({ free: true, membership: toMemberJson(member, tier.name) });
     return;
@@ -738,6 +750,17 @@ router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, re
     } else {
       const [inserted] = await db.insert(fanMembersTable).values(values).returning();
       member = inserted!;
+      // Public-API webhook (lane 20): brand-new paid member only (the
+      // existing-row branch above is a conversion/renewal, not a join).
+      // Fire-and-forget — never fails or rolls back the membership.
+      emitNewMemberWebhook(tier.user_id, {
+        memberId: member.id,
+        tierId,
+        fanUserId,
+        status: member.status,
+        priceCents: member.price_cents,
+        billingPeriod: member.billing_period,
+      });
     }
     if (isGift) {
       await db
@@ -801,6 +824,16 @@ router.post("/memberships/join-trial", publicApiLimiter, requireAuth, async (req
       trial_ends_at: ends,
     })
     .returning();
+  // Public-API webhook (lane 20): a trial start is a new member joining
+  // (status "trialing", price as recorded). Fire-and-forget.
+  emitNewMemberWebhook(tier.user_id, {
+    memberId: member!.id,
+    tierId: tier.id,
+    fanUserId: req.userId!,
+    status: "trialing",
+    priceCents: tier.price_cents,
+    billingPeriod: "monthly",
+  });
   res.status(201).json({
     membership: toMemberJson(member!, tier.name),
     trialDays: MEMBERSHIP_TRIAL_DAYS,

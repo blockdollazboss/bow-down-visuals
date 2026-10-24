@@ -66,6 +66,7 @@ import { logger } from "../lib/logger";
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { emitNewSaleWebhook } from "../lib/api-webhooks";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
 /* Mirror-on-save (2026-10-13 law): product media is re-hosted into
@@ -812,6 +813,29 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
       }
 
       if (!duplicate) {
+        /* Public-API webhook (lane 20): the completed order IS the
+           new-sale event. Detached lookup + fire-and-forget emit —
+           a webhook failure can never fail or roll back this sale. */
+        void (async () => {
+          try {
+            const cr = await db.execute(sql`
+              SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+            `);
+            const uid = (cr.rows[0] as Record<string, unknown> | undefined)?.["user_id"];
+            if (uid) {
+              emitNewSaleWebhook(String(uid), {
+                orderId,
+                profileId,
+                productId,
+                productTitle,
+                amountCents,
+                creatorAmountCents: creatorCents,
+                platformFeeCents: feeCents,
+              });
+            }
+          } catch { /* webhook emit must never affect the sale */ }
+        })();
+
         /* Discount usage accounting — exactly-once with the order insert. */
         if (discountCode) {
           await db.execute(sql`
@@ -1122,6 +1146,20 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
       RETURNING id
     `);
     const orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+
+    /* Public-API webhook (lane 20): a completed $0 claim is also a
+       new-sale (amountCents 0, as recorded). Fire-and-forget. */
+    if (creatorUserId) {
+      emitNewSaleWebhook(creatorUserId, {
+        orderId,
+        profileId: p.profile_id,
+        productId,
+        productTitle: p.title,
+        amountCents: 0,
+        creatorAmountCents: 0,
+        platformFeeCents: 0,
+      });
+    }
 
     /* Kind-specific fulfillment — the same notes verify records. */
     let fulfillmentNote: string;
