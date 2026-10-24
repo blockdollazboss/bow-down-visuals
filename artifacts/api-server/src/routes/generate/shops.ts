@@ -1678,6 +1678,300 @@ router.get("/storefronts/checkout/status", publicApiLimiter, async (req, res) =>
   res.json({ sessionId, ...receipt, order: receipt });
 });
 
+/* ════════════════════════════════════════════════════════════════════════
+   IN-PERSON SELLING (POS mode) — Stack-100 #3, item #28.
+
+   A POS mode inside My Shop: the seller taps products into a cart and
+   either (a) shows the customer a QR code / payment link for the total —
+   the customer pays on THEIR OWN phone through the same hosted Stripe
+   Checkout rail as an online cart — or (b) records a cash sale.
+
+   SCOPE HONESTY (hard rule): there is NO card reader and NO tap-to-pay
+   here. Real card-present hardware is Stripe Terminal, a partnership
+   step that is out of scope for this version. This is QR / payment-link
+   in-person selling only, and the UI says exactly that.
+
+   Card path discipline — deliberately identical to /storefronts/checkout:
+   amounts are computed HERE from shop_products.price_cents (the client
+   sends ids + quantities, never money); the order is recorded FIRST as
+   shop_events 'pending_sale' rows (never counted as a sale); ONE hosted
+   session covers the whole cart; the sale exists only when the paid
+   flip (POST /storefronts/checkout/verify or the central webhook, both
+   via lib/market-sale) confirms a paid session. The ruled flat-5% fee
+   (STOREFRONT_PLATFORM_FEE_BPS) comes out of the seller's cut — the
+   customer pays the listed price, exactly like an online sale, and the
+   rows land in the same shop_events records.
+   The in-person channel is marked, not disguised: the checkout group
+   id carries the `pos_` prefix (group ids are opaque grouping keys
+   everywhere they are consumed) and the Stripe session metadata
+   carries channel='in_person_qr' alongside the usual
+   type='marketplace_shop_purchase', so the existing verify/webhook
+   flip handles POS sessions unchanged.
+   Differences from the online rail, by design: the endpoint is
+   seller-authenticated and owner-scoped (a POS cart can only ever
+   contain the seller's own shop's products), and v1 takes no discount
+   code at the till.
+
+   Cash path: a cash sale never touches Stripe and the platform never
+   holds the money, so NO platform fee is taken or recorded on it. It
+   lands in the Money Tracker (money_entries) as income, category
+   'merch_sales', source 'in_person_cash', one entry per cart line —
+   honestly cash, never dressed up as a card sale, and deliberately
+   NOT a shop_events sale row (those rows feed payout settlement for
+   money the platform actually collected). */
+export const POS_CHANNEL_QR = "in_person_qr";
+export const POS_CASH_SOURCE = "in_person_cash";
+export const POS_GROUP_PREFIX = "pos_";
+
+const posItemsSchema = z.object({
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    quantity: z.number().int().min(1).max(99).default(1),
+  })).min(1).max(50),
+  /* Optional: the customer's email, used only to prefill the hosted
+     checkout (Stripe emails the receipt). Never required at a till. */
+  buyerEmail: z.string().trim().email().max(254).optional(),
+});
+
+interface PosLine {
+  productId: string;
+  name: string;
+  unitCents: number;
+  quantity: number;
+  gross: number;
+  fee: number;
+  saleId: string;
+}
+
+/** Price a POS cart from the server's own product rows — shared by the
+    QR/link checkout and the cash recorder so the two doors can never
+    disagree about a price. Paused products refuse exactly like the
+    online checkout refuses them (404 before anything is written). */
+async function pricePosCart(
+  shopId: string,
+  items: Array<{ productId: string; quantity: number }>,
+): Promise<{ ok: true; lines: PosLine[] } | { ok: false; status: number; error: string }> {
+  const wanted = new Map<string, number>();
+  for (const l of items) {
+    wanted.set(l.productId, Math.min(99, (wanted.get(l.productId) ?? 0) + l.quantity));
+  }
+  const lines: PosLine[] = [];
+  for (const [productId, quantity] of wanted) {
+    const prod = await db.execute(sql`
+      SELECT p.id, p.name, p.price_cents, p.status
+      FROM shop_products p
+      WHERE p.id = ${productId} AND p.shop_id = ${shopId}
+      LIMIT 1
+    `);
+    const product = (prod.rows as unknown as Array<{ id: string; name: string; price_cents: number; status: string }>)[0];
+    if (!product || product.status !== "active") {
+      return { ok: false, status: 404, error: "Product not found." };
+    }
+    const unitCents = Number(product.price_cents);
+    const gross = unitCents * quantity;
+    lines.push({
+      productId, name: product.name, unitCents, quantity, gross,
+      fee: Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000),
+      saleId: randomUUID(),
+    });
+  }
+  return { ok: true, lines };
+}
+
+function posTodayYmd(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/* ── POST /api/shops/:id/pos/checkout — QR / payment-link sale ────────────
+   Seller-only. Mints ONE hosted Stripe Checkout session for the cart
+   total on the existing marketplace rail and returns its URL — the
+   frontend renders that URL as a QR code and a copyable payment link.
+   The customer opens it on their own phone and pays with their card;
+   nothing about the payment itself happens on the seller's device. */
+router.post("/shops/:id/pos/checkout", publicApiLimiter, requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const parsed = posItemsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid order." });
+    return;
+  }
+  const buyerEmail = parsed.data.buyerEmail ?? "";
+
+  const priced = await pricePosCart(shop.id, parsed.data.items);
+  if (!priced.ok) {
+    res.status(priced.status).json({ error: priced.error });
+    return;
+  }
+  const lines = priced.lines;
+  const gross = lines.reduce((s, l) => s + l.gross, 0);
+  const fee = lines.reduce((s, l) => s + l.fee, 0);
+  const groupId = `${POS_GROUP_PREFIX}${randomUUID()}`;
+  const totals = {
+    gross_cents: gross,
+    platform_fee_cents: fee,
+    platform_fee_pct: PLATFORM_FEE_PCT,
+    seller_net_cents: gross - fee,
+    channel: POS_CHANNEL_QR,
+  };
+  const lineReceipts = lines.map((l) => ({
+    saleId: l.saleId, productId: l.productId, productName: l.name, quantity: l.quantity,
+    unit_cents: l.unitCents, gross_cents: l.gross,
+    platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
+  }));
+
+  /* Free cart: no card exists to charge — record the sale as paid with
+     the honest no-payment status, exactly like the online rail. */
+  if (gross <= 0) {
+    for (const l of lines) {
+      await db.execute(sql`
+        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
+        VALUES (${l.saleId}, ${shop.id}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${null})
+      `);
+    }
+    res.status(201).json({
+      saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+      status: "paid", paid: true, free: true, paymentStatus: "no_payment_required",
+      lines: lineReceipts, ...totals,
+      note: "Free items — no payment was needed, and none was taken. The sale is recorded.",
+    });
+    return;
+  }
+
+  /* Payments must be configured before any row is written, so a
+     config failure never leaves a phantom pending order behind. */
+  let stripe: ReturnType<typeof getCheckoutStripe>;
+  try {
+    stripe = getCheckoutStripe();
+  } catch {
+    res.status(503).json({ error: "Payments are not configured yet." });
+    return;
+  }
+
+  /* 1) Record the order as PENDING first (same discipline as online). */
+  for (const l of lines) {
+    await db.execute(sql`
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id, discount_code)
+      VALUES (${l.saleId}, ${shop.id}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId}, ${null})
+    `);
+  }
+
+  /* 2) Open the hosted session for the cart total. Failure = honest
+        error and the pending rows are removed (the online rail's
+        orphan rule): no session, no charge possible, no order. */
+  let session: { id: string; url: string | null };
+  try {
+    const base = checkoutBaseUrl(req);
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      ...(buyerEmail ? { customer_email: buyerEmail } : {}),
+      line_items: lines.map((l) => ({
+        price_data: {
+          currency: "usd",
+          unit_amount: l.unitCents,
+          product_data: { name: l.name, description: shop.name },
+        },
+        quantity: l.quantity,
+      })),
+      metadata: {
+        type: "marketplace_shop_purchase",
+        shop_id: shop.id,
+        checkout_group_id: groupId,
+        sale_id: lines[0]!.saleId,
+        channel: POS_CHANNEL_QR,
+        discount_code: "",
+      },
+      success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,
+    }, { idempotencyKey: `market-sale:${groupId}` });
+    if (!session.url) throw new Error("Checkout session did not return a URL");
+  } catch (err) {
+    await db.execute(sql`DELETE FROM shop_events WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'`).catch(() => {});
+    logger.error({ err, shopId: shop.id, groupId }, "[pos] checkout session failed — pending order removed");
+    res.status(502).json({ error: "Could not start checkout. Nothing was charged — try again." });
+    return;
+  }
+
+  await db.execute(sql`
+    UPDATE shop_events SET stripe_session_id = ${session.id}
+    WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'
+  `);
+  logger.info({ shopId: shop.id, groupId, sessionId: session.id, gross }, "[pos] checkout session created (order pending)");
+  res.status(201).json({
+    saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+    status: "pending_payment", paid: false, paymentStatus: "pending",
+    sessionId: session.id,
+    url: session.url, checkoutUrl: session.url, paymentLink: session.url,
+    lines: lineReceipts, ...totals,
+    testMode: isCheckoutTestMode(),
+    note: "Show the QR code or share the payment link — your customer pays on their own phone. This only counts as a sale once the payment confirms.",
+  });
+});
+
+/* ── POST /api/shops/:id/pos/cash-sale — record an in-person cash sale ───
+   Seller-only. The customer paid cash in hand: the platform never held
+   the money, so no fee is taken. One Money Tracker income entry per
+   cart line, source 'in_person_cash', so the sale shows in the money
+   tracker as exactly what it was. A $0 line is a giveaway, not a cash
+   sale, and refuses. */
+router.post("/shops/:id/pos/cash-sale", publicApiLimiter, requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const parsed = posItemsSchema.omit({ buyerEmail: true }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid cash sale." });
+    return;
+  }
+  const priced = await pricePosCart(shop.id, parsed.data.items);
+  if (!priced.ok) {
+    res.status(priced.status).json({ error: priced.error });
+    return;
+  }
+  const lines = priced.lines;
+  if (lines.some((l) => l.gross <= 0)) {
+    res.status(400).json({ error: "Free products have nothing to record as a cash sale." });
+    return;
+  }
+  const entryDate = posTodayYmd();
+  const entries: Array<Record<string, unknown>> = [];
+  try {
+    for (const l of lines) {
+      const note = `In-person cash sale — ${l.name} ×${l.quantity}`.slice(0, 280);
+      const inserted = await db.execute(sql`
+        INSERT INTO money_entries (id, user_id, entry_type, category, amount_cents, note, source, entry_date)
+        VALUES (${randomUUID()}, ${req.userId!}, 'income', 'merch_sales', ${l.gross}, ${note}, ${POS_CASH_SOURCE}, ${entryDate})
+        RETURNING id, amount_cents, category, source, entry_date
+      `);
+      const row = (inserted.rows as unknown as Array<Record<string, unknown>>)[0];
+      if (row) entries.push({ ...row, productId: l.productId, productName: l.name, quantity: l.quantity });
+    }
+  } catch (err) {
+    logger.error({ err, shopId: shop.id }, "[pos] cash sale record failed");
+    res.status(500).json({ error: "Could not record the cash sale." });
+    return;
+  }
+  const gross = lines.reduce((s, l) => s + l.gross, 0);
+  logger.info({ shopId: shop.id, gross, lines: lines.length }, "[pos] cash sale recorded to money tracker");
+  res.status(201).json({
+    recorded: true,
+    channel: POS_CASH_SOURCE,
+    entries,
+    gross_cents: gross,
+    platform_fee_cents: 0,
+    seller_net_cents: gross,
+    note: "Recorded in your Money Tracker as in-person cash. No platform fee on cash — the money is already in your hand.",
+  });
+});
+
 /* ── POST /api/storefronts/:id/domain — attach a custom domain (Pro+) ────── */
 const domainSchema = z.object({
   domain: z.string().trim().min(4).max(253),

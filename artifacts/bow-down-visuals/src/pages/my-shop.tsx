@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import PosMode from "@/components/PosMode";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
 import { useTranslation } from "react-i18next";
 
@@ -601,6 +602,10 @@ export default function MyShop() {
 
                   <DomainManager shop={activeShop} authed={authed} onUpdate={setActiveShop} />
                 </section>
+
+                {/* Sell in person (POS mode) — QR / payment-link till +
+                    cash recorder, docked in My Shop (Stack-100 #3 #28). */}
+                <PosMode key={activeShop.id} shop={activeShop} products={products} authed={authed} />
 
                 {/* products */}
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
