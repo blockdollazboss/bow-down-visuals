@@ -1,5 +1,5 @@
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 /**
  * Character co-stars — automatic pull-in for generation.
@@ -54,10 +54,19 @@ export async function buildCoStarContext(
 
     const blocks: string[] = [];
     for (const link of links) {
+      /* Soft-deleted characters are never cast: vault deletion is a
+         soft delete (deleted_at) and links survive it, so the linked
+         vault must be filtered here or a deleted co-star keeps being
+         pulled into every generation. */
       const [vault] = await db
         .select()
         .from(artistVaultsTable)
-        .where(eq(artistVaultsTable.id, link.linked_character_id));
+        .where(
+          and(
+            eq(artistVaultsTable.id, link.linked_character_id),
+            isNull(artistVaultsTable.deleted_at),
+          ),
+        );
       if (vault) blocks.push(describeCharacter(vault, link.role));
     }
     if (blocks.length === 0) return "";
