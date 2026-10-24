@@ -74,16 +74,19 @@ describe("FIXTURE_BODIES — the live slots and facing", () => {
     expect(KING_FIXTURE_HEIGHT).toBeGreaterThan(DEFAULT_FIGURE_HEIGHT);
   });
 
-  it("carries the proof stage's facing verdicts (female statue's front is +X)", () => {
+  it("carries the LIVE scene's facing verdict (every body's front is +Z)", () => {
+    /* Settled by the first rig capture, Oct 24: at the proof stage's
+     * claimed -90° the female stood in full profile in the live
+     * plaza; the male at 0° faced the camera. See guard-fixtures.ts. */
     expect(FIXTURE_BODIES["guard-male"].rawRotY).toBe(0);
-    expect(FIXTURE_BODIES["guard-female"].rawRotY).toBeCloseTo(-Math.PI / 2, 10);
+    expect(FIXTURE_BODIES["guard-female"].rawRotY).toBe(0);
     expect(FIXTURE_BODIES.king.rawRotY).toBe(0);
   });
 
   it("composes post + raw rotation", () => {
     const female = WORLD_FIXTURES.find((f) => f.id === "hall-guard-female")!;
     const male = WORLD_FIXTURES.find((f) => f.id === "hall-guard-male")!;
-    expect(fixtureRotY(female)).toBeCloseTo(-Math.PI / 2, 10);
+    expect(fixtureRotY(female)).toBe(0);
     expect(fixtureRotY(male)).toBe(0);
   });
 });

@@ -38,14 +38,15 @@ export interface FixtureBodyDef {
   /** Standing height the raw body is scaled to, metres. */
   height: number;
   /**
-   * Y rotation that turns the RAW body to face +Z. The raw TRELLIS
-   * outputs do not agree with each other: the male guard's front is
-   * already +Z (the proof stage's judged front at rotY 0, camera on
-   * +Z — world-3d-proof/showdown.ts); the female statue's front is
-   * +X, so she takes -90°. The King's v3 body comes from the same
-   * front-sheet family as the male guard and takes 0 — confirmed
-   * against the preview-rig capture in .lane/proof/ (if he ever
-   * reads backwards, THIS constant is the whole fix).
+   * Y rotation that turns the RAW body to face +Z. All three bodies'
+   * fronts are +Z as exported — settled by the LIVE scene, not the
+   * proof stage: the first rig capture (.lane/proof/, Oct 24) stood
+   * the female guard in full profile (snout + tail sideways) under
+   * the -90° the proof notes claimed she needed, while the male at
+   * 0° faced the camera square. The proof stage's facing notes were
+   * written against an earlier body in the same slot and never
+   * re-verified after the v6 swap. If a future body reads wrong in
+   * the live frame, THIS constant is the whole fix.
    */
   rawRotY: number;
 }
@@ -64,7 +65,7 @@ export const FIXTURE_BODIES: Readonly<Record<FixtureBodyId, FixtureBodyDef>> = {
     id: "guard-female",
     glbPath: "/world/guard-gen-female.glb",
     height: DEFAULT_FIGURE_HEIGHT,
-    rawRotY: -Math.PI / 2,
+    rawRotY: 0,
   },
   king: {
     id: "king",
