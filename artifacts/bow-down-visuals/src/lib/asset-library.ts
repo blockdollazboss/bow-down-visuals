@@ -39,7 +39,13 @@ export interface ProvenanceRecord {
   creator: { id: string; name: string | null };
   createdWith: { tool: string; model: string | null; platform: string };
   createdAt: string; // ISO
+  /** True only when AI generation is proven by stored data. */
   aiGenerated: boolean;
+  /** Honest AI-involvement state: "ai" = proven by a generation record
+      (directly or via a hub entry linked by URL); "unknown" = no
+      generation record is stored, so AI is neither confirmed nor ruled
+      out. Never render "unknown" as "no AI". */
+  aiInvolvement: "ai" | "unknown";
   editHistory: string[];
   licence: LicenceId;
   disclosureDefaultEnabled: boolean;

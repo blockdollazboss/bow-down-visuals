@@ -308,6 +308,10 @@ export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 export async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<void> {
   const blob = await canvasToBlob(canvas);
+  downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -316,4 +320,127 @@ export async function downloadCanvas(canvas: HTMLCanvasElement, filename: string
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/* ─── AI-disclosure PNG stamp (Stack-100 #3 lane F7 kit, more-provenance) ──
+   Carousel slides are rendered HERE (canvas → PNG in the browser); the PNG
+   bytes never pass through the server, so this is where the disclosure is
+   stamped. The format is the kit's format — the same XMP packet the
+   server stamper (api-server lib/disclosure-metadata.ts) writes, carried
+   in a PNG iTXt chunk ("XML:com.adobe.xmp") right after IHDR, with the
+   chunk CRC32 the PNG spec requires. Metadata only: pixels are untouched.
+   The disclosure text/tool come from the server's /carousel/export
+   response, so the words are stated in exactly one place. */
+export interface CarouselDisclosure {
+  text: string;
+  tool: string;
+  title?: string;
+  creator?: string | null;
+}
+
+function xmlEscape(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function buildCarouselXmpPacket(info: CarouselDisclosure): string {
+  const title = info.title ? xmlEscape(info.title) : "";
+  const creator = info.creator ? xmlEscape(info.creator) : "";
+  return (
+    `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Bow Down Visuals">` +
+    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+    `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/">` +
+    (title ? `<dc:title><rdf:Alt><rdf:li xml:lang="x-default">${title}</rdf:li></rdf:Alt></dc:title>` : "") +
+    (creator ? `<dc:creator><rdf:Seq><rdf:li>${creator}</rdf:li></rdf:Seq></dc:creator>` : "") +
+    `<dc:description><rdf:Alt><rdf:li xml:lang="x-default">${xmlEscape(info.text)}</rdf:li></rdf:Alt></dc:description>` +
+    `<photoshop:Credit>Bow Down Visuals</photoshop:Credit>` +
+    `<xmp:CreatorTool>${xmlEscape(info.tool)}</xmp:CreatorTool>` +
+    `</rdf:Description></rdf:RDF></x:xmpmeta>`
+  );
+}
+
+const CRC_TABLE = (() => {
+  const table = new Int32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c;
+  }
+  return table;
+})();
+
+export function crc32Bytes(bytes: Uint8Array): number {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]!) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/** Inject the disclosure XMP into PNG bytes as an iTXt chunk after IHDR.
+    Returns null when the bytes are not a PNG (the caller then ships the
+    original and reports stamp_failed — a failed stamp never blocks the
+    export). */
+export function injectXmpIntoPngBytes(bytes: Uint8Array, xmp: string): Uint8Array | null {
+  if (bytes.length < 33 || !PNG_SIGNATURE.every((b, i) => bytes[i] === b)) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const ihdrLen = view.getUint32(8);
+  const ihdrEnd = 8 + 12 + ihdrLen;
+  if (ihdrEnd > bytes.length) return null;
+  const keyword = new TextEncoder().encode("XML:com.adobe.xmp");
+  const xmpBytes = new TextEncoder().encode(xmp);
+  const data = new Uint8Array(keyword.length + 3 + 1 + 1 + xmpBytes.length);
+  data.set(keyword, 0);
+  /* null separator, compression flag 0, method 0; empty language tag + null;
+     empty translated keyword + null — same layout as the server stamper. */
+  data.set(xmpBytes, keyword.length + 5);
+  const chunk = new Uint8Array(12 + data.length);
+  const chunkView = new DataView(chunk.buffer);
+  chunkView.setUint32(0, data.length);
+  chunk.set(new TextEncoder().encode("iTXt"), 4);
+  chunk.set(data, 8);
+  chunkView.setUint32(8 + data.length, crc32Bytes(chunk.subarray(4, 8 + data.length)));
+  const out = new Uint8Array(bytes.length + chunk.length);
+  out.set(bytes.subarray(0, ihdrEnd), 0);
+  out.set(chunk, ihdrEnd);
+  out.set(bytes.subarray(ihdrEnd), ihdrEnd + chunk.length);
+  return out;
+}
+
+export async function stampPngBlobWithDisclosure(
+  blob: Blob,
+  info: CarouselDisclosure,
+): Promise<{ blob: Blob; applied: boolean }> {
+  try {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const stamped = injectXmpIntoPngBytes(bytes, buildCarouselXmpPacket(info));
+    if (!stamped) return { blob, applied: false };
+    return { blob: new Blob([stamped.buffer as ArrayBuffer], { type: "image/png" }), applied: true };
+  } catch {
+    return { blob, applied: false };
+  }
+}
+
+export type CarouselDownloadDisclosureState = "embedded" | "off" | "stamp_failed";
+
+/** Render → (stamp) → download one slide. Returns the honest disclosure
+    state: "off" when no disclosure was requested, "stamp_failed" when the
+    stamp could not be applied (the unstamped slide still downloads — a
+    failed stamp never fails the export). */
+export async function downloadCarouselSlide(
+  canvas: HTMLCanvasElement,
+  filename: string,
+  disclosure: CarouselDisclosure | null,
+): Promise<CarouselDownloadDisclosureState> {
+  const raw = await canvasToBlob(canvas);
+  if (!disclosure) {
+    downloadBlob(raw, filename);
+    return "off";
+  }
+  const { blob, applied } = await stampPngBlobWithDisclosure(raw, disclosure);
+  downloadBlob(blob, filename);
+  return applied ? "embedded" : "stamp_failed";
 }

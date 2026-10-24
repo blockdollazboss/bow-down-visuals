@@ -7063,6 +7063,7 @@
       "madeWith": "Erstellt mit",
       "madeBy": "von {{name}}",
       "aiBadge": "KI-generiert",
+      "aiUnknown": "KI-Beteiligung nicht aufgezeichnet",
       "licence": "Lizenz",
       "saveLicence": "Speichern",
       "licenceSaved": "Gespeichert",

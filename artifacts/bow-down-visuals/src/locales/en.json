@@ -7622,6 +7622,7 @@
       "madeWith": "Made with",
       "madeBy": "by {{name}}",
       "aiBadge": "AI-generated",
+      "aiUnknown": "AI involvement not recorded",
       "licence": "Licence",
       "saveLicence": "Save",
       "licenceSaved": "Saved",
