@@ -23,6 +23,7 @@ import {
   type ShopifyImportResultDTO, type ShopifyExportKind,
 } from "@/lib/storefront-api";
 import PromoteButton from "@/components/storefront/PromoteButton";
+import CourseBuilderPanel from "@/components/courses/CourseBuilderPanel";
 import {
   allSectionsFailed, initialSectionStates, markSectionLoading, sectionsToRefetch, settleSection,
   type SectionStates,
@@ -66,7 +67,10 @@ type Tab = "overview" | "products" | "orders" | "discounts";
    (absorbed from /music-sales) · Royalties (link to the dedicated page). */
 type Surface = "storefront" | "digital";
 
-const KIND_STARTING_PRICE: Record<StoreProductKind, number> = {
+/* No 'course' entry on purpose: a course price is ALWAYS the
+   creator's own, typed in the Course Builder below — never a
+   suggested starting price. */
+const KIND_STARTING_PRICE: Record<Exclude<StoreProductKind, "course">, number> = {
   digital: 999, download: 499, merch: 2999, service: 9900, ticket: 2500,
 };
 
@@ -445,7 +449,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
   useEffect(() => { load(); }, [load, retryNonce]);
 
   const aiStartingPrice = () => {
-    setForm((f) => ({ ...f, priceDollars: (KIND_STARTING_PRICE[f.kind] / 100).toFixed(2) }));
+    const starting = KIND_STARTING_PRICE[form.kind as keyof typeof KIND_STARTING_PRICE] as number | undefined;
+    if (starting === undefined) return; /* courses: priced by the creator in the Course Builder, never suggested */
+    setForm((f) => ({ ...f, priceDollars: (starting / 100).toFixed(2) }));
   };
 
   const submit = async () => {
@@ -553,7 +559,10 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
           {/* 2-3★: guided */}
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-min-stars="2">
             <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
-              {(Object.keys(KIND_LABELS) as StoreProductKind[]).map((k) => (
+              {/* 'course' is not listed here on purpose: a course needs
+                  a curriculum, so it is created in the Course Builder
+                  docked below this tab — never as a bare product. */}
+              {(Object.keys(KIND_LABELS) as StoreProductKind[]).filter((k) => k !== "course").map((k) => (
                 <option key={k} value={k}>{KIND_EMOJI[k]} {KIND_LABELS[k]}</option>
               ))}
             </select>
@@ -1220,6 +1229,7 @@ export default function StoreDashboard() {
             </div>
           )}
           {tab === "products" && <ProductsTab slug={slug} onChanged={load} />}
+          {tab === "products" && <CourseBuilderPanel />}
           {tab === "products" && (
             <div className="mt-5">
               <ShopifyBridgeCard onImported={load} />

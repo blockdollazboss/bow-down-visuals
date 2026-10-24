@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
 import { usePageTitle } from "@/hooks/use-page-title";
+import CourseOutline from "@/components/courses/CourseOutline";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
    The landing page for one store product (downloads, merch, digital
@@ -23,6 +24,7 @@ export const PRODUCT_KIND_LABELS: Record<string, string> = {
   digital: "Digital product",
   service: "Service",
   ticket: "Ticket",
+  course: "Course",
 };
 
 interface ProductData {
@@ -378,6 +380,8 @@ export default function StorefrontProduct() {
               ) : (
                 <>
                   <div className="mt-6 flex flex-wrap items-center gap-3">
+                    {/* A course is one unlock per buyer — no quantity picker. */}
+                    {data.product.kind !== "course" && (
                     <div className="inline-flex items-center rounded-full border border-amber-500/30">
                       <button
                         type="button"
@@ -399,6 +403,7 @@ export default function StorefrontProduct() {
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>
+                    )}
                     <input
                       value={discountCode}
                       onChange={(e) => setDiscountCode(e.target.value)}
@@ -425,6 +430,12 @@ export default function StorefrontProduct() {
               </div>
             </div>
           </div>
+        )}
+        {/* A course's sales page carries its curriculum outline: the
+            full structure + drip schedule + free preview, with lesson
+            content enforced server-side (never in this page's payload). */}
+        {data && data.product.kind === "course" && (
+          <CourseOutline productId={data.product.id} />
         )}
       </div>
     </div>
