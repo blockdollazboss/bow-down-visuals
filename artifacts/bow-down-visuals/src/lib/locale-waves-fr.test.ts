@@ -892,6 +892,7 @@ const W6_LEGIT = new Set([
   "videoEditor.motionTrack.costChip",
   "videoEditor.myLibrary.filterAudio",
   "videoEditor.myLibrary.filterImage",
+  "videoEditor.myLibrary.licence",
   "videoEditor.pipTitle",
   "videoEditor.railAudio",
   "videoEditor.railExport",
