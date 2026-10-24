@@ -4547,7 +4547,7 @@
     "specialInstructionsPlaceholder": "कोई भी अतिरिक्त विवरण — references, विशिष्ट themes, जिन चीज़ों से बचना है, cultural notes...",
     "subtitle": "अपनी अगली release के लिए lyrics, hooks, verses, beat direction, vocal style और AI music prompts बनाएं।",
     "title": "गाना बनाएं",
-    "usesCredits": "प्रति generation 100 Visual Bucs उपयोग करता है",
+    "usesCredits": "प्रति generation 400 Visual Bucs उपयोग करता है",
     "voiceStyleHint": "Artist कैसा लगता है? e.g. deep and raspy, high melodic, aggressive, smooth।",
     "voiceStyleLabel": "वॉइस स्टाइल",
     "voiceStylePlaceholder": "उदा. गहरा, कर्कश, मधुर, आक्रामक, मुलायम...",
