@@ -44,6 +44,12 @@ export interface StoreProductDTO {
   isActive: boolean;
   createdAt: string;
   links: ProductLinks;
+  /* Creator Product Affiliates (#16): the creator-set per-product
+     affiliate switch + commission (bps of the creator's cut, and its
+     display %). Optional: older payloads may not carry them. */
+  affiliatesEnabled?: boolean;
+  affiliateCommissionBps?: number | null;
+  affiliateCommissionPct?: string | null;
 }
 
 /* Removed 2026-10-10: FeeSplit was only used by dead getProduct. */
@@ -106,6 +112,10 @@ export interface CreateProductInput {
   eventId?: string | null;
   relatedLinks?: RelatedLink[];
   isActive?: boolean;
+  /* #16: creator-set affiliate switch + commission bps (required by the
+     server when the switch is on — the % is never invented). */
+  affiliateEnabled?: boolean;
+  affiliateCommissionBps?: number | null;
 }
 
 const BASE = "/api/storefront";

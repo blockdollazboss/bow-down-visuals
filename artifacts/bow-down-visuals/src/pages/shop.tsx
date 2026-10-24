@@ -227,6 +227,12 @@ export default function ShopStorefront() {
           items: cartDetailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
           ...(appliedCode ? { discountCode: appliedCode.code } : discountInput.trim() ? { discountCode: discountInput.trim() } : {}),
+          /* #16: a fan's share link lands on this shop with ?ref=CODE —
+             pass it through so the sale attributes to them. The server
+             validates it against the cart; it never changes the price. */
+          ...(new URLSearchParams(window.location.search).get("ref")?.trim()
+            ? { affiliateCode: new URLSearchParams(window.location.search).get("ref")!.trim() }
+            : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));

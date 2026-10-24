@@ -43,6 +43,11 @@ interface Product {
      for buyers but stay fully visible here so the seller can resume
      them. Buyer reads never carry this. */
   status: "active" | "paused";
+  /* Creator Product Affiliates (#16, migration 0205): the creator-set
+     per-product affiliate switch + commission rate (bps of the seller's
+     cut). Buyer reads carry them as the published offer. */
+  affiliate_enabled?: boolean;
+  affiliate_commission_bps?: number | null;
 }
 
 const inputClass =
@@ -101,6 +106,10 @@ export default function MyShop() {
   const [pPrice, setPPrice] = useState("");
   const [pDesc, setPDesc] = useState("");
   const [pImageUrl, setPImageUrl] = useState("");
+  /* #16 affiliates: fan-resale switch + the commission % I choose to pay
+     (of MY cut — never added to the buyer's price). */
+  const [pAffiliates, setPAffiliates] = useState(false);
+  const [pAffiliatePct, setPAffiliatePct] = useState("");
   const [pSaving, setPSaving] = useState(false);
   const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
@@ -273,6 +282,7 @@ export default function MyShop() {
   function openNewProduct() {
     setEditingProduct(null);
     setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setImageStyleHint("");
+    setPAffiliates(false); setPAffiliatePct("");
     setShowProductForm(true);
   }
 
@@ -282,6 +292,8 @@ export default function MyShop() {
     setPPrice((p.price_cents / 100).toFixed(2));
     setPDesc(p.description ?? "");
     setPImageUrl(p.image_url ?? "");
+    setPAffiliates(p.affiliate_enabled === true);
+    setPAffiliatePct(p.affiliate_commission_bps != null ? String(p.affiliate_commission_bps / 100) : "");
     setImageStyleHint("");
     setShowProductForm(true);
   }
@@ -314,6 +326,17 @@ export default function MyShop() {
     const cents = dollarsToCents(pPrice);
     if (!pName.trim()) { setError(t("myShop.productNameRequired")); return; }
     if (cents === null) { setError(t("myShop.validPriceRequired")); return; }
+    /* #16: an affiliate % is the creator's own number — required when the
+       switch is on, 0 < % ≤ 100 of my cut. Never invented here. */
+    let affiliateBps: number | null = null;
+    if (pAffiliates) {
+      const pct = Number(pAffiliatePct);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+        setError("Set the commission you'll pay affiliates — a % of your cut, between 0 and 100.");
+        return;
+      }
+      affiliateBps = Math.round(pct * 100);
+    }
     setPSaving(true);
     setError(null);
     try {
@@ -322,6 +345,8 @@ export default function MyShop() {
         price_cents: cents,
         description: pDesc.trim(),
         image_url: pImageUrl.trim(),
+        affiliate_enabled: pAffiliates,
+        affiliate_commission_bps: affiliateBps,
       };
       const url = editingProduct
         ? `/api/shops/${activeShop.id}/products/${editingProduct.id}`
@@ -667,6 +692,35 @@ export default function MyShop() {
                           value={pImageUrl} onChange={(e) => setPImageUrl(e.target.value)}
                           placeholder={t("myShop.imageUrlPlaceholder")}
                         />
+                      </div>
+                      {/* #16: Creator Product Affiliates — docked in the product settings. */}
+                      <div className={`mt-4 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF3DC]/70" : "border-white/10 bg-black/30"}`}>
+                        <label className="flex cursor-pointer items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={pAffiliates}
+                            onChange={(e) => setPAffiliates(e.target.checked)}
+                            className="h-4 w-4 accent-amber-400"
+                          />
+                          <span className="text-sm font-semibold">Let fans resell this product (affiliates)</span>
+                        </label>
+                        <p className="mt-1 text-xs text-white/45">
+                          Fans get a share link from the Earnings page. When someone buys through it, they earn the commission
+                          you set — paid out of <em>your</em> cut, never added to the buyer&apos;s price. The 5% platform fee doesn&apos;t change.
+                        </p>
+                        {pAffiliates && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <label className="text-xs font-semibold text-white/50">Commission you pay</label>
+                            <input
+                              className="w-24 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none"
+                              value={pAffiliatePct}
+                              onChange={(e) => setPAffiliatePct(e.target.value)}
+                              placeholder="10"
+                              inputMode="decimal"
+                            />
+                            <span className="text-sm text-white/60">% of your cut</span>
+                          </div>
+                        )}
                       </div>
                       <div className="mt-4 flex gap-3">
                         <button className={goldBtn} onClick={saveProduct} disabled={pSaving}>

@@ -401,6 +401,65 @@ function ConnectPayoutCard() {
   );
 }
 
+/* ── #16: per-product affiliate cell ─────────────────────────────────────
+   The creator's fan-resale switch for an EXISTING product, living in the
+   product row where the product is managed. Saving rides the same
+   PATCH /storefront/products/:id the rest of the row uses; the server
+   refuses to enable without a stored rate, and that refusal shows here. */
+function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToken: () => Promise<string>; onChanged: () => void }) {
+  const [pct, setPct] = useState(p.affiliateCommissionBps != null ? String(p.affiliateCommissionBps / 100) : "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const enabled = p.affiliatesEnabled === true;
+
+  const save = async (nextEnabled: boolean) => {
+    setMsg("");
+    let bps: number | null = p.affiliateCommissionBps ?? null;
+    if (nextEnabled) {
+      const v = Number(pct);
+      if (!Number.isFinite(v) || v <= 0 || v > 100) { setMsg("Set a % first (0–100 of your cut)."); return; }
+      bps = Math.round(v * 100);
+    }
+    setBusy(true);
+    try {
+      const token = await getToken();
+      await updateProduct(token, p.id, { affiliateEnabled: nextEnabled, affiliateCommissionBps: bps });
+      onChanged();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't save.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="min-w-[150px]">
+      {enabled ? (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+            Affiliates {p.affiliateCommissionPct ?? ""}
+          </span>
+          <button onClick={() => save(false)} disabled={busy} className="text-[10px] font-bold text-white/40 underline hover:text-white">Off</button>
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5">
+          <input
+            value={pct}
+            onChange={(e) => setPct(e.target.value)}
+            placeholder="%"
+            inputMode="decimal"
+            className="w-14 rounded border border-white/15 bg-black/40 px-2 py-1 text-xs text-white"
+          />
+          <button onClick={() => save(true)} disabled={busy} className="rounded-full border border-amber-400/40 px-2.5 py-1 text-[10px] font-black uppercase text-amber-300 hover:bg-amber-400/10">
+            Let fans resell
+          </button>
+        </span>
+      )}
+      {msg && <p className="mt-1 text-[10px] text-red-400">{msg}</p>}
+    </div>
+  );
+}
+
 /* ── Products tab ────────────────────────────────────────────────────── */
 function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void }) {
   const isLight = useIsLightTheme();
@@ -430,6 +489,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     location: "",
     calendarLink: "",
     eventId: "",
+    /* #16 affiliates: fan-resale switch + my chosen commission %. */
+    affiliatesEnabled: false,
+    affiliatePct: "",
   });
 
   const load = useCallback(async () => {
@@ -455,6 +517,14 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     /* $0 is a real price here: a free lead magnet (0190) — fans claim
        it with their email instead of checking out. Negative isn't. */
     if (!Number.isFinite(cents) || cents < 0) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
+    /* #16: the commission is the creator's own number — required when
+       affiliates are on, never invented. */
+    let affiliateBps: number | null = null;
+    if (form.affiliatesEnabled) {
+      const pct = Number(form.affiliatePct);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) { setErr("Set the commission you'll pay affiliates — a % of your cut, between 0 and 100."); return; }
+      affiliateBps = Math.round(pct * 100);
+    }
     setBusy(true);
     try {
       const token = await getToken();
@@ -475,10 +545,12 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         } : null,
         eventId: form.kind === "ticket" && form.eventId.trim() ? form.eventId.trim() : null,
         isActive: true,
+        affiliateEnabled: form.affiliatesEnabled,
+        affiliateCommissionBps: affiliateBps,
       };
       await createProduct(token, input);
       setShowForm(false);
-      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "" });
+      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "" });
       await load();
       onChanged();
     } catch (e) {
@@ -586,6 +658,36 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             )}
           </div>
 
+          {/* #16: Creator Product Affiliates — docked in the product form. */}
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={form.affiliatesEnabled}
+                onChange={(e) => setForm({ ...form, affiliatesEnabled: e.target.checked })}
+                className="h-4 w-4 accent-amber-400"
+              />
+              <span className="text-sm font-bold text-white">Let fans resell this product (affiliates)</span>
+            </label>
+            <p className="mt-1 text-[11px] text-white/45">
+              Fans grab a share link from their Earnings page. Sales through it pay them the commission you set —
+              out of <em>your</em> cut, never added to the buyer&apos;s price. The 5% platform fee doesn&apos;t change.
+            </p>
+            {form.affiliatesEnabled && (
+              <div className="mt-3 flex items-center gap-2">
+                <label className="text-xs font-semibold text-white/50">Commission you pay</label>
+                <input
+                  value={form.affiliatePct}
+                  onChange={(e) => setForm({ ...form, affiliatePct: e.target.value })}
+                  placeholder="10"
+                  inputMode="decimal"
+                  className="w-24 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                />
+                <span className="text-sm text-white/60">% of your cut</span>
+              </div>
+            )}
+          </div>
+
           <div className="mt-4 flex gap-2">
             <button
               onClick={submit} disabled={busy}
@@ -633,6 +735,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3" data-min-stars="4">Inventory</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Affiliates</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -677,6 +780,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                     <button onClick={() => toggleActive(p)} className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${p.isActive ? "bg-green-500/15 text-green-300" : "bg-white/10 text-white/40"}`}>
                       {p.isActive ? "Live" : "Draft"}
                     </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <AffiliateCell p={p} getToken={getToken} onChanged={load} />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <PromoteButton product={p} />
