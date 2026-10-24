@@ -45,6 +45,21 @@
  * bucket, then the shipped same-origin copies, then the public
  * CDN/GitHub — and importScripts/fetch inside a worker may run
  * cross-origin exactly like the page's classic script loads did.
+ *
+ * INIT HARDENING (Stack-100 #3, Lane C): init used to lock onto
+ * the first base whose runtime SCRIPT loaded, then try sessions
+ * only under it — a base with a good script and a poisoned or
+ * unreachable session path bricked the whole init even with good
+ * copies elsewhere, and a single session create could hang
+ * forever (a WebGPU compile that never returns on a phone),
+ * eating the caller's entire init budget. Now init makes a FULL
+ * attempt per base (script, then the provider × model session
+ * chain for that base) and moves to the next base when a base's
+ * chain fails outright; every session create races
+ * CREATE_DEADLINE_MS, and a create that resolves after losing
+ * its race is released, never adopted. The assets are the same
+ * version-pinned vendored build at every base, so a later base's
+ * WASM may serve a runtime script an earlier base loaded.
  */
 
 var RVM_STEPS = [
@@ -87,60 +102,99 @@ function webgpuAdapterAvailable() {
   );
 }
 
-function init(msg) {
-  var lastErr = null;
-  var base = null;
-  var bases = msg.ortBases || [];
-  for (var i = 0; i < bases.length; i++) {
+/* One session create may take this long before it counts as
+   failed and the chain moves on (next model URL, next provider,
+   next runtime base). See the INIT HARDENING note at the top. */
+var CREATE_DEADLINE_MS = 10000;
+
+function createSession(url, provider) {
+  var create = ort.InferenceSession.create(url, { executionProviders: [provider] });
+  var deadline = new Promise(function (_resolve, reject) {
+    setTimeout(function () {
+      reject(new Error("Session create timed out (" + provider + ")"));
+    }, CREATE_DEADLINE_MS);
+  });
+  return Promise.race([create, deadline]).then(
+    function (created) {
+      return created;
+    },
+    function (err) {
+      /* A create that resolves AFTER losing its race is released,
+         never adopted — the chain has already moved on. */
+      create.then(
+        function (late) {
+          if (late && typeof late.release === "function") {
+            late.release().catch(function () {
+              /* already released */
+            });
+          }
+        },
+        function () {
+          /* the failure is already reported */
+        },
+      );
+      throw err;
+    },
+  );
+}
+
+/* One full init attempt under one runtime base: load the runtime
+   script from it (unless an earlier base already loaded it — the
+   vendored build is identical at every base), point the WASM
+   assets at it, then walk provider × model until a session
+   stands. Resolves true when a session was created and "ready"
+   posted; false when this base's chain failed outright and the
+   next base deserves its attempt. */
+function attemptBase(base, modelUrls, threads, webgpu) {
+  if (!self.ort) {
     try {
-      importScripts(bases[i] + "/ort.all.min.js");
-      if (self.ort) {
-        base = bases[i];
-        break;
-      }
-      lastErr = new Error("ONNX runtime script loaded but the global is missing");
+      importScripts(base + "/ort.all.min.js");
     } catch (err) {
-      lastErr = err;
+      return Promise.resolve(false);
     }
   }
-  if (!self.ort || !base) {
-    self.postMessage({
-      type: "init-error",
-      message: "The Pro background engine could not be loaded.",
-    });
-    return Promise.resolve();
-  }
+  if (!self.ort) return Promise.resolve(false);
   ort = self.ort;
   ort.env.logLevel = "warning";
   ort.env.wasm.wasmPaths = base + "/";
-  ort.env.wasm.numThreads = Math.max(1, Math.min(4, msg.threads || 1));
-
-  return webgpuAdapterAvailable().then(function (webgpu) {
-    var providers = [];
-    if (webgpu) providers.push("webgpu");
-    providers.push("wasm");
-    var chain = Promise.resolve();
-    var done = false;
-    providers.forEach(function (provider) {
-      (msg.modelUrls || []).forEach(function (url) {
-        chain = chain.then(function () {
-          if (done) return undefined;
-          return ort.InferenceSession.create(url, { executionProviders: [provider] }).then(
-            function (created) {
-              session = created;
-              states = null;
-              done = true;
-              self.postMessage({ type: "ready", provider: provider });
-            },
-            function (err) {
-              lastErr = err;
-              session = null;
-            },
-          );
-        });
+  ort.env.wasm.numThreads = Math.max(1, Math.min(4, threads || 1));
+  var providers = [];
+  if (webgpu) providers.push("webgpu");
+  providers.push("wasm");
+  var chain = Promise.resolve(false);
+  providers.forEach(function (provider) {
+    modelUrls.forEach(function (url) {
+      chain = chain.then(function (done) {
+        if (done) return true;
+        return createSession(url, provider).then(
+          function (created) {
+            session = created;
+            states = null;
+            self.postMessage({ type: "ready", provider: provider });
+            return true;
+          },
+          function () {
+            return false;
+          },
+        );
       });
     });
-    return chain.then(function () {
+  });
+  return chain;
+}
+
+function init(msg) {
+  var bases = msg.ortBases || [];
+  var modelUrls = msg.modelUrls || [];
+  return webgpuAdapterAvailable().then(function (webgpu) {
+    var chain = Promise.resolve(false);
+    bases.forEach(function (base) {
+      chain = chain.then(function (done) {
+        if (done) return true;
+        return attemptBase(base, modelUrls, msg.threads, webgpu);
+      });
+    });
+    return chain.then(function (done) {
       if (!done) {
         self.postMessage({
           type: "init-error",

@@ -11,7 +11,7 @@
  * Network-first for API + navigations.
  * Bump CACHE_VERSION to force clients onto fresh assets after a deploy.
  */
-const CACHE_VERSION = "bdv-v4";
+const CACHE_VERSION = "bdv-v5";
 const STATIC_CACHE = `bdv-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 
