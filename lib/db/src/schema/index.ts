@@ -105,6 +105,7 @@ export * from "./creator-shorts";
 export * from "./community";
 export * from "./digital-sales";
 export * from "./storefront";
+export * from "./gift-cards";
 export * from "./referral-contest";
 export * from "./referrals";
 export * from "./wave8";

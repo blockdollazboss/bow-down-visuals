@@ -25,7 +25,7 @@ import { creatorProfilesTable } from "./creator-platform";
  * it — this module never rebuilds fulfillment.
  */
 
-export const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket"] as const;
+export const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket", "gift_card"] as const;
 export type StoreProductKind = (typeof STORE_PRODUCT_KINDS)[number];
 
 /** Link-graph item: the track, video, drop page, or event a product relates to. */
@@ -55,13 +55,18 @@ export const storeProductsTable = pgTable("store_products", {
   inventory:      integer("inventory").notNull().default(-1),
   mediaUrls:      jsonb("media_urls").$type<string[]>().notNull().default([]),
   serviceDetails: jsonb("service_details").$type<ServiceDetails | null>(),
+  /** kind='gift_card' only (PENDING-MIGRATION, see schema/gift-cards.ts):
+   *  the denominations the SELLER offers, integer cents. The buyer picks
+   *  one at purchase; price_cents carries the smallest denomination as
+   *  the listing's "from" price. Null for every other kind. */
+  giftCardDenominationsCents: jsonb("gift_card_denominations_cents").$type<number[] | null>(),
   eventId:        uuid("event_id"),
   relatedLinks:   jsonb("related_links").$type<RelatedLink[]>().notNull().default([]),
   isActive:       boolean("is_active").notNull().default(true),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
-  check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket')`),
+  check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket','gift_card')`),
   /* >= 0 (migration 0190): $0 is a lead magnet — claimed by email via
      POST /api/storefront/claim, never run through Stripe checkout. */
   check("store_products_price_check", sql`${t.priceCents} >= 0`),
