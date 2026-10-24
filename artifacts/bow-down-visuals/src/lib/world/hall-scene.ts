@@ -166,19 +166,19 @@ import {
   STAGE_GROUNDS_INTERIOR, STAGE_WALL_RUNS, STAGE_PIERS, STAGE_PLATFORM,
   STAGE_SHELL_BACK, STAGE_SHELL_RETURNS, STAGE_CURTAIN, SPEAKER_STACKS, SPEAKER_STACK,
   TRUSS, BANNER_POLES, BANNER_POLE, AUDIENCE_LAWN, STAGE_BENCHES, ENTRY_PATH, STAGE_LAMPS,
-  STAGE_ARRIVAL_ARCH,
+  STAGE_ARRIVAL_ARCH, STAGE_MOTES,
 } from "./stage-grounds";
 import {
   GARDENS_INTERIOR, GARDENS_WALL_RUNS, GARDENS_PIERS, PARTERRE_LAWN, RILL,
   RILL_BENCHES, GARDEN_HEDGES, NOOK_BENCHES, PAVILION, PAVILION_POSTS,
   GARDENS_ENTRY_PATH, GARDENS_LAMPS, GARDENS_BANNER_POLES, GARDENS_BANNER_POLE,
-  GARDENS_FOUNTAIN,
+  GARDENS_FOUNTAIN, GARDENS_MOTES, LILY_PADS, LILY_PAD_Y,
 } from "./listening-gardens";
 import {
   ROW_INTERIOR, ROW_WALL_RUNS, ROW_PIERS, ROW_STREET, ROW_STALLS, STALL_KIT,
   ROW_STALL_POSTS, ROW_STALL_BENCHES, ROW_PLINTHS, PLINTH, ROW_CRATES, CRATE,
   ROW_CANVAS_STACKS, ROW_TOOL_BENCHES, ROW_PLANTERS, ROW_PLANTER_CROWNS,
-  ROW_LAMPS, ROW_BANNER_POLES, ROW_BANNER_POLE,
+  ROW_LAMPS, ROW_BANNER_POLES, ROW_BANNER_POLE, ROW_MOTES,
 } from "./creation-row";
 import {
   ATELIERS_INTERIOR, ATELIERS_WALL_RUNS, ATELIERS_PIERS, ATELIERS_LANE, ATELIER_BAYS, BAY_KIT,
@@ -186,7 +186,7 @@ import {
   ATELIER_PLINTHS, ATELIER_PLINTH, ATELIER_CRATES, ATELIER_CRATE, ATELIER_STONE_STACKS,
   ATELIER_TOOL_BENCHES, ATELIERS_PLANTERS, ATELIERS_PLANTER_CROWNS, ATELIERS_LAMPS,
   ATELIERS_BANNER_POLES, ATELIERS_BANNER_POLE,
-  ATELIER_MANNEQUINS, MANNEQUIN, ATELIER_FABRIC_BOLTS, ATELIER_CASCADE,
+  ATELIER_MANNEQUINS, MANNEQUIN, ATELIER_FABRIC_BOLTS, ATELIER_CASCADE, ATELIERS_MOTES,
 } from "./ateliers";
 import {
   BOARDWALK_FLOOR_RECTS, BOARDWALK_WALL_RUNS, BOARDWALK_PIERS, BOARDWALK_DECK_PLANKS,
@@ -194,7 +194,7 @@ import {
   BANDSTAND, BANDSTAND_POSTS, BANDSTAND_STEPS, BOARDWALK_BASIN, BOARDWALK_RAILING,
   BOARDWALK_RAILING_POSTS, BOARDWALK_BENCHES, BOARDWALK_PLANTERS, BOARDWALK_PLANTER_CROWNS,
   BOARDWALK_LAMPS, BOARDWALK_BANNER_POLES, BOARDWALK_BANNER_POLE,
-  BOARDWALK_WHEEL, wheelAngleAt,
+  BOARDWALK_WHEEL, wheelAngleAt, BOARDWALK_MOTES,
 } from "./boardwalk";
 import {
   HEIGHTS_INTERIOR, HEIGHTS_WALL_RUNS, HEIGHTS_PIERS, HEIGHTS_WALKWAY, HEIGHTS_FRONTS, FRONT_KIT,
@@ -202,7 +202,7 @@ import {
   HEIGHTS_TERRACE_CROWNS, HEIGHTS_BENCHES, HEIGHTS_PLANTERS, HEIGHTS_PLANTER_CROWNS,
   HEIGHTS_LAMPS, HEIGHTS_BANNER_POLES, HEIGHTS_BANNER_POLE,
   HEIGHTS_PLATES, HEIGHTS_PLATE, heightsPlateLines, heightsRosterSignature,
-  HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD,
+  HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD, HEIGHTS_MOTES,
 } from "./creator-heights";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale,
@@ -211,8 +211,8 @@ import {
 import {
   POOL, FOUNTAIN, FOUNTAIN_FALL, WET_EDGE, PLAZA_LAMPS, LAMP, lampGlassStyle, PLAZA_BENCHES, BENCH,
   PLAZA_TABLE_SETS, PLAZA_URNS, URN, PLAZA_STALLS, STALL, SPAWN_DRESSING,
-  bannerSwayAt, createPollenField, pollenCountForScale, pollenPositionAt,
-  waterSurfaceAt, poolWaterTint, type PollenMote,
+  bannerSwayAt, createPollenField, pollenCountForScale, pollenCountForVolume, pollenPositionAt,
+  waterSurfaceAt, poolWaterTint, type PollenMote, type PollenVolume,
 } from "./plaza-life";
 import { PLAZA_LIONS, LION, COMPASS_ROSE, PLAZA_DAMS, DAM } from "./plaza-solids";
 import {
@@ -1446,6 +1446,12 @@ interface LookAnim {
    * motion is off). */
   bannerSways: Array<{ pivot: THREE.Group; phase: number }>;
   pollen: { points: THREE.Points; field: PollenMote[] } | null;
+  /* Daylight motes in the six outdoor districts (Stack-100 #3,
+   * item-4 retry): the courtyard pollen system's district fields —
+   * same material, same laws (light look only, never under
+   * reduced motion, particleScale draw-ranged), one Points per
+   * district in its own air volume. */
+  districtPollen: Array<{ points: THREE.Points; field: PollenMote[]; volume: PollenVolume }>;
   /* Water round 2 (Stack-100 #2 items 5–7): every entry's colour
    * layer scrolls one way and its ripple NORMAL layer counter-
    * scrolls (normalTex), both from plaza-life's ONE water model;
@@ -1467,7 +1473,7 @@ interface LookAnim {
   spinners: Array<{ obj: THREE.Group; angleAt: (t: number) => number }>;
 }
 
-const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [], spinners: [] };
+const EMPTY_ANIM: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, districtPollen: [], waters: [], spinners: [] };
 
 /* ── The scene ──────────────────────────────────────────────────────── */
 
@@ -1950,7 +1956,7 @@ export class KingsHallScene {
 
   private buildLook(group: THREE.Group, look: HallLook): void {
     const mats = this.makeMaterials(look);
-    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, waters: [], spinners: [] };
+    const anim: LookAnim = { flames: [], flickerLights: [], dust: null, smokes: [], embers: [], lanternGlows: [], clouds: [], bannerSways: [], pollen: null, districtPollen: [], waters: [], spinners: [] };
     this.monumentFaceMats = [];
     this.heightsPlateMats = [];
     this.lodItems = [];
@@ -3925,6 +3931,38 @@ export class KingsHallScene {
     }
   }
 
+  /** Daylight motes for one outdoor district (Stack-100 #3,
+   *  item-4 retry): the courtyard pollen (item 26) generalized —
+   *  a Points field in the district's own air volume, day look
+   *  only, at the ladder's particle scale, and never built at
+   *  all under reduced motion. Same material as the courtyard's
+   *  motes, so the day's air reads as one system across the
+   *  palace. One draw per district; the field registers in
+   *  anim.districtPollen for the tick + the rung pass. */
+  private buildDaylightMotes(g: THREE.Group, look: HallLook, anim: LookAnim, volume: PollenVolume, seedKey: string): void {
+    if (look.theme !== "light" || this.reducedMotion) return;
+    const count = pollenCountForVolume(volume, QUALITY[this.quality].particleScale);
+    if (count <= 0) return;
+    const field = createPollenField(count, seedKey, volume);
+    const positions = new Float32Array(count * 3);
+    field.forEach((m, i) => {
+      const p = pollenPositionAt(m, 0, volume);
+      positions[i * 3] = p.x;
+      positions[i * 3 + 1] = p.y;
+      positions[i * 3 + 2] = p.z;
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const points = new THREE.Points(geo, new THREE.PointsMaterial({
+      map: hazeTexture(), size: 0.07, transparent: true, opacity: 0.55, color: 0xfff2c4,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    }));
+    points.renderOrder = 5;
+    points.frustumCulled = false;
+    g.add(points);
+    anim.districtPollen.push({ points, field, volume });
+  }
+
   private buildCourtyardShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
 
@@ -4903,6 +4941,7 @@ export class KingsHallScene {
    *  emissive glass + item-27 lantern-glow sprites after dark. */
   private buildStageGroundsShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
+    this.buildDaylightMotes(g, look, anim, STAGE_MOTES, "stage-grounds");
     const shadows = QUALITY[this.quality].shadows;
     const dummy = new THREE.Object3D();
     const instanced = (
@@ -5268,6 +5307,7 @@ export class KingsHallScene {
    *  sprites after dark. */
   private buildListeningGardensShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
+    this.buildDaylightMotes(g, look, anim, GARDENS_MOTES, "listening-gardens");
     const shadows = QUALITY[this.quality].shadows;
     const dummy = new THREE.Object3D();
     const instanced = (
@@ -5512,6 +5552,31 @@ export class KingsHallScene {
       anim.waters.push({ tex: waterTex, jet, normalTex: basinNormal, fall, fallBase: 0.5 });
     }
 
+    /* Lily pads on the rill (Stack-100 #3, item-37 retry): one
+     * instanced draw of notched leaf discs lying ON the rill's
+     * surface at LILY_PAD_Y — the water's own height plus the
+     * wet-edge hover, under the rim. The leaf green is the
+     * planter crowns' colour; each pad's notch faces its own
+     * way. Flat dressing inside RILL_BLOCKED: no collision, no
+     * light, no animation — the water moves beneath them. */
+    {
+      const padInst = new THREE.InstancedMesh(
+        new THREE.CircleGeometry(1, 24, 0.35, Math.PI * 2 - 0.7),
+        new THREE.MeshStandardMaterial({ color: 0x2e5d33, roughness: 1, metalness: 0 }),
+        LILY_PADS.length,
+      );
+      LILY_PADS.forEach((p, i) => {
+        dummy.position.set(p.x, LILY_PAD_Y, p.z);
+        dummy.rotation.set(-Math.PI / 2, 0, i * 1.7);
+        dummy.scale.set(p.r, p.r, p.r);
+        dummy.updateMatrix();
+        padInst.setMatrixAt(i, dummy.matrix);
+      });
+      padInst.instanceMatrix.needsUpdate = true;
+      padInst.receiveShadow = shadows;
+      g.add(padInst);
+    }
+
     /* The hedged listening nooks: clipped hedge runs (instanced
      * unit boxes scaled to each run, foliage-tinted per run by
      * item-18 variation) forming four three-sided enclosures
@@ -5717,6 +5782,7 @@ export class KingsHallScene {
    *  emissive glass + item-27 lantern-glow sprites after dark. */
   private buildCreationRowShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
+    this.buildDaylightMotes(g, look, anim, ROW_MOTES, "creation-row");
     const shadows = QUALITY[this.quality].shadows;
     const dummy = new THREE.Object3D();
     const instanced = (
@@ -6025,6 +6091,7 @@ export class KingsHallScene {
    *  sprites after dark. */
   private buildAteliersShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
+    this.buildDaylightMotes(g, look, anim, ATELIERS_MOTES, "ateliers");
     const shadows = QUALITY[this.quality].shadows;
     const dummy = new THREE.Object3D();
     const instanced = (
@@ -6456,6 +6523,7 @@ export class KingsHallScene {
    *  scroll like the pool's and the rill's. */
   private buildBoardwalkShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
+    this.buildDaylightMotes(g, look, anim, BOARDWALK_MOTES, "boardwalk");
     const shadows = QUALITY[this.quality].shadows;
     const dummy = new THREE.Object3D();
     const instanced = (
@@ -6870,6 +6938,7 @@ export class KingsHallScene {
    *  sprites after dark, ZERO new real PointLights. */
   private buildCreatorHeightsShell(group: THREE.Group, look: HallLook, mats: LookMaterials, anim: LookAnim): void {
     const g = new THREE.Group();
+    this.buildDaylightMotes(g, look, anim, HEIGHTS_MOTES, "creator-heights");
     const shadows = QUALITY[this.quality].shadows;
     const dummy = new THREE.Object3D();
     const instanced = (
@@ -8669,6 +8738,9 @@ export class KingsHallScene {
       const pollen = this.lookAnim.pollen;
       pollen.points.geometry.setDrawRange(0, Math.floor(pollen.field.length * rung.particleScale));
     }
+    for (const dp of this.lookAnim.districtPollen) {
+      dp.points.geometry.setDrawRange(0, Math.floor(dp.field.length * rung.particleScale));
+    }
   }
 
   /** Every peer figure out — a room change despawns the old room's
@@ -8996,6 +9068,14 @@ export class KingsHallScene {
       const attr = anim.pollen.points.geometry.getAttribute("position") as THREE.BufferAttribute;
       for (let i = 0; i < anim.pollen.field.length; i++) {
         const p = pollenPositionAt(anim.pollen.field[i]!, t);
+        attr.setXYZ(i, p.x, p.y, p.z);
+      }
+      attr.needsUpdate = true;
+    }
+    for (const dp of anim.districtPollen) {
+      const attr = dp.points.geometry.getAttribute("position") as THREE.BufferAttribute;
+      for (let i = 0; i < dp.field.length; i++) {
+        const p = pollenPositionAt(dp.field[i]!, t, dp.volume);
         attr.setXYZ(i, p.x, p.y, p.z);
       }
       attr.needsUpdate = true;

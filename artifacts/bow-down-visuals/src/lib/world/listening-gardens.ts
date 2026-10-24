@@ -47,7 +47,7 @@
  */
 import type { PalaceRect, PlazaWallRun } from "./palace-layout";
 import { LAWN_BED, type GroundsBox, type LawnPanel } from "./palace-grounds";
-import { BENCH, LAMP } from "./plaza-life";
+import { BENCH, LAMP, pollenVolumeForInterior, type PollenVolume } from "./plaza-life";
 
 const rectAround = (x: number, z: number, hx: number, hz: number): PalaceRect => ({
   minX: x - hx,
@@ -75,6 +75,11 @@ const rectOf = (b: GroundsBox): PalaceRect => ({
 export const GARDENS_INTERIOR: PalaceRect = {
   minX: -39.0, maxX: -13.0, minZ: 34.0, maxZ: 60.0,
 };
+
+/** Daylight motes (Stack-100 #3, item-4 retry): the quarter's
+ *  air volume for plaza-life's pollen system — the day look's
+ *  drifting motes, inset from the walls past their wander. */
+export const GARDENS_MOTES: PollenVolume = pollenVolumeForInterior(GARDENS_INTERIOR);
 
 /** Where a figure's centre may stand: inside the quarter's own
  *  perimeter walls by the plaza's house clearance (the wall face
@@ -172,6 +177,33 @@ export const GARDENS_FOUNTAIN = {
 
 export const GARDENS_FOUNTAIN_BLOCKED: PalaceRect =
   rectAround(GARDENS_FOUNTAIN.cx, GARDENS_FOUNTAIN.cz, GARDENS_FOUNTAIN.blockHalf, GARDENS_FOUNTAIN.blockHalf);
+
+/* ── Lily pads on the rill (Stack-100 #3, item-37 retry) ─────────
+ * Board-2 item 37 named "audio-node discs" hovering at y 0.03 over
+ * a pond at y 0.02. Fresh verification (this lane, like the
+ * districts lane's at 6b8db350): no such discs and no pond exist
+ * anywhere in the tree — the gardens' water is the rill and the
+ * item-36 basin. What the item wanted — pads that SIT on the
+ * gardens' water — is built here for real: flat leaf pads on the
+ * rill's surface, north and south of the fountain basin, at the
+ * water's own height plus the wet edge's hover (WET_EDGE.lift's
+ * law: enough to never z-fight, never enough to read as hovering).
+ * The pads are inside RILL_BLOCKED already — flat dressing on
+ * solid water, no collision of their own. */
+
+export const LILY_PAD_LIFT = 0.006;
+
+/** Absolute height of a pad's face: lawn top + rill water + lift —
+ *  on the water, under the rim (rim top abs = topY + rimH). */
+export const LILY_PAD_Y = PARTERRE_LAWN.topY + RILL.waterY + LILY_PAD_LIFT;
+
+export const LILY_PADS: ReadonlyArray<{ x: number; z: number; r: number }> = [
+  { x: -26.18, z: 44.6, r: 0.19 },
+  { x: -25.82, z: 43.4, r: 0.15 },
+  { x: -26.05, z: 49.9, r: 0.21 },
+  { x: -25.8, z: 51.3, r: 0.16 },
+  { x: -26.2, z: 52.2, r: 0.13 },
+];
 
 /** Benches on the lawn flanking the rill, facing it (their
  *  length runs along Z, backs away from the water): the sitting

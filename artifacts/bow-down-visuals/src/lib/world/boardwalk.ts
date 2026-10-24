@@ -67,7 +67,7 @@
 import type { PalaceRect, PlazaWallRun } from "./palace-layout";
 import type { GroundsBox } from "./palace-grounds";
 import type { HallTheme } from "./hall-looks";
-import { BENCH, LAMP } from "./plaza-life";
+import { BENCH, LAMP, pollenVolumeForInterior, type PollenVolume } from "./plaza-life";
 import { STALL_KIT, stallBench, stallPosts, type RowStall } from "./creation-row";
 
 const rectAround = (x: number, z: number, hx: number, hz: number): PalaceRect => ({
@@ -101,6 +101,11 @@ const rectOf = (b: GroundsBox): PalaceRect => ({
 export const BOARDWALK_INTERIOR: PalaceRect = {
   minX: -13.0, maxX: 28.2, minZ: 38.0, maxZ: 60.0,
 };
+
+/** Daylight motes (Stack-100 #3, item-4 retry): the quarter's
+ *  air volume for plaza-life's pollen system — the day look's
+ *  drifting motes, inset from the walls past their wander. */
+export const BOARDWALK_MOTES: PollenVolume = pollenVolumeForInterior(BOARDWALK_INTERIOR);
 
 /** The two north strips' floor rects (the scene decks them like
  *  the main quarter; palace-layout carries them as the room's

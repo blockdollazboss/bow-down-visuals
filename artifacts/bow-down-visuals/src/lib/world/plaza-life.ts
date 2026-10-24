@@ -70,11 +70,56 @@ export function pollenCountForScale(particleScale: number): number {
   return Math.floor(POLLEN_BASE_COUNT * Math.min(1, Math.max(0, particleScale)));
 }
 
+/** A volume of air a pollen/mote field drifts in. The courtyard
+ *  field below is the original; the district fields (Stack-100
+ *  #3 item-4 retry) are derived from each district's interior by
+ *  pollenVolumeForInterior. */
+export interface PollenVolume {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+}
+
 /** The volume the pollen drifts in: the whole courtyard air,
  *  knee-to-head height, clear of the hall interior. */
-export const POLLEN_FIELD = {
+export const POLLEN_FIELD: PollenVolume = {
   minX: -26, maxX: 26, minY: 0.3, maxY: 3.4, minZ: 13.2, maxZ: 33.2,
-} as const;
+};
+
+/** Mote density: the courtyard's own measure — POLLEN_BASE_COUNT
+ *  motes over the POLLEN_FIELD footprint (52 m × 20 m). District
+ *  fields carry the same density, so a district's air is exactly
+ *  as alive as the courtyard's, no more, no less. */
+export const POLLEN_DENSITY_PER_M2 =
+  POLLEN_BASE_COUNT / ((POLLEN_FIELD.maxX - POLLEN_FIELD.minX) * (POLLEN_FIELD.maxZ - POLLEN_FIELD.minZ));
+
+/** A district's mote volume from its interior rect: inset from
+ *  the walls by more than the motes' wander (±0.9 m, see
+ *  pollenPositionAt) so a drifting mote never crosses a wall,
+ *  knee-to-head height like the courtyard's. */
+export function pollenVolumeForInterior(
+  interior: { minX: number; maxX: number; minZ: number; maxZ: number },
+  inset = 1.2,
+): PollenVolume {
+  return {
+    minX: interior.minX + inset,
+    maxX: interior.maxX - inset,
+    minY: 0.35,
+    maxY: 3.2,
+    minZ: interior.minZ + inset,
+    maxZ: interior.maxZ - inset,
+  };
+}
+
+/** Motes for one volume at a particle scale — the courtyard
+ *  count law (pollenCountForScale) at the shared density. */
+export function pollenCountForVolume(volume: PollenVolume, particleScale: number): number {
+  const area = (volume.maxX - volume.minX) * (volume.maxZ - volume.minZ);
+  return Math.floor(area * POLLEN_DENSITY_PER_M2 * Math.min(1, Math.max(0, particleScale)));
+}
 
 export interface PollenMote {
   x: number;
@@ -86,10 +131,13 @@ export interface PollenMote {
 }
 
 /** A deterministic pollen field — same seed, same sky, on every
- *  client (the ember fields' law). */
-export function createPollenField(count: number, seedKey: string): PollenMote[] {
+ *  client (the ember fields' law). The volume defaults to the
+ *  courtyard's; district fields pass their own (the rng draw
+ *  order per mote is unchanged, so the courtyard field is
+ *  bit-identical to what it has always been). */
+export function createPollenField(count: number, seedKey: string, volume: PollenVolume = POLLEN_FIELD): PollenMote[] {
   const rng = seededRandom(hashSeed(`pollen:${seedKey}`));
-  const { minX, maxX, minY, maxY, minZ, maxZ } = POLLEN_FIELD;
+  const { minX, maxX, minY, maxY, minZ, maxZ } = volume;
   const out: PollenMote[] = [];
   for (let i = 0; i < count; i++) {
     out.push({
@@ -105,13 +153,13 @@ export function createPollenField(count: number, seedKey: string): PollenMote[] 
 
 /** Where one mote stands at one moment: a slow sinusoidal wander
  *  around its home point plus a gentle sinking that wraps within
- *  the field's height — motes never leave the courtyard air. */
-export function pollenPositionAt(m: PollenMote, tSec: number): { x: number; y: number; z: number } {
-  const h = POLLEN_FIELD.maxY - POLLEN_FIELD.minY;
-  const sunk = (m.y - POLLEN_FIELD.minY + m.fall * tSec) % h;
+ *  the field's height — motes never leave their field's air. */
+export function pollenPositionAt(m: PollenMote, tSec: number, volume: PollenVolume = POLLEN_FIELD): { x: number; y: number; z: number } {
+  const h = volume.maxY - volume.minY;
+  const sunk = (m.y - volume.minY + m.fall * tSec) % h;
   return {
     x: m.x + Math.sin(tSec * 0.11 + m.phase) * 0.9,
-    y: POLLEN_FIELD.minY + (h - sunk),
+    y: volume.minY + (h - sunk),
     z: m.z + Math.cos(tSec * 0.09 + m.phase * 1.3) * 0.9,
   };
 }
