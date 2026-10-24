@@ -270,6 +270,10 @@ export interface StoreCatalogItemDto {
   id: string;
   title: string;
   artworkUrl: string | null;
+  /** #29: accessibility description of artworkUrl, when the creator
+      provided one (video cover alt / product shot alt). Renders as the
+      artwork image's alt on public surfaces. */
+  artworkAlt: string | null;
   priceCents: number;
   price: string;
   compareAtCents: number | null;
@@ -328,6 +332,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       id: t.id,
       title: t.title,
       artworkUrl: t.artworkUrl ?? null,
+      artworkAlt: null,
       priceCents: t.downloadPriceCents,
       price: formatUsd(t.downloadPriceCents),
       compareAtCents: null,
@@ -344,6 +349,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       id: v.id,
       title: v.title,
       artworkUrl: v.thumbnailUrl ?? null,
+      artworkAlt: v.thumbnailAltText ?? null,
       priceCents: v.downloadPriceCents,
       price: formatUsd(v.downloadPriceCents),
       compareAtCents: null,
@@ -359,6 +365,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       id: p.id,
       title: p.title,
       artworkUrl: Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0 ? p.mediaUrls[0]! : null,
+      artworkAlt: Array.isArray(p.mediaAltTexts) && p.mediaAltTexts.length > 0 ? (p.mediaAltTexts[0] ?? null) : null,
       priceCents: p.priceCents,
       price: formatUsd(p.priceCents),
       compareAtCents: p.compareAtCents ?? null,
@@ -404,6 +411,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
         id: sp.id,
         title: sp.name,
         artworkUrl: sp.image_url ?? null,
+        artworkAlt: sp.image_alt_text ?? null,
         priceCents: sp.price_cents,
         price: formatUsd(sp.price_cents),
         compareAtCents: null,
