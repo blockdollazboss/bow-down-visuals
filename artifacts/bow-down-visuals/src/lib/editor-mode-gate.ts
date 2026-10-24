@@ -11,7 +11,8 @@
  * Mode here is the Turbo ("simple") / Advanced display preference from
  * UserModeContext — a user pick, not a plan tier. The one rank-flavoured
  * exception is the editor's own Pro switch, which follows gate stars
- * (lib/creator-level.ts §3); proSwitchShowsUnlocked pins its behaviour.
+ * (lib/creator-level.ts §3) and stays inline in the page, where the
+ * earned-rank source contract pins it.
  */
 
 /** "advanced" when the tab is gated behind Advanced mode, else null. */
@@ -38,14 +39,4 @@ export function effectiveMusicMode(isSimple: boolean, storedMode: MusicStudioMod
 /** A music mode button is locked exactly when it isn't the effective one in Simple. */
 export function musicModeLocked(isSimple: boolean, mode: MusicStudioMode): boolean {
   return isSimple && mode !== "auto";
-}
-
-/**
- * The top-bar Pro segment renders as a working radio when the user's
- * gate stars reach the Advanced band (Creator Level 4+) — OR when the
- * user is already in Advanced: never lock someone out of the mode they
- * are in (their Turbo segment stays clickable to leave).
- */
-export function proSwitchShowsUnlocked(gateStars: number, isSimple: boolean): boolean {
-  return gateStars >= 4 || !isSimple;
 }

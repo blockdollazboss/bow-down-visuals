@@ -36,7 +36,7 @@ import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHand
 import { ClipContextMenu, type ContextMenuItem } from "@/components/editor/ClipContextMenu";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings } from "@/lib/scene-timing";
-import { modeGateForTab, proSwitchShowsUnlocked } from "@/lib/editor-mode-gate";
+import { modeGateForTab } from "@/lib/editor-mode-gate";
 import {
   normalizeEditorSettings,
   sceneHasClip,
@@ -3152,7 +3152,7 @@ export default function VideoEditor() {
                 >
                   {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
                 </button>
-                {proSwitchShowsUnlocked(gateStars, isSimple) ? (
+                {gateStars >= 4 || !isSimple ? (
                   <button
                     type="button"
                     role="radio"
