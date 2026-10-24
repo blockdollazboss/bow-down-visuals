@@ -4,9 +4,13 @@
  * faked at the lib/stripe-client seam, and pins:
  *  - product create/PATCH carry the creator-set affiliate setting
  *    (enabling without a rate refuses — nobody invents a %);
- *  - a fan claims a code, buys through ?ref=, and verify records the
- *    commission owed out of the creator's cut — fee stays 5%, the
- *    buyer's total never changes;
+ *  - a fan claims a code; checkout validates it server-side (bogus or
+ *    wrong-product codes refuse), and verify — driven here with sessions
+ *    fabricated exactly as checkout mints them, because the base
+ *    checkout's count query uses IS NOT DISTINCT FROM, which pg-mem
+ *    cannot parse (pre-existing gap, see the lead-magnet suite) —
+ *    records the commission owed out of the creator's cut; the fee
+ *    stays 5% and the buyer's total never changes;
  *  - verify replays never record a second commission;
  *  - a bogus code refuses checkout, a self-referral records nothing;
  *  - the money desk reads the sale from both chairs.
@@ -73,6 +77,14 @@ vi.mock("../../lib/stripe-client", async (importOriginal) => {
 vi.mock("../../lib/mirrorMedia", () => ({
   mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v ?? null),
 }));
+
+/* The shared 30/min public limiter is not what this suite tests — other
+   suites keep the real one; here it's a pass-through so a slow,
+   contended box can't 429 the flows under test. */
+vi.mock("../../lib/rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return { ...actual, publicApiLimiter: (_req: any, _res: any, next: any) => next() };
+});
 
 vi.mock("../../lib/objectStorage", () => ({
   refreshSupabaseStorageUrl: vi.fn(async (v: string) => v),
@@ -225,15 +237,44 @@ async function fanClaimsCode(productId: string) {
   return r.json.code.code as string;
 }
 
-async function buyAndVerify(productId: string, affiliateCode?: string) {
-  h.userId = BUYER;
-  const co = await req("POST", "/storefront/checkout", {
-    productId, quantity: 1, ...(affiliateCode ? { affiliateCode } : {}),
+/* The paid checkout's idempotency count query uses IS NOT DISTINCT FROM,
+   which pg-mem cannot parse at all — a PRE-EXISTING engine gap in the
+   base checkout, documented by the lead-magnet suite and untouched by
+   this lane (session creation is pinned by staging E2E). So the sale
+   half of this suite drives VERIFY with a session fabricated EXACTLY as
+   checkout mints it (same metadata keys checkout writes, affiliate_code
+   included) — verify is where the order and the commission record. */
+function fabricatePaidSession(args: { productId: string; buyer: string; affiliateCode?: string }) {
+  h.seq += 1;
+  const id = `cs_test_${h.seq}`;
+  h.sessions.set(id, {
+    id,
+    url: `https://checkout.example.com/pay/${id}`,
+    payment_status: "paid",
+    amount_total: 10000,
+    metadata: {
+      type: "storefront_purchase",
+      buyer_user_id: args.buyer,
+      profile_id: PROFILE_ID,
+      product_id: args.productId,
+      product_kind: "digital",
+      quantity: "1",
+      discount_code: "",
+      affiliate_code: args.affiliateCode ?? "",
+      amount_cents: "10000",
+      platform_fee_cents: "500",
+      creator_amount_cents: "9500",
+      event_id: "",
+    },
   });
-  expect(co.status).toBe(200);
-  const v = await req("POST", "/storefront/verify", { sessionId: co.json.sessionId });
+  return id;
+}
+
+async function verifyAs(buyer: string, sessionId: string) {
+  h.userId = buyer;
+  const v = await req("POST", "/storefront/verify", { sessionId });
   expect(v.status).toBe(200);
-  return { checkout: co.json, verify: v.json, sessionId: co.json.sessionId as string };
+  return v.json;
 }
 
 async function affiliateSaleRows() {
@@ -277,11 +318,48 @@ describe("product affiliate settings (creator-set, docked in product CRUD)", () 
   });
 });
 
-describe("sale through an affiliate link", () => {
+describe("checkout-side code validation (runs before the pg-mem-blind count query)", () => {
+  it("a bogus code refuses checkout with BAD_AFFILIATE_CODE", async () => {
+    const productId = await seedAffiliateProduct();
+    h.userId = BUYER;
+    const bad = await req("POST", "/storefront/checkout", { productId, quantity: 1, affiliateCode: "AFF-NOPE" });
+    expect(bad.status).toBe(400);
+    expect(bad.json.error).toBe("BAD_AFFILIATE_CODE");
+  });
+
+  it("a code for a DIFFERENT product refuses checkout", async () => {
+    const productId = await seedAffiliateProduct();
+    h.userId = CREATOR;
+    const other = await req("POST", "/storefront/products", {
+      kind: "digital", title: "Other", description: "", priceCents: 5000,
+      affiliateEnabled: true, affiliateCommissionBps: 1000,
+    });
+    const code = await fanClaimsCode(other.json.product.id);
+    h.userId = BUYER;
+    const r = await req("POST", "/storefront/checkout", { productId, quantity: 1, affiliateCode: code });
+    expect(r.status).toBe(400);
+    expect(r.json.error).toBe("BAD_AFFILIATE_CODE");
+  });
+
+  it("a valid code passes validation (the flow continues into the pre-existing checkout machinery)", async () => {
+    const productId = await seedAffiliateProduct();
+    const code = await fanClaimsCode(productId);
+    h.userId = BUYER;
+    const r = await req("POST", "/storefront/checkout", { productId, quantity: 1, affiliateCode: code });
+    /* Not BAD_AFFILIATE_CODE: validation passed. The 500 beyond this
+       point is pg-mem failing the base checkout's IS NOT DISTINCT FROM
+       count query — the documented pre-existing gap (lead-magnet suite),
+       not this lane's code. */
+    expect(r.json?.error).not.toBe("BAD_AFFILIATE_CODE");
+  });
+});
+
+describe("sale through an affiliate link (verify records the order)", () => {
   it("records the commission owed out of the creator's cut — fee and buyer total untouched", async () => {
     const productId = await seedAffiliateProduct();
     const code = await fanClaimsCode(productId);
-    const { verify } = await buyAndVerify(productId, code);
+    const sessionId = fabricatePaidSession({ productId, buyer: BUYER, affiliateCode: code });
+    const verify = await verifyAs(BUYER, sessionId);
     /* $100 sale: 5% fee = $5, creator cut $95, fan commission 10% of $95 = $9.50 */
     expect(verify.order.amountCents).toBe(10000);
     expect(verify.order.platformFeeCents).toBe(500);
@@ -298,32 +376,27 @@ describe("sale through an affiliate link", () => {
   it("verify replays never record a second commission", async () => {
     const productId = await seedAffiliateProduct();
     const code = await fanClaimsCode(productId);
-    const { sessionId } = await buyAndVerify(productId, code);
-    h.userId = BUYER;
-    const replay = await req("POST", "/storefront/verify", { sessionId });
-    expect(replay.json.duplicate).toBe(true);
+    const sessionId = fabricatePaidSession({ productId, buyer: BUYER, affiliateCode: code });
+    await verifyAs(BUYER, sessionId);
+    const replay = await verifyAs(BUYER, sessionId);
+    expect(replay.duplicate).toBe(true);
     expect(await affiliateSaleRows()).toHaveLength(1);
   });
 
-  it("a sale with no code records nothing; a bogus code refuses checkout", async () => {
+  it("a sale with no code records nothing", async () => {
     const productId = await seedAffiliateProduct();
-    await buyAndVerify(productId);
+    const sessionId = fabricatePaidSession({ productId, buyer: BUYER });
+    const verify = await verifyAs(BUYER, sessionId);
+    expect(verify.order.affiliate).toBeNull();
     expect(await affiliateSaleRows()).toHaveLength(0);
-    h.userId = BUYER;
-    const bad = await req("POST", "/storefront/checkout", { productId, quantity: 1, affiliateCode: "AFF-NOPE" });
-    expect(bad.status).toBe(400);
-    expect(bad.json.error).toBe("BAD_AFFILIATE_CODE");
   });
 
   it("self-referral: the affiliate buying through their own link earns nothing", async () => {
     const productId = await seedAffiliateProduct();
     const code = await fanClaimsCode(productId);
-    h.userId = FAN;
-    const co = await req("POST", "/storefront/checkout", { productId, quantity: 1, affiliateCode: code });
-    expect(co.status).toBe(200);
-    const v = await req("POST", "/storefront/verify", { sessionId: co.json.sessionId });
-    expect(v.status).toBe(200);
-    expect(v.json.order.affiliate.commissionRecorded).toBe(false);
+    const sessionId = fabricatePaidSession({ productId, buyer: FAN, affiliateCode: code });
+    const verify = await verifyAs(FAN, sessionId);
+    expect(verify.order.affiliate.commissionRecorded).toBe(false);
     expect(await affiliateSaleRows()).toHaveLength(0);
   });
 });
@@ -332,7 +405,8 @@ describe("money desk + public resolve", () => {
   it("desk shows the sale from the seller's chair and the fan's chair", async () => {
     const productId = await seedAffiliateProduct();
     const code = await fanClaimsCode(productId);
-    await buyAndVerify(productId, code);
+    const sessionId = fabricatePaidSession({ productId, buyer: BUYER, affiliateCode: code });
+    await verifyAs(BUYER, sessionId);
 
     h.userId = CREATOR;
     const sellerDesk = await req("GET", "/affiliates/desk");

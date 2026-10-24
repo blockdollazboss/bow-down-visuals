@@ -93,28 +93,43 @@ router.get("/affiliates/codes/mine", requireAuth, async (req, res) => {
   try {
     const r = await db.execute(sql`
       SELECT c.id, c.code, c.affiliate_user_id, c.seller_user_id, c.surface, c.product_id,
-             c.is_active, c.created_at,
-             COUNT(s.id)::int AS sales_count,
-             COALESCE(SUM(s.commission_cents) FILTER (WHERE s.status = 'owed'), 0)::int AS owed_cents,
-             COALESCE(SUM(s.commission_cents) FILTER (WHERE s.status = 'paid'), 0)::int AS paid_cents
+             c.is_active, c.created_at
       FROM affiliate_codes c
-      LEFT JOIN affiliate_sales s ON s.affiliate_code_id = c.id
       WHERE c.affiliate_user_id = ${req.userId!}
-      GROUP BY c.id
       ORDER BY c.created_at DESC
       LIMIT 200
     `);
+    /* Per-code sales aggregates, grouped by status and merged here —
+       owed vs paid must never blur (a FILTER aggregate is how they'd
+       blur if an engine mis-evaluates it). */
+    const agg = await db.execute(sql`
+      SELECT affiliate_code_id, status, COUNT(*)::int AS n,
+             COALESCE(SUM(commission_cents), 0)::int AS cents
+      FROM affiliate_sales
+      WHERE affiliate_user_id = ${req.userId!}
+      GROUP BY affiliate_code_id, status
+    `);
+    const byCode = new Map<string, { sales: number; owed: number; paid: number }>();
+    for (const a of agg.rows as Array<Record<string, unknown>>) {
+      const key = String(a["affiliate_code_id"]);
+      const cur = byCode.get(key) ?? { sales: 0, owed: 0, paid: 0 };
+      cur.sales += Number(a["n"] ?? 0);
+      if (a["status"] === "owed") cur.owed += Number(a["cents"] ?? 0);
+      if (a["status"] === "paid") cur.paid += Number(a["cents"] ?? 0);
+      byCode.set(key, cur);
+    }
     const codes = [];
     for (const raw of r.rows as Array<Record<string, unknown>>) {
       const setting = await fetchAffiliateProductSetting(String(raw["surface"]) as AffiliateSurface, String(raw["product_id"]));
+      const totals = byCode.get(String(raw["id"])) ?? { sales: 0, owed: 0, paid: 0 };
       codes.push({
         ...presentCode(raw, setting),
         productTitle: setting?.title ?? "",
-        salesCount: Number(raw["sales_count"] ?? 0),
-        owedCents: Number(raw["owed_cents"] ?? 0),
-        owed: formatUsd(Number(raw["owed_cents"] ?? 0)),
-        paidCents: Number(raw["paid_cents"] ?? 0),
-        paid: formatUsd(Number(raw["paid_cents"] ?? 0)),
+        salesCount: totals.sales,
+        owedCents: totals.owed,
+        owed: formatUsd(totals.owed),
+        paidCents: totals.paid,
+        paid: formatUsd(totals.paid),
       });
     }
     res.json({ codes });
@@ -213,29 +228,27 @@ router.get("/affiliates/offers", requireAuth, async (req, res) => {
 router.get("/affiliates/desk", requireAuth, async (req, res) => {
   const userId = req.userId!;
   try {
+    /* Grouped by status and merged in JS — owed vs paid never blur. */
     const sellerRows = await db.execute(sql`
-      SELECT s.affiliate_user_id, s.affiliate_code_id, c.code,
+      SELECT s.affiliate_user_id, s.affiliate_code_id, c.code, s.status,
              COUNT(*)::int AS sales_count,
              COALESCE(SUM(s.gross_cents), 0)::int AS gross_cents,
-             COALESCE(SUM(s.commission_cents) FILTER (WHERE s.status = 'owed'), 0)::int AS owed_cents,
-             COALESCE(SUM(s.commission_cents) FILTER (WHERE s.status = 'paid'), 0)::int AS paid_cents
+             COALESCE(SUM(s.commission_cents), 0)::int AS commission_cents
       FROM affiliate_sales s
       JOIN affiliate_codes c ON c.id = s.affiliate_code_id
       WHERE s.seller_user_id = ${userId}
-      GROUP BY s.affiliate_user_id, s.affiliate_code_id, c.code
-      ORDER BY owed_cents DESC
-      LIMIT 200
+      GROUP BY s.affiliate_user_id, s.affiliate_code_id, c.code, s.status
+      LIMIT 400
     `);
     const affiliateRows = await db.execute(sql`
-      SELECT s.surface, s.product_id, s.product_title, s.seller_user_id,
+      SELECT s.surface, s.product_id, s.product_title, s.seller_user_id, s.status,
              COUNT(*)::int AS sales_count,
-             COALESCE(SUM(s.commission_cents) FILTER (WHERE s.status = 'owed'), 0)::int AS owed_cents,
-             COALESCE(SUM(s.commission_cents) FILTER (WHERE s.status = 'paid'), 0)::int AS paid_cents
+             COALESCE(SUM(s.gross_cents), 0)::int AS gross_cents,
+             COALESCE(SUM(s.commission_cents), 0)::int AS commission_cents
       FROM affiliate_sales s
       WHERE s.affiliate_user_id = ${userId}
-      GROUP BY s.surface, s.product_id, s.product_title, s.seller_user_id
-      ORDER BY owed_cents DESC
-      LIMIT 200
+      GROUP BY s.surface, s.product_id, s.product_title, s.seller_user_id, s.status
+      LIMIT 400
     `);
     const recent = await db.execute(sql`
       SELECT id, surface, product_id, product_title, order_ref, gross_cents,
@@ -246,27 +259,47 @@ router.get("/affiliates/desk", requireAuth, async (req, res) => {
       ORDER BY created_at DESC
       LIMIT 50
     `);
-    const asSeller = (sellerRows.rows as Array<Record<string, unknown>>).map((r) => ({
-      affiliateUserId: String(r["affiliate_user_id"]),
-      code: String(r["code"]),
-      salesCount: Number(r["sales_count"] ?? 0),
-      grossCents: Number(r["gross_cents"] ?? 0),
-      owedCents: Number(r["owed_cents"] ?? 0),
-      owed: formatUsd(Number(r["owed_cents"] ?? 0)),
-      paidCents: Number(r["paid_cents"] ?? 0),
-      paid: formatUsd(Number(r["paid_cents"] ?? 0)),
-    }));
-    const asAffiliate = (affiliateRows.rows as Array<Record<string, unknown>>).map((r) => ({
-      surface: String(r["surface"]),
-      productId: r["product_id"] ? String(r["product_id"]) : null,
-      productTitle: String(r["product_title"] ?? ""),
-      sellerUserId: String(r["seller_user_id"]),
-      salesCount: Number(r["sales_count"] ?? 0),
-      owedCents: Number(r["owed_cents"] ?? 0),
-      owed: formatUsd(Number(r["owed_cents"] ?? 0)),
-      paidCents: Number(r["paid_cents"] ?? 0),
-      paid: formatUsd(Number(r["paid_cents"] ?? 0)),
-    }));
+    interface DeskRow { salesCount: number; grossCents: number; owedCents: number; paidCents: number }
+    const blank = (): DeskRow => ({ salesCount: 0, grossCents: 0, owedCents: 0, paidCents: 0 });
+    const fold = (cur: DeskRow, r: Record<string, unknown>): DeskRow => {
+      cur.salesCount += Number(r["sales_count"] ?? 0);
+      cur.grossCents += Number(r["gross_cents"] ?? 0);
+      if (r["status"] === "owed") cur.owedCents += Number(r["commission_cents"] ?? 0);
+      if (r["status"] === "paid") cur.paidCents += Number(r["commission_cents"] ?? 0);
+      return cur;
+    };
+    const sellerMap = new Map<string, DeskRow & { affiliateUserId: string; code: string }>();
+    for (const r of sellerRows.rows as Array<Record<string, unknown>>) {
+      const key = String(r["affiliate_code_id"]);
+      const cur = sellerMap.get(key) ?? { ...blank(), affiliateUserId: String(r["affiliate_user_id"]), code: String(r["code"]) };
+      sellerMap.set(key, fold(cur, r));
+    }
+    const affiliateMap = new Map<string, DeskRow & { surface: string; productId: string | null; productTitle: string; sellerUserId: string }>();
+    for (const r of affiliateRows.rows as Array<Record<string, unknown>>) {
+      const key = `${String(r["surface"])}:${String(r["product_id"])}:${String(r["seller_user_id"])}`;
+      const cur = affiliateMap.get(key) ?? {
+        ...blank(),
+        surface: String(r["surface"]),
+        productId: r["product_id"] ? String(r["product_id"]) : null,
+        productTitle: String(r["product_title"] ?? ""),
+        sellerUserId: String(r["seller_user_id"]),
+      };
+      affiliateMap.set(key, fold(cur, r));
+    }
+    const present = (r: DeskRow) => ({
+      salesCount: r.salesCount,
+      grossCents: r.grossCents,
+      owedCents: r.owedCents,
+      owed: formatUsd(r.owedCents),
+      paidCents: r.paidCents,
+      paid: formatUsd(r.paidCents),
+    });
+    const asSeller = [...sellerMap.values()]
+      .sort((a, b) => b.owedCents - a.owedCents)
+      .map((r) => ({ affiliateUserId: r.affiliateUserId, code: r.code, ...present(r) }));
+    const asAffiliate = [...affiliateMap.values()]
+      .sort((a, b) => b.owedCents - a.owedCents)
+      .map((r) => ({ surface: r.surface, productId: r.productId, productTitle: r.productTitle, sellerUserId: r.sellerUserId, ...present(r) }));
     const sum = (rows: Array<{ owedCents: number; paidCents: number; salesCount: number }>) => ({
       salesCount: rows.reduce((s, r) => s + r.salesCount, 0),
       owedCents: rows.reduce((s, r) => s + r.owedCents, 0),

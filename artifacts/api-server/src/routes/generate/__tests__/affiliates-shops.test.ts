@@ -68,6 +68,14 @@ vi.mock("../../../lib/mirrorMedia", () => ({
   mirrorExternalMediaUrl: vi.fn(async (v: string | null | undefined) => v ?? null),
 }));
 
+/* The shared 30/min public limiter is not what this suite tests — other
+   suites keep the real one; here it's a pass-through so a slow,
+   contended box can't 429 the flows under test. */
+vi.mock("../../../lib/rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return { ...actual, publicApiLimiter: (_req: any, _res: any, next: any) => next() };
+});
+
 vi.mock("../../../lib/stripe-checkout", () => ({
   getCheckoutStripe: vi.fn(() => {
     if (!h.stripeConfigured) throw new Error("STRIPE_SECRET_KEY is not configured");
