@@ -473,7 +473,7 @@ export default function Dashboard() {
         <section className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.12] via-primary/[0.04] to-transparent p-6 md:p-7 shadow-[0_0_50px_rgba(218,165,32,0.10)]">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="min-w-0">
-              <p className="text-[10px] font-black tracking-[0.22em] text-primary/60 uppercase mb-1.5">{t("dashboard.command_center")}</p>
+              <p className="text-[10px] font-black tracking-[0.22em] text-primary/80 uppercase mb-1.5">{t("dashboard.command_center")}</p>
               <h1 className="text-2xl md:text-[28px] font-black tracking-tight text-white leading-tight">{greet}</h1>
               <p className="text-sm text-white/50 mt-1 font-medium">{t("dashboard.command_sub")}</p>
             </div>
