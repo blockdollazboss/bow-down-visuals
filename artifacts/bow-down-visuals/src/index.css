@@ -717,14 +717,18 @@ html, body {
   border-color: #E0CFA8;
   color: #1C1712;
 }
+/* A11y (w3-a11y-sweep): the old placeholder #A39A89 measured 2.69:1 on the
+   ivory input ground — below WCAG AA for the only label some fields have.
+   #7A7266 is the palette's own text-white/30 light rung: 4.58:1 on
+   #FDFBF5, 4.74:1 on white. Same warm taupe family, one rung deeper. */
 .light input::placeholder,
 .light textarea::placeholder {
-  color: #A39A89;
+  color: #7A7266;
 }
 .light .placeholder\:text-white\/30:not([data-dark-lock]):not([data-dark-lock] *)::placeholder,
 .light .placeholder\:text-white\/40:not([data-dark-lock]):not([data-dark-lock] *)::placeholder,
 .light .placeholder\:text-zinc-400:not([data-dark-lock]):not([data-dark-lock] *)::placeholder {
-  color: #A39A89;
+  color: #7A7266;
 }
 .light input:focus-visible,
 .light textarea:focus-visible,

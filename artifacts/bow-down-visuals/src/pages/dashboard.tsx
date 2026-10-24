@@ -162,7 +162,7 @@ function SectionLabel({ icon: Icon, children, action }: { icon: React.ElementTyp
   const I = Icon;
   return (
     <div className="flex items-center justify-between mb-3">
-      <h2 className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-white/40 uppercase">
+      <h2 className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-white/50 uppercase">
         <I className="h-3.5 w-3.5 text-primary/70" />{children}
       </h2>
       {action}
@@ -457,13 +457,15 @@ export default function Dashboard() {
 
         {/* ── PAYMENT TOAST ── */}
         {paymentToast && (
-          <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border text-sm font-medium ${
+          <div
+            role={paymentToast.type === "error" ? "alert" : "status"}
+            className={`flex items-start gap-3 px-5 py-4 rounded-2xl border text-sm font-medium ${
             paymentToast.type === "success" ? "border-green-500/30 bg-green-500/[0.08] text-green-300"
             : paymentToast.type === "cancelled" ? "border-yellow-500/25 bg-yellow-500/[0.06] text-yellow-300/80"
             : "border-red-500/25 bg-red-500/[0.06] text-red-300"}`}>
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span className="flex-1">{paymentToast.message}</span>
-            <button onClick={() => setPaymentToast(null)} className="text-white/30 hover:text-white/60 transition-colors shrink-0 text-lg leading-none">×</button>
+            <button onClick={() => setPaymentToast(null)} aria-label={t("dashboard.dismissNotification", { defaultValue: "Dismiss notification" })} className="flex h-10 w-10 -m-2 items-center justify-center text-white/50 hover:text-white/80 transition-colors shrink-0 text-lg leading-none">×</button>
           </div>
         )}
 
@@ -473,22 +475,23 @@ export default function Dashboard() {
             <div className="min-w-0">
               <p className="text-[10px] font-black tracking-[0.22em] text-primary/60 uppercase mb-1.5">{t("dashboard.command_center")}</p>
               <h1 className="text-2xl md:text-[28px] font-black tracking-tight text-white leading-tight">{greet}</h1>
-              <p className="text-sm text-white/40 mt-1 font-medium">{t("dashboard.command_sub")}</p>
+              <p className="text-sm text-white/50 mt-1 font-medium">{t("dashboard.command_sub")}</p>
             </div>
             {/* Live stats */}
             <div className="flex items-center gap-2.5 shrink-0">
               <button onClick={() => setLocation("/pricing")} title={t("dashboard.top_up")}
+                aria-label={`${t("dashboard.top_up")}: ${formatVB(balance)}`}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-black font-black text-sm hover:brightness-110 transition-all shadow-[0_0_20px_rgba(218,165,32,0.35)]">
                 <Zap className="h-4 w-4" />{formatVB(balance)}
               </button>
               {sectionStates.streak === "failed" ? (
                 <SectionFailureNote compact isLight={isLight} label="Streak" testId="dashboard-streak-failure" onRetry={() => retrySection("streak")} />
               ) : streak !== null && streak > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-500/30 bg-orange-500/[0.08] text-sm font-black text-orange-300" title={t("dashboard.streak_days")}>
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-500/30 bg-orange-500/[0.08] text-sm font-black text-orange-300" title={t("dashboard.streak_days")} aria-label={`${t("dashboard.streak_days")}: ${streak}`}>
                   <Flame className="h-4 w-4" />{streak}
                 </div>
               )}
-              <div className="flex items-center gap-1 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-black text-white/60" title={t("dashboard.creator_level")}>
+              <div className="flex items-center gap-1 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-black text-white/60" title={t("dashboard.creator_level")} aria-label={`${t("dashboard.creator_level")}: ${stars}`}>
                 <Star className="h-4 w-4 text-primary" />{stars}
               </div>
             </div>
@@ -563,7 +566,7 @@ export default function Dashboard() {
               <p className="flex-1 min-w-0 text-[13px] font-black text-white truncate">{activeArtist.artist_name}</p>
               <MarketingBadge variant="muted" className="text-[8px] px-1.5 py-0.5 tracking-[0.12em] shrink-0">{t("dashboard.active")}</MarketingBadge>
               <button type="button" onClick={() => setLocation("/choose-artist")}
-                className="text-[11px] font-bold text-primary/70 hover:text-primary transition-colors shrink-0">{t("dashboard.change")}</button>
+                className="text-[11px] font-bold text-primary/80 hover:text-primary transition-colors shrink-0">{t("dashboard.change")}</button>
             </div>
           );
         })() : null}
@@ -588,7 +591,7 @@ export default function Dashboard() {
         {/* ── 2. CONTINUE ── */}
         <section>
           <SectionLabel icon={Play} action={
-            <Link href="/my-projects"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
+            <Link href="/my-projects"><span className="text-xs font-bold text-primary/80 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.continue_title")}</SectionLabel>
           {sectionStates.projects === "failed" ? (
             <SectionFailureNote isLight={isLight} label="Your projects" testId="dashboard-projects-failure" onRetry={() => retrySection("projects")} />
@@ -602,7 +605,7 @@ export default function Dashboard() {
                 <div className="h-11 w-11 rounded-xl bg-primary text-black flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"><Plus className="h-5 w-5" /></div>
                 <div>
                   <p className="text-sm font-black text-white">{t("dashboard.no_projects_cta")}</p>
-                  <p className="text-xs text-white/40 mt-0.5">{t("dashboard.no_projects_sub")}</p>
+                  <p className="text-xs text-white/50 mt-0.5">{t("dashboard.no_projects_sub")}</p>
                 </div>
               </div>
             </Link>
@@ -613,7 +616,7 @@ export default function Dashboard() {
                   className={`snap-start shrink-0 w-56 text-left rounded-2xl border border-white/[0.08] bg-gradient-to-br ${TYPE_GRADIENT[p.project_type] ?? "from-primary/[0.14] to-transparent"} p-4 hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(218,165,32,0.15)] transition-all group relative overflow-hidden`}>
                   <div className="text-white/[0.13] group-hover:text-primary/25 transition-colors mb-6">{TYPE_ICON[p.project_type] ?? <FolderOpen className="h-8 w-8" />}</div>
                   <p className="text-sm font-black text-white truncate leading-tight">{projectLabel(p)}</p>
-                  <p className="text-[10px] text-white/35 mt-1 truncate">{p.project_type} · {formatDate(p.created_at)}</p>
+                  <p className="text-[10px] text-white/50 mt-1 truncate">{p.project_type} · {formatDate(p.created_at)}</p>
                   <span className="absolute top-3 right-3 h-7 w-7 rounded-full bg-black/50 border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
                   </span>
@@ -626,7 +629,7 @@ export default function Dashboard() {
         {/* ── 3. MONEY PIPELINE ── */}
         <section>
           <SectionLabel icon={DollarSign} action={
-            <Link href="/coach"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.money_hub")}<ChevronRight className="h-3 w-3" /></span></Link>
+            <Link href="/coach"><span className="text-xs font-bold text-primary/80 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.money_hub")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.money_title")}</SectionLabel>
           <div className={`rounded-2xl border p-4 md:p-5 flex flex-wrap items-center gap-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {sectionStates.deals === "loading" ? (
@@ -642,7 +645,7 @@ export default function Dashboard() {
                   <p className="text-lg font-black text-white leading-tight">
                     {t("dashboard.deals_pipeline", { count: money.activeCount, value: money.pipelineDollars.toLocaleString() })}
                   </p>
-                  <p className="text-[11px] text-white/35 mt-0.5">
+                  <p className="text-[11px] text-white/50 mt-0.5">
                     {money.next ? t("dashboard.next_move_followup", { name: money.next.sponsorName }) : t("dashboard.next_move_find")}
                   </p>
                 </div>
@@ -657,7 +660,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-[140px]">
                   <p className="text-sm font-black text-white">{t("dashboard.money_empty_title")}</p>
-                  <p className="text-[11px] text-white/35 mt-0.5">{t("dashboard.money_empty_sub")}</p>
+                  <p className="text-[11px] text-white/50 mt-0.5">{t("dashboard.money_empty_sub")}</p>
                 </div>
                 <Link href="/brand-deals">
                   <Button size="sm" variant="outline" className="font-bold shrink-0 border-primary/30 text-primary hover:bg-primary/10">{t("dashboard.find_deals")}</Button>
@@ -683,7 +686,7 @@ export default function Dashboard() {
                     <Icon className="h-5 w-5" />
                   </div>
                   <p className="text-xs font-black text-white">{label}</p>
-                  <p className="text-[10px] font-bold text-primary/60 group-hover:text-primary mt-1 flex items-center justify-center gap-1">
+                  <p className="text-[10px] font-bold text-primary/80 group-hover:text-primary mt-1 flex items-center justify-center gap-1">
                     {t("dashboard.open_tab", { defaultValue: "Open" })}<ArrowRight className="h-3 w-3" />
                   </p>
                 </div>
@@ -701,7 +704,7 @@ export default function Dashboard() {
                 <div className={`group h-full p-4 rounded-2xl border hover:border-primary/40 hover:-translate-y-0.5 transition-all cursor-pointer ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <div className="h-9 w-9 rounded-xl bg-primary/[0.12] border border-primary/20 flex items-center justify-center text-primary mb-3 group-hover:scale-105 transition-transform">{m.icon}</div>
                   <p className="text-sm font-black text-white leading-snug truncate">{m.title}</p>
-                  <p className="text-[11px] text-white/35 mt-1 leading-relaxed line-clamp-2">{m.sub}</p>
+                  <p className="text-[11px] text-white/50 mt-1 leading-relaxed line-clamp-2">{m.sub}</p>
                   <p className="text-[11px] font-bold text-primary/70 group-hover:text-primary mt-2.5 flex items-center gap-1">{m.cta}<ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" /></p>
                 </div>
               </Link>
@@ -729,7 +732,7 @@ export default function Dashboard() {
         {/* ── 6. RECENT ACTIVITY ── */}
         <section>
           <SectionLabel icon={Activity} action={
-            <Link href="/credit-history"><span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
+            <Link href="/credit-history"><span className="text-xs font-bold text-primary/80 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
           }>{t("dashboard.activity_title")}</SectionLabel>
           {sectionStates.usage === "failed" ? (
             <SectionFailureNote isLight={isLight} label="Your recent activity" testId="dashboard-usage-failure" onRetry={() => retrySection("usage")} />
@@ -741,7 +744,7 @@ export default function Dashboard() {
                 <Activity className="h-5 w-5 text-primary" />
               </div>
               <p className="text-sm font-black text-white">{t("dashboard.activity_empty")}</p>
-              <p className="text-xs text-white/40 mt-1 max-w-xs mx-auto">{t("dashboard.no_projects_sub")}</p>
+              <p className="text-xs text-white/50 mt-1 max-w-xs mx-auto">{t("dashboard.no_projects_sub")}</p>
               <Link href="/create">
                 <Button size="sm" className="gold-glow font-black mt-4 gap-1.5">
                   <Plus className="h-3.5 w-3.5" />{t("dashboard.create_with_ai")}
@@ -756,10 +759,10 @@ export default function Dashboard() {
                     <Zap className="h-3.5 w-3.5 text-primary/70" />
                   </div>
                   <p className="flex-1 min-w-0 text-xs font-bold text-white/70 truncate">{u.action}</p>
-                  <span className={`text-[11px] font-mono shrink-0 ${u.creditsUsed < 0 ? "text-green-400" : "text-white/30"}`}>
+                  <span className={`text-[11px] font-mono shrink-0 ${u.creditsUsed < 0 ? "text-green-400" : "text-white/50"}`}>
                     {u.creditsUsed < 0 ? `+${formatVB(Math.abs(u.creditsUsed))}` : `-${formatVB(u.creditsUsed)}`}
                   </span>
-                  <span className="text-[10px] text-white/20 shrink-0 hidden sm:block">{formatDate(u.createdAt)}</span>
+                  <span className="text-[10px] text-white/50 shrink-0 hidden sm:block">{formatDate(u.createdAt)}</span>
                 </div>
               ))}
             </div>
