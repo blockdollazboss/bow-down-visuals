@@ -96,6 +96,10 @@ export const storeProductsTable = pgTable("store_products", {
   serviceDetails: jsonb("service_details").$type<ServiceDetails | null>(),
   eventId:        uuid("event_id"),
   relatedLinks:   jsonb("related_links").$type<RelatedLink[]>().notNull().default([]),
+  /* Order bump (Stack-100 #3 #13, migration 0206): the ONE add-on product
+     attached to this product + the seller-set % off its price (0 = list). */
+  bumpProductId:  uuid("bump_product_id"),
+  bumpPercentOff: integer("bump_percent_off").notNull().default(0),
   isActive:       boolean("is_active").notNull().default(true),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -104,6 +108,7 @@ export const storeProductsTable = pgTable("store_products", {
   /* >= 0 (migration 0190): $0 is a lead magnet — claimed by email via
      POST /api/storefront/claim, never run through Stripe checkout. */
   check("store_products_price_check", sql`${t.priceCents} >= 0`),
+  check("store_products_bump_percent_off_range", sql`${t.bumpPercentOff} >= 0 AND ${t.bumpPercentOff} <= 90`),
   index("store_products_profile_idx").on(t.profileId),
   index("store_products_profile_active_idx").on(t.profileId, t.isActive),
 ]);
@@ -127,6 +132,13 @@ export const storeOrdersTable = pgTable("store_orders", {
   platformFeeCents:  integer("platform_fee_cents").notNull().default(0),
   creatorAmountCents: integer("creator_amount_cents").notNull().default(0),
   stripeSessionId:   text("stripe_session_id"),
+  /* Order bump line (migration 0206): the purchased add-on rides THIS row;
+     amount/fee/creator columns stay session totals. */
+  bumpProductId:        uuid("bump_product_id"),
+  bumpTitle:            text("bump_title"),
+  bumpAmountCents:      integer("bump_amount_cents"),
+  bumpPlatformFeeCents: integer("bump_platform_fee_cents"),
+  bumpCreatorAmountCents: integer("bump_creator_amount_cents"),
   status:            text("status").notNull().default("completed"),
   fulfillmentNote:   text("fulfillment_note"),
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
