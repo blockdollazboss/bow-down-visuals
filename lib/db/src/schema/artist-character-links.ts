@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, unique, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { artistVaultsTable } from "./artist-vaults";
@@ -19,7 +20,14 @@ export const artistCharacterLinksTable = pgTable("artist_character_links", {
     .references(() => artistVaultsTable.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("collaborator"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  /* Declared to match migration 0036, which created both in the live DB
+     (schema-source sync — no new migration). POST /links leans on the
+     unique constraint via onConflictDoNothing({ target }); a schema-only
+     rebuild without it would lose the guarantee. */
+  unique("unique_character_link").on(t.character_id, t.linked_character_id),
+  check("no_self_link", sql`${t.character_id} <> ${t.linked_character_id}`),
+]);
 
 export const insertArtistCharacterLinkSchema = createInsertSchema(
   artistCharacterLinksTable,
