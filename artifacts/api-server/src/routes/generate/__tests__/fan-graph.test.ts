@@ -312,6 +312,27 @@ describe("GET /api/email-list/fan-graph", () => {
     expect(body.fans[0].id).toBe("e:shared@x.io");
   });
 
+  it("an EMPTY account (no profile, no lists, no fans) gets 200 with an all-zero summary", async () => {
+    // Live-verified gap (Oct 24 2026): the Fan Graph was invisible on
+    // the owner's empty account. The endpoint must answer a brand-new
+    // creator with an honest zero graph — never an error — so the tab
+    // can render its visible empty state.
+    auth.userId = "creator-with-nothing";
+    const { status, body } = await get();
+    expect(status).toBe(200);
+    expect(body.fans).toEqual([]);
+    expect(body.total).toBe(0);
+    expect(body.summary).toEqual({
+      totalFans: 0,
+      followers: 0,
+      subscribers: 0,
+      members: 0,
+      buyers: 0,
+      totalSpentUsdCents: 0,
+      totalSpentVb: 0,
+    });
+  });
+
   it("rejects a signed-out caller and a bad query", async () => {
     auth.userId = "";
     const anon = await get();

@@ -42,13 +42,29 @@ interface FanGraphSummary {
 const cardClass = "rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur";
 const PAGE_SIZE = 25;
 
+/* The section renders its stat cards from a ZERO default (Oct 24
+   2026, live-verified gap): the cards used to wait for a successful
+   summary fetch, so on an empty account — or any failed load — the
+   whole feature visually vanished and the owner could not find the
+   Fan Graph at all. A shipped feature must be visible at zero:
+   tab present, five cards at 0, and the empty-state line below. */
+const EMPTY_SUMMARY: FanGraphSummary = {
+  totalFans: 0,
+  followers: 0,
+  subscribers: 0,
+  members: 0,
+  buyers: 0,
+  totalSpentUsdCents: 0,
+  totalSpentVb: 0,
+};
+
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 export default function FanGraphTab() {
   const { t, i18n } = useTranslation();
   const { getAccessToken } = useAuth();
   const [fans, setFans] = useState<FanRecord[]>([]);
-  const [summary, setSummary] = useState<FanGraphSummary | null>(null);
+  const [summary, setSummary] = useState<FanGraphSummary>(EMPTY_SUMMARY);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -89,7 +105,7 @@ export default function FanGraphTab() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Couldn't load your fan graph.");
       setFans(data.fans ?? []);
-      setSummary(data.summary ?? null);
+      setSummary(data.summary ?? EMPTY_SUMMARY);
       setTotal(data.total ?? 0);
       if (typeof data.page === "number") setPage(data.page);
     } catch {
@@ -123,16 +139,16 @@ export default function FanGraphTab() {
     <div className="mt-8">
       <p className="mx-auto max-w-2xl text-center text-sm text-white/55">{t("email-list.fan_graph_intro")}</p>
 
-      {summary && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {stat(t("email-list.fan_graph_total_fans"), summary.totalFans)}
-          {stat(t("email-list.fan_graph_followers"), summary.followers)}
-          {stat(t("email-list.active_subscribers"), summary.subscribers)}
-          {stat(t("email-list.fan_graph_members_label"), summary.members)}
-          {stat(t("email-list.fan_graph_buyers"), summary.buyers)}
-        </div>
-      )}
-      {summary && (summary.totalSpentUsdCents > 0 || summary.totalSpentVb > 0) && (
+      {/* Always rendered (zero-default summary) — the feature must be
+          visible on an empty account, not only once it has fans. */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {stat(t("email-list.fan_graph_total_fans"), summary.totalFans)}
+        {stat(t("email-list.fan_graph_followers"), summary.followers)}
+        {stat(t("email-list.active_subscribers"), summary.subscribers)}
+        {stat(t("email-list.fan_graph_members_label"), summary.members)}
+        {stat(t("email-list.fan_graph_buyers"), summary.buyers)}
+      </div>
+      {(summary.totalSpentUsdCents > 0 || summary.totalSpentVb > 0) && (
         <p className="mt-3 text-center text-xs text-white/40">
           {t("email-list.fan_graph_spent_label")}: {usd(summary.totalSpentUsdCents)}
           {summary.totalSpentVb > 0 ? ` · ${summary.totalSpentVb.toLocaleString()} Visual Bucs` : ""}
