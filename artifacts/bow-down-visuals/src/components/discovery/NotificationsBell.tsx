@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Bell, CheckCheck, Flame, Music2, UserPlus, Megaphone, Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { markItemRead, decrementUnread, markAllItemsRead } from "./notifications-read-state";
 
 /* ─── NotificationsBell — header dropdown (Worker 6, discovery) ───────────
    Self-contained: drop <NotificationsBell /> into the header and it handles
@@ -94,11 +95,43 @@ export function NotificationsBell() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      setItems((prev) => prev.map((i) => ({ ...i, is_read: true })));
+      setItems((prev) => markAllItemsRead(prev));
       setUnread(0);
     } catch {
       /* noop */
     }
+  };
+
+  /* Per-item read — the rail has always accepted { ids: [...] }; this
+     bell simply never sent it, so opening a notification left it
+     "new" forever (owner report, Oct 23: only mark-all ever cleared
+     the badge). Mirrors WorldNotificationsBell.openItem: flip the
+     one row + drop the badge locally at once, then tell the rail.
+     The POST is fire-and-forget — wouter navigation is client-side,
+     so the request completes, and the 60s poll re-reads the truth. */
+  const markOneRead = async (id: string) => {
+    try {
+      const token = await getAccessToken().catch(() => null);
+      if (!token) return;
+      await fetch("/api/discovery/notifications/read", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [id] }),
+      });
+    } catch {
+      /* the next poll re-reads the truth from the rail */
+    }
+  };
+
+  const openNotification = (n: NotificationItem) => {
+    setOpen(false);
+    if (n.is_read) return;
+    const next = markItemRead(items, n.id);
+    if (next.wasUnread) {
+      setItems(next.items);
+      setUnread((u) => decrementUnread(u));
+    }
+    void markOneRead(n.id);
   };
 
   if (!user) return null;
@@ -167,11 +200,13 @@ export function NotificationsBell() {
                   </div>
                 );
                 return n.link ? (
-                  <Link key={n.id} href={n.link} onClick={() => setOpen(false)}>
+                  <Link key={n.id} href={n.link} onClick={() => openNotification(n)}>
                     <div className="cursor-pointer">{row}</div>
                   </Link>
                 ) : (
-                  <div key={n.id}>{row}</div>
+                  <div key={n.id} onClick={() => openNotification(n)} className="cursor-pointer">
+                    {row}
+                  </div>
                 );
               })
             )}
