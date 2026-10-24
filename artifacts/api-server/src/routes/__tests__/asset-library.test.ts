@@ -117,15 +117,22 @@ describe("GET /api/asset-library", () => {
        record — creator display name resolved from the profile, the
        stated licence defaulting to all-rights-reserved, and the
        AI-generated flag following the asset's origin. */
+    /* More-provenance (F7 review MEDIUM): hub:a1 shares its URL with
+       generation row g2, so the hub copy is LINKED to a generation record
+       and must state its AI facts — the old pin (aiGenerated:false for
+       this very shape) was the understatement the review flagged. The
+       unlinked stems entry reads "unknown", never "no AI". */
     expect(song.provenance).toMatchObject({
       title: "Midnight Run",
       creator: { id: "user-1", name: "TRGDY TRBLZ" },
       licence: "all-rights-reserved",
-      aiGenerated: false,
+      aiGenerated: true,
+      aiInvolvement: "ai",
       disclosureDefaultEnabled: true,
     });
     expect(song.provenance.createdWith.platform).toBe("Bow Down Visuals");
-    expect(clip.provenance).toMatchObject({ aiGenerated: true, licence: "all-rights-reserved" });
+    expect(stems.provenance).toMatchObject({ aiGenerated: false, aiInvolvement: "unknown" });
+    expect(clip.provenance).toMatchObject({ aiGenerated: true, aiInvolvement: "ai", licence: "all-rights-reserved" });
     expect(Array.isArray(song.provenance.editHistory)).toBe(true);
   });
 
