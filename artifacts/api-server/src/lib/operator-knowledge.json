@@ -119,9 +119,9 @@
     {
       "constant": "QUALITY_EXPORT_COST",
       "endpoint": "/api/export-quality",
-      "serverValue": 150,
+      "serverValue": 400,
       "serverSource": "artifacts/api-server/src/routes/generate/export-video.ts",
-      "registryValue": 150,
+      "registryValue": 400,
       "agree": true
     },
     {
@@ -12133,7 +12133,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12390,7 +12390,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12973,7 +12973,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13363,7 +13363,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13758,7 +13758,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14147,7 +14147,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14537,7 +14537,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },

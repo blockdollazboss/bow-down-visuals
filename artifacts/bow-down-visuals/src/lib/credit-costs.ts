@@ -65,7 +65,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/lip-sync": { cost: 300, feature: "Lip Sync" },
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
   "/api/export-quality/estimate": { cost: 0, feature: "Export Size Estimate (free)" },
-  "/api/export-quality": { cost: 150, feature: "Quality-Controlled Export" },
+  "/api/export-quality": { cost: 400, feature: "Quality-Controlled Export" },
   // Export Doctor rails are FREE — routes/generate/export-doctor.ts
   // contains zero credit logic (no chargeCredits/deductCredits at
   // all; verified Stack-28 A2-05). The registry records 0 for all

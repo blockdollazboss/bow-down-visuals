@@ -41,9 +41,10 @@ function collectRoutes(router: Router, prefix = ""): Array<{ method: string; pat
 }
 
 describe("export quality controls (Feature Wave 6)", () => {
-  it("charges the flat quality price", () => {
-    expect(QUALITY_EXPORT_COST).toBe(150);
+  it("charges the same price as the standard clean export (A-02: same clean output, same price)", () => {
+    expect(QUALITY_EXPORT_COST).toBe(400);
     expect(EXPORT_CREDIT_COST).toBe(400);
+    expect(QUALITY_EXPORT_COST).toBe(EXPORT_CREDIT_COST);
   });
 
   it("registers the new routes without forking the pipeline", () => {

@@ -14211,7 +14211,7 @@
     "fcpxmlBody": "Download this exact timeline as FCPXML — clips, order, trims, and timing. Media stays linked by reference; relink to your clip files in Final Cut.",
     "fcpxmlTitle": "Finish in Final Cut Pro",
     "fixedRateNote": "{{codec}} renders at its fixed finishing rate — the quality slider only applies to H.264.",
-    "flatPrice": "150 Visual Bucs flat",
+    "flatPrice": "400 Visual Bucs flat",
     "fourKNote": "4K renders every pixel — expect a longer render. Same 150 Visual Bucs.",
     "fpsLabel": "Frame rate",
     "off": "off",

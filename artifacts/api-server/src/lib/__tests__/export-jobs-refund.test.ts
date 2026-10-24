@@ -134,8 +134,11 @@ describe("worker wiring — completion-save failure refunds (source pins)", () =
     "utf8",
   );
 
-  it("tracks this run's charged amount from the charge result, not a re-derived figure", () => {
-    expect(src).toMatch(/exportChargedCost = exportCost/);
+  it("tracks this run's standing amount from the rail price it reserved/charged, not a re-derived figure", () => {
+    // A-07 (Stack-100 #3): the standing amount is now set when the price is
+    // reserved at job start (and on the charge-on-success fallback) — the
+    // save-failure refund still returns exactly that standing amount.
+    expect(src).toMatch(/exportChargedCost = railCost/);
     expect(src).toMatch(/refundCredits\(ctx\.userId, exportChargedCost/);
   });
 
