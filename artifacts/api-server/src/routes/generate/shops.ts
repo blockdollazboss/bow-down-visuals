@@ -1947,8 +1947,8 @@ router.post("/shops/:id/pos/cash-sale", publicApiLimiter, requireAuth, async (re
     for (const l of lines) {
       const note = `In-person cash sale — ${l.name} ×${l.quantity}`.slice(0, 280);
       const inserted = await db.execute(sql`
-        INSERT INTO money_entries (user_id, entry_type, category, amount_cents, note, source, entry_date)
-        VALUES (${req.userId!}, 'income', 'merch_sales', ${l.gross}, ${note}, ${POS_CASH_SOURCE}, ${entryDate})
+        INSERT INTO money_entries (id, user_id, entry_type, category, amount_cents, note, source, entry_date)
+        VALUES (${randomUUID()}, ${req.userId!}, 'income', 'merch_sales', ${l.gross}, ${note}, ${POS_CASH_SOURCE}, ${entryDate})
         RETURNING id, amount_cents, category, source, entry_date
       `);
       const row = (inserted.rows as unknown as Array<Record<string, unknown>>)[0];
