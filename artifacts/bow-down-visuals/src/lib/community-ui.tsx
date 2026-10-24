@@ -40,7 +40,17 @@ export function useCommunityApi() {
         ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Something glitched — try again.");
+      if (!res.ok) {
+        /* The error message stays the contract every caller already
+           reads; the full payload rides along (err.data) so surfaces
+           with a structured refusal — e.g. a tier-gated channel's
+           knock door (tier_gate) — can render it instead of a bare
+           error line. */
+        const err = new Error(data.error ?? "Something glitched — try again.") as Error & { data?: unknown; status?: number };
+        err.data = data;
+        err.status = res.status;
+        throw err;
+      }
       return data;
     },
     [getAccessToken],

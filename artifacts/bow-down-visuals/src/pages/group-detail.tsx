@@ -31,9 +31,28 @@ interface Post {
    channel, replies inside a thread. The server computes what the
    viewer may do (can_post / can_moderate / can_manage_channels) from
    the group's role ladder — the page never re-derives permissions. */
+/* Tier-gated channels (#19): a channel may be a members-only room —
+   open to fan members of the group owner's fan club at a tier and
+   up. The server computes the gate verdict per viewer; a locked
+   viewer gets the knock (what the room is, which tier opens it, and
+   the existing fan-club join door), never a bare error. */
+interface ForumGateKnock {
+  channel: { id: string; name: string; description: string };
+  required_tier: { id: string; name: string } | null;
+  join_url: string | null;
+  viewer_status: "not_member" | "below_tier" | "lapsed";
+  message: string;
+  history_note: string;
+}
+interface ForumChannelGate {
+  tier_id: string; tier_name: string | null;
+  viewer_has_access: boolean; viewer_status: string | null;
+  knock: ForumGateKnock | null;
+}
 interface ForumChannel {
   id: string; name: string; description: string; position: number;
   thread_count: number; created_at: string;
+  min_fan_tier_id: string | null; gate: ForumChannelGate | null;
 }
 interface ForumThread {
   id: string; channel_id: string; title: string; body: string; tags: string[];
@@ -79,6 +98,12 @@ export default function GroupDetail() {
   const [showChannelForm, setShowChannelForm] = useState(false);
   const [channelName, setChannelName] = useState("");
   const [channelDesc, setChannelDesc] = useState("");
+  /* Tier gate (#19): the owner's tiers the channel settings can
+     gate on (server-supplied, managers only), the gate chosen in
+     the create form, and the knock door shown for a locked room. */
+  const [gateOptions, setGateOptions] = useState<{ id: string; name: string }[]>([]);
+  const [channelGateTier, setChannelGateTier] = useState("");
+  const [knock, setKnock] = useState<ForumGateKnock | null>(null);
   const [showThreadForm, setShowThreadForm] = useState(false);
   const [threadTitle, setThreadTitle] = useState("");
   const [threadBody, setThreadBody] = useState("");
@@ -165,21 +190,50 @@ export default function GroupDetail() {
   }
 
   /* ── Forum actions ─────────────────────────────────────────────────── */
+  /** Pull the knock out of a gated refusal, when the server sent
+   *  one — the door renders from it, not from the error line. */
+  function knockFromError(e: unknown): ForumGateKnock | null {
+    const data = (e as { data?: { tier_gate?: ForumGateKnock } })?.data;
+    return data?.tier_gate ?? null;
+  }
   async function loadThreadsFor(id: string) {
-    const d = (await api.get(`/api/groups/${slug}/forum/channels/${id}/threads`)) as { threads: ForumThread[] };
-    setThreads(d.threads);
+    try {
+      const d = (await api.get(`/api/groups/${slug}/forum/channels/${id}/threads`)) as { threads: ForumThread[] };
+      setKnock(null);
+      setThreads(d.threads);
+    } catch (e) {
+      const k = knockFromError(e);
+      if (k) { setKnock(k); setThreads([]); return; }
+      throw e;
+    }
+  }
+  /** Open a channel: a room this viewer is gated out of shows its
+   *  knock door (from the channel list's own gate payload) instead
+   *  of a thread list the server would refuse anyway. */
+  async function openChannelDoor(c: ForumChannel) {
+    setChannelId(c.id); setOpenThread(null); setShowThreadForm(false);
+    if (c.gate && !c.gate.viewer_has_access && c.gate.knock) {
+      setKnock(c.gate.knock); setThreads([]);
+      return;
+    }
+    setKnock(null);
+    try { await loadThreadsFor(c.id); }
+    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load threads."); }
   }
   async function loadForum(openFirst = true) {
     try {
       const d = (await api.get(`/api/groups/${slug}/forum/channels`)) as {
         channels: ForumChannel[]; can_post: boolean; can_moderate: boolean; can_manage_channels: boolean;
+        gate_options?: { id: string; name: string }[];
       };
       setChannels(d.channels);
+      setGateOptions(d.gate_options ?? []);
       setForumCaps({ can_post: d.can_post, can_moderate: d.can_moderate, can_manage_channels: d.can_manage_channels });
       setForumLoaded(true);
       const target = (channelId && d.channels.some((c) => c.id === channelId)) ? channelId : d.channels[0]?.id ?? null;
       setChannelId(target);
-      if (target && openFirst) await loadThreadsFor(target);
+      const targetChannel = d.channels.find((c) => c.id === target) ?? null;
+      if (targetChannel && openFirst) await openChannelDoor(targetChannel);
       if (!target) setThreads([]);
     } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load the forum."); }
   }
@@ -188,6 +242,8 @@ export default function GroupDetail() {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [tab, forumLoaded]);
   async function openChannel(id: string) {
+    const c = channels.find((x) => x.id === id);
+    if (c) { await openChannelDoor(c); return; }
     setChannelId(id); setOpenThread(null); setShowThreadForm(false);
     try { await loadThreadsFor(id); }
     catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load threads."); }
@@ -196,10 +252,28 @@ export default function GroupDetail() {
     if (!channelName.trim()) return;
     setBusy(true);
     try {
-      await api.post(`/api/groups/${slug}/forum/channels`, { name: channelName.trim(), description: channelDesc.trim() });
-      setChannelName(""); setChannelDesc(""); setShowChannelForm(false);
+      await api.post(`/api/groups/${slug}/forum/channels`, {
+        name: channelName.trim(), description: channelDesc.trim(),
+        ...(channelGateTier ? { min_fan_tier_id: channelGateTier } : {}),
+      });
+      setChannelName(""); setChannelDesc(""); setChannelGateTier(""); setShowChannelForm(false);
       setForumLoaded(false); await loadForum();
     } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't open the channel."); }
+    finally { setBusy(false); }
+  }
+  /** Channel settings: set or clear the open channel's tier gate.
+   *  Rides the same PATCH the rename uses — the gate is a channel
+   *  setting, docked here in the forum, never a standalone page. */
+  async function setChannelGate(tierId: string) {
+    if (!channelId) return;
+    setBusy(true);
+    try {
+      await api.patch(`/api/groups/${slug}/forum/channels/${channelId}`, {
+        min_fan_tier_id: tierId === "" ? null : tierId,
+      });
+      setNotice(tierId === "" ? "Room reopened to the whole crew." : "Room gated — fan members at that tier and up can enter.");
+      setForumLoaded(false); await loadForum();
+    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't change the room's gate."); }
     finally { setBusy(false); }
   }
   async function closeChannel(id: string) {
@@ -228,7 +302,11 @@ export default function GroupDetail() {
     try {
       const d = (await api.get(`/api/groups/${slug}/forum/threads/${id}`)) as { thread: ForumThread; replies: ForumReply[] };
       setOpenThread(d); setReplyDraft("");
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load the thread."); }
+    } catch (e) {
+      const k = knockFromError(e);
+      if (k) { setKnock(k); setOpenThread(null); return; }
+      setNotice(e instanceof Error ? e.message : "Couldn't load the thread.");
+    }
   }
   async function postReply() {
     if (!openThread || !replyDraft.trim()) return;
@@ -499,6 +577,18 @@ export default function GroupDetail() {
                         placeholder="Channel name" className={goldInput} />
                       <input value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} maxLength={500}
                         placeholder="What's it for? (optional)" className={`${goldInput} mt-2`} />
+                      <select value={channelGateTier} onChange={(e) => setChannelGateTier(e.target.value)}
+                        className={`${goldInput} mt-2`} aria-label="Who can enter this channel">
+                        <option value="">Open to everyone the group admits</option>
+                        {gateOptions.map((t) => (
+                          <option key={t.id} value={t.id}>Members only: {t.name} &amp; up</option>
+                        ))}
+                      </select>
+                      {gateOptions.length === 0 && (
+                        <p className="mt-2 text-xs text-white/40">
+                          Set up fan tiers on the <Link href="/memberships" className="text-[#e8c86a] hover:underline">Memberships page</Link> to make a channel members-only.
+                        </p>
+                      )}
                       <div className="mt-2 flex justify-end">
                         <button type="button" onClick={createChannel} disabled={busy || !channelName.trim()} className={goldButton}>
                           Open channel
@@ -522,6 +612,12 @@ export default function GroupDetail() {
                         <span className="min-w-0">
                           <span className="block truncate font-semibold">{c.name}</span>
                           {c.description && <span className="block truncate text-xs text-white/40">{c.description}</span>}
+                          {c.gate && (
+                            <span className="mt-0.5 flex items-center gap-1 text-xs text-[#e8c86a]">
+                              <Lock className="h-3 w-3" /> {c.gate.tier_name ? `${c.gate.tier_name} & up` : "Members only"}
+                              {!c.gate.viewer_has_access && <span className="text-white/40">· locked for you</span>}
+                            </span>
+                          )}
                         </span>
                         <span className="ml-auto shrink-0 text-xs text-white/40">{c.thread_count} threads</span>
                       </button>
@@ -535,10 +631,52 @@ export default function GroupDetail() {
                 </div>
 
                 <div className="min-w-0 flex-1 space-y-3">
+                  {knock ? (
+                    /* ── The knock door (#19): what the room is, which
+                       tier opens it, and the one-tap join/rejoin —
+                       the existing fan-club door, linked. ──────── */
+                    <div className="rounded-xl border border-[#e8c86a]/40 bg-[#0d0a02] p-5 text-center" data-testid="tier-gate-knock">
+                      <Lock className="mx-auto h-6 w-6 text-[#e8c86a]" />
+                      <h3 className="mt-2 text-lg font-bold">{knock.channel.name}</h3>
+                      {knock.channel.description && <p className="mt-1 text-sm text-white/50">{knock.channel.description}</p>}
+                      <p className="mx-auto mt-3 max-w-md text-sm text-white/80">{knock.message}</p>
+                      <p className="mx-auto mt-2 max-w-md text-xs text-white/40">{knock.history_note}</p>
+                      {knock.join_url ? (
+                        <Link href={knock.join_url} className={`${goldButton} mt-4 inline-block`}>
+                          {knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
+                        </Link>
+                      ) : (
+                        <p className="mt-4 text-sm text-white/50">Ask the group owner how to join their fan club.</p>
+                      )}
+                    </div>
+                  ) : (<>
                   {!forumCaps.can_post && channels.length > 0 && (
                     <p className="rounded-xl border border-white/10 bg-[#0d0a02] p-3 text-sm text-white/50">
                       {user ? "You're reading the forum — join the crew to start threads and reply." : "You're reading as a guest — sign in and join the crew to post."}
                     </p>
+                  )}
+                  {forumCaps.can_manage_channels && channelId && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#0d0a02] p-3 text-sm">
+                      <span className="inline-flex items-center gap-1 font-semibold text-white/70">
+                        <Lock className="h-3.5 w-3.5 text-[#e8c86a]" /> Room access
+                      </span>
+                      <select
+                        value={channels.find((c) => c.id === channelId)?.min_fan_tier_id ?? ""}
+                        onChange={(e) => void setChannelGate(e.target.value)}
+                        disabled={busy}
+                        className="rounded-lg border border-white/15 bg-black px-2 py-1.5 text-sm text-white"
+                        aria-label="Room access — fan tier gate">
+                        <option value="">Everyone the group admits</option>
+                        {gateOptions.map((t) => (
+                          <option key={t.id} value={t.id}>Fan members: {t.name} &amp; up</option>
+                        ))}
+                      </select>
+                      {gateOptions.length === 0 && (
+                        <span className="text-xs text-white/40">
+                          Add fan tiers on the <Link href="/memberships" className="text-[#e8c86a] hover:underline">Memberships page</Link> to gate this room.
+                        </span>
+                      )}
+                    </div>
                   )}
                   {forumCaps.can_post && channelId && (
                     <div className="flex justify-end">
@@ -614,6 +752,7 @@ export default function GroupDetail() {
                   {!channelId && channels.length > 0 && (
                     <p className="py-8 text-center text-white/40">Pick a channel to see its threads.</p>
                   )}
+                  </>)}
                 </div>
               </div>
             )}

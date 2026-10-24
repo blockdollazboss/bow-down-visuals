@@ -138,11 +138,31 @@ export interface ForumCaps {
   can_manage_channels: boolean;
 }
 
+/* Tier-gated channels (#19): the rail's per-channel gate verdict.
+   A locked viewer gets the knock — the same payload the 2D group
+   page renders — so the World shows the door, never a dead end. */
+export interface TierGateKnock {
+  message: string;
+  history_note: string;
+  join_url: string | null;
+  viewer_status: string;
+  required_tier: { id: string; name: string } | null;
+}
+
+export interface ForumChannelGate {
+  tier_id: string;
+  tier_name: string | null;
+  viewer_has_access: boolean;
+  viewer_status: string | null;
+  knock: TierGateKnock | null;
+}
+
 export interface ForumChannel {
   id: string;
   name: string;
   description: string;
   thread_count: number;
+  gate: ForumChannelGate | null;
 }
 
 export interface ForumThread {
@@ -262,8 +282,42 @@ export function forumCapsOf(data: unknown): ForumCaps {
   };
 }
 
-export function normalizeForumChannels(data: unknown): { channels: ForumChannel[]; caps: ForumCaps } {
-  const d = data as { channels?: unknown } | null;
+function asKnock(raw: unknown): TierGateKnock | null {
+  if (!raw || typeof raw !== "object") return null;
+  const k = raw as Record<string, unknown>;
+  if (typeof k.message !== "string") return null;
+  const tier = k.required_tier as Record<string, unknown> | null | undefined;
+  return {
+    message: k.message,
+    history_note: typeof k.history_note === "string" ? k.history_note : "",
+    join_url: typeof k.join_url === "string" ? k.join_url : null,
+    viewer_status: typeof k.viewer_status === "string" ? k.viewer_status : "not_member",
+    required_tier:
+      tier && typeof tier.id === "string" && typeof tier.name === "string"
+        ? { id: tier.id, name: tier.name }
+        : null,
+  };
+}
+
+function asGate(raw: unknown): ForumChannelGate | null {
+  if (!raw || typeof raw !== "object") return null;
+  const g = raw as Record<string, unknown>;
+  if (typeof g.tier_id !== "string") return null;
+  return {
+    tier_id: g.tier_id,
+    tier_name: typeof g.tier_name === "string" ? g.tier_name : null,
+    viewer_has_access: g.viewer_has_access === true,
+    viewer_status: typeof g.viewer_status === "string" ? g.viewer_status : null,
+    knock: asKnock(g.knock),
+  };
+}
+
+export function normalizeForumChannels(data: unknown): {
+  channels: ForumChannel[];
+  caps: ForumCaps;
+  gateOptions: { id: string; name: string }[];
+} {
+  const d = data as { channels?: unknown; gate_options?: unknown } | null;
   const channels = Array.isArray(d?.channels)
     ? d.channels.flatMap((c) => {
         const row = c as Record<string, unknown>;
@@ -273,10 +327,26 @@ export function normalizeForumChannels(data: unknown): { channels: ForumChannel[
           name: row.name,
           description: typeof row.description === "string" ? row.description : "",
           thread_count: typeof row.thread_count === "number" ? row.thread_count : 0,
+          gate: asGate(row.gate),
         }];
       })
     : [];
-  return { channels, caps: forumCapsOf(data) };
+  const gateOptions = Array.isArray(d?.gate_options)
+    ? d.gate_options.flatMap((t) => {
+        const row = t as Record<string, unknown>;
+        if (typeof row?.id !== "string" || typeof row?.name !== "string") return [];
+        return [{ id: row.id, name: row.name }];
+      })
+    : [];
+  return { channels, caps: forumCapsOf(data), gateOptions };
+}
+
+/** The knock door for a channel this viewer cannot enter, or null
+ *  when the channel is open to them. The desk renders this instead
+ *  of opening a thread list the rail would refuse. */
+export function forumChannelKnock(channel: ForumChannel): TierGateKnock | null {
+  if (!channel.gate || channel.gate.viewer_has_access) return null;
+  return channel.gate.knock;
 }
 
 function asThread(raw: unknown): ForumThread | null {

@@ -20,12 +20,19 @@ import {
   profileVideosTable,
   followsTable,
   notificationsTable,
+  fanTiersTable,
+  fanMembersTable,
   EVENT_KINDS,
   type Conversation,
 } from "@workspace/db";
 import { eq, and, or, desc, asc, sql, ne, gt, gte, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { canGroupAction, normalizeGroupRole } from "../lib/group-roles";
+import { isUndefinedColumn } from "../lib/pg-errors";
+import {
+  orderFanTiers, evaluateTierGate, buildTierGateKnock,
+  type TierGateEvaluation, type TierGateKnock,
+} from "../lib/fan-tier-gate";
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import {
@@ -78,13 +85,23 @@ function param(req: Request, name: string): string {
      channel, replies inside a thread; the group's own visibility and
      role ladder govern every path):
        GET    /groups/:slug/forum/channels                    (public read; private = members)
-       POST   /groups/:slug/forum/channels                    (auth; admin+)
-       PATCH  /groups/:slug/forum/channels/:channelId         (auth; admin+)
+       POST   /groups/:slug/forum/channels                    (auth; admin+; optional min_fan_tier_id gate)
+       PATCH  /groups/:slug/forum/channels/:channelId         (auth; admin+; can set/clear min_fan_tier_id)
        DELETE /groups/:slug/forum/channels/:channelId         (auth; admin+)
-       GET    /groups/:slug/forum/channels/:channelId/threads (public read; private = members)
-       POST   /groups/:slug/forum/channels/:channelId/threads (auth; member only)
-       GET    /groups/:slug/forum/threads/:threadId           (public read; private = members)
-       POST   /groups/:slug/forum/threads/:threadId/replies   (auth; member only)
+       GET    /groups/:slug/forum/channels/:channelId/threads (public read; private = members; tier gate)
+       POST   /groups/:slug/forum/channels/:channelId/threads (auth; member only; tier gate)
+       GET    /groups/:slug/forum/threads/:threadId           (public read; private = members; tier gate)
+       POST   /groups/:slug/forum/threads/:threadId/replies   (auth; member only; tier gate)
+     Tier-gated channels (#19): a channel may require a fan
+     membership in the GROUP OWNER's fan club at a tier and up
+     (min_fan_tier_id). Reads AND writes for non-qualifying viewers
+     answer 403 with a `tier_gate` knock payload (what the room is,
+     which tier opens it, the existing /memberships?creator= join
+     door) — never a bare error, and gated channels still appear in
+     the channel list carrying that knock. A lapsed membership ends
+     access at read/post time; the member's past threads/replies are
+     never deleted or de-attributed by the gate. Group staff
+     (moderator+) are exempt — they run the room.
        PATCH  /groups/:slug/forum/threads/:threadId           (auth; moderator+ pin/lock)
        DELETE /groups/:slug/forum/threads/:threadId           (auth; moderator+ or author)
        DELETE /groups/:slug/forum/threads/:threadId/replies/:replyId (auth; moderator+ or author)
@@ -138,13 +155,19 @@ const groupPostSchema = z.object({
 const createForumChannelSchema = z.object({
   name: z.string().trim().min(1).max(60),
   description: z.string().trim().max(500).optional().default(""),
+  /* Tier gate (#19): the fan tier (of the group owner's fan club)
+     this channel requires, and up. Absent/null = open channel. */
+  min_fan_tier_id: uuidSchema.nullable().optional(),
 });
 
 const updateForumChannelSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   description: z.string().trim().max(500).optional(),
   position: z.number().int().min(0).max(999).optional(),
-}).refine((v) => v.name !== undefined || v.description !== undefined || v.position !== undefined, {
+  /* Present (a tier id) = set the gate; present as null = clear it;
+     absent = leave the gate alone. */
+  min_fan_tier_id: uuidSchema.nullable().optional(),
+}).refine((v) => v.name !== undefined || v.description !== undefined || v.position !== undefined || v.min_fan_tier_id !== undefined, {
   message: "Nothing to change.",
 });
 
@@ -700,11 +723,172 @@ async function resolveForumWriteGroup(req: Request, res: Response): Promise<{ gr
   return { group, role };
 }
 
+/* ── Tier gates on channels (#19) ─────────────────────────────────────
+   A channel's gate lives in group_forum_channels.min_fan_tier_id —
+   a column whose migration is HELD (see .lane/MIGRATION-NEEDED.md,
+   number assigned at join). Until it lands, every channel read runs
+   on the legacy column set and the gate is loaded through a separate
+   probe that treats a missing column (42703) as "no gates anywhere"
+   — the forum behaves exactly as it did before this feature. Gate
+   WRITES that cannot be honoured without the column answer an honest
+   503 (tier_gate_not_ready) instead of half-applying. */
+
+type ForumChannelRow = typeof groupForumChannelsTable.$inferSelect;
+
+/** The pre-gate column set — every channel read selects exactly
+ *  these fields, so a database without min_fan_tier_id serves the
+ *  forum unchanged. */
+const forumChannelLegacyCols = {
+  id: groupForumChannelsTable.id,
+  groupId: groupForumChannelsTable.groupId,
+  name: groupForumChannelsTable.name,
+  description: groupForumChannelsTable.description,
+  position: groupForumChannelsTable.position,
+  createdByUserId: groupForumChannelsTable.createdByUserId,
+  createdAt: groupForumChannelsTable.createdAt,
+};
+
+/** Gate values for a set of channels: id -> min tier id (or null).
+ *  A missing column degrades to "no gates" (see the section note). */
+async function loadChannelGateMap(channelIds: string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  if (channelIds.length === 0) return out;
+  try {
+    const rows = await db.select({
+      id: groupForumChannelsTable.id,
+      minFanTierId: groupForumChannelsTable.minFanTierId,
+    }).from(groupForumChannelsTable)
+      .where(inArray(groupForumChannelsTable.id, channelIds));
+    for (const r of rows) out.set(r.id, r.minFanTierId ?? null);
+  } catch (err) {
+    if (isUndefinedColumn(err)) return out;
+    throw err;
+  }
+  return out;
+}
+
+function withGate(
+  row: Omit<ForumChannelRow, "minFanTierId">,
+  gates: Map<string, string | null>,
+): ForumChannelRow {
+  return { ...row, minFanTierId: gates.get(row.id) ?? null };
+}
+
+async function listForumChannels(groupId: string): Promise<ForumChannelRow[]> {
+  const rows = await db.select(forumChannelLegacyCols).from(groupForumChannelsTable)
+    .where(eq(groupForumChannelsTable.groupId, groupId))
+    .orderBy(asc(groupForumChannelsTable.position), asc(groupForumChannelsTable.createdAt));
+  const gates = await loadChannelGateMap(rows.map((r) => r.id));
+  return rows.map((r) => withGate(r, gates));
+}
+
 async function getForumChannel(groupId: string, channelId: string) {
-  const rows = await db.select().from(groupForumChannelsTable)
+  const rows = await db.select(forumChannelLegacyCols).from(groupForumChannelsTable)
     .where(and(eq(groupForumChannelsTable.id, channelId), eq(groupForumChannelsTable.groupId, groupId)))
     .limit(1);
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  const gates = await loadChannelGateMap([row.id]);
+  return withGate(row, gates);
+}
+
+/** The fan-club owner behind a group: owner profile -> user id. */
+async function groupOwnerUserId(group: ForumGroup): Promise<string | null> {
+  if (!group.ownerProfileId) return null;
+  const rows = await db.select({ userId: creatorProfilesTable.userId })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.id, group.ownerProfileId))
+    .limit(1);
+  return rows[0]?.userId ?? null;
+}
+
+/** Everything a gate decision needs for one group + viewer, loaded
+ *  once and reused across channels (the list path evaluates every
+ *  channel against the same context). */
+interface TierGateContext {
+  creatorUserId: string | null;
+  tiers: ReturnType<typeof orderFanTiers<typeof fanTiersTable.$inferSelect>>;
+  members: (typeof fanMembersTable.$inferSelect)[];
+}
+
+async function loadTierGateContext(group: ForumGroup, viewerId: string | undefined): Promise<TierGateContext> {
+  const creatorUserId = await groupOwnerUserId(group);
+  if (!creatorUserId) return { creatorUserId: null, tiers: [], members: [] };
+  const tierRows = await db.select().from(fanTiersTable)
+    .where(eq(fanTiersTable.user_id, creatorUserId))
+    .orderBy(asc(fanTiersTable.sort_order), asc(fanTiersTable.created_at));
+  const members = viewerId
+    ? await db.select().from(fanMembersTable)
+        .where(and(eq(fanMembersTable.user_id, creatorUserId), eq(fanMembersTable.fan_user_id, viewerId)))
+    : [];
+  return { creatorUserId, tiers: orderFanTiers(tierRows), members };
+}
+
+/** Evaluate one channel's gate for the viewer in this context.
+ *  Group staff (moderator+ — the ladder's deletePost rung) run the
+ *  room and are never gated out of it. */
+function evaluateChannelGate(
+  ctx: TierGateContext,
+  channel: ForumChannelRow,
+  role: string | null,
+): TierGateEvaluation {
+  return evaluateTierGate({
+    orderedTiers: ctx.tiers,
+    gateTierId: channel.minFanTierId ?? null,
+    members: ctx.members,
+    isStaff: canGroupAction(role, "deletePost"),
+  });
+}
+
+function knockFor(
+  ctx: TierGateContext,
+  group: ForumGroup,
+  channel: ForumChannelRow,
+  evaluation: TierGateEvaluation,
+): TierGateKnock {
+  return buildTierGateKnock({
+    channel: { id: channel.id, name: channel.name, description: channel.description },
+    group: { slug: group.slug, name: group.name },
+    evaluation,
+    creatorUserId: ctx.creatorUserId,
+  });
+}
+
+/** The 403 every gated read/write answers: the knock payload rides
+ *  alongside the human message — never a bare error. */
+function sendTierGateKnock(res: Response, knock: TierGateKnock) {
+  res.status(403).json({ error: knock.message, tier_gate: knock });
+}
+
+/** Gate check for a channel-scoped route. Returns true when the
+ *  viewer may proceed; otherwise the knock is already sent. */
+async function passChannelGate(
+  req: Request,
+  res: Response,
+  group: ForumGroup,
+  role: string | null,
+  channel: ForumChannelRow,
+): Promise<boolean> {
+  if (!channel.minFanTierId) return true;
+  const ctx = await loadTierGateContext(group, req.userId);
+  const evaluation = evaluateChannelGate(ctx, channel, role);
+  if (evaluation.hasAccess) return true;
+  sendTierGateKnock(res, knockFor(ctx, group, channel, evaluation));
+  return false;
+}
+
+/** Resolve + gate-check the channel a THREAD lives in (thread routes
+ *  are keyed by thread id, but the gate lives on its channel). */
+async function passThreadGate(
+  req: Request,
+  res: Response,
+  group: ForumGroup,
+  role: string | null,
+  thread: typeof groupForumThreadsTable.$inferSelect,
+): Promise<boolean> {
+  const channel = await getForumChannel(group.id, thread.channelId);
+  if (!channel) return true; // orphaned thread row — the thread 404/lookup paths own that story
+  return passChannelGate(req, res, group, role, channel);
 }
 
 async function getForumThread(groupId: string, threadId: string) {
@@ -724,7 +908,11 @@ function forumViewerCaps(role: string | null) {
   };
 }
 
-function toForumChannelDto(c: typeof groupForumChannelsTable.$inferSelect, threadCount: number) {
+function toForumChannelDto(
+  c: ForumChannelRow,
+  threadCount: number,
+  gate?: { evaluation: TierGateEvaluation; knock: TierGateKnock | null },
+) {
   return {
     id: c.id,
     group_id: c.groupId,
@@ -733,6 +921,20 @@ function toForumChannelDto(c: typeof groupForumChannelsTable.$inferSelect, threa
     position: c.position,
     thread_count: threadCount,
     created_at: c.createdAt,
+    /* Tier gate (#19): null = open channel. When gated, the DTO says
+       which tier opens the room and whether THIS viewer may enter;
+       a locked viewer also gets the full knock (join door included)
+       so clients render the door from the list alone. */
+    min_fan_tier_id: c.minFanTierId ?? null,
+    gate: gate && c.minFanTierId
+      ? {
+          tier_id: c.minFanTierId,
+          tier_name: gate.evaluation.requiredTier?.name ?? null,
+          viewer_has_access: gate.evaluation.hasAccess,
+          viewer_status: gate.evaluation.viewerStatus,
+          knock: gate.knock,
+        }
+      : null,
   };
 }
 
@@ -778,15 +980,20 @@ function toForumReplyDto(
   };
 }
 
-/** Channel list for a group (with per-channel thread counts). */
+/** Channel list for a group (with per-channel thread counts).
+ *  Gated channels are LISTED for everyone the group itself admits —
+ *  the knock door only works if a non-member can see what the room
+ *  is — carrying their gate + this viewer's access verdict; their
+ *  threads stay behind the gate on the thread routes. Channel
+ *  managers also get the owner's tier list (names + ids only) so the
+ *  channel settings can offer the gate choices without a second
+ *  surface. */
 router.get("/groups/:slug/forum/channels", async (req, res) => {
   try {
     const ctx = await resolveForumReadGroup(req, res);
     if (!ctx) return;
     const { group, role } = ctx;
-    const channels = await db.select().from(groupForumChannelsTable)
-      .where(eq(groupForumChannelsTable.groupId, group.id))
-      .orderBy(asc(groupForumChannelsTable.position), asc(groupForumChannelsTable.createdAt));
+    const channels = await listForumChannels(group.id);
     const countRows = await db.select({
       channelId: groupForumThreadsTable.channelId,
       n: sql<number>`count(*)::int`,
@@ -794,10 +1001,25 @@ router.get("/groups/:slug/forum/channels", async (req, res) => {
       .where(eq(groupForumThreadsTable.groupId, group.id))
       .groupBy(groupForumThreadsTable.channelId);
     const counts = new Map(countRows.map((r) => [r.channelId, r.n]));
+    const gateCtx = channels.some((c) => c.minFanTierId) || canGroupAction(role, "setJoinQuestions")
+      ? await loadTierGateContext(group, req.userId)
+      : null;
+    const canManage = canGroupAction(role, "setJoinQuestions");
     res.json({
-      channels: channels.map((c) => toForumChannelDto(c, counts.get(c.id) ?? 0)),
+      channels: channels.map((c) => {
+        if (!c.minFanTierId || !gateCtx) return toForumChannelDto(c, counts.get(c.id) ?? 0);
+        const evaluation = evaluateChannelGate(gateCtx, c, role);
+        return toForumChannelDto(c, counts.get(c.id) ?? 0, {
+          evaluation,
+          knock: evaluation.hasAccess ? null : knockFor(gateCtx, group, c, evaluation),
+        });
+      }),
       viewer_role: role,
       ...forumViewerCaps(role),
+      gate_options: canManage && gateCtx
+        ? gateCtx.tiers.filter((t) => t.is_active === "true").map((t) => ({ id: t.id, name: t.name }))
+        : [],
+      gate_creator_user_id: canManage && gateCtx ? gateCtx.creatorUserId : null,
     });
   } catch (err) {
     console.error("[community] GET /groups/:slug/forum/channels failed", err);
@@ -805,7 +1027,30 @@ router.get("/groups/:slug/forum/channels", async (req, res) => {
   }
 });
 
-/** Create a channel. Admin+ on the group's own ladder. */
+/** Validate a requested gate tier against the group owner's fan
+ *  club. Returns an error message, or null when the gate is honest:
+ *  the tier must exist, be active, and belong to the GROUP OWNER —
+ *  a channel can never gate on some other creator's tiers. */
+async function validateGateTier(group: ForumGroup, tierId: string): Promise<string | null> {
+  const creatorUserId = await groupOwnerUserId(group);
+  if (!creatorUserId) return "This group has no fan club to gate a channel with — the group owner needs a creator profile first.";
+  const rows = await db.select().from(fanTiersTable)
+    .where(and(eq(fanTiersTable.id, tierId), eq(fanTiersTable.user_id, creatorUserId)))
+    .limit(1);
+  const tier = rows[0];
+  if (!tier) return "That tier isn't one of this group's owner's fan tiers.";
+  if (tier.is_active !== "true") return "That fan tier isn't active — pick one fans can actually join.";
+  return null;
+}
+
+const TIER_GATE_NOT_READY = {
+  error: "tier_gate_not_ready",
+  message: "Tier-gated channels aren't switched on for this group yet — the channel was left unchanged. Try again once the platform update lands.",
+};
+
+/** Create a channel. Admin+ on the group's own ladder. A gate can
+ *  ride along at creation (min_fan_tier_id) — validated against the
+ *  group owner's fan tiers, never taken on faith. */
 router.post("/groups/:slug/forum/channels", requireAuth, async (req, res) => {
   try {
     const ctx = await resolveForumWriteGroup(req, res);
@@ -816,13 +1061,33 @@ router.post("/groups/:slug/forum/channels", requireAuth, async (req, res) => {
       return;
     }
     const body = createForumChannelSchema.parse(req.body);
-    const [channel] = await db.insert(groupForumChannelsTable).values({
+    const gateTierId = body.min_fan_tier_id ?? null;
+    if (gateTierId) {
+      const gateError = await validateGateTier(group, gateTierId);
+      if (gateError) { res.status(400).json({ error: gateError }); return; }
+    }
+    const baseValues = {
       groupId: group.id,
       name: body.name,
       description: body.description ?? "",
       createdByUserId: req.userId!,
-    }).returning();
-    res.status(201).json({ channel: toForumChannelDto(channel, 0) });
+    };
+    try {
+      const [channel] = await db.insert(groupForumChannelsTable).values(
+        gateTierId ? { ...baseValues, minFanTierId: gateTierId } : baseValues,
+      ).returning();
+      /* Pre-migration the insert succeeds WITHOUT the gate column in
+         its returning row shape in some drivers — re-read through the
+         gate probe so the DTO always tells the truth. */
+      const stored = gateTierId ? await getForumChannel(group.id, channel.id) : null;
+      res.status(201).json({ channel: toForumChannelDto(stored ?? { ...channel, minFanTierId: gateTierId }, 0) });
+    } catch (err) {
+      if (gateTierId && isUndefinedColumn(err)) {
+        res.status(503).json(TIER_GATE_NOT_READY);
+        return;
+      }
+      throw err;
+    }
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
     console.error("[community] POST /groups/:slug/forum/channels failed", err);
@@ -830,7 +1095,13 @@ router.post("/groups/:slug/forum/channels", requireAuth, async (req, res) => {
   }
 });
 
-/** Rename / re-describe / reorder a channel. Admin+. */
+/** Rename / re-describe / reorder a channel — and set or clear its
+ *  tier gate (min_fan_tier_id: a tier id gates the room at that tier
+ *  and up; null reopens it to the group's own rules). Admin+. The
+ *  legacy fields and the gate update separately so a database
+ *  without the gate column still renames channels exactly as before,
+ *  and a gate change that can't be honoured answers 503 without
+ *  half-applying the rest. */
 router.patch("/groups/:slug/forum/channels/:channelId", requireAuth, async (req, res) => {
   try {
     const ctx = await resolveForumWriteGroup(req, res);
@@ -843,12 +1114,35 @@ router.patch("/groups/:slug/forum/channels/:channelId", requireAuth, async (req,
     const channel = await getForumChannel(group.id, param(req, "channelId"));
     if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
     const body = updateForumChannelSchema.parse(req.body);
+    const wantsGateChange = body.min_fan_tier_id !== undefined;
+    if (wantsGateChange && body.min_fan_tier_id) {
+      const gateError = await validateGateTier(group, body.min_fan_tier_id);
+      if (gateError) { res.status(400).json({ error: gateError }); return; }
+    }
     const patch: Partial<{ name: string; description: string; position: number }> = {};
     if (body.name !== undefined) patch.name = body.name;
     if (body.description !== undefined) patch.description = body.description;
     if (body.position !== undefined) patch.position = body.position;
-    const [updated] = await db.update(groupForumChannelsTable).set(patch)
-      .where(eq(groupForumChannelsTable.id, channel.id)).returning();
+    let updated: ForumChannelRow = channel;
+    if (Object.keys(patch).length > 0) {
+      const [row] = await db.update(groupForumChannelsTable).set(patch)
+        .where(eq(groupForumChannelsTable.id, channel.id)).returning();
+      updated = { ...row, minFanTierId: channel.minFanTierId ?? null };
+    }
+    if (wantsGateChange) {
+      try {
+        const [row] = await db.update(groupForumChannelsTable)
+          .set({ minFanTierId: body.min_fan_tier_id ?? null })
+          .where(eq(groupForumChannelsTable.id, channel.id)).returning();
+        updated = { ...updated, ...row, minFanTierId: body.min_fan_tier_id ?? null };
+      } catch (err) {
+        if (isUndefinedColumn(err)) {
+          res.status(503).json(TIER_GATE_NOT_READY);
+          return;
+        }
+        throw err;
+      }
+    }
     const countRows = await db.select({ n: sql<number>`count(*)::int` }).from(groupForumThreadsTable)
       .where(eq(groupForumThreadsTable.channelId, channel.id));
     res.json({ channel: toForumChannelDto(updated, countRows[0]?.n ?? 0) });
@@ -879,7 +1173,9 @@ router.delete("/groups/:slug/forum/channels/:channelId", requireAuth, async (req
   }
 });
 
-/** Threads in a channel: pinned first, then most recent activity. */
+/** Threads in a channel: pinned first, then most recent activity.
+ *  A gated channel refuses non-qualifying viewers here with the
+ *  knock (403 + tier_gate) — thread titles and bodies never leak. */
 router.get("/groups/:slug/forum/channels/:channelId/threads", async (req, res) => {
   try {
     const ctx = await resolveForumReadGroup(req, res);
@@ -887,6 +1183,7 @@ router.get("/groups/:slug/forum/channels/:channelId/threads", async (req, res) =
     const { group, role } = ctx;
     const channel = await getForumChannel(group.id, param(req, "channelId"));
     if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
+    if (!(await passChannelGate(req, res, group, role, channel))) return;
     const threads = await db.select().from(groupForumThreadsTable)
       .where(eq(groupForumThreadsTable.channelId, channel.id))
       .orderBy(
@@ -907,7 +1204,9 @@ router.get("/groups/:slug/forum/channels/:channelId/threads", async (req, res) =
   }
 });
 
-/** Start a thread. Members only (the group's own posting rule). */
+/** Start a thread. Members only (the group's own posting rule) —
+ *  and, in a gated channel, qualifying fan members only: group
+ *  membership alone never opens a members-only room. */
 router.post("/groups/:slug/forum/channels/:channelId/threads", requireAuth, async (req, res) => {
   try {
     const ctx = await resolveForumWriteGroup(req, res);
@@ -916,6 +1215,7 @@ router.post("/groups/:slug/forum/channels/:channelId/threads", requireAuth, asyn
     if (!role) { res.status(403).json({ error: "Join the group before you talk in it." }); return; }
     const channel = await getForumChannel(group.id, param(req, "channelId"));
     if (!channel) { res.status(404).json({ error: "Channel not found." }); return; }
+    if (!(await passChannelGate(req, res, group, role, channel))) return;
     const body = createForumThreadSchema.parse(req.body);
     const tags = normalizeForumTags(body.tags ?? []);
     if (!tags) {
@@ -943,7 +1243,13 @@ router.post("/groups/:slug/forum/channels/:channelId/threads", requireAuth, asyn
   }
 });
 
-/** One thread with its replies, oldest first. */
+/** One thread with its replies, oldest first. The gate lives on the
+ *  thread's channel and applies here exactly as on the channel's
+ *  thread list — a thread id is never a way around the room's door.
+ *  NOTE the history rule: this gate is the ONLY thing standing
+ *  between a lapsed member and the room. Their threads and replies
+ *  are still in the result for qualifying viewers, attributed as
+ *  ever — the gate never deletes or anonymizes past content. */
 router.get("/groups/:slug/forum/threads/:threadId", async (req, res) => {
   try {
     const ctx = await resolveForumReadGroup(req, res);
@@ -951,6 +1257,7 @@ router.get("/groups/:slug/forum/threads/:threadId", async (req, res) => {
     const { group, role } = ctx;
     const thread = await getForumThread(group.id, param(req, "threadId"));
     if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (!(await passThreadGate(req, res, group, role, thread))) return;
     const replies = await db.select().from(groupForumRepliesTable)
       .where(eq(groupForumRepliesTable.threadId, thread.id))
       .orderBy(asc(groupForumRepliesTable.createdAt)).limit(200);
@@ -977,6 +1284,7 @@ router.post("/groups/:slug/forum/threads/:threadId/replies", requireAuth, async 
     if (!role) { res.status(403).json({ error: "Join the group before you talk in it." }); return; }
     const thread = await getForumThread(group.id, param(req, "threadId"));
     if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (!(await passThreadGate(req, res, group, role, thread))) return;
     if (thread.isLocked && !canGroupAction(role, "deletePost")) {
       res.status(403).json({ error: "This thread is locked by the crew's moderators." });
       return;
@@ -1030,6 +1338,7 @@ router.patch("/groups/:slug/forum/threads/:threadId", requireAuth, async (req, r
     }
     const thread = await getForumThread(group.id, param(req, "threadId"));
     if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (!(await passThreadGate(req, res, group, role, thread))) return;
     const body = forumThreadModerationSchema.parse(req.body);
     const patch: Partial<{ isPinned: boolean; isLocked: boolean }> = {};
     if (body.is_pinned !== undefined) patch.isPinned = body.is_pinned;
@@ -1058,6 +1367,7 @@ router.delete("/groups/:slug/forum/threads/:threadId", requireAuth, async (req, 
     const { group, role } = ctx;
     const thread = await getForumThread(group.id, param(req, "threadId"));
     if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (!(await passThreadGate(req, res, group, role, thread))) return;
     if (thread.authorUserId !== req.userId && !canGroupAction(role, "deletePost")) {
       res.status(403).json({ error: "Only the crew leads or the author can remove this." });
       return;
@@ -1078,6 +1388,7 @@ router.delete("/groups/:slug/forum/threads/:threadId/replies/:replyId", requireA
     const { group, role } = ctx;
     const thread = await getForumThread(group.id, param(req, "threadId"));
     if (!thread) { res.status(404).json({ error: "Thread not found." }); return; }
+    if (!(await passThreadGate(req, res, group, role, thread))) return;
     const rows = await db.select().from(groupForumRepliesTable)
       .where(and(eq(groupForumRepliesTable.id, param(req, "replyId")), eq(groupForumRepliesTable.threadId, thread.id)))
       .limit(1);

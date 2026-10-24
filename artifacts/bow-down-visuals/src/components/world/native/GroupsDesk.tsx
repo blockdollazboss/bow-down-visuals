@@ -14,6 +14,7 @@ import {
   forumThreadPath, forumThreadRepliesPath, forumReplyPath,
   normalizeGroups, normalizeGroupDetail, normalizeGroupFeed,
   normalizeForumChannels, normalizeForumThreads, normalizeForumThreadDetail,
+  forumChannelKnock,
   groupMembershipAction, groupFeedCanPost, forumReplyAllowed,
   forumModerationVisible, groupSlugFromName, groupCreateReady,
   buildGroupCreateBody, takePendingGroupSlug,
@@ -502,9 +503,14 @@ function GroupForum({
   const [tick, setTick] = useState(0);
   const [channelId, setChannelId] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
+  /* Tier gate (#19): the locked channel whose knock door is showing,
+     and the owner's gate options for the create form (rail-supplied). */
+  const [knockChannelId, setKnockChannelId] = useState<string | null>(null);
+  const [gateOptions, setGateOptions] = useState<{ id: string; name: string }[]>([]);
 
   const [chName, setChName] = useState("");
   const [chDesc, setChDesc] = useState("");
+  const [chGate, setChGate] = useState("");
   const [chBusy, setChBusy] = useState(false);
 
   useEffect(() => {
@@ -517,6 +523,7 @@ function GroupForum({
         const parsed = normalizeForumChannels(d);
         setChannels(parsed.channels);
         setCaps(parsed.caps);
+        setGateOptions(parsed.gateOptions);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -531,9 +538,12 @@ function GroupForum({
     try {
       await apiJson(authHeaders, forumChannelsPath(slug), {
         method: "POST",
-        body: { name: chName.trim(), description: chDesc.trim() },
+        body: {
+          name: chName.trim(), description: chDesc.trim(),
+          ...(chGate ? { min_fan_tier_id: chGate } : {}),
+        },
       });
-      setChName(""); setChDesc("");
+      setChName(""); setChDesc(""); setChGate("");
       setTick((t) => t + 1);
     } catch (e) {
       onNotice(e instanceof Error ? e.message : "Couldn't open the channel.");
@@ -586,6 +596,37 @@ function GroupForum({
     );
   }
 
+  /* The knock door (#19): a gated room this viewer can't enter shows
+     what it is, which tier opens it, and the join path — in-world,
+     never a dead end or a bare error. */
+  const knockChannel = knockChannelId ? channels.find((c) => c.id === knockChannelId) : undefined;
+  const knock = knockChannel ? forumChannelKnock(knockChannel) : null;
+  if (knockChannel && knock) {
+    return (
+      <div data-testid="world-forum-tier-gate-knock" className="flex flex-col gap-3">
+        <button type="button" onClick={() => setKnockChannelId(null)} className={chipBtn(isLight)}>
+          <ArrowLeft className="h-3.5 w-3.5" /> All channels
+        </button>
+        <NativeCard isLight={isLight}>
+          <div className="flex flex-col items-center gap-2 px-2 py-3 text-center">
+            <Lock className="h-6 w-6 text-[#d4af37]" />
+            <p className={`text-base font-black ${strong}`}>{knockChannel.name}</p>
+            {knockChannel.description && <p className={`text-xs ${muted}`}>{knockChannel.description}</p>}
+            <p className={`max-w-md text-sm ${strong}`}>{knock.message}</p>
+            {knock.history_note && <p className={`max-w-md text-xs ${muted}`}>{knock.history_note}</p>}
+            {knock.join_url ? (
+              <a href={knock.join_url} className={goldBtn} data-testid="world-forum-tier-gate-join">
+                {knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
+              </a>
+            ) : (
+              <p className={`text-xs ${muted}`}>Ask the group owner how to join their fan club.</p>
+            )}
+          </div>
+        </NativeCard>
+      </div>
+    );
+  }
+
   return (
     <div data-testid="world-group-forum" className="flex flex-col gap-2">
       {channels.length === 0 ? (
@@ -598,10 +639,16 @@ function GroupForum({
         channels.map((c) => (
           <NativeCard key={c.id} isLight={isLight}>
             <div className="flex items-center gap-2">
-              <button type="button" data-testid={`world-forum-channel-${c.id}`} onClick={() => setChannelId(c.id)} className="min-w-0 flex-1 text-left">
+              <button type="button" data-testid={`world-forum-channel-${c.id}`} onClick={() => (forumChannelKnock(c) ? setKnockChannelId(c.id) : setChannelId(c.id))} className="min-w-0 flex-1 text-left">
                 <span className={`flex items-center gap-2 text-sm font-black ${strong}`}><Hash className="h-4 w-4 text-[#d4af37]" /> {c.name}</span>
                 {c.description && <span className={`mt-0.5 block truncate text-xs ${muted}`}>{c.description}</span>}
                 <span className={`text-xs font-semibold ${muted}`}>{c.thread_count} thread{c.thread_count === 1 ? "" : "s"}</span>
+                {c.gate && (
+                  <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#d4af37]">
+                    <Lock className="h-3 w-3" /> {c.gate.tier_name ? `${c.gate.tier_name} & up` : "Members only"}
+                    {!c.gate.viewer_has_access && <span className={muted}>· locked for you</span>}
+                  </span>
+                )}
               </button>
               {caps.can_manage_channels && !isGuest && (
                 <button type="button" data-testid={`world-forum-channel-delete-${c.id}`} onClick={() => void deleteChannel(c.id)} className={chipBtn(isLight)} aria-label={`Close ${c.name}`}>
@@ -621,6 +668,12 @@ function GroupForum({
             </button>
           </div>
           <input value={chDesc} onChange={(e) => setChDesc(e.target.value)} placeholder="What's this channel for? (optional)" maxLength={500} className={inputCls(isLight)} />
+          <select value={chGate} onChange={(e) => setChGate(e.target.value)} className={inputCls(isLight)} aria-label="Who can enter this channel" data-testid="world-forum-channel-gate">
+            <option value="">Open to everyone the group admits</option>
+            {gateOptions.map((t) => (
+              <option key={t.id} value={t.id}>Members only: {t.name} &amp; up</option>
+            ))}
+          </select>
         </div>
       )}
       {!caps.can_post && (
