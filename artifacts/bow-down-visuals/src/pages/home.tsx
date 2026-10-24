@@ -66,6 +66,7 @@ import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
+import { applyThemeMode } from "@/lib/theme-packs";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import { StudioSetStrip } from "@/components/StudioSetStrip";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
@@ -1719,19 +1720,9 @@ export default function Home() {
   const toggleTheme = () => {
     const next = !isLight;
     setIsLight(next);
-    try {
-      if (next) {
-        document.documentElement.classList.add("light");
-        document.documentElement.classList.remove("dark");
-        localStorage.setItem("bdv-theme", "light");
-      } else {
-        document.documentElement.classList.add("dark");
-        document.documentElement.classList.remove("light");
-        localStorage.setItem("bdv-theme", "dark");
-      }
-    } catch {
-      /* storage unavailable (private mode) — theme still applies for this session */
-    }
+    // Flipping the mode leaves a pack that doesn't live in the new
+    // mode for that mode's house theme (lib/theme-packs.ts).
+    applyThemeMode(next ? "light" : "dark");
   };
 
   /* Keep in sync if theme changes elsewhere (e.g. sidebar toggle). */

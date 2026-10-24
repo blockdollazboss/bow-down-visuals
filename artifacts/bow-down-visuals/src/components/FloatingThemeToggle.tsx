@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Sun, Moon } from "lucide-react";
+import { applyThemeMode, bootThemePack } from "@/lib/theme-packs";
 
 /* Floating theme toggle — always visible on every page, draggable.
    User directive 2026-10-10: theme switch must never be hidden.
@@ -12,11 +13,9 @@ export function FloatingThemeToggle() {
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("bdv-theme");
-    const light = saved === "light";
-    setIsLight(light);
-    document.documentElement.classList.toggle("light", light);
-    document.documentElement.classList.toggle("dark", !light);
+    // Restores mode + any saved theme pack (lib/theme-packs.ts).
+    bootThemePack();
+    setIsLight(document.documentElement.classList.contains("light"));
   }, []);
 
   // Listen for theme changes from other toggles (sidebar, homepage)
@@ -34,9 +33,9 @@ export function FloatingThemeToggle() {
   const toggle = () => {
     const next = !isLight;
     setIsLight(next);
-    document.documentElement.classList.toggle("light", next);
-    document.documentElement.classList.toggle("dark", !next);
-    localStorage.setItem("bdv-theme", next ? "light" : "dark");
+    // Flipping the mode leaves a pack that doesn't live in the new
+    // mode for that mode's house theme (lib/theme-packs.ts).
+    applyThemeMode(next ? "light" : "dark");
   };
 
   // Load saved position
