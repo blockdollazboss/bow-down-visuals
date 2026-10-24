@@ -226,7 +226,7 @@ CREATE TABLE scheduled_posts (
   attempts integer NOT NULL DEFAULT 0, last_error text,
   credits_charged integer NOT NULL DEFAULT 0,
   credits_refunded boolean NOT NULL DEFAULT false,
-  release_id uuid, ai_best_time jsonb, results jsonb NOT NULL DEFAULT '[]',
+  release_id uuid, provenance jsonb, ai_best_time jsonb, results jsonb NOT NULL DEFAULT '[]',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
