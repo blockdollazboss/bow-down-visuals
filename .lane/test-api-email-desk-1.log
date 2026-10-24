@@ -1,0 +1,21 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-fansegs/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/generate/__tests__/email-list-opens-honesty.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 2565[2mms[22m[39m
+   [32m✓[39m segments [2m(7)[22m
+     [33m[2m✓[22m[39m sources match ANY; engagement none/opened follow recorded signals[33m 337[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list-fixes.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 954[2mms[22m[39m
+   [32m✓[39m list create validation — real copy passes, junk still fails [2m(6)[22m
+     [33m[2m✓[22m[39m POST /lists stores the em-dash name + full offer verbatim (201)[33m 436[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 130[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/email-campaign-sender.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 246[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m77 passed[39m[22m[90m (77)[39m
+[2m   Start at [22m 17:29:06
+[2m   Duration [22m 35.23s[2m (import 61%, transform 25%, tests 13%, setup 1%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 7.85s[39m[2m · 25% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

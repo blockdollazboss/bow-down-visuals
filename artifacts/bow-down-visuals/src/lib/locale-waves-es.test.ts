@@ -521,6 +521,7 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "discord-bot.discord_bot_token",
   "discord-bot.discord_client_id",
   "email-list.100_visual_bucs",
+  "email-list.fan_seg_no",
   "email-list.join_2",
   "email-list.thy_cheat_code",
   "email-list.your_handle",

@@ -936,6 +936,16 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter
     res.status(404).json({ error: "Campaign not found." });
     return;
   }
+  /* Fan-segment campaigns send only through the Fan Graph desk
+     (dispatchCampaignToAudience) — never through these doors, which
+     would resolve them as whole-list sends. */
+  if (campaign.kind === "fan_segment") {
+    res.status(409).json({
+      error: "That campaign was addressed to a fan segment — send it from the Fan Graph tab so its audience stays the segment.",
+      code: "fan_segment_audience",
+    });
+    return;
+  }
   /* Automation carriers send only through the automation runner. */
   if (campaign.automationId) {
     res.status(409).json({
@@ -1083,6 +1093,16 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/queue", publicApiLimite
     .limit(1);
   if (!campaign) {
     res.status(404).json({ error: "Campaign not found." });
+    return;
+  }
+  /* Fan-segment campaigns send only through the Fan Graph desk
+     (dispatchCampaignToAudience) — never through these doors, which
+     would resolve them as whole-list sends. */
+  if (campaign.kind === "fan_segment") {
+    res.status(409).json({
+      error: "That campaign was addressed to a fan segment — send it from the Fan Graph tab so its audience stays the segment.",
+      code: "fan_segment_audience",
+    });
     return;
   }
   /* Automation carriers send only through the automation runner. */

@@ -1,0 +1,18 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-fansegs/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/generate/__tests__/fan-graph.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 833[2mms[22m[39m
+   [32m✓[39m GET /api/email-list/fan-graph [2m(6)[22m
+     [33m[2m✓[22m[39m returns only the caller's own fans, with the caller's own facts[33m 404[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/fan-segments.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 791[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/fan-graph.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 226[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m26 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 17:28:31
+[2m   Duration [22m 23.59s[2m (import 61%, transform 30%, tests 9%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 6.12s[39m[2m · 30% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

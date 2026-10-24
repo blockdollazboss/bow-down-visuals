@@ -59,6 +59,7 @@ export * from "./customer-shops";
 export * from "./beats";
 export * from "./invoices";
 export * from "./fan-memberships";
+export * from "./fan-segments";
 export * from "./press-kits";
 export * from "./live-shopping";
 export * from "./live-streams";

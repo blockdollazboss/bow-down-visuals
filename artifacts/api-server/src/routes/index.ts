@@ -137,6 +137,7 @@ import copyrightRouter from "./generate/copyright";
 import coverArtRouter from "./generate/cover-art";
 import emailListRouter from "./generate/email-list";
 import fanGraphRouter from "./generate/fan-graph";
+import fanSegmentsRouter from "./generate/fan-segments";
 import liveShoppingRouter from "./live-shopping";
 import liveStreamsRouter from "./live-streams";
 import liveChatRouter from "./live-chat";
@@ -502,6 +503,7 @@ router.use(copyrightRouter);
 router.use(coverArtRouter);
 router.use(emailListRouter);
 router.use(fanGraphRouter);                    // /api/email-list/fan-graph (One Fan Graph — unified fan view)
+router.use(fanSegmentsRouter);                 // /api/email-list/fan-segments (fan-graph phase 2 — saved segments + desk send)
 router.use(liveShoppingRouter);
 router.use(liveStreamsRouter);              // /api/live-streams/* (Go Live broadcasts)
 router.use(liveChatRouter);                 // /api/live/:id/chat (stream chat + moderation)

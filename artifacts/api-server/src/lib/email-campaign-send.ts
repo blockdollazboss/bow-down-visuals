@@ -29,7 +29,7 @@
  *   - A re-dispatch is resumable: deliveries already 'sent' are
  *     skipped, so a crashed send retried later never double-emails.
  */
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import {
   db,
   emailCampaignDeliveriesTable,
@@ -191,6 +191,15 @@ export async function dispatchCampaign(campaignId: string): Promise<DispatchResu
   if (campaign.automationId) {
     return { ok: false, reason: "automation_carrier", audience: 0, sent: 0, failed: 0 };
   }
+  /* Fan-segment campaigns (kind "fan_segment") carry an audience the
+     list/segment resolvers cannot reproduce — their membership lives
+     in the fan graph, not in this list's subscriber criteria. The
+     generic doors must never widen them to the whole list: their
+     only dispatch is dispatchCampaignToAudience below, fed by
+     lib/fan-segment-send at send time. */
+  if (campaign.kind === "fan_segment") {
+    return { ok: false, reason: "fan_segment_audience", audience: 0, sent: 0, failed: 0 };
+  }
   if (campaign.status !== "queued" && campaign.status !== "sending") {
     return { ok: false, reason: `not_dispatchable:${campaign.status}`, audience: 0, sent: 0, failed: 0 };
   }
@@ -260,6 +269,117 @@ export async function dispatchCampaign(campaignId: string): Promise<DispatchResu
   for (const sub of audience) {
     /* One delivery per (campaign, subscriber); a re-dispatch reuses
        the row and skips anyone already sent. */
+    const { outcome } = await sendCampaignDelivery(campaign, sub, prep);
+    if (outcome === "sent" || outcome === "already_sent") sent++;
+    else if (outcome === "failed" || outcome === "no_provider") failed++;
+  }
+
+  const deliveries = await db
+    .select({ id: emailCampaignDeliveriesTable.id, status: emailCampaignDeliveriesTable.status })
+    .from(emailCampaignDeliveriesTable)
+    .where(eq(emailCampaignDeliveriesTable.campaignId, campaign.id));
+  const deliveredCount = deliveries.filter((d) => d.status === "sent").length;
+  const finalStatus = !providerReady ? "failed" : deliveredCount > 0 ? "sent" : "failed";
+  await db
+    .update(emailCampaignsTable)
+    .set({
+      status: finalStatus,
+      recipientCount: deliveries.length,
+      deliveredCount,
+      ...(finalStatus === "sent" ? { sentAt: new Date() } : {}),
+    })
+    .where(eq(emailCampaignsTable.id, campaign.id));
+
+  if (!providerReady) {
+    return { ok: false, reason: "no_provider", audience: audience.length, sent, failed };
+  }
+  return { ok: finalStatus === "sent", reason: finalStatus === "sent" ? undefined : "all_deliveries_failed", audience: audience.length, sent, failed };
+}
+
+/* ── Fan-segment dispatch (fan-graph phase 2) ────────────────────────
+   The thinnest honest adapter between fan segments and this desk:
+   the campaign is an ordinary email_campaigns row on the creator's
+   list (kind "fan_segment"), and the ONLY difference from
+   dispatchCampaign is where the audience comes from — the caller
+   (lib/fan-segment-send) resolves the fan segment's LIVE membership
+   to ACTIVE subscriber rows of that list at send time and hands
+   them in. Everything after that is the desk's own rail, unchanged:
+   the same claim discipline, the same prepareCampaignSend, the same
+   sendCampaignDelivery (tracking, unsubscribe, provider honesty,
+   already-sent resumability), the same final status accounting.
+
+   Safety shape:
+     - Only kind "fan_segment" campaigns may use this door, and
+       dispatchCampaign + the poller drain both refuse that kind —
+       so a fan-segment campaign can never be widened to the whole
+       list by any other door, and a plain campaign can never be
+       sent to an ad-hoc audience through here.
+     - Fan campaigns never sit in "queued": this door claims
+       draft|failed → sending atomically, a state the poller never
+       claims, so there is no race window where the drain could
+       pick the campaign up as a whole-list send.
+     - An empty audience is an honest failure ("empty_audience"):
+       the campaign lands "failed", nothing is marked sent. */
+
+export async function dispatchCampaignToAudience(
+  campaignId: string,
+  audience: Array<{ id: string; email: string }>,
+): Promise<DispatchResult> {
+  const [campaign] = await db
+    .select()
+    .from(emailCampaignsTable)
+    .where(eq(emailCampaignsTable.id, campaignId))
+    .limit(1);
+  if (!campaign) return { ok: false, reason: "not_found", audience: 0, sent: 0, failed: 0 };
+  if (campaign.automationId) {
+    return { ok: false, reason: "automation_carrier", audience: 0, sent: 0, failed: 0 };
+  }
+  if (campaign.kind !== "fan_segment") {
+    return { ok: false, reason: "not_fan_segment", audience: 0, sent: 0, failed: 0 };
+  }
+  if (campaign.status !== "draft" && campaign.status !== "failed") {
+    return { ok: false, reason: `not_dispatchable:${campaign.status}`, audience: 0, sent: 0, failed: 0 };
+  }
+  const [list] = await db
+    .select()
+    .from(emailListsTable)
+    .where(eq(emailListsTable.id, campaign.listId))
+    .limit(1);
+  if (!list) return failCampaign(campaignId, "list_missing");
+  if (audience.length === 0) return failCampaign(campaignId, "empty_audience");
+
+  /* Claim atomically: draft|failed → sending. If the row moved
+     under us, stand down — never double-email. */
+  const claimed = await db
+    .update(emailCampaignsTable)
+    .set({ status: "sending" })
+    .where(
+      and(
+        eq(emailCampaignsTable.id, campaignId),
+        inArray(emailCampaignsTable.status, ["draft", "failed"]),
+      ),
+    )
+    .returning({ id: emailCampaignsTable.id });
+  if (claimed.length === 0) {
+    const [now] = await db
+      .select({ status: emailCampaignsTable.status })
+      .from(emailCampaignsTable)
+      .where(eq(emailCampaignsTable.id, campaignId))
+      .limit(1);
+    return {
+      ok: false,
+      reason: `not_dispatchable:${now?.status ?? campaign.status}`,
+      audience: 0,
+      sent: 0,
+      failed: 0,
+    };
+  }
+
+  const prep = prepareCampaignSend(campaign);
+  const providerReady = prep.providerReady;
+  let sent = 0;
+  let failed = 0;
+  for (const sub of audience) {
     const { outcome } = await sendCampaignDelivery(campaign, sub, prep);
     if (outcome === "sent" || outcome === "already_sent") sent++;
     else if (outcome === "failed" || outcome === "no_provider") failed++;

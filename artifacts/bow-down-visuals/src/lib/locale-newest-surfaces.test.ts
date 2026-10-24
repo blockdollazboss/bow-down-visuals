@@ -227,6 +227,18 @@ const EMAIL_LIST_BLOCK = [
   "fan_graph_unsubscribed_badge", "fan_graph_member_badge",
   "fan_graph_members_label", "fan_graph_spent_label", "fan_graph_last_active",
   "fan_graph_prev", "fan_graph_next", "fan_graph_error",
+  /* Fan-graph phase 2 fill: the fan segments panel's 33 keys,
+     translated in all 10 catalogs the day the panel shipped. */
+  "fan_seg_title", "fan_seg_intro", "fan_seg_presets", "fan_seg_saved",
+  "fan_seg_saved_unavailable", "fan_seg_empty_saved", "fan_seg_custom_title",
+  "fan_seg_name_placeholder", "fan_seg_follows", "fan_seg_subscribed",
+  "fan_seg_buyer", "fan_seg_member", "fan_seg_member_active",
+  "fan_seg_member_any_member", "fan_seg_member_none", "fan_seg_min_spent",
+  "fan_seg_min_purchases", "fan_seg_active_within", "fan_seg_has_email",
+  "fan_seg_preview_btn", "fan_seg_save_btn", "fan_seg_send_title",
+  "fan_seg_list_label", "fan_seg_send_btn", "fan_seg_sent_result",
+  "fan_seg_send_failed", "fan_seg_count_fans", "fan_seg_preview_empty",
+  "fan_seg_error", "fan_seg_any", "fan_seg_yes", "fan_seg_no", "fan_seg_delete",
 ] as const;
 /* One-off newest-surface keys in older namespaces. */
 const SINGLES = [
@@ -261,7 +273,7 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill (4408 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill (4441 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
@@ -274,7 +286,8 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        4358 (fan graph + podcast RSS + provenance) + 2 = 4360.
        Plus wave-2 more-provenance: +1 aiUnknown key = 4361.
        Plus the app-page lane: +47 appPage keys = 4408. */
-    expect(REQUIRED.length).toBe(4408);
+    Plus the fan-segments lane: +33 fanSegments keys = 4441. */
+    expect(REQUIRED.length).toBe(4441);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

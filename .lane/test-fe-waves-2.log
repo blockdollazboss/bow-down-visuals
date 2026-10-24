@@ -1,0 +1,15 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-fansegs/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/locale-waves-fr.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 529[2mms[22m[39m
+ [32m✓[39m src/lib/locale-waves-es.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 151[2mms[22m[39m
+ [32m✓[39m src/lib/locale-waves-it.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 128[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m63 passed[39m[22m[90m (63)[39m
+[2m   Start at [22m 17:35:25
+[2m   Duration [22m 5.69s[2m (import 60%, tests 25%, transform 14%, worker 1%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~727ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~1.45s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

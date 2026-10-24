@@ -1,0 +1,25 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-fansegs/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/locale-email-opens.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 2167[2mms[22m[39m
+ [32m✓[39m src/lib/locale-newest-surfaces.test.ts [2m([22m[2m125 tests[22m[2m)[22m[33m 1730[2mms[22m[39m
+ [32m✓[39m src/lib/locale-numeric-parity.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 2527[2mms[22m[39m
+   [32m✓[39m locale numeric parity [2m(11)[22m
+     [33m[2m✓[22m[39m hi numeric tokens match en outside the explicit allowlist[33m 491[2mms[22m[39m
+     [33m[2m✓[22m[39m it numeric tokens match en outside the explicit allowlist[33m 590[2mms[22m[39m
+     [33m[2m✓[22m[39m ja numeric tokens match en outside the explicit allowlist[33m 397[2mms[22m[39m
+ [32m✓[39m src/lib/locale-source-auto.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 3430[2mms[22m[39m
+ [32m✓[39m src/lib/locale-email-explainer.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 740[2mms[22m[39m
+ [32m✓[39m src/lib/server-strings-locale.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/lib/locale-split.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/email-list-edit-details.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m src/lib/email-list-honesty.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[32m206 passed[39m[22m[90m (206)[39m
+[2m   Start at [22m 17:33:29
+[2m   Duration [22m 35.06s[2m (tests 53%, import 38%, transform 7%, worker 2%)[22m
+
+[2m    Isolate [22m [33m9 workers spawned[39m[2m · ~1.50s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~12.00s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

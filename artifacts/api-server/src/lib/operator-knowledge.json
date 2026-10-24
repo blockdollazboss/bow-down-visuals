@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "88f09e2c4e74aac6cea80baa68a8301d2b43975c",
+  "baseCommit": "fc034a44dbfcb57e621c9503d7ff45ce21be4a58",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -11,14 +11,14 @@
   "counts": {
     "routesInApp": 226,
     "pageFiles": 179,
-    "features": 239,
+    "features": 238,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
     "pricedActions": 227,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 229,
+    "withDescriptions": 228,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -7089,6 +7089,33 @@
       ]
     },
     {
+      "id": "fan-graph",
+      "name": "Fan Graph",
+      "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"email-list.fan_graph\"",
+      "path": "/email-list",
+      "stage": "promote",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/email-list.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/email-list/fan-graph",
+        "/api/email-list/fan-segments",
+        "/api/email-list/fan-segments/:param",
+        "/api/email-list/fan-segments/preview",
+        "/api/email-list/fan-segments/send"
+      ],
+      "prices": [],
+      "description": "Every fan in one place — followers, subscribers, members and buyers merged into one record per person. Saved audiences over your fan graph — buyers who don't follow you, top spenders, and your own rule sets. Membership is always live: what you preview is what a send reaches.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"email-list.fan_graph_intro\" + artifacts/bow-down-visuals/src/locales/en.json \"email-list.fan_seg_intro\"",
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
+    },
+    {
       "id": "events",
       "name": "Events",
       "nameSource": "app-sidebar.tsx nav label (en.json)",
@@ -10895,44 +10922,6 @@
         }
       ],
       "description": "Price a store product at zero and it becomes a lead magnet: instead of checking out, fans claim it with their email address, and the claim joins your audience list. It is the free-sample door into your store — set it up in the store dashboard on any digital product.",
-      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
-      "nextSteps": []
-    },
-    {
-      "id": "order-bumps",
-      "name": "Add-on Offers (Order Bumps)",
-      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
-      "path": "/store/dashboard",
-      "stage": "money",
-      "access": "members",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
-      "component": null,
-      "endpoints": [
-        "/api/storefront/checkout",
-        "/api/storefront/products/:param/bump"
-      ],
-      "prices": [],
-      "description": "Attach one of your other products as an add-on to a store product: the buyer sees it on the product page with a tick box and can add it to the same single checkout, at its listed price or a percent off you set. It shows as its own line on the order. Set it up in the store dashboard's Products tab.",
-      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
-      "nextSteps": []
-    },
-    {
-      "id": "post-purchase-upsell",
-      "name": "Post-Purchase One-Click Add-on",
-      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
-      "path": "/store/dashboard",
-      "stage": "money",
-      "access": "members",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
-      "component": null,
-      "endpoints": [
-        "/api/storefront/orders/:param/upsell",
-        "/api/storefront/orders/:param/upsell/accept",
-        "/api/storefront/orders/:param/upsell/decline",
-        "/api/storefront/verify"
-      ],
-      "prices": [],
-      "description": "If a buyer skipped your add-on at checkout, it's offered once more right after they pay: one click charges the card they just used at your listed price or percent off, and it arrives as its own order. Same add-on setting as checkout bumps.",
       "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": []
     },
