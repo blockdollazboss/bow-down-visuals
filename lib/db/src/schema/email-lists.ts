@@ -280,9 +280,13 @@ export type EmailEngagementEvent = typeof emailEngagementEventsTable.$inferSelec
                            central webhook files their
                            checkout.session.expired events there instead;
                            buyer email resolved through the auth rail.
-     membership_winback  — fan_members rows in canceled / expired. */
+     membership_winback  — fan_members rows in canceled / expired.
+     membership_payment_recovery — fan_members rows in past_due: the
+                           dunning sequence (lib/dunning). kind is plain
+                           TEXT (migration 0198 has no CHECK), so this
+                           fourth kind needs no migration. */
 
-export const EMAIL_AUTOMATION_KINDS = ["post_purchase", "abandoned_checkout", "membership_winback"] as const;
+export const EMAIL_AUTOMATION_KINDS = ["post_purchase", "abandoned_checkout", "membership_winback", "membership_payment_recovery"] as const;
 export type EmailAutomationKind = (typeof EMAIL_AUTOMATION_KINDS)[number];
 
 export const emailAutomationsTable = pgTable("email_automations", {
@@ -330,7 +334,8 @@ export const emailAutomationSendsTable = pgTable("email_automation_sends", {
   triggerKind:  text("trigger_kind").notNull().$type<EmailAutomationKind>(),
   /* The dedupe key: shop_sale:<event id> | digital_sale:<sale id> |
      checkout:<checkout group> | stripe_checkout:<session id> |
-     member:<fan member id>. */
+     member:<fan member id> |
+     member:<fan member id>:past_due:<episode>:<step> (dunning). */
   triggerRef:   text("trigger_ref").notNull(),
   recipientEmail: text("recipient_email").notNull(),
   /* queued → sent | failed | no_provider | skipped_unsubscribed */
