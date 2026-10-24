@@ -1,0 +1,49 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server[39m
+
+[13:50:14.626] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:14.832] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.031] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.122] [32mINFO[39m (26298): [36m[tip-jar] tip intent recorded (no charge)[39m
+    [35mhandle[39m: "creator-a"
+    [35mamount[39m: 500
+[13:50:15.209] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.338] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "22222222-2222-4222-8222-222222222222"
+    [35mhandle[39m: "creator-b"
+[13:50:15.448] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.542] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.628] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.679] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[13:50:15.779] [32mINFO[39m (26298): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+ [32m✓[39m src/routes/generate/__tests__/funding-goals.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 2107[2mms[22m[39m
+   [32m✓[39m funding goal routes [2m(8)[22m
+     [33m[2m✓[22m[39m goal endpoints 404 before a tip page exists[33m 540[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 13:49:41
+[2m   Duration [22m 34.82s[2m (transform 48%, import 44%, tests 7%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 14.51s[39m[2m · 48% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
