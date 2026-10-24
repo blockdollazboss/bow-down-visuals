@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useRoute, Link } from "wouter";
 import {
-  HandCoins, Loader2, Heart, BadgeAlert, Check, PiggyBank, ChevronLeft,
+  HandCoins, Loader2, Heart, BadgeAlert, Check, PiggyBank, ChevronLeft, Trophy,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -23,8 +23,25 @@ interface PublicPage {
   goalLabel: string;
 }
 
+/* Funding goal as served by the API: progress is derived server-side
+   from PAID tips only. raised/progress are null when the server could
+   not read the tip records — the page then shows the goal without
+   numbers rather than a fabricated zero. */
+interface FundingGoalView {
+  label: string;
+  targetAmount: number;
+  currency: string;
+  raised: number | null;
+  raisedCount: number | null;
+  progress: number | null;
+  reached: boolean;
+  reachedAt: string | null;
+  progressUnavailable?: boolean;
+}
+
 interface PageData {
   page: PublicPage;
+  goal: FundingGoalView | null;
   stats: { total: number; count: number; average: number; goalProgress: number | null };
   paymentsLive: boolean;
   notice: string;
@@ -196,16 +213,40 @@ export default function TipPage() {
               </h1>
               {data.page.message && <p className="mx-auto mt-3 max-w-sm text-white/60">{data.page.message}</p>}
 
-              {data.page.goalAmount != null && (
+              {data.goal != null && (
                 <div className="mx-auto mt-5 max-w-sm">
-                  <div className="flex items-center justify-between text-xs text-white/50">
-                    <span>{data.page.goalLabel || t("tipPage.goalDefault")}</span>
-                    <span>${data.stats.total.toFixed(2)} / ${data.page.goalAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-primary"
-                      style={{ width: `${Math.round((data.stats.goalProgress ?? 0) * 100)}%` }} />
-                  </div>
+                  {data.goal.reached ? (
+                    <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-primary/20 to-amber-500/20 px-4 py-3">
+                      <div className="flex items-center justify-center gap-2 text-sm font-extrabold text-amber-200">
+                        <Trophy className="h-4 w-4 text-primary" />
+                        {t("tipPage.goalReachedTitle")}
+                      </div>
+                      <p className="mt-1 text-xs text-white/60">
+                        {t("tipPage.goalReachedBody", {
+                          label: data.goal.label || t("tipPage.goalDefault"),
+                          raised: (data.goal.raised ?? 0).toFixed(2),
+                          goal: data.goal.targetAmount.toFixed(2),
+                        })}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between text-xs text-white/50">
+                        <span>{data.goal.label || t("tipPage.goalDefault")}</span>
+                        {data.goal.raised != null ? (
+                          <span>${data.goal.raised.toFixed(2)} / ${data.goal.targetAmount.toFixed(2)}</span>
+                        ) : (
+                          <span>${data.goal.targetAmount.toFixed(2)}</span>
+                        )}
+                      </div>
+                      {data.goal.progress != null && (
+                        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/10">
+                          <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-primary"
+                            style={{ width: `${Math.round(data.goal.progress * 100)}%` }} />
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
