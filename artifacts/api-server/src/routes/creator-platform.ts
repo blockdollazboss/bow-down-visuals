@@ -10,6 +10,7 @@ import {
   followsTable,
   profileCommentsTable,
   mediaCommentsTable,
+  creatorCommentSettingsTable,
   likesTable,
   repostsTable,
   playEventsTable,
@@ -101,6 +102,17 @@ export async function mirrorProfileMediaDeep<T>(value: T, ownerKey: string): Pro
   }
   return value;
 }
+import { createClient } from "@supabase/supabase-js";
+import {
+  decideInitialStatus,
+  isVisibleTo,
+  sortForDisplay,
+  normalizeSettings,
+  normalizeCommentStatus,
+  isMissingCommentControlsSchema,
+  HELD_COPY,
+  type CreatorCommentSettings,
+} from "../lib/comment-controls";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { resolvePaidPlan } from "../lib/profile-website";
 
@@ -379,7 +391,44 @@ async function authorProfileMap(userIds: string[]): Promise<Map<string, AuthorPr
   return map;
 }
 
-type CommentRow = { id: string; authorUserId: string; body: string; createdAt: Date | string };
+type CommentRow = {
+  id: string; authorUserId: string; body: string; createdAt: Date | string;
+  /* Creator comment controls (#27) — optional so pre-migration rows /
+     selects that lack the columns degrade to public + unpinned. */
+  status?: string | null; pinned?: boolean | null;
+  pinnedAt?: Date | string | null; heldReason?: string | null;
+};
+
+/** Best-effort viewer resolution for public comment reads — never 401s.
+    Held/hidden comments are only ever returned to their author or the
+    content owner, so the viewer must be resolvable when signed in. */
+async function optionalCommentViewerId(req: { headers: Record<string, unknown> }): Promise<string | null> {
+  const h = req.headers["authorization"];
+  if (typeof h !== "string" || !h.startsWith("Bearer ")) return null;
+  try {
+    const url = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "";
+    const key = process.env["SUPABASE_ANON_KEY"] ?? process.env["VITE_SUPABASE_ANON_KEY"] ?? "";
+    const client = createClient(url, key, { auth: { persistSession: false } });
+    const { data: { user }, error } = await client.auth.getUser(h.slice(7));
+    if (error || !user) return null;
+    return user.id;
+  } catch {
+    return null;
+  }
+}
+
+/** The content owner's comment-control settings; OFF defaults whenever
+    no row exists or the settings table has not landed yet (migration
+    held — see .lane/MIGRATION-NEEDED.md). Never breaks a read/post. */
+async function loadCommentSettings(profileId: string): Promise<CreatorCommentSettings> {
+  try {
+    const [row] = await db.select().from(creatorCommentSettingsTable)
+      .where(eq(creatorCommentSettingsTable.profileId, profileId)).limit(1);
+    return normalizeSettings(row ?? null);
+  } catch {
+    return normalizeSettings(null);
+  }
+}
 
 /* ── Comment DTO ──────────────────────────────────────────────────────────────
    Both comment clients render strictly from snake_case contracts and do NO
@@ -400,9 +449,25 @@ function toCommentDto(comment: CommentRow, authors: Map<string, AuthorProfileRef
   const name = author?.displayName ?? "Creator";
   const avatar = author?.avatarUrl ?? null;
   const slug = author?.slug ?? null;
+  const status = normalizeCommentStatus(comment.status);
+  const pinned = comment.pinned === true;
   return {
     id: comment.id,
     body: comment.body,
+    /* Creator comment controls (#27): status is 'public' | 'held' |
+       'hidden'; pinned comments sort first and render badged. Held is a
+       delay, never a silent deletion (held_copy says so in the payload
+       so every client renders the same promise). */
+    status,
+    is_held: status === "held",
+    is_hidden: status === "hidden",
+    held_reason: comment.heldReason ?? null,
+    held_copy: status === "held" ? HELD_COPY : null,
+    pinned,
+    is_pinned: pinned,
+    pinned_at: comment.pinnedAt
+      ? (comment.pinnedAt instanceof Date ? comment.pinnedAt.toISOString() : String(comment.pinnedAt))
+      : null,
     user_id: comment.authorUserId,
     display_name: name,
     avatar_url: avatar,
@@ -1619,11 +1684,22 @@ router.get("/creator-profiles/:id/comments", async (req, res) => {
     }
     const limit = Math.min(Math.max(Number(req.query["limit"] ?? 20), 1), 100);
     const offset = Math.max(Number(req.query["offset"] ?? 0), 0);
-    const comments = await db.select().from(profileCommentsTable)
+    const rows = await db.select().from(profileCommentsTable)
       .where(eq(profileCommentsTable.profileId, profile.id))
       .orderBy(desc(profileCommentsTable.createdAt)).limit(limit).offset(offset);
+    /* Creator controls (#27): held/hidden comments leave the public
+       list — only the wall owner and each comment's own author still
+       see them (badged). Pinned sorts first. */
+    const viewerId = await optionalCommentViewerId(req);
+    const isOwner = viewerId != null && viewerId === profile.userId;
+    const comments = sortForDisplay(
+      rows.filter((c) => isVisibleTo(c, { userId: viewerId, isContentOwner: isOwner })),
+    );
     const authors = await authorProfileMap(comments.map((c) => c.authorUserId));
-    res.json(await refreshSupabaseStorageUrlsDeep({ comments: withCommentAuthors(comments, authors) }));
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      comments: withCommentAuthors(comments, authors),
+      viewer_is_owner: isOwner,
+    }));
   } catch (err) {
     req.log.error({ err }, "wall comments GET error");
     res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
@@ -1642,19 +1718,47 @@ router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
       res.status(400).json({ error: "That comment didn't pass the vibe check.", details: parsed.error.issues });
       return;
     }
-    const [comment] = await db.insert(profileCommentsTable).values({
-      profileId: profile.id,
-      authorUserId: req.userId!,
-      body: parsed.data.body,
-    }).returning();
+    /* Creator controls (#27): the wall owner's settings decide whether
+       this comment starts public or held for their review. Held is a
+       delay, never a silent deletion — the author gets the held copy
+       back in the response and can always see their own comment. */
+    const settings = await loadCommentSettings(profile.id);
+    let isFirstTime = false;
+    if (settings.holdMode === "first_time" && req.userId !== profile.userId) {
+      const prior = await db.select().from(profileCommentsTable)
+        .where(and(eq(profileCommentsTable.profileId, profile.id), eq(profileCommentsTable.authorUserId, req.userId!)))
+        .limit(1);
+      isFirstTime = prior.length === 0;
+    }
+    const decision = decideInitialStatus({
+      body: parsed.data.body, settings,
+      authorUserId: req.userId!, ownerUserId: profile.userId,
+      isFirstTimeCommenter: isFirstTime,
+    });
+    const baseValues = { profileId: profile.id, authorUserId: req.userId!, body: parsed.data.body };
+    let comment: typeof profileCommentsTable.$inferSelect;
+    try {
+      [comment] = await db.insert(profileCommentsTable).values({
+        ...baseValues, status: decision.status, pinned: false, heldReason: decision.reason,
+      }).returning();
+    } catch (insertErr) {
+      /* Pre-migration DB (control columns not landed): land the comment
+         the legacy way — public, exactly as before this feature. */
+      if (!isMissingCommentControlsSchema(insertErr)) throw insertErr;
+      [comment] = await db.insert(profileCommentsTable).values(baseValues).returning();
+    }
     const authors = await authorProfileMap([comment.authorUserId]);
     await notify(profile.userId, {
-      kind: "comment",
-      title: "Fresh ink on your wall 🦈",
+      kind: decision.status === "held" ? "comment_held" : "comment",
+      title: decision.status === "held" ? "A wall comment is held for your review 🦈" : "Fresh ink on your wall 🦈",
       body: parsed.data.body.slice(0, 120),
       link: `/artist/${profile.slug}`,
     });
-    res.status(201).json(await refreshSupabaseStorageUrlsDeep({ comment: withCommentAuthors([comment], authors)[0] }));
+    res.status(201).json(await refreshSupabaseStorageUrlsDeep({
+      comment: withCommentAuthors([comment], authors)[0],
+      held: decision.status === "held",
+      ...(decision.status === "held" ? { held_copy: HELD_COPY } : {}),
+    }));
   } catch (err) {
     req.log.error({ err }, "wall comments POST error");
     res.status(500).json({ error: "The comment didn't land. Try again." });
@@ -1677,11 +1781,22 @@ router.get("/media/:kind/:id/comments", async (req, res) => {
     }
     const limit = Math.min(Math.max(Number(req.query["limit"] ?? 20), 1), 100);
     const offset = Math.max(Number(req.query["offset"] ?? 0), 0);
-    const comments = await db.select().from(mediaCommentsTable)
+    const rows = await db.select().from(mediaCommentsTable)
       .where(and(eq(mediaCommentsTable.kind, kind), eq(mediaCommentsTable.mediaId, media.id)))
       .orderBy(desc(mediaCommentsTable.createdAt)).limit(limit).offset(offset);
+    /* Creator controls (#27): same visibility + pinned-first rules as
+       the wall — held/hidden only for the media owner and the author. */
+    const ownerProfile = await getProfileById(media.profileId);
+    const viewerId = await optionalCommentViewerId(req);
+    const isOwner = viewerId != null && ownerProfile != null && viewerId === ownerProfile.userId;
+    const comments = sortForDisplay(
+      rows.filter((c) => isVisibleTo(c, { userId: viewerId, isContentOwner: isOwner })),
+    );
     const authors = await authorProfileMap(comments.map((c) => c.authorUserId));
-    res.json(await refreshSupabaseStorageUrlsDeep({ comments: withCommentAuthors(comments, authors) }));
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      comments: withCommentAuthors(comments, authors),
+      viewer_is_owner: isOwner,
+    }));
   } catch (err) {
     req.log.error({ err }, "media comments GET error");
     res.status(500).json({ error: "Comments wouldn't load. Give it another shot." });
@@ -1705,24 +1820,56 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
       res.status(400).json({ error: "That comment didn't pass the vibe check.", details: parsed.error.issues });
       return;
     }
-    const [comment] = await db.insert(mediaCommentsTable).values({
-      kind,
-      mediaId: media.id,
+    /* Creator controls (#27): the media owner's settings decide public
+       vs held, exactly as on the wall. A held comment does not bump the
+       public comment counter — that happens if/when it is approved. */
+    const ownerProfileForSettings = await getProfileById(media.profileId);
+    const settings = ownerProfileForSettings
+      ? await loadCommentSettings(ownerProfileForSettings.id)
+      : normalizeSettings(null);
+    let isFirstTime = false;
+    if (settings.holdMode === "first_time" && ownerProfileForSettings && req.userId !== ownerProfileForSettings.userId) {
+      const prior = await db.select().from(mediaCommentsTable)
+        .where(and(eq(mediaCommentsTable.kind, kind), eq(mediaCommentsTable.mediaId, media.id), eq(mediaCommentsTable.authorUserId, req.userId!)))
+        .limit(1);
+      isFirstTime = prior.length === 0;
+    }
+    const decision = decideInitialStatus({
+      body: parsed.data.body, settings,
       authorUserId: req.userId!,
-      body: parsed.data.body,
-    }).returning();
-    await bumpCounter(kind, media.id, "comment");
-    const profile = await getProfileById(media.profileId);
+      ownerUserId: ownerProfileForSettings?.userId ?? "",
+      isFirstTimeCommenter: isFirstTime,
+    });
+    const baseValues = { kind, mediaId: media.id, authorUserId: req.userId!, body: parsed.data.body };
+    let comment: typeof mediaCommentsTable.$inferSelect;
+    try {
+      [comment] = await db.insert(mediaCommentsTable).values({
+        ...baseValues, status: decision.status, pinned: false, heldReason: decision.reason,
+      }).returning();
+    } catch (insertErr) {
+      if (!isMissingCommentControlsSchema(insertErr)) throw insertErr;
+      [comment] = await db.insert(mediaCommentsTable).values(baseValues).returning();
+    }
+    if (decision.status === "public") {
+      await bumpCounter(kind, media.id, "comment");
+    }
+    const profile = ownerProfileForSettings;
     const commentAuthors = await authorProfileMap([comment.authorUserId]);
     if (profile && profile.userId !== req.userId) {
       await notify(profile.userId, {
-        kind: "comment",
-        title: `Someone's talking about "${media.title}" 🦈`,
+        kind: decision.status === "held" ? "comment_held" : "comment",
+        title: decision.status === "held"
+          ? `A comment on "${media.title}" is held for your review 🦈`
+          : `Someone's talking about "${media.title}" 🦈`,
         body: parsed.data.body.slice(0, 120),
         link: `/artist/${profile.slug}`,
       });
     }
-    res.status(201).json(await refreshSupabaseStorageUrlsDeep({ comment: withCommentAuthors([comment], commentAuthors)[0] }));
+    res.status(201).json(await refreshSupabaseStorageUrlsDeep({
+      comment: withCommentAuthors([comment], commentAuthors)[0],
+      held: decision.status === "held",
+      ...(decision.status === "held" ? { held_copy: HELD_COPY } : {}),
+    }));
   } catch (err) {
     req.log.error({ err }, "media comments POST error");
     res.status(500).json({ error: "The comment didn't land. Try again." });

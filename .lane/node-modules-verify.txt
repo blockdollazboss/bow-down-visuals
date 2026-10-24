@@ -1,0 +1,2 @@
+artifacts/api-server/node_modules/@workspace/db -> /home/hatch/workspace/bdv-wt-comments/lib/db
+artifacts/api-server/node_modules/@workspace/api-zod -> /home/hatch/workspace/bdv-wt-comments/lib/api-zod
