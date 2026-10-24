@@ -20,12 +20,17 @@ export interface SocialAuthor {
   is_verified: boolean;
 }
 
+/* `alt` (#29): the accessibility description of the attachment's image
+   (video: its cover frame; track/watch: artwork/thumb; product: the
+   product shot). Creator-written or AI-suggested, editable before it
+   ships; renders as the image's alt / aria description everywhere the
+   post travels. Scene/objects/text/mood only — never a person's name. */
 export type Attachment =
-  | { kind: "image"; url: string }
-  | { kind: "video"; url: string; thumb?: string }
-  | { kind: "track"; id: string; title?: string; artwork?: string; artistSlug?: string }
-  | { kind: "watch"; id: string; title?: string; thumb?: string; artistSlug?: string }
-  | { kind: "product"; id: string; kindSlug: string; title?: string; image?: string; storeSlug?: string }
+  | { kind: "image"; url: string; alt?: string }
+  | { kind: "video"; url: string; thumb?: string; alt?: string }
+  | { kind: "track"; id: string; title?: string; artwork?: string; artistSlug?: string; alt?: string }
+  | { kind: "watch"; id: string; title?: string; thumb?: string; artistSlug?: string; alt?: string }
+  | { kind: "product"; id: string; kindSlug: string; title?: string; image?: string; storeSlug?: string; alt?: string }
   | { kind: "event"; id: string; title?: string; date?: string; venue?: string }
   | { kind: "poll"; question?: string };
 
@@ -35,22 +40,22 @@ export type LooseAttachment = Attachment | { kind: string; [k: string]: unknown 
 export function asAttachment(a: LooseAttachment): Attachment | null {
   switch (a.kind) {
     case "image":
-      return typeof a.url === "string" ? { kind: "image", url: a.url } : null;
+      return typeof a.url === "string" ? { kind: "image", url: a.url, alt: altStr(a.alt) } : null;
     case "video":
       return typeof a.url === "string"
-        ? { kind: "video", url: a.url, thumb: typeof a.thumb === "string" ? a.thumb : undefined }
+        ? { kind: "video", url: a.url, thumb: typeof a.thumb === "string" ? a.thumb : undefined, alt: altStr(a.alt) }
         : null;
     case "track":
       return typeof a.id === "string"
-        ? { kind: "track", id: a.id, title: str(a.title), artwork: str(a.artwork), artistSlug: str(a.artistSlug) }
+        ? { kind: "track", id: a.id, title: str(a.title), artwork: str(a.artwork), artistSlug: str(a.artistSlug), alt: altStr(a.alt) }
         : null;
     case "watch":
       return typeof a.id === "string"
-        ? { kind: "watch", id: a.id, title: str(a.title), thumb: str(a.thumb), artistSlug: str(a.artistSlug) }
+        ? { kind: "watch", id: a.id, title: str(a.title), thumb: str(a.thumb), artistSlug: str(a.artistSlug), alt: altStr(a.alt) }
         : null;
     case "product":
       return typeof a.id === "string" && typeof a.kindSlug === "string"
-        ? { kind: "product", id: a.id, kindSlug: a.kindSlug, title: str(a.title), image: str(a.image), storeSlug: str(a.storeSlug) }
+        ? { kind: "product", id: a.id, kindSlug: a.kindSlug, title: str(a.title), image: str(a.image), storeSlug: str(a.storeSlug), alt: altStr(a.alt) }
         : null;
     case "event":
       return typeof a.id === "string"
@@ -65,6 +70,15 @@ export function asAttachment(a: LooseAttachment): Attachment | null {
 
 function str(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
+}
+
+/** Alt text passthrough: non-empty strings only, capped at the server's
+ *  400-char limit so a hand-crafted payload can't resurrect a wall of
+ *  text as an "alt". */
+function altStr(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim().slice(0, 400);
+  return t ? t : undefined;
 }
 
 export interface PollData {

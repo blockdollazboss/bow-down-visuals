@@ -78,8 +78,8 @@ export function sanitizeAttachmentAlts<T extends Record<string, unknown>>(atts: 
   return atts.map((att) => {
     if (!("alt" in att)) return att;
     const alt = sanitizeAltText(att["alt"]);
-    const out = { ...att };
-    if (alt) out["alt"] = alt as T[string];
+    const out: Record<string, unknown> = { ...att };
+    if (alt) out["alt"] = alt;
     else delete out["alt"];
     return out as T;
   });
