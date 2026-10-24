@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2, Search, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import FanSegmentsPanel from "@/components/FanSegmentsPanel";
 
 /* ─── One Fan Graph (Stack-100 #3, feature #11) ──────────────────────
    The unified fan view, docked in the Email List desk (PROMOTE).
@@ -244,6 +245,11 @@ export default function FanGraphTab() {
           </button>
         </div>
       )}
+
+      {/* Fan segments (phase 2): saved audiences over this graph +
+          one-click send through the email desk, docked in the same
+          tab — no standalone page. */}
+      <FanSegmentsPanel />
     </div>
   );
 }

@@ -35,6 +35,8 @@ vi.mock("../email", () => ({
     return { sent: true, id: `msg-${mail.sends.length}` };
   },
   baseUrlForEmail: () => "https://bowdownvisuals.com",
+  escapeHtml: (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"),
 }));
 
 /* ── Small fake db: select / insert / update over 4 tables ───────── */

@@ -49,15 +49,17 @@ function toDto(row: FanSegment): SavedFanSegment {
   };
 }
 
-function guard<T>(p: Promise<T>): Promise<T> {
-  return p.catch((err: unknown) => {
+async function guard<T>(fn: () => PromiseLike<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
     if (isUndefinedTable(err)) throw new FanSegmentsUnavailableError();
     throw err;
-  });
+  }
 }
 
 export async function listFanSegments(userId: string): Promise<SavedFanSegment[]> {
-  const rows = await guard(
+  const rows = await guard(() =>
     db
       .select()
       .from(fanSegmentsTable)
@@ -68,7 +70,7 @@ export async function listFanSegments(userId: string): Promise<SavedFanSegment[]
 }
 
 export async function getFanSegment(userId: string, id: string): Promise<SavedFanSegment | null> {
-  const [row] = await guard(
+  const [row] = await guard(() =>
     db
       .select()
       .from(fanSegmentsTable)
@@ -85,7 +87,7 @@ export async function createFanSegment(
 ): Promise<SavedFanSegment> {
   const normalized = normalizeFanSegmentRules(rules);
   if (!normalized) throw new Error("invalid fan segment rules");
-  const [row] = await guard(
+  const [row] = await guard(() =>
     db
       .insert(fanSegmentsTable)
       .values({ userId, name, rules: JSON.stringify(normalized) })
@@ -106,7 +108,7 @@ export async function updateFanSegment(
     if (!normalized) throw new Error("invalid fan segment rules");
     set.rules = JSON.stringify(normalized);
   }
-  const [row] = await guard(
+  const [row] = await guard(() =>
     db
       .update(fanSegmentsTable)
       .set(set)
@@ -117,7 +119,7 @@ export async function updateFanSegment(
 }
 
 export async function deleteFanSegment(userId: string, id: string): Promise<boolean> {
-  const [row] = await guard(
+  const [row] = await guard(() =>
     db
       .delete(fanSegmentsTable)
       .where(and(eq(fanSegmentsTable.id, id), eq(fanSegmentsTable.userId, userId)))
