@@ -27,10 +27,20 @@ import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from ".
    POST /tips/checkout/verify flips the row to "paid" exactly once when
    the session reports paid. The intent endpoints above are unchanged —
    they remain the fallback when payments aren't configured, and the
-   earnings view reads them as pending, as before. */
+   earnings view reads them as pending, as before.
+
+   FUNDING GOALS (Stack-100 #3): a creator may run ONE active funding
+   goal on their tip page (target + what it's for). The goal definition
+   rides this same settings object — no new table — extended with a
+   start instant and an archive of reached goals. Progress is NEVER a
+   stored counter and NEVER counts intents: every read derives it live
+   from the durable tip_jar_tips rows, counting only rows the rail
+   itself flipped to "paid" (see computeFundingProgress). */
 
 export const TIP_CURRENCY = "USD";
 export const TIP_STATUS_PENDING = "pending_payment";
+/** The rail's one real money state: set exactly once by checkout verify. */
+export const TIP_STATUS_PAID = "paid";
 export const TIP_MAX_AMOUNT = 10000;
 export const TIP_MIN_AMOUNT = 1;
 export const TIP_MAX_SUGGESTED = 6;
@@ -43,14 +53,40 @@ const handleSchema = z
   .max(30, "Handle must be 30 characters or fewer.")
   .regex(/^[a-z0-9][a-z0-9_-]*$/, "Handle may only use letters, numbers, hyphens, and underscores.");
 
+/** One active funding goal on a tip page. Amounts are USD dollars,
+    the unit the whole tip rail speaks (goalAmount mirror included). */
+export interface FundingGoal {
+  id: string;
+  targetAmount: number;
+  label: string;
+  /** ISO instant the goal started counting. Only tips paid at/after
+      this instant count toward it — a goal measures money raised
+      toward it, not the creator's lifetime earnings. */
+  startedAt: string;
+}
+
+/** A reached goal, kept on the record after it is replaced or removed
+    so past wins are never silently erased. */
+export interface FundingGoalRecord {
+  id: string;
+  label: string;
+  targetAmount: number;
+  raisedAmount: number;
+  startedAt: string;
+  reachedAt: string;
+}
+
 export interface TipPageSettings {
   userId: string;
   handle: string;
   displayName: string;
   message: string;
   suggestedAmounts: number[];
+  /** Mirror of fundingGoal (targetAmount / label) for existing readers. */
   goalAmount: number | null;
   goalLabel: string;
+  fundingGoal: FundingGoal | null;
+  goalHistory: FundingGoalRecord[];
   createdAt: string;
   updatedAt: string;
 }
@@ -99,6 +135,148 @@ export function normalizeSuggestedAmounts(amounts: number[]): number[] {
   return [...seen].sort((a, b) => a - b);
 }
 
+export const fundingGoalSchema = z.object({
+  targetAmount: z.number().positive().max(1_000_000),
+  label: z.string().trim().max(80).default(""),
+});
+
+/** The slice of a durable tip_jar_tips row that progress math reads. */
+export interface PaidTipRowLike {
+  amount_cents: number;
+  currency: string;
+  status: string;
+  paid_at: Date | string | null;
+  created_at: Date | string | null;
+}
+
+export interface FundingProgress {
+  /** USD dollars raised toward the goal (paid tips only). */
+  raised: number;
+  raisedCount: number;
+  /** 0..1, capped. */
+  progress: number;
+  reached: boolean;
+  /** ISO instant the running total first crossed the target, if ever. */
+  reachedAt: string | null;
+}
+
+function rowTimeMs(row: PaidTipRowLike): number {
+  const t = row.paid_at ?? row.created_at;
+  if (t == null) return NaN;
+  return t instanceof Date ? t.getTime() : new Date(t).getTime();
+}
+
+/**
+ * Derive a funding goal's progress from stored tip records. This is
+ * the ONLY way progress is ever produced — nothing stores a counter,
+ * so the number can always be reconciled against tip_jar_tips.
+ *
+ * A row counts only when ALL of these hold (the rail's own money-state
+ * conventions):
+ *   - status is exactly "paid" — the state checkout verify sets once.
+ *     pending_payment / refunded / anything else never counts, and tip
+ *     intents never reach this table at all;
+ *   - currency matches the rail's USD;
+ *   - it was paid at/after the goal's startedAt.
+ * Rows may arrive in any order; reachedAt is found by walking the
+ * qualifying rows chronologically to the crossing point.
+ */
+export function computeFundingProgress(
+  rows: PaidTipRowLike[],
+  goal: Pick<FundingGoal, "targetAmount" | "startedAt">,
+): FundingProgress {
+  const targetCents = Math.round(goal.targetAmount * 100);
+  const startMs = new Date(goal.startedAt).getTime();
+  const qualifying = rows
+    .filter((r) => r.status === TIP_STATUS_PAID)
+    .filter((r) => String(r.currency).toLowerCase() === TIP_CURRENCY.toLowerCase())
+    .map((r) => ({ cents: r.amount_cents, atMs: rowTimeMs(r) }))
+    .filter((r) => Number.isFinite(r.atMs) && r.atMs >= startMs && r.cents > 0)
+    .sort((a, b) => a.atMs - b.atMs);
+  let raisedCents = 0;
+  let reachedAt: string | null = null;
+  for (const r of qualifying) {
+    raisedCents += r.cents;
+    if (reachedAt === null && targetCents > 0 && raisedCents >= targetCents) {
+      reachedAt = new Date(r.atMs).toISOString();
+    }
+  }
+  const raised = Math.round(raisedCents) / 100;
+  return {
+    raised,
+    raisedCount: qualifying.length,
+    progress: targetCents > 0 ? Math.min(1, raisedCents / targetCents) : 0,
+    reached: reachedAt !== null,
+    reachedAt,
+  };
+}
+
+/**
+ * Apply a goal set/edit/remove to a settings-shaped goal state.
+ * Pure: the caller supplies the goal's current progress (derived from
+ * stored tips) and the id/clock for a fresh goal.
+ *
+ *   - next.targetAmount null → remove. A reached goal is archived to
+ *     history first; an unreached one simply clears.
+ *   - no active goal → start a new one at `now`.
+ *   - identical target+label → untouched (the settings form resubmits
+ *     the goal fields on every save; a routine save must never restart
+ *     or archive the creator's goal).
+ *   - changed values on an unreached goal → edit in place: same id,
+ *     same startedAt, so the progress basis never resets.
+ *   - changed values on a reached goal → archive it, start fresh.
+ */
+export function applyFundingGoalChange(args: {
+  prevGoal: FundingGoal | null;
+  prevHistory: FundingGoalRecord[];
+  prevProgress: FundingProgress | null;
+  next: { targetAmount: number | null; label: string };
+  now: string;
+  newId: string;
+}): { fundingGoal: FundingGoal | null; goalHistory: FundingGoalRecord[] } {
+  const { prevGoal, prevHistory, prevProgress, next, now, newId } = args;
+  const archiveIfReached = (): FundingGoalRecord[] => {
+    if (prevGoal && prevProgress?.reached && prevProgress.reachedAt) {
+      return [
+        ...prevHistory,
+        {
+          id: prevGoal.id,
+          label: prevGoal.label,
+          targetAmount: prevGoal.targetAmount,
+          raisedAmount: prevProgress.raised,
+          startedAt: prevGoal.startedAt,
+          reachedAt: prevProgress.reachedAt,
+        },
+      ];
+    }
+    return prevHistory;
+  };
+
+  if (next.targetAmount == null) {
+    return { fundingGoal: null, goalHistory: archiveIfReached() };
+  }
+  const label = next.label.trim();
+  if (!prevGoal) {
+    return {
+      fundingGoal: { id: newId, targetAmount: next.targetAmount, label, startedAt: now },
+      goalHistory: prevHistory,
+    };
+  }
+  if (prevGoal.targetAmount === next.targetAmount && prevGoal.label === label) {
+    return { fundingGoal: prevGoal, goalHistory: prevHistory };
+  }
+  if (prevProgress?.reached) {
+    return {
+      fundingGoal: { id: newId, targetAmount: next.targetAmount, label, startedAt: now },
+      goalHistory: archiveIfReached(),
+    };
+  }
+  return {
+    fundingGoal: { ...prevGoal, targetAmount: next.targetAmount, label },
+    goalHistory: prevHistory,
+  };
+}
+
 /** Sum tip intents for a dashboard total. */
 export function sumTipIntents(intents: TipIntent[]): { total: number; count: number; average: number } {
   const count = intents.length;
@@ -126,6 +304,92 @@ export function __resetTipJarStores() {
   tipIntents.clear();
 }
 
+/** All durable tip rows for one page owner (any status — the progress
+    function applies the paid-only rule). Read fresh on every call:
+    progress is derived, never cached. */
+async function paidTipRowsFor(userId: string): Promise<PaidTipRowLike[]> {
+  const rows = await db
+    .select({
+      amount_cents: tipJarTipsTable.amount_cents,
+      currency: tipJarTipsTable.currency,
+      status: tipJarTipsTable.status,
+      paid_at: tipJarTipsTable.paid_at,
+      created_at: tipJarTipsTable.created_at,
+    })
+    .from(tipJarTipsTable)
+    .where(eq(tipJarTipsTable.page_user_id, userId));
+  return rows as PaidTipRowLike[];
+}
+
+/** Public/dashboard view of a settings goal + its derived progress.
+    When the stored tips cannot be read, the goal is reported with
+    progressUnavailable and NO numbers — never a fabricated zero. */
+export interface FundingGoalView {
+  id: string;
+  label: string;
+  targetAmount: number;
+  currency: string;
+  startedAt: string;
+  raised: number | null;
+  raisedCount: number | null;
+  progress: number | null;
+  reached: boolean;
+  reachedAt: string | null;
+  progressUnavailable?: boolean;
+}
+
+async function fundingGoalView(settings: TipPageSettings): Promise<FundingGoalView | null> {
+  const goal = settings.fundingGoal;
+  if (!goal) return null;
+  const base: FundingGoalView = {
+    id: goal.id,
+    label: goal.label,
+    targetAmount: goal.targetAmount,
+    currency: TIP_CURRENCY,
+    startedAt: goal.startedAt,
+    raised: null,
+    raisedCount: null,
+    progress: null,
+    reached: false,
+    reachedAt: null,
+  };
+  try {
+    const p = computeFundingProgress(await paidTipRowsFor(settings.userId), goal);
+    return { ...base, raised: p.raised, raisedCount: p.raisedCount, progress: p.progress, reached: p.reached, reachedAt: p.reachedAt };
+  } catch (err) {
+    logger.warn({ err, userId: settings.userId }, "[tip-jar] funding goal progress unavailable");
+    return { ...base, progressUnavailable: true };
+  }
+}
+
+/** Run the goal lifecycle for a settings save / goal endpoint call. */
+async function transitionFundingGoal(
+  prev: TipPageSettings | undefined,
+  next: { targetAmount: number | null; label: string },
+  now: string,
+): Promise<{ fundingGoal: FundingGoal | null; goalHistory: FundingGoalRecord[] }> {
+  const prevGoal = prev?.fundingGoal ?? null;
+  const prevHistory = prev?.goalHistory ?? [];
+  let prevProgress: FundingProgress | null = null;
+  if (prevGoal) {
+    try {
+      prevProgress = computeFundingProgress(await paidTipRowsFor(prev!.userId), prevGoal);
+    } catch (err) {
+      /* Without a trustworthy progress read we cannot prove the goal
+         was reached, so nothing is archived on this transition. */
+      logger.warn({ err, userId: prev!.userId }, "[tip-jar] goal transition without progress read");
+    }
+  }
+  return applyFundingGoalChange({
+    prevGoal,
+    prevHistory,
+    prevProgress,
+    next,
+    now,
+    newId: randomUUID(),
+  });
+}
+
 // Evict tip intents older than 24h — prevents unbounded memory growth
 setInterval(() => {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -148,7 +412,7 @@ router.get("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
 });
 
 /* POST /api/tips/settings → create/update my tip page. Auth. Free. */
-router.post("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
+router.post("/tips/settings", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = tipPageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -169,14 +433,25 @@ router.post("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
   const prev = tipPages.get(req.userId!);
   if (prev && prev.handle !== handle) tipPagesByHandle.delete(prev.handle);
 
+  /* The goal fields ride the same save: run them through the funding
+     goal lifecycle so a save can start / edit / archive / clear the
+     goal without resetting its progress basis. */
+  const goalState = await transitionFundingGoal(
+    prev,
+    { targetAmount: goalAmount, label: goalLabel },
+    now,
+  );
+
   const settings: TipPageSettings = {
     userId: req.userId!,
     handle,
     displayName: displayName.trim(),
     message: message.trim(),
     suggestedAmounts: normalizeSuggestedAmounts(suggestedAmounts),
-    goalAmount,
-    goalLabel: goalLabel.trim(),
+    goalAmount: goalState.fundingGoal?.targetAmount ?? null,
+    goalLabel: goalState.fundingGoal?.label ?? "",
+    fundingGoal: goalState.fundingGoal,
+    goalHistory: goalState.goalHistory,
     createdAt: prev?.createdAt ?? now,
     updatedAt: now,
   };
@@ -184,6 +459,67 @@ router.post("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
   tipPagesByHandle.set(handle, req.userId!);
   logger.info({ userId: req.userId, handle }, "[tip-jar] tip page saved");
   res.json({ settings, paymentsLive: false });
+});
+
+/* POST /api/tips/goal { targetAmount, label } → set or edit MY active
+   funding goal. Auth. Owner-scoped by construction: the handler only
+   ever touches the caller's own tip page. */
+router.post("/tips/goal", publicApiLimiter, requireAuth, async (req, res) => {
+  const settings = tipPages.get(req.userId!);
+  if (!settings) {
+    res.status(404).json({ error: "Set up your tip page first, then add a funding goal." });
+    return;
+  }
+  const parsed = fundingGoalSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid funding goal.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const now = new Date().toISOString();
+  const goalState = await transitionFundingGoal(
+    settings,
+    { targetAmount: parsed.data.targetAmount, label: parsed.data.label },
+    now,
+  );
+  const updated: TipPageSettings = {
+    ...settings,
+    goalAmount: goalState.fundingGoal?.targetAmount ?? null,
+    goalLabel: goalState.fundingGoal?.label ?? "",
+    fundingGoal: goalState.fundingGoal,
+    goalHistory: goalState.goalHistory,
+    updatedAt: now,
+  };
+  tipPages.set(req.userId!, updated);
+  res.json({ goal: await fundingGoalView(updated), goalHistory: updated.goalHistory });
+});
+
+/* DELETE /api/tips/goal → remove MY active funding goal. Auth. A
+   reached goal is archived to the history, never silently erased. */
+router.delete("/tips/goal", publicApiLimiter, requireAuth, async (req, res) => {
+  const settings = tipPages.get(req.userId!);
+  if (!settings) {
+    res.status(404).json({ error: "Tip page not set up yet." });
+    return;
+  }
+  if (!settings.fundingGoal) {
+    res.json({ goal: null, goalHistory: settings.goalHistory });
+    return;
+  }
+  const now = new Date().toISOString();
+  const goalState = await transitionFundingGoal(settings, { targetAmount: null, label: "" }, now);
+  const updated: TipPageSettings = {
+    ...settings,
+    goalAmount: null,
+    goalLabel: "",
+    fundingGoal: null,
+    goalHistory: goalState.goalHistory,
+    updatedAt: now,
+  };
+  tipPages.set(req.userId!, updated);
+  res.json({ goal: null, goalHistory: updated.goalHistory });
 });
 
 /**
@@ -225,6 +561,10 @@ router.get("/tips/page/:handle", publicApiLimiter, async (req, res) => {
   const settings = tipPages.get(ownerId)!;
   const intents = [...tipIntents.values()].filter((t) => t.pageUserId === ownerId);
   const stats = sumTipIntents(intents);
+  /* Goal progress is derived from PAID tips only (0142 rows) — the
+     intent totals above stay what they are (recorded intent), but
+     they no longer feed the goal bar. */
+  const goal = await fundingGoalView(settings);
   res.json({
     page: {
       handle: settings.handle,
@@ -234,7 +574,8 @@ router.get("/tips/page/:handle", publicApiLimiter, async (req, res) => {
       goalAmount: settings.goalAmount,
       goalLabel: settings.goalLabel,
     },
-    stats: { ...stats, goalProgress: settings.goalAmount ? Math.min(1, stats.total / settings.goalAmount) : null },
+    goal,
+    stats: { ...stats, goalProgress: goal?.progress ?? null },
     /* Real checkout is live when payments are configured (0142);
        otherwise the page falls back to recording tip intent. */
     paymentsLive: paymentsConfigured(),
@@ -434,19 +775,24 @@ router.post("/tips/checkout/verify", publicApiLimiter, async (req, res) => {
 });
 
 /* GET /api/tips/dashboard → my totals + tip feed. Auth. */
-router.get("/tips/dashboard", publicApiLimiter, requireAuth, (req, res) => {
+router.get("/tips/dashboard", publicApiLimiter, requireAuth, async (req, res) => {
   const settings = tipPages.get(req.userId!);
   const intents = [...tipIntents.values()]
     .filter((t) => t.pageUserId === req.userId)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const stats = sumTipIntents(intents);
+  const goal = settings ? await fundingGoalView(settings) : null;
   res.json({
     hasPage: !!settings,
     handle: settings?.handle ?? null,
     ...stats,
     goalAmount: settings?.goalAmount ?? null,
     goalLabel: settings?.goalLabel ?? "",
-    goalProgress: settings?.goalAmount ? Math.min(1, stats.total / settings.goalAmount) : null,
+    /* Honest goal progress: paid tips only, same derivation as the
+       public page. (Was intent-based — intents are not money.) */
+    goalProgress: goal?.progress ?? null,
+    goal,
+    goalHistory: settings?.goalHistory ?? [],
     feed: intents.slice(0, 50),
     paymentsLive: false,
   });
