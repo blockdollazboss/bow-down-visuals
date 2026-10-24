@@ -12,7 +12,9 @@
  *   • Clip blocks positioned by scene timestamps
  *   • Drag trim handles on selected clip (updates settings.clips)
  *   • Per-clip validation with detailed error display
- *   • Lock Timeline → async validation → JSON snapshot
+ *   • Lock Timeline → async validation → JSON snapshot + a REAL lock
+ *     (settings.timelineLocked) that blocks clip move/trim/split/delete/edit
+ *     across the whole editor until unlocked — see lib/timeline-lock.ts
  *   • Clip URL Repair panel for scenes missing demoClipUrl
  *   • Master Player Stable / Readiness status panel
  *   • Debug panel with all readiness signals
@@ -20,7 +22,7 @@
 
 import { useState } from "react";
 import {
-  Lock, Download,
+  Lock, LockOpen, Download,
   ChevronDown, ChevronUp, Copy, Check,
   AlertCircle, AlertTriangle, RefreshCw,
   Wrench, Sparkles, ImageOff,
@@ -29,6 +31,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings, parseRawSceneDuration } from "@/lib/scene-timing";
 import type { EditorSettings } from "@/lib/editor-settings";
 import { defaultClipEdit } from "@/lib/editor-settings";
+import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
 import { Button } from "@/components/ui/button";
 
 /* ─── Types ────────────────────────────────────────────────────────── */
@@ -165,13 +168,15 @@ function ClipValidRow({ v }: { v: ClipValidation }) {
 /* ─── Clip URL Repair Panel ──────────────────────────────────────────── */
 
 function ClipRepairPanel({
-  sceneIdx, scene, clipNum, scenes, setScenes,
+  sceneIdx, scene, clipNum, scenes, setScenes, timelineLocked = false,
 }: {
   sceneIdx: number;
   scene: SceneData;
   clipNum: number;
   scenes: SceneData[];
   setScenes?: (s: SceneData[]) => void;
+  /** While the timeline is locked, attaching a URL is an edit — refused. */
+  timelineLocked?: boolean;
 }) {
   const [busy, setBusy] = useState<"repair" | "placeholder" | "regenerate" | null>(null);
   const [result, setResult] = useState<RepairResult | null>(null);
@@ -193,7 +198,7 @@ function ClipRepairPanel({
   };
 
   const applyUrl = (url: string) => {
-    if (!setScenes) return;
+    if (timelineLocked || !setScenes) return;
     const updated = scenes.map((sc, i) =>
       i === sceneIdx ? { ...sc, demoClipUrl: url } : sc
     );
@@ -201,6 +206,7 @@ function ClipRepairPanel({
   };
 
   const runAction = async (action: "repair" | "placeholder" | "regenerate") => {
+    if (timelineLocked) return;
     setBusy(action);
     setResult(null);
     await new Promise(r => setTimeout(r, 700));
@@ -272,6 +278,9 @@ function ClipRepairPanel({
       <p className="text-[9px] text-white/35">
         This clip is missing a video URL and will block Lock Timeline.
       </p>
+      {timelineLocked && (
+        <p className="text-[9px] text-amber-300/80">{TIMELINE_LOCKED_MESSAGE}</p>
+      )}
 
       {/* Info grid */}
       <div className="grid grid-cols-2 gap-1.5">
@@ -291,7 +300,7 @@ function ClipRepairPanel({
       {/* Action buttons */}
       <div className="space-y-1.5">
         <button type="button" onClick={() => runAction("repair")}
-          disabled={!!busy || !!currentUrl}
+          disabled={timelineLocked || !!busy || !!currentUrl}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-blue-500/35 bg-blue-500/[0.07] text-blue-400 text-left disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-500/[0.12] transition-colors">
           {busy === "repair"
             ? <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -303,7 +312,7 @@ function ClipRepairPanel({
         </button>
 
         <button type="button" onClick={() => runAction("placeholder")}
-          disabled={!!busy || !!currentUrl}
+          disabled={timelineLocked || !!busy || !!currentUrl}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-left disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-500/[0.11] transition-colors">
           {busy === "placeholder"
             ? <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -317,7 +326,7 @@ function ClipRepairPanel({
         </button>
 
         <button type="button" onClick={() => runAction("regenerate")}
-          disabled={!!busy}
+          disabled={timelineLocked || !!busy}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] text-violet-400 text-left disabled:opacity-40 disabled:cursor-not-allowed hover:bg-violet-500/[0.11] transition-colors">
           {busy === "regenerate"
             ? <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -442,6 +451,13 @@ export function StudioEditorSection({
     })
     .filter(Boolean) as string[];
 
+  /* ── Unlock Timeline — clears the real lock (and the local snapshot) ── */
+  function unlockTimeline() {
+    setSettings({ ...settings, timelineLocked: false });
+    setLockedTimeline(null);
+    setJsonOpen(false);
+  }
+
   /* ── Lock Timeline — async with per-clip validation ── */
   async function validateAndLock() {
     setValidating(true);
@@ -509,6 +525,9 @@ export function StudioEditorSection({
       audioDuration: audioDuration ?? null,
       clipCount: clips.length, audioStartsAt: 0, clips,
     });
+    /* Engage the REAL lock: from here the whole editor refuses clip edits
+       (page setter wrappers + TimelineDock gates) until Unlock is clicked. */
+    setSettings({ ...settings, timelineLocked: true });
     setValidating(false);
     setJsonOpen(true);
   }
@@ -523,11 +542,14 @@ export function StudioEditorSection({
   }
 
   /* ── Stable status ── */
-  const isLocked = !!lockedTimeline;
+  /* The lock state is the settings flag — the local snapshot only carries
+     the export-blueprint JSON for display. A project saved while locked
+     reopens locked (with no local snapshot panel). */
+  const isLocked = isTimelineLocked(settings);
   const stableChecks = [
     { label: "Audio is master clock", ok: !!audioUrl,        detail: audioUrl ? "song audio loaded ✓" : "no song set — go to Music Studio" },
     { label: "All clips have URLs",   ok: allClipsHaveUrls,  detail: allClipsHaveUrls ? `${scenes.length}/${scenes.length} clips ✓` : `${clipsWithUrl}/${scenes.length} — missing: ${missingClips.join(", ")}` },
-    { label: "Timeline locked",       ok: isLocked,          detail: isLocked ? `ID: ${lockedTimeline!.id}` : "click Lock Timeline" },
+    { label: "Timeline locked",       ok: isLocked,          detail: isLocked ? (lockedTimeline ? `ID: ${lockedTimeline.id}` : "locked — unlock to edit") : "click Lock Timeline" },
   ];
   const isStable = stableChecks.every(c => c.ok);
   const exportReady = isStable && isLocked;
@@ -552,18 +574,20 @@ export function StudioEditorSection({
           </h2>
           <p className="text-[10px] text-white/30 mt-0.5">
             Studio timeline · {scenes.length} clips · {audioDuration ? fmt(audioDuration) : "--:--"} total
-            {lockedTimeline && <span className="ml-2 text-primary/60">· Locked: {lockedTimeline.id}</span>}
+            {isLocked && <span className="ml-2 text-primary/60">· Locked{lockedTimeline ? `: ${lockedTimeline.id}` : ""}</span>}
           </p>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <Button variant="outline" size="sm"
-            onClick={() => { void validateAndLock(); }}
-            disabled={scenes.length === 0 || validating}
+            onClick={() => { if (isLocked) unlockTimeline(); else void validateAndLock(); }}
+            aria-pressed={isLocked}
+            disabled={validating || (!isLocked && scenes.length === 0)}
+            title={isLocked ? "Unlock the timeline so clips can be edited again" : "Validate every clip, snapshot the timeline, and lock it against edits"}
             className={`gap-1.5 text-xs h-7 ${isLocked ? "border-green-500/30 text-green-400 hover:bg-green-500/[0.08]" : "border-primary/30 text-primary hover:bg-primary/10"}`}>
             {validating
               ? <><RefreshCw className="h-3 w-3 animate-spin" /> Validating…</>
               : isLocked
-                ? <><Check className="h-3 w-3" /> Locked</>
+                ? <><LockOpen className="h-3 w-3" /> Unlock Timeline</>
                 : <><Lock className="h-3 w-3" /> Lock Timeline</>}
           </Button>
           <Button variant="outline" size="sm"
@@ -614,6 +638,7 @@ export function StudioEditorSection({
             clipNum={selectedIdx + 1}
             scenes={scenes}
             setScenes={setScenes}
+            timelineLocked={isLocked}
           />
         ) : (() => {
           const ce = selCe;
@@ -625,6 +650,7 @@ export function StudioEditorSection({
           const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done");
           const effectiveDur = Math.max(0, clipDur - trimStart - trimEnd);
           function updateTrim(key: "trimStart" | "trimEnd", val: number) {
+            if (isLocked) return;
             setSettings({ ...settings, clips: { ...clipEdits, [selScene!.id]: { ...(ce ?? defaultClipEdit()), [key]: val } } });
           }
           return (
@@ -662,8 +688,9 @@ export function StudioEditorSection({
                         {label}: {val.toFixed(1)}s
                       </label>
                       <input type="range" min={0} max={clipDur * 0.45} step={0.1} value={val}
+                        disabled={isLocked}
                         onChange={(e) => updateTrim(key, Number(e.target.value))}
-                        className="w-full accent-primary" />
+                        className="w-full accent-primary disabled:opacity-40" />
                       <p className="text-[8px] text-white/20 mt-0.5">{hint}</p>
                     </div>
                   );
@@ -698,7 +725,7 @@ export function StudioEditorSection({
             </div>
           ))}
         </div>
-        {isStable && !lockedTimeline && (
+        {isStable && !isLocked && (
           <p className="text-[9px] text-primary/50 mt-2">
             Everything ready — click <strong className="text-primary/70">Lock Timeline</strong> above to generate the export blueprint.
           </p>
@@ -802,7 +829,7 @@ export function StudioEditorSection({
               ["valid clip URLs",      `${clipsWithUrl} / ${scenes.length}`,            allClipsHaveUrls],
               ["missing clip URLs",    missingClips.length > 0 ? missingClips.join(", ") : "none", missingClips.length === 0],
               ["timeline locked",      isLocked ? "yes" : "no",                         isLocked],
-              ["locked timeline id",   isLocked ? lockedTimeline!.id : "—",             isLocked],
+              ["locked timeline id",   lockedTimeline ? lockedTimeline.id : "—",        isLocked],
               ["export ready",         exportReady ? "yes" : "no",                      exportReady],
               ["last error",           validationError ?? "none",                        !validationError],
             ] as [string, string, boolean][]).map(([k, v, ok]) => (
