@@ -1,28 +1,8 @@
-# Lane stack29/coposts — #24 Co-Posts & Collab Releases — GAP VERIFICATION
-
-Base: stack28/integration @ f96d7b72. Verified in source 2026-10-23 before building.
-
-## Gap confirmed — co-posting does NOT exist under any other name
-- `grep -RniE "co-?post|co-?author|coAuthor|coPost|dual.author"` over
-  `artifacts/` + `lib/` (ts/tsx, excluding tests): ZERO product hits. Only
-  unrelated matches (collab *routes* themselves, a library template titled
-  "Collab Announcement", Dream Collab concept generation).
-- Collabs (`artifacts/api-server/src/routes/generate/collabs.ts`,
-  `lib/db/src/schema/collab.ts`) is matchmaking only: public collab
-  profiles, AI match report (100 VB), free send/respond on
-  `collab_requests` (pending/accepted/declined). Nothing after "accepted".
-- Feed posts (`posts` table, `lib/db/src/schema/creator-stories-posts.ts`)
-  carry exactly ONE `profile_id`. Likes/reactions/replies hang off the
-  single post row (`reactions` PK is (user, target_kind, target_id)) —
-  which is exactly what a co-post must reuse so engagement can never
-  double-count: ONE post row, TWO author sides.
-- Releases (`distribution_releases`) likewise carry a single artist; see
-  REPORT.md for the parked release half + reason.
-
-## Farm hazard correction (follow-up brief, applied before any suite)
-- Brief's farm (bdv-wt-integration) frontend node_modules is ELOOP-corrupt.
-  Re-farmed from the healthy MAIN checkout via
-  `.lane/setup-node-modules.sh`; `@workspace/db` and `@workspace/api-zod`
-  mapped BY NAME into this worktree and verified with `readlink -f`:
-  both resolve to `/home/hatch/workspace/bdv-wt-coposts/lib/{db,api-zod}`.
-- All lane tooling lives under `.lane/` only (no /tmp scripts).
+# Lane stack29/w3-co-release — Co-Release (co-posts phase 2) — GAP
+Base: stack29/coposts @ d0539e1d (phase 1 REPORT/MIGRATION in bdv-wt-coposts/.lane)
+Verified 2026-10-24 in source before building:
+- Phase 1: ONE posts row + post_co_authors sides (migration 0205 HELD, not a file in lib/db/migrations — tops at 0204). Consent machine artifacts/api-server/src/lib/co-posts.ts. Store/distribute co-release explicitly PARKED: "second consent ledger over money-bearing splits".
+- Existing splits (distribution-v2.ts): distribution_royalty_splits — versioned, owner-only PUT (no second-party consent: invite_status is email-token stub, payees are name/email not accounts/profiles), shares sum 100, supersede-on-edit (future earnings only). Wave8 splits: free-form name/pct JSON sheets, no consent at all. Neither can honestly hold BOTH creators' consent to a split on a shared release.
+- Attribution rails honestly reachable: (a) money_entries.release_id -> GET /api/splits/overview applies versioned splits to logged income per release (read-layer accounting, no payout); (b) store_orders (storefront products): amount_cents, platform_fee_cents, creator_amount_cents — creator amount is post-fee. Fee rail: flat 5% (owner ruling; shops checkout aligned 500bps) — NOT part of split negotiation; co-release splits apply to creator_amount_cents / logged income only.
+- distribution_releases: single user_id. store_products: single profile_id. No table holds a second creator's consent + agreed split for either -> NEW tables required -> migration HELD (this lane claims 0206, after phase-1's held 0205; integrator renumbers if join order differs).
+- Site pays nobody real money; splits here are attribution/accounting in the same model as splits/overview — never a payout.
