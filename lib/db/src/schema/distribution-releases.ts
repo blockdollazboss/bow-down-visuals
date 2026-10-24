@@ -44,6 +44,25 @@ export const distributionReleasesTable = pgTable("distribution_releases", {
   meta_pixel_id: text("meta_pixel_id"),
   tiktok_pixel_id: text("tiktok_pixel_id"),
   google_tag_id: text("google_tag_id"),
+  /* ── Smartlink territory / language routing (Stack-100 #3 W3) ───────
+     Creator-entered routed destinations for the release smartlink:
+     smartlink_territory_destinations: { "DE": url, "JP": url } —
+       exact-country overrides, resolved from the CDN geo header.
+     smartlink_language_destinations: { "es": url, "de": url } —
+       language destinations, resolved from Accept-Language.
+     Resolution: territory → language → default (the flat platform
+     links, unchanged). Both empty = no routing, page identical to
+     before. Validated server-side on save (ISO country codes, http(s)
+     URLs only). MIGRATION HELD — see .lane/MIGRATION-NEEDED.md; until
+     it lands the API treats missing columns as "no routing". */
+  smartlink_territory_destinations: jsonb("smartlink_territory_destinations")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
+  smartlink_language_destinations: jsonb("smartlink_language_destinations")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
 });
 
 export type DistributionReleaseRow = typeof distributionReleasesTable.$inferSelect;
