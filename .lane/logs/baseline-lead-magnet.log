@@ -1,0 +1,142 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bookings/artifacts/api-server[39m
+
+[00:39:44.588] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "5cbca7e6-6056-4dfc-9078-3d09454ca371"
+    [35mkind[39m: "digital"
+[00:39:44.717] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "b5839207-c1bb-4cce-b7f2-5abe1cb429ea"
+    [35mkind[39m: "digital"
+[00:39:44.958] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "2c0d5d7a-2621-4f56-bcc0-1792cf5f0d52"
+    [35mkind[39m: "digital"
+[00:39:45.388] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "ee6b6291-abff-4160-a619-cca2c35bf396"
+    [35mkind[39m: "digital"
+[00:39:45.697] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "ebf7d543-bb5d-4093-b316-df6298aa80c9"
+    [35mkind[39m: "digital"
+[00:39:45.821] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "04289bce-a9ba-4dab-a75e-07e80f7642cb"
+    [35mkind[39m: "digital"
+[00:39:45.897] [31mERROR[39m (24014): [36m[storefront] checkout failed[39m
+    [35mproductId[39m: "04289bce-a9ba-4dab-a75e-07e80f7642cb"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT COUNT(*)::int AS c FROM store_orders\n      WHERE buyer_user_id = $1 AND product_id = $2\n        AND quantity = $3 AND amount_cents = $4\n        AND discount_code IS NOT DISTINCT FROM $5\n    \nparams: e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a,04289bce-a9ba-4dab-a75e-07e80f7642cb,1,2000,: 💔 Your query failed to parse.\nThis is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.\nIf this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a query that reproduces this syntax error.\n\n👉 Failed query:\n\n    \n      SELECT COUNT(*)::int AS c FROM store_orders\n      WHERE buyer_user_id = 'e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a' AND product_id = '04289bce-a9ba-4dab-a75e-07e80f7642cb'\n        AND quantity = '1' AND amount_cents = '2000'\n        AND discount_code IS NOT DISTINCT FROM null\n    ;\n\n💀 Syntax error at line 5 col 34:\n\n3          AND quantity = '1' AND amount_cents = '2000'\n4          AND discount_code IS NOT DISTINCT FROM null\n5      ;\n                                    ^\nUnexpected kw_distinct token: \"distinct\". Instead, I was expecting to see one of the following:\n\n    - A \"kw_null\" token\n    - A \"kw_true\" token\n    - A \"kw_false\" token\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT COUNT(*)::int AS c FROM store_orders
+                WHERE buyer_user_id = $1 AND product_id = $2
+                  AND quantity = $3 AND amount_cents = $4
+                  AND discount_code IS NOT DISTINCT FROM $5
+              
+          params: e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a,04289bce-a9ba-4dab-a75e-07e80f7642cb,1,2000,
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bookings/artifacts/api-server/src/routes/storefront.ts:608:25
+          caused by: Error: 💔 Your query failed to parse.
+          This is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.
+          If this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a query that reproduces this syntax error.
+          
+          👉 Failed query:
+          
+              
+                SELECT COUNT(*)::int AS c FROM store_orders
+                WHERE buyer_user_id = 'e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a' AND product_id = '04289bce-a9ba-4dab-a75e-07e80f7642cb'
+                  AND quantity = '1' AND amount_cents = '2000'
+                  AND discount_code IS NOT DISTINCT FROM null
+              ;
+          
+          💀 Syntax error at line 5 col 34:
+          
+          3          AND quantity = '1' AND amount_cents = '2000'
+          4          AND discount_code IS NOT DISTINCT FROM null
+          5      ;
+                                              ^
+          Unexpected kw_distinct token: "distinct". Instead, I was expecting to see one of the following:
+          
+              - A "kw_null" token
+              - A "kw_true" token
+              - A "kw_false" token
+          
+          
+              at parseSql (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5631:15)
+              at DbSchema.parse (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7647:47)
+              at DbSchema.prepare (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7626:33)
+              at DbSchema.query (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7609:21)
+              at MemPg.query (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:13491:76)
+              at Object.query (/home/hatch/workspace/bdv-wt-bookings/artifacts/api-server/src/lib/__tests__/test-db.ts:77:94)
+              at file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/session.js:113:33
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:39:22)
+              at file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/session.js:112:23
+              at Object.startActiveSpan (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/tracing.js:8:14)
+      "query": "\n      SELECT COUNT(*)::int AS c FROM store_orders\n      WHERE buyer_user_id = $1 AND product_id = $2\n        AND quantity = $3 AND amount_cents = $4\n        AND discount_code IS NOT DISTINCT FROM $5\n    ",
+      "params": [
+        "e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a",
+        "04289bce-a9ba-4dab-a75e-07e80f7642cb",
+        1,
+        2000,
+        null
+      ]
+    }
+[00:39:46.059] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "f2ab6f36-42ea-4153-804f-cbd051f508a3"
+    [35mkind[39m: "digital"
+[00:39:46.227] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "3d658eac-43e0-4fee-946a-9483469e1867"
+    [35mkind[39m: "digital"
+[00:39:46.360] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "de972662-cfe3-44b0-af2b-f8abd7adc8a3"
+    [35mkind[39m: "digital"
+[00:39:46.729] [32mINFO[39m (24014): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a"
+    [35mproductId[39m: "de972662-cfe3-44b0-af2b-f8abd7adc8a3"
+    [35morderId[39m: "c4176403-ec4d-4360-87dc-7f06ac219ff8"
+    [35mkind[39m: "digital"
+[00:39:46.831] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "4ab6dfb6-5b99-4cf1-b555-70caf64fc072"
+    [35mkind[39m: "digital"
+[00:39:46.881] [32mINFO[39m (24014): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a"
+    [35mproductId[39m: "4ab6dfb6-5b99-4cf1-b555-70caf64fc072"
+    [35morderId[39m: "e986ab9b-d9ff-4173-aef9-c11fd51f232f"
+    [35mkind[39m: "digital"
+[00:39:46.946] [32mINFO[39m (24014): [36m[storefront] product created[39m
+    [35muserId[39m: "cecdee3e-9cfe-45a5-8302-1f752bd7522e"
+    [35mproductId[39m: "c5389291-3540-469e-b830-678f9d6cc8de"
+    [35mkind[39m: "digital"
+[00:39:46.988] [32mINFO[39m (24014): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a"
+    [35mproductId[39m: "c5389291-3540-469e-b830-678f9d6cc8de"
+    [35morderId[39m: "4c19bbb8-c521-432d-9653-6f4287ddeca9"
+    [35mkind[39m: "digital"
+[00:39:47.049] [32mINFO[39m (24014): [36m[storefront] claim: duplicate returned[39m
+    [35muserId[39m: "e5990bba-d8f1-4fa6-aa2b-c8c479a5a15a"
+    [35mproductId[39m: "c5389291-3540-469e-b830-678f9d6cc8de"
+    [35morderId[39m: "4c19bbb8-c521-432d-9653-6f4287ddeca9"
+ [32m✓[39m src/routes/__tests__/storefront-lead-magnet.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 4227[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — create + edit validation [2m(4)[22m
+     [33m[2m✓[22m[39m creates a $0 product and labels it free on the payload[33m 1717[2mms[22m[39m
+     [33m[2m✓[22m[39m editing a paid product down to $0 turns it into a lead magnet[33m 354[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — the claim exchange [2m(4)[22m
+     [33m[2m✓[22m[39m claim = email capture + instant delivery, $0 order, no Stripe session anywhere[33m 538[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m11 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m 00:39:25
+[2m   Duration [22m 21.41s[2m (import 44%, transform 35%, tests 21%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 7.23s[39m[2m · 35% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

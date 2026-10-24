@@ -37,6 +37,9 @@
  *   POST   /storefront/orders/:id/delivery-token  auth: buyer re-mints a digital delivery link
  *   POST   /storefront/orders/:id/log-to-tracker  auth: push a sale into the Money Tracker (idempotent)
  *   POST   /storefront/orders/:id/service-confirm auth: confirm/decline a service booking
+ *   GET    /storefront/product/:id/slots          public: open booking slots (bookable services)
+ *   GET    /storefront/bookings                   auth: my bookings as buyer + as seller
+ *   POST   /storefront/orders/:id/booking-cancel  auth: cancel a calendar booking (+ Stripe refund)
  *   GET    /storefront/deliver/:token             public: token-gated instant delivery (digital)
  *   GET    /storefront/promote/email              auth: email-list broadcast hook (links, not rebuilds)
  *   GET    /storefront/money-checklist            auth: earnings + money checklist + next-move nudge
@@ -64,6 +67,24 @@ import { logger } from "../lib/logger";
    PLATFORM_FEE_BPS; owner ruling 2026-10-23) — the same rate the
    shops/store rails charge, on every tier. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
+import {
+  generateOpenSlots,
+  isGridSlot,
+  isValidAvailability,
+  isValidTimeZone,
+  ymdInTimeZone,
+  type BookingAvailability,
+  type TakenRange,
+} from "../lib/booking-slots";
+import {
+  bookingBlocksSlot,
+  bookingHumanLine,
+  decodeBookingNote,
+  deriveBookingStatus,
+  encodeBookingNote,
+  withBookingState,
+  type BookingRecord,
+} from "../lib/booking-note";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
@@ -210,6 +231,152 @@ async function callerProfile(userId: string): Promise<{ id: string; slug: string
   `);
   const row = r.rows[0] as Record<string, unknown> | undefined;
   return row ? { id: String(row["id"]), slug: String(row["slug"]) } : null;
+}
+
+/* ═══════════════ PAID BOOKINGS (real calendar) ═══════════════════════
+   A bookable service product carries availability in service_details
+   (lib/booking-slots.ts owns the slot math). A booking is a store_orders
+   row: inserted as a HOLD (status 'booking_held', 30-minute TTL) when the
+   checkout session is created, flipped to 'completed' by verify, and
+   cancelled/refunded through POST /orders/:id/booking-cancel. The slot
+   payload rides in the order's fulfillment_note behind the codec in
+   lib/booking-note.ts — that module is the format's only owner. */
+
+export const BOOKING_HOLD_TTL_MIN = 30;
+
+type SqlRunner = Pick<typeof db, "execute">;
+
+interface BookableInfo {
+  bookable: boolean;
+  durationMin: number;
+  availability: BookingAvailability | null;
+}
+
+function bookableInfo(serviceDetails: Record<string, unknown> | null | undefined): BookableInfo {
+  const sd = (serviceDetails ?? {}) as Record<string, unknown>;
+  const durationMin = typeof sd["duration_min"] === "number" ? (sd["duration_min"] as number) : 0;
+  const av = (sd["availability"] ?? null) as BookingAvailability | null;
+  const bookable =
+    sd["booking_enabled"] === true && !!av && isValidAvailability(av) && durationMin > 0;
+  return { bookable, durationMin, availability: bookable ? av : null };
+}
+
+/** Orders that currently block slots for a product: fresh holds + paid
+ *  bookings whose trailer is live (not cancelled). */
+async function fetchTakenRanges(run: SqlRunner, productId: string, now: Date): Promise<TakenRange[]> {
+  const r = await run.execute(sql`
+    SELECT fulfillment_note, status, created_at
+    FROM store_orders
+    WHERE product_id = ${productId} AND product_kind = 'service'
+      AND status IN ('booking_held', 'completed')
+  `);
+  const taken: TakenRange[] = [];
+  for (const row of r.rows as Array<Record<string, unknown>>) {
+    const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
+    if (!rec || !bookingBlocksSlot(rec)) continue;
+    if (String(row["status"]) === "booking_held") {
+      const created = new Date(String(row["created_at"])).getTime();
+      if (Number.isNaN(created) || created + BOOKING_HOLD_TTL_MIN * 60_000 <= now.getTime()) continue;
+    }
+    taken.push({ startUtc: rec.s, endUtc: rec.e });
+  }
+  return taken;
+}
+
+type SlotCheck =
+  | { ok: true; record: BookingRecord }
+  | { ok: false; code: string; message: string };
+
+/** Validate a buyer-picked slot against the live grid + taken set. The
+ *  caller MUST run this under the product lock (see lockProductRow) so the
+ *  check and the hold insert are one atomic step. */
+async function checkSlot(
+  run: SqlRunner,
+  args: {
+    productId: string;
+    availability: BookingAvailability;
+    durationMin: number;
+    startUtc: Date;
+    buyerUserId: string;
+    buyerTz: string;
+    now: Date;
+  },
+): Promise<SlotCheck> {
+  const { availability, durationMin, startUtc, now } = args;
+  if (!isGridSlot({ availability, durationMin, startUtc, now })) {
+    return {
+      ok: false, code: "SLOT_NOT_OFFERED",
+      message: "That time isn't on this creator's calendar — pick one of the open slots.",
+    };
+  }
+  const taken = await fetchTakenRanges(run, args.productId, now);
+  const open = generateOpenSlots({
+    availability, durationMin, taken,
+    fromUtc: startUtc, toUtc: new Date(startUtc.getTime() + 1), now,
+  });
+  if (open.length === 0) {
+    /* Was it this same buyer's own live hold? Give them the way back in
+       instead of a bare "taken". */
+    const mine = await run.execute(sql`
+      SELECT fulfillment_note FROM store_orders
+      WHERE product_id = ${args.productId} AND buyer_user_id = ${args.buyerUserId}
+        AND status = 'booking_held'
+        AND created_at > ${new Date(now.getTime() - BOOKING_HOLD_TTL_MIN * 60_000).toISOString()}
+    `);
+    for (const row of mine.rows as Array<Record<string, unknown>>) {
+      const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
+      if (rec && rec.s === startUtc.toISOString()) {
+        return {
+          ok: false, code: "SLOT_HELD_BY_YOU",
+          message: "You already have this slot held — finish that checkout (the hold expires after 30 minutes).",
+        };
+      }
+    }
+    return {
+      ok: false, code: "SLOT_TAKEN",
+      message: "That slot was just taken — pick another open time.",
+    };
+  }
+  return {
+    ok: true,
+    record: {
+      v: 1,
+      s: startUtc.toISOString(),
+      e: new Date(startUtc.getTime() + durationMin * 60_000).toISOString(),
+      ctz: availability.timezone,
+      btz: args.buyerTz,
+      st: "held",
+    },
+  };
+}
+
+/** Serialize booking writes per product: an UPDATE that changes nothing
+ *  still takes the row lock in Postgres, held until the transaction ends. */
+async function lockProductRow(run: SqlRunner, productId: string): Promise<void> {
+  await run.execute(sql`
+    UPDATE store_products SET updated_at = updated_at WHERE id = ${productId}
+  `);
+}
+
+async function creatorUserId(run: SqlRunner, profileId: string): Promise<string | null> {
+  const r = await run.execute(sql`
+    SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+  `);
+  const row = r.rows[0] as Record<string, unknown> | undefined;
+  return row?.["user_id"] ? String(row["user_id"]) : null;
+}
+
+/** Exactly-once user ping through the job-notifications relay (same rail
+ *  the legacy service flow uses). */
+async function notifyBookingParty(
+  run: SqlRunner,
+  args: { userId: string; jobType: string; jobId: string; title: string; message: string },
+): Promise<void> {
+  await run.execute(sql`
+    INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
+    VALUES (${args.jobType}, ${args.jobId}, ${args.userId}, 'completed', ${args.title}, ${args.message})
+    ON CONFLICT DO NOTHING
+  `);
 }
 
 /* ── Link graph: every product response carries its web of links ─────── */
@@ -371,17 +538,101 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
   }
 });
 
+/* ═══════════════════ PUBLIC: open booking slots ══════════════════════
+   For a bookable service product: the real open slots for the next N days,
+   generated from the creator's availability minus everything already
+   booked or held. Times are UTC instants; each client renders them in the
+   viewer's own timezone (that conversion is display-only — the booking
+   itself is stored in UTC). Days are the creator's local calendar dates. */
+router.get("/storefront/product/:id/slots", publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid product id." });
+    return;
+  }
+  const daysRaw = Number(req.query.days ?? 14);
+  const days = Number.isFinite(daysRaw) ? Math.min(31, Math.max(1, Math.floor(daysRaw))) : 14;
+  try {
+    const p = await fetchProduct(id, true);
+    if (!p) {
+      res.status(404).json({ error: "Product not found or no longer for sale." });
+      return;
+    }
+    const info = bookableInfo(p.service_details);
+    if (p.kind !== "service" || !info.bookable || !info.availability) {
+      res.json({
+        bookable: false,
+        reason: "This service doesn't take calendar bookings — buying it sends the creator a booking request instead.",
+      });
+      return;
+    }
+    const now = new Date();
+    const taken = await fetchTakenRanges(db, id, now);
+    const slots = generateOpenSlots({
+      availability: info.availability,
+      durationMin: info.durationMin,
+      taken,
+      fromUtc: now,
+      toUtc: new Date(now.getTime() + days * 86_400_000),
+      now,
+    });
+    const byDate = new Map<string, Array<{ startUtc: string; endUtc: string }>>();
+    for (const s of slots) {
+      const date = ymdInTimeZone(new Date(s.startUtc), info.availability.timezone);
+      const list = byDate.get(date) ?? [];
+      list.push(s);
+      byDate.set(date, list);
+    }
+    res.json({
+      bookable: true,
+      timezone: info.availability.timezone,
+      durationMin: info.durationMin,
+      days: [...byDate.entries()].map(([date, daySlots]) => ({ date, slots: daySlots })),
+      note: "Times are shown in your own timezone. The booking is confirmed the moment payment completes.",
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] slots failed");
+    res.status(500).json({ error: "Could not load open times." });
+  }
+});
+
 /* ═════════════════════════ SELLER: product CRUD ═══════════════════════ */
 const RelatedLinkSchema = z.object({
   label: z.string().min(1).max(80),
   url: z.string().min(1).max(2048),
 });
+const HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const BookingWindowSchema = z.object({
+  start: z.string().regex(HHMM, "Use HH:MM (24h)."),
+  end: z.string().regex(HHMM, "Use HH:MM (24h)."),
+}).refine((w) => w.end > w.start, { message: "A window must end after it starts." });
+const BookingAvailabilitySchema = z.object({
+  timezone: z.string().min(1).max(64).refine(isValidTimeZone, "Must be an IANA timezone, e.g. America/New_York."),
+  weekly: z.array(z.object({
+    weekday: z.number().int().min(0).max(6),
+    start: z.string().regex(HHMM, "Use HH:MM (24h)."),
+    end: z.string().regex(HHMM, "Use HH:MM (24h)."),
+  }).refine((w) => w.end > w.start, { message: "A window must end after it starts." })).max(21),
+  overrides: z.array(z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD."),
+    windows: z.array(BookingWindowSchema).max(4).nullable(),
+  })).max(366).optional(),
+  slot_step_min: z.number().int().min(5).max(1440).optional(),
+  buffer_min: z.number().int().min(0).max(720).optional(),
+  min_notice_min: z.number().int().min(0).max(43_200).optional(),
+  max_advance_days: z.number().int().min(1).max(365).optional(),
+});
 const ServiceDetailsSchema = z.object({
   duration_min: z.number().int().positive().max(1440).optional(),
   location: z.string().max(300).optional(),
-  /* STUB: external booking-calendar link. Real two-way calendar sync is a later build. */
+  /* Optional external calendar link (e.g. a public Cal.com page). Native
+     booking below is the real calendar; this link is just an extra door. */
   booking_calendar_link: z.string().url().max(2048).optional(),
   notes: z.string().max(2000).optional(),
+  /* Native paid bookings (lane F5): when booking_enabled is true and
+     availability is set, buyers pick a real open slot at checkout. */
+  booking_enabled: z.boolean().optional(),
+  availability: BookingAvailabilitySchema.optional(),
 }).optional().nullable();
 
 const BaseProductSchema = z.object({
@@ -537,6 +788,10 @@ const CheckoutSchema = z.object({
   productId: z.string().regex(UUID_RE, "productId must be a UUID"),
   quantity: z.number().int().min(1).max(99).default(1),
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Paid bookings: the exact open slot the buyer picked (UTC ISO) plus
+     the buyer's IANA timezone for their copy of the booking record. */
+  bookingStartUtc: z.string().datetime().optional(),
+  buyerTimezone: z.string().trim().min(1).max(64).optional(),
 });
 
 router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -602,14 +857,107 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
 
     const lineTotal = unitCents * quantity;
     const { feeCents, creatorCents } = splitTotals(lineTotal);
+
+    /* ── Paid bookings: validate the picked slot and place the HOLD ──
+       The hold is a store_orders row (status 'booking_held') written
+       under the product lock, BEFORE the Stripe session exists — so a
+       slot can never be sold twice: any racer sees the hold as taken.
+       The session's expiry matches the hold TTL; verify flips the hold
+       to a confirmed booking. */
+    let bookingHold: { id: string; record: BookingRecord } | null = null;
+    const bookInfo = bookableInfo(p.service_details);
+    if (parsed.data.bookingStartUtc && (!bookInfo.bookable || p.kind !== "service")) {
+      res.status(400).json({
+        error: "SLOT_NOT_BOOKABLE",
+        message: "This product doesn't take calendar bookings.",
+      });
+      return;
+    }
+    if (bookInfo.bookable && p.kind === "service") {
+      if (!parsed.data.bookingStartUtc) {
+        res.status(400).json({
+          error: "BOOKING_REQUIRED",
+          message: "Pick a time first — this service is booked on the creator's calendar.",
+          slotsEndpoint: `/api/storefront/product/${p.id}/slots`,
+        });
+        return;
+      }
+      if (quantity !== 1) {
+        res.status(400).json({
+          error: "BOOKING_QUANTITY",
+          message: "A booking is one session — quantity is always 1.",
+        });
+        return;
+      }
+      const startUtc = new Date(parsed.data.bookingStartUtc);
+      if (Number.isNaN(startUtc.getTime())) {
+        res.status(400).json({ error: "Invalid booking time." });
+        return;
+      }
+      const buyerTz =
+        parsed.data.buyerTimezone && isValidTimeZone(parsed.data.buyerTimezone)
+          ? parsed.data.buyerTimezone
+          : bookInfo.availability!.timezone;
+      const now = new Date();
+      const holdResult = await db.transaction(async (tx) => {
+        const run = tx as unknown as SqlRunner;
+        await lockProductRow(run, productId);
+        const cur = await run.execute(sql`
+          SELECT service_details, is_active FROM store_products WHERE id = ${productId} LIMIT 1
+        `);
+        const crow = cur.rows[0] as Record<string, unknown> | undefined;
+        if (!crow || !crow["is_active"]) return { ok: false, status: 404, code: "NOT_FOR_SALE", message: "This product isn't for sale right now." } as const;
+        const curInfo = bookableInfo(crow["service_details"] as Record<string, unknown> | null);
+        if (!curInfo.bookable || !curInfo.availability) {
+          return { ok: false, status: 400, code: "SLOT_NOT_BOOKABLE", message: "This product doesn't take calendar bookings." } as const;
+        }
+        const check = await checkSlot(run, {
+          productId,
+          availability: curInfo.availability,
+          durationMin: curInfo.durationMin,
+          startUtc,
+          buyerUserId: req.userId!,
+          buyerTz,
+          now,
+        });
+        if (!check.ok) {
+          return {
+            ok: false,
+            status: check.code === "SLOT_NOT_OFFERED" ? 400 : 409,
+            code: check.code, message: check.message,
+          } as const;
+        }
+        const inserted = await run.execute(sql`
+          INSERT INTO store_orders
+            (buyer_user_id, profile_id, product_id, product_title, product_kind,
+             quantity, amount_cents, discount_code, platform_fee_cents,
+             creator_amount_cents, stripe_session_id, status, fulfillment_note)
+          VALUES (${req.userId!}, ${p.profile_id}, ${p.id}, ${p.title}, 'service',
+                  1, ${lineTotal}, ${discountCode}, ${feeCents},
+                  ${creatorCents}, NULL, 'booking_held', ${encodeBookingNote(check.record)})
+          RETURNING id
+        `);
+        const hid = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+        return { ok: true, holdId: hid, record: check.record } as const;
+      });
+      if (!holdResult.ok) {
+        res.status(holdResult.status).json({ error: holdResult.code, message: holdResult.message });
+        return;
+      }
+      bookingHold = { id: holdResult.holdId, record: holdResult.record };
+    }
+
     /* Purchase sequence for the session idempotency key (see
        buildStorefrontCheckoutKey). A read failure throws into the
-       catch below — no session is minted, so the failure is closed. */
+       catch below — no session is minted, so the failure is closed.
+       The discount predicate is spelled out instead of IS NOT DISTINCT
+       FROM — identical semantics, but the pg-mem test engine can parse
+       it, which is what lets the checkout suites run at all. */
     const countResult = await db.execute(sql`
       SELECT COUNT(*)::int AS c FROM store_orders
       WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
         AND quantity = ${quantity} AND amount_cents = ${lineTotal}
-        AND discount_code IS NOT DISTINCT FROM ${discountCode}
+        AND ((discount_code IS NULL AND ${discountCode} IS NULL) OR discount_code = ${discountCode})
     `);
     const completedOrderCount = Number(
       (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
@@ -624,8 +972,13 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       completedOrderCount,
     });
     const baseUrl = getBaseUrl(req);
-    const session = await stripe.checkout.sessions.create({
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create({
       mode: "payment",
+      ...(bookingHold
+        ? { expires_at: Math.floor(Date.now() / 1000) + (BOOKING_HOLD_TTL_MIN + 5) * 60 }
+        : {}),
       line_items: [
         {
           price_data: {
@@ -659,8 +1012,38 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
         event_id: p.event_id ?? "",
+        ...(bookingHold
+          ? {
+              booking_start_utc: bookingHold.record.s,
+              booking_end_utc: bookingHold.record.e,
+              buyer_timezone: bookingHold.record.btz,
+            }
+          : {}),
       },
-    }, { idempotencyKey });
+      }, { idempotencyKey });
+    } catch (err) {
+      /* No session, no sale: release the hold immediately so the slot
+         goes back on the calendar instead of waiting out the TTL. */
+      if (bookingHold) {
+        const cancelled: BookingRecord = {
+          ...bookingHold.record, st: "cancelled",
+          cx: new Date().toISOString(), rf: "not_required",
+        };
+        await db.execute(sql`
+          UPDATE store_orders
+          SET status = 'cancelled', fulfillment_note = ${encodeBookingNote(cancelled)}
+          WHERE id = ${bookingHold.id} AND status = 'booking_held'
+        `).catch(() => undefined);
+      }
+      throw err;
+    }
+
+    if (bookingHold) {
+      await db.execute(sql`
+        UPDATE store_orders SET stripe_session_id = ${session.id}
+        WHERE id = ${bookingHold.id} AND status = 'booking_held'
+      `);
+    }
 
     logger.info(
       { userId: req.userId, productId, quantity, lineTotal, sessionId: session.id, discountCode },
@@ -674,6 +1057,16 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         percentOff, discountCode,
         platformFeeCents: feeCents, creatorCents,
       },
+      ...(bookingHold
+        ? {
+            booking: {
+              startUtc: bookingHold.record.s,
+              endUtc: bookingHold.record.e,
+              timezone: bookingHold.record.ctz,
+              holdExpiresAt: new Date(Date.now() + BOOKING_HOLD_TTL_MIN * 60_000).toISOString(),
+            },
+          }
+        : {}),
     });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
@@ -752,18 +1145,92 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     /* Duplicate verify: return the existing order, no new side effects. */
     const existing = await db.execute(sql`
       SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
-             platform_fee_cents, creator_amount_cents, fulfillment_note, created_at
+             platform_fee_cents, creator_amount_cents, fulfillment_note, status, created_at
       FROM store_orders WHERE stripe_session_id = ${sessionId} LIMIT 1
     `);
     let orderId: string;
     let duplicate = false;
     let fulfillmentNote: string | null = null;
+    let confirmedBooking: BookingRecord | null = null;
     if (existing.rows.length > 0) {
       const er = existing.rows[0] as Record<string, unknown>;
       orderId = String(er["id"]);
       fulfillmentNote = (er["fulfillment_note"] as string | null) ?? null;
-      duplicate = true;
-      logger.info({ sessionId, orderId }, "[storefront] verify: duplicate ignored");
+      const heldRec = decodeBookingNote(fulfillmentNote);
+      if (String(er["status"]) === "booking_held" && heldRec) {
+        /* ── Booking confirmation: the row already exists as the checkout
+           HOLD. Flip it to a confirmed booking in place — never a second
+           order row for one payment. ── */
+        const bp = await fetchProduct(productId, false);
+        if (bp && Number(bp.inventory) >= 0) {
+          const claimed = await db.execute(sql`
+            UPDATE store_products
+            SET inventory = inventory - ${quantity}, updated_at = now()
+            WHERE id = ${productId} AND inventory >= ${quantity}
+            RETURNING id
+          `);
+          if (claimed.rows.length === 0) {
+            logger.error({ sessionId, productId }, "[storefront] verify: booking inventory claim failed after payment");
+            res.status(409).json({
+              error: "SOLD_OUT_AFTER_PAYMENT",
+              message: "Payment went through but the item just sold out — contact the creator for a refund or restock.",
+            });
+            return;
+          }
+        }
+        const confirmed: BookingRecord = { ...heldRec, st: "confirmed" };
+        fulfillmentNote = withBookingState(fulfillmentNote, confirmed);
+        await db.execute(sql`
+          UPDATE store_orders
+          SET status = 'completed', fulfillment_note = ${fulfillmentNote},
+              amount_cents = ${amountCents}, platform_fee_cents = ${feeCents},
+              creator_amount_cents = ${creatorCents}
+          WHERE id = ${orderId}
+        `);
+        confirmedBooking = confirmed;
+        if (discountCode) {
+          await db.execute(sql`
+            UPDATE discount_codes
+            SET used_count = used_count + 1
+            WHERE profile_id = ${profileId}
+              AND UPPER(code) = ${discountCode.toUpperCase()}
+              AND (max_uses = -1 OR used_count < max_uses)
+          `);
+        }
+        const creatorId = await creatorUserId(db, profileId);
+        if (creatorId) {
+          await notifyBookingParty(db, {
+            userId: creatorId,
+            jobType: "storefront_service_booking",
+            jobId: orderId,
+            title: `New booking: ${bp?.title ?? "Service"}`,
+            message: `Someone just booked "${bp?.title ?? "your service"}" (${money(amountCents)}) — ${bookingHumanLine(confirmed)}.`,
+          });
+          /* Hold-expiry edge: the payment completed after the hold lapsed
+             and another confirmed booking now overlaps. The paid booking
+             is honored (money was taken) — the creator hears about the
+             clash from us, never discovers it silently. */
+          const ranges = await fetchTakenRanges(db, productId, new Date());
+          const others = ranges.filter((r) => !(r.startUtc === confirmed.s && r.endUtc === confirmed.e));
+          const clash = others.some(
+            (r) => Date.parse(r.startUtc) < Date.parse(confirmed.e) && Date.parse(confirmed.s) < Date.parse(r.endUtc),
+          );
+          if (clash) {
+            await notifyBookingParty(db, {
+              userId: creatorId,
+              jobType: "storefront_booking_conflict",
+              jobId: `${orderId}:conflict`,
+              title: `Booking clash: ${bp?.title ?? "Service"}`,
+              message: `Two paid bookings overlap at ${bookingHumanLine(confirmed)} — one paid after its hold expired. Reach out to one buyer to move their slot.`,
+            });
+          }
+        }
+        logger.info({ sessionId, orderId, kind }, "[storefront] booking confirmed from hold");
+      } else {
+        duplicate = true;
+        confirmedBooking = heldRec;
+        logger.info({ sessionId, orderId }, "[storefront] verify: duplicate ignored");
+      }
     } else {
       const p = await fetchProduct(productId, false);
       const productTitle = p?.title ?? "Store product";
@@ -837,7 +1304,29 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           }
           fulfillmentNote = "Ticket secured — you're on the list. Show this order at the door (or follow the event link).";
         } else if (kind === "service") {
-          fulfillmentNote = "Booking request received — the creator confirms your slot from their dashboard.";
+          /* A booking session normally leaves a HOLD row that verify
+             confirms in place (above). If the hold is somehow missing,
+             the session metadata still carries the slot — stamp the
+             booking onto this fresh order instead of losing it. */
+          const metaBookingStart = meta["booking_start_utc"];
+          let notifyMessage = `Someone just booked "${productTitle}" (${money(amountCents)}). Confirm their slot from your store dashboard.`;
+          if (metaBookingStart) {
+            const bp = await fetchProduct(productId, false);
+            const bInfo = bookableInfo(bp?.service_details ?? null);
+            const rec: BookingRecord = {
+              v: 1,
+              s: metaBookingStart,
+              e: meta["booking_end_utc"] || metaBookingStart,
+              ctz: bInfo.availability?.timezone ?? meta["buyer_timezone"] ?? "UTC",
+              btz: meta["buyer_timezone"] ?? bInfo.availability?.timezone ?? "UTC",
+              st: "confirmed",
+            };
+            fulfillmentNote = encodeBookingNote(rec);
+            confirmedBooking = rec;
+            notifyMessage = `Someone just booked "${productTitle}" (${money(amountCents)}) — ${bookingHumanLine(rec)}.`;
+          } else {
+            fulfillmentNote = "Booking request received — the creator confirms your slot from their dashboard.";
+          }
           /* Notify the creator through the exactly-once job-notifications
              relay (UNIQUE(job_type, job_id) = order id → never double-pings). */
           const creatorUser = await db.execute(sql`
@@ -849,7 +1338,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
               INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
               VALUES ('storefront_service_booking', ${orderId}, ${String(crow["user_id"])},
                       'completed', ${`New booking: ${productTitle}`},
-                      ${`Someone just booked "${productTitle}" (${money(amountCents)}). Confirm their slot from your store dashboard.`})
+                      ${notifyMessage})
               ON CONFLICT DO NOTHING
             `);
           }
@@ -899,6 +1388,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         creatorAmountCents: creatorCents, creatorAmount: money(creatorCents),
         discountCode,
         fulfillmentNote,
+        booking: confirmedBooking,
       },
       delivery,
       /* Link graph: no dead ends after payment — the highest-trust moment. */
@@ -934,6 +1424,9 @@ const ClaimSchema = z.object({
   email: z.string().trim().email().max(254).optional(),
   name: z.string().trim().max(120).optional(),
   emailConsent: z.boolean().optional(),
+  /* Bookable $0 services: the picked open slot (UTC ISO) + buyer tz. */
+  bookingStartUtc: z.string().datetime().optional(),
+  buyerTimezone: z.string().trim().min(1).max(64).optional(),
 });
 
 router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res) => {
@@ -980,6 +1473,54 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
     }
     const kind = p.kind;
     const eventId = p.event_id ?? null;
+
+    /* Bookable $0 service: the claim IS the booking — validate the picked
+       slot now (grid + taken, unlocked read), and again under the product
+       lock at insert time. A failed slot check happens BEFORE the email
+       exchange, so a fan never subscribes for a booking they didn't get. */
+    const claimBookInfo = bookableInfo(p.service_details);
+    let claimBookingStart: Date | null = null;
+    let claimBuyerTz = "";
+    if (parsed.data.bookingStartUtc && (!claimBookInfo.bookable || kind !== "service")) {
+      res.status(400).json({ error: "SLOT_NOT_BOOKABLE", message: "This product doesn't take calendar bookings." });
+      return;
+    }
+    if (claimBookInfo.bookable && kind === "service") {
+      if (!parsed.data.bookingStartUtc) {
+        res.status(400).json({
+          error: "BOOKING_REQUIRED",
+          message: "Pick a time first — this service is booked on the creator's calendar.",
+          slotsEndpoint: `/api/storefront/product/${p.id}/slots`,
+        });
+        return;
+      }
+      claimBookingStart = new Date(parsed.data.bookingStartUtc);
+      if (Number.isNaN(claimBookingStart.getTime())) {
+        res.status(400).json({ error: "Invalid booking time." });
+        return;
+      }
+      claimBuyerTz =
+        parsed.data.buyerTimezone && isValidTimeZone(parsed.data.buyerTimezone)
+          ? parsed.data.buyerTimezone
+          : claimBookInfo.availability!.timezone;
+      const preCheck = await checkSlot(db, {
+        productId,
+        availability: claimBookInfo.availability!,
+        durationMin: claimBookInfo.durationMin,
+        startUtc: claimBookingStart,
+        buyerUserId: req.userId!,
+        buyerTz: claimBuyerTz,
+        now: new Date(),
+      });
+      if (!preCheck.ok && preCheck.code !== "SLOT_HELD_BY_YOU") {
+        /* SLOT_HELD_BY_YOU can't occur on the claim rail (no holds are
+           placed here) — any other failure is a real refusal. */
+        res.status(preCheck.code === "SLOT_NOT_OFFERED" ? 400 : 409).json({
+          error: preCheck.code, message: preCheck.message,
+        });
+        return;
+      }
+    }
 
     /* The creator side of the exchange: their email list (the oldest
        list is the default, same as their /join landing). */
@@ -1064,15 +1605,39 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
     const claimNote = `Free product — no payment was taken and no checkout was opened. Your email joined ${p.artist_name}'s list (“${listName}”) — that's the exchange for the freebie, and every email from it carries an unsubscribe link.`;
 
     /* Already claimed: the same order comes back with a fresh
-       delivery link — delivered once, never twice. */
-    const existingOrder = await db.execute(sql`
-      SELECT id, fulfillment_note FROM store_orders
-      WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
-        AND stripe_session_id IS NULL AND status = 'completed'
-      ORDER BY created_at ASC LIMIT 1
-    `);
-    if (existingOrder.rows.length > 0) {
-      const er = existingOrder.rows[0] as Record<string, unknown>;
+       delivery link — delivered once, never twice. For a bookable claim,
+       "already claimed" means the SAME slot — a different open slot is a
+       second, legitimate booking. */
+    const existingOrder = await db.execute(
+      claimBookingStart
+        ? sql`
+            SELECT id, fulfillment_note FROM store_orders
+            WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
+              AND stripe_session_id IS NULL AND status = 'completed'
+              AND fulfillment_note LIKE '%⟦bk1:%'
+            ORDER BY created_at ASC`
+        : sql`
+            SELECT id, fulfillment_note FROM store_orders
+            WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
+              AND stripe_session_id IS NULL AND status = 'completed'
+            ORDER BY created_at ASC LIMIT 1`,
+    );
+    let dupRow: Record<string, unknown> | null = null;
+    let duplicateBooking: BookingRecord | null = null;
+    for (const row of existingOrder.rows as Array<Record<string, unknown>>) {
+      if (!claimBookingStart) {
+        dupRow = row;
+        break;
+      }
+      const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
+      if (rec && rec.s === claimBookingStart.toISOString() && rec.st !== "cancelled") {
+        dupRow = row;
+        duplicateBooking = rec;
+        break;
+      }
+    }
+    if (dupRow) {
+      const er = dupRow;
       const orderId = String(er["id"]);
       logger.info({ userId: req.userId, productId, orderId }, "[storefront] claim: duplicate returned");
       res.json({
@@ -1089,6 +1654,7 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
           creatorAmountCents: 0, creatorAmount: money(0),
           discountCode: null,
           fulfillmentNote: (er["fulfillment_note"] as string | null) ?? null,
+          booking: duplicateBooking,
         },
         delivery: await buildDelivery(orderId),
         subscribed: { email, listName, alreadySubscribed },
@@ -1098,30 +1664,94 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
       return;
     }
 
-    /* Claim finite inventory atomically (unlimited = -1 skips). */
-    if (inventory > 0) {
-      const claimed = await db.execute(sql`
-        UPDATE store_products
-        SET inventory = inventory - 1, updated_at = now()
-        WHERE id = ${productId} AND inventory >= 1
-        RETURNING id
-      `);
-      if (claimed.rows.length === 0) {
-        res.status(400).json({ error: "SOLD_OUT", message: "This one just sold out — the creator's restocking." });
+    let orderId: string;
+    let claimedBooking: BookingRecord | null = null;
+    if (claimBookingStart) {
+      /* Bookable claim: re-validate the slot + insert atomically under
+         the product lock (the earlier check was an unlocked read; this
+         one is binding). A free booking confirms immediately — there is
+         no payment step to wait for. */
+      const txResult = await db.transaction(async (tx) => {
+        const run = tx as unknown as SqlRunner;
+        await lockProductRow(run, productId);
+        if (inventory > 0) {
+          const claimed = await run.execute(sql`
+            UPDATE store_products
+            SET inventory = inventory - 1, updated_at = now()
+            WHERE id = ${productId} AND inventory >= 1
+            RETURNING id
+          `);
+          if (claimed.rows.length === 0) {
+            return { error: "SOLD_OUT", message: "This one just sold out — the creator's restocking." } as const;
+          }
+        }
+        const cur = await run.execute(sql`
+          SELECT service_details FROM store_products WHERE id = ${productId} LIMIT 1
+        `);
+        const curInfo = bookableInfo(
+          (cur.rows[0] as Record<string, unknown> | undefined)?.["service_details"] as Record<string, unknown> | null,
+        );
+        if (!curInfo.bookable || !curInfo.availability) {
+          return { error: "SLOT_NOT_BOOKABLE", message: "This product doesn't take calendar bookings." } as const;
+        }
+        const check = await checkSlot(run, {
+          productId,
+          availability: curInfo.availability,
+          durationMin: curInfo.durationMin,
+          startUtc: claimBookingStart,
+          buyerUserId: req.userId!,
+          buyerTz: claimBuyerTz,
+          now: new Date(),
+        });
+        if (!check.ok) return { error: check.code, message: check.message } as const;
+        const rec: BookingRecord = { ...check.record, st: "confirmed" };
+        const inserted = await run.execute(sql`
+          INSERT INTO store_orders
+            (buyer_user_id, profile_id, product_id, product_title, product_kind,
+             quantity, amount_cents, discount_code, platform_fee_cents,
+             creator_amount_cents, stripe_session_id, status, fulfillment_note)
+          VALUES (${req.userId!}, ${p.profile_id}, ${productId}, ${p.title}, 'service',
+                  1, 0, NULL, 0, 0, NULL, 'completed', ${encodeBookingNote(rec)})
+          RETURNING id
+        `);
+        return { orderId: String((inserted.rows[0] as Record<string, unknown>)["id"]), record: rec } as const;
+      });
+      if ("error" in txResult) {
+        const status =
+          txResult.error === "SLOT_NOT_OFFERED" || txResult.error === "SLOT_NOT_BOOKABLE" || txResult.error === "SOLD_OUT"
+            ? 400
+            : 409;
+        res.status(status).json({ error: txResult.error, message: txResult.message });
         return;
       }
-    }
+      orderId = txResult.orderId;
+      claimedBooking = txResult.record;
+    } else {
+      /* Claim finite inventory atomically (unlimited = -1 skips). */
+      if (inventory > 0) {
+        const claimed = await db.execute(sql`
+          UPDATE store_products
+          SET inventory = inventory - 1, updated_at = now()
+          WHERE id = ${productId} AND inventory >= 1
+          RETURNING id
+        `);
+        if (claimed.rows.length === 0) {
+          res.status(400).json({ error: "SOLD_OUT", message: "This one just sold out — the creator's restocking." });
+          return;
+        }
+      }
 
-    const inserted = await db.execute(sql`
-      INSERT INTO store_orders
-        (buyer_user_id, profile_id, product_id, product_title, product_kind,
-         quantity, amount_cents, discount_code, platform_fee_cents,
-         creator_amount_cents, stripe_session_id, status, fulfillment_note)
-      VALUES (${req.userId!}, ${p.profile_id}, ${productId}, ${p.title}, ${kind},
-              1, 0, NULL, 0, 0, NULL, 'completed', NULL)
-      RETURNING id
-    `);
-    const orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+      const inserted = await db.execute(sql`
+        INSERT INTO store_orders
+          (buyer_user_id, profile_id, product_id, product_title, product_kind,
+           quantity, amount_cents, discount_code, platform_fee_cents,
+           creator_amount_cents, stripe_session_id, status, fulfillment_note)
+        VALUES (${req.userId!}, ${p.profile_id}, ${productId}, ${p.title}, ${kind},
+                1, 0, NULL, 0, 0, NULL, 'completed', NULL)
+        RETURNING id
+      `);
+      orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+    }
 
     /* Kind-specific fulfillment — the same notes verify records. */
     let fulfillmentNote: string;
@@ -1137,13 +1767,17 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
       }
       fulfillmentNote = "Ticket secured — you're on the list. Show this order at the door (or follow the event link).";
     } else if (kind === "service") {
-      fulfillmentNote = "Booking request received — the creator confirms your slot from their dashboard.";
+      fulfillmentNote = claimedBooking
+        ? encodeBookingNote(claimedBooking)
+        : "Booking request received — the creator confirms your slot from their dashboard.";
       if (creatorUserId) {
         await db.execute(sql`
           INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
           VALUES ('storefront_service_booking', ${orderId}, ${creatorUserId},
                   'completed', ${`New booking: ${p.title}`},
-                  ${`Someone just claimed "${p.title}" (free). Confirm their slot from your store dashboard.`})
+                  ${claimedBooking
+                    ? `Someone just booked "${p.title}" (free) — ${bookingHumanLine(claimedBooking)}.`
+                    : `Someone just claimed "${p.title}" (free). Confirm their slot from your store dashboard.`})
           ON CONFLICT DO NOTHING
         `);
       }
@@ -1172,6 +1806,7 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
         creatorAmountCents: 0, creatorAmount: money(0),
         discountCode: null,
         fulfillmentNote,
+        booking: claimedBooking,
       },
       delivery: await buildDelivery(orderId),
       subscribed: { email, listName, alreadySubscribed },
@@ -1450,6 +2085,7 @@ router.get("/storefront/discounts/validate", publicApiLimiter, async (req, res) 
 /* ═══════════════════════ ORDERS (seller + buyer) ═════════════════════ */
 function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
   const gross = Number(r["amount_cents"]);
+  const booking = decodeBookingNote((r["fulfillment_note"] as string | null) ?? null);
   return {
     id: String(r["id"]),
     productId: r["product_id"] ? String(r["product_id"]) : null,
@@ -1467,6 +2103,10 @@ function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
     discountCode: (r["discount_code"] as string | null) ?? null,
     status: String(r["status"]),
     fulfillmentNote: (r["fulfillment_note"] as string | null) ?? null,
+    /* Calendar bookings: the slot record + its derived lifecycle status
+       (upcoming / done / cancelled / held). Null for non-booking orders. */
+    booking,
+    bookingStatus: booking ? deriveBookingStatus(booking, String(r["status"])) : null,
     createdAt: String(r["created_at"]),
     links: {
       productUrl: r["product_id"] ? `/storefront/product/${r["product_id"]}` : null,
@@ -1608,6 +2248,219 @@ router.post("/storefront/orders/:id/log-to-tracker", requireAuth, publicApiLimit
   }
 });
 
+/* ═══════════════════ BOOKINGS (buyer + seller list) ══════════════════
+   Every calendar booking where the caller is the buyer OR the seller:
+   upcoming first, then done, then cancelled. Slot instants are UTC; the
+   record carries both timezones so each side renders in their own. */
+router.get("/storefront/bookings", requireAuth, async (req, res) => {
+  try {
+    const profile = await callerProfile(req.userId!);
+    const r = await db.execute(sql`
+      SELECT o.id, o.product_id, o.product_title, o.product_kind, o.quantity,
+             o.amount_cents, o.discount_code, o.platform_fee_cents,
+             o.creator_amount_cents, o.status, o.fulfillment_note, o.created_at,
+             o.profile_id, o.buyer_user_id,
+             cp.display_name AS seller_name, cp.slug AS seller_slug
+      FROM store_orders o
+      LEFT JOIN creator_profiles cp ON cp.id = o.profile_id
+      WHERE o.product_kind = 'service'
+        AND o.fulfillment_note LIKE '%⟦bk1:%'
+        AND (o.buyer_user_id = ${req.userId!} ${profile ? sql`OR o.profile_id = ${profile.id}` : sql``})
+      ORDER BY o.created_at DESC
+      LIMIT 500
+    `);
+    const now = new Date();
+    const bookings = (r.rows as Array<Record<string, unknown>>)
+      .map((row) => {
+        const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
+        if (!rec) return null;
+        const role = String(row["buyer_user_id"]) === req.userId ? "buyer" : "seller";
+        const status = deriveBookingStatus(rec, String(row["status"]), now);
+        return {
+          orderId: String(row["id"]),
+          role,
+          productId: row["product_id"] ? String(row["product_id"]) : null,
+          productTitle: String(row["product_title"] ?? "Service"),
+          sellerName: (row["seller_name"] as string | null) ?? null,
+          sellerSlug: (row["seller_slug"] as string | null) ?? null,
+          amountCents: Number(row["amount_cents"]),
+          amount: money(Number(row["amount_cents"])),
+          startUtc: rec.s,
+          endUtc: rec.e,
+          creatorTimezone: rec.ctz,
+          buyerTimezone: rec.btz,
+          status,
+          cancelledBy: rec.ca ?? null,
+          refundState: rec.rf ?? null,
+          bookedAt: String(row["created_at"]),
+          links: {
+            productUrl: row["product_id"] ? `/storefront/product/${row["product_id"]}` : null,
+            creatorUrl: row["seller_slug"] ? `/artist/${row["seller_slug"]}` : null,
+          },
+        };
+      })
+      .filter((b): b is NonNullable<typeof b> => b !== null);
+    const rank = { upcoming: 0, held: 0, done: 1, cancelled: 2 } as const;
+    bookings.sort((a, b) => {
+      const d = rank[a.status] - rank[b.status];
+      if (d !== 0) return d;
+      return a.status === "upcoming" || a.status === "held"
+        ? a.startUtc.localeCompare(b.startUtc)
+        : b.startUtc.localeCompare(a.startUtc);
+    });
+    res.json({
+      bookings,
+      counts: {
+        upcoming: bookings.filter((b) => b.status === "upcoming" || b.status === "held").length,
+        done: bookings.filter((b) => b.status === "done").length,
+        cancelled: bookings.filter((b) => b.status === "cancelled").length,
+      },
+      note: "Times are shown in your own timezone. Cancelling a paid booking refunds the buyer in full through Stripe.",
+    });
+  } catch (err) {
+    logger.error({ err }, "[storefront] bookings list failed");
+    res.status(500).json({ error: "Could not load your bookings." });
+  }
+});
+
+/* ═══════════════════ BOOKING CANCEL (either side) ════════════════════
+   Buyer or seller cancels a calendar booking. Paid bookings refund IN
+   FULL through Stripe (the same rail + idempotency shape as routes/
+   store.ts), following the storefront's existing full-refund posture.
+   Money states stay honest: the order only reads 'refunded' when Stripe
+   confirmed the refund; a failed refund still cancels the slot and the
+   record says refund_failed — it never claims money moved when it
+   didn't. The freed slot returns to the calendar immediately. */
+router.post("/storefront/orders/:id/booking-cancel", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid order id." });
+    return;
+  }
+  try {
+    const o = await db.execute(sql`
+      SELECT o.id, o.buyer_user_id, o.profile_id, o.product_id, o.product_title,
+             o.amount_cents, o.status, o.fulfillment_note, o.stripe_session_id,
+             cp.user_id AS seller_user_id, cp.display_name AS seller_name
+      FROM store_orders o
+      LEFT JOIN creator_profiles cp ON cp.id = o.profile_id
+      WHERE o.id = ${id} LIMIT 1
+    `);
+    const row = o.rows[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      res.status(404).json({ error: "Order not found." });
+      return;
+    }
+    const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
+    if (!rec) {
+      res.status(400).json({
+        error: "NOT_A_BOOKING",
+        message: "This order isn't a calendar booking — service requests are handled with confirm/decline instead.",
+      });
+      return;
+    }
+    const isBuyer = String(row["buyer_user_id"]) === req.userId;
+    const isSeller = row["seller_user_id"] ? String(row["seller_user_id"]) === req.userId : false;
+    if (!isBuyer && !isSeller) {
+      res.status(403).json({ error: "Not your booking." });
+      return;
+    }
+    const status = deriveBookingStatus(rec, String(row["status"]));
+    if (status === "cancelled") {
+      res.json({ ok: true, alreadyCancelled: true, bookingStatus: "cancelled", refundState: rec.rf ?? null });
+      return;
+    }
+    if (status === "done") {
+      res.status(400).json({ error: "BOOKING_DONE", message: "This session already happened — it can't be cancelled." });
+      return;
+    }
+
+    /* Money first for paid bookings: refund through Stripe before the
+       state flips, so a Stripe outage never strands a "cancelled" paid
+       booking with the money still held. A HELD booking was never paid —
+       cancelling it just releases the hold. */
+    const amountCents = Number(row["amount_cents"]);
+    const sessionId = (row["stripe_session_id"] as string | null) ?? null;
+    let refundState: BookingRecord["rf"] = "not_required";
+    if (status === "held") {
+      refundState = "not_required";
+    } else if (amountCents > 0 && sessionId) {
+      const stripe = getStripe();
+      if (!stripe) {
+        res.status(503).json({ error: "Payments are not configured — the booking was not cancelled." });
+        return;
+      }
+      try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const pi = typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id;
+        if (!pi) throw new Error("no payment_intent on session");
+        await stripe.refunds.create(
+          { payment_intent: pi },
+          { idempotencyKey: `refund:${sessionId}` },
+        );
+        refundState = "refunded";
+      } catch (err) {
+        logger.error({ err, orderId: id, sessionId }, "[storefront] booking refund failed — cancelling with refund_failed marker");
+        refundState = "refund_failed";
+      }
+    }
+
+    const cancelled: BookingRecord = {
+      ...rec,
+      st: "cancelled",
+      ca: isBuyer ? "buyer" : "creator",
+      cx: new Date().toISOString(),
+      rf: refundState,
+    };
+    const newStatus = refundState === "refunded" ? "refunded" : "cancelled";
+    const upd = await db.execute(sql`
+      UPDATE store_orders
+      SET status = ${newStatus}, fulfillment_note = ${encodeBookingNote(cancelled)}
+      WHERE id = ${id} AND status IN ('completed', 'booking_held')
+      RETURNING id
+    `);
+    if (upd.rows.length === 0) {
+      /* Lost a race with the other side's cancel — report the truth. */
+      res.json({ ok: true, alreadyCancelled: true, bookingStatus: "cancelled", refundState });
+      return;
+    }
+
+    /* Tell the other side. */
+    const otherUserId = isBuyer
+      ? (row["seller_user_id"] ? String(row["seller_user_id"]) : null)
+      : String(row["buyer_user_id"]);
+    if (otherUserId) {
+      await notifyBookingParty(db, {
+        userId: otherUserId,
+        jobType: "storefront_booking_cancelled",
+        jobId: id,
+        title: `Booking cancelled: ${String(row["product_title"] ?? "Service")}`,
+        message: isBuyer
+          ? `Your buyer cancelled "${String(row["product_title"] ?? "the session")}" — ${bookingHumanLine(rec)}.${refundState === "refunded" ? " They were refunded in full." : ""}`
+          : `The creator cancelled "${String(row["product_title"] ?? "the session")}" — ${bookingHumanLine(rec)}.${refundState === "refunded" ? " You were refunded in full." : refundState === "refund_failed" ? " The refund could not be processed automatically — contact support." : ""}`,
+      });
+    }
+    logger.info({ orderId: id, by: isBuyer ? "buyer" : "creator", refundState }, "[storefront] booking cancelled");
+    res.json({
+      ok: true,
+      bookingStatus: "cancelled",
+      refundState,
+      refunded: refundState === "refunded",
+      message:
+        refundState === "refunded"
+          ? "Booking cancelled — the buyer was refunded in full."
+          : refundState === "refund_failed"
+            ? "Booking cancelled, but the automatic refund failed — support has the record and will make it right."
+            : "Booking cancelled.",
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] booking cancel failed");
+    res.status(500).json({ error: "Could not cancel this booking." });
+  }
+});
+
 /* ═══════════ SELLER: confirm / decline a service booking ═════════════ */
 router.post("/storefront/orders/:id/service-confirm", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
@@ -1623,6 +2476,22 @@ router.post("/storefront/orders/:id/service-confirm", requireAuth, publicApiLimi
     const profile = await callerProfile(req.userId!);
     if (!profile) {
       res.status(404).json({ error: "NO_PROFILE" });
+      return;
+    }
+    /* Calendar bookings never pass through here: this UPDATE would wipe
+       the booking trailer (slot times live in the note). A booked order
+       is confirmed by payment itself and cancelled via booking-cancel. */
+    const existingOrder = await db.execute(sql`
+      SELECT fulfillment_note FROM store_orders
+      WHERE id = ${id} AND profile_id = ${profile.id} AND product_kind = 'service'
+      LIMIT 1
+    `);
+    const erow = existingOrder.rows[0] as Record<string, unknown> | undefined;
+    if (erow && decodeBookingNote(erow["fulfillment_note"] as string | null)) {
+      res.status(400).json({
+        error: "USE_BOOKING_CANCEL",
+        message: "This is a calendar booking — it's confirmed by payment. To change it, cancel the booking (the buyer is refunded in full).",
+      });
       return;
     }
     const note = parsed.data.confirmed
