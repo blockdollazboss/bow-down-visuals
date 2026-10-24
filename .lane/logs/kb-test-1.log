@@ -1,0 +1,19 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/operator-knowledge.test.ts [2m([22m[2m62 tests[22m[2m)[22m[33m 3446[2mms[22m[39m
+   [32m✓[39m operator knowledge — sourced facts only [2m(4)[22m
+     [33m[2m✓[22m[39m every price names the registry as its source and is a whole VB figure[33m 636[2mms[22m[39m
+   [32m✓[39m operator knowledge — matching and grounding [2m(10)[22m
+     [33m[2m✓[22m[39m matches My Music first for music-collection locators[33m 327[2mms[22m[39m
+     [33m[2m✓[22m[39m collection intent never hijacks a creation or pricing question[33m 301[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m62 passed[39m[22m[90m (62)[39m
+[2m   Start at [22m 13:59:47
+[2m   Duration [22m 10.83s[2m (transform 50%, tests 43%, import 5%, setup 1%, worker 1%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 3.96s[39m[2m · 50% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

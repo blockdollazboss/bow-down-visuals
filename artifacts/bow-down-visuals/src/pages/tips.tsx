@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   HandCoins, Loader2, Copy, Check, Link2, PiggyBank, Users, TrendingUp,
   MessageCircleHeart, Sparkles, BadgeAlert, Share2, AlertTriangle, RotateCcw,
+  Trophy, Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -32,6 +33,29 @@ interface TipIntent {
   createdAt: string;
 }
 
+/* Funding goal view from the API — progress derived from PAID tips
+   only; null numbers mean the server could not read the tip records. */
+interface FundingGoalView {
+  label: string;
+  targetAmount: number;
+  currency: string;
+  raised: number | null;
+  raisedCount: number | null;
+  progress: number | null;
+  reached: boolean;
+  reachedAt: string | null;
+  progressUnavailable?: boolean;
+}
+
+interface FundingGoalRecord {
+  id: string;
+  label: string;
+  targetAmount: number;
+  raisedAmount: number;
+  startedAt: string;
+  reachedAt: string;
+}
+
 interface Dashboard {
   hasPage: boolean;
   handle: string | null;
@@ -41,6 +65,8 @@ interface Dashboard {
   goalAmount: number | null;
   goalLabel: string;
   goalProgress: number | null;
+  goal: FundingGoalView | null;
+  goalHistory: FundingGoalRecord[];
   feed: TipIntent[];
   paymentsLive: boolean;
 }
@@ -152,6 +178,25 @@ export default function Tips() {
       return;
     }
     await load();
+  }
+
+  const [removingGoal, setRemovingGoal] = useState(false);
+
+  async function removeGoal() {
+    setRemovingGoal(true);
+    setError(null);
+    try {
+      const { res, data } = await authFetch("/api/tips/goal", { method: "DELETE" });
+      if (!res.ok) {
+        setError(data.error ?? t("tips.saveError"));
+        return;
+      }
+      setGoalAmount("");
+      setGoalLabel("");
+      await load();
+    } finally {
+      setRemovingGoal(false);
+    }
   }
 
   function tipUrl() {
@@ -315,15 +360,53 @@ export default function Tips() {
                         <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{t("tips.averageLabel")}</div>
                       </div>
                     </div>
-                    {dashboard.goalAmount != null && (
+                    {dashboard.goal != null && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between text-xs text-white/50">
-                          <span>{t("tips.goalProgress", { label: dashboard.goalLabel || t("tips.goalDefault"), total: dashboard.total.toFixed(2), goal: dashboard.goalAmount.toFixed(2) })}</span>
-                          <span>{Math.round((dashboard.goalProgress ?? 0) * 100)}%</span>
+                          <span>
+                            {dashboard.goal.raised != null
+                              ? t("tips.goalProgress", { label: dashboard.goal.label || t("tips.goalDefault"), total: dashboard.goal.raised.toFixed(2), goal: dashboard.goal.targetAmount.toFixed(2) })
+                              : (dashboard.goal.label || t("tips.goalDefault"))}
+                          </span>
+                          {dashboard.goal.progress != null && <span>{Math.round(dashboard.goal.progress * 100)}%</span>}
                         </div>
-                        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/10">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-primary transition-all"
-                            style={{ width: `${Math.round((dashboard.goalProgress ?? 0) * 100)}%` }} />
+                        {dashboard.goal.progress != null && (
+                          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-primary transition-all"
+                              style={{ width: `${Math.round(dashboard.goal.progress * 100)}%` }} />
+                          </div>
+                        )}
+                        {dashboard.goal.reached ? (
+                          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-200">
+                            <Trophy className="h-4 w-4 shrink-0 text-primary" />
+                            {t("tips.goalReached")}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-[11px] text-white/35">{t("tips.goalPaidOnlyNote")}</p>
+                        )}
+                        <button onClick={() => void removeGoal()} disabled={removingGoal}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/[0.08] disabled:opacity-40">
+                          {removingGoal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          {t("tips.goalRemove")}
+                        </button>
+                      </div>
+                    )}
+                    {dashboard.goalHistory.length > 0 && (
+                      <div className="mt-5">
+                        <h3 className="flex items-center gap-2 text-sm font-bold text-white/70">
+                          <Trophy className="h-4 w-4 text-primary" />{t("tips.goalHistoryTitle")}
+                        </h3>
+                        <div className="mt-2 space-y-2">
+                          {dashboard.goalHistory.map((g) => (
+                            <div key={g.id} className="rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/55">
+                              {t("tips.goalHistoryLine", {
+                                label: g.label || t("tips.goalDefault"),
+                                raised: g.raisedAmount.toFixed(2),
+                                goal: g.targetAmount.toFixed(2),
+                                date: new Date(g.reachedAt).toLocaleDateString(),
+                              })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}

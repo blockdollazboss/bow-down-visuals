@@ -6558,7 +6558,9 @@
     "tipHeading": "Tip",
     "tipStats": "{{count}} tips so far · ${{total}} total",
     "paidTitle": "Tip sent!",
-    "paidBody": "{{name}} just received your ${{amount}} tip — thank you for supporting their work."
+    "paidBody": "{{name}} just received your ${{amount}} tip — thank you for supporting their work.",
+    "goalReachedTitle": "Goal reached! 🎉",
+    "goalReachedBody": "{{label}} — ${{raised}} raised of the ${{goal}} goal. Thank you to everyone who tipped!"
   },
   "tips": {
     "anonymousFan": "Anonymous fan",
@@ -6598,7 +6600,12 @@
     "titlePrefix": "Your",
     "totalsTitle": "Tip jar totals",
     "updateButton": "Update tip page",
-    "shareTipPage": "Share tip page"
+    "shareTipPage": "Share tip page",
+    "goalReached": "Goal reached — nice work! Set a new goal above whenever you're ready.",
+    "goalPaidOnlyNote": "Progress counts paid tips only — recorded tip intent never moves the bar.",
+    "goalRemove": "Remove goal",
+    "goalHistoryTitle": "Goals you've reached",
+    "goalHistoryLine": "{{label}} — ${{raised}} of ${{goal}} · reached {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "all tags",
