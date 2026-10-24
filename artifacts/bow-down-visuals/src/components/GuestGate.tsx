@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 import { Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { isPublicPath } from "@/lib/public-routes";
-import { resolveRouteRedirect } from "@/lib/public-routes";
-import { loginPathWithNext } from "@/lib/auth-next";
+import { resolveGateVerdict } from "@/lib/guest-gate-verdict";
 import WittyLoader from "@/components/delight/witty-loader";
 
 /**
@@ -14,19 +12,29 @@ import WittyLoader from "@/components/delight/witty-loader";
  * is how unguarded routes kept slipping through. Default-deny: a path
  * is guest-reachable only when lib/public-routes.ts says so.
  *
- * Behavior:
+ * The DECISION lives in lib/guest-gate-verdict.ts (resolveGateVerdict)
+ * as a pure function; this component is the thin shell that renders
+ * it. Behavior, in order:
  *  - Auth still resolving → the house loader (the same WittyLoader
  *    ProtectedRoute shows while auth resolves). Page content and the
  *    login form both stay hidden until the verdict is in — no flash
  *    of either.
- *  - Signed in → children untouched.
- *  - Signed out on a redirect alias → the alias resolves FIRST
- *    (resolveRouteRedirect, driven by ROUTE_MATRIX): the visitor is
- *    handed to the alias target and the gate re-judges there, so the
- *    verdict — render or bounce — is always the target's, never the
- *    alias's (fix 2026-10-18: this gate wraps both Switches, so
- *    judging the alias path itself bounced guests to
- *    /login?next=<alias> before the router's redirect could run).
+ *  - Redirect aliases resolve FIRST for EVERY session, signed in or
+ *    out (driven by ROUTE_MATRIX): the visitor is handed to the alias
+ *    target and the gate re-judges there, so the verdict — render or
+ *    bounce — is always the target's, never the alias's (fix
+ *    2026-10-18: this gate wraps both Switches, so judging the alias
+ *    path itself bounced guests to /login?next=<alias> before the
+ *    router's redirect could run). The signed-in half is the
+ *    2026-10-24 fix: post-push live verification found
+ *    /sponsor-dashboard, /tip-page, /challenge and /albums rendering
+ *    the SPA 404 on direct load for a signed-in session — the matrix
+ *    promised the redirects and App.tsx carries alias routes for
+ *    them, but on the signed-in path nothing performed the redirect
+ *    (the gate returned children untouched and the router fell
+ *    through to the catch-all). The alias step therefore lives in
+ *    the verdict, above the auth branch, where it cannot be skipped.
+ *  - Signed in (non-alias) → children untouched.
  *  - Signed out on a public path → children.
  *  - Signed out anywhere else → /login?next=<path + query>, built by
  *    the shared loginPathWithNext so the visitor lands back where
@@ -49,22 +57,15 @@ export function GuestGate({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const search = useSearch();
 
-  if (loading) {
+  const verdict = resolveGateVerdict(location, search, { user, loading });
+
+  if (verdict.kind === "loading") {
     return <WittyLoader />;
   }
 
-  if (user) {
-    return <>{children}</>;
+  if (verdict.kind === "redirect") {
+    return <Redirect to={verdict.to} />;
   }
 
-  const aliasTarget = resolveRouteRedirect(location);
-  if (aliasTarget) {
-    return <Redirect to={aliasTarget} />;
-  }
-
-  if (isPublicPath(location)) {
-    return <>{children}</>;
-  }
-
-  return <Redirect to={loginPathWithNext(location, search)} />;
+  return <>{children}</>;
 }

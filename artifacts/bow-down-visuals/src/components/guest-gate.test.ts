@@ -10,11 +10,17 @@
  *     round-trips it verbatim.
  *  2. THE GATE WIRING (source pins, the house pattern — vitest here is
  *     node-env with no DOM harness). AppShell mounts GuestGate around
- *     the whole routed tree (both Switches); the gate judges auth
- *     loading BEFORE the allowlist (house loader, never a flash of
- *     page content or login form), consults isPublicPath, and bounces
- *     through the shared builder. No bare "/login" redirect remains in
- *     the gate or in ProtectedRoute.
+ *     the whole routed tree (both Switches). Since Oct 24 2026 the
+ *     gate's DECISION lives in lib/guest-gate-verdict.ts as a pure
+ *     function (GuestGate is the thin shell that renders it) so the
+ *     behavior itself is drivable — see
+ *     guest-gate-alias-behavior.test.ts. The verdict judges auth
+ *     loading first (house loader, never a flash of page content or
+ *     login form), resolves matrix aliases for EVERY session (the
+ *     signed-in half is the Oct 24 fix for the live-verified alias
+ *     404s), then the public allowlist, and bounces through the
+ *     shared builder. No bare "/login" redirect remains in the gate
+ *     or in ProtectedRoute.
  *  3. SIGNUP PARITY. A guest bounced from a locked page who creates an
  *     account lands where they were headed: signup honors ?next= via
  *     postLoginPath, and both auth pages carry ?next= across the
@@ -27,6 +33,7 @@ import { resolveRouteRedirect } from "../lib/public-routes";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const gateSource = read("./GuestGate.tsx");
+const verdictSource = read("../lib/guest-gate-verdict.ts");
 const protectedRouteSource = read("./ProtectedRoute.tsx");
 const appSource = read("../App.tsx");
 const siteModeSource = read("./site-mode/SiteMode.tsx");
@@ -105,24 +112,31 @@ describe("GuestGate — the AppShell choke point (audit §4.1)", () => {
 
   it("renders the house loader while auth is loading — judged BEFORE the allowlist", () => {
     expect(gateSource).toContain('import WittyLoader from "@/components/delight/witty-loader";');
-    expect(gateSource).toMatch(/if \(loading\) \{\s*return <WittyLoader \/>;\s*\}/);
-    const loaderAt = gateSource.indexOf("if (loading)");
-    const allowlistAt = gateSource.indexOf("isPublicPath(location)");
+    expect(gateSource).toMatch(/if \(verdict\.kind === "loading"\) \{\s*return <WittyLoader \/>;\s*\}/);
+    const loaderAt = verdictSource.indexOf("session.loading");
+    const allowlistAt = verdictSource.indexOf("isPublicPath(location)");
     expect(loaderAt).toBeGreaterThan(-1);
     expect(allowlistAt).toBeGreaterThan(loaderAt);
   });
 
   it("consults the Lane 1 allowlist and bounces signed-out guests via the shared builder", () => {
-    expect(gateSource).toContain('import { isPublicPath } from "@/lib/public-routes";');
-    expect(gateSource).toContain("if (isPublicPath(location))");
-    expect(gateSource).toContain('import { loginPathWithNext } from "@/lib/auth-next";');
-    expect(gateSource).toContain("<Redirect to={loginPathWithNext(location, search)} />");
+    expect(verdictSource).toContain(
+      'import { isPublicPath, resolveRouteRedirect } from "./public-routes";',
+    );
+    expect(verdictSource).toContain("if (isPublicPath(location))");
+    expect(verdictSource).toContain('import { loginPathWithNext } from "./auth-next";');
+    expect(verdictSource).toContain(
+      'return { kind: "redirect", to: loginPathWithNext(location, search) };',
+    );
+    // And the shell renders a redirect verdict with the router's Redirect.
+    expect(gateSource).toContain("<Redirect to={verdict.to} />");
   });
 
   it("has no bare /login redirect and no path special cases (the allowlist decides)", () => {
     expect(gateSource).not.toContain('to="/login"');
-    expect(gateSource).not.toContain('location === "/"');
-    expect(gateSource).not.toContain('location === "/world"');
+    expect(verdictSource).not.toContain('to="/login"');
+    expect(verdictSource).not.toContain('location === "/"');
+    expect(verdictSource).not.toContain('location === "/world"');
   });
 
   it("is mounted in AppShell around the whole routed tree — both Switches", () => {
@@ -146,33 +160,40 @@ describe("GuestGate — the AppShell choke point (audit §4.1)", () => {
   });
 });
 
-describe("GuestGate — alias resolution precedes the verdict (fix 2026-10-18)", () => {
+describe("GuestGate — alias resolution precedes the verdict (fix 2026-10-18; all sessions 2026-10-24)", () => {
   it("consults the matrix resolver from lib/public-routes (no hardcoded alias paths)", () => {
-    expect(gateSource).toContain(
-      'import { resolveRouteRedirect } from "@/lib/public-routes";',
-    );
-    expect(gateSource).toContain(
+    expect(verdictSource).toContain("resolveRouteRedirect");
+    expect(verdictSource).toContain(
       "const aliasTarget = resolveRouteRedirect(location);",
     );
-    expect(gateSource).toContain("if (aliasTarget) {");
-    expect(gateSource).toContain("<Redirect to={aliasTarget} />");
+    expect(verdictSource).toContain("if (aliasTarget) {");
+    expect(verdictSource).toContain('return { kind: "redirect", to: aliasTarget };');
     // The aliases themselves are data (ROUTE_MATRIX), never literals
-    // in the gate: adding an alias tomorrow needs no gate change.
-    expect(gateSource).not.toContain('"/broadcast"');
-    expect(gateSource).not.toContain('"/video-studio"');
-    expect(gateSource).not.toContain('"/go-live"');
+    // in the verdict or the gate: adding an alias tomorrow needs no
+    // gate change.
+    for (const src of [gateSource, verdictSource]) {
+      expect(src).not.toContain('"/broadcast"');
+      expect(src).not.toContain('"/video-studio"');
+      expect(src).not.toContain('"/go-live"');
+    }
   });
 
-  it("orders the checks: loader → signed-in passthrough → alias → allowlist → bounce", () => {
-    const loaderAt = gateSource.indexOf("if (loading)");
-    const userAt = gateSource.indexOf("if (user)");
-    const aliasAt = gateSource.indexOf("resolveRouteRedirect(location)");
-    const allowlistAt = gateSource.indexOf("isPublicPath(location)");
-    const bounceAt = gateSource.indexOf("loginPathWithNext(location, search)");
+  it("orders the checks: loader → alias → signed-in passthrough → allowlist → bounce", () => {
+    // The alias step moved ABOVE the signed-in passthrough on
+    // 2026-10-24: live verification proved the old order (signed-in
+    // first, router owns aliases) left every lane-A alias 404ing on
+    // direct load for signed-in sessions — nothing performed the
+    // redirect on that path. Behavior is pinned end-to-end in
+    // guest-gate-alias-behavior.test.ts.
+    const loaderAt = verdictSource.indexOf("session.loading");
+    const aliasAt = verdictSource.indexOf("resolveRouteRedirect(location)");
+    const userAt = verdictSource.indexOf("session.user");
+    const allowlistAt = verdictSource.indexOf("isPublicPath(location)");
+    const bounceAt = verdictSource.indexOf("loginPathWithNext(location, search)");
     expect(loaderAt).toBeGreaterThan(-1);
-    expect(userAt).toBeGreaterThan(loaderAt);
-    expect(aliasAt).toBeGreaterThan(userAt);
-    expect(allowlistAt).toBeGreaterThan(aliasAt);
+    expect(aliasAt).toBeGreaterThan(loaderAt);
+    expect(userAt).toBeGreaterThan(aliasAt);
+    expect(allowlistAt).toBeGreaterThan(userAt);
     expect(bounceAt).toBeGreaterThan(allowlistAt);
   });
 
@@ -197,10 +218,14 @@ describe("GuestGate — alias resolution precedes the verdict (fix 2026-10-18)",
     );
   });
 
-  it("leaves the router owning the aliases for signed-in visitors (gate passes them through)", () => {
-    // Signed-in visitors never reach the resolver (the `if (user)`
-    // passthrough above it returns children untouched), so App.tsx's
-    // own redirect routes remain their one alias mechanism.
+  it("the gate — not the router alone — owns aliases for signed-in visitors too", () => {
+    // PREMISE CHANGED 2026-10-24: this pin used to assert the router
+    // owned signed-in aliases via App.tsx's own redirect routes.
+    // Live verification on the pushed build disproved it — the
+    // lane-A aliases 404'd on direct load signed-in. The gate's
+    // verdict now resolves aliases above the auth branch (order pin
+    // above; behavior in guest-gate-alias-behavior.test.ts), and
+    // App.tsx's own redirect routes remain as a second layer.
     expect(appSource).toContain(
       '<Route path="/broadcast"><Redirect to="/go-live" /></Route>',
     );
