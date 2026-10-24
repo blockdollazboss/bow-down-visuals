@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  AlertTriangle, Film, Image as ImageIcon, Library, Loader2, Music2, Plus, RefreshCw,
+  AlertTriangle, BadgeCheck, ChevronDown, Download, Film, Image as ImageIcon, Library, Loader2, Music2, Plus, RefreshCw, Save,
 } from "lucide-react";
 import { Collapsible, Segmented } from "@/components/editor/controls";
 import { useToast } from "@/hooks/use-toast";
 import { useHubProject } from "@/lib/hub-project";
-import { fetchAssetLibrary, type LibraryAsset } from "@/lib/asset-library";
+import {
+  downloadLicenceCertificate, fetchAssetLibrary, fetchProvenance, saveAssetLicence,
+  type LibraryAsset, type LicenceId, type LicenceOption, type ProvenanceRecord,
+} from "@/lib/asset-library";
 import {
   isAudioAsset, isTimelineAsset, sceneFromLibraryAsset, stemFromLibraryAsset,
 } from "@/lib/editor-library";
@@ -31,6 +34,180 @@ interface AssetLibraryPanelProps {
 }
 
 type LibraryFilter = "all" | "video" | "image" | "audio";
+
+/* ─── "Made with" provenance card (Stack-100 #3 lane F7) ─────────────────
+   Every library asset carries its provenance record: the tool/model that
+   made it, its creator, when, a factual history, and the licence its
+   creator states for it. The licence picker + certificate download ride
+   the /api/provenance doors; the facts render from the library payload
+   immediately, the picker options load when the card first opens. */
+function ProvenanceCard({
+  asset,
+  getAccessToken,
+}: {
+  asset: LibraryAsset;
+  getAccessToken: () => Promise<string | null>;
+}) {
+  const { t } = useTranslation();
+  const tr = (key: string, opts?: Record<string, string | number>) =>
+    t(`videoEditor.myLibrary.${key}`, opts);
+  const [open, setOpen] = useState(false);
+  const [record, setRecord] = useState<ProvenanceRecord | null>(asset.provenance ?? null);
+  const [options, setOptions] = useState<LicenceOption[] | null>(null);
+  const [licence, setLicence] = useState<LicenceId>(asset.provenance?.licence ?? "all-rights-reserved");
+  const [saving, setSaving] = useState(false);
+  const [savedTick, setSavedTick] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [certBusy, setCertBusy] = useState(false);
+  const [certFailed, setCertFailed] = useState(false);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || loadedRef.current) return;
+    loadedRef.current = true;
+    void (async () => {
+      const fresh = await fetchProvenance(getAccessToken, asset.id);
+      if (fresh) {
+        setRecord(fresh.record);
+        setOptions(fresh.licenceOptions);
+        setLicence(fresh.record.licence);
+      }
+    })();
+  }, [open, asset.id, getAccessToken]);
+
+  if (!record) return null;
+
+  async function onSaveLicence() {
+    setSaving(true);
+    setSaveFailed(false);
+    const updated = await saveAssetLicence(getAccessToken, asset.id, licence);
+    setSaving(false);
+    if (updated) {
+      setRecord(updated);
+      setSavedTick(true);
+      window.setTimeout(() => setSavedTick(false), 2500);
+    } else {
+      setSaveFailed(true);
+    }
+  }
+
+  async function onCertificate() {
+    setCertBusy(true);
+    setCertFailed(false);
+    const ok = await downloadLicenceCertificate(
+      getAccessToken,
+      asset.id,
+      `${asset.label || "asset"}-licence-certificate.pdf`,
+    );
+    setCertBusy(false);
+    if (!ok) setCertFailed(true);
+  }
+
+  const createdDay = new Date(record.createdAt).toLocaleDateString(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+  });
+
+  return (
+    <div className="border-t border-white/[0.06] pt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-1.5 text-[11px] font-bold text-white/70 transition hover:border-primary/40 hover:text-white"
+        data-testid={`my-library-prov-${asset.id}`}
+        aria-expanded={open}
+      >
+        <BadgeCheck className="h-3.5 w-3.5 text-primary" />
+        {tr("madeWith", { defaultValue: "Made with" })}
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="space-y-2 pt-2 text-left">
+          <p className="text-[11px] leading-relaxed text-white/75">
+            {record.createdWith.tool}
+            {record.createdWith.model ? <span className="text-white/45"> · {record.createdWith.model}</span> : null}
+          </p>
+          <p className="text-[10px] text-white/40">
+            {record.creator.name
+              ? tr("madeBy", { defaultValue: "by {{name}}", name: record.creator.name })
+              : record.createdWith.platform}
+            {" · "}
+            {createdDay}
+          </p>
+          {record.aiGenerated && (
+            <span className="inline-flex rounded-md bg-primary/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
+              {tr("aiBadge", { defaultValue: "AI-generated" })}
+            </span>
+          )}
+          {record.editHistory.length > 0 && (
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/35">
+                {tr("history", { defaultValue: "History" })}
+              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {record.editHistory.map((line, i) => (
+                  <li key={i} className="text-[10px] leading-snug text-white/45">{line}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div>
+            <label className="text-[9px] font-black uppercase tracking-widest text-white/35" htmlFor={`licence-${asset.id}`}>
+              {tr("licence", { defaultValue: "Licence" })}
+            </label>
+            <div className="mt-1 flex gap-1.5">
+              <select
+                id={`licence-${asset.id}`}
+                value={licence}
+                onChange={(e) => setLicence(e.target.value as LicenceId)}
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-1.5 py-1.5 text-[11px] text-white/80"
+                data-testid={`my-library-licence-${asset.id}`}
+              >
+                {(options ?? [{ id: record.licence, name: record.licence, summary: "", url: null }]).map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void onSaveLicence()}
+                disabled={saving || licence === record.licence}
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-white/10 px-2 py-1.5 text-[11px] font-bold text-white/85 transition hover:bg-white/20 disabled:opacity-40"
+                data-testid={`my-library-licence-save-${asset.id}`}
+              >
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                {savedTick
+                  ? tr("licenceSaved", { defaultValue: "Saved" })
+                  : tr("saveLicence", { defaultValue: "Save" })}
+              </button>
+            </div>
+            {saveFailed && (
+              <p className="mt-1 text-[10px] text-red-300">
+                {tr("licenceSaveFailed", { defaultValue: "Couldn't save the licence — try again." })}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => void onCertificate()}
+            disabled={certBusy}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/30 px-2 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/10 disabled:opacity-50"
+            data-testid={`my-library-cert-${asset.id}`}
+          >
+            {certBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            {tr("certificate", { defaultValue: "Licence certificate" })}
+          </button>
+          {certFailed && (
+            <p className="text-[10px] text-red-300">
+              {tr("certificateFailed", { defaultValue: "Couldn't build the certificate — try again." })}
+            </p>
+          )}
+          <p className="text-[9px] leading-snug text-white/30">
+            {tr("disclosureNote", { defaultValue: "Exports carry an AI disclosure in their file details by default — you can turn it off per export." })}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function matchesFilter(asset: LibraryAsset, filter: LibraryFilter): boolean {
   if (filter === "all") return isTimelineAsset(asset) || isAudioAsset(asset);
@@ -191,6 +368,9 @@ export function AssetLibraryPanel({
                       ? tr("useAsSoundtrack", { defaultValue: "Use as soundtrack" })
                       : tr("addToTimeline", { defaultValue: "Add to timeline" })}
                   </button>
+                  {asset.provenance && (
+                    <ProvenanceCard asset={asset} getAccessToken={getAccessToken} />
+                  )}
                 </div>
               </div>
             );

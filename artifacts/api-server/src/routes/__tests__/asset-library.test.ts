@@ -14,6 +14,7 @@ const dbState = vi.hoisted(() => ({
   authedUserId: "user-1" as string | null,
   hubRows: [] as any[],
   genRows: [] as any[],
+  profileRows: [] as any[],
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -37,6 +38,7 @@ vi.mock("../../lib/objectStorage", () => ({
 vi.mock("@workspace/db", () => {
   const hubTable = { __table: "hub_projects", user_id: "user_id" };
   const genTable = { __table: "generation_history", userId: "userId", createdAt: "createdAt" };
+  const profileTable = { __table: "creator_profiles", userId: "userId", displayName: "displayName" };
   const chain: any = {};
   chain.from = vi.fn((table: any) => { chain.__table = table?.__table; return chain; });
   chain.where = vi.fn(() => chain);
@@ -44,10 +46,14 @@ vi.mock("@workspace/db", () => {
   chain.limit = vi.fn(() =>
     Promise.resolve(chain.__table === "hub_projects" ? dbState.hubRows : dbState.genRows),
   );
+  /* The provenance lookup (lane F7) awaits the where-chain directly. */
+  chain.then = (res: any, rej: any) =>
+    Promise.resolve(chain.__table === "creator_profiles" ? dbState.profileRows : []).then(res, rej);
   return {
     db: { select: vi.fn(() => chain) },
     hubProjectsTable: hubTable,
     generationHistoryTable: genTable,
+    creatorProfilesTable: profileTable,
   };
 });
 
@@ -73,6 +79,7 @@ beforeEach(() => {
   dbState.authedUserId = "user-1";
   dbState.hubRows = [];
   dbState.genRows = [];
+  dbState.profileRows = [{ displayName: "TRGDY TRBLZ" }];
 });
 
 describe("GET /api/asset-library", () => {
@@ -105,6 +112,21 @@ describe("GET /api/asset-library", () => {
     expect(stems.url).toBe("https://signed.example/stems.wav");
     const clip = data.assets.find((a) => a.id === "gen:g1")!;
     expect(clip).toMatchObject({ mediaKind: "video", origin: "generation", label: "Clip One", hubKind: null });
+
+    /* Provenance (lane F7): every library asset carries its "Made with"
+       record — creator display name resolved from the profile, the
+       stated licence defaulting to all-rights-reserved, and the
+       AI-generated flag following the asset's origin. */
+    expect(song.provenance).toMatchObject({
+      title: "Midnight Run",
+      creator: { id: "user-1", name: "TRGDY TRBLZ" },
+      licence: "all-rights-reserved",
+      aiGenerated: false,
+      disclosureDefaultEnabled: true,
+    });
+    expect(song.provenance.createdWith.platform).toBe("Bow Down Visuals");
+    expect(clip.provenance).toMatchObject({ aiGenerated: true, licence: "all-rights-reserved" });
+    expect(Array.isArray(song.provenance.editHistory)).toBe(true);
   });
 
   it("returns an honest empty library, not an error, when the caller has nothing", async () => {

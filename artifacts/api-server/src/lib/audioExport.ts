@@ -750,6 +750,15 @@ export async function runMixExport(opts: {
    * stops encoding (and reading input) once it hits this duration.
    */
   previewSeconds?: number;
+  /**
+   * AI-disclosure toggle (Stack-100 #3 lane F7). DEFAULT ON: when not
+   * explicitly false, the exported file's tags carry the AI disclosure
+   * (comment + ai_disclosure) alongside the standing attribution. The
+   * disclosure wording is built by the caller via lib/provenance
+   * (disclosureTextForExport) so it names the actual tool + creator.
+   */
+  aiDisclosure?: boolean;
+  disclosureText?: string;
 }): Promise<MixResult> {
   const { stems, masterVolume, format, masterSettings, previewSeconds } = opts;
   const work = await mkdtemp(join(tmpdir(), "bdv-export-"));
@@ -968,6 +977,20 @@ export async function runMixExport(opts: {
       "-metadata", "website=https://bowdownvisuals.com",
       "-metadata", "comment=Created with Bow Down Visuals — bowdownvisuals.com",
     ];
+    /* AI disclosure (lane F7): DEFAULT ON unless the caller explicitly
+       opted out. When on, the comment tag carries the disclosure line
+       (which itself includes the attribution) and an ai_disclosure tag
+       states it plainly; when off, the export is exactly as before. */
+    if (opts.aiDisclosure !== false) {
+      const text =
+        opts.disclosureText ??
+        "AI-generated content · Made with Bow Down Visuals — bowdownvisuals.com";
+      const commentIdx = attributionArgs.indexOf(
+        "comment=Created with Bow Down Visuals — bowdownvisuals.com",
+      );
+      if (commentIdx >= 0) attributionArgs[commentIdx] = `comment=${text}`;
+      attributionArgs.push("-metadata", `ai_disclosure=${text}`);
+    }
     const args = [
       "-y",
       ...inputs.flatMap((f) => ["-i", f]),

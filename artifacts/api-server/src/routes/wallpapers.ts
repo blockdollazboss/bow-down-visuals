@@ -16,6 +16,8 @@ import {
 } from "../lib/objectStorage";
 import { saveGeneration } from "../lib/save-generation";
 import { WALLPAPER_PRESETS, presetByKey, type WallpaperPreset } from "../lib/wallpaper-presets";
+import { stampImageWithDisclosure, stampVideoFileWithDisclosure } from "../lib/disclosure-metadata";
+import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../lib/provenance";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -99,6 +101,8 @@ export const renderSchema = z.object({
   logoUrl: z.union([httpUrlSchema, z.null()]).optional(),
   branded: z.boolean().optional().default(true),
   brandName: z.union([brandNameSchema, z.null()]).optional(),
+  /** AI disclosure (lane F7): absent = ON; explicit false opts out. */
+  aiDisclosure: z.boolean().optional(),
 });
 
 export const screensaverSchema = z.object({
@@ -108,6 +112,8 @@ export const screensaverSchema = z.object({
   logoUrl: z.union([httpUrlSchema, z.null()]).optional(),
   branded: z.boolean().optional().default(true),
   brandName: z.union([brandNameSchema, z.null()]).optional(),
+  /** AI disclosure (lane F7): absent = ON; explicit false opts out. */
+  aiDisclosure: z.boolean().optional(),
 });
 
 export const packDownloadSchema = z.object({
@@ -377,7 +383,21 @@ router.post("/wallpapers/render", requireAuth, async (req, res) => {
     });
     await execFileAsync("ffmpeg", args, { timeout: 300_000 });
 
-    const buffer = await readFile(outputPath);
+    /* AI disclosure (lane F7): DEFAULT ON — an XMP packet carrying the
+       disclosure is injected into the PNG unless the request explicitly
+       opted out. Metadata-only; the pixels never change. */
+    let buffer: Buffer = await readFile(outputPath);
+    let aiDisclosureState: "embedded" | "off" | "stamp_failed" =
+      parsed.data.aiDisclosure === false ? "off" : "embedded";
+    if (parsed.data.aiDisclosure !== false) {
+      const stamped = stampImageWithDisclosure(buffer, {
+        text: aiDisclosureMetadataText({ createdWith: { tool: "Wallpaper Studio", model: null, platform: PROVENANCE_PLATFORM } }),
+        tool: "Wallpaper Studio",
+        title: preset.label,
+      });
+      if (stamped.applied) buffer = stamped.buffer;
+      else aiDisclosureState = "stamp_failed";
+    }
     const objectName = `wallpapers/${req.userId}/${randomUUID()}.png`;
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
     const url = await refreshSupabaseStorageUrl(storageRef);
@@ -390,7 +410,7 @@ router.post("/wallpapers/render", requireAuth, async (req, res) => {
       creditsSpent: branded ? 0 : CLEAN_RENDER_COST,
     });
 
-    res.json({ url, presetKey: preset.key, width: preset.width, height: preset.height, branded, creditCost });
+    res.json({ url, presetKey: preset.key, width: preset.width, height: preset.height, branded, creditCost, aiDisclosure: aiDisclosureState });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Wallpaper render failed.";
     req.log?.error?.({ err: message }, "[wallpapers] render failed");
@@ -475,7 +495,24 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
     });
     await execFileAsync("ffmpeg", args, { timeout: 600_000 });
 
-    const buffer = await readFile(outputPath);
+    /* AI disclosure (lane F7): DEFAULT ON — stream-copy stamp of the
+       disclosure into the loop's container metadata, same rule as the
+       still render above. A failed stamp ships the unstamped loop and
+       reports stamp_failed. */
+    let finalPath = outputPath;
+    let aiDisclosureState: "embedded" | "off" | "stamp_failed" =
+      parsed.data.aiDisclosure === false ? "off" : "embedded";
+    if (parsed.data.aiDisclosure !== false) {
+      const stampedPath = join(workDir, "screensaver-disclosed.mp4");
+      const stamped = await stampVideoFileWithDisclosure(outputPath, stampedPath, {
+        text: aiDisclosureMetadataText({ createdWith: { tool: "Wallpaper Studio", model: null, platform: PROVENANCE_PLATFORM } }),
+        tool: "Wallpaper Studio",
+        title: preset.label,
+      });
+      if (stamped) finalPath = stampedPath;
+      else aiDisclosureState = "stamp_failed";
+    }
+    const buffer = await readFile(finalPath);
     const objectName = `wallpapers/${req.userId}/${randomUUID()}.mp4`;
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
@@ -496,6 +533,7 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
       seconds: parsed.data.seconds,
       creditCost: SCREENSAVER_RENDER_COST,
       branded,
+      aiDisclosure: aiDisclosureState,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Screensaver render failed.";

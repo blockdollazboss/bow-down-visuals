@@ -359,6 +359,8 @@ export function FinalVideoExport({
   const [errorStderr, setErrorStderr]   = useState<string[] | null>(null);
   const [errorExitCode, setErrorExitCode] = useState<number | null>(null);
   const [confirmed, setConfirmed]       = useState(false);
+  /* AI disclosure in the exported file's metadata (lane F7) — on by default. */
+  const [aiDisclosure, setAiDisclosure] = useState(true);
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
@@ -684,6 +686,7 @@ export function FinalVideoExport({
         audioStartSec: hasAudio ? audioStartSec : 0,
         matchVideoLength: hasAudio ? matchVideoLength : false,
         addWatermark: qualityOpts ? qualityOpts.watermark : addWatermark,
+        aiDisclosure,
         customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
         watermarkTheme: isLight ? "light" : "dark",
         watermarkPosition,
@@ -1511,6 +1514,28 @@ export function FinalVideoExport({
                       </Button>
                     </div>
                   </div>
+                )}
+
+                {/* AI disclosure toggle (lane F7): the disclosure is stamped
+                    into the exported file's metadata unless turned off. */}
+                {prepareAllReady && !exportRangeBlocked && (
+                  <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={aiDisclosure}
+                      onChange={(e) => setAiDisclosure(e.target.checked)}
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-primary"
+                      data-testid="video-export-disclosure-toggle"
+                    />
+                    <span>
+                      <span className="block text-[11px] font-bold text-white/75">
+                        {t("videoExport.aiDisclosure", { defaultValue: "AI disclosure in file details" })}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] leading-relaxed text-white/30">
+                        {t("videoExport.aiDisclosureHint", { defaultValue: "Names this video as AI-created in its metadata — destinations increasingly require it." })}
+                      </span>
+                    </span>
+                  </label>
                 )}
 
                 {/* Export buttons — only shown when all clips are ready and the range is valid */}

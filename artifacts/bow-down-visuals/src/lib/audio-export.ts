@@ -118,6 +118,9 @@ export interface AudioExportRequest {
   masterVolume: number;
   /** Full master bus settings — compression, EQ, bass boost, stereo width, loudness, fades. */
   masterSettings?: MasterBusPayload;
+  /** AI disclosure (lane F7): omit or true = the disclosure rides in the
+      exported file's tags (the server default); false opts out. */
+  aiDisclosure?: boolean;
 }
 
 export interface AudioExportResponse {

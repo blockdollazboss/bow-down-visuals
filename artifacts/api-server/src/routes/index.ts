@@ -87,6 +87,7 @@ import ugcAdsRouter from "./ugc-ads";
 import ugcBriefsRouter from "./ugc-briefs";
 import generationHistoryRouter from "./generation-history";
 import assetLibraryRouter from "./asset-library";
+import provenanceRouter from "./provenance";
 import thumbnailsRouter from "./thumbnails";
 import showcaseRouter from "./showcase";
 import embedApiRouter from "./embed";
@@ -446,6 +447,7 @@ router.use(ugcAdsRouter);                     // UGC Product Ads: /api/ugc-ads{,
 router.use(ugcBriefsRouter);                  // UGC briefs board: /api/ugc-briefs{,/:id,/:id/claim,/release,/deliver,/approve,/close}
 router.use(generationHistoryRouter);
 router.use(assetLibraryRouter);
+router.use(provenanceRouter);
 router.use(thumbnailsRouter);
 router.use(showcaseRouter);
 router.use(embedApiRouter);

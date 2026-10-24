@@ -7250,7 +7250,18 @@
       "soundtrackTitle": "Bande-son attachée",
       "subtitle": "Tes propres morceaux, clips et pochettes — ajoute-les sans les réimporter. Gratuit : ils sont déjà à toi.",
       "title": "Ma bibliothèque",
-      "useAsSoundtrack": "Utiliser comme bande-son"
+      "useAsSoundtrack": "Utiliser comme bande-son",
+      "madeWith": "Créé avec",
+      "madeBy": "par {{name}}",
+      "aiBadge": "Généré par IA",
+      "licence": "Licence",
+      "saveLicence": "Enregistrer",
+      "licenceSaved": "Enregistré",
+      "licenceSaveFailed": "Impossible d'enregistrer la licence — réessayez.",
+      "certificate": "Certificat de licence",
+      "certificateFailed": "Impossible de créer le certificat — réessayez.",
+      "history": "Historique",
+      "disclosureNote": "Par défaut, les exports incluent une mention IA dans les détails du fichier — vous pouvez la désactiver pour chaque export."
     },
     "outOfBucsTitle": "Plus de Visual Bucs",
     "preProDesc": "Planifie ta vidéo avant de la construire — du concept à la liste de plans.",
@@ -13679,7 +13690,9 @@
     "videoOnlySuffix": " · vidéo seulement",
     "withAudioSuffix": " · avec audio",
     "yes": "oui",
-    "yesWith": "oui ({{value}})"
+    "yesWith": "oui ({{value}})",
+    "aiDisclosure": "Mention IA dans les détails du fichier",
+    "aiDisclosureHint": "Indique dans les métadonnées que cette vidéo a été créée par IA — les plateformes l'exigent de plus en plus."
   },
   "outOfCredits": {
     "addedBtn": "Visual Bucs ajoutés !",
@@ -14111,7 +14124,8 @@
     "needVideo": "Choisissez ou générez d'abord une vidéo.",
     "slideshowTitle": "Pack diaporama",
     "slideshowBlurb": "Un dossier avec les images de votre ensemble, prêt à être ciblé par un économiseur en diaporama — pas de vidéo, juste votre art qui défile à l'écran.",
-    "slideshowButton": "Télécharger le pack diaporama (.zip)"
+    "slideshowButton": "Télécharger le pack diaporama (.zip)",
+    "aiDisclosure": "Mention IA dans les détails du fichier"
   },
   "vocalPolish": {
     "buttonLabel": "Polir ma voix",

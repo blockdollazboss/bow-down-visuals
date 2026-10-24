@@ -7079,7 +7079,18 @@
       "soundtrackTitle": "Soundtrack angehängt",
       "subtitle": "Deine eigenen Songs, Clips und Cover — füge sie hinzu, ohne neu hochzuladen. Kostenlos: Sie gehören bereits dir.",
       "title": "Meine Bibliothek",
-      "useAsSoundtrack": "Als Soundtrack verwenden"
+      "useAsSoundtrack": "Als Soundtrack verwenden",
+      "madeWith": "Erstellt mit",
+      "madeBy": "von {{name}}",
+      "aiBadge": "KI-generiert",
+      "licence": "Lizenz",
+      "saveLicence": "Speichern",
+      "licenceSaved": "Gespeichert",
+      "licenceSaveFailed": "Die Lizenz konnte nicht gespeichert werden — bitte erneut versuchen.",
+      "certificate": "Lizenzzertifikat",
+      "certificateFailed": "Das Zertifikat konnte nicht erstellt werden — bitte erneut versuchen.",
+      "history": "Verlauf",
+      "disclosureNote": "Exporte enthalten standardmäßig eine KI-Kennzeichnung in den Dateidetails — Sie können sie pro Export deaktivieren."
     },
     "outOfBucsTitle": "Keine Visual Bucs mehr",
     "preProDesc": "Plane dein Video, bevor du es baust — vom Konzept zur Shotliste.",
@@ -12474,7 +12485,9 @@
     "videoOnlySuffix": " · nur Video",
     "withAudioSuffix": " · mit Audio",
     "yes": "ja",
-    "yesWith": "ja ({{value}})"
+    "yesWith": "ja ({{value}})",
+    "aiDisclosure": "KI-Kennzeichnung in den Dateidetails",
+    "aiDisclosureHint": "Kennzeichnet dieses Video in seinen Metadaten als KI-erstellt — Plattformen verlangen dies zunehmend."
   },
   "outOfCredits": {
     "addedBtn": "Visual Bucs hinzugefügt!",
@@ -12906,7 +12919,8 @@
     "needVideo": "Wähle oder generiere zuerst ein Video.",
     "slideshowTitle": "Diashow-Pack",
     "slideshowBlurb": "Ein Ordner mit den Bildern deines Sets, bereit für einen Diashow-Bildschirmschoner — kein Video, nur deine Kunst im Wechsel auf dem Bildschirm.",
-    "slideshowButton": "Das Diashow-Pack herunterladen (.zip)"
+    "slideshowButton": "Das Diashow-Pack herunterladen (.zip)",
+    "aiDisclosure": "KI-Kennzeichnung in den Dateidetails"
   },
   "moneyTracker": {
     "addEntry": "Eintrag hinzufügen",

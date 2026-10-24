@@ -77,6 +77,8 @@ export function WallpapersDesk() {
   const [brandError, setBrandError] = useState<string | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [branded, setBranded] = useState(true);
+  /* AI disclosure in rendered files' metadata (lane F7) — on by default. */
+  const [aiDisclosure, setAiDisclosure] = useState(true);
   const [useBrandPalette, setUseBrandPalette] = useState(false);
 
   /* Device render */
@@ -214,6 +216,7 @@ export function WallpapersDesk() {
         sourceUrl,
         presetKey: targetPresetKey,
         branded,
+        aiDisclosure,
         ...(branded ? { logoUrl: brandKit?.logoUrl ?? undefined, brandName } : {}),
       }),
       ...(branded || opts?.skipConfirm
@@ -460,6 +463,7 @@ export function WallpapersDesk() {
           videoUrl,
           presetKey: ssPresetKey,
           branded,
+          aiDisclosure,
           ...(branded ? { logoUrl: brandKit?.logoUrl ?? undefined, brandName } : {}),
         }),
       });
@@ -769,6 +773,23 @@ export function WallpapersDesk() {
                 ? t("wallpapers.brandOnNote", { defaultValue: "Branding is on — your logo and name go on every render, free." })
                 : t("wallpapers.brandCleanNote", { defaultValue: "Clean (unbranded) renders cost 400 Visual Bucs — branded renders are free." })}
             </p>
+            {/* AI disclosure switch (lane F7) — ON by default; stamps the
+                disclosure into every render's file metadata. */}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={aiDisclosure}
+                onClick={() => setAiDisclosure((b) => !b)}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition ${aiDisclosure ? "bg-primary" : isLight ? "bg-stone-300" : "bg-white/15"}`}
+                data-testid="wallpapers-disclosure-switch"
+              >
+                <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${aiDisclosure ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+              <span className="text-sm font-bold">
+                {t("wallpapers.aiDisclosure", { defaultValue: "AI disclosure in file details" })}
+              </span>
+            </div>
           </div>
         )}
       </section>

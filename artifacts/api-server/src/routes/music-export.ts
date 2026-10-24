@@ -17,6 +17,17 @@ import {
   type MasterBusSettings,
 } from "../lib/audioExport";
 import { r2Upload, r2PublicUrl } from "../lib/r2-client";
+import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../lib/provenance";
+
+/* AI disclosure for audio exports (lane F7): DEFAULT ON — an absent
+   aiDisclosure field means the disclosure rides in the file's tags; only
+   an explicit false opts out. */
+const AUDIO_DISCLOSURE_TEXT = aiDisclosureMetadataText({
+  createdWith: { tool: "Audio Studio", model: null, platform: PROVENANCE_PLATFORM },
+});
+function disclosureOpts(aiDisclosure: unknown): { aiDisclosure: boolean; disclosureText: string } {
+  return { aiDisclosure: aiDisclosure !== false, disclosureText: AUDIO_DISCLOSURE_TEXT };
+}
 
 const router = Router();
 const BUCKET = "audio-stems";
@@ -315,11 +326,12 @@ function parseMasterSettings(raw: unknown): MasterBusSettings | undefined {
 }
 
 router.post("/music/export", requireAuth, async (req, res) => {
-  const { exportType, stems, masterVolume, masterSettings } = (req.body ?? {}) as {
+  const { exportType, stems, masterVolume, masterSettings, aiDisclosure } = (req.body ?? {}) as {
     exportType?: string;
     stems?: RawStem[];
     masterVolume?: unknown;
     masterSettings?: unknown;
+    aiDisclosure?: unknown;
   };
 
   const mapping = TYPE_MAP[exportType as AudioExportType];
@@ -392,6 +404,7 @@ router.post("/music/export", requireAuth, async (req, res) => {
     masterSettings: parsedMaster,
     kind: mapping.kind,
     exportType: exportType!,
+    ...disclosureOpts(aiDisclosure),
     sb,
     userId: userId!,
     log,
@@ -409,6 +422,8 @@ async function processMixExportJob(
     masterSettings?: MasterBusSettings;
     kind: AudioExportKind;
     exportType: string;
+    aiDisclosure?: boolean;
+    disclosureText?: string;
     sb: SupabaseClient;
     userId: string;
     log: { error: (obj: unknown, msg?: string) => void };
@@ -427,6 +442,8 @@ async function processMixExportJob(
       masterVolume: params.masterVolume,
       format: params.format,
       masterSettings: params.masterSettings,
+      aiDisclosure: params.aiDisclosure,
+      disclosureText: params.disclosureText,
     });
 
     const path = `${params.userId}/exports/${Date.now()}-${params.kind}.${ext}`;
@@ -477,11 +494,12 @@ const DEFAULT_PREVIEW_SECONDS = 12;
  * polling is needed here.
  */
 router.post("/music/preview-render", requireAuth, async (req, res) => {
-  const { stems, masterVolume, masterSettings, previewSeconds } = (req.body ?? {}) as {
+  const { stems, masterVolume, masterSettings, previewSeconds, aiDisclosure } = (req.body ?? {}) as {
     stems?: RawStem[];
     masterVolume?: unknown;
     masterSettings?: unknown;
     previewSeconds?: unknown;
+    aiDisclosure?: unknown;
   };
 
   if (!Array.isArray(stems) || stems.length === 0) {
@@ -539,6 +557,7 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
       format: "mp3",
       masterSettings: parsedMaster,
       previewSeconds: clipSeconds,
+      ...disclosureOpts(aiDisclosure),
     });
 
     res.setHeader("Content-Type", contentType);
