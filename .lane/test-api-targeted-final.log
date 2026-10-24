@@ -1,0 +1,48 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fangraph/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/generate/__tests__/email-list-fixes.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 3206[2mms[22m[39m
+   [32m✓[39m list create validation — real copy passes, junk still fails [2m(6)[22m
+     [33m[2m✓[22m[39m POST /lists stores the em-dash name + full offer verbatim (201)[33m 1046[2mms[22m[39m
+     [33m[2m✓[22m[39m POST /lists with a 2001-char description is still a 400[33m 664[2mms[22m[39m
+   [32m✓[39m PATCH /lists/:id — welcome sequence templates [2m(4)[22m
+     [33m[2m✓[22m[39m sets all six welcome fields on the owner's own list[33m 357[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/fan-graph.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1239[2mms[22m[39m
+   [32m✓[39m GET /api/email-list/fan-graph [2m(6)[22m
+     [33m[2m✓[22m[39m returns only the caller's own fans, with the caller's own facts[33m 648[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-automations.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 6801[2mms[22m[39m
+   [32m✓[39m provisioning + API [2m(4)[22m
+     [33m[2m✓[22m[39m provisions the three starters disabled, with defaults, exactly once[33m 1070[2mms[22m[39m
+     [33m[2m✓[22m[39m is owner-scoped: another creator gets 404 on read and patch[33m 537[2mms[22m[39m
+     [33m[2m✓[22m[39m edits copy + delay, stamps enabled_at on switch-on, keeps it on switch-off[33m 616[2mms[22m[39m
+   [32m✓[39m runner — post-purchase thank-you [2m(5)[22m
+     [33m[2m✓[22m[39m ignores legacy unpaid sale rows (no paid proof)[33m 849[2mms[22m[39m
+   [32m✓[39m carrier campaigns are not newsletters [2m(1)[22m
+     [33m[2m✓[22m[39m stay out of campaign history and refuse manual dispatch at both doors[33m 420[2mms[22m[39m
+   [32m✓[39m abandoned checkout — the runner fires the recorded expiry once [2m(6)[22m
+     [33m[2m✓[22m[39m sends exactly one carrier for a recorded storefront expiry; replays and re-runs never double-send[33m 516[2mms[22m[39m
+     [33m[2m✓[22m[39m never fires for an abandonment older than the switch-on moment[33m 349[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list-opens-honesty.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 6930[2mms[22m[39m
+   [32m✓[39m subscribers stats honesty (tracked era) [2m(2)[22m
+     [33m[2m✓[22m[39m reports opensTracked false + null rate before any tracked send[33m 879[2mms[22m[39m
+     [33m[2m✓[22m[39m reports the measured rate once a real open is recorded[33m 844[2mms[22m[39m
+   [32m✓[39m open/click dedupe — first signal wins [2m(4)[22m
+     [33m[2m✓[22m[39m pixel first, webhook second: one open, counters move once[33m 380[2mms[22m[39m
+     [33m[2m✓[22m[39m webhook first, pixel second: still one open[33m 457[2mms[22m[39m
+   [32m✓[39m segments [2m(7)[22m
+     [33m[2m✓[22m[39m manual tags are ALL-match, and unsubscribed carriers are excluded absolutely[33m 384[2mms[22m[39m
+     [33m[2m✓[22m[39m derives presave / member / buyer auto tags from house rows[33m 585[2mms[22m[39m
+     [33m[2m✓[22m[39m sources match ANY; engagement none/opened follow recorded signals[33m 858[2mms[22m[39m
+     [33m[2m✓[22m[39m sending TO a segment reaches exactly its members[33m 384[2mms[22m[39m
+     [33m[2m✓[22m[39m subscribers payload carries manual + derived tags[33m 557[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/fan-graph.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 686[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 538[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m109 passed[39m[22m[90m (109)[39m
+[2m   Start at [22m 02:12:53
+[2m   Duration [22m 233.30s[2m (import 78%, transform 12%, tests 9%)[22m
+
+[2m    Isolate [22m [33m6 workers spawned[39m[2m · ~2.96s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~14.81s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

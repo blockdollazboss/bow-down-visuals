@@ -1214,6 +1214,25 @@ const DOCKED_FEATURES = [
     pricedEndpoints: [],
   },
   {
+    /* One Fan Graph (Stack-29, feature #11): a tab inside the Email
+       List desk, no route of its own. The name and description ride
+       the desk's own en.json Fan Graph prose — the intro carries the
+       whole truth: followers, subscribers, members and buyers merged
+       into one record per fan, read-only, and only the signed-in
+       creator's own fans. The endpoint charges nothing (a pure
+       aggregation read — no charge call exists on the path), so
+       pricedEndpoints stays empty — the email-automations precedent.
+       The endpoint is concrete (no :param), so the chat door lands
+       on the desk itself. */
+    id: "fan-graph",
+    name: { ns: "email-list", field: "fan_graph" },
+    path: "/email-list",
+    hostPath: "/email-list",
+    description: { nsFields: [["email-list", "fan_graph_intro"]] },
+    endpoints: ["/api/email-list/fan-graph"],
+    pricedEndpoints: [],
+  },
+  {
     /* The playlist pitch packet: a panel inside the Playlist Pitch
        mode that builds itself from the release record — links
        included (the presave / smartlink is the record's real one,
