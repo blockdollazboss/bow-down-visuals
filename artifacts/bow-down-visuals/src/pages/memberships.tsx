@@ -67,6 +67,9 @@ interface Member {
   trialEndsAt: string | null;
   isGift: boolean;
   joinedAt: string;
+  pastDueSince: string | null;
+  accessEndsAt: string | null;
+  pastDueDaysLeft: number | null;
 }
 
 interface MyMembership {
@@ -80,6 +83,28 @@ interface MyMembership {
   trialEndsAt: string | null;
   isGift: boolean;
   joinedAt: string;
+  /* Dunning (past_due only): when the payment failed + the exact date
+     access pauses if it still hasn't succeeded. */
+  pastDueSince: string | null;
+  accessEndsAt: string | null;
+  pastDueDaysLeft: number | null;
+}
+
+/* Creator Recovery view (GET /memberships/recovery): a past-due (or
+   chased) member plus the recovery picture the server derives from
+   the email claim ledger. */
+interface RecoveryRow {
+  member: Member;
+  recovery: {
+    state: "in_grace" | "recovered" | "access_ended" | "ended_other";
+    pastDueSince: string | null;
+    graceEndsAt: string | null;
+    daysLeft: number | null;
+    stepsSent: number;
+    stepCount: number;
+    lastStepKey: string | null;
+    lastSentAt: string | null;
+  };
 }
 
 interface MyGift {
@@ -319,6 +344,11 @@ export default function Memberships() {
   const [mine, setMine] = useState<{ memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] } | null>(null);
   const [mineError, setMineError] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [fixingId, setFixingId] = useState<string | null>(null);
+  /* Creator Recovery view state (dunning worklist). Its own error —
+     a failed recovery load never reads as "nobody is past due". */
+  const [recovery, setRecovery] = useState<{ members: RecoveryRow[]; automationEnabled: boolean; automationProvisioned: boolean } | null>(null);
+  const [recoveryError, setRecoveryError] = useState(false);
   const [pausingId, setPausingId] = useState<string | null>(null);
   const [fanMsg, setFanMsg] = useState<string | null>(null);
   const creatorParam = typeof window !== "undefined"
@@ -404,6 +434,52 @@ export default function Memberships() {
       setMineError(false);
     } catch {
       setMineError(true);
+    }
+  }
+
+  /* Creator Recovery view: past-due members + their chase status. */
+  async function loadRecovery() {
+    try {
+      const token = await getAccessToken();
+      const { res, data } = await api("/memberships/recovery", token);
+      if (!res.ok || !Array.isArray(data.members)) {
+        setRecoveryError(true);
+        return;
+      }
+      setRecovery(data as unknown as { members: RecoveryRow[]; automationEnabled: boolean; automationProvisioned: boolean });
+      setRecoveryError(false);
+    } catch {
+      setRecoveryError(true);
+    }
+  }
+
+  useEffect(() => {
+    if (user) void loadRecovery();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /* Fan card-update door (POST /memberships/mine/:id/update-payment):
+     a past-due seat gets a fresh Stripe-hosted checkout — the fan
+     enters the new card on Stripe's page, and the seat comes back
+     only when the return visit verifies the payment. A free tier
+     reactivates in place. */
+  async function fixPayment(m: MyMembership) {
+    setFixingId(m.id);
+    try {
+      const token = await getAccessToken();
+      const { res, data } = await api(`/memberships/mine/${m.id}/update-payment`, token, { method: "POST" });
+      if (!res.ok) throw new Error(String(data.error ?? "update failed"));
+      if (data.url) {
+        window.location.href = String(data.url);
+        return;
+      }
+      setFanMsg("Membership reactivated — you're back in.");
+      await loadMine();
+      await loadRecovery();
+    } catch {
+      setFanMsg("Couldn't start the payment update — try again in a moment.");
+    } finally {
+      setFixingId(null);
     }
   }
 
@@ -727,31 +803,58 @@ export default function Memberships() {
                 ) : mine ? (
                   <div className={CARD + " space-y-3"}>
                     {mine.memberships.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between gap-3 py-1">
-                        <div>
-                          <div className="font-bold text-sm">{m.tierName ?? "Membership"}{m.isGift && <span className="ml-2 text-xs text-primary">gifted to you</span>}</div>
-                          <div className="text-xs text-white/40">
-                            {fmt$(m.priceDollars)} · {m.billingPeriod} · member since {new Date(m.joinedAt).toLocaleDateString()}
-                            {m.status === "trialing" && m.trialEndsAt && <> · trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</>}
-                            {m.status !== "trialing" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                      <div key={m.id} className="py-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="font-bold text-sm">{m.tierName ?? "Membership"}{m.isGift && <span className="ml-2 text-xs text-primary">gifted to you</span>}</div>
+                            <div className="text-xs text-white/40">
+                              {fmt$(m.priceDollars)} · {m.billingPeriod} · member since {new Date(m.joinedAt).toLocaleDateString()}
+                              {m.status === "trialing" && m.trialEndsAt && <> · trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</>}
+                              {m.status !== "trialing" && m.status !== "past_due" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                              {m.status === "past_due" && m.pastDueSince && <> · payment failed {new Date(m.pastDueSince).toLocaleDateString()}</>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
+                              m.status === "active" ? "bg-emerald-500/15 text-emerald-300"
+                              : m.status === "trialing" ? "bg-primary/15 text-primary"
+                              : m.status === "past_due" ? "bg-red-500/15 text-red-300"
+                              : "bg-white/10 text-white/50"
+                            }`}>{m.status.replace("_", " ")}</span>
+                            {(m.status === "active" || m.status === "trialing" || m.status === "past_due") && (
+                              <button
+                                onClick={() => void cancelMembership(m)}
+                                disabled={cancelingId === m.id}
+                                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 hover:border-red-400/40 hover:text-red-300 disabled:opacity-50"
+                              >
+                                {cancelingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancel"}
+                              </button>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
-                            m.status === "active" ? "bg-emerald-500/15 text-emerald-300"
-                            : m.status === "trialing" ? "bg-primary/15 text-primary"
-                            : "bg-white/10 text-white/50"
-                          }`}>{m.status.replace("_", " ")}</span>
-                          {(m.status === "active" || m.status === "trialing" || m.status === "past_due") && (
+                        {/* Past due: the fan hears it BEFORE access ends —
+                            the exact pause date the recovery emails state,
+                            plus the door to fix it. The checkout is
+                            Stripe-hosted; the seat returns only when the
+                            payment verifies on the way back. */}
+                        {m.status === "past_due" && (
+                          <div className="mt-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex flex-wrap items-center gap-3">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span className="flex-1 min-w-[220px]">
+                              Your last payment didn't go through.
+                              {m.accessEndsAt
+                                ? <> Your access pauses on <strong>{new Date(m.accessEndsAt).toLocaleDateString()}</strong>{m.pastDueDaysLeft != null && <> — {m.pastDueDaysLeft} {m.pastDueDaysLeft === 1 ? "day" : "days"} left</>} — unless a payment succeeds before then.</>
+                                : <> Update your card to keep your membership.</>}
+                            </span>
                             <button
-                              onClick={() => void cancelMembership(m)}
-                              disabled={cancelingId === m.id}
-                              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 hover:border-red-400/40 hover:text-red-300 disabled:opacity-50"
+                              onClick={() => void fixPayment(m)}
+                              disabled={fixingId === m.id}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-red-400/90 px-3 py-1.5 text-xs font-black text-black hover:bg-red-300 disabled:opacity-50"
                             >
-                              {cancelingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancel"}
+                              {fixingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Update card & renew"}
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {mine.giftsSent.map((g) => (
@@ -826,6 +929,69 @@ export default function Memberships() {
                     ))}
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* ── Recovery (dunning worklist) ── */}
+            {(recoveryError || recovery) && (
+              <section>
+                <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
+                  <AlertTriangle className="h-6 w-6 text-red-400" /> Payment recovery
+                </h2>
+                {recoveryError ? (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center gap-3">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    Couldn't load the recovery list — try again.
+                    <button
+                      onClick={() => void loadRecovery()}
+                      className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300/30 px-3 py-1.5 text-xs font-bold text-red-200 hover:bg-red-500/10"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" /> {t("memberships.retry")}
+                    </button>
+                  </div>
+                ) : recovery && recovery.members.length === 0 ? (
+                  <div className={CARD}>
+                    <p className="text-sm text-white/60">
+                      Nobody is past due right now. When a member's payment fails, they show up
+                      here with the chase status — and the recovery emails start, if you've
+                      switched that automation on in your email list.
+                    </p>
+                  </div>
+                ) : recovery ? (
+                  <div className={CARD + " space-y-3"}>
+                    {!recovery.automationEnabled && (
+                      <p className="text-xs text-amber-300/90">
+                        Heads up: the payment-recovery emails are not switched on
+                        {recovery.automationProvisioned ? "" : " yet"} — these members are past due,
+                        but no chase is running. Turn on "Membership payment recovery" in your
+                        email list's automations to work this list automatically.
+                      </p>
+                    )}
+                    {recovery.members.map(({ member: m, recovery: r }) => (
+                      <div key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-1 border-b border-white/5 last:border-0">
+                        <div>
+                          <div className="font-bold text-sm">{m.fanLabel} <span className="text-white/40 font-normal">· {m.tierName ?? "Unknown tier"}</span></div>
+                          <div className="text-xs text-white/40">
+                            {r.pastDueSince && <>payment failed {new Date(r.pastDueSince).toLocaleDateString()}</>}
+                            {r.state === "in_grace" && r.graceEndsAt && <> · access pauses {new Date(r.graceEndsAt).toLocaleDateString()}{r.daysLeft != null && <> ({r.daysLeft} {r.daysLeft === 1 ? "day" : "days"} left)</>}</>}
+                            {" "}· recovery emails sent: {r.stepsSent} of {r.stepCount}
+                            {r.lastStepKey && <> · last: {r.lastStepKey.replace(/_/g, " ")}</>}
+                          </div>
+                        </div>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          r.state === "in_grace" ? "bg-red-500/15 text-red-300"
+                          : r.state === "recovered" ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-white/10 text-white/50"
+                        }`}>
+                          {r.state === "in_grace" ? "past due — in grace"
+                            : r.state === "recovered" ? "recovered"
+                            : r.state === "access_ended" ? "access ended unpaid"
+                            : "ended"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </section>
             )}
 

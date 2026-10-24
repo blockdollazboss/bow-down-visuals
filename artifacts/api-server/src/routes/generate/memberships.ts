@@ -209,7 +209,19 @@ export function effectiveMemberStatus(m: MemberLike, now: Date = new Date()): st
   ) {
     return "expired";
   }
-  if (m.status === "past_due" && isDunningExpired({ id: "", ...m }, now)) {
+  if (
+    m.status === "past_due" &&
+    isDunningExpired(
+      {
+        id: "",
+        status: m.status,
+        fan_user_id: m.fan_user_id,
+        updated_at: m.updated_at ?? null,
+        created_at: m.created_at ?? null,
+      },
+      now,
+    )
+  ) {
     return "expired";
   }
   return m.status;

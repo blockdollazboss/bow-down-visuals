@@ -1,0 +1,101 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server[39m
+
+[01:34:51.126] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "ce71390d-4692-4838-8287-f100dcf8d604"
+    [35mfanUserId[39m: "6c9ba472-5056-4428-ae2d-5bab4ff39cfc"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[01:34:51.345] [32mINFO[39m (2357): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "9b2f4a59-74ef-4fd7-b7cb-09844b290508"
+    [35mamountCents[39m: 1000
+[01:34:51.532] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "90bf872b-9f49-418a-b58b-0ebe0aa52401"
+    [35mfanUserId[39m: "6c9ba472-5056-4428-ae2d-5bab4ff39cfc"
+    [35mamountCents[39m: 9000
+    [35mbillingPeriod[39m: "annual"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[01:34:51.624] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "38ac2232-377a-4c5c-bb5d-0d635f9d5ce8"
+    [35mfanUserId[39m: "6c9ba472-5056-4428-ae2d-5bab4ff39cfc"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[01:34:51.684] [32mINFO[39m (2357): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "4b469cc6-0fcd-4cbf-a40c-c17eec609d95"
+    [35mamountCents[39m: 1000
+[01:34:51.734] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "f0ece526-9788-43de-aced-3e47043c5f68"
+    [35mfanUserId[39m: "6c9ba472-5056-4428-ae2d-5bab4ff39cfc"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[01:34:51.785] [31mERROR[39m (2357): [36m[memberships] verify: tier deleted after payment[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mrefunded[39m: true
+[01:34:51.878] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "80115582-ab90-4b44-a56c-fc5ef061bb8c"
+    [35mfanUserId[39m: "6c9ba472-5056-4428-ae2d-5bab4ff39cfc"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[01:34:51.960] [31mERROR[39m (2357): [36m[memberships] verify: amount mismatch[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mamountCents[39m: 500
+    [35mexpectedCents[39m: 1000
+[01:34:52.167] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "eb31fae2-9c61-4c02-b8ab-706b5c027db5"
+    [35mfanUserId[39m: "6c9ba472-5056-4428-ae2d-5bab4ff39cfc"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[01:34:52.232] [32mINFO[39m (2357): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "b4096aef-530b-417e-9c19-7407c0d67ac1"
+    [35mamountCents[39m: 1000
+[01:34:52.278] [32mINFO[39m (2357): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "e4f13020-b514-4d04-8395-09749b2ffa68"
+    [35mfanUserId[39m: "27a90b6e-5d0d-4bf4-a2b5-f01bd67a7a50"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: true
+    [35msessionId[39m: "cs_test_1"
+[01:34:52.315] [32mINFO[39m (2357): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "99c75238-894c-4252-b1de-7acfbf2381fa"
+    [35mamountCents[39m: 1000
+[01:34:52.437] [31mERROR[39m (2357): [36m[memberships] public tiers load failed[39m
+    [35mcreatorUserId[39m: "ed3fe6a4-084f-4e07-93d6-34f209218330"
+    err: {
+      "type": "Error",
+      "message": "fake db failure reading fan_tiers",
+      "stack":
+          Error: fake db failure reading fan_tiers
+              at matchRows (/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server/src/routes/generate/__tests__/memberships-payments.test.ts:46:11)
+              at Object.then (/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server/src/routes/generate/__tests__/memberships-payments.test.ts:71:62)
+    }
+ [32m✓[39m src/routes/generate/__tests__/memberships-payments.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 2091[2mms[22m[39m
+   [32m✓[39m POST /memberships/checkout + verify [2m(7)[22m
+     [33m[2m✓[22m[39m charges the displayed monthly price and activates only after paid verify[33m 877[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/memberships-management.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1433[2mms[22m[39m
+   [32m✓[39m POST /memberships/mine/:memberId/cancel — the fan's own door [2m(9)[22m
+     [33m[2m✓[22m[39m cancels the fan's own active membership and writes the standard end state[33m 623[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 01:34:26
+[2m   Duration [22m 39.76s[2m (import 59%, transform 30%, tests 10%, setup 1%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 10.92s[39m[2m · 30% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
