@@ -99,6 +99,7 @@ import {
   Gem,
   Gift,
   Puzzle,
+  Smartphone,
   Star,
   BarChart3,
   Crown,
@@ -227,6 +228,7 @@ const SECTIONS: NavSection[] = [
       { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
       { href: "/library", labelKey: "nav.library", icon: Library },
       { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
+      { href: "/app", labelKey: "nav.getTheApp", icon: Smartphone },
     ],
   },
   {

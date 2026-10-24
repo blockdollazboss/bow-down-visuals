@@ -99,6 +99,7 @@ const SITEMAP_PUBLIC_SET = [
   "/privacy",
   "/refund-policy",
   "/storefronts",
+  "/app",
 ];
 
 function prerenderPaths(): string[] {
