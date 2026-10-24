@@ -368,6 +368,7 @@ describe("isPublicPath — representative positives from every public family", (
     ["D2 funnel — link in bio", "/bio/king-shark"],
     ["D2 funnel — NFC card profile", "/c/king-shark"],
     ["D2 funnel — tip jar", "/tips/king-shark"],
+    ["D2 funnel — the app's download home", "/app"],
     ["D5 marketplace — beats", "/beats"],
     ["D5 marketplace — shoutouts", "/shoutouts"],
     ["D5 marketplace — memberships", "/memberships"],
@@ -459,8 +460,8 @@ describe("the shipped allowlist itself", () => {
     expect(new Set(PUBLIC_ROUTES).size).toBe(PUBLIC_ROUTES.length);
   });
 
-  it("contains exactly the approved public set (45 patterns)", () => {
-    expect(PUBLIC_ROUTES).toHaveLength(45);
+  it("contains exactly the approved public set (46 patterns)", () => {
+    expect(PUBLIC_ROUTES).toHaveLength(46);
   });
 
   it("judges a path with a query string the same as the bare path", () => {

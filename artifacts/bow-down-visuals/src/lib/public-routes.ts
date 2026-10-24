@@ -74,6 +74,10 @@ export const PUBLIC_ROUTES: readonly string[] = [
   "/bio/:slug",
   "/c/:slug",
   "/tips/:handle",
+  // The app's download home (owner order, Stack-100 #3): a guest must
+  // be able to land on it and download straight from the page — the
+  // D2 conversion logic; the app itself signs in after install.
+  "/app",
   // Marketplace browse (D5).
   "/beats",
   "/shoutouts",
@@ -178,6 +182,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/waitlist", disposition: "redirect", redirectTo: "/beta-access", targetDisposition: "locked" },
   { path: "/extension", disposition: "locked" },
   { path: "/download", disposition: "locked" },
+  { path: "/app", disposition: "public" },
   { path: "/templates", disposition: "locked" },
   { path: "/templates/videos", disposition: "locked" },
   { path: "/templates/thumbnails", disposition: "locked" },

@@ -60,6 +60,7 @@ const Pricing = lazyWithRetry(() => import("@/pages/pricing"));
 const CreatorPricing = lazyWithRetry(() => import("@/pages/creator-pricing"));
 const Extension = lazyWithRetry(() => import("@/pages/extension"));
 const Download = lazyWithRetry(() => import("@/pages/download"));
+const AppPage = lazyWithRetry(() => import("@/pages/app"));
 const TemplatesHub = lazyWithRetry(() => import("@/pages/templates/index"));
 const VideoTemplates = lazyWithRetry(() => import("@/pages/templates/videos"));
 const ThumbnailTemplates = lazyWithRetry(() => import("@/pages/templates/thumbnails"));
@@ -500,6 +501,7 @@ function AppShell() {
           <Route path="/waitlist"><Redirect to="/beta-access" /></Route>
           <Route path="/extension"><Extension /></Route>
           <Route path="/download"><Download /></Route>
+          <Route path="/app"><AppPage /></Route>
           <Route path="/templates"><TemplatesHub /></Route>
           <Route path="/templates/videos"><VideoTemplates /></Route>
           <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>

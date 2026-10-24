@@ -179,8 +179,18 @@ const EN = CATALOGS.en!;
    brandCleanNote (the clean-render price, 400 Visual Bucs, kept
    byte-identical in every catalog — the numeric-parity suite
    judges it a fact, not copy). The namespace carries no array
-   leaves, so the plain string checks below judge it as-is. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub", "contentIntelligence", "hubSpine", "captionSuite", "world", "wallpapers"] as const;
+   leaves, so the plain string checks below judge it as-is.
+   "appPage" came with the Stack-100 #3 app-page lane (Oct 24 2026):
+   the public /app download home (Android APK / Chrome extension /
+   iPhone-iPad / desktop web-app cards, install guides, the update
+   story) was born translated ×10 in the same lane — all 46 leaves —
+   so the namespace is pinned here from day one, together with the
+   nav.getTheApp sidebar label. Its only digit-bearing leaf is
+   checksumLabel ("SHA-256", byte-identical in every catalog — the
+   numeric-parity suite judges it a fact, not copy); version/size ride
+   in {{placeholders}} only. The namespace carries no array leaves,
+   so the plain string checks below judge it as-is. */
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub", "contentIntelligence", "hubSpine", "captionSuite", "world", "wallpapers", "appPage"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "artistVault.identity",
@@ -251,7 +261,7 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key (4361 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill (4408 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
@@ -262,8 +272,9 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        wallpapers (aiDisclosure) — in all ten catalogs. Plus the editor
        lane's +2 opening-hook keys. Joined Stack-100 #3 total:
        4358 (fan graph + podcast RSS + provenance) + 2 = 4360.
-       Plus wave-2 more-provenance: +1 aiUnknown key = 4361. */
-    expect(REQUIRED.length).toBe(4361);
+       Plus wave-2 more-provenance: +1 aiUnknown key = 4361.
+       Plus the app-page lane: +47 appPage keys = 4408. */
+    expect(REQUIRED.length).toBe(4408);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

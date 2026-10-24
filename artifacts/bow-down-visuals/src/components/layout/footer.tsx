@@ -10,7 +10,7 @@ import { SHORTS_NAV_ENTRY } from "@/lib/shorts-navigation";
 const STUDIO_LINKS = [
   { label: "Home",        href: "/" },
   { label: "Beta Access", href: "/beta-access" },
-  { label: "Download the App", href: "/download" },
+  { label: "Download the App", href: "/app" },
   { label: "Contact / Support", href: "/contact" },
 ];
 
