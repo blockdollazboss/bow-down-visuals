@@ -65,6 +65,17 @@ import { logger } from "../lib/logger";
    shops/store rails charge, on every tier. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import {
+  GiftCardsUnavailable,
+  findCardByCode,
+  isGiftCardCodeShape,
+  releaseExpiredReservations,
+  reserveGiftCard,
+  redeemReservation,
+  releaseReservation,
+  tenderFor,
+  validateDenominations,
+} from "../lib/gift-cards";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
@@ -99,7 +110,7 @@ async function presentProduct(p: ProductRow) {
    (STORE_PRODUCT_KINDS). Defined locally here because lib/db's built dist is
    currently stale (other workers' uncommitted TS errors block `tsc --build`);
    restore the @workspace/db import once the dist rebuilds. */
-const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket"] as const;
+const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket", "gift_card"] as const;
 
 /* ── Platform economics ────────────────────────────────────────────────
    Worker 12's platform-fees.ts is the single source of truth (imported
@@ -217,6 +228,7 @@ interface ProductRow extends Record<string, unknown> {
   id: string; profile_id: string; kind: string; title: string;
   description: string; price_cents: number; compare_at_cents: number | null;
   inventory: number; media_urls: string[]; service_details: Record<string, unknown> | null;
+  gift_card_denominations_cents: number[] | null;
   event_id: string | null; related_links: Array<{ label: string; url: string }>;
   is_active: boolean; created_at: string;
   artist_name: string; artist_slug: string;
@@ -244,6 +256,11 @@ function withLinks(p: ProductRow) {
     unlimited: Number(p.inventory) === -1,
     mediaUrls: p.media_urls ?? [],
     serviceDetails: p.service_details,
+    /* kind='gift_card': the seller-set amounts the buyer picks from.
+       priceCents carries the smallest one (the listing's "from" price). */
+    giftCardDenominationsCents: Array.isArray(p.gift_card_denominations_cents)
+      ? p.gift_card_denominations_cents.map(Number)
+      : null,
     eventId: p.event_id,
     relatedLinks: p.related_links ?? [],
     isActive: p.is_active,
@@ -352,16 +369,30 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
     }
     const { feeCents, creatorCents } = splitTotals(Number(p.price_cents));
     const isFree = Number(p.price_cents) === 0;
+    const isGiftCard = p.kind === "gift_card";
     res.json({
       product: await presentProduct(p),
       free: isFree,
-      feeSplit: {
-        priceCents: Number(p.price_cents), price: money(Number(p.price_cents)),
-        platformFeeCents: feeCents, platformFee: money(feeCents),
-        platformFeePct: PLATFORM_FEE_PCT,
-        creatorCents, creatorAmount: money(creatorCents),
-      },
-      note: isFree
+      /* Gift cards carry NO fee split at purchase: the full amount is
+         the recipient's stored value (a liability, not a sale). The
+         standard fee applies later, to whatever sale the card pays
+         for. Showing a fee here would tell a lie twice over. */
+      feeSplit: isGiftCard
+        ? {
+            priceCents: Number(p.price_cents), price: money(Number(p.price_cents)),
+            platformFeeCents: 0, platformFee: money(0),
+            platformFeePct: 0,
+            creatorCents: 0, creatorAmount: money(0),
+          }
+        : {
+            priceCents: Number(p.price_cents), price: money(Number(p.price_cents)),
+            platformFeeCents: feeCents, platformFee: money(feeCents),
+            platformFeePct: PLATFORM_FEE_PCT,
+            creatorCents, creatorAmount: money(creatorCents),
+          },
+      note: isGiftCard
+        ? "A gift card for this creator's store — pick an amount, and it goes straight to your recipient's email. No platform fee is taken from a gift card: every cent you buy is a cent they can spend. This is not Visual Bucs (AI credits)."
+        : isFree
         ? "Free product — claim it with your email, no card and no charge. Claiming adds your email to this creator's list; unsubscribe anytime."
         : "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
     });
@@ -396,6 +427,9 @@ const BaseProductSchema = z.object({
   inventory: z.number().int().min(-1).default(-1),
   mediaUrls: z.array(z.string().url().max(2048)).max(20).default([]),
   serviceDetails: ServiceDetailsSchema,
+  /* kind='gift_card' only: the denominations the SELLER offers
+     (integer cents, $5–$500, up to 8). Required for gift cards. */
+  giftCardDenominationsCents: z.array(z.number().int()).max(8).nullable().optional(),
   eventId: z.string().regex(UUID_RE).nullable().optional(),
   relatedLinks: z.array(RelatedLinkSchema).max(10).default([]),
   isActive: z.boolean().default(true),
@@ -410,6 +444,9 @@ const CreateProductSchema = BaseProductSchema.refine((d) => d.kind !== "ticket" 
 }).refine((d) => d.kind !== "service" || !!d.serviceDetails, {
   message: "Service products need service details (duration, location, booking link).",
   path: ["serviceDetails"],
+}).refine((d) => d.kind !== "gift_card" || validateDenominations(d.giftCardDenominationsCents).ok, {
+  message: "Gift cards need seller-set amounts: 1–8 whole amounts between $5 and $500.",
+  path: ["giftCardDenominationsCents"],
 });
 
 router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, res) => {
@@ -425,13 +462,25 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
       return;
     }
     const d = parsed.data;
+    /* Gift cards: the listing price is the smallest denomination (the
+       "from" price); buyers pick the real amount at gift-card checkout
+       from the seller's denominations. Other kinds price as given. */
+    const giftDenominations = d.kind === "gift_card"
+      ? validateDenominations(d.giftCardDenominationsCents).ok
+        ? [...new Set((d.giftCardDenominationsCents ?? []).map(Number))].sort((a, b) => a - b)
+        : []
+      : null;
+    const effectivePriceCents = giftDenominations && giftDenominations.length > 0
+      ? giftDenominations[0]!
+      : d.priceCents;
     const r = await db.execute(sql`
       INSERT INTO store_products
         (profile_id, kind, title, description, price_cents, compare_at_cents,
-         inventory, media_urls, service_details, event_id, related_links, is_active)
-      VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${d.priceCents},
+         inventory, media_urls, service_details, gift_card_denominations_cents, event_id, related_links, is_active)
+      VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${effectivePriceCents},
               ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb,
               ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
+              ${giftDenominations ? JSON.stringify(giftDenominations) : null}::jsonb,
               ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive})
       RETURNING id
     `);
@@ -474,6 +523,16 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
     if (d.mediaUrls !== undefined) sets.push(sql`media_urls = ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb`);
     if (d.serviceDetails !== undefined)
       sets.push(sql`service_details = ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb`);
+    if (d.giftCardDenominationsCents !== undefined) {
+      const v = validateDenominations(d.giftCardDenominationsCents);
+      if (!v.ok) {
+        res.status(400).json({ error: "Invalid gift-card amounts.", message: v.error });
+        return;
+      }
+      sets.push(sql`gift_card_denominations_cents = ${JSON.stringify(v.denominations)}::jsonb`);
+      /* Keep the listing's "from" price honest: smallest denomination. */
+      sets.push(sql`price_cents = ${v.denominations[0]!}`);
+    }
     if (d.eventId !== undefined) sets.push(sql`event_id = ${d.eventId}`);
     if (d.relatedLinks !== undefined) sets.push(sql`related_links = ${JSON.stringify(d.relatedLinks)}::jsonb`);
     if (d.isActive !== undefined) sets.push(sql`is_active = ${d.isActive}`);
@@ -537,6 +596,12 @@ const CheckoutSchema = z.object({
   productId: z.string().regex(UUID_RE, "productId must be a UUID"),
   quantity: z.number().int().min(1).max(99).default(1),
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Gift-card tender (Stack-100 #3 #26): sits BESIDE the discount code,
+     but is money, not a markdown — the discount reduces the gross
+     first, then the card tenders against what's due. The platform fee
+     is still charged on the full (discounted) gross: tender never
+     reduces the fee base (lib/gift-cards.ts fee law). */
+  giftCardCode: z.string().trim().min(1).max(40).optional(),
 });
 
 router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -559,6 +624,16 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     const p = await fetchProduct(productId, true);
     if (!p) {
       res.status(404).json({ error: "NOT_FOR_SALE", message: "This product isn't for sale right now." });
+      return;
+    }
+    /* Gift cards are bought on their own checkout (POST
+       /api/gift-cards/checkout) because delivery goes to a recipient
+       email the buyer supplies — never through this product checkout. */
+    if (p.kind === "gift_card") {
+      res.status(400).json({
+        error: "GIFT_CARD_CHECKOUT",
+        message: "Gift cards are bought for someone else — choose an amount and the recipient's email on the gift-card checkout.",
+      });
       return;
     }
     /* A $0 lead magnet never reaches Stripe (migration 0190): there is
@@ -601,7 +676,58 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     }
 
     const lineTotal = unitCents * quantity;
+    /* Fee on the FULL discounted gross — gift-card tender below never
+       reduces the fee base (it is payment, not a markdown). */
     const { feeCents, creatorCents } = splitTotals(lineTotal);
+
+    /* ── Gift-card tender: reserve the card's spendable balance
+       against this checkout. The hold settles at verify; if this
+       checkout dies, the hold expires (30 min) and the cents return. */
+    let giftCardAppliedCents = 0;
+    let giftReservationId: string | null = null;
+    let giftReservationRef: string | null = null;
+    let giftCardLast4: string | null = null;
+    if (parsed.data.giftCardCode) {
+      if (!isGiftCardCodeShape(parsed.data.giftCardCode)) {
+        res.status(400).json({ error: "BAD_GIFT_CARD", message: "That doesn't look like a gift-card code (BDV-XXXX-XXXX-XXXX-XXXX)." });
+        return;
+      }
+      try {
+        await releaseExpiredReservations();
+        const card = await findCardByCode(parsed.data.giftCardCode);
+        if (!card || card.status !== "active") {
+          res.status(400).json({ error: "BAD_GIFT_CARD", message: "That gift card isn't active." });
+          return;
+        }
+        if (String(card.profile_id) !== p.profile_id) {
+          res.status(400).json({ error: "WRONG_STORE", message: "That gift card is for a different creator's store." });
+          return;
+        }
+        const tender = tenderFor(Number(card.balance_cents) - Number(card.reserved_cents), lineTotal);
+        if (tender <= 0) {
+          res.status(400).json({ error: "NO_BALANCE", message: "That gift card has no balance left to spend." });
+          return;
+        }
+        giftReservationRef = `sf-${randomBytes(16).toString("hex")}`;
+        const reservation = await reserveGiftCard({
+          cardId: String(card.id), rail: "storefront", ref: giftReservationRef, amountCents: tender,
+        });
+        if (!reservation) {
+          res.status(409).json({ error: "GIFT_CARD_BUSY", message: "That gift card's balance is held by another checkout right now — try again in a moment." });
+          return;
+        }
+        giftCardAppliedCents = tender;
+        giftReservationId = String(reservation.id);
+        giftCardLast4 = String(card.code_last4);
+      } catch (err) {
+        if (err instanceof GiftCardsUnavailable) {
+          res.status(503).json({ error: "GIFT_CARDS_UNAVAILABLE", message: "Gift cards aren't live yet — check out without the code for now. Nothing was charged." });
+          return;
+        }
+        throw err;
+      }
+    }
+    const cardDueCents = lineTotal - giftCardAppliedCents;
     /* Purchase sequence for the session idempotency key (see
        buildStorefrontCheckoutKey). A read failure throws into the
        catch below — no session is minted, so the failure is closed. */
@@ -623,14 +749,98 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       discountCode,
       completedOrderCount,
     });
+    /* Gift card covers the whole bill: no card payment exists to
+       take, so the order records right here — paid in full by tender,
+       fee still on the full gross — and the hold redeems against it.
+       The session-shaped record key keeps verify idempotency honest:
+       stripe_session_id carries `giftcard:{ref}`, unique per hold. */
+    if (giftReservationId && cardDueCents === 0) {
+      if (Number(p.inventory) >= 0) {
+        const claimed = await db.execute(sql`
+          UPDATE store_products
+          SET inventory = inventory - ${quantity}, updated_at = now()
+          WHERE id = ${productId} AND inventory >= ${quantity}
+          RETURNING id
+        `);
+        if (claimed.rows.length === 0) {
+          await releaseReservation(giftReservationId).catch(() => undefined);
+          res.status(400).json({ error: "SOLD_OUT", message: "This one just sold out — your gift card was not charged." });
+          return;
+        }
+      }
+      const recordKey = `giftcard:${giftReservationRef}`;
+      const inserted = await db.execute(sql`
+        INSERT INTO store_orders
+          (buyer_user_id, profile_id, product_id, product_title, product_kind,
+           quantity, amount_cents, discount_code, platform_fee_cents,
+           creator_amount_cents, stripe_session_id, status, fulfillment_note)
+        VALUES (${req.userId!}, ${p.profile_id}, ${productId}, ${p.title}, ${p.kind},
+                ${quantity}, ${lineTotal}, ${discountCode}, ${feeCents},
+                ${creatorCents}, ${recordKey}, 'completed', NULL)
+        ON CONFLICT (stripe_session_id) DO NOTHING
+        RETURNING id
+      `);
+      let orderId: string;
+      if (inserted.rows.length > 0) {
+        orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+        if (discountCode) {
+          await db.execute(sql`
+            UPDATE discount_codes
+            SET used_count = used_count + 1
+            WHERE profile_id = ${p.profile_id}
+              AND UPPER(code) = ${discountCode.toUpperCase()}
+              AND (max_uses = -1 OR used_count < max_uses)
+          `);
+        }
+        const note = p.kind === "ticket"
+          ? "Ticket secured — you're on the list. Show this order at the door (or follow the event link)."
+          : p.kind === "service"
+            ? "Booking request received — the creator confirms your slot from their dashboard."
+            : p.kind === "merch"
+              ? "Order received — the creator fulfills it through their merch/print pipeline."
+              : "Digital delivery ready.";
+        await db.execute(sql`UPDATE store_orders SET fulfillment_note = ${note} WHERE id = ${orderId}`);
+      } else {
+        const retry = await db.execute(sql`
+          SELECT id FROM store_orders WHERE stripe_session_id = ${recordKey} LIMIT 1
+        `);
+        orderId = String((retry.rows[0] as Record<string, unknown>)["id"]);
+      }
+      const redeemed = await redeemReservation({ reservationId: giftReservationId, ref: orderId });
+      if (!redeemed) {
+        logger.error({ orderId, giftReservationId }, "[storefront] gift-card redeem failed after order record — needs reconciliation");
+      }
+      logger.info({ userId: req.userId, productId, orderId, giftCardAppliedCents }, "[storefront] order paid in full by gift card");
+      res.json({
+        paid: true,
+        paidWithGiftCard: true,
+        url: null,
+        sessionId: null,
+        orderId,
+        totals: {
+          unitCents, quantity, lineTotal, lineTotalDisplay: money(lineTotal),
+          percentOff, discountCode,
+          giftCardAppliedCents, giftCardLast4, amountDueCents: 0,
+          platformFeeCents: feeCents, creatorCents,
+        },
+        note: "Paid in full with your gift card — no card payment was taken. The balance left on the card stays on the card.",
+      });
+      return;
+    }
+
     const baseUrl = getBaseUrl(req);
-    const session = await stripe.checkout.sessions.create({
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
         {
           price_data: {
             currency: "usd",
-            unit_amount: unitCents,
+            /* With a gift card in play the session charges only the
+               amount still due, as one line — the order record (at
+               verify) still carries the full gross and full fee. */
+            unit_amount: giftCardAppliedCents > 0 ? cardDueCents : unitCents,
             product_data: {
               name: `${p.title} — ${p.artist_name}`,
               description:
@@ -640,7 +850,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
               images: (p.media_urls ?? []).slice(0, 1),
             },
           },
-          quantity,
+          quantity: giftCardAppliedCents > 0 ? 1 : quantity,
         },
       ],
       /* Same success page as the digital store; it falls back to
@@ -659,11 +869,19 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
         event_id: p.event_id ?? "",
+        gift_card_reservation_id: giftReservationId ?? "",
+        gift_card_applied_cents: String(giftCardAppliedCents),
       },
-    }, { idempotencyKey });
+      }, { idempotencyKey });
+    } catch (sessionErr) {
+      /* No session, no sale: the gift-card hold goes back at once
+         instead of waiting out its expiry. */
+      if (giftReservationId) await releaseReservation(giftReservationId).catch(() => undefined);
+      throw sessionErr;
+    }
 
     logger.info(
-      { userId: req.userId, productId, quantity, lineTotal, sessionId: session.id, discountCode },
+      { userId: req.userId, productId, quantity, lineTotal, sessionId: session.id, discountCode, giftCardAppliedCents },
       "[storefront] checkout session created"
     );
     res.json({
@@ -672,6 +890,8 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       totals: {
         unitCents, quantity, lineTotal, lineTotalDisplay: money(lineTotal),
         percentOff, discountCode,
+        giftCardAppliedCents, giftCardLast4,
+        amountDueCents: cardDueCents, amountDue: money(cardDueCents),
         platformFeeCents: feeCents, creatorCents,
       },
     });
@@ -745,7 +965,12 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     res.status(400).json({ error: "This session is missing its purchase details." });
     return;
   }
-  const amountCents = session.amount_total ?? Number(meta["amount_cents"] ?? 0);
+  /* Gift-card tender: the session charged only the amount still due;
+     the sale's gross is due + tender, and the fee splits the GROSS —
+     tender is payment, never a fee discount (lib/gift-cards.ts). */
+  const giftCardAppliedCents = Math.max(0, parseInt(meta["gift_card_applied_cents"] ?? "0", 10) || 0);
+  const giftReservationId = meta["gift_card_reservation_id"] || null;
+  const amountCents = (session.amount_total ?? Number(meta["amount_cents"] ?? 0)) + giftCardAppliedCents;
   const { feeCents, creatorCents } = splitTotals(amountCents);
 
   try {
@@ -869,6 +1094,22 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
       }
     }
 
+    /* Settle the gift-card hold against this order. Idempotent by
+       design (redeem:{reservationId}): a duplicate verify replays it
+       harmlessly, and a first verify that died between the order
+       insert and here is healed by the second. A failure logs LOUD —
+       the order stands (the buyer paid), and the ledger key tells
+       support exactly what to reconcile. */
+    if (giftReservationId) {
+      const redeemed = await redeemReservation({ reservationId: giftReservationId, ref: orderId }).catch((e) => {
+        logger.error({ err: e, orderId, giftReservationId }, "[storefront] gift-card redeem threw");
+        return null;
+      });
+      if (!redeemed) {
+        logger.error({ orderId, giftReservationId }, "[storefront] gift-card redeem failed after order record — needs reconciliation");
+      }
+    }
+
     /* Instant delivery for digital/download kinds — signed-link concept
        (Worker 5's pattern), 48h expiry, 5 uses. */
     let delivery: { url: string; expiresAt: string; maxUses: number } | null = null;
@@ -898,6 +1139,8 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         platformFeePct: PLATFORM_FEE_PCT,
         creatorAmountCents: creatorCents, creatorAmount: money(creatorCents),
         discountCode,
+        giftCardAppliedCents,
+        giftCardApplied: money(giftCardAppliedCents),
         fulfillmentNote,
       },
       delivery,
