@@ -305,8 +305,8 @@ async function hedraUploadFile(
 
 /** Speak the script through the site's ElevenLabs TTS rail (voiceover pattern). */
 async function synthesizeScriptAudio(req: AvatarVideoRequest): Promise<Buffer> {
-  const apiKey = <redacted>
-  if (!apiKey) {
+  const elevenKey = process.env["ELEVENLABS_API_KEY"];
+  if (!elevenKey) {
     throw new AvatarInputError(
       "AVATAR_AUDIO_REQUIRED",
       "This avatar generation needs driving audio: supply an audio file, or configure the site's voice service (ELEVENLABS_API_KEY) so the script can be spoken.",
@@ -321,7 +321,7 @@ async function synthesizeScriptAudio(req: AvatarVideoRequest): Promise<Buffer> {
       `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
       {
         method: "POST",
-        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
         body: JSON.stringify({ text: req.script, model_id: model }),
         signal: AbortSignal.timeout(120_000),
       },
