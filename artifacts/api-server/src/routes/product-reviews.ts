@@ -54,6 +54,7 @@
  * drive this router against DDL mirroring the held migration.
  */
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -117,7 +118,6 @@ function reviewDto(r: ReviewRow, opts: { forSeller?: boolean; forAuthor?: boolea
     sellerRespondedAt: r.seller_responded_at ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
-    edited: String(r.updated_at) !== String(r.created_at),
     /* Moderation state is public knowledge, not a secret: buyers see
        that a review is flagged (never its seller-only note), sellers
        and the author see the full record. */
@@ -437,16 +437,18 @@ router.post("/product-reviews", requireAuth, publicApiLimiter, async (req, res) 
       });
       return;
     }
-    const inserted = await db.execute(sql`
+    /* The id is minted app-side (the column default would also work
+       on real Postgres; an explicit id keeps the insert a single
+       deterministic statement on every engine). */
+    const id = randomUUID();
+    await db.execute(sql`
       INSERT INTO product_reviews
-        (product_type, product_id, product_title, seller_user_id, profile_id,
+        (id, product_type, product_id, product_title, seller_user_id, profile_id,
          shop_id, buyer_user_id, rating, title, body, purchase_source, purchase_id)
-      VALUES (${productType}, ${productId}, ${product.title}, ${product.sellerUserId},
+      VALUES (${id}, ${productType}, ${productId}, ${product.title}, ${product.sellerUserId},
               ${product.profileId}, ${product.shopId}, ${req.userId!}, ${rating},
               ${title ?? null}, ${body}, ${purchase.source}, ${purchase.id})
-      RETURNING id
     `);
-    const id = String((inserted.rows[0] as Record<string, unknown>)["id"]);
     const review = await fetchReview(id);
     logger.info(
       { userId: req.userId, productType, productId, reviewId: id, purchaseSource: purchase.source },
