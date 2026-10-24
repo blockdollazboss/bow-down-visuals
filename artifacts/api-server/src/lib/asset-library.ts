@@ -18,6 +18,10 @@ export interface LibraryAssetDTO {
   origin: LibraryOrigin;
   detail: string | null;
   createdAt: string; // ISO
+  /** Provenance & licence record (Stack-100 #3 lane F7) — attached by the
+      route, which holds the creator profile + full source rows; the pure
+      mappings below leave it unset. */
+  provenance?: import("./provenance").ProvenanceRecord | null;
 }
 
 const HUB_KIND_TO_MEDIA: Record<string, LibraryMediaKind> = {

@@ -22,6 +22,8 @@ import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
 import { recordCreation } from "../../lib/retention";
+import { stampVideoFileWithDisclosure } from "../../lib/disclosure-metadata";
+import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../../lib/provenance";
 import {
   createExportJob,
   getExportJob,
@@ -965,6 +967,9 @@ const exportFinalVideoSchema = z.object({
   audioStartSec: z.number().default(0),
   matchVideoLength: z.boolean().default(true),
   addWatermark: z.boolean().default(false),
+  /** AI disclosure (lane F7): absent = ON (the disclosure is stamped into
+   *  the exported file's metadata); only an explicit false opts out. */
+  aiDisclosure: z.boolean().optional(),
   customWatermarkUrl: z.string().nullish(),
   watermarkTheme: z.enum(["light", "dark"]).default("dark"),
   watermarkPosition: z.string().default("bottom-right"),
@@ -1018,6 +1023,8 @@ export interface ExportRequestBody {
     /** Trim the audio so it never runs past the video length (studio "match length"). */
     matchVideoLength?: boolean;
     addWatermark?: boolean;
+    /** AI disclosure toggle (lane F7) — undefined means ON. */
+    aiDisclosure?: boolean;
     customWatermarkUrl?: string | null;
     /** Theme-matched default watermark: "light" = bronze logo, "dark" = gold logo. */
     watermarkTheme?: "light" | "dark";
@@ -1130,6 +1137,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     audioStartSec = 0,
     matchVideoLength = true,
     addWatermark = false,
+    aiDisclosure,
     customWatermarkUrl,
     watermarkTheme = "dark",
     watermarkPosition = "bottom-right",
@@ -2800,6 +2808,31 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     if (!outInfo.hasVideo) throw new Error("Output file has no video stream — FFmpeg may have produced a corrupt file");
     if (outInfo.duration <= 0) throw new Error("Output file has zero duration — FFmpeg may have produced a corrupt file");
 
+    /* ── 7b: AI-disclosure stamp (Stack-100 #3 lane F7) ──────────────────
+       DEFAULT ON: unless the request explicitly set aiDisclosure:false,
+       the verified file is remuxed by stream copy (no re-encode, no
+       quality change) with the disclosure in its container metadata —
+       comment / description / ai_disclosure tags. A failed stamp NEVER
+       fails the export: the unstamped file ships and the result reports
+       aiDisclosure:"stamp_failed" honestly. */
+    let aiDisclosureState: "embedded" | "off" | "stamp_failed" =
+      aiDisclosure === false ? "off" : "embedded";
+    let finalPath = outputPath;
+    if (aiDisclosure !== false) {
+      const stampedPath = path.join(tmpDir, `bdv-export-${exportId}-disclosed.${outExt}`);
+      tmpFiles.push(stampedPath);
+      const stamped = await stampVideoFileWithDisclosure(outputPath, stampedPath, {
+        text: aiDisclosureMetadataText({ createdWith: { tool: "Video Editor", model: null, platform: PROVENANCE_PLATFORM } }),
+        tool: "Video Editor",
+      });
+      if (stamped) {
+        finalPath = stampedPath;
+      } else {
+        aiDisclosureState = "stamp_failed";
+        ctx.log.warn({ exportId }, "[export] AI-disclosure stamp failed; shipping unstamped");
+      }
+    }
+
     /* Fail fast on size: Supabase's plan-level per-file ceiling (50 MB on the
      * free tier) rejects oversized uploads with a cryptic 413. The bitrate
      * budget above should keep us under it — this is the backstop with a
@@ -2817,7 +2850,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     // small instances. The file stays on disk; only small chunks are in RAM.
     // NOTE: the old 48 MB Supabase per-file cap is gone — R2 has no such
     // limit, so exports of any length can upload.
-    const storageRef = await uploadFileStreamToSupabaseStorage(VIDEO_EXPORTS_BUCKET, objectName, outputPath, outContentType);
+    const storageRef = await uploadFileStreamToSupabaseStorage(VIDEO_EXPORTS_BUCKET, objectName, finalPath, outContentType);
     // storageRef is `r2://video-exports/<name>` under R2 → mints an R2
     // presigned URL; legacy `supabase://` refs still re-sign from Supabase.
     const signedUrl = await refreshSupabaseStorageUrl(storageRef);
@@ -2849,6 +2882,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
           audio_used: !!audioPath,
           audio_source: audioSource,
           aspect_ratio: aspectRatio,
+          ai_disclosure: aiDisclosureState,
         };
 
         /* Update output_data in place. Previously this did a delete-then-insert, which could
@@ -2891,6 +2925,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       aspectRatio,
       duration: outInfo.duration,
       testMode: !!testMode,
+      aiDisclosure: aiDisclosureState,
       exportStatus,
       quality: {
         enabled: quality.enabled,

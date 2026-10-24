@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
-import { db, hubProjectsTable, generationHistoryTable } from "@workspace/db";
+import { db, hubProjectsTable, generationHistoryTable, creatorProfilesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
@@ -9,6 +9,7 @@ import {
   mergeLibraryAssets,
   type LibraryAssetDTO,
 } from "../lib/asset-library";
+import { buildProvenanceRecord, type ProvenanceRecord } from "../lib/provenance";
 
 /* ─── GET /api/asset-library (Stack 4 #5) ───────────────────────────────────
    The one asset library across desks: the caller's active hub-project
@@ -45,10 +46,65 @@ router.get("/asset-library", requireAuth, async (req, res) => {
       .map((r) => libraryAssetFromGeneration(r as never))
       .filter((a): a is LibraryAssetDTO => a !== null);
 
+    /* Provenance records (lane F7): derived per asset from the same source
+       rows + the creator's display name, so every library card can show its
+       "Made with" facts and stated licence. Derivation failures degrade to
+       no record on that asset — never a failed library. */
+    const records = new Map<string, ProvenanceRecord>();
+    try {
+      const profileRows = await db
+        .select({ displayName: creatorProfilesTable.displayName })
+        .from(creatorProfilesTable)
+        .where(eq(creatorProfilesTable.userId, userId));
+      const creatorName = profileRows[0]?.displayName ?? null;
+      for (const entry of projectAssetsRaw) {
+        const dto = libraryAssetFromHub(entry);
+        if (!dto) continue;
+        const stored = (entry as unknown as { provenance?: { licence?: unknown } }).provenance;
+        records.set(dto.id, buildProvenanceRecord({
+          assetId: dto.id,
+          title: dto.label,
+          mediaKind: dto.mediaKind,
+          origin: "project",
+          creatorId: userId,
+          creatorName,
+          createdAt: dto.createdAt,
+          hubKind: dto.hubKind,
+          hubDetail: dto.detail,
+          storedLicence: stored?.licence,
+        }));
+      }
+      for (const row of generationRows) {
+        const dto = libraryAssetFromGeneration(row as never);
+        if (!dto) continue;
+        const result = (typeof row.result === "object" && row.result !== null ? row.result : {}) as { provenance?: { licence?: unknown } };
+        records.set(dto.id, buildProvenanceRecord({
+          assetId: dto.id,
+          title: dto.label,
+          mediaKind: dto.mediaKind,
+          origin: "generation",
+          creatorId: userId,
+          creatorName,
+          createdAt: dto.createdAt,
+          generationType: row.generationType,
+          prompt: row.prompt,
+          creditsUsed: row.creditsUsed,
+          saveStatus: row.saveStatus,
+          storedLicence: result.provenance?.licence,
+        }));
+      }
+    } catch (provErr: unknown) {
+      req.log?.warn?.({ err: provErr }, "asset-library provenance derivation failed; serving without records");
+    }
+
     const merged = mergeLibraryAssets([fromProject, fromGenerations]);
     /* Storage refs are re-signed fresh on every read; legacy URLs pass through. */
     const assets = await Promise.all(
-      merged.map(async (a) => ({ ...a, url: await refreshSupabaseStorageUrl(a.url) })),
+      merged.map(async (a) => ({
+        ...a,
+        url: await refreshSupabaseStorageUrl(a.url),
+        provenance: records.get(a.id) ?? null,
+      })),
     );
     res.json({ assets });
   } catch (err: unknown) {
