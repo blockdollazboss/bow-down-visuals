@@ -22,7 +22,11 @@
  * visitors still wear the flat figure this round (stated plainly in
  * the lane report — fixtures first).
  */
-import { DEFAULT_FIGURE_HEIGHT, DEFAULT_FIGURE_SRC, FEMALE_FIGURE_SRC } from "./figure";
+import {
+  DEFAULT_CHARACTER_FEMALE_PATH,
+  DEFAULT_CHARACTER_PATH,
+  DEFAULT_FIGURE_HEIGHT,
+} from "./figure";
 
 export type FixtureBodyId = "guard-male" | "guard-female" | "king";
 export type FixtureArea = "hall" | "plaza";
@@ -87,9 +91,9 @@ export type FixtureFallback =
 export function fixtureFallbackFor(body: FixtureBodyId): FixtureFallback {
   switch (body) {
     case "guard-male":
-      return { kind: "matte", src: DEFAULT_FIGURE_SRC };
+      return { kind: "matte", src: DEFAULT_CHARACTER_PATH };
     case "guard-female":
-      return { kind: "matte", src: FEMALE_FIGURE_SRC };
+      return { kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH };
     case "king":
       return { kind: "capsule", color: 0xc9a227 };
   }

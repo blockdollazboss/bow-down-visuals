@@ -9,7 +9,11 @@ import {
   fixtureSway,
   fixtureSwayPhase,
 } from "./guard-fixtures";
-import { DEFAULT_FIGURE_HEIGHT, DEFAULT_FIGURE_SRC, FEMALE_FIGURE_SRC } from "./figure";
+import {
+  DEFAULT_CHARACTER_FEMALE_PATH,
+  DEFAULT_CHARACTER_PATH,
+  DEFAULT_FIGURE_HEIGHT,
+} from "./figure";
 
 describe("WORLD_FIXTURES — the court's posts", () => {
   it("stands five figures: the King + two guards in the hall, two on the plaza steps", () => {
@@ -109,8 +113,8 @@ describe("fixtureNormalization — the proof loader's math", () => {
 
 describe("fixtureFallbackFor — a post is never empty", () => {
   it("guards fall back to the presence figures' own mattes", () => {
-    expect(fixtureFallbackFor("guard-male")).toEqual({ kind: "matte", src: DEFAULT_FIGURE_SRC });
-    expect(fixtureFallbackFor("guard-female")).toEqual({ kind: "matte", src: FEMALE_FIGURE_SRC });
+    expect(fixtureFallbackFor("guard-male")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_PATH });
+    expect(fixtureFallbackFor("guard-female")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH });
   });
 
   it("the King falls back to the gold house capsule (he has no matte)", () => {
