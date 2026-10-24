@@ -6547,7 +6547,7 @@
     "genStatusFailed": "アップスケールサービスに到達できませんでした。",
     "genDisabledTitle": "有効化するにはプロバイダーキーを接続",
     "genButton": "{{target}}への生成的アップスケール（1500 VB）",
-    "genPriceNote": "生成的AIアップスケールは1動画あたり1500 VBです。クラシックなffmpegアップスケールは300 VBのままです。"
+    "genPriceNote": "生成的AIアップスケールは動画あたり1500 VBです。クラシックなffmpegアップスケールは300 VBのままです。"
   },
   "videoEditor": {
     "activeSceneNoClip": "アクティブなシーンにクリップがありません — 音声は再生中です",
