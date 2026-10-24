@@ -18,6 +18,7 @@
  */
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { recordAffiliateSaleSafely } from "./affiliates";
 
 export interface MarketSaleRow {
   id: string;
@@ -35,6 +36,8 @@ export interface MarketSaleRow {
   checkout_group_id: string | null;
   /** Shop discount code the checkout was priced with (migration 0190). */
   discount_code: string | null;
+  /** Affiliate share code the line was bought through (migration 0205). */
+  affiliate_code: string | null;
   paid_at: string | null;
   created_at: string;
 }
@@ -43,7 +46,7 @@ const SALE_COLUMNS = sql`
   e.id, e.shop_id, e.user_id, e.product_id, p.name AS product_name,
   e.quantity, e.amount_cents, e.platform_fee_cents, e.buyer_email,
   e.event_type, e.payment_status, e.stripe_session_id, e.checkout_group_id,
-  e.discount_code,
+  e.discount_code, e.affiliate_code,
   e.paid_at, e.created_at
 `;
 
@@ -99,6 +102,26 @@ export async function markMarketSalePaid(
         SET used_count = used_count + 1
         WHERE shop_id = ${row.shop_id} AND UPPER(code) = ${row.discount_code.toUpperCase()}
       `);
+    }
+    /* Affiliate commissions (#16, migration 0205) — the same exactly-once
+       discipline as discount counting: a commission is recorded only for
+       rows THIS call flipped, keyed by (surface, checkout_group_id,
+       product) in the ledger, so replays and races can never double-pay.
+       The commission is a creator-set % of the line's seller net
+       (amount − platform fee); the fee itself is untouched. Safely = a
+       ledger failure never breaks the flip that records the sale. */
+    for (const row of rows) {
+      if (!flippedIds.has(String(row.id)) || !row.affiliate_code || !row.product_id) continue;
+      await recordAffiliateSaleSafely({
+        code: row.affiliate_code,
+        surface: "shop_product",
+        productId: String(row.product_id),
+        productTitle: row.product_name ?? undefined,
+        orderRef: row.checkout_group_id ?? sessionId,
+        buyerEmail: row.buyer_email,
+        grossCents: Number(row.amount_cents),
+        platformFeeCents: Number(row.platform_fee_cents),
+      });
     }
   }
   return { flipped: updated.rows.length, rows };
