@@ -40,6 +40,8 @@ interface ProductData {
     soldOut: boolean;
     unlimited: boolean;
     mediaUrls: string[];
+    /* #29: index-aligned accessibility descriptions for mediaUrls. */
+    mediaAltTexts?: string[];
     links: {
       creatorUrl: string;
       creatorName: string;
