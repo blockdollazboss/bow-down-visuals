@@ -2109,20 +2109,26 @@ export function LipSyncSection({
                     { value: "high"   as const, label: "High" },
                   ]}
                 />
+                <p className="mt-2 text-[10px] leading-relaxed text-white/35">
+                  How expressive the mouth performance is. Your choice is
+                  sent to the lip-sync provider with every job — the
+                  current sync-3 model sets expression automatically, and
+                  this dial takes effect on the lipsync-2 model.
+                </p>
               </div>
               <div className="space-y-1 divide-y divide-white/5">
                 <Toggle
                   value={ls.preserveFaceIdentity}
                   onChange={v => updateLipSync({ preserveFaceIdentity: v })}
                   label="Preserve Face Identity"
-                  sub="Keep original facial features during lip sync"
+                  sub="Always on — sync-3 preserves the original face by design; the provider offers no off switch"
                 />
                 <div className="pt-1">
                   <Toggle
                     value={ls.preserveArtistLook}
                     onChange={v => updateLipSync({ preserveArtistLook: v })}
                     label="Preserve Artist Look"
-                    sub="Maintain artist style, skin tone, and expression"
+                    sub="Always on — sync-3 keeps the artist's style, skin tone, and expression automatically"
                   />
                 </div>
               </div>
