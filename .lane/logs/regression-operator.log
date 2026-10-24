@@ -1,0 +1,39 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server[39m
+
+[14:13:04.189] [33mWARN[39m (37280): [36m[chat] reply quoted a price outside the knowledge base — replaced[39m
+    [35minvented[39m: 999
+[14:13:04.287] [33mWARN[39m (37280): [36m[chat] reply quoted a price outside the knowledge base — replaced[39m
+    [35minvented[39m: 999
+[14:13:04.431] [32mINFO[39m (37280): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+[14:13:04.496] [32mINFO[39m (37280): [36m[chat] reply generated[39m
+    [35mprovider[39m: "knowledge-base"
+[14:13:04.563] [32mINFO[39m (37280): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+[14:13:04.691] [32mINFO[39m (37280): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+ [32m✓[39m src/routes/__tests__/chat-doors.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 14014[2mms[22m[39m
+   [32m✓[39m buildReplyDoors — the shared door contract [2m(9)[22m
+     [33m[2m✓[22m[39m sweep: every door ever built points at a real KB path, verbatim, at most two[33m 10522[2mms[22m[39m
+   [32m✓[39m POST /api/chat — doors ride the reply [2m(6)[22m
+     [33m[2m✓[22m[39m a thumbnail answer carries the desk door and the guide door[33m 940[2mms[22m[39m
+     [33m[2m✓[22m[39m an unguided feature's answer carries exactly one door[33m 341[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-door-mapping.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 7511[2mms[22m[39m
+   [32m✓[39m operator door mapping — every knowledge door against the real route table [2m(7)[22m
+     [33m[2m✓[22m[39m every door a member can receive is concrete, resolves, and passes the query rules[33m 6912[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-knowledge.test.ts [2m([22m[2m62 tests[22m[2m)[22m[33m 2625[2mms[22m[39m
+   [32m✓[39m operator knowledge — sourced facts only [2m(4)[22m
+     [33m[2m✓[22m[39m every price names the registry as its source and is a whole VB figure[33m 453[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-checkout-idempotency-rest.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 558[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-checkout-idempotency.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 167[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m103 passed[39m[22m[90m (103)[39m
+[2m   Start at [22m 14:12:03
+[2m   Duration [22m 125.59s[2m (import 51%, transform 27%, tests 22%)[22m
+
+[2m     Import [22m [33m225 modules were evaluated 366 times[39m[2m · 57.73s total, 51% of tracked time[22m
+[2m            [22m [2m~22.24s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

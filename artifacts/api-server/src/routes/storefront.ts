@@ -26,7 +26,10 @@
  *   DELETE /storefront/products/:id               auth: soft-deactivate (own profile)
  *   PUT    /storefront/products/:id/bump          auth: set/clear the product's order-bump add-on (own profile)
  *   POST   /storefront/checkout                   auth: Stripe session (discount + optional bump validated server-side)
- *   POST   /storefront/verify                     auth: confirm payment, record order idempotently
+ *   POST   /storefront/verify                     auth: confirm payment, record order idempotently (+ post-purchase upsell offer)
+ *   GET    /storefront/orders/:id/upsell           auth: the order's pending post-purchase upsell offer (buyer)
+ *   POST   /storefront/orders/:id/upsell/accept    auth: one-click accept — off-session PaymentIntent on the saved card
+ *   POST   /storefront/orders/:id/upsell/decline   auth: decline/close the offer — never shown again for that order
  *   POST   /storefront/claim                      auth: claim a $0 lead-magnet product by email (no Stripe)
  *   GET    /storefront/discounts                   auth: seller's codes
  *   POST   /storefront/discounts                  auth: create code
@@ -101,6 +104,17 @@ import {
   MAX_BUMP_PERCENT_OFF,
 } from "../lib/order-bumps";
 import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../lib/affiliates";
+/* Post-purchase upsell (Stack-100 #3, Wave 3): the SAME seller
+   attachment as the bump, offered once after the purchase completes
+   and charged in one click off the saved payment method through its
+   own PaymentIntent. All money/state logic lives in
+   lib/post-purchase-upsell.ts. */
+import {
+  upsellIdempotencyKey,
+  buildUpsellSnapshot,
+  upsellEligibility,
+  upsellAcceptBlocker,
+} from "../lib/post-purchase-upsell";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import {
   GiftCardsUnavailable,
@@ -1754,6 +1768,14 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       ...(bookingHold
         ? { expires_at: Math.floor(Date.now() / 1000) + (BOOKING_HOLD_TTL_MIN + 5) * 60 }
         : {}),
+      /* Post-purchase upsell (Wave 3): ask Stripe to save the buyer's
+         payment method to a customer so the one-click post-purchase
+         offer can charge it off-session through its own
+         PaymentIntent. Amounts, lines, metadata and the idempotency
+         key are unchanged — a buyer who never gets or never accepts
+         an offer is charged exactly what they were charged before. */
+      customer_creation: "always",
+      payment_intent_data: { setup_future_usage: "off_session" },
       line_items: [
         {
           price_data: {
@@ -1900,6 +1922,243 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     res.status(500).json({ error: `Could not start checkout: ${msg}` });
   }
 });
+
+/* ═══════════════ POST-PURCHASE UPSELL (Wave 3) ═════════════════════
+   One-click add-on offer AFTER a purchase completes. Designation is
+   the seller's bump attachment (feature #13) — the same add-on the
+   buyer could have ticked at checkout. The offer, its price/fee
+   snapshot and the saved payment method live on ONE row per order in
+   store_upsell_offers (migration 0206, reported by the lane). Every
+   read here is defensive: on a database without the table the whole
+   feature is simply absent (verify records orders exactly as before,
+   the endpoints answer an honest UPSELL_UNAVAILABLE).
+
+   Exactly-once, in layers: UNIQUE parent_order_id + ON CONFLICT DO
+   NOTHING mints at most one offer; the PaymentIntent idempotency key
+   is a pure function of the order id (lib/post-purchase-upsell), so
+   double-clicks / duplicate accepts / retries all derive the same
+   key; store_orders.stripe_payment_intent_id is UNIQUE with the same
+   conflict discipline; and an accepted/failed offer short-circuits
+   before Stripe is ever called again. */
+
+interface UpsellOfferRow extends Record<string, unknown> {
+  id: string;
+  parent_order_id: string;
+  buyer_user_id: string;
+  profile_id: string;
+  product_id: string;
+  upsell_product_id: string;
+  upsell_title: string;
+  upsell_kind: string;
+  list_price_cents: number;
+  percent_off: number;
+  amount_cents: number;
+  platform_fee_cents: number;
+  creator_amount_cents: number;
+  stripe_customer_id: string | null;
+  stripe_payment_method_id: string | null;
+  payment_method_brand: string | null;
+  payment_method_last4: string | null;
+  status: string;
+  stripe_payment_intent_id: string | null;
+  upsell_order_id: string | null;
+  shown_at: string | null;
+}
+
+/** Throws on a pre-migration database — callers decide what that
+    means for their surface (verify: no offer; endpoints: honest 500). */
+async function loadUpsellOffer(parentOrderId: string): Promise<UpsellOfferRow | null> {
+  const r = await db.execute(sql`
+    SELECT * FROM store_upsell_offers WHERE parent_order_id = ${parentOrderId} LIMIT 1
+  `);
+  return (r.rows[0] as unknown as UpsellOfferRow | undefined) ?? null;
+}
+
+function upsellHasReusablePaymentMethod(offer: UpsellOfferRow): boolean {
+  return Boolean(offer.stripe_customer_id && offer.stripe_payment_method_id);
+}
+
+/** The buyer-facing offer payload — non-null ONLY for a pending offer
+    with a reusable payment method. A decided offer, or one that could
+    not be one-clicked, is never dangled in front of the buyer. Every
+    figure is the snapshot the accept will charge, to the cent. */
+function upsellPayload(offer: UpsellOfferRow) {
+  if (offer.status !== "pending" || !upsellHasReusablePaymentMethod(offer)) return null;
+  const gross = Number(offer.amount_cents);
+  const fee = Number(offer.platform_fee_cents);
+  const creator = Number(offer.creator_amount_cents);
+  return {
+    orderId: String(offer.parent_order_id),
+    productId: String(offer.upsell_product_id),
+    title: String(offer.upsell_title),
+    kind: String(offer.upsell_kind),
+    listPriceCents: Number(offer.list_price_cents),
+    listPrice: money(Number(offer.list_price_cents)),
+    percentOff: Number(offer.percent_off),
+    priceCents: gross,
+    price: money(gross),
+    platformFeeCents: fee,
+    platformFee: money(fee),
+    platformFeePct: PLATFORM_FEE_PCT,
+    creatorCents: creator,
+    creatorAmount: money(creator),
+    paymentMethod:
+      offer.payment_method_brand || offer.payment_method_last4
+        ? { brand: offer.payment_method_brand, last4: offer.payment_method_last4 }
+        : null,
+    note: "One click adds this to your order — charged to the payment method you just paid with. The price is the seller's listed price; the platform's flat 5% fee comes out of the creator's cut, never on top of what you pay.",
+  };
+}
+
+/**
+ * Mint (or fetch) the order's upsell offer. Returns null when the
+ * purchase carries no offer: no designation, the buyer already bought
+ * the add-on in this order, or the add-on isn't a live offer now.
+ * The saved payment method is read off the completed session's
+ * PaymentIntent — the checkout asked Stripe to save it
+ * (setup_future_usage: off_session); when Stripe didn't (e.g. a
+ * wallet that can't be reused), the row records that honestly with
+ * NULL payment fields and the offer is simply never presented.
+ */
+async function ensureUpsellOffer(args: {
+  orderId: string;
+  buyerUserId: string;
+  profileId: string;
+  productId: string;
+  boughtBumpProductId: string | null;
+  session: Stripe.Checkout.Session;
+  stripe: Stripe;
+}): Promise<UpsellOfferRow | null> {
+  const existing = await loadUpsellOffer(args.orderId);
+  if (existing) return existing;
+
+  const main = await fetchProduct(args.productId, false);
+  if (!main) return null;
+  const cfg = readBumpConfig(main);
+  const target = cfg ? await fetchProduct(cfg.bumpProductId, false) : null;
+  const eligibility = upsellEligibility({
+    cfg,
+    main: { id: main.id, profileId: main.profile_id },
+    boughtBumpProductId: args.boughtBumpProductId,
+    target: target
+      ? {
+          id: target.id,
+          profileId: target.profile_id,
+          priceCents: Number(target.price_cents),
+          isActive: Boolean(target.is_active),
+          inventory: Number(target.inventory),
+        }
+      : null,
+  });
+  if (!eligibility.ok || !cfg || !target) return null;
+
+  const snapshot = buildUpsellSnapshot(cfg, {
+    id: target.id,
+    title: target.title,
+    kind: target.kind,
+    priceCents: Number(target.price_cents),
+  });
+
+  let customerId: string | null = null;
+  let paymentMethodId: string | null = null;
+  let brand: string | null = null;
+  let last4: string | null = null;
+  const piId =
+    typeof args.session.payment_intent === "string"
+      ? args.session.payment_intent
+      : (args.session.payment_intent?.id ?? null);
+  if (piId) {
+    try {
+      const pi = await args.stripe.paymentIntents.retrieve(piId, { expand: ["payment_method"] });
+      customerId = typeof pi.customer === "string" ? pi.customer : (pi.customer?.id ?? null);
+      const pm = pi.payment_method;
+      if (typeof pm === "string") {
+        paymentMethodId = pm;
+      } else if (pm) {
+        paymentMethodId = pm.id;
+        brand = pm.card?.brand ?? null;
+        last4 = pm.card?.last4 ?? null;
+      }
+    } catch (err) {
+      /* A PI read failure must never fail the recorded purchase — the
+         offer just carries no reusable method and stays unpresented. */
+      logger.warn({ err, orderId: args.orderId }, "[storefront] upsell: payment-intent read failed; offer unpresented");
+    }
+  }
+
+  await db.execute(sql`
+    INSERT INTO store_upsell_offers
+      (parent_order_id, buyer_user_id, profile_id, product_id,
+       upsell_product_id, upsell_title, upsell_kind,
+       list_price_cents, percent_off, amount_cents,
+       platform_fee_cents, creator_amount_cents,
+       stripe_customer_id, stripe_payment_method_id,
+       payment_method_brand, payment_method_last4, status)
+    VALUES (${args.orderId}, ${args.buyerUserId}, ${args.profileId}, ${args.productId},
+            ${snapshot.upsellProductId}, ${snapshot.title}, ${snapshot.kind},
+            ${snapshot.listPriceCents}, ${snapshot.percentOff}, ${snapshot.grossCents},
+            ${snapshot.feeCents}, ${snapshot.creatorCents},
+            ${customerId}, ${paymentMethodId}, ${brand}, ${last4}, 'pending')
+    ON CONFLICT (parent_order_id) DO NOTHING
+  `);
+  return loadUpsellOffer(args.orderId);
+}
+
+async function markUpsellShown(offer: UpsellOfferRow): Promise<void> {
+  if (offer.shown_at) return;
+  await db.execute(sql`
+    UPDATE store_upsell_offers SET shown_at = now(), updated_at = now()
+    WHERE id = ${offer.id} AND shown_at IS NULL
+  `);
+}
+
+/** Bump-style receipt for a recorded upsell order row. */
+function upsellOrderReceipt(r: Record<string, unknown>) {
+  const gross = Number(r["amount_cents"]);
+  const fee = Number(r["platform_fee_cents"]);
+  const creator = Number(r["creator_amount_cents"]);
+  return {
+    id: String(r["id"]),
+    parentOrderId: r["parent_order_id"] ? String(r["parent_order_id"]) : null,
+    isUpsell: true,
+    productId: r["product_id"] ? String(r["product_id"]) : null,
+    productTitle: String(r["product_title"] ?? "Add-on"),
+    productKind: String(r["product_kind"] ?? "digital"),
+    quantity: 1,
+    amountCents: gross, amount: money(gross),
+    platformFeeCents: fee, platformFee: money(fee),
+    platformFeePct: PLATFORM_FEE_PCT,
+    creatorAmountCents: creator, creatorAmount: money(creator),
+    fulfillmentNote: (r["fulfillment_note"] as string | null) ?? null,
+    lines: [
+      {
+        role: "upsell" as const,
+        productId: r["product_id"] ? String(r["product_id"]) : null,
+        title: String(r["product_title"] ?? "Add-on"),
+        kind: String(r["product_kind"] ?? "digital"),
+        quantity: 1,
+        grossCents: gross, gross: money(gross),
+        platformFeeCents: fee, platformFee: money(fee),
+        creatorCents: creator, creatorAmount: money(creator),
+      },
+    ],
+  };
+}
+
+async function fetchOrderRow(orderId: string): Promise<Record<string, unknown> | null> {
+  const r = await db.execute(sql`
+    SELECT * FROM store_orders WHERE id = ${orderId} LIMIT 1
+  `);
+  return (r.rows[0] as Record<string, unknown> | undefined) ?? null;
+}
+
+/** The buyer's own order, or null (a non-owner reads as not-found —
+    order existence is never leaked across accounts). */
+async function fetchOwnOrder(orderId: string, userId: string): Promise<Record<string, unknown> | null> {
+  const row = await fetchOrderRow(orderId);
+  if (!row || String(row["buyer_user_id"]) !== userId) return null;
+  return row;
+}
 
 /* ═════════════════════════ VERIFY (record order) ═════════════════════
    Idempotent: stripe_session_id is UNIQUE — Stripe may redirect/verify
@@ -2427,10 +2686,35 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         : []),
     ];
 
+    /* Post-purchase upsell (Wave 3): mint/fetch this order's ONE
+       offer and present it while it's pending with a reusable saved
+       card. Fail-soft by design — an upsell hiccup (including a
+       pre-migration database) must never fail a recorded purchase. */
+    let upsell: ReturnType<typeof upsellPayload> = null;
+    try {
+      const offer = await ensureUpsellOffer({
+        orderId,
+        buyerUserId: req.userId!,
+        profileId,
+        productId,
+        boughtBumpProductId: recordedBump?.productId ?? null,
+        session,
+        stripe,
+      });
+      if (offer) {
+        await markUpsellShown(offer);
+        upsell = upsellPayload(offer);
+      }
+    } catch (err) {
+      logger.warn({ err, orderId }, "[storefront] upsell offer unavailable for this order");
+      upsell = null;
+    }
+
     const p = await fetchProduct(productId, false);
     res.json({
       success: true,
       duplicate,
+      upsell,
       order: {
         id: orderId,
         productKind: kind,
@@ -2469,6 +2753,406 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
   } catch (err) {
     logger.error({ err, sessionId }, "[storefront] verify failed");
     res.status(500).json({ error: "Payment confirmed but the order couldn't be recorded. Contact support." });
+  }
+});
+
+/* ═══════════ POST-PURCHASE UPSELL: offer / accept / decline ═════════
+   The buyer acts on the offer verify minted. Accept is ONE click:
+   no new card entry, no redirect — an off-session PaymentIntent on
+   the payment method the just-completed checkout saved, charged at
+   the snapshot the buyer was shown. */
+
+router.get("/storefront/orders/:id/upsell", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid order id." });
+    return;
+  }
+  try {
+    const order = await fetchOwnOrder(id, req.userId!);
+    if (!order) {
+      res.status(404).json({ error: "Order not found." });
+      return;
+    }
+    let offer: UpsellOfferRow | null;
+    try {
+      offer = await loadUpsellOffer(id);
+    } catch {
+      res.status(500).json({
+        error: "UPSELL_UNAVAILABLE",
+        message: "Post-purchase offers aren't switched on yet.",
+      });
+      return;
+    }
+    if (!offer) {
+      res.json({ upsell: null });
+      return;
+    }
+    if (offer.status === "pending") await markUpsellShown(offer);
+    /* Decided offers (accepted/declined/failed) present as null —
+       the offer never nags again for this order. */
+    res.json({ upsell: upsellPayload(offer) });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] upsell offer fetch failed");
+    res.status(500).json({ error: "Could not load the offer." });
+  }
+});
+
+router.post("/storefront/orders/:id/upsell/accept", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid order id." });
+    return;
+  }
+  try {
+    const order = await fetchOwnOrder(id, req.userId!);
+    if (!order) {
+      res.status(404).json({ error: "Order not found." });
+      return;
+    }
+    let offer: UpsellOfferRow | null;
+    try {
+      offer = await loadUpsellOffer(id);
+    } catch {
+      res.status(500).json({
+        error: "UPSELL_UNAVAILABLE",
+        message: "Post-purchase offers aren't switched on yet — no charge was made.",
+      });
+      return;
+    }
+    if (!offer) {
+      res.status(404).json({
+        error: "UPSELL_NOT_OFFERED",
+        message: "This order doesn't have a post-purchase add-on offer.",
+      });
+      return;
+    }
+
+    /* Terminal replays — honest, and never a second charge. */
+    if (offer.status === "accepted") {
+      const recorded = offer.upsell_order_id
+        ? await fetchOrderRow(String(offer.upsell_order_id))
+        : null;
+      if (recorded) {
+        res.json({
+          success: true,
+          duplicate: true,
+          order: upsellOrderReceipt(recorded),
+          delivery: null,
+          note: "This add-on was already added to your order — you were charged once, for the price shown.",
+        });
+        return;
+      }
+      res.status(409).json({
+        error: "UPSELL_STATE_CONFLICT",
+        message: "This offer was accepted but its order couldn't be found — contact support; do not re-pay.",
+      });
+      return;
+    }
+    if (offer.status === "declined") {
+      res.status(409).json({
+        error: "UPSELL_DECLINED",
+        message: "You passed on this add-on — it isn't charged. You can still buy it from its product page.",
+      });
+      return;
+    }
+    if (offer.status === "failed") {
+      res.status(409).json({
+        error: "UPSELL_FAILED",
+        message: "The one-click charge for this add-on already failed once — it won't be retried automatically. You can still buy it from its product page.",
+      });
+      return;
+    }
+
+    /* THE refusal: without a reusable payment method there is no
+       one-click charge to make — refuse BEFORE Stripe is touched. */
+    if (!upsellHasReusablePaymentMethod(offer)) {
+      res.status(409).json({
+        error: "UPSELL_NO_PAYMENT_METHOD",
+        message: "There's no saved payment method from your purchase to charge in one click — no charge was made. You can still buy the add-on from its product page.",
+      });
+      return;
+    }
+
+    /* Live revalidation: the add-on must still be sellable. The
+       MONEY is not re-derived — the buyer is charged the snapshot
+       they were shown, to the cent. */
+    const target = await fetchProduct(String(offer.upsell_product_id), false);
+    const blocker = upsellAcceptBlocker(
+      target ? { isActive: Boolean(target.is_active), inventory: Number(target.inventory) } : null,
+    );
+    if (blocker) {
+      res.status(409).json({ error: blocker.code, message: blocker.reason });
+      return;
+    }
+
+    /* Claim the single unit BEFORE charging (a failed charge
+       releases it below), mirroring the rail's inventory discipline. */
+    let claimed = false;
+    if (target && Number(target.inventory) >= 0) {
+      const claim = await db.execute(sql`
+        UPDATE store_products
+        SET inventory = inventory - 1, updated_at = now()
+        WHERE id = ${target.id} AND inventory >= 1
+        RETURNING id
+      `);
+      if (claim.rows.length === 0) {
+        res.status(409).json({
+          error: "UPSELL_SOLD_OUT",
+          message: "That add-on just sold out — no charge was made.",
+        });
+        return;
+      }
+      claimed = true;
+    }
+    const releaseClaim = async () => {
+      if (!claimed || !target) return;
+      claimed = false;
+      await db.execute(sql`
+        UPDATE store_products SET inventory = inventory + 1, updated_at = now() WHERE id = ${target.id}
+      `);
+    };
+    const failOffer = async (failureReason: string) => {
+      await db.execute(sql`
+        UPDATE store_upsell_offers
+        SET status = 'failed', failure_reason = ${failureReason},
+            decided_at = now(), updated_at = now()
+        WHERE id = ${offer!.id} AND status = 'pending'
+      `);
+    };
+
+    let stripe: Stripe;
+    try {
+      stripe = getStripe();
+    } catch {
+      await releaseClaim();
+      res.status(500).json({ error: "Payments are not configured yet — no charge was made." });
+      return;
+    }
+
+    /* THE charge: its own PaymentIntent, off-session on the saved
+       method, keyed deterministically by the parent order id — a
+       double-click, a duplicate accept or a retry after a timeout
+       all derive the SAME key, so Stripe can only create one. */
+    let pi: Stripe.PaymentIntent;
+    try {
+      pi = await stripe.paymentIntents.create(
+        {
+          amount: Number(offer.amount_cents),
+          currency: "usd",
+          customer: String(offer.stripe_customer_id),
+          payment_method: String(offer.stripe_payment_method_id),
+          off_session: true,
+          confirm: true,
+          description: `${String(offer.upsell_title)} — post-purchase add-on`,
+          metadata: {
+            type: "storefront_upsell",
+            parent_order_id: id,
+            upsell_offer_id: String(offer.id),
+            buyer_user_id: req.userId!,
+            profile_id: String(offer.profile_id),
+            product_id: String(offer.product_id),
+            upsell_product_id: String(offer.upsell_product_id),
+            amount_cents: String(offer.amount_cents),
+            platform_fee_cents: String(offer.platform_fee_cents),
+            creator_amount_cents: String(offer.creator_amount_cents),
+          },
+        },
+        { idempotencyKey: upsellIdempotencyKey(id) },
+      );
+    } catch (err) {
+      /* Card declined / invalid method: Stripe made NO charge.
+         Terminal for this offer — exactly-once means no silent
+         second attempt with a fresh key. */
+      await releaseClaim();
+      await failOffer("card_declined");
+      logger.warn({ err, orderId: id }, "[storefront] upsell charge declined");
+      res.status(402).json({
+        error: "UPSELL_CARD_DECLINED",
+        message: "Your saved card declined the add-on charge — no charge was made. You can still buy the add-on from its product page.",
+      });
+      return;
+    }
+    if (pi.status !== "succeeded") {
+      /* requires_action (the bank wants the buyer present) or any
+         other non-final state: NOT a completed charge, and a
+         one-click flow must never record it as one. */
+      await releaseClaim();
+      await failOffer(`pi_${pi.status}`);
+      logger.warn({ orderId: id, piStatus: pi.status }, "[storefront] upsell payment intent did not complete");
+      res.status(402).json({
+        error: pi.status === "requires_action" ? "UPSELL_REQUIRES_ACTION" : "UPSELL_NOT_COMPLETED",
+        message:
+          pi.status === "requires_action"
+            ? "Your bank needs you present to approve this charge, so the one-click add-on couldn't complete — no charge was made. You can still buy the add-on from its product page."
+            : "The add-on charge didn't complete — no charge was made. You can still buy the add-on from its product page.",
+      });
+      return;
+    }
+
+    /* Record the upsell as its OWN order, pinned to the
+       PaymentIntent (UNIQUE + ON CONFLICT DO NOTHING): if a racing
+       accept already recorded it, this insert is a no-op and the
+       recorded row is returned as the duplicate. */
+    const inserted = await db.execute(sql`
+      INSERT INTO store_orders
+        (buyer_user_id, profile_id, product_id, product_title, product_kind,
+         quantity, amount_cents, discount_code, platform_fee_cents,
+         creator_amount_cents, stripe_session_id, status, fulfillment_note,
+         parent_order_id, stripe_payment_intent_id)
+      VALUES (${req.userId!}, ${String(offer.profile_id)}, ${String(offer.upsell_product_id)},
+              ${String(offer.upsell_title)}, ${String(offer.upsell_kind)},
+              1, ${Number(offer.amount_cents)}, NULL, ${Number(offer.platform_fee_cents)},
+              ${Number(offer.creator_amount_cents)}, NULL, 'completed', NULL,
+              ${id}, ${pi.id})
+      ON CONFLICT (stripe_payment_intent_id) DO NOTHING
+      RETURNING id
+    `);
+    let upsellOrderId: string;
+    let duplicate = false;
+    if (inserted.rows.length > 0) {
+      upsellOrderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+    } else {
+      const byPi = await db.execute(sql`
+        SELECT id FROM store_orders WHERE stripe_payment_intent_id = ${pi.id} LIMIT 1
+      `);
+      if (byPi.rows.length === 0) {
+        logger.error({ orderId: id, piId: pi.id }, "[storefront] upsell charged but order record missing");
+        res.status(500).json({
+          error: "The add-on charge went through but its order couldn't be recorded. Contact support — do not re-pay.",
+        });
+        return;
+      }
+      upsellOrderId = String((byPi.rows[0] as Record<string, unknown>)["id"]);
+      duplicate = true;
+    }
+
+    let delivery: { url: string; expiresAt: string; maxUses: number } | null = null;
+    if (!duplicate && target) {
+      /* Per-kind fulfillment, the bump line's treatment (feature #13). */
+      const kind = target.kind;
+      let note: string;
+      if (kind === "ticket" && target.event_id) {
+        const rsvp = await db.execute(sql`
+          INSERT INTO event_rsvps (event_id, user_id)
+          VALUES (${target.event_id}, ${req.userId!})
+          ON CONFLICT DO NOTHING
+          RETURNING event_id
+        `);
+        if (rsvp.rows.length > 0) {
+          await db.execute(sql`UPDATE events SET rsvp_count = rsvp_count + 1 WHERE id = ${target.event_id}`);
+        }
+        note = "Add-on ticket secured — you're on the list. Show this order at the door (or follow the event link).";
+      } else if (kind === "service") {
+        note = "Add-on booking received — the creator confirms your slot from their dashboard.";
+        const creatorUser = await db.execute(sql`
+          SELECT user_id FROM creator_profiles WHERE id = ${String(offer.profile_id)} LIMIT 1
+        `);
+        const crow = creatorUser.rows[0] as Record<string, unknown> | undefined;
+        if (crow?.["user_id"]) {
+          await db.execute(sql`
+            INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
+            VALUES ('storefront_service_booking', ${upsellOrderId}, ${String(crow["user_id"])},
+                    'completed', ${`New booking (post-purchase add-on): ${String(offer.upsell_title)}`},
+                    ${`Someone just added your "${String(offer.upsell_title)}" (${money(Number(offer.amount_cents))}) right after their purchase. Confirm their slot from your store dashboard.`})
+            ON CONFLICT DO NOTHING
+          `);
+        }
+      } else if (kind === "merch") {
+        note = "Add-on order received — the creator fulfills it through their merch/print pipeline.";
+      } else {
+        note = "Add-on delivery ready.";
+      }
+      await db.execute(sql`
+        UPDATE store_orders SET fulfillment_note = ${note} WHERE id = ${upsellOrderId}
+      `);
+      if (kind === "digital" || kind === "download") {
+        const fileUrl = (target.media_urls ?? [])[0];
+        if (fileUrl) {
+          const link = await mintDeliveryToken(upsellOrderId, fileUrl);
+          delivery = {
+            url: `/api/storefront/deliver/${link.token}`,
+            expiresAt: link.expiresAt.toISOString(),
+            maxUses: DELIVERY_MAX_USES,
+          };
+        }
+      }
+    }
+
+    await db.execute(sql`
+      UPDATE store_upsell_offers
+      SET status = 'accepted', stripe_payment_intent_id = ${pi.id},
+          upsell_order_id = ${upsellOrderId}, decided_at = now(), updated_at = now()
+      WHERE id = ${offer.id}
+    `);
+
+    const recorded = await fetchOrderRow(upsellOrderId);
+    logger.info(
+      { orderId: id, upsellOrderId, piId: pi.id, amountCents: Number(offer.amount_cents), duplicate },
+      "[storefront] post-purchase upsell accepted"
+    );
+    res.json({
+      success: true,
+      duplicate,
+      order: recorded ? upsellOrderReceipt(recorded) : null,
+      delivery,
+      note: "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] upsell accept failed");
+    res.status(500).json({ error: "The add-on couldn't be completed. If a charge appears, contact support — do not re-pay." });
+  }
+});
+
+router.post("/storefront/orders/:id/upsell/decline", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid order id." });
+    return;
+  }
+  try {
+    const order = await fetchOwnOrder(id, req.userId!);
+    if (!order) {
+      res.status(404).json({ error: "Order not found." });
+      return;
+    }
+    let offer: UpsellOfferRow | null;
+    try {
+      offer = await loadUpsellOffer(id);
+    } catch {
+      res.status(500).json({
+        error: "UPSELL_UNAVAILABLE",
+        message: "Post-purchase offers aren't switched on yet.",
+      });
+      return;
+    }
+    if (!offer) {
+      res.status(404).json({
+        error: "UPSELL_NOT_OFFERED",
+        message: "This order doesn't have a post-purchase add-on offer.",
+      });
+      return;
+    }
+    if (offer.status === "declined") {
+      res.json({ ok: true, status: "declined", duplicate: true });
+      return;
+    }
+    if (offer.status !== "pending") {
+      res.status(409).json({
+        error: "UPSELL_ALREADY_DECIDED",
+        message: "This offer was already decided — nothing changed.",
+      });
+      return;
+    }
+    await db.execute(sql`
+      UPDATE store_upsell_offers
+      SET status = 'declined', decided_at = now(), updated_at = now()
+      WHERE id = ${offer.id} AND status = 'pending'
+    `);
+    res.json({ ok: true, status: "declined" });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] upsell decline failed");
+    res.status(500).json({ error: "Could not record your answer." });
   }
 });
 
@@ -3241,6 +3925,11 @@ function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
     /* The bump as its own receipt line (feature #13) — [main] alone
        for every order recorded before/without an add-on. */
     lines: orderLines(r),
+    /* Post-purchase upsell orders (Wave 3) link back to the order
+       that prompted them; absent keys (pre-0206 rows) read as a
+       regular order. */
+    parentOrderId: r["parent_order_id"] ? String(r["parent_order_id"]) : null,
+    isUpsell: Boolean(r["parent_order_id"]),
     discountCode: (r["discount_code"] as string | null) ?? null,
     status: String(r["status"]),
     fulfillmentNote: (r["fulfillment_note"] as string | null) ?? null,
@@ -3273,22 +3962,37 @@ router.get("/storefront/orders/sales", requireAuth, async (req, res) => {
                discount_code, platform_fee_cents, creator_amount_cents, status,
                fulfillment_note, created_at,
                bump_product_id, bump_title, bump_amount_cents,
-               bump_platform_fee_cents, bump_creator_amount_cents
+               bump_platform_fee_cents, bump_creator_amount_cents,
+               parent_order_id
         FROM store_orders
         WHERE profile_id = ${profile.id}
         ORDER BY created_at DESC
         LIMIT 500
       `);
     } catch {
-      r = await db.execute(sql`
-        SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
-               discount_code, platform_fee_cents, creator_amount_cents, status,
-               fulfillment_note, created_at
-        FROM store_orders
-        WHERE profile_id = ${profile.id}
-        ORDER BY created_at DESC
-        LIMIT 500
-      `);
+      try {
+        r = await db.execute(sql`
+          SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
+                 discount_code, platform_fee_cents, creator_amount_cents, status,
+                 fulfillment_note, created_at,
+                 bump_product_id, bump_title, bump_amount_cents,
+                 bump_platform_fee_cents, bump_creator_amount_cents
+          FROM store_orders
+          WHERE profile_id = ${profile.id}
+          ORDER BY created_at DESC
+          LIMIT 500
+        `);
+      } catch {
+        r = await db.execute(sql`
+          SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
+                 discount_code, platform_fee_cents, creator_amount_cents, status,
+                 fulfillment_note, created_at
+          FROM store_orders
+          WHERE profile_id = ${profile.id}
+          ORDER BY created_at DESC
+          LIMIT 500
+        `);
+      }
     }
     const orders = r.rows.map((row) => orderShape(row as Record<string, unknown>, profile.slug));
     const totals = orders.reduce(
@@ -3326,6 +4030,7 @@ router.get("/storefront/orders/purchases", requireAuth, async (req, res) => {
                so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
                so.bump_product_id, so.bump_title, so.bump_amount_cents,
                so.bump_platform_fee_cents, so.bump_creator_amount_cents,
+               so.parent_order_id,
                cp.slug AS artist_slug, cp.display_name AS artist_name
         FROM store_orders so
         JOIN creator_profiles cp ON cp.id = so.profile_id
@@ -3334,17 +4039,33 @@ router.get("/storefront/orders/purchases", requireAuth, async (req, res) => {
         LIMIT 200
       `);
     } catch {
-      r = await db.execute(sql`
-        SELECT so.id, so.product_id, so.product_title, so.product_kind, so.quantity,
-               so.amount_cents, so.discount_code, so.platform_fee_cents,
-               so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
-               cp.slug AS artist_slug, cp.display_name AS artist_name
-        FROM store_orders so
-        JOIN creator_profiles cp ON cp.id = so.profile_id
-        WHERE so.buyer_user_id = ${req.userId!}
-        ORDER BY so.created_at DESC
-        LIMIT 200
-      `);
+      try {
+        r = await db.execute(sql`
+          SELECT so.id, so.product_id, so.product_title, so.product_kind, so.quantity,
+                 so.amount_cents, so.discount_code, so.platform_fee_cents,
+                 so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
+                 so.bump_product_id, so.bump_title, so.bump_amount_cents,
+                 so.bump_platform_fee_cents, so.bump_creator_amount_cents,
+                 cp.slug AS artist_slug, cp.display_name AS artist_name
+          FROM store_orders so
+          JOIN creator_profiles cp ON cp.id = so.profile_id
+          WHERE so.buyer_user_id = ${req.userId!}
+          ORDER BY so.created_at DESC
+          LIMIT 200
+        `);
+      } catch {
+        r = await db.execute(sql`
+          SELECT so.id, so.product_id, so.product_title, so.product_kind, so.quantity,
+                 so.amount_cents, so.discount_code, so.platform_fee_cents,
+                 so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
+                 cp.slug AS artist_slug, cp.display_name AS artist_name
+          FROM store_orders so
+          JOIN creator_profiles cp ON cp.id = so.profile_id
+          WHERE so.buyer_user_id = ${req.userId!}
+          ORDER BY so.created_at DESC
+          LIMIT 200
+        `);
+      }
     }
     res.json({
       purchases: r.rows.map((row) => {

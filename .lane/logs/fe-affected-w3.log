@@ -1,0 +1,16 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/public-routes.test.ts [2m([22m[2m127 tests[22m[2m)[22m[33m 664[2mms[22m[39m
+ [32m✓[39m src/lib/earned-rank.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/lib/sibling-dashboards.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m src/lib/storefront-product.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m170 passed[39m[22m[90m (170)[39m
+[2m   Start at [22m 14:49:12
+[2m   Duration [22m 9.88s[2m (transform 40%, tests 32%, import 21%, worker 7%, environment 1%)[22m
+
+[2m    Isolate [22m [33m4 workers spawned[39m[2m · ~1.62s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~4.86s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
