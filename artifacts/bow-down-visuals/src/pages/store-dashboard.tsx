@@ -951,7 +951,7 @@ function DiscountsTab() {
           <input aria-label="Percent off" value={form.percentOff} onChange={(e) => setForm({ ...form, percentOff: e.target.value })} placeholder="% off (1–90)" inputMode="numeric" className={inputCls} />
           <div data-min-stars="4" className="contents">
             <input aria-label="Max uses" value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: e.target.value })} placeholder="Max uses (-1 = ∞)" inputMode="numeric" className={inputCls} />
-            <input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className={inputCls} />
+            <input type="datetime-local" aria-label="Discount expiry date and time" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className={inputCls} />
           </div>
         </div>
         <button onClick={submit} disabled={busy} className="mt-4 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2 text-sm font-black text-black hover:brightness-110 disabled:opacity-60">
