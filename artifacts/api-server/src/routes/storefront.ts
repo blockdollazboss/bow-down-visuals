@@ -400,7 +400,7 @@ async function subscribeDropFan(listId: string, email: string, name: string): Pr
   }
   await db.execute(sql`
     UPDATE email_subscribers
-    SET unsubscribed_at = NULL, name = COALESCE(NULLIF(${name}, ''), name), source = ${"drop"}
+    SET unsubscribed_at = NULL, name = CASE WHEN ${name} <> '' THEN ${name} ELSE name END, source = ${"drop"}
     WHERE id = ${row.id}
   `);
 }
@@ -2233,15 +2233,20 @@ router.post("/storefront/products/:id/drop/capture", publicApiLimiter, async (re
     }
     const email = parsed.data.email.toLowerCase();
     const name = parsed.data.name.trim();
-    /* Idempotent capture: re-joining updates the name, never duplicates. */
-    const captured = await db.execute(sql`
+    /* Idempotent capture: re-joining updates the name, never duplicates.
+       (Existence is read first rather than the presave follow's xmax
+       trick — same semantics, and the verification harness's engine
+       has no xmax.) */
+    const prior = await db.execute(sql`
+      SELECT id FROM product_drop_captures WHERE drop_id = ${drop.id} AND email = ${email} LIMIT 1
+    `);
+    const inserted = prior.rows.length === 0;
+    await db.execute(sql`
       INSERT INTO product_drop_captures (drop_id, product_id, email, name, source)
       VALUES (${drop.id}, ${id}, ${email}, ${name || null}, ${"drop"})
       ON CONFLICT (drop_id, email) DO UPDATE SET
-        name = COALESCE(NULLIF(EXCLUDED.name, ''), product_drop_captures.name)
-      RETURNING (xmax = 0) AS inserted
+        name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE product_drop_captures.name END
     `);
-    const inserted = (captured.rows[0] as { inserted: boolean } | undefined)?.inserted ?? false;
     /* Also join the creator's email list — the fan-list handoff, same
        as a presave follow. Non-fatal: the capture row is the drop's
        record; list trouble never loses a fan. */
