@@ -1149,9 +1149,9 @@ const DOCKED_FEATURES = [
     hostPath: "/store/dashboard",
     stage: "money",
     description: {
-      text: "Attach one of your other products as an add-on to a store product: the buyer sees it on the product page with a tick box and can add it to the same single checkout, at its listed price or a percent off you set. It shows as its own line on the order. Set it up in the store dashboard's Products tab.",
+      text: "Attach one of your other products as an add-on: buyers see a tick box and can add it to the same single checkout, at its listed price or a percent off you set, as its own line on the order. Works on store products, shop cart items, and digital tracks, videos, and series.",
     },
-    endpoints: ["/api/storefront/products/:param/bump", "/api/storefront/checkout"],
+    endpoints: ["/api/storefront/products/:param/bump", "/api/storefront/checkout", "/api/shops/:param/products/:param/bump", "/api/storefronts/checkout", "/api/store/item/:param/:param/bump", "/api/store/checkout"],
     pricedEndpoints: [],
   },
   {

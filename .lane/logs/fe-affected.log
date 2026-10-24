@@ -1,16 +1,19 @@
 
-[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bumps/artifacts/bow-down-visuals[39m
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-morebumps/artifacts/bow-down-visuals[39m
 
- [32m✓[39m src/lib/earned-rank.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 350[2mms[22m[39m
- [32m✓[39m src/lib/sibling-dashboards.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 571[2mms[22m[39m
- [32m✓[39m src/lib/storefront-product.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m src/lib/world/shop-stands.test.ts [2m([22m[2m64 tests[22m[2m)[22m[33m 836[2mms[22m[39m
+   [32m✓[39m Crowns & Memberships [2m(4)[22m
+     [33m[2m✓[22m[39m price labels read the server DTO's own amounts, per period, in the page's format[33m 464[2mms[22m[39m
+ [32m✓[39m src/lib/sibling-dashboards.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 164[2mms[22m[39m
+ [32m✓[39m src/lib/earned-rank.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+ [32m✓[39m src/lib/my-shop-management-wiring.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 80[2mms[22m[39m
 
-[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
-[2m      Tests [22m [1m[32m43 passed[39m[22m[90m (43)[39m
-[2m   Start at [22m 02:10:10
-[2m   Duration [22m 12.89s[2m (transform 45%, tests 25%, import 19%, worker 11%)[22m
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m120 passed[39m[22m[90m (120)[39m
+[2m   Start at [22m 13:50:09
+[2m   Duration [22m 10.49s[2m (transform 53%, tests 30%, import 15%, worker 3%)[22m
 
-[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~2.74s startup each (spawn + environment, per file)[22m
-[2m            [22m [2mat least ~5.48s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+[2m  Transform [22m [33mtransforming modules took 2.32s[39m[2m · 53% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
 
-exit=0

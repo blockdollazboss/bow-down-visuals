@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f96d7b729e4cc11ae1ab284d346d3db1113afc47",
+  "baseCommit": "2bf26b1034d8820873e2d96a91905e955041f308",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9439,6 +9439,7 @@
         "/api/shops/:param/discounts/:param",
         "/api/shops/:param/products",
         "/api/shops/:param/products/:param",
+        "/api/shops/:param/products/:param/bump",
         "/api/shops/ai/product-description",
         "/api/shops/ai/product-image",
         "/api/shops/ai/shop-description",
@@ -10862,6 +10863,7 @@
         "/api/referrals/me",
         "/api/retention/rank",
         "/api/store/checklist",
+        "/api/store/item/:param/:param/bump",
         "/api/store/log-to-tracker",
         "/api/store/price",
         "/api/store/products",
@@ -10908,11 +10910,15 @@
       "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
       "component": null,
       "endpoints": [
+        "/api/shops/:param/products/:param/bump",
+        "/api/store/checkout",
+        "/api/store/item/:param/:param/bump",
         "/api/storefront/checkout",
-        "/api/storefront/products/:param/bump"
+        "/api/storefront/products/:param/bump",
+        "/api/storefronts/checkout"
       ],
       "prices": [],
-      "description": "Attach one of your other products as an add-on to a store product: the buyer sees it on the product page with a tick box and can add it to the same single checkout, at its listed price or a percent off you set. It shows as its own line on the order. Set it up in the store dashboard's Products tab.",
+      "description": "Attach one of your other products as an add-on: buyers see a tick box and can add it to the same single checkout, at its listed price or a percent off you set, as its own line on the order. Works on store products, shop cart items, and digital tracks, videos, and series.",
       "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": []
     },
