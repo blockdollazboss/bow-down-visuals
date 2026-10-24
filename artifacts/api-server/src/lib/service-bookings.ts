@@ -119,22 +119,44 @@ export function isBookingConflictError(err: unknown): boolean {
   return false;
 }
 
-/** Does the hardened table exist in this database? Probed per call (one
- *  indexed information_schema lookup) so a process that boots
- *  pre-migration lights up the moment the join's migration lands — and
- *  so the test harness can swap databases freely. Any probe failure
- *  degrades to v1 behavior, never to a crash. */
+/** Does the hardened table exist in this database? Probed via
+ *  information_schema (portable: real Postgres AND pg-mem) and cached
+ *  for a few seconds — the slots endpoint is public and hot,
+ *  and a stale "absent" answer is always safe because the v1 trailer
+ *  rails stay correct on their own. A process that boots pre-migration
+ *  therefore lights up within seconds of the join's migration landing.
+ *  Any probe failure degrades to v1 behavior, never to a crash. */
+const PROBE_TTL_MS = 5_000;
+let probeCache: { gen: number; at: number; present: boolean } | null = null;
+let probeGen = 0;
+
 export async function serviceBookingsAvailable(run: SqlRunner): Promise<boolean> {
+  if (probeCache && probeCache.gen === probeGen && Date.now() - probeCache.at < PROBE_TTL_MS) {
+    return probeCache.present;
+  }
+  let present = false;
   try {
     const r = await run.execute(sql`
       SELECT 1 AS x FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = 'service_bookings'
       LIMIT 1
     `);
-    return r.rows.length > 0;
+    present = r.rows.length > 0;
   } catch {
-    return false;
+    present = false;
   }
+  probeCache = { gen: probeGen, at: Date.now(), present };
+  return present;
+}
+
+/** Test seam: invalidate the cached probe (the harness swaps databases
+ *  between tests). Production never calls this — its single database's
+ *  answer only changes when the join's migration lands, which the TTL
+ *  picks up within seconds. The cache assumes one database per process,
+ *  which is the api-server's deployment shape. */
+export function __resetServiceBookingsProbe(): void {
+  probeGen += 1;
+  probeCache = null;
 }
 
 /* ═══════════════════════ Write path ══════════════════════════════════ */
