@@ -128,6 +128,10 @@ import {
   type FigureLoopDef,
 } from "./figure-loop";
 import {
+  buildWorldFixtures,
+  type WorldFixtures,
+} from "./guard-fixtures-scene";
+import {
   PALACE_LAYOUT,
   PALACE_DOORS,
   PALACE_DOOR_HEIGHT,
@@ -1631,6 +1635,13 @@ export class KingsHallScene {
    *  so the portal cull (item 23) can rest the whole interior when
    *  the arch provably cannot be seen from the plaza. */
   private hallGroup: THREE.Group | null = null;
+  /** The palace's permanent 3D fixtures (the King + his guards at
+   *  their posts — guard-fixtures.ts). Scene-root groups, NOT look
+   *  children: applyLook disposes the look group on a theme change
+   *  and the court must survive it. Built lazily on the first
+   *  applyLook; a build failure leaves the palace exactly as it was
+   *  (fixtures are additive — they can never take the scene down). */
+  private fixtures: WorldFixtures | null = null;
   /** The visible sky group (items 3/4): re-centred on the camera
    *  per frame in servicePerfSystems so the dome is always the
    *  same distance in every direction. */
@@ -1801,6 +1812,24 @@ export class KingsHallScene {
     // Fresh lights + fog for the room we stand in (aimSun also
     // requests the one shadow-map render the frozen map needs).
     this.applyAreaAtmosphere();
+    this.ensureFixtures();
+  }
+
+  /** Stand the palace fixtures (once). The stand-ins appear
+   *  immediately; each 3D body swaps in when its GLB lands, and a
+   *  body that cannot load leaves its stand-in standing forever —
+   *  a post is never empty and a failure here never reaches the
+   *  scene (the whole build is exception-isolated). */
+  private ensureFixtures(): void {
+    if (this.fixtures) return;
+    try {
+      const fixtures = buildWorldFixtures();
+      this.scene.add(fixtures.hall);
+      this.scene.add(fixtures.plaza);
+      this.fixtures = fixtures;
+    } catch {
+      this.fixtures = null;
+    }
   }
 
   private disposeLookGroup(group: THREE.Group): void {
@@ -8536,6 +8565,14 @@ export class KingsHallScene {
     if (plaza && this.plazaBaseVisible) {
       plaza.visible = !plazaDressingCulled(camX, camZ, this.yaw, area);
     }
+    if (this.fixtures) {
+      /* The court stands exactly when its room does: hall fixtures
+       * take the interior's own portal-cull verdict; plaza fixtures
+       * take the Courtyard shell's effective visibility (resolved
+       * just above, or by applyRoomVisibility on a room change). */
+      this.fixtures.hall.visible = this.hallGroup ? this.hallGroup.visible : true;
+      this.fixtures.plaza.visible = plaza ? plaza.visible : false;
+    }
     if (this.floorReflector) {
       const rung = QUALITY[this.quality];
       this.floorReflector.visible = reflectorShouldRender({
@@ -8871,6 +8908,14 @@ export class KingsHallScene {
     // wide to be a walk (lag snap, fresh spawn) lands instantly.
     const k = 1 - Math.exp(-9 * dt);
     const nowMs = performance.now();
+    if (this.fixtures) {
+      /* The court's idle sway + stand-in billboarding, exception-
+       * isolated: a fixture hiccup must never reach the frame. */
+      try {
+        this.camera.getWorldPosition(SCRATCH_VEC);
+        this.fixtures.update(nowMs, SCRATCH_VEC.x, SCRATCH_VEC.z);
+      } catch { /* fixtures are decorative; the frame goes on */ }
+    }
     for (const rig of this.avatars.values()) {
       const dx = rig.target.x - rig.group.position.x;
       const dz = rig.target.z - rig.group.position.z;
