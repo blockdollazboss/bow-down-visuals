@@ -40,7 +40,7 @@
  */
 import * as THREE from "three";
 import { PLAZA_BRAZIERS, PLAZA_COLUMNS, PLAZA_PLANTERS } from "./palace-layout";
-import { BACKDROP_GARDENS, BACKDROP_WINGS, MONUMENT } from "./palace-grounds";
+import { BACKDROP, BACKDROP_GARDENS, BACKDROP_WINGS, MONUMENT } from "./palace-grounds";
 import { STAGE_LAMPS, STAGE_PIERS } from "./stage-grounds";
 import { GARDENS_LAMPS, GARDENS_PIERS } from "./listening-gardens";
 import { ROW_LAMPS, ROW_PIERS, ROW_STALLS } from "./creation-row";
@@ -49,6 +49,8 @@ import { BOARDWALK_LAMPS, BOARDWALK_PIERS, BOARDWALK_STALLS } from "./boardwalk"
 import { HEIGHTS_LAMPS, HEIGHTS_PIERS } from "./creator-heights";
 import { PLAZA_LAMPS, PLAZA_STALLS } from "./plaza-life";
 import { propVariation, type PropVariation } from "./prop-variation";
+import { QUALITY_RUNGS } from "./quality";
+import { lodTierForDistance, type LodTier } from "./visibility";
 
 /* ── Shared geometry cache (item 89) ──────────────────────────────
  * One geometry object per spec, serving every district. The
@@ -296,6 +298,118 @@ export const KIT_CENSUS: KitRecord[] = [
   },
 ];
 
+
+/* ── Backdrop census (item 90, re-measured Stack-100 #3) ──────────
+ * The backdrop ring as hall-scene's buildBackdropGrounds actually
+ * builds it today, element by element: draws counted from the
+ * builder's own constructions, triangles from constructing the
+ * real geometries at the builder's own specs (placements imported
+ * from palace-grounds — BACKDROP_WINGS / BACKDROP_GARDENS are the
+ * builder's data). perf-census.test.ts pins the scene source to
+ * every record, so this census re-derives or fails, never drifts.
+ * Round-2's prose census (~10 draws / ~1.7k tris) re-measures
+ * EXACT here; one prose correction: since the Stack-100 #2 water
+ * round, the moat and the windows are MeshStandardMaterial (the
+ * moat joined the animated water system; the windows shade) —
+ * draws and triangles are unchanged by it. */
+
+export interface BackdropRecord {
+  element: string;
+  /** Draw calls this element costs per look build. */
+  draws: number;
+  /** Triangles across all its instances. */
+  tris: number;
+  /** Instances behind the draw(s) (1 for a lone mesh). */
+  instances: number;
+  note: string;
+}
+
+const backdropWindowCount = BACKDROP_WINGS.reduce((s, w) => s + w.windows.length, 0);
+
+export const BACKDROP_CENSUS: BackdropRecord[] = [
+  {
+    element: "ground skirt disc",
+    draws: 1,
+    tris: trisOf(() => new THREE.CircleGeometry(BACKDROP.skirtR, 40)),
+    instances: 1,
+    note: "One unlit disc under everything beyond the grounds, out to just inside the 90 m dome.",
+  },
+  {
+    element: "moat ring segment",
+    draws: 1,
+    tris: trisOf(() => new THREE.RingGeometry(BACKDROP.moatInnerR, BACKDROP.moatOuterR, 48, 1, Math.PI * 0.72, Math.PI * 0.95)),
+    instances: 1,
+    note: "One ring segment of animated water (Stack-100 #2 item 5's system) along the south + east.",
+  },
+  {
+    element: "wing masses + roofline caps",
+    draws: BACKDROP_WINGS.length * 2,
+    tris: BACKDROP_WINGS.length * 2 * trisOf(box(1, 1, 1)),
+    instances: BACKDROP_WINGS.length * 2,
+    note: "Per wing: one mass box + one cap box, both unlit MeshBasicMaterial silhouettes in fog.",
+  },
+  {
+    element: "wing windows (instanced)",
+    draws: 1,
+    tris: backdropWindowCount * trisOf(() => new THREE.PlaneGeometry(1.5, 2.1)),
+    instances: backdropWindowCount,
+    note: "ONE instanced draw for every wing window — there is no per-window geometry left to swap.",
+  },
+  {
+    element: "garden masses (instanced)",
+    draws: 1,
+    tris: BACKDROP_GARDENS.length * trisOf(() => new THREE.SphereGeometry(1, 12, 8)),
+    instances: BACKDROP_GARDENS.length,
+    note: "ONE instanced draw of squashed spheres; this is 86% of the backdrop's triangles and a single draw — segment count is a build choice, not an LOD axis.",
+  },
+];
+
+export function backdropTotals(): { draws: number; tris: number } {
+  return {
+    draws: BACKDROP_CENSUS.reduce((s, r) => s + r.draws, 0),
+    tris: BACKDROP_CENSUS.reduce((s, r) => s + r.tris, 0),
+  };
+}
+
+/* ── Item 90 re-evaluation: the house LOD pattern (Stack-100 #3) ──
+ * Round 2 evaluated only THREE.LOD geometry swaps. The tree also
+ * has a house LOD pattern (visibility.ts lodTierAt + the scene's
+ * lodItems, item 99): NEAR full, MID hides detail children, FAR
+ * hides the whole group, judged at the rung's lodDrawDistance
+ * (120 / 90 / 60). This evaluation runs that pattern over the
+ * backdrop's anchors from the palace heart (the moat's centre,
+ * the plaza's visual centre) — the nearest honest viewpoint;
+ * every real viewpoint inside a district reads FARTHER. */
+
+export interface BackdropLodRow {
+  anchor: string;
+  x: number;
+  z: number;
+  /** Distance from the palace heart (BACKDROP.moatCenter). */
+  distance: number;
+  tiers: Record<"high" | "medium" | "low", LodTier>;
+}
+
+export function backdropLodEvaluation(): BackdropLodRow[] {
+  const heart = BACKDROP.moatCenter;
+  const anchors: Array<{ anchor: string; x: number; z: number }> = [
+    ...BACKDROP_WINGS.map((w, i) => ({ anchor: `wing ${i + 1}`, x: w.cx, z: w.cz })),
+    ...BACKDROP_GARDENS.map((g, i) => ({ anchor: `garden mass ${i + 1}`, x: g.x, z: g.z })),
+  ];
+  return anchors.map((a) => {
+    const distance = Math.hypot(a.x - heart.x, a.z - heart.z);
+    return {
+      ...a,
+      distance,
+      tiers: {
+        high: lodTierForDistance(distance, QUALITY_RUNGS.high.lodDrawDistance),
+        medium: lodTierForDistance(distance, QUALITY_RUNGS.medium.lodDrawDistance),
+        low: lodTierForDistance(distance, QUALITY_RUNGS.low.lodDrawDistance),
+      },
+    };
+  });
+}
+
 /* ── Parked with evidence ───────────────────────────────────────── */
 
 export interface ParkedRecord {
@@ -310,11 +424,14 @@ export const PARKED_WITH_EVIDENCE: ParkedRecord[] = [
     item: "90",
     subject: "backdrop LOD (fog-ring skyline)",
     measured:
-      `The facet's backdrop (16 towers, 8 domes, colonnade at full geometry) does not exist in this tree. ` +
-      `The shipped backdrop is ${BACKDROP_WINGS.length} unlit wing masses (2 boxes each, 12 tris), one instanced draw of emissive windows, ` +
-      `one instanced draw of ${BACKDROP_GARDENS.length} garden masses (Sphere(1,12,8) = ${trisOf(() => new THREE.SphereGeometry(1, 12, 8))} tris each), ` +
-      `a ${trisOf(() => new THREE.CircleGeometry(1, 40))}-tri ground skirt disc and a ${trisOf(() => new THREE.RingGeometry(1, 2, 48, 1, Math.PI * 0.72, Math.PI * 0.95))}-tri moat ring segment — about 10 draws and ~1.7k triangles in total.`,
-    why: "There is nothing left to LOD: the geometry is already minimal boxes and instanced draws, all of it MeshBasicMaterial silhouettes inside fog. A THREE.LOD swap could only remove a handful of 12-triangle boxes at the cost of a pop at the swap distance. Stays parked — measured, not assumed.",
+      `RE-MEASURED Stack-100 #3 (BACKDROP_CENSUS above, executed not prose): the shipped backdrop is ${backdropTotals().draws} draws / ${backdropTotals().tris} triangles total — ` +
+      `${BACKDROP_WINGS.length} wing masses + caps (2 boxes each, 12 tris), one instanced draw of ${backdropWindowCount} emissive windows, ` +
+      `one instanced draw of ${BACKDROP_GARDENS.length} garden masses (Sphere(1,12,8) = ${trisOf(() => new THREE.SphereGeometry(1, 12, 8))} tris each, 86% of the total), ` +
+      `a ${trisOf(() => new THREE.CircleGeometry(1, 40))}-tri ground skirt disc and a ${trisOf(() => new THREE.RingGeometry(1, 2, 48, 1, Math.PI * 0.72, Math.PI * 0.95))}-tri moat ring segment. ` +
+      `The facet's backdrop (16 towers, 8 domes, colonnade at full geometry) still does not exist in this tree. ` +
+      `House-LOD evaluation (backdropLodEvaluation, the item-99 pattern round 2 did not evaluate): from the palace heart the wing anchors stand 65–69 m out — ` +
+      `at the low rung (lodDrawDistance 60) they tier FAR, at medium (90) they tier MID.`,
+    why: "There is nothing left to LOD, on either pattern. Geometry swap: the geometry is already minimal boxes and single instanced draws inside fog — a THREE.LOD swap could only remove a handful of 12-triangle boxes at the cost of a pop at the swap distance. House pattern: FAR hides the whole group — hiding a wing re-opens the void the backdrop exists to close (round-1 item 5); MID hides detail children — the backdrop's only detail is the windows' ONE instanced draw, so the entire saving is 1 draw, paid for with the skyline's only lit detail on medium and low rungs. Stays parked — measured twice, on both patterns, not assumed.",
   },
   {
     item: "91",

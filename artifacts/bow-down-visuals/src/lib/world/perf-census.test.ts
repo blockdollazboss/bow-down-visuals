@@ -22,7 +22,9 @@ import * as THREE from "three";
 import {
   KIT_CENSUS, GEOMETRY_CENSUS, PARKED_WITH_EVIDENCE, censusTotals,
   sharedGeometry, tintColor, triCount, renderCensusMarkdown,
+  BACKDROP_CENSUS, backdropTotals, backdropLodEvaluation,
 } from "./perf-census";
+import { BACKDROP_WINGS, BACKDROP_GARDENS } from "./palace-grounds";
 import { buildPierSet } from "./hall-scene";
 import { STAGE_PIERS } from "./stage-grounds";
 import { GARDENS_PIERS } from "./listening-gardens";
@@ -283,5 +285,54 @@ describe("the remaining conversions are pinned in scene source", () => {
     }
     expect(sceneSrc).toContain('sharedGeometry("arch-column-plinth"');
     expect(sceneSrc).toContain('sharedGeometry("arch-column-cap"');
+  });
+});
+
+describe("backdrop census — item 90 re-measured (Stack-100 #3)", () => {
+  it("the backdrop totals re-derive: 10 draws, 1,754 triangles", () => {
+    const t = backdropTotals();
+    expect(t.draws).toBe(10);
+    expect(t.tris).toBe(1754);
+    /* The garden masses are 86% of the triangles and ONE draw. */
+    const gardens = BACKDROP_CENSUS.find((r) => r.element.startsWith("garden masses"))!;
+    expect(gardens.draws).toBe(1);
+    expect(gardens.instances).toBe(BACKDROP_GARDENS.length);
+    expect(gardens.tris / t.tris).toBeGreaterThan(0.8);
+    const windows = BACKDROP_CENSUS.find((r) => r.element.startsWith("wing windows"))!;
+    expect(windows.draws).toBe(1);
+    expect(windows.instances).toBe(BACKDROP_WINGS.reduce((s, w) => s + w.windows.length, 0));
+  });
+
+  it("the scene builder matches the census, element for element", () => {
+    const body = bodyOf("private buildBackdropGrounds", "private buildFloor");
+    expect(body).toContain("new THREE.CircleGeometry(BACKDROP.skirtR, 40)");
+    expect(body).toContain("new THREE.RingGeometry(BACKDROP.moatInnerR, BACKDROP.moatOuterR, 48, 1");
+    expect(count(body, "new THREE.BoxGeometry(wing.")).toBe(2);
+    expect(count(body, "new THREE.InstancedMesh(")).toBe(2);
+    expect(body).toContain("new THREE.SphereGeometry(1, 12, 8)");
+    expect(body).toContain("new THREE.PlaneGeometry(1.5, 2.1)");
+    /* No LOD machinery touches the backdrop: no THREE.LOD, no
+     * lodItems registration inside the builder. */
+    expect(body).not.toContain("THREE.LOD");
+    expect(body).not.toContain("lodItems");
+  });
+
+  it("the house-LOD evaluation is measured: wings tier FAR at low, MID at medium", () => {
+    const rows = backdropLodEvaluation();
+    expect(rows).toHaveLength(BACKDROP_WINGS.length + BACKDROP_GARDENS.length);
+    const wings = rows.slice(0, BACKDROP_WINGS.length);
+    for (const w of wings) {
+      expect(w.distance).toBeGreaterThan(60);
+      expect(w.distance).toBeLessThan(75);
+      /* FAR at the low rung = the group would be HIDDEN — the
+       * void returns. MID at medium = detail (the windows' one
+       * instanced draw) would be hidden. Both disqualify. */
+      expect(w.tiers.low).toBe("far");
+      expect(w.tiers.medium).toBe("mid");
+    }
+    /* Every anchor stands beyond half the low rung's draw
+     * distance from the palace heart — and real viewpoints
+     * inside the districts read farther still. */
+    for (const r of rows) expect(r.distance).toBeGreaterThan(30);
   });
 });
