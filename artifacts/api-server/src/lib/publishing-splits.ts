@@ -23,7 +23,7 @@
       writers start pending; writers with no account link are
       'unlinked' and can never confirm or dispute. */
 
-import { pgErrorCode } from "./pg-errors";
+import { pgErrorCode, pgErrorText } from "./pg-errors";
 
 export const PUBLISHING_SONG_KINDS = ["release", "song"] as const;
 export type PublishingSongKind = (typeof PUBLISHING_SONG_KINDS)[number];
@@ -49,12 +49,20 @@ export const PUBLISHING_SPLITS_NOT_READY = {
   error: "publishing_splits_not_ready",
   message:
     "The publishing splits registry isn't switched on yet — your song and its splits are safe to prepare, and registration opens as soon as the registry storage lands.",
-  collectionStatus: PUBLISHING_COLLECTION_STATUS,
-  collectionNotice: PUBLISHING_COPY.collectionNotice,
+  collection_status: PUBLISHING_COLLECTION_STATUS,
+  collection_notice: PUBLISHING_COPY.collectionNotice,
 } as const;
 
+/** Postgres "undefined table" (42P01) for the registry tables, which
+ *  exist only once the held migration lands. Real pg carries the code
+ *  on the cause chain; pg-mem (the test DB) carries only the message —
+ *  accept either, scoped to OUR tables so an unrelated missing table
+ *  is never mistaken for "registry not migrated yet" (co-release
+ *  lane's detector pattern). */
 export function isMissingPublishingTable(err: unknown): boolean {
-  return pgErrorCode(err) === "42P01";
+  if (pgErrorCode(err) === "42P01") return true;
+  const text = pgErrorText(err);
+  return /publishing_split_/.test(text) && /(does not exist|undefined table|no such table)/i.test(text);
 }
 
 export class PublishingSplitError extends Error {

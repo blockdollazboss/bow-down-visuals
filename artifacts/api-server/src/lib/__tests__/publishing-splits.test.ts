@@ -203,4 +203,14 @@ describe("isMissingPublishingTable", () => {
     expect(isMissingPublishingTable(new Error("nope"))).toBe(false);
     expect(isMissingPublishingTable({ code: "23505" })).toBe(false);
   });
+  it("detects the pg-mem message shape, scoped to the registry tables", () => {
+    const memStyle = Object.assign(new Error("Failed query"), {
+      cause: new Error('relation "publishing_split_writers" does not exist'),
+    });
+    expect(isMissingPublishingTable(memStyle)).toBe(true);
+    const otherTable = Object.assign(new Error("Failed query"), {
+      cause: new Error('relation "some_other_table" does not exist'),
+    });
+    expect(isMissingPublishingTable(otherTable)).toBe(false);
+  });
 });
