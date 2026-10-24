@@ -1,9 +1,10 @@
 /**
- * Email automations (migration 0198) — the three starter sequences.
+ * Email automations (migration 0198) — the starter sequences (the
+ * dunning kind, membership_payment_recovery, joined in Stack-100 #3).
  *
  * The contract under test:
  *  - provisioning is lazy and safe: reading a list's automations
- *    materializes the three kinds with enabled = FALSE, and nothing
+ *    materializes the kinds with enabled = FALSE, and nothing
  *    ever sends for a creator who hasn't switched one on (the runner
  *    over a disabled automation is a hard zero: no claims, no
  *    deliveries, no mail).
@@ -828,9 +829,9 @@ async function deliveries() {
 /* ── Provisioning + API ──────────────────────────────────────────── */
 
 describe("provisioning + API", () => {
-  it("provisions the three starters disabled, with defaults, exactly once", async () => {
+  it("provisions the four starters disabled, with defaults, exactly once", async () => {
     const first = await getAutomations();
-    expect(first.map((a) => a.kind)).toEqual(["post_purchase", "abandoned_checkout", "membership_winback"]);
+    expect(first.map((a) => a.kind)).toEqual(["post_purchase", "abandoned_checkout", "membership_winback", "membership_payment_recovery"]);
     for (const a of first) {
       expect(a.enabled).toBe(false);
       expect(a.subject.length).toBeGreaterThan(0);
@@ -842,7 +843,7 @@ describe("provisioning + API", () => {
     const second = await getAutomations();
     expect(second.map((a) => a.id)).toEqual(first.map((a) => a.id));
     const all = await db.select().from(emailAutomationsTable);
-    expect(all.length).toBe(3);
+    expect(all.length).toBe(4);
   });
 
   it("is owner-scoped: another creator gets 404 on read and patch", async () => {
@@ -1039,6 +1040,63 @@ describe("runner — membership winback", () => {
     const totals = await runNow();
     expect(totals.sent).toBe(2);
     expect(mail.sends.map((s: any) => s.to).sort()).toEqual(["gone2@x.com", "gone@x.com"]);
+  });
+});
+
+/* ── Runner: membership payment recovery (dunning, #21) ─────────── */
+
+describe("runner — membership payment recovery", () => {
+  it("sends only the steps that are due: notice at failure, reminder at +3d — card nudge and final warning wait", async () => {
+    await addSubscriber("owing@x.com");
+    /* Failed 80h ago: step 1 (0h) and step 2 (72h) are due; step 3
+       (120h) and step 4 (144h) are not. */
+    await seedMember(OWNER, { label: "owing@x.com", status: "past_due", at: hoursAgo(80) });
+    await enableAutomation("membership_payment_recovery", { enabledAt: hoursAgo(100) });
+
+    const totals = await runNow();
+    expect(totals.sent).toBe(2);
+    /* Step 1 rides the automation's own seeded copy; step 2 carries
+       its fixed step copy — two DIFFERENT subjects, one recipient. */
+    expect(mail.sends.map((s: any) => s.subject).sort()).toEqual([
+      "Reminder: your membership payment is still past due",
+      "Your membership payment didn't go through",
+    ]);
+    const rows = await sendRows();
+    expect(rows.map((r: any) => r.triggerRef.split(":").pop()).sort()).toEqual([
+      "payment_failed_notice",
+      "payment_reminder",
+    ]);
+
+    /* Re-running never re-sends a claimed step. */
+    const again = await runNow();
+    expect(again.sent).toBe(0);
+    expect((await sendRows()).length).toBe(2);
+  });
+
+  it("the chase stops the moment the member leaves past_due", async () => {
+    await addSubscriber("fixed@x.com");
+    const member = await seedMember(OWNER, { label: "fixed@x.com", status: "past_due", at: hoursAgo(10) });
+    await enableAutomation("membership_payment_recovery", { enabledAt: hoursAgo(100) });
+    const first = await runNow();
+    expect(first.sent).toBe(1); /* only the failure notice is due at +10h */
+
+    await db
+      .update(fanMembersTable)
+      .set({ status: "active", updated_at: NOW })
+      .where(eq(fanMembersTable.id, (member as any).id));
+    const second = await runNow();
+    expect(second.sent).toBe(0);
+    expect((await sendRows()).length).toBe(1);
+    expect(mail.sends.length).toBe(1);
+  });
+
+  it("a failure older than the switch-on moment never fires (enabled-at gate)", async () => {
+    await addSubscriber("old@x.com");
+    await seedMember(OWNER, { label: "old@x.com", status: "past_due", at: hoursAgo(200) });
+    await enableAutomation("membership_payment_recovery", { enabledAt: hoursAgo(100) });
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(mail.sends).toEqual([]);
   });
 });
 

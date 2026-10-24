@@ -95,7 +95,7 @@ import {
   type EmailList,
 } from "@workspace/db";
 import { prepareCampaignSend, sendCampaignDelivery } from "./email-campaign-send";
-import { dunningTriggersForMember } from "./dunning";
+import { dunningTriggersForMember, pastDueSince } from "./dunning";
 import { getUserEmail } from "./stripe-connect";
 import { logger } from "./logger";
 import {
@@ -325,8 +325,15 @@ export interface AutomationTrigger {
   ref: string;
   /** Lowercased recipient address. */
   email: string;
-  /** When the triggering thing happened. */
+  /** When the triggering thing happened — for a multi-step sequence,
+   *  the moment this STEP comes due (the due gate reads this). */
   eventAt: Date;
+  /** The moment the underlying EVENT happened, when it differs from
+   *  the step's due time (dunning: every step's event is the payment
+   *  failure). The enabled-at gate reads this when present, so a
+   *  failure that predates the switch-on never fires — not even its
+   *  later steps, whose due times fall after the switch-on. */
+  gateAt?: Date;
   /** Per-trigger copy override (dunning steps 2–4 carry their own
    *  fixed copy; the first step and every other kind send the
    *  automation's stored subject/body). */
@@ -576,11 +583,13 @@ async function collectRecoveryTriggers(
       email = lower(m.fan_label);
     }
     if (!email) continue;
+    const failureAt = pastDueSince(m) ?? undefined;
     for (const t of dunningTriggersForMember(m, email)) {
       out.push({
         ref: t.ref,
         email: t.email,
         eventAt: t.eventAt,
+        ...(failureAt ? { gateAt: failureAt } : {}),
         ...(t.stepKey === "payment_failed_notice" ? {} : { subject: t.subject, body: t.body }),
       });
     }
@@ -687,7 +696,12 @@ export async function runAutomation(
     const since = automation.enabledAt ?? automation.createdAt;
     const delayMs = Math.max(0, automation.delayHours) * 3_600_000;
     const triggers = (await collectTriggers(automation, list.userId, deps))
-      .filter((t) => since != null && t.eventAt >= since && t.eventAt.getTime() + delayMs <= now.getTime())
+      .filter(
+        (t) =>
+          since != null &&
+          (t.gateAt ?? t.eventAt) >= since &&
+          t.eventAt.getTime() + delayMs <= now.getTime(),
+      )
       .sort((a, b) => a.eventAt.getTime() - b.eventAt.getTime());
     summary.candidates = triggers.length;
     if (triggers.length === 0) return summary;
