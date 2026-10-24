@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
-import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
+import { db, artistVaultsTable, artistCharacterLinksTable, CHARACTER_LINK_ROLES } from "@workspace/db";
 import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
@@ -313,20 +313,31 @@ router.get("/artist-vaults/:id/links", requireAuth, async (req, res) => {
     )
     .orderBy(desc(artistCharacterLinksTable.created_at));
 
-  // Attach the linked character's vault data
+  // Attach the linked character's vault data. A soft-deleted co-star is
+  // NOT an active cast member: vault deletion is soft and links survive
+  // it, so dead links are filtered out of the response entirely —
+  // otherwise the manager and Scene Studio would keep presenting (and
+  // describing) a deleted character as a co-star. Restoring the
+  // character (deleted_at cleared) revives the link.
   const enriched = await Promise.all(
     links.map(async (link) => {
       const [vault] = await db
         .select()
         .from(artistVaultsTable)
-        .where(eq(artistVaultsTable.id, link.linked_character_id));
+        .where(
+          and(
+            eq(artistVaultsTable.id, link.linked_character_id),
+            isNull(artistVaultsTable.deleted_at),
+          ),
+        );
       return { ...link, character: vault ?? null };
     }),
   );
+  const live = enriched.filter((l) => l.character !== null);
 
   /* Linked vault rows ride along in full — same R2-first refresh as
      the vault list above. */
-  res.json({ links: await refreshSupabaseStorageUrlsDeep(enriched) });
+  res.json({ links: await refreshSupabaseStorageUrlsDeep(live) });
 });
 
 /** Link another character to star in this character's content. */
@@ -344,11 +355,26 @@ router.post("/artist-vaults/:id/links", requireAuth, async (req, res) => {
     return;
   }
 
-  // Both characters must belong to the user
+  /* The role rides verbatim into generation prompts and FE labels, so it
+     must be one of the known link roles — a junk role is a 400, not a
+     silently accepted string. Absent role keeps the default. */
+  const finalRole = role ?? "collaborator";
+  if (!CHARACTER_LINK_ROLES.some((r) => r.id === finalRole)) {
+    res.status(400).json({ error: "Unknown link role" });
+    return;
+  }
+
+  // Both characters must belong to the user AND be live — a soft-deleted
+  // character cannot be linked as the main character or as a co-star.
   const owned = await db
     .select({ id: artistVaultsTable.id })
     .from(artistVaultsTable)
-    .where(eq(artistVaultsTable.user_id, req.userId!));
+    .where(
+      and(
+        eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
+      ),
+    );
   const ownedIds = new Set(owned.map((o) => o.id));
   if (!ownedIds.has(id) || !ownedIds.has(linkedCharacterId)) {
     res.status(404).json({ error: "Character not found" });
@@ -361,7 +387,7 @@ router.post("/artist-vaults/:id/links", requireAuth, async (req, res) => {
       user_id: req.userId!,
       character_id: id,
       linked_character_id: linkedCharacterId,
-      role: role || "collaborator",
+      role: finalRole,
     })
     .onConflictDoNothing({
       target: [
