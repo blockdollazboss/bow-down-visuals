@@ -342,14 +342,14 @@ export default function StorefrontProduct() {
                           type="email"
                           placeholder="Email for delivery (blank = your account email)"
                           aria-label="Email for delivery"
-                          className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                          className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/50 focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                         />
                         <input
                           value={claimName}
                           onChange={(e) => setClaimName(e.target.value)}
                           placeholder="Your name (optional)"
                           aria-label="Your name"
-                          className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                          className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/50 focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                         />
                       </div>
                       <label className="mt-3 flex cursor-pointer items-start gap-2 text-left text-xs text-amber-100/70">
@@ -404,7 +404,7 @@ export default function StorefrontProduct() {
                       onChange={(e) => setDiscountCode(e.target.value)}
                       placeholder="Discount code (optional)"
                       aria-label="Discount code"
-                      className="min-w-44 flex-1 rounded-full border border-amber-500/30 bg-black/60 px-4 py-2 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                      className="min-w-44 flex-1 rounded-full border border-amber-500/30 bg-black/60 px-4 py-2 text-sm text-amber-100 outline-none placeholder:text-amber-100/50 focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                     />
                   </div>
                   {buyError && <p className="mt-3 text-sm font-bold text-red-300">{buyError}</p>}

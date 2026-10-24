@@ -538,9 +538,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
 
           {/* 1★: title + price only */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Product title — e.g. Midnight Pack Vol. 2" className={inputCls} />
+            <input aria-label="Product title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Product title — e.g. Midnight Pack Vol. 2" className={inputCls} />
             <div className="flex gap-2">
-              <input value={form.priceDollars} onChange={(e) => setForm({ ...form, priceDollars: e.target.value })} placeholder="Price ($)" inputMode="decimal" className={inputCls} />
+              <input aria-label="Price in dollars" value={form.priceDollars} onChange={(e) => setForm({ ...form, priceDollars: e.target.value })} placeholder="Price ($)" inputMode="decimal" className={inputCls} />
               <button onClick={aiStartingPrice} title="Let Thy Cheat Code suggest a starting price" className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20">
                 ✨ Price it
               </button>
@@ -552,35 +552,35 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
 
           {/* 2-3★: guided */}
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-min-stars="2">
-            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
+            <select aria-label="Product type" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
               {(Object.keys(KIND_LABELS) as StoreProductKind[]).map((k) => (
                 <option key={k} value={k}>{KIND_EMOJI[k]} {KIND_LABELS[k]}</option>
               ))}
             </select>
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="One-line pitch (optional)" className={inputCls} />
+            <input aria-label="Product description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="One-line pitch (optional)" className={inputCls} />
           </div>
 
           {/* 4★+: full commerce control */}
           <div data-min-stars="4">
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <input value={form.compareAtDollars} onChange={(e) => setForm({ ...form, compareAtDollars: e.target.value })} placeholder="Compare-at $ (sale anchor)" inputMode="decimal" className={inputCls} />
-              <input value={form.inventory} onChange={(e) => setForm({ ...form, inventory: e.target.value })} placeholder="Inventory (-1 = unlimited)" inputMode="numeric" className={inputCls} />
-              <input value={form.mediaUrl} onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })} placeholder="Cover image URL" className={inputCls} />
+              <input aria-label="Compare-at price in dollars" value={form.compareAtDollars} onChange={(e) => setForm({ ...form, compareAtDollars: e.target.value })} placeholder="Compare-at $ (sale anchor)" inputMode="decimal" className={inputCls} />
+              <input aria-label="Inventory" value={form.inventory} onChange={(e) => setForm({ ...form, inventory: e.target.value })} placeholder="Inventory (-1 = unlimited)" inputMode="numeric" className={inputCls} />
+              <input aria-label="Cover image URL" value={form.mediaUrl} onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })} placeholder="Cover image URL" className={inputCls} />
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <input value={form.relatedLabel} onChange={(e) => setForm({ ...form, relatedLabel: e.target.value })} placeholder="Related link label — e.g. The track" className={inputCls} />
-              <input value={form.relatedUrl} onChange={(e) => setForm({ ...form, relatedUrl: e.target.value })} placeholder="Related link URL — e.g. /songs/…" className={inputCls} />
+              <input aria-label="Related link label" value={form.relatedLabel} onChange={(e) => setForm({ ...form, relatedLabel: e.target.value })} placeholder="Related link label — e.g. The track" className={inputCls} />
+              <input aria-label="Related link URL" value={form.relatedUrl} onChange={(e) => setForm({ ...form, relatedUrl: e.target.value })} placeholder="Related link URL — e.g. /songs/…" className={inputCls} />
             </div>
             {form.kind === "service" && (
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <input value={form.durationMin} onChange={(e) => setForm({ ...form, durationMin: e.target.value })} placeholder="Duration (min)" inputMode="numeric" className={inputCls} />
-                <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" className={inputCls} />
-                <input value={form.calendarLink} onChange={(e) => setForm({ ...form, calendarLink: e.target.value })} placeholder="Booking calendar link (stub)" className={inputCls} />
+                <input aria-label="Duration in minutes" value={form.durationMin} onChange={(e) => setForm({ ...form, durationMin: e.target.value })} placeholder="Duration (min)" inputMode="numeric" className={inputCls} />
+                <input aria-label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" className={inputCls} />
+                <input aria-label="Booking calendar link" value={form.calendarLink} onChange={(e) => setForm({ ...form, calendarLink: e.target.value })} placeholder="Booking calendar link (stub)" className={inputCls} />
               </div>
             )}
             {form.kind === "ticket" && (
               <div className="mt-3">
-                <input value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })} placeholder="Event ID (from your /shows event)" className={inputCls} />
+                <input aria-label="Event ID" value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })} placeholder="Event ID (from your /shows event)" className={inputCls} />
                 <p className="mt-1 text-[10px] text-white/35">Ticket sales create an event RSVP automatically.</p>
               </div>
             )}
@@ -943,14 +943,14 @@ function DiscountsTab() {
         {err && <p className="mb-3 flex items-center gap-2 text-xs text-red-400"><AlertCircle className="h-4 w-4" />{err}</p>}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex gap-2">
-            <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="CODE name" className={inputCls} />
+            <input aria-label="Discount code name" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="CODE name" className={inputCls} />
             <button onClick={randomCode} title="Generate a code name" className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20">
               <Sparkles className="h-4 w-4" />
             </button>
           </div>
-          <input value={form.percentOff} onChange={(e) => setForm({ ...form, percentOff: e.target.value })} placeholder="% off (1–90)" inputMode="numeric" className={inputCls} />
+          <input aria-label="Percent off" value={form.percentOff} onChange={(e) => setForm({ ...form, percentOff: e.target.value })} placeholder="% off (1–90)" inputMode="numeric" className={inputCls} />
           <div data-min-stars="4" className="contents">
-            <input value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: e.target.value })} placeholder="Max uses (-1 = ∞)" inputMode="numeric" className={inputCls} />
+            <input aria-label="Max uses" value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: e.target.value })} placeholder="Max uses (-1 = ∞)" inputMode="numeric" className={inputCls} />
             <input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} className={inputCls} />
           </div>
         </div>
@@ -1948,11 +1948,12 @@ function DigitalSalesTab() {
                         <span data-min-stars="4" className="inline-flex items-center gap-2">
                           <span className="text-xs text-amber-100/50">$</span>
                           <input
+                            aria-label="Custom price in dollars"
                             value={custom}
                             onChange={(e) => setCustomPrices((m) => ({ ...m, [key]: e.target.value.replace(/[^0-9.]/g, "") }))}
                             placeholder="9.99"
                             inputMode="decimal"
-                            className="w-20 rounded-lg border border-amber-500/30 bg-black px-2 py-1.5 text-sm text-amber-100 placeholder:text-amber-100/30"
+                            className="w-20 rounded-lg border border-amber-500/30 bg-black px-2 py-1.5 text-sm text-amber-100 placeholder:text-amber-100/50"
                           />
                           <button
                             onClick={() => customCents > 0 && applyPrice(p.kind, p.id, customCents)}

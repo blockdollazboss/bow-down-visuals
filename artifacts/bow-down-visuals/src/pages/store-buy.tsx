@@ -203,7 +203,7 @@ export default function StoreBuy() {
                         onChange={(e) => setPwywDollars(e.target.value)}
                         inputMode="decimal"
                         aria-label="Your price in dollars"
-                        className="w-full rounded-lg border border-amber-500/30 bg-black/60 py-2.5 pl-7 pr-3 text-xl font-bold text-amber-200 outline-none focus:border-amber-400"
+                        className="w-full rounded-lg border border-amber-500/30 bg-black/60 py-2.5 pl-7 pr-3 text-xl font-bold text-amber-200 outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                       />
                     </div>
                     {pwywError && <p className="mt-2 text-xs font-bold text-red-300">{pwywError}</p>}

@@ -35,7 +35,7 @@ const COLOR_PRESETS = [
 ];
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40";
+  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/50 outline-none transition focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40 focus-visible:ring-2 focus-visible:ring-amber-400/60";
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none";
 const goldBtnGated = (isLight: boolean) =>
@@ -240,22 +240,22 @@ export default function StorefrontBuilder() {
                 <h2 className="text-lg font-bold">{t("storefrontBuilder.step1Title")}</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.shopNameLabel")}</label>
-                    <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("storefrontBuilder.shopNamePlaceholder")} maxLength={80} />
+                    <label htmlFor="sfb-name" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.shopNameLabel")}</label>
+                    <input id="sfb-name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("storefrontBuilder.shopNamePlaceholder")} maxLength={80} />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.handleLabel")}</label>
+                    <label htmlFor="sfb-handle" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.handleLabel")}</label>
                     <div className="flex items-center gap-2">
                       <span className="shrink-0 font-mono text-sm text-white/40">/shop/</span>
-                      <input className={`${inputClass} font-mono`} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder={t("storefrontBuilder.handlePlaceholder")} maxLength={30} />
+                      <input id="sfb-handle" className={`${inputClass} font-mono`} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder={t("storefrontBuilder.handlePlaceholder")} maxLength={30} />
                     </div>
                     {handle && !/^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])$/.test(cleanHandle) && (
                       <p className="mt-1 text-xs text-red-300">{t("storefrontBuilder.handleError")}</p>
                     )}
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.taglineLabel")}</label>
-                    <input className={inputClass} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t("storefrontBuilder.taglinePlaceholder")} maxLength={140} />
+                    <label htmlFor="sfb-tagline" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.taglineLabel")}</label>
+                    <input id="sfb-tagline" className={inputClass} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t("storefrontBuilder.taglinePlaceholder")} maxLength={140} />
                   </div>
                 </div>
               </div>
@@ -281,16 +281,16 @@ export default function StorefrontBuilder() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.bannerColorLabel")}</label>
+                    <label htmlFor="sfb-banner-color" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.bannerColorLabel")}</label>
                     <div className="flex items-center gap-2">
-                      <input type="color" value={bannerColor} onChange={(e) => setBannerColor(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-black" />
+                      <input id="sfb-banner-color" type="color" value={bannerColor} onChange={(e) => setBannerColor(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-black" />
                       <span className="font-mono text-xs text-white/50">{bannerColor}</span>
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Accent color</label>
+                    <label htmlFor="sfb-accent-color" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Accent color</label>
                     <div className="flex items-center gap-2">
-                      <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-black" />
+                      <input id="sfb-accent-color" type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-black" />
                       <span className="font-mono text-xs text-white/50">{accentColor}</span>
                     </div>
                   </div>
@@ -317,15 +317,15 @@ export default function StorefrontBuilder() {
                   {t("storefrontBuilder.step3SubtitleB")}
                 </p>
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.sellWhatLabel")}</label>
-                  <input className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("storefrontBuilder.sellWhatPlaceholder")} maxLength={120} />
+                  <label htmlFor="sfb-niche" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.sellWhatLabel")}</label>
+                  <input id="sfb-niche" className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("storefrontBuilder.sellWhatPlaceholder")} maxLength={120} />
                 </div>
                 <button className={!name.trim() && !busy ? `${goldBtnGated(isLight)} mt-3` : `${goldBtn} mt-3`} onClick={generateDescription} disabled={busy || !name.trim()}>
                   <Sparkles className="h-4 w-4" /> {t("storefrontBuilder.generateAi")} <span className="text-[11px] font-semibold opacity-70">{t("storefrontBuilder.step3Cost")}</span>
                 </button>
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.shopDescriptionLabel")}</label>
-                  <textarea className={`${inputClass} min-h-28`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("storefrontBuilder.shopDescriptionPlaceholder")} maxLength={2000} />
+                  <label htmlFor="sfb-description" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">{t("storefrontBuilder.shopDescriptionLabel")}</label>
+                  <textarea id="sfb-description" className={`${inputClass} min-h-28`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("storefrontBuilder.shopDescriptionPlaceholder")} maxLength={2000} />
                 </div>
               </div>
             )}
@@ -341,16 +341,16 @@ export default function StorefrontBuilder() {
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-white/40">{t("storefrontBuilder.productNumber", { n: i + 1 })}</span>
                         {products.length > 1 && (
-                          <button className="text-white/40 hover:text-red-300" onClick={() => setProducts(products.filter((_, j) => j !== i))}>
+                          <button className="flex h-10 w-10 items-center justify-center text-white/50 hover:text-red-300" aria-label={t("storefrontBuilder.removeProduct", { defaultValue: "Remove product {{n}}", n: i + 1 })} onClick={() => setProducts(products.filter((_, j) => j !== i))}>
                             <X className="h-4 w-4" />
                           </button>
                         )}
                       </div>
                       <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                        <input className={inputClass} value={p.name} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder={t("storefrontBuilder.productNamePlaceholder")} maxLength={120} />
-                        <input className={inputClass} value={p.price} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, price: e.target.value } : x))} placeholder={t("storefrontBuilder.productPricePlaceholder")} inputMode="decimal" />
+                        <input className={inputClass} aria-label={t("storefrontBuilder.productNamePlaceholder")} value={p.name} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder={t("storefrontBuilder.productNamePlaceholder")} maxLength={120} />
+                        <input className={inputClass} aria-label={t("storefrontBuilder.productPricePlaceholder")} value={p.price} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, price: e.target.value } : x))} placeholder={t("storefrontBuilder.productPricePlaceholder")} inputMode="decimal" />
                       </div>
-                      <input className={`${inputClass} mt-3`} value={p.description} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder={t("storefrontBuilder.productDescPlaceholder")} maxLength={500} />
+                      <input className={`${inputClass} mt-3`} aria-label={t("storefrontBuilder.productDescPlaceholder")} value={p.description} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder={t("storefrontBuilder.productDescPlaceholder")} maxLength={500} />
                       {p.price && dollarsToCents(p.price) != null && (
                         <p className="mt-1.5 text-xs text-white/40">
                           {t("storefrontBuilder.productFeeLine", { price: centsToDisplay(dollarsToCents(p.price)!), keep: centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.95)) })}
@@ -378,7 +378,7 @@ export default function StorefrontBuilder() {
                   <div className="flex items-center gap-2 text-sm font-bold"><Globe className="h-4 w-4 text-amber-300" /> {t("storefrontBuilder.customDomain")}</div>
                   {!domainInfo ? (
                     <div className="mt-3 flex gap-2">
-                      <input className={inputClass} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("storefrontBuilder.domainPlaceholder")} />
+                      <input className={inputClass} aria-label={t("storefrontBuilder.domainPlaceholder")} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("storefrontBuilder.domainPlaceholder")} />
                       <button className={!domain.trim() && !busy ? goldBtnGated(isLight) : goldBtn} onClick={attachDomain} disabled={busy || !domain.trim()}>{t("storefrontBuilder.connect")}</button>
                     </div>
                   ) : (

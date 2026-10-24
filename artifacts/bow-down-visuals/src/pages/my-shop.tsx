@@ -46,7 +46,7 @@ interface Product {
 }
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
+  "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/50 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40 focus-visible:ring-2 focus-visible:ring-primary/60";
 
 const goldBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 text-sm font-bold text-black shadow-[0_0_24px_rgba(212,175,55,0.35)] transition hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none";
@@ -452,16 +452,16 @@ export default function MyShop() {
             <h2 className="text-lg font-bold">{t("myShop.createYourShop")}</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div>
-                <label className="text-xs font-semibold text-white/50">{t("myShop.shopNameLabel")}</label>
-                <input className={`${inputClass} mt-1`} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("myShop.shopNamePlaceholder")} maxLength={80} />
+                <label htmlFor="myshop-create-name" className="text-xs font-semibold text-white/50">{t("myShop.shopNameLabel")}</label>
+                <input id="myshop-create-name" className={`${inputClass} mt-1`} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("myShop.shopNamePlaceholder")} maxLength={80} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/50">{t("myShop.handleLabel")}</label>
-                <input className={`${inputClass} mt-1 font-mono`} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder={t("myShop.handlePlaceholder")} maxLength={30} />
+                <label htmlFor="myshop-create-handle" className="text-xs font-semibold text-white/50">{t("myShop.handleLabel")}</label>
+                <input id="myshop-create-handle" className={`${inputClass} mt-1 font-mono`} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder={t("myShop.handlePlaceholder")} maxLength={30} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
-                <input className={`${inputClass} mt-1`} value={newTagline} onChange={(e) => setNewTagline(e.target.value)} placeholder={t("myShop.taglinePlaceholder")} maxLength={140} />
+                <label htmlFor="myshop-create-tagline" className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
+                <input id="myshop-create-tagline" className={`${inputClass} mt-1`} value={newTagline} onChange={(e) => setNewTagline(e.target.value)} placeholder={t("myShop.taglinePlaceholder")} maxLength={140} />
               </div>
             </div>
             <div className="mt-4 flex gap-3">
@@ -551,21 +551,21 @@ export default function MyShop() {
                   </div>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-xs font-semibold text-white/50">{t("myShop.shopNameLabel")}</label>
-                      <input className={`${inputClass} mt-1`} value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} />
+                      <label htmlFor="myshop-edit-name" className="text-xs font-semibold text-white/50">{t("myShop.shopNameLabel")}</label>
+                      <input id="myshop-edit-name" className={`${inputClass} mt-1`} value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
-                      <input className={`${inputClass} mt-1`} value={editTagline} onChange={(e) => setEditTagline(e.target.value)} maxLength={140} />
+                      <label htmlFor="myshop-edit-tagline" className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
+                      <input id="myshop-edit-tagline" className={`${inputClass} mt-1`} value={editTagline} onChange={(e) => setEditTagline(e.target.value)} maxLength={140} />
                     </div>
                   </div>
                   <div className="mt-4">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-white/50">{t("myShop.aboutBlurb")}</label>
+                      <label htmlFor="myshop-edit-about" className="text-xs font-semibold text-white/50">{t("myShop.aboutBlurb")}</label>
                       <div className="flex items-center gap-2">
                         <input
-                          className="rounded-lg border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-white placeholder:text-white/25 outline-none w-40"
-                          value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("myShop.nichePlaceholder")} maxLength={120}
+                          className="rounded-lg border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-white placeholder:text-white/50 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 w-40"
+                          value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("myShop.nichePlaceholder")} aria-label={t("myShop.nichePlaceholder")} maxLength={120}
                         />
                         <button className={ghostBtn} onClick={generateShopDescription} disabled={aiShopDescLoading}>
                           {aiShopDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
@@ -573,20 +573,20 @@ export default function MyShop() {
                         </button>
                       </div>
                     </div>
-                    <textarea className={`${inputClass} mt-1 min-h-[90px]`} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} placeholder={t("myShop.aboutPlaceholder")} />
+                    <textarea id="myshop-edit-about" className={`${inputClass} mt-1 min-h-[90px]`} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} maxLength={2000} placeholder={t("myShop.aboutPlaceholder")} />
                   </div>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {t("myShop.bannerColor")}</label>
+                      <label htmlFor="myshop-banner-color" className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {t("myShop.bannerColor")}</label>
                       <div className="mt-1 flex items-center gap-2">
-                        <input type="color" value={editBannerColor} onChange={(e) => setEditBannerColor(e.target.value)} className="h-10 w-14 rounded-lg border border-white/15 bg-black cursor-pointer" />
+                        <input id="myshop-banner-color" type="color" value={editBannerColor} onChange={(e) => setEditBannerColor(e.target.value)} className="h-10 w-14 rounded-lg border border-white/15 bg-black cursor-pointer" />
                         <span className="font-mono text-xs text-white/50">{editBannerColor}</span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {t("myShop.accentColor")}</label>
+                      <label htmlFor="myshop-accent-color" className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {t("myShop.accentColor")}</label>
                       <div className="mt-1 flex items-center gap-2">
-                        <input type="color" value={editAccentColor} onChange={(e) => setEditAccentColor(e.target.value)} className="h-10 w-14 rounded-lg border border-white/15 bg-black cursor-pointer" />
+                        <input id="myshop-accent-color" type="color" value={editAccentColor} onChange={(e) => setEditAccentColor(e.target.value)} className="h-10 w-14 rounded-lg border border-white/15 bg-black cursor-pointer" />
                         <span className="font-mono text-xs text-white/50">{editAccentColor}</span>
                         <button className="text-xs text-white/40 underline" onClick={() => setEditAccentColor("#d4af37")}>{t("myShop.resetGold")}</button>
                       </div>
@@ -619,37 +619,37 @@ export default function MyShop() {
                       </div>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>
-                          <label className="text-xs font-semibold text-white/50">{t("myShop.productNameLabel")}</label>
-                          <input className={`${inputClass} mt-1`} value={pName} onChange={(e) => setPName(e.target.value)} placeholder={t("myShop.productNamePlaceholder")} maxLength={120} />
+                          <label htmlFor="myshop-product-name" className="text-xs font-semibold text-white/50">{t("myShop.productNameLabel")}</label>
+                          <input id="myshop-product-name" className={`${inputClass} mt-1`} value={pName} onChange={(e) => setPName(e.target.value)} placeholder={t("myShop.productNamePlaceholder")} maxLength={120} />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-white/50">{t("myShop.priceLabel")}</label>
-                          <input className={`${inputClass} mt-1`} value={pPrice} onChange={(e) => setPPrice(e.target.value)} placeholder={t("myShop.pricePlaceholder")} inputMode="decimal" />
+                          <label htmlFor="myshop-product-price" className="text-xs font-semibold text-white/50">{t("myShop.priceLabel")}</label>
+                          <input id="myshop-product-price" className={`${inputClass} mt-1`} value={pPrice} onChange={(e) => setPPrice(e.target.value)} placeholder={t("myShop.pricePlaceholder")} inputMode="decimal" />
                         </div>
                       </div>
                       <div className="mt-4">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-white/50">{t("myShop.descriptionLabel")}</label>
+                          <label htmlFor="myshop-product-desc" className="text-xs font-semibold text-white/50">{t("myShop.descriptionLabel")}</label>
                           <button className={ghostBtn} onClick={generateProductDescription} disabled={aiProdDescLoading}>
                             {aiProdDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
                             <span className="text-xs">{t("myShop.aiWrite100")}</span>
                           </button>
                         </div>
-                        <textarea className={`${inputClass} mt-1 min-h-[80px]`} value={pDesc} onChange={(e) => setPDesc(e.target.value)} maxLength={2000} placeholder={t("myShop.productDescPlaceholder")} />
+                        <textarea id="myshop-product-desc" className={`${inputClass} mt-1 min-h-[80px]`} value={pDesc} onChange={(e) => setPDesc(e.target.value)} maxLength={2000} placeholder={t("myShop.productDescPlaceholder")} />
                       </div>
                       <div className="mt-4">
-                        <label className="text-xs font-semibold text-white/50">{t("myShop.productImageLabel")}</label>
+                        <label htmlFor="myshop-product-image-url" className="text-xs font-semibold text-white/50">{t("myShop.productImageLabel")}</label>
                         {pImageUrl ? (
                           <div className="mt-1 flex items-center gap-3">
-                            <img src={pImageUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="Product" className="h-16 w-16 rounded-lg object-cover border border-white/15" />
+                            <img src={pImageUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={pName || "Product"} className="h-16 w-16 rounded-lg object-cover border border-white/15" />
                             <button className="text-xs text-white/40 underline" onClick={() => setPImageUrl("")}>{t("myShop.removeImage")}</button>
                           </div>
                         ) : (
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <input
-                              className="flex-1 min-w-[200px] rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none"
+                              className="flex-1 min-w-[200px] rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/50 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
                               value={imageStyleHint} onChange={(e) => setImageStyleHint(e.target.value)}
-                              placeholder={t("myShop.styleHintPlaceholder")}
+                              placeholder={t("myShop.styleHintPlaceholder")} aria-label={t("myShop.styleHintPlaceholder")}
                               maxLength={300}
                             />
                             <button className={ghostBtn} onClick={() => generateProductImage("standard")} disabled={!!aiImageLoading}>
@@ -663,8 +663,8 @@ export default function MyShop() {
                           </div>
                         )}
                         <input
-                          className="mt-2 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none"
-                          value={pImageUrl} onChange={(e) => setPImageUrl(e.target.value)}
+                          className="mt-2 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/50 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                          id="myshop-product-image-url" value={pImageUrl} onChange={(e) => setPImageUrl(e.target.value)}
                           placeholder={t("myShop.imageUrlPlaceholder")}
                         />
                       </div>
@@ -858,7 +858,7 @@ function DiscountCodesCard({
     }
   }
 
-  const inputCls = "rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60";
+  const inputCls = "rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/50 outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60";
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
@@ -872,6 +872,7 @@ function DiscountCodesCard({
           value={newCode}
           onChange={(e) => setNewCode(e.target.value.toUpperCase())}
           placeholder={t("myShop.discountCodePlaceholder")}
+          aria-label={t("myShop.discountCodePlaceholder")}
           maxLength={32}
           className={`${inputCls} w-56 uppercase`}
         />
@@ -879,6 +880,7 @@ function DiscountCodesCard({
           value={newPct}
           onChange={(e) => setNewPct(e.target.value.replace(/[^0-9]/g, ""))}
           placeholder={t("myShop.discountPercentPlaceholder")}
+          aria-label={t("myShop.discountPercentPlaceholder")}
           inputMode="numeric"
           className={`${inputCls} w-32`}
         />
@@ -1020,8 +1022,8 @@ function DomainManager({
           <div className="mt-2 flex gap-2">
             <input
               value={domain} onChange={(e) => setDomain(e.target.value)}
-              placeholder={t("myShop.domainPlaceholder")}
-              className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+              placeholder={t("myShop.domainPlaceholder")} aria-label={t("myShop.domainPlaceholder")}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
             />
             <button onClick={attach} disabled={busy || !domain.trim()} className={goldBtn}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {t("myShop.connect")}
