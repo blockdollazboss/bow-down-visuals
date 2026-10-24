@@ -73,6 +73,7 @@ import devRouter from "./dev";
 import stripePaymentsRouter from "./stripe-payments";
 import stripeConnectRouter from "./stripe-connect";
 import creditsRouter from "./credits";
+import publicApiRouter from "./public-api";
 import carouselRouter from "./carousel";
 import booksRouter from "./books";
 import bonusRouter from "./bonus";
@@ -441,6 +442,7 @@ router.use(devRouter);
 router.use(stripePaymentsRouter);
 router.use(stripeConnectRouter);
 router.use(creditsRouter);
+router.use(publicApiRouter); // Stack-100 #3 #9: /api-keys management + Public Creator API /v1 (me, content, balance, generate/bio)
 router.use(carouselRouter);
 router.use(booksRouter);
 router.use(bonusRouter);

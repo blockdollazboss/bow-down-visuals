@@ -6,6 +6,7 @@ import { SocialProofSettings } from "@/components/SocialProofSettings";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
+import { DeveloperApiSettings } from "@/components/DeveloperApiSettings";
 import { TeamSeats } from "@/components/TeamSeats";
 import { LegacySettings, LegacyContactSettings, PermanenceSettings, CatalogExportPanel, ModConsolePanel } from "@/components/trust/TrustPanels";
 import { useAuth } from "@/contexts/AuthContext";
@@ -258,6 +259,8 @@ export default function Settings() {
         <RetentionPrefsSettings />
 
         <DiscordWebhookSettings />
+
+        <DeveloperApiSettings />
 
         <TeamSeats />
 

@@ -12,10 +12,10 @@ const router = Router();
    bio respects that platform's character limit.
    50 Visual Bucs. */
 
-const BIO_COST = Number(process.env["BIO_GENERATOR_CREDITS"]) || 50;
+export const BIO_COST = Number(process.env["BIO_GENERATOR_CREDITS"]) || 50;
 
 /** Character limits enforced per platform (generous-safe margins). */
-const PLATFORM_LIMITS = {
+export const PLATFORM_LIMITS = {
   instagram: { limit: 150, label: "Instagram" },
   tiktok: { limit: 80, label: "TikTok" },
   twitter: { limit: 160, label: "Twitter/X" },
@@ -24,7 +24,7 @@ const PLATFORM_LIMITS = {
 
 type PlatformId = keyof typeof PLATFORM_LIMITS;
 
-const bioSchema = z.object({
+export const bioSchema = z.object({
   /** Creator's niche / content vertical. */
   niche: z.string().trim().min(2).max(120),
   /** Personality traits / vibe words, e.g. funny, bold, luxury. */
@@ -37,7 +37,7 @@ const bioSchema = z.object({
   handle: z.string().trim().min(1).max(60).optional(),
 });
 
-interface PlatformBio {
+export interface PlatformBio {
   platform: string;
   bio: string;
   charCount: number;
@@ -54,44 +54,43 @@ router.get("/bio-platforms", requireAuth, (_req, res) => {
   });
 });
 
-router.post("/generate-bio", requireAuth, async (req, res) => {
-  const parsed = bioSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
+export interface BioGenerationResult {
+  bios: PlatformBio[];
+  creditsRemaining: number;
+}
 
-  const currentCredits = req.userCredits ?? 0;
-  if (currentCredits < BIO_COST) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
-    });
-    return;
-  }
-
-  let creditsAfter: number;
-  try {
-    creditsAfter = await chargeCredits(req.userId!, BIO_COST, {
-      action: "Bio Generator",
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
-    }
-    throw err;
-  }
+/**
+ * The Bio Generator rail's charging core — shared VERBATIM by the website
+ * route below and the Public Creator API (POST /api/v1/generate/bio), so
+ * both surfaces charge the SAME BIO_COST from this one constant, through
+ * the SAME ledger, with the SAME refund-on-failure behaviour. The price
+ * is never client-supplied on either surface.
+ *
+ * Charge discipline (mirrors the operator-hands law):
+ * - chargeCredits() lands exactly one ledger row per completed call;
+ *   OutOfCreditsError propagates BEFORE any generation runs, so a key
+ *   (or click) can never spend past the owner's balance.
+ * - Any generation failure refunds in full under "<action> — Refund".
+ * - `action` is the ledger label: the website passes "Bio Generator";
+ *   the API passes "API: Bio Generator" so every API charge is
+ *   identifiable as API-originated in the ledger/activity.
+ * - `idempotencyKey`, when given, makes a retried call charge once.
+ */
+export async function generateBiosForUser(
+  userId: string,
+  data: z.infer<typeof bioSchema>,
+  opts: { action: string; idempotencyKey?: string | null },
+): Promise<BioGenerationResult> {
+  const creditsAfter = await chargeCredits(userId, BIO_COST, { action: opts.action }, {
+    idempotencyKey: opts.idempotencyKey ?? null,
+  });
 
   try {
     const model = getTextModel();
-    const { niche, personality, achievements, cta, handle } = parsed.data;
+    const { niche, personality, achievements, cta, handle } = data;
 
     const achievementLine = achievements.length > 0
-      ? `Achievements / proof to weave in: ${achievements.join(" • ")}\n`
+      ? `Achievements / proof to weave in: ${achievements.join(" \u2022 ")}\n`
       : "";
     const ctaLine = cta ? `Call to action to include where it fits: ${cta}\n` : "";
     const handleLine = handle ? `Handle/name: ${handle}\n` : "";
@@ -104,12 +103,12 @@ router.post("/generate-bio", requireAuth, async (req, res) => {
       `${ctaLine}` +
       `${handleLine}\n` +
       `Write ONE bio per platform, each respecting its hard character limit (including spaces and emojis):\n` +
-      `- instagram: max ${PLATFORM_LIMITS.instagram.limit} characters — punchy, line breaks allowed, 1-2 emojis\n` +
-      `- tiktok: max ${PLATFORM_LIMITS.tiktok.limit} characters — ultra short, hooky, Gen-Z energy\n` +
-      `- twitter: max ${PLATFORM_LIMITS.twitter.limit} characters — witty, keyword-rich\n` +
-      `- youtube: max ${PLATFORM_LIMITS.youtube.limit} characters — slightly longer channel bio, what viewers get\n\n` +
+      `- instagram: max ${PLATFORM_LIMITS.instagram.limit} characters \u2014 punchy, line breaks allowed, 1-2 emojis\n` +
+      `- tiktok: max ${PLATFORM_LIMITS.tiktok.limit} characters \u2014 ultra short, hooky, Gen-Z energy\n` +
+      `- twitter: max ${PLATFORM_LIMITS.twitter.limit} characters \u2014 witty, keyword-rich\n` +
+      `- youtube: max ${PLATFORM_LIMITS.youtube.limit} characters \u2014 slightly longer channel bio, what viewers get\n\n` +
       `Rules:\n` +
-      `- Never exceed a platform's character limit — shorten rather than overflow\n` +
+      `- Never exceed a platform's character limit \u2014 shorten rather than overflow\n` +
       `- Make each bio distinct; do not copy-paste the same bio across platforms\n` +
       `- No hashtags in bios unless they fit naturally on TikTok/Instagram\n` +
       `- Keep it honest to the niche and achievements provided\n\n` +
@@ -131,8 +130,8 @@ router.post("/generate-bio", requireAuth, async (req, res) => {
     });
 
     if (!response.ok) throw new Error("Bio generation failed.");
-    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content;
+    const respData = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = respData.choices?.[0]?.message?.content;
     if (!content) throw new Error("Empty bio generation result.");
 
     const parsedContent = JSON.parse(content) as Record<string, unknown>;
@@ -156,17 +155,52 @@ router.post("/generate-bio", requireAuth, async (req, res) => {
       };
     });
 
+    return { bios, creditsRemaining: creditsAfter };
+  } catch (err) {
+    // Failed generations do NOT keep the charge — full refund, exactly as
+    // the website rail has always behaved.
+    await refundCredits(userId, BIO_COST, {
+      action: `${opts.action} \u2014 Refund`,
+    }).catch(() => {});
+    throw err;
+  }
+}
+
+router.post("/generate-bio", requireAuth, async (req, res) => {
+  const parsed = bioSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const currentCredits = req.userCredits ?? 0;
+  if (currentCredits < BIO_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
+    });
+    return;
+  }
+
+  try {
+    const { bios, creditsRemaining } = await generateBiosForUser(req.userId!, parsed.data, {
+      action: "Bio Generator",
+    });
     res.json({
       bios,
       niche: parsed.data.niche,
-      creditsRemaining: creditsAfter,
+      creditsRemaining,
     });
   } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
+      return;
+    }
     const message = err instanceof Error ? err.message : "Bio generation failed.";
     req.log.error({ err: message }, "[bio-generator] failed");
-    await refundCredits(req.userId!, BIO_COST, {
-      action: "Bio Generator — Refund",
-    }).catch(() => {});
     res.status(500).json({ error: message });
   }
 });
