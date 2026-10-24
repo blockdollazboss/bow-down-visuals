@@ -26,7 +26,7 @@ import {
   Wrench, Sparkles, ImageOff,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
-import { computeSceneTimings, parseRawSceneDuration } from "@/lib/scene-timing";
+import { computeSceneTimings } from "@/lib/scene-timing";
 import type { EditorSettings } from "@/lib/editor-settings";
 import { defaultClipEdit } from "@/lib/editor-settings";
 import { Button } from "@/components/ui/button";
@@ -225,21 +225,25 @@ function ClipRepairPanel({
           res.lastError = `No URL found in scene data. Fields checked: videoUrl, url, outputUrl, resultUrl, generatedVideoUrl, clipUrl, assetUrl, mediaUrl`;
         }
       } else if (action === "placeholder") {
-        const dur = parseRawSceneDuration(scene.timestamp).durationSec;
-        const ph = `https://storage.bowdownvisuals.com/placeholders/${scene.section?.toLowerCase().replace(/\s+/g, "-") ?? "scene"}-${dur}s-placeholder.mp4`;
-        res.placeholderCreated = true;
-        res.attachedUrl = true;
-        res.savedToProject = !!setScenes;
-        res.attachedUrlValue = ph;
-        res.allClipsNowValid = true;
-        applyUrl(ph);
+        // Stack-100 #3 Lane D (N-01, P0): this branch used to FABRICATE a
+        // placeholder video URL on the storage domain and attach it as
+        // the scene's real demoClipUrl while reporting
+        // "all clips now valid" — no such file is ever created, so preview
+        // and export chased a nonexistent video. Placeholder generation
+        // does not exist; say so and attach nothing.
+        res.lastError =
+          "Placeholder videos aren't generated yet — attach a real clip (Generate or Upload in the Clips tab), or use Repair if this scene already has a URL in its data.";
       } else {
-        const jobId = `gen_${Math.random().toString(36).slice(2, 10)}`;
-        res.regenerateStarted = true;
+        // Stack-100 #3 Lane D (N-02, P1): this branch used to invent a job
+        // id (gen_<random>) and report "regenerate started" without calling
+        // any API — nothing was ever generated or attached. Regeneration
+        // lives in the Clips tab; this panel must not fake a job.
+        res.regenerateStarted = false;
         res.attachedUrlValue = null;
         res.allClipsNowValid = false;
-        setRegenJobId(jobId);
-        if (!setScenes) res.lastError = "setScenes not available — URL repair requires it";
+        setRegenJobId(null);
+        res.lastError =
+          "Clip regeneration isn't available in this panel — regenerate this scene from the Clips tab.";
       }
     } catch (e) {
       res.lastError = e instanceof Error ? e.message : "Unknown error";
@@ -302,30 +306,28 @@ function ClipRepairPanel({
           </div>
         </button>
 
-        <button type="button" onClick={() => runAction("placeholder")}
-          disabled={!!busy || !!currentUrl}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-left disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-500/[0.11] transition-colors">
-          {busy === "placeholder"
-            ? <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
-            : <ImageOff className="h-3.5 w-3.5 shrink-0" />}
+        <button type="button"
+          disabled
+          title="Not available — placeholder videos aren't generated yet. Attach a real clip from the Clips tab."
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-left disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <ImageOff className="h-3.5 w-3.5 shrink-0" />
           <div>
             <p className="text-[11px] font-bold">Use Placeholder for Clip {clipNum}</p>
             <p className="text-[8px] text-white/35">
-              Creates a {parseRawSceneDuration(scene.timestamp).durationSec}s dark Bow Down Visuals placeholder · text: {scene.section ?? "Scene"} · for testing only
+              Not available — placeholder videos aren't generated yet · attach a real clip instead
             </p>
           </div>
         </button>
 
-        <button type="button" onClick={() => runAction("regenerate")}
-          disabled={!!busy}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] text-violet-400 text-left disabled:opacity-40 disabled:cursor-not-allowed hover:bg-violet-500/[0.11] transition-colors">
-          {busy === "regenerate"
-            ? <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
-            : <Sparkles className="h-3.5 w-3.5 shrink-0" />}
+        <button type="button"
+          disabled
+          title="Not available in this panel — regenerate this scene from the Clips tab."
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] text-violet-400 text-left disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          <Sparkles className="h-3.5 w-3.5 shrink-0" />
           <div>
             <p className="text-[11px] font-bold">Regenerate Clip {clipNum} · {scene.section ?? "Scene"}</p>
             <p className="text-[8px] text-white/35">
-              Start a new video generation job for this section only{regenJobId ? ` · Job: ${regenJobId}` : ""}
+              Not available in this panel — regenerate from the Clips tab
             </p>
           </div>
         </button>
