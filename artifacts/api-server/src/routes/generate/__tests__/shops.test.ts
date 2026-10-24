@@ -357,6 +357,44 @@ describe("PATCH /api/shops/:id", () => {
     const { status } = await req("PATCH", `/shops/${id}`, { accent_color: "not-a-color" });
     expect(status).toBe(400);
   });
+
+  it("sets the banner image for free and shows it on the public storefront", async () => {
+    const { id } = await seedShop(USER_A, "banner-shop");
+    const { status, json } = await req("PATCH", `/shops/${id}`, {
+      banner_image_url: "https://cdn.example.com/banner.jpg",
+    });
+    expect(status).toBe(200);
+    expect(json.shop.banner_image_url).toBe("https://cdn.example.com/banner.jpg");
+    expect(mockCharge).not.toHaveBeenCalled();
+
+    const pub = await req("GET", "/shops/handle/banner-shop");
+    expect(pub.status).toBe(200);
+    expect(pub.json.shop.banner_image_url).toBe("https://cdn.example.com/banner.jpg");
+  });
+
+  it("keeps the banner image when the key is absent from a partial save", async () => {
+    const { id } = await seedShop(USER_A, "banner-keep");
+    await req("PATCH", `/shops/${id}`, { banner_image_url: "https://cdn.example.com/keep.jpg" });
+    const { status, json } = await req("PATCH", `/shops/${id}`, { tagline: "New tagline" });
+    expect(status).toBe(200);
+    expect(json.shop.banner_image_url).toBe("https://cdn.example.com/keep.jpg");
+  });
+
+  it("clears the banner image on explicit null and on an empty string", async () => {
+    const { id } = await seedShop(USER_A, "banner-clear");
+    await req("PATCH", `/shops/${id}`, { banner_image_url: "https://cdn.example.com/b.jpg" });
+    const nulled = await req("PATCH", `/shops/${id}`, { banner_image_url: null });
+    expect(nulled.status).toBe(200);
+    expect(nulled.json.shop.banner_image_url).toBeNull();
+
+    await req("PATCH", `/shops/${id}`, { banner_image_url: "https://cdn.example.com/b2.jpg" });
+    const blanked = await req("PATCH", `/shops/${id}`, { banner_image_url: "" });
+    expect(blanked.status).toBe(200);
+    expect(blanked.json.shop.banner_image_url).toBeNull();
+
+    const pub = await req("GET", "/shops/handle/banner-clear");
+    expect(pub.json.shop.banner_image_url).toBeNull();
+  });
 });
 
 describe("DELETE /api/shops/:id", () => {
