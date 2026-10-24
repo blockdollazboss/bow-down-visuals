@@ -1,8 +1,12 @@
 /**
  * video-translator lib — shared frontend helpers for the AI Video Translator.
  *
- * Mirrors the backend pricing (5 credits/min/language) so the UI cost
- * preview matches the charge. If the backend default changes, update both.
+ * Mirrors the backend pricing (500 Visual Bucs/min/language — the rail's
+ * VIDEO_TRANSLATOR_CREDITS_PER_MINUTE default) so the UI cost preview
+ * matches the charge. If the backend default changes, update both.
+ * (Corrected Stack-100 #3 Lane D: the constant still carried the
+ * pre-x100-rescale figure 5, so the preview under-quoted the real
+ * charge 100x — e.g. 20 shown for a 2,000 VB job.)
  */
 
 export interface TargetLanguage {
@@ -28,7 +32,7 @@ export const TARGET_LANGUAGES: TargetLanguage[] = [
   { code: "tr", label: "Turkish" },
 ];
 
-export const TRANSLATOR_CREDITS_PER_MIN_PER_LANG = 5;
+export const TRANSLATOR_CREDITS_PER_MIN_PER_LANG = 500;
 export const TRANSLATOR_MAX_LANGUAGES = 6;
 export const TRANSLATOR_MAX_BYTES = 80 * 1024 * 1024; // 80 MB
 

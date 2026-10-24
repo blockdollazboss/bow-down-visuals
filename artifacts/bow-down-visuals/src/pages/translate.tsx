@@ -22,8 +22,8 @@ import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's AI Video Translator ───────────────────────────────
    Upload a video → pick target languages → AI transcribes, translates,
-   and dubs it with a voice-matched AI voice. 5 credits per minute per
-   language. SRT subtitles for every language are free to download.
+   and dubs it with a voice-matched AI voice. 500 Visual Bucs per minute
+   per language. SRT subtitles for every language are free to download.
    AI dubbing, not human translation — review before publishing. */
 
 interface Voice {

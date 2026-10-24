@@ -30,7 +30,7 @@ import { AttributionToggle } from "@/components/AttributionToggle";
    Upload a song (or pick from your library) → paste lyrics → AI aligns
    every line to the audio with word-level karaoke timing → pick a style →
    server renders an animated lyric video (16:9 or 9:16).
-   2 credits to align, 5 credits to render. Timing review is free. */
+   200 Visual Bucs to align, 500 Visual Bucs to render. Timing review is free. */
 
 interface SongEntry {
   id: string;
