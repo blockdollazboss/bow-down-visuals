@@ -5,6 +5,7 @@ import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Mi
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
+import ProductReviews from "@/components/product-reviews/ProductReviews";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
@@ -490,6 +491,10 @@ export default function StorefrontProduct() {
             </div>
           </div>
         )}
+
+        {/* Verified-purchase reviews docked on the product page itself
+            (Stack-100 #3, #14) — summary + list + the buyer's form. */}
+        {data && <ProductReviews productType="store_product" productId={data.product.id} />}
       </div>
     </div>
   );

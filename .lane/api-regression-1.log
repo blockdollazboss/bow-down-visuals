@@ -1,0 +1,160 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-reviews/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/__tests__/content-reports.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 7061[2mms[22m[39m
+   [32m✓[39m POST /api/reports — filing [2m(7)[22m
+     [33m[2m✓[22m[39m 401s a guest and stores nothing[33m 1634[2mms[22m[39m
+     [33m[2m✓[22m[39m files a post report: 201, owner + summary snapshot stored, status new[33m 830[2mms[22m[39m
+     [33m[2m✓[22m[39m resolves a Shout Wall (profile_comments) comment[33m 373[2mms[22m[39m
+   [32m✓[39m POST /api/reports — honesty rails [2m(4)[22m
+     [33m[2m✓[22m[39m 404s a nonexistent post, comment, and profile — and stores nothing[33m 396[2mms[22m[39m
+     [33m[2m✓[22m[39m 404s a reply filed as a post and a post filed as a comment (type must match)[33m 383[2mms[22m[39m
+     [33m[2m✓[22m[39m 400s reporting your own post, your own comment, and your own profile[33m 372[2mms[22m[39m
+   [32m✓[39m POST /api/reports — one open report per (reporter, target) [2m(3)[22m
+     [33m[2m✓[22m[39m a different member filing on the same target is NOT a duplicate[33m 409[2mms[22m[39m
+[02:21:53.916] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "b7bac842-1099-47dd-90d0-3c40cf43d554"
+    [35mkind[39m: "digital"
+[02:21:54.453] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "ad3a21d0-0532-4eef-8d7a-63f394f8ea94"
+    [35mkind[39m: "digital"
+[02:21:55.215] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "a16460ab-dc5d-4a3f-9191-b2962782202c"
+    [35mkind[39m: "digital"
+[02:21:56.069] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "7ef67434-41f6-44af-9f51-0f8f002f7705"
+    [35mkind[39m: "digital"
+[02:21:56.318] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "252d568d-d4ec-45df-b65c-9304501b10ae"
+    [35mkind[39m: "digital"
+[02:21:56.764] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "149f1ed8-44af-4b55-9657-0cdbc9fd6fe9"
+    [35mkind[39m: "digital"
+[02:21:57.032] [31mERROR[39m (13815): [36m[storefront] checkout failed[39m
+    [35mproductId[39m: "149f1ed8-44af-4b55-9657-0cdbc9fd6fe9"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT COUNT(*)::int AS c FROM store_orders\n      WHERE buyer_user_id = $1 AND product_id = $2\n        AND quantity = $3 AND amount_cents = $4\n        AND discount_code IS NOT DISTINCT FROM $5\n    \nparams: 2512b679-4657-4d18-9c28-3300ea59194b,149f1ed8-44af-4b55-9657-0cdbc9fd6fe9,1,2000,: 💔 Your query failed to parse.\nThis is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.\nIf this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a query that reproduces this syntax error.\n\n👉 Failed query:\n\n    \n      SELECT COUNT(*)::int AS c FROM store_orders\n      WHERE buyer_user_id = '2512b679-4657-4d18-9c28-3300ea59194b' AND product_id = '149f1ed8-44af-4b55-9657-0cdbc9fd6fe9'\n        AND quantity = '1' AND amount_cents = '2000'\n        AND discount_code IS NOT DISTINCT FROM null\n    ;\n\n💀 Syntax error at line 5 col 34:\n\n3          AND quantity = '1' AND amount_cents = '2000'\n4          AND discount_code IS NOT DISTINCT FROM null\n5      ;\n                                    ^\nUnexpected kw_distinct token: \"distinct\". Instead, I was expecting to see one of the following:\n\n    - A \"kw_null\" token\n    - A \"kw_true\" token\n    - A \"kw_false\" token\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT COUNT(*)::int AS c FROM store_orders
+                WHERE buyer_user_id = $1 AND product_id = $2
+                  AND quantity = $3 AND amount_cents = $4
+                  AND discount_code IS NOT DISTINCT FROM $5
+              
+          params: 2512b679-4657-4d18-9c28-3300ea59194b,149f1ed8-44af-4b55-9657-0cdbc9fd6fe9,1,2000,
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-reviews/artifacts/api-server/src/routes/storefront.ts:608:25
+          caused by: Error: 💔 Your query failed to parse.
+          This is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.
+          If this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a query that reproduces this syntax error.
+          
+          👉 Failed query:
+          
+              
+                SELECT COUNT(*)::int AS c FROM store_orders
+                WHERE buyer_user_id = '2512b679-4657-4d18-9c28-3300ea59194b' AND product_id = '149f1ed8-44af-4b55-9657-0cdbc9fd6fe9'
+                  AND quantity = '1' AND amount_cents = '2000'
+                  AND discount_code IS NOT DISTINCT FROM null
+              ;
+          
+          💀 Syntax error at line 5 col 34:
+          
+          3          AND quantity = '1' AND amount_cents = '2000'
+          4          AND discount_code IS NOT DISTINCT FROM null
+          5      ;
+                                              ^
+          Unexpected kw_distinct token: "distinct". Instead, I was expecting to see one of the following:
+          
+              - A "kw_null" token
+              - A "kw_true" token
+              - A "kw_false" token
+          
+          
+              at parseSql (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5631:15)
+              at DbSchema.parse (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7647:47)
+              at DbSchema.prepare (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7626:33)
+              at DbSchema.query (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7609:21)
+              at MemPg.query (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:13491:76)
+              at Object.query (/home/hatch/workspace/bdv-wt-reviews/artifacts/api-server/src/lib/__tests__/test-db.ts:77:94)
+              at file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/session.js:113:33
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:39:22)
+              at file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/session.js:112:23
+              at Object.startActiveSpan (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/tracing.js:8:14)
+      "query": "\n      SELECT COUNT(*)::int AS c FROM store_orders\n      WHERE buyer_user_id = $1 AND product_id = $2\n        AND quantity = $3 AND amount_cents = $4\n        AND discount_code IS NOT DISTINCT FROM $5\n    ",
+      "params": [
+        "2512b679-4657-4d18-9c28-3300ea59194b",
+        "149f1ed8-44af-4b55-9657-0cdbc9fd6fe9",
+        1,
+        2000,
+        null
+      ]
+    }
+[02:21:57.190] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "339f183e-8152-4159-babd-3020672012ce"
+    [35mkind[39m: "digital"
+[02:21:57.604] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "d2f341f6-7954-4be2-80f8-568ba944b2e6"
+    [35mkind[39m: "digital"
+[02:21:58.032] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "7c7fc3c8-a35e-4582-af54-d93a49e373a2"
+    [35mkind[39m: "digital"
+[02:21:58.520] [32mINFO[39m (13815): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "2512b679-4657-4d18-9c28-3300ea59194b"
+    [35mproductId[39m: "7c7fc3c8-a35e-4582-af54-d93a49e373a2"
+    [35morderId[39m: "98c91a7c-cfb1-4bbf-96c5-80e163db64ee"
+    [35mkind[39m: "digital"
+[02:21:59.076] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "68a35aa8-a972-4cbc-9724-51e7820c0d12"
+    [35mkind[39m: "digital"
+[02:21:59.412] [32mINFO[39m (13815): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "2512b679-4657-4d18-9c28-3300ea59194b"
+    [35mproductId[39m: "68a35aa8-a972-4cbc-9724-51e7820c0d12"
+    [35morderId[39m: "69fdfe68-3f42-46a2-8876-121bd0d42628"
+    [35mkind[39m: "digital"
+[02:22:00.084] [32mINFO[39m (13815): [36m[storefront] product created[39m
+    [35muserId[39m: "ec6a601e-ff60-4232-9f06-7cb08c627d13"
+    [35mproductId[39m: "66ced8a0-6432-4465-8e6a-cf4c420e4972"
+    [35mkind[39m: "digital"
+[02:22:00.660] [32mINFO[39m (13815): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "2512b679-4657-4d18-9c28-3300ea59194b"
+    [35mproductId[39m: "66ced8a0-6432-4465-8e6a-cf4c420e4972"
+    [35morderId[39m: "448ca2f3-b93b-487b-8543-6d7507bb7225"
+    [35mkind[39m: "digital"
+[02:22:00.952] [32mINFO[39m (13815): [36m[storefront] claim: duplicate returned[39m
+    [35muserId[39m: "2512b679-4657-4d18-9c28-3300ea59194b"
+    [35mproductId[39m: "66ced8a0-6432-4465-8e6a-cf4c420e4972"
+    [35morderId[39m: "448ca2f3-b93b-487b-8543-6d7507bb7225"
+ [32m✓[39m src/routes/__tests__/storefront-lead-magnet.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 9952[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — create + edit validation [2m(4)[22m
+     [33m[2m✓[22m[39m creates a $0 product and labels it free on the payload[33m 2570[2mms[22m[39m
+     [33m[2m✓[22m[39m a paid product is not flagged free, and paid validation is unchanged[33m 876[2mms[22m[39m
+     [33m[2m✓[22m[39m editing a paid product down to $0 turns it into a lead magnet[33m 955[2mms[22m[39m
+     [33m[2m✓[22m[39m the public product page payload carries free + the claim note[33m 425[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — never a paid checkout [2m(3)[22m
+     [33m[2m✓[22m[39m a paid product is NOT refused by the free guard (the guard is $0-only)[33m 713[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — the claim exchange [2m(4)[22m
+     [33m[2m✓[22m[39m requires explicit email consent before anything is recorded[33m 358[2mms[22m[39m
+     [33m[2m✓[22m[39m claim = email capture + instant delivery, $0 order, no Stripe session anywhere[33m 1080[2mms[22m[39m
+     [33m[2m✓[22m[39m captures the email the buyer types, not only the account email[33m 842[2mms[22m[39m
+     [33m[2m✓[22m[39m a repeat claim returns the same order — no double subscribe, no second order[33m 1370[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m32 passed[39m[22m[90m (32)[39m
+[2m   Start at [22m 02:19:47
+[2m   Duration [22m 133.47s[2m (transform 50%, import 36%, tests 14%, setup 1%)[22m
+
+[2m     Import [22m [33m192 modules were evaluated 317 times[39m[2m · 44.95s total, 36% of tracked time[22m
+[2m            [22m [2m~17.72s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

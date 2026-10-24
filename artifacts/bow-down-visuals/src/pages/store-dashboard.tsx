@@ -6,7 +6,7 @@ import {
   Plus, Minus, Tag, ShoppingBag, CalendarClock, ExternalLink, AlertCircle,
   CheckCircle2, Sparkles, ArrowRight, CircleDollarSign,
   PlusCircle, ListChecks, CircleDashed, Wand2, Music2, AlertTriangle,
-  RotateCcw, Upload, Download, FileSpreadsheet,
+  RotateCcw, Upload, Download, FileSpreadsheet, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -23,6 +23,7 @@ import {
   type ShopifyImportResultDTO, type ShopifyExportKind,
 } from "@/lib/storefront-api";
 import PromoteButton from "@/components/storefront/PromoteButton";
+import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import {
   allSectionsFailed, initialSectionStates, markSectionLoading, sectionsToRefetch, settleSection,
   type SectionStates,
@@ -60,7 +61,7 @@ const STORE_OVERVIEW_SECTION_KEYS: readonly StoreOverviewSectionKey[] = ["overvi
  * Cheat-code voice throughout: short, money-forward, zero fluff.
  */
 
-type Tab = "overview" | "products" | "orders" | "discounts";
+type Tab = "overview" | "products" | "orders" | "discounts" | "reviews";
 
 /* ── Revenue surface: Storefront (original dashboard) · Digital music sales
    (absorbed from /music-sales) · Royalties (link to the dedicated page). */
@@ -1162,7 +1163,7 @@ export default function StoreDashboard() {
   const search = useSearch();
   const initialTab = useMemo<Tab>(() => {
     const t = new URLSearchParams(search).get("tab");
-    return t === "products" || t === "orders" || t === "discounts" ? t : "overview";
+    return t === "products" || t === "orders" || t === "discounts" || t === "reviews" ? t : "overview";
   }, [search]);
   const [tab, setTab] = useState<Tab>(initialTab);
   /* Revenue surface — ?view=digital deep link; defaults to storefront so
@@ -1222,6 +1223,7 @@ export default function StoreDashboard() {
     { id: "products", label: "Products", icon: ShoppingBag },
     { id: "orders", label: "Orders", icon: TrendingUp },
     { id: "discounts", label: "Discounts", icon: Tag },
+    { id: "reviews", label: "Reviews", icon: MessageSquare },
   ];
 
   return (
@@ -1363,6 +1365,7 @@ export default function StoreDashboard() {
           )}
           {tab === "orders" && <OrdersTab />}
           {tab === "discounts" && <DiscountsTab />}
+          {tab === "reviews" && <SellerReviewsPanel productType="store_product" />}
           </>
           )}
           {surface === "digital" && <DigitalSalesTab />}

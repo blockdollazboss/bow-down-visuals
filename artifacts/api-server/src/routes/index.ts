@@ -259,6 +259,7 @@ import setlistRouter from "./generate/setlist";
 import promoGeneratorRouter from "./generate/promo-generator";
 import socialRouter from "./social";
 import socialProofRouter from "./social-proof";
+import productReviewsRouter from "./product-reviews";
 import analyticsRouter from "./analytics";
 import discordRouter from "./discord";
 import discordBotRouter from "./discord-bot";
@@ -612,6 +613,7 @@ router.use(setlistRouter);
 router.use(promoGeneratorRouter);
 router.use(socialRouter);
 router.use(socialProofRouter);              // /api/social-proof/* (C5 live social-proof sync)
+router.use(productReviewsRouter);           // /api/product-reviews* (Stack-100 #3 #14 verified-purchase product reviews)
 router.use(analyticsRouter);
 router.use(discordRouter);
 router.use(discordBotRouter);
