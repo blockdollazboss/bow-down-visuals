@@ -527,6 +527,10 @@ export interface TipPageData {
   totalDollars: number;
   tipCount: number;
   goalProgress: number | null;
+  /** Paid-tips-only dollars raised toward the goal (payload.goal),
+      when the server could read the tip records. The goal line pairs
+      THIS with goalProgress — never the intent total. */
+  goalRaisedDollars: number | null;
   paymentsLive: boolean;
   /** The API's own honesty notice — rendered verbatim, never
    *  paraphrased (the tip page renders data.notice as-is). */
@@ -556,6 +560,7 @@ export function parseTipPage(payload: unknown): TipPageData | null {
     totalDollars: num(stats["total"]) ?? 0,
     tipCount: num(stats["count"]) ?? 0,
     goalProgress: num(stats["goalProgress"]),
+    goalRaisedDollars: isObj(payload["goal"]) ? num(payload["goal"]["raised"]) : null,
     paymentsLive: payload["paymentsLive"] === true,
     notice: str(payload["notice"]) ?? "",
   };
@@ -657,6 +662,9 @@ export interface TipJarDashboard {
   goalAmount: number | null;
   goalLabel: string;
   goalProgress: number | null;
+  /** Paid-tips-only dollars raised toward the goal (payload.goal) —
+      pairs with goalProgress on the goal line, never the intent total. */
+  goalRaisedDollars: number | null;
   paymentsLive: boolean;
   feed: Array<{ id: string; amount: number; fanName: string; message: string; status: string; createdAt: string | null }>;
 }
@@ -690,6 +698,7 @@ export function parseTipJarDashboard(payload: unknown): TipJarDashboard | null {
     goalAmount: num(payload["goalAmount"]),
     goalLabel: str(payload["goalLabel"]) ?? "",
     goalProgress: num(payload["goalProgress"]),
+    goalRaisedDollars: isObj(payload["goal"]) ? num(payload["goal"]["raised"]) : null,
     paymentsLive: payload["paymentsLive"] === true,
     feed,
   };
