@@ -84,10 +84,11 @@ export interface ProductDropNotifyStore {
   /** Scheduled drops whose moment has arrived at `now`. */
   listDueDrops(now: Date): Promise<DueProductDrop[]>;
   /** Live drops whose delivery ledger still holds retryable rows
-      ('failed' under the attempt cap, or a stale 'pending' claim) —
-      these get another fan-out pass, which the claim ledger keeps
-      exactly-once. */
-  listRetryDrops(maxAttempts: number, stalePendingBefore: Date): Promise<DueProductDrop[]>;
+      ('failed' under the attempt cap, or a stale 'pending' claim) that
+      have rested since before `retryBefore` — a row that failed THIS
+      sweep waits for a later one, like the presave sweeper. These get
+      another fan-out pass, which the claim ledger keeps exactly-once. */
+  listRetryDrops(maxAttempts: number, retryBefore: Date): Promise<DueProductDrop[]>;
   /** Atomically flip one drop scheduled → live. Returns true only for
       the caller that won the flip (and therefore owns the fan-out). */
   claimLive(dropId: string, now: Date): Promise<boolean>;
@@ -165,20 +166,17 @@ export function createDrizzleProductDropNotifyStore(db: Db = defaultDb): Product
       }));
     },
 
-    async listRetryDrops(maxAttempts, stalePendingBefore) {
+    async listRetryDrops(maxAttempts, retryBefore) {
       const result = await db.execute(sql`
-        SELECT d.id, d.product_id, d.drop_at, sp.title, cp.display_name AS creator_name, cp.slug AS creator_slug
+        SELECT DISTINCT d.id, d.product_id, d.drop_at, sp.title, cp.display_name AS creator_name, cp.slug AS creator_slug
         FROM product_drops d
         JOIN store_products sp ON sp.id = d.product_id
         JOIN creator_profiles cp ON cp.id = d.profile_id
+        JOIN product_drop_deliveries dv ON dv.drop_id = d.id
         WHERE d.status = 'live'
-          AND EXISTS (
-            SELECT 1 FROM product_drop_deliveries del
-            WHERE del.drop_id = d.id
-              AND (
-                (del.status = 'failed' AND del.attempts < ${maxAttempts})
-                OR (del.status = 'pending' AND del.updated_at < ${stalePendingBefore})
-              )
+          AND (
+            (dv.status = 'failed' AND dv.attempts < ${maxAttempts} AND dv.updated_at < ${retryBefore})
+            OR (dv.status = 'pending' AND dv.updated_at < ${retryBefore})
           )
         ORDER BY d.drop_at ASC
       `);
