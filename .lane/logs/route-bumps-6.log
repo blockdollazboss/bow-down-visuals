@@ -1,0 +1,386 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bumps/artifacts/api-server[39m
+
+[01:29:19.914] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "5f7249f7-0c86-41cc-b3c7-ca1e79ce7a60"
+    [35mkind[39m: "digital"
+[01:29:20.220] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "f5d7e253-0121-4a82-8738-64ee8985353e"
+    [35mkind[39m: "digital"
+[01:29:20.569] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "5f7249f7-0c86-41cc-b3c7-ca1e79ce7a60"
+    [35mbumpProductId[39m: "f5d7e253-0121-4a82-8738-64ee8985353e"
+    [35mpercentOff[39m: 10
+[01:29:21.289] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "f6594438-ffbb-4885-a156-2fe3c649caad"
+    [35mkind[39m: "digital"
+[01:29:21.519] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "18e0105b-a94b-477c-817a-9bcaf34e1983"
+    [35mkind[39m: "digital"
+[01:29:21.663] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "f6594438-ffbb-4885-a156-2fe3c649caad"
+    [35mbumpProductId[39m: "18e0105b-a94b-477c-817a-9bcaf34e1983"
+    [35mpercentOff[39m: 10
+[01:29:21.816] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "f6594438-ffbb-4885-a156-2fe3c649caad"
+    [35mbumpProductId[39m: null
+    [35mpercentOff[39m: 0
+[01:29:22.225] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "3cf5bc1b-4e41-4b6b-a4ae-93c65990815e"
+    [35mkind[39m: "digital"
+[01:29:22.892] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "2901a84a-ef60-4855-911c-8fb754f07588"
+    [35mkind[39m: "digital"
+[01:29:23.273] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "ceaf7398-5eee-41db-9544-9b12701c1f7b"
+    [35mproductId[39m: "35e36759-60e6-4883-a9d7-547009d58715"
+    [35mkind[39m: "digital"
+[01:29:23.384] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "519b9004-92f0-472d-981c-43ad480a2a53"
+    [35mkind[39m: "digital"
+[01:29:23.429] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "e1c2fe99-f2f7-4892-a19f-ed23ae91c7cc"
+    [35mkind[39m: "digital"
+[01:29:23.566] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "9a73cb79-a74a-440c-a864-ad575e121dae"
+    [35mkind[39m: "digital"
+[01:29:23.662] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "33e7eb0f-e233-4100-a892-ffb1312a199b"
+    [35mkind[39m: "digital"
+[01:29:24.105] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "ea02d3e4-66db-494c-b773-4f7b67bfce41"
+    [35mkind[39m: "digital"
+[01:29:24.267] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "63b7863d-697e-4cac-9245-d328dd3d3b9c"
+    [35mkind[39m: "digital"
+[01:29:24.332] [32mINFO[39m (62490): [36m[storefront] product deactivated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "63b7863d-697e-4cac-9245-d328dd3d3b9c"
+[01:29:24.547] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "ea02d3e4-66db-494c-b773-4f7b67bfce41"
+    [35mbumpProductId[39m: "63b7863d-697e-4cac-9245-d328dd3d3b9c"
+    [35mpercentOff[39m: 0
+[01:29:24.679] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "258fdf8f-6d5a-4098-bebd-28624c7507dc"
+    [35mkind[39m: "digital"
+[01:29:24.861] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "58cfb40a-18b8-4319-aac2-9ae7f951779a"
+    [35mkind[39m: "digital"
+[01:29:25.137] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "9aecb009-4742-4778-81ff-d37f97ecdc62"
+    [35mkind[39m: "digital"
+[01:29:25.176] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "3177b41a-37d8-4cd6-a628-08f71657e3f8"
+    [35mkind[39m: "digital"
+[01:29:25.258] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "9aecb009-4742-4778-81ff-d37f97ecdc62"
+    [35mbumpProductId[39m: "3177b41a-37d8-4cd6-a628-08f71657e3f8"
+    [35mpercentOff[39m: 10
+[01:29:25.407] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "9aecb009-4742-4778-81ff-d37f97ecdc62"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 4000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:25.780] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "ce0403bc-404c-4ec5-b947-7283d6d00009"
+    [35mkind[39m: "digital"
+[01:29:25.833] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "508a5e86-9940-4f46-872e-d3670678c086"
+    [35mkind[39m: "digital"
+[01:29:25.994] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "ce0403bc-404c-4ec5-b947-7283d6d00009"
+    [35mbumpProductId[39m: "508a5e86-9940-4f46-872e-d3670678c086"
+    [35mpercentOff[39m: 10
+[01:29:26.491] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "ce0403bc-404c-4ec5-b947-7283d6d00009"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "508a5e86-9940-4f46-872e-d3670678c086"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:26.654] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "c618221d-4c58-43d7-8ce7-fc165125e788"
+    [35mkind[39m: "digital"
+[01:29:26.867] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "990b113b-9d46-4389-aba8-63172dce219a"
+    [35mkind[39m: "digital"
+[01:29:27.015] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "c618221d-4c58-43d7-8ce7-fc165125e788"
+    [35mbumpProductId[39m: "990b113b-9d46-4389-aba8-63172dce219a"
+    [35mpercentOff[39m: 10
+[01:29:27.284] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "c618221d-4c58-43d7-8ce7-fc165125e788"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "990b113b-9d46-4389-aba8-63172dce219a"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:27.521] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "c618221d-4c58-43d7-8ce7-fc165125e788"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "990b113b-9d46-4389-aba8-63172dce219a"
+    [35msessionId[39m: "cs_test_2"
+    [35mdiscountCode[39m: null
+[01:29:27.622] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "c618221d-4c58-43d7-8ce7-fc165125e788"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 4000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_3"
+    [35mdiscountCode[39m: null
+[01:29:28.006] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "9489f3bc-f47b-45bc-bb59-0b63ccc35269"
+    [35mkind[39m: "digital"
+[01:29:28.391] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "b13d69b7-a3df-4bc1-b671-3af48ebea93a"
+    [35mkind[39m: "digital"
+[01:29:28.537] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "a84b14cc-7d20-4713-afd3-f3390470cf86"
+    [35mkind[39m: "digital"
+[01:29:28.664] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "b13d69b7-a3df-4bc1-b671-3af48ebea93a"
+    [35mbumpProductId[39m: "a84b14cc-7d20-4713-afd3-f3390470cf86"
+    [35mpercentOff[39m: 0
+[01:29:29.084] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "e5dbcc8a-a29d-416e-9938-6c9e6d80e5a5"
+    [35mkind[39m: "digital"
+[01:29:29.148] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "af856bfb-700d-4749-afa2-fef3d093925e"
+    [35mkind[39m: "digital"
+[01:29:29.391] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "e5dbcc8a-a29d-416e-9938-6c9e6d80e5a5"
+    [35mbumpProductId[39m: "af856bfb-700d-4749-afa2-fef3d093925e"
+    [35mpercentOff[39m: 10
+[01:29:29.552] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "e5dbcc8a-a29d-416e-9938-6c9e6d80e5a5"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 1000
+    [35mgrandTotal[39m: 3700
+    [35mbumpProductId[39m: "af856bfb-700d-4749-afa2-fef3d093925e"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: "HALF"
+[01:29:29.942] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "6fb95496-7f37-4536-a5de-75fe0b2c158f"
+    [35mkind[39m: "digital"
+[01:29:30.145] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "904c7632-2cb3-40e1-9234-74c7198f4a9a"
+    [35mkind[39m: "digital"
+[01:29:30.263] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "6fb95496-7f37-4536-a5de-75fe0b2c158f"
+    [35mbumpProductId[39m: "904c7632-2cb3-40e1-9234-74c7198f4a9a"
+    [35mpercentOff[39m: 10
+[01:29:30.430] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "6fb95496-7f37-4536-a5de-75fe0b2c158f"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "904c7632-2cb3-40e1-9234-74c7198f4a9a"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:30.688] [32mINFO[39m (62490): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "7709cc70-ea60-45af-8632-9963e05a2f76"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 6700
+[01:29:31.056] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "63fbdf8b-79db-4a8f-ae15-0ac98a494619"
+    [35mkind[39m: "digital"
+[01:29:31.250] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "2b1222be-4695-4eeb-a44f-05f8d99a9be7"
+    [35mkind[39m: "digital"
+[01:29:31.344] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "63fbdf8b-79db-4a8f-ae15-0ac98a494619"
+    [35mbumpProductId[39m: "2b1222be-4695-4eeb-a44f-05f8d99a9be7"
+    [35mpercentOff[39m: 10
+[01:29:31.691] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "63fbdf8b-79db-4a8f-ae15-0ac98a494619"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 1000
+    [35mgrandTotal[39m: 3700
+    [35mbumpProductId[39m: "2b1222be-4695-4eeb-a44f-05f8d99a9be7"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: "HALF"
+[01:29:32.242] [32mINFO[39m (62490): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "2345da4f-ebe6-4f5d-81ec-cc53d9a869a5"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 3700
+[01:29:32.351] [32mINFO[39m (62490): [36m[storefront] verify: duplicate ignored[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "2345da4f-ebe6-4f5d-81ec-cc53d9a869a5"
+[01:29:32.792] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "5b6909fa-73df-4856-9231-31822a72b3ed"
+    [35mkind[39m: "digital"
+[01:29:32.847] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "5b6909fa-73df-4856-9231-31822a72b3ed"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 4000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:32.918] [32mINFO[39m (62490): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "48cb8462-c267-483f-915b-d35e10e99c8a"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 4000
+[01:29:33.258] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "d14ed4ab-86b2-4451-88ea-a9ff28d1d913"
+    [35mkind[39m: "digital"
+[01:29:33.313] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "8159063a-b1fe-4b0b-b6e8-d459ac7c2790"
+    [35mkind[39m: "digital"
+[01:29:33.360] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "d14ed4ab-86b2-4451-88ea-a9ff28d1d913"
+    [35mbumpProductId[39m: "8159063a-b1fe-4b0b-b6e8-d459ac7c2790"
+    [35mpercentOff[39m: 10
+[01:29:33.625] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "d14ed4ab-86b2-4451-88ea-a9ff28d1d913"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35mgrandTotal[39m: 4700
+    [35mbumpProductId[39m: "8159063a-b1fe-4b0b-b6e8-d459ac7c2790"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:33.911] [32mINFO[39m (62490): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "f35b5a8f-d4e5-4379-b4c8-fb2d2cd49db8"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 4700
+[01:29:34.392] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "3bc7d8c4-7c7c-4dd4-834c-302676868dba"
+    [35mkind[39m: "digital"
+[01:29:34.538] [32mINFO[39m (62490): [36m[storefront] product created[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "5ee91e50-d230-454a-9338-dc765b0160e7"
+    [35mkind[39m: "digital"
+[01:29:34.771] [32mINFO[39m (62490): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "9c3408cf-f4b5-4552-89e3-0703bb90fc43"
+    [35mproductId[39m: "3bc7d8c4-7c7c-4dd4-834c-302676868dba"
+    [35mbumpProductId[39m: "5ee91e50-d230-454a-9338-dc765b0160e7"
+    [35mpercentOff[39m: 10
+[01:29:34.969] [32mINFO[39m (62490): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a8d0925d-c389-49c4-89c7-6f4fe4a13d58"
+    [35mproductId[39m: "3bc7d8c4-7c7c-4dd4-834c-302676868dba"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35mgrandTotal[39m: 4700
+    [35mbumpProductId[39m: "5ee91e50-d230-454a-9338-dc765b0160e7"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:29:35.260] [32mINFO[39m (62490): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "d649004c-3493-482e-8069-0b1c01d1fb1e"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 4700
+ [31m❯[39m src/routes/__tests__/storefront-order-bumps.test.ts [2m([22m[2m19 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 18353[2mms[22m[39m
+   [32m✓[39m seller attach — one add-on, own products only [2m(8)[22m
+     [33m[2m✓[22m[39m attaches and the buyer payload resolves the live offer at the seller-set % off[33m 3092[2mms[22m[39m
+     [33m[2m✓[22m[39m detaching clears the setting and the offer[33m 932[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a product as its own add-on[33m 600[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses another seller's product[33m 819[2mms[22m[39m
+     [32m✓[39m refuses a $0 lead magnet as the add-on[32m 172[2mms[22m[39m
+     [32m✓[39m refuses a percent off above the 90 ceiling[32m 266[2mms[22m[39m
+     [33m[2m✓[22m[39m an inactive add-on may be attached but shows no live offer[33m 837[2mms[22m[39m
+     [33m[2m✓[22m[39m a non-owner cannot set another seller's bump[33m 329[2mms[22m[39m
+   [32m✓[39m checkout — server-computed totals, one session [2m(6)[22m
+     [33m[2m✓[22m[39m unticked: legacy totals exactly, one line item, no bump in metadata[33m 538[2mms[22m[39m
+     [33m[2m✓[22m[39m ticked: two line items, grand total and per-line fee split on the flat 5%[33m 1065[2mms[22m[39m
+     [33m[2m✓[22m[39m double-charge impossibility: a double-submit reuses ONE idempotency key; ticking changes it[33m 1199[2mms[22m[39m
+     [33m[2m✓[22m[39m a tick with no offer attached refuses — no session, no charge[33m 354[2mms[22m[39m
+     [33m[2m✓[22m[39m a tick whose add-on sold out after attaching refuses — no session[33m 807[2mms[22m[39m
+     [33m[2m✓[22m[39m a discount code discounts the MAIN line only — the bump stays at its seller price[33m 705[2mms[22m[39m
+   [31m❯[39m verify — the bump recorded as its own line, exactly once [2m(5)[22m
+     [33m[2m✓[22m[39m records one order whose bump columns and receipt lines reconcile to the cent[33m 1238[2mms[22m[39m
+     [33m[2m✓[22m[39m a duplicate verify is a pure no-op: one order, no second claim, no second discount use[33m 1863[2mms[22m[39m
+     [33m[2m✓[22m[39m no-bump verify is byte-identical to the legacy rail (bump columns NULL, one line)[33m 418[2mms[22m[39m
+     [33m[2m✓[22m[39m a bump that sells out between payment and verify still records — with the exact refund owed in the note[33m 969[2mms[22m[39m
+[31m     [31m×[31m sales and purchases both show the bump as its own receipt line[39m[33m 1920[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mverify — the bump recorded as its own line, exactly once[2m > [22msales and purchases both show the bump as its own receipt line
+[31m[1mAssertionError[22m: Target cannot be null or undefined.[39m
+[36m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m557:35[22m[39m
+    [90m555|[39m     const purchases = await req("GET", "/storefront/orders/purchases");
+    [90m556|[39m     expect(purchases.status).toBe(200);
+    [90m557|[39m     expect(purchases.json.orders).toHaveLength(1);
+    [90m   |[39m                                   [31m^[39m
+    [90m558|[39m     expect(purchases.json.orders[0].lines[1]).toMatchObject({ role: "b…
+    [90m559|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m18 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 01:28:38
+[2m   Duration [22m 57.96s[2m (tests 34%, import 34%, transform 31%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 16.87s[39m[2m · 31% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

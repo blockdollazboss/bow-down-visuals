@@ -1,0 +1,10 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bumps/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/order-bumps.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 00:48:14
+[2m   Duration [22m 3.08s[2m (transform 45%, import 43%, setup 6%, tests 4%, worker 2%)[22m
+

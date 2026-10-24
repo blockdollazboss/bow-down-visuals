@@ -24,7 +24,8 @@
  *   POST   /storefront/products                    auth: create (own profile)
  *   PATCH  /storefront/products/:id               auth: update incl. inventory (own profile)
  *   DELETE /storefront/products/:id               auth: soft-deactivate (own profile)
- *   POST   /storefront/checkout                   auth: Stripe session (discount validated server-side)
+ *   PUT    /storefront/products/:id/bump          auth: set/clear the product's order-bump add-on (own profile)
+ *   POST   /storefront/checkout                   auth: Stripe session (discount + optional bump validated server-side)
  *   POST   /storefront/verify                     auth: confirm payment, record order idempotently
  *   POST   /storefront/claim                      auth: claim a $0 lead-magnet product by email (no Stripe)
  *   GET    /storefront/discounts                   auth: seller's codes
@@ -64,6 +65,16 @@ import { logger } from "../lib/logger";
    PLATFORM_FEE_BPS; owner ruling 2026-10-23) — the same rate the
    shops/store rails charge, on every tier. */
 import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
+/* Order bumps (Stack-100 #3, feature #13): one add-on offer per
+   product, ticked at checkout, charged in the same Stripe session.
+   All bump money math lives in lib/order-bumps.ts. */
+import {
+  readBumpConfig,
+  validateBumpTarget,
+  bumpUnitCents,
+  splitOrderAmounts,
+  MAX_BUMP_PERCENT_OFF,
+} from "../lib/order-bumps";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
@@ -87,12 +98,68 @@ async function mirrorStoreMediaUrls(urls: string[], ownerKey: string): Promise<s
   );
 }
 
-async function presentProduct(p: ProductRow) {
+async function presentProduct(p: ProductRow, bumpOffer?: BumpOfferPayload | null) {
   const pub = withLinks(p);
   return {
     ...pub,
+    /* The live add-on offer (feature #13): resolved, or null when the
+       product has no bump a buyer could actually take right now. */
+    bump: bumpOffer !== undefined ? bumpOffer : await resolveBumpOffer(p),
     mediaUrls: await Promise.all(pub.mediaUrls.map((u) => refreshSupabaseStorageUrl(u))),
   };
+}
+
+/* ── Order bumps (feature #13): offer resolution ──────────────────────
+   The buyer-facing offer exists only while EVERY part of it is true:
+   an attachment is set, the target is the same seller's product, it is
+   active, priced (never a $0 lead magnet) and in stock. Anything less
+   and the product simply shows no add-on — a seller's stale setting
+   must never break or block the main sale. */
+export interface BumpOfferPayload {
+  productId: string;
+  title: string;
+  kind: string;
+  listPriceCents: number;
+  listPrice: string;
+  percentOff: number;
+  priceCents: number;
+  price: string;
+  productUrl: string;
+}
+
+function bumpOfferFromRows(p: ProductRow, target: ProductRow | null): BumpOfferPayload | null {
+  const cfg = readBumpConfig(p);
+  if (!cfg || !target) return null;
+  const verdict = validateBumpTarget(
+    { id: p.id, profileId: p.profile_id },
+    {
+      id: target.id,
+      profileId: target.profile_id,
+      priceCents: Number(target.price_cents),
+      isActive: Boolean(target.is_active),
+      inventory: Number(target.inventory),
+    },
+  );
+  if (!verdict.ok) return null;
+  const unit = bumpUnitCents(Number(target.price_cents), cfg.percentOff);
+  return {
+    productId: target.id,
+    title: target.title,
+    kind: target.kind,
+    listPriceCents: Number(target.price_cents),
+    listPrice: money(Number(target.price_cents)),
+    percentOff: cfg.percentOff,
+    priceCents: unit,
+    price: money(unit),
+    productUrl: `/storefront/product/${target.id}`,
+  };
+}
+
+async function resolveBumpOffer(p: ProductRow): Promise<BumpOfferPayload | null> {
+  const cfg = readBumpConfig(p);
+  if (!cfg) return null;
+  const target = await fetchProduct(cfg.bumpProductId, false);
+  return bumpOfferFromRows(p, target);
 }
 
 /* Product kinds — canonical list also lives in lib/db/src/schema/storefront.ts
@@ -135,6 +202,10 @@ export function buildStorefrontCheckoutKey(args: {
   lineTotalCents: number;
   discountCode: string | null;
   completedOrderCount: number;
+  /** Order bump (feature #13): present only when the buyer ticked the
+   *  add-on, so bump-free purchase intents keep their historic keys. */
+  bumpProductId?: string | null;
+  bumpLineCents?: number;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -146,6 +217,9 @@ export function buildStorefrontCheckoutKey(args: {
       lineTotalCents: args.lineTotalCents,
       discountCode: args.discountCode,
       completedOrderCount: args.completedOrderCount,
+      ...(args.bumpProductId
+        ? { bumpProductId: args.bumpProductId, bumpLineCents: args.bumpLineCents ?? 0 }
+        : {}),
     },
   });
 }
@@ -221,6 +295,11 @@ interface ProductRow extends Record<string, unknown> {
   is_active: boolean; created_at: string;
   artist_name: string; artist_slug: string;
   event_title: string | null;
+  /* Order-bump attachment (feature #13). Optional: the columns arrive
+     with the lane's reported migration; rows without them simply have
+     no bump (readBumpConfig treats absent keys as "no offer"). */
+  bump_product_id?: string | null;
+  bump_percent_off?: number | null;
 }
 
 function withLinks(p: ProductRow) {
@@ -244,6 +323,11 @@ function withLinks(p: ProductRow) {
     unlimited: Number(p.inventory) === -1,
     mediaUrls: p.media_urls ?? [],
     serviceDetails: p.service_details,
+    /* Order-bump setting (feature #13): the raw attachment, so the
+       seller's dashboard can show and edit it even while the add-on
+       is inactive or restocking. The buyer-facing resolved offer
+       rides as `bump` (added by presentProduct). */
+    bumpConfig: readBumpConfig(p),
     eventId: p.event_id,
     relatedLinks: p.related_links ?? [],
     isActive: p.is_active,
@@ -326,9 +410,19 @@ router.get("/storefront/products", publicApiLimiter, async (req, res) => {
       ORDER BY sp.created_at DESC
       LIMIT 200
     `);
+    const rows = r.rows as unknown as ProductRow[];
+    /* Bump offers resolve from this same result set (a bump target is
+       always the same seller's product); a target outside the window
+       just shows no offer here — the product page resolves it fully. */
+    const byId = new Map(rows.map((row) => [row.id, row]));
     res.json({
       profile: { id: profile.id, slug: profile.slug, displayName: profile.displayName },
-      products: await Promise.all((r.rows as unknown as ProductRow[]).map(presentProduct)),
+      products: await Promise.all(
+        rows.map((row) => {
+          const cfg = readBumpConfig(row);
+          return presentProduct(row, cfg ? bumpOfferFromRows(row, byId.get(cfg.bumpProductId) ?? null) : null);
+        }),
+      ),
       feeNote: `Real-money purchases via Stripe. Bow Down Visuals takes ${PLATFORM_FEE_PCT}% from the creator's cut — you pay the listed price, nothing extra. This is not Visual Bucs (AI credits).`,
     });
   } catch (err) {
@@ -530,6 +624,89 @@ router.delete("/storefront/products/:id", requireAuth, publicApiLimiter, async (
   }
 });
 
+/* ═══════════════ SELLER: order-bump attachment (feature #13) ═════════
+   One add-on per product. Attach-time hard rules: the add-on must be
+   the seller's OWN product, never the product itself, and never a $0
+   lead magnet (free products ride the claim rail, not a paid line).
+   Inactive / sold-out add-ons may be attached — the buyer-facing offer
+   simply stays hidden until the add-on is live and in stock, and the
+   response says whether the offer is live right now. */
+const SetBumpSchema = z.object({
+  bumpProductId: z.string().regex(UUID_RE, "bumpProductId must be a UUID").nullable(),
+  percentOff: z.number().int().min(0).max(MAX_BUMP_PERCENT_OFF).default(0),
+});
+
+router.put("/storefront/products/:id/bump", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid product id." });
+    return;
+  }
+  const parsed = SetBumpSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid bump setting.", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE" });
+      return;
+    }
+    const main = await fetchProduct(id, false);
+    if (!main || main.profile_id !== profile.id) {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    const { bumpProductId, percentOff } = parsed.data;
+    if (bumpProductId) {
+      const target = await fetchProduct(bumpProductId, false);
+      if (!target || target.profile_id !== profile.id) {
+        res.status(400).json({
+          error: "BUMP_NOT_YOURS",
+          message: "The add-on has to be one of your own products.",
+        });
+        return;
+      }
+      const verdict = validateBumpTarget(
+        { id: main.id, profileId: main.profile_id },
+        {
+          id: target.id,
+          profileId: target.profile_id,
+          priceCents: Number(target.price_cents),
+          isActive: Boolean(target.is_active),
+          inventory: Number(target.inventory),
+        },
+      );
+      if (!verdict.ok && verdict.code !== "BUMP_INACTIVE" && verdict.code !== "BUMP_SOLD_OUT") {
+        res.status(400).json({ error: verdict.code, message: verdict.reason });
+        return;
+      }
+    }
+    const r = await db.execute(sql`
+      UPDATE store_products
+      SET bump_product_id = ${bumpProductId}, bump_percent_off = ${bumpProductId ? percentOff : 0},
+          updated_at = now()
+      WHERE id = ${id} AND profile_id = ${profile.id}
+      RETURNING id
+    `);
+    if (r.rows.length === 0) {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    const p = await fetchProduct(id, false);
+    const offer = p ? await resolveBumpOffer(p) : null;
+    logger.info(
+      { userId: req.userId, productId: id, bumpProductId, percentOff },
+      "[storefront] product bump updated"
+    );
+    res.json({ product: p ? await presentProduct(p, offer) : { id }, offerLive: offer !== null });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] product bump update failed");
+    res.status(500).json({ error: "Could not update the add-on offer." });
+  }
+});
+
 /* ═════════════════════════ CHECKOUT (Stripe) ═════════════════════════
    Discount codes are validated SERVER-SIDE here — the client can suggest a
    code, but the price the buyer pays is computed on this box. */
@@ -537,6 +714,9 @@ const CheckoutSchema = z.object({
   productId: z.string().regex(UUID_RE, "productId must be a UUID"),
   quantity: z.number().int().min(1).max(99).default(1),
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Order bump (feature #13): the buyer ticked the add-on. The server
+     re-resolves the offer and its price — the tick alone buys nothing. */
+  includeBump: z.boolean().default(false),
 });
 
 router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -600,16 +780,68 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       unitCents = Math.round((unitCents * (100 - percentOff)) / 100);
     }
 
+    /* Order bump (feature #13): the buyer ticked the add-on. The offer
+       and its price are re-resolved HERE from the seller's setting —
+       a ticked box with no live offer (or a sold-out add-on) refuses
+       the whole checkout rather than quietly charging for the main
+       product alone or inventing a price. */
+    let bump: { target: ProductRow; unitCents: number; grossCents: number; percentOff: number } | null = null;
+    if (parsed.data.includeBump) {
+      const cfg = readBumpConfig(p);
+      if (!cfg) {
+        res.status(400).json({
+          error: "BUMP_NOT_OFFERED",
+          message: "This product doesn't have an add-on offer.",
+        });
+        return;
+      }
+      const target = await fetchProduct(cfg.bumpProductId, true);
+      if (!target) {
+        res.status(400).json({
+          error: "BUMP_NOT_OFFERED",
+          message: "That add-on isn't for sale right now.",
+        });
+        return;
+      }
+      const verdict = validateBumpTarget(
+        { id: p.id, profileId: p.profile_id },
+        {
+          id: target.id,
+          profileId: target.profile_id,
+          priceCents: Number(target.price_cents),
+          isActive: Boolean(target.is_active),
+          inventory: Number(target.inventory),
+        },
+      );
+      if (!verdict.ok) {
+        res.status(400).json({ error: verdict.code, message: verdict.reason });
+        return;
+      }
+      const unit = bumpUnitCents(Number(target.price_cents), cfg.percentOff);
+      bump = { target, unitCents: unit, grossCents: unit, percentOff: cfg.percentOff };
+    }
+
     const lineTotal = unitCents * quantity;
-    const { feeCents, creatorCents } = splitTotals(lineTotal);
+    const grandTotal = lineTotal + (bump?.grossCents ?? 0);
+    /* One fee split for the session (flat 5%), attributed across the
+       lines by lib/order-bumps — with no bump these are exactly the
+       numbers splitTotals(lineTotal) produced before the feature. */
+    const totals = splitOrderAmounts(grandTotal, bump?.grossCents ?? 0);
+    const feeCents = totals.totalFeeCents;
+    const creatorCents = totals.totalCreatorCents;
     /* Purchase sequence for the session idempotency key (see
        buildStorefrontCheckoutKey). A read failure throws into the
        catch below — no session is minted, so the failure is closed. */
+    /* `discount_code = x OR (both NULL)` is `IS NOT DISTINCT FROM`
+       spelled portably — identical semantics on Postgres for a
+       nullable text column, and parseable by the pg-mem test harness
+       (which rejects IS NOT DISTINCT FROM outright). */
     const countResult = await db.execute(sql`
       SELECT COUNT(*)::int AS c FROM store_orders
       WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
-        AND quantity = ${quantity} AND amount_cents = ${lineTotal}
-        AND discount_code IS NOT DISTINCT FROM ${discountCode}
+        AND quantity = ${quantity} AND amount_cents = ${grandTotal}
+        AND (discount_code = ${discountCode}
+             OR (discount_code IS NULL AND ${discountCode} IS NULL))
     `);
     const completedOrderCount = Number(
       (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
@@ -622,6 +854,8 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       lineTotalCents: lineTotal,
       discountCode,
       completedOrderCount,
+      bumpProductId: bump?.target.id ?? null,
+      bumpLineCents: bump?.grossCents ?? 0,
     });
     const baseUrl = getBaseUrl(req);
     const session = await stripe.checkout.sessions.create({
@@ -642,6 +876,25 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
           },
           quantity,
         },
+        ...(bump
+          ? [
+              {
+                price_data: {
+                  currency: "usd",
+                  unit_amount: bump.unitCents,
+                  product_data: {
+                    name: `${bump.target.title} — ${bump.target.artist_name} (add-on)`,
+                    description:
+                      bump.percentOff > 0
+                        ? `${bump.target.kind} · add-on · ${bump.percentOff}% off`
+                        : `${bump.target.kind} · add-on · Bow Down Visuals`,
+                    images: (bump.target.media_urls ?? []).slice(0, 1),
+                  },
+                },
+                quantity: 1,
+              },
+            ]
+          : []),
       ],
       /* Same success page as the digital store; it falls back to
          /api/storefront/verify for storefront sessions (see MOUNT.md). */
@@ -655,15 +908,20 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         product_kind: p.kind,
         quantity: String(quantity),
         discount_code: discountCode ?? "",
-        amount_cents: String(lineTotal),
+        amount_cents: String(grandTotal),
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
         event_id: p.event_id ?? "",
+        /* Bump line (feature #13): verify re-derives every split from
+           the session total + this amount — these are the only two
+           bump facts it trusts, and both were written by this box. */
+        bump_product_id: bump?.target.id ?? "",
+        bump_amount_cents: String(bump?.grossCents ?? 0),
       },
     }, { idempotencyKey });
 
     logger.info(
-      { userId: req.userId, productId, quantity, lineTotal, sessionId: session.id, discountCode },
+      { userId: req.userId, productId, quantity, lineTotal, grandTotal, bumpProductId: bump?.target.id ?? null, sessionId: session.id, discountCode },
       "[storefront] checkout session created"
     );
     res.json({
@@ -672,6 +930,20 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       totals: {
         unitCents, quantity, lineTotal, lineTotalDisplay: money(lineTotal),
         percentOff, discountCode,
+        bump: bump
+          ? {
+              productId: bump.target.id,
+              title: bump.target.title,
+              unitCents: bump.unitCents,
+              grossCents: bump.grossCents,
+              gross: money(bump.grossCents),
+              percentOff: bump.percentOff,
+              feeCents: totals.bump?.feeCents ?? 0,
+              creatorCents: totals.bump?.creatorCents ?? 0,
+            }
+          : null,
+        grandTotalCents: grandTotal,
+        grandTotal: money(grandTotal),
         platformFeeCents: feeCents, creatorCents,
       },
     });
@@ -746,27 +1018,72 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     return;
   }
   const amountCents = session.amount_total ?? Number(meta["amount_cents"] ?? 0);
-  const { feeCents, creatorCents } = splitTotals(amountCents);
+  /* Bump facts (feature #13): only what checkout wrote into metadata.
+     Every split below is re-derived from the session total + this
+     amount — never trusted from the client or the metadata fees. */
+  const bumpProductId = meta["bump_product_id"] || null;
+  const bumpAmountCents = bumpProductId ? Number(meta["bump_amount_cents"] ?? 0) : 0;
+  if (
+    bumpProductId &&
+    (!Number.isInteger(bumpAmountCents) || bumpAmountCents <= 0 || bumpAmountCents >= amountCents)
+  ) {
+    res.status(400).json({ error: "This session's add-on details don't add up." });
+    return;
+  }
+  const splits = splitOrderAmounts(amountCents, bumpAmountCents);
+  const feeCents = splits.totalFeeCents;
+  const creatorCents = splits.totalCreatorCents;
 
   try {
-    /* Duplicate verify: return the existing order, no new side effects. */
-    const existing = await db.execute(sql`
-      SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
-             platform_fee_cents, creator_amount_cents, fulfillment_note, created_at
-      FROM store_orders WHERE stripe_session_id = ${sessionId} LIMIT 1
-    `);
+    /* Duplicate verify: return the existing order, no new side effects.
+       The bump columns ride a best-effort select: on a database where
+       the feature's migration hasn't landed yet the plain select keeps
+       verify working exactly as before (a bump session can only exist
+       once the columns do, so nothing is lost by the fallback). */
+    let existing: Awaited<ReturnType<typeof db.execute>>;
+    try {
+      existing = await db.execute(sql`
+        SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
+               platform_fee_cents, creator_amount_cents, fulfillment_note, created_at,
+               bump_product_id, bump_title, bump_amount_cents,
+               bump_platform_fee_cents, bump_creator_amount_cents
+        FROM store_orders WHERE stripe_session_id = ${sessionId} LIMIT 1
+      `);
+    } catch {
+      existing = await db.execute(sql`
+        SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
+               platform_fee_cents, creator_amount_cents, fulfillment_note, created_at
+        FROM store_orders WHERE stripe_session_id = ${sessionId} LIMIT 1
+      `);
+    }
     let orderId: string;
     let duplicate = false;
     let fulfillmentNote: string | null = null;
+    let mainTitle = "Store product";
+    let recordedBump: { productId: string; title: string; grossCents: number } | null = null;
+    let bumpDeliverable = false;
     if (existing.rows.length > 0) {
       const er = existing.rows[0] as Record<string, unknown>;
       orderId = String(er["id"]);
       fulfillmentNote = (er["fulfillment_note"] as string | null) ?? null;
+      mainTitle = String(er["product_title"] ?? "Store product");
+      if (er["bump_product_id"] && Number(er["bump_amount_cents"] ?? 0) > 0) {
+        recordedBump = {
+          productId: String(er["bump_product_id"]),
+          title: String(er["bump_title"] ?? "Add-on"),
+          grossCents: Number(er["bump_amount_cents"]),
+        };
+        /* The sold-out-after-payment sentence is written by this same
+           module at record time — its absence means the add-on was
+           fulfilled and may be re-delivered on a duplicate verify. */
+        bumpDeliverable = !(fulfillmentNote ?? "").includes("sold out after payment");
+      }
       duplicate = true;
       logger.info({ sessionId, orderId }, "[storefront] verify: duplicate ignored");
     } else {
       const p = await fetchProduct(productId, false);
       const productTitle = p?.title ?? "Store product";
+      mainTitle = productTitle;
 
       /* Claim inventory atomically (unlimited = -1 skips the claim). */
       if (p && Number(p.inventory) >= 0) {
@@ -786,17 +1103,55 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         }
       }
 
-      const inserted = await db.execute(sql`
-        INSERT INTO store_orders
-          (buyer_user_id, profile_id, product_id, product_title, product_kind,
-           quantity, amount_cents, discount_code, platform_fee_cents,
-           creator_amount_cents, stripe_session_id, status, fulfillment_note)
-        VALUES (${req.userId!}, ${profileId}, ${productId}, ${productTitle}, ${kind},
-                ${quantity}, ${amountCents}, ${discountCode}, ${feeCents},
-                ${creatorCents}, ${sessionId}, 'completed', NULL)
-        ON CONFLICT (stripe_session_id) DO NOTHING
-        RETURNING id
-      `);
+      /* Bump line (feature #13): fetch the add-on and claim its single
+         unit the same way. Unlike the main line, a lost race here does
+         NOT fail the paid order — the buyer paid for both, so the
+         order records the line and the fulfillment note states the
+         exact add-on refund the creator owes (see fulfillment below). */
+      const bumpRow = bumpProductId ? await fetchProduct(bumpProductId, false) : null;
+      const bumpTitle = bumpRow?.title ?? "Add-on";
+      let bumpClaimFailed = false;
+      if (bumpRow && Number(bumpRow.inventory) >= 0) {
+        const claimedBump = await db.execute(sql`
+          UPDATE store_products
+          SET inventory = inventory - 1, updated_at = now()
+          WHERE id = ${bumpProductId} AND inventory >= 1
+          RETURNING id
+        `);
+        if (claimedBump.rows.length === 0) bumpClaimFailed = true;
+      }
+      bumpDeliverable = !!bumpRow && !bumpClaimFailed;
+
+      const inserted = splits.bump
+        ? await db.execute(sql`
+            INSERT INTO store_orders
+              (buyer_user_id, profile_id, product_id, product_title, product_kind,
+               quantity, amount_cents, discount_code, platform_fee_cents,
+               creator_amount_cents, stripe_session_id, status, fulfillment_note,
+               bump_product_id, bump_title, bump_amount_cents,
+               bump_platform_fee_cents, bump_creator_amount_cents)
+            VALUES (${req.userId!}, ${profileId}, ${productId}, ${productTitle}, ${kind},
+                    ${quantity}, ${amountCents}, ${discountCode}, ${feeCents},
+                    ${creatorCents}, ${sessionId}, 'completed', NULL,
+                    ${bumpProductId}, ${bumpTitle}, ${splits.bump.grossCents},
+                    ${splits.bump.feeCents}, ${splits.bump.creatorCents})
+            ON CONFLICT (stripe_session_id) DO NOTHING
+            RETURNING id
+          `)
+        : await db.execute(sql`
+            INSERT INTO store_orders
+              (buyer_user_id, profile_id, product_id, product_title, product_kind,
+               quantity, amount_cents, discount_code, platform_fee_cents,
+               creator_amount_cents, stripe_session_id, status, fulfillment_note)
+            VALUES (${req.userId!}, ${profileId}, ${productId}, ${productTitle}, ${kind},
+                    ${quantity}, ${amountCents}, ${discountCode}, ${feeCents},
+                    ${creatorCents}, ${sessionId}, 'completed', NULL)
+            ON CONFLICT (stripe_session_id) DO NOTHING
+            RETURNING id
+          `);
+      if (splits.bump) {
+        recordedBump = { productId: bumpProductId!, title: bumpTitle, grossCents: splits.bump.grossCents };
+      }
       if (inserted.rows.length > 0) {
         orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
       } else {
@@ -862,6 +1217,46 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           fulfillmentNote = "Digital delivery ready.";
         }
 
+        /* Bump line fulfillment (feature #13): the add-on earns the
+           same per-kind treatment as the main line, appended to the
+           same note so the buyer's receipt tells the whole story. */
+        if (splits.bump && bumpRow) {
+          const bumpKind = bumpRow.kind;
+          if (bumpClaimFailed) {
+            fulfillmentNote += ` Add-on "${bumpTitle}" sold out after payment — the creator owes you a ${money(splits.bump.grossCents)} refund for the add-on.`;
+          } else if (bumpKind === "ticket" && bumpRow.event_id) {
+            const rsvp = await db.execute(sql`
+              INSERT INTO event_rsvps (event_id, user_id)
+              VALUES (${bumpRow.event_id}, ${req.userId!})
+              ON CONFLICT DO NOTHING
+              RETURNING event_id
+            `);
+            if (rsvp.rows.length > 0) {
+              await db.execute(sql`UPDATE events SET rsvp_count = rsvp_count + 1 WHERE id = ${bumpRow.event_id}`);
+            }
+            fulfillmentNote += ` Add-on ticket "${bumpTitle}" secured — you're on the list.`;
+          } else if (bumpKind === "service") {
+            fulfillmentNote += ` Add-on booking "${bumpTitle}" received — the creator confirms your slot.`;
+            const creatorUser = await db.execute(sql`
+              SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+            `);
+            const crow = creatorUser.rows[0] as Record<string, unknown> | undefined;
+            if (crow?.["user_id"]) {
+              await db.execute(sql`
+                INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
+                VALUES ('storefront_service_booking', ${`${orderId}:bump`}, ${String(crow["user_id"])},
+                        'completed', ${`New booking (add-on): ${bumpTitle}`},
+                        ${`Someone just booked your add-on "${bumpTitle}" (${money(splits.bump.grossCents)}) alongside "${productTitle}". Confirm their slot from your store dashboard.`})
+                ON CONFLICT DO NOTHING
+              `);
+            }
+          } else if (bumpKind === "merch") {
+            fulfillmentNote += ` Add-on "${bumpTitle}" received — fulfilled through the creator's merch/print pipeline.`;
+          } else {
+            fulfillmentNote += ` Add-on "${bumpTitle}" delivery ready.`;
+          }
+        }
+
         await db.execute(sql`
           UPDATE store_orders SET fulfillment_note = ${fulfillmentNote} WHERE id = ${orderId}
         `);
@@ -884,6 +1279,55 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         };
       }
     }
+    /* The bump line delivers on the same rail when it's a digital good
+       and its unit was actually claimed (feature #13). */
+    let bumpDelivery: { url: string; expiresAt: string; maxUses: number } | null = null;
+    if (recordedBump && bumpDeliverable) {
+      const bp = await fetchProduct(recordedBump.productId, false);
+      if (bp && (bp.kind === "digital" || bp.kind === "download")) {
+        const fileUrl = (bp.media_urls ?? [])[0];
+        if (fileUrl) {
+          const link = await mintDeliveryToken(orderId, fileUrl);
+          bumpDelivery = {
+            url: `/api/storefront/deliver/${link.token}`,
+            expiresAt: link.expiresAt.toISOString(),
+            maxUses: DELIVERY_MAX_USES,
+          };
+        }
+      }
+    }
+
+    /* Receipt lines: the main purchase and the add-on as separate
+       lines, each with its own fee attribution (lib/order-bumps). On a
+       duplicate verify the lines are re-derived from the RECORDED
+       amounts, so the receipt can never drift from the order row. */
+    const receiptSplits = duplicate && recordedBump
+      ? splitOrderAmounts(amountCents, recordedBump.grossCents)
+      : splits;
+    const lines = [
+      {
+        role: "main" as const,
+        productId,
+        title: mainTitle,
+        kind,
+        quantity,
+        grossCents: receiptSplits.main.grossCents, gross: money(receiptSplits.main.grossCents),
+        platformFeeCents: receiptSplits.main.feeCents, platformFee: money(receiptSplits.main.feeCents),
+        creatorCents: receiptSplits.main.creatorCents, creatorAmount: money(receiptSplits.main.creatorCents),
+      },
+      ...(receiptSplits.bump && recordedBump
+        ? [{
+            role: "bump" as const,
+            productId: recordedBump.productId,
+            title: recordedBump.title,
+            kind: null,
+            quantity: 1,
+            grossCents: receiptSplits.bump.grossCents, gross: money(receiptSplits.bump.grossCents),
+            platformFeeCents: receiptSplits.bump.feeCents, platformFee: money(receiptSplits.bump.feeCents),
+            creatorCents: receiptSplits.bump.creatorCents, creatorAmount: money(receiptSplits.bump.creatorCents),
+          }]
+        : []),
+    ];
 
     const p = await fetchProduct(productId, false);
     res.json({
@@ -899,8 +1343,10 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         creatorAmountCents: creatorCents, creatorAmount: money(creatorCents),
         discountCode,
         fulfillmentNote,
+        lines,
       },
       delivery,
+      bumpDelivery,
       /* Link graph: no dead ends after payment — the highest-trust moment. */
       links: {
         productUrl: p ? `/storefront/product/${p.id}` : null,
@@ -1448,6 +1894,55 @@ router.get("/storefront/discounts/validate", publicApiLimiter, async (req, res) 
 });
 
 /* ═══════════════════════ ORDERS (seller + buyer) ═════════════════════ */
+/** Receipt lines for an order row (feature #13): the main purchase
+    plus the bump add-on as its own line when the order carries one.
+    Amounts are read from the recorded bump columns — the receipt is
+    the order row, re-derived splits only attribute the fee. Rows from
+    a pre-migration database have no bump keys and yield the main line
+    alone, exactly as before the feature. */
+function orderLines(r: Record<string, unknown>) {
+  const gross = Number(r["amount_cents"]);
+  const fee = Number(r["platform_fee_cents"]);
+  const net = Number(r["creator_amount_cents"]);
+  const bumpGross = Number(r["bump_amount_cents"] ?? 0);
+  const main = {
+    role: "main" as const,
+    productId: r["product_id"] ? String(r["product_id"]) : null,
+    title: String(r["product_title"] ?? "Product"),
+    kind: String(r["product_kind"] ?? "digital"),
+    quantity: Number(r["quantity"]),
+    grossCents: gross - (bumpGross > 0 ? bumpGross : 0),
+    platformFeeCents: fee - (bumpGross > 0 ? Number(r["bump_platform_fee_cents"] ?? 0) : 0),
+    netCents: net - (bumpGross > 0 ? Number(r["bump_creator_amount_cents"] ?? 0) : 0),
+  };
+  const lines: Array<Record<string, unknown>> = [
+    {
+      ...main,
+      gross: money(main.grossCents),
+      platformFee: money(main.platformFeeCents),
+      net: money(main.netCents),
+    },
+  ];
+  if (bumpGross > 0 && r["bump_product_id"]) {
+    const bFee = Number(r["bump_platform_fee_cents"] ?? 0);
+    const bNet = Number(r["bump_creator_amount_cents"] ?? 0);
+    lines.push({
+      role: "bump",
+      productId: String(r["bump_product_id"]),
+      title: String(r["bump_title"] ?? "Add-on"),
+      kind: null,
+      quantity: 1,
+      grossCents: bumpGross,
+      gross: money(bumpGross),
+      platformFeeCents: bFee,
+      platformFee: money(bFee),
+      netCents: bNet,
+      net: money(bNet),
+    });
+  }
+  return lines;
+}
+
 function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
   const gross = Number(r["amount_cents"]);
   return {
@@ -1464,6 +1959,9 @@ function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
     platformFeePct: PLATFORM_FEE_PCT,
     netCents: Number(r["creator_amount_cents"]),
     net: money(Number(r["creator_amount_cents"])),
+    /* The bump as its own receipt line (feature #13) — [main] alone
+       for every order recorded before/without an add-on. */
+    lines: orderLines(r),
     discountCode: (r["discount_code"] as string | null) ?? null,
     status: String(r["status"]),
     fulfillmentNote: (r["fulfillment_note"] as string | null) ?? null,
@@ -1482,15 +1980,33 @@ router.get("/storefront/orders/sales", requireAuth, async (req, res) => {
       res.status(404).json({ error: "NO_PROFILE" });
       return;
     }
-    const r = await db.execute(sql`
-      SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
-             discount_code, platform_fee_cents, creator_amount_cents, status,
-             fulfillment_note, created_at
-      FROM store_orders
-      WHERE profile_id = ${profile.id}
-      ORDER BY created_at DESC
-      LIMIT 500
-    `);
+    /* Bump columns (feature #13) ride a best-effort select — a
+       database without the migration yet lists orders exactly as
+       before, with the main receipt line alone. */
+    let r: Awaited<ReturnType<typeof db.execute>>;
+    try {
+      r = await db.execute(sql`
+        SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
+               discount_code, platform_fee_cents, creator_amount_cents, status,
+               fulfillment_note, created_at,
+               bump_product_id, bump_title, bump_amount_cents,
+               bump_platform_fee_cents, bump_creator_amount_cents
+        FROM store_orders
+        WHERE profile_id = ${profile.id}
+        ORDER BY created_at DESC
+        LIMIT 500
+      `);
+    } catch {
+      r = await db.execute(sql`
+        SELECT id, product_id, product_title, product_kind, quantity, amount_cents,
+               discount_code, platform_fee_cents, creator_amount_cents, status,
+               fulfillment_note, created_at
+        FROM store_orders
+        WHERE profile_id = ${profile.id}
+        ORDER BY created_at DESC
+        LIMIT 500
+      `);
+    }
     const orders = r.rows.map((row) => orderShape(row as Record<string, unknown>, profile.slug));
     const totals = orders.reduce(
       (acc, o) => ({
@@ -1519,17 +2035,34 @@ router.get("/storefront/orders/sales", requireAuth, async (req, res) => {
 
 router.get("/storefront/orders/purchases", requireAuth, async (req, res) => {
   try {
-    const r = await db.execute(sql`
-      SELECT so.id, so.product_id, so.product_title, so.product_kind, so.quantity,
-             so.amount_cents, so.discount_code, so.platform_fee_cents,
-             so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
-             cp.slug AS artist_slug, cp.display_name AS artist_name
-      FROM store_orders so
-      JOIN creator_profiles cp ON cp.id = so.profile_id
-      WHERE so.buyer_user_id = ${req.userId!}
-      ORDER BY so.created_at DESC
-      LIMIT 200
-    `);
+    let r: Awaited<ReturnType<typeof db.execute>>;
+    try {
+      r = await db.execute(sql`
+        SELECT so.id, so.product_id, so.product_title, so.product_kind, so.quantity,
+               so.amount_cents, so.discount_code, so.platform_fee_cents,
+               so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
+               so.bump_product_id, so.bump_title, so.bump_amount_cents,
+               so.bump_platform_fee_cents, so.bump_creator_amount_cents,
+               cp.slug AS artist_slug, cp.display_name AS artist_name
+        FROM store_orders so
+        JOIN creator_profiles cp ON cp.id = so.profile_id
+        WHERE so.buyer_user_id = ${req.userId!}
+        ORDER BY so.created_at DESC
+        LIMIT 200
+      `);
+    } catch {
+      r = await db.execute(sql`
+        SELECT so.id, so.product_id, so.product_title, so.product_kind, so.quantity,
+               so.amount_cents, so.discount_code, so.platform_fee_cents,
+               so.creator_amount_cents, so.status, so.fulfillment_note, so.created_at,
+               cp.slug AS artist_slug, cp.display_name AS artist_name
+        FROM store_orders so
+        JOIN creator_profiles cp ON cp.id = so.profile_id
+        WHERE so.buyer_user_id = ${req.userId!}
+        ORDER BY so.created_at DESC
+        LIMIT 200
+      `);
+    }
     res.json({
       purchases: r.rows.map((row) => {
         const rr = row as Record<string, unknown>;

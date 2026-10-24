@@ -1,0 +1,1285 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bumps/artifacts/api-server[39m
+
+[01:18:23.420] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "6073fbfa-02a3-425c-af9e-3db4532dee70"
+    [35mkind[39m: "digital"
+[01:18:24.314] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(6073fbfa-02a3-425c-af9e-3db4532dee70) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(6073fbfa-02a3-425c-af9e-3db4532dee70) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:25.013] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "7751b361-89ce-4032-a04a-664593700592"
+    [35mkind[39m: "digital"
+[01:18:25.258] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(7751b361-89ce-4032-a04a-664593700592) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(7751b361-89ce-4032-a04a-664593700592) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:25.917] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "30f42b29-3590-42e0-8f42-e4a08410310a"
+    [35mkind[39m: "digital"
+[01:18:26.354] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "998c64fd-fa13-4bf6-ae73-9fa0c0ce2967"
+    [35mkind[39m: "digital"
+[01:18:26.518] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "35fdd67d-2462-49df-bfb3-f72911c4f40a"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 6ef0cd7e-d390-4ecd-bae0-7541ea064f2d,digital,Not Yours,,1500,,-1,[],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(998c64fd-fa13-4bf6-ae73-9fa0c0ce2967) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('6ef0cd7e-d390-4ecd-bae0-7541ea064f2d', 'digital', 'Not Yours', '', '1500',\n              null, '-1', '[]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 6ef0cd7e-d390-4ecd-bae0-7541ea064f2d,digital,Not Yours,,1500,,-1,[],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(998c64fd-fa13-4bf6-ae73-9fa0c0ce2967) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('6ef0cd7e-d390-4ecd-bae0-7541ea064f2d', 'digital', 'Not Yours', '', '1500',
+                        null, '-1', '[]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "6ef0cd7e-d390-4ecd-bae0-7541ea064f2d",
+        "digital",
+        "Not Yours",
+        "",
+        1500,
+        null,
+        -1,
+        "[]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:27.164] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "8de12e00-47f4-4faa-94a5-29ded98874be"
+    [35mkind[39m: "digital"
+[01:18:27.472] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Freebie,,0,,-1,[],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(8de12e00-47f4-4faa-94a5-29ded98874be) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Freebie', '', '0',\n              null, '-1', '[]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Freebie,,0,,-1,[],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(8de12e00-47f4-4faa-94a5-29ded98874be) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Freebie', '', '0',
+                        null, '-1', '[]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Freebie",
+        "",
+        0,
+        null,
+        -1,
+        "[]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:27.771] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "a1f20d87-c635-47c3-8a34-deaa5d1f3745"
+    [35mkind[39m: "digital"
+[01:18:27.891] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(a1f20d87-c635-47c3-8a34-deaa5d1f3745) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(a1f20d87-c635-47c3-8a34-deaa5d1f3745) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:28.313] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "800090a1-3af9-4365-89da-35a5db319b26"
+    [35mkind[39m: "digital"
+[01:18:28.567] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(800090a1-3af9-4365-89da-35a5db319b26) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(800090a1-3af9-4365-89da-35a5db319b26) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:28.929] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "a359af20-f830-447c-ba72-993b9ff9913d"
+    [35mkind[39m: "digital"
+[01:18:28.948] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(a359af20-f830-447c-ba72-993b9ff9913d) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(a359af20-f830-447c-ba72-993b9ff9913d) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:29.279] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "07fe51b6-6ebf-4dfb-852b-1812f64a94ca"
+    [35mkind[39m: "digital"
+[01:18:29.415] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(07fe51b6-6ebf-4dfb-852b-1812f64a94ca) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(07fe51b6-6ebf-4dfb-852b-1812f64a94ca) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:29.991] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "dc25d042-5da7-4c4b-8f95-75010b2b651c"
+    [35mkind[39m: "digital"
+[01:18:30.022] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(dc25d042-5da7-4c4b-8f95-75010b2b651c) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(dc25d042-5da7-4c4b-8f95-75010b2b651c) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:30.894] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "b544b25d-72e7-453b-9f46-e2226e3897dd"
+    [35mkind[39m: "digital"
+[01:18:30.974] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(b544b25d-72e7-453b-9f46-e2226e3897dd) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(b544b25d-72e7-453b-9f46-e2226e3897dd) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:31.243] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "fb237441-2985-42ce-b8a5-1e7ed8fefd5e"
+    [35mkind[39m: "digital"
+[01:18:31.791] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "874153f4-028d-4b18-ab56-45aad0eec7fd"
+    [35mkind[39m: "digital"
+[01:18:31.915] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,1,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(874153f4-028d-4b18-ab56-45aad0eec7fd) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '1', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,1,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(874153f4-028d-4b18-ab56-45aad0eec7fd) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '1', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        1,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:32.391] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "7b9efbc7-3907-464d-a45e-ebb34c83479a"
+    [35mkind[39m: "digital"
+[01:18:32.483] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(7b9efbc7-3907-464d-a45e-ebb34c83479a) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(7b9efbc7-3907-464d-a45e-ebb34c83479a) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+[01:18:32.812] [32mINFO[39m (59211): [36m[storefront] product created[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    [35mproductId[39m: "bb23be10-edfe-42c5-a750-428711331290"
+    [35mkind[39m: "digital"
+[01:18:32.858] [31mERROR[39m (59211): [36m[storefront] product create failed[39m
+    [35muserId[39m: "f9b20d32-edf9-4711-a0f6-7fcffef2ddc5"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    \nparams: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,[\"https://cdn.example.com/pack.zip\"],,,[],true: ERROR: insert into \"store_products\" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning \"id\" - duplicate key value violates unique constraint \"store_products_pkey\"\nDETAIL: Key (id)=(bb23be10-edfe-42c5-a750-428711331290) already exists.\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',\n              null, '5', '[\"https://cdn.example.com/pack.zip\"]'::jsonb,\n              null::jsonb,\n              null, '[]'::jsonb, 'true')\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ($1, $2, $3, $4, $5,
+                        $6, $7, $8::jsonb,
+                        $9::jsonb,
+                        $10, $11::jsonb, $12)
+                RETURNING id
+              
+          params: 56980ae0-b58c-412f-a5c0-d220bafc272e,digital,Bonus Sample Pack,,3000,,5,["https://cdn.example.com/pack.zip"],,,[],true
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-bumps/artifacts/api-server/src/routes/storefront.ts:522:15
+          caused by: Error: ERROR: insert into "store_products" (profile_id, kind, title, description, price_cents, compare_at_cents, inventory, media_urls, service_details, event_id, related_links, is_active, id, bump_product_id, bump_percent_off, created_at, updated_at) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning "id" - duplicate key value violates unique constraint "store_products_pkey"
+          DETAIL: Key (id)=(bb23be10-edfe-42c5-a750-428711331290) already exists.
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                INSERT INTO store_products
+                  (profile_id, kind, title, description, price_cents, compare_at_cents,
+                   inventory, media_urls, service_details, event_id, related_links, is_active)
+                VALUES ('56980ae0-b58c-412f-a5c0-d220bafc272e', 'digital', 'Bonus Sample Pack', '', '3000',
+                        null, '5', '["https://cdn.example.com/pack.zip"]'::jsonb,
+                        null::jsonb,
+                        null, '[]'::jsonb, 'true')
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at BIndex.add (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:10027:19)
+              at MemoryTable.indexElt (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6542:25)
+              at MemoryTable.doInsert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6414:14)
+              at Insert.performMutation (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9740:44)
+              at Insert._doExecuteOnce (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4553:29)
+              at Insert.enumerate (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4561:29)
+              at enumerate.next (<anonymous>)
+              at SelectExec.execute (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3202:41)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5902:42
+              at pushExecutionCtx (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:481:16)
+      "query": "\n      INSERT INTO store_products\n        (profile_id, kind, title, description, price_cents, compare_at_cents,\n         inventory, media_urls, service_details, event_id, related_links, is_active)\n      VALUES ($1, $2, $3, $4, $5,\n              $6, $7, $8::jsonb,\n              $9::jsonb,\n              $10, $11::jsonb, $12)\n      RETURNING id\n    ",
+      "params": [
+        "56980ae0-b58c-412f-a5c0-d220bafc272e",
+        "digital",
+        "Bonus Sample Pack",
+        "",
+        3000,
+        null,
+        5,
+        "[\"https://cdn.example.com/pack.zip\"]",
+        null,
+        null,
+        "[]",
+        true
+      ]
+    }
+ [31m❯[39m src/routes/__tests__/storefront-order-bumps.test.ts [2m([22m[2m19 tests[22m[2m | [22m[31m17 failed[39m[2m)[22m[33m 14147[2mms[22m[39m
+   [31m❯[39m seller attach — one add-on, own products only [2m(8)[22m
+[31m     [31m×[31m attaches and the buyer payload resolves the live offer at the seller-set % off[39m[33m 4656[2mms[22m[39m
+[31m     [31m×[31m detaching clears the setting and the offer[39m[33m 748[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a product as its own add-on[33m 835[2mms[22m[39m
+[31m     [31m×[31m refuses another seller's product[39m[33m 449[2mms[22m[39m
+[31m     [31m×[31m refuses a $0 lead magnet as the add-on[39m[33m 944[2mms[22m[39m
+[31m     [31m×[31m refuses a percent off above the 90 ceiling[39m[33m 398[2mms[22m[39m
+[31m     [31m×[31m an inactive add-on may be attached but shows no live offer[39m[33m 647[2mms[22m[39m
+[31m     [31m×[31m a non-owner cannot set another seller's bump[39m[33m 452[2mms[22m[39m
+   [31m❯[39m checkout — server-computed totals, one session [2m(6)[22m
+[31m     [31m×[31m unticked: legacy totals exactly, one line item, no bump in metadata[39m[33m 498[2mms[22m[39m
+[31m     [31m×[31m ticked: two line items, grand total and per-line fee split on the flat 5%[39m[33m 553[2mms[22m[39m
+[31m     [31m×[31m double-charge impossibility: a double-submit reuses ONE idempotency key; ticking changes it[39m[33m 928[2mms[22m[39m
+     [33m[2m✓[22m[39m a tick with no offer attached refuses — no session, no charge[33m 488[2mms[22m[39m
+[31m     [31m×[31m a tick whose add-on sold out after attaching refuses — no session[39m[33m 445[2mms[22m[39m
+[31m     [31m×[31m a discount code discounts the MAIN line only — the bump stays at its seller price[39m[33m 595[2mms[22m[39m
+   [31m❯[39m verify — the bump recorded as its own line, exactly once [2m(5)[22m
+[31m     [31m×[31m records one order whose bump columns and receipt lines reconcile to the cent[39m[33m 340[2mms[22m[39m
+[31m     [31m×[31m a duplicate verify is a pure no-op: one order, no second claim, no second discount use[39m[32m 291[2mms[22m[39m
+[31m     [31m×[31m no-bump verify is byte-identical to the legacy rail (bump columns NULL, one line)[39m[32m 160[2mms[22m[39m
+[31m     [31m×[31m a bump that sells out between payment and verify still records — with the exact refund owed in the note[39m[32m 159[2mms[22m[39m
+[31m     [31m×[31m sales and purchases both show the bump as its own receipt line[39m[32m 200[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 17 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22mattaches and the buyer payload resolves the live offer at the seller-set % off
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m245:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22mdetaching clears the setting and the offer
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m262:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22mrefuses another seller's product
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m283:28[22m[39m
+    [90m281|[39m       kind: "digital", title: "Not Yours", description: "", priceCents…
+    [90m282|[39m     }, OTHER_CREATOR);
+    [90m283|[39m     expect(foreign.status).toBe(201);
+    [90m   |[39m                            [31m^[39m
+    [90m284|[39m     const r = await attach(mainId, foreign.json.product.id);
+    [90m285|[39m     expect(r.status).toBe(400);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22mrefuses a $0 lead magnet as the add-on
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m294:25[22m[39m
+    [90m292|[39m       kind: "digital", title: "Freebie", description: "", priceCents: …
+    [90m293|[39m     });
+    [90m294|[39m     expect(free.status).toBe(201);
+    [90m   |[39m                         [31m^[39m
+    [90m295|[39m     const r = await attach(mainId, free.json.product.id);
+    [90m296|[39m     expect(r.status).toBe(400);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22mrefuses a percent off above the 90 ceiling
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m302:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22man inactive add-on may be attached but shows no live offer
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m309:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mseller attach — one add-on, own products only[2m > [22ma non-owner cannot set another seller's bump
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m322:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mcheckout — server-computed totals, one session[2m > [22munticked: legacy totals exactly, one line item, no bump in metadata
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m332:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mcheckout — server-computed totals, one session[2m > [22mticked: two line items, grand total and per-line fee split on the flat 5%
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m350:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mcheckout — server-computed totals, one session[2m > [22mdouble-charge impossibility: a double-submit reuses ONE idempotency key; ticking changes it
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m373:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mcheckout — server-computed totals, one session[2m > [22ma tick whose add-on sold out after attaching refuses — no session
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m397:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mcheckout — server-computed totals, one session[2m > [22ma discount code discounts the MAIN line only — the bump stays at its seller price
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m409:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mverify — the bump recorded as its own line, exactly once[2m > [22mrecords one order whose bump columns and receipt lines reconcile to the cent
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m seedBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m223:20[22m[39m
+    [90m221|[39m     ...extra,
+    [90m222|[39m   });
+    [90m223|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m224|[39m   return r.json.product.id as string;
+    [90m225|[39m }
+[90m [2m❯[22m checkoutWithBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m431:20[22m[39m
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m440:43[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mverify — the bump recorded as its own line, exactly once[2m > [22ma duplicate verify is a pure no-op: one order, no second claim, no second discount use
+[31m[1mAssertionError[22m: expected 429 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 429[39m
+
+[36m [2m❯[22m seedMain src/routes/__tests__/storefront-order-bumps.test.ts:[2m212:20[22m[39m
+    [90m210|[39m     priceCents: 2000, mediaUrls: ["https://cdn.example.com/album.zip"],
+    [90m211|[39m   });
+    [90m212|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m213|[39m   return r.json.product.id as string;
+    [90m214|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m470:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mverify — the bump recorded as its own line, exactly once[2m > [22mno-bump verify is byte-identical to the legacy rail (bump columns NULL, one line)
+[31m[1mAssertionError[22m: expected 429 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 429[39m
+
+[36m [2m❯[22m seedMain src/routes/__tests__/storefront-order-bumps.test.ts:[2m212:20[22m[39m
+    [90m210|[39m     priceCents: 2000, mediaUrls: ["https://cdn.example.com/album.zip"],
+    [90m211|[39m   });
+    [90m212|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m213|[39m   return r.json.product.id as string;
+    [90m214|[39m }
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m497:20[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mverify — the bump recorded as its own line, exactly once[2m > [22ma bump that sells out between payment and verify still records — with the exact refund owed in the note
+[31m[1mAssertionError[22m: expected 429 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 429[39m
+
+[36m [2m❯[22m seedMain src/routes/__tests__/storefront-order-bumps.test.ts:[2m212:20[22m[39m
+    [90m210|[39m     priceCents: 2000, mediaUrls: ["https://cdn.example.com/album.zip"],
+    [90m211|[39m   });
+    [90m212|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m213|[39m   return r.json.product.id as string;
+    [90m214|[39m }
+[90m [2m❯[22m checkoutWithBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m430:20[22m[39m
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m513:35[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/storefront-order-bumps.test.ts[2m > [22mverify — the bump recorded as its own line, exactly once[2m > [22msales and purchases both show the bump as its own receipt line
+[31m[1mAssertionError[22m: expected 429 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 429[39m
+
+[36m [2m❯[22m seedMain src/routes/__tests__/storefront-order-bumps.test.ts:[2m212:20[22m[39m
+    [90m210|[39m     priceCents: 2000, mediaUrls: ["https://cdn.example.com/album.zip"],
+    [90m211|[39m   });
+    [90m212|[39m   expect(r.status).toBe(201);
+    [90m   |[39m                    [31m^[39m
+    [90m213|[39m   return r.json.product.id as string;
+    [90m214|[39m }
+[90m [2m❯[22m checkoutWithBump src/routes/__tests__/storefront-order-bumps.test.ts:[2m430:20[22m[39m
+[90m [2m❯[22m src/routes/__tests__/storefront-order-bumps.test.ts:[2m529:35[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/17]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m17 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 01:17:26
+[2m   Duration [22m 67.60s[2m (transform 45%, import 33%, tests 22%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 29.20s[39m[2m · 45% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

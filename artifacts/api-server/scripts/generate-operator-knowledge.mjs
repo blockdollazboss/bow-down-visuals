@@ -1136,6 +1136,25 @@ const DOCKED_FEATURES = [
     pricedEndpoints: ["/api/storefront/claim"],
   },
   {
+    /* Order bumps (Stack-100 #3, feature #13): a seller setting inside
+       the store dashboard's Products tab plus a tick box on the
+       product page — no route of its own. The rail charges real money
+       through the storefront checkout at the seller-set product price
+       (or a seller-set percent off it); there is no Visual Bucs price
+       to quote, so pricedEndpoints stays empty — the paid-series
+       precedent. */
+    id: "order-bumps",
+    name: { text: "Add-on Offers (Order Bumps)" },
+    path: "/store/dashboard",
+    hostPath: "/store/dashboard",
+    stage: "money",
+    description: {
+      text: "Attach one of your other products as an add-on to a store product: the buyer sees it on the product page with a tick box and can add it to the same single checkout, at its listed price or a percent off you set. It shows as its own line on the order. Set it up in the store dashboard's Products tab.",
+    },
+    endpoints: ["/api/storefront/products/:param/bump", "/api/storefront/checkout"],
+    pricedEndpoints: [],
+  },
+  {
     id: "social-proof",
     name: { ns: "social-proof", field: "title" },
     path: "/settings",

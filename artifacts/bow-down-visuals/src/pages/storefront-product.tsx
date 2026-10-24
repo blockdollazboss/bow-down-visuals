@@ -25,6 +25,20 @@ export const PRODUCT_KIND_LABELS: Record<string, string> = {
   ticket: "Ticket",
 };
 
+/** The add-on offer (feature #13): resolved server-side — present only
+    while the attached product is live, priced and in stock. */
+interface BumpOfferData {
+  productId: string;
+  title: string;
+  kind: string;
+  listPriceCents: number;
+  listPrice: string;
+  percentOff: number;
+  priceCents: number;
+  price: string;
+  productUrl: string;
+}
+
 interface ProductData {
   product: {
     id: string;
@@ -40,6 +54,8 @@ interface ProductData {
     soldOut: boolean;
     unlimited: boolean;
     mediaUrls: string[];
+    /** One tick-to-add add-on, or null when none is on offer. */
+    bump?: BumpOfferData | null;
     links: {
       creatorUrl: string;
       creatorName: string;
@@ -80,6 +96,9 @@ export default function StorefrontProduct() {
   const [shared, setShared] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [discountCode, setDiscountCode] = useState("");
+  /* Order bump (feature #13): the buyer ticks the add-on; the server
+     re-prices it at checkout — the tick alone never sets a price. */
+  const [includeBump, setIncludeBump] = useState(false);
   /* Lead-magnet claim state (0190). */
   const [claimEmail, setClaimEmail] = useState("");
   const [claimName, setClaimName] = useState("");
@@ -198,6 +217,7 @@ export default function StorefrontProduct() {
           productId: data.product.id,
           quantity,
           ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
+          ...(includeBump && data.product.bump ? { includeBump: true } : {}),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
@@ -377,6 +397,50 @@ export default function StorefrontProduct() {
                 </div>
               ) : (
                 <>
+                  {data.product.bump && (
+                    <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left transition hover:bg-amber-500/10">
+                      <input
+                        type="checkbox"
+                        checked={includeBump}
+                        onChange={(e) => setIncludeBump(e.target.checked)}
+                        aria-label={`Add ${data.product.bump.title} to this order`}
+                        className="mt-1 h-5 w-5 shrink-0 accent-amber-500"
+                      />
+                      <span className="flex-1">
+                        <span className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
+                            Add-on — one more from {data.product.links.creatorName}
+                          </span>
+                          <span className="flex items-baseline gap-2">
+                            {data.product.bump.percentOff > 0 && (
+                              <span className="text-sm text-amber-100/40 line-through">{data.product.bump.listPrice}</span>
+                            )}
+                            <span className="text-xl font-bold text-amber-200">{data.product.bump.price}</span>
+                          </span>
+                        </span>
+                        <span className="mt-1 block font-semibold text-amber-100">{data.product.bump.title}</span>
+                        <span className="mt-0.5 block text-xs text-amber-100/60">
+                          {data.product.bump.percentOff > 0
+                            ? `${data.product.bump.percentOff}% off as an add-on — `
+                            : ""}
+                          tick the box and it's added to this same checkout. One charge, both delivered.
+                        </span>
+                        {includeBump && (
+                          <span className="mt-2 block border-t border-amber-500/15 pt-2 text-sm text-amber-100/80">
+                            Total with add-on:{" "}
+                            <span className="font-bold text-amber-200">
+                              ${((data.product.priceCents * quantity + data.product.bump.priceCents) / 100).toFixed(2)}
+                            </span>
+                            {discountCode.trim() && (
+                              <span className="text-xs text-amber-100/50">
+                                {" "}(your code applies to {data.product.title} at checkout)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  )}
                   <div className="mt-6 flex flex-wrap items-center gap-3">
                     <div className="inline-flex items-center rounded-full border border-amber-500/30">
                       <button
