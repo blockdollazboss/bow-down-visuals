@@ -40,8 +40,9 @@ export function isTimelineLocked(
  * timeline mutation (move/reorder, split, delete, duplicate, paste,
  * rename, replace, add-a-clip) replaces the scenes array, so refusing
  * array changes while locked covers them all at the page chokepoint.
- * Internal flows (project load, rebuild, auto-generate, sync) bypass
- * this via the page's internal setters — they are not user edits.
+ * Only the project-load effect bypasses this via the page's internal
+ * setters — loading establishes the state (including the lock flag
+ * itself) and is not a user edit.
  */
 export function timelineLockBlocksScenesChange(
   settings: Pick<EditorSettings, "timelineLocked"> | null | undefined,
