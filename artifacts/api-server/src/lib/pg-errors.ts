@@ -36,6 +36,13 @@ export function isUndefinedTable(err: unknown): boolean {
   return pgErrorCode(err) === "42P01";
 }
 
+/** Postgres undefined-column (42703), wherever it hides in the chain —
+ *  the signal a held migration has not landed yet (graceful-degradation
+ *  paths key off this, never off message text). */
+export function isUndefinedColumn(err: unknown): boolean {
+  return pgErrorCode(err) === "42703";
+}
+
 /* Every message along the cause chain, outermost first. For checks
  * written against the raw pg message ("duplicate key value violates
  * unique constraint …", "relation \"x\" does not exist") — on a

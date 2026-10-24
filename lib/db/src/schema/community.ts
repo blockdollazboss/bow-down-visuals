@@ -2,6 +2,7 @@ import { pgTable, uuid, text, integer, boolean, timestamp, primaryKey, uniqueInd
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
+import { fanTiersTable } from "./fan-memberships";
 
 /**
  * Creator Streaming Platform — groups, events, DMs (migration 0098).
@@ -103,6 +104,17 @@ export const groupForumChannelsTable = pgTable("group_forum_channels", {
   description:     text("description").notNull().default(""),
   position:        integer("position").notNull().default(0),
   createdByUserId: uuid("created_by_user_id").notNull(),
+  /* Tier gate (Stack-100 #3, #19): when set, this channel is a
+     members-only room — reading and posting require an ACTIVE fan
+     membership in the GROUP OWNER's fan club at this tier or above
+     (the owner's tier ladder, fan_tiers.sort_order). NULL = open to
+     everyone the group's own visibility rules admit, exactly as
+     before. PENDING MIGRATION: the column is held in
+     .lane/MIGRATION-NEEDED.md (number assigned at join); the API
+     reads/writes it through a degradation path so the forum behaves
+     exactly as today until the migration lands. Deleting the tier
+     sets the gate NULL (the room reopens) rather than orphaning it. */
+  minFanTierId:    uuid("min_fan_tier_id").references(() => fanTiersTable.id, { onDelete: "set null" }),
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("group_forum_channels_group_idx").on(t.groupId, t.position, t.createdAt),
