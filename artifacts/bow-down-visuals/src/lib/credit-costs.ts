@@ -121,7 +121,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/avatar-presenter": { cost: 1200, feature: "Avatar Presenter (price TBD)" },
   "/api/singing-voice": { cost: 800, feature: "Singing-Voice Conversion (price TBD)" },
   "/api/watermark-removal": { cost: 200, feature: "Remove Watermark" },
-  "/api/video-translator/translate": { cost: 500, feature: "Video Translator" },
+  "/api/video-translator/translate": { cost: 500, feature: "Video Translator (500 VB per minute per language)" },
   "/api/analyze-sections": { cost: 100, feature: "Analyze Song Sections" },
   "/api/transcribe": { cost: 100, feature: "Transcribe Audio" },
   "/api/transcribe-url": { cost: 100, feature: "Transcribe" },

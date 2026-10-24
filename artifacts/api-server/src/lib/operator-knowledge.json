@@ -12288,7 +12288,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -12742,7 +12742,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13128,7 +13128,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13518,7 +13518,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13913,7 +13913,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14302,7 +14302,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14692,7 +14692,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
