@@ -58,6 +58,13 @@ export const storeProductsTable = pgTable("store_products", {
   eventId:        uuid("event_id"),
   relatedLinks:   jsonb("related_links").$type<RelatedLink[]>().notNull().default([]),
   isActive:       boolean("is_active").notNull().default(true),
+  /* Creator Product Affiliates (#16, migration 0205): the creator turns
+     affiliates on per product and sets the commission themselves. The
+     commission is a % of the SELLER's net (bps, 1..10000), never of the
+     platform fee and never added to the buyer's price. Null = not set;
+     checkout attribution reads these at sale time (schema/affiliates.ts). */
+  affiliateEnabled:      boolean("affiliate_enabled").notNull().default(false),
+  affiliateCommissionBps: integer("affiliate_commission_bps"),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
