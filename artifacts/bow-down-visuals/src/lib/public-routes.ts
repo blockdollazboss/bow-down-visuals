@@ -143,10 +143,10 @@ export function isPublicPath(pathname: string): boolean {
 /*                written in App.tsx (query included) and              */
 /*                `targetDisposition` classifies the RESOLVED target   */
 /*                per audit §1.5: a redirect is public iff its target  */
-/*                is public. (Every current alias targets a locked     */
-/*                route, so every targetDisposition below is            */
-/*                "locked" — the field exists so a future alias to a   */
-/*                public target is classified, not assumed.)          */
+/*                is public. (Nearly every alias targets a locked       */
+/*                route; the field exists so an alias to a public       */
+/*                target — /challenge → /contests, Stack-100 #3 — is    */
+/*                classified, not assumed.)                            */
 /* The catch-all 404 route (`<Route component={NotFound} />`, no       */
 /* path) is declared last under CATCH_ALL_PATH: "locked", because the  */
 /* gate runs before the 404 for guests — a guest typing a nonsense     */
@@ -239,6 +239,13 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/live/guest/:token", disposition: "public" },
   { path: "/premiere/:id", disposition: "public" },
   { path: "/broadcast", disposition: "redirect", redirectTo: "/go-live", targetDisposition: "locked" },
+  { path: "/sponsor-dashboard", disposition: "redirect", redirectTo: "/sponsors/dashboard", targetDisposition: "locked" },
+  { path: "/tip-page", disposition: "redirect", redirectTo: "/tips", targetDisposition: "locked" },
+  { path: "/nfc-card-profile", disposition: "redirect", redirectTo: "/nfc-cards", targetDisposition: "locked" },
+  { path: "/group-detail", disposition: "redirect", redirectTo: "/groups", targetDisposition: "locked" },
+  { path: "/challenge", disposition: "redirect", redirectTo: "/contests", targetDisposition: "public" },
+  { path: "/albums", disposition: "redirect", redirectTo: "/my-projects?tab=songs", targetDisposition: "locked" },
+  { path: "/hashtag", disposition: "redirect", redirectTo: "/trending", targetDisposition: "locked" },
   { path: "/playlist/:id", disposition: "public" },
   { path: "/comment-replies", disposition: "redirect", redirectTo: "/community?tab=replies", targetDisposition: "locked" },
   { path: "/cursor-lab", disposition: "locked" },

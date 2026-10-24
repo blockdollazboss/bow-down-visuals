@@ -568,6 +568,21 @@ function AppShell() {
               the live studio is /go-live's Broadcast tab. The old path
               keeps working as a redirect — no inbound link breaks. */}
           <Route path="/broadcast"><Redirect to="/go-live" /></Route>
+          {/* Dead-link aliases (Stack-100 #3, Lane A): the Stack-100 #2
+              push report linked these seven paths and every one 404'd —
+              page-file names and bare index paths that were never routes.
+              Each alias lands on the real surface: the renamed page, the
+              index, or the hub where the param'd pages are discovered.
+              Detail pages keep their param routes (/challenge/:slug,
+              /albums/:slug, /hashtag/:tag, /groups/:slug, /tips/:handle,
+              /c/:slug) — the bare names just needed a front door. */}
+          <Route path="/sponsor-dashboard"><Redirect to="/sponsors/dashboard" /></Route>
+          <Route path="/tip-page"><Redirect to="/tips" /></Route>
+          <Route path="/nfc-card-profile"><Redirect to="/nfc-cards" /></Route>
+          <Route path="/group-detail"><Redirect to="/groups" /></Route>
+          <Route path="/challenge"><Redirect to="/contests" /></Route>
+          <Route path="/albums"><Redirect to="/my-projects?tab=songs" /></Route>
+          <Route path="/hashtag"><Redirect to="/trending" /></Route>
           <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
