@@ -20,6 +20,7 @@ export const KIND_LABELS: Record<string, string> = {
   pack: "Pack / Bundle",
   digital: "Digital product",
   series: "Series / Season Pass",
+  bundle: "Bundle",
 };
 
 interface ItemData {
@@ -40,6 +41,20 @@ interface ItemData {
     platformFeePct: number;
     creatorAmount: string;
   };
+  /* Bundles itemize their contents up front (server-computed). */
+  bundle?: {
+    contents: {
+      kind: string;
+      id: string;
+      title: string;
+      listPriceCents: number;
+      listPrice: string;
+    }[];
+    sumCents: number;
+    sum: string;
+    savingsCents: number;
+    savings: string;
+  } | null;
   note: string;
 }
 
@@ -128,8 +143,15 @@ export default function StoreBuy() {
       });
       const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string; watchUrl?: string };
       /* A series unlock can't be bought twice — the rail refuses the
-         second checkout; send the fan straight to their series. */
+         second checkout; send the fan straight to their series. For a
+         bundle, explain instead: the message names the series they
+         already own, and the rest of the bundle sells individually. */
       if (body.error === "ALREADY_OWNED" && body.watchUrl) {
+        if (params.kind === "bundle") {
+          setError(body.message || "You already own part of this bundle.");
+          setBuying(false);
+          return;
+        }
         navigate(body.watchUrl);
         return;
       }
@@ -179,7 +201,7 @@ export default function StoreBuy() {
             )}
             <div className="p-8">
               <div className="text-xs uppercase tracking-[0.25em] text-amber-400/80">
-                {KIND_LABELS[data.item.kind] ?? data.item.kind} · {data.item.kind === "series" ? "Series unlock" : "Digital download"}
+                {KIND_LABELS[data.item.kind] ?? data.item.kind} · {data.item.kind === "series" ? "Series unlock" : data.item.kind === "bundle" ? "Downloads + unlocks, delivered together" : "Digital download"}
               </div>
               <h1 className="mt-2 text-3xl font-bold text-amber-200">{data.item.title}</h1>
               <p className="mt-1 text-amber-100/70">
@@ -233,6 +255,39 @@ export default function StoreBuy() {
                 </p>
               </div>
 
+              {data.bundle && (
+                <div className="mt-6 rounded-xl border border-amber-500/20 bg-black/40 p-5">
+                  <div className="text-sm font-semibold text-amber-200">
+                    Everything in this bundle ({data.bundle.contents.length} items)
+                  </div>
+                  <ul className="mt-3 space-y-2">
+                    {data.bundle.contents.map((c) => (
+                      <li key={`${c.kind}:${c.id}`} className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="text-amber-100/80">
+                          {c.title}
+                          <span className="ml-2 text-xs uppercase tracking-wider text-amber-100/40">
+                            {c.kind === "series" ? "Series unlock" : KIND_LABELS[c.kind] ?? c.kind}
+                          </span>
+                        </span>
+                        <span className="text-amber-100/60">{c.listPrice}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-3 space-y-1.5 border-t border-amber-500/10 pt-3 text-sm">
+                    <div className="flex justify-between text-amber-100/60">
+                      <span>Bought separately</span>
+                      <span>{data.bundle.sum}</span>
+                    </div>
+                    {data.bundle.savingsCents > 0 && (
+                      <div className="flex justify-between font-semibold text-amber-300">
+                        <span>Bundle saving</span>
+                        <span>You save {data.bundle.savings}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={buyNow}
                 disabled={buying}
@@ -240,7 +295,7 @@ export default function StoreBuy() {
               >
                 {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
                 {buying ? "Opening secure checkout…" : user
-                  ? data.item.kind === "series" ? "Unlock it now — watch instantly" : "Buy it now — instant delivery"
+                  ? data.item.kind === "series" ? "Unlock it now — watch instantly" : data.item.kind === "bundle" ? "Get the bundle — everything at once" : "Buy it now — instant delivery"
                   : "Sign in to buy"}
               </button>
 
@@ -248,7 +303,9 @@ export default function StoreBuy() {
                 <ShieldCheck className="h-4 w-4 text-amber-400" />
                 {data.item.kind === "series"
                   ? "Unlocks on your account the second you pay · every episode · watch anytime"
-                  : "Instant download link after payment · 48 hours · yours to keep"}
+                  : data.item.kind === "bundle"
+                    ? "Every item lands in your library the second you pay · downloads good for 48 hours at a time · series stay unlocked"
+                    : "Instant download link after payment · 48 hours · yours to keep"}
               </div>
             </div>
           </div>

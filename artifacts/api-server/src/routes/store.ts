@@ -30,6 +30,12 @@
  *   GET    /api/store/sales            auth: creator sales dashboard data
  *   POST   /api/store/log-to-tracker   auth: push a sale into the creator's
  *                                         Money Tracker as income (idempotent)
+ *   POST   /api/store/bundles          auth: create a bundle (a playlists row
+ *                                         with kind='bundle'; components are
+ *                                         the seller's own sellable items)
+ *   GET    /api/store/bundles          auth: seller's bundles + the sellable
+ *                                         component catalog to build from
+ *   PATCH  /api/store/bundles/:id      auth: edit a bundle (future sales only)
  *
  * Queries use raw SQL via db.execute(sql``) — pg-mem (vitest) cannot handle
  * the drizzle query builder's rowMode:'array'. (Same convention as
@@ -63,7 +69,31 @@ const DOWNLOAD_TTL_HOURS = 48;
 const DOWNLOAD_MAX_USES = 5;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ItemKindSchema = z.enum(DIGITAL_ITEM_KINDS);
+
+/* ── Bundles (Stack-100 #3, feature #15) ─────────────────────────────────
+   A bundle is a playlists row with kind='bundle': price_cents is the
+   seller-set bundle price, items[] holds the components
+   ({kind:'track'|'video'|'series', id} — the series item-ref shape,
+   widened to series refs). The sale rides this rail as ONE digital_sales
+   row so the flat 5% fee splits once, on the bundle total; component
+   grants are recorded at verify (download links for tracks/videos, a
+   completed $0 'series' sale row for a series — the row IS the unlock).
+
+   'bundle' is carried in this LOCAL kind list because the prod
+   digital_sales item_kind CHECK doesn't include it yet — the one
+   migration this feature needs is written up in
+   .lane/f15/migration-needed.md (0205). When it lands, this list
+   collapses back to DIGITAL_ITEM_KINDS. */
+export const BUNDLE_KIND = "bundle";
+const STORE_ITEM_KINDS = [...DIGITAL_ITEM_KINDS, BUNDLE_KIND] as const;
+const ItemKindSchema = z.enum(STORE_ITEM_KINDS);
+export const BUNDLE_PRICE_MIN_CENTS = 50; /* the series card floor */
+export const BUNDLE_PRICE_MAX_CENTS = 100_000_00;
+export const BUNDLE_MIN_COMPONENTS = 2;
+export const BUNDLE_MAX_COMPONENTS = 50;
+/** Session-id infix marking a digital_sales row as a bundle component
+    grant (see verify). The reversal engine flips these with the sale. */
+export const BUNDLE_GRANT_INFIX = "#grant:";
 
 function getStripe(): Stripe {
   /* Fail closed on live keys (Lane V3 F7) via the shared guard. */
@@ -151,6 +181,17 @@ function verifyTokenSignature(token: string): boolean {
    album/pack/digital are valid store kinds (migration 0090) but their
    catalog entities haven't shipped yet — they 400 with a clear message
    instead of silently failing. */
+/** One resolved bundle component: a sellable item of the bundle owner's,
+    with the list price it would sell for on its own (the honest
+    "bought separately" figure the savings math is shown against). */
+export interface BundleComponent {
+  kind: string;
+  id: string;
+  title: string;
+  listPriceCents: number;
+  fileUrl: string;
+}
+
 interface SellableItem {
   profileId: string;
   itemKind: string;
@@ -163,6 +204,21 @@ interface SellableItem {
   artworkUrl: string | null;
   artistName: string;
   artistSlug: string;
+  /* Bundles only: the resolved components + their combined list price. */
+  bundle?: { components: BundleComponent[]; sumCents: number };
+}
+
+/** A component's standalone list price: fixed items list download_price;
+    PWYW items value at the amount a checkout would charge by default
+    (max of listed price and the creator's minimum). */
+export function bundleComponentListPriceCents(item: {
+  priceCents: number;
+  pwywEnabled: boolean;
+  pwywMinCents: number;
+}): number {
+  return item.pwywEnabled
+    ? Math.max(item.priceCents, item.pwywMinCents)
+    : item.priceCents;
 }
 
 /** The amount a checkout may charge for an item. Fixed-price items charge
@@ -268,6 +324,80 @@ async function resolveSellableItem(
       artistSlug: String(row["artist_slug"]),
     };
   }
+  if (kind === BUNDLE_KIND) {
+    /* A bundle resolves only as a whole: the playlist must be a public,
+       priced bundle, carry at least BUNDLE_MIN_COMPONENTS distinct
+       components, and EVERY component must resolve sellable today and
+       belong to the bundle's owner. One broken component takes the
+       bundle off sale — a fan can never pay for a partial package. */
+    const result = await db.execute(sql`
+      SELECT pl.id, pl.owner_profile_id AS profile_id, pl.title, pl.price_cents,
+             pl.is_public, pl.kind AS playlist_kind, pl.cover_url AS artwork_url,
+             pl.items,
+             p.display_name AS artist_name, p.slug AS artist_slug
+      FROM playlists pl
+      JOIN creator_profiles p ON p.id = pl.owner_profile_id
+      WHERE pl.id = ${id}
+      LIMIT 1
+    `);
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    if (!row || row["playlist_kind"] !== BUNDLE_KIND || !row["is_public"]) {
+      return { notForSale: true };
+    }
+    const priceCents = Number(row["price_cents"] ?? 0) || 0;
+    if (priceCents <= 0) return { notForSale: true };
+    let rawItems: unknown = row["items"];
+    if (typeof rawItems === "string") {
+      try { rawItems = JSON.parse(rawItems); } catch { rawItems = null; }
+    }
+    if (!Array.isArray(rawItems)) return { notForSale: true };
+    const seen = new Set<string>();
+    const refs: { kind: string; id: string }[] = [];
+    for (const entry of rawItems as Array<Record<string, unknown>>) {
+      const cKind = String(entry?.["kind"] ?? "");
+      const cId = String(entry?.["id"] ?? "");
+      if (!["track", "video", "series"].includes(cKind) || !UUID_RE.test(cId)) {
+        return { notForSale: true };
+      }
+      const key = `${cKind}:${cId}`;
+      if (seen.has(key)) return { notForSale: true };
+      seen.add(key);
+      refs.push({ kind: cKind, id: cId });
+    }
+    if (refs.length < BUNDLE_MIN_COMPONENTS || refs.length > BUNDLE_MAX_COMPONENTS) {
+      return { notForSale: true };
+    }
+    const ownerProfileId = String(row["profile_id"]);
+    const components: BundleComponent[] = [];
+    let sumCents = 0;
+    for (const ref of refs) {
+      const comp = await resolveSellableItem(ref.kind, ref.id);
+      if ("notForSale" in comp || "notWired" in comp) return { notForSale: true };
+      if (comp.profileId !== ownerProfileId) return { notForSale: true };
+      const listPriceCents = bundleComponentListPriceCents(comp);
+      sumCents += listPriceCents;
+      components.push({
+        kind: ref.kind,
+        id: ref.id,
+        title: comp.title,
+        listPriceCents,
+        fileUrl: comp.fileUrl,
+      });
+    }
+    return {
+      profileId: ownerProfileId,
+      itemKind: BUNDLE_KIND,
+      title: String(row["title"]),
+      priceCents,
+      pwywEnabled: false,
+      pwywMinCents: 0,
+      fileUrl: "",
+      artworkUrl: (row["artwork_url"] as string | null) ?? null,
+      artistName: String(row["artist_name"]),
+      artistSlug: String(row["artist_slug"]),
+      bundle: { components, sumCents },
+    };
+  }
   return { notWired: true };
 }
 
@@ -301,7 +431,7 @@ async function findReusableDownloadLink(saleId: string, fileUrl: string) {
 router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
   const kind = String(req.params.kind ?? "");
   const id = String(req.params.id ?? "");
-  if (!DIGITAL_ITEM_KINDS.includes(kind as (typeof DIGITAL_ITEM_KINDS)[number])) {
+  if (!STORE_ITEM_KINDS.includes(kind as (typeof STORE_ITEM_KINDS)[number])) {
     res.status(400).json({ error: "Unknown content kind." });
     return;
   }
@@ -314,7 +444,7 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
     if ("notWired" in item) {
       res.status(400).json({
         error: "SELLING_NOT_AVAILABLE",
-        message: `Selling ${kind} bundles isn't wired up yet — tracks and videos are live today.`,
+        message: `Selling ${kind} isn't wired up yet — tracks, videos, series and bundles are live today.`,
       });
       return;
     }
@@ -352,6 +482,24 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
         creatorCents,
         creatorAmount: money(creatorCents),
       },
+      /* Bundles itemize up front: every component with its standalone
+         price, the bought-separately total, and the honest saving when
+         the bundle price beats it. */
+      bundle: item.bundle
+        ? {
+            contents: item.bundle.components.map((c) => ({
+              kind: c.kind,
+              id: c.id,
+              title: c.title,
+              listPriceCents: c.listPriceCents,
+              listPrice: money(c.listPriceCents),
+            })),
+            sumCents: item.bundle.sumCents,
+            sum: money(item.bundle.sumCents),
+            savingsCents: Math.max(0, item.bundle.sumCents - item.priceCents),
+            savings: money(Math.max(0, item.bundle.sumCents - item.priceCents)),
+          }
+        : null,
       note: "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
     });
   } catch (err) {
@@ -393,7 +541,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     if ("notWired" in item) {
       res.status(400).json({
         error: "SELLING_NOT_AVAILABLE",
-        message: `Selling ${kind} bundles isn't wired up yet — tracks and videos are live today.`,
+        message: `Selling ${kind} isn't wired up yet — tracks, videos, series and bundles are live today.`,
       });
       return;
     }
@@ -425,6 +573,33 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
           watchUrl: `/playlist/${id}`,
         });
         return;
+      }
+    }
+    /* Bundles follow the same per-kind discipline as standalone sales:
+       track/video components may be re-bought (downloads re-sell), but
+       a bundle carrying a series the buyer already owns — standalone or
+       via an earlier bundle's grant row, both are completed 'series'
+       sales — would charge them again for an unlock they hold. Refuse
+       it the way the series rail refuses a second unlock. */
+    if (kind === BUNDLE_KIND && item.bundle) {
+      for (const comp of item.bundle.components) {
+        if (comp.kind !== "series") continue;
+        const ownedResult = await db.execute(sql`
+          SELECT COUNT(*)::int AS c FROM digital_sales
+          WHERE buyer_user_id = ${req.userId!} AND item_kind = 'series'
+            AND item_id = ${comp.id} AND status = 'completed'
+        `);
+        const ownedCount = Number(
+          (ownedResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
+        );
+        if (ownedCount > 0) {
+          res.status(409).json({
+            error: "ALREADY_OWNED",
+            message: `This bundle includes “${comp.title}” — you already own that series, so the bundle can't sell it to you twice. The rest of the bundle is on the artist's page individually.`,
+            watchUrl: `/playlist/${comp.id}`,
+          });
+          return;
+        }
       }
     }
     const { feeCents, creatorCents } = splitFee(chargeCents);
@@ -464,7 +639,9 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
               name: `${item.title} — ${item.artistName}`,
               description: kind === "series"
                 ? "Series unlock · yours to watch anytime"
-                : `Digital download · ${kind}`,
+                : kind === BUNDLE_KIND
+                  ? `Bundle · ${item.bundle?.components.length ?? 0} items, delivered together`
+                  : `Digital download · ${kind}`,
               images: artworkUrl ? [artworkUrl] : undefined,
             },
           },
@@ -546,6 +723,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
   let itemTitle = "Your content";
   let artistName = "";
   let artistSlug = "";
+  let bundleDef: { components: BundleComponent[]; sumCents: number } | undefined;
   try {
     const item = await resolveSellableItem(kind, itemId);
     if ("notForSale" in item || "notWired" in item) {
@@ -575,6 +753,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
     itemTitle = item.title;
     artistName = item.artistName;
     artistSlug = item.artistSlug;
+    bundleDef = item.bundle;
   } catch (err) {
     logger.error({ err, sessionId }, "[store] verify: item re-resolve failed");
     res.status(500).json({ error: "Could not locate the purchased file." });
@@ -616,9 +795,65 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
 
     /* Series sales deliver ACCESS, not a file: the sale row above is the
        unlock, so no download link exists to mint or reuse. */
-    const link = kind === "series"
+    const link = kind === "series" || kind === BUNDLE_KIND
       ? null
       : (await findReusableDownloadLink(saleId, fileUrl)) ?? (await mintDownloadLink(saleId, fileUrl));
+
+    /* ── Bundle grants: every component, exactly once per purchase ──────
+       Tracks/videos get a download link against the BUNDLE sale (the
+       find-or-mint discipline makes a double verify reuse, never
+       duplicate). A series component gets a completed $0 sale row of
+       its own — the row IS the unlock — keyed by a suffixed session id
+       (`<session>#grant:series:<id>`) so the insert is idempotent and
+       the reversal engine flips it together with the bundle sale.
+       Grants run on EVERY verify (including duplicates) so a verify
+       that died mid-grant heals on the buyer's next confirmation —
+       but never for a sale the clawback already refunded. */
+    const bundleDownloads: {
+      itemKind: string; itemId: string; title: string;
+      token: string; url: string; expiresAt: string; maxUses: number;
+    }[] = [];
+    const bundleUnlockedSeries: { id: string; title: string; watchUrl: string }[] = [];
+    if (kind === BUNDLE_KIND && bundleDef) {
+      const statusRows = await db.execute(sql`
+        SELECT status FROM digital_sales WHERE id = ${saleId} LIMIT 1
+      `);
+      const saleStatus = String(
+        (statusRows.rows[0] as Record<string, unknown> | undefined)?.["status"] ?? "completed",
+      );
+      if (saleStatus !== "refunded") {
+        for (const comp of bundleDef.components) {
+          if (comp.kind === "series") {
+            await db.execute(sql`
+              INSERT INTO digital_sales
+                (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+                 amount_cents, platform_fee_cents, creator_amount_cents)
+              VALUES (${req.userId!}, ${profileId}, 'series', ${comp.id},
+                      ${`${sessionId}${BUNDLE_GRANT_INFIX}series:${comp.id}`}, 0, 0, 0)
+              ON CONFLICT (stripe_session_id) DO NOTHING
+            `);
+            bundleUnlockedSeries.push({
+              id: comp.id,
+              title: comp.title,
+              watchUrl: `/playlist/${comp.id}`,
+            });
+          } else {
+            const compLink =
+              (await findReusableDownloadLink(saleId, comp.fileUrl)) ??
+              (await mintDownloadLink(saleId, comp.fileUrl));
+            bundleDownloads.push({
+              itemKind: comp.kind,
+              itemId: comp.id,
+              title: comp.title,
+              token: compLink.token,
+              url: `/api/store/download/${compLink.token}`,
+              expiresAt: compLink.expiresAt.toISOString(),
+              maxUses: DOWNLOAD_MAX_USES,
+            });
+          }
+        }
+      }
+    }
 
     /* ── "YOU JUST GOT PAID" — the money finale. Best-effort: the sale is
        already recorded; a notification failure must never fail the purchase.
@@ -649,6 +884,15 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       const buyerEmail =
         req.userEmail ?? session.customer_details?.email ?? undefined;
       if (buyerEmail) {
+        /* Bundles itemize the receipt: every component with its own
+           list price, the bought-separately total, and the saving. */
+        const bundleReceiptHtml = bundleDef
+          ? `<div style="margin:0 0 12px;">
+${bundleDef.components.map((c) => `<div style="display:flex;justify-content:space-between;color:#ccc;font-size:13px;padding:3px 0;"><span>${escapeHtml(c.title)}</span><span>${emailMoney(c.listPriceCents)}</span></div>`).join("")}
+<div style="display:flex;justify-content:space-between;color:#888;font-size:12px;border-top:1px solid #333;margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
+${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:#d4af37;font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
+</div>`
+          : "";
         const receiptHtml = emailShell(
           "Purchase confirmed 👑",
           `<p style="margin:0 0 12px;">You're in. Your purchase is ready:</p>
@@ -658,9 +902,12 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
 <div style="color:#eee;font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
 <div style="color:#888;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>
 </div>
+${bundleReceiptHtml}
 <p style="margin:0 0 16px;color:#ccc;font-size:14px;">${kind === "series"
   ? "The full series is unlocked on your account — watch it anytime, right from the series page."
-  : "Your download link is on the confirmation page (48h, 5 downloads max)."}</p>
+  : kind === BUNDLE_KIND
+    ? "Everything in the bundle is on the confirmation page and in your purchases — downloads are good for 48 hours at a time, and any series in the bundle stays unlocked on your account."
+    : "Your download link is on the confirmation page (48h, 5 downloads max)."}</p>
 <a href="${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` : "/store/purchases"}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">${kind === "series" ? "Watch the series" : "View my purchases"}</a>`
         );
         // Fire-and-forget: never block the purchase response on email.
@@ -704,6 +951,11 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
       /* Series purchases carry an unlock instead of a download. */
       access: kind === "series"
         ? { unlocked: true, watchUrl: `/playlist/${itemId}` }
+        : null,
+      /* Bundles deliver per component: a download link per file item,
+         an unlock entry per series item. */
+      bundle: kind === BUNDLE_KIND
+        ? { downloads: bundleDownloads, unlockedSeries: bundleUnlockedSeries }
         : null,
     });
   } catch (err) {
@@ -842,12 +1094,14 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
              ds.stripe_session_id,
              cp.display_name AS artist_name, cp.slug AS artist_slug,
              COALESCE(t.title, v.title, pl.title) AS item_title,
-             COALESCE(t.artwork_url, v.thumbnail_url, pl.cover_url) AS artwork_url
+             COALESCE(t.artwork_url, v.thumbnail_url, pl.cover_url) AS artwork_url,
+             CASE WHEN ds.item_kind = 'bundle'
+                  THEN jsonb_array_length(COALESCE(pl.items, '[]'::jsonb)) END AS bundle_count
       FROM digital_sales ds
       LEFT JOIN creator_profiles cp ON cp.id = ds.profile_id
       LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
       LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
-      LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
+      LEFT JOIN playlists pl ON ds.item_kind IN ('series', 'bundle') AND pl.id = ds.item_id
       WHERE ds.buyer_user_id = ${req.userId!}
       ORDER BY ds.created_at DESC
       LIMIT 200
@@ -880,6 +1134,9 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           buyUrl: `/store/buy/${kind}/${itemId}`,
           watchUrl: kind === "series" ? `/playlist/${itemId}` : null,
           artistUrl: slug ? `/artist/${slug}` : null,
+          /* Bundle purchases say how many items they hold. */
+          bundleItemCount:
+            kind === BUNDLE_KIND ? Number(row["bundle_count"] ?? 0) || null : null,
         };
       })),
     });
@@ -924,6 +1181,103 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
         message: "This purchase unlocks the series — there's no download link. Watch it on the series page.",
         watchUrl: `/playlist/${itemId}`,
       });
+      return;
+    }
+    if (kind === BUNDLE_KIND) {
+      /* A bundle re-mints from the RECORDED grants, never the live
+         bundle: the files this purchase delivered (its download_links,
+         distinct file_urls) and its series grant rows. Bundle price or
+         contents edited after the sale cannot add or remove what the
+         buyer paid for. Refunded sales never reach here (the status
+         filter above), so a listed grant is a live unlock. */
+      const saleId = String(srow["id"]);
+      /* The grant rows hang off the sale's Stripe session id — fetched
+         separately so the shared sale lookup above stays untouched. */
+      const sessionRows = await db.execute(sql`
+        SELECT stripe_session_id FROM digital_sales WHERE id = ${saleId} LIMIT 1
+      `);
+      const sessionId = String(
+        (sessionRows.rows[0] as Record<string, unknown> | undefined)?.["stripe_session_id"] ?? "",
+      );
+      const grantFiles = await db.execute(sql`
+        SELECT DISTINCT file_url FROM download_links WHERE sale_id = ${saleId}
+      `);
+      /* Grant-prefix match via substring (the standard-SQL spelling —
+         exact in real Postgres and in the embedded test DB). */
+      const grantPrefix = `${sessionId}${BUNDLE_GRANT_INFIX}series:`;
+      const grantSeries = await db.execute(sql`
+        SELECT item_id, item_kind FROM digital_sales
+        WHERE buyer_user_id = ${req.userId!} AND item_kind = 'series' AND status = 'completed'
+          AND substring(stripe_session_id, 1, ${grantPrefix.length}::int) = ${grantPrefix}
+      `);
+      const bundleItem = await resolveSellableItem(BUNDLE_KIND, itemId);
+      let downloads: {
+        itemKind: string; itemId: string; title: string;
+        token: string; url: string; expiresAt: string; maxUses: number;
+      }[] = [];
+      let unlockedSeries: { id: string; title: string; watchUrl: string }[] = [];
+      if (grantFiles.rows.length > 0 || grantSeries.rows.length > 0) {
+        const titles = new Map<string, { kind: string; title: string }>();
+        if (!("notForSale" in bundleItem) && !("notWired" in bundleItem) && bundleItem.bundle) {
+          for (const c of bundleItem.bundle.components) titles.set(c.id, { kind: c.kind, title: c.title });
+        }
+        for (const fr of grantFiles.rows) {
+          const fileUrl = String((fr as Record<string, unknown>)["file_url"]);
+          const comp = !("notForSale" in bundleItem) && !("notWired" in bundleItem) && bundleItem.bundle
+            ? bundleItem.bundle.components.find((c) => c.fileUrl === fileUrl)
+            : undefined;
+          const l = await mintDownloadLink(saleId, fileUrl);
+          downloads.push({
+            itemKind: comp?.kind ?? "track",
+            itemId: comp?.id ?? itemId,
+            title: comp?.title ?? "Bundle item",
+            token: l.token,
+            url: `/api/store/download/${l.token}`,
+            expiresAt: l.expiresAt.toISOString(),
+            maxUses: DOWNLOAD_MAX_USES,
+          });
+        }
+        unlockedSeries = grantSeries.rows.map((gr) => {
+          const gid = String((gr as Record<string, unknown>)["item_id"]);
+          return {
+            id: gid,
+            title: titles.get(gid)?.title ?? "Series",
+            watchUrl: `/playlist/${gid}`,
+          };
+        });
+      } else if (!("notForSale" in bundleItem) && !("notWired" in bundleItem) && bundleItem.bundle) {
+        /* No grants recorded (a verify interrupted before granting):
+           fall back to the live bundle so the buyer isn't stranded —
+           verify re-runs the same grants and settles the record. */
+        for (const comp of bundleItem.bundle.components) {
+          if (comp.kind === "series") {
+            await db.execute(sql`
+              INSERT INTO digital_sales
+                (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+                 amount_cents, platform_fee_cents, creator_amount_cents)
+              VALUES (${req.userId!}, ${bundleItem.profileId}, 'series', ${comp.id},
+                      ${`${sessionId}${BUNDLE_GRANT_INFIX}series:${comp.id}`}, 0, 0, 0)
+              ON CONFLICT (stripe_session_id) DO NOTHING
+            `);
+            unlockedSeries.push({ id: comp.id, title: comp.title, watchUrl: `/playlist/${comp.id}` });
+          } else {
+            const l = await mintDownloadLink(saleId, comp.fileUrl);
+            downloads.push({
+              itemKind: comp.kind,
+              itemId: comp.id,
+              title: comp.title,
+              token: l.token,
+              url: `/api/store/download/${l.token}`,
+              expiresAt: l.expiresAt.toISOString(),
+              maxUses: DOWNLOAD_MAX_USES,
+            });
+          }
+        }
+      } else {
+        res.status(400).json({ error: "This content is no longer available." });
+        return;
+      }
+      res.json({ bundle: true, downloads, unlockedSeries });
       return;
     }
     const item = await resolveSellableItem(kind, itemId);
@@ -978,7 +1332,7 @@ router.get("/store/sales", requireAuth, async (req, res) => {
       FROM digital_sales ds
       LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
       LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
-      LEFT JOIN playlists pl ON ds.item_kind = 'series' AND pl.id = ds.item_id
+      LEFT JOIN playlists pl ON ds.item_kind IN ('series', 'bundle') AND pl.id = ds.item_id
       WHERE ds.profile_id = ${profileId}
       ORDER BY ds.created_at DESC
       LIMIT 500
@@ -1087,10 +1441,11 @@ router.post("/store/log-to-tracker", requireAuth, async (req, res) => {
     }
     const sale = await db.execute(sql`
       SELECT ds.id, ds.item_kind, ds.item_id, ds.creator_amount_cents,
-             COALESCE(t.title, v.title) AS item_title
+             COALESCE(t.title, v.title, pl.title) AS item_title
       FROM digital_sales ds
       LEFT JOIN profile_tracks t ON ds.item_kind = 'track' AND t.id = ds.item_id
       LEFT JOIN profile_videos v ON ds.item_kind = 'video' AND v.id = ds.item_id
+      LEFT JOIN playlists pl ON ds.item_kind IN ('series', 'bundle') AND pl.id = ds.item_id
       WHERE ds.id = ${parsed.data.saleId} AND ds.profile_id = ${profileId}
       LIMIT 1
     `);
@@ -1182,6 +1537,10 @@ const KIND_DEFAULTS: Record<string, PricePoint> = {
   series: {
     smart: 1499, low: 499, high: 9999, presets: [499, 999, 1499, 2999],
     blurb: "A season pass prices the whole arc, not the episode. $14.99 for the full season undercuts every streaming sub — and unlike the platforms, the buyer list is yours.",
+  },
+  bundle: {
+    smart: 1499, low: 799, high: 4999, presets: [799, 1499, 2999],
+    blurb: "A bundle prices the collection, not the parts. Price it under the bought-separately total and the saving sells itself — fans get everything in one tap, you keep 95% of one clean sale.",
   },
 };
 
@@ -1282,11 +1641,11 @@ function pricePointJson(point: PricePoint) {
 router.get("/store/price-guide", publicApiLimiter, (req, res) => {
   const vertical = String(req.query["vertical"] ?? "other");
   const kind = String(req.query["kind"] ?? "");
-  if (kind && !DIGITAL_ITEM_KINDS.includes(kind as (typeof DIGITAL_ITEM_KINDS)[number])) {
+  if (kind && !STORE_ITEM_KINDS.includes(kind as (typeof STORE_ITEM_KINDS)[number])) {
     res.status(400).json({ error: "Unknown content kind." });
     return;
   }
-  const kinds = kind ? [kind] : [...DIGITAL_ITEM_KINDS];
+  const kinds = kind ? [kind] : [...STORE_ITEM_KINDS];
   const guide: Record<string, ReturnType<typeof pricePointJson>> = {};
   for (const k of kinds) guide[k] = pricePointJson(pricePointFor(vertical, k).point);
   res.json({
@@ -1488,6 +1847,317 @@ router.patch("/store/price", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[store] set-price failed");
     res.status(500).json({ error: "Could not set the price." });
+  }
+});
+
+/* ── Bundle management (Stack-100 #3, feature #15) ───────────────────────
+   A bundle is a playlists row (kind='bundle'). These endpoints are the
+   seller's desk for it: create from their own sellable products, list
+   with live component health, edit for FUTURE sales — a recorded sale
+   snapshots its amount and grants, so edits never rewrite a past
+   purchase. */
+
+const BundleItemRefSchema = z.object({
+  kind: z.enum(["track", "video", "series"]),
+  id: z.string().regex(UUID_RE, "id must be a UUID"),
+});
+const BundlePriceSchema = z.number().int().min(BUNDLE_PRICE_MIN_CENTS).max(BUNDLE_PRICE_MAX_CENTS);
+const CreateBundleSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(500).optional().default(""),
+  coverUrl: z.string().trim().max(500).optional().nullable(),
+  priceCents: BundlePriceSchema,
+  isPublic: z.boolean().optional().default(true),
+  items: z.array(BundleItemRefSchema).min(BUNDLE_MIN_COMPONENTS).max(BUNDLE_MAX_COMPONENTS),
+});
+const UpdateBundleSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(500).optional(),
+  coverUrl: z.string().trim().max(500).optional().nullable(),
+  priceCents: BundlePriceSchema.optional(),
+  isPublic: z.boolean().optional(),
+  items: z.array(BundleItemRefSchema).min(BUNDLE_MIN_COMPONENTS).max(BUNDLE_MAX_COMPONENTS).optional(),
+}).refine((d) => Object.values(d).some((v) => v !== undefined), {
+  message: "Nothing to update.",
+});
+
+type BundleRef = { kind: string; id: string };
+
+/** Strict component check (create / contents change): every component
+    must resolve sellable TODAY and belong to the seller. */
+async function validateBundleComponents(
+  profileId: string,
+  refs: BundleRef[],
+): Promise<
+  | { ok: true; components: BundleComponent[]; sumCents: number }
+  | { ok: false; status: number; error: string; message: string }
+> {
+  const seen = new Set<string>();
+  for (const r of refs) {
+    const key = `${r.kind}:${r.id}`;
+    if (seen.has(key)) {
+      return { ok: false, status: 400, error: "DUPLICATE_COMPONENT", message: "Each item can only be in the bundle once." };
+    }
+    seen.add(key);
+  }
+  const components: BundleComponent[] = [];
+  let sumCents = 0;
+  for (const r of refs) {
+    const resolved = await resolveSellableItem(r.kind, r.id);
+    if ("notWired" in resolved) {
+      return { ok: false, status: 400, error: "COMPONENT_NOT_SELLABLE", message: `${r.kind} can't be sold in a bundle.` };
+    }
+    if ("notForSale" in resolved) {
+      return { ok: false, status: 400, error: "COMPONENT_NOT_SELLABLE", message: "One of the items isn't for sale right now — publish it and set a price first." };
+    }
+    if (resolved.profileId !== profileId) {
+      return { ok: false, status: 403, error: "NOT_YOUR_ITEM", message: "A bundle can only contain your own products." };
+    }
+    const listPriceCents = bundleComponentListPriceCents(resolved);
+    sumCents += listPriceCents;
+    components.push({ kind: r.kind, id: r.id, title: resolved.title, listPriceCents, fileUrl: resolved.fileUrl });
+  }
+  return { ok: true, components, sumCents };
+}
+
+function parseBundleRefs(row: Record<string, unknown>): BundleRef[] {
+  let raw: unknown = row["items"];
+  if (typeof raw === "string") {
+    try { raw = JSON.parse(raw); } catch { raw = null; }
+  }
+  if (!Array.isArray(raw)) return [];
+  return (raw as Array<Record<string, unknown>>)
+    .map((e) => ({ kind: String(e?.["kind"] ?? ""), id: String(e?.["id"] ?? "") }))
+    .filter((r) => ["track", "video", "series"].includes(r.kind) && UUID_RE.test(r.id));
+}
+
+/** Light per-component view for the seller's desk: title + list price +
+    whether it still sells — a component pulled from sale shows up
+    flagged instead of vanishing (or breaking the whole list). */
+async function lightComponent(ref: BundleRef): Promise<{
+  kind: string; id: string; title: string; listPriceCents: number; sellable: boolean;
+}> {
+  if (ref.kind === "series") {
+    const r = await db.execute(sql`
+      SELECT title, price_cents, is_public FROM playlists WHERE id = ${ref.id} LIMIT 1
+    `);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    if (!row) return { ...ref, title: "Removed content", listPriceCents: 0, sellable: false };
+    const price = Number(row["price_cents"] ?? 0) || 0;
+    return { ...ref, title: String(row["title"]), listPriceCents: price, sellable: !!row["is_public"] && price > 0 };
+  }
+  const table = ref.kind === "video" ? "profile_videos" : "profile_tracks";
+  const r = await db.execute(sql`
+    SELECT title, download_price_cents, pwyw_enabled, pwyw_min_cents, is_published, file_url
+    FROM ${sql.raw(table)} WHERE id = ${ref.id} LIMIT 1
+  `);
+  const row = r.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return { ...ref, title: "Removed content", listPriceCents: 0, sellable: false };
+  const listPriceCents = bundleComponentListPriceCents({
+    priceCents: Number(row["download_price_cents"] ?? 0) || 0,
+    pwywEnabled: row["pwyw_enabled"] === true,
+    pwywMinCents: Number(row["pwyw_min_cents"] ?? 0) || 0,
+  });
+  const sellable = !!row["is_published"] && !!row["file_url"] && listPriceCents > 0;
+  return { ...ref, title: String(row["title"]), listPriceCents, sellable };
+}
+
+function bundleJson(
+  row: Record<string, unknown>,
+  contents: { kind: string; id: string; title: string; listPriceCents: number; sellable?: boolean }[],
+  extra?: { sellable?: boolean; salesCount?: number },
+) {
+  const priceCents = Number(row["price_cents"] ?? 0) || 0;
+  const sumCents = contents.reduce((a, c) => a + c.listPriceCents, 0);
+  return {
+    id: String(row["id"]),
+    kind: BUNDLE_KIND,
+    title: String(row["title"]),
+    description: String(row["description"] ?? ""),
+    coverUrl: (row["cover_url"] as string | null) ?? null,
+    priceCents,
+    price: money(priceCents),
+    isPublic: !!row["is_public"],
+    contents: contents.map((c) => ({
+      kind: c.kind, id: c.id, title: c.title,
+      listPriceCents: c.listPriceCents, listPrice: money(c.listPriceCents),
+      ...(c.sellable === undefined ? {} : { sellable: c.sellable }),
+    })),
+    sumCents,
+    sum: money(sumCents),
+    savingsCents: Math.max(0, sumCents - priceCents),
+    savings: money(Math.max(0, sumCents - priceCents)),
+    buyUrl: `/store/buy/bundle/${String(row["id"])}`,
+    ...(extra?.sellable === undefined ? {} : { sellable: extra.sellable }),
+    ...(extra?.salesCount === undefined ? {} : { salesCount: extra.salesCount }),
+  };
+}
+
+async function loadBundleRow(id: string): Promise<Record<string, unknown> | undefined> {
+  const r = await db.execute(sql`
+    SELECT id, owner_profile_id, title, description, cover_url, is_public,
+           price_cents, items, created_at
+    FROM playlists WHERE id = ${id} AND kind = 'bundle' LIMIT 1
+  `);
+  return r.rows[0] as Record<string, unknown> | undefined;
+}
+
+router.post("/store/bundles", requireAuth, async (req, res) => {
+  const parsed = CreateBundleSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const check = await validateBundleComponents(profile.id, parsed.data.items);
+    if (!check.ok) {
+      res.status(check.status).json({ error: check.error, message: check.message });
+      return;
+    }
+    const inserted = await db.execute(sql`
+      INSERT INTO playlists
+        (owner_profile_id, title, description, cover_url, is_public, kind, price_cents, items)
+      VALUES (${profile.id}, ${parsed.data.title}, ${parsed.data.description},
+              ${parsed.data.coverUrl ?? null}, ${parsed.data.isPublic}, 'bundle',
+              ${parsed.data.priceCents}, ${JSON.stringify(parsed.data.items)}::jsonb)
+      RETURNING id, created_at
+    `);
+    const row = inserted.rows[0] as Record<string, unknown>;
+    const bundleRow: Record<string, unknown> = {
+      id: row["id"], title: parsed.data.title, description: parsed.data.description,
+      cover_url: parsed.data.coverUrl ?? null, is_public: parsed.data.isPublic,
+      price_cents: parsed.data.priceCents, items: parsed.data.items,
+    };
+    logger.info({ userId: req.userId, bundleId: String(row["id"]) }, "[store] bundle created");
+    res.status(201).json({ bundle: bundleJson(bundleRow, check.components) });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] bundle create failed");
+    res.status(500).json({ error: "Could not create the bundle." });
+  }
+});
+
+router.get("/store/bundles", requireAuth, async (req, res) => {
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const rows = await db.execute(sql`
+      SELECT id, owner_profile_id, title, description, cover_url, is_public,
+             price_cents, items, created_at
+      FROM playlists
+      WHERE owner_profile_id = ${profile.id} AND kind = 'bundle'
+      ORDER BY created_at DESC
+    `);
+    const bundles: ReturnType<typeof bundleJson>[] = [];
+    for (const r of rows.rows) {
+      const row = r as Record<string, unknown>;
+      const refs = parseBundleRefs(row);
+      const contents: Awaited<ReturnType<typeof lightComponent>>[] = [];
+      for (const ref of refs) contents.push(await lightComponent(ref));
+      const countRows = await db.execute(sql`
+        SELECT COUNT(*)::int AS c FROM digital_sales
+        WHERE item_kind = 'bundle' AND item_id = ${String(row["id"])}
+      `);
+      const salesCount = Number((countRows.rows[0] as Record<string, unknown>)?.["c"] ?? 0);
+      const sellable = !!row["is_public"] && Number(row["price_cents"] ?? 0) > 0
+        && contents.length >= BUNDLE_MIN_COMPONENTS && contents.every((c) => c.sellable);
+      bundles.push(bundleJson(row, contents, { sellable, salesCount }));
+    }
+    /* The component catalog: everything of the seller's that checkout
+       would accept right now — the picker can only offer real bundles. */
+    const sellable: { kind: string; id: string; title: string; listPriceCents: number; listPrice: string }[] = [];
+    const candidateQueries: { kind: string; q: ReturnType<typeof sql> }[] = [
+      { kind: "track", q: sql`SELECT id FROM profile_tracks WHERE profile_id = ${profile.id} AND is_published AND file_url IS NOT NULL AND file_url <> ''` },
+      { kind: "video", q: sql`SELECT id FROM profile_videos WHERE profile_id = ${profile.id} AND is_published AND file_url IS NOT NULL AND file_url <> ''` },
+      { kind: "series", q: sql`SELECT id FROM playlists WHERE owner_profile_id = ${profile.id} AND kind = 'series' AND is_public AND price_cents > 0` },
+    ];
+    for (const { kind, q } of candidateQueries) {
+      const cand = await db.execute(q);
+      for (const cr of cand.rows) {
+        const cid = String((cr as Record<string, unknown>)["id"]);
+        const resolved = await resolveSellableItem(kind, cid);
+        if ("notForSale" in resolved || "notWired" in resolved) continue;
+        if (resolved.profileId !== profile.id) continue;
+        const lp = bundleComponentListPriceCents(resolved);
+        sellable.push({ kind, id: cid, title: resolved.title, listPriceCents: lp, listPrice: money(lp) });
+      }
+    }
+    res.json({ bundles, sellable });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] bundles list failed");
+    res.status(500).json({ error: "Could not load your bundles." });
+  }
+});
+
+router.patch("/store/bundles/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid bundle id." });
+    return;
+  }
+  const parsed = UpdateBundleSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const existing = await loadBundleRow(id);
+    if (!existing) {
+      res.status(404).json({ error: "Bundle not found." });
+      return;
+    }
+    if (String(existing["owner_profile_id"]) !== profile.id) {
+      res.status(403).json({ error: "NOT_YOURS", message: "That bundle isn't yours." });
+      return;
+    }
+    let components: BundleComponent[] | null = null;
+    if (parsed.data.items) {
+      const check = await validateBundleComponents(profile.id, parsed.data.items);
+      if (!check.ok) {
+        res.status(check.status).json({ error: check.error, message: check.message });
+        return;
+      }
+      components = check.components;
+    }
+    const merged: Record<string, unknown> = {
+      ...existing,
+      title: parsed.data.title ?? existing["title"],
+      description: parsed.data.description ?? existing["description"],
+      cover_url: parsed.data.coverUrl !== undefined ? parsed.data.coverUrl : existing["cover_url"],
+      is_public: parsed.data.isPublic ?? existing["is_public"],
+      price_cents: parsed.data.priceCents ?? existing["price_cents"],
+      items: parsed.data.items ?? parseBundleRefs(existing),
+    };
+    await db.execute(sql`
+      UPDATE playlists
+      SET title = ${String(merged["title"])}, description = ${String(merged["description"] ?? "")},
+          cover_url = ${(merged["cover_url"] as string | null) ?? null},
+          is_public = ${!!merged["is_public"]}, price_cents = ${Number(merged["price_cents"])},
+          items = ${JSON.stringify(merged["items"])}::jsonb
+      WHERE id = ${id} AND owner_profile_id = ${profile.id}
+    `);
+    const contents = components
+      ?? (await Promise.all(parseBundleRefs(merged).map((ref) => lightComponent(ref))));
+    logger.info({ userId: req.userId, bundleId: id }, "[store] bundle updated");
+    res.json({
+      bundle: bundleJson(merged, contents),
+      note: "Changes apply to new sales — past buyers keep exactly what they bought.",
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[store] bundle update failed");
+    res.status(500).json({ error: "Could not update the bundle." });
   }
 });
 

@@ -27,9 +27,23 @@ interface VerifyResult {
     artistUrl: string | null;
   };
   /* Downloads carry a link; series purchases carry an unlock instead —
-     exactly one of the two is non-null per sale. */
+     exactly one of the two is non-null per sale. Bundles carry both
+     shapes per component: a download per file item, an unlock per
+     series item. */
   download: { token: string; url: string; expiresAt: string; maxUses: number } | null;
   access?: { unlocked: boolean; watchUrl: string } | null;
+  bundle?: {
+    downloads: {
+      itemKind: string;
+      itemId: string;
+      title: string;
+      token: string;
+      url: string;
+      expiresAt: string;
+      maxUses: number;
+    }[];
+    unlockedSeries: { id: string; title: string; watchUrl: string }[];
+  } | null;
 }
 
 export default function StoreSuccess() {
@@ -132,6 +146,42 @@ export default function StoreSuccess() {
                   </Link>
                   <p className="mt-3 text-xs text-amber-100/50">
                     Your unlock lives on the series page and in My Music — no link to lose, no expiry to beat.
+                  </p>
+                </>
+              ) : result.bundle ? (
+                <>
+                  <p className="mt-2 text-amber-100/70">
+                    Payment confirmed{result.sale.amount ? ` (${result.sale.amount})` : ""} — the whole
+                    bundle is in your library right now. Every item, one purchase. That's the cheat code.
+                  </p>
+                  <div className="mt-6 space-y-2 text-left">
+                    {result.bundle.downloads.map((d) => (
+                      <a
+                        key={d.token}
+                        href={d.url}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-amber-500/30 px-4 py-3 text-amber-200 transition hover:bg-amber-500/10"
+                      >
+                        <span className="font-semibold">{d.title}</span>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-amber-300">
+                          <Download className="h-4 w-4" /> Download
+                        </span>
+                      </a>
+                    ))}
+                    {result.bundle.unlockedSeries.map((s) => (
+                      <Link
+                        key={s.id}
+                        href={s.watchUrl}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-amber-500/30 px-4 py-3 text-amber-200 transition hover:bg-amber-500/10"
+                      >
+                        <span className="font-semibold">{s.title}</span>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-amber-300">
+                          <PartyPopper className="h-4 w-4" /> Watch the series
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs text-amber-100/50">
+                    Download links work 5 times · 48 hours at a time · everything re-downloads anytime from My Music
                   </p>
                 </>
               ) : result.download ? (
