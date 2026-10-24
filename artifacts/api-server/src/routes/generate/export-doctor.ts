@@ -70,7 +70,7 @@ function isReplitObjectStorageUrl(u: URL): boolean {
 /** SSRF guard for Scene 1 video clips: https only, from Supabase storage, the
  *  Runway CDN, Sync.so lip-sync CDN, or Replit object storage (the host the master
  *  player plays from). Blocks internal/metadata/private hosts that don't match. */
-function isAllowedClipUrl(url: string): boolean {
+export function isAllowedClipUrl(url: string): boolean {
   let u: URL;
   try {
     u = new URL(url);
@@ -91,7 +91,7 @@ function isAllowedClipUrl(url: string): boolean {
 /** Broader SSRF guard: permits any public HTTPS URL while blocking private/reserved
  *  IP ranges and well-known cloud metadata endpoints.
  *  Use as a fallback when isAllowedClipUrl() rejects an unfamiliar CDN host. */
-function isPublicHttpsUrl(url: string): boolean {
+export function isPublicHttpsUrl(url: string): boolean {
   let u: URL;
   try {
     u = new URL(url);
@@ -112,6 +112,64 @@ function isPublicHttpsUrl(url: string): boolean {
   if (h === "metadata.google.internal" || h === "metadata.azure.com")
     return false;
   return true;
+}
+
+/** Animated overlays the doctor's export cannot burn — reported as
+ *  unsupported/skipped, never silently dropped. This list must cover every
+ *  animated overlay the editor offers (it mirrors the FE's ANIMATED_OVERLAYS
+ *  in ExportDoctor.tsx): the rail previously listed only 7 names, so Snow,
+ *  Confetti, Fireworks, Bokeh, Hologram and 9 more were neither burned nor
+ *  reported — they vanished from the response and the panel's "unsupported
+ *  overlays skipped" row went clean after export. */
+export const ANIMATED_OVERLAYS_UNSUPPORTED = [
+  "Rain",
+  "Smoke",
+  "Sparks",
+  "Dust",
+  "Light Leaks",
+  "Lens Flare",
+  "Animated Waveform",
+  "Snow",
+  "Confetti",
+  "Fireworks",
+  "God Rays",
+  "Anamorphic Flares",
+  "Bokeh",
+  "Scan Lines",
+  "Hologram",
+  "Kaleidoscope",
+  "Mirror",
+  "Neon Frame",
+  "VHS Tracking",
+  "Datamosh-lite",
+  "Tilt-Shift",
+];
+
+/** The one clip-download rule for the whole doctor rail: a known media host
+ *  (static list) OR any public HTTPS URL. Before this, test-url and the
+ *  Scene-1 download used the static list only while download-all/check used
+ *  the public fallback — so an R2-hosted clip passed the All-Clips doctor yet
+ *  failed Scene 1, and the two panels contradicted each other. */
+export function isAllowedClipDownloadUrl(url: string): boolean {
+  return isAllowedClipUrl(url) || isPublicHttpsUrl(url);
+}
+
+/** URL Doctor verdict for one clip: it only "passes" when the host is an
+ *  allowed download source AND the probe actually reached a video-like
+ *  response. Before this, `allowed` ignored the content type entirely — a
+ *  reachable HTML page (200, text/html) passed and the panel claimed the
+ *  clips were "ready to Download All", after which the download failed. */
+export function clipUrlAllowed(input: {
+  reachable: boolean;
+  allowedByStaticList: boolean;
+  allowedByPublicHttps: boolean;
+  isVideoContentType: boolean;
+}): boolean {
+  return (
+    input.reachable &&
+    input.isVideoContentType &&
+    (input.allowedByStaticList || input.allowedByPublicHttps)
+  );
 }
 
 /** SSRF guard for audio: Supabase storage (shared stem guard) or Replit object
@@ -145,6 +203,7 @@ function byteCap(max: number): Transform {
 /* ── Tiny in-memory registry: one downloaded Scene 1 file per doctor session ── */
 interface DoctorSession {
   doctorId: string;
+  userId: string;
   projectId: string;
   folder: string;
   videoPath: string;
@@ -152,6 +211,20 @@ interface DoctorSession {
   createdAt: number;
 }
 const sessions = new Map<string, DoctorSession>();
+
+/** Session lookup that also enforces ownership: a session id presented by a
+ *  different user is indistinguishable from a missing session (no existence
+ *  leak, and one user can never export another user's downloaded clips). */
+export function getOwnedDoctorSession(
+  doctorId: string | undefined | null,
+  userId: string | undefined | null,
+): DoctorSession | null {
+  if (!doctorId) return null;
+  const s = sessions.get(doctorId);
+  if (!s) return null;
+  if (!userId || s.userId !== userId) return null;
+  return s;
+}
 
 /* ── Multi-clip (all scenes) doctor session ── */
 interface DoctorClipFile {
@@ -177,6 +250,10 @@ interface DoctorClipFile {
   /** True when the raw source video is shorter than masterDuration.
    *  normalizeMultiClip will pad with tpad (freeze-last-frame) to reach masterDuration. */
   rawShorterThanMaster: boolean;
+  /** Source kind the client downloaded this clip as ("lip-sync" | "original").
+   *  Stored at download time — the lip-sync normalizers key off this (plus a
+   *  positive offset), never off fields that are not on this record. */
+  sourceType: string;
   /** Lip sync video offset in seconds (master player lipSyncOffsetSeconds).
    *  When > 0, the video is seeked forward by this amount so the mouth appears later —
    *  matching the master player behaviour of setting video.currentTime = offset.
@@ -192,6 +269,7 @@ interface DoctorClipFile {
 }
 interface DoctorMultiSession {
   multiId: string;
+  userId: string;
   projectId: string;
   folder: string;
   clips: DoctorClipFile[];
@@ -199,6 +277,48 @@ interface DoctorMultiSession {
   createdAt: number;
 }
 const multiSessions = new Map<string, DoctorMultiSession>();
+
+/** Multi-session twin of getOwnedDoctorSession — same ownership rule. */
+export function getOwnedMultiSession(
+  multiId: string | undefined | null,
+  userId: string | undefined | null,
+): DoctorMultiSession | null {
+  if (!multiId) return null;
+  const s = multiSessions.get(multiId);
+  if (!s) return null;
+  if (!userId || s.userId !== userId) return null;
+  return s;
+}
+
+/** True when a downloaded clip is a lip-sync source: the client said so at
+ *  download time (sourceType), or it carries a positive lip-sync offset
+ *  (offsets are only ever set for lip-sync clips by the client). */
+export function isLipSyncClip(c: {
+  sourceType?: string;
+  clipVideoOffsetSec?: number;
+}): boolean {
+  return c.sourceType === "lip-sync" || (c.clipVideoOffsetSec ?? 0) > 0;
+}
+
+/** The duration a clip occupies on the EXPORT timeline: its master-player
+ *  timeline duration when one was resolved at download, else the raw file
+ *  duration. Normalized files are built to this duration, so anything that
+ *  positions content on the concatenated timeline (xfade offsets, range
+ *  windows, active-scene lookup) must use it — using the raw duration
+ *  instead drifts every boundary after a trimmed or padded clip. */
+export function timelineDurationOf(c: {
+  timelineDuration?: number;
+  duration?: number;
+}): number {
+  return c.timelineDuration && c.timelineDuration > 0
+    ? c.timelineDuration
+    : (c.duration ?? 0);
+}
+
+/** Hard cap on clips per doctor request — each clip can be 500 MB on disk;
+ *  an unbounded array is a disk-exhaustion lever. 100 is far above any real
+ *  project's scene count the doctor has ever been used with. */
+export const MAX_DOCTOR_CLIPS = 100;
 
 // Clean up sessions older than 30 minutes
 setInterval(
@@ -681,30 +801,17 @@ async function normalizeClipsForDurationLipSyncTest(
     offsetApplied: boolean;
   }> = [];
   let accumulated = 0;
-  const firstLipSyncIndex = session.clips.findIndex((c) =>
-    Boolean(
-      (c as any).lipSyncUrl ||
-        (c as any).lip_sync_url ||
-        (c as any).lipsyncUrl ||
-        (c as any).syncUrl,
-    ),
-  );
-
-  const clipsForTest =
-    lipSyncExtraOffsetSec !== 0 && firstLipSyncIndex >= 0
-      ? session.clips.slice(firstLipSyncIndex)
-      : session.clips;
+  // The test always starts at the timeline head: the audio starts at 0:00, so
+  // dropping the clips before the first lip-sync clip (an earlier version of
+  // this function sliced the session when a fine-tune was set) would shift
+  // the video against the audio. The accumulated-duration break below is
+  // what limits the test window.
+  const clipsForTest = session.clips;
 
   for (const c of clipsForTest) {
     const trimStart = c.trimStartSec ?? 0;
     const clipOffset = c.clipVideoOffsetSec ?? 0;
-    const hasLipSyncUrl = Boolean(
-      (c as any).lipSyncUrl ||
-        (c as any).lip_sync_url ||
-        (c as any).lipsyncUrl ||
-        (c as any).syncUrl
-    );
-    const isLipSync = (c as any).useLipSync === true || hasLipSyncUrl || clipOffset > 0;
+    const isLipSync = isLipSyncClip(c);
     const extraOffset = isLipSync ? lipSyncExtraOffsetSec : 0;
     const effectiveTrim = isLipSync ? 0 : trimStart;
     const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
@@ -810,13 +917,7 @@ async function normalizeAllClips(
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
     const trimStart = c.trimStartSec ?? 0;
     const clipOffset = c.clipVideoOffsetSec ?? 0;
-    const hasLipSyncUrl = Boolean(
-      (c as any).lipSyncUrl ||
-        (c as any).lip_sync_url ||
-        (c as any).lipsyncUrl ||
-        (c as any).syncUrl
-    );
-    const isLipSync = (c as any).useLipSync === true || hasLipSyncUrl || clipOffset > 0;
+    const isLipSync = isLipSyncClip(c);
 
     // Lip-sync clips should use the lip-sync source timing directly.
     // Regular clips keep normal master-player trim behavior.
@@ -1427,7 +1528,7 @@ router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
       return;
     }
 
-    if (!isAllowedClipUrl(url)) {
+    if (!isAllowedClipDownloadUrl(url)) {
       res.json({
         urlProvided: true,
         startsWithHttp: true,
@@ -1438,7 +1539,7 @@ router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
         isHtml: false,
         snippet: null,
         message:
-          "URL host is not an allowed media source (Supabase storage, Runway CDN, or Replit object storage over HTTPS).",
+          "URL is not an allowed media source (a known media host, or any public HTTPS host — private IPs and non-HTTPS are blocked).",
       });
       return;
     }
@@ -1505,16 +1606,19 @@ router.post("/export-doctor/download", requireAuth, async (req, res) => {
       res.status(400).json({ error: "A valid Scene 1 http URL is required." });
       return;
     }
-    if (!isAllowedClipUrl(url)) {
+    if (!isAllowedClipDownloadUrl(url)) {
       res.status(400).json({
         error:
-          "Scene 1 URL host is not an allowed media source (Supabase storage, Runway CDN, or Replit object storage over HTTPS).",
+          "Scene 1 URL is not an allowed media source (a known media host, or any public HTTPS host — private IPs and non-HTTPS are blocked).",
       });
       return;
     }
 
     const doctorId = randomUUID();
-    const folder = path.join(os.tmpdir(), `export-doctor-${Date.now()}`);
+    const folder = path.join(
+      os.tmpdir(),
+      `export-doctor-${doctorId}-${Date.now()}`,
+    );
     mkdirSync(folder, { recursive: true });
     const videoPath = path.join(folder, "scene-1.mp4");
 
@@ -1592,6 +1696,7 @@ router.post("/export-doctor/download", requireAuth, async (req, res) => {
 
     sessions.set(doctorId, {
       doctorId,
+      userId: req.userId ?? "",
       projectId: projectId ?? "",
       folder,
       videoPath,
@@ -1634,7 +1739,7 @@ router.post("/export-doctor/export", requireAuth, async (req, res) => {
     const body = parseBody(doctorIdSchema, req.body, res);
     if (!body) return;
     const { doctorId } = body;
-    const session = doctorId ? sessions.get(doctorId) : null;
+    const session = getOwnedDoctorSession(doctorId, req.userId);
     if (!session) {
       res.status(400).json({
         error:
@@ -1728,7 +1833,7 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
       clipVideoOffsetSec,
       fullDuration,
     } = body;
-    const session = doctorId ? sessions.get(doctorId) : null;
+    const session = getOwnedDoctorSession(doctorId, req.userId);
     if (!session) {
       res.status(400).json({
         error:
@@ -1972,6 +2077,12 @@ router.post("/export-doctor/check-clip-urls", requireAuth, async (req, res) => {
       res.status(400).json({ error: "No clips provided." });
       return;
     }
+    if (clips.length > MAX_DOCTOR_CLIPS) {
+      res.status(400).json({
+        error: `Too many clips (${clips.length}). The URL doctor checks at most ${MAX_DOCTOR_CLIPS} clips at once.`,
+      });
+      return;
+    }
 
     const results = await Promise.all(
       clips.map(async (c, i) => {
@@ -2017,10 +2128,19 @@ router.post("/export-doctor/check-clip-urls", requireAuth, async (req, res) => {
         }
 
         try {
-          const r = await fetch(url, {
+          let r = await fetch(url, {
             method: "HEAD",
             signal: AbortSignal.timeout(20_000),
           });
+          // Some CDNs/storage hosts reject HEAD (405/501) for files that
+          // download fine over GET — a HEAD-only verdict blocked those clips
+          // from Download All entirely. Fall back to a 1-byte range GET.
+          if (r.status === 405 || r.status === 501) {
+            r = await fetch(url, {
+              headers: { Range: "bytes=0-0" },
+              signal: AbortSignal.timeout(20_000),
+            });
+          }
           entry.httpStatus = r.status;
           entry.reachable = r.ok;
           entry.contentType = r.headers.get("content-type") ?? "";
@@ -2030,10 +2150,15 @@ router.post("/export-doctor/check-clip-urls", requireAuth, async (req, res) => {
             ct.startsWith("application/octet-stream") ||
             ct.startsWith("binary/octet-stream") ||
             ct === ""; // CDNs often omit content-type on HEAD
-          entry.allowed =
-            entry.reachable &&
-            (entry.allowedByStaticList || entry.allowedByPublicHttps);
+          entry.allowed = clipUrlAllowed({
+            reachable: entry.reachable,
+            allowedByStaticList: entry.allowedByStaticList,
+            allowedByPublicHttps: entry.allowedByPublicHttps,
+            isVideoContentType: entry.isVideoContentType,
+          });
           if (!r.ok) entry.error = `HTTP ${r.status}`;
+          else if (entry.reachable && !entry.isVideoContentType)
+            entry.error = `URL returned non-video content (${entry.contentType.split(";")[0] || "unknown"})`;
         } catch (e) {
           entry.error = e instanceof Error ? e.message : String(e);
         }
@@ -2067,12 +2192,36 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
       return;
     }
 
+    if (clips.length > MAX_DOCTOR_CLIPS) {
+      res.status(400).json({
+        error: `Too many clips (${clips.length}). The doctor downloads at most ${MAX_DOCTOR_CLIPS} clips at once (up to 500 MB each).`,
+      });
+      return;
+    }
+    // Duplicate sceneNumbers share one local file name (scene-<n>.mp4), so a
+    // duplicated entry silently overwrites the earlier clip and both rows
+    // then describe the same file. Reject them instead of corrupting the set.
+    const seenSceneNumbers = new Set<number>();
+    for (let i = 0; i < clips.length; i++) {
+      const n = clips[i]!.sceneNumber ?? i + 1;
+      if (seenSceneNumbers.has(n)) {
+        res.status(400).json({
+          error: `Duplicate scene number ${n} in the clip list — each scene can only be downloaded once per session.`,
+        });
+        return;
+      }
+      seenSceneNumbers.add(n);
+    }
+
     // Use the order sent by the client — this is the saved timeline (drag) order.
     // Do NOT re-sort by sceneNumber; the client sends clips in the user's dragged order.
     const orderedClips = clips;
 
     const multiId = randomUUID();
-    const folder = path.join(os.tmpdir(), `export-doctor-multi-${Date.now()}`);
+    const folder = path.join(
+      os.tmpdir(),
+      `export-doctor-multi-${multiId}-${Date.now()}`,
+    );
     mkdirSync(folder, { recursive: true });
 
     req.log.info(
@@ -2101,6 +2250,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         masterDuration,
         timelineDuration: 0, // filled after ffprobe
         rawShorterThanMaster: false, // filled after ffprobe
+        sourceType: c.sourceType ?? "original",
         clipVideoOffsetSec,
         width: 0,
         height: 0,
@@ -2116,7 +2266,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
           throw new Error(
             "no demoClipUrl / master player source found for this scene",
           );
-        if (!isAllowedClipUrl(url) && !isPublicHttpsUrl(url)) {
+        if (!isAllowedClipDownloadUrl(url)) {
           throw new Error(
             "URL is not a valid public HTTPS source (must use HTTPS from a public host — not a private IP or metadata endpoint)",
           );
@@ -2222,6 +2372,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
 
     multiSessions.set(multiId, {
       multiId,
+      userId: req.userId ?? "",
       projectId: projectId ?? "",
       folder,
       clips: results,
@@ -2278,7 +2429,7 @@ router.post("/export-doctor/repair-clip", requireAuth, async (req, res) => {
     const body = parseBody(sceneRefSchema, req.body, res);
     if (!body) return;
     const { multiId, sceneNumber } = body;
-    const session = multiId ? multiSessions.get(multiId) : null;
+    const session = getOwnedMultiSession(multiId, req.userId);
     if (!session) {
       res
         .status(400)
@@ -2394,7 +2545,7 @@ router.post(
       const body = parseBody(sceneRefSchema, req.body, res);
       if (!body) return;
       const { multiId, sceneNumber } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res
           .status(400)
@@ -2461,21 +2612,14 @@ router.post(
       debug["normCacheCleared"] = normCleared;
 
       // ── Step 2: re-download source ────────────────────────────────────────────
-      const lipSyncSourceUrl = String(
-    (clip as any).lipSyncUrl ||
-      (clip as any).lip_sync_url ||
-      (clip as any).lipsyncUrl ||
-      (clip as any).syncUrl ||
-      ""
-  ).trim();
+      // The session clip's sourceUrl IS the URL the client chose at download
+      // time (the lip-sync URL when lip sync was active for the scene, else
+      // the original clip) — there is no separate lip-sync URL stored on the
+      // session record, and an earlier version of this block read fields
+      // that never exist on it. sourceChoice reports the stored sourceType.
+      const url = clip.sourceUrl;
 
-  const url = lipSyncSourceUrl.startsWith("http")
-    ? lipSyncSourceUrl
-    : clip.sourceUrl;
-
-  debug["sourceChoice"] = lipSyncSourceUrl.startsWith("http")
-    ? "lip-sync"
-    : "original";
+      debug["sourceChoice"] = clip.sourceType;
 
       if (!url?.startsWith("http")) {
         res.status(400).json({
@@ -2484,7 +2628,7 @@ router.post(
         });
         return;
       }
-      if (!isAllowedClipUrl(url) && !isPublicHttpsUrl(url)) {
+      if (!isAllowedClipDownloadUrl(url)) {
         res
           .status(400)
           .json({ error: "Source URL is not an allowed media source.", debug });
@@ -2646,7 +2790,7 @@ router.post("/export-doctor/export-all", requireAuth, async (req, res) => {
     const body = parseBody(multiIdSchema, req.body, res);
     if (!body) return;
     const { multiId } = body;
-    const session = multiId ? multiSessions.get(multiId) : null;
+    const session = getOwnedMultiSession(multiId, req.userId);
     if (!session) {
       res.status(400).json({
         error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -2725,7 +2869,7 @@ router.post(
       const body = parseBody(exportAllAudioSchema, req.body, res);
       if (!body) return;
       const { multiId, audioUrl, audioStartSec, syncMode } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -2939,7 +3083,7 @@ router.post(
       const body = parseBody(exportAudioSyncDiagnosticSchema, req.body, res);
       if (!body) return;
       const { multiId, audioUrl, audioStartSec, syncMode, clipEdits } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -3078,8 +3222,10 @@ router.post(
       const objectName = `export-doctor/${multiId}-sync-diag.mp4`;
       const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
 
-      const hasLipSync = session.clips.some(
-        (_, i) => clipEdits?.[`scene-${i + 1}`]?.useLipSync || false,
+      // Derive from the resolved per-clip timeline above (same clipEdits
+      // lookup), not a second index-based guess at the key shape.
+      const hasLipSync = clipTimeline.some(
+        (c) => c.sourceType === "lip-sync" || (c.lipSyncOffsetSec ?? 0) !== 0,
       );
 
       res.json({
@@ -3101,8 +3247,10 @@ router.post(
         syncExpected: true,
         // Per-clip map
         clipTimeline,
-        // Audio Sync Export Check status
-        videoOnlyExportPassed: true,
+        // Audio Sync Export Check status. NOTE: no videoOnlyExportPassed
+        // field — this route never runs a video-only export, and an earlier
+        // version reported one as passed anyway. audioSourceReady is true
+        // here because the audio download + ffprobe above actually passed.
         audioSourceReady: true,
         usingMasterPlayerTiming: resolvedAudioStart > 0,
         audioOffsetApplied: resolvedAudioStart > 0,
@@ -3141,7 +3289,7 @@ router.post(
         "EXPORT SHORT TEST: request received",
       );
 
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -3455,7 +3603,13 @@ router.post(
       const masterOffsetApplied = lipSyncOffsetInfo.some(
         (c) => c.masterOffsetSec > 0.01,
       );
-      const fineTuneApplied = safeFineTune !== 0;
+      // A requested fine-tune only counts as applied when at least one clip
+      // actually received it (a lip-sync clip with a zero saved offset and
+      // no lip-sync source receives nothing — reporting "applied" anyway
+      // made the panel claim a delay that was never burned).
+      const fineTuneApplied =
+        safeFineTune !== 0 &&
+        lipSyncOffsetInfo.some((c) => c.fineTuneOffsetSec !== 0);
 
       res.json({
         success: true,
@@ -3505,7 +3659,7 @@ router.post(
       const body = parseBody(exportAllCaptionsSchema, req.body, res);
       if (!body) return;
       const { multiId, audioUrl, captions } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -3674,7 +3828,7 @@ router.post(
 
       // ── Build the ASS caption file from the SAVED synced timings (timeOffset 0 — no intro card). ──
       const totalDuration = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       const assContent = buildAssContent(
@@ -3808,7 +3962,7 @@ router.post(
       const body = parseBody(exportAllEffectsSchema, req.body, res);
       if (!body) return;
       const { multiId, audioUrl, captions, effects, conflictMode } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -3826,7 +3980,7 @@ router.post(
       // ── Effects: translate saved global Auto AI effects to FFmpeg (sequential chain,
       //    dedicated grades + B&W↔Luxury Gold conflict resolution), skip unsupported ──
       const totalDurationSec = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       const effectList = Array.isArray(effects)
@@ -4011,7 +4165,7 @@ router.post(
 
       // ── Build the ASS caption file from SAVED synced timings when captions exist (timeOffset 0 — no intro). ──
       const totalDuration = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       let assPath: string | null = null;
@@ -4166,7 +4320,7 @@ router.post(
         conflictMode,
       } = body;
 
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -4180,15 +4334,7 @@ router.post(
       }
 
       /* ── Classify overlays ── */
-      const ANIMATED = [
-        "Rain",
-        "Smoke",
-        "Sparks",
-        "Dust",
-        "Light Leaks",
-        "Lens Flare",
-        "Animated Waveform",
-      ];
+      const ANIMATED = ANIMATED_OVERLAYS_UNSUPPORTED;
       const ovList = Array.isArray(overlays) ? overlays : [];
       const unsupportedOverlays = ovList.filter((o) => ANIMATED.includes(o));
       const wmType = watermarkType ?? "logo";
@@ -4209,7 +4355,7 @@ router.post(
 
       /* ── Effects pipeline ── */
       const totalDurationSec = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       const effectList = Array.isArray(effects)
@@ -4325,6 +4471,18 @@ router.post(
         return;
       }
       const aProbe = await probeMedia(audioPath);
+      if (!aProbe.hasAudio) {
+        res.json({
+          overlaysFound,
+          unsupportedOverlays,
+          watermarkFound,
+          audioDownloaded: true,
+          audioValid: false,
+          audioFileSize: statSync(audioPath).size,
+          error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.`,
+        });
+        return;
+      }
 
       /* ── Captions ── */
       const validLines = (captions?.lines ?? []).filter(
@@ -4424,15 +4582,19 @@ router.post(
         watermarkIncluded,
         overlaysIncluded,
         overlayWatermarkText: watermarkTextSafe,
-        overlayExportConnected: true,
+        // Honest flags: "connected"/"preserved" only when the thing was
+        // actually in the burned filter chain / probe — these were hardcoded
+        // true, so a run with the watermark excluded and no effects still
+        // reported overlayExportConnected + effectsPreserved.
+        overlayExportConnected: watermarkIncluded,
         effectsFound,
         effectsExportConnected,
-        effectsPreserved: true,
+        effectsPreserved: !!effectFilter,
         captionsFound,
         captionsPreserved: captionsBurned,
         audioPreserved: probe.hasAudio,
         audioDownloaded: true,
-        audioValid: true,
+        audioValid: aProbe.hasAudio,
         audioFileSize: statSync(audioPath).size,
         audioDuration: aProbe.duration,
         testExportCreated: true,
@@ -4471,7 +4633,7 @@ router.post(
         startSec,
         durationSec,
       } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -4484,8 +4646,10 @@ router.post(
         return;
       }
 
+      // Range positioning happens on the concatenated (normalized) timeline,
+      // whose clips carry timeline durations — not raw file durations.
       const totalDurationSec = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       const rangeStart = Math.min(
@@ -4502,7 +4666,7 @@ router.post(
       let activeSceneIndex = 0;
       let cursor = 0;
       for (let i = 0; i < session.clips.length; i++) {
-        const d = session.clips[i]?.duration || 0;
+        const d = session.clips[i] ? timelineDurationOf(session.clips[i]!) : 0;
         if (rangeStart < cursor + d || i === session.clips.length - 1) {
           activeSceneIndex = i;
           break;
@@ -4712,7 +4876,7 @@ router.post(
         startSec,
         durationSec,
       } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -4725,8 +4889,10 @@ router.post(
         return;
       }
 
+      // Range positioning happens on the concatenated (normalized) timeline,
+      // whose clips carry timeline durations — not raw file durations.
       const totalDurationSec = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       const rangeStart = Math.min(
@@ -4743,7 +4909,7 @@ router.post(
       let activeSceneIndex = 0;
       let cursor = 0;
       for (let i = 0; i < session.clips.length; i++) {
-        const d = session.clips[i]?.duration || 0;
+        const d = session.clips[i] ? timelineDurationOf(session.clips[i]!) : 0;
         if (rangeStart < cursor + d || i === session.clips.length - 1) {
           activeSceneIndex = i;
           break;
@@ -4752,15 +4918,7 @@ router.post(
       }
 
       /* ── Classify overlays (same taxonomy as export-all-overlays) ── */
-      const ANIMATED = [
-        "Rain",
-        "Smoke",
-        "Sparks",
-        "Dust",
-        "Light Leaks",
-        "Lens Flare",
-        "Animated Waveform",
-      ];
+      const ANIMATED = ANIMATED_OVERLAYS_UNSUPPORTED;
       const ovList = Array.isArray(overlays) ? overlays : [];
       const unsupportedOverlays = ovList.filter((o) => ANIMATED.includes(o));
       const wmType = watermarkType ?? "logo";
@@ -4986,10 +5144,10 @@ router.post(
         watermarkIncluded,
         overlaysIncluded,
         overlayWatermarkText: watermarkTextSafe,
-        overlayExportConnected: true,
+        overlayExportConnected: watermarkIncluded,
         effectsFound,
         effectsExportConnected,
-        effectsPreserved: true,
+        effectsPreserved: !!effectFilter,
         captionsFound: captionsActive,
         captionsPreserved: captionsBurned,
         captionsBurned,
@@ -5023,7 +5181,7 @@ router.post(
       const body = parseBody(exportEffectsTransitionsSchema, req.body, res);
       if (!body) return;
       const { multiId, audioUrl, effects, conflictMode, transitions } = body;
-      const session = multiId ? multiSessions.get(multiId) : null;
+      const session = getOwnedMultiSession(multiId, req.userId);
       if (!session) {
         res.status(400).json({
           error: "No multi-clip session found. Run 'Download All Clips' first.",
@@ -5074,7 +5232,7 @@ router.post(
           ? conflictMode
           : "blend";
       const totalDurationSec = session.clips.reduce(
-        (sum, c) => sum + (c.duration || 0),
+        (sum, c) => sum + timelineDurationOf(c),
         0,
       );
       const stackResult = buildEffectStack(
@@ -5127,7 +5285,7 @@ router.post(
           .json({ error: e instanceof Error ? e.message : String(e) });
         return;
       }
-      const durations = session.clips.map((c) => c.duration || 0);
+      const durations = session.clips.map((c) => timelineDurationOf(c));
       const boundaries = plan.map((p) => ({
         xfade: p.xfade,
         durationSec: p.durationSec,
