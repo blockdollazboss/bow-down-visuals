@@ -182,6 +182,10 @@ function multiRatioRowToJob(row: Record<string, unknown>): MultiRatioJob {
        re-rendered, so the defaults below are display-only. */
     mode: "pad",
     attribution: false,
+    /* The disclosure toggle is likewise process-local; recovered rows
+       are never re-rendered, and each ratio's own stamp outcome is
+       already recorded on the ratio itself. Creation default: on. */
+    aiDisclosure: true,
     topic: undefined,
     costTotal: Number(row["cost_total"] ?? 0),
     costPerRatio: Number(row["cost_per_ratio"] ?? 0),

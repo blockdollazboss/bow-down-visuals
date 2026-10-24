@@ -44,6 +44,8 @@ export interface BumpOfferDTO {
 export interface BumpConfigDTO {
   bumpProductId: string;
   percentOff: number;
+}
+
 /* Timed drop (#25): the product's drop state as the server computes it
    from drop_at (UTC instant, ISO string). state 'upcoming' = the
    product page is the drop page (countdown + capture, not buyable);
@@ -219,8 +221,8 @@ export const checkoutProduct = (
   input: { productId: string; quantity?: number; discountCode?: string; includeBump?: boolean; giftCardCode?: string }
 ) =>
   post<{
-    url: string; sessionId: string;
     url: string | null; sessionId: string | null; paid?: boolean; paidWithGiftCard?: boolean; orderId?: string;
+    totals: {
       unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string;
       percentOff: number; discountCode: string | null; giftCardAppliedCents?: number; amountDueCents?: number;
       /** The ticked add-on, priced server-side; null when not ticked. */

@@ -1121,7 +1121,6 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
       url: session.url, sessionId: session.id,
       amountCents: totalCents, amount: money(totalCents),
       mainAmountCents: chargeCents,
-      mainAmountCents: chargeCents,
       bump: bump
         ? {
             kind: bump.item.itemKind,

@@ -466,6 +466,10 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
         </span>
       )}
       {msg && <p className="mt-1 text-[10px] text-red-400">{msg}</p>}
+    </div>
+  );
+}
+
 /* ── Timed drop controls (#25) ───────────────────────────────────────────
    Docked in the product's own row (PROMOTE): the creator picks the drop
    moment in THEIR local time (datetime-local), the browser converts it
@@ -1043,6 +1047,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                             : "➕ Add one"}
                       </button>
                     )}
+                  </td>
                   <td className="px-4 py-3">
                     <AffiliateCell p={p} getToken={getToken} onChanged={load} />
                   </td>
