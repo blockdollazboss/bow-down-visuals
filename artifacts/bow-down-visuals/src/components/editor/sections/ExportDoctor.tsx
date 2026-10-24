@@ -502,6 +502,22 @@ export function ExportDoctor({
    *  must never disagree with the export gating — see downloadStale below. */
   const [testedSceneUrl, setTestedSceneUrl] = useState<string | null>(null);
   const [testedAudioUrl, setTestedAudioUrl] = useState<string | null>(null);
+  /** When Scene 1 was downloaded (server sessions live 30 minutes). */
+  const [testedSceneAt, setTestedSceneAt] = useState<number | null>(null);
+  /** Fingerprint of the clip set the multi-clip download / URL check ran
+   *  against, plus when the multi download happened. The Scene-1 checks had
+   *  a stale guard from the start; the multi-clip checks had none, so editing
+   *  the timeline after Download All left green "all valid" panels and
+   *  unlocked exports describing clips the server session no longer matches. */
+  const [testedMultiKey, setTestedMultiKey] = useState<string | null>(null);
+  const [testedMultiAt, setTestedMultiAt] = useState<number | null>(null);
+  const [testedUrlKey, setTestedUrlKey] = useState<string | null>(null);
+  /** Ticking clock (30s) so session-expiry gating re-renders without input. */
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
   const [lastError, setLastError] = useState<string | null>(null);
 
   // Multi-clip ("All 5 Clips") doctor state
@@ -598,10 +614,20 @@ export function ExportDoctor({
    * export buttons off and say so, instead of showing contradictory greens. */
   const downloadStale =
     !!downloadResult && testedSceneUrl !== null && testedSceneUrl !== scene1Url;
+  /* Server doctor sessions are swept 30 minutes after creation (rail:
+   * sessions/multiSessions cleanup). After that every export 400s with
+   * "session not found" while the panels here would still show green —
+   * expire the gates at 29 minutes and say so instead. */
+  const SESSION_TTL_MS = 29 * 60 * 1000;
+  const scene1Expired =
+    !!downloadResult &&
+    testedSceneAt !== null &&
+    nowTs - testedSceneAt > SESSION_TTL_MS;
   const downloadOk =
     !!downloadResult?.fileExists &&
     !!downloadResult?.ffprobeValid &&
-    !downloadStale;
+    !downloadStale &&
+    !scene1Expired;
   const audioStale =
     !!audioExportResult && testedAudioUrl !== (masterAudioUrl ?? null);
 
@@ -704,8 +730,37 @@ export function ExportDoctor({
     (c) => !!c.url?.startsWith("http"),
   );
   const multiId = downloadAllResult?.multiId ?? null;
+  /** Fingerprint of the clip set as the server session holds it: URL, trims,
+   *  master duration and lip-sync offset per position. Any timeline edit
+   *  changes it, which is exactly when the stored download stops describing
+   *  the current timeline. */
+  const multiKey = multiClips
+    .map((c) =>
+      [
+        c.sceneNumber,
+        c.url ?? "",
+        c.trimStart,
+        c.trimEnd,
+        c.masterDuration,
+        c.clipVideoOffsetSec,
+      ].join("|"),
+    )
+    .join(";");
+  const multiStale =
+    !!downloadAllResult && testedMultiKey !== null && testedMultiKey !== multiKey;
+  const multiExpired =
+    !!downloadAllResult &&
+    testedMultiAt !== null &&
+    nowTs - testedMultiAt > SESSION_TTL_MS;
   const allClipsValid =
-    !!downloadAllResult?.allValid && downloadAllResult.total > 0;
+    !!downloadAllResult?.allValid &&
+    downloadAllResult.total > 0 &&
+    !multiStale &&
+    !multiExpired;
+  /** URL-check results only describe the clip set they ran against. */
+  const urlDoctorStale =
+    !!urlDoctorResult && testedUrlKey !== null && testedUrlKey !== multiKey;
+  const urlDoctorCurrent = urlDoctorStale ? null : urlDoctorResult;
 
   // ── Export audio always starts at 0:00 ──────────────────────────────────────
   // Full export = full project song from the beginning.
@@ -863,6 +918,7 @@ export function ExportDoctor({
         );
       setDownloadResult(data);
       setTestedSceneUrl(scene1Url);
+      setTestedSceneAt(Date.now());
       if (data.error) setLastError(data.error);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -934,6 +990,7 @@ export function ExportDoctor({
           (data as { error?: string }).error ?? `HTTP ${res.status}`,
         );
       setUrlDoctorResult(data);
+      setTestedUrlKey(multiKey);
       const firstFail = data.clips.find((c) => !c.allowed);
       if (firstFail)
         setLastError(
@@ -1053,6 +1110,8 @@ export function ExportDoctor({
           (data as { error?: string }).error ?? `HTTP ${res.status}`,
         );
       setDownloadAllResult(data);
+      setTestedMultiKey(multiKey);
+      setTestedMultiAt(Date.now());
       if (data.lastError) setLastError(data.lastError);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -1128,7 +1187,25 @@ export function ExportDoctor({
             audioUrl: masterAudioUrl ?? null,
             audioStartSec: 0,
             syncMode: syncMode ?? "keep-as-is",
-            clipEdits: clipEdits ?? {},
+            // The rail resolves per-clip edits by scene NUMBER
+            // (`scene-<n>` / `<n>`), but the editor's clipEdits map is keyed
+            // by scene ID — sending it raw meant the diagnostic silently
+            // discarded every edit (all clips reported "original", offset 0).
+            // Re-key by timeline position, which is the session's sceneNumber.
+            clipEdits: Object.fromEntries(
+              uniqueScenes.flatMap((s, i) => {
+                const ce = clipEdits?.[s.id];
+                if (!ce) return [];
+                const entry = {
+                  useLipSync: !!ce.useLipSync,
+                  lipSyncOffsetSeconds: ce.lipSyncOffsetSeconds ?? 0,
+                };
+                return [
+                  [`scene-${i + 1}`, entry],
+                  [String(i + 1), entry],
+                ];
+              }),
+            ),
           }),
           signal: AbortSignal.timeout(8 * 60 * 1000),
         },
@@ -1166,8 +1243,12 @@ export function ExportDoctor({
     setAudioSyncShortResult(null);
     setAudioSyncShortLipSyncResult(null);
 
-    // 2-minute client timeout — must not spin forever
-    const CLIENT_TIMEOUT_MS = 2 * 60 * 1000;
+    // 8-minute client timeout — matching the other doctor exports. The old
+    // 2-minute cap aborted the request while the server was still working
+    // (its own steps allow 90s audio download + per-clip ffmpeg + a 60s
+    // upload race), so a test that went on to succeed server-side was
+    // reported here as a timeout failure and its result was lost.
+    const CLIENT_TIMEOUT_MS = 8 * 60 * 1000;
 
     try {
       setShortTestDebug((prev) => ({
@@ -1178,7 +1259,7 @@ export function ExportDoctor({
       const controller = new AbortController();
       const timeoutId = setTimeout(
         () =>
-          controller.abort(new Error("Export test timed out after 2 minutes.")),
+          controller.abort(new Error("Export test timed out after 8 minutes.")),
         CLIENT_TIMEOUT_MS,
       );
 
@@ -1201,10 +1282,12 @@ export function ExportDoctor({
       }
       if (!res) return; // user cancelled the credit confirmation
 
+      // The request returning means the server finished its work — but on a
+      // non-OK response ffmpeg failed, so "finished" is only claimed for OK.
       setShortTestDebug((prev) => ({
         ...prev,
         ffmpegStarted: true,
-        ffmpegFinished: true,
+        ffmpegFinished: res.ok,
         lastStep: "processing response",
       }));
       const data = await readJson<
@@ -1250,14 +1333,14 @@ export function ExportDoctor({
     setLastError(null);
     setAudioSyncShortLipSyncResult(null);
 
-    const CLIENT_TIMEOUT_MS = 2 * 60 * 1000;
+    const CLIENT_TIMEOUT_MS = 8 * 60 * 1000;
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(
         () =>
           controller.abort(
-            new Error("Lip sync offset test timed out after 2 minutes."),
+            new Error("Lip sync offset test timed out after 8 minutes."),
           ),
         CLIENT_TIMEOUT_MS,
       );
@@ -1565,13 +1648,16 @@ export function ExportDoctor({
       const metaSceneLabel = `Scene ${lipSyncScene.sceneNumber}${lipSyncScene.section ? ` — ${lipSyncScene.section}` : ""}`;
 
       /* ── 2. Download the lip sync clip to the server ──────────────────────── */
-      setLipSyncDownloadCalled(true);
       const dlRes = await fetch("/api/export-doctor/download", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({ projectId, url: lipSyncUrl }),
         signal: AbortSignal.timeout(3 * 60 * 1000),
       });
+      // Mark "route called" only once the call has actually been made and
+      // answered — setting it before the fetch claimed a call that a network
+      // failure could prevent entirely.
+      setLipSyncDownloadCalled(true);
       const dlData = await readJson<DownloadResult>(dlRes);
       if (!dlRes.ok || !dlData.fileExists) {
         setLipSyncLastError(
@@ -1641,8 +1727,11 @@ export function ExportDoctor({
     ["Scene 1 URL found", scene1Url.startsWith("http")],
     ["Scene 1 master player source accepted", masterSourceAccepted],
     [
-      "Scene 1 Replit object storage allowed",
-      scene1Url.startsWith("http") ? isReplitObjStore : null,
+      // Fact row, not an allowance verdict: a Supabase/Runway/R2 clip is just
+      // as allowed by the rail, and rendering "no" in red for it read as a
+      // failure. Non-Replit sources now show "—" instead of a false "no".
+      "Scene 1 on Replit object storage",
+      scene1Url.startsWith("http") ? (isReplitObjStore ? true : null) : null,
     ],
     ["Scene 1 URL returns video", urlResult ? urlResult.isVideo : null],
     ["Scene 1 downloaded", downloadResult ? !!downloadResult.fileExists : null],
@@ -2123,10 +2212,15 @@ export function ExportDoctor({
                     ],
                     [
                       "selected clipId resolved",
+                      // resolvedClipId falls back to a synthesized
+                      // "scene:<id prefix>" label when the scene has no DB
+                      // clipId (the parser leaves clipId null) — that
+                      // fallback is not a resolved clipId and is no longer
+                      // reported as "yes ✓".
                       clipIdResolved
                         ? "yes ✓ (DB id)"
-                        : `yes ✓ (${resolvedClipId.slice(0, 18)})`,
-                      !!exportScene,
+                        : `no DB clipId — fallback label (${resolvedClipId.slice(0, 18)})`,
+                      clipIdResolved ? true : null,
                     ],
                     [
                       "export route called",
@@ -2285,6 +2379,13 @@ export function ExportDoctor({
               Scene 1's clip URL changed since these checks ran — the results
               below are stale and the export buttons are locked until you
               re-run "Test URL" and "Download Scene 1 Only".
+            </p>
+          )}
+          {scene1Expired && !downloadStale && (
+            <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
+              The Scene 1 download session has expired (server sessions last
+              30 minutes) — the export buttons are locked until you re-run
+              "Download Scene 1 Only".
             </p>
           )}
           {audioStale && (
@@ -3082,7 +3183,12 @@ export function ExportDoctor({
               </div>
               <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
                 <span className="text-white/40">matches master player</span>
-                <span className="font-bold text-green-400">yes</span>
+                {/* The scenes arrive in master-player order, so this panel
+                    displays that order — it does not independently verify
+                    it, and no longer renders an unverified green "yes". */}
+                <span className="font-bold text-white/50">
+                  order as shown above
+                </span>
               </div>
             </div>
           )}
@@ -3159,8 +3265,8 @@ export function ExportDoctor({
 
           {/* ── URL Doctor ── */}
           {(() => {
-            const udPassed = urlDoctorResult?.allAllowed === true;
-            const udRan = urlDoctorResult !== null;
+            const udPassed = urlDoctorCurrent?.allAllowed === true;
+            const udRan = urlDoctorCurrent !== null;
             return (
               <div className="mb-3 space-y-2">
                 {/* Check All Clip URLs button */}
@@ -3276,6 +3382,15 @@ export function ExportDoctor({
             );
           })()}
 
+          {/* ── Multi-clip stale / expired notice ── */}
+          {(multiStale || multiExpired) && (
+            <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug mb-3">
+              {multiExpired
+                ? "The downloaded-clips session has expired (server sessions last 30 minutes) — the export buttons are locked until you re-run \"Download All Clips\"."
+                : "The timeline changed since these clips were downloaded — the results below are stale and the export buttons are locked until you re-run \"Download All Clips\"."}
+            </p>
+          )}
+
           {/* ── Multi-clip action buttons ── */}
           <div className="grid grid-cols-1 gap-2 mb-3">
             {/* Download All — gated on URL Doctor passing */}
@@ -3284,7 +3399,7 @@ export function ExportDoctor({
               disabled={
                 busy !== null ||
                 multiClipsWithUrl.length === 0 ||
-                urlDoctorResult?.allAllowed === false
+                urlDoctorCurrent?.allAllowed === false
               }
               variant="outline"
               className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs disabled:opacity-40"
@@ -3297,7 +3412,7 @@ export function ExportDoctor({
               )}
               Download All {multiClips.length} Clips
             </Button>
-            {urlDoctorResult?.allAllowed === false && (
+            {urlDoctorCurrent?.allAllowed === false && (
               <p className="text-center text-[10px] text-red-400/70 -mt-1">
                 Fix failing URLs above before downloading.
               </p>
@@ -3372,8 +3487,31 @@ export function ExportDoctor({
                     ],
                     [
                       "all export durations match master player",
-                      "yes ✓ — trims applied during normalization",
-                      true,
+                      // Computed from the actual per-clip durations (same
+                      // 0.35s tolerance as the comparison table below) —
+                      // this row previously claimed "yes ✓" unconditionally,
+                      // even while the mismatch panel underneath said the
+                      // opposite.
+                      clipAudioMap.length === 0 ||
+                      clipAudioMap.some((c) => c.clipDuration === 0)
+                        ? "unknown — download all clips first"
+                        : clipAudioMap.every(
+                              (c) =>
+                                c.masterDuration === 0 ||
+                                Math.abs(c.clipDuration - c.masterDuration) <
+                                  0.35,
+                            )
+                          ? "yes ✓ — trims applied during normalization"
+                          : "no — see the mismatch table below",
+                      clipAudioMap.length === 0 ||
+                      clipAudioMap.some((c) => c.clipDuration === 0)
+                        ? null
+                        : clipAudioMap.every(
+                            (c) =>
+                              c.masterDuration === 0 ||
+                              Math.abs(c.clipDuration - c.masterDuration) <
+                                0.35,
+                          ),
                     ],
                   ];
                 })().map(([label, value, ok]) => (
@@ -4059,11 +4197,17 @@ export function ExportDoctor({
               );
             })()}
 
-            {/* ── Reset Export Audio To Song Start ── */}
+            {/* ── Clear audio test results ──
+                This button only ever cleared test results — its old label
+                ("Reset Export Audio To Song Start") claimed it changed the
+                export's audio start, which it never did (doctor exports
+                always start audio at 0:00 by design). Label now matches the
+                actual behaviour, and it clears every audio test result. */}
             <Button
               onClick={() => {
                 setAudioSyncDiagResult(null);
                 setAudioSyncShortResult(null);
+                setAudioSyncShortLipSyncResult(null);
                 setLastError(null);
               }}
               variant="outline"
@@ -4071,7 +4215,7 @@ export function ExportDoctor({
               data-testid="btn-doctor-reset-audio-start"
             >
               <Music2 className="h-3.5 w-3.5" />
-              Reset Export Audio To Song Start
+              Clear Audio Sync Test Results
             </Button>
 
             {/* ── Clip Audio Map — Export model view ── */}
@@ -4209,7 +4353,7 @@ export function ExportDoctor({
                     Audio Sync Diagnostic
                   </Button>
                   <Button
-                    onClick={exportAudioSyncShortLipSync}
+                    onClick={exportAudioSyncShort}
                     disabled={
                       busy !== null ||
                       !allClipsValid ||
@@ -4470,7 +4614,7 @@ export function ExportDoctor({
                   </span>
                 </div>
                 <p className={`text-[10px] font-mono ${isLight ? "text-sky-800" : "text-sky-200/70"}`}>
-                  step:{" "}
+                  estimated step (timer-based, not server-reported):{" "}
                   <span className={isLight ? "text-sky-800" : "text-sky-300"}>
                     {shortTestStep ?? "preparing…"}
                   </span>
@@ -4483,8 +4627,9 @@ export function ExportDoctor({
                 </p>
                 {shortTestElapsed >= 115 && (
                   <p className="text-[10px] text-amber-400 font-bold pt-1">
-                    ⚠ Export taking longer than expected. If it doesn't finish
-                    soon, try refreshing the page and running again.
+                    ⚠ Export is taking longer than usual — it can take
+                    several minutes on large clips. Keep this page open; the
+                    test is still running.
                   </p>
                 )}
               </div>
@@ -4559,7 +4704,7 @@ export function ExportDoctor({
                       shortTestDebug.ffmpegFinished,
                     ],
                     [
-                      "current step",
+                      "current step (estimated while running)",
                       busy === "export-audio-sync-short"
                         ? (shortTestStep ?? "preparing…")
                         : (shortTestDebug.lastStep ?? "—"),
