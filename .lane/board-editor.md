@@ -20,6 +20,12 @@ Audit B (FE panels): its early draft contained false items (same list
 above), BUT its full report's panel-by-panel claims — including a fresh
 P0/P1 set (N-01…N-07 below) — were re-verified line-by-line in this lane
 and proved TRUE. Lesson recorded: verify per-claim, never per-source.
+CORRECTION (third pass): the same applies to Audit A. The verdict above
+was formed from its early draft; Audit A's FINAL report (server rail +
+KB) cites real files at line numbers matching this lane's own readings,
+and every claim re-checked in the third pass (A-01…A-10 below) proved
+TRUE. The fabricated-draft items (nonexistent files/KB quotes) stand as
+recorded, but "do not cite Audit A" is rescinded for its final report.
 EVERY finding below was verified by the parent lane's own reading of the code.
 The real KB editor entry is truthful (description modest; prices machine-scraped
 from credit-costs.ts; endpoints scraped from real fetch calls). The export rail is
@@ -194,6 +200,98 @@ points at it.
   labelled as such in the UI — not a defect; noted so nobody re-flags it.
   (Pass-1 D-04's protectCaptions preview/export divergence is the same
   family: preview leads, export doesn't render overlays at all today.)
+
+## THIRD PASS — Audit A FINAL report (server rail + KB), re-verified per-claim
+Every item below was verified by this lane's own reading (line numbers are
+this lane's). These are money/durability defects: per the owner's
+named-yes law for price and charge changes, NONE of the charge-logic items
+were built in-lane — they are boarded with exact evidence + the decision
+each one needs. The one safe fix (a stale comment) was built: 5726e34d.
+
+### A-01 (P0) Branded exports are charged the clean price — owner law broken
+Owner law (MEMORY, ratified): clean export 400 VB, branded exports FREE.
+Server reality: POST /export-final-video pre-check demands >= 400 VB for
+EVERY call (export-video.ts:3164-3172) and the success charge is
+unconditionally EXPORT_CREDIT_COST (export-video.ts:3018-3021) — no
+branding/watermark branch exists in the rail. Worst case: free/trial
+users are FORCED to carry the watermark (export-video.ts:1176-1182,
+effectiveAddWatermark = true) and still pay the full clean price.
+DECISION NEEDED (owner): the exact definition of "branded" for the free
+branch (watermark on? branding.watermark enabled? creator brand kit?),
+then implement: pre-check + charge branch on it, KB variant row added.
+
+### A-02 (P0) Quality export is a 150 VB clean-export loophole
+POST /export-quality charges flat QUALITY_EXPORT_COST = 150
+(export-video.ts:3211-3226 pre-check; :3018 tier select) on the SAME
+schema/pipeline — resolution to 4K, MOV/ProRes/DNxHR, watermark toggle
+for subscribers. A clean ProRes 4K export costs 150 VB vs 400 standard.
+DECISION NEEDED (owner): raise the quality price, or restrict
+watermark-off on this rail, or rule the 150 price intentional.
+
+### A-03 (P1) KB omits the editor's entire export rail (verified programmatically)
+operator-knowledge.json, entry id "video-editor": 102 endpoints, and
+/api/export-final-video, /api/export-video-job/:id, /api/export-quality,
+/api/export-multi-ratio, /api/prepare-export-files, /api/export-doctor/*,
+/api/auto-reframe, /api/lip-sync/run-all are ALL absent. The operator's
+grounding therefore cannot truthfully describe how the editor exports.
+Root cause per Audit A: the generator harvests endpoints from the page
+file only, not the editor's components. FIX PATH (parent/operator lane):
+widen the harvest in scripts/generate-operator-knowledge.mjs + regen.
+Also: KB baseCommit is 6cc14c93, not this tree's f96d7b72 (stale by
+construction), and every desk entry duplicates the full editor lists.
+
+### A-04 (P1) KB + FE registry price Video Translator flat 500; real is 500/min/language
+Server: credits = billableMinutes * languageCount * 500
+(routes/generate/video-translator.ts:62-63, :106-116). A 3-min,
+2-language job costs 3,000 VB; the operator and the confirm dialog
+(credit-costs.ts, sourced into the KB) both quote 500.
+DECISION NEEDED: per-minute pricing display model for registry + KB.
+
+### A-05 (P1) Unapproved PLACEHOLDER price is live and charging
+Generative AI Upscale charges 1,500 VB while its own constant reads
+"PLACEHOLDER — needs user price approval" (upscale-generative.ts:17,25).
+The KB at least labels it "(price TBD)". DECISION NEEDED (owner):
+approve 1,500, set a real price, or hide the feature until priced.
+
+### A-06 (P1) Run-all lip-sync charges 0 VB per scene — bundle or leak?
+/preview charges 300 VB per clip (lip-sync.ts:404, :545). processRunAll
+creates sub-jobs directly (lip-sync.ts:1403) bypassing that charge; the
+only VB charged is the final export's 400 (now truthfully disclosed
+after D-01). DECISION NEEDED (owner): intended bundle (then the KB's
+300/scene row needs a run-all entry) or an undercharge to close.
+
+### A-07 (P1) Finished render is discarded if the balance drops mid-render
+Charge happens after the render succeeds; on OutOfCreditsError the job
+is failed (code out_of_credits) and execution returns BEFORE completeJob
+(export-video.ts:3038-3046) — the completed video is never delivered.
+Combined with the up-front 402 gate, spending credits elsewhere during
+a long render loses the finished export. FIX PATH (parent): deliver +
+flag, or reserve/hold at job start — money-flow call.
+
+### A-08 (P1) Multi-ratio + run-all orchestration are memory-only
+export-multi-ratio.ts:109 `const jobs = new Map` (2h TTL); lip-sync.ts
+:1207 `lipSyncRuns = new Map` (swept at 2h; server note admits restarts
+kill orchestration). A deploy mid-render loses the job the FE told the
+user to "come back anytime" to (LipSyncStudio persists runId for
+resume). The main export rail was rebuilt durable (Postgres) for
+exactly this failure. FIX PATH: persist both stores like export_jobs.
+
+### A-09 (P2) Lip-sync preview accepts then discards four user controls
+lip-sync.ts:429-432: `void audioSourceType; void strength;
+void preserveFaceIdentity; void preserveArtistLook;` — validated, sent
+by the FE, never passed to the provider. DECISION: wire them through
+or remove/label them in LipSyncSection.
+
+### A-10 (P2) FE export poller deadline < server's legal worst case
+Poller gives up at 20 min (lib/export-job-poll.ts:33); server Pass A
+alone allows max(10 min, 10x duration) (export-video.ts:2720) plus
+phase-1 steps — long videos finish (and save) after the FE declared
+timeout, and no user-facing surface lists export_jobs to check.
+Also verified benign: captionExportMode never reaches the server as a
+field (the FE nulls captions client-side unless mode is "burn",
+FinalVideoExport.tsx:693) — no stripping defect in practice.
+And: all 116 editor-called endpoints exist server-side (Audit A's
+endpoint sweep, spot-verified in this lane) — zero dead endpoints.
 
 ## LEFT ON THE BOARD
 - D-06 dead settings fields (board-only; deletion needs owner word).
