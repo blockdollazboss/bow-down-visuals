@@ -322,6 +322,26 @@ describe("vendored worker script (source contract)", () => {
     expect(src).toContain("[copy.buffer]");
   });
 
+  it("init makes a FULL attempt per runtime base — no script-base lock-in (Stack-100 #3 Lane C)", () => {
+    /* Before: the first base whose importScripts succeeded locked
+       the init, and if every session create under it failed the
+       whole init died — even with good runtime copies at the next
+       bases. Now each base gets its own full attempt (script +
+       provider × model chain) and init only fails when EVERY
+       base's chain has failed. */
+    expect(src).toContain("function attemptBase(");
+    expect(src).toContain("return attemptBase(base, modelUrls, msg.threads, webgpu)");
+    expect(src).toContain('type: "init-error"');
+  });
+
+  it("every session create races a deadline — a hung create cannot eat the init budget (Stack-100 #3 Lane C)", () => {
+    expect(src).toContain("CREATE_DEADLINE_MS");
+    expect(src).toContain("Promise.race([create, deadline])");
+    /* A create that resolves after losing its race is released,
+       never adopted as a second session. */
+    expect(src).toContain("late.release()");
+  });
+
   it("the page-side client never loads ONNX into the page (no ort global, no session)", () => {
     const clientSrc = readFileSync(new URL("./rvm-engine.ts", import.meta.url), "utf8");
     expect(clientSrc).not.toContain("InferenceSession");

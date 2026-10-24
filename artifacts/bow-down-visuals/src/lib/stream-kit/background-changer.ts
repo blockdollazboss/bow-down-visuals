@@ -97,6 +97,37 @@
  *     reads the mask finer (960px) so its feather works on more
  *     of the mask's real gradient.
  *
+ * SAME-THING FIX (Stack-100 #3, Lane C — the owner retested the
+ * build above on his phone and reported the Green Screen "doing
+ * the same thing"). End-to-end audit of the SHIPPED path found the
+ * new engines were not what his phone ever ran:
+ *  1. THE 10-SECOND CAP VS A 27–37 MB COLD LOAD: engine init was
+ *     capped at 10 s, a freeze-era budget from when a stalled init
+ *     could hang start(). The Pro worker's cold payload — runtime
+ *     script + WASM (11 MB wasm build; 22 MB on the WebGPU-first
+ *     path) + the 15 MB model, plus session compile — cannot
+ *     reliably land inside 10 s on a phone network, and the worker
+ *     had no per-attempt deadline, so one slow WebGPU session
+ *     create could eat the whole cap. Pro died on the cap and the
+ *     light engine silently served. start() is raw-first now and
+ *     never awaits the engine, so waiting is free: the cap is
+ *     45 s (ENGINE_INIT_TIMEOUT_MS), and the worker bounds every
+ *     session create and retries the next runtime base when a
+ *     base's session chain fails outright.
+ *  2. THE FALLBACK WAS INVISIBLE: the studio rendered the live
+ *     engine as "On" for BOTH engines, so Pro, Standard, fallback
+ *     and degrade were indistinguishable — the owner's report was
+ *     the only one the UI made possible. The status channel now
+ *     carries the truth (EngineStatusDetail): which engine is
+ *     ACTUALLY live (probe-based — the adopted engine, never the
+ *     configured intent), whether it is a fallback, and why Pro
+ *     exited (couldn't start / too slow / stopped). The studio
+ *     names the engine and shows the fallback plainly.
+ *  The light engine's own motion build (frame-aligned snapshot +
+ *  motion-adaptive blend) was audited IN the studio's exact code
+ *  path and stands — it simply was not the whole story while the
+ *  Pro engine never reached the phone.
+ *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)
  * first — the output stream then holds the processed picture and the
@@ -190,6 +221,36 @@ export type BackgroundQuality = "auto" | "pro" | "standard";
 export type BackgroundEngineKind = "pro" | "standard" | "off";
 
 /**
+ * Why the Pro engine is not the live engine, when it was wanted:
+ *  - 'pro-init-failed': the Pro engine could not start on this
+ *    device (load failure, init timeout, unsupported browser).
+ *  - 'pro-too-slow': Pro started, but sustained slowness at its
+ *    lightest step handed the session to the light engine (the
+ *    'auto' degrade — Pro is never degraded under 'pro' quality).
+ *  - 'pro-stopped': Pro was live and its inferences failed until
+ *    it parked for the session (the failure cap).
+ */
+export type EngineFallbackReason = "pro-init-failed" | "pro-too-slow" | "pro-stopped";
+
+/**
+ * The engine truth, as adopted — PROBE-BASED, never intent-based:
+ * `kind` is the engine actually compositing right now, `fellBack`
+ * says the configured quality wanted the Pro engine and something
+ * else is serving, and `reason` says why Pro exited (null when
+ * Pro is live, when the light engine was pinned on purpose, or
+ * when no engine is live by choice / at all). Reported through
+ * config.onEngineStatusDetail alongside every onEngineStatus kind
+ * change, and readable any time via getEngineStatusDetail(). The
+ * studio renders this verbatim — a fallback is VISIBLE, never a
+ * silent "On" (Stack-100 #3 Lane C).
+ */
+export interface EngineStatusDetail {
+  kind: BackgroundEngineKind;
+  fellBack: boolean;
+  reason: EngineFallbackReason | null;
+}
+
+/**
  * Matte-refinement steps, sharpest first — the light way to cleaner
  * edges on the segmentation engine's mask. Each step sets how wide
  * the mask is read (a finer read keeps more edge detail) and how
@@ -246,12 +307,22 @@ export const PRO_MATTE_POST = {
 } as const;
 
 /**
- * Hard cap on engine initialisation (ms). A stalled load — a hung
- * script fetch, a compile that never returns — must not wedge
- * start(): past this the engine reads as unavailable, the studio
- * shows its honest engine-down note, and the camera runs raw.
+ * Hard cap on ONE engine's initialisation (ms). A stalled load —
+ * a hung script fetch, a compile that never returns — must not
+ * wedge selection forever: past this the engine reads as
+ * unavailable and selection moves on.
+ *
+ * 45 s, sized by the Pro engine's real cold payload (runtime +
+ * WASM + the 15 MB model + session compile ≈ 27–37 MB before the
+ * first frame) on a phone network. The freeze-era 10 s cap made
+ * sense when a stalled init could hang start(); start() is
+ * raw-first now and never awaits the engine, so a generous cap
+ * costs the creator nothing — the camera is already live — while
+ * the 10 s cap cost the Pro engine its life on real phones
+ * (Stack-100 #3 Lane C: the owner's "still the same thing" —
+ * Pro died on this cap and the light engine silently served).
  */
-export const ENGINE_INIT_TIMEOUT_MS = 10_000;
+export const ENGINE_INIT_TIMEOUT_MS = 45_000;
 
 /**
  * Output-canvas height caps (px). A session STARTS at the top cap:
@@ -357,6 +428,12 @@ export interface BackgroundChangerConfig {
    *  ('pro' | 'standard' | 'off') — the studio shows it as the
    *  honest "Background engine: On / Off" status. */
   onEngineStatus?: (kind: BackgroundEngineKind) => void;
+  /** Fired alongside onEngineStatus with the full engine truth
+   *  (EngineStatusDetail): which engine is ACTUALLY live, whether
+   *  it is a fallback from the wanted Pro engine, and why Pro
+   *  exited. The studio names the live engine and shows a
+   *  fallback plainly instead of dressing it up as "On". */
+  onEngineStatusDetail?: (detail: EngineStatusDetail) => void;
   image?: string | File | Blob | HTMLImageElement | null;
   blurAmount?: number;
   mirror?: boolean;
@@ -541,10 +618,11 @@ class MediaPipeEngine implements MattingEngine {
 }
 
 export class BackgroundChanger {
-  config: Required<Omit<BackgroundChangerConfig, "image" | "onNoiseStatus" | "onEngineStatus" | "deviceId">> & {
+  config: Required<Omit<BackgroundChangerConfig, "image" | "onNoiseStatus" | "onEngineStatus" | "onEngineStatusDetail" | "deviceId">> & {
     image: BackgroundChangerConfig["image"];
     onNoiseStatus: BackgroundChangerConfig["onNoiseStatus"];
     onEngineStatus: BackgroundChangerConfig["onEngineStatus"];
+    onEngineStatusDetail: BackgroundChangerConfig["onEngineStatusDetail"];
     deviceId: string | null;
   };
   mode: BackgroundMode;
@@ -575,6 +653,14 @@ export class BackgroundChanger {
      so the honest unavailable note survives a trip through raw
      mode and back. */
   private _parkError: BackgroundChangerError | null = null;
+  /* Why the Pro engine last exited (init failure / auto degrade /
+     park), or null while Pro is live or was never wanted. Set by
+     the path that retires Pro, read by _reportStatusDetail when
+     the next engine is adopted — this is what makes a fallback
+     VISIBLE with its real reason instead of a silent "On". */
+  private _proExitReason: EngineFallbackReason | null = null;
+  /* The last reported engine truth (see EngineStatusDetail). */
+  private _statusDetail: EngineStatusDetail = { kind: "off", fellBack: false, reason: null };
   /* When the live engine arrived mid-session (the fade-in clock),
      or null when no fade is in progress. */
   private _engineFadeStart: number | null = null;
@@ -631,6 +717,7 @@ export class BackgroundChanger {
       quality: config.quality ?? "auto",
       engineInitTimeoutMs: config.engineInitTimeoutMs ?? ENGINE_INIT_TIMEOUT_MS,
       onEngineStatus: config.onEngineStatus,
+      onEngineStatusDetail: config.onEngineStatusDetail,
       image: config.image ?? null,
       blurAmount: config.blurAmount ?? 18,
       mirror: config.mirror ?? false,
@@ -740,6 +827,7 @@ export class BackgroundChanger {
     this._engineError = null;
     this._parkedKinds.clear();
     this._parkError = null;
+    this._proExitReason = null;
     this._consecutiveInferenceFailures = 0;
     /* A fresh session starts at the TOP output cap again — a
        previous session's governed step-down never follows the
@@ -969,6 +1057,34 @@ export class BackgroundChanger {
   }
 
   /**
+   * The full engine truth (EngineStatusDetail): the engine
+   * ACTUALLY live, whether it is a fallback from the wanted Pro
+   * engine, and why Pro exited. Mirrors the last
+   * onEngineStatusDetail report; before any engine settles it
+   * reads { kind: 'off', fellBack: false, reason: null }.
+   */
+  getEngineStatusDetail(): EngineStatusDetail {
+    return this._statusDetail;
+  }
+
+  /**
+   * Compute, store, and report the engine truth for a kind change.
+   * A fallback exists only when the configured quality wanted the
+   * Pro engine ('auto' / 'pro'), something else is live, and a Pro
+   * exit reason is on record — a pinned 'standard' quality is a
+   * choice, never a fallback, and raw-by-choice (mode 'none')
+   * clears the record before reporting (see _teardownEngine).
+   */
+  private _reportStatusDetail(kind: BackgroundEngineKind): void {
+    const wantedPro = this.config.quality !== "standard";
+    const fellBack = wantedPro && kind !== "pro" && this._proExitReason !== null;
+    this._statusDetail = { kind, fellBack, reason: fellBack ? this._proExitReason : null };
+    if (typeof this.config.onEngineStatusDetail === "function") {
+      this.config.onEngineStatusDetail(this._statusDetail);
+    }
+  }
+
+  /**
    * The Pro engine's internal step currently in force (index into
    * RVM_STEPS). The ladder restarts at the sharpest step (0) on
    * every Pro adoption; 'auto' and 'pro' both let it retune.
@@ -1094,6 +1210,7 @@ export class BackgroundChanger {
          engine here — only a fresh start() clears the parks. */
       this._engineError = this._parkError;
       if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus("off");
+      this._reportStatusDetail("off");
       return;
     }
     let firstError: unknown = null;
@@ -1113,6 +1230,10 @@ export class BackgroundChanger {
         await this._swapEngine(engine);
         return;
       } catch (err) {
+        /* The Pro engine's exit is recorded with its reason BEFORE
+           the fallback is adopted, so the adoption's status detail
+           can say "Pro couldn't start" instead of a silent "On". */
+        if (kind === "pro") this._proExitReason = "pro-init-failed";
         firstError = firstError ?? err;
       }
     }
@@ -1174,6 +1295,7 @@ export class BackgroundChanger {
     const engine = this._engine;
     if (!engine || this._parkedKinds.has(engine.kind)) return;
     this._parkedKinds.add(engine.kind);
+    if (engine.kind === "pro") this._proExitReason = "pro-stopped";
     this._parkError = new BackgroundChangerError(
       "SEGMENTATION_FAILED",
       "Background effects stopped working, so your camera is running plain.",
@@ -1240,6 +1362,9 @@ export class BackgroundChanger {
     this._frameStall.reset(performance.now());
     this.segmenter = null;
     this._engineError = null;
+    /* Raw is a CHOICE here, not a fallback: the Pro exit record
+       clears so the detail reports a plain 'off'. */
+    this._proExitReason = null;
     this._mattePost.reset();
     if (old) {
       try {
@@ -1249,6 +1374,7 @@ export class BackgroundChanger {
       }
     }
     if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
+    this._reportStatusDetail(this._engineKind);
   }
 
   /** Adopt a new live engine (or none), retiring the previous one.
@@ -1306,7 +1432,10 @@ export class BackgroundChanger {
         /* already disposed */
       }
     }
+    /* Pro live again: any earlier exit record is history. */
+    if (next?.kind === "pro") this._proExitReason = null;
     if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
+    this._reportStatusDetail(this._engineKind);
   }
 
   /** The refinement step the configured quality names right now:
@@ -1369,6 +1498,10 @@ export class BackgroundChanger {
    *  its floor step. */
   private async _degradeToStandard(): Promise<void> {
     if (this._parkedKinds.has("standard")) return;
+    /* Recorded BEFORE the swap so the light engine's adoption
+       reports the fallback with its real reason: Pro ran, and
+       this device could not hold it. */
+    this._proExitReason = "pro-too-slow";
     try {
       const engine = new MediaPipeEngine(this.config.modelSelection);
       await this._initEngine(engine);

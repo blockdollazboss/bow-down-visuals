@@ -53,11 +53,18 @@ app.use((_req, res, next) => {
           /* jsdelivr serves the Go Live kit's in-browser engines (MediaPipe
              segmentation + RNNoise suppression WASM); 'wasm-unsafe-eval'
              lets those WASM modules compile. Cloudflare Stream hosts take
-             the WHIP/WHEP calls for native broadcasts. */
-          "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net",
+             the WHIP/WHEP calls for native broadcasts. The r2.dev origin
+             is the site's own media bucket (MEDIA_CDN_URL in the
+             frontend's lib/media-cdn.ts): the kit's engines load
+             bucket-first — MediaPipe/RVM scripts via script tags and
+             importScripts (script-src), the ORT WASM + RVM model via
+             fetch inside the engine worker (connect-src). Without it
+             every bucket hop was CSP-refused and only the same-origin
+             fallback copies ever served (Stack-100 #3 Lane C). */
+          "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: https: blob:",
-          "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com",
+          "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
           "worker-src 'self' blob:",
           "frame-src https://js.stripe.com",
           "font-src 'self' data: https:",

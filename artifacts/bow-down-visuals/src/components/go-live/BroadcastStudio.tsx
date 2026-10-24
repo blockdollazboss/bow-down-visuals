@@ -28,6 +28,7 @@ import {
   type BackgroundEngineKind,
   type BackgroundMode,
   type BackgroundQuality,
+  type EngineStatusDetail,
 } from "@/lib/stream-kit/background-changer";
 import { VOICE_EFFECTS, type NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
 import { BACKDROPS, BACKDROP_URIS } from "@/lib/stream-kit/backdrops";
@@ -180,6 +181,11 @@ export default function BroadcastStudio() {
      a stalled or failed engine reads Off, never dressed up. */
   const [quality, setQualityState] = useState<BackgroundQuality>("auto");
   const [engineKind, setEngineKind] = useState<BackgroundEngineKind>("off");
+  /* The full engine truth from the kit (Stack-100 #3 Lane C): the
+     engine ACTUALLY live, whether it is a fallback from the wanted
+     Pro engine, and why — rendered verbatim below so a fallback
+     reads as a fallback, never as a dressed-up "On". */
+  const [engineDetail, setEngineDetail] = useState<EngineStatusDetail | null>(null);
   const [backdropId, setBackdropId] = useState("stage");
   const [camFx, setCamFx] = useState("none");
   const [nc, setNc] = useState<NoiseCancellationLevel>("on");
@@ -503,6 +509,7 @@ export default function BroadcastStudio() {
               void c.setImage(BACKDROP_URIS[backdropId] ?? null).catch(() => undefined);
             }
           },
+          onEngineStatusDetail: (detail) => setEngineDetail(detail),
         });
       }
       const changer = changerRef.current;
@@ -515,6 +522,7 @@ export default function BroadcastStudio() {
       const backdropWanted = mode !== "none";
       setEngineDown(backdropWanted && !!changer.engineError);
       setEngineKind(changer.getEngineKind());
+      setEngineDetail(changer.getEngineStatusDetail());
       if (changer.segmentationAvailable && mode === "image" && !changer.hasBackdrop()) {
         await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
       }
@@ -1693,7 +1701,16 @@ export default function BroadcastStudio() {
         </p>
         {phase !== "off" && (
           <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="engine-status">
-            Background engine: {engineKind === "off" ? "Off" : "On"}
+            Background engine: {engineKind === "pro" ? "Pro" : engineKind === "standard" ? "Standard" : "Off"}
+          </p>
+        )}
+        {phase !== "off" && engineDetail?.fellBack && engineKind === "standard" && (
+          <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#8a6d1f]" : "text-amber-200/80"}`} data-testid="engine-fallback-note">
+            {engineDetail.reason === "pro-too-slow"
+              ? "Pro engine was too slow on this device — using Standard."
+              : engineDetail.reason === "pro-stopped"
+                ? "Pro engine stopped on this device — using Standard."
+                : "Pro engine couldn't start on this device — using Standard."}
           </p>
         )}
         <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">

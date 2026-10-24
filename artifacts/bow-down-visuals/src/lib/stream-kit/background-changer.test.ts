@@ -1081,3 +1081,196 @@ describe("Pro engine restored (Oct 23, 2026) — selection, fallback, degrade, p
     }
   }, 30000);
 });
+
+describe("honest engine status (Stack-100 #3 Lane C — the fallback is VISIBLE)", () => {
+  /* The owner's retest verdict on the restored build was "still
+     the same thing": on his phone the Pro engine never served —
+     it died on the freeze-era 10s init cap against a 27–37 MB
+     cold payload — the light engine silently took over, and the
+     studio's status line read "On" for both engines, so the
+     fallback could not even be SEEN, let alone reported. These
+     pins hold the truth channel: the detail reports the engine
+     ACTUALLY adopted, whether it is a fallback, and why Pro
+     exited; the kind channel's sequences are unchanged. */
+
+  it("the init cap is sized for the Pro engine's real cold payload (45s, not the freeze-era 10s)", async () => {
+    const { ENGINE_INIT_TIMEOUT_MS } = await import("./background-changer");
+    expect(ENGINE_INIT_TIMEOUT_MS).toBe(45_000);
+  });
+
+  it("Pro live: the detail says Pro, no fallback, no reason — and the kind channel is untouched", async () => {
+    FakeProWorker.instances = [];
+    FakeProWorker.behavior = "auto";
+    vi.stubGlobal("Worker", FakeProWorker);
+    vi.stubGlobal("createImageBitmap", async (video: { videoWidth: number; videoHeight: number }) => ({
+      width: video.videoWidth,
+      height: video.videoHeight,
+      close(): void {},
+    }));
+    const BackgroundChanger = await loadChanger();
+    const statuses: string[] = [];
+    const details: unknown[] = [];
+    const changer = new BackgroundChanger({
+      mode: "green",
+      onEngineStatus: (k) => statuses.push(k),
+      onEngineStatusDetail: (d) => details.push(d),
+    });
+    await changer.start();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("pro");
+    expect(changer.getEngineStatusDetail()).toEqual({ kind: "pro", fellBack: false, reason: null });
+    expect(details).toEqual([{ kind: "pro", fellBack: false, reason: null }]);
+    expect(statuses).toEqual(["pro"]);
+    await changer.stop();
+  });
+
+  it("Pro that cannot start: the light engine's adoption REPORTS the fallback and its reason", async () => {
+    /* No Worker in this environment: the Pro engine cannot even
+       spawn — the exact shape of an unsupported phone browser. */
+    const BackgroundChanger = await loadChanger();
+    const details: unknown[] = [];
+    const changer = new BackgroundChanger({
+      mode: "green",
+      onEngineStatusDetail: (d) => details.push(d),
+    });
+    const started = changer.start();
+    await flush();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.getEngineStatusDetail()).toEqual({
+      kind: "standard",
+      fellBack: true,
+      reason: "pro-init-failed",
+    });
+    expect(details[details.length - 1]).toEqual({
+      kind: "standard",
+      fellBack: true,
+      reason: "pro-init-failed",
+    });
+    await changer.stop();
+  });
+
+  it("a pinned 'standard' quality is a CHOICE, never reported as a fallback", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green", quality: "standard" });
+    const started = changer.start();
+    await flush();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.getEngineStatusDetail()).toEqual({ kind: "standard", fellBack: false, reason: null });
+    await changer.stop();
+  });
+
+  it("Pro parked by the failure cap: the fall-through reports 'pro-stopped'", async () => {
+    const { MAX_CONSECUTIVE_INFERENCE_FAILURES } = await import("./background-changer");
+    FakeProWorker.instances = [];
+    FakeProWorker.behavior = "frame-error";
+    vi.stubGlobal("Worker", FakeProWorker);
+    vi.stubGlobal("createImageBitmap", async (video: { videoWidth: number; videoHeight: number }) => ({
+      width: video.videoWidth,
+      height: video.videoHeight,
+      close(): void {},
+    }));
+    const BackgroundChanger = await loadChanger();
+    const details: unknown[] = [];
+    const changer = new BackgroundChanger({
+      mode: "green",
+      onEngineStatusDetail: (d) => details.push(d),
+    });
+    await changer.start();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("pro");
+    const stepFrame = async () => {
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await flush();
+      await flush();
+    };
+    for (let i = 0; i < MAX_CONSECUTIVE_INFERENCE_FAILURES; i++) await stepFrame();
+    await flush();
+    expect(scripts).toHaveLength(1); // the light engine is loading
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    expect(changer.getEngineStatusDetail()).toEqual({
+      kind: "standard",
+      fellBack: true,
+      reason: "pro-stopped",
+    });
+    expect(details[details.length - 1]).toEqual({
+      kind: "standard",
+      fellBack: true,
+      reason: "pro-stopped",
+    });
+    await changer.stop();
+  }, 30000);
+
+  it("auto degrade on sustained slowness: the swap reports 'pro-too-slow'", async () => {
+    FakeProWorker.instances = [];
+    FakeProWorker.behavior = "auto";
+    vi.stubGlobal("Worker", FakeProWorker);
+    vi.stubGlobal("createImageBitmap", async (video: { videoWidth: number; videoHeight: number }) => ({
+      width: video.videoWidth,
+      height: video.videoHeight,
+      close(): void {},
+    }));
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green" });
+    await changer.start();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("pro");
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    try {
+      const stepFrame = async () => {
+        rafCallbacks[rafCallbacks.length - 1]?.();
+        await flush();
+        await flush();
+      };
+      for (let i = 0; i < 800 && scripts.length === 0; i++) await stepFrame();
+      expect(scripts).toHaveLength(1); // degrade: the light engine starts loading
+      win.SelfieSegmentation = FakeSegmenter;
+      scripts[0].onload?.();
+      await flush();
+      await flush();
+      expect(changer.getEngineKind()).toBe("standard");
+      expect(changer.getEngineStatusDetail()).toEqual({
+        kind: "standard",
+        fellBack: true,
+        reason: "pro-too-slow",
+      });
+    } finally {
+      nowSpy.mockRestore();
+      await changer.stop();
+    }
+  }, 30000);
+
+  it("the studio renders the ACTUAL engine name and the plain fallback notes (source contract)", () => {
+    const studio = readFileSync(
+      new URL("../../components/go-live/BroadcastStudio.tsx", import.meta.url),
+      "utf8",
+    );
+    /* The live engine is NAMED — never a dressed-up "On". */
+    expect(studio).toContain('engineKind === "pro" ? "Pro" : engineKind === "standard" ? "Standard" : "Off"');
+    expect(studio).not.toContain('engineKind === "off" ? "Off" : "On"');
+    /* A permanent fallback is VISIBLE, with its reason, worded
+       for the creator. */
+    expect(studio).toContain('data-testid="engine-fallback-note"');
+    expect(studio).toContain("Pro engine couldn't start on this device — using Standard.");
+    expect(studio).toContain("Pro engine was too slow on this device — using Standard.");
+    expect(studio).toContain("Pro engine stopped on this device — using Standard.");
+    /* And it is fed by the kit's probe-based detail channel. */
+    expect(studio).toContain("onEngineStatusDetail");
+    expect(studio).toContain("getEngineStatusDetail()");
+  });
+});
