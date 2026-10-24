@@ -35,6 +35,9 @@ export interface MarketSaleRow {
   checkout_group_id: string | null;
   /** Shop discount code the checkout was priced with (migration 0190). */
   discount_code: string | null;
+  /** Order bump marker (feature #13): on the add-on's own row, the
+      cart product it was attached through. Absent pre-migration. */
+  bump_for_product_id?: string | null;
   paid_at: string | null;
   created_at: string;
 }
@@ -47,15 +50,38 @@ const SALE_COLUMNS = sql`
   e.paid_at, e.created_at
 `;
 
+/* The bump marker rides a best-effort select: on a database where the
+   feature's migration hasn't landed yet the plain select keeps every
+   receipt working exactly as before (a bump row can only exist once
+   the columns do, so nothing is lost by the fallback). */
+const SALE_COLUMNS_WITH_BUMP = sql`
+  e.id, e.shop_id, e.user_id, e.product_id, p.name AS product_name,
+  e.quantity, e.amount_cents, e.platform_fee_cents, e.buyer_email,
+  e.event_type, e.payment_status, e.stripe_session_id, e.checkout_group_id,
+  e.discount_code, e.bump_for_product_id,
+  e.paid_at, e.created_at
+`;
+
 export async function fetchMarketSaleBySession(sessionId: string): Promise<MarketSaleRow[]> {
-  const r = await db.execute(sql`
-    SELECT ${SALE_COLUMNS}
-    FROM shop_events e
-    LEFT JOIN shop_products p ON p.id = e.product_id
-    WHERE e.stripe_session_id = ${sessionId}
-    ORDER BY e.created_at ASC
-  `);
-  return r.rows as unknown as MarketSaleRow[];
+  try {
+    const r = await db.execute(sql`
+      SELECT ${SALE_COLUMNS_WITH_BUMP}
+      FROM shop_events e
+      LEFT JOIN shop_products p ON p.id = e.product_id
+      WHERE e.stripe_session_id = ${sessionId}
+      ORDER BY e.created_at ASC
+    `);
+    return r.rows as unknown as MarketSaleRow[];
+  } catch {
+    const r = await db.execute(sql`
+      SELECT ${SALE_COLUMNS}
+      FROM shop_events e
+      LEFT JOIN shop_products p ON p.id = e.product_id
+      WHERE e.stripe_session_id = ${sessionId}
+      ORDER BY e.created_at ASC
+    `);
+    return r.rows as unknown as MarketSaleRow[];
+  }
 }
 
 /** True once every row for the session is a recorded (paid) sale. */
@@ -128,6 +154,9 @@ export interface MarketSaleReceipt {
     gross_cents: number;
     platform_fee_cents: number;
     seller_net_cents: number;
+    /** Order bump (feature #13): this line is a ticked add-on. */
+    isBump: boolean;
+    bumpForProductId: string | null;
   }>;
 }
 
@@ -143,6 +172,8 @@ export function marketSaleReceipt(rows: MarketSaleRow[]): MarketSaleReceipt {
     gross_cents: Number(r.amount_cents),
     platform_fee_cents: Number(r.platform_fee_cents),
     seller_net_cents: Number(r.amount_cents) - Number(r.platform_fee_cents),
+    isBump: Boolean(r.bump_for_product_id),
+    bumpForProductId: r.bump_for_product_id ? String(r.bump_for_product_id) : null,
   }));
   return {
     status: paid ? "paid" : expired ? "expired" : "pending_payment",

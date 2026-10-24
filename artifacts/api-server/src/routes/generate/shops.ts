@@ -44,6 +44,13 @@ import {
   marketSaleIsPaid,
   marketSaleReceipt,
 } from "../../lib/market-sale";
+import {
+  readBumpConfig,
+  validateBumpTarget,
+  bumpUnitCents,
+  MAX_BUMP_PERCENT_OFF,
+  type BumpConfig,
+} from "../../lib/order-bumps";
 import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 
@@ -238,6 +245,12 @@ interface ProductRow {
       status: owner DTOs carry it, buyer payloads never do (they get
       the resolved `pinned_ad` video instead). */
   pinned_ugc_ad_id: string | null;
+  /* Order-bump attachment (feature #13, more-bumps lane). Optional:
+     the columns arrive with the lane's reported migration (see
+     .lane/MIGRATION-NEEDED.md); rows without them simply have no bump
+     (readBumpConfig treats absent keys as "no offer"). */
+  bump_product_id?: string | null;
+  bump_percent_off?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -333,6 +346,156 @@ function presentShopDiscount(c: ShopDiscountRow) {
     expiresAt: c.expires_at ? String(c.expires_at) : null,
     isActive: Boolean(c.is_active),
     createdAt: String(c.created_at),
+  };
+}
+
+/* ── Order bumps (Stack-100 #3, feature #13 — shops cart rail) ──────────
+   The storefront rail's pattern (routes/storefront.ts) carried to the
+   cart checkout: a seller attaches ONE add-on product (same shop,
+   seller-set price or seller-set % off) to a product; at cart checkout
+   the buyer can tick it for each cart product that offers one, and the
+   add-on rides the same Stripe session as its own line (its own
+   shop_events row, marked with bump_for_product_id). All bump money
+   math lives in lib/order-bumps.ts; the fee is this rail's flat 5%
+   per-line split, exactly like every other cart line.
+   Persistence is the lane's REPORTED migration (.lane/
+   MIGRATION-NEEDED.md): every read below is defensive — absent columns
+   mean "no offer", so the rail behaves byte-identically until the
+   migration lands, then lights up with no code change. */
+
+export interface ShopBumpOfferPayload {
+  productId: string;
+  title: string;
+  listPriceCents: number;
+  listPrice: string;
+  percentOff: number;
+  priceCents: number;
+  price: string;
+}
+
+interface ShopProductLite {
+  id: string;
+  shop_id: string;
+  name: string;
+  price_cents: number;
+  status: string;
+}
+
+async function fetchShopProductLite(productId: string): Promise<ShopProductLite | null> {
+  const r = await db.execute(sql`
+    SELECT id, shop_id, name, price_cents, status
+    FROM shop_products
+    WHERE id = ${productId}
+    LIMIT 1
+  `);
+  return (r.rows as unknown as ShopProductLite[])[0] ?? null;
+}
+
+/** One product's bump attachment, read defensively: the bump columns
+    are selected on their own so a pre-migration database (or a row
+    that predates them) simply yields "no offer". */
+async function fetchShopBumpConfig(productId: string): Promise<BumpConfig | null> {
+  try {
+    const r = await db.execute(sql`
+      SELECT bump_product_id, bump_percent_off
+      FROM shop_products
+      WHERE id = ${productId}
+      LIMIT 1
+    `);
+    return readBumpConfig(r.rows[0] as Record<string, unknown> | undefined);
+  } catch {
+    return null;
+  }
+}
+
+/** Every product's bump attachment in a shop, keyed by product id —
+    one defensive query for list payloads. Empty pre-migration. */
+async function fetchShopBumpConfigs(shopId: string): Promise<Map<string, BumpConfig>> {
+  const out = new Map<string, BumpConfig>();
+  try {
+    const r = await db.execute(sql`
+      SELECT id, bump_product_id, bump_percent_off
+      FROM shop_products
+      WHERE shop_id = ${shopId}
+      LIMIT 500
+    `);
+    for (const row of r.rows as Array<Record<string, unknown>>) {
+      const cfg = readBumpConfig(row);
+      if (cfg) out.set(String(row["id"]), cfg);
+    }
+  } catch {
+    /* Pre-migration: no offers anywhere. */
+  }
+  return out;
+}
+
+/** The buyer-facing offer for one product, or null when any part of it
+    isn't live (no attachment, target gone / other shop / paused /
+    free). A stale setting must never break the main sale. */
+function shopBumpOfferFromRows(
+  main: { id: string; shop_id: string },
+  cfg: BumpConfig | null,
+  target: ShopProductLite | null,
+): ShopBumpOfferPayload | null {
+  if (!cfg || !target) return null;
+  const verdict = validateBumpTarget(
+    { id: main.id, profileId: main.shop_id },
+    {
+      id: target.id,
+      profileId: target.shop_id,
+      priceCents: Number(target.price_cents),
+      isActive: target.status === "active",
+      /* Shops carry no inventory — an active product is in stock. */
+      inventory: -1,
+    },
+  );
+  if (!verdict.ok) return null;
+  const unit = bumpUnitCents(Number(target.price_cents), cfg.percentOff);
+  return {
+    productId: target.id,
+    title: target.name,
+    listPriceCents: Number(target.price_cents),
+    listPrice: formatPriceCents(Number(target.price_cents)),
+    percentOff: cfg.percentOff,
+    priceCents: unit,
+    price: formatPriceCents(unit),
+  };
+}
+
+type ShopBumpResolution =
+  | { ok: true; target: ShopProductLite; unitCents: number; percentOff: number }
+  | { ok: false; code: string; message: string };
+
+/** Checkout-time resolution: the tick is re-resolved and re-priced
+    HERE — a ticked box with no live offer refuses the whole checkout
+    rather than quietly charging for the cart alone or inventing a
+    price (the storefront rail's rule). */
+async function resolveShopBumpForCheckout(
+  mainProductId: string,
+  shopId: string,
+): Promise<ShopBumpResolution> {
+  const cfg = await fetchShopBumpConfig(mainProductId);
+  if (!cfg) {
+    return { ok: false, code: "BUMP_NOT_OFFERED", message: "That product doesn't have an add-on offer." };
+  }
+  const target = await fetchShopProductLite(cfg.bumpProductId);
+  if (!target || target.shop_id !== shopId) {
+    return { ok: false, code: "BUMP_NOT_OFFERED", message: "That add-on isn't for sale right now." };
+  }
+  if (target.id === mainProductId) {
+    return { ok: false, code: "BUMP_SELF", message: "A product can't be its own add-on." };
+  }
+  if (target.status !== "active") {
+    return { ok: false, code: "BUMP_INACTIVE", message: "That add-on isn't for sale right now." };
+  }
+  if (Math.round(Number(target.price_cents)) <= 0) {
+    return { ok: false, code: "BUMP_FREE", message: "A free product can't be a paid add-on." };
+  }
+  return {
+    ok: true,
+    target,
+    unitCents: bumpUnitCents(Number(target.price_cents), cfg.percentOff),
+    percentOff: cfg.percentOff,
   };
 }
 
@@ -487,15 +650,35 @@ router.get("/shops/handle/:handle", async (req, res) => {
     pinned_ugc_ad_id: string | null;
   }>;
   const pinnedAds = await pinnedAdVideosById(productRows);
+  /* Order bumps (feature #13): each product carries its live add-on
+     offer (resolved: same shop, active, priced — otherwise null), so
+     the shop page can offer the tick at cart time. Resolved from this
+     shop's own rows; pre-migration the config map is empty and every
+     product simply carries bump: null. */
+  const bumpConfigs = await fetchShopBumpConfigs(shop.id);
+  const bumpTargets = new Map<string, ShopProductLite>();
+  for (const cfg of bumpConfigs.values()) {
+    if (!bumpTargets.has(cfg.bumpProductId)) {
+      const t = await fetchShopProductLite(cfg.bumpProductId);
+      if (t) bumpTargets.set(t.id, t);
+    }
+  }
   res.json({
     shop: await presentShopRow(shop),
     products: await Promise.all(
       productRows.map(async (p) => {
         const { pinned_ugc_ad_id, ...pub } = p;
+        const pid = String((p as Record<string, unknown>)["id"] ?? "");
+        const cfg = bumpConfigs.get(pid) ?? null;
         return {
           ...pub,
           image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url,
           pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
+          bump: shopBumpOfferFromRows(
+            { id: pid, shop_id: shop.id },
+            cfg,
+            cfg ? (bumpTargets.get(cfg.bumpProductId) ?? null) : null,
+          ),
         };
       }),
     ),
@@ -524,11 +707,16 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
   `);
   const rows = result.rows as unknown as ProductRow[];
   const pinnedAds = await pinnedAdVideosById(rows);
+  /* Owner reads carry the raw bump setting (feature #13) so the
+     seller's dashboard can show and edit it even while the add-on is
+     paused — buyer reads get the resolved `bump` offer instead. */
+  const bumpConfigs = await fetchShopBumpConfigs(shop.id);
   res.json({
     products: await Promise.all(
       rows.map(async (p) => ({
         ...(await presentShopProductRow(p)),
         pinned_ad: p.pinned_ugc_ad_id ? (pinnedAds.get(p.pinned_ugc_ad_id) ?? null) : null,
+        bumpConfig: bumpConfigs.get(p.id) ?? null,
       })),
     ),
   });
@@ -640,6 +828,87 @@ router.delete("/shops/:id/products/:productId", requireAuth, async (req, res) =>
     DELETE FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id}
   `);
   res.json({ deleted: true });
+});
+
+/* ── PUT /api/shops/:id/products/:productId/bump — order-bump attachment ──
+   One add-on per product (feature #13). Attach-time hard rules mirror
+   the storefront rail: the add-on must be the SAME shop's product,
+   never the product itself, and never a $0 product (free goods ride
+   the free-cart path, not a paid line). A paused add-on may be
+   attached — the buyer-facing offer stays hidden until it's active,
+   and the response says whether the offer is live right now. The
+   UPDATE names the bump columns outright, so pre-migration this one
+   surface answers an honest 500 (every read stays defensive). */
+const setShopBumpSchema = z.object({
+  bumpProductId: z.string().uuid().nullable(),
+  percentOff: z.number().int().min(0).max(MAX_BUMP_PERCENT_OFF).default(0),
+});
+
+router.put("/shops/:id/products/:productId/bump", publicApiLimiter, requireAuth, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  const parsed = setShopBumpSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid bump setting.", details: parsed.error.issues });
+    return;
+  }
+  const productId = param(req.params.productId);
+  try {
+    const main = await fetchShopProductLite(productId);
+    if (!main || main.shop_id !== shop.id) {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    const { bumpProductId, percentOff } = parsed.data;
+    if (bumpProductId) {
+      const target = await fetchShopProductLite(bumpProductId);
+      if (!target || target.shop_id !== shop.id) {
+        res.status(400).json({
+          error: "BUMP_NOT_YOURS",
+          message: "The add-on has to be one of this shop's own products.",
+        });
+        return;
+      }
+      const verdict = validateBumpTarget(
+        { id: main.id, profileId: main.shop_id },
+        {
+          id: target.id,
+          profileId: target.shop_id,
+          priceCents: Number(target.price_cents),
+          isActive: target.status === "active",
+          inventory: -1,
+        },
+      );
+      /* A paused add-on may be attached (it just isn't offered yet);
+         every other refusal is hard. */
+      if (!verdict.ok && verdict.code !== "BUMP_INACTIVE") {
+        res.status(400).json({ error: verdict.code, message: verdict.reason });
+        return;
+      }
+    }
+    const r = await db.execute(sql`
+      UPDATE shop_products
+      SET bump_product_id = ${bumpProductId}, bump_percent_off = ${bumpProductId ? percentOff : 0},
+          updated_at = NOW()
+      WHERE id = ${productId} AND shop_id = ${shop.id}
+      RETURNING id
+    `);
+    if (r.rows.length === 0) {
+      res.status(404).json({ error: "Product not found." });
+      return;
+    }
+    const cfg = await fetchShopBumpConfig(productId);
+    const target = cfg ? await fetchShopProductLite(cfg.bumpProductId) : null;
+    const offer = shopBumpOfferFromRows({ id: main.id, shop_id: shop.id }, cfg, target);
+    logger.info({ userId: req.userId, shopId: shop.id, productId, bumpProductId, percentOff }, "[shops] product bump updated");
+    res.json({ productId, bumpConfig: cfg, offerLive: offer !== null, bump: offer });
+  } catch (err) {
+    logger.error({ err, shopId: shop.id, productId }, "[shops] product bump update failed");
+    res.status(500).json({ error: "Could not update the add-on offer." });
+  }
 });
 
 /* ── Shop discount codes: owner management (0190) ────────────────────────
@@ -1383,7 +1652,11 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
    shop's shop_discount_codes, applied to unit prices before the fee
    (the storefront's sequence), carried on the order rows, and counted
    as used only when the sale records — at the flip, or right here for
-   a free cart. */
+   a free cart.
+   Order bumps (feature #13): includeBumps ticks a cart product's
+   attached add-on; it is re-resolved + re-priced server-side, rides
+   the same session as its own line/row (marked bump_for_product_id),
+   and is never discounted by the shop code. */
 const checkoutSchema = z.object({
   shopId: z.string().uuid(),
   /* Legacy single-line shape (kept for older callers). */
@@ -1399,6 +1672,10 @@ const checkoutSchema = z.object({
      THIS shop's codes, exactly like the storefront rail validates
      against the seller's profile. */
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Order bumps (feature #13): the cart product ids whose attached
+     add-on the buyer ticked. Each tick is re-resolved and re-priced
+     server-side — the tick alone buys nothing. */
+  includeBumps: z.array(z.string().uuid()).max(50).optional().default([]),
 });
 
 interface CheckoutLine {
@@ -1412,6 +1689,46 @@ interface CheckoutLine {
   gross: number;
   fee: number;
   saleId: string;
+  /** Order bump (feature #13): this line is a ticked add-on, attached
+      through the cart product `bumpFor`. */
+  isBump?: boolean;
+  bumpFor?: string;
+}
+
+/** Insert one order line into shop_events. Bump lines carry the
+    bump_for_product_id marker on their own best-effort insert: if the
+    marker column hasn't landed yet the plain insert still records the
+    order (unreachable in practice — a bump line can only exist once
+    the attachment columns do — but an order must never be lost to a
+    labelling column). */
+async function insertShopEventLine(
+  l: CheckoutLine,
+  shopId: string,
+  sellerUserId: string,
+  opts: {
+    eventType: "sale" | "pending_sale";
+    paymentStatus: string;
+    paidNow: boolean;
+    buyerEmail: string;
+    groupId: string;
+    discountCode: string | null;
+  },
+): Promise<void> {
+  if (l.isBump && l.bumpFor) {
+    try {
+      await db.execute(sql`
+        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code, bump_for_product_id)
+        VALUES (${l.saleId}, ${shopId}, ${sellerUserId}, ${opts.eventType}, ${l.productId}, ${l.gross}, ${l.fee}, ${opts.buyerEmail || null}, ${opts.paymentStatus}, ${opts.paidNow ? sql`now()` : sql`NULL`}, ${l.quantity}, ${opts.groupId}, ${opts.discountCode}, ${l.bumpFor})
+      `);
+      return;
+    } catch {
+      /* Marker column absent — record the line without it. */
+    }
+  }
+  await db.execute(sql`
+    INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
+    VALUES (${l.saleId}, ${shopId}, ${sellerUserId}, ${opts.eventType}, ${l.productId}, ${l.gross}, ${l.fee}, ${opts.buyerEmail || null}, ${opts.paymentStatus}, ${opts.paidNow ? sql`now()` : sql`NULL`}, ${l.quantity}, ${opts.groupId}, ${opts.discountCode})
+  `);
 }
 
 router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
@@ -1488,9 +1805,47 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       saleId: randomUUID(),
     });
   }
-  const gross = lines.reduce((s, l) => s + l.gross, 0);
-  const listGross = lines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
-  const fee = lines.reduce((s, l) => s + l.fee, 0);
+  /* Order bumps (feature #13): every ticked add-on is re-resolved and
+     re-priced from the seller's setting HERE. A tick for a product
+     that isn't in the cart, or with no live offer, refuses the whole
+     checkout — no rows, no session, no charge. The shop discount code
+     never discounts a bump line (the bump carries its own seller-set
+     % off — the storefront rail's rule). One bump line per add-on
+     product, however many cart products offer it. */
+  const bumpLines: CheckoutLine[] = [];
+  {
+    const seenTargets = new Set<string>();
+    for (const mainId of [...new Set(parsed.data.includeBumps ?? [])]) {
+      if (!wanted.has(mainId)) {
+        res.status(400).json({ error: "BUMP_NOT_IN_CART", message: "That add-on isn't part of this cart." });
+        return;
+      }
+      const resolved = await resolveShopBumpForCheckout(mainId, shopId);
+      if (!resolved.ok) {
+        res.status(400).json({ error: resolved.code, message: resolved.message });
+        return;
+      }
+      if (seenTargets.has(resolved.target.id)) continue;
+      seenTargets.add(resolved.target.id);
+      bumpLines.push({
+        productId: resolved.target.id,
+        name: resolved.target.name,
+        unitCents: resolved.unitCents,
+        listUnitCents: Number(resolved.target.price_cents),
+        quantity: 1,
+        gross: resolved.unitCents,
+        fee: Math.round((resolved.unitCents * STOREFRONT_PLATFORM_FEE_BPS) / 10_000),
+        saleId: randomUUID(),
+        isBump: true,
+        bumpFor: mainId,
+      });
+    }
+  }
+  const allLines = [...lines, ...bumpLines];
+
+  const gross = allLines.reduce((s, l) => s + l.gross, 0);
+  const listGross = allLines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
+  const fee = allLines.reduce((s, l) => s + l.fee, 0);
   const groupId = randomUUID();
   const totals = {
     gross_cents: gross,
@@ -1502,20 +1857,24 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     seller_net_cents: gross - fee,
     buyerEmail: buyerEmail || null,
   };
-  const lineReceipts = lines.map((l) => ({
+  const lineReceipts = allLines.map((l) => ({
     saleId: l.saleId, productId: l.productId, productName: l.name, quantity: l.quantity,
     unit_cents: l.unitCents, list_unit_cents: l.listUnitCents,
     gross_cents: l.gross, platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
+    isBump: l.isBump === true,
+    bumpForProductId: l.bumpFor ?? null,
   }));
 
   /* Free cart: no card exists to charge — record the sale as paid
-     with the honest no-payment status, exactly once, right here. */
+     with the honest no-payment status, exactly once, right here.
+     (A ticked bump is always priced ≥ 1¢, so a cart carrying one
+     never lands here — it takes the card path below.) */
   if (gross <= 0) {
-    for (const l of lines) {
-      await db.execute(sql`
-        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
-        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${discountCode})
-      `);
+    for (const l of allLines) {
+      await insertShopEventLine(l, shopId, shop.user_id, {
+        eventType: "sale", paymentStatus: "no_payment_required", paidNow: true,
+        buyerEmail, groupId, discountCode: l.isBump ? null : discountCode,
+      });
     }
     /* The sale is recorded right here, so a presented code's use is
        counted right here too (0190 redemption discipline). */
@@ -1523,9 +1882,9 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       await countShopDiscountUse(shopId, discountCode);
     }
     res.status(201).json({
-      saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+      saleId: lines[0]!.saleId, saleIds: allLines.map((l) => l.saleId), groupId,
       status: "paid", paid: true, free: true, paymentStatus: "no_payment_required",
-      productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
+      productName: lines[0]!.name, quantity: allLines.reduce((s, l) => s + l.quantity, 0),
       lines: lineReceipts, ...totals,
       note: "Free order — no payment was needed, and none was taken. It's yours.",
     });
@@ -1542,12 +1901,14 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     return;
   }
 
-  /* 1) Record the order as PENDING first (brief + house pattern). */
-  for (const l of lines) {
-    await db.execute(sql`
-      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id, discount_code)
-      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId}, ${discountCode})
-    `);
+  /* 1) Record the order as PENDING first (brief + house pattern).
+        Bump lines record with the group, marked as add-on lines; the
+        discount code rides cart lines only. */
+  for (const l of allLines) {
+    await insertShopEventLine(l, shopId, shop.user_id, {
+      eventType: "pending_sale", paymentStatus: "pending", paidNow: false,
+      buyerEmail, groupId, discountCode: l.isBump ? null : discountCode,
+    });
   }
 
   /* 2) Open the hosted session for the cart total. Failure = honest
@@ -1559,11 +1920,14 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     session = await stripe.checkout.sessions.create({
       mode: "payment",
       ...(buyerEmail ? { customer_email: buyerEmail } : {}),
-      line_items: lines.map((l) => ({
+      line_items: allLines.map((l) => ({
         price_data: {
           currency: "usd",
           unit_amount: l.unitCents,
-          product_data: { name: l.name, description: shop.name },
+          product_data: {
+            name: l.isBump ? `${l.name} (add-on)` : l.name,
+            description: shop.name,
+          },
         },
         quantity: l.quantity,
       })),
@@ -1591,11 +1955,11 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   `);
   logger.info({ shopId, groupId, sessionId: session.id, gross }, "[storefronts] checkout session created (order pending)");
   res.status(201).json({
-    saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
+    saleId: lines[0]!.saleId, saleIds: allLines.map((l) => l.saleId), groupId,
     status: "pending_payment", paid: false, paymentStatus: "pending",
     sessionId: session.id,
     url: session.url, checkoutUrl: session.url,
-    productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
+    productName: lines[0]!.name, quantity: allLines.reduce((s, l) => s + l.quantity, 0),
     lines: lineReceipts, ...totals,
     testMode: isCheckoutTestMode(),
     note: "Your order is saved as pending — payment happens at the hosted checkout. It only counts as a sale once the payment confirms.",
