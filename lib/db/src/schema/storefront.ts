@@ -163,6 +163,11 @@ export const storeOrdersTable = pgTable("store_orders", {
   bumpCreatorAmountCents: integer("bump_creator_amount_cents"),
   status:            text("status").notNull().default("completed"),
   fulfillmentNote:   text("fulfillment_note"),
+  /* Post-purchase upsell (migration 0221): an accepted upsell is its
+     OWN order row linked back to the parent order, pinned exactly-once
+     by the unique Stripe PaymentIntent id. */
+  parentOrderId:        uuid("parent_order_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id").unique(),
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("store_orders_profile_idx").on(t.profileId),
@@ -170,6 +175,40 @@ export const storeOrdersTable = pgTable("store_orders", {
   index("store_orders_product_idx").on(t.productId),
   index("store_orders_created_idx").on(t.createdAt),
   uniqueIndex("store_orders_session_ux").on(t.stripeSessionId),
+]);
+
+/* Post-purchase upsell offers (migration 0221): ONE row per parent
+   order, carrying the price/fee snapshot the buyer saw, the saved
+   Stripe customer + payment method, and the decision. */
+export const storeUpsellOffersTable = pgTable("store_upsell_offers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  parentOrderId: uuid("parent_order_id").notNull().unique(),
+  buyerUserId: uuid("buyer_user_id").notNull(),
+  profileId: uuid("profile_id").notNull(),
+  productId: uuid("product_id").notNull(),
+  upsellProductId: uuid("upsell_product_id").notNull(),
+  upsellTitle: text("upsell_title").notNull(),
+  upsellKind: text("upsell_kind").notNull(),
+  listPriceCents: integer("list_price_cents").notNull(),
+  percentOff: integer("percent_off").notNull().default(0),
+  amountCents: integer("amount_cents").notNull(),
+  platformFeeCents: integer("platform_fee_cents").notNull(),
+  creatorAmountCents: integer("creator_amount_cents").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripePaymentMethodId: text("stripe_payment_method_id"),
+  paymentMethodBrand: text("payment_method_brand"),
+  paymentMethodLast4: text("payment_method_last4"),
+  status: text("status").notNull().default("pending"),
+  failureReason: text("failure_reason"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  upsellOrderId: uuid("upsell_order_id"),
+  shownAt: timestamp("shown_at", { withTimezone: true }),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check("store_upsell_offers_status_range",
+    sql`${t.status} IN ('pending', 'accepted', 'declined', 'failed')`),
 ]);
 
 export const insertStoreOrderSchema = createInsertSchema(storeOrdersTable).omit({ id: true, createdAt: true });
