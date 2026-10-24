@@ -961,6 +961,48 @@ describe("beats / digital / marketplace — access + seller ledger", () => {
     expect(new Date(String(link[0]?.["expires_at"])).getTime()).toBeLessThanOrEqual(Date.now());
   });
 
+  it("a refunded BUNDLE sale unwinds its series grant rows — but never the buyer's standalone purchase of the same series", async () => {
+    /* Stack-100 #3 F15: a bundle's series components are granted as $0
+       digital_sales rows keyed '<session>#grant:series:<itemId>'. */
+    const seriesItem = "35353535-3535-4535-8535-353535353535";
+    sessionsByPi.set("pi_bundle", [{ id: "cs_bundle_1", metadata: {} }]);
+    const bundleSale = await q(sql`
+      INSERT INTO digital_sales (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id, amount_cents, creator_amount_cents)
+      VALUES (${BUYER}, ${CREATOR}, 'bundle', gen_random_uuid(), 'cs_bundle_1', 1299, 1234) RETURNING id
+    `);
+    const bundleSaleId = String(bundleSale[0]?.["id"]);
+    await q(sql`
+      INSERT INTO digital_sales (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id, amount_cents, creator_amount_cents)
+      VALUES (${BUYER}, ${CREATOR}, 'series', ${seriesItem}, 'cs_bundle_1#grant:series:35353535-3535-4535-8535-353535353535', 0, 0)
+    `);
+    /* The buyer's OWN standalone purchase of the same series — a
+       different checkout session — must survive the bundle refund. */
+    await q(sql`
+      INSERT INTO digital_sales (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id, amount_cents, creator_amount_cents)
+      VALUES (${BUYER}, ${CREATOR}, 'series', ${seriesItem}, 'cs_standalone_1', 1999, 1899)
+    `);
+    await q(sql`
+      INSERT INTO download_links (token, sale_id, file_url, expires_at)
+      VALUES ('tok_bundle', ${bundleSaleId}, 'https://files.example/track.mp3', now() + interval '48 hours')
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_bundle1", trigger: "charge.refunded",
+      charge: charge({ id: "ch_bundle", paymentIntentId: "pi_bundle", amountCents: 1299, refundedCents: 1299 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "digital_sale" });
+    const rows = await q(sql`
+      SELECT stripe_session_id, status FROM digital_sales
+      WHERE stripe_session_id IN ('cs_bundle_1', 'cs_bundle_1#grant:series:35353535-3535-4535-8535-353535353535', 'cs_standalone_1')
+      ORDER BY stripe_session_id
+    `);
+    const bySession = new Map(rows.map((r) => [String(r["stripe_session_id"]), String(r["status"])]));
+    expect(bySession.get("cs_bundle_1")).toBe("refunded");
+    expect(bySession.get("cs_bundle_1#grant:series:35353535-3535-4535-8535-353535353535")).toBe("refunded");
+    expect(bySession.get("cs_standalone_1")).toBe("completed");
+    const link = await q(sql`SELECT expires_at FROM download_links WHERE token = 'tok_bundle'`);
+    expect(new Date(String(link[0]?.["expires_at"])).getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
   it("marketplace lines flip out of 'sale' so payouts and earnings stop counting them", async () => {
     sessionsByPi.set("pi_s", [{ id: "cs_s_1", metadata: { type: "marketplace_shop_purchase" } }]);
     await q(sql`

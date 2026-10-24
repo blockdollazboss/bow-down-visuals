@@ -1974,6 +1974,10 @@ function DigitalSalesTab() {
           </div>
           )}
 
+          {/* ── Bundles (Stack-100 #3 F15): the seller's bundle desk —
+               its own section with its own load state, like the rest. ── */}
+          <BundlesPanel />
+
           {/* ── Totals (never gated): a sales failure shows its own
                note here — never fake zero totals in its place. ── */}
           {sectionStates.sales === "failed" ? (
@@ -2083,6 +2087,334 @@ function DigitalSalesTab() {
               </div>
             </>
           )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Bundles desk (Stack-100 #3, feature #15) ─────────────────────────────
+   A bundle is 2+ of the seller's own sellable products at one price
+   (server: a playlists row with kind='bundle'). This panel is fully
+   self-contained — own load, own failure state, own retry — so a
+   bundles outage never touches the rest of the dashboard. Edits apply
+   to future sales only; the server note says so on every save. */
+
+interface BundleContentDTO {
+  kind: string;
+  id: string;
+  title: string;
+  listPriceCents: number;
+  listPrice: string;
+  sellable?: boolean;
+}
+interface BundleDTO {
+  id: string;
+  title: string;
+  priceCents: number;
+  price: string;
+  isPublic: boolean;
+  contents: BundleContentDTO[];
+  sumCents: number;
+  sum: string;
+  savingsCents: number;
+  savings: string;
+  buyUrl: string;
+  sellable?: boolean;
+  salesCount?: number;
+}
+interface SellableItemDTO {
+  kind: string;
+  id: string;
+  title: string;
+  listPriceCents: number;
+  listPrice: string;
+}
+interface BundlesData {
+  bundles: BundleDTO[];
+  sellable: SellableItemDTO[];
+}
+
+function BundlesPanel() {
+  const isLight = useIsLightTheme();
+  const { getAccessToken } = useAuth();
+  const [data, setData] = useState<BundlesData | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [noProfile, setNoProfile] = useState(false);
+  const [title, setTitle] = useState("");
+  const [priceDollars, setPriceDollars] = useState("");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
+  const [editPrices, setEditPrices] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setFailed(false);
+    try {
+      const token = await getAccessToken();
+      const res = await digitalAuthed("/api/store/bundles", token);
+      if (res.status === 404) {
+        setNoProfile(true);
+        return;
+      }
+      if (!res.ok) throw new Error("load failed");
+      setData((await res.json()) as BundlesData);
+    } catch {
+      setFailed(true);
+    }
+  }, [getAccessToken]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (noProfile) return null;
+
+  const cardCls = isLight
+    ? "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6"
+    : "mt-6 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-6";
+  const headCls = isLight ? "text-[#2A1E07]" : "text-amber-200";
+  const subCls = isLight ? "text-[#6B5B36]" : "text-amber-100/60";
+
+  const pickedItems = (data?.sellable ?? []).filter((s) => picked.has(`${s.kind}:${s.id}`));
+  const pickedSumCents = pickedItems.reduce((a, s) => a + s.listPriceCents, 0);
+  const priceCents = Math.round(Number.parseFloat(priceDollars || "0") * 100);
+  const savingCents = pickedSumCents > 0 && priceCents > 0 ? Math.max(0, pickedSumCents - priceCents) : 0;
+  const canCreate = title.trim().length > 0 && priceCents >= 50 && pickedItems.length >= 2 && !busy;
+
+  function togglePick(key: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function createBundle() {
+    if (!canCreate) return;
+    setBusy(true);
+    setFormError(null);
+    setSavedNote(null);
+    try {
+      const token = await getAccessToken();
+      const res = await digitalAuthed("/api/store/bundles", token, {
+        method: "POST",
+        body: JSON.stringify({
+          title: title.trim(),
+          priceCents,
+          items: pickedItems.map((s) => ({ kind: s.kind, id: s.id })),
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+      if (!res.ok) throw new Error(body.message || body.error || "Could not create the bundle.");
+      setTitle("");
+      setPriceDollars("");
+      setPicked(new Set());
+      setSavedNote("Bundle created — it's live on its drop page now.");
+      await load();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not create the bundle.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function patchBundle(id: string, patch: Record<string, unknown>) {
+    setSavingId(id);
+    setSavedNote(null);
+    try {
+      const token = await getAccessToken();
+      const res = await digitalAuthed(`/api/store/bundles/${id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; note?: string };
+      if (!res.ok) throw new Error(body.message || body.error || "Could not save.");
+      setSavedNote(body.note ?? "Saved.");
+      await load();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not save.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <div className={cardCls} data-testid="store-bundles-panel">
+      <h2 className={`flex items-center gap-2 text-lg font-bold ${headCls}`}>
+        <ShoppingBag className="h-5 w-5" /> Bundles
+      </h2>
+      <p className={`mt-1 text-sm ${subCls}`}>
+        Package 2 or more of your products at one price. Fans get everything in one tap; you keep 95% of the
+        bundle total. Price it under the bought-separately total and the saving sells itself.
+      </p>
+
+      {failed && !data ? (
+        <div className="mt-4 text-center">
+          <p className={`text-sm ${subCls}`}>Your bundles couldn’t load — the rest of your dashboard is fine.</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 font-bold text-black hover:brightness-110"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : !data ? (
+        <div className="mt-6 flex justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
+        </div>
+      ) : (
+        <>
+          {data.bundles.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {data.bundles.map((b) => (
+                <div
+                  key={b.id}
+                  className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/10 bg-black/40"}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={b.buyUrl} className={`font-bold hover:underline ${headCls}`}>
+                        {b.title}
+                      </Link>
+                      <div className={`text-xs ${subCls}`}>
+                        {b.contents.length} items · {b.salesCount ?? 0} sale{(b.salesCount ?? 0) === 1 ? "" : "s"} ·{" "}
+                        bought separately {b.sum}
+                        {b.savingsCents > 0 ? ` · fans save ${b.savings}` : ""}
+                      </div>
+                      <div className={`mt-1 text-xs ${subCls}`}>
+                        {b.contents.map((c) => c.title).join(" · ")}
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                        !b.isPublic
+                          ? "border-amber-500/30 text-amber-200/70"
+                          : b.sellable
+                            ? "border-green-500/30 bg-green-950/30 text-green-300"
+                            : "border-red-500/30 bg-red-950/30 text-red-300"
+                      }`}
+                    >
+                      {!b.isPublic ? "Private" : b.sellable ? "Live" : "Needs attention — an item stopped selling"}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className={`text-sm ${subCls}`}>Bundle price $</span>
+                    <input
+                      value={editPrices[b.id] ?? (b.priceCents / 100).toFixed(2)}
+                      onChange={(e) => setEditPrices((p) => ({ ...p, [b.id]: e.target.value }))}
+                      inputMode="decimal"
+                      aria-label={`Price for ${b.title}`}
+                      className="w-24 rounded-lg border border-amber-500/30 bg-black/40 px-2 py-1.5 text-sm font-bold text-amber-200 outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={savingId === b.id}
+                      onClick={() => {
+                        const cents = Math.round(Number.parseFloat(editPrices[b.id] ?? "0") * 100);
+                        if (Number.isFinite(cents) && cents >= 50) void patchBundle(b.id, { priceCents: cents });
+                      }}
+                      className="rounded-full border border-amber-500/40 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+                    >
+                      {savingId === b.id ? "Saving…" : "Save price"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingId === b.id}
+                      onClick={() => void patchBundle(b.id, { isPublic: !b.isPublic })}
+                      className="rounded-full border border-amber-500/40 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+                    >
+                      {b.isPublic ? "Make private" : "Make public"}
+                    </button>
+                    <Link href={b.buyUrl} className="inline-flex items-center gap-1 text-xs text-amber-300 hover:underline">
+                      <ExternalLink className="h-3.5 w-3.5" /> Drop page
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className={`mt-5 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-amber-500/10 bg-black/40"}`}>
+            <div className={`text-sm font-bold ${headCls}`}>Build a new bundle</div>
+            {data.sellable.length < 2 ? (
+              <p className={`mt-2 text-sm ${subCls}`}>
+                You need at least 2 products for sale first — publish and price two tracks, videos, or series,
+                then package them here.
+              </p>
+            ) : (
+              <>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {data.sellable.map((s) => {
+                    const key = `${s.kind}:${s.id}`;
+                    const on = picked.has(key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => togglePick(key)}
+                        aria-pressed={on}
+                        className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                          on
+                            ? "border-amber-400 bg-amber-500/15 text-amber-100"
+                            : "border-amber-500/20 text-amber-100/70 hover:bg-amber-500/5"
+                        }`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold">{s.title}</span>
+                          <span className="block text-xs opacity-60">
+                            {(KIND_LABELS as Record<string, string>)[s.kind] ?? s.kind}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-bold">{s.listPrice}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Bundle name — e.g. The Full Coronation"
+                    aria-label="Bundle name"
+                    className="min-w-52 flex-1 rounded-lg border border-amber-500/30 bg-black/40 px-3 py-2 text-sm text-amber-100 outline-none focus:border-amber-400"
+                  />
+                  <span className={`text-sm ${subCls}`}>$</span>
+                  <input
+                    value={priceDollars}
+                    onChange={(e) => setPriceDollars(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="12.99"
+                    aria-label="Bundle price in dollars"
+                    className="w-24 rounded-lg border border-amber-500/30 bg-black/40 px-2 py-2 text-sm font-bold text-amber-200 outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void createBundle()}
+                    disabled={!canCreate}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-5 py-2 text-sm font-bold text-black hover:brightness-110 disabled:opacity-50"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Create bundle
+                  </button>
+                </div>
+                <p className={`mt-2 text-xs ${subCls}`}>
+                  {pickedItems.length < 2
+                    ? `Pick at least 2 items (${pickedItems.length} picked).`
+                    : `Bought separately: $${(pickedSumCents / 100).toFixed(2)}` +
+                      (savingCents > 0
+                        ? ` · at this price fans save $${(savingCents / 100).toFixed(2)} — shown honestly on the drop page.`
+                        : " · this price shows no saving (it's at or above the separate total).")}
+                </p>
+              </>
+            )}
+            {formError && <p className="mt-2 text-sm font-semibold text-red-300">{formError}</p>}
+            {savedNote && <p className="mt-2 text-sm font-semibold text-green-300">{savedNote}</p>}
+          </div>
         </>
       )}
     </div>

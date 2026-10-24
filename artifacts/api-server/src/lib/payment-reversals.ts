@@ -581,15 +581,32 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
       return { entitlement: true, seller: true };
     }
     case "digital_sale": {
+      /* Bundle sales (Stack-100 #3 F15) record series component grants
+         as $0 digital_sales rows whose session id is the sale's session
+         id plus a "#grant:" suffix — the same UPDATE flips them, so a
+         refunded bundle's series unlocks lock again, while the buyer's
+         standalone purchase of the same series (a different session id)
+         is untouched. Plain sales carry no suffixed rows, so their
+         behavior is byte-identical to before. */
+      /* Grant-prefix match via substring (the standard-SQL spelling —
+         exact in real Postgres and in the embedded test DB, which
+         implements neither starts_with nor LIKE escapes). */
+      const grantPrefix = `${sid}#grant:`;
       const s = await db.execute(sql`
         UPDATE digital_sales
         SET status = 'refunded', refunded_at = now()
-        WHERE stripe_session_id = ${sid} AND status <> 'refunded'
+        WHERE (stripe_session_id = ${sid}
+               OR substring(stripe_session_id, 1, ${grantPrefix.length}::int) = ${grantPrefix})
+          AND status <> 'refunded'
         RETURNING id
       `);
       await db.execute(sql`
         UPDATE download_links SET expires_at = now()
-        WHERE sale_id IN (SELECT id FROM digital_sales WHERE stripe_session_id = ${sid})
+        WHERE sale_id IN (
+          SELECT id FROM digital_sales
+          WHERE stripe_session_id = ${sid}
+             OR substring(stripe_session_id, 1, ${grantPrefix.length}::int) = ${grantPrefix}
+        )
           AND expires_at > now()
       `);
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
