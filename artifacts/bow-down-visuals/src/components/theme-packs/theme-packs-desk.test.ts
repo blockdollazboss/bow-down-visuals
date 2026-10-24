@@ -35,7 +35,7 @@ describe("the desk is docked where appearance lives", () => {
 
 describe("one engine: the desk and every toggle go through lib/theme-packs", () => {
   it("desk applies through applyThemePack only", () => {
-    expect(desk).toContain("applyThemePack(p.id)");
+    expect(desk).toContain("applyThemePack(p.id, { mode: m })");
     expect(desk).not.toContain('localStorage.setItem("bdv-theme');
     expect(desk).not.toContain("data-theme-pack\")");
   });
@@ -69,6 +69,38 @@ describe("previews show the packs' real tokens, phone + desktop", () => {
 
   it("the shown variant follows the site mode when the pack lives there", () => {
     expect(desk).toContain("resolvePackMode(pack, siteMode)");
+  });
+});
+
+describe("every pack in both modes, chosen on the card (owner steer)", () => {
+  it("each card carries a Light | Dark toggle driving preview + apply", () => {
+    expect(desk).toContain("theme-pack-mode-${pack.id}-${m}");
+    expect(desk).toContain("aria-pressed={viewMode === m}");
+    expect(desk).toContain("onApply(pack, viewMode)");
+    expect(desk).toContain("Apply in {{mode}}");
+  });
+});
+
+describe("device delivery — the pack reaches the actual phone + computer", () => {
+  it("renders through the wallpaper rails, branded and free, logo whole", () => {
+    expect(desk).toContain('"/api/wallpapers/render"');
+    expect(desk).toContain("pack.deviceArt[mode]");
+    expect(desk).toContain('"/logo-static.webp"');
+    expect(desk).toContain('"/logo-light.webp"');
+    expect(desk).toContain("branded: true");
+    expect(desk).not.toContain("branded: false");
+  });
+
+  it("zips per device kind across the FULL preset list, plus single sizes", () => {
+    expect(desk).toContain('"/api/wallpapers/pack-download"');
+    expect(desk).toContain("WALLPAPER_PRESETS");
+    expect(desk).toContain("theme-pack-device-${kind}-${pack.id}");
+    expect(desk).toContain("theme-pack-device-size-${pack.id}");
+    expect(desk).toContain("theme-pack-device-one-${pack.id}");
+  });
+
+  it("locked packs keep their device packs locked too", () => {
+    expect(desk).toContain("Device packs unlock with the pack at launch.");
   });
 });
 

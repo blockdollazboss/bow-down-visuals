@@ -1048,18 +1048,23 @@ function announcePackChange(): void {
 
 /**
  * Apply a pack: one switch that moves everything. Resolves the mode
- * (the pack brings its mode when it doesn't live in the current one),
- * paints the mode class + pack attribute, persists both choices, and —
- * unless told otherwise — pairs the pack's cursor. Returns the applied
- * pack and the mode it landed in, or null for an unknown id.
+ * (an explicit `opts.mode` the pack defines wins — the desk's per-card
+ * Light | Dark toggle applies through it; otherwise the pack brings
+ * its mode when it doesn't live in the current one), paints the mode
+ * class + pack attribute, persists both choices, and — unless told
+ * otherwise — pairs the pack's cursor. Returns the applied pack and
+ * the mode it landed in, or null for an unknown id.
  */
 export function applyThemePack(
   id: string,
-  opts: { pairCursor?: boolean } = {},
+  opts: { pairCursor?: boolean; mode?: ThemePackMode } = {},
 ): { pack: ThemePack; mode: ThemePackMode } | null {
   const pack = themePackById(id);
   if (!pack) return null;
-  const mode = resolvePackMode(pack, getThemeMode());
+  const mode =
+    opts.mode && pack.variants[opts.mode]
+      ? opts.mode
+      : resolvePackMode(pack, getThemeMode());
   paintMode(mode);
   storageSet(THEME_MODE_STORAGE_KEY, mode);
   paintPackAttribute(pack);

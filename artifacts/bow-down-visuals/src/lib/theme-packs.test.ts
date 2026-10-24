@@ -2,9 +2,11 @@
  * theme-packs.test.ts — Stack-100 #3, lane theme-packs.
  *
  * Pins the theme-pack contract:
- *  1. The registry: two house packs (the site's own light/dark themes)
- *     + at least four new worlds, every non-house pack in BOTH modes,
- *     every paired cursor a real cursor, no price anywhere in the data.
+ *  1. The registry: ONE house pack carrying the site's own light +
+ *     dark themes as its two variants, plus four more worlds grown
+ *     from the site itself — EVERY pack in BOTH modes, no exceptions —
+ *     every paired cursor a real cursor, no price anywhere in the
+ *     data, and a shipped device ground for every pack × mode.
  *  2. CSS parity: the palettes in theme-packs.ts and the token blocks
  *     in index.css are the same values (house blocks included — the
  *     stylesheet stays the source of truth, this mirror serves the
@@ -76,25 +78,23 @@ const EXTRA_VARS = Object.values(EXTRA_VAR_NAMES);
 /* ─── 1. Registry ───────────────────────────────────────────────────── */
 
 describe("theme pack registry", () => {
-  it("has unique ids and exactly the two house packs", () => {
+  it("has unique ids, exactly the five site-rooted packs, and one house pack for both modes", () => {
     const ids = THEME_PACKS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"]);
     const house = THEME_PACKS.filter((p) => p.house);
-    expect(house.map((p) => p.id).sort()).toEqual(
-      [HOUSE_PACK_FOR_MODE.light, HOUSE_PACK_FOR_MODE.dark].sort(),
-    );
-    expect(themePackById(HOUSE_PACK_FOR_MODE.light)!.variants.light).toBeDefined();
-    expect(themePackById(HOUSE_PACK_FOR_MODE.light)!.variants.dark).toBeUndefined();
-    expect(themePackById(HOUSE_PACK_FOR_MODE.dark)!.variants.dark).toBeDefined();
-    expect(themePackById(HOUSE_PACK_FOR_MODE.dark)!.variants.light).toBeUndefined();
+    expect(house).toHaveLength(1);
+    // The house pack IS both house themes: one pack, two variants.
+    expect(HOUSE_PACK_FOR_MODE.light).toBe(house[0]!.id);
+    expect(HOUSE_PACK_FOR_MODE.dark).toBe(house[0]!.id);
+    expect(house[0]!.variants.light).toBeDefined();
+    expect(house[0]!.variants.dark).toBeDefined();
   });
 
-  it("ships at least four new worlds beyond the house themes", () => {
+  it("EVERY pack lives in BOTH modes — no single-mode packs, house included", () => {
     const fresh = THEME_PACKS.filter((p) => !p.house);
     expect(fresh.length).toBeGreaterThanOrEqual(4);
-    for (const p of fresh) {
-      // Every new world lives in BOTH modes — a pack must never
-      // half-skin the mode it doesn't define.
+    for (const p of THEME_PACKS) {
       expect(packModes(p), p.id).toEqual(["light", "dark"]);
     }
   });
@@ -307,12 +307,13 @@ function stubBrowser() {
 }
 
 describe("apply / persist", () => {
-  it("resolvePackMode: preferred mode when the pack lives there, else the pack's own", () => {
+  it("resolvePackMode: every pack lives in both modes, so the preferred mode always wins", () => {
     const shark = themePackById("shark-tank")!;
     expect(resolvePackMode(shark, "dark")).toBe("dark");
     expect(resolvePackMode(shark, "light")).toBe("light");
-    const houseLight = themePackById(HOUSE_PACK_FOR_MODE.light)!;
-    expect(resolvePackMode(houseLight, "dark")).toBe("light");
+    const house = themePackById(HOUSE_PACK_FOR_MODE.light)!;
+    expect(resolvePackMode(house, "dark")).toBe("dark");
+    expect(resolvePackMode(house, "light")).toBe("light");
   });
 
   it("defaults to the house pack for the stored mode", () => {
@@ -332,23 +333,32 @@ describe("apply / persist", () => {
     expect(storage.getItem("bdv-cursor-choice")).toBe("pixel-shark");
   });
 
-  it("applying a single-mode pack brings its mode with it", () => {
+  it("applying with an explicit mode lands the pack in that mode (the desk toggle's path)", () => {
     const { storage, attrs, classList } = stubBrowser();
     storage.setItem("bdv-theme", "dark");
-    const res = applyThemePack("golden-marble-light");
+    const res = applyThemePack("shark-tank", { mode: "light" });
     expect(res?.mode).toBe("light");
     expect(classList.contains("light")).toBe(true);
     expect(storage.getItem("bdv-theme")).toBe("light");
+    expect(attrs.get("data-theme-pack")).toBe("shark-tank");
+  });
+
+  it("applying the house pack paints no attribute in either mode", () => {
+    const { storage, attrs, classList } = stubBrowser();
+    const res = applyThemePack("golden-marble", { mode: "light" });
+    expect(res?.mode).toBe("light");
+    expect(classList.contains("light")).toBe(true);
     expect(attrs.has("data-theme-pack")).toBe(false); // house: attribute removed
+    expect(storage.getItem("bdv-theme-pack")).toBe("golden-marble");
   });
 
   it("pairCursor:false leaves the visitor's cursor alone", () => {
     const { storage } = stubBrowser();
     storage.setItem("bdv-cursor-choice", "flame");
-    applyThemePack("rose-gold-palace", { pairCursor: false });
+    applyThemePack("kings-set", { pairCursor: false });
     expect(storage.getItem("bdv-cursor-choice")).toBe("flame");
-    applyThemePack("rose-gold-palace");
-    expect(storage.getItem("bdv-cursor-choice")).toBe("diamond");
+    applyThemePack("kings-set");
+    expect(storage.getItem("bdv-cursor-choice")).toBe("crown");
   });
 
   it("unknown pack id applies nothing", () => {
@@ -368,30 +378,53 @@ describe("apply / persist", () => {
     expect(storage.getItem("bdv-theme")).toBe("light");
   });
 
-  it("flipping mode out of a single-mode pack lands on that mode's house pack", () => {
-    const { storage, attrs } = stubBrowser();
-    applyThemePack("golden-black-marble");
+  it("flipping mode inside the house pack keeps it (it defines both modes)", () => {
+    const { storage, attrs, classList } = stubBrowser();
+    applyThemePack("golden-marble");
     const res = applyThemeMode("light");
-    expect(res.pack.id).toBe(HOUSE_PACK_FOR_MODE.light);
+    expect(res.pack.id).toBe("golden-marble");
     expect(attrs.has("data-theme-pack")).toBe(false);
-    expect(storage.getItem("bdv-theme-pack")).toBe(HOUSE_PACK_FOR_MODE.light);
+    expect(classList.contains("light")).toBe(true);
+    expect(storage.getItem("bdv-theme-pack")).toBe("golden-marble");
   });
 
   it("boot restores the saved pack and its mode before first paint", () => {
     const { storage, attrs, classList } = stubBrowser();
-    storage.setItem("bdv-theme-pack", "studio-clean");
+    storage.setItem("bdv-theme-pack", "arcade-gold");
     storage.setItem("bdv-theme", "light");
     bootThemePack();
-    expect(attrs.get("data-theme-pack")).toBe("studio-clean");
+    expect(attrs.get("data-theme-pack")).toBe("arcade-gold");
     expect(classList.contains("light")).toBe(true);
   });
 
-  it("boot with a saved single-mode pack brings the pack's mode", () => {
+  it("boot with the saved house pack paints its mode and no attribute", () => {
     const { storage, attrs, classList } = stubBrowser();
-    storage.setItem("bdv-theme-pack", "golden-marble-light");
-    storage.setItem("bdv-theme", "dark");
+    storage.setItem("bdv-theme-pack", "golden-marble");
+    storage.setItem("bdv-theme", "light");
     bootThemePack();
     expect(classList.contains("light")).toBe(true);
     expect(attrs.has("data-theme-pack")).toBe(false);
+  });
+});
+
+/* ─── 5. Device delivery ────────────────────────────────────────────── */
+
+describe("device delivery — every pack × mode carries a real ground", () => {
+  it("deviceArt points at a shipped 2400×2400 WebP ground for BOTH modes of every pack", () => {
+    for (const pack of THEME_PACKS) {
+      for (const mode of ["light", "dark"] as const) {
+        const path = pack.deviceArt[mode];
+        expect(path, `${pack.id}/${mode}`).toBe(`/wallpapers/theme-packs/${pack.id}-${mode}.webp`);
+        const file = readFileSync(new URL(`../../public${path}`, import.meta.url));
+        // Simple lossy WebP: RIFF/WEBP magic, "VP8 " chunk, frame dims
+        // as 14-bit little-endian at bytes 26..29.
+        expect(file.subarray(0, 4).toString("ascii")).toBe("RIFF");
+        expect(file.subarray(8, 12).toString("ascii")).toBe("WEBP");
+        expect(file.subarray(12, 16).toString("ascii")).toBe("VP8 ");
+        const w = (file[26]! | (file[27]! << 8)) & 0x3fff;
+        const h = (file[28]! | (file[29]! << 8)) & 0x3fff;
+        expect([w, h], `${pack.id}/${mode}`).toEqual([2400, 2400]);
+      }
+    }
   });
 });

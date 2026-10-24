@@ -1,7 +1,18 @@
-import { useEffect, useState } from "react";
-import { Check, Lock, MousePointer2, Palette, RotateCcw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Check,
+  Download,
+  Loader2,
+  Lock,
+  Moon,
+  MousePointer2,
+  Palette,
+  RotateCcw,
+  Sun,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CURSOR_OPTIONS } from "@/lib/cursor-settings";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   HOUSE_PACK_FOR_MODE,
   THEME_PACKS,
@@ -17,15 +28,34 @@ import {
   type ThemePackMode,
   type ThemePackVariant,
 } from "@/lib/theme-packs";
+import { WALLPAPER_PRESETS, type WallpaperPreset } from "@/lib/wallpapers";
 
 /* ─── Theme Packs desk (Settings → Appearance) ──────────────────────────
    One tap on a pack reskins the whole site — page ground, panels,
    accents, buttons, ink, scrollbars, selection — on phone and desktop
-   alike, and pairs the pack's cursor. Premium packs are visible but
-   locked: the selling model is an open owner decision, so nothing here
-   carries a price or a charge — locked means locked (see
-   lib/theme-packs.ts). The video editor keeps its own look under
-   every pack, and the desk copy says so. */
+   alike, and pairs the pack's cursor. EVERY pack ships a designed
+   light AND dark variant: each card carries a Light | Dark toggle that
+   drives the preview, the apply (applying in Light lands the site in
+   that pack's light world), and the device downloads. The desk also
+   delivers the pack to the visitor's ACTUAL devices through the
+   wallpaper desk's rails: the pack's ground artwork is rendered at
+   every device preset (branded renders are free; the full logo lockup
+   rides whole on every piece) and zipped per device kind. Premium
+   packs are visible but locked: the selling model is an open owner
+   decision, so nothing here carries a price or a charge — locked
+   means locked (see lib/theme-packs.ts). The video editor keeps its
+   own look under every pack, and the desk copy says so. */
+
+const DEVICE_KINDS: Array<{ kind: WallpaperPreset["kind"]; label: string }> = [
+  { kind: "phone", label: "Phone set" },
+  { kind: "tablet", label: "Tablet set" },
+  { kind: "desktop", label: "Desktop set" },
+];
+
+/** Site-relative asset → absolute URL (the render rail validates http(s)). */
+function absoluteUrl(path: string): string {
+  return `${window.location.origin}${path}`;
+}
 
 /** Miniature phone + desktop frames painted with a variant's REAL
     tokens (inline styles from the pack definition), so what you see
@@ -113,6 +143,190 @@ function PackPreview({ variant, mode }: { variant: ThemePackVariant; mode: Theme
   );
 }
 
+/** The per-pack device delivery: render the pack's ground for the
+    chosen mode through the wallpaper rails and hand back downloads —
+    a zip per device kind, or a single size on its own. */
+function PackDeviceDownloads({
+  pack,
+  mode,
+  unlocked,
+}: {
+  pack: ThemePack;
+  mode: ThemePackMode;
+  unlocked: boolean;
+}) {
+  const { t } = useTranslation();
+  const { getAccessToken } = useAuth();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sizeKey, setSizeKey] = useState<string>(WALLPAPER_PRESETS[0]!.key);
+
+  const fail = (err: unknown) => {
+    setError(
+      err instanceof Error && err.message === "signin"
+        ? t("settings.themePacksDeviceSignin", { defaultValue: "Sign in to download device packs." })
+        : t("settings.themePacksDeviceError", { defaultValue: "That download hit a snag — try again in a moment." }),
+    );
+  };
+
+  /** One branded render through the wallpaper rail (free; the rail
+      composites the full logo lockup whole, bottom-center). */
+  const renderPiece = async (presetKey: string, token: string): Promise<string> => {
+    const res = await fetch("/api/wallpapers/render", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        sourceUrl: absoluteUrl(pack.deviceArt[mode]),
+        presetKey,
+        logoUrl: absoluteUrl(mode === "dark" ? "/logo-static.webp" : "/logo-light.webp"),
+        branded: true,
+        brandName: null,
+      }),
+    });
+    if (!res.ok) throw new Error(`render failed (${res.status})`);
+    const json = (await res.json()) as { url?: string };
+    if (!json.url) throw new Error("render returned no url");
+    return json.url;
+  };
+
+  const downloadSet = async (kind: WallpaperPreset["kind"]) => {
+    setBusy(kind);
+    setError(null);
+    setDone(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("signin");
+      const urls: string[] = [];
+      for (const preset of WALLPAPER_PRESETS.filter((p) => p.kind === kind)) {
+        urls.push(await renderPiece(preset.key, token));
+      }
+      const name = `${pack.id}-${mode}-${kind}`;
+      const zipRes = await fetch("/api/wallpapers/pack-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ urls, name }),
+      });
+      if (!zipRes.ok) throw new Error(`zip failed (${zipRes.status})`);
+      const blob = await zipRes.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `${name}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+      setDone(kind);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const downloadOne = async () => {
+    setBusy("one");
+    setError(null);
+    setDone(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("signin");
+      const url = await renderPiece(sizeKey, token);
+      window.open(url, "_blank", "noopener");
+      setDone("one");
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="border-t border-border/60 pt-3">
+      <p className="text-[11px] font-semibold text-foreground">
+        {t("settings.themePacksDeviceTitle", {
+          defaultValue: "On your devices — {{mode}}",
+          mode:
+            mode === "light"
+              ? t("settings.themePacksLight", { defaultValue: "Light" })
+              : t("settings.themePacksDark", { defaultValue: "Dark" }),
+        })}
+      </p>
+      <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+        {t("settings.themePacksDeviceLine", {
+          defaultValue:
+            "Every size for your phone, tablet and computer — free, with the full Bow Down Visuals logo riding whole on each piece.",
+        })}
+      </p>
+      {unlocked ? (
+        <>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {DEVICE_KINDS.map(({ kind, label }) => (
+              <button
+                key={kind}
+                type="button"
+                data-testid={`theme-pack-device-${kind}-${pack.id}`}
+                disabled={busy !== null}
+                onClick={() => void downloadSet(kind)}
+                className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium transition hover:bg-accent disabled:opacity-60"
+              >
+                {busy === kind ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : done === kind ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            <select
+              data-testid={`theme-pack-device-size-${pack.id}`}
+              aria-label={t("settings.themePacksDeviceSize", { defaultValue: "Device size" })}
+              value={sizeKey}
+              onChange={(e) => setSizeKey(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[11px]"
+            >
+              {WALLPAPER_PRESETS.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label} — {p.width}×{p.height}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              data-testid={`theme-pack-device-one-${pack.id}`}
+              disabled={busy !== null}
+              onClick={() => void downloadOne()}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium transition hover:bg-accent disabled:opacity-60"
+            >
+              {busy === "one" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3" />
+              )}
+              {t("settings.themePacksDeviceOne", { defaultValue: "Get this size" })}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Lock className="h-3 w-3" />
+          {t("settings.themePacksDeviceLocked", { defaultValue: "Device packs unlock with the pack at launch." })}
+        </p>
+      )}
+      {error ? (
+        <p role="alert" className="mt-2 text-[11px] text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function PackCard({
   pack,
   siteMode,
@@ -122,14 +336,21 @@ function PackCard({
   pack: ThemePack;
   siteMode: ThemePackMode;
   active: boolean;
-  onApply: (pack: ThemePack) => void;
+  onApply: (pack: ThemePack, mode: ThemePackMode) => void;
 }) {
   const { t } = useTranslation();
   const unlocked = isThemePackUnlocked(pack);
   const modes = packModes(pack);
-  const shownMode = resolvePackMode(pack, siteMode);
-  const variant = pack.variants[shownMode]!;
+  // The card's Light | Dark toggle: follows the site mode until the
+  // visitor picks a side, then drives preview + apply + downloads.
+  const [viewMode, setViewMode] = useState<ThemePackMode>(() => resolvePackMode(pack, siteMode));
+  const touched = useRef(false);
+  useEffect(() => {
+    if (!touched.current) setViewMode(resolvePackMode(pack, siteMode));
+  }, [pack, siteMode]);
+  const variant = pack.variants[viewMode]!;
   const cursorName = CURSOR_OPTIONS.find((c) => c.id === pack.cursor)?.name ?? pack.cursor;
+  const appliedHere = active && siteMode === viewMode;
   return (
     <article
       className={`flex flex-col gap-3 rounded-2xl border p-4 transition ${
@@ -165,7 +386,36 @@ function PackCard({
         </div>
       </div>
 
-      <PackPreview variant={variant} mode={shownMode} />
+      <div
+        className="inline-flex self-start overflow-hidden rounded-full border border-border"
+        role="group"
+        aria-label={`${pack.name} — preview light or dark`}
+      >
+        {(["light", "dark"] as ThemePackMode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            data-testid={`theme-pack-mode-${pack.id}-${m}`}
+            aria-pressed={viewMode === m}
+            onClick={() => {
+              touched.current = true;
+              setViewMode(m);
+            }}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold transition ${
+              viewMode === m
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {m === "light" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+            {m === "light"
+              ? t("settings.themePacksLight", { defaultValue: "Light" })
+              : t("settings.themePacksDark", { defaultValue: "Dark" })}
+          </button>
+        ))}
+      </div>
+
+      <PackPreview variant={variant} mode={viewMode} />
 
       <p className="text-xs leading-relaxed text-muted-foreground">{pack.description}</p>
 
@@ -189,7 +439,7 @@ function PackCard({
           </span>
         </div>
 
-        {active ? (
+        {appliedHere ? (
           <button
             type="button"
             disabled
@@ -202,11 +452,17 @@ function PackCard({
         ) : unlocked ? (
           <button
             type="button"
-            onClick={() => onApply(pack)}
+            onClick={() => onApply(pack, viewMode)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20"
             data-testid={`theme-pack-apply-${pack.id}`}
           >
-            {t("settings.themePacksApply", { defaultValue: "Apply pack" })}
+            {t("settings.themePacksApplyIn", {
+              defaultValue: "Apply in {{mode}}",
+              mode:
+                viewMode === "light"
+                  ? t("settings.themePacksLight", { defaultValue: "Light" })
+                  : t("settings.themePacksDark", { defaultValue: "Dark" }),
+            })}
           </button>
         ) : (
           <button
@@ -220,6 +476,8 @@ function PackCard({
             {t("settings.themePacksComingWithLaunch", { defaultValue: "Premium pack — coming with launch" })}
           </button>
         )}
+
+        <PackDeviceDownloads pack={pack} mode={viewMode} unlocked={unlocked} />
       </div>
     </article>
   );
@@ -265,7 +523,7 @@ export function ThemePacksDesk() {
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
             {t("settings.themePacksDescription", {
               defaultValue:
-                "One tap reskins the whole site — backgrounds, panels, buttons, accents — on phone and computer alike. Applying a pack also sets its paired cursor; you can change the cursor any time below. The video editor keeps its own look under every pack.",
+                "One tap reskins the whole site — backgrounds, panels, buttons, accents — on phone and computer alike. Every pack comes in a designed light and dark, and can dress your actual phone and computer too. Applying a pack also sets its paired cursor; you can change the cursor any time below. The video editor keeps its own look under every pack.",
             })}
           </p>
         </div>
@@ -278,8 +536,8 @@ export function ThemePacksDesk() {
             pack={pack}
             siteMode={siteMode}
             active={pack.id === activePack.id}
-            onApply={(p) => {
-              applyThemePack(p.id);
+            onApply={(p, m) => {
+              applyThemePack(p.id, { mode: m });
             }}
           />
         ))}
