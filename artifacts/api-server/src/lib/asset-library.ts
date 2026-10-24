@@ -96,6 +96,42 @@ export function libraryAssetFromGeneration(row: GenerationRowLike): LibraryAsset
   };
 }
 
+/** Generation-row linkage for hub entries, keyed by asset URL — the same
+    key mergeLibraryAssets dedupes on. Desk outputs are reported to the
+    hub with the generation's own URL and generation rows store that URL
+    (result.videoUrl / result.thumbnailUrl), so a URL match is stored-data
+    evidence that the hub entry IS that generation. Used by the provenance
+    derivation so a hub copy of a generation records its real AI facts
+    instead of understating them. */
+export function generationLinkageByUrl(
+  rows: Array<{
+    generationType?: string | null;
+    result?: unknown;
+    createdAt?: Date | string | null;
+    prompt?: string | null;
+    creditsUsed?: number | null;
+  }>,
+): Map<string, { generationType: string | null; prompt: string | null; creditsUsed: number | null }> {
+  const map = new Map<string, { generationType: string | null; prompt: string | null; creditsUsed: number | null }>();
+  for (const row of rows) {
+    const dto = libraryAssetFromGeneration({
+      id: "",
+      generationType: row.generationType ?? null,
+      result: row.result,
+      createdAt: row.createdAt ?? null,
+    });
+    if (!dto) continue;
+    if (!map.has(dto.url)) {
+      map.set(dto.url, {
+        generationType: row.generationType ?? null,
+        prompt: row.prompt ?? null,
+        creditsUsed: row.creditsUsed ?? null,
+      });
+    }
+  }
+  return map;
+}
+
 /** Merge library sources: dedupe by URL (first source wins — callers pass
     project assets first so the project copy, with its label/detail, is the
     canonical one), newest first, capped. */

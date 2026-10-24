@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
 import {
+  generationLinkageByUrl,
   libraryAssetFromGeneration,
   libraryAssetFromHub,
   type LibraryAssetDTO,
@@ -102,6 +103,15 @@ async function loadHubAsset(userId: string, id: string): Promise<LoadedAsset | n
   const dto = libraryAssetFromHub(entry as never);
   if (!dto) return null;
   const stored = (entry["provenance"] ?? {}) as { licence?: unknown };
+  /* Same linkage as the library route: the caller's generation rows,
+     matched by URL, prove (or don't) this hub entry's AI origin. */
+  const generationRows = await db
+    .select()
+    .from(generationHistoryTable)
+    .where(eq(generationHistoryTable.userId, userId))
+    .orderBy(desc(generationHistoryTable.createdAt))
+    .limit(200);
+  const linkedGeneration = generationLinkageByUrl(generationRows as never).get(dto.url) ?? null;
   const record = buildProvenanceRecord({
     assetId: dto.id,
     title: dto.label,
@@ -112,6 +122,7 @@ async function loadHubAsset(userId: string, id: string): Promise<LoadedAsset | n
     createdAt: dto.createdAt,
     hubKind: dto.hubKind,
     hubDetail: dto.detail,
+    linkedGeneration,
     storedLicence: stored.licence,
   });
   return { dto, record, hubProjectRow: { id: project.id, assets }, hubAssetIndex: index };

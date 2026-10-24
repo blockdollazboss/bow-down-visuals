@@ -4,6 +4,7 @@ import { db, hubProjectsTable, generationHistoryTable, creatorProfilesTable } fr
 import { eq, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
+  generationLinkageByUrl,
   libraryAssetFromGeneration,
   libraryAssetFromHub,
   mergeLibraryAssets,
@@ -57,6 +58,11 @@ router.get("/asset-library", requireAuth, async (req, res) => {
         .from(creatorProfilesTable)
         .where(eq(creatorProfilesTable.userId, userId));
       const creatorName = profileRows[0]?.displayName ?? null;
+      /* Hub entries linked by URL to a generation row inherit its AI
+         facts (the MEDIUM finding from the F7 review: a hub-only copy of
+         a desk generation must not understate AI involvement); unlinked
+         hub entries derive as "unknown", never as "no AI". */
+      const linkage = generationLinkageByUrl(generationRows as never);
       for (const entry of projectAssetsRaw) {
         const dto = libraryAssetFromHub(entry);
         if (!dto) continue;
@@ -71,6 +77,7 @@ router.get("/asset-library", requireAuth, async (req, res) => {
           createdAt: dto.createdAt,
           hubKind: dto.hubKind,
           hubDetail: dto.detail,
+          linkedGeneration: linkage.get(dto.url) ?? null,
           storedLicence: stored?.licence,
         }));
       }
