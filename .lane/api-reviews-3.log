@@ -1,0 +1,181 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-reviews/artifacts/api-server[39m
+
+[01:30:25.366] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "958fc20e-df9f-469b-970c-4c0188945182"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:29.643] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "shop_product"
+    [35mproductId[39m: "8f18f6fb-0b3d-42c8-b7c2-bea8b80a8d98"
+    [35mreviewId[39m: "52bf9877-ed67-4474-95dd-65784a4e2cbe"
+    [35mpurchaseSource[39m: "shop_events"
+[01:30:30.665] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "75c4592b-16c5-4217-99fc-3b1344ab2681"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:31.576] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "f3a0e409-e35a-4d5f-b2c0-af4f03e554d2"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:32.673] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "a07696af-41a4-407d-aa03-7771db2bb143"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:33.069] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "98d8ff0a-4b56-443d-94ac-de5a5fa7bab9"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:33.655] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "5a3ad94b-b081-4557-bd0d-c8b76a970f37"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "1c5e8b96-50c4-4ab6-9142-46165a8dc32a"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:34.869] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "9fce8379-d1f0-4938-b3ca-1bd8047d5635"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:36.140] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "cb196fcc-aab7-4ed1-9610-586d83a7f32f"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:36.310] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "fdc2a603-82f3-4fdc-b686-9a2ac6b3dbaf"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:38.232] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "be698049-3122-47fa-b5e8-b9e94a965530"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:38.837] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "c96d9e8a-7194-4ab9-bce5-d00b21f0a5fc"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:39.787] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "fddfacca-2da8-46b0-a3dd-ce590e1aeba5"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:40.234] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "69f3fac8-4e25-4152-95c4-01ccb773cbf6"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:40.297] [32mINFO[39m (63089): [36m[product-reviews] seller flagged review for platform moderation[39m
+    [35muserId[39m: "5e39808d-ee2d-4e07-8c40-358a13a9f365"
+    [35mreviewId[39m: "fddfacca-2da8-46b0-a3dd-ce590e1aeba5"
+    [35mreason[39m: "spam"
+    [35mhide[39m: false
+[01:30:40.570] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "d50f4ccf-be89-4367-9f88-ef657d6a21c8"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:40.695] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "8b6cc3ee-10c3-4489-969b-2ca5a65a3beb"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:40.708] [32mINFO[39m (63089): [36m[product-reviews] seller flagged review for platform moderation[39m
+    [35muserId[39m: "5e39808d-ee2d-4e07-8c40-358a13a9f365"
+    [35mreviewId[39m: "d50f4ccf-be89-4367-9f88-ef657d6a21c8"
+    [35mreason[39m: "harassment"
+    [35mhide[39m: true
+[01:30:41.508] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "fc67b356-134c-4b2a-8004-de70c3114f71"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:41.778] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "a950061f-5cfb-4e1f-b3f8-e64936ad710e"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:42.575] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "411a2cf4-28a0-43a8-b960-274e7a6c8e34"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:42.952] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "ca9620b0-2771-43ac-9aff-9a94af46807b"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:43.344] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "6c7e45c5-78e7-4f10-b1af-04c7b47a7bd1"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "96ea1a5b-228c-4ce8-b04a-ebeb30d247ff"
+    [35mpurchaseSource[39m: "store_orders"
+[01:30:43.362] [32mINFO[39m (63089): [36m[product-reviews] verified review created[39m
+    [35muserId[39m: "440c2eea-4d5d-4708-8bdb-75c1f64cfd79"
+    [35mproductType[39m: "store_product"
+    [35mproductId[39m: "c91ad8b9-580f-40e9-b0f7-670dc942552d"
+    [35mreviewId[39m: "cccdc21a-7099-43a9-a1ec-9d28409ed405"
+    [35mpurchaseSource[39m: "store_orders"
+ [32m✓[39m src/routes/__tests__/product-reviews.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 21924[2mms[22m[39m
+   [32m✓[39m verified-purchase gate — store_products / store_orders [2m(7)[22m
+     [33m[2m✓[22m[39m refuses a signed-in user with no purchase at all[33m 2601[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses refunded and booking-held orders — only 'completed' counts[33m 465[2mms[22m[39m
+     [33m[2m✓[22m[39m a completed order opens the gate and the review records its proof[33m 818[2mms[22m[39m
+     [33m[2m✓[22m[39m an order for a DIFFERENT product does not open this product's gate[33m 434[2mms[22m[39m
+     [33m[2m✓[22m[39m the seller can never review their own product[33m 409[2mms[22m[39m
+     [33m[2m✓[22m[39m validates rating and body before anything else[33m 591[2mms[22m[39m
+   [32m✓[39m verified-purchase gate — shop_products / shop_events [2m(4)[22m
+     [33m[2m✓[22m[39m refuses when there is only a pending_sale (never paid)[33m 1123[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses when the sale's buyer email belongs to someone else[33m 430[2mms[22m[39m
+     [33m[2m✓[22m[39m a 'sale' row whose buyer email matches the account email opens the gate (case-insensitive)[33m 1139[2mms[22m[39m
+     [33m[2m✓[22m[39m a view event is not a purchase[33m 524[2mms[22m[39m
+   [32m✓[39m one review per buyer per product + author edit + summary [2m(5)[22m
+     [33m[2m✓[22m[39m a second create from the same buyer is a 409 pointing at the edit path[33m 637[2mms[22m[39m
+     [33m[2m✓[22m[39m the author can edit rating and body; nobody else can[33m 1250[2mms[22m[39m
+     [33m[2m✓[22m[39m public list + summary: visible reviews, honest average and distribution[33m 1962[2mms[22m[39m
+     [33m[2m✓[22m[39m eligibility walks a buyer through the states honestly[33m 1061[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects a malformed public query[33m 306[2mms[22m[39m
+   [32m✓[39m seller moderation — respond, flag/hide with disclosure, no delete [2m(7)[22m
+     [33m[2m✓[22m[39m the seller can respond and the response shows publicly; a buyer cannot respond[33m 1769[2mms[22m[39m
+     [33m[2m✓[22m[39m flagging demands an abusive-content reason — 'negative' is not one[33m 1919[2mms[22m[39m
+     [33m[2m✓[22m[39m a flag WITHOUT hide keeps the review public and records the flag[33m 1234[2mms[22m[39m
+     [33m[2m✓[22m[39m flag + hide: leaves the public list, is DISCLOSED in the summary, stays in seller queue and author view, unflag restores[33m 776[2mms[22m[39m
+     [33m[2m✓[22m[39m only the seller can flag/unflag[33m 777[2mms[22m[39m
+     [33m[2m✓[22m[39m the seller CANNOT delete a review — only its author can[33m 1289[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m   Start at [22m 01:29:46
+[2m   Duration [22m 57.24s[2m (tests 40%, transform 31%, import 28%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 16.93s[39m[2m · 31% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
