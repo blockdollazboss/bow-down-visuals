@@ -70,6 +70,8 @@ export interface StoreProductDTO {
   soldOut: boolean;
   unlimited: boolean;
   mediaUrls: string[];
+  /* #29: index-aligned accessibility descriptions for mediaUrls. */
+  mediaAltTexts?: string[];
   serviceDetails: ServiceDetails | null;
   eventId: string | null;
   relatedLinks: RelatedLink[];
@@ -160,6 +162,8 @@ export interface CreateProductInput {
   compareAtCents?: number | null;
   inventory?: number;
   mediaUrls?: string[];
+  /* #29: index-aligned accessibility descriptions for mediaUrls. */
+  mediaAltTexts?: string[];
   serviceDetails?: ServiceDetails | null;
   eventId?: string | null;
   relatedLinks?: RelatedLink[];

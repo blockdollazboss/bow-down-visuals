@@ -36,7 +36,7 @@ interface ChallengeChip { slug: string; title: string; hashtag: string }
 
 export interface ShortItem {
   id: string; profile_id: string; title: string; video_url: string;
-  thumbnail_url: string | null; description: string; tags: string[];
+  thumbnail_url: string | null; thumbnail_alt_text?: string | null; description: string; tags: string[];
   duration_sec: number; view_count: number; like_count: number;
   repost_count: number; comment_count: number; download_price_cents: number;
   duet_with: string | null; stitch_with: string | null; sound: SoundRef | null;
@@ -436,6 +436,7 @@ function ShortCard({
           ref={(el) => { videoEl.current = el; videoRefCb(el); }}
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
+          aria-label={item.thumbnail_alt_text || item.title}
           className="h-full w-full object-contain"
           loop playsInline muted={muted}
           preload="metadata"

@@ -31,6 +31,7 @@ import {
 } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
+import { sanitizeAltText } from "../lib/alt-text";
 
 const router = Router();
 
@@ -206,6 +207,37 @@ function posInt(v: unknown): number | null {
  * contract schema may gain these columns after Worker 1's migration lands;
  * probe once and cache so both POST and PUT build valid SQL either way.
  */
+/**
+ * Do profile_videos rows carry thumbnail_alt_text (#29 accessibility
+ * description of the cover frame)? The column lands via a held migration
+ * (numbering assigned at join — see the alt-text lane's
+ * .lane/MIGRATION-NEEDED.md); probe once and cache, exactly like season
+ * below, so POST/PUT/GET build valid SQL either way and publishing keeps
+ * working before the column lands (the description is simply not stored
+ * yet — the door never breaks over an accessibility extra).
+ */
+let altTextColKnown: boolean | null = null;
+async function profileVideosHasAltText(): Promise<boolean> {
+  if (altTextColKnown !== null) return altTextColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM information_schema.columns
+      WHERE table_name = 'profile_videos' AND column_name = 'thumbnail_alt_text'
+    `);
+    altTextColKnown = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+  } catch {
+    altTextColKnown = false;
+  }
+  return altTextColKnown;
+}
+
+/** Sanitized cover alt text from a request body: a string ("" clears on
+ *  PUT via the COALESCE-bypass below), anything else = not provided. */
+function cleanAltText(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  return sanitizeAltText(v);
+}
+
 let seasonColsKnown: boolean | null = null;
 async function profileVideosHasSeason(): Promise<boolean> {
   if (seasonColsKnown !== null) return seasonColsKnown;
@@ -422,34 +454,22 @@ router.post("/video", requireAuth, async (req: Request, res: Response) => {
     const season = posInt(b["season"]);
     const episode = posInt(b["episode"]);
     const hasSeason = await profileVideosHasSeason();
+    const hasAltText = await profileVideosHasAltText();
+    const thumbnailAltText = cleanAltText(b["thumbnail_alt_text"]);
 
-    const result = hasSeason
-      ? await db.execute(sql`
-          INSERT INTO profile_videos
-            (profile_id, title, video_url, thumbnail_url, duration_sec,
-             description, is_published, season, episode)
-          VALUES
-            (${profileId}, ${title}, ${storedVideoUrl},
-             ${storedThumbnailUrl},
-             ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null},
-             ${cleanStr(b["description"], 2000)},
-             ${b["is_published"] === true},
-             ${season}, ${episode})
-          RETURNING id, profile_id, title, video_url, thumbnail_url, duration_sec,
-                    description, is_published, season, episode
-        `)
-      : await db.execute(sql`
-          INSERT INTO profile_videos
-            (profile_id, title, video_url, thumbnail_url, duration_sec,
-             description, is_published)
-          VALUES
-            (${profileId}, ${title}, ${storedVideoUrl},
-             ${storedThumbnailUrl},
-             ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null},
-             ${cleanStr(b["description"], 2000)},
-             ${b["is_published"] === true})
-          RETURNING id, profile_id, title, video_url, thumbnail_url, duration_sec,
-                    description, is_published
+    /* Column/value lists are composed from fragments so the season and
+       alt-text probes combine without a 4-way branch: the INSERT is
+       valid whether either optional column has landed yet. */
+    const cols = hasSeason
+      ? sql`profile_id, title, video_url, thumbnail_url, duration_sec, description, is_published, season, episode`
+      : sql`profile_id, title, video_url, thumbnail_url, duration_sec, description, is_published`;
+    const vals = hasSeason
+      ? sql`${profileId}, ${title}, ${storedVideoUrl}, ${storedThumbnailUrl}, ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null}, ${cleanStr(b["description"], 2000)}, ${b["is_published"] === true}, ${season}, ${episode}`
+      : sql`${profileId}, ${title}, ${storedVideoUrl}, ${storedThumbnailUrl}, ${typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0 ? Math.round(b["duration_sec"]) : null}, ${cleanStr(b["description"], 2000)}, ${b["is_published"] === true}`;
+    const result = await db.execute(sql`
+          INSERT INTO profile_videos (${cols}${hasAltText ? sql`, thumbnail_alt_text` : sql``})
+          VALUES (${vals}${hasAltText ? sql`, ${thumbnailAltText}` : sql``})
+          RETURNING ${cols}${hasAltText ? sql`, thumbnail_alt_text` : sql``}
         `);
     res.status(201).json({ video: await refreshSupabaseStorageUrlsDeep(result.rows[0]) });
   } catch (err) {
@@ -465,9 +485,10 @@ router.get("/videos", requireAuth, async (req: Request, res: Response) => {
       res.json({ videos: [] });
       return;
     }
+    const hasAltText = await profileVideosHasAltText();
     const result = await db.execute(sql`
       SELECT id, profile_id, title, video_url, thumbnail_url, duration_sec,
-             description, is_published
+             description, is_published${hasAltText ? sql`, thumbnail_alt_text` : sql``}
       FROM profile_videos
       WHERE profile_id = ANY(${sql`ARRAY[${sql.join(ids.map((i) => sql`${i}`), sql`, `)}]`})
       ORDER BY id DESC
@@ -507,10 +528,14 @@ router.put("/video/:id", requireAuth, async (req: Request, res: Response) => {
       : null;
 
     const hasSeason = await profileVideosHasSeason();
+    const hasAltText = await profileVideosHasAltText();
     const season = posInt(b["season"]);
     const episode = posInt(b["episode"]);
-    const result = hasSeason
-      ? await db.execute(sql`
+    /* Alt text edit semantics: not provided (null) = keep; provided —
+       including "" — = set exactly that (so a creator can CLEAR a
+       description). COALESCE can't express ""-clears, hence the CASE. */
+    const thumbnailAltText = cleanAltText(b["thumbnail_alt_text"]);
+    const result = await db.execute(sql`
           UPDATE profile_videos SET
             title = COALESCE(${cleanStr(b["title"], 160)}, title),
             video_url = COALESCE(${storedVideoUrl}, video_url),
@@ -521,28 +546,13 @@ router.put("/video/:id", requireAuth, async (req: Request, res: Response) => {
                 : null
             }, duration_sec),
             description = COALESCE(${cleanStr(b["description"], 2000)}, description),
-            is_published = COALESCE(${typeof b["is_published"] === "boolean" ? b["is_published"] : null}, is_published),
+            is_published = COALESCE(${typeof b["is_published"] === "boolean" ? b["is_published"] : null}, is_published)${hasSeason ? sql`,
             season = COALESCE(${season}, season),
-            episode = COALESCE(${episode}, episode)
+            episode = COALESCE(${episode}, episode)` : sql``}${hasAltText ? sql`,
+            thumbnail_alt_text = CASE WHEN ${thumbnailAltText} IS NULL THEN thumbnail_alt_text ELSE ${thumbnailAltText} END` : sql``}
           WHERE id = ${id}
           RETURNING id, profile_id, title, video_url, thumbnail_url, duration_sec,
-                    description, is_published, season, episode
-        `)
-      : await db.execute(sql`
-          UPDATE profile_videos SET
-            title = COALESCE(${cleanStr(b["title"], 160)}, title),
-            video_url = COALESCE(${storedVideoUrl}, video_url),
-            thumbnail_url = COALESCE(${storedThumbnailUrl}, thumbnail_url),
-            duration_sec = COALESCE(${
-              typeof b["duration_sec"] === "number" && b["duration_sec"] >= 0
-                ? Math.round(b["duration_sec"])
-                : null
-            }, duration_sec),
-            description = COALESCE(${cleanStr(b["description"], 2000)}, description),
-            is_published = COALESCE(${typeof b["is_published"] === "boolean" ? b["is_published"] : null}, is_published)
-          WHERE id = ${id}
-          RETURNING id, profile_id, title, video_url, thumbnail_url, duration_sec,
-                    description, is_published
+                    description, is_published${hasSeason ? sql`, season, episode` : sql``}${hasAltText ? sql`, thumbnail_alt_text` : sql``}
         `);
     res.json({ video: await refreshSupabaseStorageUrlsDeep(result.rows[0]) });
   } catch (err) {

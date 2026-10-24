@@ -13,6 +13,7 @@ import PosMode from "@/components/PosMode";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import { useTranslation } from "react-i18next";
+import { AltTextField } from "@/components/accessibility/AltTextField";
 
 /* ─── My Shop — the customer storefront builder ──────────────────────────
    Your own shop on the Bow Down Visuals platform. Shop/product CRUD is
@@ -41,6 +42,9 @@ interface Product {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /* #29: accessibility description of the product shot — buyer reads
+     carry it too; it renders as the product image's alt in the shop. */
+  image_alt_text?: string | null;
   /* Owner-rail field (migration 0176): 'paused' products are unlisted
      for buyers but stay fully visible here so the seller can resume
      them. Buyer reads never carry this. */
@@ -112,6 +116,7 @@ export default function MyShop() {
      (of MY cut — never added to the buyer's price). */
   const [pAffiliates, setPAffiliates] = useState(false);
   const [pAffiliatePct, setPAffiliatePct] = useState("");
+  const [pImageAlt, setPImageAlt] = useState("");
   const [pSaving, setPSaving] = useState(false);
   const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
@@ -283,7 +288,7 @@ export default function MyShop() {
 
   function openNewProduct() {
     setEditingProduct(null);
-    setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setImageStyleHint("");
+    setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setPImageAlt(""); setImageStyleHint("");
     setPAffiliates(false); setPAffiliatePct("");
     setShowProductForm(true);
   }
@@ -296,6 +301,7 @@ export default function MyShop() {
     setPImageUrl(p.image_url ?? "");
     setPAffiliates(p.affiliate_enabled === true);
     setPAffiliatePct(p.affiliate_commission_bps != null ? String(p.affiliate_commission_bps / 100) : "");
+    setPImageAlt(p.image_alt_text ?? "");
     setImageStyleHint("");
     setShowProductForm(true);
   }
@@ -349,6 +355,7 @@ export default function MyShop() {
         image_url: pImageUrl.trim(),
         affiliate_enabled: pAffiliates,
         affiliate_commission_bps: affiliateBps,
+        image_alt_text: pImageAlt.trim(),
       };
       const url = editingProduct
         ? `/api/shops/${activeShop.id}/products/${editingProduct.id}`
@@ -697,6 +704,15 @@ export default function MyShop() {
                           className="mt-2 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none"
                           value={pImageUrl} onChange={(e) => setPImageUrl(e.target.value)}
                           placeholder={t("myShop.imageUrlPlaceholder")}
+                        />
+                        {/* #29 product-shot accessibility description */}
+                        <AltTextField
+                          compact
+                          imageUrl={pImageUrl.trim() || null}
+                          value={pImageAlt}
+                          onChange={setPImageAlt}
+                          label="Describe the product photo for screen readers"
+                          context={pName || undefined}
                         />
                       </div>
                       {/* #16: Creator Product Affiliates — docked in the product settings. */}

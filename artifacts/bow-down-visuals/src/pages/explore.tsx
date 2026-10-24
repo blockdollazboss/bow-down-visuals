@@ -21,7 +21,7 @@ import {
    events, active groups. Every card deep-links to its destination and is
    shareable with ?ref=CODE. No island pages: every card connects somewhere. */
 
-interface Short { id: string; title: string; thumbnail_url: string | null; view_count: number; duration_sec: number; creator: { slug: string; display_name: string; avatar_url: string | null } }
+interface Short { id: string; title: string; thumbnail_url: string | null; thumbnail_alt_text?: string | null; view_count: number; duration_sec: number; creator: { slug: string; display_name: string; avatar_url: string | null } }
 interface Creator { id: string; slug: string; display_name: string; avatar_url: string | null; vertical: string; follower_count: number }
 interface HotPost { id: string; body: string; like_count: number; created_at: string; group: { slug: string; name: string }; author: { slug: string; displayName: string } | null }
 interface Evt { id: string; title: string; kind: string; starts_at: string; cover_url: string | null; rsvp_count: number; host: { slug: string; display_name: string; avatar_url: string | null } }
@@ -111,7 +111,7 @@ export default function Explore() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {shorts.slice(0, 6).map((s) => (
               <div key={s.id} className={card}>
-                {s.thumbnail_url && <img src={s.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="mb-3 h-36 w-full rounded-lg object-cover" />}
+                {s.thumbnail_url && <img src={s.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={s.thumbnail_alt_text ?? s.title} className="mb-3 h-36 w-full rounded-lg object-cover" />}
                 <Link href={profileLink(s.creator.slug)} className="font-bold hover:text-[#e8c86a]">{s.title}</Link>
                 <p className="mt-1 text-xs text-white/50">
                   {s.view_count.toLocaleString()} views · {s.duration_sec}s · by{" "}

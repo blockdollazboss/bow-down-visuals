@@ -40,6 +40,9 @@ interface PublicProduct {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /* #29: the seller's accessibility description of the product shot —
+     renders as the product image's alt; falls back to the name. */
+  image_alt_text?: string | null;
   /** The finished UGC ad pinned to this product (migration 0178),
       resolved server-side; null when nothing is pinned. */
   pinned_ad?: { id: string; video_url: string } | null;
@@ -339,7 +342,7 @@ export default function ShopStorefront() {
                       </span>
                     )}
                     {p.image_url ? (
-                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
+                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
                     ) : (
                       <div className="h-56 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                         <ShoppingBag className="w-10 h-10 text-white/20" />
@@ -369,7 +372,7 @@ export default function ShopStorefront() {
             onClick={(e) => e.stopPropagation()}
           >
             {selected.image_url ? (
-              <img src={selected.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={selected.name} className="h-64 w-full object-cover" />
+              <img src={selected.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={selected.image_alt_text ?? selected.name} className="h-64 w-full object-cover" />
             ) : (
               <div className="h-40 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                 <ShoppingBag className="w-10 h-10 text-white/20" />
@@ -434,7 +437,7 @@ export default function ShopStorefront() {
                 cartDetailed.map((l) => (
                   <div key={l.productId} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
                     {l.product!.image_url ? (
-                      <img src={l.product!.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
+                      <img src={l.product!.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={l.product!.image_alt_text ?? l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="h-14 w-14 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0">
                         <ShoppingBag className="w-5 h-5 text-white/25" />

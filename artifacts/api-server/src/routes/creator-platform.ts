@@ -545,6 +545,9 @@ function enrichVideo(
     title: row.title,
     video_url: row.videoUrl,
     thumbnail_url: row.thumbnailUrl,
+    /* #29: cover accessibility description (null until the held
+       migration lands and the creator provides one). */
+    thumbnail_alt_text: row.thumbnailAltText ?? null,
     description: row.description,
     genre: row.genre,
     tags: row.tags ?? [],

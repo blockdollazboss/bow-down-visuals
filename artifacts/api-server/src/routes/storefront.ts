@@ -105,6 +105,27 @@ import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from ".
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
+import { ALT_TEXT_MAX_CHARS, sanitizeAltTextList } from "../lib/alt-text";
+
+/* #29: store_products.media_alt_texts lands via a held migration
+   (numbering assigned at join). Probe once and cache (publish.ts season
+   precedent): product writes include the column only when it exists, so
+   the storefront door works exactly as before until the column lands.
+   Reads use SELECT sp.* — the field simply appears when present. */
+let storeAltColKnown: boolean | null = null;
+async function storeProductsHasMediaAlt(): Promise<boolean> {
+  if (storeAltColKnown !== null) return storeAltColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM information_schema.columns
+      WHERE table_name = 'store_products' AND column_name = 'media_alt_texts'
+    `);
+    storeAltColKnown = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+  } catch {
+    storeAltColKnown = false;
+  }
+  return storeAltColKnown;
+}
 
 /* Mirror-on-save (2026-10-13 law): product media is re-hosted into
    permanent storage at save time (kind inferred from the URL extension —
@@ -491,6 +512,9 @@ interface ProductRow extends Record<string, unknown> {
   id: string; profile_id: string; kind: string; title: string;
   description: string; price_cents: number; compare_at_cents: number | null;
   inventory: number; media_urls: string[]; service_details: Record<string, unknown> | null;
+  /** #29: index-aligned accessibility descriptions for media_urls;
+      absent on pre-migration rows (the column is held for join). */
+  media_alt_texts?: string[] | null;
   event_id: string | null; related_links: Array<{ label: string; url: string }>;
   is_active: boolean; created_at: string;
   affiliate_enabled?: boolean; affiliate_commission_bps?: number | null;
@@ -523,6 +547,8 @@ function withLinks(p: ProductRow) {
     soldOut: Number(p.inventory) === 0,
     unlimited: Number(p.inventory) === -1,
     mediaUrls: p.media_urls ?? [],
+    /* #29: index-aligned with mediaUrls; [] when none was provided. */
+    mediaAltTexts: sanitizeAltTextList(p.media_alt_texts ?? [], 20),
     serviceDetails: p.service_details,
     /* Order-bump setting (feature #13): the raw attachment, so the
        seller's dashboard can show and edit it even while the add-on
@@ -918,6 +944,9 @@ const BaseProductSchema = z.object({
   /* -1 = unlimited/digital, 0 = sold out. */
   inventory: z.number().int().min(-1).default(-1),
   mediaUrls: z.array(z.string().url().max(2048)).max(20).default([]),
+  /* #29: accessibility descriptions for mediaUrls, index-aligned —
+     creator-written or AI-suggested, editable before it ships. */
+  mediaAltTexts: z.array(z.string().max(ALT_TEXT_MAX_CHARS)).max(20).default([]),
   serviceDetails: ServiceDetailsSchema,
   eventId: z.string().regex(UUID_RE).nullable().optional(),
   relatedLinks: z.array(RelatedLinkSchema).max(10).default([]),
@@ -956,16 +985,17 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
       return;
     }
     const d = parsed.data;
+    const hasMediaAlt = await storeProductsHasMediaAlt();
     const r = await db.execute(sql`
       INSERT INTO store_products
         (profile_id, kind, title, description, price_cents, compare_at_cents,
          inventory, media_urls, service_details, event_id, related_links, is_active,
-         affiliate_enabled, affiliate_commission_bps)
+         affiliate_enabled, affiliate_commission_bps${hasMediaAlt ? sql`, media_alt_texts` : sql``})
       VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${d.priceCents},
               ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb,
               ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
               ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive},
-              ${d.affiliateEnabled}, ${d.affiliateCommissionBps ?? null})
+              ${d.affiliateEnabled}, ${d.affiliateCommissionBps ?? null}${hasMediaAlt ? sql`, ${JSON.stringify(sanitizeAltTextList(d.mediaAltTexts, 20))}::jsonb` : sql``})
       RETURNING id
     `);
     const id = String((r.rows[0] as Record<string, unknown>)["id"]);
@@ -1005,6 +1035,8 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
     if (d.compareAtCents !== undefined) sets.push(sql`compare_at_cents = ${d.compareAtCents}`);
     if (d.inventory !== undefined) sets.push(sql`inventory = ${d.inventory}`);
     if (d.mediaUrls !== undefined) sets.push(sql`media_urls = ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb`);
+    if (d.mediaAltTexts !== undefined && (await storeProductsHasMediaAlt()))
+      sets.push(sql`media_alt_texts = ${JSON.stringify(sanitizeAltTextList(d.mediaAltTexts, 20))}::jsonb`);
     if (d.serviceDetails !== undefined)
       sets.push(sql`service_details = ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb`);
     if (d.eventId !== undefined) sets.push(sql`event_id = ${d.eventId}`);

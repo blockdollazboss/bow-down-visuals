@@ -97,6 +97,7 @@ import { affinityScore, forYouScore, whyReason } from "../lib/for-you";
 import { deriveCoPostState, isCoPostVisibleInFeed } from "../lib/co-posts";
 import { loadCoPostsGuarded, coAuthorSummaries, fetchProfilesById } from "../lib/co-posts-db";
 import { verifyAccessToken } from "../lib/live-ws";
+import { ALT_TEXT_MAX_CHARS, sanitizeAttachmentAlts } from "../lib/alt-text";
 
 /* ── Instagram auto-post MVP ─────────────────────────────────────────────
    GET  /social/instagram/auth-url   (authed)  → Meta OAuth authorize URL
@@ -1394,6 +1395,10 @@ export function postNotificationLink(postId: string): string {
 const attachmentSchema = z
   .object({
     kind: z.string(),
+    /* #29: creator-written / AI-suggested accessibility description of
+       the attachment's image — sanitized (sanitizeAttachmentAlts) before
+       it is stored in media_urls JSONB; renders as alt on public surfaces. */
+    alt: z.string().max(ALT_TEXT_MAX_CHARS).optional(),
     url: z.string().max(2000).optional(),
     id: z.string().max(100).optional(),
     title: z.string().max(200).optional(),
@@ -1924,7 +1929,7 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: d.body,
-      mediaUrls: (await mirrorAttachments(d.media_urls, req.userId!)) as unknown as Attachment[],
+      mediaUrls: sanitizeAttachmentAlts(await mirrorAttachments(d.media_urls, req.userId!)) as unknown as Attachment[],
       kind,
       replyTo: d.reply_to ?? null,
       quoteOf: d.quote_of ?? null,
@@ -2377,7 +2382,7 @@ router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: parsed.data.body,
-      mediaUrls: (await mirrorAttachments(parsed.data.media_urls, req.userId!)) as unknown as Attachment[],
+      mediaUrls: sanitizeAttachmentAlts(await mirrorAttachments(parsed.data.media_urls, req.userId!)) as unknown as Attachment[],
       kind: "quote",
       quoteOf: id,
     }).returning();

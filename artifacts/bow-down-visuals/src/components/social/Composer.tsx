@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { apiJson, type Attachment, type FeedPost } from "@/lib/social-api";
 import { EmojiTray, useKingArtTheme } from "./KingEmoji";
+import { AltTextField } from "@/components/accessibility/AltTextField";
 import { gifImageAttachment, insertAtCursor, type KingGifDef } from "@/lib/king-emoji";
 
 /* The composer — difficulty ladder via data-min-stars (never gates posting):
@@ -291,6 +292,27 @@ export function Composer({
             </span>
           ))}
         </div>
+      )}
+
+      {/* #29 accessibility descriptions — one editable field per image /
+          video attachment, right where the media is attached. The alt
+          rides inside the attachment and renders as the image's alt on
+          every surface the post reaches. */}
+      {!replyTo && attachments.map((a, i) =>
+        a.kind === "image" || a.kind === "video" ? (
+          <AltTextField
+            key={`alt-${i}`}
+            compact
+            imageUrl={a.kind === "video" ? (a.thumb ?? a.url) : a.url}
+            value={a.alt ?? ""}
+            onChange={(alt) =>
+              setAttachments((prev) =>
+                prev.map((p, j) => (j === i && (p.kind === "image" || p.kind === "video") ? { ...p, alt: alt || undefined } : p)),
+              )
+            }
+            label={a.kind === "video" ? "Describe the video cover for screen readers" : "Describe this image for screen readers"}
+          />
+        ) : null,
       )}
 
       {/* money nudge — guide them to the money, every step */}

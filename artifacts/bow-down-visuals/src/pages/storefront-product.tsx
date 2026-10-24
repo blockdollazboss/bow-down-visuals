@@ -64,6 +64,8 @@ interface ProductData {
     affiliateCommissionPct?: string | null;
     /* Timed drop (#25): non-null while a drop is scheduled/live. */
     drop?: ProductDropDTO | null;
+    /* #29: index-aligned accessibility descriptions for mediaUrls. */
+    mediaAltTexts?: string[];
     links: {
       creatorUrl: string;
       creatorName: string;
@@ -442,7 +444,7 @@ export default function StorefrontProduct() {
         ) : (
           <div className={`mt-8 overflow-hidden rounded-2xl border border-amber-500/30 shadow-[0_0_60px_rgba(201,162,39,0.15)] ${panel}`}>
             {data.product.mediaUrls[0] ? (
-              <img src={data.product.mediaUrls[0]} alt={data.product.title} className="h-64 w-full object-cover" />
+              <img src={data.product.mediaUrls[0]} alt={data.product.mediaAltTexts?.[0] ?? data.product.title} className="h-64 w-full object-cover" />
             ) : (
               <div className="flex h-48 w-full items-center justify-center bg-gradient-to-br from-amber-900/40 to-black text-6xl">
                 👑

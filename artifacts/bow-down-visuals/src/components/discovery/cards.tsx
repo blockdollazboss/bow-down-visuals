@@ -59,6 +59,7 @@ export interface VideoLite {
   title: string;
   genre: string | null;
   thumbnail_url: string | null;
+  thumbnail_alt_text?: string | null;
   view_count: number;
   like_count: number;
   duration_sec: number | null;
@@ -334,7 +335,7 @@ export function VideoCard({ video, rank }: { video: VideoLite; rank?: number }) 
         {video.thumbnail_url ? (
           <img
             src={resolveMedia(video.thumbnail_url)} onError={(e) => { e.currentTarget.style.display = "none"; }}
-            alt=""
+            alt={video.thumbnail_alt_text ?? video.title}
             className="h-full w-full object-cover"
             loading="lazy"
           />

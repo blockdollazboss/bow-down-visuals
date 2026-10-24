@@ -50,6 +50,12 @@ export const shopProductsTable = pgTable("shop_products", {
   image_url: text("image_url"),
   /** Supabase storage reference for the image file (if uploaded). */
   image_path: text("image_path"),
+  /** Accessibility description of the product shot (#29, Stack-100 #3):
+   *  creator-written or AI-suggested, editable before it ships, rendered
+   *  as the product image's alt on public surfaces. Column lands via the
+   *  held migration in that lane's .lane/MIGRATION-NEEDED.md — the shops
+   *  routes probe for it and degrade gracefully until it lands. */
+  image_alt_text: text("image_alt_text"),
   /** Listing state (migration 0176): 'active' | 'paused'. Mirrors the
       status vocabulary of creator_subscriptions / fan_memberships /
       sponsor_deals (text, NOT NULL, default 'active') — every product

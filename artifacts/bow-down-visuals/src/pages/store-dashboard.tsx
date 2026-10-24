@@ -26,6 +26,7 @@ import {
 import { formatDropLocal } from "@/lib/product-drop";
 import PromoteButton from "@/components/storefront/PromoteButton";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
+import { AltTextField } from "@/components/accessibility/AltTextField";
 import {
   allSectionsFailed, initialSectionStates, markSectionLoading, sectionsToRefetch, settleSection,
   type SectionStates,
@@ -623,6 +624,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     compareAtDollars: "",
     inventory: "-1",
     mediaUrl: "",
+    mediaAlt: "",
     relatedLabel: "",
     relatedUrl: "",
     durationMin: "",
@@ -676,6 +678,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         compareAtCents: form.compareAtDollars ? dollarsToCents(form.compareAtDollars) : null,
         inventory: form.kind === "digital" || form.kind === "download" ? -1 : parseInt(form.inventory, 10) || -1,
         mediaUrls: form.mediaUrl.trim() ? [form.mediaUrl.trim()] : [],
+        mediaAltTexts: form.mediaUrl.trim() && form.mediaAlt.trim() ? [form.mediaAlt.trim()] : [],
         relatedLinks: form.relatedLabel.trim() && form.relatedUrl.trim()
           ? [{ label: form.relatedLabel.trim(), url: form.relatedUrl.trim() }] : [],
         serviceDetails: form.kind === "service" ? {
@@ -690,7 +693,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
       };
       await createProduct(token, input);
       setShowForm(false);
-      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "" });
+      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", mediaAlt: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "" });
       await load();
       onChanged();
     } catch (e) {
@@ -838,6 +841,15 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
               <input value={form.inventory} onChange={(e) => setForm({ ...form, inventory: e.target.value })} placeholder="Inventory (-1 = unlimited)" inputMode="numeric" className={inputCls} />
               <input value={form.mediaUrl} onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })} placeholder="Cover image URL" className={inputCls} />
             </div>
+            {/* #29 cover accessibility description */}
+            <AltTextField
+              compact
+              imageUrl={form.mediaUrl.trim() || null}
+              value={form.mediaAlt}
+              onChange={(v) => setForm({ ...form, mediaAlt: v })}
+              label="Describe the cover image for screen readers"
+              context={form.title || undefined}
+            />
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input value={form.relatedLabel} onChange={(e) => setForm({ ...form, relatedLabel: e.target.value })} placeholder="Related link label — e.g. The track" className={inputCls} />
               <input value={form.relatedUrl} onChange={(e) => setForm({ ...form, relatedUrl: e.target.value })} placeholder="Related link URL — e.g. /songs/…" className={inputCls} />

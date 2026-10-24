@@ -47,6 +47,27 @@ import {
 import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../../lib/affiliates";
+import { ALT_TEXT_MAX_CHARS, sanitizeAltText } from "../../lib/alt-text";
+
+/* #29: shop_products.image_alt_text (accessibility description of the
+   product shot) lands via a held migration — numbering is assigned at
+   join. Probe once and cache (publish.ts season precedent): every
+   product query/write below includes the column only when it exists,
+   so the shops door works exactly as before until the column lands. */
+let shopAltColKnown: boolean | null = null;
+async function shopProductsHasImageAlt(): Promise<boolean> {
+  if (shopAltColKnown !== null) return shopAltColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM information_schema.columns
+      WHERE table_name = 'shop_products' AND column_name = 'image_alt_text'
+    `);
+    shopAltColKnown = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+  } catch {
+    shopAltColKnown = false;
+  }
+  return shopAltColKnown;
+}
 
 /* Mirror-on-save (2026-10-13 law): shop banners + product images are
    re-hosted into permanent storage at save time; presenters mint fresh
@@ -176,6 +197,9 @@ const createProductSchema = z.object({
      rate by the platform. Enabling REQUIRES the rate (handler checks). */
   affiliate_enabled: z.boolean().optional().default(false),
   affiliate_commission_bps: z.number().int().min(1).max(10_000).nullable().optional(),
+  /* #29: accessibility description of the product shot — creator-written
+     or AI-suggested, editable before it ships. */
+  image_alt_text: z.string().max(ALT_TEXT_MAX_CHARS).optional().default(""),
 });
 
 const updateProductSchema = z.object({
@@ -183,6 +207,7 @@ const updateProductSchema = z.object({
   price_cents: z.number().int().min(0).max(100_000_000).optional(),
   description: z.string().trim().max(2000).optional(),
   image_url: z.string().trim().max(2000).optional(),
+  image_alt_text: z.string().max(ALT_TEXT_MAX_CHARS).optional(),
   /* Pause/unlist (migration 0176): the seller flips listing state on
      the same edit rail — 'active' is live in the storefront, 'paused'
      is seller-only and refused at checkout. */
@@ -239,6 +264,10 @@ interface ProductRow {
   description: string | null;
   image_url: string | null;
   image_path: string | null;
+  /** #29 accessibility description of the product shot; absent on
+      pre-migration rows/selects. Buyer DTOs DO carry it — it is the
+      public alt text their surfaces render. */
+  image_alt_text?: string | null;
   /** 'active' | 'paused' (migration 0176) — owner DTOs only; buyer
       reads select explicit columns and never carry it. */
   status: string;
@@ -487,7 +516,7 @@ router.get("/shops/handle/:handle", async (req, res) => {
      selected only to resolve the pin; it is stripped from the payload
      and replaced by the resolved `pinned_ad` video. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
+    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -528,7 +557,7 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
     return;
   }
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
     FROM shop_products
     WHERE shop_id = ${shop.id}
     ORDER BY created_at ASC
@@ -574,15 +603,17 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
   const storedImageUrl = parsed.data.image_url
     ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
     : null;
+  const hasAlt = await shopProductsHasImageAlt();
+  const imageAltText = sanitizeAltText(parsed.data.image_alt_text) || null;
   await db.execute(sql`
-    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps)
+    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps${hasAlt ? sql`, image_alt_text` : sql``})
     VALUES (${id}, ${shop.id}, ${req.userId!},
             ${parsed.data.name.trim()}, ${parsed.data.price_cents},
             ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null},
-            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null})
+            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null}${hasAlt ? sql`, ${imageAltText}` : sql``})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
   const createdRow = (result.rows as unknown as ProductRow[])[0];
@@ -631,13 +662,18 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
   const storedImageUrl = d.image_url
     ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
     : null;
+  const hasAlt = await shopProductsHasImageAlt();
+  /* Alt edit semantics: field absent = keep; present ("" included) =
+     set exactly that, so a seller can clear a description. */
+  const imageAltText = d.image_alt_text === undefined ? null : sanitizeAltText(d.image_alt_text);
   await db.execute(sql`
     UPDATE shop_products SET
       name = COALESCE(${d.name ?? null}, name),
       price_cents = COALESCE(${d.price_cents ?? null}, price_cents),
       description = COALESCE(${d.description ?? null}, description),
       image_url = COALESCE(${storedImageUrl}, image_url),
-      image_path = COALESCE(${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null}, image_path),
+      image_path = COALESCE(${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null}, image_path),${hasAlt ? sql`
+      image_alt_text = CASE WHEN ${imageAltText} IS NULL THEN image_alt_text ELSE ${imageAltText} END,` : sql``}
       status = COALESCE(${d.status ?? null}, status),
       affiliate_enabled = COALESCE(${d.affiliate_enabled ?? null}, affiliate_enabled),
       affiliate_commission_bps = COALESCE(${d.affiliate_commission_bps ?? null}, affiliate_commission_bps),
@@ -645,7 +681,7 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
   const updatedRow = (result.rows as unknown as ProductRow[])[0];
@@ -1298,7 +1334,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
      stripped before the payload leaves, exactly as on the handle
      read; the minted video URL passes the deep refresh untouched. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
+    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
