@@ -293,10 +293,80 @@ FinalVideoExport.tsx:693) — no stripping defect in practice.
 And: all 116 editor-called endpoints exist server-side (Audit A's
 endpoint sweep, spot-verified in this lane) — zero dead endpoints.
 
+## CONTINUATION PASS (after the original builder died in the night's restarts)
+
+- A-10 FIXED — 75f0f910: pollExportJob's flat 20-min deadline replaced by
+  exportPollDeadlineMs (45-min floor; 12x duration + 15 min when the caller
+  knows it — the rail budgets each phase-1 step at max(10 min, 10x clip)
+  in routes/generate/export-video.ts runFfmpeg, passes at 8 min each);
+  FinalVideoExport passes estimateDurationSec; the timeout message no
+  longer points at an "Exports history" surface that does not exist
+  (verified: no user-facing export-jobs listing anywhere). 5 pins incl. a
+  fake-timer run that stays alive past the old cap.
+- Out-of-lane flags RESOLVED, and worse than flagged — 85151156:
+  * Video Translator FE preview was a LIVE 100x under-quote, not a stale
+    comment: TRANSLATOR_CREDITS_PER_MIN_PER_LANG = 5 fed estimateTranslateCost,
+    rendered big in pages/translate.tsx and passed as the confirm's
+    overrideCost, while the rail charges VIDEO_TRANSLATOR_CREDITS_PER_MINUTE
+    = 500 (verified in-tree; API suite pins 500). Constant + comments +
+    FE pins corrected to rail truth (90s x 2 langs = 2,000 VB, was 20).
+    Charge unchanged. A-04's remaining half (registry/KB flat-500
+    presentation model) stays an owner decision.
+  * Lyric-video staleness was comment-only (FE lib constants already
+    pinned 200/500): page header + API route headers corrected to
+    LYRIC_ALIGN_CREDIT_COST 200 / LYRIC_RENDER_CREDIT_COST 500.
+- N-08 (new, P0 family of D-01) FIXED — 94f829b8: 3-Second Lab passed
+  overrideCost: 2 into confirmedFetch, so the spend confirmation AND the
+  post-spend toast claimed 2 VB for the rail's 200 VB OPENINGS_CREDITS
+  charge. Override removed — the registry (200, rail-pinned) now speaks.
+  Sibling spot-check in editor/music: finish-my-song 400, lyrics/timing
+  50, structure/generate 200 all verified == their rails.
+- 3-Second Lab APPLY built — bf432f7c: ranked openings previously had no
+  apply action (Audit B board-only item). "Use as opening hook" writes
+  the hook into the editor's own hook-caption channel via the new pure
+  helper withOpeningHook (lib/editor-settings.ts): captions enabled,
+  mode "hook", hookText set, timed line seeded at 0–3s under the stable
+  OPENING_HOOK_LINE_ID (re-apply replaces, other lines preserved). The
+  button renders only when the page wires onApplyOpening — no dead
+  controls. 2 keys added to all 10 catalogs (real translations); locale
+  guard pin 4284 → 4286. Helper pins 6/6; locale family 196/196.
+- A-08 MIGRATION SPECIFIED, not built (lane rule: no migrations) —
+  .lane/a08-migration-spec.md carries the exact SQL + drizzle + boot-
+  recovery design for both stores: lip_sync_runs (run-all orchestration)
+  and multi_ratio_jobs (recommended over an export_jobs.kind column).
+  New evidence strengthening A-08: multi-ratio charges costTotal up front
+  and every refund lives in the in-process worker's finally — a hard kill
+  skips the finally, so the charge stands with no record anywhere.
+  Numbering is the join's call (after the 0205–0214 holds).
+- ExportDoctor scoped cost-surface audit (continuation): CLEAN. The
+  5,208-line rail has zero charge calls; the registry carries all 13
+  endpoints at cost 0 "(free)" (Stack-28 item 2's fix, intact); the
+  section passes no overrideCost and quotes no prices. The full
+  line-by-line deep audit of ExportDoctor remains undone (see below).
+
 ## LEFT ON THE BOARD
 - D-06 dead settings fields (board-only; deletion needs owner word).
 - LipSyncStudio single-IMAGE button: still honestly disabled — no still→clip
   rail exists anywhere in the codebase. Building one is a feature decision.
-- ExportDoctor (5,623 lines) was not deep-audited in this lane.
-- Out-of-lane stale-price flags (lyric-video, video-translator) for parent.
+- ExportDoctor full deep audit (5,208-line rail + its section) still not
+  done — only the cost/confirm surface was audited in the continuation.
+- A-08 persistence: exact migration specified in .lane/a08-migration-spec.md;
+  needs the join (or an owner-approved migration slot) to land.
+- A-03 KB export-rail omission: fix path is the operator/KB generator
+  (scripts/generate-operator-knowledge.mjs harvest widening + regen) —
+  routed to the parent/operator lane per the third-pass board; a regen in
+  this lane would collide with sibling lanes' KB registrations at join.
+- Owner decisions, untouched by design: A-01 (branded-export free branch
+  definition), A-02 (quality-export 150 VB loophole), A-04 remainder
+  (registry/KB per-minute display model), A-05 (upscale placeholder price
+  1,500 VB), A-06 (run-all per-scene 0 VB — bundle or leak), A-07
+  (finished-render discard on mid-render out-of-credits; money-flow call),
+  A-09 (lip-sync preview's four voided controls — wire or remove/label).
+- Studio Editor "Lock Timeline" relabel ("Snapshot"): verified to lock
+  nothing outside the panel; the relabel itself needs the product call on
+  whether a real lock should exist.
+- Mode gating (Simple mode hides the Music switch; ExportDoctor is
+  Pro-mode only): design-level, not built.
+- ExportSection dead caption-export "coming soon" branch: deletion-class
+  cleanup, needs the deletion word.
 - Clean full FE suite pass owed at join (see Verification).
