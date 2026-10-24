@@ -181,7 +181,7 @@ export const playlistsTable = pgTable("playlists", {
       NULL = no free preview. */
   previewItem:    jsonb("preview_item").$type<{ kind: "track" | "video"; id: string } | null>().default(null),
   /** Ordered array of {kind:'track'|'video', id: <uuid>} entries. */
-  items:          jsonb("items").$type<Array<{ kind: "track" | "video"; id: string }>>().notNull().default([]),
+  items:          jsonb("items").$type<Array<{ kind: "track" | "video" | "series"; id: string }>>().notNull().default([]),
   followerCount:  integer("follower_count").notNull().default(0),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

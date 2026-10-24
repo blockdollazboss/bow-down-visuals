@@ -15,7 +15,7 @@ import { z } from "zod/v4";
 /** Every digital content kind the store can sell. Keep in sync with
     migrations 0090 + 0192 ('series' = a paid Series unlock on a
     kind='series' playlist; the sale row is the buyer's entitlement). */
-export const DIGITAL_ITEM_KINDS = ["track", "video", "album", "pack", "digital", "series"] as const;
+export const DIGITAL_ITEM_KINDS = ["track", "video", "album", "pack", "digital", "series", "bundle"] as const;
 export type DigitalItemKind = (typeof DIGITAL_ITEM_KINDS)[number];
 
 export const digitalSalesTable = pgTable("digital_sales", {
@@ -34,7 +34,7 @@ export const digitalSalesTable = pgTable("digital_sales", {
   status:             text("status").notNull().default("completed"),
   refundedAt:         timestamp("refunded_at", { withTimezone: true }),
   createdAt:          timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => [check("digital_sales_item_kind_check", sql`${t.itemKind} IN ('track','video','album','pack','digital','series')`)]);
+}, (t) => [check("digital_sales_item_kind_check", sql`${t.itemKind} IN ('track','video','album','pack','digital','series','bundle')`)]);
 
 export const insertDigitalSaleSchema = createInsertSchema(digitalSalesTable).omit({ id: true, createdAt: true });
 export type InsertDigitalSale = z.infer<typeof insertDigitalSaleSchema>;
