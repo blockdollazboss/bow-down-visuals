@@ -25,6 +25,19 @@ export interface ProductLinks {
   eventTitle: string | null;
 }
 
+/* Timed drop (#25): the product's drop state as the server computes it
+   from drop_at (UTC instant, ISO string). state 'upcoming' = the
+   product page is the drop page (countdown + capture, not buyable);
+   'live' = the moment passed (the sweeper also flips + notifies). */
+export interface ProductDropDTO {
+  id: string;
+  state: "upcoming" | "live";
+  isUpcoming: boolean;
+  dropAt: string | null;
+  notifiedAt: string | null;
+  captureCount?: number;
+}
+
 export interface StoreProductDTO {
   id: string;
   profileId: string;
@@ -44,6 +57,8 @@ export interface StoreProductDTO {
   isActive: boolean;
   createdAt: string;
   links: ProductLinks;
+  /* Null when the product has no drop scheduled. */
+  drop: ProductDropDTO | null;
 }
 
 /* Removed 2026-10-10: FeeSplit was only used by dead getProduct. */
@@ -163,6 +178,31 @@ export const updateProduct = (token: string, id: string, input: Partial<CreatePr
 
 export const deactivateProduct = (token: string, id: string) =>
   del<{ ok: boolean }>(`/products/${id}`, token);
+
+/* ── Timed drops (#25) ──────────────────────────────────────────────────
+   dropAt is an ISO 8601 instant: the creator's picked local moment,
+   converted with toISOString() (UTC) before it leaves the browser. */
+export const scheduleProductDrop = (token: string, id: string, dropAtIso: string) =>
+  req<{ drop: (ProductDropDTO & { captureCount: number }) | null }>(
+    `/products/${id}/drop`, token, { method: "PUT", body: JSON.stringify({ dropAt: dropAtIso }) },
+  );
+
+export const cancelProductDrop = (token: string, id: string) =>
+  del<{ ok: boolean; drop: null }>(`/products/${id}/drop`, token);
+
+export const getProductDrop = (token: string, id: string) =>
+  get<{
+    drop: (ProductDropDTO & { captureCount: number }) | null;
+    captures: { email: string; name: string | null; capturedAt: string }[];
+    captureCount: number;
+  }>(`/products/${id}/drop`, token);
+
+/** Public: join a product's drop list from its drop page. The email
+    also joins the creator's email list server-side (source 'drop'). */
+export const captureProductDrop = (id: string, input: { email: string; name?: string }) =>
+  req<{ ok: boolean; alreadyCaptured: boolean; captureCount: number; dropAt: string | null }>(
+    `/products/${id}/drop/capture`, null, { method: "POST", body: JSON.stringify(input) },
+  );
 
 export const listDiscounts = (token: string) =>
   get<{ codes: DiscountCodeDTO[] }>("/discounts", token);
