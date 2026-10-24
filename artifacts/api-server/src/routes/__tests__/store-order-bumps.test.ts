@@ -134,7 +134,8 @@ CREATE TABLE profile_videos (
 CREATE TABLE playlists (
   id uuid PRIMARY KEY, owner_profile_id uuid NOT NULL, title text NOT NULL,
   price_cents integer, is_public boolean NOT NULL DEFAULT true,
-  kind text NOT NULL DEFAULT 'series', cover_url text
+  kind text NOT NULL DEFAULT 'series', cover_url text,
+  items jsonb NOT NULL DEFAULT '[]'
 );
 CREATE TABLE digital_sales (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -195,6 +196,14 @@ beforeEach(async () => {
     returns: "uuid" as never,
     impure: true,
     implementation: () => randomUUID(),
+  });
+  /* Join addition (Stack-100 #3): the bundles lane's purchases select
+     calls jsonb_array_length for bundle_count; pg-mem doesn't ship it. */
+  mem.public.registerFunction({
+    name: "jsonb_array_length",
+    args: ["jsonb" as never],
+    returns: "integer" as never,
+    implementation: (v: unknown) => (Array.isArray(v) ? v.length : 0),
   });
   mem.public.none(DDL(withBumpSchema));
   h.db = db;

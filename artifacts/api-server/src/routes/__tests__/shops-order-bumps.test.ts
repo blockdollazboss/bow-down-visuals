@@ -110,7 +110,9 @@ CREATE TABLE shop_products (
   shop_id uuid NOT NULL, user_id uuid NOT NULL, name text NOT NULL,
   price_cents integer NOT NULL DEFAULT 0, description text,
   image_url text, image_path text, status text NOT NULL DEFAULT 'active',
-  pinned_ugc_ad_id uuid${withBump ? ",\n  bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0" : ""},
+  pinned_ugc_ad_id uuid,
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer,
+  image_alt_text text${withBump ? ",\n  bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0" : ""},
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE shop_events (
@@ -118,7 +120,7 @@ CREATE TABLE shop_events (
   event_type text NOT NULL, product_id uuid,
   amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0,
   buyer_email text, stripe_session_id text, payment_status text, paid_at timestamptz,
-  quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text${withBump ? ",\n  bump_for_product_id uuid" : ""},
+  quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text, affiliate_code text${withBump ? ",\n  bump_for_product_id uuid" : ""},
   settled_payout_id uuid, settled_at timestamptz, ip_hash text,
   created_at timestamptz NOT NULL DEFAULT now()
 );

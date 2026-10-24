@@ -1701,7 +1701,7 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
        plain-select fallback for a pre-migration database. */
     let result: Awaited<ReturnType<typeof db.execute>>;
     try {
-          const result = await db.execute(sql`
+          result = await db.execute(sql`
             SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents, ds.created_at,
                    ds.stripe_session_id,
                    ds.bump_item_kind, ds.bump_item_id, ds.bump_title, ds.bump_amount_cents,
@@ -1720,7 +1720,7 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
             LIMIT 200
           `);
     } catch {
-          const result = await db.execute(sql`
+          result = await db.execute(sql`
             SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents, ds.created_at,
                    ds.stripe_session_id,
                    cp.display_name AS artist_name, cp.slug AS artist_slug,
@@ -1993,7 +1993,7 @@ router.get("/store/sales", requireAuth, async (req, res) => {
        plain-select fallback for a pre-migration database. */
     let sales: Awaited<ReturnType<typeof db.execute>>;
     try {
-          const sales = await db.execute(sql`
+          sales = await db.execute(sql`
             SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
                    ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
                    ds.bump_item_kind, ds.bump_item_id, ds.bump_title,
@@ -2008,7 +2008,7 @@ router.get("/store/sales", requireAuth, async (req, res) => {
             LIMIT 500
           `);
     } catch {
-          const sales = await db.execute(sql`
+          sales = await db.execute(sql`
             SELECT ds.id, ds.item_kind, ds.item_id, ds.amount_cents,
                    ds.platform_fee_cents, ds.creator_amount_cents, ds.created_at,
                    COALESCE(t.title, v.title, pl.title) AS item_title
