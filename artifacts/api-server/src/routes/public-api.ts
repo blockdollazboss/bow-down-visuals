@@ -88,7 +88,7 @@ router.delete("/api-keys/:id", requireAuth, async (req, res) => {
   try {
     // Owner-scoped in the query itself: a creator can only ever revoke
     // their OWN keys — another user's key id reads as "not found".
-    const revoked = await revokeApiKey(req.userId!, req.params.id);
+    const revoked = await revokeApiKey(req.userId!, String(req.params.id));
     if (!revoked) {
       res.status(404).json({ error: "not_found", message: "No active API key with that id belongs to you." });
       return;

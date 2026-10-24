@@ -183,6 +183,6 @@ export async function resolveApiKey(plaintext: string): Promise<ResolvedApiKey |
     .update(apiKeysTable)
     .set({ lastUsedAt: new Date() })
     .where(eq(apiKeysTable.id, row.id))
-    .catch((err) => logger.warn({ err }, "[api-keys] last_used stamp failed"));
+    .catch((err: unknown) => logger.warn({ err }, "[api-keys] last_used stamp failed"));
   return { keyId: row.id, userId: row.userId, scopes: parseScopes(row.scopes) };
 }
