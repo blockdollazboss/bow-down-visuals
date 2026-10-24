@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
 import { useHubProject } from "@/lib/hub-project";
 import {
   initialSectionStates, markSectionLoading, settleSection,
@@ -416,6 +417,11 @@ export default function Beats() {
 
         {tab === "browse" && (
           <>
+            {/* Sound-fit discovery, docked in the catalog: find beats
+                that fit your song by key + tempo + tags. */}
+            <div className="mb-6">
+              <SoundFitPanel />
+            </div>
             {/* Filters */}
             <div className={`flex flex-wrap items-center gap-2 mb-6 p-4 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <SlidersHorizontal className="w-4 h-4 text-white/40" />
