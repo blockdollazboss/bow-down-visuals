@@ -728,27 +728,6 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       }
     }
     const cardDueCents = lineTotal - giftCardAppliedCents;
-    /* Purchase sequence for the session idempotency key (see
-       buildStorefrontCheckoutKey). A read failure throws into the
-       catch below — no session is minted, so the failure is closed. */
-    const countResult = await db.execute(sql`
-      SELECT COUNT(*)::int AS c FROM store_orders
-      WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
-        AND quantity = ${quantity} AND amount_cents = ${lineTotal}
-        AND discount_code IS NOT DISTINCT FROM ${discountCode}
-    `);
-    const completedOrderCount = Number(
-      (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
-    );
-    const idempotencyKey = buildStorefrontCheckoutKey({
-      userId: req.userId!,
-      productId,
-      quantity,
-      unitCents,
-      lineTotalCents: lineTotal,
-      discountCode,
-      completedOrderCount,
-    });
     /* Gift card covers the whole bill: no card payment exists to
        take, so the order records right here — paid in full by tender,
        fee still on the full gross — and the hold redeems against it.
@@ -828,6 +807,27 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       return;
     }
 
+    /* Purchase sequence for the session idempotency key (see
+       buildStorefrontCheckoutKey). A read failure throws into the
+       catch below — no session is minted, so the failure is closed. */
+    const countResult = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM store_orders
+      WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
+        AND quantity = ${quantity} AND amount_cents = ${lineTotal}
+        AND discount_code IS NOT DISTINCT FROM ${discountCode}
+    `);
+    const completedOrderCount = Number(
+      (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
+    );
+    const idempotencyKey = buildStorefrontCheckoutKey({
+      userId: req.userId!,
+      productId,
+      quantity,
+      unitCents,
+      lineTotalCents: lineTotal,
+      discountCode,
+      completedOrderCount,
+    });
     const baseUrl = getBaseUrl(req);
     let session: Stripe.Checkout.Session;
     try {
