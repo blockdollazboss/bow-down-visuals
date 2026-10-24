@@ -36,7 +36,7 @@
  * Queries are raw SQL via db.execute(sql``) — the commerce surfaces' own
  * convention (pg-mem cannot run the drizzle query builder here).
  */
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
@@ -204,20 +204,23 @@ export async function claimAffiliateCode(args: {
     }
     return { ok: true, code: found, created: false };
   }
-  /* Human-shareable code: AFF- + 10 unambiguous chars. Collision retries
-     are bounded; the UNIQUE index is the real guard. */
+  /* Human-shareable code: AFF- + 10 unambiguous chars. The id is minted
+     here in JS (the shops rail's pattern), not left to a DB default.
+     Collision retries are bounded and ONLY for a code collision; the
+     UNIQUE index is the real guard. */
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = `AFF-${randomBytes(8).toString("base64url").replace(/[-_]/g, "").slice(0, 10).toUpperCase()}`;
     try {
       const inserted = await db.execute(sql`
-        INSERT INTO affiliate_codes (code, affiliate_user_id, seller_user_id, surface, product_id)
-        VALUES (${code}, ${args.affiliateUserId}, ${setting.sellerUserId}, ${args.surface}, ${args.productId})
+        INSERT INTO affiliate_codes (id, code, affiliate_user_id, seller_user_id, surface, product_id)
+        VALUES (${randomUUID()}, ${code}, ${args.affiliateUserId}, ${setting.sellerUserId}, ${args.surface}, ${args.productId})
         RETURNING id, code, affiliate_user_id, seller_user_id, surface, product_id, is_active, created_at
       `);
       const row = inserted.rows[0] as unknown as AffiliateCodeRow;
       return { ok: true, code: row, created: true };
     } catch (err) {
-      if (attempt === 4) throw err;
+      const msg = String((err as { message?: string })?.message ?? err);
+      if (attempt === 4 || !msg.includes("affiliate_codes_code_ux")) throw err;
     }
   }
   return { ok: false, reason: "Could not create a code — try again." };
@@ -292,10 +295,10 @@ export async function recordAffiliateSale(args: {
 
   const inserted = await db.execute(sql`
     INSERT INTO affiliate_sales
-      (affiliate_code_id, affiliate_user_id, seller_user_id, surface, product_id,
+      (id, affiliate_code_id, affiliate_user_id, seller_user_id, surface, product_id,
        product_title, order_ref, buyer_user_id, buyer_email, gross_cents,
        platform_fee_cents, seller_net_cents, commission_bps, commission_cents, status)
-    VALUES (${code.id}, ${code.affiliate_user_id}, ${code.seller_user_id}, ${args.surface}, ${args.productId},
+    VALUES (${randomUUID()}, ${code.id}, ${code.affiliate_user_id}, ${code.seller_user_id}, ${args.surface}, ${args.productId},
             ${args.productTitle ?? setting.title}, ${args.orderRef}, ${args.buyerUserId ?? null},
             ${buyerEmail || null}, ${gross}, ${fee}, ${sellerNet}, ${commissionBps}, ${commissionCents}, 'owed')
     ON CONFLICT (surface, order_ref, product_id) DO NOTHING
