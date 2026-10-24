@@ -10922,6 +10922,24 @@
       "nextSteps": []
     },
     {
+      "id": "order-bumps",
+      "name": "Add-on Offers (Order Bumps)",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/store/dashboard",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/storefront/checkout",
+        "/api/storefront/products/:param/bump"
+      ],
+      "prices": [],
+      "description": "Attach one of your other products as an add-on to a store product: the buyer sees it on the product page with a tick box and can add it to the same single checkout, at its listed price or a percent off you set. It shows as its own line on the order. Set it up in the store dashboard's Products tab.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
       "id": "store-success",
       "name": "Store Success",
       "nameSource": "App.tsx component name",

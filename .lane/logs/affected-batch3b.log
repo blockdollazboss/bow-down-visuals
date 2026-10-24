@@ -1,0 +1,40 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bumps/artifacts/api-server[39m
+
+[02:06:32.716] [33mWARN[39m (10039): [36m[chat] reply quoted a price outside the knowledge base — replaced[39m
+    [35minvented[39m: 999
+[02:06:32.759] [33mWARN[39m (10039): [36m[chat] reply quoted a price outside the knowledge base — replaced[39m
+    [35minvented[39m: 999
+[02:06:32.835] [32mINFO[39m (10039): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+[02:06:32.876] [32mINFO[39m (10039): [36m[chat] reply generated[39m
+    [35mprovider[39m: "knowledge-base"
+[02:06:33.014] [32mINFO[39m (10039): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+[02:06:33.216] [32mINFO[39m (10039): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+ [32m✓[39m src/routes/__tests__/chat-doors.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 13231[2mms[22m[39m
+   [32m✓[39m buildReplyDoors — the shared door contract [2m(9)[22m
+     [33m[2m✓[22m[39m unmatched, gibberish, and empty messages get no doors[33m 362[2mms[22m[39m
+     [33m[2m✓[22m[39m sweep: every door ever built points at a real KB path, verbatim, at most two[33m 10479[2mms[22m[39m
+   [32m✓[39m POST /api/chat — doors ride the reply [2m(6)[22m
+     [33m[2m✓[22m[39m a thumbnail answer carries the desk door and the guide door[33m 744[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-knowledge.test.ts [2m([22m[2m62 tests[22m[2m)[22m[33m 6052[2mms[22m[39m
+   [32m✓[39m operator knowledge — sourced facts only [2m(4)[22m
+     [33m[2m✓[22m[39m every price names the registry as its source and is a whole VB figure[33m 872[2mms[22m[39m
+   [32m✓[39m operator knowledge — matching and grounding [2m(10)[22m
+     [33m[2m✓[22m[39m matches My Music first for music-collection locators[33m 555[2mms[22m[39m
+   [32m✓[39m operator knowledge — Stack-28 KB integration [2m(6)[22m
+     [33m[2m✓[22m[39m no entry lists the stale /api/video-background-removal endpoint[33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m the create entry counts ten ways to start, not nine[33m 359[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-door-mapping.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 7362[2mms[22m[39m
+   [32m✓[39m operator door mapping — every knowledge door against the real route table [2m(7)[22m
+     [33m[2m✓[22m[39m every knowledge entry's path resolves to a real route[33m 319[2mms[22m[39m
+     [33m[2m✓[22m[39m every door a member can receive is concrete, resolves, and passes the query rules[33m 6543[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m88 passed[39m[22m[90m (88)[39m
+[2m   Start at [22m 02:04:31
+[2m   Duration [22m 167.93s[2m (import 62%, transform 21%, tests 17%)[22m
+
+exit=0

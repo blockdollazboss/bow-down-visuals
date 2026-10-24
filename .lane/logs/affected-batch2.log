@@ -1,0 +1,19 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bumps/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/stripe-checkout-idempotency-rest.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 340[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/storefronts-profile-slug.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1693[2mms[22m[39m
+   [32m✓[39m GET /api/storefronts/slug/:slug — creator-profile slug (MediaLinkBar caller) [2m(2)[22m
+     [33m[2m✓[22m[39m finds the shop BY OWNER'S PROFILE SLUG when the shop handle differs from it[33m 714[2mms[22m[39m
+     [33m[2m✓[22m[39m 404s a profile slug whose owner genuinely has no shop[33m 464[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-checkout-idempotency.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 153[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 01:52:07
+[2m   Duration [22m 496.12s[2m (transform 85%, import 14%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 416.77s[39m[2m · 85% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

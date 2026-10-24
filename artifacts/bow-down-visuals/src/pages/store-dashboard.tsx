@@ -1,5 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
   Loader2, Wallet, TrendingUp, BadgeDollarSign, PiggyBank, Copy, Check,
@@ -13,7 +13,7 @@ import { useUserMode } from "@/contexts/UserModeContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { levelInfo } from "@/lib/creator-level";
 import {
-  listProducts, moneyChecklist, mySales, createProduct, updateProduct, deactivateProduct,
+  listProducts, moneyChecklist, mySales, createProduct, updateProduct, deactivateProduct, setProductBump,
   listDiscounts, createDiscount, updateDiscount, deleteDiscount,
   logSaleToTracker, confirmServiceBooking,
   previewShopifyImport, commitShopifyImport, downloadShopifyExport,
@@ -507,6 +507,65 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     } catch { /* noop */ }
   };
 
+  /* ── Order bump editor (feature #13) ────────────────────────────────
+     One add-on per product: another of the seller's own products, at
+     its price or a seller-set % off. The server re-validates and
+     re-prices everything at checkout — this editor only sets the
+     attachment. */
+  const [bumpEditId, setBumpEditId] = useState<string | null>(null);
+  const [bumpTargetId, setBumpTargetId] = useState("");
+  const [bumpPercentOff, setBumpPercentOff] = useState("0");
+  const [bumpBusy, setBumpBusy] = useState(false);
+  const [bumpErr, setBumpErr] = useState("");
+  const [bumpMsg, setBumpMsg] = useState("");
+
+  const openBumpEditor = (p: StoreProductDTO) => {
+    setBumpErr("");
+    setBumpMsg("");
+    if (bumpEditId === p.id) { setBumpEditId(null); return; }
+    setBumpEditId(p.id);
+    setBumpTargetId(p.bumpConfig?.bumpProductId ?? "");
+    setBumpPercentOff(String(p.bumpConfig?.percentOff ?? 0));
+  };
+
+  const saveBump = async (p: StoreProductDTO) => {
+    setBumpErr("");
+    setBumpMsg("");
+    if (!bumpTargetId) { setBumpErr("Pick the add-on product first — or hit Remove to clear it."); return; }
+    const pct = Math.max(0, Math.min(90, Math.floor(Number(bumpPercentOff) || 0)));
+    setBumpBusy(true);
+    try {
+      const token = await getToken();
+      const r = await setProductBump(token, p.id, { bumpProductId: bumpTargetId, percentOff: pct });
+      await load();
+      onChanged();
+      setBumpMsg(r.offerLive
+        ? "Add-on is live — buyers can tick it on this product's page."
+        : "Saved. It goes live when the add-on product is live and in stock.");
+    } catch (e) {
+      setBumpErr(e instanceof Error ? e.message : "Couldn't save the add-on.");
+    } finally {
+      setBumpBusy(false);
+    }
+  };
+
+  const removeBump = async (p: StoreProductDTO) => {
+    setBumpErr("");
+    setBumpMsg("");
+    setBumpBusy(true);
+    try {
+      const token = await getToken();
+      await setProductBump(token, p.id, { bumpProductId: null });
+      await load();
+      onChanged();
+      setBumpEditId(null);
+    } catch (e) {
+      setBumpErr(e instanceof Error ? e.message : "Couldn't remove the add-on.");
+    } finally {
+      setBumpBusy(false);
+    }
+  };
+
   const inputCls = "w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/25";
 
   return (
@@ -625,7 +684,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-white/10">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead>
               <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-white/40">
                 <th className="px-4 py-3">Product</th>
@@ -633,12 +692,14 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3" data-min-stars="4">Inventory</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3" data-min-stars="4">Add-on</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.map((p) => (
-                <tr key={p.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
+                <Fragment key={p.id}>
+                <tr className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
                   <td className="px-4 py-3">
                     <Link href={p.links.productUrl}>
                       <span className="cursor-pointer font-bold text-white hover:text-primary">{p.title}</span>
@@ -678,10 +739,79 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                       {p.isActive ? "Live" : "Draft"}
                     </button>
                   </td>
+                  <td className="px-4 py-3" data-min-stars="4">
+                    {p.priceCents === 0 ? (
+                      <span className="text-[11px] text-white/30">—</span>
+                    ) : (
+                      <button
+                        onClick={() => openBumpEditor(p)}
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${p.bumpConfig ? "border-primary/50 bg-primary/10 text-primary" : "border-white/15 text-white/50 hover:text-white"}`}
+                        title="Offer one of your other products as a tick-to-add at checkout"
+                      >
+                        {p.bump
+                          ? `➕ ${p.bump.title} · ${p.bump.price}`
+                          : p.bumpConfig
+                            ? "➕ Set (add-on not live)"
+                            : "➕ Add one"}
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <PromoteButton product={p} />
                   </td>
                 </tr>
+                {bumpEditId === p.id && (
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                    <td colSpan={7} className="px-4 py-4">
+                      <p className="text-xs font-bold text-white">Add-on offer for “{p.title}”</p>
+                      <p className="mt-0.5 text-[11px] text-white/45">
+                        At checkout, buyers see this one extra product with a tick box — same single charge, delivered together. The flat 5% platform fee applies to the add-on too. Free lead magnets can't ride as add-ons.
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <select
+                          value={bumpTargetId}
+                          onChange={(e) => setBumpTargetId(e.target.value)}
+                          aria-label="Add-on product"
+                          className="min-w-[220px] flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                        >
+                          <option value="">Pick one of your products…</option>
+                          {products.filter((q) => q.id !== p.id && q.priceCents > 0).map((q) => (
+                            <option key={q.id} value={q.id}>
+                              {q.title} — {q.price}{q.isActive ? "" : " (draft)"}
+                            </option>
+                          ))}
+                        </select>
+                        <label className="inline-flex items-center gap-1.5 text-xs text-white/50">
+                          % off
+                          <input
+                            value={bumpPercentOff}
+                            onChange={(e) => setBumpPercentOff(e.target.value)}
+                            inputMode="numeric"
+                            aria-label="Percent off the add-on"
+                            className="w-16 rounded-lg border border-white/10 bg-black/40 px-2 py-2 text-sm text-white"
+                          />
+                        </label>
+                        <button
+                          onClick={() => saveBump(p)} disabled={bumpBusy}
+                          className="rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-4 py-2 text-xs font-black text-black hover:brightness-110 disabled:opacity-60"
+                        >
+                          {bumpBusy ? "Saving…" : "Save add-on"}
+                        </button>
+                        {p.bumpConfig && (
+                          <button
+                            onClick={() => removeBump(p)} disabled={bumpBusy}
+                            className="rounded-full border border-red-400/40 px-4 py-2 text-xs font-bold text-red-300 hover:bg-red-400/10 disabled:opacity-60"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      {bumpErr && <p className="mt-2 flex items-center gap-2 text-xs text-red-400"><AlertCircle className="h-4 w-4" />{bumpErr}</p>}
+                      {bumpMsg && <p className="mt-2 flex items-center gap-2 text-xs text-green-300"><CheckCircle2 className="h-4 w-4" />{bumpMsg}</p>}
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -805,6 +935,12 @@ function OrdersTab() {
                       {o.discountCode && <span className="ml-1 rounded bg-primary/15 px-1.5 py-0.5 text-primary">🏷️ {o.discountCode}</span>}
                       {" · "}{new Date(o.createdAt).toLocaleDateString()}
                     </p>
+                    {o.lines?.filter((l) => l.role === "bump").map((l) => (
+                      <p key={l.productId ?? l.title} className="mt-1 text-[11px] text-primary/90">
+                        ➕ Add-on: <span className="font-bold">{l.title}</span> — {l.gross}
+                        <span className="text-white/40"> (fee {l.platformFee} · you keep {l.net})</span>
+                      </p>
+                    ))}
                   </td>
                   <td className="px-4 py-3 text-white/80">{o.gross}</td>
                   <td className="px-4 py-3 text-white/50">{o.platformFee}</td>

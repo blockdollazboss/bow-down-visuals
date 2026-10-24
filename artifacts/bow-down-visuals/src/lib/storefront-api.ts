@@ -25,6 +25,27 @@ export interface ProductLinks {
   eventTitle: string | null;
 }
 
+/* ── Order bumps (feature #13): one add-on offer per product ──────────
+   The seller attaches another of their own products; the buyer ticks
+   it at checkout. Prices are always the seller-set product price (or a
+   seller-set % off it) — the server computes every total. */
+export interface BumpOfferDTO {
+  productId: string;
+  title: string;
+  kind: string;
+  listPriceCents: number;
+  listPrice: string;
+  percentOff: number;
+  priceCents: number;
+  price: string;
+  productUrl: string;
+}
+
+export interface BumpConfigDTO {
+  bumpProductId: string;
+  percentOff: number;
+}
+
 export interface StoreProductDTO {
   id: string;
   profileId: string;
@@ -44,9 +65,26 @@ export interface StoreProductDTO {
   isActive: boolean;
   createdAt: string;
   links: ProductLinks;
+  /** The live add-on offer a buyer can tick, or null. */
+  bump: BumpOfferDTO | null;
+  /** The seller's raw add-on setting (dashboard), or null. */
+  bumpConfig: BumpConfigDTO | null;
 }
 
 /* Removed 2026-10-10: FeeSplit was only used by dead getProduct. */
+
+/** One receipt line: the main purchase, plus the add-on as its own
+    line when the order carries one (feature #13). */
+export interface OrderLineDTO {
+  role: "main" | "bump";
+  productId: string | null;
+  title: string;
+  kind: string | null;
+  quantity: number;
+  grossCents: number; gross: string;
+  platformFeeCents: number; platformFee: string;
+  netCents: number; net: string;
+}
 
 export interface StoreOrderDTO {
   id: string;
@@ -57,6 +95,7 @@ export interface StoreOrderDTO {
   grossCents: number; gross: string;
   platformFeeCents: number; platformFee: string; platformFeePct: number;
   netCents: number; net: string;
+  lines: OrderLineDTO[];
   discountCode: string | null;
   status: string;
   fulfillmentNote: string | null;
@@ -127,6 +166,8 @@ const post = <T,>(path: string, body: unknown, token: string | null) =>
   req<T>(path, token, { method: "POST", body: JSON.stringify(body ?? {}) });
 const patch = <T,>(path: string, body: unknown, token: string | null) =>
   req<T>(path, token, { method: "PATCH", body: JSON.stringify(body ?? {}) });
+const put = <T,>(path: string, body: unknown, token: string | null) =>
+  req<T>(path, token, { method: "PUT", body: JSON.stringify(body ?? {}) });
 const del = <T,>(path: string, token: string | null) => req<T>(path, token, { method: "DELETE" });
 
 /* ── Public ─────────────────────────────────────────────────────────── */
@@ -145,11 +186,22 @@ export const validateDiscount = (profileId: string, code: string) =>
 /* ── Buyer ──────────────────────────────────────────────────────────── */
 export const checkoutProduct = (
   token: string,
-  input: { productId: string; quantity?: number; discountCode?: string }
+  input: { productId: string; quantity?: number; discountCode?: string; includeBump?: boolean }
 ) =>
   post<{
     url: string; sessionId: string;
-    totals: { unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string; percentOff: number; discountCode: string | null; platformFeeCents: number; creatorCents: number };
+    totals: {
+      unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string;
+      percentOff: number; discountCode: string | null;
+      /** The ticked add-on, priced server-side; null when not ticked. */
+      bump: {
+        productId: string; title: string; unitCents: number;
+        grossCents: number; gross: string; percentOff: number;
+        feeCents: number; creatorCents: number;
+      } | null;
+      grandTotalCents: number; grandTotal: string;
+      platformFeeCents: number; creatorCents: number;
+    };
   }>("/checkout", input, token);
 
 /* Removed 2026-10-10: verifyPurchase + myPurchases were dead (zero imports). */
@@ -163,6 +215,15 @@ export const updateProduct = (token: string, id: string, input: Partial<CreatePr
 
 export const deactivateProduct = (token: string, id: string) =>
   del<{ ok: boolean }>(`/products/${id}`, token);
+
+/** Attach (or clear, with bumpProductId null) a product's add-on offer.
+    `offerLive` in the response says whether buyers can see it now. */
+export const setProductBump = (
+  token: string,
+  id: string,
+  input: { bumpProductId: string | null; percentOff?: number }
+) =>
+  put<{ product: StoreProductDTO; offerLive: boolean }>(`/products/${id}/bump`, input, token);
 
 export const listDiscounts = (token: string) =>
   get<{ codes: DiscountCodeDTO[] }>("/discounts", token);
