@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "fc034a44dbfcb57e621c9503d7ff45ce21be4a58",
+  "baseCommit": "86dad540d3061a2a71fa99c9a8295eb2d96b7e20",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,16 +9,16 @@
   },
   "generatedAt": "2026-10-24",
   "counts": {
-    "routesInApp": 226,
-    "pageFiles": 179,
-    "features": 238,
-    "excludedRoutes": 64,
+    "routesInApp": 234,
+    "pageFiles": 180,
+    "features": 243,
+    "excludedRoutes": 71,
     "excludedPageFiles": 35,
-    "pricedActions": 227,
+    "pricedActions": 228,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 228,
+    "withDescriptions": 233,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -119,9 +119,9 @@
     {
       "constant": "QUALITY_EXPORT_COST",
       "endpoint": "/api/export-quality",
-      "serverValue": 150,
+      "serverValue": 400,
       "serverSource": "artifacts/api-server/src/routes/generate/export-video.ts",
-      "registryValue": 150,
+      "registryValue": 400,
       "agree": true
     },
     {
@@ -734,6 +734,21 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"viralityCheck.pageDescription\""
     },
     {
+      "id": "app",
+      "name": "Get the App",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
+      "path": "/app",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/app.tsx",
+      "component": "AppPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "Get the Bow Down Visuals app — download the Android APK or the Chrome extension, or install the web app on iPhone, iPad, Windows and Mac.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/app.tsx usePageTitle meta description"
+    },
+    {
       "id": "arcade",
       "name": "Arcade",
       "nameSource": "app-sidebar.tsx nav label (en.json)",
@@ -973,6 +988,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1195,6 +1212,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1411,6 +1430,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1627,6 +1648,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1843,6 +1866,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2059,6 +2084,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2279,6 +2306,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2499,6 +2528,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2715,6 +2746,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2931,6 +2964,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3132,6 +3167,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3348,6 +3385,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3567,6 +3606,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3776,8 +3817,10 @@
         "/api/beats/mine/dashboard",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/dj/library",
         "/api/hub/project",
-        "/api/referrals/me"
+        "/api/referrals/me",
+        "/api/sound-fit/:param"
       ],
       "prices": [],
       "nextSteps": [
@@ -5493,8 +5536,10 @@
         "/api/collabs/profiles:param",
         "/api/collabs/requests",
         "/api/collabs/requests/:param/respond",
+        "/api/creator-profiles/me",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/distribution/releases"
       ],
       "prices": [],
       "description": "Browse creators by niche and audience, get an AI compatibility score before you reach out, and send collab requests — free.",
@@ -7005,6 +7050,10 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/affiliates/codes",
+        "/api/affiliates/codes/mine",
+        "/api/affiliates/desk",
+        "/api/affiliates/offers",
         "/api/catalog-export",
         "/api/catalog-export/build",
         "/api/content-id/claims",
@@ -8793,7 +8842,9 @@
         "/api/live-streams/:param/heartbeat",
         "/api/live-streams/live",
         "/api/live-streams/status",
-        "/api/live/:param/summary"
+        "/api/live/:param/summary",
+        "/api/reach/destinations",
+        "/api/social/accounts"
       ],
       "prices": [
         {
@@ -9322,8 +9373,8 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"myClips.pageDescription\""
     },
     {
-      "id": "tab-songs",
-      "name": "Songs",
+      "id": "tab-albums",
+      "name": "Albums",
       "nameSource": "legacy route slug (App.tsx redirect)",
       "path": "/my-projects?tab=songs",
       "stage": "studio",
@@ -9417,8 +9468,8 @@
         }
       ],
       "nextSteps": [],
-      "description": "Your AI-generated song library.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"songs.pageDescription\""
+      "description": "All your songs, videos, and creative projects in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"myProjects.pageDescription\""
     },
     {
       "id": "tab-dj-set-prep",
@@ -9460,18 +9511,27 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/generate/alt-text",
+        "/api/product-reviews/:param/flag",
+        "/api/product-reviews/:param/respond",
+        "/api/product-reviews/:param/unflag",
+        "/api/product-reviews/seller:param",
         "/api/shops",
         "/api/shops/:param",
         "/api/shops/:param/discounts",
         "/api/shops/:param/discounts/:param",
+        "/api/shops/:param/pos/cash-sale",
+        "/api/shops/:param/pos/checkout",
         "/api/shops/:param/products",
         "/api/shops/:param/products/:param",
+        "/api/shops/:param/products/:param/bump",
         "/api/shops/ai/product-description",
         "/api/shops/ai/product-image",
         "/api/shops/ai/shop-description",
         "/api/shops/mine",
         "/api/storefronts/:param/analytics",
         "/api/storefronts/:param/domain",
+        "/api/storefronts/checkout/verify",
         "/api/storefronts/domain/verify"
       ],
       "prices": [
@@ -9673,7 +9733,8 @@
         "/api/reach/streams/:param/raid-incoming",
         "/api/reach/streams/:param/raid-outgoing",
         "/api/reach/streams/:param/watch",
-        "/api/reach/streams/:param/watch-progress"
+        "/api/reach/streams/:param/watch-progress",
+        "/api/social/accounts"
       ],
       "prices": [],
       "nextSteps": [],
@@ -9913,6 +9974,7 @@
         "/api/cover-art",
         "/api/creator-profiles",
         "/api/credits/claim-trial",
+        "/api/generate/alt-text",
         "/api/mirror-media",
         "/api/publish/:param",
         "/api/publish/:param/:param",
@@ -10091,6 +10153,7 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/asset-library",
         "/api/best-time",
         "/api/community-post-platforms",
         "/api/credits/claim-trial",
@@ -10201,6 +10264,7 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/asset-library",
         "/api/best-time",
         "/api/community-post-platforms",
         "/api/credits/claim-trial",
@@ -10311,6 +10375,7 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/asset-library",
         "/api/best-time",
         "/api/community-post-platforms",
         "/api/credits/claim-trial",
@@ -10469,6 +10534,11 @@
         "/api/account/export",
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/api-keys",
+        "/api/api-keys/:param",
+        "/api/api-webhooks",
+        "/api/api-webhooks/:param",
+        "/api/api-webhooks/:param/deliveries",
         "/api/auth/webauthn/credentials",
         "/api/auth/webauthn/login-options",
         "/api/auth/webauthn/login-verify",
@@ -10508,7 +10578,11 @@
         "/api/team-seats",
         "/api/team-seats/:param",
         "/api/team-seats/accept",
-        "/api/team-seats/invite"
+        "/api/team-seats/invite",
+        "/api/theme-packs/purchase",
+        "/api/theme-packs/state",
+        "/api/wallpapers/pack-download",
+        "/api/wallpapers/render"
       ],
       "prices": [
         {
@@ -10533,6 +10607,12 @@
           "feature": "Publish to TikTok",
           "vb": 100,
           "endpoint": "/api/social/tiktok/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Render (branded — free)",
+          "vb": 0,
+          "endpoint": "/api/wallpapers/render",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -10576,6 +10656,7 @@
       "pageFile": "artifacts/bow-down-visuals/src/pages/shop.tsx",
       "component": "ShopStorefront",
       "endpoints": [
+        "/api/product-reviews",
         "/api/storefronts/checkout",
         "/api/storefronts/checkout/verify"
       ],
@@ -10886,9 +10967,18 @@
         "/api/connect/status",
         "/api/credits/claim-trial",
         "/api/email-list/lists/:param/campaigns",
+        "/api/generate/alt-text",
+        "/api/gift-cards",
+        "/api/product-reviews/:param/flag",
+        "/api/product-reviews/:param/respond",
+        "/api/product-reviews/:param/unflag",
+        "/api/product-reviews/seller:param",
         "/api/referrals/me",
         "/api/retention/rank",
+        "/api/store/bundles",
+        "/api/store/bundles/:param",
         "/api/store/checklist",
+        "/api/store/item/:param/:param/bump",
         "/api/store/log-to-tracker",
         "/api/store/price",
         "/api/store/products",
@@ -10926,6 +11016,48 @@
       "nextSteps": []
     },
     {
+      "id": "order-bumps",
+      "name": "Add-on Offers (Order Bumps)",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/store/dashboard",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/shops/:param/products/:param/bump",
+        "/api/store/checkout",
+        "/api/store/item/:param/:param/bump",
+        "/api/storefront/checkout",
+        "/api/storefront/products/:param/bump",
+        "/api/storefronts/checkout"
+      ],
+      "prices": [],
+      "description": "Attach one of your other products as an add-on: buyers see a tick box and can add it to the same single checkout, at its listed price or a percent off you set, as its own line on the order. Works on store products, shop cart items, and digital tracks, videos, and series.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
+      "id": "post-purchase-upsell",
+      "name": "Post-Purchase One-Click Add-on",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/store/dashboard",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/storefront/orders/:param/upsell",
+        "/api/storefront/orders/:param/upsell/accept",
+        "/api/storefront/orders/:param/upsell/decline",
+        "/api/storefront/verify"
+      ],
+      "prices": [],
+      "description": "If a buyer skipped your add-on at checkout, it's offered once more right after they pay: one click charges the card they just used at your listed price or percent off, and it arrives as its own order. Same add-on setting as checkout bumps.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
       "id": "store-success",
       "name": "Store Success",
       "nameSource": "App.tsx component name",
@@ -10938,7 +11070,10 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
-        "/api/store/verify"
+        "/api/gift-cards",
+        "/api/store/verify",
+        "/api/storefront",
+        "/api/storefront/verify"
       ],
       "prices": [],
       "nextSteps": [],
@@ -10958,9 +11093,15 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/gift-cards",
+        "/api/gift-cards/checkout",
+        "/api/gift-cards/verify",
+        "/api/product-reviews",
+        "/api/storefront",
         "/api/storefront/checkout",
         "/api/storefront/claim",
-        "/api/storefront/product/:param"
+        "/api/storefront/product/:param",
+        "/api/storefront/products/:param/drop/capture"
       ],
       "prices": [
         {
@@ -10973,6 +11114,24 @@
       "nextSteps": [],
       "description": "Buy directly from the creator on Bow Down Visuals.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-product.tsx usePageTitle meta description"
+    },
+    {
+      "id": "product-drops",
+      "name": "Product Drops",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/storefront/product/:id",
+      "stage": "discover",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/storefront/products/:param/drop",
+        "/api/storefront/products/:param/drop/capture"
+      ],
+      "prices": [],
+      "description": "Schedule any store product to drop at a future moment: until then its page is a countdown with an email capture (fans join your list), it cannot be bought early, and at the moment it goes live everyone on the list gets exactly one email. Set it up in the store dashboard.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
     },
     {
       "id": "storefronts",
@@ -11890,11 +12049,32 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/tips/dashboard",
+        "/api/tips/goal",
         "/api/tips/settings"
       ],
       "prices": [],
       "description": "Give fans a beautiful place to support you. Set up your page, share the link, and every tip shows up here. Free to set up.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"tips.subtitle\" (page's own string)",
+      "nextSteps": []
+    },
+    {
+      "id": "funding-goals",
+      "name": "Funding Goals",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/tips",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/tips.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/tips/dashboard",
+        "/api/tips/goal",
+        "/api/tips/page/:param",
+        "/api/tips/settings"
+      ],
+      "prices": [],
+      "description": "Set one funding goal on your tip page — a target amount and what it's for, like a new microphone. The public page shows progress filled only by tips that actually completed payment, and celebrates when the goal is reached. Reached goals stay in your Tip Jar history.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": []
     },
     {
@@ -12243,7 +12423,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -12292,7 +12472,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12465,7 +12645,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -12567,7 +12747,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12733,7 +12913,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -12937,7 +13117,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13119,7 +13299,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13168,7 +13348,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13341,7 +13521,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13527,7 +13707,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13576,7 +13756,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13749,7 +13929,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13940,7 +14120,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13989,7 +14169,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14162,7 +14342,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14347,7 +14527,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14396,7 +14576,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14569,7 +14749,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14755,7 +14935,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14804,7 +14984,7 @@
         },
         {
           "feature": "Quality-Controlled Export",
-          "vb": 150,
+          "vb": 400,
           "endpoint": "/api/export-quality",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14977,7 +15157,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Video Translator",
+          "feature": "Video Translator (500 VB per minute per language)",
           "vb": 500,
           "endpoint": "/api/video-translator/translate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -15278,6 +15458,41 @@
       "kind": "route",
       "key": "/broadcast",
       "reason": "Redirect to /go-live — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/sponsor-dashboard",
+      "reason": "Redirect to /sponsors/dashboard — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/tip-page",
+      "reason": "Redirect to /tips — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/nfc-card-profile",
+      "reason": "Redirect to /nfc-cards — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/group-detail",
+      "reason": "Redirect to /groups — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/challenge",
+      "reason": "Redirect to /contests — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/albums",
+      "reason": "Redirect to /my-projects?tab=songs — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/hashtag",
+      "reason": "Redirect to /trending — the target carries the knowledge entry."
     },
     {
       "kind": "route",
