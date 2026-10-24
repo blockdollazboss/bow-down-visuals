@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDefaultWatermarkUrl } from "@/lib/watermark";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
-import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket } from "lucide-react";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket, Lock } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
@@ -223,6 +223,34 @@ function isSourceAvailable(
 ): boolean {
   if (source === "uploaded") return !!uploadedUrl;
   return hasRenderedVideoAudioExport(exports, source);
+}
+
+/* ── Mode-gate placeholder (Stack-100 #3 Lane 6) ──────────────────
+   The editor's one honest gate pattern: a feature gated by Advanced
+   mode stays VISIBLE in Simple (Turbo) mode as a locked card naming
+   the gate and the way through it, instead of silently vanishing
+   while its settings still affect the export. */
+function ModeGateCard({
+  title,
+  subtitle,
+  icon,
+  testId,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <EditorCard title={title} subtitle={subtitle} icon={icon}>
+      <div data-testid={testId} data-mode-gate="advanced" className="flex items-start gap-2.5">
+        <Lock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <p className="text-[11px] text-white/50 leading-relaxed">{children}</p>
+      </div>
+    </EditorCard>
+  );
 }
 
 /* ── Component ─────────────────────────────────────────── */
@@ -504,7 +532,20 @@ export function ExportSection({
         </div>
       </EditorCard>
 
-      {/* ── Audio Options ── */}
+      {/* ── Audio Options — Advanced-mode gate shown honestly in Simple:
+          the settings still apply to the export, so the card must not
+          silently vanish. ── */}
+      {isSimple && va.source !== "none" && (
+        <ModeGateCard
+          title="Audio Options"
+          subtitle="Fade and loop settings for the selected audio"
+          icon={<Music2 className="h-4 w-4" />}
+          testId="export-audio-options-gate"
+        >
+          Fade, loop and song-start settings are Advanced-mode controls. Any you already set
+          still apply to this export — switch the editor to Advanced in the top bar to change them.
+        </ModeGateCard>
+      )}
       {!isSimple && va.source !== "none" && (
         <EditorCard
           title="Audio Options"
@@ -627,6 +668,20 @@ export function ExportSection({
                 options={RESOLUTION_OPTIONS}
                 onChange={(v) => setExport({ resolution: v })}
               />
+            </Field>
+          )}
+          {isSimple && (
+            <Field label="Resolution">
+              <div
+                data-testid="export-resolution-gate"
+                data-mode-gate="advanced"
+                className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2"
+                title="Resolution is an Advanced-mode control — switch the editor to Advanced in the top bar to change it. Platform presets below still set it in Simple mode."
+              >
+                <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="text-xs font-bold text-white/60 capitalize">{settings.export.resolution}</span>
+                <span className="text-[10px] text-white/40">Advanced mode to change · platform presets below still apply</span>
+              </div>
             </Field>
           )}
           {/* ── Platform presets: one tap sets format + resolution ── */}
@@ -754,7 +809,20 @@ export function ExportSection({
         </div>
       </EditorCard>
 
-      {/* ── Caption Export ── */}
+      {/* ── Caption Export — gated card in Simple: the mode still applies
+          to the export, so it is named, not vanished. ── */}
+      {isSimple && (
+        <ModeGateCard
+          title="Caption Export"
+          subtitle="How captions travel with the exported video"
+          icon={<Subtitles className="h-4 w-4" />}
+          testId="export-caption-export-gate"
+        >
+          Caption export mode is an Advanced-mode control. Your current mode
+          ({(settings.export.captionExportMode as CaptionExportMode) ?? "burn"}) still applies to
+          this export — switch the editor to Advanced in the top bar to change it.
+        </ModeGateCard>
+      )}
       {!isSimple && (
       <CaptionExportCard
         mode={(settings.export.captionExportMode as CaptionExportMode) ?? "burn"}
@@ -763,7 +831,10 @@ export function ExportSection({
       />
       )}
 
-      {/* ── Export Audio Debug ── */}
+      {/* ── Export Audio Debug — pure diagnostic readout, no settings:
+          designed-hidden in Simple (Lane 6 board G-10); the Export
+          Doctor gate card below points Simple users to Advanced for
+          export diagnostics. ── */}
       {!isSimple && (
       <EditorCard title="Export Audio Debug" subtitle="Live diagnostic — shows the same audio the master player uses">
         <div className="space-y-1">
@@ -799,7 +870,20 @@ export function ExportSection({
       </EditorCard>
       )}
 
-      {/* ── Export Range ── */}
+      {/* ── Export Range — gated card in Simple: a set range still bounds
+          the export, so the effective range is named, not hidden. ── */}
+      {isSimple && (
+        <ModeGateCard
+          title="Export Range"
+          subtitle="Choose which part of the video to export"
+          icon={<Scissors className="h-4 w-4" />}
+          testId="export-range-gate"
+        >
+          Export range is an Advanced-mode control. Your current range
+          ({rangeMode === "full" ? "full video" : rangeMode}) still applies to this export —
+          switch the editor to Advanced in the top bar to change it.
+        </ModeGateCard>
+      )}
       {!isSimple && (
       <EditorCard
         title="Export Range"
@@ -1114,7 +1198,21 @@ export function ExportSection({
         getAccessToken={getAccessToken}
       />
 
-      {/* ── Export Doctor (single-clip diagnostics) ── */}
+      {/* ── Export Doctor (single-clip diagnostics) — Advanced-mode tool.
+          In Simple it renders as a labelled locked gate (Lane 6 board
+          item), never a silently missing feature. ── */}
+      {isSimple && (
+        <ModeGateCard
+          title="Export Doctor"
+          subtitle="Single-clip export diagnostics"
+          icon={<Eye className="h-4 w-4" />}
+          testId="export-doctor-gate"
+        >
+          Export Doctor is an Advanced-mode tool — switch the editor to Advanced in the top bar
+          to run single-clip export diagnostics. Nothing here changes your export: every setting
+          above works exactly the same in Simple mode.
+        </ModeGateCard>
+      )}
       {!isSimple && (
       <ExportDoctor
         scenes={scenes}
