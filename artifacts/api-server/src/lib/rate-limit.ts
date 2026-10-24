@@ -96,3 +96,40 @@ export const reportWriteLimiter = rateLimit({
   },
   message: { error: "Too many reports in a short window. Please wait a bit and try again." },
 });
+
+/**
+ * Per-API-KEY limiter for the Public Creator API reads (/api/v1).
+ * Runs AFTER requireApiKey, so it keys on the key id — one leaked key
+ * cannot burn more than its own bucket, and buckets don't collide
+ * across creators. 120 requests per minute per key.
+ */
+export const apiKeyLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const keyId = (req as { apiKeyId?: string }).apiKeyId;
+    return keyId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: { error: "rate_limited", message: "Too many API requests for this key. Please wait a minute." },
+});
+
+/**
+ * Per-API-KEY limiter for CHARGED API generation (POST /api/v1/generate/*).
+ * 10 per minute per key — far above human/agent workflows, far below a
+ * runaway loop draining a balance. The owner's balance is the second,
+ * harder wall (charges refuse past it).
+ */
+export const apiKeyGenerationLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const keyId = (req as { apiKeyId?: string }).apiKeyId;
+    const userId = (req as { userId?: string }).userId;
+    return keyId || userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: { error: "rate_limited", message: "Too many generation requests for this key. Please wait a minute." },
+});
