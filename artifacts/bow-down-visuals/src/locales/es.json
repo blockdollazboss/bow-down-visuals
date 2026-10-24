@@ -3329,7 +3329,7 @@
     "fan_seg_send_btn": "Enviar al segmento",
     "fan_seg_sent_result": "Enviado a {{sent}} de {{mailable}} fans contactables · {{matched}} en el segmento · {{skipped}} no contactables (sin correo, fuera de esta lista o dados de baja)",
     "fan_seg_send_failed": "No se pudo enviar: {{reason}}",
-    "fan_seg_count_fans": "{{count}} fans",
+    "fan_seg_count_fans": "{{count}} fans en total",
     "fan_seg_preview_empty": "Ningún fan coincide con este segmento todavía.",
     "fan_seg_error": "No se pudieron cargar los segmentos de fans. Inténtalo de nuevo en un momento.",
     "fan_seg_any": "Cualquiera",

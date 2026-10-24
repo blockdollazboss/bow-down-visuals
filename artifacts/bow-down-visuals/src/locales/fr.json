@@ -3435,7 +3435,7 @@
     "fan_seg_send_btn": "Envoyer au segment",
     "fan_seg_sent_result": "Envoyé à {{sent}} sur {{mailable}} fans joignables · {{matched}} dans le segment · {{skipped}} non joignables (pas d'e-mail, absents de cette liste ou désabonnés)",
     "fan_seg_send_failed": "Envoi impossible : {{reason}}",
-    "fan_seg_count_fans": "{{count}} fans",
+    "fan_seg_count_fans": "{{count}} fans au total",
     "fan_seg_preview_empty": "Aucun fan ne correspond encore à ce segment.",
     "fan_seg_error": "Impossible de charger les segments de fans. Réessayez dans un instant.",
     "fan_seg_any": "Tous",

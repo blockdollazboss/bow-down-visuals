@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f96d7b729e4cc11ae1ab284d346d3db1113afc47",
+  "baseCommit": "fc034a44dbfcb57e621c9503d7ff45ce21be4a58",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -7098,11 +7098,15 @@
       "pageFile": "artifacts/bow-down-visuals/src/pages/email-list.tsx",
       "component": null,
       "endpoints": [
-        "/api/email-list/fan-graph"
+        "/api/email-list/fan-graph",
+        "/api/email-list/fan-segments",
+        "/api/email-list/fan-segments/:param",
+        "/api/email-list/fan-segments/preview",
+        "/api/email-list/fan-segments/send"
       ],
       "prices": [],
-      "description": "Every fan in one place — followers, subscribers, members and buyers merged into one record per person.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"email-list.fan_graph_intro\"",
+      "description": "Every fan in one place — followers, subscribers, members and buyers merged into one record per person. Saved audiences over your fan graph — buyers who don't follow you, top spenders, and your own rule sets. Membership is always live: what you preview is what a send reaches.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"email-list.fan_graph_intro\" + artifacts/bow-down-visuals/src/locales/en.json \"email-list.fan_seg_intro\"",
       "nextSteps": [
         {
           "label": "Monetization Coach",

@@ -541,6 +541,7 @@ const W5_LEGIT: string[] = [
   "chooseArtist.eyebrow",
   "content-calendar.hook_studio",
   "email-list.100_visual_bucs",
+  "email-list.fan_seg_no",
   "email-list.builder",
   "email-list.dashboard",
   "email-list.join_2",

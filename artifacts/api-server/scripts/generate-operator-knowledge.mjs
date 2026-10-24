@@ -1228,8 +1228,18 @@ const DOCKED_FEATURES = [
     name: { ns: "email-list", field: "fan_graph" },
     path: "/email-list",
     hostPath: "/email-list",
-    description: { nsFields: [["email-list", "fan_graph_intro"]] },
-    endpoints: ["/api/email-list/fan-graph"],
+    description: { nsFields: [["email-list", "fan_graph_intro"], ["email-list", "fan_seg_intro"]] },
+    endpoints: [
+      "/api/email-list/fan-graph",
+      /* Fan-graph phase 2 (Stack-100 #3 W3): saved segments over the
+         same graph + one-click send through the existing desk. Same
+         docked surface, same free read/send desk — no charge exists
+         on these paths either, so pricedEndpoints stays empty. */
+      "/api/email-list/fan-segments",
+      "/api/email-list/fan-segments/:param",
+      "/api/email-list/fan-segments/preview",
+      "/api/email-list/fan-segments/send",
+    ],
     pricedEndpoints: [],
   },
   {
