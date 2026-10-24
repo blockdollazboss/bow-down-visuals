@@ -32,7 +32,10 @@ import {
   VEO_PRICING_VERSION,
   modelSupportsEndFrame,
   resolveClipPlan,
+  resolveFormatDelivery,
+  type ClipFormat,
 } from "./clip-pricing";
+import { reframeVideoFile } from "../../lib/feed-reframe";
 import { submitVeoVideo, pollVeoOperation, downloadVeoVideoToFile } from "../../lib/veo-client";
 import {
   MAX_STACKED_EFFECTS,
@@ -76,7 +79,16 @@ const VEO_CREDITS_PER_SEC =
  * In-memory only — a server restart before polling completes means credits
  * won't be charged for that clip (acceptable; user gets a free clip, not a spurious charge).
  */
-const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string }>();
+/** Feed-format delivery tracked per task (#30): when delivery is "reframe",
+ *  the poller Smart-Reframes the generated clip to reframeTarget before
+ *  delivery and reports the exact notice — never a silent crop. */
+export interface PendingFormatDelivery {
+  format: ClipFormat;
+  delivery: "native" | "reframe";
+  reframeTarget: "1:1" | "4:5" | null;
+  notice: string | null;
+}
+const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string; formatDelivery?: PendingFormatDelivery }>();
 
 /**
  * Tracks successfully charged tasks so generated-clips.ts can issue a refund
@@ -211,7 +223,13 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
 const runwayClipSchema = z.object({
   promptText: z.string().max(5000).optional(),
   negativePrompt: z.string().max(2000).optional().nullable(),
-  ratio: z.enum(["1280:720", "720:1280"]).optional(),
+  ratio: z.enum(["1280:720", "720:1280", "960:960", "1080:1350"]).optional(),
+  /** Requested output format (#30): "16:9" | "9:16" | "1:1" (square) |
+   *  "4:5" (feed portrait). Wins over `ratio` when both are sent. Native
+   *  vs reframe delivery is resolved per model in clip-pricing.ts and
+   *  reported back — never silently cropped. A locked pack's ratio wins
+   *  over this field, exactly as it wins over `ratio`. */
+  format: z.enum(["16:9", "9:16", "1:1", "4:5"]).optional(),
   projectId: z.string().max(100).optional().nullable(),
   referenceImageUrl: z.string().max(2048).optional().nullable(),
   /** Final frame of the immediately-preceding scene's clip, used to chain
@@ -278,7 +296,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, endFrameImageUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, effectIds, referenceSet } = parsed.data;
+  const { promptText, negativePrompt, ratio, format, projectId, referenceImageUrl, previousClipUrl, endFrameImageUrl, model, durationSec, resolution, draft, seed, packId, shotNumber, effectIds, referenceSet } = parsed.data;
 
   /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
   let lockedIngredients: PackIngredients | null = null;
@@ -338,6 +356,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     durationSec: effectiveDuration,
     resolution,
     ratio,
+    /* Locked packs keep their locked ratio — the pack wins over the
+       body's format exactly as it wins over the body's ratio. */
+    format: lockedIngredients ? (effectiveRatio === "1280:720" ? "16:9" : "9:16") : format,
     draft,
     creditsPerSec720p: SEEDANCE_CREDITS_PER_SEC_720P,
     creditsPerSec1080p: SEEDANCE_CREDITS_PER_SEC_1080P,
@@ -477,6 +498,26 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     anchorKind: referenceSource === "previous_scene" ? "previous_scene" : "single_photo",
   });
   const useImageRef = refPlan.submittedUrls.length > 0;
+  /* ── Feed-format delivery resolution (#30) ──────────────────────────────
+     Re-resolved now that reference reality is known: gen4.5's native
+     square exists only in image-to-video, so the plan-time answer (made
+     before references resolved) can upgrade to native here. Seedance and
+     Veo answers are mode-independent and match the plan. The result
+     drives the provider ratio, the POST response, and the poll-time
+     Smart Reframe — one resolution, reported honestly. */
+  const fmtDelivery = resolveFormatDelivery({
+    model: plan.model,
+    format: plan.format,
+    hasImageRef: useImageRef,
+    resolution,
+    draft: isDraft,
+  });
+  const pendingFormat: PendingFormatDelivery = {
+    format: fmtDelivery.format,
+    delivery: fmtDelivery.delivery,
+    reframeTarget: fmtDelivery.reframeTarget,
+    notice: fmtDelivery.notice,
+  };
   /* Legacy badge semantics, kept truthful under sets: a set-driven
      submission whose first image is the character reads as the vault
      photo it is; anchor-driven submissions keep their existing source. */
@@ -664,7 +705,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       const veoPrompt = `${content} ${PERFORMANCE_DIRECTIVE}`.slice(0, 4000);
       const operation = await submitVeoVideo({
         prompt: veoPrompt,
-        aspectRatio: effectiveRatio === "720:1280" ? "9:16" : "16:9",
+        /* Veo emits only 16:9/9:16: for feed formats fmtDelivery carries
+           the nearest of those, and the poller reframes on delivery. */
+        aspectRatio: fmtDelivery.providerRatio as "16:9" | "9:16",
         imageBase64,
         imageMimeType,
         lastFrameBase64,
@@ -677,6 +720,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         projectId: projectId ?? null,
         credits: creditCost,
         veoOperation: operation,
+        formatDelivery: pendingFormat,
       });
       req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits pending on success");
       res.json({
@@ -688,6 +732,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         durationSec: resolvedDurationSec,
         endFrameUsed: !!lastFrameBase64,
         effectsApplied,
+        format: fmtDelivery.format,
+        delivery: fmtDelivery.delivery,
+        formatNotice: fmtDelivery.notice,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Veo 3.1 submission failed";
@@ -712,6 +759,13 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
      the Seedance (seedanceRatio) and Veo (effectiveRatio) paths are
      untouched. */
   const resolvedRatio = lockedIngredients ? effectiveRatio : (ratio ?? effectiveRatio);
+  /* #30: for NON-PACK submissions the gen4.5 provider ratio comes from the
+     feed-format resolution (which for 16:9/9:16 equals the legacy
+     resolvedRatio above, since plan.format derives from the same body
+     ratio when no explicit format is sent). Feed formats get their native
+     ratio where the model supports one (gen4.5 image-to-video square:
+     "960:960") or the nearest supported ratio + poll-time reframe. */
+  const gen45Ratio = lockedIngredients ? resolvedRatio : fmtDelivery.providerRatio;
   /* Seedance 2.5 resolution mapping: 720p stays at the base ratio, 1080p
      steps up to the full-HD variant. Generated audio is always off — music
      videos get their audio from the song, not the video model. */
@@ -789,17 +843,20 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
           promptImage: refPlan.singleUrl!,
           promptText: finalPrompt,
           duration: 5,
-          ratio: resolvedRatio,
+          /* i2v union includes native square + 3:4 — see clip-pricing. */
+          ratio: gen45Ratio as "1280:720" | "720:1280" | "1104:832" | "960:960" | "832:1104" | "1584:672",
           contentModeration: { publicFigureThreshold: "low" },
         })
       : await client.textToVideo.create({
           model: "gen4.5",
           promptText: finalPrompt,
           duration: 5,
-          ratio: resolvedRatio,
+          /* t2v union is only wide/vertical; feed formats arrive here as
+             their nearest of the two and are reframed at delivery. */
+          ratio: gen45Ratio as "1280:720" | "720:1280",
         });
 
-    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost });
+    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost, formatDelivery: pendingFormat });
     req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
 
     res.json({
@@ -811,6 +868,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       durationSec: resolvedDurationSec,
       endFrameUsed: useSeedance && !!endFrameUrl,
       effectsApplied,
+      format: fmtDelivery.format,
+      delivery: fmtDelivery.delivery,
+      formatNotice: fmtDelivery.notice,
       ...(useSeedance ? { seed: resolvedSeed, isDraft } : {}),
     });
   } catch (err: unknown) {
@@ -841,6 +901,52 @@ export async function runSubmitRunwayClip(
    - FAILED/CANCELLED → no charge → return error
    - Still running → return { status: "processing", progress }
 ───────────────────────────────────────────────────────────────────────────── */
+/* ── Feed-format delivery at poll time (#30) ───────────────────────────────
+   When the tracked delivery is "reframe", Smart-Reframe the downloaded
+   clip to the target aspect before upload. On reframe failure the clip is
+   still delivered in its generated ratio — but the response says exactly
+   that (delivery "reframe_failed"), never a silent wrong-format clip and
+   never a reframe labelled as native. No extra charge either way: the
+   reframe is part of this generation's delivery. */
+async function applyPendingReframe(
+  log: Request["log"],
+  taskId: string,
+  tmpFile: string,
+  fmt: PendingFormatDelivery | undefined,
+): Promise<{ file: string; cleanupFile: string | null; fields: Record<string, unknown> }> {
+  if (!fmt || fmt.delivery !== "reframe" || !fmt.reframeTarget) {
+    return {
+      file: tmpFile,
+      cleanupFile: null,
+      fields: fmt
+        ? { format: fmt.format, delivery: fmt.delivery, formatNotice: fmt.notice }
+        : {},
+    };
+  }
+  const reframed = path.join(os.tmpdir(), `reframed-${randomUUID()}.mp4`);
+  try {
+    await reframeVideoFile(tmpFile, reframed, fmt.reframeTarget);
+    log.info({ taskId, target: fmt.reframeTarget }, "[runway-clip] feed-format reframe applied on delivery");
+    return {
+      file: reframed,
+      cleanupFile: reframed,
+      fields: { format: fmt.format, delivery: "reframe", formatNotice: fmt.notice },
+    };
+  } catch (err) {
+    cleanup(reframed);
+    log.error({ err, taskId }, "[runway-clip] feed-format reframe FAILED — delivering generated ratio with an honest notice");
+    return {
+      file: tmpFile,
+      cleanupFile: null,
+      fields: {
+        format: fmt.format,
+        delivery: "reframe_failed",
+        formatNotice: `Reframe to ${fmt.format === "1:1" ? "square" : "4:5"} failed — this clip is in its generated ratio, not ${fmt.format}.`,
+      },
+    };
+  }
+}
+
 const pollRunwayClipHandler = async (req: Request, res: Response) => {
   const { taskId } = req.params as { taskId: string };
 
@@ -876,8 +982,10 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
         // the whole clip used to sit in RAM twice (download Buffer,
         // then upload).
         await downloadVeoVideoToFile(poll.videoUri, tmpFile);
+        const delivery = await applyPendingReframe(req.log, taskId, tmpFile, pending.formatDelivery);
+        try {
         const objectName = `clips/${randomUUID()}.mp4`;
-        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, tmpFile, "video/mp4");
+        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, delivery.file, "video/mp4");
         const previewUrl = await refreshSupabaseStorageUrl(storageRef);
 
         /* ── Charge once, guarded by pendingTasks presence ── */
@@ -907,7 +1015,10 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
         pendingTasks.delete(taskId);
 
         req.log.info({ objectName, taskId }, "[runway-clip] Veo clip saved — returning storage ref + preview URL");
-        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef });
+        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef, ...delivery.fields });
+        } finally {
+          if (delivery.cleanupFile) cleanup(delivery.cleanupFile);
+        }
       } catch (uploadErr: unknown) {
         req.log.error({ err: uploadErr }, "[runway-clip] Veo clip download/upload failed — no credits charged");
         res.json({ status: "failed", error: "Veo generated the clip but saving it failed. No Visual Bucs were charged — please try again." });
@@ -1012,25 +1123,32 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
          POST /api/generated-clips also normalizes server-side, so even if
          the client saves the preview URL, the DB still ends up with the ref. */
       const tmpFile = path.join(os.tmpdir(), `runway-${randomUUID()}.mp4`);
+      let reframedFile: string | null = null;
       try {
         req.log.info({ taskId }, "[runway-clip] downloading clip from Runway");
         await downloadToFile(runwayUrl, tmpFile);
+
+        /* #30: reframe deliveries are reframed BEFORE upload so the
+           stored clip itself is the requested feed format. */
+        const delivery = await applyPendingReframe(req.log, taskId, tmpFile, pending?.formatDelivery);
+        reframedFile = delivery.cleanupFile;
 
         const objectName = `clips/${randomUUID()}.mp4`;
         req.log.info({ objectName }, "[runway-clip] uploading clip to Supabase Storage");
         // 2026-10-12 OOM fix: stream the upload from disk — readFileSync
         // used to load the entire MP4 into RAM (and block the event loop).
-        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, tmpFile, "video/mp4");
+        const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, delivery.file, "video/mp4");
 
         const previewUrl = await refreshSupabaseStorageUrl(storageRef);
         req.log.info({ objectName, taskId }, "[runway-clip] clip saved to Supabase Storage — returning storage ref + preview URL");
 
-        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef });
+        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef, ...delivery.fields });
       } catch (uploadErr: unknown) {
         req.log.error({ err: uploadErr }, "[runway-clip] Supabase upload failed — returning raw Runway URL as fallback");
         res.json({ status: "succeeded", url: runwayUrl });
       } finally {
         cleanup(tmpFile);
+        if (reframedFile) cleanup(reframedFile);
       }
 
     /* ── FAILED / CANCELLED — credits were never charged ── */
