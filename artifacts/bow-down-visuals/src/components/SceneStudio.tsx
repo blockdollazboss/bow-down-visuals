@@ -14,6 +14,7 @@ import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import { modelSupportsEndFrame, endFrameForPayload } from "@/lib/scene-end-frame";
+import { CLIP_FORMAT_OPTIONS, FORMAT_TO_RATIO, feedFormatHint, type ClipFormat } from "@/lib/feed-formats";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { r2UploadFile } from "@/lib/r2-storage";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -271,6 +272,12 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   /* Video model selection — Seedance 2.5 is the premium option with longer
      scenes and higher resolution, priced per second. */
   const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5" | "veo3_1">("gen4.5");
+  /* Output shape (#30): wide / vertical / square / feed portrait. Default
+     stays vertical — the ratio this generator has always sent. */
+  const [clipFormat, setClipFormat]   = useState<ClipFormat>("9:16");
+  /* The server's authoritative format notice (e.g. "Generated wide,
+     reframed to square") from the last submission/poll — shown verbatim. */
+  const [formatNotice, setFormatNotice] = useState<string | null>(null);
   const [clipDuration, setClipDuration] = useState(5);
   const [clipRes, setClipRes]         = useState<"720p" | "1080p">("720p");
   /* Draft mode (Seedance only): cheap 480p preview for iterating on the shot.
@@ -650,8 +657,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         const res = await fetch(`/api/generate-runway-clip/${id}`, {
           headers: { Authorization: `Bearer ${token ?? ""}` },
         });
-        const data = await res.json() as { status: string; url?: string; progress?: number; error?: string };
+        const data = await res.json() as { status: string; url?: string; progress?: number; error?: string; formatNotice?: string | null };
         if (data.status === "succeeded" && data.url) {
+          /* The delivered clip's format truth (native / reframed / reframe
+             failed) — replaces the picker hint with the server's words. */
+          if (data.formatNotice !== undefined) setFormatNotice(data.formatNotice);
           stopPolling();
           setIsGenerating(false);
           setTaskId(null);
@@ -693,6 +703,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     setError(null);
     setProgress(null);
     setReferenceNote(null);
+    setFormatNotice(null);
     /* Optimistic guess for the "generating…" badge — server confirms/corrects
        via the response's referenceSource once the extraction actually runs. */
     setReferenceSource(
@@ -737,7 +748,10 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         body: JSON.stringify({
           promptText: finalPrompt,
           negativePrompt: scene.negativePrompt ?? "",
-          ratio: "720:1280",
+          ratio: FORMAT_TO_RATIO[clipFormat],
+          /* #30: the requested shape; the server resolves native vs
+             nearest-ratio + Smart Reframe per model and reports it back. */
+          format: clipFormat,
           referenceImageUrl,
           /* The scene's approved reference set — the server maps it onto
              what the picked model actually accepts and reports back any
@@ -761,7 +775,8 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         skipConfirm: opts?.skipConfirm,
       });
       if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
-      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean; references?: { mode: string; submitted: number; inSet: number; reduced: boolean; note: string | null } };
+      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean; formatNotice?: string | null; references?: { mode: string; submitted: number; inSet: number; reduced: boolean; note: string | null } };
+      setFormatNotice(data.formatNotice ?? null);
       if (!res.ok || !data.taskId) throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
@@ -1162,6 +1177,34 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             </button>
           ))}
         </div>
+        {/* Shape picker (#30): square + feed portrait beside wide/vertical.
+            The hint says exactly how the picked model will produce the
+            shape — native, or generated at the nearest ratio and Smart
+            Reframed — and the server's own notice replaces it on submit. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Shape</span>
+          {CLIP_FORMAT_OPTIONS.map((o) => (
+            <button
+              key={o.format}
+              type="button"
+              onClick={() => { setClipFormat(o.format); setFormatNotice(null); }}
+              data-testid={`format-pick-${o.format}`}
+              title={o.blurb}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                clipFormat === o.format
+                  ? "border-primary/60 bg-primary/15 text-primary"
+                  : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        {(formatNotice ?? feedFormatHint(clipModel, clipFormat, hasArtist || willChain)) && (
+          <p data-testid="format-hint" className="text-[10px] text-white/40">
+            {formatNotice ?? feedFormatHint(clipModel, clipFormat, hasArtist || willChain)}
+          </p>
+        )}
         {clipModel === "seedance2_5" && (
           <>
           <div className="flex items-center gap-2 flex-wrap">
