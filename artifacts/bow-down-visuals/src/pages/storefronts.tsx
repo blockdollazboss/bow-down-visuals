@@ -83,7 +83,8 @@ export default function Storefronts() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("storefronts.searchPlaceholder")}
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40"
+            aria-label={t("storefronts.searchPlaceholder")}
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-sm text-white placeholder:text-white/50 outline-none transition focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40 focus-visible:ring-2 focus-visible:ring-amber-400/60"
           />
         </div>
 

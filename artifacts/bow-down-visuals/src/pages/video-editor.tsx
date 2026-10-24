@@ -3171,17 +3171,18 @@ export default function VideoEditor() {
                 variant="ghost"
                 className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30"
                 title={t("videoEditor.changeTemplateTitle")}
+                aria-label={t("videoEditor.changeTemplateTitle")}
                 data-testid="btn-template-picker"
               >
                 <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
               </Button>
-              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.undoTitle")} aria-label={t("videoEditor.undoTitle")} data-testid="btn-undo-editor">
                 <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.undo")}</span>
               </Button>
-              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10 disabled:opacity-30" title={t("videoEditor.redoTitle")} aria-label={t("videoEditor.redoTitle")} data-testid="btn-redo-editor">
                 <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.redo")}</span>
               </Button>
-              <Button onClick={() => openSectionFromRail("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
+              <Button onClick={() => openSectionFromRail("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} aria-label={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
                 <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
               </Button>
               {/* ── Simple / Pro editor mode switch — the Turbo/Advanced
@@ -3206,7 +3207,14 @@ export default function VideoEditor() {
                   type="button"
                   role="radio"
                   aria-checked={isSimple}
+                  tabIndex={isSimple ? 0 : -1}
                   onClick={() => setMode("simple")}
+                  onKeyDown={(e) => {
+                    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft" && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+                    e.preventDefault();
+                    if (isSimple && gateStars >= 4) { setMode("advanced"); document.querySelector<HTMLElement>('[data-testid="editor-mode-pro"]')?.focus(); }
+                    else if (!isSimple) { setMode("simple"); document.querySelector<HTMLElement>('[data-testid="editor-mode-simple"]')?.focus(); }
+                  }}
                   className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                   data-testid="editor-mode-simple"
                 >
@@ -3217,6 +3225,7 @@ export default function VideoEditor() {
                     type="button"
                     role="radio"
                     aria-checked={!isSimple}
+                    tabIndex={!isSimple ? 0 : -1}
                     onClick={() => setMode("advanced")}
                     className={`px-2.5 h-10 rounded-md text-[11px] font-black transition-colors ${!isSimple ? "bg-primary text-black" : "vv-ink-50 vv-hover-ink"}`}
                     data-testid="editor-mode-pro"
@@ -3248,7 +3257,7 @@ export default function VideoEditor() {
                 />
                 <span className="text-xs vv-ink-50 hidden lg:inline">{t("videoEditor.autosave")}</span>
               </label>
-              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-10" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
+              <Button onClick={() => openThyChat()} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#E8C96A] hover:bg-[#C9A84C]/10 gap-2 h-10" title={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} aria-label={t("videoEditor.askThyTitle", { defaultValue: "Ask Thy Cheat Code for help with this edit" })} data-testid="btn-ask-thy">
                 <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.askThy", { defaultValue: "Ask Thy" })}</span>
               </Button>
               <Button onClick={saveNow} size="sm" variant="ghost" className="vv-ink-60 vv-hover-ink vv-hover-wash-5 gap-2 h-10" data-testid="btn-save-editor">
@@ -3319,6 +3328,7 @@ export default function VideoEditor() {
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         data-mode-gate={gated ? "advanced" : undefined}
                         aria-disabled={gated || undefined}
+                        aria-current={leftTab === item.id || rightTab === item.id ? "true" : undefined}
                         title={gated ? `${item.label} — Advanced mode only. Switch the editor to Advanced in the top bar to use it.` : item.label}
                         className={`relative flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
                           gated ? "opacity-50 cursor-not-allowed" : ""
@@ -3351,8 +3361,27 @@ export default function VideoEditor() {
                 role="separator"
                 aria-orientation="vertical"
                 aria-label="Resize tool panel"
+                aria-valuemin={PANEL_SNAPS[0]}
+                aria-valuemax={PANEL_SNAPS[PANEL_SNAPS.length - 1]}
+                aria-valuenow={panelWidth}
+                aria-valuetext={`${panelWidth} pixels`}
+                tabIndex={0}
                 title="Drag to resize the panel · snaps to 5 positions · double-click to reset"
                 onPointerDown={onPanelDividerDown}
+                onKeyDown={(e) => {
+                  const nearest = snapPanelWidth(panelWidth);
+                  const idx = PANEL_SNAPS.indexOf(nearest);
+                  let next: number | null = null;
+                  if (e.key === "ArrowRight" || e.key === "ArrowUp") next = PANEL_SNAPS[Math.min(PANEL_SNAPS.length - 1, idx + 1)]!;
+                  else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = PANEL_SNAPS[Math.max(0, idx - 1)]!;
+                  else if (e.key === "Home") next = PANEL_SNAPS[0]!;
+                  else if (e.key === "End") next = PANEL_SNAPS[PANEL_SNAPS.length - 1]!;
+                  if (next === null) return;
+                  e.preventDefault();
+                  panelWidthRef.current = next;
+                  setPanelWidth(next);
+                  try { localStorage.setItem("bdv:panelWidth", String(next)); } catch { /* ignore */ }
+                }}
                 onDoubleClick={resetPanelWidth}
                 className="w-[9px] -ml-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex flex-col items-center justify-center gap-1.5 group py-4"
                 data-testid="panel-divider"
@@ -3363,6 +3392,7 @@ export default function VideoEditor() {
                     key={s}
                     type="button"
                     title={`Snap ${i + 1} of 5 (${s}px)`}
+                    aria-label={`Snap ${i + 1} of 5 (${s}px)`}
                     onClick={(e) => {
                       e.stopPropagation();
                       panelWidthRef.current = s;
@@ -3382,6 +3412,7 @@ export default function VideoEditor() {
                   onClick={(e) => { e.stopPropagation(); setPanelCollapsed(true); }}
                   className="absolute top-2 -left-1 h-6 w-6 rounded-full bg-black/80 border vv-border flex items-center justify-center vv-ink-60 vv-hover-ink hover:border-primary/50 transition-colors"
                   title="Collapse panel"
+                  aria-label="Collapse panel"
                 >
                   <ChevronLeft className="h-3 w-3" />
                 </button>
@@ -3393,6 +3424,7 @@ export default function VideoEditor() {
                   onClick={() => setPanelCollapsed(false)}
                   className="shrink-0 w-8 hidden md:flex items-center justify-center vv-marble-panel border-r vv-border vv-ink-60 vv-hover-ink vv-hover-wash-3 transition-colors"
                   title="Expand panel"
+                  aria-label="Expand panel"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -3468,6 +3500,8 @@ export default function VideoEditor() {
                   <button
                     type="button"
                     title="Collapse both panels (distraction-free)"
+                    aria-label="Collapse both panels (distraction-free)"
+                    aria-pressed={panelCollapsed && rightPanelCollapsed}
                     onClick={() => {
                       setPanelCollapsed(true);
                       setRightPanelCollapsed(true);
@@ -3487,6 +3521,7 @@ export default function VideoEditor() {
                         key={s}
                         type="button"
                         title={`Set both panels to ${s}px (preset ${i + 1} of 5)`}
+                        aria-label={`Set both panels to ${s}px (preset ${i + 1} of 5)`}
                         onClick={() => {
                           panelWidthRef.current = s;
                           setPanelWidth(s);
@@ -3628,8 +3663,27 @@ export default function VideoEditor() {
                 role="separator"
                 aria-orientation="vertical"
                 aria-label="Resize right panel"
+                aria-valuemin={PANEL_SNAPS[0]}
+                aria-valuemax={PANEL_SNAPS[PANEL_SNAPS.length - 1]}
+                aria-valuenow={rightPanelWidth}
+                aria-valuetext={`${rightPanelWidth} pixels`}
+                tabIndex={0}
                 title="Drag to resize the panel · snaps to 5 positions · double-click to reset"
                 onPointerDown={onRightPanelDividerDown}
+                onKeyDown={(e) => {
+                  const nearest = snapPanelWidth(rightPanelWidth);
+                  const idx = PANEL_SNAPS.indexOf(nearest);
+                  let next: number | null = null;
+                  if (e.key === "ArrowRight" || e.key === "ArrowUp") next = PANEL_SNAPS[Math.min(PANEL_SNAPS.length - 1, idx + 1)]!;
+                  else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = PANEL_SNAPS[Math.max(0, idx - 1)]!;
+                  else if (e.key === "Home") next = PANEL_SNAPS[0]!;
+                  else if (e.key === "End") next = PANEL_SNAPS[PANEL_SNAPS.length - 1]!;
+                  if (next === null) return;
+                  e.preventDefault();
+                  rightPanelWidthRef.current = next;
+                  setRightPanelWidth(next);
+                  try { localStorage.setItem("bdv:rightPanelWidth", String(next)); } catch { /* ignore */ }
+                }}
                 onDoubleClick={resetRightPanelWidth}
                 className="w-[9px] -mr-[9px] shrink-0 cursor-ew-resize touch-none z-10 hidden md:flex flex-col items-center justify-center gap-1.5 group py-4"
                 data-testid="right-panel-divider"
@@ -3640,6 +3694,7 @@ export default function VideoEditor() {
                     key={s}
                     type="button"
                     title={`Snap ${i + 1} of 5 (${s}px)`}
+                    aria-label={`Snap ${i + 1} of 5 (${s}px)`}
                     onClick={(e) => {
                       e.stopPropagation();
                       rightPanelWidthRef.current = s;
@@ -3659,6 +3714,7 @@ export default function VideoEditor() {
                   onClick={(e) => { e.stopPropagation(); setRightPanelCollapsed(true); }}
                   className="absolute top-2 -right-1 h-6 w-6 rounded-full bg-black/80 border vv-border flex items-center justify-center vv-ink-60 vv-hover-ink hover:border-primary/50 transition-colors"
                   title="Collapse panel"
+                  aria-label="Collapse panel"
                 >
                   <ChevronRight className="h-3 w-3" />
                 </button>
@@ -3670,6 +3726,7 @@ export default function VideoEditor() {
                   onClick={() => setRightPanelCollapsed(false)}
                   className="shrink-0 w-8 hidden md:flex items-center justify-center vv-marble-panel border-l vv-border vv-ink-60 vv-hover-ink vv-hover-wash-3 transition-colors"
                   title="Expand panel"
+                  aria-label="Expand panel"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -3720,6 +3777,7 @@ export default function VideoEditor() {
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         data-mode-gate={gated ? "advanced" : undefined}
                         aria-disabled={gated || undefined}
+                        aria-current={leftTab === item.id || rightTab === item.id ? "true" : undefined}
                         title={gated ? `${item.label} — Advanced mode only. Switch the editor to Advanced in the top bar to use it.` : item.label}
                         className={`relative flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
                           gated ? "opacity-50 cursor-not-allowed" : ""
@@ -5227,6 +5285,7 @@ function MasterPreviewPlayer({
                 onClick={() => setCompareOn((v) => !v)}
                 data-testid="master-player-compare-toggle"
                 title={compareOn ? t("videoEditor.exitCompare") : t("videoEditor.compareEffects")}
+                aria-label={compareOn ? t("videoEditor.exitCompare") : t("videoEditor.compareEffects")}
                 aria-pressed={compareOn}
                 className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                   compareOn
@@ -5243,6 +5302,8 @@ function MasterPreviewPlayer({
               onClick={toggleTheater}
               data-testid="master-player-theater-toggle"
               title={theaterOn ? t("videoEditor.exitVisualMode") : t("videoEditor.visualMode")}
+              aria-label={theaterOn ? t("videoEditor.exitVisualMode") : t("videoEditor.visualMode")}
+              aria-pressed={theaterOn}
               className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                 theaterOn
                   ? "text-[#f7dd7f] bg-[#C9A84C]/20"
@@ -5257,6 +5318,7 @@ function MasterPreviewPlayer({
               onClick={toggleHidden}
               data-testid="master-player-hide-toggle"
               title={t("videoEditor.hidePlayer")}
+              aria-label={t("videoEditor.hidePlayer")}
               className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/10 transition-colors"
             >
               <EyeOff className="h-3 w-3" />
@@ -5669,7 +5731,7 @@ function MasterPreviewPlayer({
         <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-t border-white/[0.06] shrink-0">
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
             className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30 shrink-0"
-            title={t("videoEditor.playPauseSpace")}>
+            title={t("videoEditor.playPauseSpace")} aria-label={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
           </button>
         </div>
@@ -5690,33 +5752,33 @@ function MasterPreviewPlayer({
         <div className="flex items-center justify-center gap-1 flex-wrap">
           {/* Restart */}
           <button type="button" onClick={onRestart} disabled={!hasScenes}
-            className={tBtnSm} title={t("videoEditor.restartTitle")}>
+            className={tBtnSm} title={t("videoEditor.restartTitle")} aria-label={t("videoEditor.restartTitle")}>
             <RotateCcw className="h-3 w-3" />
           </button>
           {/* Prev Scene */}
           <button type="button" onClick={prevClip} disabled={!hasScenes}
-            className={tBtnSm} title={t("videoEditor.prevSceneTitle")}>
+            className={tBtnSm} title={t("videoEditor.prevSceneTitle")} aria-label={t("videoEditor.prevSceneTitle")}>
             <Rewind className="h-3 w-3" />
           </button>
           {/* Back 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")}>-10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.back10sTitle")} aria-label={t("videoEditor.back10sTitle")}>-10</button>
           {/* Frame step back */}
           <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
-            className={tBtnSm} title={t("videoEditor.stepBackTitle")}>
+            className={tBtnSm} title={t("videoEditor.stepBackTitle")} aria-label={t("videoEditor.stepBackTitle")}>
             <StepBack className="h-3 w-3" />
           </button>
           {/* Frame step forward */}
           <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
-            className={tBtnSm} title={t("videoEditor.stepForwardTitle")}>
+            className={tBtnSm} title={t("videoEditor.stepForwardTitle")} aria-label={t("videoEditor.stepForwardTitle")}>
             <StepForward className="h-3 w-3" />
           </button>
           {/* Forward 10s */}
           <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")}>+10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[11px] font-black tabular-nums`} title={t("videoEditor.forward10sTitle")} aria-label={t("videoEditor.forward10sTitle")}>+10</button>
           {/* Next Scene */}
           <button type="button" onClick={nextClip} disabled={!hasScenes}
-            className={tBtnSm} title={t("videoEditor.nextSceneTitle")}>
+            className={tBtnSm} title={t("videoEditor.nextSceneTitle")} aria-label={t("videoEditor.nextSceneTitle")}>
             <FastForward className="h-3 w-3" />
           </button>
           {/* Loop */}
@@ -5726,25 +5788,30 @@ function MasterPreviewPlayer({
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/10 hover:border-[#C9A84C]/30"
             }`}
-            title={loop ? t("videoEditor.loopOnTitle") : t("videoEditor.loopOffTitle")}>
+            title={loop ? t("videoEditor.loopOnTitle") : t("videoEditor.loopOffTitle")}
+            aria-label={loop ? t("videoEditor.loopOnTitle") : t("videoEditor.loopOffTitle")}
+            aria-pressed={loop}>
             <Repeat className="h-3 w-3" />
           </button>
           {/* Playback speed */}
           <button type="button" onClick={cycleSpeed}
             className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[11px] font-black tabular-nums`}
-            title={t("videoEditor.speedTitle", { speed })}>
+            title={t("videoEditor.speedTitle", { speed })}
+            aria-label={t("videoEditor.speedTitle", { speed })}>
             {speed}x
           </button>
           {/* Aspect Ratio cycle */}
           <button type="button" onClick={cycleFormat}
             className={tBtnSm}
-            title={t("videoEditor.aspectRatioTitle", { format: settings.export.format ?? "9:16" })}>
+            title={t("videoEditor.aspectRatioTitle", { format: settings.export.format ?? "9:16" })}
+            aria-label={t("videoEditor.aspectRatioTitle", { format: settings.export.format ?? "9:16" })}>
             {FORMAT_ICONS_MAP[(settings.export.format ?? "9:16") as VideoFormat]}
           </button>
           {/* Fit Mode cycle */}
           <button type="button" onClick={cycleFitMode}
             className={`${tBtnSm} min-w-[2rem] px-1`}
-            title={t("videoEditor.fitTitle", { label: t(FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]) })}>
+            title={t("videoEditor.fitTitle", { label: t(FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]) })}
+            aria-label={t("videoEditor.fitTitle", { label: t(FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]) })}>
             <span className="text-[11px] font-black tracking-widest uppercase leading-none">
               {t(FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode])}
             </span>
@@ -5756,7 +5823,9 @@ function MasterPreviewPlayer({
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/10"
             }`}
-            title={pipActive ? t("videoEditor.exitPipTitle") : t("videoEditor.pipTitle")}>
+            title={pipActive ? t("videoEditor.exitPipTitle") : t("videoEditor.pipTitle")}
+            aria-label={pipActive ? t("videoEditor.exitPipTitle") : t("videoEditor.pipTitle")}
+            aria-pressed={pipActive}>
             <PictureInPicture2 className="h-3 w-3" />
           </button>
         </div>
@@ -5766,17 +5835,31 @@ function MasterPreviewPlayer({
           {/* Play / Pause — hero button */}
           <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
             className="flex items-center justify-center h-10 w-10 rounded-lg bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
-            title={t("videoEditor.playPauseSpace")}>
+            title={t("videoEditor.playPauseSpace")} aria-label={t("videoEditor.playPauseSpace")}>
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
           {/* Scrubable progress bar — flexible width */}
           <div
             ref={scrubRef}
+            role="slider"
+            tabIndex={0}
+            aria-label={t("videoEditor.seekLabel", { defaultValue: "Seek" })}
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration || 0)}
+            aria-valuenow={Math.round(currentTime)}
+            aria-valuetext={`${fmtSecs(currentTime)} / ${fmtSecs(duration || 0)}`}
             className="relative flex-1 min-w-[40px] h-3 rounded-full cursor-pointer bg-white/10 group select-none"
             onPointerDown={handleScrubDown}
             onPointerMove={handleScrubMove}
             onPointerUp={handleScrubUp}
             onPointerLeave={handleScrubUp}
+            onKeyDown={(e) => {
+              const step = e.shiftKey ? 1 : 5;
+              if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); seek(currentTime + step); }
+              else if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); seek(currentTime - step); }
+              else if (e.key === "Home") { e.preventDefault(); seek(0); }
+              else if (e.key === "End") { e.preventDefault(); seek(duration || 0); }
+            }}
           >
             <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#C9A84C]/80 to-[#f7dd7f]/90 rounded-full transition-none pointer-events-none"
               style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
@@ -5789,7 +5872,7 @@ function MasterPreviewPlayer({
           </span>
           {/* Mute */}
           <button type="button" onClick={toggleMute}
-            className={tBtnSm} title={muted ? "Unmute (M)" : "Mute (M)"}>
+            className={tBtnSm} title={muted ? "Unmute (M)" : "Mute (M)"} aria-label={muted ? "Unmute (M)" : "Mute (M)"} aria-pressed={muted}>
             {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
           </button>
           {/* Volume slider */}
@@ -5798,6 +5881,7 @@ function MasterPreviewPlayer({
             value={muted ? 0 : volume}
             onChange={(e) => handleVolume(Number(e.target.value))}
             className="w-12 sm:w-14 accent-[#C9A84C] cursor-pointer shrink-0"
+            aria-label={t("videoEditor.volumeTitle", { pct: Math.round((muted ? 0 : volume) * 100) })}
             title={t("videoEditor.volumeTitle", { pct: Math.round((muted ? 0 : volume) * 100) })}
           />
           {/* Fullscreen — launches from the pinned player */}
@@ -5807,7 +5891,8 @@ function MasterPreviewPlayer({
                 ? "border-[#C9A84C]/50 bg-[#C9A84C]/15 text-[#f7dd7f]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white hover:bg-white/10"
             }`}
-            title={isFullscreen ? t("videoEditor.exitFullscreen") : t("videoEditor.fullscreen")}>
+            title={isFullscreen ? t("videoEditor.exitFullscreen") : t("videoEditor.fullscreen")}
+            aria-label={isFullscreen ? t("videoEditor.exitFullscreen") : t("videoEditor.fullscreen")}>
             {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
           </button>
         </div>
@@ -5929,10 +6014,10 @@ function MasterPreviewPlayer({
 
 function SaveIndicator({ state }: { state: SaveState }) {
   const { t } = useTranslation();
-  if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.saving")}</span>;
-  if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> {t("videoEditor.saved")}</span>;
-  if (state === "unsaved") return <span className="flex items-center gap-1.5 text-xs text-amber-400" data-testid="unsaved-indicator"><span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" /> {t("videoEditor.unsavedChanges")}</span>;
-  if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> {t("videoEditor.saveFailed")}</span>;
+  if (state === "saving") return <span role="status" className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("videoEditor.saving")}</span>;
+  if (state === "saved") return <span role="status" className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> {t("videoEditor.saved")}</span>;
+  if (state === "unsaved") return <span role="status" className="flex items-center gap-1.5 text-xs text-amber-400" data-testid="unsaved-indicator"><span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" /> {t("videoEditor.unsavedChanges")}</span>;
+  if (state === "error") return <span role="alert" className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> {t("videoEditor.saveFailed")}</span>;
   return null;
 }
 

@@ -292,6 +292,9 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
               const el = e.currentTarget;
               stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90;
             }}
+            role="log"
+            aria-label="Chat messages"
+            aria-live="polite"
             className="min-h-[180px] flex-1 space-y-3 overflow-y-auto px-4 py-3"
             data-testid="chat-list"
           >
@@ -382,7 +385,7 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                       onChange={(e) => setTipAmount(e.target.value.replace(/[^0-9]/g, ""))}
                       inputMode="numeric"
                       aria-label="Tip amount in Visual Bucs"
-                      className="w-20 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-bold text-white focus:border-[#C9A84C]/70 focus:outline-none"
+                      className="w-20 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-bold text-white focus:border-[#C9A84C]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                     />
                     <span className="text-[10px] text-white/40">Visual Bucs · 500+ pins your message</span>
                     <button
@@ -411,7 +414,7 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                     </button>
                   </div>
                   {tipNote && (
-                    <p className="mt-1.5 text-[11px] font-semibold text-amber-200/90" data-testid="tip-note">
+                    <p className="mt-1.5 text-[11px] font-semibold text-amber-200/90" data-testid="tip-note" role="status">
                       {tipNote}
                     </p>
                   )}
@@ -425,7 +428,7 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                   onChange={(e) => setDraft(e.target.value)}
                   maxLength={500}
                   placeholder="Say something…"
-                  className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/35 focus:border-[#C9A84C]/70 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/50 focus:border-[#C9A84C]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                   data-testid="chat-input"
                   aria-label="Chat message"
                 />
@@ -539,9 +542,9 @@ function ChatRow({
               Mod
             </span>
           )}
-          <span className="text-white/30">{time}</span>
+          <span className="text-white/50">{time}</span>
           {(canDelete || canMute) && (
-            <span className="ml-auto inline-flex gap-1 opacity-0 transition group-hover:opacity-100">
+            <span className="ml-auto inline-flex gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100">
               {canMute &&
                 (muted ? (
                   <button

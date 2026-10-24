@@ -12,6 +12,7 @@ import {
 } from "@/lib/shops";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
@@ -76,6 +77,11 @@ export default function ShopStorefront() {
   const [notFound, setNotFound] = useState(false);
   const [selected, setSelected] = useState<PublicProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  /* Dialog contract for the two hand-rolled overlays below (product
+     modal + cart drawer): Escape closes, Tab traps, focus returns to
+     the opener on close. See hooks/use-modal-a11y.ts. */
+  const productDialogRef = useModalA11y<HTMLDivElement>(!!selected, () => setSelected(null));
+  const cartDialogRef = useModalA11y<HTMLElement>(cartOpen, () => setCartOpen(false));
   const [cart, setCart] = useState<CartLine[]>([]);
   const [feePct, setFeePct] = useState(10);
   /* checkout */
@@ -415,7 +421,13 @@ export default function ShopStorefront() {
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelected(null)}>
           <div
+            ref={productDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={selected.name}
+            tabIndex={-1}
             className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/15 bg-[#0c0c0c]"}`}
+
             onClick={(e) => e.stopPropagation()}
           >
             {selected.image_url ? (
@@ -468,6 +480,11 @@ export default function ShopStorefront() {
         <div className="fixed inset-0 z-50" onClick={() => setCartOpen(false)}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <aside
+            ref={cartDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("shop.yourCart")}
+            tabIndex={-1}
             className={`absolute right-0 top-0 h-full w-full max-w-md border-l p-6 flex flex-col ${isLight ? "border-[#C9A84C]/40 bg-[#FCF7EA]" : "bg-[#0c0c0c] border-white/10"}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -567,7 +584,7 @@ export default function ShopStorefront() {
                     onChange={(e) => { setDiscountInput(e.target.value); setAppliedCode(null); setCodeMsg(null); }}
                     placeholder="Discount code (optional)"
                     aria-label="Discount code"
-                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                   />
                   <button
                     onClick={applyCode}
@@ -578,7 +595,7 @@ export default function ShopStorefront() {
                   </button>
                 </div>
                 {codeMsg && (
-                  <p className={`mt-2 text-xs ${appliedCode ? "text-emerald-300" : "text-red-300"}`}>{codeMsg}</p>
+                  <p className={`mt-2 text-xs ${appliedCode ? "text-emerald-300" : "text-red-300"}`} role="status">{codeMsg}</p>
                 )}
                 <input
                   value={giftCardInput}
@@ -595,9 +612,10 @@ export default function ShopStorefront() {
                   onChange={(e) => setBuyerEmail(e.target.value)}
                   type="email"
                   placeholder={t("shop.emailPlaceholder")}
-                  className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                  aria-label={t("shop.emailPlaceholder")}
+                  className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                 />
-                {orderError && <p className="mt-2 text-xs text-red-300">{orderError}</p>}
+                {orderError && <p className="mt-2 text-xs text-red-300" role="alert">{orderError}</p>}
                 <button
                   onClick={placeOrder}
                   disabled={placing}
@@ -606,13 +624,13 @@ export default function ShopStorefront() {
                 >
                   {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(displayTotalCents) })}
                 </button>
-                <p className="mt-2 text-[11px] leading-relaxed text-white/35">
+                <p className="mt-2 text-[11px] leading-relaxed text-white/50">
                   {t("shop.checkoutNote", { feePct })}
                 </p>
               </div>
             )}
             {orderDone && (
-              <div className="mt-4 border-t border-white/10 pt-4 text-center">
+              <div className="mt-4 border-t border-white/10 pt-4 text-center" role="status">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15">
                   <Check className="h-6 w-6 text-emerald-300" />
                 </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, Image as ImageIcon, type LucideIcon } from "lucide-react";
@@ -124,6 +124,25 @@ export default function Create() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  /* Tab-pattern keyboard support (WCAG/ARIA tabs): roving tabindex —
+     only the active tab is in the Tab order; Arrow keys move between
+     tabs (automatic activation, matching the click behaviour), Home/End
+     jump to the ends. Refs keyed by panel so focus follows selection. */
+  const tabRefs = useRef<Partial<Record<CreatePanel, HTMLButtonElement | null>>>({});
+  function onTablistKeyDown(e: React.KeyboardEvent) {
+    const idx = PANELS.findIndex((p) => p.key === panel);
+    let nextIdx: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % PANELS.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + PANELS.length) % PANELS.length;
+    else if (e.key === "Home") nextIdx = 0;
+    else if (e.key === "End") nextIdx = PANELS.length - 1;
+    if (nextIdx === null) return;
+    e.preventDefault();
+    const next = PANELS[nextIdx]!;
+    switchPanel(next.key);
+    tabRefs.current[next.key]?.focus();
+  }
+
   return (
     <div className="min-h-screen bg-black text-white lux-page">
 
@@ -135,7 +154,7 @@ export default function Create() {
       <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-10 md:py-14">
 
         {/* Breadcrumb */}
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           {t("create.backToDashboard")}
         </Link>
@@ -174,7 +193,7 @@ export default function Create() {
               type="button"
               onClick={() => setSocialTemplate(null)}
               aria-label={t("create.dismiss", { defaultValue: "Dismiss" })}
-              className="text-white/40 hover:text-white text-lg leading-none px-2 shrink-0"
+              className="flex h-10 w-10 items-center justify-center text-white/50 hover:text-white text-lg leading-none shrink-0"
             >
               ×
             </button>
@@ -183,15 +202,19 @@ export default function Create() {
 
         {/* Lane picker — responsive card grid (9 lanes need room; the old
             tab strip crushed labels and overflowed its pill) */}
-        <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-3 max-w-4xl" role="tablist" aria-label={t("create.title")}>
+        <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-3 max-w-4xl" role="tablist" aria-label={t("create.title")} onKeyDown={onTablistKeyDown}>
           {PANELS.map(({ key, labelKey, blurbKey, icon: Icon }) => {
             const active = panel === key;
             return (
               <button
                 key={key}
+                ref={(el) => { tabRefs.current[key] = el; }}
+                id={`create-tab-${key}`}
                 type="button"
                 role="tab"
                 aria-selected={active}
+                aria-controls="create-panel"
+                tabIndex={active ? 0 : -1}
                 onClick={() => switchPanel(key)}
                 className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left transition ${
                   active
@@ -213,7 +236,7 @@ export default function Create() {
                     {t(`create.modes.${labelKey}`)}
                   </span>
                   <span className={`block truncate text-xs ${
-                    active ? "text-black/70" : isLight ? "text-stone-500" : "text-white/45"
+                    active ? "text-black/70" : isLight ? "text-stone-500" : "text-white/50"
                   }`}>
                     {t(`create.modes.${blurbKey}`)}
                   </span>
@@ -224,7 +247,13 @@ export default function Create() {
         </div>
 
         {/* Mode panel — original max-widths preserved per craft */}
-        <div className={`mx-auto w-full ${panel === "hub" ? "max-w-7xl" : panel === "song-video" ? "max-w-3xl" : "max-w-4xl"}`}>
+        <div
+          id="create-panel"
+          role="tabpanel"
+          aria-labelledby={`create-tab-${panel}`}
+          tabIndex={0}
+          className={`mx-auto w-full ${panel === "hub" ? "max-w-7xl" : panel === "song-video" ? "max-w-3xl" : "max-w-4xl"}`}
+        >
           {panel === "song-video" && <SongAndVideoModule />}
           {panel === "song" && <MakeSongModule />}
           {panel === "video" && <MakeVideoModule />}
