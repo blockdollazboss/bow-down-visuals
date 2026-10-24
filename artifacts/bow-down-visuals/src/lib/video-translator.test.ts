@@ -10,8 +10,13 @@ import {
 } from "./video-translator";
 
 describe("video-translator lib", () => {
-  it("prices at 5 credits per minute per language", () => {
-    expect(TRANSLATOR_CREDITS_PER_MIN_PER_LANG).toBe(5);
+  it("prices at 500 Visual Bucs per minute per language (rail truth)", () => {
+    // Pin corrected Stack-100 #3 Lane D: the rail charges
+    // VIDEO_TRANSLATOR_CREDITS_PER_MINUTE = 500 (api-server
+    // routes/generate/video-translator.ts, pinned 500 in its own suite).
+    // The old pin held the pre-x100-rescale figure 5, so the UI preview
+    // under-quoted the real charge 100x.
+    expect(TRANSLATOR_CREDITS_PER_MIN_PER_LANG).toBe(500);
   });
 
   it("caps at 6 languages per job", () => {
@@ -19,12 +24,13 @@ describe("video-translator lib", () => {
   });
 
   it("estimates cost from duration and language count", () => {
-    // 90s, 2 languages → 2 min × 2 × 5 = 20
-    expect(estimateTranslateCost(90, 2)).toEqual({ billableMinutes: 2, credits: 20 });
+    // 90s, 2 languages → 2 min × 2 × 500 = 2000 (matches the rail's
+    // estimateTranslateCost for the same inputs)
+    expect(estimateTranslateCost(90, 2)).toEqual({ billableMinutes: 2, credits: 2000 });
   });
 
   it("floors unknown duration at the 1-minute estimate", () => {
-    expect(estimateTranslateCost(null, 1).credits).toBe(5);
+    expect(estimateTranslateCost(null, 1).credits).toBe(500);
     expect(estimateTranslateCost(0, 3).billableMinutes).toBe(1);
   });
 

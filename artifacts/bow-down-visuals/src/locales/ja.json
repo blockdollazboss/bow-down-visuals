@@ -6869,6 +6869,8 @@
     "labRemove": "クリップを削除",
     "labReplace": "置き換え",
     "labResults": "スクロールを止めるスコア順にランク付け",
+    "labApplyHook": "オープニングフックとして使う",
+    "labAppliedHook": "オープニングフックを設定しました — 最初の3秒のキャプションです（キャプションタブをご覧ください）。",
     "labTitle": "3秒ラボ",
     "labUploadCta": "ビデオクリップを選ぶ（MP4/MOV、≤ 80 MB）— または下のタイムラインのオープニングを分析",
     "labUploadTitle": "クリップをアップロード",

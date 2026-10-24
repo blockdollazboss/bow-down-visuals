@@ -6883,6 +6883,8 @@
     "labRemove": "Remover clipe",
     "labReplace": "Substituir",
     "labResults": "Classificado pela pontuação de parar a rolagem",
+    "labApplyHook": "Usar como gancho de abertura",
+    "labAppliedHook": "Gancho de abertura definido — é a legenda dos seus primeiros 3 segundos (veja a aba Legendas).",
     "labTitle": "Laboratório de 3 Segundos",
     "labUploadCta": "Escolha um clipe de vídeo (MP4/MOV, ≤ 80 MB) — ou analise a abertura da linha do tempo abaixo",
     "labUploadTitle": "Envie seu clipe",

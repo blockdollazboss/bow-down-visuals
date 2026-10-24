@@ -6883,6 +6883,8 @@
     "labRemove": "Quitar clip",
     "labReplace": "Reemplazar",
     "labResults": "Ordenados por puntuación para detener el scroll",
+    "labApplyHook": "Usar como gancho de apertura",
+    "labAppliedHook": "Gancho de apertura aplicado: es el subtítulo de tus primeros 3 segundos (mira la pestaña Subtítulos).",
     "labTitle": "Laboratorio de 3 Segundos",
     "labUploadCta": "Elige un clip de video (MP4/MOV, ≤ 80 MB) — o analiza la apertura de la línea de tiempo abajo",
     "labUploadTitle": "Sube tu clip",

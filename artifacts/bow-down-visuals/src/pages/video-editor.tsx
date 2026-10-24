@@ -52,6 +52,7 @@ import {
   MASTER_PLAYER_DEFAULT_WIDTH,
   MASTER_PLAYER_MIN_HEIGHT,
   getValidCaptionWords,
+  withOpeningHook,
   type EditorSettings,
   type VideoFormat,
   type FitMode,
@@ -2763,7 +2764,13 @@ export default function VideoEditor() {
                         defaultValue: "Win the first 3 seconds. AI writes 5 alternate openings for your video and scores each for scroll-stopping power.",
                       })}
                     >
-                      <ThreeSecondLabSection openingHint={threeSecondLabHint} bare />
+                      <ThreeSecondLabSection
+                        openingHint={threeSecondLabHint}
+                        bare
+                        onApplyOpening={(opening) =>
+                          setSettings((prev) => withOpeningHook(prev, opening.text))
+                        }
+                      />
                     </ToolPanelShell>
                   )}
 
@@ -5302,6 +5309,7 @@ function MasterPreviewPlayer({
           waveformPosition={settings.waveformPosition ?? "bottom-safe"}
           overlayQualityMode={settings.overlayQualityMode ?? "music-video"}
           overlayProtectCaptions={settings.overlayProtectCaptions ?? true}
+          overlayProtectFace={settings.overlayProtectFace ?? true}
           soloPreviewOverlay={settings.soloPreviewOverlay ?? null}
         />
 

@@ -7555,6 +7555,8 @@
     "labNiche": "Niche (optional)",
     "labGenerate": "Test 5 Openings",
     "labResults": "Ranked by scroll-stopping score",
+    "labApplyHook": "Use as opening hook",
+    "labAppliedHook": "Opening hook set — it's the caption on your first 3 seconds (see the Captions tab).",
     "beatReadyTitle": "Beat added to your timeline",
     "beatReadyDesc": "{{title}} is now an audio stem — trim, mix, and export it with your video.",
     "handoffAudioTitle": "Audio added to your timeline",

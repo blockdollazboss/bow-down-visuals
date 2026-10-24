@@ -508,9 +508,14 @@ export function LipSyncSection({
     ? (selectedScene.section || selectedScene.lyricLine || `Scene ${selectedScene.sceneNumber}`)
     : "—";
 
-  /* ── Derived: face detection (mock — based on whether clip URL exists) ── */
-  const faceDetected    = !!selectedScene?.demoClipUrl;
-  const faceConfidence  = faceDetected ? "high (mock)" : "—";
+  /* ── Derived: whether the selected scene has a video clip attached ── */
+  const clipAttached    = !!selectedScene?.demoClipUrl;
+  /* Stack-100 #3 Lane D (N-04): there is NO face detection in this panel —
+     the old code presented clip presence as "face found / confidence: high
+     (mock)" and gated Apply behind it. The real requirement is simply that
+     the scene has a video clip; the UI now says exactly that, and the face
+     check row honestly reports itself unavailable. */
+  const faceCheckNote  = "not available";
   const clipSourceReady = !!selectedScene?.demoClipUrl;
 
   /* ── Helpers ── */
@@ -789,7 +794,7 @@ export function LipSyncSection({
   /* ── Apply to selected ── */
   async function applyToSelected() {
     if (!selectedScene) return;
-    if (!faceDetected)  { setApplyError("No clear face found for lip sync on this clip."); return; }
+    if (!clipAttached)  { setApplyError("This scene has no video clip yet — add one before lip sync."); return; }
 
     /* Guard: don't resubmit if a Sync.so job is already in flight */
     const existingJobId = getClipEdit(settings, selectedScene.id).lipSyncJobId;
@@ -2070,20 +2075,20 @@ export function LipSyncSection({
             </div>
           </EditorCard>
 
-          {/* ── Face Detection ── */}
+          {/* ── Clip Check (no face detection runs — see N-04 note above) ── */}
           {selectedScene && (
-            <EditorCard title="Face Detection" icon={<User className="h-4 w-4" />}>
+            <EditorCard title="Clip Check" icon={<User className="h-4 w-4" />}>
               <div className="space-y-2">
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                   <StatusRow label="scene selected"    value={`Scene ${selectedScene.sceneNumber}`} ok={null} />
-                  <StatusRow label="face found"        value={faceDetected ? "yes" : "no"}          ok={faceDetected} />
-                  <StatusRow label="face confidence"   value={faceConfidence}                        ok={faceDetected ? true : false} />
+                  <StatusRow label="video clip attached" value={clipAttached ? "yes" : "no"}        ok={clipAttached} />
+                  <StatusRow label="face check"        value={faceCheckNote}                        ok={null} />
                   <StatusRow label="clip source ready" value={clipSourceReady ? "yes ✓" : "no"}     ok={clipSourceReady} />
                 </div>
-                {!faceDetected && (
+                {!clipAttached && (
                   <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                    No clear face found for lip sync on this clip.
+                    This scene has no video clip yet — add one before lip sync.
                   </div>
                 )}
               </div>
@@ -2968,7 +2973,7 @@ export function LipSyncSection({
                   {/* Submit new job */}
                   <button
                     type="button"
-                    disabled={!faceDetected || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing" || timingBlock}
+                    disabled={!clipAttached || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing" || timingBlock}
                     onClick={() => { setApplyError(null); setConfirmOpen("single"); }}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                       demoMode

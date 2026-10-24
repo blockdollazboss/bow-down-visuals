@@ -244,10 +244,14 @@ export function TimelineTemplatesSection({
         case "cut": {
           // Cut ops need the export pipeline's split-point support — store
           // them in the cut plan, don't fake them into settings.
+          // Stack-100 #3 Lane D (N-03): cut ops are NOT counted in
+          // `applied` — they are planned, not applied. The toast already
+          // discloses them separately via cutNoteSuffix ("saved to the cut
+          // plan — sliced on export when split support ships"); counting
+          // them as applied overstated what the recipe actually did.
           const start = numParam(op.params, "start");
           const end = numParam(op.params, "end");
           if (start != null && end != null && end > start) cutTimes.push(start, end);
-          applied++;
           break;
         }
         case "setAudio":

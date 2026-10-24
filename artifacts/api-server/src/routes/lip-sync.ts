@@ -1600,8 +1600,8 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
       return;
     }
 
-    /* Credit gate mirrors POST /api/export-final-video: 5 credits are
-       deducted only when the export actually succeeds. */
+    /* Credit gate mirrors POST /api/export-final-video: EXPORT_CREDIT_COST
+       (400 Visual Bucs) is deducted only when the export actually succeeds. */
     const isDev = process.env["NODE_ENV"] === "development";
     if (!isDev && (req.userCredits ?? 0) < EXPORT_CREDIT_COST) {
       res.status(402).json({

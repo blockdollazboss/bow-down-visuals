@@ -9,6 +9,7 @@ import {
   keyframeAt,
 } from "@/lib/editor-settings";
 import { keyframeAtEased, EASING_PRESETS } from "@/lib/motion-pro";
+import { parseRawSceneDuration } from "@/lib/scene-timing";
 import { EditorCard } from "@/components/editor/controls";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,15 +33,25 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
   const activeScene = clips.find((s) => s.id === sceneId) ?? clips[0] ?? null;
   const clip: ClipEdit | null = activeScene ? getClipEdit(settings, activeScene.id) : null;
 
-  // Clip duration: default to 10s (keyframes are relative, user can adjust).
-  const clipDuration = 10;
-  // Current time: use 0 for now (playhead integration can come later).
+  // Clip duration (Stack-100 #3 Lane D, N-06): was hardcoded to 10s, which
+  // mis-scaled the track and the time slider for every clip ≠ 10s. It is
+  // now the active scene's real slot length from its own timestamp range
+  // (the editor's canonical parse); 10s remains only as the no-scene
+  // fallback.
+  const clipDuration = activeScene
+    ? parseRawSceneDuration(activeScene.timestamp).durationSec
+    : 10;
+  // This panel receives no playback position (props are scenes/settings),
+  // so there is no live playhead here: "add" places at the start (0s) and
+  // the readout below is the value at 0s. Users place precisely by
+  // clicking the track or dragging a keyframe's Time slider. The UI copy
+  // says "at start", never "at playhead".
   const currentTime = 0;
 
   const keyframes = [...(clip?.keyframes ?? [])].sort((a, b) => a.time - b.time);
   const selected = keyframes.find((k) => k.id === selectedId) ?? null;
 
-  // Live interpolated values at the playhead (for the preview readout).
+  // Interpolated values at t=0 (for the readout below).
   const live = keyframeAt(keyframes, currentTime);
 
   function patchKeyframes(kfs: Keyframe[]) {
@@ -132,7 +143,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
               onClick={addKeyframe}
               className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
             >
-              <Plus className="h-3.5 w-3.5" /> Add at playhead ({currentTime.toFixed(1)}s)
+              <Plus className="h-3.5 w-3.5" /> Add at start ({currentTime.toFixed(1)}s)
             </button>
           </div>
           <div
@@ -153,7 +164,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
             }}
             data-testid="keyframes-track"
           >
-            {/* Playhead */}
+            {/* Start marker (t=0) — this panel has no live playhead */}
             <div
               className="absolute top-0 bottom-0 w-px bg-primary/70 pointer-events-none"
               style={{ left: `${(currentTime / (clipDuration || 1)) * 100}%` }}
@@ -335,7 +346,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
         {/* Live readout */}
         {keyframes.length > 0 && (
           <p className="text-[11px] text-white/40">
-            At playhead: x {(live.x * 100).toFixed(0)}% · y {(live.y * 100).toFixed(0)}% ·
+            At start (0s): x {(live.x * 100).toFixed(0)}% · y {(live.y * 100).toFixed(0)}% ·
             scale {live.scale.toFixed(2)}× · rot {live.rotation.toFixed(0)}° ·
             opacity {(live.opacity * 100).toFixed(0)}%
           </p>

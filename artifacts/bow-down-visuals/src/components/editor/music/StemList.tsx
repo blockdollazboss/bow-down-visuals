@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Upload, Loader2, Trash2, Volume2, VolumeX, Headphones, Lock, LockOpen, Music4, Repeat2,
 } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   type EditorSettings, type AudioStem, type StemEffects,
 } from "@/lib/editor-settings";
 import { uploadStemFile, removeStemFile, makeStem, readAudioDuration } from "@/lib/audio-stems";
+import { getAudioPeaks } from "@/lib/audio-peaks";
 import { StemFxChainEditor } from "@/components/editor/music/StemFxChainEditor";
 import type { FxStep } from "@/lib/arrangement";
 import { Field, Dropdown, Collapsible, Chip } from "@/components/editor/controls";
@@ -228,7 +229,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
 
                 {variant === "tracks" && (
                   <div className="px-4 pb-3 space-y-3 border-t border-white/[0.04] pt-3">
-                    <Waveform />
+                    <Waveform url={stem.url} />
                     <div className="flex items-center gap-2">
                       <audio
                         controls
@@ -344,16 +345,40 @@ function formatDuration(seconds: number): string {
 
 const WAVE_BARS = [38, 62, 45, 80, 55, 92, 48, 70, 40, 88, 52, 75, 44, 96, 50, 68, 42, 84, 58, 72, 46, 90, 54, 66, 78, 48, 82, 60];
 
-/** Static visual placeholder for a stem waveform (real rendering coming soon). */
-function Waveform() {
+/**
+ * Real stem waveform (Stack-100 #3 Lane D, D-05): decodes the stem's own
+ * audio via the shared getAudioPeaks helper (cached per URL) and draws its
+ * true peaks. WAVE_BARS remains ONLY as the while-loading / decode-failed
+ * fallback, exactly as lib/audio-peaks' contract prescribes — the bars a
+ * user ends up looking at are the stem's real shape.
+ */
+function Waveform({ url }: { url: string }) {
+  const [peaks, setPeaks] = useState<number[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setPeaks(null);
+    void getAudioPeaks(url, 96).then((p) => {
+      if (!cancelled) setPeaks(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  const bars = peaks ?? WAVE_BARS.map((h) => h / 100);
   return (
     <div
       className="flex items-end gap-[2px] h-10 px-2 rounded-lg bg-white/[0.03] border border-white/[0.05] overflow-hidden"
       data-testid="stem-waveform"
+      data-real={peaks ? "true" : "false"}
       aria-hidden="true"
     >
-      {WAVE_BARS.map((h, i) => (
-        <span key={i} className="flex-1 rounded-full bg-primary/25" style={{ height: `${h}%` }} />
+      {bars.map((h, i) => (
+        <span
+          key={i}
+          className={`flex-1 rounded-full ${peaks ? "bg-primary/50" : "bg-primary/25"}`}
+          style={{ height: `${Math.max(6, Math.min(100, h * 100))}%` }}
+        />
       ))}
     </div>
   );

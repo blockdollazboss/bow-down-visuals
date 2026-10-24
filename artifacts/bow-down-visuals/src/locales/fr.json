@@ -7041,6 +7041,8 @@
     "labRemove": "Retirer le clip",
     "labReplace": "Remplacer",
     "labResults": "Classées par score d'arrêt du scroll",
+    "labApplyHook": "Utiliser comme accroche d'ouverture",
+    "labAppliedHook": "Accroche d'ouverture définie — c'est la légende de vos 3 premières secondes (voir l'onglet Sous-titres).",
     "labTitle": "Labo 3 secondes",
     "labUploadCta": "Choisis un clip vidéo (MP4/MOV, ≤ 80 MB) — ou analyse l'ouverture de la timeline ci-dessous",
     "labUploadTitle": "Importe ton clip",

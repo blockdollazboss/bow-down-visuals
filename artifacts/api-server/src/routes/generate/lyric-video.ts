@@ -1,8 +1,8 @@
 /**
  * lyric-video.ts — AI Lyric Video Maker.
  *
- *  POST   /api/lyric-video/align            align pasted lyrics to audio (2cr)
- *  POST   /api/lyric-video/render           render the karaoke lyric video (5cr)
+ *  POST   /api/lyric-video/align            align pasted lyrics to audio (200 VB)
+ *  POST   /api/lyric-video/render           render the karaoke lyric video (500 VB)
  *  GET    /api/lyric-video/render/:jobId    poll a render job
  *
  * Alignment: timed transcription (word timestamps) transcribes the audio,
@@ -1204,8 +1204,8 @@ router.post(
 /**
  * POST /api/lyric-video/render
  *
- * Body (JSON): { audioRef, lines, style, aspect }. Charges 5 credits up
- * front; the background job refunds automatically if the render fails.
+ * Body (JSON): { audioRef, lines, style, aspect }. Charges 500 Visual Bucs
+ * up front; the background job refunds automatically if the render fails.
  */
 router.post(
   "/lyric-video/render",

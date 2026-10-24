@@ -11,9 +11,12 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    timeline's opening when available); AI writes 5 alternate opening hooks
    — spoken/visual text + visual direction — and SCORES each 0-100 for
    scroll-stopping power with one-line reasoning. Text-model analysis only;
-   no extra generation cost beyond the 2 VB analysis. */
-
-const COST = 2;
+   no extra generation cost beyond the 200 VB analysis.
+   Price display comes from the credit-costs registry (pinned to the
+   rail's OPENINGS_CREDITS by credit-costs-rail-truth.test.ts) — never
+   override it here: a hardcoded override of 2 (the pre-x100 figure) once
+   made the confirm dialog and the spent toast claim 2 VB for a 200 VB
+   charge. */
 
 interface Opening {
   text: string;
@@ -26,6 +29,12 @@ interface ThreeSecondLabSectionProps {
   openingHint: string;
   /** When true, skips the internal header (a shell provides it). */
   bare?: boolean;
+  /**
+   * Apply a ranked opening as the project's hook caption (the editor
+   * page wires this to settings via withOpeningHook). When absent, no
+   * apply button is rendered — never show a control that does nothing.
+   */
+  onApplyOpening?: (opening: Opening) => void;
 }
 
 const inputClass =
@@ -37,7 +46,7 @@ function scoreColor(score: number): string {
   return "text-white/50";
 }
 
-export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSectionProps) {
+export function ThreeSecondLabSection({ openingHint, bare, onApplyOpening }: ThreeSecondLabSectionProps) {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -48,6 +57,7 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [openings, setOpenings] = useState<Opening[]>([]);
+  const [appliedText, setAppliedText] = useState<string | null>(null);
 
   /* ── Custom clip upload — analyze your own clip instead of the timeline opening ── */
   const { upload, uploading: clipUploading, error: clipError, clearError: clearClipError } = useFileUpload();
@@ -94,7 +104,6 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        overrideCost: COST,
         overrideFeature: "3-Second Lab",
         body: JSON.stringify({ videoDescription: description.trim(), niche: niche.trim() }),
       });
@@ -108,6 +117,7 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
         return;
       }
       if (!res.ok || !data.openings?.length) throw new Error(data.message || "Lab failed.");
+      setAppliedText(null);
       setOpenings([...data.openings].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)));
       refreshProfile();
     } catch (e) {
@@ -250,6 +260,25 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
               <p className="text-sm font-bold text-white leading-snug">“{o.text}”</p>
               <p className="text-[11px] text-white/50 mt-1">{o.visual}</p>
               <p className="text-[11px] text-white/35 mt-1 italic">{o.reasoning}</p>
+              {onApplyOpening &&
+                (appliedText === o.text ? (
+                  <p className="text-[11px] font-bold text-green-400 mt-2">
+                    {t("videoEditor.labAppliedHook", {
+                      defaultValue: "Opening hook set — it's the caption on your first 3 seconds (see the Captions tab).",
+                    })}
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onApplyOpening(o);
+                      setAppliedText(o.text);
+                    }}
+                    className="mt-2 rounded-lg border border-primary/40 px-2.5 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/10 transition"
+                  >
+                    {t("videoEditor.labApplyHook", { defaultValue: "Use as opening hook" })}
+                  </button>
+                ))}
             </div>
           ))}
         </div>
