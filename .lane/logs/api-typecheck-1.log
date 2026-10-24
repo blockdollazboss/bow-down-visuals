@@ -1,1 +1,0 @@
-src/routes/health.ts(2,37): error TS6305: Output file '/home/hatch/workspace/bdv-wt-fundgoals/lib/api-zod/dist/index.d.ts' has not been built from source file '/home/hatch/workspace/bdv-wt-fundgoals/lib/api-zod/src/index.ts'.
