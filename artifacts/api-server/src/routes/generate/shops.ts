@@ -818,7 +818,11 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
   const createdRow = (result.rows as unknown as ProductRow[])[0];
   res.status(201).json({
     product: createdRow
-      ? { ...(await presentShopProductRow(createdRow)), pinned_ad: null }
+      ? {
+          ...(await presentShopProductRow(createdRow)),
+          pinned_ad: null,
+          bumpConfig: await fetchShopBumpConfig(createdRow.id),
+        }
       : createdRow,
   });
 });
@@ -895,6 +899,7 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       pinned_ad: updatedRow.pinned_ugc_ad_id
         ? (pinnedAds.get(updatedRow.pinned_ugc_ad_id) ?? null)
         : null,
+      bumpConfig: await fetchShopBumpConfig(updatedRow.id),
     },
   });
 });

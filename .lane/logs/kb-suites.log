@@ -1,0 +1,39 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-morebumps/artifacts/api-server[39m
+
+[13:54:48.507] [33mWARN[39m (28804): [36m[chat] reply quoted a price outside the knowledge base — replaced[39m
+    [35minvented[39m: 999
+[13:54:48.810] [33mWARN[39m (28804): [36m[chat] reply quoted a price outside the knowledge base — replaced[39m
+    [35minvented[39m: 999
+[13:54:49.158] [32mINFO[39m (28804): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+[13:54:49.249] [32mINFO[39m (28804): [36m[chat] reply generated[39m
+    [35mprovider[39m: "knowledge-base"
+[13:54:49.262] [32mINFO[39m (28804): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+[13:54:49.625] [32mINFO[39m (28804): [36m[chat] reply generated[39m
+    [35mprovider[39m: "groq"
+ [32m✓[39m src/routes/__tests__/chat-doors.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 9613[2mms[22m[39m
+   [32m✓[39m buildReplyDoors — the shared door contract [2m(9)[22m
+     [33m[2m✓[22m[39m sweep: every door ever built points at a real KB path, verbatim, at most two[33m 6246[2mms[22m[39m
+   [32m✓[39m POST /api/chat — doors ride the reply [2m(6)[22m
+     [33m[2m✓[22m[39m a thumbnail answer carries the desk door and the guide door[33m 1035[2mms[22m[39m
+     [33m[2m✓[22m[39m a guard-replaced reply keeps its doors when a real match backs them[33m 331[2mms[22m[39m
+   [32m✓[39m POST /api/free-chat — doors ride the reply [2m(4)[22m
+     [33m[2m✓[22m[39m provider path: a brand-deals answer carries both doors[33m 330[2mms[22m[39m
+     [33m[2m✓[22m[39m both routes attach identical doors to the same question[33m 385[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-door-mapping.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 8270[2mms[22m[39m
+   [32m✓[39m operator door mapping — every knowledge door against the real route table [2m(7)[22m
+     [33m[2m✓[22m[39m every door a member can receive is concrete, resolves, and passes the query rules[33m 7772[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-knowledge.test.ts [2m([22m[2m62 tests[22m[2m)[22m[33m 3058[2mms[22m[39m
+   [32m✓[39m operator knowledge — sourced facts only [2m(4)[22m
+     [33m[2m✓[22m[39m every price names the registry as its source and is a whole VB figure[33m 672[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m88 passed[39m[22m[90m (88)[39m
+[2m   Start at [22m 13:54:09
+[2m   Duration [22m 94.52s[2m (import 53%, tests 24%, transform 21%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~2.68s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~5.37s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

@@ -46,6 +46,17 @@ interface PublicProduct {
   /** The finished UGC ad pinned to this product (migration 0178),
       resolved server-side; null when nothing is pinned. */
   pinned_ad?: { id: string; video_url: string } | null;
+  /** The live order-bump offer (feature #13): one add-on from this
+      shop at the seller-set price / % off, resolved server-side;
+      null when this product has no add-on a buyer could take. */
+  bump?: {
+    productId: string;
+    title: string;
+    listPrice: string;
+    percentOff: number;
+    priceCents: number;
+    price: string;
+  } | null;
 }
 
 /** $0 shop products are FREE goods — label them, never "$0.00". */
@@ -81,6 +92,10 @@ export default function ShopStorefront() {
      discount code — the server validates it against this shop's owner
      and applies it to the total due at checkout. */
   const [giftCardInput, setGiftCardInput] = useState("");
+  /* Order bumps (feature #13): cart product ids whose add-on the buyer
+     ticked. The server re-resolves and re-prices every tick — the
+     ticks alone buy nothing. */
+  const [bumpTicks, setBumpTicks] = useState<Set<string>>(new Set());
   const [appliedCode, setAppliedCode] = useState<{ code: string; percentOff: number } | null>(null);
   const [codeMsg, setCodeMsg] = useState<string | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
@@ -151,6 +166,32 @@ export default function ShopStorefront() {
       )
     : cartTotal;
   const cartCount = cartDetailed.reduce((sum, l) => sum + l.qty, 0);
+  /* Ticked add-ons that are still in the cart with a live offer. The
+     same add-on offered by two cart products is one line (the server
+     collapses it too), so the display total dedupes by add-on id. */
+  const tickedBumpMainIds = cartDetailed
+    .filter((l) => l.product!.bump && bumpTicks.has(l.productId))
+    .map((l) => l.productId);
+  const bumpTotalCents = (() => {
+    const seen = new Set<string>();
+    let sum = 0;
+    for (const l of cartDetailed) {
+      const b = l.product!.bump;
+      if (!b || !bumpTicks.has(l.productId) || seen.has(b.productId)) continue;
+      seen.add(b.productId);
+      sum += b.priceCents;
+    }
+    return sum;
+  })();
+  const displayTotalCents = discountedTotal + bumpTotalCents;
+
+  function toggleBump(productId: string, on: boolean) {
+    setBumpTicks((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(productId); else next.delete(productId);
+      return next;
+    });
+  }
 
   async function applyCode() {
     if (!shop || !discountInput.trim()) return;
@@ -242,6 +283,7 @@ export default function ShopStorefront() {
             ? { affiliateCode: new URLSearchParams(window.location.search).get("ref")!.trim() }
             : {}),
           ...(giftCardInput.trim() ? { giftCardCode: giftCardInput.trim() } : {}),
+          ...(tickedBumpMainIds.length > 0 ? { includeBumps: tickedBumpMainIds } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -463,6 +505,33 @@ export default function ShopStorefront() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      {l.product!.bump && (
+                        <label className="mt-2.5 flex cursor-pointer items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-2.5 py-2">
+                          <input
+                            type="checkbox"
+                            checked={bumpTicks.has(l.productId)}
+                            onChange={(e) => toggleBump(l.productId, e.target.checked)}
+                            aria-label={`Add ${l.product!.bump!.title} to this order`}
+                            className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-400">Add-on</span>
+                              <span className="flex items-baseline gap-1.5">
+                                {l.product!.bump!.percentOff > 0 && (
+                                  <span className="text-[11px] text-white/35 line-through">{l.product!.bump!.listPrice}</span>
+                                )}
+                                <span className="text-sm font-bold text-amber-200">{l.product!.bump!.price}</span>
+                              </span>
+                            </span>
+                            <span className="block truncate text-xs font-semibold text-white/85">{l.product!.bump!.title}</span>
+                            <span className="block text-[11px] text-white/40">
+                              {l.product!.bump!.percentOff > 0 ? `${l.product!.bump!.percentOff}% off as an add-on · ` : ""}
+                              added to this same checkout — one charge.
+                            </span>
+                          </span>
+                        </label>
+                      )}
                     </div>
                   </div>
                 ))
@@ -470,17 +539,28 @@ export default function ShopStorefront() {
             </div>
             {cartDetailed.length > 0 && !orderDone && (
               <div className="mt-4 border-t border-white/10 pt-4">
+                {bumpTotalCents > 0 && (
+                  <div className="mb-1.5 flex justify-between text-sm">
+                    <span className="text-amber-200/70">Add-ons</span>
+                    <span className="font-bold text-amber-200">{centsToDisplay(bumpTotalCents)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-white/50">{t("shop.totalLabel")}</span>
-                  {appliedCode ? (
+                  {appliedCode || bumpTotalCents > 0 ? (
                     <span className="text-lg font-black">
-                      <span className="mr-2 text-sm font-normal text-white/35 line-through">{centsToDisplay(cartTotal)}</span>
-                      {centsToDisplay(discountedTotal)}
+                      {appliedCode && (
+                        <span className="mr-2 text-sm font-normal text-white/35 line-through">{centsToDisplay(cartTotal)}</span>
+                      )}
+                      {centsToDisplay(displayTotalCents)}
                     </span>
                   ) : (
                     <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
                   )}
                 </div>
+                {bumpTotalCents > 0 && appliedCode && (
+                  <p className="mt-1 text-[11px] text-white/35">Your code applies to the items — add-ons carry their own seller-set price.</p>
+                )}
                 <div className="mt-3 flex gap-2">
                   <input
                     value={discountInput}
@@ -524,7 +604,7 @@ export default function ShopStorefront() {
                   className="mt-3 w-full rounded-xl px-5 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                   style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 >
-                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(discountedTotal) })}
+                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(displayTotalCents) })}
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-white/35">
                   {t("shop.checkoutNote", { feePct })}

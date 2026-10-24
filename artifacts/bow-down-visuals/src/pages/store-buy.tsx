@@ -23,7 +23,21 @@ export const KIND_LABELS: Record<string, string> = {
   bundle: "Bundle",
 };
 
+/** The live order-bump offer (feature #13): one add-on from the same
+    creator, at the seller-set price or % off, resolved server-side. */
+interface BumpOfferData {
+  kind: string;
+  id: string;
+  title: string;
+  listPrice: string;
+  percentOff: number;
+  priceCents: number;
+  price: string;
+  buyUrl: string;
+}
+
 interface ItemData {
+  bump?: BumpOfferData | null;
   item: {
     kind: string;
     id: string;
@@ -72,6 +86,10 @@ export default function StoreBuy() {
   /* Name-your-price: the fan's amount in dollars (PWYW items only). */
   const [pwywDollars, setPwywDollars] = useState("");
   const [pwywError, setPwywError] = useState<string | null>(null);
+  /* Order bump (feature #13): the buyer ticks the add-on; the server
+     re-resolves and re-prices it at checkout — the tick alone buys
+     nothing. */
+  const [includeBump, setIncludeBump] = useState(false);
 
   async function onShare() {
     if (!data) return;
@@ -139,7 +157,12 @@ export default function StoreBuy() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ kind: params.kind, id: params.id, ...(amountCents !== undefined ? { amountCents } : {}) }),
+        body: JSON.stringify({
+          kind: params.kind,
+          id: params.id,
+          ...(amountCents !== undefined ? { amountCents } : {}),
+          ...(includeBump && data?.bump ? { includeBump: true } : {}),
+        }),
       });
       const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string; watchUrl?: string };
       /* A series unlock can't be bought twice — the rail refuses the
@@ -286,6 +309,47 @@ export default function StoreBuy() {
                     )}
                   </div>
                 </div>
+              )}
+              {data.bump && (
+                <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left transition hover:bg-amber-500/10">
+                  <input
+                    type="checkbox"
+                    checked={includeBump}
+                    onChange={(e) => setIncludeBump(e.target.checked)}
+                    aria-label={`Add ${data.bump.title} to this order`}
+                    className="mt-1 h-5 w-5 shrink-0 accent-amber-500"
+                  />
+                  <span className="flex-1">
+                    <span className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
+                        Add-on — one more from {data.item.artistName}
+                      </span>
+                      <span className="flex items-baseline gap-2">
+                        {data.bump.percentOff > 0 && (
+                          <span className="text-sm text-amber-100/40 line-through">{data.bump.listPrice}</span>
+                        )}
+                        <span className="text-xl font-bold text-amber-200">{data.bump.price}</span>
+                      </span>
+                    </span>
+                    <span className="mt-1 block font-semibold text-amber-100">{data.bump.title}</span>
+                    <span className="mt-0.5 block text-xs text-amber-100/60">
+                      {data.bump.percentOff > 0
+                        ? `${data.bump.percentOff}% off as an add-on — `
+                        : ""}
+                      tick the box and it's added to this same checkout. One charge, both delivered.
+                    </span>
+                    {includeBump && (
+                      <span className="mt-2 block border-t border-amber-500/15 pt-2 text-sm text-amber-100/80">
+                        Total with add-on:{" "}
+                        <span className="font-bold text-amber-200">
+                          ${(((data.item.pwyw?.enabled
+                            ? Math.round(Number.parseFloat(pwywDollars || "0") * 100) || 0
+                            : data.item.priceCents) + data.bump.priceCents) / 100).toFixed(2)}
+                        </span>
+                      </span>
+                    )}
+                  </span>
+                </label>
               )}
 
               <button

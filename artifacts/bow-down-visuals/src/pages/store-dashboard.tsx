@@ -2083,6 +2083,15 @@ interface DigitalSale {
   soldAt: string;
   loggedToTracker: boolean;
   buyUrl: string;
+  /* Receipt lines (feature #13): main + bump when an add-on rode the
+     sale — the bump renders as its own line under the sale. */
+  lines?: Array<{
+    kind: "main" | "bump";
+    title: string;
+    grossCents: number;
+    platformFeeCents: number;
+    creatorAmountCents: number;
+  }>;
 }
 
 interface DigitalSalesData {
@@ -2113,6 +2122,10 @@ interface DigitalProduct {
   forSale: boolean;
   artworkUrl: string | null;
   buyUrl: string;
+  pwyw?: { enabled: boolean; minCents: number; minPrice: string };
+  /* Order-bump setting (feature #13): the raw add-on attachment for
+     the editor below; buyer reads carry the resolved offer instead. */
+  bumpConfig?: { bumpKind: string; bumpItemId: string; percentOff: number } | null;
 }
 
 interface DigitalProductsData {
@@ -2164,6 +2177,104 @@ function DigitalSectionFailure({ label, onRetry, testId }: {
       >
         <RotateCcw className="h-4 w-4" /> Try again
       </button>
+    </div>
+  );
+}
+
+/* Order-bump editor (feature #13): attach ONE of your own priced
+   tracks/videos as the add-on buyers can tick on this item's drop
+   page. Saved on its own rail (PUT /api/store/item/:kind/:id/bump);
+   the server re-resolves and re-prices it at every checkout. */
+function DigitalBumpEditor({ product, candidates }: { product: DigitalProduct; candidates: DigitalProduct[] }) {
+  const { getAccessToken } = useAuth();
+  const cfgKey = product.bumpConfig ? `${product.bumpConfig.bumpKind}:${product.bumpConfig.bumpItemId}` : "";
+  const [targetKey, setTargetKey] = useState(cfgKey);
+  const [percent, setPercent] = useState(String(product.bumpConfig?.percentOff ?? 0));
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    setTargetKey(cfgKey);
+    setPercent(String(product.bumpConfig?.percentOff ?? 0));
+  }, [cfgKey, product.bumpConfig?.percentOff]);
+
+  const options = candidates.filter(
+    (c) => !(c.kind === product.kind && c.id === product.id) && c.priceCents > 0 && !c.pwyw?.enabled,
+  );
+
+  async function save() {
+    const pct = Number.parseInt(percent, 10);
+    if (!Number.isInteger(pct) || pct < 0 || pct > 90) {
+      setMsg("Percent off must be a whole number from 0 to 90.");
+      return;
+    }
+    setSaving(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const [bumpKind, bumpItemId] = targetKey ? targetKey.split(":") : [null, null];
+      const res = await digitalAuthed(`/api/store/item/${product.kind}/${product.id}/bump`, token, {
+        method: "PUT",
+        body: JSON.stringify({
+          bumpKind: bumpKind ?? null,
+          bumpItemId: bumpItemId ?? null,
+          percentOff: targetKey ? pct : 0,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { offerLive?: boolean; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || "Could not save the add-on offer.");
+      setMsg(
+        !targetKey
+          ? "Add-on offer removed."
+          : data.offerLive
+            ? "Add-on is live — buyers can tick it on the drop page."
+            : "Saved. The add-on isn't offered until it's published and priced.",
+      );
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Could not save the add-on offer.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/[0.03] px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400/70">Add-on offer</span>
+        <select
+          className="min-w-[180px] flex-1 rounded-lg border border-amber-500/25 bg-black px-2 py-1.5 text-xs text-amber-100 outline-none"
+          value={targetKey}
+          onChange={(e) => setTargetKey(e.target.value)}
+          aria-label={`Add-on for ${product.title}`}
+        >
+          <option value="">No add-on</option>
+          {options.map((c) => (
+            <option key={`${c.kind}:${c.id}`} value={`${c.kind}:${c.id}`}>
+              {c.title} — {c.price}
+            </option>
+          ))}
+        </select>
+        <span className="flex items-center gap-1">
+          <input
+            className="w-14 rounded-lg border border-amber-500/25 bg-black px-2 py-1.5 text-xs text-amber-100 outline-none"
+            value={percent}
+            onChange={(e) => setPercent(e.target.value)}
+            inputMode="numeric"
+            aria-label="Percent off the add-on"
+          />
+          <span className="text-[11px] text-amber-100/50">% off</span>
+        </span>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="rounded-full border border-amber-500/40 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+        >
+          {saving ? "Saving…" : "Save add-on"}
+        </button>
+      </div>
+      <p className="mt-1.5 text-[11px] text-amber-100/40">
+        Buyers can tick it at checkout — same charge, both delivered. The flat 5% platform fee applies, split per line.
+      </p>
+      {msg && <p className="mt-1 text-[11px] font-semibold text-amber-200/90">{msg}</p>}
     </div>
   );
 }
@@ -2581,6 +2692,7 @@ function DigitalSalesTab() {
                       <span data-min-stars="4" className="mt-1 block text-xs text-amber-100/40">
                         {customCents > 0 ? feePreview(customCents) : "Type a custom price to see the live fee split."}
                       </span>
+                      <DigitalBumpEditor product={p} candidates={products?.products ?? []} />
                     </div>
                   );
                 })}
@@ -2677,6 +2789,12 @@ function DigitalSalesTab() {
                             {new Date(s.soldAt).toLocaleString()} · {s.gross} sale · {s.platformFee} fee ·{" "}
                             <span className="font-semibold text-amber-200">you keep {s.creatorAmount}</span>
                           </div>
+                          {s.lines?.filter((l) => l.kind === "bump").map((l, i) => (
+                            <div key={i} className="mt-0.5 text-xs text-amber-100/60">
+                              + add-on: <span className="font-semibold text-amber-200">{l.title}</span> ·{" "}
+                              ${(l.grossCents / 100).toFixed(2)} · you keep ${(l.creatorAmountCents / 100).toFixed(2)}
+                            </div>
+                          ))}
                         </div>
                         {s.loggedToTracker ? (
                           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-green-500/30 bg-green-950/30 px-3 py-1.5 text-xs font-semibold text-green-300">

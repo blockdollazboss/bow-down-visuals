@@ -2465,6 +2465,10 @@ router.get("/store/products", requireAuth, async (req, res) => {
           },
           artworkUrl: rawArtwork ? await refreshSupabaseStorageUrl(rawArtwork) : null,
           buyUrl: `/store/buy/${kind}/${String(r["id"])}`,
+          /* Order-bump setting (feature #13): the raw attachment for
+             the dashboard's add-on editor; null pre-migration or when
+             no add-on is set. */
+          bumpConfig: await fetchDigitalBumpConfig(kind, String(r["id"])),
         };
       }));
     const prof = await db.execute(sql`
