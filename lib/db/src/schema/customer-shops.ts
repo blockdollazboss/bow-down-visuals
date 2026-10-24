@@ -79,9 +79,15 @@ export const shopProductsTable = pgTable("shop_products", {
       checkout attribution reads these at sale time (schema/affiliates.ts). */
   affiliate_enabled: boolean("affiliate_enabled").notNull().default(false),
   affiliate_commission_bps: integer("affiliate_commission_bps"),
+  /** Order bump (feature #13, migration 0219): the seller's one add-on
+      attachment for this product + the seller-set % off its list price. */
+  bump_product_id: uuid("bump_product_id"),
+  bump_percent_off: integer("bump_percent_off").notNull().default(0),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  check("shop_products_bump_percent_off_range", sql`${t.bump_percent_off} >= 0 AND ${t.bump_percent_off} <= 90`),
+]);
 
 export const insertShopSchema = createInsertSchema(shopsTable).omit({
   id: true,
@@ -150,6 +156,10 @@ export const shopEventsTable = pgTable("shop_events", {
       like discount_code, so the commission is recorded exactly once, when
       the sale records (lib/affiliates.ts). Null = no affiliate. */
   affiliate_code: text("affiliate_code"),
+  /** Order bump (feature #13, migration 0219): set on the add-on's own
+      order row — the cart product the buyer ticked it through. Null on
+      normal lines. */
+  bump_for_product_id: uuid("bump_for_product_id"),
   /** Connect settlement (migration 0142, DE-14): the creator_payouts row
       that paid this sale out. Null = not yet settled. A linked payout in
       'failed' status does not settle (see pendingPayoutCents). */

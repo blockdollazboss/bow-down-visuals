@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, jsonb, timestamp, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, jsonb, timestamp, check, primaryKey } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -33,8 +33,33 @@ export const digitalSalesTable = pgTable("digital_sales", {
      links are expired by the clawback engine. Mirrors store_orders.status. */
   status:             text("status").notNull().default("completed"),
   refundedAt:         timestamp("refunded_at", { withTimezone: true }),
+  /* Order bump (feature #13, migration 0219): the purchased add-on as
+     its own line ON the sale row; the amount columns above stay
+     SESSION TOTALS so existing readers keep reconciling untouched. */
+  bumpItemKind:           text("bump_item_kind"),
+  bumpItemId:             uuid("bump_item_id"),
+  bumpTitle:              text("bump_title"),
+  bumpAmountCents:        integer("bump_amount_cents"),
+  bumpPlatformFeeCents:   integer("bump_platform_fee_cents"),
+  bumpCreatorAmountCents: integer("bump_creator_amount_cents"),
   createdAt:          timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [check("digital_sales_item_kind_check", sql`${t.itemKind} IN ('track','video','album','pack','digital','series','bundle')`)]);
+
+/** Order-bump attachments for digital-store items (migration 0219):
+    items span three catalog tables, so the attachment lives in one
+    keyed table instead of columns on each catalog. */
+export const digitalBumpOffersTable = pgTable("digital_bump_offers", {
+  itemKind:   text("item_kind").notNull().$type<DigitalItemKind>(),
+  itemId:     uuid("item_id").notNull(),
+  bumpKind:   text("bump_kind").notNull().$type<DigitalItemKind>(),
+  bumpItemId: uuid("bump_item_id").notNull(),
+  percentOff: integer("percent_off").notNull().default(0),
+  createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:  timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.itemKind, t.itemId] }),
+  check("digital_bump_offers_percent_off_range", sql`${t.percentOff} >= 0 AND ${t.percentOff} <= 90`),
+]);
 
 export const insertDigitalSaleSchema = createInsertSchema(digitalSalesTable).omit({ id: true, createdAt: true });
 export type InsertDigitalSale = z.infer<typeof insertDigitalSaleSchema>;
