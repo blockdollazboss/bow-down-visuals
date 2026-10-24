@@ -1,0 +1,870 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-editor/artifacts/bow-down-visuals[39m
+
+ [31m❯[39m src/components/editor/editor-honesty.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 307[2mms[22m[39m
+   [31m❯[39m editor honesty fixes (N-series) [2m(7)[22m
+[31m     [31m×[31m N-01: Studio Editor never fabricates a placeholder video URL[39m[32m 195[2mms[22m[39m
+     [32m✓[39m N-02: Studio Editor never invents a regeneration job[32m 19[2mms[22m[39m
+     [32m✓[39m N-03: recipe cut ops are planned, not counted as applied[32m 1[2mms[22m[39m
+     [32m✓[39m N-04: LipSyncSection does not present clip presence as face detection[32m 22[2mms[22m[39m
+     [32m✓[39m N-05: AutoAiEdit no longer claims transitions are preview-only[32m 0[2mms[22m[39m
+     [32m✓[39m N-06: PreviewTransport no longer promises export 'in the next phase'[32m 20[2mms[22m[39m
+     [32m✓[39m N-06b: Keyframes scale to the scene's real duration, labelled at start[32m 12[2mms[22m[39m
+ [32m✓[39m src/components/active-overlay-face-protect.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m src/components/editor/music/stem-waveform.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 75[2mms[22m[39m
+ [32m✓[39m src/components/editor/music/lipsync-coming-soon.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 95[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/components/editor/editor-honesty.test.ts[2m > [22meditor honesty fixes (N-series)[2m > [22mN-01: Studio Editor never fabricates a placeholder video URL
+[31m[1mAssertionError[22m: expected '/**\n * StudioEditorSection — Bow Dow…' not to contain 'storage.bowdownvisuals.com/placeholde…'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- storage.bowdownvisuals.com/placeholders[39m
+[31m+ /**[39m
+[31m+  * StudioEditorSection — Bow Down Studio Editor[39m
+[31m+  *[39m
+[31m+  * CapCut-style music video timeline editor.[39m
+[31m+  * Audio clock drives everything — the same audio element from[39m
+[31m+  * TimelinePreviewPlayer is the source of truth; this section[39m
+[31m+  * reads currentTime/isPlaying from the parent and calls[39m
+[31m+  * onSeek / onTogglePlay / onRestart for transport control.[39m
+[31m+  *[39m
+[31m+  * Features:[39m
+[31m+  *   • Time ruler + fake waveform (visual, click-to-seek)[39m
+[31m+  *   • Clip blocks positioned by scene timestamps[39m
+[31m+  *   • Drag trim handles on selected clip (updates settings.clips)[39m
+[31m+  *   • Per-clip validation with detailed error display[39m
+[31m+  *   • Lock Timeline → async validation → JSON snapshot[39m
+[31m+  *   • Clip URL Repair panel for scenes missing demoClipUrl[39m
+[31m+  *   • Master Player Stable / Readiness status panel[39m
+[31m+  *   • Debug panel with all readiness signals[39m
+[31m+  */[39m
+[31m+[39m
+[31m+ import { useState } from "react";[39m
+[31m+ import {[39m
+[31m+   Lock, Download,[39m
+[31m+   ChevronDown, ChevronUp, Copy, Check,[39m
+[31m+   AlertCircle, AlertTriangle, RefreshCw,[39m
+[31m+   Wrench, Sparkles, ImageOff,[39m
+[31m+ } from "lucide-react";[39m
+[31m+ import type { SceneData } from "@/lib/scene-parser";[39m
+[31m+ import { computeSceneTimings } from "@/lib/scene-timing";[39m
+[31m+ import type { EditorSettings } from "@/lib/editor-settings";[39m
+[31m+ import { defaultClipEdit } from "@/lib/editor-settings";[39m
+[31m+ import { Button } from "@/components/ui/button";[39m
+[31m+[39m
+[31m+ /* ─── Types ────────────────────────────────────────────────────────── */[39m
+[31m+[39m
+[31m+ export type LockedTimelineClip = {[39m
+[31m+   sceneIdx: number;[39m
+[31m+   sceneId: string;[39m
+[31m+   title: string;[39m
+[31m+   url: string | null;[39m
+[31m+   startSec: number;[39m
+[31m+   endSec: number;[39m
+[31m+   dur: number;[39m
+[31m+   trimStart: number;[39m
+[31m+   trimEnd: number;[39m
+[31m+   lipSyncOffsetSec: number;[39m
+[31m+ };[39m
+[31m+[39m
+[31m+ export type LockedTimeline = {[39m
+[31m+   id: string;[39m
+[31m+   version: 1;[39m
+[31m+   createdAt: string;[39m
+[31m+   audioDuration: number | null;[39m
+[31m+   clipCount: number;[39m
+[31m+   audioStartsAt: 0;[39m
+[31m+   clips: LockedTimelineClip[];[39m
+[31m+ };[39m
+[31m+[39m
+[31m+ type ClipValidation = {[39m
+[31m+   clipNum: number;[39m
+[31m+   sceneId: string;[39m
+[31m+   section: string;[39m
+[31m+   urlExists: boolean;[39m
+[31m+   urlValid: boolean;[39m
+[31m+   url: string | null;[39m
+[31m+   timelineStart: number;[39m
+[31m+   timelineEnd: number;[39m
+[31m+   timelineDur: number;[39m
+[31m+   trimStart: number;[39m
+[31m+   trimEnd: number;[39m
+[31m+   sourceDur: number;[39m
+[31m+   exportDur: number;[39m
+[31m+   ready: boolean;[39m
+[31m+   errors: string[];[39m
+[31m+ };[39m
+[31m+[39m
+[31m+ type RepairResult = {[39m
+[31m+   foundExisting: boolean;[39m
+[31m+   attachedUrl: boolean;[39m
+[31m+   placeholderCreated: boolean;[39m
+[31m+   regenerateStarted: boolean;[39m
+[31m+   savedToProject: boolean;[39m
+[31m+   allClipsNowValid: boolean;[39m
+[31m+   attachedUrlValue: string | null;[39m
+[31m+   lastError: string | null;[39m
+[31m+ };[39m
+[31m+[39m
+[31m+ /* ─── Helpers ───────────────────────────────────────────────────────── */[39m
+[31m+[39m
+[31m+ function fmt(s: number): string {[39m
+[31m+   if (!isFinite(s) || s < 0) s = 0;[39m
+[31m+   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function genId(): string {[39m
+[31m+   return `tl_${Math.random().toString(36).slice(2, 8)}`;[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function isValidUrl(url: string | null | undefined): boolean {[39m
+[31m+   if (!url) return false;[39m
+[31m+   try { new URL(url); return url.startsWith("http"); } catch { return false; }[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ const CLIP_COLORS = [[39m
+[31m+   "#7c3aed", "#2563eb", "#059669", "#d97706", "#dc2626",[39m
+[31m+   "#0891b2", "#7e22ce", "#1d4ed8", "#047857", "#b45309",[39m
+[31m+   "#b91c1c", "#0e7490",[39m
+[31m+ ];[39m
+[31m+[39m
+[31m+[39m
+[31m+ /* ─── Per-Clip Validation Row ────────────────────────────────────────── */[39m
+[31m+[39m
+[31m+ function ClipValidRow({ v }: { v: ClipValidation }) {[39m
+[31m+   const [open, setOpen] = useState(!v.ready);[39m
+[31m+   return ([39m
+[31m+     <div className={`rounded-lg border mb-1 overflow-hidden ${v.ready ? "border-green-500/15 bg-green-500/[0.03]" : "border-amber-500/30 bg-amber-500/[0.04]"}`}>[39m
+[31m+       <button type="button" onClick={() => setOpen(o => !o)}[39m
+[31m+         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left">[39m
+[31m+         <span className={`text-[10px] w-4 text-center shrink-0 ${v.ready ? "text-green-400" : "text-amber-400"}`}>[39m
+[31m+           {v.ready ? "✓" : "⚠"}[39m
+[31m+         </span>[39m
+[31m+         <span className="flex-1 flex gap-2 items-center min-w-0">[39m
+[31m+           <span className="text-[9px] font-bold text-white shrink-0">#{v.clipNum}</span>[39m
+[31m+           <span className="text-[9px] text-white/60 truncate">{v.section}</span>[39m
+[31m+         </span>[39m
+[31m+         <span className="text-[8px] font-mono text-white/30 shrink-0">{fmt(v.timelineStart)}–{fmt(v.timelineEnd)}</span>[39m
+[31m+         <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${v.ready ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"}`}>[39m
+[31m+           {v.ready ? "Ready" : "Not ready"}[39m
+[31m+         </span>[39m
+[31m+         <span className="text-[8px] text-white/25 shrink-0">{open ? "▲" : "▼"}</span>[39m
+[31m+       </button>[39m
+[31m+       {open && ([39m
+[31m+         <div className="px-3 pb-2 grid grid-cols-2 gap-x-4 gap-y-1">[39m
+[31m+           {([[39m
+[31m+             ["URL Exists",     v.urlExists ? "yes" : "⚠ NO",        v.urlExists],[39m
+[31m+             ["URL Valid",      v.urlValid  ? "yes" : "⚠ INVALID",   v.urlValid],[39m
+[31m+             ["Timeline Start", fmt(v.timelineStart),                  true],[39m
+[31m+             ["Timeline End",   fmt(v.timelineEnd),                    true],[39m
+[31m+             ["Timeline Dur",   `${v.timelineDur}s`,                   true],[39m
+[31m+             ["Trim Start",     `${v.trimStart.toFixed(1)}s`,          true],[39m
+[31m+             ["Trim End",       `${v.trimEnd.toFixed(1)}s`,            true],[39m
+[31m+             ["Source Dur",     `${v.sourceDur.toFixed(1)}s`,          true],[39m
+[31m+             ["Export Dur",     `${v.exportDur.toFixed(1)}s`,          v.exportDur > 0],[39m
+[31m+           ] as [string, string, boolean][]).map(([k, val, ok]) => ([39m
+[31m+             <div key={k} className="flex gap-2 text-[8px] font-mono items-baseline">[39m
+[31m+               <span className="text-white/25 shrink-0 min-w-[80px]">{k}</span>[39m
+[31m+               <span className={ok ? "text-white/60" : "text-amber-400 font-bold"}>{val}</span>[39m
+[31m+             </div>[39m
+[31m+           ))}[39m
+[31m+           {v.errors.length > 0 && ([39m
+[31m+             <div className="col-span-2 mt-1 space-y-0.5">[39m
+[31m+               {v.errors.map((e, i) => ([39m
+[31m+                 <div key={i} className="text-[8px] text-red-400 font-mono flex gap-1.5">[39m
+[31m+                   <span>✕</span><span>{e}</span>[39m
+[31m+                 </div>[39m
+[31m+               ))}[39m
+[31m+             </div>[39m
+[31m+           )}[39m
+[31m+         </div>[39m
+[31m+       )}[39m
+[31m+     </div>[39m
+[31m+   );[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ /* ─── Clip URL Repair Panel ──────────────────────────────────────────── */[39m
+[31m+[39m
+[31m+ function ClipRepairPanel({[39m
+[31m+   sceneIdx, scene, clipNum, scenes, setScenes,[39m
+[31m+ }: {[39m
+[31m+   sceneIdx: number;[39m
+[31m+   scene: SceneData;[39m
+[31m+   clipNum: number;[39m
+[31m+   scenes: SceneData[];[39m
+[31m+   setScenes?: (s: SceneData[]) => void;[39m
+[31m+ }) {[39m
+[31m+   const [busy, setBusy] = useState<"repair" | "placeholder" | "regenerate" | null>(null);[39m
+[31m+   const [result, setResult] = useState<RepairResult | null>(null);[39m
+[31m+   const [regenJobId, setRegenJobId] = useState<string | null>(null);[39m
+[31m+[39m
+[31m+   const currentUrl = scene.demoClipUrl ?? null;[39m
+[31m+[39m
+[31m+   // Search all possible URL fields on the scene object[39m
+[31m+   const searchSceneForUrl = (): string | null => {[39m
+[31m+     const s = scene as unknown as Record<string, unknown>;[39m
+[31m+     const candidates = [[39m
+[31m+       s["videoUrl"], s["url"], s["outputUrl"], s["resultUrl"],[39m
+[31m+       s["generatedVideoUrl"], s["clipUrl"], s["assetUrl"], s["mediaUrl"],[39m
+[31m+     ];[39m
+[31m+     for (const c of candidates) {[39m
+[31m+       if (typeof c === "string" && isValidUrl(c)) return c;[39m
+[31m+     }[39m
+[31m+     return null;[39m
+[31m+   };[39m
+[31m+[39m
+[31m+   const applyUrl = (url: string) => {[39m
+[31m+     if (!setScenes) return;[39m
+[31m+     const updated = scenes.map((sc, i) =>[39m
+[31m+       i === sceneIdx ? { ...sc, demoClipUrl: url } : sc[39m
+[31m+     );[39m
+[31m+     setScenes(updated);[39m
+[31m+   };[39m
+[31m+[39m
+[31m+   const runAction = async (action: "repair" | "placeholder" | "regenerate") => {[39m
+[31m+     setBusy(action);[39m
+[31m+     setResult(null);[39m
+[31m+     await new Promise(r => setTimeout(r, 700));[39m
+[31m+[39m
+[31m+     const res: RepairResult = {[39m
+[31m+       foundExisting: false, attachedUrl: false, placeholderCreated: false,[39m
+[31m+       regenerateStarted: false, savedToProject: false, allClipsNowValid: false,[39m
+[31m+       attachedUrlValue: null, lastError: null,[39m
+[31m+     };[39m
+[31m+[39m
+[31m+     try {[39m
+[31m+       if (action === "repair") {[39m
+[31m+         const found = searchSceneForUrl();[39m
+[31m+         if (found) {[39m
+[31m+           res.foundExisting = true;[39m
+[31m+           res.attachedUrl = true;[39m
+[31m+           res.savedToProject = !!setScenes;[39m
+[31m+           res.attachedUrlValue = found;[39m
+[31m+           res.allClipsNowValid = true;[39m
+[31m+           applyUrl(found);[39m
+[31m+         } else {[39m
+[31m+           res.lastError = `No URL found in scene data. Fields checked: videoUrl, url, outputUrl, resultUrl, generatedVideoUrl, clipUrl, assetUrl, mediaUrl`;[39m
+[31m+         }[39m
+[31m+       } else if (action === "placeholder") {[39m
+[31m+         // Stack-100 #3 Lane D (N-01, P0): this branch used to FABRICATE a[39m
+[31m+         // placeholder video URL (storage.bowdownvisuals.com/placeholders/…)[39m
+[31m+         // and attach it as the scene's real demoClipUrl while reporting[39m
+[31m+         // "all clips now valid" — no such file is ever created, so preview[39m
+[31m+         // and export chased a nonexistent video. Placeholder generation[39m
+[31m+         // does not exist; say so and attach nothing.[39m
+[31m+         res.lastError =[39m
+[31m+           "Placeholder videos aren't generated yet — attach a real clip (Generate or Upload in the Clips tab), or use Repair if this scene already has a URL in its data.";[39m
+[31m+       } else {[39m
+[31m+         // Stack-100 #3 Lane D (N-02, P1): this branch used to invent a job[39m
+[31m+         // id (gen_<random>) and report "regenerate started" without calling[39m
+[31m+         // any API — nothing was ever generated or attached. Regeneration[39m
+[31m+         // lives in the Clips tab; this panel must not fake a job.[39m
+[31m+         res.regenerateStarted = false;[39m
+[31m+         res.attachedUrlValue = null;[39m
+[31m+         res.allClipsNowValid = false;[39m
+[31m+         setRegenJobId(null);[39m
+[31m+         res.lastError =[39m
+[31m+           "Clip regeneration isn't available in this panel — regenerate this scene from the Clips tab.";[39m
+[31m+       }[39m
+[31m+     } catch (e) {[39m
+[31m+       res.lastError = e instanceof Error ? e.message : "Unknown error";[39m
+[31m+     }[39m
+[31m+[39m
+[31m+     setResult(res);[39m
+[31m+     setBusy(null);[39m
+[31m+   };[39m
+[31m+[39m
+[31m+   const debugRows: [string, string, boolean][] = result ? [[39m
+[31m+     ["found existing URL",   result.foundExisting     ? "yes" : "no", result.foundExisting],[39m
+[31m+     ["attached URL",         result.attachedUrl       ? "yes" : "no", result.attachedUrl],[39m
+[31m+     ["placeholder created",  result.placeholderCreated ? "yes" : "no", result.placeholderCreated],[39m
+[31m+     ["regenerate started",   result.regenerateStarted ? "yes" : "no", result.regenerateStarted],[39m
+[31m+     ["saved to project",     result.savedToProject    ? "yes" : "no", result.savedToProject],[39m
+[31m+     ["all clips now valid",  result.allClipsNowValid  ? "yes" : "no", result.allClipsNowValid],[39m
+[31m+     ["last error",           result.lastError ?? "none",              !result.lastError],[39m
+[31m+   ] : [];[39m
+[31m+[39m
+[31m+   return ([39m
+[31m+     <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-3 space-y-3">[39m
+[31m+       {/* Header */}[39m
+[31m+       <div className="flex items-center gap-2">[39m
+[31m+         <Wrench className="h-3.5 w-3.5 text-amber-400 shrink-0" />[39m
+[31m+         <p className="text-xs font-black text-white">Clip URL Repair</p>[39m
+[31m+         <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/15 text-amber-300">[39m
+[31m+           Clip {clipNum} · {scene.section || `Scene ${clipNum}`}[39m
+[31m+         </span>[39m
+[31m+       </div>[39m
+[31m+       <p className="text-[9px] text-white/35">[39m
+[31m+         This clip is missing a video URL and will block Lock Timeline.[39m
+[31m+       </p>[39m
+[31m+[39m
+[31m+       {/* Info grid */}[39m
+[31m+       <div className="grid grid-cols-2 gap-1.5">[39m
+[31m+         {([[39m
+[31m+           ["Current URL",    currentUrl ?? "⚠ null — not set"],[39m
+[31m+           ["Section",        scene.section ?? "—"],[39m
+[31m+           ["Timestamp",      scene.timestamp ?? "—"],[39m
+[31m+           ["Scene ID",       scene.id.slice(0, 16) + "…"],[39m
+[31m+         ] as [string, string][]).map(([k, v]) => ([39m
+[31m+           <div key={k} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">[39m
+[31m+             <p className="text-[7px] text-white/30 uppercase tracking-wider mb-1">{k}</p>[39m
+[31m+             <p className={`text-[8px] font-mono break-all leading-tight ${v.startsWith("⚠") ? "text-red-400" : "text-white/55"}`}>{v}</p>[39m
+[31m+           </div>[39m
+[31m+         ))}[39m
+[31m+       </div>[39m
+[31m+[39m
+[31m+       {/* Action buttons */}[39m
+[31m+       <div className="space-y-1.5">[39m
+[31m+         <button type="button" onClick={() => runAction("repair")}[39m
+[31m+           disabled={!!busy || !!currentUrl}[39m
+[31m+           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-blue-500/35 bg-blue-500/[0.07] text-blue-400 text-left disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-500/[0.12] transition-colors">[39m
+[31m+           {busy === "repair"[39m
+[31m+             ? <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />[39m
+[31m+             : <Wrench className="h-3.5 w-3.5 shrink-0" />}[39m
+[31m+           <div>[39m
+[31m+             <p className="text-[11px] font-bold">Repair Clip {clipNum} URL</p>[39m
+[31m+             <p className="text-[8px] text-white/35">Search scene data: videoUrl, url, outputUrl, resultUrl, generatedVideoUrl, assetUrl…</p>[39m
+[31m+           </div>[39m
+[31m+         </button>[39m
+[31m+[39m
+[31m+         <button type="button"[39m
+[31m+           disabled[39m
+[31m+           title="Not available — placeholder videos aren't generated yet. Attach a real clip from the Clips tab."[39m
+[31m+           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-left disabled:opacity-40 disabled:cursor-not-allowed transition-colors">[39m
+[31m+           <ImageOff className="h-3.5 w-3.5 shrink-0" />[39m
+[31m+           <div>[39m
+[31m+             <p className="text-[11px] font-bold">Use Placeholder for Clip {clipNum}</p>[39m
+[31m+             <p className="text-[8px] text-white/35">[39m
+[31m+               Not available — placeholder videos aren't generated yet · attach a real clip instead[39m
+[31m+             </p>[39m
+[31m+           </div>[39m
+[31m+         </button>[39m
+[31m+[39m
+[31m+         <button type="button"[39m
+[31m+           disabled[39m
+[31m+           title="Not available in this panel — regenerate this scene from the Clips tab."[39m
+[31m+           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] text-violet-400 text-left disabled:opacity-40 disabled:cursor-not-allowed transition-colors">[39m
+[31m+           <Sparkles className="h-3.5 w-3.5 shrink-0" />[39m
+[31m+           <div>[39m
+[31m+             <p className="text-[11px] font-bold">Regenerate Clip {clipNum} · {scene.section ?? "Scene"}</p>[39m
+[31m+             <p className="text-[8px] text-white/35">[39m
+[31m+               Not available in this panel — regenerate from the Clips tab[39m
+[31m+             </p>[39m
+[31m+           </div>[39m
+[31m+         </button>[39m
+[31m+       </div>[39m
+[31m+[39m
+[31m+       {/* Result */}[39m
+[31m+       {result && ([39m
+[31m+         <div className={`rounded-lg border px-3 py-2.5 space-y-2 ${[39m
+[31m+           result.allClipsNowValid ? "border-green-500/25 bg-green-500/[0.05]"[39m
+[31m+           : result.regenerateStarted ? "border-blue-500/25 bg-blue-500/[0.05]"[39m
+[31m+           : "border-red-500/25 bg-red-500/[0.05]"[39m
+[31m+         }`}>[39m
+[31m+           <p className={`text-[9px] font-bold ${result.allClipsNowValid ? "text-green-400" : result.regenerateStarted ? "text-blue-400" : "text-red-400"}`}>[39m
+[31m+             {result.allClipsNowValid ? "✓ URL attached — clip is now valid"[39m
+[31m+               : result.regenerateStarted ? `◷ Regeneration queued · Job: ${regenJobId}`[39m
+[31m+               : "✕ Repair failed — see error below"}[39m
+[31m+           </p>[39m
+[31m+           {result.attachedUrlValue && ([39m
+[31m+             <p className="text-[7px] font-mono text-white/35 break-all">{result.attachedUrlValue}</p>[39m
+[31m+           )}[39m
+[31m+           <p className="text-[8px] font-bold text-white/30 uppercase tracking-wider">[39m
+[31m+             Clip {clipNum} URL Repair Result[39m
+[31m+           </p>[39m
+[31m+           <div className="space-y-0.5">[39m
+[31m+             {debugRows.map(([k, v, ok]) => ([39m
+[31m+               <div key={k} className="flex gap-2 text-[8px] font-mono">[39m
+[31m+                 <span className={ok ? "text-green-400/60" : "text-white/25"}>{ok ? "✓" : "○"}</span>[39m
+[31m+                 <span className="text-white/30 shrink-0 min-w-[140px]">{k}</span>[39m
+[31m+                 <span className={ok ? "text-white/55" : "text-amber-400 break-all"}>{v}</span>[39m
+[31m+               </div>[39m
+[31m+             ))}[39m
+[31m+           </div>[39m
+[31m+         </div>[39m
+[31m+       )}[39m
+[31m+     </div>[39m
+[31m+   );[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ /* ─── Props ─────────────────────────────────────────────────────────── */[39m
+[31m+[39m
+[31m+ export interface StudioEditorSectionProps {[39m
+[31m+   scenes: SceneData[];[39m
+[31m+   settings: EditorSettings;[39m
+[31m+   setSettings: (s: EditorSettings) => void;[39m
+[31m+   setScenes?: (s: SceneData[]) => void;[39m
+[31m+   currentTime: number;[39m
+[31m+   audioDuration: number | null;[39m
+[31m+   isPlaying: boolean;[39m
+[31m+   onSeek: (sec: number) => void;[39m
+[31m+   onTogglePlay: () => void;[39m
+[31m+   onRestart: () => void;[39m
+[31m+   onGoToExport: () => void;[39m
+[31m+   onGoToMusic: () => void;[39m
+[31m+   /** Resolved audio URL (from previewAudioUrl in parent) — drives waveform visibility */[39m
+[31m+   audioUrl?: string | null;[39m
+[31m+   /** Selected clip index — lifted to the parent so the persistent TimelineDock and this[39m
+[31m+    *  section's inspector panel stay in sync. */[39m
+[31m+   selectedIdx: number | null;[39m
+[31m+   setSelectedIdx: (i: number | null) => void;[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ /* ─── Component ─────────────────────────────────────────────────────── */[39m
+[31m+[39m
+[31m+ export function StudioEditorSection({[39m
+[31m+   scenes,[39m
+[31m+   settings,[39m
+[31m+   setSettings,[39m
+[31m+   setScenes,[39m
+[31m+   currentTime,[39m
+[31m+   audioDuration,[39m
+[31m+   isPlaying,[39m
+[31m+   onSeek,[39m
+[31m+   onTogglePlay,[39m
+[31m+   onRestart,[39m
+[31m+   onGoToExport,[39m
+[31m+   onGoToMusic,[39m
+[31m+   audioUrl = null,[39m
+[31m+   selectedIdx,[39m
+[31m+   setSelectedIdx,[39m
+[31m+ }: StudioEditorSectionProps) {[39m
+[31m+   const [lockedTimeline, setLockedTimeline] = useState<LockedTimeline | null>(null);[39m
+[31m+   const [jsonOpen, setJsonOpen] = useState(false);[39m
+[31m+   const [copied, setCopied] = useState(false);[39m
+[31m+   const [validating, setValidating] = useState(false);[39m
+[31m+   const [validationResults, setValidationResults] = useState<ClipValidation[] | null>(null);[39m
+[31m+   const [validationError, setValidationError] = useState<string | null>(null);[39m
+[31m+   const [showValidation, setShowValidation] = useState(false);[39m
+[31m+   const [debugOpen, setDebugOpen] = useState(false);[39m
+[31m+[39m
+[31m+   /* ── Compute clip positions from timestamps ──[39m
+[31m+      Uses the SHARED computeSceneTimings (also used by the master player and[39m
+[31m+      Lip Sync) so this editor's scene positions always match what actually[39m
+[31m+      plays in the main timeline. */[39m
+[31m+   const sceneTimings = computeSceneTimings(scenes, audioDuration);[39m
+[31m+   const durs = sceneTimings.map(t => t.durationSec);[39m
+[31m+   const offsets = sceneTimings.map(t => t.startSec);[39m
+[31m+[39m
+[31m+   const totalDur = audioDuration ?? durs.reduce((a, b) => a + b, 0);[39m
+[31m+[39m
+[31m+   const clipEdits = settings.clips ?? {};[39m
+[31m+[39m
+[31m+   /* ── Derived readiness ── */[39m
+[31m+   const clipsWithUrl = scenes.filter(s => {[39m
+[31m+     const ce = clipEdits[s.id];[39m
+[31m+     const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);[39m
+[31m+     return useLipSync ? true : !!s.demoClipUrl;[39m
+[31m+   }).length;[39m
+[31m+   const allClipsHaveUrls = clipsWithUrl === scenes.length && scenes.length > 0;[39m
+[31m+   const missingClips = scenes[39m
+[31m+     .map((s, i) => {[39m
+[31m+       const ce = clipEdits[s.id];[39m
+[31m+       const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);[39m
+[31m+       return useLipSync || s.demoClipUrl ? null : `#${i + 1} ${s.section || `Scene ${i + 1}`}`;[39m
+[31m+     })[39m
+[31m+     .filter(Boolean) as string[];[39m
+[31m+[39m
+[31m+   /* ── Lock Timeline — async with per-clip validation ── */[39m
+[31m+   async function validateAndLock() {[39m
+[31m+     setValidating(true);[39m
+[31m+     setValidationError(null);[39m
+[31m+     setValidationResults(null);[39m
+[31m+     setLockedTimeline(null);[39m
+[31m+     setShowValidation(true);[39m
+[31m+[39m
+[31m+     await new Promise(r => setTimeout(r, 400));[39m
+[31m+[39m
+[31m+     const results: ClipValidation[] = scenes.map((scene, i) => {[39m
+[31m+       const ce = clipEdits[scene.id];[39m
+[31m+       const trimStart = ce?.trimStart ?? 0;[39m
+[31m+       const trimEnd = ce?.trimEnd ?? 0;[39m
+[31m+       const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);[39m
+[31m+       const url = useLipSync ? (ce!.lipSyncUrl ?? null) : (scene.demoClipUrl ?? null);[39m
+[31m+       const urlExists = !!url;[39m
+[31m+       const urlValid = isValidUrl(url);[39m
+[31m+       const clipDur = durs[i] ?? 5;[39m
+[31m+       const exportDur = Math.max(0, clipDur - trimStart - trimEnd);[39m
+[31m+       const clipNum = i + 1;[39m
+[31m+       const label = scene.section || `Scene ${clipNum}`;[39m
+[31m+       const errors: string[] = [];[39m
+[31m+       if (!urlExists) errors.push(`Missing video URL: Clip #${clipNum} ${label}`);[39m
+[31m+       else if (!urlValid) errors.push(`Invalid URL format: Clip #${clipNum} ${label}`);[39m
+[31m+       if (exportDur <= 0) errors.push(`Trim removes entire clip: Clip #${clipNum} ${label}`);[39m
+[31m+       return {[39m
+[31m+         clipNum, sceneId: scene.id, section: label, urlExists, urlValid, url,[39m
+[31m+         timelineStart: offsets[i] ?? 0,[39m
+[31m+         timelineEnd: (offsets[i] ?? 0) + clipDur,[39m
+[31m+         timelineDur: clipDur, trimStart, trimEnd,[39m
+[31m+         sourceDur: clipDur, exportDur,[39m
+[31m+         ready: urlExists && urlValid && exportDur > 0, errors,[39m
+[31m+       };[39m
+[31m+     });[39m
+[31m+[39m
+[31m+     setValidationResults(results);[39m
+[31m+[39m
+[31m+     const failed = results.filter(r => !r.ready);[39m
+[31m+     if (failed.length > 0) {[39m
+[31m+       setValidationError(failed.flatMap(r => r.errors).join(" | "));[39m
+[31m+       setValidating(false);[39m
+[31m+       return;[39m
+[31m+     }[39m
+[31m+[39m
+[31m+     // All valid — build locked timeline[39m
+[31m+     const clips: LockedTimelineClip[] = scenes.map((s, i) => {[39m
+[31m+       const ce = clipEdits[s.id];[39m
+[31m+       const trimStart = ce?.trimStart ?? 0;[39m
+[31m+       const trimEnd = ce?.trimEnd ?? 0;[39m
+[31m+       const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);[39m
+[31m+       const url = useLipSync ? (ce!.lipSyncUrl ?? null) : (s.demoClipUrl ?? null);[39m
+[31m+       const clipDur = durs[i] ?? 5;[39m
+[31m+       return {[39m
+[31m+         sceneIdx: i, sceneId: s.id,[39m
+[31m+         title: s.section || `Scene ${i + 1}`,[39m
+[31m+         url, startSec: offsets[i] ?? 0,[39m
+[31m+         endSec: (offsets[i] ?? 0) + clipDur,[39m
+[31m+         dur: clipDur, trimStart, trimEnd,[39m
+[31m+         lipSyncOffsetSec: useLipSync ? (ce?.lipSyncOffsetSeconds ?? 0) : 0,[39m
+[31m+       };[39m
+[31m+     });[39m
+[31m+     setLockedTimeline({[39m
+[31m+       id: genId(), version: 1, createdAt: new Date().toISOString(),[39m
+[31m+       audioDuration: audioDuration ?? null,[39m
+[31m+       clipCount: clips.length, audioStartsAt: 0, clips,[39m
+[31m+     });[39m
+[31m+     setValidating(false);[39m
+[31m+     setJsonOpen(true);[39m
+[31m+   }[39m
+[31m+[39m
+[31m+   /* ── Copy JSON ── */[39m
+[31m+   function copyJson() {[39m
+[31m+     if (!lockedTimeline) return;[39m
+[31m+     void navigator.clipboard.writeText(JSON.stringify(lockedTimeline, null, 2)).then(() => {[39m
+[31m+       setCopied(true);[39m
+[31m+       setTimeout(() => setCopied(false), 2200);[39m
+[31m+     });[39m
+[31m+   }[39m
+[31m+[39m
+[31m+   /* ── Stable status ── */[39m
+[31m+   const isLocked = !!lockedTimeline;[39m
+[31m+   const stableChecks = [[39m
+[31m+     { label: "Audio is master clock", ok: !!audioUrl,        detail: audioUrl ? "song audio loaded ✓" : "no song set — go to Music Studio" },[39m
+[31m+     { label: "All clips have URLs",   ok: allClipsHaveUrls,  detail: allClipsHaveUrls ? `${scenes.length}/${scenes.length} clips ✓` : `${clipsWithUrl}/${scenes.length} — missing: ${missingClips.join(", ")}` },[39m
+[31m+     { label: "Timeline locked",       ok: isLocked,          detail: isLocked ? `ID: ${lockedTimeline!.id}` : "click Lock Timeline" },[39m
+[31m+   ];[39m
+[31m+   const isStable = stableChecks.every(c => c.ok);[39m
+[31m+   const exportReady = isStable && isLocked;[39m
+[31m+[39m
+[31m+   /* ── Selected clip ── */[39m
+[31m+   const selScene = selectedIdx !== null ? scenes[selectedIdx] : null;[39m
+[31m+   const selCe = selScene ? clipEdits[selScene.id] : null;[39m
+[31m+   const selClipMissingUrl = selScene[39m
+[31m+     ? !((selCe?.useLipSync && selCe.lipSyncStatus === "done" && selCe.lipSyncUrl) || selScene.demoClipUrl)[39m
+[31m+     : false;[39m
+[31m+[39m
+[31m+   /* ── Render ── */[39m
+[31m+   return ([39m
+[31m+     <div className="space-y-4">[39m
+[31m+[39m
+[31m+       {/* ── Header ── */}[39m
+[31m+       <div className="flex items-start justify-between gap-3 flex-wrap">[39m
+[31m+         <div>[39m
+[31m+           <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">[39m
+[31m+             <span className="text-primary text-base">✦</span>[39m
+[31m+             Bow Down Studio Editor[39m
+[31m+           </h2>[39m
+[31m+           <p className="text-[10px] text-white/30 mt-0.5">[39m
+[31m+             Studio timeline · {scenes.length} clips · {audioDuration ? fmt(audioDuration) : "--:--"} total[39m
+[31m+             {lockedTimeline && <span className="ml-2 text-primary/60">· Locked: {lockedTimeline.id}</span>}[39m
+[31m+           </p>[39m
+[31m+         </div>[39m
+[31m+         <div className="flex items-center gap-1.5 flex-wrap">[39m
+[31m+           <Button variant="outline" size="sm"[39m
+[31m+             onClick={() => { void validateAndLock(); }}[39m
+[31m+             disabled={scenes.length === 0 || validating}[39m
+[31m+             className={`gap-1.5 text-xs h-7 ${isLocked ? "border-green-500/30 text-green-400 hover:bg-green-500/[0.08]" : "border-primary/30 text-primary hover:bg-primary/10"}`}>[39m
+[31m+             {validating[39m
+[31m+               ? <><RefreshCw className="h-3 w-3 animate-spin" /> Validating…</>[39m
+[31m+               : isLocked[39m
+[31m+                 ? <><Check className="h-3 w-3" /> Locked</>[39m
+[31m+                 : <><Lock className="h-3 w-3" /> Lock Timeline</>}[39m
+[31m+           </Button>[39m
+[31m+           <Button variant="outline" size="sm"[39m
+[31m+             onClick={onGoToExport}[39m
+[31m+             disabled={!exportReady}[39m
+[31m+             className="gap-1.5 border-green-500/30 text-green-400 hover:bg-green-500/[0.08] text-xs h-7 disabled:opacity-40"[39m
+[31m+             title={!exportReady ? "Lock Timeline first" : "Go to Export"}>[39m
+[31m+             <Download className="h-3 w-3" /> Export[39m
+[31m+           </Button>[39m
+[31m+         </div>[39m
+[31m+       </div>[39m
+[31m+[39m
+[31m+       {/* ── Validation error banner ── */}[39m
+[31m+       {validationError && ([39m
+[31m+         <div className="flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.05] px-3 py-2.5">[39m
+[31m+           <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />[39m
+[31m+           <p className="text-[9px] text-red-400 font-mono leading-relaxed">{validationError}</p>[39m
+[31m+         </div>[39m
+[31m+       )}[39m
+[31m+[39m
+[31m+       {/* ── No-audio notice ── */}[39m
+[31m+       {!audioUrl && ([39m
+[31m+         <div className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] px-3 py-2.5">[39m
+[31m+           <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />[39m
+[31m+           <div>[39m
+[31m+             <p className="text-[10px] font-bold text-amber-300">No song audio set</p>[39m
+[31m+             <p className="text-[9px] text-white/40 mt-0.5">[39m
+[31m+               The audio element is the master clock. Go to{" "}[39m
+[31m+               <button type="button" onClick={onGoToMusic} className="text-amber-300 underline hover:text-amber-200">[39m
+[31m+                 Music Studio[39m
+[31m+               </button>{" "}[39m
+[31m+               and set a song to enable the timeline.[39m
+[31m+             </p>[39m
+[31m+           </div>[39m
+[31m+         </div>[39m
+[31m+       )}[39m
+[31m+[39m
+[31m+       <p className="text-[9px] text-white/25 -mt-1">[39m
+[31m+         Transport, waveform, and clip track now live in the persistent timeline dock at the bottom of the screen.[39m
+[31m+       </p>[39m
+[31m+[39m
+[31m+       {/* ── Selected clip: repair panel or inspector ── */}[39m
+[31m+       {selectedIdx !== null && selScene && ([39m
+[31m+         selClipMissingUrl ? ([39m
+[31m+           <ClipRepairPanel[39m
+[31m+             sceneIdx={selectedIdx}[39m
+[31m+             scene={selScene}[39m
+[31m+             clipNum={selectedIdx + 1}[39m
+[31m+             scenes={scenes}[39m
+[31m+             setScenes={setScenes}[39m
+[31m+           />[39m
+[31m+         ) : (() => {[39m
+[31m+           const ce = selCe;[39m
+[31m+           const trimStart = ce?.trimStart ?? 0;[39m
+[31m+           const trimEnd = ce?.trimEnd ?? 0;[39m
+[31m+           const clipDur = durs[selectedIdx] ?? 5;[39m
+[31m+           const clipStart = offsets[selectedIdx] ?? 0;[39m
+[31m+           const color = CLIP_COLORS[selectedIdx % CLIP_COLORS.length]!;[39m
+[31m+           const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done");[39m
+[31m+           const effectiveDur = Math.max(0, clipDur - trimStart - trimEnd);[39m
+[31m+           function updateTrim(key: "trimStart" | "trimEnd", val: number) {[39m
+[31m+             setSettings({ ...settings, clips: { ...clipEdits, [selScene!.id]: { ...(ce ?? defaultClipEdit()), [key]: val } } });[39m
+[31m+           }[39m
+[31m+           return ([39m
+[31m+             <div className="rounded-xl border px-3 py-3 space-y-3"[39m
+[31m+               style={{ borderColor: `${color}44`, background: `${color}08` }}>[39m
+[31m+               <div className="flex items-start justify-between">[39m
+[31m+                 <div>[39m
+[31m+                   <p className="text-xs font-bold text-white">{selScene.section || `Scene ${selectedIdx + 1}`}</p>[39m
+[31m+                   <p className="text-[9px] text-white/40 font-mono mt-0.5">[39m
+[31m+                     {fmt(clipStart)} – {fmt(clipStart + clipDur)} · clip {selectedIdx + 1} of {scenes.length}[39m
+[31m+                   </p>[39m
+[31m+                 </div>[39m
+[31m+                 <div className="flex items-center gap-1.5">[39m
+[31m+                   {useLipSync && <span className="text-[8px] px-1.5 py-0.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300">Lip Sync</span>}[39m
+[31m+                   {!selScene.demoClipUrl && <span className="text-[8px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300">No clip</span>}[39m
+[31m+                   <button type="button" onClick={() => setSelectedIdx(null)} className="text-[9px] text-white/25 hover:text-white/60 ml-1">✕</button>[39m
+[31m+                 </div>[39m
+[31m+               </div>[39m
+[31m+               <div className="grid grid-cols-3 gap-2 text-center text-[9px]">[39m
+[31m+                 {[["Source", `${clipDur.toFixed(1)}s`], ["Trimmed", `${effectiveDur.toFixed(1)}s`], ["In timeline", fmt(clipStart)]].map(([k, v]) => ([39m
+[31m+                   <div key={k} className="rounded-lg border border-white/[0.06] bg-white/[0.02] py-1.5">[39m
+[31m+                     <p className="text-white/30">{k}</p>[39m
+[31m+                     <p className={`font-mono font-bold mt-0.5 ${k === "Trimmed" ? "text-primary" : "text-white/60"}`}>{v}</p>[39m
+[31m+                   </div>[39m
+[31m+                 ))}[39m
+[31m+               </div>[39m
+[31m+               <div className="grid grid-cols-2 gap-3">[39m
+[31m+                 {(["trimStart", "trimEnd"] as const).map((key) => {[39m
+[31m+                   const val = key === "trimStart" ? trimStart : trimEnd;[39m
+[31m+                   const label = key === "trimStart" ? "Trim Start" : "Trim End";[39m
+[31m+                   const hint = key === "trimStart" ? `Skip first ${val.toFixed(1)}s` : `Skip last ${val.toFixed(1)}s`;[39m
+[31m+                   return ([39m
+[31m+                     <div key={key}>[39m
+[31m+                       <label className="text-[9px] text-white/40 uppercase tracking-wider font-bold block mb-1">[39m
+[31m+                         {label}: {val.toFixed(1)}s[39m
+[31m+                       </label>[39m
+[31m+                       <input type="range" min={0} max={clipDur * 0.45} step={0.1} value={val}[39m
+[31m+                         onChange={(e) => updateTrim(key, Number(e.target.value))}[39m
+[31m+                         className="w-full accent-primary" />[39m
+[31m+                       <p className="text-[8px] text-white/20 mt-0.5">{hint}</p>[39m
+[31m+                     </div>[39m
+[31m+                   );[39m
+[31m+                 })}[39m
+[31m+               </div>[39m
+[31m+               {useLipSync && ce && ([39m
+[31m+                 <p className="text-[9px] text-violet-300/60">Lip sync offset: +{(ce.lipSyncOffsetSeconds ?? 0).toFixed(2)}s applied in export</p>[39m
+[31m+               )}[39m
+[31m+               <button type="button" onClick={() => onSeek(clipStart)}[39m
+[31m+                 className="text-[9px] text-primary/60 hover:text-primary/90 underline underline-offset-2 transition-colors">[39m
+[31m+                 Jump to {fmt(clipStart)} →[39m
+[31m+               </button>[39m
+[31m+             </div>[39m
+[31m+           );[39m
+[31m+         })()[39m
+[31m+       )}[39m
+[31m+[39m
+[31m+       {/* ── Readiness status ── */}[39m
+[31m+       <div className={`rounded-xl border px-3 py-2.5 ${isStable ? "border-green-500/20 bg-green-500/[0.03]" : "border-white/[0.06] bg-white/[0.02]"}`}>[39m
+[31m+         <div className="flex items-center justify-between mb-2">[39m
+[31m+           <p className="text-[9px] font-black text-white/35 uppercase tracking-widest">Master Player Stable</p>[39m
+[31m+           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${isStable ? "bg-green-500/15 text-green-400 border-green-500/20" : "bg-amber-500/15 text-amber-400 border-amber-500/20"}`}>[39m
+[31m+             {isStable ? "✓ Stable — ready to export" : "○ Not stable yet"}[39m
+[31m+           </span>[39m
+[31m+         </div>[39m
+[31m+         <div className="space-y-1.5">[39m
+[31m+           {stableChecks.map((c) => ([39m
+[31m+             <div key={c.label} className="flex items-start gap-2 text-[9px]">[39m
+[31m+               <span className={`shrink-0 mt-0.5 ${c.ok ? "text-green-400" : "text-white/25"}`}>{c.ok ? "✓" : "○"}</span>[39m
+[31m+               <span className={`flex-1 ${c.ok ? "text-white/50" : "text-white/30"}`}>{c.label}</span>[39m
+[31m+               <span className={`font-mono text-right max-w-[200px] ${c.ok ? "text-white/20" : "text-amber-400"}`}>{c.detail}</span>[39m
+[31m+             </div>[39m
+[31m+           ))}[39m
+[31m+         </div>[39m
+[31m+         {isStable && !lockedTimeline && ([39m
+[31m+           <p className="text-[9px] text-primary/50 mt-2">[39m
+[31m+             Everything ready — click <strong className="text-primary/70">Lock Timeline</strong> above to generate the export blueprint.[39m
+[31m+           </p>[39m
+[31m+         )}[39m
+[31m+       </div>[39m
+[31m+[39m
+[31m+       {/* ── Per-clip validation results (after Lock attempt) ── */}[39m
+[31m+       {showValidation && validationResults && ([39m
+[31m+         <div className={`rounded-xl border overflow-hidden ${validationError ? "border-red-500/25 bg-red-500/[0.03]" : "border-green-500/20 bg-green-500/[0.02]"}`}>[39m
+[31m+           <button type="button" onClick={() => setShowValidation(o => !o)}[39m
+[31m+             className={`w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-black uppercase tracking-widest ${validationError ? "text-red-400" : "text-green-400"}`}>[39m
+[31m+             <span className="flex items-center gap-1.5">[39m
+[31m+               {validationError ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}[39m
+[31m+               Clip Validation · {validationResults.filter(r => r.ready).length}/{validationResults.length} ready[39m
+[31m+               {validationError && <span className="text-red-400">— {validationResults.filter(r => !r.ready).length} failed</span>}[39m
+[31m+             </span>[39m
+[31m+             <ChevronDown className="h-3 w-3" />[39m
+[31m+           </button>[39m
+[31m+           <div className={`border-t px-3 pb-3 pt-2 ${validationError ? "border-red-500/10" : "border-green-500/10"}`}>[39m
+[31m+             {validationResults.map(v => <ClipValidRow key={v.sceneId} v={v} />)}[39m
+[31m+           </div>[39m
+[31m+         </div>[39m
+[31m+       )}[39m
+[31m+[39m
+[31m+       {/* ── Locked Timeline JSON ── */}[39m
+[31m+       {lockedTimeline && ([39m
+[31m+         <div className="rounded-xl border border-primary/20 bg-primary/[0.03] overflow-hidden">[39m
+[31m+           <button type="button" onClick={() => setJsonOpen(o => !o)}[39m
+[31m+             className="w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-black text-primary/70 uppercase tracking-widest hover:text-primary/90 transition-colors">[39m
+[31m+             <span className="flex items-center gap-1.5">[39m
+[31m+               <Lock className="h-3 w-3" />[39m
+[31m+               Locked Timeline · {lockedTimeline.id} · {lockedTimeline.clipCount} clips · {audioDuration ? fmt(audioDuration) : "--:--"}[39m
+[31m+             </span>[39m
+[31m+             <div className="flex items-center gap-2">[39m
+[31m+               <button type="button" onClick={(e) => { e.stopPropagation(); copyJson(); }}[39m
+[31m+                 className="flex items-center gap-1 text-[9px] text-white/35 hover:text-white/70 border border-white/[0.08] rounded px-1.5 py-0.5 font-normal normal-case tracking-normal">[39m
+[31m+                 {copied ? <><Check className="h-2.5 w-2.5 text-green-400" /> Copied!</> : <><Copy className="h-2.5 w-2.5" /> Copy JSON</>}[39m
+[31m+               </button>[39m
+[31m+               <button type="button" onClick={(e) => { e.stopPropagation(); onGoToExport(); }}[39m
+[31m+                 className="flex items-center gap-1 text-[9px] text-green-400/70 hover:text-green-400 border border-green-500/20 rounded px-1.5 py-0.5 font-normal normal-case tracking-normal">[39m
+[31m+                 <Download className="h-2.5 w-2.5" /> Export[39m
+[31m+               </button>[39m
+[31m+               {jsonOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}[39m
+[31m+             </div>[39m
+[31m+           </button>[39m
+[31m+           {jsonOpen && ([39m
+[31m+             <div className="border-t border-primary/10 px-3 pb-3">[39m
+[31m+               <div className="grid grid-cols-3 gap-2 py-2 mb-2">[39m
+[31m+                 {[[39m
+[31m+                   ["Version", "1"],[39m
+[31m+                   ["Audio start", "0:00.0 (0.00s)"],[39m
+[31m+                   ["Total duration", audioDuration ? `${fmt(audioDuration)} (${audioDuration.toFixed(1)}s)` : "unknown"],[39m
+[31m+                   ["Clip count", String(lockedTimeline.clipCount)],[39m
+[31m+                   ["Locked at", new Date(lockedTimeline.createdAt).toLocaleTimeString()],[39m
+[31m+                   ["Export ready", isStable ? "✓ Yes" : "○ No"],[39m
+[31m+                 ].map(([k, v]) => ([39m
+[31m+                   <div key={k} className="rounded-lg border border-white/[0.05] bg-white/[0.02] px-2 py-1.5">[39m
+[31m+                     <p className="text-[8px] text-white/25 uppercase tracking-wider">{k}</p>[39m
+[31m+                     <p className="text-[9px] font-mono text-white/60 mt-0.5">{v}</p>[39m
+[31m+                   </div>[39m
+[31m+                 ))}[39m
+[31m+               </div>[39m
+[31m+               <div className="space-y-0.5 mb-2 max-h-40 overflow-y-auto">[39m
+[31m+                 <p className="text-[8px] text-white/25 uppercase tracking-wider mb-1">Clip List</p>[39m
+[31m+                 {lockedTimeline.clips.map((c) => ([39m
+[31m+                   <div key={c.sceneIdx}[39m
+[31m+                     className="grid grid-cols-[1.5rem_1fr_4rem_4rem_4rem] gap-1 px-1.5 py-1 rounded text-[8px] font-mono border border-white/5 bg-white/[0.02]">[39m
+[31m+                     <span className="text-white/25">{c.sceneIdx + 1}</span>[39m
+[31m+                     <span className="text-white/50 truncate">{c.title}</span>[39m
+[31m+                     <span className="text-white/35 text-right">{fmt(c.startSec)}</span>[39m
+[31m+                     <span className="text-white/35 text-right">{c.dur.toFixed(1)}s</span>[39m
+[31m+                     <span className="text-right">[39m
+[31m+                       {c.url ? <span className="text-green-400/60">✓ url</span> : <span className="text-amber-400">no url</span>}[39m
+[31m+                     </span>[39m
+[31m+                   </div>[39m
+[31m+                 ))}[39m
+[31m+               </div>[39m
+[31m+               <details>[39m
+[31m+                 <summary className="text-[8px] text-white/25 cursor-pointer hover:text-white/50 py-1">Show raw JSON</summary>[39m
+[31m+                 <pre className="text-[7px] text-white/30 font-mono overflow-x-auto max-h-40 mt-1 leading-relaxed bg-black/30 rounded p-2">[39m
+[31m+                   {JSON.stringify(lockedTimeline, null, 2)}[39m
+[31m+                 </pre>[39m
+[31m+               </details>[39m
+[31m+             </div>[39m
+[31m+           )}[39m
+[31m+         </div>[39m
+[31m+       )}[39m
+[31m+[39m
+[31m+       {/* ── Debug panel ── */}[39m
+[31m+       <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] overflow-hidden">[39m
+[31m+         <button type="button" onClick={() => setDebugOpen(o => !o)}[39m
+[31m+           className="w-full flex items-center justify-between px-3 py-2 text-[8px] font-black text-white/25 uppercase tracking-widest hover:text-white/40 transition-colors">[39m
+[31m+           <span>Studio Editor Readiness — Debug</span>[39m
+[31m+           {debugOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}[39m
+[31m+         </button>[39m
+[31m+         {debugOpen && ([39m
+[31m+           <div className="border-t border-white/5 px-3 py-2.5 grid grid-cols-2 gap-x-6 gap-y-1">[39m
+[31m+             {([[39m
+[31m+               ["audio loaded",         !!audioUrl ? "yes" : "no",                      !!audioUrl],[39m
+[31m+               ["clip count",           String(scenes.length),                           true],[39m
+[31m+               ["valid clip URLs",      `${clipsWithUrl} / ${scenes.length}`,            allClipsHaveUrls],[39m
+[31m+               ["missing clip URLs",    missingClips.length > 0 ? missingClips.join(", ") : "none", missingClips.length === 0],[39m
+[31m+               ["timeline locked",      isLocked ? "yes" : "no",                         isLocked],[39m
+[31m+               ["locked timeline id",   isLocked ? lockedTimeline!.id : "—",             isLocked],[39m
+[31m+               ["export ready",         exportReady ? "yes" : "no",                      exportReady],[39m
+[31m+               ["last error",           validationError ?? "none",                        !validationError],[39m
+[31m+             ] as [string, string, boolean][]).map(([k, v, ok]) => ([39m
+[31m+               <div key={k} className="flex gap-2 text-[8px] font-mono">[39m
+[31m+                 <span className={ok ? "text-green-400/60" : "text-amber-400"}>{ok ? "✓" : "○"}</span>[39m
+[31m+                 <span className="text-white/25 shrink-0 min-w-[130px]">{k}</span>[39m
+[31m+                 <span className={`${ok ? "text-white/50" : "text-amber-400"} break-all`}>{v}</span>[39m
+[31m+               </div>[39m
+[31m+             ))}[39m
+[31m+           </div>[39m
+[31m+         )}[39m
+[31m+       </div>[39m
+[31m+[39m
+[31m+     </div>[39m
+[31m+   );[39m
+[31m+ }[39m
+[31m+[39m
+
+[36m [2m❯[22m src/components/editor/editor-honesty.test.ts:[2m22:24[22m[39m
+    [90m 20|[39m describe("editor honesty fixes (N-series)", () => {
+    [90m 21|[39m   it("N-01: Studio Editor never fabricates a placeholder video URL", (…
+    [90m 22|[39m     expect(studio).not.toContain("storage.bowdownvisuals.com/placehold…
+    [90m   |[39m                        [31m^[39m
+    [90m 23|[39m     expect(studio).not.toContain("placeholderCreated = true");
+    [90m 24|[39m     expect(studio).toContain("Placeholder videos aren't generated yet"…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m16 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 02:12:17
+[2m   Duration [22m 19.07s[2m (transform 39%, import 35%, worker 14%, tests 12%)[22m
+
+[2m    Isolate [22m [33m4 workers spawned[39m[2m · ~3.31s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~9.94s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
+EXIT:1
