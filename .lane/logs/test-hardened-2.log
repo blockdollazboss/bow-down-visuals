@@ -1,0 +1,75 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server[39m
+
+[14:55:24.773] [32mINFO[39m (44772): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "9499a3e9-2800-4bea-b7f1-b7b213220991"
+    [35mproductId[39m: "8099fbbc-5aae-48b6-b103-34e9c1a648ad"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:55:25.434] [32mINFO[39m (44772): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "4aab152c-051d-4585-a1f1-400f606884b1"
+    [35mkind[39m: "service"
+[14:55:27.495] [32mINFO[39m (44772): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "0348d504-11f9-408f-9c64-c8c1580ef85a"
+    [35mproductId[39m: "54854aa6-3cdb-4364-9171-647e147d33c5"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:55:29.645] [32mINFO[39m (44772): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "9499a3e9-2800-4bea-b7f1-b7b213220991"
+    [35mproductId[39m: "f3685ab1-ce6c-4d6d-9325-2a5a7a356529"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:55:29.891] [32mINFO[39m (44772): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "02e74b7c-f501-40a6-92c6-075802aa9980"
+    [35mkind[39m: "service"
+[14:55:29.955] [32mINFO[39m (44772): [36m[storefront] booking cancelled[39m
+    [35morderId[39m: "02e74b7c-f501-40a6-92c6-075802aa9980"
+    [35mby[39m: "buyer"
+    [35mrefundState[39m: "refunded"
+[14:55:31.492] [32mINFO[39m (44772): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "0348d504-11f9-408f-9c64-c8c1580ef85a"
+    [35mproductId[39m: "f3685ab1-ce6c-4d6d-9325-2a5a7a356529"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_2"
+    [35mdiscountCode[39m: null
+[14:55:33.536] [32mINFO[39m (44772): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "9499a3e9-2800-4bea-b7f1-b7b213220991"
+    [35mproductId[39m: "6409d192-c00d-43cf-a2e7-15b04a014fb3"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:55:39.692] [32mINFO[39m (44772): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "9499a3e9-2800-4bea-b7f1-b7b213220991"
+    [35mproductId[39m: "ca20e310-04e4-4092-be23-681618619080"
+    [35morderId[39m: "d64155cb-2d84-493d-9401-9d8d4947f491"
+    [35mkind[39m: "service"
+ [32m✓[39m src/routes/__tests__/storefront-bookings-hardened.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 19674[2mms[22m[39m
+   [32m✓[39m dual-write lifecycle [2m(4)[22m
+     [33m[2m✓[22m[39m checkout writes a held row next to the trailer; verify confirms it; the list shows the booking[33m 5540[2mms[22m[39m
+     [33m[2m✓[22m[39m concurrent holds for the same slot: exactly one wins, the loser gets SLOT_TAKEN, one row exists[33m 1766[2mms[22m[39m
+     [33m[2m✓[22m[39m cancel frees the slot at both layers; a new buyer can take it[33m 3925[2mms[22m[39m
+     [33m[2m✓[22m[39m an expired hardened hold never blocks: a fresh buyer takes the slot and the stale row flips to expired[33m 2119[2mms[22m[39m
+   [32m✓[39m reconciliation with v1 trailer-only bookings [2m(3)[22m
+     [33m[2m✓[22m[39m a legacy confirmed booking (no hardened row) blocks its slot, lists, and backfills cleanly[33m 2678[2mms[22m[39m
+     [33m[2m✓[22m[39m a trailer that says cancelled vetoes its hardened row — the slot is open[33m 1450[2mms[22m[39m
+     [33m[2m✓[22m[39m the $0 claim rail writes a confirmed hardened row[33m 2055[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 14:54:52
+[2m   Duration [22m 47.90s[2m (tests 43%, transform 32%, import 25%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 14.58s[39m[2m · 32% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
