@@ -251,7 +251,11 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
     ["Transitions saved to timeline",  aiEdit.transitionsApplied,           aiEdit.transitionsApplied ? "yes" : "no"],
     ["Active transition now",          activeTransitionLive ? true : null,  activeTransitionType && activeTransitionType !== "Cut" ? activeTransitionType : "none"],
     ["Master player rendering",        activeTransitionLive ? true : null,  activeTransitionLive ? "yes" : "idle"],
-    ["Transition export connected",    false,                               "no (preview only)"],
+    // Stack-100 #3 Lane D (N-05): this row used to claim "no (preview
+    // only)" — stale. Applied transitions are written into settings,
+    // collected by FinalVideoExport as clipTransitions, and rendered by
+    // the export rail (xfade); the panel's own export note says so.
+    ["Transition export connected",    true,                                "yes — burned into export"],
     ["Last transition error",          transitionError ? false : null,      transitionError ?? "none"],
   ];
 

@@ -46,7 +46,7 @@ export function PreviewTransport({
       </div>
 
       <p className="text-[11px] text-white/40 leading-relaxed">
-        This is a browser preview. Final studio-quality rendering/export comes in the next phase.
+        This is a browser preview. For the final studio-quality render, use the Export tab in this studio.
       </p>
 
       <div className="flex items-center gap-2">
