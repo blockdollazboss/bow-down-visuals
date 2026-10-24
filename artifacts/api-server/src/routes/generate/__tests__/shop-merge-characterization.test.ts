@@ -98,7 +98,8 @@ CREATE TABLE shop_products (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
   name text NOT NULL, price_cents integer NOT NULL DEFAULT 0, description text,
   image_url text, image_path text, status text NOT NULL DEFAULT 'active', pinned_ugc_ad_id uuid,
-  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer
 );
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
@@ -106,7 +107,8 @@ CREATE TABLE shop_events (
   platform_fee_cents integer NOT NULL DEFAULT 0, buyer_email text, ip_hash text,
   stripe_session_id text, payment_status text, paid_at timestamptz,
   quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  affiliate_code text
 );
 CREATE TABLE creator_profiles (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text

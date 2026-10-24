@@ -150,6 +150,16 @@ CREATE TABLE email_subscribers (
   subscribed_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE event_rsvps (event_id uuid NOT NULL, user_id uuid NOT NULL, PRIMARY KEY (event_id, user_id));
+CREATE TABLE shops (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL, name text NOT NULL, handle text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE shop_products (
+  id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL, name text NOT NULL,
+  price_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active',
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE affiliate_codes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   code text NOT NULL, affiliate_user_id uuid NOT NULL, seller_user_id uuid NOT NULL,
@@ -199,6 +209,7 @@ beforeEach(async () => {
     name: "gen_random_uuid",
     args: [],
     returns: "uuid" as never,
+    impure: true,
     implementation: () => randomUUID(),
   });
   mem.public.none(DDL);

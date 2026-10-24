@@ -201,6 +201,7 @@ beforeEach(async () => {
     name: "gen_random_uuid",
     args: [],
     returns: "uuid" as never,
+    impure: true,
     implementation: () => randomUUID(),
   });
   mem.public.none(DDL);

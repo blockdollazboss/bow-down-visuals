@@ -261,7 +261,7 @@ router.get("/affiliates/desk", requireAuth, async (req, res) => {
     `);
     interface DeskRow { salesCount: number; grossCents: number; owedCents: number; paidCents: number }
     const blank = (): DeskRow => ({ salesCount: 0, grossCents: 0, owedCents: 0, paidCents: 0 });
-    const fold = (cur: DeskRow, r: Record<string, unknown>): DeskRow => {
+    const fold = <T extends DeskRow>(cur: T, r: Record<string, unknown>): T => {
       cur.salesCount += Number(r["sales_count"] ?? 0);
       cur.grossCents += Number(r["gross_cents"] ?? 0);
       if (r["status"] === "owed") cur.owedCents += Number(r["commission_cents"] ?? 0);

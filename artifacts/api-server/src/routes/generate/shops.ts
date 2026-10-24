@@ -615,6 +615,7 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     res.status(404).json({ error: "Product not found." });
     return;
   }
+  const d = parsed.data;
   /* Affiliates (#16): enabling without a rate in this patch is only
      honest when a rate is already stored (the storefront rail's rule). */
   if (d.affiliate_enabled === true && d.affiliate_commission_bps === undefined) {
@@ -627,7 +628,6 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       return;
     }
   }
-  const d = parsed.data;
   const storedImageUrl = d.image_url
     ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
     : null;
