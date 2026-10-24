@@ -149,6 +149,13 @@ export function applyCoPostAction(
     if (mine.status !== "pending") {
       throw new CoPostError("not_pending", "This co-post isn't waiting on your approval.");
     }
+    /* A side that ended the co-post before it went live (withdrawn /
+       declined) cannot be overridden by a late accept from the other
+       side: consent was withdrawn BEFORE publish, so nothing publishes.
+       Starting a fresh co-post is the only way back. */
+    if (co.sides.some((s) => s.profileId !== actorProfileId && (s.status === "withdrawn" || s.status === "declined"))) {
+      throw new CoPostError("co_post_ended", "This co-post ended before it went live — start a new one instead.");
+    }
     mine.status = "accepted";
     mine.acceptedAt = now;
     return next;

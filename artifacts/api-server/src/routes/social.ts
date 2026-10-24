@@ -94,6 +94,8 @@ import {
 import { logger } from "../lib/logger";
 import { audienceVisible, circleAuthorIdsFor, type AudienceContext } from "../lib/close-friends";
 import { affinityScore, forYouScore, whyReason } from "../lib/for-you";
+import { deriveCoPostState, isCoPostVisibleInFeed } from "../lib/co-posts";
+import { loadCoPostsGuarded, coAuthorSummaries, fetchProfilesById } from "../lib/co-posts-db";
 import { verifyAccessToken } from "../lib/live-ws";
 
 /* ── Instagram auto-post MVP ─────────────────────────────────────────────
@@ -1268,9 +1270,25 @@ function pickProfile(p: typeof creatorProfilesTable.$inferSelect | undefined) {
   };
 }
 
+/** Co-post gate for list/read surfaces (Stack-100 #3, #24): a post with
+ *  co-author sides is Feed-visible only once BOTH sides have approved
+ *  and at least one side still stands behind it. Pending / declined /
+ *  fully-withdrawn co-posts never reach a list surface — the two
+ *  creators manage them through /api/co-posts/mine. Guarded: before
+ *  migration 0205 lands there are no co-post rows and this is a no-op. */
+async function filterCoPostVisible<T extends { id: string }>(rows: T[]): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  const coMap = await loadCoPostsGuarded(rows.map((r) => r.id));
+  if (coMap.size === 0) return rows;
+  return rows.filter((r) => {
+    const co = coMap.get(r.id);
+    return !co || isCoPostVisibleInFeed(co);
+  });
+}
+
 /** One post's read-time visibility for a viewer (Stack 9 #7). */
 async function postVisibleTo(
-  post: { profileId: string; audience: string; removedAt?: Date | string | null },
+  post: { id?: string; profileId: string; audience: string; removedAt?: Date | string | null },
   viewerUserId: string | null,
 ): Promise<boolean> {
   if (post.removedAt) {
@@ -1281,6 +1299,18 @@ async function postVisibleTo(
     if (!viewerUserId) return false;
     const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
     return !!author && author.userId === viewerUserId;
+  }
+  /* Co-post gate (Stack-100 #3, #24): a co-post that hasn't gone live
+     (or that both sides withdrew) exists only for its two creators —
+     for everyone else it is not there to read, reply to, quote or
+     repost. A live one-sided co-post stays visible: the remaining
+     creator keeps theirs. */
+  if (post.id) {
+    const coMap = await loadCoPostsGuarded([post.id]);
+    const co = coMap.get(post.id);
+    if (co && !isCoPostVisibleInFeed(co)) {
+      return !!viewerUserId && co.sides.some((s) => s.userId === viewerUserId);
+    }
   }
   if (post.audience === "public") return true;
   const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
@@ -1471,6 +1501,20 @@ async function enrichPosts(
     }
   }
   const pmap = new Map(profiles.map((p) => [p.id, p]));
+  /* Co-posts (Stack-100 #3, #24): attach BOTH author sides + the derived
+     consent state. The counts on the DTO stay the post row's own single
+     set — co_authors is attribution, never an extra engagement tally.
+     Guarded: pre-migration 0205 the map is empty and every post reads
+     exactly as before. */
+  const coMap = await loadCoPostsGuarded(postIds);
+  const coProfileIds = [...new Set([...coMap.values()].flatMap((co) => co.sides.map((s) => s.profileId)))].filter(
+    (id) => !pmap.has(id),
+  );
+  const allProfiles = new Map(pmap);
+  if (coProfileIds.length > 0) {
+    const extra = await fetchProfilesById(coProfileIds);
+    for (const [id, p] of extra) allProfiles.set(id, p);
+  }
   const qmap = new Map(quotes.map((q) => [String(q.id), q]));
   const countMap = new Map<string, Record<string, number>>();
   const viewerEmoji = new Map<string, string>();
@@ -1531,6 +1575,14 @@ async function enrichPosts(
            identity never ride this DTO. */
         moderation_removed: !!p.removedAt,
         removal_reason: p.removedAt ? (p.removalReason ?? null) : null,
+        /* Co-post attribution (Stack-100 #3, #24): both creators, in
+           side order, plus the consent state. A withdrawn side stays
+           listed with status "withdrawn" for the remaining author's
+           honest record, but the card only bylines sides still
+           standing (status "accepted"). */
+        is_co_post: coMap.has(p.id),
+        co_post_state: coMap.has(p.id) ? deriveCoPostState(coMap.get(p.id)!) : null,
+        co_authors: coMap.has(p.id) ? coAuthorSummaries(coMap.get(p.id)!, allProfiles) : [],
         author: author
           ? {
               ...author,
@@ -2000,7 +2052,7 @@ router.get("/feed", requireAuth, async (req: Request, res: Response) => {
       const rows = await db.select().from(postsTable)
         .where(and(...conds))
         .orderBy(desc(postsTable.createdAt)).limit(limit);
-      const visible = await filterVisiblePosts(rows, actx);
+      const visible = await filterVisiblePosts(await filterCoPostVisible(rows), actx);
       const enriched = await enrichPosts(visible, req.userId!);
       return res.json({ mode, posts: enriched });
     }
@@ -2014,7 +2066,7 @@ router.get("/feed", requireAuth, async (req: Request, res: Response) => {
     const rows = await db.select().from(postsTable)
       .where(and(...conds))
       .orderBy(desc(postsTable.createdAt)).limit(150);
-    const visibleRows = await filterVisiblePosts(rows, actx);
+    const visibleRows = await filterVisiblePosts(await filterCoPostVisible(rows), actx);
     const affinityByProfile = await computeAffinity(req.userId!);
     const now = Date.now();
     const scored = visibleRows
@@ -2714,7 +2766,7 @@ router.get("/hashtag/:tag/posts", async (req: Request, res: Response) => {
     const viewer = (req as Request & { userId?: string }).userId ?? null;
     /* Read-time audience enforcement (Stack 9 #7) on the hashtag surface too. */
     const ctx = await audienceContext(viewer);
-    const visible = await filterVisiblePosts(matched, ctx);
+    const visible = await filterVisiblePosts(await filterCoPostVisible(matched), ctx);
     return res.json({ tag, posts: await enrichPosts(visible, viewer) });
   } catch {
     return res.status(500).json({ error: "hashtag_failed" });
