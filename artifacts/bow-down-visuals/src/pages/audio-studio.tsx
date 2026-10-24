@@ -25,6 +25,7 @@ import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
 import { RateMyMix } from "@/components/audio-studio/RateMyMix";
 import ArrangementStudio from "@/components/audio-studio/ArrangementStudio";
 import { PodcastTranscriptEditor } from "@/components/audio-studio/PodcastTranscriptEditor";
+import { PodcastPublishPanel } from "@/components/audio-studio/PodcastPublishPanel";
 import { LufsPanel } from "@/components/audio/LufsPanel";
 import { DeverbPanel } from "@/components/audio/DeverbPanel";
 import { VocalTunePanel } from "@/components/audio/VocalTunePanel";
@@ -3618,6 +3619,9 @@ export default function AudioStudio() {
           {tab === "arrange" ? <ArrangementStudio /> : tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? (
             <div className="space-y-8">
               <PodcastStudio />
+              <div className="border-t border-white/[0.08] pt-6">
+                <PodcastPublishPanel />
+              </div>
               <div className="border-t border-white/[0.08] pt-6">
                 <PodcastTranscriptEditor />
               </div>

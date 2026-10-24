@@ -371,6 +371,8 @@ describe("ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces f
 
 const W6_NS = ["promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "locations", "milestones", "lufs", "presave", "release", "stabilize", "create", "press-public", "captionSuite", "outreach", "press-kit", "videoEditor", "contentIntelligence", "moveHome", "podcast", "hubSpine", "admin", "nav", "cover-art", "videoExport", "analyticsHub", "djSets", "share", "wave9", "brandingKit", "dashboard", "paidSeries", "proFinishing", "review", "tutorials", "wave8"];
 const W6_ALLOW = new Set([
+  "podcast.publish.appleHeading",
+  "podcast.publish.spotifyHeading",
   "lufs.formatMp3",
   "lufs.formatWav",
   "promote.hero.titleAccent",
