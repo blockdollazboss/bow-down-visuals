@@ -765,7 +765,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                     <td colSpan={7} className="px-4 py-4">
                       <p className="text-xs font-bold text-white">Add-on offer for “{p.title}”</p>
                       <p className="mt-0.5 text-[11px] text-white/45">
-                        At checkout, buyers see this one extra product with a tick box — same single charge, delivered together. The flat 5% platform fee applies to the add-on too. Free lead magnets can't ride as add-ons.
+                        At checkout, buyers see this one extra product with a tick box — same single charge, delivered together. If they skip it, they're offered it once more right after paying, in one click on the card they just used. The flat 5% platform fee applies to the add-on too. Free lead magnets can't ride as add-ons.
                       </p>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <select

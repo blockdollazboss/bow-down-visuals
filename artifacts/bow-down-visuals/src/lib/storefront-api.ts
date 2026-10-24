@@ -74,9 +74,10 @@ export interface StoreProductDTO {
 /* Removed 2026-10-10: FeeSplit was only used by dead getProduct. */
 
 /** One receipt line: the main purchase, plus the add-on as its own
-    line when the order carries one (feature #13). */
+    line when the order carries one (feature #13). A post-purchase
+    upsell order's single line carries role "upsell" (Wave 3). */
 export interface OrderLineDTO {
-  role: "main" | "bump";
+  role: "main" | "bump" | "upsell";
   productId: string | null;
   title: string;
   kind: string | null;
@@ -96,6 +97,9 @@ export interface StoreOrderDTO {
   platformFeeCents: number; platformFee: string; platformFeePct: number;
   netCents: number; net: string;
   lines: OrderLineDTO[];
+  /** Post-purchase upsell orders (Wave 3) link to the prompting order. */
+  parentOrderId?: string | null;
+  isUpsell?: boolean;
   discountCode: string | null;
   status: string;
   fulfillmentNote: string | null;
@@ -205,6 +209,64 @@ export const checkoutProduct = (
   }>("/checkout", input, token);
 
 /* Removed 2026-10-10: verifyPurchase + myPurchases were dead (zero imports). */
+
+/* ── Post-purchase upsell (Wave 3): the designated add-on, offered
+   once after a purchase completes. One click charges the payment
+   method the completed checkout saved — the price and fee figures
+   are the server's snapshot, exactly what accept charges. */
+export interface UpsellOfferDTO {
+  orderId: string;
+  productId: string;
+  title: string;
+  kind: string;
+  listPriceCents: number; listPrice: string;
+  percentOff: number;
+  priceCents: number; price: string;
+  platformFeeCents: number; platformFee: string; platformFeePct: number;
+  creatorCents: number; creatorAmount: string;
+  paymentMethod: { brand: string | null; last4: string | null } | null;
+  note: string;
+}
+
+export interface UpsellReceiptLineDTO {
+  role: "upsell";
+  productId: string | null;
+  title: string;
+  kind: string | null;
+  quantity: number;
+  grossCents: number; gross: string;
+  platformFeeCents: number; platformFee: string;
+  creatorCents: number; creatorAmount: string;
+}
+
+export interface UpsellOrderDTO {
+  id: string;
+  parentOrderId: string | null;
+  isUpsell: boolean;
+  productId: string | null;
+  productTitle: string;
+  productKind: string;
+  quantity: number;
+  amountCents: number; amount: string;
+  platformFeeCents: number; platformFee: string; platformFeePct: number;
+  creatorAmountCents: number; creatorAmount: string;
+  fulfillmentNote: string | null;
+  lines: UpsellReceiptLineDTO[];
+}
+
+export const getUpsellOffer = (token: string, orderId: string) =>
+  get<{ upsell: UpsellOfferDTO | null }>(`/orders/${orderId}/upsell`, token);
+
+export const acceptUpsell = (token: string, orderId: string) =>
+  post<{
+    success: boolean; duplicate: boolean;
+    order: UpsellOrderDTO | null;
+    delivery: { url: string; expiresAt: string; maxUses: number } | null;
+    note: string;
+  }>(`/orders/${orderId}/upsell/accept`, {}, token);
+
+export const declineUpsell = (token: string, orderId: string) =>
+  post<{ ok: boolean; status: string; duplicate?: boolean }>(`/orders/${orderId}/upsell/decline`, {}, token);
 
 /* ── Seller ─────────────────────────────────────────────────────────── */
 export const createProduct = (token: string, input: CreateProductInput) =>
