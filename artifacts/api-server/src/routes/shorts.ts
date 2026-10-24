@@ -16,6 +16,27 @@ import { requireAuth } from "../middlewares/require-auth";
 import { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto } from "./challenge-engine";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { ALT_TEXT_MAX_CHARS, sanitizeAltText } from "../lib/alt-text";
+
+/* #29: profile_videos.thumbnail_alt_text lands via a held migration
+   (numbering assigned at join). Probe once and cache — the same
+   graceful-degradation pattern as publish.ts's season probe — so the
+   shorts door keeps working before the column lands: the creator's
+   cover description is accepted and simply not stored yet. */
+let shortAltColKnown: boolean | null = null;
+async function profileVideosHasAltText(): Promise<boolean> {
+  if (shortAltColKnown !== null) return shortAltColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM information_schema.columns
+      WHERE table_name = 'profile_videos' AND column_name = 'thumbnail_alt_text'
+    `);
+    shortAltColKnown = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+  } catch {
+    shortAltColKnown = false;
+  }
+  return shortAltColKnown;
+}
 
 /* Mirror-on-save (2026-10-13 law): short videos/thumbnails/sounds and
    challenge covers are re-hosted into permanent storage at save time;
@@ -124,6 +145,7 @@ interface ShortRow extends Record<string, unknown> {
   title: string;
   video_url: string;
   thumbnail_url: string | null;
+  thumbnail_alt_text?: string | null;
   description: string;
   tags: string[];
   duration_sec: number;
@@ -163,6 +185,7 @@ function shapeShort(r: ShortRow) {
     title: r.title,
     video_url: r.video_url,
     thumbnail_url: r.thumbnail_url,
+    thumbnail_alt_text: r.thumbnail_alt_text ?? null,
     description: r.description,
     tags: r.tags ?? [],
     duration_sec: num(r.duration_sec),
@@ -301,6 +324,9 @@ const postShortSchema = z.object({
   title: z.string().trim().min(1).max(120),
   video_url: z.string().url().max(2048),
   thumbnail_url: z.string().url().max(2048).optional().nullable(),
+  /* #29: accessibility description of the cover frame — creator-written
+     or AI-suggested, editable before it ships. */
+  thumbnail_alt_text: z.string().max(ALT_TEXT_MAX_CHARS).optional().nullable(),
   description: z.string().max(2000).optional().default(""),
   tags: z.array(z.string().trim().max(40)).max(30).optional().default([]),
   duration_sec: z.number().int().min(0).max(180).optional().default(0),
@@ -353,6 +379,18 @@ async function insertShort(
       : null,
     isPublished: b.is_published ?? true,
   }).returning();
+
+  /* #29 cover alt text: set via a separate best-effort UPDATE, only when
+     the probe says the column exists — the insert itself never carries
+     it, so a pre-migration database publishes the short exactly as
+     before and the description is simply not stored yet. */
+  const coverAltText = sanitizeAltText(b.thumbnail_alt_text);
+  if (coverAltText && inserted && (await profileVideosHasAltText())) {
+    await db
+      .execute(sql`UPDATE profile_videos SET thumbnail_alt_text = ${coverAltText} WHERE id = ${inserted.id}`)
+      .catch(() => {});
+    (inserted as Record<string, unknown>)["thumbnailAltText"] = coverAltText;
+  }
 
   if (soundId) await refreshSoundUseCount(soundId);
 
@@ -414,6 +452,7 @@ const linkShortSchema = z.object({
   title: z.string().trim().min(1).max(120),
   video_url: z.string().url().max(2048),
   thumbnail_url: z.string().url().max(2048).optional().nullable(),
+  thumbnail_alt_text: z.string().max(ALT_TEXT_MAX_CHARS).optional().nullable(),
   description: z.string().max(2000).optional().default(""),
   tags: z.array(z.string().trim().max(40)).max(30).optional().default([]),
   duration_sec: z.number().int().min(0).max(180).optional().default(0),
