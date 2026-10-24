@@ -7072,7 +7072,18 @@
       "soundtrackTitle": "Trilha sonora anexada",
       "subtitle": "Suas próprias músicas, clipes e capas — adicione sem reenviar. Grátis: já são seus.",
       "title": "Minha Biblioteca",
-      "useAsSoundtrack": "Usar como trilha sonora"
+      "useAsSoundtrack": "Usar como trilha sonora",
+      "madeWith": "Feito com",
+      "madeBy": "por {{name}}",
+      "aiBadge": "Gerado por IA",
+      "licence": "Licença",
+      "saveLicence": "Salvar",
+      "licenceSaved": "Salvo",
+      "licenceSaveFailed": "Não foi possível salvar a licença. Tente novamente.",
+      "certificate": "Certificado de licença",
+      "certificateFailed": "Não foi possível criar o certificado. Tente novamente.",
+      "history": "Histórico",
+      "disclosureNote": "As exportações incluem, por padrão, uma divulgação de IA nos detalhes do arquivo — você pode desativá-la em cada exportação."
     },
     "outOfBucsTitle": "Sem Visual Bucs",
     "preProDesc": "Planeje seu vídeo antes de construir — do conceito à lista de cenas.",
@@ -11551,7 +11562,9 @@
     "videoOnlySuffix": " · apenas vídeo",
     "withAudioSuffix": " · com áudio",
     "yes": "sim",
-    "yesWith": "sim ({{value}})"
+    "yesWith": "sim ({{value}})",
+    "aiDisclosure": "Divulgação de IA nos detalhes do arquivo",
+    "aiDisclosureHint": "Indica nos metadados que este vídeo foi criado por IA — as plataformas exigem isso cada vez mais."
   },
   "outOfCredits": {
     "addedBtn": "Visual Bucs adicionados!",
@@ -11983,7 +11996,8 @@
     "needVideo": "Primeiro escolha ou gere um vídeo.",
     "slideshowTitle": "Pacote de apresentação",
     "slideshowBlurb": "Uma pasta com as imagens do seu conjunto, pronta para apontar um protetor de tela de apresentação para ela — sem vídeo, só sua arte girando na tela.",
-    "slideshowButton": "Baixar o pacote de apresentação (.zip)"
+    "slideshowButton": "Baixar o pacote de apresentação (.zip)",
+    "aiDisclosure": "Divulgação de IA nos detalhes do arquivo"
   },
   "memberships": {
     "activeMembers": "Membros ativos",

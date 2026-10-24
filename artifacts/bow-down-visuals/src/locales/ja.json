@@ -7058,7 +7058,18 @@
       "soundtrackTitle": "サウンドトラックを添付しました",
       "subtitle": "あなた自身の曲、クリップ、カバー — 再アップロードなしで追加できます。無料：すでにあなたのものです。",
       "title": "マイライブラリ",
-      "useAsSoundtrack": "サウンドトラックとして使う"
+      "useAsSoundtrack": "サウンドトラックとして使う",
+      "madeWith": "作成ツール",
+      "madeBy": "{{name}} 作",
+      "aiBadge": "AI生成",
+      "licence": "ライセンス",
+      "saveLicence": "保存",
+      "licenceSaved": "保存しました",
+      "licenceSaveFailed": "ライセンスを保存できませんでした。もう一度お試しください。",
+      "certificate": "ライセンス証明書",
+      "certificateFailed": "証明書を作成できませんでした。もう一度お試しください。",
+      "history": "履歴",
+      "disclosureNote": "エクスポートにはデフォルトでファイル詳細にAI開示が含まれます。エクスポートごとにオフにできます。"
     },
     "outOfBucsTitle": "Visual Bucsが不足しています",
     "preProDesc": "作る前にビデオを計画 — コンセプトからショットリストまで。",
@@ -11528,7 +11539,9 @@
     "videoOnlySuffix": " · 動画のみ",
     "withAudioSuffix": " · 音声付き",
     "yes": "はい",
-    "yesWith": "はい（{{value}}）"
+    "yesWith": "はい（{{value}}）",
+    "aiDisclosure": "ファイル詳細にAI開示",
+    "aiDisclosureHint": "この動画がAIで作成されたことをメタデータに記載します。プラットフォームの要件として増えています。"
   },
   "outOfCredits": {
     "addedBtn": "Visual Bucsが追加されました！",
@@ -11960,7 +11973,8 @@
     "needVideo": "まず動画を選ぶか生成してください。",
     "slideshowTitle": "スライドショーパック",
     "slideshowBlurb": "セットの画像フォルダーで、スライドショーのスクリーンセーバーに指定するだけ — 動画ではなく、あなたのアートが画面で入れ替わります。",
-    "slideshowButton": "スライドショーパックをダウンロード (.zip)"
+    "slideshowButton": "スライドショーパックをダウンロード (.zip)",
+    "aiDisclosure": "ファイル詳細にAI開示"
   },
   "memberships": {
     "badge": "ファンクラブ",

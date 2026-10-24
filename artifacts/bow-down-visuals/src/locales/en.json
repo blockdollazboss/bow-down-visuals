@@ -7618,7 +7618,18 @@
       "emptyFilter": "Nothing of this kind in your library yet.",
       "useAsSoundtrack": "Use as soundtrack",
       "addToTimeline": "Add to timeline",
-      "foot": "The same library your other desks read — one library, everywhere."
+      "foot": "The same library your other desks read — one library, everywhere.",
+      "madeWith": "Made with",
+      "madeBy": "by {{name}}",
+      "aiBadge": "AI-generated",
+      "licence": "Licence",
+      "saveLicence": "Save",
+      "licenceSaved": "Saved",
+      "licenceSaveFailed": "Couldn't save the licence — try again.",
+      "certificate": "Licence certificate",
+      "certificateFailed": "Couldn't build the certificate — try again.",
+      "history": "History",
+      "disclosureNote": "Exports carry an AI disclosure in their file details by default — you can turn it off per export."
     }
   },
   "viralityCheck": {
@@ -14455,7 +14466,9 @@
     "videoOnlySuffix": " · video only",
     "withAudioSuffix": " · with audio",
     "yes": "yes",
-    "yesWith": "yes ({{value}})"
+    "yesWith": "yes ({{value}})",
+    "aiDisclosure": "AI disclosure in file details",
+    "aiDisclosureHint": "Names this video as AI-created in its metadata — destinations increasingly require it."
   },
   "outOfCredits": {
     "addTestBtn": "Add 10 Test Visual Bucs (dev)",
@@ -14606,6 +14619,7 @@
     "needVideo": "Pick or generate a video first.",
     "slideshowTitle": "Slideshow pack",
     "slideshowBlurb": "A folder of your set's images, ready to point a slideshow screensaver at — no video, just your art rotating on screen.",
-    "slideshowButton": "Download the slideshow pack (.zip)"
+    "slideshowButton": "Download the slideshow pack (.zip)",
+    "aiDisclosure": "AI disclosure in file details"
   }
 }

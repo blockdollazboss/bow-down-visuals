@@ -7059,7 +7059,18 @@
       "soundtrackTitle": "사운드트랙이 연결되었습니다",
       "subtitle": "내 곡, 클립, 커버 — 다시 업로드하지 않고 추가하세요. 무료입니다. 이미 내 것이니까요.",
       "title": "내 라이브러리",
-      "useAsSoundtrack": "사운드트랙으로 사용"
+      "useAsSoundtrack": "사운드트랙으로 사용",
+      "madeWith": "제작 도구",
+      "madeBy": "제작: {{name}}",
+      "aiBadge": "AI 생성",
+      "licence": "라이선스",
+      "saveLicence": "저장",
+      "licenceSaved": "저장됨",
+      "licenceSaveFailed": "라이선스를 저장하지 못했습니다. 다시 시도하세요.",
+      "certificate": "라이선스 인증서",
+      "certificateFailed": "인증서를 만들지 못했습니다. 다시 시도하세요.",
+      "history": "기록",
+      "disclosureNote": "내보낸 파일에는 기본적으로 파일 세부정보에 AI 공개가 포함됩니다. 내보낼 때마다 끌 수 있습니다."
     },
     "outOfBucsTitle": "Visual Bucs 부족",
     "preProDesc": "만들기 전에 비디오를 기획하세요 — 콘셉트부터 샷 리스트까지.",
@@ -11531,7 +11542,9 @@
     "videoOnlySuffix": " · 동영상만",
     "withAudioSuffix": " · 오디오 포함",
     "yes": "예",
-    "yesWith": "예 ({{value}})"
+    "yesWith": "예 ({{value}})",
+    "aiDisclosure": "파일 세부정보에 AI 공개",
+    "aiDisclosureHint": "이 동영상이 AI로 제작되었음을 메타데이터에 표시합니다. 플랫폼에서 점점 더 요구하고 있습니다."
   },
   "outOfCredits": {
     "addedBtn": "Visual Bucs가 추가됐습니다!",
@@ -11963,7 +11976,8 @@
     "needVideo": "먼저 영상을 고르거나 생성하세요.",
     "slideshowTitle": "슬라이드쇼 팩",
     "slideshowBlurb": "세트 이미지 폴더로, 슬라이드쇼 화면 보호기가 가리키기만 하면 됩니다 — 영상 없이, 당신의 아트만 화면에서 돌아갑니다.",
-    "slideshowButton": "슬라이드쇼 팩 다운로드 (.zip)"
+    "slideshowButton": "슬라이드쇼 팩 다운로드 (.zip)",
+    "aiDisclosure": "파일 세부정보에 AI 공개"
   },
   "memberships": {
     "badge": "팬 클럽",

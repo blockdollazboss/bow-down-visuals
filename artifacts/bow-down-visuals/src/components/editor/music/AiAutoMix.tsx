@@ -34,6 +34,8 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
   const [generating, setGenerating]       = useState(false);
   const [outOfCredits, setOutOfCredits]   = useState(false);
   const [rendering, setRendering]         = useState(false);
+  /* AI disclosure in the exported file's tags (lane F7) — on by default. */
+  const [aiDisclosure, setAiDisclosure]   = useState(true);
   const [renderError, setRenderError]     = useState<string | null>(null);
   const [renderResult, setRenderResult]   = useState<AudioExportRecord | null>(null);
 
@@ -77,6 +79,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
       const btn = AUDIO_EXPORT_BUTTONS.find((b) => b.id === "full-mp3")!;
       const resp = await requestAudioExport(token, {
         exportType: btn.id,
+        aiDisclosure,
         masterVolume: ms.master.volume,
         masterSettings: {
           volume:         ms.master.volume,
@@ -283,6 +286,16 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
                   : <><Download className="h-4 w-4 mr-2" /> Render Mix MP3</>}
               </Button>
             </div>
+            <label className="flex cursor-pointer items-center gap-2 text-[11px] text-white/55">
+              <input
+                type="checkbox"
+                checked={aiDisclosure}
+                onChange={(e) => setAiDisclosure(e.target.checked)}
+                className="h-3.5 w-3.5 accent-primary"
+                data-testid="ai-mix-disclosure-toggle"
+              />
+              Include AI disclosure in the file's tags — destinations increasingly require it.
+            </label>
 
             {rendering && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.06] border border-primary/20">

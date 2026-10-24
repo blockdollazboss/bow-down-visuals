@@ -7072,7 +7072,18 @@
       "soundtrackTitle": "Colonna sonora allegata",
       "subtitle": "Le tue canzoni, clip e cover — aggiungile senza ricaricarle. Gratis: sono già tue.",
       "title": "La Mia Libreria",
-      "useAsSoundtrack": "Usa come colonna sonora"
+      "useAsSoundtrack": "Usa come colonna sonora",
+      "madeWith": "Creato con",
+      "madeBy": "di {{name}}",
+      "aiBadge": "Generato con IA",
+      "licence": "Licenza",
+      "saveLicence": "Salva",
+      "licenceSaved": "Salvato",
+      "licenceSaveFailed": "Impossibile salvare la licenza. Riprova.",
+      "certificate": "Certificato di licenza",
+      "certificateFailed": "Impossibile creare il certificato. Riprova.",
+      "history": "Cronologia",
+      "disclosureNote": "Per impostazione predefinita, le esportazioni includono una dichiarazione IA nei dettagli del file — puoi disattivarla per ogni esportazione."
     },
     "outOfBucsTitle": "Visual Bucs esauriti",
     "preProDesc": "Pianifica il tuo video prima di costruirlo — dal concetto alla lista delle inquadrature.",
@@ -11551,7 +11562,9 @@
     "videoOnlySuffix": " · solo video",
     "withAudioSuffix": " · con audio",
     "yes": "sì",
-    "yesWith": "sì ({{value}})"
+    "yesWith": "sì ({{value}})",
+    "aiDisclosure": "Dichiarazione IA nei dettagli del file",
+    "aiDisclosureHint": "Dichiara nei metadati che questo video è stato creato con l'IA — le piattaforme lo richiedono sempre più spesso."
   },
   "outOfCredits": {
     "addedBtn": "Visual Bucs aggiunti!",
@@ -11983,7 +11996,8 @@
     "needVideo": "Prima scegli o genera un video.",
     "slideshowTitle": "Pacchetto presentazione",
     "slideshowBlurb": "Una cartella con le immagini del tuo set, pronta da indicare a un salvaschermo a presentazione — niente video, solo la tua arte che ruota sullo schermo.",
-    "slideshowButton": "Scarica il pacchetto presentazione (.zip)"
+    "slideshowButton": "Scarica il pacchetto presentazione (.zip)",
+    "aiDisclosure": "Dichiarazione IA nei dettagli del file"
   },
   "memberships": {
     "activeMembers": "Membri attivi",

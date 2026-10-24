@@ -7072,7 +7072,18 @@
       "soundtrackTitle": "Banda sonora adjunta",
       "subtitle": "Tus propias canciones, clips y portadas — agrégalos sin volver a subirlos. Gratis: ya son tuyos.",
       "title": "Mi Biblioteca",
-      "useAsSoundtrack": "Usar como banda sonora"
+      "useAsSoundtrack": "Usar como banda sonora",
+      "madeWith": "Hecho con",
+      "madeBy": "por {{name}}",
+      "aiBadge": "Generado por IA",
+      "licence": "Licencia",
+      "saveLicence": "Guardar",
+      "licenceSaved": "Guardado",
+      "licenceSaveFailed": "No se pudo guardar la licencia. Inténtalo de nuevo.",
+      "certificate": "Certificado de licencia",
+      "certificateFailed": "No se pudo crear el certificado. Inténtalo de nuevo.",
+      "history": "Historial",
+      "disclosureNote": "Las exportaciones incluyen por defecto una divulgación de IA en los detalles del archivo; puedes desactivarla en cada exportación."
     },
     "outOfBucsTitle": "Sin Visual Bucs",
     "preProDesc": "Planifica tu video antes de construirlo — del concepto a la lista de tomas.",
@@ -12435,7 +12446,9 @@
     "videoOnlySuffix": " · solo video",
     "withAudioSuffix": " · con audio",
     "yes": "sí",
-    "yesWith": "sí ({{value}})"
+    "yesWith": "sí ({{value}})",
+    "aiDisclosure": "Divulgación de IA en los detalles del archivo",
+    "aiDisclosureHint": "Indica en los metadatos que este video fue creado con IA; las plataformas lo exigen cada vez más."
   },
   "outOfCredits": {
     "addedBtn": "¡Visual Bucs añadidos!",
@@ -12867,7 +12880,8 @@
     "needVideo": "Primero elige o genera un video.",
     "slideshowTitle": "Paquete de presentación",
     "slideshowBlurb": "Una carpeta con las imágenes de tu conjunto, lista para que un salvapantallas de presentación apunte a ella: sin video, solo tu arte rotando en pantalla.",
-    "slideshowButton": "Descargar el paquete de presentación (.zip)"
+    "slideshowButton": "Descargar el paquete de presentación (.zip)",
+    "aiDisclosure": "Divulgación de IA en los detalles del archivo"
   },
   "moneyTracker": {
     "title": "Money Tracker",
