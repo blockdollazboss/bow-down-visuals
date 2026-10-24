@@ -369,4 +369,14 @@ endpoint sweep, spot-verified in this lane) — zero dead endpoints.
   Pro-mode only): design-level, not built.
 - ExportSection dead caption-export "coming soon" branch: deletion-class
   cleanup, needs the deletion word.
-- Clean full FE suite pass owed at join (see Verification).
+- Clean full FE suite pass: DELIVERED in the continuation (below).
+
+## CONTINUATION VERIFICATION (finished logs only, .lane/logs/)
+- FULL FE suite: 353 files / 4,708 tests — ALL PASS (fe-full-continuation.log).
+  The pass owed since the first run died at 292/350 is now landed in-lane.
+- FE typecheck: exit 0 (after A-10, after translator, after N-08 + apply).
+- API typecheck: exit 0 (api-tsc-continuation.log).
+- A-10 pins: 5/5 (fe-a10-poll.log). Translator: FE 21/21 (incl. corrected
+  pins), API 17/17, lyric API 31/31. N-08: honesty 8/8 + rail-truth 21/21.
+  Lab apply: helper pins 6/6; locale family 196/196 (guard 4286);
+  editor area 26/26.
