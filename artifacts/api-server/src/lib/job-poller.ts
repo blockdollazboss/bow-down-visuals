@@ -151,6 +151,7 @@ export async function runPollerTick(): Promise<void> {
        the 24h lead window (DB-backed, restart-safe, exactly-once). */
     await notifyDueBookingReminders().catch((err) =>
       logger.error({ err }, "[job-poller] booking reminder phase failed"),
+    );
     /* Viral Spike Watch: baseline-relative spike detection over
        play_events, alerting through the notifications bell rail.
        Internally throttled (SPIKE_WATCH_INTERVAL_MS, default 1h) and
