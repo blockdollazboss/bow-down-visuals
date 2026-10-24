@@ -1,6 +1,6 @@
 /**
  * Wallpapers / Screensavers — route pins over HTTP (express + mocked rails):
- *  - presets endpoint returns exactly the 10 presets with exact pixels;
+ *  - presets endpoint returns exactly the 15 presets with exact pixels;
  *  - render rejects unknown preset (400) and non-http source (400), free success;
  *  - screensaver rejects phone preset (400) and 402s when broke, charges 400;
  *  - pack-download rejects empty urls (400) and streams a zip on success;
@@ -95,14 +95,19 @@ import { saveGeneration } from "../../lib/save-generation";
 
 const EXPECTED: Array<[string, string, string, number, number]> = [
   ["phone-iphone-promax", "phone", "iPhone Pro Max", 1320, 2868],
+  ["phone-iphone-pro", "phone", "iPhone Pro", 1206, 2622],
   ["phone-iphone", "phone", "iPhone", 1179, 2556],
   ["phone-android-flagship", "phone", "Android Flagship", 1440, 3120],
   ["phone-android", "phone", "Android", 1080, 2400],
   ["tablet-ipad-pro", "tablet", "iPad Pro", 2048, 2732],
   ["tablet-ipad", "tablet", "iPad", 1640, 2360],
+  ["tablet-ipad-mini", "tablet", "iPad mini", 1488, 2266],
   ["desktop-fhd", "desktop", "Desktop Full HD", 1920, 1080],
+  ["laptop-macbook-14", "desktop", "MacBook Pro 14\"", 3024, 1964],
+  ["laptop-16-10", "desktop", "Laptop 16:10", 2880, 1800],
   ["desktop-qhd", "desktop", "Desktop QHD", 2560, 1440],
   ["desktop-4k", "desktop", "Desktop 4K", 3840, 2160],
+  ["desktop-5k", "desktop", "Desktop 5K", 5120, 2880],
   ["desktop-ultrawide", "desktop", "Ultrawide", 3440, 1440],
 ];
 
@@ -163,8 +168,8 @@ async function call(method: string, path: string, body?: unknown, credits?: numb
 }
 
 describe("wallpaper presets (pure)", () => {
-  it("has exactly the 10 presets with exact pixel dimensions", () => {
-    expect(WALLPAPER_PRESETS).toHaveLength(10);
+  it("has exactly the 15 presets with exact pixel dimensions", () => {
+    expect(WALLPAPER_PRESETS).toHaveLength(15);
     for (const [key, kind, label, width, height] of EXPECTED) {
       const p = presetByKey(key);
       expect(p, key).toBeTruthy();
@@ -297,10 +302,10 @@ describe("wallpaper presets (pure)", () => {
 });
 
 describe("wallpapers routes (HTTP)", () => {
-  it("GET /wallpapers/presets returns exactly the 10 presets", async () => {
+  it("GET /wallpapers/presets returns exactly the 15 presets", async () => {
     const { status, json } = await call("GET", "/wallpapers/presets");
     expect(status).toBe(200);
-    expect(json.presets).toHaveLength(10);
+    expect(json.presets).toHaveLength(15);
     for (const [key, , , width, height] of EXPECTED) {
       const p = json.presets.find((x: any) => x.key === key);
       expect(p, key).toBeTruthy();
