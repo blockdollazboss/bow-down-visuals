@@ -1,0 +1,25 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server[39m
+
+[01:28:13.497] [32mINFO[39m (61817): [36m[memberships] past-due update-payment checkout created[39m
+    [35mmemberId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mtierId[39m: "44444444-4444-4444-8444-444444444444"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35msessionId[39m: "cs_test_dunning"
+ [32m✓[39m src/routes/__tests__/memberships-dunning.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2114[2mms[22m[39m
+   [32m✓[39m GET /memberships/mine — the fan hears it before access ends [2m(2)[22m
+     [33m[2m✓[22m[39m a past-due seat carries since / access-ends / days-left, still reading past_due in grace[33m 683[2mms[22m[39m
+   [32m✓[39m POST /memberships/mine/:id/update-payment — the fan's card-update door [2m(3)[22m
+     [33m[2m✓[22m[39m returns a Stripe-hosted checkout shaped like a join, and marks NOTHING paid[33m 337[2mms[22m[39m
+     [33m[2m✓[22m[39m 409s a seat that isn't past due, 404s another fan's seat, 401s guests[33m 344[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 01:27:27
+[2m   Duration [22m 47.59s[2m (import 49%, transform 46%, tests 5%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 20.50s[39m[2m · 46% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
