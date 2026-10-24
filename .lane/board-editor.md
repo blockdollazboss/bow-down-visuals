@@ -86,8 +86,33 @@ ColorCurves scopes/histogram (real frame data), TimelineDock ruler + beat ticks,
 SongWorkflow transcription (/api/transcribe-url), mobile section sheet (pinned,
 every section reachable), LipSyncSection single-clip + preview rails, KB editor entry.
 
-## FIX LOG
-- F-1 (D-01) — pending
-- F-2 (D-02 + D-03) — pending
-- F-3 (D-04) — pending
-- F-4 (D-05) — pending
+## FIX LOG — ALL BUILT + COMMITTED on stack29/editor
+- F-1 (D-01) — ec767789: confirm copy 5 → 400 Visual Bucs; API route comment corrected.
+- F-2 (D-02 + D-03) — e492cdc6: single-clip lip sync wired (scene-test rail,
+  scenes by projectId, computeSceneTimings windows, poll, result + download);
+  false "not connected" banner (named rival services) replaced with truthful
+  copy; image button stays honestly disabled; Stack-28 #43 pin updated.
+- F-3 (D-04) — bda7ad0c: overlayProtectFace wired (center-ellipse mask over the
+  visual-effects layer in ActiveOverlayEffects; page passes the setting); pins added.
+- F-4 (D-05) — 12dc8246: StemList waveform renders real peaks via getAudioPeaks;
+  fake bars only as loading/failure fallback; pins added.
+
+## VERIFICATION (finished logs only, .lane/logs/)
+- FE typecheck: 0 errors. API typecheck: EXIT 0 (api-tsc.log).
+- Editor area: 6 files / 39 tests PASS (fe-editor-area.log).
+- Editor lib: 9 files / 73 tests PASS (fe-editor-lib.log).
+- New/updated pins: face-protect 3/3, stem-waveform 3/3, lipsync 4/4.
+- Full FE suite: run was KILLED mid-run by a service restart after 292/350
+  files (~4,213 tests) — all green except src/lib/world/money-desks.test.ts
+  (1 test, 220 s under three-lane contention), proven a load flake by
+  standalone rerun: 17/17 PASS in 9 s (money-desks-rerun.log). The remaining
+  ~58 files were not reached by that log; the lane's own surface is covered
+  by the targeted runs above. A clean full-suite pass is still owed at join.
+
+## LEFT ON THE BOARD
+- D-06 dead settings fields (board-only; deletion needs owner word).
+- LipSyncStudio single-IMAGE button: still honestly disabled — no still→clip
+  rail exists anywhere in the codebase. Building one is a feature decision.
+- ExportDoctor (5,623 lines) was not deep-audited in this lane.
+- Out-of-lane stale-price flags (lyric-video, video-translator) for parent.
+- Clean full FE suite pass owed at join (see Verification).

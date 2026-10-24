@@ -1,0 +1,12 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-editor/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/world/money-desks.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 636[2mms[22m[39m
+   [32m✓[39m 61 · credit packs [2m(2)[22m
+     [33m[2m✓[22m[39m the pack table matches the server's PACK_MAP and the page's prices[33m 548[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 01:34:03
+[2m   Duration [22m 4.06s[2m (transform 56%, tests 33%, import 10%, worker 1%)[22m
+
