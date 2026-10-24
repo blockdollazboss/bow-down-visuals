@@ -852,18 +852,11 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
 
           {/* 2-3★: guided */}
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-min-stars="2">
-            <select aria-label=\"Product type\" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
+            <select aria-label="Product type" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
               {/* 'course' is not listed here on purpose: a course needs
                   a curriculum, so it is created in the Course Builder
                   docked below this tab — never as a bare product. */}
               {(Object.keys(KIND_LABELS) as StoreProductKind[]).filter((k) => k !== "course").map((k) => (
-||||||| f96d7b72
-            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
-              {(Object.keys(KIND_LABELS) as StoreProductKind[]).map((k) => (
-=======
-            <select aria-label="Product type" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as StoreProductKind })} className={inputCls}>
-              {(Object.keys(KIND_LABELS) as StoreProductKind[]).map((k) => (
->>>>>>> stack29/w3-a11y-sweep
                 <option key={k} value={k}>{KIND_EMOJI[k]} {KIND_LABELS[k]}</option>
               ))}
             </select>

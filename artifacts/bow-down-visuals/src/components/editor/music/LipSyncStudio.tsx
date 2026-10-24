@@ -323,8 +323,8 @@ export function LipSyncStudio({
    * editor's LipSyncSection drives it — and this component can now load the
    * project's own scenes via projectId and compute their song windows with
    * the editor's own computeSceneTimings, the same source the section uses.
-   * The single-IMAGE action stays disabled: no still→clip rail exists. */
-  const { confirmedFetch } = useConfirmedApi();
+   * (confirmedFetch is destructured once, above, beside the W3 lane-7
+   * still→clip state — both flows confirm charges through it.) */
 
   interface ClipSceneOption {
     index: number;
