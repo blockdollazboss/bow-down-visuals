@@ -6,7 +6,7 @@
  * Visual Bucs. Keep the two economies separate in every label.
  */
 
-export type StoreProductKind = "download" | "merch" | "digital" | "service" | "ticket";
+export type StoreProductKind = "download" | "merch" | "digital" | "service" | "ticket" | "gift_card";
 
 export interface RelatedLink { label: string; url: string; }
 
@@ -39,6 +39,8 @@ export interface StoreProductDTO {
   unlimited: boolean;
   mediaUrls: string[];
   serviceDetails: ServiceDetails | null;
+  /** kind='gift_card': seller-set amounts (cents) the buyer picks from. */
+  giftCardDenominationsCents: number[] | null;
   eventId: string | null;
   relatedLinks: RelatedLink[];
   isActive: boolean;
@@ -103,6 +105,7 @@ export interface CreateProductInput {
   inventory?: number;
   mediaUrls?: string[];
   serviceDetails?: ServiceDetails | null;
+  giftCardDenominationsCents?: number[] | null;
   eventId?: string | null;
   relatedLinks?: RelatedLink[];
   isActive?: boolean;
@@ -145,11 +148,11 @@ export const validateDiscount = (profileId: string, code: string) =>
 /* ── Buyer ──────────────────────────────────────────────────────────── */
 export const checkoutProduct = (
   token: string,
-  input: { productId: string; quantity?: number; discountCode?: string }
+  input: { productId: string; quantity?: number; discountCode?: string; giftCardCode?: string }
 ) =>
   post<{
-    url: string; sessionId: string;
-    totals: { unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string; percentOff: number; discountCode: string | null; platformFeeCents: number; creatorCents: number };
+    url: string | null; sessionId: string | null; paid?: boolean; paidWithGiftCard?: boolean; orderId?: string;
+    totals: { unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string; percentOff: number; discountCode: string | null; giftCardAppliedCents?: number; amountDueCents?: number; platformFeeCents: number; creatorCents: number };
   }>("/checkout", input, token);
 
 /* Removed 2026-10-10: verifyPurchase + myPurchases were dead (zero imports). */
@@ -261,6 +264,7 @@ export const KIND_LABELS: Record<StoreProductKind, string> = {
   digital: "Digital",
   service: "Service",
   ticket: "Ticket",
+  gift_card: "Gift card",
 };
 
 export const KIND_EMOJI: Record<StoreProductKind, string> = {
@@ -269,4 +273,63 @@ export const KIND_EMOJI: Record<StoreProductKind, string> = {
   digital: "💾",
   service: "📅",
   ticket: "🎟️",
+  gift_card: "🎁",
 };
+
+/* ── Gift cards (Stack-100 #3 #26) ─────────────────────────────────────
+   Stored value for ONE creator's whole store — real money, never
+   Visual Bucs. Bought for a recipient (email delivery), redeemed as
+   tender inside the existing checkouts. */
+const GIFT_BASE = "/api/gift-cards";
+
+export interface GiftCardDTO {
+  id: string;
+  codeLast4: string;
+  status: string;
+  initialCents: number;
+  balanceCents: number;
+  reservedCents: number;
+  availableCents: number;
+  recipientEmail: string;
+  storeName: string | null;
+  createdAt: string;
+}
+
+async function giftReq<T>(path: string, token: string | null, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${GIFT_BASE}${path}`, { ...init, headers: { ...headers, ...(init?.headers ?? {}) } });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const err = data as { error?: string; message?: string };
+    throw new Error(err.message ?? err.error ?? `Request failed (${res.status})`);
+  }
+  return data as T;
+}
+
+export const giftCardCheckout = (
+  token: string,
+  input: { productId: string; amountCents: number; recipientEmail: string; recipientName?: string; message?: string }
+) => giftReq<{ url: string; sessionId: string; amountCents: number; amount: string }>("/checkout", token, { method: "POST", body: JSON.stringify(input) });
+
+export const giftCardBalance = (code: string) =>
+  giftReq<{
+    card: { codeLast4: string; status: string; balanceCents: number; balance: string; availableCents: number; initialCents: number };
+    store: { name: string; url: string } | null;
+    note: string;
+  }>(`/balance?code=${encodeURIComponent(code)}`, null);
+
+export const myGiftCards = (token: string) =>
+  giftReq<{ bought: GiftCardDTO[]; received: GiftCardDTO[] }>("/mine", token);
+
+export const soldGiftCards = (token: string) =>
+  giftReq<{
+    store: { name: string };
+    liability: { issuedCents: number; issued: string; outstandingCents: number; outstanding: string; cardCount: number; note: string };
+    cards: GiftCardDTO[];
+  }>("/sold", token);
+
+export const refundGiftCard = (token: string, id: string) =>
+  giftReq<{ success: boolean; duplicate: boolean; refundedCents: number; refunded: string; note: string }>(
+    `/${id}/refund`, token, { method: "POST", body: JSON.stringify({}) }
+  );

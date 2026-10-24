@@ -266,7 +266,11 @@ export function planShopifyImport(
 
     if (!rawTitle) { rejectGroup("No product Title — the product's first row must carry its Title."); continue; }
     if ((productRow.values["Gift Card"] ?? "").trim().toLowerCase() === "true") {
-      rejectGroup("Gift cards can't be imported as store products — Bow Down has no gift-card listing kind.");
+      /* Gift cards ARE a store kind now (Stack-100 #3 #26), but a CSV
+         row can't carry the seller-set denominations a Bow Down gift
+         card is sold from — creating one here would invent amounts.
+         Honest rejection, with the real door named. */
+      rejectGroup("Gift cards can't be imported from a CSV — create the gift card in your store dashboard instead, where you set the amounts fans can pick.");
       continue;
     }
 

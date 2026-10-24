@@ -23,6 +23,7 @@ export const PRODUCT_KIND_LABELS: Record<string, string> = {
   digital: "Digital product",
   service: "Service",
   ticket: "Ticket",
+  gift_card: "Gift card",
 };
 
 interface ProductData {
@@ -40,6 +41,8 @@ interface ProductData {
     soldOut: boolean;
     unlimited: boolean;
     mediaUrls: string[];
+    /** kind='gift_card': seller-set amounts (cents) to pick from. */
+    giftCardDenominationsCents?: number[] | null;
     links: {
       creatorUrl: string;
       creatorName: string;
@@ -80,6 +83,15 @@ export default function StorefrontProduct() {
   const [shared, setShared] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [discountCode, setDiscountCode] = useState("");
+  /* Gift cards (Stack-100 #3 #26): tender beside the discount code on
+     normal products; a full purchase flow on gift-card products. */
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [giftAmount, setGiftAmount] = useState<number | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
+  const [giftIssued, setGiftIssued] = useState<{ code: string | null; note: string } | null>(null);
+  const [paidWithGiftCard, setPaidWithGiftCard] = useState(false);
   /* Lead-magnet claim state (0190). */
   const [claimEmail, setClaimEmail] = useState("");
   const [claimName, setClaimName] = useState("");
@@ -178,6 +190,41 @@ export default function StorefrontProduct() {
     }
   }
 
+  const isGiftCard = data?.product.kind === "gift_card";
+
+  /* Returning from a gift-card checkout: verify the paid session,
+     which issues the card and emails the code to the recipient. */
+  useEffect(() => {
+    const qs = new URLSearchParams(window.location.search);
+    const sessionId = qs.get("session_id");
+    if (qs.get("gift") !== "success" || !sessionId || !user) return;
+    let alive = true;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/gift-cards/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ sessionId }),
+        });
+        const body = (await res.json().catch(() => ({}))) as { code?: string | null; codeNote?: string; error?: string; message?: string };
+        if (!alive) return;
+        if (!res.ok) {
+          setBuyError(body.message || body.error || "Your payment landed but the gift card needs a hand — contact support with your receipt.");
+          return;
+        }
+        setGiftIssued({ code: body.code ?? null, note: body.codeNote ?? "" });
+      } catch {
+        if (alive) setBuyError("Couldn't confirm the gift card just now — your payment is recorded; reload to try again.");
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   async function buyNow() {
     if (!data) return;
     if (!user) {
@@ -188,6 +235,31 @@ export default function StorefrontProduct() {
     setBuyError(null);
     try {
       const token = await getAccessToken();
+      if (isGiftCard) {
+        /* A gift card is bought FOR someone: amount from the seller's
+           denominations, delivery to the recipient's email. */
+        const amount = giftAmount ?? data.product.giftCardDenominationsCents?.[0];
+        if (!amount) throw new Error("Pick an amount first.");
+        if (!recipientEmail.trim()) throw new Error("Add the recipient's email — the gift card is delivered there, not to you.");
+        const res = await fetch("/api/gift-cards/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            productId: data.product.id,
+            amountCents: amount,
+            recipientEmail: recipientEmail.trim(),
+            ...(recipientName.trim() ? { recipientName: recipientName.trim() } : {}),
+            ...(giftMessage.trim() ? { message: giftMessage.trim() } : {}),
+          }),
+        });
+        const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+        if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
+        window.location.href = body.url;
+        return;
+      }
       const res = await fetch("/api/storefront/checkout", {
         method: "POST",
         headers: {
@@ -198,10 +270,17 @@ export default function StorefrontProduct() {
           productId: data.product.id,
           quantity,
           ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
+          ...(giftCardCode.trim() ? { giftCardCode: giftCardCode.trim() } : {}),
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
+      const body = (await res.json().catch(() => ({}))) as { url?: string | null; paidWithGiftCard?: boolean; error?: string; message?: string };
+      if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+      /* The gift card covered the whole bill — no hosted checkout. */
+      if (body.paidWithGiftCard) {
+        setPaidWithGiftCard(true);
+        return;
+      }
+      if (!body.url) throw new Error("Checkout failed.");
       window.location.href = body.url;
     } catch (err) {
       setBuyError(err instanceof Error ? err.message : "Checkout failed.");
@@ -276,7 +355,7 @@ export default function StorefrontProduct() {
                     {isFree ? (
                       <span className="text-3xl font-bold text-amber-300">FREE</span>
                     ) : (
-                      <span className="text-3xl font-bold text-amber-300">{data.product.price}</span>
+                      <span className="text-3xl font-bold text-amber-300">{isGiftCard ? `from ${data.product.price}` : data.product.price}</span>
                     )}
                   </span>
                 </div>
@@ -284,6 +363,11 @@ export default function StorefrontProduct() {
                   <p className="mt-3 flex items-start gap-1.5 border-t border-amber-500/10 pt-3 text-xs text-amber-100/60">
                     <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
                     Free from {data.product.links.creatorName} — claim it with your email and it's delivered instantly. Claiming adds your email to their list; every email carries an unsubscribe link. No card, no charge.
+                  </p>
+                ) : isGiftCard ? (
+                  <p className="mt-3 flex items-start gap-1.5 border-t border-amber-500/10 pt-3 text-xs text-amber-100/60">
+                    <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                    Every cent you buy is a cent they can spend — no platform fee is taken from a gift card. It works on anything in {data.product.links.creatorName}'s store, a little at a time or all at once.
                   </p>
                 ) : (
                   <>
@@ -375,6 +459,76 @@ export default function StorefrontProduct() {
                     </>
                   )}
                 </div>
+              ) : giftIssued ? (
+                <div className="mt-6 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5 text-center">
+                  <div className="text-lg font-bold text-emerald-200">Gift card sent! 🎁</div>
+                  <p className="mt-1 text-sm text-emerald-100/80">
+                    It's on its way to the recipient's email — they can spend it on anything in {data.product.links.creatorName}'s store.
+                  </p>
+                  {giftIssued.code && (
+                    <p className="mt-3 text-sm text-emerald-100/80">
+                      The code (shown once): <span className="font-mono font-bold text-emerald-100">{giftIssued.code}</span>
+                    </p>
+                  )}
+                  {giftIssued.note && <p className="mt-2 text-xs text-emerald-100/60">{giftIssued.note}</p>}
+                </div>
+              ) : paidWithGiftCard ? (
+                <div className="mt-6 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5 text-center">
+                  <div className="text-lg font-bold text-emerald-200">Paid in full with your gift card 🎉</div>
+                  <p className="mt-1 text-sm text-emerald-100/80">No card payment was taken — whatever balance is left stays on your gift card for next time.</p>
+                </div>
+              ) : isGiftCard ? (
+                <div className="mt-6">
+                  <div className="flex flex-wrap gap-2">
+                    {(data.product.giftCardDenominationsCents ?? []).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setGiftAmount(c)}
+                        className={`rounded-full border px-5 py-2.5 font-bold transition ${
+                          (giftAmount ?? data.product.giftCardDenominationsCents?.[0]) === c
+                            ? "border-amber-300 bg-amber-400 text-black"
+                            : "border-amber-500/30 text-amber-100 hover:bg-amber-500/10"
+                        }`}
+                      >
+                        ${(c / 100).toFixed(0)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    <input
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      type="email"
+                      placeholder="Recipient's email — the card is delivered there"
+                      aria-label="Recipient email"
+                      className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                    />
+                    <input
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      placeholder="Recipient's name (optional)"
+                      aria-label="Recipient name"
+                      className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                    />
+                    <input
+                      value={giftMessage}
+                      onChange={(e) => setGiftMessage(e.target.value)}
+                      placeholder="Add a note (optional)"
+                      aria-label="Gift message"
+                      className="rounded-full border border-amber-500/30 bg-black/60 px-4 py-3 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                    />
+                  </div>
+                  {buyError && <p className="mt-3 text-sm font-bold text-red-300">{buyError}</p>}
+                  <button
+                    onClick={buyNow}
+                    disabled={buying}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                  >
+                    {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                    {buying ? "Opening secure checkout…" : user ? "Send this gift card" : "Sign in to send a gift card"}
+                  </button>
+                </div>
               ) : (
                 <>
                   <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -406,6 +560,18 @@ export default function StorefrontProduct() {
                       aria-label="Discount code"
                       className="min-w-44 flex-1 rounded-full border border-amber-500/30 bg-black/60 px-4 py-2 text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
                     />
+                  </div>
+                  <div className="mt-3">
+                    <input
+                      value={giftCardCode}
+                      onChange={(e) => setGiftCardCode(e.target.value)}
+                      placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
+                      aria-label="Gift card code"
+                      className="w-full rounded-full border border-amber-500/30 bg-black/60 px-4 py-2 font-mono text-sm text-amber-100 outline-none placeholder:text-amber-100/35 focus:border-amber-400"
+                    />
+                    <p className="mt-1.5 text-xs text-amber-100/45">
+                      Paying with a gift card? It covers what it can and the rest goes on your card — whatever's left stays on the gift card.
+                    </p>
                   </div>
                   {buyError && <p className="mt-3 text-sm font-bold text-red-300">{buyError}</p>}
                   <button
