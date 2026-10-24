@@ -34,13 +34,52 @@ export interface RelatedLink {
   url: string;
 }
 
-/** service_details shape for kind='service': calendar integration is a STUB
- *  (booking_calendar_link) — real two-way calendar sync is a later build. */
+/** One weekly availability window (wall-clock in the creator's timezone).
+ *  weekday: 0 = Sunday … 6 = Saturday (JS Date convention). */
+export interface BookingWindow {
+  weekday: number;
+  start: string; // "HH:MM"
+  end: string; // "HH:MM"
+}
+
+/** Per-date override: replaces the weekly windows for that creator-local
+ *  date; windows: null closes the day entirely. */
+export interface BookingDayOverride {
+  date: string; // "YYYY-MM-DD", creator-local
+  windows: Array<{ start: string; end: string }> | null;
+}
+
+/** Native booking availability for a service product. Slot math lives in
+ *  the api-server (lib/booking-slots.ts); slots are stored as UTC
+ *  instants on the order (fulfillment_note codec, lib/booking-note.ts). */
+export interface BookingAvailability {
+  /** The creator's IANA timezone — weekly windows are wall-clock here. */
+  timezone: string;
+  weekly: BookingWindow[];
+  overrides?: BookingDayOverride[];
+  /** Minutes between slot starts; default = duration + buffer. */
+  slot_step_min?: number;
+  /** Breathing room kept around every booking; default 0. */
+  buffer_min?: number;
+  /** Slots must start at least this many minutes from now; default 0. */
+  min_notice_min?: number;
+  /** How far ahead slots are offered; default 60. */
+  max_advance_days?: number;
+}
+
+/** service_details shape for kind='service'. Native calendar booking is
+ *  REAL (booking_enabled + availability): buyers pick an open slot and
+ *  pay through storefront checkout. booking_calendar_link survives as an
+ *  optional external link only — two-way sync with external calendars
+ *  (Google/Apple) is still a later build. */
 export interface ServiceDetails {
   duration_min?: number;
   location?: string;
   booking_calendar_link?: string;
   notes?: string;
+  /** Turn native calendar booking on for this service. */
+  booking_enabled?: boolean;
+  availability?: BookingAvailability;
 }
 
 export const storeProductsTable = pgTable("store_products", {

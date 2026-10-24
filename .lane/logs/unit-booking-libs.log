@@ -1,0 +1,16 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bookings/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/booking-slots.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 617[2mms[22m[39m
+   [32m✓[39m zonedTimeToUtc / ymdInTimeZone [2m(4)[22m
+     [33m[2m✓[22m[39m resolves a winter wall time in New York to UTC-5[33m 323[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/booking-note.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 259[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 00:43:21
+[2m   Duration [22m 7.69s[2m (transform 50%, tests 29%, import 9%, setup 6%, worker 5%)[22m
+
+[2m    Isolate [22m [33m2 workers spawned[39m[2m · ~2.19s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~2.19s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

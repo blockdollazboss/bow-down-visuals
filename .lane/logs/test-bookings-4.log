@@ -1,0 +1,71 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bookings/artifacts/api-server[39m
+
+[01:12:40.339] [32mINFO[39m (56657): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a943c72e-e2ea-4eb1-9e48-a55d0fd4c61c"
+    [35mproductId[39m: "77646f44-8d3c-4087-acb9-a785f614d890"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:12:42.107] [32mINFO[39m (56657): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a943c72e-e2ea-4eb1-9e48-a55d0fd4c61c"
+    [35mproductId[39m: "5076180a-dade-459d-a2bf-e117f03a1883"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:12:43.129] [32mINFO[39m (56657): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a943c72e-e2ea-4eb1-9e48-a55d0fd4c61c"
+    [35mproductId[39m: "14a4d43b-1306-4d83-acf5-4f7a58a05d6a"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:12:45.854] [32mINFO[39m (56657): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a943c72e-e2ea-4eb1-9e48-a55d0fd4c61c"
+    [35mproductId[39m: "605f763d-3bc8-4c5d-be1d-93c7ba2ab85d"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:12:47.338] [32mINFO[39m (56657): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "a943c72e-e2ea-4eb1-9e48-a55d0fd4c61c"
+    [35mproductId[39m: "06c36c64-6b31-4023-9564-00096dab7e5b"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[01:12:47.549] [32mINFO[39m (56657): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "9f1f189d-c1e7-42ee-b7d2-347c9d7176ca"
+    [35mkind[39m: "service"
+[01:12:47.735] [32mINFO[39m (56657): [36m[storefront] verify: duplicate ignored[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "9f1f189d-c1e7-42ee-b7d2-347c9d7176ca"
+ [32m✓[39m src/routes/__tests__/storefront-bookings.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 16304[2mms[22m[39m
+   [32m✓[39m slots endpoint — a real calendar, in UTC [2m(5)[22m
+     [33m[2m✓[22m[39m serves open slots anchored to the creator's wall clock, stored as UTC[33m 4054[2mms[22m[39m
+     [33m[2m✓[22m[39m a non-bookable service says so instead of inventing slots[33m 354[2mms[22m[39m
+     [33m[2m✓[22m[39m a confirmed booking removes its slot from the calendar[33m 683[2mms[22m[39m
+     [33m[2m✓[22m[39m a per-date override day-off closes that creator-local date[33m 549[2mms[22m[39m
+     [33m[2m✓[22m[39m an expired hold (older than the 30-minute TTL) frees its slot[33m 2761[2mms[22m[39m
+   [32m✓[39m checkout — the hold is the double-book lock [2m(6)[22m
+     [33m[2m✓[22m[39m a bookable service refuses checkout without a picked slot[33m 551[2mms[22m[39m
+     [33m[2m✓[22m[39m checkout places the hold first, then the session (expiry + booking metadata)[33m 1221[2mms[22m[39m
+     [33m[2m✓[22m[39m the same slot cannot be sold twice — second buyer 409s, holder is told it's theirs[33m 1586[2mms[22m[39m
+     [33m[2m✓[22m[39m an off-grid time is refused — buyers pick from the grid, not arbitrary minutes[33m 864[2mms[22m[39m
+     [33m[2m✓[22m[39m a slot sent for a non-bookable product is refused, not silently ignored[33m 724[2mms[22m[39m
+     [33m[2m✓[22m[39m plain non-booking checkout still works end to end[33m 543[2mms[22m[39m
+   [32m✓[39m verify — the hold becomes the booking [2m(1)[22m
+     [33m[2m✓[22m[39m verify confirms the hold in place, pings the creator once, and a repeat verify is a no-op[33m 2005[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m12 passed[39m[22m[90m (12)[39m
+[2m   Start at [22m 01:11:52
+[2m   Duration [22m 55.65s[2m (import 36%, transform 32%, tests 31%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 16.93s[39m[2m · 32% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

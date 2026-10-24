@@ -1,0 +1,82 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-bookings/artifacts/api-server[39m
+
+ [31m❯[39m src/lib/__tests__/zz-probe-distinct.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1196[2mms[22m[39m
+   [31m❯[39m probe: pg-mem capabilities for the bookings lane [2m(4)[22m
+[31m     [31m×[31m IS NOT DISTINCT FROM runs[39m[33m 722[2mms[22m[39m
+     [32m✓[39m db.transaction works with raw execute[32m 205[2mms[22m[39m
+     [32m✓[39m LIKE with the booking trailer marker works[32m 159[2mms[22m[39m
+     [32m✓[39m UPDATE ... SET col = col takes a row lock shape (no-op update)[32m 100[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/__tests__/zz-probe-distinct.test.ts[2m > [22mprobe: pg-mem capabilities for the bookings lane[2m > [22mIS NOT DISTINCT FROM runs
+[31m[1mError[22m: Failed query: SELECT COUNT(*)::int AS c FROM t WHERE b IS NOT DISTINCT FROM $1
+params: [39m
+[90m [2m❯[22m NodePgPreparedQuery.queryWithCache ../../../bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/src/pg-core/session.ts:[2m73:11[22m[39m
+[36m [2m❯[22m src/lib/__tests__/zz-probe-distinct.test.ts:[2m9:15[22m[39m
+    [90m  7|[39m     const { db, mem } = createTestDb();
+    [90m  8|[39m     mem.public.none(`CREATE TABLE t (a text, b text); INSERT INTO t VA…
+    [90m  9|[39m     const r = await db.execute(sql`SELECT COUNT(*)::int AS c FROM t WH…
+    [90m   |[39m               [31m^[39m
+    [90m 10|[39m     expect(Number((r.rows[0] as any).c)).toBe(1);
+    [90m 11|[39m   });
+
+[31m[1mCaused by: Error[22m: 💔 Your query failed to parse.
+This is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.
+If this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a query that reproduces this syntax error.
+
+👉 Failed query:
+
+    SELECT COUNT(*)::int AS c FROM t WHERE b IS NOT DISTINCT FROM null;
+
+💀 Syntax error at line 1 col 49:
+
+1  SELECT COUNT(*)::int AS c FROM t WHERE b IS NOT DISTINCT FROM null;
+                                                   ^
+Unexpected kw_distinct token: "distinct". Instead, I was expecting to see one of the following:
+
+    - A "kw_null" token
+    - A "kw_true" token
+    - A "kw_false" token
+
+[39m
+[90m [2m❯[22m parseSql ../../../bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:[2m5631:15[22m[39m
+[90m [2m❯[22m DbSchema.parse ../../../bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:[2m7647:47[22m[39m
+[90m [2m❯[22m DbSchema.prepare ../../../bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:[2m7626:33[22m[39m
+[90m [2m❯[22m DbSchema.query ../../../bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:[2m7609:21[22m[39m
+[90m [2m❯[22m MemPg.query ../../../bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:[2m13491:76[22m[39m
+[36m [2m❯[22m Object.query src/lib/__tests__/test-db.ts:[2m77:94[22m[39m
+[90m [2m❯[22m ../../../bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/session.js:[2m113:33[22m[39m
+[90m [2m❯[22m NodePgPreparedQuery.queryWithCache ../../../bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:[2m39:22[22m[39m
+[90m [2m❯[22m ../../../bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/session.js:[2m112:23[22m[39m
+[90m [2m❯[22m Object.startActiveSpan ../../../bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/tracing.js:[2m8:14[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ data: { error: '💔 Your query failed to parse.
+This is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.
+If this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a query that reproduces this syntax error.
+
+👉 Failed query:
+
+    SELECT COUNT(*)::int AS c FROM t WHERE b IS NOT DISTINCT FROM null;
+
+💀 Syntax error at line 1 col 49:
+
+1  SELECT COUNT(*)::int AS c FROM t WHERE b IS NOT DISTINCT FROM null;
+                                                   ^
+Unexpected kw_distinct token: "distinct". Instead, I was expecting to see one of the following:
+
+    - A "kw_null" token
+    - A "kw_true" token
+    - A "kw_false" token
+
+', code: undefined }, code: undefined }[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 01:00:11
+[2m   Duration [22m 10.22s[2m (import 72%, tests 14%, transform 11%, worker 1%, setup 1%)[22m
+
