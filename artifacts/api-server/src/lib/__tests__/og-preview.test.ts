@@ -76,6 +76,15 @@ describe("matchShareableRoute", () => {
     ["/join/djshark", { kind: "join", param: "djshark" }],
     ["/c/shark-card", { kind: "card", param: "shark-card" }],
     ["/press/djshark", { kind: "press", param: "djshark" }],
+    /* W3 lane 16 (D-6): public landings that previously had no card. */
+    ["/premiere/550e8400-e29b-41d4-a716-446655440000", { kind: "premiere", param: "550e8400-e29b-41d4-a716-446655440000" }],
+    ["/live/550e8400-e29b-41d4-a716-446655440001", { kind: "live", param: "550e8400-e29b-41d4-a716-446655440001" }],
+    ["/storefront/product/550e8400-e29b-41d4-a716-446655440002", { kind: "product", param: "550e8400-e29b-41d4-a716-446655440002" }],
+    ["/photo-preset/golden-hour", { kind: "photo-preset", param: "golden-hour" }],
+    ["/collection/djshark", { kind: "collection", param: "djshark" }],
+    ["/splits/0123abcdef", { kind: "splits", param: "0123abcdef" }],
+    ["/unlock/vip-drop", { kind: "unlock", param: "vip-drop" }],
+    ["/challenge/summer-banger/winners", { kind: "challenge-winners", param: "summer-banger" }],
   ])("matches %s", (path, expected) => {
     expect(matchShareableRoute(path)).toEqual(expected);
   });
@@ -137,6 +146,24 @@ describe("genericCard", () => {
     const card = genericCard({ kind: "review", param: "tok12345678901234567890" }, ORIGIN);
     expect(card.robots).toBe("noindex, nofollow");
   });
+
+  it("noindexes splits agreements (unguessable share slugs, D-6)", () => {
+    const card = genericCard({ kind: "splits", param: "0123abcdef" }, ORIGIN);
+    expect(card.robots).toBe("noindex, nofollow");
+    expect(card.url).toBe(`${ORIGIN}/splits/0123abcdef`);
+  });
+
+  it("builds canonical-shaped URLs for the W3 lane 16 kinds", () => {
+    expect(genericCard({ kind: "product", param: "p12345" }, ORIGIN).url).toBe(
+      `${ORIGIN}/storefront/product/p12345`,
+    );
+    expect(genericCard({ kind: "challenge-winners", param: "summer" }, ORIGIN).url).toBe(
+      `${ORIGIN}/challenge/summer/winners`,
+    );
+    expect(genericCard({ kind: "premiere", param: "p12345" }, ORIGIN).url).toBe(
+      `${ORIGIN}/premiere/p12345`,
+    );
+  });
 });
 
 describe("buildOgHtml", () => {
@@ -175,6 +202,29 @@ describe("buildOgHtml", () => {
     const html = buildOgHtml({ ...card, videoUrl: "https://cdn.example.com/v.mp4", videoType: "video/mp4" });
     expect(html).toContain(`<meta property="og:video" content="https://cdn.example.com/v.mp4" />`);
     expect(html).toContain(`<meta property="og:video:type" content="video/mp4" />`);
+  });
+
+  it("emits image dimensions only for the known 1200x630 brand cards (D-4)", () => {
+    const brand = buildOgHtml(card); // card.image is og-fallback.png
+    expect(brand).toContain(`<meta property="og:image:width" content="1200" />`);
+    expect(brand).toContain(`<meta property="og:image:height" content="630" />`);
+    const entity = buildOgHtml({ ...card, image: "https://cdn.example.com/art-800x800.png" });
+    expect(entity).not.toContain("og:image:width");
+    expect(entity).not.toContain("og:image:height");
+  });
+
+  it("canonical strips the ?ref= suffix while og:url keeps it (D-5)", () => {
+    const html = buildOgHtml({
+      ...card,
+      url: `${ORIGIN}/albums/midnight-tape?ref=SHARK1`,
+      canonicalUrl: `${ORIGIN}/albums/midnight-tape`,
+    });
+    expect(html).toContain(
+      `<link rel="canonical" href="${ORIGIN}/albums/midnight-tape" />`,
+    );
+    expect(html).toContain(
+      `<meta property="og:url" content="${ORIGIN}/albums/midnight-tape?ref=SHARK1" />`,
+    );
   });
 
   it("includes a meta-refresh + link back into the SPA", () => {

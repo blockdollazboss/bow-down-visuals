@@ -12,7 +12,7 @@ import { stripeWebhookHandler } from "./lib/stripe-webhook";
 import { resendWebhookHandler } from "./lib/resend-webhook";
 import { stagingGate } from "./lib/staging-gate";
 import { publicSubscribeCors, PUBLIC_SUBSCRIBE_PATH } from "./lib/public-subscribe-door";
-import { ogPreviewMiddleware } from "./lib/og-preview";
+import { ogPreviewMiddleware, siteOrigin } from "./lib/og-preview";
 import { cacheControlForFile, spaFallbackStatus } from "./lib/cache-policy";
 import { getWaitlistInvitePublic } from "./routes/waitlist";
 
@@ -187,9 +187,12 @@ app.get("/invite/:code", async (req: Request, res: Response, next: NextFunction)
       res.status(404).send("Invite not found.");
       return;
     }
-    const host = req.get("host") ?? "bowdownvisuals.com";
-    const proto = req.get("x-forwarded-proto") ?? req.protocol;
-    const pageUrl = `${proto}://${host}/invite/${data.code}`;
+    /* Canonical/OG URLs always use the canonical site origin — never
+       the request Host header, which would mint staging/onrender (or
+       attacker-supplied) hosts into canonicals and share cards
+       (W3 lane 16, D-8). */
+    const origin = siteOrigin();
+    const pageUrl = `${origin}/invite/${data.code}`;
     const title = `#${data.position} on the Bow Down Visuals waitlist — skip the line with me`;
     const description =
       `${data.invitesCount} ${data.invitesCount === 1 ? "friend has" : "friends have"} joined through this link. ` +
@@ -202,13 +205,15 @@ app.get("/invite/:code", async (req: Request, res: Response, next: NextFunction)
       `<meta property="og:description" content="${escapeHtml(description)}" />` +
       `<meta property="og:type" content="website" />` +
       `<meta property="og:url" content="${escapeHtml(pageUrl)}" />` +
-      `<meta property="og:image" content="${proto}://${host}/opengraph.jpg" />` +
+      `<meta property="og:image" content="${origin}/opengraph.jpg" />` +
       `<meta property="og:image:width" content="1200" />` +
       `<meta property="og:image:height" content="630" />` +
+      `<meta property="og:image:alt" content="Bow Down Visuals — the content creator's cheat code" />` +
       `<meta name="twitter:card" content="summary_large_image" />` +
       `<meta name="twitter:title" content="${escapeHtml(title)}" />` +
       `<meta name="twitter:description" content="${escapeHtml(description)}" />` +
-      `<meta name="twitter:image" content="${proto}://${host}/opengraph.jpg" />` +
+      `<meta name="twitter:image" content="${origin}/opengraph.jpg" />` +
+      `<meta name="twitter:image:alt" content="Bow Down Visuals — the content creator's cheat code" />` +
       `<link rel="canonical" href="${escapeHtml(pageUrl)}" />` +
       `<meta name="theme-color" content="#d4af37" /></head><body>` +
       `<p>Redirecting to Bow Down Visuals…</p>` +

@@ -8,6 +8,9 @@
      src/lib/prerender-sitemap-lockdown.test.ts. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://bowdownvisuals.com/</loc></url>
+  <!-- W3 lane 16 (D-11): /world is public by the owner's law (home +
+       World are the two always-public surfaces) and was missing. -->
+  <url><loc>https://bowdownvisuals.com/world</loc></url>
   <url><loc>https://bowdownvisuals.com/charts</loc></url>
   <url><loc>https://bowdownvisuals.com/shorts</loc></url>
   <url><loc>https://bowdownvisuals.com/beats</loc></url>

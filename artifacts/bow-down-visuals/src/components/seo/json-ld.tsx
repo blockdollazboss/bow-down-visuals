@@ -23,8 +23,11 @@ export const ORGANIZATION_JSON_LD = {
   name: "Bow Down Visuals",
   url: SITE_URL,
   logo: `${SITE_URL}/logo-static.webp`,
+  /* Aligned with the site meta description (index.html) — the older
+     "song lyrics, music video treatments…" line was a stale, narrower
+     description contradicting the cards (W3 lane 16, D-10). */
   description:
-    "Bow Down Visuals is an AI-powered creative studio for content creators, generating song lyrics, music video treatments, promo content, and thumbnails.",
+    "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
   sameAs: [],
 };
 

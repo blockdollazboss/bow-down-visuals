@@ -88,6 +88,12 @@ const LOCKED_ROUTES = [
 
 const SITEMAP_PUBLIC_SET = [
   "/",
+  /* W3 lane 16 (D-11) deliberate revisit: /world is public by the
+     owner's law (home + World are the two always-public surfaces) and
+     belongs in the sitemap; it was missing. Auth / transactional /
+     token publics (/login, /signup, /store/success, /review/:token…)
+     stay unlisted on purpose. */
+  "/world",
   "/charts",
   "/shorts",
   "/beats",

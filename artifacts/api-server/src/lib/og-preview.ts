@@ -38,6 +38,11 @@ import {
   shopsTable,
   nfcProfilesTable,
   pressKitsTable,
+  premieresTable,
+  liveStreamsTable,
+  shopProductsTable,
+  photoPresetsTable,
+  socialUnlockGatesTable,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { logger } from "./logger";
@@ -126,7 +131,15 @@ export type ShareKind =
   | "tips"
   | "join"
   | "card"
-  | "press";
+  | "press"
+  | "premiere"
+  | "live"
+  | "product"
+  | "photo-preset"
+  | "collection"
+  | "splits"
+  | "unlock"
+  | "challenge-winners";
 
 export interface ShareMatch {
   kind: ShareKind;
@@ -162,6 +175,16 @@ const ROUTE_PATTERNS: Array<{ kind: ShareKind; re: RegExp }> = [
   { kind: "join", re: new RegExp(`^/join/(${SLUG_RE})$`) },
   { kind: "card", re: new RegExp(`^/c/(${SLUG_RE})$`) },
   { kind: "press", re: new RegExp(`^/press/(${SLUG_RE})$`) },
+  /* Stack-100 #3 W3 lane 16 (D-6): public per-item landings that had no
+     bot card at all — bots fell through to the generic homepage card. */
+  { kind: "premiere", re: new RegExp(`^/premiere/(${ID_RE})$`) },
+  { kind: "live", re: new RegExp(`^/live/(${ID_RE})$`) },
+  { kind: "product", re: new RegExp(`^/storefront/product/(${ID_RE})$`) },
+  { kind: "photo-preset", re: new RegExp(`^/photo-preset/(${SLUG_RE})$`) },
+  { kind: "collection", re: new RegExp(`^/collection/(${SLUG_RE})$`) },
+  { kind: "splits", re: new RegExp(`^/splits/(${SLUG_RE})$`) },
+  { kind: "unlock", re: new RegExp(`^/unlock/(${SLUG_RE})$`) },
+  { kind: "challenge-winners", re: new RegExp(`^/challenge/(${SLUG_RE})/winners$`) },
 ];
 
 /** Match a request path against the shareable route table. Returns null for
@@ -188,6 +211,11 @@ export interface ShareCard {
   imageAlt: string;
   /** Canonical share URL (og:url + <link rel=canonical>). */
   url: string;
+  /** Clean canonical URL when `url` carries a tracking suffix (the
+      album/bio ?ref= viral loop): og:url keeps the ref so shares credit
+      the creator, but <link rel=canonical> must be the clean URL or
+      every referral mints a duplicate index entry (W3 lane 16, D-5). */
+  canonicalUrl?: string;
   /** og:type. */
   ogType: "website" | "music.song" | "video.other" | "profile" | "music.album" | "music.playlist";
   /** twitter:card — always summary_large_image for rich previews. */
@@ -238,6 +266,14 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     join: `/join/${match.param}`,
     card: `/c/${match.param}`,
     press: `/press/${match.param}`,
+    premiere: `/premiere/${match.param}`,
+    live: `/live/${match.param}`,
+    product: `/storefront/product/${match.param}`,
+    "photo-preset": `/photo-preset/${match.param}`,
+    collection: `/collection/${match.param}`,
+    splits: `/splits/${match.param}`,
+    unlock: `/unlock/${match.param}`,
+    "challenge-winners": `/challenge/${match.param}/winners`,
   }[match.kind];
 
   const copy: Record<ShareKind, { title: string; description: string }> = {
@@ -266,6 +302,14 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     join: { title: "Join on Bow Down Visuals", description: "Join a creator's list on Bow Down Visuals." },
     card: { title: "Digital card on Bow Down Visuals", description: "A creator's NFC digital card on Bow Down Visuals — tap in." },
     press: { title: "Press kit on Bow Down Visuals", description: "A creator press kit on Bow Down Visuals." },
+    premiere: { title: "Premiere on Bow Down Visuals", description: "A scheduled first showing on Bow Down Visuals." },
+    live: { title: "Live on Bow Down Visuals", description: "A live broadcast on Bow Down Visuals." },
+    product: { title: "Product on Bow Down Visuals", description: "A product in a creator shop on Bow Down Visuals." },
+    "photo-preset": { title: "Photo preset on Bow Down Visuals", description: "A creator photo preset on Bow Down Visuals." },
+    collection: { title: "Collection on Bow Down Visuals", description: "A fan collection on Bow Down Visuals." },
+    splits: { title: "Splits agreement on Bow Down Visuals", description: "A royalty splits agreement on Bow Down Visuals." },
+    unlock: { title: "Unlock on Bow Down Visuals", description: "Unlock exclusive creator content on Bow Down Visuals." },
+    "challenge-winners": { title: "Challenge winners on Bow Down Visuals", description: "The winners of a creator challenge on Bow Down Visuals." },
   };
   const entry = copy[match.kind];
 
@@ -277,7 +321,12 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     url: `${origin}${path}`,
     ogType: "website",
     twitterCard: "summary_large_image",
-    robots: match.kind === "review" ? "noindex, nofollow" : "index, follow",
+    /* Review links and splits agreements are unguessable share slugs —
+       noindex like the review rail (D-6). */
+    robots:
+      match.kind === "review" || match.kind === "splits"
+        ? "noindex, nofollow"
+        : "index, follow",
   };
 }
 
@@ -538,6 +587,7 @@ async function resolveAlbum(slug: string, origin: string): Promise<ShareCard | n
     image,
     imageAlt: `${album.title} — album cover`,
     url: `${origin}/albums/${album.slug}${refSuffix}`,
+    canonicalUrl: `${origin}/albums/${album.slug}`,
     ogType: "music.album",
     twitterCard: "summary_large_image",
     robots: "index, follow",
@@ -579,6 +629,7 @@ async function resolveBio(slug: string, origin: string): Promise<ShareCard | nul
     image,
     imageAlt: `${name} — avatar`,
     url: `${origin}/bio/${page.slug}${refSuffix}`,
+    canonicalUrl: `${origin}/bio/${page.slug}`,
     ogType: "profile",
     twitterCard: "summary_large_image",
     robots: "index, follow",
@@ -715,6 +766,199 @@ async function resolveShop(handle: string, origin: string): Promise<ShareCard | 
   };
 }
 
+/* ── W3 lane 16 (D-6) resolvers: public landings that had no card ──────── */
+
+async function resolvePremiere(id: string, origin: string): Promise<ShareCard | null> {
+  const [row] = await db.select().from(premieresTable).where(eq(premieresTable.id, id)).limit(1);
+  if (!row || row.status === "cancelled") return null;
+  const p = await publicProfileById(row.profile_id);
+  if (!p) return null;
+  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  const when =
+    row.status === "live"
+      ? "live now"
+      : row.status === "ended"
+        ? "premiered"
+        : `premieres ${row.scheduled_at instanceof Date ? row.scheduled_at.toISOString().slice(0, 10) : ""}`.trim();
+  const videoUrl = absoluteMediaUrl(row.video_url, origin);
+  return {
+    title: `${row.title} — premiere by ${p.displayName}`,
+    description: truncate(`"${row.title}" by ${p.displayName} ${when} on Bow Down Visuals.`, 200),
+    image,
+    imageAlt: `${row.title} — premiere`,
+    url: `${origin}/premiere/${row.id}`,
+    ogType: "video.other",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    ...(videoUrl && /^https?:/i.test(videoUrl) ? { videoUrl, videoType: "video/mp4" } : {}),
+  };
+}
+
+async function resolveLive(id: string, origin: string): Promise<ShareCard | null> {
+  const [row] = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, id)).limit(1);
+  if (!row) return null;
+  const p = await publicProfileById(row.profile_id);
+  if (!p) return null;
+  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  const live = row.status === "live";
+  return {
+    title: `${row.title} — ${live ? "live" : "stream"} by ${p.displayName}`,
+    description: truncate(
+      live
+        ? `${p.displayName} is live now: "${row.title}" on Bow Down Visuals.`
+        : `Watch "${row.title}" by ${p.displayName} on Bow Down Visuals.`,
+      200,
+    ),
+    image,
+    imageAlt: `${row.title} — live stream`,
+    url: `${origin}/live/${row.id}`,
+    ogType: "video.other",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+  };
+}
+
+async function resolveProduct(id: string, origin: string): Promise<ShareCard | null> {
+  const [prod] = await db
+    .select()
+    .from(shopProductsTable)
+    .where(and(eq(shopProductsTable.id, id), eq(shopProductsTable.status, "active")))
+    .limit(1);
+  if (!prod) return null;
+  const [shop] = await db.select().from(shopsTable).where(eq(shopsTable.id, prod.shop_id)).limit(1);
+  const image = absoluteMediaUrl(prod.image_url, origin) ?? fallbackImage(origin);
+  const price = `$${(prod.price_cents / 100).toFixed(2)}`;
+  return {
+    title: shop ? `${prod.name} — ${shop.name}` : `${prod.name} — Bow Down Visuals`,
+    description: truncate(
+      prod.description
+        ? `${prod.description} — ${price}${shop ? ` at ${shop.name}` : ""} on Bow Down Visuals.`
+        : `${prod.name} — ${price}${shop ? ` at ${shop.name}` : ""} on Bow Down Visuals.`,
+      200,
+    ),
+    image,
+    imageAlt: `${prod.name} — product`,
+    url: `${origin}/storefront/product/${prod.id}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: prod.name,
+      url: `${origin}/storefront/product/${prod.id}`,
+      image,
+      ...(prod.description ? { description: truncate(prod.description, 200) } : {}),
+      offers: {
+        "@type": "Offer",
+        price: (prod.price_cents / 100).toFixed(2),
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+      },
+    },
+  };
+}
+
+async function resolvePhotoPreset(slug: string, origin: string): Promise<ShareCard | null> {
+  const [row] = await db
+    .select()
+    .from(photoPresetsTable)
+    .where(and(eq(photoPresetsTable.share_slug, slug), eq(photoPresetsTable.is_public, true)))
+    .limit(1);
+  if (!row) return null;
+  return {
+    title: `${row.name} — photo preset on Bow Down Visuals`,
+    description: truncate(`"${row.name}" — a creator photo preset on Bow Down Visuals.`, 200),
+    image: fallbackImage(origin),
+    imageAlt: `${row.name} — photo preset`,
+    url: `${origin}/photo-preset/${slug}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+  };
+}
+
+async function resolveCollection(slug: string, origin: string): Promise<ShareCard | null> {
+  const [p] = await db
+    .select()
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.slug, slug.toLowerCase()))
+    .limit(1);
+  /* Mirrors GET /collections/:slug: no public profile, or a private
+     collection, resolves to no card (generic 404) — nothing leaks. */
+  if (!p || !p.isPublic || p.collectionVisibility === "private") return null;
+  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  return {
+    title: `${p.displayName}'s collection — Bow Down Visuals`,
+    description: truncate(`What ${p.displayName} has collected on Bow Down Visuals.`, 200),
+    image,
+    imageAlt: `${p.displayName} — collection`,
+    url: `${origin}/collection/${p.slug}`,
+    ogType: "profile",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+  };
+}
+
+async function resolveSplits(slug: string, origin: string): Promise<ShareCard | null> {
+  /* Split-share slugs are 10-hex tokens (see GET /distribution/splits/:slug);
+     anything else is not a splits link. Title-level card only — payee
+     names/shares never go in a share card — and noindex like review links. */
+  if (!/^[a-f0-9]{10}$/.test(slug)) return null;
+  const [rel] = (await db.execute(sql`
+    SELECT title, artist_name FROM distribution_releases
+    WHERE split_share_slug = ${slug} LIMIT 1
+  `)).rows as Array<{ title: string; artist_name: string }>;
+  if (!rel) return null;
+  return {
+    title: `${rel.title} — splits agreement`,
+    description: truncate(`The royalty splits agreement for "${rel.title}" by ${rel.artist_name} on Bow Down Visuals.`, 200),
+    image: fallbackImage(origin),
+    imageAlt: `${rel.title} — splits agreement`,
+    url: `${origin}/splits/${slug}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "noindex, nofollow",
+  };
+}
+
+async function resolveUnlock(slug: string, origin: string): Promise<ShareCard | null> {
+  const [gate] = await db
+    .select()
+    .from(socialUnlockGatesTable)
+    .where(and(eq(socialUnlockGatesTable.slug, slug), eq(socialUnlockGatesTable.active, true)))
+    .limit(1);
+  if (!gate) return null;
+  /* The gate's content_url is the prize behind the gate — it is NEVER
+     put in a card, a description, or JSON-LD. Title only. */
+  return {
+    title: `${gate.title} — unlock on Bow Down Visuals`,
+    description: truncate(`Unlock "${gate.title}" on Bow Down Visuals.`, 200),
+    image: fallbackImage(origin),
+    imageAlt: `${gate.title} — unlock`,
+    url: `${origin}/unlock/${gate.slug}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+  };
+}
+
+async function resolveChallengeWinners(slug: string, origin: string): Promise<ShareCard | null> {
+  const [ch] = await db.select().from(challengesTable).where(eq(challengesTable.slug, slug)).limit(1);
+  if (!ch) return null;
+  const image = absoluteMediaUrl(ch.coverUrl, origin) ?? fallbackImage(origin);
+  return {
+    title: `${ch.title} — winners on Bow Down Visuals`,
+    description: truncate(`See who won "${ch.title}" on Bow Down Visuals.`, 200),
+    image,
+    imageAlt: `${ch.title} — winners`,
+    url: `${origin}/challenge/${ch.slug}/winners`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+  };
+}
+
 /* ── Static curated cards (no DB) ────────────────────────────────────────── */
 
 async function resolveNfcCard(slug: string, origin: string): Promise<ShareCard | null> {
@@ -848,6 +1092,14 @@ export async function resolveShareCard(
     case "shop": return resolveShop(match.param, origin);
     case "card": return resolveNfcCard(match.param, origin);
     case "press": return resolvePressKit(match.param.toLowerCase(), origin);
+    case "premiere": return resolvePremiere(match.param, origin);
+    case "live": return resolveLive(match.param, origin);
+    case "product": return resolveProduct(match.param, origin);
+    case "photo-preset": return resolvePhotoPreset(match.param, origin);
+    case "collection": return resolveCollection(match.param, origin);
+    case "splits": return resolveSplits(match.param, origin);
+    case "unlock": return resolveUnlock(match.param, origin);
+    case "challenge-winners": return resolveChallengeWinners(match.param, origin);
     default: return staticCard(match, origin);
   }
 }
@@ -865,20 +1117,35 @@ function metaName(name: string, content: string): string {
 /** Minimal self-contained preview document for scrapers. Includes a
     meta-refresh + visible link so any human whose UA matched the bot list
     lands in the real SPA instantly. */
+/** The only share images whose pixel size this server actually knows:
+    both brand cards are 1200×630 (pinned by the frontend invariant
+    test). Entity artwork is user media of arbitrary size — declaring
+    1200×630 for it was false metadata (W3 lane 16, D-4), so width /
+    height are emitted only for the known cards and omitted otherwise
+    (scrapers measure the real image themselves). */
+function knownImageDims(image: string): { width: string; height: string } | null {
+  if (image.endsWith(FALLBACK_IMAGE) || image.endsWith("/opengraph.jpg")) {
+    return { width: "1200", height: "630" };
+  }
+  return null;
+}
+
 export function buildOgHtml(card: ShareCard): string {
+  const dims = knownImageDims(card.image);
   const tags: string[] = [
     `<title>${escapeHtml(card.title)}</title>`,
     metaName("description", card.description),
     metaName("robots", card.robots),
-    `<link rel="canonical" href="${escapeHtml(card.url)}" />`,
+    `<link rel="canonical" href="${escapeHtml(card.canonicalUrl ?? card.url)}" />`,
     metaTag("og:site_name", SITE_NAME),
     metaTag("og:type", card.ogType),
     metaTag("og:title", card.title),
     metaTag("og:description", card.description),
     metaTag("og:url", card.url),
     metaTag("og:image", card.image),
-    metaTag("og:image:width", "1200"),
-    metaTag("og:image:height", "630"),
+    ...(dims
+      ? [metaTag("og:image:width", dims.width), metaTag("og:image:height", dims.height)]
+      : []),
     metaTag("og:image:alt", card.imageAlt),
     `<meta name="twitter:card" content="${card.twitterCard}" />`,
     metaName("twitter:title", card.title),
