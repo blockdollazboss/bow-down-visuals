@@ -6539,8 +6539,8 @@
     "genNotConfigured": "生成的AIアップスケーリングはまだ接続されていません — サイトオーナーがプロバイダーキーを追加する必要があります。上のクラシックなffmpegアップスケーラーは今すぐ使えます。請求はされません。",
     "genStatusFailed": "アップスケールサービスに到達できませんでした。",
     "genDisabledTitle": "有効化するにはプロバイダーキーを接続",
-    "genButton": "{{target}}への生成的アップスケール（1500 VB — 価格は未定）",
-    "genPriceNote": "プレースホルダー価格 — 本番化の前に、実際の価格にはオーナーの承認が必要です。クラシックなffmpegアップスケールは300 VBのままです。"
+    "genButton": "{{target}}への生成的アップスケール（1500 VB）",
+    "genPriceNote": "生成的AIアップスケールは1動画あたり1500 VBです。クラシックなffmpegアップスケールは300 VBのままです。"
   },
   "videoEditor": {
     "activeSceneNoClip": "アクティブなシーンにクリップがありません — 音声は再生中です",
@@ -11357,7 +11357,7 @@
     "fcpxmlBody": "この正確なタイムラインを FCPXML としてダウンロード — クリップ、順序、トリム、タイミング。メディアは参照リンクのまま。Final Cut であなたのクリップファイルに再リンクしてください。",
     "fcpxmlTitle": "Final Cut Pro で仕上げる",
     "fixedRateNote": "{{codec}} は固定の仕上げレートでレンダリングされます — 品質スライダーは H.264 にのみ適用されます。",
-    "flatPrice": "150 Visual Bucs 一律",
+    "flatPrice": "400 Visual Bucs 一律",
     "fourKNote": "4K はすべてのピクセルをレンダリングします — 長いレンダリングを覚悟してください。同じ 150 Visual Bucs。",
     "fpsLabel": "フレームレート",
     "off": "オフ",

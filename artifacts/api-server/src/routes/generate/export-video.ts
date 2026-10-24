@@ -32,6 +32,8 @@ import {
   completeJob,
   failJob,
   chargeCreditsForJob,
+  reserveCreditsForJob,
+  releaseJobReservation,
   clearJobChargeFlag,
   recoverInterruptedJobs,
   enqueueExport,
@@ -931,9 +933,14 @@ function cleanup(...files: string[]) {
 /* ── POST /api/export-final-video ────────────────────── */
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
 export const EXPORT_CREDIT_COST = 400;
-/** Flat cost for a quality-controlled export (Feature Wave 6) — 4K costs the
- *  same; simple and generous per CapCut's moat. */
-export const QUALITY_EXPORT_COST = 150;
+/** Cost for a quality-controlled export (Feature Wave 6) — 4K costs the
+ *  same. Stack-100 #3 ruling A-02 (owner-approved 2026-10-24): a quality
+ *  export produces the SAME clean output as the standard export, so it
+ *  prices at the SAME 400 VB clean-export price — the old flat 150 VB was
+ *  a loophole door to identical clean output. Branded (watermarked)
+ *  output is free on both doors (ruling A-01); the charge only ever
+ *  stands for clean output. */
+export const QUALITY_EXPORT_COST = 400;
 
 /* Quality controls for POST /export-final-video and POST /export-quality.
  * All optional with legacy-matching defaults, so the plain one-click export
@@ -2926,6 +2933,10 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       duration: outInfo.duration,
       testMode: !!testMode,
       aiDisclosure: aiDisclosureState,
+      /* A-01 settlement ground truth: true when a watermark image was
+         actually burned into this render. The background worker settles
+         the charge from THIS, never from the request-side prediction. */
+      watermarked: activeWmPath !== null,
       exportStatus,
       quality: {
         enabled: quality.enabled,
@@ -3007,6 +3018,40 @@ function normalizeJobError(err: unknown): ExportJobError {
   return { message: err instanceof Error ? err.message : "Export failed" };
 }
 
+const EXPORT_FREE_PLANS = ["", "free", "trial", "none", "null"];
+
+/**
+ * A-01/A-07 (Stack-100 #3): predict from the request whether the finished
+ * render will carry a watermark, mirroring executeExport's own decision:
+ *  - a branding watermark block decides for itself (a custom logo URL, or
+ *    the house watermark unless explicitly switched off with no logo);
+ *  - otherwise only subscribers may export clean — free/trial renders are
+ *    always watermarked, and a subscriber's render is watermarked exactly
+ *    when they asked for it.
+ * The prediction drives the route gates and the at-start reservation.
+ * Settlement NEVER trusts it: the worker settles from the render's actual
+ * output (executeExport reports `watermarked` from the watermark file it
+ * really burned in) and refunds the hold in full if they disagree.
+ */
+export function predictExportWatermarked(
+  body: { addWatermark?: boolean; branding?: unknown },
+  userPlan: string | null | undefined,
+): boolean {
+  const bwm = (
+    body.branding as
+      | { watermark?: { enabled?: unknown; customLogoUrl?: unknown; bdvWatermark?: unknown } }
+      | null
+      | undefined
+  )?.watermark;
+  if (bwm?.enabled) {
+    if (typeof bwm.customLogoUrl === "string" && bwm.customLogoUrl.startsWith("http")) return true;
+    return bwm.bdvWatermark !== false;
+  }
+  const plan = (userPlan ?? "free").toLowerCase().trim();
+  const isSubscriber = !EXPORT_FREE_PLANS.includes(plan);
+  return isSubscriber ? body.addWatermark === true : true;
+}
+
 /** Run one export job in the background, mirroring render stages onto the job. */
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
 export async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
@@ -3035,49 +3080,131 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
   if (typeof (ticker as unknown as { unref?: unknown }).unref === "function") {
     (ticker as unknown as { unref: () => void }).unref();
   }
-  /* Set when THIS run's charge lands. If the completion save after it
-     throws, the job is marked failed with the charge standing — refund
-     it in that exact case (D5 sweep G2). */
+  /* Tracks any deduction currently standing for this job (an A-07
+     reservation or a settled charge). If the completion save after the
+     settle throws, the job is marked failed with the charge standing —
+     refund it in that exact case (D5 sweep G2). */
   let exportChargedCost = 0;
   let exportChargedAction = "";
+  /* True when the job's credits_charged flag stands because of a
+     reservation — this run's, or an earlier crashed run's that boot
+     recovery handed to this re-run. The settle below owns it either way. */
+  let reservationStands = false;
   try {
-    const result = await executeExport(ctx);
-
-    /* ── Deduct credits + record usage on export success ──
-     *  Quality-controlled exports (POST /api/export-quality) charge the flat
-     *  QUALITY_EXPORT_COST instead of the standard EXPORT_CREDIT_COST. The
-     *  job's persisted params carry the quality flag, so boot recovery
-     *  re-runs charge the same price — never double, never the wrong tier. */
-    if (!IS_DEV) {
-      const isQualityExport = ctx.body.quality?.enabled === true;
-      const exportCost = isQualityExport ? QUALITY_EXPORT_COST : EXPORT_CREDIT_COST;
-      const exportAction = isQualityExport ? "Quality-Controlled Export" : "Final Video Export";
+    /* ── A-07: RESERVE the clean-export price at job start ──
+     * Quality-controlled exports price at QUALITY_EXPORT_COST (== the
+     * standard clean price since ruling A-02); the job's persisted params
+     * carry the quality flag, so boot recovery re-runs reserve/settle the
+     * same price — never double, never the wrong tier.
+     * Predicted-branded renders reserve NOTHING: branded output is free
+     * for everyone (ruling A-01), so there is no price to hold. */
+    const isQualityExport = ctx.body.quality?.enabled === true;
+    const railCost = isQualityExport ? QUALITY_EXPORT_COST : EXPORT_CREDIT_COST;
+    const railAction = isQualityExport ? "Quality-Controlled Export" : "Final Video Export";
+    const predictedBranded = predictExportWatermarked(ctx.body, ctx.userPlan);
+    if (!IS_DEV && !predictedBranded) {
       try {
-        const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, exportCost);
-        if (charged) {
-          exportChargedCost = exportCost;
-          exportChargedAction = exportAction;
-          // Strict ledger write: the export was delivered, so on failure the
-          // deduction stands and the gap is logged CRITICAL for manual
-          // reconciliation — never silently swallowed.
-          try {
-            await recordCreditUsageStrict({ userId: ctx.userId, action: exportAction, creditsUsed: exportCost, projectId: ctx.body.projectId ?? null });
-          } catch (ledgerErr) {
-            ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed after deduction — export delivered, charge has no ledger trace");
-          }
-          ctx.log.info({ userId: ctx.userId, creditsAfter, cost: exportCost, action: exportAction }, "[export] credits deducted");
+        const hold = await reserveCreditsForJob(jobId, ctx.userId, railCost);
+        reservationStands = true;
+        exportChargedCost = railCost;
+        exportChargedAction = railAction;
+        if (hold.reserved) {
+          ctx.log.info({ userId: ctx.userId, creditsAfter: hold.creditsAfter, cost: railCost, action: railAction }, "[export] credits reserved at job start");
         } else {
-          ctx.log.warn({ jobId }, "[export] credits already charged for job; skipping duplicate deduction");
+          ctx.log.info({ jobId }, "[export] reservation already standing for job (recovery re-run); this run settles it");
         }
-      } catch (deductErr) {
-        if (deductErr instanceof OutOfCreditsError) {
+      } catch (reserveErr) {
+        if (reserveErr instanceof OutOfCreditsError) {
           await failJob(jobId, {
             message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
             code: "out_of_credits",
           });
           return;
         }
-        throw deductErr;
+        throw reserveErr;
+      }
+    }
+
+    let result: Record<string, unknown>;
+    try {
+      result = await executeExport(ctx);
+    } catch (renderErr) {
+      /* The render failed — release any standing reservation in full: a
+         failed job never keeps the user's money. */
+      if (reservationStands && exportChargedCost > 0) {
+        const heldCost = exportChargedCost;
+        const heldAction = exportChargedAction;
+        exportChargedCost = 0;
+        try {
+          await releaseJobReservation(jobId, ctx.userId, heldCost, `${heldAction} — Refund (render failed)`);
+        } catch (releaseErr) {
+          ctx.log.error({ err: releaseErr, jobId }, "[export] CRITICAL: reservation release failed after render failure — manual reconciliation required");
+        }
+      }
+      throw renderErr;
+    }
+
+    /* ── Settle on success — the render's ACTUAL output decides (A-01) ──
+     *  - Branded output → FREE for everyone: release any reservation in
+     *    full, record no charge. No path charges the clean price for
+     *    watermarked output.
+     *  - Clean output with a reservation standing → the hold becomes the
+     *    charge; only the ledger entry is written (money already moved).
+     *  - Clean output with NO reservation (the prediction missed, e.g.
+     *    the branding logo could not be applied) → the exactly-once
+     *    charge-on-success fallback, unchanged. */
+    if (!IS_DEV) {
+      const renderedBranded = (result as { watermarked?: unknown }).watermarked === true;
+      if (renderedBranded) {
+        if (reservationStands && exportChargedCost > 0) {
+          const heldCost = exportChargedCost;
+          const heldAction = exportChargedAction;
+          exportChargedCost = 0;
+          try {
+            await releaseJobReservation(jobId, ctx.userId, heldCost, `${heldAction} — Refund (branded export is free)`);
+            ctx.log.info({ jobId, cost: heldCost }, "[export] branded export — reservation released in full, no charge");
+          } catch (releaseErr) {
+            ctx.log.error({ err: releaseErr, jobId }, "[export] CRITICAL: branded-export reservation release failed — manual reconciliation required");
+          }
+        }
+      } else if (reservationStands) {
+        // Strict ledger write: the export was delivered and the deduction
+        // (the reservation) stands, so on failure the gap is logged
+        // CRITICAL for manual reconciliation — never silently swallowed.
+        try {
+          await recordCreditUsageStrict({ userId: ctx.userId, action: railAction, creditsUsed: railCost, projectId: ctx.body.projectId ?? null });
+        } catch (ledgerErr) {
+          ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed for settled reservation — export delivered, charge has no ledger trace");
+        }
+        ctx.log.info({ userId: ctx.userId, cost: railCost, action: railAction }, "[export] reservation settled as the export charge");
+      } else {
+        try {
+          const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, railCost);
+          if (charged) {
+            exportChargedCost = railCost;
+            exportChargedAction = railAction;
+            // Strict ledger write: the export was delivered, so on failure the
+            // deduction stands and the gap is logged CRITICAL for manual
+            // reconciliation — never silently swallowed.
+            try {
+              await recordCreditUsageStrict({ userId: ctx.userId, action: railAction, creditsUsed: railCost, projectId: ctx.body.projectId ?? null });
+            } catch (ledgerErr) {
+              ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed after deduction — export delivered, charge has no ledger trace");
+            }
+            ctx.log.info({ userId: ctx.userId, creditsAfter, cost: railCost, action: railAction }, "[export] credits deducted");
+          } else {
+            ctx.log.warn({ jobId }, "[export] credits already charged for job; skipping duplicate deduction");
+          }
+        } catch (deductErr) {
+          if (deductErr instanceof OutOfCreditsError) {
+            await failJob(jobId, {
+              message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+              code: "out_of_credits",
+            });
+            return;
+          }
+          throw deductErr;
+        }
       }
     }
 
@@ -3196,9 +3323,15 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Credit check (EXPORT_CREDIT_COST = 400 Visual Bucs for final export) ── */
+  /* ── Credit check ──
+   * Branded (watermarked) exports are FREE (ruling A-01): a request whose
+   * render will carry a watermark is never gated on the clean price —
+   * free/trial users are force-watermarked and must never be charged (or
+   * blocked) as if their output were clean. A predicted-clean render
+   * gates on EXPORT_CREDIT_COST (400 Visual Bucs), which the worker then
+   * reserves at job start (ruling A-07). */
   const currentCredits = req.userCredits ?? 0;
-  if (!IS_DEV && currentCredits < EXPORT_CREDIT_COST) {
+  if (!IS_DEV && !predictExportWatermarked(body, req.userPlan) && currentCredits < EXPORT_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
@@ -3218,18 +3351,21 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
    * in the export_jobs table and the render runs in the background, so a
    * server restart can no longer lose it: boot recovery re-queues
    * interrupted jobs and the client keeps polling the same jobId.
-   * Credits are deducted only when the render actually succeeds
-   * (chargeCreditsForJob, exactly once). */
+   * The clean-export price is RESERVED when the job starts
+   * (reserveCreditsForJob, ruling A-07) and settled against the render's
+   * actual output — branded output releases the hold in full (A-01). */
   await startExportJob(req, res, body);
 });
 
 /* ── POST /api/export-quality ─────────────────────────────────────────
  * Quality-controlled export (Feature Wave 6): the same single pipeline as
  * POST /export-final-video — NOT a fork — with the `quality` options forced
- * on, charged at the flat QUALITY_EXPORT_COST (150 Visual Bucs, 4K included).
- * Credits: 402 pre-check up front; the deduction itself happens exactly once
- * after a successful render (chargeCreditsForJob), so a failed render never
- * charges — no refund path needed. */
+ * on, charged at QUALITY_EXPORT_COST — the same 400 Visual Bucs as the
+ * standard clean export since ruling A-02 (4K included; same clean output,
+ * same price). Branded output is free here too (A-01).
+ * Credits: 402 pre-check up front for predicted-clean renders; the worker
+ * reserves the price at job start (A-07) and settles against the actual
+ * output, so a failed render releases the hold — never charges. */
 router.post("/export-quality", requireAuth, async (req, res) => {
   const bodyParse = exportFinalVideoSchema.safeParse(req.body ?? {});
   if (!bodyParse.success) {
@@ -3247,12 +3383,14 @@ router.post("/export-quality", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Credit check: 150 Visual Bucs flat for a quality-controlled export ── */
+  /* ── Credit check: a quality-controlled export costs the same as the
+   * standard clean export (QUALITY_EXPORT_COST, ruling A-02); a
+   * predicted-branded render is free and never gated (ruling A-01). ── */
   const currentCredits = req.userCredits ?? 0;
-  if (!IS_DEV && currentCredits < QUALITY_EXPORT_COST) {
+  if (!IS_DEV && !predictExportWatermarked(body, req.userPlan) && currentCredits < QUALITY_EXPORT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough Visual Bucs. Quality export costs 150 Visual Bucs — top up to continue.",
+      message: "Not enough Visual Bucs. Quality export costs 400 Visual Bucs — top up to continue.",
     });
     return;
   }

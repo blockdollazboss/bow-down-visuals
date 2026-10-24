@@ -65,7 +65,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/lip-sync": { cost: 300, feature: "Lip Sync" },
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
   "/api/export-quality/estimate": { cost: 0, feature: "Export Size Estimate (free)" },
-  "/api/export-quality": { cost: 150, feature: "Quality-Controlled Export" },
+  "/api/export-quality": { cost: 400, feature: "Quality-Controlled Export" },
   // Export Doctor rails are FREE — routes/generate/export-doctor.ts
   // contains zero credit logic (no chargeCredits/deductCredits at
   // all; verified Stack-28 A2-05). The registry records 0 for all
@@ -117,11 +117,11 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/upscale": { cost: 300, feature: "Upscale" },
   "/api/upscale/image": { cost: 300, feature: "Upscale Image" },
   // PLACEHOLDER prices — the user must approve real prices before these go live.
-  "/api/ai-upscale": { cost: 1500, feature: "Generative AI Upscale (price TBD)" },
+  "/api/ai-upscale": { cost: 1500, feature: "Generative AI Upscale" },
   "/api/avatar-presenter": { cost: 1200, feature: "Avatar Presenter (price TBD)" },
   "/api/singing-voice": { cost: 800, feature: "Singing-Voice Conversion (price TBD)" },
   "/api/watermark-removal": { cost: 200, feature: "Remove Watermark" },
-  "/api/video-translator/translate": { cost: 500, feature: "Video Translator" },
+  "/api/video-translator/translate": { cost: 500, feature: "Video Translator (500 VB per minute per language)" },
   "/api/analyze-sections": { cost: 100, feature: "Analyze Song Sections" },
   "/api/transcribe": { cost: 100, feature: "Transcribe Audio" },
   "/api/transcribe-url": { cost: 100, feature: "Transcribe" },

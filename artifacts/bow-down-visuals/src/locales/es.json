@@ -6553,8 +6553,8 @@
     "genNotConfigured": "El escalado generativo con IA aún no está conectado: el dueño del sitio debe agregar una clave de proveedor. El escalador clásico ffmpeg de arriba funciona ahora mismo. No se te cobrará.",
     "genStatusFailed": "No se pudo llegar al servicio de escalado.",
     "genDisabledTitle": "Conecta una clave de proveedor para activar",
-    "genButton": "Escalado generativo a {{target}} (1500 VB — precio por definir)",
-    "genPriceNote": "Precio provisional: el precio real necesita la aprobación del dueño antes de que esto se active. El escalado clásico ffmpeg se queda en 300 VB."
+    "genButton": "Escalado generativo a {{target}} (1500 VB)",
+    "genPriceNote": "El escalado generativo con IA cuesta 1500 Visual Bucs por video. El escalado clásico ffmpeg se queda en 300 VB."
   },
   "videoEditor": {
     "activeSceneNoClip": "La escena activa no tiene clip — el audio sigue sonando",
@@ -12264,7 +12264,7 @@
     "fcpxmlBody": "Descarga esta línea de tiempo exacta como FCPXML — clips, orden, recortes y tiempos. Los medios quedan enlazados por referencia; vuelve a enlazarlos a tus archivos de clip en Final Cut.",
     "fcpxmlTitle": "Terminar en Final Cut Pro",
     "fixedRateNote": "{{codec}} se renderiza a su tasa fija de acabado — el deslizador de calidad solo aplica a H.264.",
-    "flatPrice": "150 Visual Bucs fijo",
+    "flatPrice": "400 Visual Bucs fijo",
     "fourKNote": "El 4K renderiza cada píxel — espera un renderizado más largo. Los mismos 150 Visual Bucs.",
     "fpsLabel": "Velocidad de fotogramas",
     "off": "desactivada",

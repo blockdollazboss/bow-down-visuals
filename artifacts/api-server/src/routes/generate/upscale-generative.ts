@@ -14,15 +14,15 @@ import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 const router = Router();
 
 /**
- * PLACEHOLDER price — Visual Bucs. NOT final: the user must approve the
- * real price (and the provider + key) before this goes live.
+ * Official price — 1,500 Visual Bucs (owner-approved 2026-10-24, Stack-100
+ * #3 ruling A-05: the long-standing 1,500 VB charge is the real price).
  *
  * This is a SEPARATE product from the classic ffmpeg upscaler
  * (POST /api/upscale, 300 VB). Generative AI upscaling reconstructs detail
  * with a model, so it is priced as a premium tier — the two must never be
  * merged or priced the same.
  */
-export const GENERATIVE_UPSCALE_CREDIT_COST = 1500; // PLACEHOLDER — needs user price approval
+export const GENERATIVE_UPSCALE_CREDIT_COST = 1500;
 
 const generativeUpscaleSchema = z.object({
   sourceVideoUrl: z.string().url().max(2048),

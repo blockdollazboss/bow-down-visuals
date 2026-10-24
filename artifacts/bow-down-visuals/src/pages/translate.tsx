@@ -202,7 +202,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
         overrideCost: estimate.credits,
-        overrideFeature: "Video Translator",
+        overrideFeature: "Video Translator (500 VB per minute per language)",
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as {

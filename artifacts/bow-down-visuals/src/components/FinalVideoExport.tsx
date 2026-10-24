@@ -382,7 +382,8 @@ export function FinalVideoExport({
 
   /* ── Quality controls (Feature Wave 6): docked in the Export tab.
      Simple mode keeps the one-click export above; opening this disclosure
-     switches to POST /api/export-quality (flat 150 Visual Bucs). ── */
+     switches to POST /api/export-quality (400 Visual Bucs — the same
+     clean-export price as the one-click export; branded output is free). ── */
   const [qualityOpen, setQualityOpen]               = useState(false);
   const [qResolution, setQResolution]               = useState<"720p" | "1080p" | "4k">("1080p");
   const [qSlider, setQSlider]                       = useState(80);
@@ -650,8 +651,8 @@ export function FinalVideoExport({
   }, [qualityOpen, qResolution, qSlider, qFps, qContainer, qCodec, hasAudio, aspectRatio, estimateDurationSec]);
 
   /** Fires the export request against a specific prepareId. When qualityOpts is
-   *  given, the request goes to POST /api/export-quality (flat 150 Visual
-   *  Bucs) with the quality controls attached; otherwise the plain one-click
+   *  given, the request goes to POST /api/export-quality (400 Visual
+   *  Bucs — the standard clean-export price) with the quality controls attached; otherwise the plain one-click
    *  /api/export-final-video. Throws on failure, with `.code` set to
    *  "PREPARE_STALE" when the failure is recoverable by re-preparing. */
   interface QualityExportOpts {

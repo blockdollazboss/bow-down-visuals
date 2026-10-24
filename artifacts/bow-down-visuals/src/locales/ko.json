@@ -6540,8 +6540,8 @@
     "genNotConfigured": "생성형 AI 업스케일은 아직 연결되지 않았습니다 — 사이트 소유자가 제공자 키를 추가해야 합니다. 위의 클래식 ffmpeg 업스케일러는 지금 바로 작동합니다. 청구되지 않습니다.",
     "genStatusFailed": "업스케일 서비스에 연결할 수 없었습니다.",
     "genDisabledTitle": "활성화하려면 제공자 키를 연결하세요",
-    "genButton": "{{target}}로 생성형 업스케일 (1500 VB — 가격 미정)",
-    "genPriceNote": "임시 가격 — 실제 가격은 출시 전에 소유자 승인이 필요합니다. 클래식 ffmpeg 업스케일은 300 VB 그대로입니다."
+    "genButton": "{{target}}로 생성형 업스케일 (1500 VB)",
+    "genPriceNote": "생성형 AI 업스케일은 영상당 1500 Visual Bucs입니다. 클래식 ffmpeg 업스케일은 300 VB 그대로입니다."
   },
   "videoEditor": {
     "activeSceneNoClip": "활성 씬에 클립이 없습니다 — 오디오는 계속 재생됩니다",
@@ -11360,7 +11360,7 @@
     "fcpxmlBody": "이 정확한 타임라인을 FCPXML로 다운로드하세요 — 클립, 순서, 트림, 타이밍. 미디어는 참조로 연결된 채 유지됩니다. Final Cut에서 클립 파일에 다시 연결하세요.",
     "fcpxmlTitle": "Final Cut Pro에서 마무리",
     "fixedRateNote": "{{codec}}는 고정된 마무리 속도로 렌더링됩니다 — 품질 슬라이더는 H.264에만 적용됩니다.",
-    "flatPrice": "150 Visual Bucs 정액",
+    "flatPrice": "400 Visual Bucs 정액",
     "fourKNote": "4K는 모든 픽셀을 렌더링합니다 — 더 긴 렌더링을 예상하세요. 같은 150 Visual Bucs.",
     "fpsLabel": "프레임 속도",
     "off": "끔",

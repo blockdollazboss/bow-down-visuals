@@ -6711,8 +6711,8 @@
     "genNotConfigured": "L'upscaling IA génératif n'est pas encore connecté — le propriétaire du site doit ajouter une clé fournisseur. L'upscaler ffmpeg classique ci-dessus fonctionne dès maintenant. Tu ne seras pas débité.",
     "genStatusFailed": "Impossible de joindre le service d'upscale.",
     "genDisabledTitle": "Connecte une clé fournisseur pour activer",
-    "genButton": "Upscale génératif vers {{target}} (1500 VB — prix à confirmer)",
-    "genPriceNote": "Prix provisoire — le vrai prix demande l'approbation du propriétaire avant la mise en ligne. L'upscale ffmpeg classique reste à 300 VB."
+    "genButton": "Upscale génératif vers {{target}} (1500 VB)",
+    "genPriceNote": "L'upscale génératif IA coûte 1500 Visual Bucs par vidéo. L'upscale ffmpeg classique reste à 300 VB."
   },
   "videoEditor": {
     "activeSceneNoClip": "La scène active n'a pas de clip — l'audio joue quand même",
@@ -13446,7 +13446,7 @@
     "fcpxmlBody": "Téléchargez cette timeline exacte au format FCPXML — clips, ordre, découpes et timing. Les médias restent liés par référence ; reliez-les à vos fichiers de clips dans Final Cut.",
     "fcpxmlTitle": "Terminer dans Final Cut Pro",
     "fixedRateNote": "{{codec}} se rend à son débit de finition fixe — le curseur de qualité ne s'applique qu'au H.264.",
-    "flatPrice": "150 Visual Bucs fixe",
+    "flatPrice": "400 Visual Bucs fixe",
     "fourKNote": "La 4K rend chaque pixel — attendez-vous à un rendu plus long. Toujours 150 Visual Bucs.",
     "fpsLabel": "Fréquence d'images",
     "off": "désactivé",

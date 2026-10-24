@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
-import { OutOfCreditsError, canUseCredits, CreditsDisabledError } from "./credits";
+import { OutOfCreditsError, canUseCredits, CreditsDisabledError, refundCredits } from "./credits";
 import { getSupabaseAdmin } from "./supabase-admin";
 
 /**
@@ -228,6 +228,100 @@ export async function chargeCreditsForJob(
     throw updateErr;
   }
   return { charged: true, creditsAfter };
+}
+
+/**
+ * A-07 (Stack-100 #3): RESERVE the export price when a job STARTS.
+ *
+ * Before A-07 the rail charged only after a successful render, so a
+ * mid-render balance drop made the completion charge throw
+ * OutOfCreditsError and the finished render was discarded undelivered.
+ * The worker now holds the clean-export price up front through this
+ * function; the render can then only fail for render reasons, never for
+ * money that moved during the render.
+ *
+ * The reservation rides the SAME credits_charged flag as
+ * chargeCreditsForJob — the flag means "the rail's price is currently
+ * taken for this job", whether held (reserved) or settled (charged).
+ * The atomic false→true flip keeps exactly-once semantics across
+ * boot-recovery re-runs: a re-run of a job whose reservation already
+ * stands gets { reserved: false } and treats the hold as its own.
+ *
+ * Throws OutOfCreditsError when the balance cannot cover the hold (the
+ * flag is rolled back first, so the row never claims a hold that does
+ * not exist).
+ */
+export async function reserveCreditsForJob(
+  jobId: string,
+  userId: string,
+  cost: number,
+): Promise<{ reserved: boolean; creditsAfter: number }> {
+  if (!Number.isFinite(cost) || cost <= 0) {
+    throw new Error(`reserveCreditsForJob: invalid cost ${cost}`);
+  }
+  if (!(await canUseCredits(userId))) {
+    logger.warn({ jobId, userId, cost }, "[export] blocked non-whitelisted reserve (admin-only mode)");
+    throw new CreditsDisabledError();
+  }
+  const flag = await db().execute(sql`
+    UPDATE export_jobs SET credits_charged = true, updated_at = now()
+    WHERE id = ${jobId} AND credits_charged = false
+    RETURNING id
+  `);
+  if (flag.rows.length === 0) {
+    // A reservation (or a settled charge) already stands for this job.
+    return { reserved: false, creditsAfter: -1 };
+  }
+  try {
+    // Fresh balance read — never hold against a stale value.
+    const admin = getSupabaseAdmin();
+    const { data: profile, error: readErr } = await admin
+      .from("profiles")
+      .select("credits")
+      .eq("id", userId)
+      .single();
+    if (readErr) {
+      logger.warn({ jobId, userId, err: readErr.message }, "[export] credit reservation: failed to read profile");
+      throw new OutOfCreditsError();
+    }
+    const current = (profile as { credits?: number } | null)?.credits ?? 0;
+    if (current < cost) {
+      throw new OutOfCreditsError();
+    }
+    const creditsAfter = current - cost;
+    const { error: updateErr } = await admin
+      .from("profiles")
+      .update({ credits: creditsAfter })
+      .eq("id", userId);
+    if (updateErr) {
+      logger.error({ jobId, userId, err: updateErr.message }, "[export] credit reservation write failed");
+      throw updateErr;
+    }
+    return { reserved: true, creditsAfter };
+  } catch (err) {
+    // The hold never landed — roll the flag back so the row stays honest
+    // and a later attempt can reserve again.
+    await clearJobChargeFlag(jobId).catch(() => undefined);
+    throw err;
+  }
+}
+
+/**
+ * A-07: RELEASE a standing reservation in full — the render failed, or the
+ * finished output turned out branded (branded exports are free, A-01), so
+ * no charge may stand. Refunds through the ledger-aware refundCredits and
+ * clears the flag, mirroring the completion-save failure path (D5 G2).
+ * Only call when this job's flag is set by a reservation/charge this run
+ * is responsible for.
+ */
+export async function releaseJobReservation(
+  jobId: string,
+  userId: string,
+  cost: number,
+  action: string,
+): Promise<void> {
+  await refundCredits(userId, cost, { action });
+  await clearJobChargeFlag(jobId);
 }
 
 /**
