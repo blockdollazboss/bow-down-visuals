@@ -117,8 +117,15 @@ function dto(reg: PublishingRegistration, viewerUserId: string) {
     my_writer_status: mine ? mine.confirmationStatus : null,
     writers: reg.writers.map((w) => ({
       name: w.writerName,
-      /* Account ids are exposed only as "is this me / are they linked" —
-         never another writer's raw ids on a shared record. */
+      /* Profile ids are public identifiers (profiles are public pages)
+         and ride along so the owner's revise form can re-link the same
+         writers. Raw account (user) ids are exposed only to the owner
+         (who entered them) and to the writer themselves. */
+      profile_id: w.writerProfileId,
+      user_id:
+        reg.ownerUserId === viewerUserId || (w.writerUserId !== null && w.writerUserId === viewerUserId)
+          ? w.writerUserId
+          : null,
       is_linked: w.writerUserId !== null,
       is_me: w.writerUserId !== null && w.writerUserId === viewerUserId,
       share_pct: w.sharePct,
