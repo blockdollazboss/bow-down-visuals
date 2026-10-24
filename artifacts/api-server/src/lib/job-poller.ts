@@ -191,7 +191,7 @@ async function runSubmitWorker(job: LipSyncJob, apiKey: string): Promise<void> {
       return;
     }
 
-    const syncId = await syncLabsSubmit(providerClipUrl, segmentUrl, apiKey);
+    const syncId = await syncLabsSubmit(providerClipUrl, segmentUrl, apiKey, job.params.strength);
     await markJobSubmitted(job.id, syncId, 60_000);
     logger.info({ jobId: job.id, syncId }, "[job-poller] lip-sync submitted to Sync.so");
   } catch (err) {

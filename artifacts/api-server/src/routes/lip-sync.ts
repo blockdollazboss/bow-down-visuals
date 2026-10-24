@@ -52,6 +52,7 @@ import {
 import {
   runExportJobInBackground,
   EXPORT_CREDIT_COST,
+  predictExportWatermarked,
   type ExportJobContext,
   type ExportRequestBody,
 } from "./generate/export-video";
@@ -426,10 +427,13 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       artistVaultId,
     } = parsed.data;
 
-    void audioSourceType;
-    void strength;
-    void preserveFaceIdentity;
-    void preserveArtistLook;
+    /* A-09 (Stack-100 #3): the four editor controls are no longer voided
+       here — they are persisted into the durable job params below.
+       audioSourceType is already honored client-side (the submitted
+       audioUrl IS the chosen stem); strength reaches the provider call
+       as options.temperature via the poller; the two preserve toggles
+       name behavior sync-3 performs intrinsically (no provider option
+       exists) and are recorded as the creator's intent. */
 
     /* ── Validate inputs ── */
     if (
@@ -579,6 +583,10 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
           sceneStartSec,
           sceneEndSec,
           provider: getLipSyncProviderName(),
+          audioSourceType: audioSourceType ?? null,
+          strength: strength ?? null,
+          preserveFaceIdentity: preserveFaceIdentity ?? null,
+          preserveArtistLook: preserveArtistLook ?? null,
         },
       });
     } catch (enqueueErr) {
@@ -1396,22 +1404,82 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
         continue;
       }
 
-      /* Enqueue a durable server-owned job per scene — same pipeline as
-         POST /lip-sync/preview (trim → submit → poll), no duplicated
-         provider-call code. The background poller drives it; this run just
-         waits on the job row. */
-      const subJob = await createLipSyncJob({
-        userId: ctx.userId,
-        projectId: ctx.projectId,
-        sceneId: s.id,
-        params: {
+      /* ── A-06 (Stack-100 #3): charge the single-clip price for this
+         scene BEFORE enqueueing. Run-all used to enqueue paid provider
+         jobs at 0 VB per scene — a leak next to the 300 VB preview rail.
+         Same rail, same rules as POST /lip-sync/preview: 300 VB per clip
+         via chargeCredits, idempotent per (user, run, scene), refunded
+         only when the enqueue itself fails; a later provider failure
+         keeps the charge, exactly like the single-clip rail. Scenes
+         skipped above for the provider length limit never reach here
+         and are never charged. */
+      const sceneChargeKey = buildChargeIdempotencyKey(
+        "lip-sync-run-all",
+        ctx.userId,
+        null,
+        {
+          runId,
+          sceneId: s.id ?? null,
+          sceneIndex: i,
           clipUrl: s.clipUrl,
           audioUrl: ctx.resolvedAudio.url,
           sceneStartSec: t.start,
           sceneEndSec: t.end,
-          provider: getLipSyncProviderName(),
         },
-      });
+      );
+      try {
+        await chargeCredits(ctx.userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+          action: "Lip Sync — Run All",
+        }, { idempotencyKey: sceneChargeKey });
+      } catch (chargeErr) {
+        patchScene(i, {
+          state: "failed",
+          error:
+            chargeErr instanceof OutOfCreditsError
+              ? "Not enough Visual Bucs for this scene's lip sync (300 Visual Bucs per scene). Original clip kept."
+              : "Lip-sync charge failed for this scene. Original clip kept.",
+        });
+        ctx.log.warn(
+          { runId, scene: i + 1, err: chargeErr instanceof Error ? chargeErr.message : chargeErr },
+          "[run-all] scene charge failed — original clip kept",
+        );
+        continue;
+      }
+
+      /* Enqueue a durable server-owned job per scene — same pipeline as
+         POST /lip-sync/preview (trim → submit → poll), no duplicated
+         provider-call code. The background poller drives it; this run just
+         waits on the job row. */
+      let subJob;
+      try {
+        subJob = await createLipSyncJob({
+          userId: ctx.userId,
+          projectId: ctx.projectId,
+          sceneId: s.id,
+          params: {
+            clipUrl: s.clipUrl,
+            audioUrl: ctx.resolvedAudio.url,
+            sceneStartSec: t.start,
+            sceneEndSec: t.end,
+            provider: getLipSyncProviderName(),
+          },
+        });
+      } catch (enqueueErr) {
+        /* The job never entered the queue — refund this scene's charge
+           with a ledger trace, mirroring the preview rail. */
+        await refundCredits(ctx.userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+          action: "Lip Sync — Refund (enqueue failed)",
+        }).catch(() => {});
+        patchScene(i, {
+          state: "failed",
+          error: enqueueErr instanceof Error ? enqueueErr.message : "Lip-sync enqueue failed",
+        });
+        ctx.log.warn(
+          { runId, scene: i + 1, err: enqueueErr instanceof Error ? enqueueErr.message : enqueueErr },
+          "[run-all] scene enqueue failed after charge — refunded, original clip kept",
+        );
+        continue;
+      }
       const subJobId = subJob.id;
       requestPollerTick();
 
@@ -1600,16 +1668,10 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
       return;
     }
 
-    /* Credit gate mirrors POST /api/export-final-video: EXPORT_CREDIT_COST
-       (400 Visual Bucs) is deducted only when the export actually succeeds. */
-    const isDev = process.env["NODE_ENV"] === "development";
-    if (!isDev && (req.userCredits ?? 0) < EXPORT_CREDIT_COST) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
-      });
-      return;
-    }
+    /* The credit gate sits AFTER scene timing below (A-06): the total is
+       300 VB per scene that will actually be submitted plus the final
+       export at its real price — neither knowable before the project's
+       scenes and windows are read. */
 
     /* Fetch the project (ownership-scoped, like PATCH /api/projects/:id). */
     const { data: project, error: fetchErr } = await req.userSupabase!
@@ -1702,6 +1764,37 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
       }
       timings.push({ start, end: start + d, dur: d });
       acc += d;
+    }
+
+    /* ── Credit gate (A-06) ──
+       Total the run will actually charge: LIP_SYNC_PREVIEW_CREDIT_COST
+       (300 VB) per scene that will be submitted (windows over the
+       provider limit are skipped and never charged) + the final export
+       at its real price — free when the export will be branded (A-01),
+       EXPORT_CREDIT_COST when clean (reserved at export-job start,
+       A-07). Mirrors processRunAll + the export worker using the
+       project's current settings. */
+    const isDev = process.env["NODE_ENV"] === "development";
+    const submittableScenes = timings.filter((t) => t.dur <= PROVIDER_LIMIT_SEC).length;
+    const exportBranded = predictExportWatermarked(
+      {
+        addWatermark:
+          settings["watermarkIncludeInExport"] !== false &&
+          (settings["watermarkType"] || "text") !== "none",
+        branding: settings["branding"] ?? null,
+      },
+      req.userPlan,
+    );
+    const requiredCredits =
+      submittableScenes * LIP_SYNC_PREVIEW_CREDIT_COST +
+      (exportBranded ? 0 : EXPORT_CREDIT_COST);
+    if (!isDev && (req.userCredits ?? 0) < requiredCredits) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+        required: requiredCredits,
+      });
+      return;
     }
 
     /* ── Create the run record and return immediately ── */
