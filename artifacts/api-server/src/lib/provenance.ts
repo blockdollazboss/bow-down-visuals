@@ -146,8 +146,19 @@ export interface ProvenanceRecord {
   creator: { id: string; name: string | null };
   createdWith: { tool: string; model: string | null; platform: string };
   createdAt: string; // ISO
-  /** True when the asset came out of a generation rail (vs an upload). */
+  /** True when AI generation is PROVEN by stored data (a generation rail,
+      or a hub entry linked to a generation row). False means "not proven",
+      never "proven not AI" — read aiInvolvement for the honest state. */
   aiGenerated: boolean;
+  /** The honest AI-involvement state, from stored evidence only:
+      "ai"      — a generation record proves AI generation;
+      "unknown" — the asset reached the library with no generation record
+                  (e.g. a hub-only desk output or an upload), so the record
+                  neither confirms nor rules out AI generation. There is
+                  deliberately no "none" state for hub assets: no stored
+                  field proves a negative, and claiming "no AI" for an
+                  unknown origin would be an invented fact. */
+  aiInvolvement: "ai" | "unknown";
   /** Factual history lines, oldest first — only what stored data proves. */
   editHistory: string[];
   licence: LicenceId;
@@ -168,6 +179,17 @@ export interface ProvenanceDerivationInput {
   generationType?: string | null;
   hubKind?: string | null;
   hubDetail?: string | null;
+  /** Hub origin only: the generation row this hub entry is linked to —
+      found by URL, the same key the library merge dedupes on (desk
+      outputs are reported to the hub with the generation's own URL, and
+      generation rows store that URL in result.videoUrl/thumbnailUrl).
+      When present, the hub entry inherits the generation's facts; when
+      absent the record stays "unknown" rather than guessing. */
+  linkedGeneration?: {
+    generationType?: string | null;
+    prompt?: string | null;
+    creditsUsed?: number | null;
+  } | null;
   prompt?: string | null;
   creditsUsed?: number | null;
   saveStatus?: string | null;
@@ -179,10 +201,19 @@ function truncate(text: string, max: number): string {
 }
 
 export function buildProvenanceRecord(input: ProvenanceDerivationInput): ProvenanceRecord {
+  const linked = input.origin === "project" ? (input.linkedGeneration ?? null) : null;
+  /* AI is claimed only on evidence: a generation-origin row, or a hub
+     entry linked by URL to one of the creator's generation rows. A hub
+     entry with no linkage is "unknown" — its desk tool is still named
+     (the hub entry itself states it), but no AI claim is made. */
+  const aiInvolvement: ProvenanceRecord["aiInvolvement"] =
+    input.origin === "generation" || linked ? "ai" : "unknown";
   const facts =
     input.origin === "generation"
       ? toolFactsForGenerationType(input.generationType ?? null)
-      : { tool: toolForHubKind(input.hubKind ?? null), model: null as string | null };
+      : linked
+        ? toolFactsForGenerationType(linked.generationType ?? null)
+        : { tool: toolForHubKind(input.hubKind ?? null), model: null as string | null };
 
   const day = input.createdAt.slice(0, 10);
   const editHistory: string[] = [];
@@ -195,8 +226,18 @@ export function buildProvenanceRecord(input: ProvenanceDerivationInput): Provena
       editHistory.push(`Generation cost: ${input.creditsUsed} Visual Bucs.`);
     }
     if (input.saveStatus === "saved") editHistory.push("Saved to the creator's library.");
+  } else if (linked) {
+    editHistory.push(`Created with ${facts.tool}${facts.model ? ` · ${facts.model}` : ""} on ${PROVENANCE_PLATFORM} (generation record linked by library URL).`);
+    if (linked.prompt && linked.prompt.trim()) {
+      editHistory.push(`Prompt: "${truncate(linked.prompt.trim(), 140)}"`);
+    }
+    if (typeof linked.creditsUsed === "number" && linked.creditsUsed > 0) {
+      editHistory.push(`Generation cost: ${linked.creditsUsed} Visual Bucs.`);
+    }
+    editHistory.push(`Added to the library ${day}${input.hubDetail ? ` — ${input.hubDetail}` : ""}.`);
   } else {
     editHistory.push(`Added to the library ${day}${input.hubDetail ? ` — ${input.hubDetail}` : ""}.`);
+    editHistory.push("No generation record is stored for this asset, so its AI involvement is not recorded.");
   }
 
   return {
@@ -206,11 +247,20 @@ export function buildProvenanceRecord(input: ProvenanceDerivationInput): Provena
     creator: { id: input.creatorId, name: input.creatorName },
     createdWith: { tool: facts.tool, model: facts.model, platform: PROVENANCE_PLATFORM },
     createdAt: input.createdAt,
-    aiGenerated: input.origin === "generation",
+    aiGenerated: aiInvolvement === "ai",
+    aiInvolvement,
     editHistory,
     licence: isLicenceId(input.storedLicence) ? input.storedLicence : DEFAULT_LICENCE_ID,
     disclosureDefaultEnabled: DISCLOSURE_DEFAULT_ENABLED,
   };
+}
+
+/** The certificate's AI-involvement wording, keyed on the honest state —
+    an unknown origin is stated as unknown, never as "no AI". */
+export function aiInvolvementCertificateLine(record: ProvenanceRecord): string {
+  return record.aiInvolvement === "ai"
+    ? aiDisclosureLine(record)
+    : "AI involvement is not recorded for this work. This asset reached the library without a generation record, so this certificate neither confirms nor rules out AI generation.";
 }
 
 /* ─── Disclosure lines ──────────────────────────────────────────────────── */
@@ -262,7 +312,7 @@ export function certificateContent(record: ProvenanceRecord, issuedAt = new Date
       { label: "Creator", value: record.creator.name ?? "Bow Down Visuals creator" },
       { label: "Created with", value: `${record.createdWith.tool}${record.createdWith.model ? ` · ${record.createdWith.model}` : ""} on ${record.createdWith.platform}` },
       { label: "Created on", value: record.createdAt.slice(0, 10) },
-      { label: "AI involvement", value: record.aiGenerated ? aiDisclosureLine(record) : "No AI generation is recorded for this work." },
+      { label: "AI involvement", value: aiInvolvementCertificateLine(record) },
     ],
     licenceName: licence.name,
     licenceSummary: licence.summary,

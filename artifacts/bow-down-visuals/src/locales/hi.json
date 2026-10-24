@@ -7085,6 +7085,7 @@
       "madeWith": "बनाया गया",
       "madeBy": "{{name}} द्वारा",
       "aiBadge": "AI द्वारा निर्मित",
+      "aiUnknown": "AI की भागीदारी दर्ज नहीं है",
       "licence": "लाइसेंस",
       "saveLicence": "सहेजें",
       "licenceSaved": "सहेजा गया",

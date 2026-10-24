@@ -7084,6 +7084,7 @@
       "madeWith": "作成ツール",
       "madeBy": "{{name}} 作",
       "aiBadge": "AI生成",
+      "aiUnknown": "AIの関与は記録されていません",
       "licence": "ライセンス",
       "saveLicence": "保存",
       "licenceSaved": "保存しました",

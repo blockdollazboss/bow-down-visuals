@@ -107,3 +107,32 @@ describe("U1 — POST /carousel/export server-derived idempotency", () => {
     expect(h.charges[0]!.idempotencyKey).toBe("carousel_export:user-1:client:client-key-1");
   });
 });
+
+/* More-provenance: the carousel door joins the F7 disclosure kit. Slides
+   render client-side, so this endpoint states the request and hands the
+   client the disclosure payload to stamp into the PNG bytes — it never
+   claims the stamp happened server-side. */
+describe("POST /carousel/export — AI disclosure payload", () => {
+  it("DEFAULT ON: absent flag returns the disclosure payload for the client stamp", async () => {
+    const r = await post({ slideCount: 3, idempotencyKey: "disc-default" });
+    expect(r.status).toBe(200);
+    expect(r.json.aiDisclosure).toBe("requested");
+    expect(r.json.disclosure.tool).toBe("Carousel Maker");
+    expect(r.json.disclosure.text).toContain("AI-generated content");
+    expect(r.json.disclosure.text).toContain("Carousel Maker");
+    expect(r.json.disclosure.text).toContain("bowdownvisuals.com");
+  });
+
+  it("OPT-OUT: aiDisclosure:false returns off and NO payload", async () => {
+    const r = await post({ slideCount: 3, idempotencyKey: "disc-off", aiDisclosure: false });
+    expect(r.status).toBe(200);
+    expect(r.json.aiDisclosure).toBe("off");
+    expect(r.json.disclosure).toBeNull();
+  });
+
+  it("explicit true behaves like the default", async () => {
+    const r = await post({ slideCount: 3, idempotencyKey: "disc-on", aiDisclosure: true });
+    expect(r.json.aiDisclosure).toBe("requested");
+    expect(r.json.disclosure.text).toContain("AI-generated content");
+  });
+});

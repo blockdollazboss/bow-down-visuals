@@ -209,6 +209,30 @@ describe("GET /api/provenance/:kind/:id", () => {
     expect(json.record.title).toBe("Crown Cover");
     expect(json.record.aiGenerated).toBe(false);
     expect(json.record.createdWith.tool).toBe("Thumbnail Studio");
+    /* More-provenance: no generation row stores this hub entry's URL, so
+       its AI state is honestly UNKNOWN — never "no AI". */
+    expect(json.record.aiInvolvement).toBe("unknown");
+  });
+
+  it("a hub asset linked by URL to a generation row states its AI facts", async () => {
+    /* Thumbnail generations store result.thumbnailUrl = the hub entry's
+       URL (lib/payment-record recordThumbnailHistory) — that stored link
+       is the evidence. */
+    const { db } = { db: testState.db };
+    await db.execute(sql`
+      INSERT INTO generation_history (id, user_id, generation_type, prompt, result, credits_used, save_status, created_at)
+      VALUES (${randomUUID()}, ${USER}, ${"thumbnail"}, ${"a crown over a city"},
+        ${JSON.stringify({ thumbnailUrl: "https://cdn.example/cover.png", actionLabel: "Thumbnail Maker" })}::jsonb,
+        ${100}, ${"saved"}, ${"2026-10-23T11:00:00Z"})
+    `);
+    const res = await call(`/provenance/hub/cover-1`, USER);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as any;
+    expect(json.record.aiInvolvement).toBe("ai");
+    expect(json.record.aiGenerated).toBe(true);
+    expect(json.record.createdWith.tool).toBe("Thumbnail Studio");
+    expect(json.record.createdWith.model).toBeNull();
+    expect(json.record.editHistory.some((l: string) => l.includes("a crown over a city"))).toBe(true);
   });
 
   it("404s for another creator's asset — ownership is real", async () => {
@@ -322,5 +346,19 @@ describe("GET /api/provenance/:kind/:id/certificate", () => {
   it("404s for another creator", async () => {
     const res = await call(`/provenance/gen/${GEN_ID}/certificate`, OTHER);
     expect(res.status).toBe(404);
+  });
+
+  it("an unlinked hub asset's certificate states UNKNOWN, never 'no AI'", async () => {
+    const res = await call(`/provenance/hub/cover-1/certificate`, USER);
+    expect(res.status).toBe(200);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    const raw = bytes.toString("latin1");
+    const hexFragments: string[] = [];
+    for (const m of raw.matchAll(/<([0-9a-fA-F]+)>/g)) {
+      hexFragments.push(Buffer.from(m[1]!, "hex").toString("latin1"));
+    }
+    const pageText = hexFragments.join("");
+    expect(pageText).toContain("AI involvement is not recorded for this work.");
+    expect(pageText).not.toContain("No AI generation is recorded");
   });
 });

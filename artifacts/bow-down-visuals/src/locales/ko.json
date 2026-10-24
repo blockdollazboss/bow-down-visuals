@@ -7085,6 +7085,7 @@
       "madeWith": "제작 도구",
       "madeBy": "제작: {{name}}",
       "aiBadge": "AI 생성",
+      "aiUnknown": "AI 관여 여부가 기록되지 않음",
       "licence": "라이선스",
       "saveLicence": "저장",
       "licenceSaved": "저장됨",

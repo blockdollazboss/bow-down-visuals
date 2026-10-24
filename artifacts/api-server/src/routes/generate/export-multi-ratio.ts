@@ -17,6 +17,8 @@ import { logger } from "../../lib/logger";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { stampVideoFileWithDisclosure } from "../../lib/disclosure-metadata";
+import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../../lib/provenance";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -68,6 +70,10 @@ const multiRatioSchema = z.object({
      ratio. Free/bonus exports carry it by policy; paid exports get it as
      an opt-in (paired with the watermark-removal upsell for removal). */
   attribution: z.boolean().optional().default(false),
+  /** AI disclosure (lane F7 kit, more-provenance follow-up): absent = ON —
+   *  each rendered ratio is stamped with the disclosure in its container
+   *  metadata before upload; only an explicit false opts out. */
+  aiDisclosure: z.boolean().optional(),
 });
 
 type RatioJobState = "queued" | "rendering" | "done" | "failed";
@@ -85,6 +91,11 @@ interface RatioResult {
   url?: string;
   storageRef?: string;
   error?: string;
+  /** AI-disclosure stamp outcome for this ratio's file — set when the
+      render finishes: "embedded" (stamped pre-upload), "off" (creator
+      opted out), "stamp_failed" (stamp failed; the unstamped render
+      still shipped — a stamp never fails the export). */
+  aiDisclosure?: "embedded" | "off" | "stamp_failed";
 }
 
 interface MultiRatioJob {
@@ -93,6 +104,8 @@ interface MultiRatioJob {
   videoUrl: string;
   mode: ReframeMode;
   attribution: boolean;
+  /** AI-disclosure toggle as requested (absent in the request = true). */
+  aiDisclosure: boolean;
   topic?: string;
   costTotal: number;
   costPerRatio: number;
@@ -256,6 +269,7 @@ function publicJob(job: MultiRatioJob) {
     state: job.state,
     mode: job.mode,
     attribution: job.attribution,
+    aiDisclosure: job.aiDisclosure,
     topic: job.topic ?? null,
     costPerRatio: job.costPerRatio,
     costTotal: job.costTotal,
@@ -276,6 +290,7 @@ function publicJob(job: MultiRatioJob) {
       progress: r.progress,
       url: r.url ?? null,
       error: r.error ?? null,
+      aiDisclosure: r.aiDisclosure ?? null,
     })),
   };
 }
@@ -337,6 +352,7 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
     videoUrl: parsed.data.videoUrl,
     mode: parsed.data.mode,
     attribution: parsed.data.attribution,
+    aiDisclosure: parsed.data.aiDisclosure !== false,
     topic: parsed.data.topic,
     costTotal,
     costPerRatio: COST_PER_RATIO,
@@ -544,7 +560,29 @@ async function runMultiRatioJob(jobId: string): Promise<void> {
           inputPath, filter, outputPath, durationSec,
           (pct) => { ratio.progress = pct; },
         );
-        const buffer = await readFile(outputPath);
+        /* AI-disclosure stamp (lane F7 kit): DEFAULT ON — the rendered
+           ratio is remuxed by stream copy (no re-encode) with the
+           disclosure in its container metadata BEFORE upload. A failed
+           stamp NEVER fails the ratio: the unstamped render ships and
+           the job reports stamp_failed honestly. */
+        let uploadPath = outputPath;
+        if (!job.aiDisclosure) {
+          ratio.aiDisclosure = "off";
+        } else {
+          const stampedPath = join(workDir, `disclosed-${ratio.ratio.replace(":", "x")}.mp4`);
+          const stamped = await stampVideoFileWithDisclosure(outputPath, stampedPath, {
+            text: aiDisclosureMetadataText({ createdWith: { tool: "Multi-Ratio Export", model: null, platform: PROVENANCE_PLATFORM } }),
+            tool: "Multi-Ratio Export",
+          });
+          if (stamped) {
+            uploadPath = stampedPath;
+            ratio.aiDisclosure = "embedded";
+          } else {
+            ratio.aiDisclosure = "stamp_failed";
+            logger.warn({ jobId, ratio: ratio.ratio }, "[export-multi-ratio] AI-disclosure stamp failed; shipping unstamped");
+          }
+        }
+        const buffer = await readFile(uploadPath);
         const slug = ratio.ratio.replace(":", "x");
         const objectName = `multi-ratio/${job.userId}/${job.id}/${slug}.mp4`;
         const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");

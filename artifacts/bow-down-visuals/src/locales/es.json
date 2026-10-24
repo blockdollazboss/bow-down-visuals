@@ -7098,6 +7098,7 @@
       "madeWith": "Hecho con",
       "madeBy": "por {{name}}",
       "aiBadge": "Generado por IA",
+      "aiUnknown": "Participación de IA no registrada",
       "licence": "Licencia",
       "saveLicence": "Guardar",
       "licenceSaved": "Guardado",

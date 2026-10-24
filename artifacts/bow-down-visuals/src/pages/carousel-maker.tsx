@@ -17,7 +17,8 @@ import {
   CalendarClock, Sparkles, Check, GripVertical, Type, Palette, Layers,
 } from "lucide-react";
 import {
-  CAROUSEL_TEMPLATES, renderCarouselSlide, downloadCanvas,
+  CAROUSEL_TEMPLATES, renderCarouselSlide, downloadCarouselSlide,
+  type CarouselDisclosure,
   type CarouselSlide, type CarouselFormat, type CarouselTemplate,
 } from "@/lib/carousel-renderer";
 
@@ -72,6 +73,9 @@ export default function CarouselMaker() {
   const [format, setFormat] = useState<CarouselFormat>("square");
   const [font, setFont] = useState<"serif" | "sans" | "display">("serif");
   const [brandColors, setBrandColors] = useState("");
+  /* AI disclosure (lane F7 kit): ON by default — stamped into every
+     downloaded slide's PNG metadata unless turned off for this export. */
+  const [aiDisclosure, setAiDisclosure] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [step, setStep] = useState<"templates" | "edit">("templates");
 
@@ -154,13 +158,27 @@ export default function CarouselMaker() {
       const res = await confirmedFetch("/api/carousel/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slideCount: slides.length }),
+        body: JSON.stringify({ slideCount: slides.length, aiDisclosure }),
       });
       if (!res) return; // user cancelled the VB confirm
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string }).error ?? t("carouselMaker.exportFailed"));
       }
+      /* The server returns the disclosure payload (text + tool) when the
+         toggle is on; the stamp itself happens here, in the PNG bytes,
+         because the slides render client-side. A stamp failure downloads
+         the slide unstamped — it never fails the export. */
+      const exportData = (await res.json().catch(() => ({}))) as {
+        disclosure?: { text: string; tool: string } | null;
+      };
+      const disclosure: CarouselDisclosure | null = aiDisclosure && exportData.disclosure
+        ? {
+            text: exportData.disclosure.text,
+            tool: exportData.disclosure.tool,
+            creator: activeArtist?.artist_name || null,
+          }
+        : null;
       // Render + download each slide
       for (let i = 0; i < slides.length; i++) {
         const canvas = renderCarouselSlide({
@@ -174,7 +192,7 @@ export default function CarouselMaker() {
           fontFamily: font,
         });
         // eslint-disable-next-line no-await-in-loop
-        await downloadCanvas(canvas, `carousel-slide-${i + 1}.png`);
+        await downloadCarouselSlide(canvas, `carousel-slide-${i + 1}.png`, disclosure);
       }
       // Save to Thy Vision (hub project → My Projects)
       addAsset({
@@ -194,7 +212,7 @@ export default function CarouselMaker() {
     } finally {
       setExporting(false);
     }
-  }, [exporting, confirmedFetch, slides, template, format, brandColors, activeArtist, font, addAsset, refreshProfile, toast, t]);
+  }, [exporting, confirmedFetch, slides, template, format, brandColors, activeArtist, font, aiDisclosure, addAsset, refreshProfile, toast, t]);
 
   /* ── Hand off to the War Room (scheduler) — the shared deep-link
         protocol (lib/scheduler-handoff); the composer validates the
@@ -490,6 +508,21 @@ export default function CarouselMaker() {
 
               {/* actions */}
               <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <span className="text-xs text-white/60">
+                    {t("videoExport.aiDisclosure", { defaultValue: "AI disclosure in file details" })}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={aiDisclosure}
+                    aria-label={t("videoExport.aiDisclosure", { defaultValue: "AI disclosure in file details" })}
+                    onClick={() => setAiDisclosure((v) => !v)}
+                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${aiDisclosure ? "bg-primary" : "bg-white/15"}`}
+                  >
+                    <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${aiDisclosure ? "left-[22px]" : "left-0.5"}`} />
+                  </button>
+                </div>
                 <Button
                   onClick={handleExport}
                   disabled={exporting || filledCount === 0}

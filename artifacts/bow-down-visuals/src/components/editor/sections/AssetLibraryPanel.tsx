@@ -138,6 +138,11 @@ function ProvenanceCard({
               {tr("aiBadge", { defaultValue: "AI-generated" })}
             </span>
           )}
+          {record.aiInvolvement === "unknown" && (
+            <span className="inline-flex rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white/45">
+              {tr("aiUnknown", { defaultValue: "AI involvement not recorded" })}
+            </span>
+          )}
           {record.editHistory.length > 0 && (
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-white/35">

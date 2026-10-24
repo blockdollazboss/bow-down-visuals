@@ -2819,7 +2819,8 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
        DEFAULT ON: unless the request explicitly set aiDisclosure:false,
        the verified file is remuxed by stream copy (no re-encode, no
        quality change) with the disclosure in its container metadata —
-       comment / description / ai_disclosure tags. A failed stamp NEVER
+       comment + description tags (the MP4 muxer drops a custom
+       ai_disclosure key; see lib/disclosure-metadata.ts). A failed stamp NEVER
        fails the export: the unstamped file ships and the result reports
        aiDisclosure:"stamp_failed" honestly. */
     let aiDisclosureState: "embedded" | "off" | "stamp_failed" =

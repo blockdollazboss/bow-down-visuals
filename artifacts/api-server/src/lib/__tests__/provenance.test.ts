@@ -10,6 +10,7 @@ import {
   DISCLOSURE_DEFAULT_ENABLED,
   aiDisclosureLine,
   aiDisclosureMetadataText,
+  aiInvolvementCertificateLine,
   buildLicenceCertificatePdf,
   buildProvenanceRecord,
   certificateContent,
@@ -19,6 +20,7 @@ import {
   toolForHubKind,
   type ProvenanceRecord,
 } from "../provenance";
+import { generationLinkageByUrl } from "../asset-library";
 
 describe("licence catalogue", () => {
   it("has unique ids, https deed urls, and the conservative default", () => {
@@ -131,6 +133,80 @@ describe("buildProvenanceRecord", () => {
     expect(r.createdWith.tool).toBe("Thumbnail Studio");
     expect(r.editHistory[0]).toContain("Added to the library 2026-10-01");
     expect(r.editHistory[0]).toContain("From Thumbnail Studio");
+  });
+});
+
+/* ─── Hub-origin AI state (more-provenance, F7 review MEDIUM) ─────────────
+   A hub entry is a desk output's library copy. Without a generation-row
+   link it must read UNKNOWN — never "no AI" — and with a link it inherits
+   the generation's proven AI facts. */
+describe("hub-origin AI involvement — honest states", () => {
+  const hubBase = {
+    assetId: "hub:abc",
+    title: "Cover art",
+    mediaKind: "image" as const,
+    origin: "project" as const,
+    creatorId: "u",
+    creatorName: "Creator",
+    createdAt: "2026-10-01T00:00:00.000Z",
+    hubKind: "thumbnail",
+    hubDetail: "From Thumbnail Studio",
+  };
+
+  it("unlinked hub assets are UNKNOWN, not 'no AI'", () => {
+    const r = buildProvenanceRecord({ ...hubBase });
+    expect(r.aiInvolvement).toBe("unknown");
+    expect(r.aiGenerated).toBe(false); // not proven — the boolean never claims a negative
+    expect(r.editHistory.some((l) => l.includes("AI involvement is not recorded"))).toBe(true);
+    const line = aiInvolvementCertificateLine(r);
+    expect(line).toContain("not recorded");
+    expect(line).toContain("neither confirms nor rules out");
+    expect(line).not.toContain("No AI generation");
+    const content = certificateContent(r, new Date("2026-10-24T00:00:00.000Z"));
+    expect(content.lines.find((l) => l.label === "AI involvement")?.value).toBe(line);
+  });
+
+  it("hub assets linked to a generation row inherit its AI facts", () => {
+    const r = buildProvenanceRecord({
+      ...hubBase,
+      linkedGeneration: { generationType: "thumbnail", prompt: "a crown over a city", creditsUsed: 100 },
+    });
+    expect(r.aiInvolvement).toBe("ai");
+    expect(r.aiGenerated).toBe(true);
+    expect(r.createdWith.tool).toBe("Thumbnail Studio");
+    expect(r.createdWith.model).toBeNull(); // thumbnail rail pins no model — none is claimed
+    expect(r.editHistory.some((l) => l.includes("generation record linked"))).toBe(true);
+    expect(r.editHistory.some((l) => l.includes('Prompt: "a crown over a city"'))).toBe(true);
+    expect(r.editHistory.some((l) => l.includes("100 Visual Bucs"))).toBe(true);
+    expect(aiInvolvementCertificateLine(r)).toContain("created with AI assistance");
+  });
+
+  it("a linked song generation carries its pinned model through the hub copy", () => {
+    const r = buildProvenanceRecord({
+      ...hubBase,
+      hubKind: "song",
+      mediaKind: "audio",
+      linkedGeneration: { generationType: "Make a Song", prompt: null, creditsUsed: 400 },
+    });
+    expect(r.aiInvolvement).toBe("ai");
+    expect(r.createdWith.tool).toBe("Make a Song");
+    expect(r.createdWith.model).toContain("ElevenLabs Music");
+  });
+
+  it("generation-origin records are always 'ai'", () => {
+    expect(songRecord().aiInvolvement).toBe("ai");
+    expect(songRecord().aiGenerated).toBe(true);
+  });
+
+  it("generationLinkageByUrl keys rows by their stored media URL only", () => {
+    const map = generationLinkageByUrl([
+      { generationType: "thumbnail", result: { thumbnailUrl: "https://cdn.example/cover.png" }, prompt: "p1", creditsUsed: 100, createdAt: new Date() },
+      { generationType: "Make a Song", result: { videoUrl: "https://cdn.example/song.mp4" }, prompt: "p2", creditsUsed: 400, createdAt: new Date() },
+      { generationType: "lyrics", result: { content: "text only" }, prompt: "p3", creditsUsed: 10, createdAt: new Date() },
+    ]);
+    expect(map.get("https://cdn.example/cover.png")).toEqual({ generationType: "thumbnail", prompt: "p1", creditsUsed: 100 });
+    expect(map.get("https://cdn.example/song.mp4")?.generationType).toBe("Make a Song");
+    expect(map.size).toBe(2); // the text-only row stores no media URL — no link is invented
   });
 });
 

@@ -12,6 +12,7 @@ const sampleRecord: ProvenanceRecord = {
   createdWith: { tool: "Thumbnail Studio", model: null, platform: "Bow Down Visuals" },
   createdAt: "2026-01-02T00:00:00.000Z",
   aiGenerated: true,
+  aiInvolvement: "ai",
   editHistory: ["Created 2026-01-02 with Thumbnail Studio on Bow Down Visuals."],
   licence: "all-rights-reserved",
   disclosureDefaultEnabled: true,
