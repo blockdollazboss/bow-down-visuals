@@ -3161,7 +3161,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Credit check (5 credits for final export) ── */
+  /* ── Credit check (EXPORT_CREDIT_COST = 400 Visual Bucs for final export) ── */
   const currentCredits = req.userCredits ?? 0;
   if (!IS_DEV && currentCredits < EXPORT_CREDIT_COST) {
     res.status(402).json({
