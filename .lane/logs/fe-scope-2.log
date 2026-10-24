@@ -1,0 +1,25 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-coposts/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/findability-nav.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1909[2mms[22m[39m
+   [32m✓[39m findability — nav labels are the features' real names [2m(4)[22m
+     [33m[2m✓[22m[39m every locale has every wired key, and none of them is a poetic Thy-label[33m 1235[2mms[22m[39m
+ [32m✓[39m src/lib/resilience-s28.test.ts [2m([22m[2m50 tests[22m[2m)[22m[33m 684[2mms[22m[39m
+ [32m✓[39m src/lib/public-routes.test.ts [2m([22m[2m127 tests[22m[2m)[22m[33m 956[2mms[22m[39m
+ [32m✓[39m src/lib/king-emoji.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 587[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-wave2.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 352[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-desk.test.ts [2m([22m[2m51 tests[22m[2m)[22m[32m 214[2mms[22m[39m
+ [32m✓[39m src/lib/co-posts.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/lib/collabs.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m src/lib/reports.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 153[2mms[22m[39m
+ [32m✓[39m src/lib/theme-remap-golds.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 74[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m362 passed[39m[22m[90m (362)[39m
+[2m   Start at [22m 02:24:33
+[2m   Duration [22m 40.48s[2m (transform 38%, tests 33%, import 24%, worker 5%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 5.83s[39m[2m · 38% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

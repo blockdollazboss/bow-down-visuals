@@ -93,5 +93,36 @@ lands: writes answer `503 co_post_not_ready` BEFORE creating anything
 - Scheduled co-posts and poll co-posts: not offered (composer parity
   is a follow-up, not a consent question).
 
-## Tests
-<!-- filled from finished sequential suite logs at the end -->
+## Tests — numbers ONLY from finished logs in `.lane/logs/`
+All suites run SEQUENTIALLY, `--maxWorkers=1`, TMPDIR in-worktree,
+farm re-verified after the hazard correction (see GAP.md).
+
+- Libs build (`tsc -b lib/db lib/api-zod`): exit 0 (build-libs-2.log).
+- API typecheck: exit 0 (api-typecheck-4.log). FE typecheck: exit 0
+  (fe-typecheck-1.log).
+- API targeted (api-targeted-2.log): **2 files / 34 tests, all passed**
+  — co-post consent machine (18) + existing collabs suite (16).
+- API social scope (api-social-scope-2.log): **10 files / 100 tests,
+  all passed** — every suite that imports routes/social.ts
+  (admin-content-removal, close-friends-enforcement, post-reply-drafts,
+  reply-reactions, saves-mine-refresh, social-assist-refund, social-feed-dto,
+  social-notification-links) + co-posts + collabs.
+  ⚠️ The FIRST run of this set (api-social-scope.log) had 27 failures,
+  all mine: my guarded read rethrew the house fake DB's
+  "unknown table" error, 500ing the Feed in those suites. Fixed by
+  degrading on ANY side-table read failure (resilience law) and
+  re-verified: api-reverify.log, **3 files / 32 tests, all passed**
+  after the final log-level refinement.
+- FE targeted (fe-targeted-1.log): **2 files / 24 tests, all passed**
+  (co-posts contract + collabs).
+- FE scope (fe-scope-2.log): **10 files / 362 tests, all passed**
+  (adds king-emoji, reports, resilience-s28, theme-remap-golds,
+  world/social-desk, world/social-wave2, findability-nav,
+  public-routes).
+- FULL suites: attempted for the API twice (api-full-1.log died with
+  its exec session; api-full-2.log aborted by the lane at ~15 files
+  in). Pace under 13 concurrent lane suites on the shared box was
+  ~1 file/minute against 412 API files — hours, not a verification
+  signal. The relevant-scope sets above are the finished evidence;
+  the integrator's join suite remains the full-suite gate, as with
+  every other stack29 lane.

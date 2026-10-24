@@ -1,0 +1,13 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-coposts/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/findability-nav.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1894[2mms[22m[39m
+   [32m✓[39m findability — nav labels are the features' real names [2m(4)[22m
+     [33m[2m✓[22m[39m every locale has every wired key, and none of them is a poetic Thy-label[33m 1369[2mms[22m[39m
+ [32m✓[39m src/lib/resilience-s28.test.ts [2m([22m[2m50 tests[22m[2m)[22m[33m 860[2mms[22m[39m
+ [32m✓[39m src/lib/public-routes.test.ts [2m([22m[2m127 tests[22m[2m)[22m[33m 611[2mms[22m[39m
+ [32m✓[39m src/lib/king-emoji.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 394[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-wave2.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 388[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-desk.test.ts [2m([22m[2m51 tests[22m[2m)[22m[33m 359[2mms[22m[39m
+ [32m✓[39m src/lib/co-posts.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m src/lib/collabs.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 248[2mms[22m[39m
