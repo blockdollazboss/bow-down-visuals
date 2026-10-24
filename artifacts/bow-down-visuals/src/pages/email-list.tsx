@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
  Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
  Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
- Inbox, Send, FileText, RotateCcw, Zap,
+ Inbox, Send, FileText, RotateCcw, Zap, Network,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import FanGraphTab from "@/components/FanGraphTab";
 import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Email List Builder ────────────────────────────────
@@ -28,7 +29,7 @@ import { useTranslation } from "react-i18next";
  subscribers carry tags, saved segments aim campaigns, and
  unsubscribed fans are never emailed again. */
 
-type TabKey = "dashboard" | "lists" | "newsletter" | "forms";
+type TabKey = "dashboard" | "lists" | "fans" | "newsletter" | "forms";
 
 interface EmailList {
  id: string;
@@ -756,6 +757,8 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <TrendingUp className="h-4 w-4" />{t("email-list.dashboard")}</button>
  <button className={tabBtn(tab === "lists")} onClick={() => setTab("lists")}>
  <Users className="h-4 w-4" />{t("email-list.my_lists")}</button>
+ <button className={tabBtn(tab === "fans")} onClick={() => setTab("fans")}>
+ <Network className="h-4 w-4" />{t("email-list.fan_graph")}</button>
  <button className={tabBtn(tab === "newsletter")} onClick={() => setTab("newsletter")}>
  <PenLine className="h-4 w-4" />{t("email-list.ai_newsletter_100_visual_bucs")}</button>
  <button className={tabBtn(tab === "forms")} onClick={() => setTab("forms")}>
@@ -1473,6 +1476,9 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  )}
  </div>
  )}
+
+ {/* ── fan graph (One Fan Graph: followers + subscribers + members + buyers, one record per fan) ── */}
+ {tab === "fans" && <FanGraphTab />}
 
  {/* honesty footer */}
  <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-xs leading-relaxed text-white/40">

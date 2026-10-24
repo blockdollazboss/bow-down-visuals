@@ -208,6 +208,15 @@ const EMAIL_LIST_BLOCK = [
   "no_campaigns_yet", "delivered_word", "opens_word", "clicks_word",
   "opens_total", "clicks_total", "save_tags",
   "campaign_sent_msg", "campaign_failed_msg", "tag_subscribers_hint",
+  /* Stack-29 One Fan Graph fill: the unified fan view's 20 keys,
+     translated in all 10 catalogs the day the tab shipped. */
+  "fan_graph", "fan_graph_intro", "fan_graph_search",
+  "fan_graph_sort_recent", "fan_graph_sort_spent", "fan_graph_sort_name",
+  "fan_graph_empty", "fan_graph_total_fans", "fan_graph_followers",
+  "fan_graph_buyers", "fan_graph_follows_badge", "fan_graph_subscribed_badge",
+  "fan_graph_unsubscribed_badge", "fan_graph_member_badge",
+  "fan_graph_members_label", "fan_graph_spent_label", "fan_graph_last_active",
+  "fan_graph_prev", "fan_graph_next", "fan_graph_error",
 ] as const;
 /* One-off newest-surface keys in older namespaces. */
 const SINGLES = [
@@ -242,11 +251,11 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill and the King's Set starter-pack fill (4284 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill and the Stack-29 One Fan Graph fill (4304 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
-    expect(REQUIRED.length).toBe(4284);
+    expect(REQUIRED.length).toBe(4304);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
