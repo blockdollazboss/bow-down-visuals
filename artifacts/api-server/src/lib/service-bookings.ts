@@ -352,7 +352,6 @@ export async function reconcileServiceBookings(
   for (const row of r.rows as Array<Record<string, unknown>>) {
     const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
     if (!rec || !bookingBlocksSlot(rec)) continue;
-    scanned += 1;
     const orderStatus = String(row["status"]);
     const created = new Date(String(row["created_at"]));
     const holdExpiresAt =
@@ -362,6 +361,14 @@ export async function reconcileServiceBookings(
     if (orderStatus === "booking_held" && holdExpiresAt && holdExpiresAt.getTime() <= now.getTime()) {
       continue; // a lapsed hold blocks nothing; don't resurrect it
     }
+    scanned += 1;
+    /* Existence pre-check: pg-mem's ON CONFLICT (order_id) inference is
+       unreliable, and on real Postgres this merely saves a no-op insert
+       — the ON CONFLICT below stays as the race guard. */
+    const existing = await run.execute(sql`
+      SELECT id FROM service_bookings WHERE order_id = ${String(row["id"])} LIMIT 1
+    `);
+    if (existing.rows.length > 0) continue;
     try {
       const ins = await run.execute(sql`
         INSERT INTO service_bookings
