@@ -49,6 +49,16 @@ import { createJobNotification } from "../lib/job-notifications";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
+import {
+  GiftCardsUnavailable,
+  findCardByCode,
+  isGiftCardCodeShape,
+  releaseExpiredReservations,
+  reserveGiftCard,
+  redeemReservation,
+  releaseReservation,
+  tenderFor,
+} from "../lib/gift-cards";
 
 const router = Router();
 
@@ -366,6 +376,10 @@ const CheckoutSchema = z.object({
   id: z.string().regex(UUID_RE, "id must be a UUID"),
   /* Name-your-price amount (PWYW items only; enforced server-side). */
   amountCents: z.number().int().positive().max(100_000_00).optional(),
+  /* Gift-card tender (Stack-100 #3 #26): stored value issued by THIS
+     item's creator — payment, not a markdown: the fee still splits
+     the full gross (lib/gift-cards.ts fee law). */
+  giftCardCode: z.string().trim().min(1).max(40).optional(),
 });
 
 router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -428,6 +442,114 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
       }
     }
     const { feeCents, creatorCents } = splitFee(chargeCents);
+    /* ── Gift-card tender: reserve against this checkout. The hold
+       settles at verify; a failed/abandoned checkout releases it at
+       expiry (30 min). Fee stays on chargeCents — the full gross. */
+    let giftCardAppliedCents = 0;
+    let giftReservationId: string | null = null;
+    let giftReservationRef: string | null = null;
+    if (parsed.data.giftCardCode) {
+      if (!isGiftCardCodeShape(parsed.data.giftCardCode)) {
+        res.status(400).json({ error: "BAD_GIFT_CARD", message: "That doesn't look like a gift-card code (BDV-XXXX-XXXX-XXXX-XXXX)." });
+        return;
+      }
+      try {
+        await releaseExpiredReservations();
+        const card = await findCardByCode(parsed.data.giftCardCode);
+        if (!card || card.status !== "active") {
+          res.status(400).json({ error: "BAD_GIFT_CARD", message: "That gift card isn't active." });
+          return;
+        }
+        if (String(card.profile_id) !== item.profileId) {
+          res.status(400).json({ error: "WRONG_STORE", message: "That gift card is for a different creator's store." });
+          return;
+        }
+        const tender = tenderFor(Number(card.balance_cents) - Number(card.reserved_cents), chargeCents);
+        if (tender <= 0) {
+          res.status(400).json({ error: "NO_BALANCE", message: "That gift card has no balance left to spend." });
+          return;
+        }
+        giftReservationRef = `ds-${randomBytes(16).toString("hex")}`;
+        const reservation = await reserveGiftCard({
+          cardId: String(card.id), rail: "digital-store", ref: giftReservationRef, amountCents: tender,
+        });
+        if (!reservation) {
+          res.status(409).json({ error: "GIFT_CARD_BUSY", message: "That gift card's balance is held by another checkout right now — try again in a moment." });
+          return;
+        }
+        giftCardAppliedCents = tender;
+        giftReservationId = String(reservation.id);
+      } catch (err) {
+        if (err instanceof GiftCardsUnavailable) {
+          res.status(503).json({ error: "GIFT_CARDS_UNAVAILABLE", message: "Gift cards aren't live yet — check out without the code for now. Nothing was charged." });
+          return;
+        }
+        throw err;
+      }
+    }
+    const cardDueCents = chargeCents - giftCardAppliedCents;
+
+    /* Gift card covers it all: record the sale directly (the verify
+       rail's exact discipline — UNIQUE session key, fee on gross),
+       settle the hold, and deliver. No Stripe session exists. */
+    if (giftReservationId && cardDueCents === 0) {
+      const recordKey = `giftcard:${giftReservationRef}`;
+      const inserted = await db.execute(sql`
+        INSERT INTO digital_sales
+          (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+           amount_cents, platform_fee_cents, creator_amount_cents)
+        VALUES (${req.userId!}, ${item.profileId}, ${kind}, ${id}, ${recordKey},
+                ${chargeCents}, ${feeCents}, ${creatorCents})
+        ON CONFLICT (stripe_session_id) DO NOTHING
+        RETURNING id
+      `);
+      let saleId: string;
+      let duplicate = false;
+      if (inserted.rows.length > 0) {
+        saleId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+      } else {
+        const existing = await db.execute(sql`
+          SELECT id FROM digital_sales WHERE stripe_session_id = ${recordKey} LIMIT 1
+        `);
+        if (existing.rows.length === 0) {
+          await releaseReservation(giftReservationId).catch(() => undefined);
+          res.status(500).json({ error: "Sale could not be recorded — your gift card was not charged." });
+          return;
+        }
+        saleId = String((existing.rows[0] as Record<string, unknown>)["id"]);
+        duplicate = true;
+      }
+      const redeemed = await redeemReservation({ reservationId: giftReservationId, ref: saleId });
+      if (!redeemed) {
+        logger.error({ saleId, giftReservationId }, "[store] gift-card redeem failed after sale record — needs reconciliation");
+      }
+      const link = kind === "series"
+        ? null
+        : (await findReusableDownloadLink(saleId, item.fileUrl)) ?? (await mintDownloadLink(saleId, item.fileUrl));
+      logger.info({ userId: req.userId, kind, id, saleId, giftCardAppliedCents }, "[store] sale paid in full by gift card");
+      res.json({
+        paid: true,
+        paidWithGiftCard: true,
+        duplicate,
+        url: null,
+        sessionId: null,
+        sale: {
+          id: saleId,
+          itemKind: kind,
+          amountCents: chargeCents,
+          amount: money(chargeCents),
+          giftCardAppliedCents,
+          platformFeeCents: feeCents,
+          creatorAmountCents: creatorCents,
+        },
+        download: link
+          ? { token: link.token, url: `/api/store/download/${link.token}`, expiresAt: link.expiresAt.toISOString(), maxUses: DOWNLOAD_MAX_USES }
+          : null,
+        access: kind === "series" ? { unlocked: true, watchUrl: `/playlist/${id}` } : null,
+        note: "Paid in full with your gift card — no card payment was taken.",
+      });
+      return;
+    }
     /* Purchase sequence for the session idempotency key (see
        buildStoreCheckoutKey). A read failure throws into the catch
        below — no session is minted, so the failure is closed. */
@@ -453,13 +575,17 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     const artworkUrl = item.artworkUrl
       ? await refreshSupabaseStorageUrl(item.artworkUrl)
       : null;
-    const session = await stripe.checkout.sessions.create({
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
         {
           price_data: {
             currency: "usd",
-            unit_amount: chargeCents,
+            /* Gift-card tender: Stripe charges only the amount still
+               due; the sale record at verify carries the full gross. */
+            unit_amount: giftCardAppliedCents > 0 ? cardDueCents : chargeCents,
             product_data: {
               name: `${item.title} — ${item.artistName}`,
               description: kind === "series"
@@ -480,14 +606,24 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         item_id: id,
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
+        gift_card_reservation_id: giftReservationId ?? "",
+        gift_card_applied_cents: String(giftCardAppliedCents),
       },
-    }, { idempotencyKey });
+      }, { idempotencyKey });
+    } catch (sessionErr) {
+      if (giftReservationId) await releaseReservation(giftReservationId).catch(() => undefined);
+      throw sessionErr;
+    }
 
     logger.info(
-      { userId: req.userId, kind, id, priceCents: chargeCents, pwyw: item.pwywEnabled, sessionId: session.id },
+      { userId: req.userId, kind, id, priceCents: chargeCents, pwyw: item.pwywEnabled, sessionId: session.id, giftCardAppliedCents },
       "[store] checkout session created"
     );
-    res.json({ url: session.url, sessionId: session.id, amountCents: chargeCents, amount: money(chargeCents) });
+    res.json({
+      url: session.url, sessionId: session.id,
+      amountCents: chargeCents, amount: money(chargeCents),
+      giftCardAppliedCents, amountDueCents: cardDueCents, amountDue: money(cardDueCents),
+    });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg, kind, id }, "[store] checkout failed");
@@ -581,7 +717,11 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
 
-  const amountCents = session.amount_total ?? 0;
+  /* Gift-card tender: the session charged only the amount still due;
+     the sale's gross is due + tender and the fee splits the GROSS. */
+  const giftCardAppliedCents = Math.max(0, parseInt(meta["gift_card_applied_cents"] ?? "0", 10) || 0);
+  const giftReservationId = meta["gift_card_reservation_id"] || null;
+  const amountCents = (session.amount_total ?? 0) + giftCardAppliedCents;
   const { feeCents, creatorCents } = splitFee(amountCents);
 
   try {
@@ -612,6 +752,18 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       saleId = String((existing.rows[0] as Record<string, unknown>)["id"]);
       duplicate = true;
       logger.info({ sessionId, saleId }, "[store] verify: duplicate ignored, sale already recorded");
+    }
+
+    /* Settle the gift-card hold against this sale (idempotent —
+       redeem:{reservationId}; a duplicate verify replays harmlessly). */
+    if (giftReservationId) {
+      const redeemed = await redeemReservation({ reservationId: giftReservationId, ref: saleId }).catch((e) => {
+        logger.error({ err: e, saleId, giftReservationId }, "[store] gift-card redeem threw");
+        return null;
+      });
+      if (!redeemed) {
+        logger.error({ saleId, giftReservationId }, "[store] gift-card redeem failed after sale record — needs reconciliation");
+      }
     }
 
     /* Series sales deliver ACCESS, not a file: the sale row above is the
@@ -680,6 +832,7 @@ ${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistNa
         itemKind: kind,
         amountCents,
         amount: money(amountCents),
+        giftCardAppliedCents,
         platformFeeCents: feeCents,
         creatorAmountCents: creatorCents,
       },
