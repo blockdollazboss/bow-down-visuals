@@ -125,6 +125,7 @@ import sponsorsRouter from "./generate/sponsors";
 import brandingShopRouter from "./generate/branding-shop";
 import collabsRouter from "./generate/collabs";
 import coPostsRouter from "./co-posts";
+import coReleasesRouter from "./co-releases";
 import communityRouter from "./generate/community";
 import contestsRouter from "./generate/contests";
 import copyrightRouter from "./generate/copyright";
@@ -477,6 +478,7 @@ router.use(sponsorsRouter);
 router.use(brandingShopRouter);
 router.use(collabsRouter);
 router.use(coPostsRouter); // /api/co-posts/* (Stack-100 #3 #24: Collabs payoff — one post, both profiles)
+router.use(coReleasesRouter); // /api/co-releases/* (Stack-100 #3 Wave 3: co-posts phase 2 — one release/product, both profiles, consented royalty split)
 router.use(communityRouter);
 router.use(contestsRouter);
 router.use(copyrightRouter);

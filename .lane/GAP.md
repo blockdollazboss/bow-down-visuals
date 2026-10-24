@@ -1,3 +1,4 @@
+# (Wave 3 lane GAP — phase 1 GAP for stack29/coposts lives in that branch/worktree: ~/workspace/bdv-wt-coposts/.lane/GAP.md and in this branch parent commit d0539e1d)
 # Lane stack29/w3-co-release — Co-Release (co-posts phase 2) — GAP
 Base: stack29/coposts @ d0539e1d (phase 1 REPORT/MIGRATION in bdv-wt-coposts/.lane)
 Verified 2026-10-24 in source before building:
