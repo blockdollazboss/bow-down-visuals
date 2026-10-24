@@ -23,9 +23,12 @@ const ROUTES = [
   {
     path: "/",
     outFile: "index.html",
-    title: "Bow Down Visuals — Create Songs, Music Videos & Promo Clips With AI",
+    /* W3 lane 16 (D-7): the prerendered homepage IS the crawler copy of
+       `/` — its title/description must match index.html exactly, or
+       crawlers and everyone else get two different cards for `/`. */
+    title: "Bow Down Visuals — The Content Creator's Cheat Code",
     description:
-      "Tell us your artist, genre, and idea. In seconds, Bow Down Visuals generates lyrics, a full video treatment, promo content, and more — ready to use.",
+      "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
   },
 ]
 
