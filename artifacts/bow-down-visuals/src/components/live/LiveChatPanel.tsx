@@ -13,6 +13,19 @@ import {
   type ChatMessage,
   type ChatSocketLike,
 } from "@/lib/live-chat-client";
+import {
+  SEND_TARGET_NOTE,
+  collectMergedMessages,
+  collectSourceStates,
+  createChatSourceRegistry,
+  siteSourceState,
+  sourceBadge,
+  type ChatSourceId,
+  type PlatformAccountLike,
+  type SavedDestinationLike,
+  type SourceConnection,
+} from "@/lib/merged-live-chat";
+import { savedDestinationsFromPayload } from "@/lib/destination-keys";
 
 /* ─── Live chat panel ─────────────────────────────────────────────────────
    ONE panel for the watch page and the studio: same messages, same
@@ -25,7 +38,18 @@ import {
    protocol change. The panel follows the house theme like every
    other studio panel: its bg-[#0d0a04] ground is repainted by the
    §18 sweep in light theme (the data-dark-lock it used to carry
-   made it stay black on the cream studio — removed Oct 18, 2026). */
+   made it stay black on the cream studio — removed Oct 18, 2026).
+
+   MERGED PANEL (Stack-100 #3, feature #12 shell): the message list
+   is fed through the source-adapter registry in
+   lib/merged-live-chat.ts — the site's own chat is the live adapter,
+   Twitch and YouTube are inert seams that light up when their
+   platform OAuth approvals land. The strip under the header shows
+   each source's honest connection state, read from the platform
+   connections the site already keeps (/api/social/accounts +
+   /api/reach/destinations). No external message is ever simulated:
+   until real ingestion exists, external sources contribute states,
+   never messages. Sending posts to Bow Down chat only. */
 
 export default function LiveChatPanel({ streamId, className = "" }: { streamId: string; className?: string }) {
   const { user, getAccessToken } = useAuth();
@@ -62,6 +86,62 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
     );
   }
   const client = clientRef.current;
+
+  /* Platform-connection inputs for the merged source strip: the
+     signed-in user's connected accounts + saved multistream
+     destinations — the same state Settings and the destination
+     panel read. Guests have no connections to read, so their
+     externals honestly read not-connected. A failed read claims
+     nothing (check_failed), never "not connected". */
+  const [connInputs, setConnInputs] = useState<{
+    accounts: PlatformAccountLike[];
+    destinations: SavedDestinationLike[];
+    loadFailed: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (!user) {
+      setConnInputs({ accounts: [], destinations: [], loadFailed: false });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [accRes, destRes] = await Promise.all([
+          apiFetch(getAccessToken, "/api/social/accounts"),
+          apiFetch(getAccessToken, "/api/reach/destinations"),
+        ]);
+        if (!accRes.ok) throw new Error("accounts failed");
+        const accJson = await accRes.json().catch(() => null);
+        const destJson = destRes.ok ? await destRes.json().catch(() => null) : null;
+        if (cancelled) return;
+        setConnInputs({
+          accounts: Array.isArray(accJson?.accounts) ? accJson.accounts : [],
+          destinations: savedDestinationsFromPayload(destJson) ?? [],
+          loadFailed: false,
+        });
+      } catch {
+        if (!cancelled) setConnInputs({ accounts: [], destinations: [], loadFailed: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getAccessToken]);
+
+  /* The merged feed: adapters are stateless views over the client's
+     store, rebuilt per render so the list can never drift from the
+     client's own messages. Only the site adapter can ingest today —
+     the merge drops anything an inert adapter might hand it. */
+  const adapters = createChatSourceRegistry(() => client.messages);
+  const mergedMessages = collectMergedMessages(adapters);
+  const sourceStates: SourceConnection[] = connInputs
+    ? collectSourceStates({
+        streamStatus: client.streamStatus,
+        accounts: connInputs.accounts,
+        destinations: connInputs.destinations,
+        loadFailed: connInputs.loadFailed,
+      })
+    : [siteSourceState(client.streamStatus)];
 
   useEffect(() => {
     // Alert events (tips / follows) ride the room socket — bridge
@@ -144,6 +224,49 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
       </header>
 
       {!collapsed && (
+        <div className="border-b border-white/10 px-4 py-2" data-testid="chat-source-strip">
+          <div className="flex flex-wrap gap-1.5">
+            {sourceStates.map((s) => (
+              <span
+                key={s.source}
+                title={s.note}
+                data-testid={`chat-source-${s.source}`}
+                data-kind={s.kind}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold text-white/70"
+              >
+                <span
+                  className={`inline-block h-1.5 w-1.5 rounded-full ${s.ingestionLive ? "animate-pulse bg-red-500" : "bg-white/30"}`}
+                />
+                {sourceBadge(s.source).label}
+                <span className="font-semibold text-white/40">
+                  {s.kind === "live"
+                    ? "Live"
+                    : s.kind === "site_idle"
+                      ? ended
+                        ? "Replay"
+                        : "Opens at start"
+                      : s.kind === "account_connected"
+                        ? "Connected · chat pending approval"
+                        : s.kind === "destination_only"
+                          ? "Stream key only · no chat back"
+                          : s.kind === "check_failed"
+                            ? "Couldn't check"
+                            : "Not connected"}
+                </span>
+              </span>
+            ))}
+          </div>
+          {sourceStates
+            .filter((s) => s.source !== "site")
+            .map((s) => (
+              <p key={s.source} className="mt-1 text-[11px] leading-snug text-white/40">
+                {s.note}
+              </p>
+            ))}
+        </div>
+      )}
+
+      {!collapsed && (
         <>
           {client.pinned && new Date(client.pinned.pinnedUntil).getTime() > Date.now() && (
             <div
@@ -193,16 +316,17 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                 </button>
               </div>
             )}
-            {client.loadState === "ready" && client.messages.length === 0 && (
+            {client.loadState === "ready" && mergedMessages.length === 0 && (
               <p className="py-6 text-center text-sm text-white/45" data-testid="chat-empty">
                 {ended ? "No chat was saved from this stream." : "Be the first to say something."}
               </p>
             )}
             {client.loadState === "ready" &&
-              client.messages.map((m) => (
+              mergedMessages.map((m) => (
                 <ChatRow
-                  key={m.id}
+                  key={`${m.source}:${m.id}`}
                   message={m}
+                  source={m.source}
                   mine={!!user && m.userId === user.id}
                   isOwner={isOwner}
                   canModerate={canModerate}
@@ -314,6 +438,9 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
                 </button>
               </form>
+              <p className="mt-2 text-[11px] text-white/40" data-testid="chat-send-target">
+                {SEND_TARGET_NOTE}
+              </p>
               </>
             ) : (
               <p className="text-sm text-white/55" data-testid="chat-composer-note">
@@ -329,6 +456,7 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
 
 function ChatRow({
   message,
+  source,
   mine,
   isOwner,
   canModerate,
@@ -341,6 +469,10 @@ function ChatRow({
   onUnmute,
 }: {
   message: ChatMessage;
+  /** Which source this message arrived from — rendered as its badge.
+   *  Today every message is the site's own chat; external sources
+   *  join only when real ingestion lands behind their adapters. */
+  source: ChatSourceId;
   mine: boolean;
   isOwner: boolean;
   canModerate: boolean;
@@ -382,6 +514,12 @@ function ChatRow({
         <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
           <span className={`font-bold ${authorIsOwner ? "text-[#fbbf24]" : "text-white/85"}`}>
             {message.author.displayName}
+          </span>
+          <span
+            className="rounded-full bg-white/10 px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-white/55"
+            data-testid="chat-source-badge"
+          >
+            {sourceBadge(source).short}
           </span>
           {authorIsOwner && (
             <span className="rounded-full bg-[#C9A84C]/20 px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
