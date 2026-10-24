@@ -100,7 +100,7 @@ describe("decline — pre-live only, ends the co-post", () => {
   });
 
   it("decline after going live is refused — withdraw is the live action", () => {
-    expect(() => applyCoPostAction(live(), CO.profileId, "decline")).toThrowError(/already_live/);
+    expect(() => applyCoPostAction(live(), CO.profileId, "decline")).toThrowError(/already live — withdraw your side instead/);
   });
 
   it("the author cannot decline their own accepted side (they withdraw)", () => {
@@ -151,7 +151,7 @@ describe("withdraw — MY side only, the other creator keeps theirs", () => {
   });
 
   it("a pending side cannot withdraw (they decline instead), and strangers cannot withdraw", () => {
-    expect(() => applyCoPostAction(fresh(), CO.profileId, "withdraw")).toThrowError(/not_accepted/);
+    expect(() => applyCoPostAction(fresh(), CO.profileId, "withdraw")).toThrowError(/can withdraw it/);
     expect(() => applyCoPostAction(live(), "prof-stranger", "withdraw")).toThrowError(CoPostError);
   });
 });

@@ -1,0 +1,80 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server[39m
+
+ [31m❯[39m src/lib/__tests__/co-posts.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 403[2mms[22m[39m
+   [32m✓[39m initialCoPost [2m(3)[22m
+     [32m✓[39m starts with the author accepted and the co-author pending[32m 61[2mms[22m[39m
+     [32m✓[39m is not live anywhere while the co-author is pending[32m 17[2mms[22m[39m
+     [32m✓[39m refuses a creator co-posting with themselves[32m 40[2mms[22m[39m
+   [32m✓[39m accept — both sides approve before it goes live [2m(3)[22m
+     [32m✓[39m the co-author's accept publishes it on BOTH profiles[32m 1[2mms[22m[39m
+     [32m✓[39m accept only changes the accepting side[32m 13[2mms[22m[39m
+     [32m✓[39m a third party cannot accept, and a settled side cannot re-accept[32m 1[2mms[22m[39m
+   [31m❯[39m decline — pre-live only, ends the co-post [2m(3)[22m
+     [32m✓[39m a pending co-author can decline; nothing ever goes live[32m 0[2mms[22m[39m
+[31m     [31m×[31m decline after going live is refused — withdraw is the live action[39m[32m 112[2mms[22m[39m
+     [32m✓[39m the author cannot decline their own accepted side (they withdraw)[32m 12[2mms[22m[39m
+   [31m❯[39m withdraw — MY side only, the other creator keeps theirs [2m(5)[22m
+     [32m✓[39m co-author withdraws after live: post leaves THEIR profile, stays on the author's[32m 1[2mms[22m[39m
+     [32m✓[39m author withdraws after live: post leaves THEIR profile, stays on the co-author's[32m 0[2mms[22m[39m
+     [32m✓[39m when both sides withdraw, nobody keeps it — it leaves the Feed too[32m 0[2mms[22m[39m
+     [32m✓[39m the author withdrawing BEFORE the co-author answers cancels the co-post[32m 14[2mms[22m[39m
+[31m     [31m×[31m a pending side cannot withdraw (they decline instead), and strangers cannot withdraw[39m[32m 33[2mms[22m[39m
+   [32m✓[39m shared engagement — never double-counted [2m(2)[22m
+     [32m✓[39m sharedEngagement returns the post's ONE count set, unchanged[32m 0[2mms[22m[39m
+     [32m✓[39m dedupePostsById merges two profiles' lists without duplicates[32m 22[2mms[22m[39m
+   [32m✓[39m isMissingCoPostTable — the pre-migration guard [2m(2)[22m
+     [32m✓[39m recognises Postgres 42P01 and drizzle-wrapped variants[32m 0[2mms[22m[39m
+     [32m✓[39m does not swallow unrelated errors[32m 24[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/collabs.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 417[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/__tests__/co-posts.test.ts[2m > [22mdecline — pre-live only, ends the co-post[2m > [22mdecline after going live is refused — withdraw is the live action
+[31m[1mAssertionError[22m: expected [Function] to throw error matching /already_live/ but got 'This co-post is already live — withdr…'[39m
+
+[32m- Expected:[39m
+/already_live/
+
+[31m+ Received:[39m
+"This co-post is already live — withdraw your side instead."
+
+[36m [2m❯[22m src/lib/__tests__/co-posts.test.ts:[2m103:70[22m[39m
+    [90m101|[39m
+    [90m102|[39m   it("decline after going live is refused — withdraw is the live actio…
+    [90m103|[39m     expect(() => applyCoPostAction(live(), CO.profileId, "decline")).t…
+    [90m   |[39m                                                                      [31m^[39m
+    [90m104|[39m   });
+    [90m105|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/__tests__/co-posts.test.ts[2m > [22mwithdraw — MY side only, the other creator keeps theirs[2m > [22ma pending side cannot withdraw (they decline instead), and strangers cannot withdraw
+[31m[1mAssertionError[22m: expected [Function] to throw error matching /not_accepted/ but got 'Only a creator whose side is live on …'[39m
+
+[32m- Expected:[39m
+/not_accepted/
+
+[31m+ Received:[39m
+"Only a creator whose side is live on this co-post can withdraw it."
+
+[36m [2m❯[22m src/lib/__tests__/co-posts.test.ts:[2m154:72[22m[39m
+    [90m152|[39m
+    [90m153|[39m   it("a pending side cannot withdraw (they decline instead), and stran…
+    [90m154|[39m     expect(() => applyCoPostAction(fresh(), CO.profileId, "withdraw"))…
+    [90m   |[39m                                                                        [31m^[39m
+    [90m155|[39m     expect(() => applyCoPostAction(live(), "prof-stranger", "withdraw"…
+    [90m156|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m32 passed[39m[22m[90m (34)[39m
+[2m   Start at [22m 01:27:28
+[2m   Duration [22m 45.61s[2m (transform 52%, import 45%, tests 2%, setup 1%, worker 1%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 20.62s[39m[2m · 52% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
