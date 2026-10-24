@@ -6,7 +6,7 @@
  * Visual Bucs. Keep the two economies separate in every label.
  */
 
-export type StoreProductKind = "download" | "merch" | "digital" | "service" | "ticket";
+export type StoreProductKind = "download" | "merch" | "digital" | "service" | "ticket" | "course";
 
 export interface RelatedLink { label: string; url: string; }
 
@@ -261,6 +261,7 @@ export const KIND_LABELS: Record<StoreProductKind, string> = {
   digital: "Digital",
   service: "Service",
   ticket: "Ticket",
+  course: "Course",
 };
 
 export const KIND_EMOJI: Record<StoreProductKind, string> = {
@@ -269,4 +270,5 @@ export const KIND_EMOJI: Record<StoreProductKind, string> = {
   digital: "💾",
   service: "📅",
   ticket: "🎟️",
+  course: "🎓",
 };
