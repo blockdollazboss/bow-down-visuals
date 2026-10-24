@@ -30,6 +30,7 @@ import {
 } from "./social-tiktok";
 import { refreshSupabaseStorageUrl, isStorageRef } from "./objectStorage";
 import { refundCredits } from "./credits";
+import { captionWithDisclosure, disclosureChannelFor } from "./publish-provenance";
 
 /**
  * Server-owned Content Scheduler worker.
@@ -211,6 +212,10 @@ function normalizePost(row: ScheduledPost): ScheduledPost {
     platforms: asArray(row.platforms) as ScheduledPost["platforms"],
     account_ids: asObj(row.account_ids) as ScheduledPost["account_ids"],
     results: asArray(row.results) as ScheduledPost["results"],
+    provenance:
+      typeof row.provenance === "string"
+        ? (JSON.parse(row.provenance) as ScheduledPost["provenance"])
+        : (row.provenance ?? null),
   };
 }
 
@@ -293,9 +298,18 @@ async function firePlatform(
   mediaUrl: string,
   r: ReturnType<typeof resolveDeps>,
 ): Promise<ScheduledPlatformResult> {
+  /* Provenance disclosure delivery for THIS platform, from the snapshot
+     stamped at schedule time (never re-derived at fire time). Only
+     recorded on results when the post carries a snapshot at all. */
+  const disclosure = post.provenance
+    ? disclosureChannelFor(platform, post.provenance)
+    : undefined;
+  const withDisclosure = (r: ScheduledPlatformResult): ScheduledPlatformResult =>
+    disclosure ? { ...r, disclosure } : r;
+
   const accountId = post.account_ids[platform];
   if (!accountId) {
-    return { platform, status: "skipped", error: "No connected account selected for this platform." };
+    return withDisclosure({ platform, status: "skipped", error: "No connected account selected for this platform." });
   }
   const idempotencyKey = `sched:${post.id}:${platform}`;
   const claim = await claimPublishAttempt(r.attemptStore, {
@@ -309,15 +323,15 @@ async function firePlatform(
     /* A previous worker pass already posted this platform (crash between
        provider-accept and row update). Never post twice. */
     logger.info({ postId: post.id, platform }, "[scheduler] replaying already-posted platform");
-    return {
+    return withDisclosure({
       platform,
       status: "posted",
       mediaId: claim.result.mediaId,
       permalink: claim.result.permalink,
-    };
+    });
   }
   if (claim.outcome === "in_progress") {
-    return { platform, status: "skipped", error: "Another worker pass is already publishing this platform." };
+    return withDisclosure({ platform, status: "skipped", error: "Another worker pass is already publishing this platform." });
   }
   const attemptId = claim.attemptId;
 
@@ -339,7 +353,11 @@ async function firePlatform(
 
   try {
     const account = await r.loadAccount(post.user_id, platform, accountId);
-    const caption = fullCaption(post);
+    /* Caption-channel platforms (Instagram/Facebook) carry the AI
+       disclosure line inside the caption text; TikTok's draft upload
+       takes no caption at all, so its caption stays untouched and the
+       disclosure remains on the asset's record page (record_only). */
+    const caption = captionWithDisclosure(fullCaption(post), post.provenance, platform);
     /* media_type="image" posts (a release announcement carrying its
        cover art) fire through the image publishers — never through
        the video ones. TikTok's posting API here is video-only, so an
@@ -371,7 +389,7 @@ async function firePlatform(
         creditsUsed: 1,
         creditsRemaining: 0,
       });
-      return { platform, status: "posted", mediaId, permalink };
+      return withDisclosure({ platform, status: "posted", mediaId, permalink });
     }
 
     if (platform === "tiktok") {
@@ -389,7 +407,7 @@ async function firePlatform(
         creditsUsed: 1,
         creditsRemaining: 0,
       });
-      return { platform, status: "posted", mediaId: publishId, permalink: null };
+      return withDisclosure({ platform, status: "posted", mediaId: publishId, permalink: null });
     }
 
     /* facebook */
@@ -407,7 +425,7 @@ async function firePlatform(
         creditsUsed: 1,
         creditsRemaining: 0,
       });
-      return { platform, status: "posted", mediaId: photoId, permalink };
+      return withDisclosure({ platform, status: "posted", mediaId: photoId, permalink });
     }
     const { videoId, permalink } = await r.publishers.facebook({
       pageId: account.pageId,
@@ -421,7 +439,7 @@ async function firePlatform(
       creditsUsed: 1,
       creditsRemaining: 0,
     });
-    return { platform, status: "posted", mediaId: videoId, permalink };
+    return withDisclosure({ platform, status: "posted", mediaId: videoId, permalink });
   } catch (err) {
     const message =
       err instanceof MetaApiError || err instanceof TikTokApiError
@@ -435,8 +453,8 @@ async function firePlatform(
        marked on the result so the settle logic can finalize the
        platform immediately instead of retrying it. */
     return err instanceof PermanentPlatformError
-      ? { platform, status: "failed", error: message, permanent: true }
-      : { platform, status: "failed", error: message };
+      ? withDisclosure({ platform, status: "failed", error: message, permanent: true })
+      : withDisclosure({ platform, status: "failed", error: message });
   }
 }
 

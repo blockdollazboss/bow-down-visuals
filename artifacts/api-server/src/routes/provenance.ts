@@ -121,6 +121,24 @@ async function loadAsset(userId: string, kind: AssetKind, id: string): Promise<L
   return kind === "gen" ? loadGenAsset(userId, id) : loadHubAsset(userId, id);
 }
 
+/* ─── Shared loader for the Publish/Scheduler flow (wave 3) ──────────────
+   The scheduler stamps a post with the provenance record of the asset
+   being published. It loads the record through THIS door — same
+   ownership scoping (another creator's asset is simply not found) —
+   so publish surfaces a record, never a re-derivation from a URL. */
+export async function loadProvenanceRecordForUser(
+  userId: string,
+  assetId: string,
+): Promise<ProvenanceRecord | null> {
+  const idx = assetId.indexOf(":");
+  if (idx <= 0) return null;
+  const kind = assetId.slice(0, idx);
+  const id = assetId.slice(idx + 1);
+  if (kind !== "hub" && kind !== "gen") return null;
+  const loaded = await loadAsset(userId, kind, id);
+  return loaded?.record ?? null;
+}
+
 function parseTarget(req: { params: Record<string, string> }): { kind: AssetKind; id: string } | null {
   const kind = req.params["kind"];
   const id = req.params["id"];

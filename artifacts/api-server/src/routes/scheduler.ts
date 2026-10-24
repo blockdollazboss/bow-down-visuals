@@ -13,6 +13,13 @@ import {
   LedgerWriteError,
 } from "../lib/credits";
 import { requestPollerTick } from "../lib/job-poller";
+import {
+  parseProvenanceAssetId,
+  snapshotProvenanceForPublish,
+  disclosurePlanFor,
+} from "../lib/publish-provenance";
+import { loadProvenanceRecordForUser } from "./provenance";
+import type { ScheduledPostProvenance } from "@workspace/db";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -70,6 +77,12 @@ export const scheduledPostSchema = z.object({
      flow, which carries the release's id through the composer. Anything
      else leaves it null — this is a stamp, not a user-editable field. */
   releaseId: z.string().uuid().optional().nullable(),
+  /* Provenance linkage (wave 3): the library asset id ("gen:<uuid>" /
+     "hub:<id>") of the asset being published, when the composer picked
+     it from the library. The server loads the asset's provenance
+     record (ownership-scoped) and stamps a snapshot on the row — the
+     linkage is never derived from the media URL. */
+  provenanceAssetId: z.string().max(220).optional().nullable(),
 });
 
 export const updateScheduledPostSchema = z.object({
@@ -80,6 +93,11 @@ export const updateScheduledPostSchema = z.object({
   scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
   mediaUrl: z.string().min(1).max(2000).optional(),
   mediaType: z.enum(MEDIA_TYPES).optional(),
+  /* Provenance linkage: present = relink (id) or clear (null);
+     absent = leave the post's existing linkage untouched. The composer
+     always sends its current value on save, and clears it when the
+     media is removed/replaced, so a stale link never survives a swap. */
+  provenanceAssetId: z.string().max(220).nullable().optional(),
 });
 
 const bestTimeSchema = z.object({
@@ -108,11 +126,52 @@ function toPublicPost(p: ScheduledPost) {
     lastError: p.last_error,
     creditsCharged: p.credits_charged,
     releaseId: p.release_id ?? null,
+    /* Provenance snapshot stamped at schedule time + the honest
+       per-platform disclosure plan for THIS post's platforms, so the
+       publish UI can show exactly what will (and won't) be delivered
+       before the post fires. */
+    provenance: p.provenance ?? null,
+    disclosure: disclosurePlanFor(p.platforms ?? [], p.provenance ?? null),
     aiBestTime: p.ai_best_time,
     results: p.results,
     createdAt: p.created_at.toISOString(),
     updatedAt: p.updated_at.toISOString(),
   };
+}
+
+/* Resolve a client-supplied provenance asset id to the snapshot that
+   rides the post. Returns { snapshot } (null = no linkage requested),
+   or { error } with the HTTP shape to send — a malformed id is a 400,
+   and an asset that isn't the caller's (or doesn't exist) is a 400
+   too: silently dropping the linkage would fake a plain post, and
+   silently inventing one would fake a record. */
+async function resolveProvenanceSnapshot(
+  userId: string,
+  raw: string | null | undefined,
+): Promise<{ snapshot: ScheduledPostProvenance | null } | { error: { status: number; body: Record<string, unknown> } }> {
+  if (raw === undefined || raw === null || raw === "") return { snapshot: null };
+  const parsed = parseProvenanceAssetId(raw);
+  if (!parsed) {
+    return {
+      error: {
+        status: 400,
+        body: { error: "invalid_provenance", message: "That provenance link isn't a library asset id." },
+      },
+    };
+  }
+  const record = await loadProvenanceRecordForUser(userId, parsed.assetId);
+  if (!record) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          error: "provenance_not_found",
+          message: "Couldn't find a provenance record for that asset in your library.",
+        },
+      },
+    };
+  }
+  return { snapshot: snapshotProvenanceForPublish(record) };
 }
 
 async function getOwnedPost(userId: string, id: string): Promise<ScheduledPost | null> {
@@ -174,7 +233,15 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     });
     return;
   }
-  const { mediaUrl, mediaType, caption, hashtags, platforms, accountIds, scheduledAt, releaseId } = parsed.data;
+  const { mediaUrl, mediaType, caption, hashtags, platforms, accountIds, scheduledAt, releaseId, provenanceAssetId } = parsed.data;
+
+  /* Provenance resolves BEFORE any charge — a bad asset link must
+     never cost the creator a reservation. */
+  const prov = await resolveProvenanceSnapshot(req.userId!, provenanceAssetId);
+  if ("error" in prov) {
+    res.status(prov.error.status).json(prov.error.body);
+    return;
+  }
 
   const missingAccounts = platforms.filter((p) => !accountIds[p]);
   if (missingAccounts.length > 0) {
@@ -233,6 +300,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
         scheduled_at: wantsSchedule ? fireAt : null,
         credits_charged: cost,
         release_id: releaseId ?? null,
+        provenance: prov.snapshot,
       })
       .returning();
     if (wantsSchedule) requestPollerTick(); // wake the worker for near-term posts
@@ -306,6 +374,18 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
       })) ?? data.mediaUrl;
   }
   if (data.mediaType !== undefined) patch.media_type = data.mediaType;
+  if (data.provenanceAssetId !== undefined) {
+    if (data.provenanceAssetId === null) {
+      patch.provenance = null;
+    } else {
+      const prov = await resolveProvenanceSnapshot(req.userId!, data.provenanceAssetId);
+      if ("error" in prov) {
+        res.status(prov.error.status).json(prov.error.body);
+        return;
+      }
+      patch.provenance = prov.snapshot;
+    }
+  }
 
   /* Set when the draft→scheduled charge below lands in THIS request.
      If the shared update after it throws, the row still reads
@@ -584,6 +664,8 @@ const legacySchedulePostSchema = z.object({
       message: "scheduledAt must be in the future.",
     }),
   hashtags: z.string().trim().max(500).optional().default(""),
+  /* Provenance linkage (wave 3) — same stamp as the canonical surface. */
+  provenanceAssetId: z.string().max(220).optional().nullable(),
 });
 
 export type CreateLegacyScheduledPostOutcome =
@@ -603,6 +685,19 @@ export async function createLegacyScheduledPost(
 ): Promise<CreateLegacyScheduledPostOutcome> {
   const parsed = legacySchedulePostSchema.safeParse(input ?? {});
   if (!parsed.success) return { kind: "invalid", issues: parsed.error.issues };
+  const prov = await resolveProvenanceSnapshot(userId, parsed.data.provenanceAssetId);
+  if ("error" in prov) {
+    return {
+      kind: "invalid",
+      issues: [
+        {
+          code: "custom",
+          path: ["provenanceAssetId"],
+          message: String(prov.error.body["message"] ?? "Invalid provenance link."),
+        } as z.ZodIssue,
+      ],
+    };
+  }
   const [post] = await db
     .insert(scheduledPostsTable)
     .values({
@@ -617,6 +712,7 @@ export async function createLegacyScheduledPost(
       hashtags: parsed.data.hashtags,
       platforms: [parsed.data.platform],
       scheduled_at: new Date(parsed.data.scheduledAt),
+      provenance: prov.snapshot,
     })
     .returning();
   return { kind: "created", post: post! };
