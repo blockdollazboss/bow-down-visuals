@@ -4,7 +4,7 @@
 # installed tree, except @workspace/* which point into THIS worktree.
 set -e
 SRC=/home/hatch/workspace/bow-down-visuals
-DST=/home/hatch/workspace/bdv-wt-bumps
+DST=/home/hatch/workspace/bdv-wt-morebumps
 for P in "." "artifacts/api-server" "artifacts/bow-down-visuals" "lib/api-zod" "lib/db"; do
   mkdir -p "$DST/$P/node_modules"
   for e in "$SRC/$P/node_modules"/* "$SRC/$P/node_modules"/.[!.]*; do
