@@ -47,7 +47,7 @@ CREATE TABLE profile_tracks (
 CREATE TABLE profile_videos (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL, is_published boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, thumbnail_alt_text text);
 CREATE TABLE export_jobs (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, state text NOT NULL DEFAULT 'queued',
   created_at timestamptz NOT NULL DEFAULT now()

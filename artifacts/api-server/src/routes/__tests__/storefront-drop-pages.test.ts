@@ -102,7 +102,7 @@ CREATE TABLE store_products (
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (price_cents >= 0)
-);
+, media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb);
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_user_id uuid NOT NULL, profile_id uuid NOT NULL, product_id uuid,

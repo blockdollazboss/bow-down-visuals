@@ -147,7 +147,7 @@ CREATE TABLE shop_products (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer
-);`;
+, image_alt_text text);`;
 
 const mockCharge = vi.mocked(chargeCredits);
 const mockRefund = vi.mocked(refundCredits);

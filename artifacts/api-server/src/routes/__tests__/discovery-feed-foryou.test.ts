@@ -53,7 +53,7 @@ import { createTestDb } from "../../lib/__tests__/test-db";
 const DDL = `
 CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text NOT NULL, display_name text NOT NULL, avatar_url text, vertical text NOT NULL DEFAULT 'music', follower_count integer NOT NULL DEFAULT 0, total_plays integer NOT NULL DEFAULT 0, is_public boolean NOT NULL DEFAULT true);
 CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text NOT NULL, genre text, artwork_url text, play_count integer NOT NULL DEFAULT 0, like_count integer NOT NULL DEFAULT 0, is_published boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL);
-CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text NOT NULL, genre text, thumbnail_url text, view_count integer NOT NULL DEFAULT 0, like_count integer NOT NULL DEFAULT 0, is_published boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL);
+CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text NOT NULL, genre text, thumbnail_url text, view_count integer NOT NULL DEFAULT 0, like_count integer NOT NULL DEFAULT 0, is_published boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL, thumbnail_alt_text text);
 CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE play_events (id uuid PRIMARY KEY, kind text NOT NULL, media_id uuid NOT NULL, user_id uuid, played_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE likes (user_id uuid NOT NULL, kind text NOT NULL, target_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());

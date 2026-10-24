@@ -38,13 +38,13 @@ CREATE TABLE store_products (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text NOT NULL,
   price_cents integer NOT NULL, affiliate_enabled boolean NOT NULL DEFAULT false,
   affiliate_commission_bps integer
-);
+, media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb, bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0);
 CREATE TABLE shops (id uuid PRIMARY KEY, user_id uuid NOT NULL, handle text NOT NULL);
 CREATE TABLE shop_products (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL, name text NOT NULL,
   price_cents integer NOT NULL, affiliate_enabled boolean NOT NULL DEFAULT false,
   affiliate_commission_bps integer
-);
+, image_alt_text text);
 CREATE TABLE affiliate_codes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   code text NOT NULL, affiliate_user_id uuid NOT NULL, seller_user_id uuid NOT NULL,

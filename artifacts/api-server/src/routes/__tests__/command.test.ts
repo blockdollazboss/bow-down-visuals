@@ -70,7 +70,7 @@ CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0, creator_credited_at timestamptz);
 CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, play_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, view_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, view_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now(), thumbnail_alt_text text);
 CREATE TABLE conversations (id uuid PRIMARY KEY, participant_a uuid NOT NULL, participant_b uuid NOT NULL);
 CREATE TABLE messages (id uuid PRIMARY KEY, conversation_id uuid NOT NULL, sender_user_id uuid NOT NULL, is_read boolean NOT NULL DEFAULT false);
 CREATE TABLE shoutout_requests (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, status text NOT NULL DEFAULT 'pending_payment');

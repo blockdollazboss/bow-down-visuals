@@ -122,7 +122,7 @@ CREATE TABLE creator_profiles (
 CREATE TABLE profile_videos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id uuid NOT NULL,
-  title text NOT NULL, video_url text NOT NULL, thumbnail_url text,
+  title text NOT NULL, video_url text NOT NULL, thumbnail_url text, thumbnail_alt_text text,
   description text NOT NULL DEFAULT '', genre text, tags text[] NOT NULL DEFAULT '{}',
   duration_sec integer NOT NULL DEFAULT 0,
   season integer, episode integer, sound_track_id uuid,

@@ -178,7 +178,7 @@ CREATE TABLE profile_videos (
   sound_id text, sound_title text, sound_url text,
   sound_use_count integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, thumbnail_alt_text text);
 CREATE TABLE press_kits (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL, handle text NOT NULL UNIQUE, artist_name text NOT NULL,
@@ -215,7 +215,7 @@ CREATE TABLE store_products (
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+, affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer, media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb, bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0);
 CREATE TABLE scheduled_posts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL, status text NOT NULL DEFAULT 'draft',

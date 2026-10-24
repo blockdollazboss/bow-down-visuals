@@ -150,7 +150,7 @@ CREATE TABLE profile_videos (
   sound_id text, sound_title text, sound_url text,
   sound_use_count integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, thumbnail_alt_text text);
 CREATE TABLE playlists (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_profile_id uuid NOT NULL,

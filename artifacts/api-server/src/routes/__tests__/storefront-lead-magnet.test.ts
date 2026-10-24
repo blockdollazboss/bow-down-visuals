@@ -94,7 +94,7 @@ CREATE TABLE store_products (
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (price_cents >= 0),
   affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer
-);
+, media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb, bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0);
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_user_id uuid NOT NULL, profile_id uuid NOT NULL, product_id uuid,

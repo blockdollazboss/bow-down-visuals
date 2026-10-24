@@ -92,7 +92,7 @@ CREATE TABLE profile_videos (
   download_price_cents integer, is_published boolean NOT NULL DEFAULT true,
   pwyw_enabled boolean NOT NULL DEFAULT false, pwyw_min_cents integer NOT NULL DEFAULT 0,
   video_url text, thumbnail_url text
-);
+, thumbnail_alt_text text);
 CREATE TABLE playlists (
   id uuid PRIMARY KEY, owner_profile_id uuid NOT NULL, title text,
   price_cents integer, is_public boolean NOT NULL DEFAULT true, kind text, cover_url text

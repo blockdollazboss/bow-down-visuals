@@ -66,7 +66,7 @@ CREATE TABLE creator_profiles (
 );
 CREATE TABLE store_products (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL, kind text NOT NULL, title text NOT NULL
-);
+, affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer, media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb, bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0);
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_user_id uuid, profile_id uuid NOT NULL, product_id uuid,
@@ -80,7 +80,7 @@ CREATE TABLE shops (
 );
 CREATE TABLE shop_products (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL, name text NOT NULL
-);
+, affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer, image_alt_text text);
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id uuid NOT NULL, user_id uuid NOT NULL, event_type text NOT NULL,

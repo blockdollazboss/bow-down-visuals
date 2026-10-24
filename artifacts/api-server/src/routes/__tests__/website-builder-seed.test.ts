@@ -107,7 +107,7 @@ CREATE TABLE store_products (
   title text NOT NULL, description text NOT NULL DEFAULT '',
   price_cents integer NOT NULL, is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer, media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb, bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0);
 CREATE TABLE tour_dates (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, city text NOT NULL,
   venue text NOT NULL, show_date timestamptz NOT NULL, notes text,

@@ -54,7 +54,7 @@ import { sql } from "drizzle-orm";
 const DDL = `
 CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, is_published boolean NOT NULL DEFAULT false);
-CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, is_published boolean NOT NULL DEFAULT false);
+CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, is_published boolean NOT NULL DEFAULT false, thumbnail_alt_text text);
 CREATE TABLE export_jobs (id uuid PRIMARY KEY, user_id uuid NOT NULL, state text NOT NULL DEFAULT 'queued');
 CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, status text NOT NULL DEFAULT 'completed');
 CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL);
