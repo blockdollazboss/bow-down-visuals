@@ -459,6 +459,10 @@ router.get("/collabs/requests", publicApiLimiter, requireAuth, async (req, res) 
           message: collabRequestsTable.message,
           status: collabRequestsTable.status,
           createdAt: collabRequestsTable.created_at,
+          /* Counterpart user id — the co-post payoff step (Stack-100
+             #3, #24) starts from an accepted request and needs to name
+             the other creator's account, not just their display name. */
+          fromUserId: collabRequestsTable.from_user_id,
           fromDisplayName: collabProfilesTable.display_name,
           fromNiche: collabProfilesTable.niche,
         })
@@ -473,6 +477,7 @@ router.get("/collabs/requests", publicApiLimiter, requireAuth, async (req, res) 
           message: collabRequestsTable.message,
           status: collabRequestsTable.status,
           createdAt: collabRequestsTable.created_at,
+          toUserId: collabRequestsTable.to_user_id,
           toDisplayName: collabProfilesTable.display_name,
           toNiche: collabProfilesTable.niche,
         })

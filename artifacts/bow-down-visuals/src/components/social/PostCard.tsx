@@ -209,6 +209,35 @@ export function PostCard({
               {post.author?.display_name ?? "Creator"}
             </Link>
             {post.author?.is_verified && <BadgeCheck className="h-4 w-4 shrink-0 text-[#d4af37]" aria-label="Verified" />}
+            {/* Co-post byline (Stack-100 #3, #24): the OTHER standing
+                creator is named right beside the author — one post on
+                both profiles. A withdrawn side is never bylined: their
+                withdrawal removed their name along with the post from
+                their profile. */}
+            {!removed &&
+              (post.co_authors ?? [])
+                .filter((a) => a.status === "accepted" && a.profile_id !== post.profile_id)
+                .map((a) => (
+                  <span key={a.profile_id} className="flex min-w-0 items-center gap-1.5">
+                    <span className="shrink-0 text-xs font-bold text-[#d4af37]">×</span>
+                    <Link
+                      href={a.slug ? `/artist/${a.slug}` : "#"}
+                      className="truncate min-w-0 text-sm font-bold text-white hover:text-[#d4af37]"
+                    >
+                      {a.display_name ?? "Creator"}
+                    </Link>
+                    {a.is_verified && <BadgeCheck className="h-4 w-4 shrink-0 text-[#d4af37]" aria-label="Verified" />}
+                  </span>
+                ))}
+            {!removed &&
+              (post.co_authors ?? []).filter((a) => a.status === "accepted").length >= 2 && (
+                <span
+                  className="shrink-0 rounded-full border border-[#d4af37]/50 px-2 py-0.5 text-[10px] font-bold text-[#e8c86a]"
+                  title="One post on both profiles — one shared set of likes and comments, never counted twice. Either creator can withdraw their own side: the post leaves their profile, and the other creator keeps theirs."
+                >
+                  Co-post
+                </span>
+              )}
             <span className="shrink-0 text-xs text-neutral-500">· {timeAgo(post.created_at)}</span>
             {post.audience === "followers" && (
               <span className="shrink-0 rounded-full border border-[#2a2a2a] px-2 py-0.5 text-[10px] text-neutral-400">followers</span>

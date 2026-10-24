@@ -72,6 +72,21 @@ export interface PollData {
   viewer_option_id: string | null;
 }
 
+/** One author side of a co-post (Stack-100 #3, #24) — the DTO shape of
+ *  api-server's coAuthorSummaries. The full typed contract lives in
+ *  lib/co-posts.ts; this structural twin keeps FeedPost self-contained. */
+export interface CoAuthorSide {
+  profile_id: string;
+  user_id: string;
+  role: string;
+  status: string;
+  accepted_at: string | null;
+  display_name: string | null;
+  slug: string | null;
+  avatar_url: string | null;
+  is_verified: boolean;
+}
+
 export interface FeedPost {
   id: string;
   profile_id: string;
@@ -94,6 +109,12 @@ export interface FeedPost {
      reason is the recorded CATEGORY only. */
   moderation_removed?: boolean;
   removal_reason?: string | null;
+  /* Co-posts (Stack-100 #3, #24): one post, both creators bylined, the
+     SAME like/reply counts on every surface — counts are never split
+     or summed per author. Absent/false on ordinary posts. */
+  is_co_post?: boolean;
+  co_post_state?: string | null;
+  co_authors?: CoAuthorSide[];
   author: SocialAuthor | null;
   viewer_emoji: string | null;
   viewer_saved: boolean;

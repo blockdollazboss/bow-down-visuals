@@ -5,11 +5,12 @@ import { Link } from "wouter";
 import {
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
-  AlertTriangle, RotateCcw,
+  AlertTriangle, RotateCcw, Megaphone,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { NicheLabel, PlatformLabel, scoreColor, fillProposalTemplate, clampFollowers } from "@/lib/collabs";
+import { CoPostsPanel, type CoPostPartner } from "@/components/collabs/CoPostsPanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── Collab Finder ─────────────────────────────────────────────────────────
@@ -71,13 +72,15 @@ interface InboxRequest {
   message: string;
   status: string;
   createdAt: string;
+  fromUserId?: string | null;
   fromDisplayName?: string | null;
   fromNiche?: string | null;
+  toUserId?: string | null;
   toDisplayName?: string | null;
   toNiche?: string | null;
 }
 
-type Tab = "browse" | "profile" | "match" | "inbox";
+type Tab = "browse" | "profile" | "match" | "inbox" | "coposts";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -92,7 +95,16 @@ export default function CollabFinder() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
-  const [tab, setTab] = useState<Tab>("browse");
+  /* Co-post notifications link here with ?tab=coposts (the approval
+     inbox for co-post invites lives on this tab). */
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("tab") === "coposts" ? "coposts" : "browse";
+    } catch {
+      return "browse";
+    }
+  });
+  const [coPostPreselect, setCoPostPreselect] = useState<string | null>(null);
 
   /* ── browse ── */
   const [profiles, setProfiles] = useState<CreatorProfile[]>([]);
@@ -337,12 +349,49 @@ export default function CollabFinder() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  /* Co-post partners (Stack-100 #3, #24): accepted collabs first
+     (they carry the accepted request id as provenance), then every
+     other browsable creator as a direct-invite partner. */
+  const coPostPartners: CoPostPartner[] = (() => {
+    const byUser = new Map<string, CoPostPartner>();
+    for (const r of received) {
+      if (r.status === "accepted" && r.fromUserId) {
+        byUser.set(r.fromUserId, {
+          userId: r.fromUserId,
+          displayName: r.fromDisplayName ?? "Creator",
+          collabRequestId: r.id,
+        });
+      }
+    }
+    for (const r of sent) {
+      if (r.status === "accepted" && r.toUserId) {
+        byUser.set(r.toUserId, {
+          userId: r.toUserId,
+          displayName: r.toDisplayName ?? "Creator",
+          collabRequestId: r.id,
+        });
+      }
+    }
+    for (const p of profiles) {
+      if (!p.isOwn && !byUser.has(p.userId)) {
+        byUser.set(p.userId, { userId: p.userId, displayName: p.displayName });
+      }
+    }
+    return [...byUser.values()];
+  })();
+
+  function startCoPost(userId: string) {
+    setCoPostPreselect(userId);
+    setTab("coposts");
+  }
+
   const pendingCount = received.filter((r) => r.status === "pending").length;
   const tabs: { key: Tab; label: string; icon: typeof Search }[] = [
     { key: "browse", label: t("collabs.tabBrowse"), icon: Search },
     { key: "profile", label: t("collabs.tabProfile"), icon: UserRound },
     { key: "match", label: t("collabs.tabMatch"), icon: Sparkles },
     { key: "inbox", label: pendingCount > 0 ? t("collabs.tabInboxWithCount", { count: pendingCount }) : t("collabs.tabInbox"), icon: Inbox },
+    { key: "coposts", label: "Co-posts", icon: Megaphone },
   ];
 
   return (
@@ -616,6 +665,11 @@ export default function CollabFinder() {
                               <button onClick={() => respond(r.id, "declined")} className={ghostBtn}><XCircle className="h-4 w-4" /> {t("collabs.decline")}</button>
                             </div>
                           )}
+                          {r.status === "accepted" && r.fromUserId && (
+                            <button onClick={() => startCoPost(r.fromUserId!)} className={ghostBtn}>
+                              <Megaphone className="h-4 w-4" /> Start a co-post
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -634,6 +688,11 @@ export default function CollabFinder() {
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${r.status === "pending" ? "bg-amber-400/15 text-amber-300" : r.status === "accepted" ? "bg-emerald-400/15 text-emerald-300" : "bg-white/10 text-white/50"}`}>{r.status}</span>
                           </div>
                           <p className="text-sm text-white/60">{r.message}</p>
+                          {r.status === "accepted" && r.toUserId && (
+                            <button onClick={() => startCoPost(r.toUserId!)} className={`${ghostBtn} mt-3`}>
+                              <Megaphone className="h-4 w-4" /> Start a co-post
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -642,6 +701,10 @@ export default function CollabFinder() {
               </div>
             )}
           </section>
+        )}
+
+        {user && tab === "coposts" && (
+          <CoPostsPanel authed={authed} partners={coPostPartners} preselectUserId={coPostPreselect} />
         )}
 
         {/* proposal modal */}
