@@ -99,7 +99,11 @@ async function presentProduct(p: ProductRow) {
    (STORE_PRODUCT_KINDS). Defined locally here because lib/db's built dist is
    currently stale (other workers' uncommitted TS errors block `tsc --build`);
    restore the @workspace/db import once the dist rebuilds. */
-const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket"] as const;
+/* 'course' (Creator Courses) is PENDING MIGRATION: the DB kind CHECK
+   refuses course rows until the held migration widens it (lane
+   MIGRATION-NEEDED.md; number assigned at join), so listing it here is
+   inert until then — no course product can be created early. */
+const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket", "course"] as const;
 
 /* ── Platform economics ────────────────────────────────────────────────
    Worker 12's platform-fees.ts is the single source of truth (imported
@@ -579,6 +583,32 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       res.status(400).json({ error: "INSUFFICIENT_INVENTORY", message: `Only ${inventory} left.` });
       return;
     }
+    /* Creator Courses: access is binary — you own the course or you
+       don't (the Paid Series rule on this rail). One copy per buyer,
+       and a completed order refuses a second checkout outright; a
+       refunded order does NOT block buying back in. */
+    if (p.kind === "course") {
+      if (quantity !== 1) {
+        res.status(400).json({ error: "COURSE_SINGLE", message: "A course is one unlock per buyer — quantity is 1." });
+        return;
+      }
+      const ownedResult = await db.execute(sql`
+        SELECT COUNT(*)::int AS c FROM store_orders
+        WHERE buyer_user_id = ${req.userId!} AND product_id = ${productId}
+          AND status = 'completed'
+      `);
+      const ownedCount = Number(
+        (ownedResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
+      );
+      if (ownedCount > 0) {
+        res.status(409).json({
+          error: "ALREADY_OWNED",
+          message: "You already own this course — it's in My Courses in the Academy.",
+          learnUrl: "/academy?tab=courses",
+        });
+        return;
+      }
+    }
 
     /* Server-side discount validation. */
     let unitCents = Number(p.price_cents);
@@ -858,6 +888,11 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
              system (merch_designs + print/dropship pipeline). We hand off —
              never rebuild fulfillment here. */
           fulfillmentNote = "Order received — the creator fulfills it through their merch/print pipeline.";
+        } else if (kind === "course") {
+          /* Creator Courses: the completed order IS the unlock (the
+             Paid Series pattern on this rail) — no file, no token.
+             Lessons wait in My Courses in the Academy. */
+          fulfillmentNote = "Course unlocked — find it under My Courses in the Academy. Your progress is saved as you go.";
         } else {
           fulfillmentNote = "Digital delivery ready.";
         }
@@ -905,6 +940,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
       links: {
         productUrl: p ? `/storefront/product/${p.id}` : null,
         creatorUrl: p ? `/artist/${p.artist_slug}` : null,
+        learnUrl: kind === "course" ? "/academy?tab=courses" : null,
         eventUrl: eventId ? `/shows#event-${eventId}` : null,
         /* Buyer order history is API-only for now:
            GET /api/storefront/orders/purchases (a "My purchases" page can mount it later). */
@@ -1058,6 +1094,7 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
     const claimLinks = {
       productUrl: `/storefront/product/${p.id}`,
       creatorUrl: `/artist/${p.artist_slug}`,
+      learnUrl: kind === "course" ? "/academy?tab=courses" : null,
       eventUrl: eventId ? `/shows#event-${eventId}` : null,
       purchasesEndpoint: "/api/storefront/orders/purchases",
     };
@@ -1150,6 +1187,9 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
     } else if (kind === "merch") {
       /* MERCH BOUNDARY: physical fulfillment lives in the merch system. */
       fulfillmentNote = "Order received — the creator fulfills it through their merch/print pipeline.";
+    } else if (kind === "course") {
+      /* Free course: the completed $0 claim order is the unlock. */
+      fulfillmentNote = "Course unlocked — find it under My Courses in the Academy. Your progress is saved as you go.";
     } else {
       fulfillmentNote = "Digital delivery ready.";
     }
