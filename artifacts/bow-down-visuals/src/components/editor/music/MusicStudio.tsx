@@ -2,6 +2,7 @@ import { Sparkles, SlidersHorizontal, Mic2, BookOpen, CheckCircle2, Circle, Chev
 import { useEffect, useState, useMemo } from "react";
 import type { EditorSettings, MusicStudioSettings, AudioStem } from "@/lib/editor-settings";
 import { defaultStemEffects } from "@/lib/editor-settings";
+import { effectiveMusicMode, musicModeLocked } from "@/lib/editor-mode-gate";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { AiAutoMix } from "@/components/editor/music/AiAutoMix";
 import { ManualDAW } from "@/components/editor/music/ManualDAW";
@@ -88,7 +89,7 @@ export function MusicStudio({
   // restores exactly the mode (and music) the user left. The switcher
   // below stays visible in Simple with the gated modes locked and
   // labelled — a gate the user can see, not a vanished feature.
-  const effectiveMode: MusicStudioSettings["mode"] = isSimple ? "auto" : ms.mode;
+  const effectiveMode: MusicStudioSettings["mode"] = effectiveMusicMode(isSimple, ms.mode);
 
   /* Wave 9A Remix Chain handoff: a song version sent from the Remix Chain
      arrives here as a stem so it can be mixed into the video's audio.
@@ -364,7 +365,7 @@ export function MusicStudio({
           {MODES.map((m) => {
             const Icon = m.icon;
             const active = effectiveMode === m.id;
-            const locked = isSimple && m.id !== "auto";
+            const locked = musicModeLocked(isSimple, m.id);
             return (
               <button
                 key={m.id}

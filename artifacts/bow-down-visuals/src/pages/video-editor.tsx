@@ -36,6 +36,7 @@ import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHand
 import { ClipContextMenu, type ContextMenuItem } from "@/components/editor/ClipContextMenu";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings } from "@/lib/scene-timing";
+import { modeGateForTab, proSwitchShowsUnlocked } from "@/lib/editor-mode-gate";
 import {
   normalizeEditorSettings,
   sceneHasClip,
@@ -567,7 +568,7 @@ export default function VideoEditor() {
     // user on an advanced tab. Redirect to a safe default instead — and
     // SAY SO (Lane 6 mode-gating): a silent redirect reads as a broken
     // button; the toast names the gate and the way through it.
-    const gated = isSimple && !SIMPLE_VISIBLE_TABS.includes(t);
+    const gated = modeGateForTab(isSimple, t, SIMPLE_VISIBLE_TABS) === "advanced";
     if (gated) {
       const sectionName = t.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       toast({
@@ -3151,7 +3152,7 @@ export default function VideoEditor() {
                 >
                   {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
                 </button>
-                {gateStars >= 4 || !isSimple ? (
+                {proSwitchShowsUnlocked(gateStars, isSimple) ? (
                   <button
                     type="button"
                     role="radio"
@@ -3246,7 +3247,7 @@ export default function VideoEditor() {
                          lock badge, reason on hover/click) instead of
                          silently vanishing. Allowed set = the same
                          SIMPLE_VISIBLE_TABS the setTab guard enforces. */
-                      const gated = isSimple && !SIMPLE_VISIBLE_TABS.includes(item.id as EditorTab);
+                      const gated = modeGateForTab(isSimple, item.id, SIMPLE_VISIBLE_TABS) === "advanced";
                       return (
                       <button
                         key={item.id}
@@ -3647,7 +3648,7 @@ export default function VideoEditor() {
                       /* Same Lane 6 pattern as the left rail: gated
                          sections render locked + labelled in Simple,
                          never silently filtered out. */
-                      const gated = isSimple && !SIMPLE_VISIBLE_TABS.includes(item.id as EditorTab);
+                      const gated = modeGateForTab(isSimple, item.id, SIMPLE_VISIBLE_TABS) === "advanced";
                       return (
                       <button
                         key={item.id}
