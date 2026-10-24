@@ -1,19 +1,14 @@
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
+import { applyThemeMode, bootThemePack } from "@/lib/theme-packs";
 
 export function ThemeToggle() {
   const [isLight, setIsLight] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("bdv-theme");
-    if (saved === "light") {
-      setIsLight(true);
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-    } else {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-    }
+    // Restores mode + any saved theme pack (lib/theme-packs.ts).
+    bootThemePack();
+    setIsLight(document.documentElement.classList.contains("light"));
 
     // Sync with other toggles (floating, homepage) via class observer
     const observer = new MutationObserver(() => {
@@ -29,15 +24,9 @@ export function ThemeToggle() {
   const toggle = () => {
     const next = !isLight;
     setIsLight(next);
-    if (next) {
-      document.documentElement.classList.add("light");
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("bdv-theme", "light");
-    } else {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-      localStorage.setItem("bdv-theme", "dark");
-    }
+    // Flipping the mode leaves a pack that doesn't live in the new
+    // mode for that mode's house theme (lib/theme-packs.ts).
+    applyThemeMode(next ? "light" : "dark");
   };
 
   return (

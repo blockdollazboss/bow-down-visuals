@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { AlertTriangle, ArrowLeft, ArrowUpRight, Download, Loader2, MousePointer2, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
+import { ThemePacksDesk } from "@/components/theme-packs/ThemePacksDesk";
 import { SocialProofSettings } from "@/components/SocialProofSettings";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
@@ -263,6 +264,8 @@ export default function Settings() {
         <DeveloperApiSettings />
 
         <TeamSeats />
+
+        <ThemePacksDesk />
 
         <CursorCard />
 

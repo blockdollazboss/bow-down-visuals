@@ -3306,3 +3306,704 @@ html:not(.light) .to-yellow-600 { --tw-gradient-to: #A8842F var(--tw-gradient-to
     drop-shadow(0 1px 0 rgba(255, 246, 205, 0.22));
   text-shadow: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   THEME PACKS (Stack-100 #3, owner order Oct 24 2026) — one pack
+   reskins the whole site: ground, panels, accents, buttons, ink,
+   scrollbars, selection, and the paired cursor, on phone + desktop.
+
+   How it works (see src/lib/theme-packs.ts for the full contract):
+   - The mode layer is untouched — <html> still carries .light/.dark
+     and "bdv-theme" still persists it. A pack adds ONE attribute,
+     data-theme-pack="<id>", and the token blocks below (mode-scoped,
+     so a pack can never half-skin the mode it doesn't define).
+   - The two house themes are packs too: applying one REMOVES the
+     attribute, and the house blocks at the top of this file rule
+     exactly as they always have. These pack blocks must therefore
+     stay AFTER the house blocks and after the Ivory Palace tables —
+     and the shared pack tables (P1–P4, after the token blocks) rely
+     on the extra attribute specificity to win over them.
+   - The --pk-* values are each pack's machinery palette: the shared
+     tables repaint the hardcoded-class sea (bg-black/zinc slabs,
+     black/* glass, white ink scale, gold text steps) from them —
+     the same classes, alphas, and [data-dark-lock] exclusions the
+     Ivory Palace tables use, so protected surfaces (the editor,
+     video players, teleprompter) keep their own look under packs.
+   - src/lib/theme-packs.ts mirrors these values for previews and
+     contrast pins; theme-packs.test.ts fails on any drift.
+   ═══════════════════════════════════════════════════════════════════ */
+[data-theme-pack="shark-tank"]:not(.light) {
+  --background: 209 42% 5%;
+  --foreground: 200 25% 93%;
+  --card: 208 38% 8%;
+  --card-foreground: 200 22% 92%;
+  --card-border: 43 55% 26%;
+  --border: 206 32% 15%;
+  --input: 208 36% 10%;
+  --ring: 45 95% 50%;
+  --primary: 45 95% 50%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 207 30% 11%;
+  --secondary-foreground: 200 18% 78%;
+  --muted: 208 34% 9%;
+  --muted-foreground: 205 12% 60%;
+  --accent: 45 95% 50%;
+  --accent-foreground: 0 0% 4%;
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 60% 35%;
+  --popover: 209 40% 7%;
+  --popover-foreground: 200 22% 92%;
+  --popover-border: 43 45% 20%;
+  --sidebar: 210 44% 4%;
+  --sidebar-foreground: 200 18% 88%;
+  --sidebar-border: 43 50% 18%;
+  --sidebar-primary: 45 95% 50%;
+  --sidebar-primary-foreground: 0 0% 4%;
+  --sidebar-accent: 205 40% 15%;
+  --sidebar-accent-foreground: 200 18% 88%;
+  --sidebar-ring: 45 95% 50%;
+  --chart-1: 45 95% 50%;
+  --chart-2: 43 85% 40%;
+  --chart-3: 199 55% 32%;
+  --chart-4: 0 65% 42%;
+  --chart-5: 206 25% 28%;
+  --pk-slab: 208 38% 8%;
+  --pk-slab-deep: 209 42% 4%;
+  --pk-slab-lift: 207 34% 12%;
+  --pk-glass: 208 38% 8%;
+  --pk-ink: 200 25% 93%;
+  --pk-line: 205 45% 42%;
+  --pk-deep-accent: 45 95% 50%;
+  --pk-accent-text: 46 90% 58%;
+  --pk-glow-a: 214 85% 42%;
+  --pk-glow-b: 187 75% 32%;
+  --pk-selection: 45 95% 50%;
+  --pk-selection-ink: 0 0% 4%;
+  --pk-scroll: 45 90% 48%;
+  --pk-scroll-deep: 43 75% 36%;
+}
+[data-theme-pack="shark-tank"].light {
+  --background: 186 32% 96%;
+  --foreground: 204 32% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 204 32% 11%;
+  --card-border: 190 30% 79%;
+  --border: 188 26% 82%;
+  --input: 0 0% 100%;
+  --ring: 43 72% 52%;
+  --primary: 43 62% 46%;
+  --primary-foreground: 26 30% 8%;
+  --secondary: 186 30% 91%;
+  --secondary-foreground: 204 28% 17%;
+  --muted: 186 24% 90%;
+  --muted-foreground: 200 12% 37%;
+  --accent: 43 62% 46%;
+  --accent-foreground: 26 30% 8%;
+  --destructive: 0 68% 44%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 55% 32%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 204 32% 11%;
+  --popover-border: 190 28% 80%;
+  --sidebar: 186 28% 94%;
+  --sidebar-foreground: 204 28% 14%;
+  --sidebar-border: 190 28% 81%;
+  --sidebar-primary: 43 62% 46%;
+  --sidebar-primary-foreground: 26 30% 8%;
+  --sidebar-accent: 186 32% 87%;
+  --sidebar-accent-foreground: 204 28% 14%;
+  --sidebar-ring: 43 72% 52%;
+  --chart-1: 43 62% 46%;
+  --chart-2: 36 70% 38%;
+  --chart-3: 196 50% 34%;
+  --chart-4: 0 65% 45%;
+  --chart-5: 205 14% 52%;
+  --pk-slab: 186 40% 99%;
+  --pk-slab-deep: 186 40% 99%;
+  --pk-slab-lift: 186 28% 92%;
+  --pk-glass: 186 32% 97%;
+  --pk-ink: 204 32% 11%;
+  --pk-line: 190 30% 58%;
+  --pk-deep-accent: 40 72% 30%;
+  --pk-accent-text: 43 62% 46%;
+  --pk-glow-a: 190 60% 62%;
+  --pk-glow-b: 174 45% 66%;
+  --pk-selection: 43 57% 54%;
+  --pk-selection-ink: 26 28% 9%;
+  --pk-scroll: 44 63% 66%;
+  --pk-scroll-deep: 43 74% 42%;
+}
+[data-theme-pack="golden-hour"]:not(.light) {
+  --background: 27 32% 5%;
+  --foreground: 36 38% 93%;
+  --card: 27 28% 8%;
+  --card-foreground: 36 34% 92%;
+  --card-border: 36 65% 28%;
+  --border: 28 26% 15%;
+  --input: 27 24% 10%;
+  --ring: 38 100% 55%;
+  --primary: 38 100% 55%;
+  --primary-foreground: 24 45% 6%;
+  --secondary: 27 22% 11%;
+  --secondary-foreground: 34 26% 78%;
+  --muted: 27 26% 9%;
+  --muted-foreground: 30 14% 60%;
+  --accent: 38 100% 55%;
+  --accent-foreground: 24 45% 6%;
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 60% 35%;
+  --popover: 27 30% 7%;
+  --popover-foreground: 36 34% 92%;
+  --popover-border: 36 50% 20%;
+  --sidebar: 28 34% 4%;
+  --sidebar-foreground: 34 26% 88%;
+  --sidebar-border: 36 55% 18%;
+  --sidebar-primary: 38 100% 55%;
+  --sidebar-primary-foreground: 24 45% 6%;
+  --sidebar-accent: 34 55% 16%;
+  --sidebar-accent-foreground: 34 26% 88%;
+  --sidebar-ring: 38 100% 55%;
+  --chart-1: 38 100% 55%;
+  --chart-2: 32 90% 45%;
+  --chart-3: 24 80% 32%;
+  --chart-4: 0 65% 42%;
+  --chart-5: 27 20% 28%;
+  --pk-slab: 27 28% 8%;
+  --pk-slab-deep: 27 32% 4%;
+  --pk-slab-lift: 27 24% 12%;
+  --pk-glass: 27 28% 8%;
+  --pk-ink: 36 38% 93%;
+  --pk-line: 36 60% 42%;
+  --pk-deep-accent: 38 100% 55%;
+  --pk-accent-text: 40 100% 62%;
+  --pk-glow-a: 24 92% 46%;
+  --pk-glow-b: 36 90% 40%;
+  --pk-selection: 38 100% 55%;
+  --pk-selection-ink: 24 45% 6%;
+  --pk-scroll: 38 90% 48%;
+  --pk-scroll-deep: 36 80% 36%;
+}
+[data-theme-pack="golden-hour"].light {
+  --background: 33 58% 96%;
+  --foreground: 25 34% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 25 34% 11%;
+  --card-border: 34 50% 79%;
+  --border: 33 44% 82%;
+  --input: 0 0% 100%;
+  --ring: 36 75% 45%;
+  --primary: 38 85% 50%;
+  --primary-foreground: 25 40% 8%;
+  --secondary: 33 52% 91%;
+  --secondary-foreground: 25 30% 17%;
+  --muted: 33 40% 90%;
+  --muted-foreground: 28 14% 37%;
+  --accent: 38 85% 50%;
+  --accent-foreground: 25 40% 8%;
+  --destructive: 0 68% 44%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 55% 32%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 25 34% 11%;
+  --popover-border: 34 44% 80%;
+  --sidebar: 33 50% 94%;
+  --sidebar-foreground: 25 30% 14%;
+  --sidebar-border: 34 46% 81%;
+  --sidebar-primary: 38 85% 50%;
+  --sidebar-primary-foreground: 25 40% 8%;
+  --sidebar-accent: 35 58% 88%;
+  --sidebar-accent-foreground: 25 30% 14%;
+  --sidebar-ring: 36 75% 45%;
+  --chart-1: 36 75% 42%;
+  --chart-2: 30 70% 36%;
+  --chart-3: 24 60% 30%;
+  --chart-4: 0 65% 45%;
+  --chart-5: 30 14% 55%;
+  --pk-slab: 33 62% 99%;
+  --pk-slab-deep: 33 62% 99%;
+  --pk-slab-lift: 33 48% 92%;
+  --pk-glass: 33 58% 97%;
+  --pk-ink: 25 34% 11%;
+  --pk-line: 34 50% 60%;
+  --pk-deep-accent: 30 78% 29%;
+  --pk-accent-text: 38 85% 50%;
+  --pk-glow-a: 36 90% 64%;
+  --pk-glow-b: 24 85% 68%;
+  --pk-selection: 36 80% 48%;
+  --pk-selection-ink: 25 40% 8%;
+  --pk-scroll: 36 70% 52%;
+  --pk-scroll-deep: 34 75% 40%;
+}
+[data-theme-pack="kings-set"]:not(.light) {
+  --background: 36 30% 3%;
+  --foreground: 46 34% 95%;
+  --card: 36 26% 6%;
+  --card-foreground: 46 30% 93%;
+  --card-border: 44 80% 32%;
+  --border: 40 35% 13%;
+  --input: 36 22% 8%;
+  --ring: 46 100% 56%;
+  --primary: 46 100% 56%;
+  --primary-foreground: 0 0% 3%;
+  --secondary: 36 22% 9%;
+  --secondary-foreground: 44 20% 80%;
+  --muted: 36 24% 7%;
+  --muted-foreground: 42 14% 62%;
+  --accent: 46 100% 56%;
+  --accent-foreground: 0 0% 3%;
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 60% 35%;
+  --popover: 36 28% 5%;
+  --popover-foreground: 46 30% 93%;
+  --popover-border: 44 55% 20%;
+  --sidebar: 36 32% 2%;
+  --sidebar-foreground: 44 20% 89%;
+  --sidebar-border: 44 60% 16%;
+  --sidebar-primary: 46 100% 56%;
+  --sidebar-primary-foreground: 0 0% 3%;
+  --sidebar-accent: 43 65% 15%;
+  --sidebar-accent-foreground: 44 20% 89%;
+  --sidebar-ring: 46 100% 56%;
+  --chart-1: 46 100% 56%;
+  --chart-2: 43 90% 45%;
+  --chart-3: 40 75% 30%;
+  --chart-4: 0 65% 42%;
+  --chart-5: 36 20% 26%;
+  --pk-slab: 36 26% 6%;
+  --pk-slab-deep: 36 30% 2%;
+  --pk-slab-lift: 36 22% 10%;
+  --pk-glass: 36 26% 6%;
+  --pk-ink: 46 34% 95%;
+  --pk-line: 44 65% 45%;
+  --pk-deep-accent: 46 100% 56%;
+  --pk-accent-text: 46 100% 64%;
+  --pk-glow-a: 45 100% 50%;
+  --pk-glow-b: 40 85% 32%;
+  --pk-selection: 46 100% 56%;
+  --pk-selection-ink: 0 0% 3%;
+  --pk-scroll: 46 95% 52%;
+  --pk-scroll-deep: 44 85% 38%;
+}
+[data-theme-pack="kings-set"].light {
+  --background: 42 48% 98%;
+  --foreground: 26 34% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 26 34% 8%;
+  --card-border: 43 50% 78%;
+  --border: 43 44% 81%;
+  --input: 0 0% 100%;
+  --ring: 40 78% 44%;
+  --primary: 42 85% 48%;
+  --primary-foreground: 26 34% 7%;
+  --secondary: 42 46% 92%;
+  --secondary-foreground: 26 30% 16%;
+  --muted: 42 36% 91%;
+  --muted-foreground: 30 14% 36%;
+  --accent: 42 85% 48%;
+  --accent-foreground: 26 34% 7%;
+  --destructive: 0 68% 44%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 55% 32%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 26 34% 8%;
+  --popover-border: 43 44% 79%;
+  --sidebar: 41 44% 96%;
+  --sidebar-foreground: 26 30% 13%;
+  --sidebar-border: 43 46% 80%;
+  --sidebar-primary: 42 85% 48%;
+  --sidebar-primary-foreground: 26 34% 7%;
+  --sidebar-accent: 43 55% 89%;
+  --sidebar-accent-foreground: 26 30% 13%;
+  --sidebar-ring: 40 78% 44%;
+  --chart-1: 40 78% 40%;
+  --chart-2: 36 70% 36%;
+  --chart-3: 30 50% 28%;
+  --chart-4: 0 65% 45%;
+  --chart-5: 30 12% 52%;
+  --pk-slab: 42 55% 99%;
+  --pk-slab-deep: 42 55% 99%;
+  --pk-slab-lift: 42 44% 93%;
+  --pk-glass: 42 48% 98%;
+  --pk-ink: 26 34% 8%;
+  --pk-line: 43 55% 58%;
+  --pk-deep-accent: 38 80% 27%;
+  --pk-accent-text: 42 85% 48%;
+  --pk-glow-a: 44 90% 62%;
+  --pk-glow-b: 46 85% 70%;
+  --pk-selection: 42 85% 48%;
+  --pk-selection-ink: 26 34% 7%;
+  --pk-scroll: 42 75% 55%;
+  --pk-scroll-deep: 40 78% 40%;
+}
+[data-theme-pack="arcade-gold"]:not(.light) {
+  --background: 38 14% 5%;
+  --foreground: 44 24% 94%;
+  --card: 38 12% 8%;
+  --card-foreground: 44 20% 92%;
+  --card-border: 44 60% 27%;
+  --border: 38 12% 16%;
+  --input: 38 10% 10%;
+  --ring: 44 100% 52%;
+  --primary: 44 100% 52%;
+  --primary-foreground: 30 40% 5%;
+  --secondary: 38 10% 11%;
+  --secondary-foreground: 40 16% 78%;
+  --muted: 38 11% 9%;
+  --muted-foreground: 38 10% 61%;
+  --accent: 44 100% 52%;
+  --accent-foreground: 30 40% 5%;
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 60% 35%;
+  --popover: 38 13% 7%;
+  --popover-foreground: 44 20% 92%;
+  --popover-border: 44 45% 20%;
+  --sidebar: 39 16% 4%;
+  --sidebar-foreground: 40 16% 88%;
+  --sidebar-border: 44 50% 18%;
+  --sidebar-primary: 44 100% 52%;
+  --sidebar-primary-foreground: 30 40% 5%;
+  --sidebar-accent: 42 50% 16%;
+  --sidebar-accent-foreground: 40 16% 88%;
+  --sidebar-ring: 44 100% 52%;
+  --chart-1: 44 100% 52%;
+  --chart-2: 38 85% 42%;
+  --chart-3: 0 70% 42%;
+  --chart-4: 0 65% 45%;
+  --chart-5: 38 12% 28%;
+  --pk-slab: 38 12% 8%;
+  --pk-slab-deep: 38 14% 4%;
+  --pk-slab-lift: 38 11% 12%;
+  --pk-glass: 38 12% 8%;
+  --pk-ink: 44 24% 94%;
+  --pk-line: 44 55% 42%;
+  --pk-deep-accent: 44 100% 52%;
+  --pk-accent-text: 44 100% 60%;
+  --pk-glow-a: 44 100% 48%;
+  --pk-glow-b: 0 65% 38%;
+  --pk-selection: 44 100% 52%;
+  --pk-selection-ink: 30 40% 5%;
+  --pk-scroll: 44 90% 46%;
+  --pk-scroll-deep: 42 80% 34%;
+}
+[data-theme-pack="arcade-gold"].light {
+  --background: 40 38% 96%;
+  --foreground: 30 26% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 30 26% 10%;
+  --card-border: 42 40% 79%;
+  --border: 42 34% 82%;
+  --input: 0 0% 100%;
+  --ring: 40 78% 44%;
+  --primary: 40 82% 46%;
+  --primary-foreground: 30 34% 7%;
+  --secondary: 40 36% 91%;
+  --secondary-foreground: 30 24% 16%;
+  --muted: 40 26% 90%;
+  --muted-foreground: 34 12% 37%;
+  --accent: 40 82% 46%;
+  --accent-foreground: 30 34% 7%;
+  --destructive: 0 68% 44%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 55% 32%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 30 26% 10%;
+  --popover-border: 42 36% 80%;
+  --sidebar: 40 34% 94%;
+  --sidebar-foreground: 30 24% 13%;
+  --sidebar-border: 42 36% 81%;
+  --sidebar-primary: 40 82% 46%;
+  --sidebar-primary-foreground: 30 34% 7%;
+  --sidebar-accent: 41 48% 88%;
+  --sidebar-accent-foreground: 30 24% 13%;
+  --sidebar-ring: 40 78% 44%;
+  --chart-1: 40 82% 42%;
+  --chart-2: 34 70% 36%;
+  --chart-3: 0 60% 40%;
+  --chart-4: 0 65% 45%;
+  --chart-5: 34 12% 54%;
+  --pk-slab: 40 45% 99%;
+  --pk-slab-deep: 40 45% 99%;
+  --pk-slab-lift: 39 34% 92%;
+  --pk-glass: 40 38% 97%;
+  --pk-ink: 30 26% 10%;
+  --pk-line: 42 45% 58%;
+  --pk-deep-accent: 36 82% 28%;
+  --pk-accent-text: 40 82% 46%;
+  --pk-glow-a: 44 95% 60%;
+  --pk-glow-b: 20 85% 66%;
+  --pk-selection: 40 82% 46%;
+  --pk-selection-ink: 30 34% 7%;
+  --pk-scroll: 40 72% 52%;
+  --pk-scroll-deep: 38 78% 38%;
+}
+
+/* ── P1. Page ground: the pack's world replaces the throne/ivory scene.
+   Same shape and exclusions as the house ground paints (outermost
+   container only — the nested-painter strip rule above still applies;
+   auth keeps its video via .no-throne-bg; dark-locked subtrees keep
+   their locked backdrops). The hero's own layers paint above this
+   ground exactly as they do over the house grounds — no stacking
+   change. */
+[data-theme-pack]:not(.light) body,
+[data-theme-pack]:not(.light) {
+  background-color: hsl(var(--background));
+}
+[data-theme-pack]:not(.light) .bg-background:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) [class*="min-h-screen"]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -10%, hsl(var(--pk-glow-a) / 0.20), transparent 60%),
+    radial-gradient(ellipse 65% 45% at 85% 15%, hsl(var(--pk-glow-b) / 0.13), transparent 55%),
+    linear-gradient(hsl(var(--background)), hsl(var(--background)));
+}
+[data-theme-pack].light body,
+[data-theme-pack].light {
+  background-color: hsl(var(--background));
+}
+[data-theme-pack].light .bg-background:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light [class*="min-h-screen"]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -10%, hsl(var(--pk-glow-a) / 0.16), transparent 60%),
+    radial-gradient(ellipse 65% 45% at 85% 15%, hsl(var(--pk-glow-b) / 0.10), transparent 55%),
+    linear-gradient(hsl(var(--background)), hsl(var(--background)));
+}
+/* Auth pages: pack glows over the pack ground — the video still plays
+   above it, same as the house light auth treatment. */
+[data-theme-pack].light .no-throne-bg[class*="min-h-screen"] {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--pk-glow-a) / 0.14), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 20%, hsl(var(--pk-glow-b) / 0.08), transparent 50%);
+  background-color: hsl(var(--background));
+}
+[data-theme-pack]:not(.light) .no-throne-bg[class*="min-h-screen"] {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--pk-glow-a) / 0.12), transparent 60%);
+  background-color: hsl(var(--background));
+}
+
+/* ── P2. DARK packs: the authored-dark sea takes the pack's tint.
+   Mirrors the Ivory Palace surface tables (sections 2–3) in the dark
+   direction: solid slabs → pack slabs, translucent blacks → pack
+   glass at the same alphas, white hairlines → pack line tint, and the
+   solid gold text steps → the pack's accent text. Alphas and the
+   [data-dark-lock] exclusions are the house tables' own. Modal scrims
+   stay dark dims — the pack glass is a dark color at the same alpha. */
+[data-theme-pack]:not(.light) .bg-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab-deep));
+}
+[data-theme-pack]:not(.light) .bg-\[\#0a0a0a\]:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-\[\#0d0d0f\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab-deep));
+}
+[data-theme-pack]:not(.light) .bg-zinc-950:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-neutral-950:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab-deep));
+}
+[data-theme-pack]:not(.light) .bg-zinc-900:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-neutral-900:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-stone-900:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-gray-900:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab));
+}
+[data-theme-pack]:not(.light) .bg-zinc-800:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-neutral-800:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .bg-\[\#1a1a1a\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab-lift));
+}
+[data-theme-pack]:not(.light) .bg-black\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.97); }
+[data-theme-pack]:not(.light) .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.93); }
+[data-theme-pack]:not(.light) .bg-black\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.86); }
+[data-theme-pack]:not(.light) .bg-black\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.78); }
+[data-theme-pack]:not(.light) .bg-black\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.68); }
+[data-theme-pack]:not(.light) .bg-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.58); }
+[data-theme-pack]:not(.light) .bg-black\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.48); }
+[data-theme-pack]:not(.light) .bg-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.38); }
+[data-theme-pack]:not(.light) .bg-black\/20:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.28); }
+[data-theme-pack]:not(.light) .bg-black\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.18); }
+[data-theme-pack]:not(.light) .bg-zinc-900\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.93); }
+[data-theme-pack]:not(.light) .bg-zinc-900\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.86); }
+[data-theme-pack]:not(.light) .bg-zinc-900\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.78); }
+[data-theme-pack]:not(.light) .bg-zinc-900\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.68); }
+[data-theme-pack]:not(.light) .bg-zinc-900\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.58); }
+[data-theme-pack]:not(.light) .bg-zinc-900\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.48); }
+[data-theme-pack]:not(.light) .bg-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-line) / 0.10); }
+[data-theme-pack]:not(.light) .bg-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-line) / 0.16); }
+/* Hairlines: the white/5–20 border steps take the pack line tint */
+[data-theme-pack]:not(.light) .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.22); }
+[data-theme-pack]:not(.light) .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.38); }
+[data-theme-pack]:not(.light) .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.48); }
+[data-theme-pack]:not(.light) .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.58); }
+/* Accent ink: the solid gold text steps speak the pack's accent.
+   (The same family the Ivory Palace table deepens in light — §5.) */
+[data-theme-pack]:not(.light) .text-primary:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .text-amber-400:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .text-yellow-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack]:not(.light) .text-yellow-400:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-accent-text)); }
+
+/* ── P3. LIGHT packs: the Ivory Palace tables, re-pointed at the pack.
+   The house light tables (sections 1–5) repaint the hardcoded dark sea
+   to fixed ivory values; with a pack active, the same classes land on
+   the pack's own slabs, glass, ink, and deepened accent instead. One
+   shared block for every pack — each pack supplies only its --pk-*
+   values. Modal scrims are NOT re-pointed: the house scrim rules carry
+   !important and keep their warm-dark dim under packs too. */
+[data-theme-pack].light .bg-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab));
+}
+[data-theme-pack].light .bg-\[\#0a0a0a\]:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-\[\#0d0d0d\]:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-\[\#0d0d0f\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab));
+}
+[data-theme-pack].light .bg-zinc-950:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-neutral-950:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab-deep));
+}
+[data-theme-pack].light .bg-zinc-900:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-neutral-900:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-stone-900:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-gray-900:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab));
+}
+[data-theme-pack].light .bg-zinc-800:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-neutral-800:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .bg-\[\#1a1a1a\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  background-color: hsl(var(--pk-slab-lift));
+}
+[data-theme-pack].light .bg-black\/95:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.96); }
+[data-theme-pack].light .bg-black\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.92); }
+[data-theme-pack].light .bg-black\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.86); }
+[data-theme-pack].light .bg-black\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.78); }
+[data-theme-pack].light .bg-black\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.68); }
+[data-theme-pack].light .bg-black\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.58); }
+[data-theme-pack].light .bg-black\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.46); }
+[data-theme-pack].light .bg-black\/30:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.36); }
+[data-theme-pack].light .bg-black\/20:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.24); }
+[data-theme-pack].light .bg-black\/10:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.14); }
+[data-theme-pack].light .bg-zinc-900\/90:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.92); }
+[data-theme-pack].light .bg-zinc-900\/80:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.86); }
+[data-theme-pack].light .bg-zinc-900\/70:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.78); }
+[data-theme-pack].light .bg-zinc-900\/60:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.68); }
+[data-theme-pack].light .bg-zinc-900\/50:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.58); }
+[data-theme-pack].light .bg-zinc-900\/40:not([data-dark-lock]):not([data-dark-lock] *) { background-color: hsl(var(--pk-glass) / 0.46); }
+/* Image scrims melt into the pack ground, as they melt into ivory */
+[data-theme-pack].light .from-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-from: hsl(var(--background) / 0.95) var(--tw-gradient-from-position);
+  --tw-gradient-to: hsl(var(--background) / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+[data-theme-pack].light .via-black:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-via: hsl(var(--background) / 0.6) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to));
+}
+/* Ink: white text becomes the pack's ink, stepped like the ivory ramp */
+[data-theme-pack].light .text-white:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink)); }
+[data-theme-pack].light .text-white\/95:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.95); }
+[data-theme-pack].light .text-white\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.9); }
+[data-theme-pack].light .text-white\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.86); }
+[data-theme-pack].light .text-white\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.78); }
+[data-theme-pack].light .text-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.72); }
+[data-theme-pack].light .text-white\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.66); }
+[data-theme-pack].light .text-white\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.62); }
+[data-theme-pack].light .text-white\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.58); }
+[data-theme-pack].light .text-white\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.55); }
+[data-theme-pack].light .text-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.52); }
+[data-theme-pack].light .text-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.48); }
+[data-theme-pack].light .text-zinc-100:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-neutral-100:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-gray-100:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-stone-100:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink)); }
+[data-theme-pack].light .text-zinc-200:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-neutral-200:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-gray-200:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.92); }
+[data-theme-pack].light .text-zinc-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-neutral-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-gray-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-stone-300:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.96); }
+[data-theme-pack].light .text-zinc-400:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-neutral-400:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-gray-400:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-stone-400:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.66); }
+[data-theme-pack].light .text-zinc-500:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-neutral-500:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-gray-500:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-stone-500:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-ink) / 0.74); }
+/* Accent ink: bright golds deepen to the pack's deep accent (§5's role) */
+[data-theme-pack].light .text-primary:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent)); }
+[data-theme-pack].light .text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-400:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-200:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-200:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-300:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-400:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-100:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-100:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent)); }
+[data-theme-pack].light .text-amber-300\/90:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-400\/90:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.92); }
+[data-theme-pack].light .text-amber-300\/80:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-400\/80:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-300\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.88); }
+[data-theme-pack].light .text-amber-300\/70:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-400\/70:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-400\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.84); }
+[data-theme-pack].light .text-amber-300\/60:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-400\/60:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-300\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.8); }
+[data-theme-pack].light .text-amber-400\/50:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-yellow-400\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.74); }
+[data-theme-pack].light .text-amber-100\/90:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.92); }
+[data-theme-pack].light .text-amber-100\/80:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-200\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.88); }
+[data-theme-pack].light .text-amber-200\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.84); }
+[data-theme-pack].light .text-amber-100\/60:not([data-dark-lock]):not([data-dark-lock] *),
+[data-theme-pack].light .text-amber-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.8); }
+[data-theme-pack].light .text-amber-100\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.76); }
+[data-theme-pack].light .text-amber-100\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: hsl(var(--pk-deep-accent) / 0.72); }
+/* Hairlines in light packs: white/10-family borders were near-invisible
+   on ivory; on pack grounds they take the pack line tint. */
+[data-theme-pack].light .border-white\/5:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.3); }
+[data-theme-pack].light .border-white\/10:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.45); }
+[data-theme-pack].light .border-white\/15:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.55); }
+[data-theme-pack].light .border-white\/20:not([data-dark-lock]):not([data-dark-lock] *) { border-color: hsl(var(--pk-line) / 0.65); }
+
+/* ── P4. Chrome: selection, scrollbars, focus, caret — the pack's metal,
+   both modes (the token --ring/--accent vars are mode-scoped already). */
+[data-theme-pack] ::selection {
+  background: hsl(var(--pk-selection));
+  color: hsl(var(--pk-selection-ink));
+}
+[data-theme-pack] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, hsl(var(--pk-scroll)), hsl(var(--pk-scroll-deep)));
+}
+[data-theme-pack].light ::-webkit-scrollbar-track {
+  background: hsl(var(--pk-slab-lift));
+}
+[data-theme-pack].light ::-webkit-scrollbar-thumb {
+  border: 2px solid hsl(var(--pk-slab-lift));
+  border-radius: 8px;
+}
+html[data-theme-pack]:not(.light) {
+  scrollbar-color: hsl(var(--pk-scroll)) hsl(var(--background));
+}
+html[data-theme-pack].light {
+  scrollbar-color: hsl(var(--pk-scroll)) hsl(var(--pk-slab-lift));
+}
+[data-theme-pack] :focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.7);
+  outline-offset: 2px;
+}
+html[data-theme-pack]:not(.light) input,
+html[data-theme-pack]:not(.light) textarea,
+html[data-theme-pack]:not(.light) select { caret-color: hsl(var(--accent)); }
+html[data-theme-pack].light input,
+html[data-theme-pack].light textarea,
+html[data-theme-pack].light select { caret-color: hsl(var(--pk-deep-accent)); }

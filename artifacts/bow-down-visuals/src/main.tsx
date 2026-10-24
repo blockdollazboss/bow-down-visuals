@@ -2,15 +2,13 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./lib/i18n"; // initialize i18next before rendering
+import { bootThemePack } from "./lib/theme-packs";
 
-const savedTheme = localStorage.getItem("bdv-theme");
-if (savedTheme === "light") {
-  document.documentElement.classList.add("light");
-  document.documentElement.classList.remove("dark");
-} else {
-  document.documentElement.classList.add("dark");
-  document.documentElement.classList.remove("light");
-}
+// Restore the saved theme (mode + pack) before the first paint: the
+// mode class follows "bdv-theme" exactly as it always has, and a saved
+// theme pack brings its world (data-theme-pack) with it — see
+// lib/theme-packs.ts.
+bootThemePack();
 
 // Register the PWA service worker in production only — never in dev, where
 // it would serve stale cached assets and break hot reload.
