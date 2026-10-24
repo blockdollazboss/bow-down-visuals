@@ -1,5 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Radio, Square, Loader2, CheckCircle2, AlertTriangle, CalendarPlus,
@@ -263,7 +263,7 @@ function GoLiveMain() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t("goLive.streamTitlePlaceholder")}
-                className="mt-1.5 w-full rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
+                className="mt-1.5 w-full rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/50 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                 data-testid="input-stream-title"
               />
             </label>
@@ -275,18 +275,21 @@ function GoLiveMain() {
                   value={game}
                   onChange={(e) => setGame(e.target.value)}
                   placeholder={t("goLive.gamePlaceholder")}
-                  className="w-full rounded-xl bg-black/60 border border-white/10 pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
+                  className="w-full rounded-xl bg-black/60 border border-white/10 pl-10 pr-4 py-2.5 text-sm placeholder:text-white/50 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
                   data-testid="input-stream-game"
                 />
               </div>
             </label>
           </div>
 
-          <label className="flex items-center gap-2.5 text-sm text-white/70 cursor-pointer select-none">
+          {/* Not a <label>: the switch is a <button>, and nesting it in a
+              label made label-text clicks double-fire the toggle. */}
+          <div className="flex items-center gap-2.5 text-sm text-white/70 select-none">
             <button
               type="button"
               role="switch"
               aria-checked={mentionEveryone}
+              aria-label={t("goLive.pingEveryoneAria", { defaultValue: "Ping @everyone" })}
               onClick={() => setMentionEveryone((v) => !v)}
               className={`w-10 h-6 rounded-full transition-colors relative ${mentionEveryone ? "bg-amber-400" : "bg-white/10"}`}
               data-testid="toggle-mention-everyone"
@@ -295,7 +298,7 @@ function GoLiveMain() {
             </button>
             {mentionEveryone ? <Bell className="h-4 w-4 text-amber-300" /> : <BellOff className="h-4 w-4 text-white/30" />}
             {t("goLive.pingBefore")}<span className="font-mono font-bold text-amber-200">@everyone</span>{t("goLive.pingAfter")}
-          </label>
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <Button
@@ -312,7 +315,8 @@ function GoLiveMain() {
                 value={vodUrl}
                 onChange={(e) => setVodUrl(e.target.value)}
                 placeholder={t("goLive.vodPlaceholder")}
-                className="flex-1 rounded-xl bg-black/60 border border-white/10 px-4 py-2 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
+                className="flex-1 rounded-xl bg-black/60 border border-white/10 px-4 py-2 text-sm placeholder:text-white/50 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                aria-label={t("goLive.vodPlaceholder")}
                 data-testid="input-vod-url"
               />
               <Button
@@ -327,7 +331,7 @@ function GoLiveMain() {
               </Button>
             </div>
           </div>
-          <p className="text-[11px] text-white/30">
+          <p className="text-[11px] text-white/50">
             {t("goLive.announceNote")}
           </p>
         </section>
@@ -346,21 +350,24 @@ function GoLiveMain() {
               value={schedTitle}
               onChange={(e) => setSchedTitle(e.target.value)}
               placeholder={t("goLive.schedTitlePlaceholder")}
-              className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
+              aria-label={t("goLive.schedTitlePlaceholder")}
+              className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/50 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
               data-testid="input-sched-title"
             />
             <input
               value={schedGame}
               onChange={(e) => setSchedGame(e.target.value)}
               placeholder={t("goLive.schedGamePlaceholder")}
-              className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60"
+              aria-label={t("goLive.schedGamePlaceholder")}
+              className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm placeholder:text-white/50 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60"
               data-testid="input-sched-game"
             />
             <input
               type="datetime-local"
               value={schedWhen}
               onChange={(e) => setSchedWhen(e.target.value)}
-              className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm text-white/70 focus:outline-none focus:border-amber-400/60 [color-scheme:dark]"
+              className="rounded-xl bg-black/60 border border-white/10 px-4 py-2.5 text-sm text-white/70 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60 [color-scheme:dark]"
+              aria-label={t("goLive.schedWhenLabel", { defaultValue: "Stream date and time" })}
               data-testid="input-sched-when"
             />
           </div>
@@ -376,10 +383,10 @@ function GoLiveMain() {
                 <div key={s.id} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 transition hover:border-amber-400/40">
                   <div className="min-w-0">
                     <p className="font-bold text-sm truncate">{s.title}</p>
-                    <p className="text-xs text-white/40 flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-white/50 flex items-center gap-1.5 mt-0.5">
                       <Clock className="h-3 w-3" />
                       {s.scheduled_for ? new Date(s.scheduled_for).toLocaleString() : t("goLive.noDateSet")}
-                      {s.game && <span className="text-white/25">· {s.game}</span>}
+                      {s.game && <span className="text-white/50">· {s.game}</span>}
                     </p>
                   </div>
                   <button
@@ -397,7 +404,7 @@ function GoLiveMain() {
             <div className={`rounded-xl border border-dashed px-4 py-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-white/15 bg-black/40"}`}>
               <CalendarPlus className="h-8 w-8 text-[#fbbf24]/50 mx-auto mb-2" />
               <p className="text-sm font-bold text-white/70">{t("goLive.noUpcomingTitle", { defaultValue: "No streams scheduled yet" })}</p>
-              <p className="text-xs text-white/40 mt-1 max-w-xs mx-auto">{t("goLive.noUpcomingDesc", { defaultValue: "Set a date above and your next stream will show up here." })}</p>
+              <p className="text-xs text-white/50 mt-1 max-w-xs mx-auto">{t("goLive.noUpcomingDesc", { defaultValue: "Set a date above and your next stream will show up here." })}</p>
             </div>
           )}
         </section>
@@ -416,9 +423,9 @@ function GoLiveMain() {
               <div key={s.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/5 bg-black/40 hover:border-white/15"}`}>
                 <div className="min-w-0">
                   <p className="font-bold text-sm truncate">{s.title}</p>
-                  <p className="text-xs text-white/40 mt-0.5">
+                  <p className="text-xs text-white/50 mt-0.5">
                     {s.ended_at ? new Date(s.ended_at).toLocaleDateString() : ""}
-                    {s.game && <span className="text-white/25"> · {s.game}</span>}
+                    {s.game && <span className="text-white/50"> · {s.game}</span>}
                   </p>
                 </div>
                 {s.vod_url && (
@@ -469,14 +476,37 @@ export default function GoLive() {
     { key: "copilot", label: t("goLive.tabCopilot", { defaultValue: "Stream Copilot" }) },
   ];
 
+  /* Tab-pattern keyboard support: roving tabindex + Arrow/Home/End
+     with automatic activation, matching the Create hub's tablist. */
+  const tabRefs = useRef<Partial<Record<LiveTab, HTMLButtonElement | null>>>({});
+  function onTablistKeyDown(e: React.KeyboardEvent) {
+    const idx = TABS.findIndex((tb) => tb.key === tab);
+    let nextIdx: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % TABS.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + TABS.length) % TABS.length;
+    else if (e.key === "Home") nextIdx = 0;
+    else if (e.key === "End") nextIdx = TABS.length - 1;
+    if (nextIdx === null) return;
+    e.preventDefault();
+    const next = TABS[nextIdx]!;
+    setTab(next.key);
+    tabRefs.current[next.key]?.focus();
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-5xl px-4 pt-8">
-        <div className="flex flex-wrap justify-center gap-2 border-b border-white/[0.08] pb-4">
+        <div className="flex flex-wrap justify-center gap-2 border-b border-white/[0.08] pb-4" role="tablist" aria-label={t("goLive.pageTitle")} onKeyDown={onTablistKeyDown}>
           {TABS.map(({ key, label }) => (
             <button
               key={key}
+              ref={(el) => { tabRefs.current[key] = el; }}
+              id={`golive-tab-${key}`}
               type="button"
+              role="tab"
+              aria-selected={tab === key}
+              aria-controls="golive-panel"
+              tabIndex={tab === key ? 0 : -1}
               onClick={() => setTab(key)}
               className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 tab === key
@@ -519,7 +549,9 @@ export default function GoLive() {
           </span>
         </Link>
       </div>
-      {tab === "broadcast" ? <><BroadcastStudio /><GuestPanel /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      <div id="golive-panel" role="tabpanel" aria-labelledby={`golive-tab-${tab}`} tabIndex={0}>
+        {tab === "broadcast" ? <><BroadcastStudio /><GuestPanel /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+      </div>
       <div className="mt-6"><StageRooms /></div>
     </div>
   );

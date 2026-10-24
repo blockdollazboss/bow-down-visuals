@@ -312,8 +312,8 @@ export default function BroadcastStudio() {
     ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]"
     : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]";
   const inputCls = isLight
-    ? "w-full rounded-xl border border-[#C9A84C]/40 bg-white/70 px-4 py-2.5 text-sm text-[#2A1E07] placeholder:text-[#6B5B36]/60 focus:outline-none focus:border-[#C9A84C]"
-    : "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-amber-400/60";
+    ? "w-full rounded-xl border border-[#C9A84C]/40 bg-white/70 px-4 py-2.5 text-sm text-[#2A1E07] placeholder:text-[#6B5B36]/70 focus:outline-none focus:border-[#C9A84C] focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
+    : "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm placeholder:text-white/50 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60";
   const pillBtn = (active: boolean) =>
     `rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
       active
@@ -1731,6 +1731,7 @@ export default function BroadcastStudio() {
           <input
             id="backdrop-url"
             type="text"
+            aria-label="Backdrop image URL"
             placeholder="…or paste your own backdrop image URL"
             className={`${inputCls} min-w-[220px] flex-1`}
             onKeyDown={async (e) => {
