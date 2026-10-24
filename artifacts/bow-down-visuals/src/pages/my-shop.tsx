@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
 import { useTranslation } from "react-i18next";
+import { AltTextField } from "@/components/accessibility/AltTextField";
 
 /* ─── My Shop — the customer storefront builder ──────────────────────────
    Your own shop on the Bow Down Visuals platform. Shop/product CRUD is
@@ -39,6 +40,9 @@ interface Product {
   price_cents: number;
   description: string | null;
   image_url: string | null;
+  /* #29: accessibility description of the product shot — buyer reads
+     carry it too; it renders as the product image's alt in the shop. */
+  image_alt_text?: string | null;
   /* Owner-rail field (migration 0176): 'paused' products are unlisted
      for buyers but stay fully visible here so the seller can resume
      them. Buyer reads never carry this. */
@@ -101,6 +105,7 @@ export default function MyShop() {
   const [pPrice, setPPrice] = useState("");
   const [pDesc, setPDesc] = useState("");
   const [pImageUrl, setPImageUrl] = useState("");
+  const [pImageAlt, setPImageAlt] = useState("");
   const [pSaving, setPSaving] = useState(false);
   const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
@@ -272,7 +277,7 @@ export default function MyShop() {
 
   function openNewProduct() {
     setEditingProduct(null);
-    setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setImageStyleHint("");
+    setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setPImageAlt(""); setImageStyleHint("");
     setShowProductForm(true);
   }
 
@@ -282,6 +287,7 @@ export default function MyShop() {
     setPPrice((p.price_cents / 100).toFixed(2));
     setPDesc(p.description ?? "");
     setPImageUrl(p.image_url ?? "");
+    setPImageAlt(p.image_alt_text ?? "");
     setImageStyleHint("");
     setShowProductForm(true);
   }
@@ -322,6 +328,7 @@ export default function MyShop() {
         price_cents: cents,
         description: pDesc.trim(),
         image_url: pImageUrl.trim(),
+        image_alt_text: pImageAlt.trim(),
       };
       const url = editingProduct
         ? `/api/shops/${activeShop.id}/products/${editingProduct.id}`
@@ -666,6 +673,15 @@ export default function MyShop() {
                           className="mt-2 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none"
                           value={pImageUrl} onChange={(e) => setPImageUrl(e.target.value)}
                           placeholder={t("myShop.imageUrlPlaceholder")}
+                        />
+                        {/* #29 product-shot accessibility description */}
+                        <AltTextField
+                          compact
+                          imageUrl={pImageUrl.trim() || null}
+                          value={pImageAlt}
+                          onChange={setPImageAlt}
+                          label="Describe the product photo for screen readers"
+                          context={pName || undefined}
                         />
                       </div>
                       <div className="mt-4 flex gap-3">

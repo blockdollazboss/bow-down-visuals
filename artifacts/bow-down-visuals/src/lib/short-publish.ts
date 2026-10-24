@@ -65,6 +65,10 @@ export interface ShortPostInput {
   soundId?: string | null;
   soundTitle?: string | null;
   soundUrl?: string | null;
+  /* #29: accessibility description of the cover frame (thumbnail),
+     creator-written or AI-suggested on the publish page. Forwarded
+     only when non-empty, clamped to the endpoint's 400-char cap. */
+  thumbnailAltText?: string | null;
 }
 
 /** Body for POST /api/shorts (postShortSchema server-side). Clamps to
@@ -99,5 +103,7 @@ export function buildShortPostBody(input: ShortPostInput): Record<string, unknow
   if (soundId) body.sound_id = soundId;
   if (soundTitle) body.sound_title = soundTitle;
   if (soundUrl) body.sound_url = soundUrl;
+  const thumbnailAltText = input.thumbnailAltText?.trim().slice(0, 400);
+  if (thumbnailAltText) body.thumbnail_alt_text = thumbnailAltText;
   return body;
 }

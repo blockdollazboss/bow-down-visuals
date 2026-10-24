@@ -201,7 +201,7 @@ export default function ProfileStoreSection({
                 {item.artworkUrl ? (
                   <img
                     src={item.artworkUrl}
-                    alt=""
+                    alt={item.artworkAlt ?? item.title}
                     className="aspect-square w-full object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = "none";

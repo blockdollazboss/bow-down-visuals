@@ -15,6 +15,7 @@ import {
 } from "@/components/publish/PublishToProfileButton";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { AltTextField } from "@/components/accessibility/AltTextField";
 import {
   buildShortPostBody,
   SHORT_MAX_DURATION_SEC,
@@ -50,7 +51,7 @@ type ContentType = "audio" | "video";
 interface ProfileRef { id: string; slug: string; display_name?: string }
 interface DraftItem {
   id: string; kind: ContentType; title: string; is_published: boolean;
-  media_url: string; artwork_url?: string | null; genre?: string | null;
+  media_url: string; artwork_url?: string | null; thumbnail_alt_text?: string | null; genre?: string | null;
   description?: string | null; tags?: string[] | null; isrc?: string | null;
   duration_sec?: number | null; download_price_cents?: number | null;
   season?: number | null; episode?: number | null; profile_id: string;
@@ -94,6 +95,9 @@ export default function Publish() {
      return it alongside the playable URL) — the ref is what gets saved;
      artworkUrl stays the display/preview URL. */
   const [artworkRef, setArtworkRef] = useState<string | null>(null);
+  /* #29: accessibility description of the thumbnail/cover (video only —
+     track artwork alt is a parked door). Editable, AI-suggestible. */
+  const [thumbnailAltText, setThumbnailAltText] = useState("");
   const [artUploading, setArtUploading] = useState(false);
   const [artGenerating, setArtGenerating] = useState(false);
 
@@ -300,6 +304,7 @@ export default function Publish() {
           id: String(v.id), kind: "video" as const, title: String(v.title ?? "Untitled"),
           is_published: v.is_published === true, media_url: String(v.video_url ?? ""),
           artwork_url: (v.thumbnail_url as string) ?? null,
+          thumbnail_alt_text: (v.thumbnail_alt_text as string) ?? null,
           description: (v.description as string) ?? null,
           duration_sec: (v.duration_sec as number) ?? null,
           season: (v.season as number) ?? null, episode: (v.episode as number) ?? null,
@@ -529,6 +534,7 @@ export default function Publish() {
             thumbnailUrl: saveArtworkUrl, description, tags,
             durationSec, publish,
             soundId: shortSound?.id, soundTitle: shortSound?.title, soundUrl: shortSound?.url,
+            thumbnailAltText,
           })
         : contentType === "audio"
           ? {
@@ -541,6 +547,10 @@ export default function Publish() {
               profile_id: profile.id, title: title.trim(), video_url: saveMediaUrl,
               thumbnail_url: saveArtworkUrl, category: vertical, duration_sec: durationSec,
               description: description || undefined, is_published: publish,
+              /* Edits send the field verbatim ("" clears — the server's
+                 CASE distinguishes absent from empty); creates omit it
+                 when blank. */
+              thumbnail_alt_text: isEdit ? thumbnailAltText : (thumbnailAltText.trim() || undefined),
               season: season ? Number(season) : undefined,
               episode: episode ? Number(episode) : undefined,
             };
@@ -639,7 +649,7 @@ export default function Publish() {
     setTitle(""); setDescription(""); setGenre(""); setTagsInput(""); setIsrc("");
     setSeason(""); setEpisode(""); setPriceMode("free"); setPriceDollars("");
     setFile(null); setPrefillUrl(null); setPrefillLabel(null);
-    setArtworkUrl(null); setArtworkRef(null); setDurationSec(null); setEditingId(null); setUploadError(null);
+    setArtworkUrl(null); setArtworkRef(null); setThumbnailAltText(""); setDurationSec(null); setEditingId(null); setUploadError(null);
   }
 
   function startEdit(d: DraftItem) {
@@ -656,6 +666,7 @@ export default function Publish() {
     setPriceDollars((d.download_price_cents ?? 0) > 0 ? String((d.download_price_cents ?? 0) / 100) : "");
     setArtworkUrl(d.artwork_url ?? null);
     setArtworkRef(null);
+    setThumbnailAltText(d.thumbnail_alt_text ?? "");
     setDurationSec(d.duration_sec ?? null);
     setFile(null);
     setPrefillUrl(d.media_url);
@@ -1152,6 +1163,17 @@ export default function Publish() {
               </div>
             </div>
           </div>
+
+          {/* #29 cover accessibility description (video/shorts only) */}
+          {contentType === "video" && (
+            <AltTextField
+              imageUrl={artworkUrl}
+              value={thumbnailAltText}
+              onChange={setThumbnailAltText}
+              label="Describe the thumbnail for screen readers"
+              context={title || undefined}
+            />
+          )}
 
           {/* Pricing — streams are always free; downloads can sell */}
           {showPricing && (

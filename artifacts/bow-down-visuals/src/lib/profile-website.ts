@@ -440,6 +440,8 @@ export interface StoreCatalogItemDto {
   id: string;
   title: string;
   artworkUrl: string | null;
+  /* #29: accessibility description of the artwork, when provided. */
+  artworkAlt: string | null;
   priceCents: number;
   price: string;
   compareAtCents: number | null;
@@ -478,6 +480,7 @@ export function normalizeStoreCatalog(payload: unknown): StoreCatalogDto | null 
         id: typeof raw.id === "string" ? raw.id : "",
         title: typeof raw.title === "string" ? raw.title : "",
         artworkUrl: typeof raw.artworkUrl === "string" ? raw.artworkUrl : null,
+        artworkAlt: typeof raw.artworkAlt === "string" && raw.artworkAlt ? raw.artworkAlt : null,
         priceCents,
         price: typeof raw.price === "string" ? raw.price : "",
         compareAtCents: finiteNum(raw.compareAtCents),
