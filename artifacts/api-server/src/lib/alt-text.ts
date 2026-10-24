@@ -59,13 +59,13 @@ export function sanitizeAltText(input: unknown): string {
 export function parseAltTextResponse(raw: unknown): string {
   if (typeof raw !== "string") return "";
   let text = raw.trim();
-  text = text.replace(/^(alt text|description|image description)\s*:\s*/i, "");
   if (
     (text.startsWith('"') && text.endsWith('"') && text.length >= 2) ||
     (text.startsWith("'") && text.endsWith("'") && text.length >= 2)
   ) {
-    text = text.slice(1, -1);
+    text = text.slice(1, -1).trim();
   }
+  text = text.replace(/^(alt text|description|image description)\s*:\s*/i, "");
   return sanitizeAltText(text);
 }
 
