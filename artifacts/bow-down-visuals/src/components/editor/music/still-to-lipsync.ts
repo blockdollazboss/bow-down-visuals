@@ -93,7 +93,10 @@ export interface RunStillToLipSyncInput {
    *  like Video Studio / LipSyncSection. Returning null means the user
    *  cancelled the confirmation: the flow stops before that step. */
   fetchImpl?: FetchLike;
-  /** Poll fetches (uncharged GETs). Defaults to fetchImpl ?? fetch. */
+  /** Poll fetches (uncharged GETs). MUST stay plain fetch — routing a
+   *  poll through confirmedFetch would prefix-match the charged
+   *  endpoint in the credit registry and pop a spend confirmation on
+   *  every poll. Defaults to plain fetch. */
   pollFetch?: FetchLike;
   sleep?: (ms: number) => Promise<void>;
   clipPollIntervalMs?: number;
@@ -126,8 +129,7 @@ export async function runStillToLipSync(
     onPhase,
   } = input;
   const doFetch: FetchLike = input.fetchImpl ?? ((u, i) => fetch(u, i));
-  const doPoll: FetchLike =
-    input.pollFetch ?? input.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doPoll: FetchLike = input.pollFetch ?? ((u, i) => fetch(u, i));
   const sleep = input.sleep ?? realSleep;
   const clipPollIntervalMs = input.clipPollIntervalMs ?? 5_000;
   const clipMaxPolls = input.clipMaxPolls ?? 60; // ~5 min, mirrors Video Studio

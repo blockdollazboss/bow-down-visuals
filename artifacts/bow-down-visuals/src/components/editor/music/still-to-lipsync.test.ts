@@ -98,6 +98,7 @@ describe("runStillToLipSync", () => {
     const result = await runStillToLipSync({
       ...baseInput,
       fetchImpl,
+      pollFetch: fetchImpl,
       onPhase: (p) => phases.push(p),
     });
 
@@ -136,7 +137,7 @@ describe("runStillToLipSync", () => {
     const { calls, fetchImpl } = makeFetch({
       clipPolls: [{ status: "failed", error: "Runway rejected the reference photo (content moderation)." }],
     });
-    await expect(runStillToLipSync({ ...baseInput, fetchImpl })).rejects.toMatchObject({
+    await expect(runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl })).rejects.toMatchObject({
       name: "StillToLipSyncError",
       step: "animate",
     });
@@ -146,7 +147,7 @@ describe("runStillToLipSync", () => {
 
   it("animation submit failure stops before any poll or lip-sync call", async () => {
     const { calls, fetchImpl } = makeFetch({ submitStatus: 500 });
-    const err = await runStillToLipSync({ ...baseInput, fetchImpl }).catch((e) => e);
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
     expect(err).toBeInstanceOf(StillToLipSyncError);
     expect((err as StillToLipSyncError).step).toBe("animate");
     expect(calls).toHaveLength(1);
@@ -158,14 +159,14 @@ describe("runStillToLipSync", () => {
       calls.push(url);
       return null; // confirmedFetch returns null on user cancel
     };
-    const err = await runStillToLipSync({ ...baseInput, fetchImpl }).catch((e) => e);
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
     expect(err).toBeInstanceOf(StillToLipSyncError);
     expect(calls).toEqual(["/api/generate-runway-clip"]);
   });
 
   it("lip-sync failure keeps the produced clip in the error for an honest retry", async () => {
     const { fetchImpl } = makeFetch({ lipStatus: 402 });
-    const err = await runStillToLipSync({ ...baseInput, fetchImpl }).catch((e) => e);
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
     expect(err).toBeInstanceOf(StillToLipSyncError);
     expect((err as StillToLipSyncError).step).toBe("lip-sync");
     expect((err as StillToLipSyncError).clipUrl).toBe(CLIP);
@@ -175,10 +176,35 @@ describe("runStillToLipSync", () => {
     const { fetchImpl } = makeFetch({
       lipPolls: [{ status: "processing", code: "still_processing", error: "Still processing on Sync.so." }],
     });
-    const result = await runStillToLipSync({ ...baseInput, fetchImpl });
+    const result = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl });
     expect(result.lipSyncUrl).toBeNull();
     expect(result.lipSyncStillProcessing).toBe(true);
     expect(result.lipSyncJobId).toBe("job-1");
+  });
+
+  it("polls ride the plain poll fetch, never the confirmed (charged) fetch", async () => {
+    const { fetchImpl } = makeFetch({});
+    const chargedCalls: string[] = [];
+    const pollCalls: string[] = [];
+    const recordingConfirmed = async (url: string, init?: RequestInit) => {
+      chargedCalls.push(url);
+      return fetchImpl(url, init);
+    };
+    const recordingPoll = async (url: string, init?: RequestInit) => {
+      pollCalls.push(url);
+      return fetchImpl(url, init);
+    };
+    await runStillToLipSync({
+      ...baseInput,
+      fetchImpl: recordingConfirmed,
+      pollFetch: recordingPoll,
+    });
+    /* Only the two charged POSTs go through the confirmed fetch — a
+       poll through it would prefix-match the charged endpoint in the
+       credit registry and pop a spend confirmation per poll. */
+    expect(chargedCalls).toEqual(["/api/generate-runway-clip", "/api/lip-sync/preview"]);
+    expect(pollCalls.length).toBeGreaterThanOrEqual(2);
+    expect(pollCalls.every((u) => u.includes("/"))).toBe(true);
   });
 
   it("refuses a non-https still before any fetch (the rail cannot use it)", async () => {

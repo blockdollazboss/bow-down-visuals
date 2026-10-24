@@ -15,6 +15,14 @@ import {
   Play,
 } from "lucide-react";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { getCreditCost } from "@/lib/credit-costs";
+import {
+  runStillToLipSync,
+  StillToLipSyncError,
+  type StillToLipSyncPhase,
+  type StillToLipSyncResult,
+} from "./still-to-lipsync";
 
 interface LipSyncStudioProps {
   audioUrl: string | null;
@@ -120,6 +128,67 @@ export function LipSyncStudio({
   const songReady = !!audioUrl;
   const lyricsReady = !!transcriptText;
   const artistReady = !!activeArtist;
+
+  /* ── Still → clip → lip-sync (Stack-100 #3 W3 Lane 7) ──
+     The single-image button below is wired to runStillToLipSync,
+     which rides the two existing charged rails: the artist photo is
+     animated image-to-video on /api/generate-runway-clip (charged by
+     that rail only on success), then the produced clip is handed to
+     /api/lip-sync/preview with the song audio like any other clip.
+     Prices shown here come from the frontend credit registry — the
+     same source confirmedFetch confirms against — never hard-coded. */
+  const { confirmedFetch } = useConfirmedApi();
+  const stillImageUrl = activeArtist?.reference_image_url ?? null;
+  const stillImageUsable =
+    !!stillImageUrl && stillImageUrl.startsWith("https://");
+  const canStill =
+    stillImageUsable && songReady && !!getAccessToken;
+  const stillClipCost =
+    getCreditCost("/api/generate-runway-clip")?.cost ?? 400;
+  const stillLipSyncCost = getCreditCost("/api/lip-sync")?.cost ?? 300;
+  const [stillPhase, setStillPhase] = useState<
+    StillToLipSyncPhase | "idle"
+  >("idle");
+  const [stillBusy, setStillBusy] = useState(false);
+  const [stillError, setStillError] = useState<string | null>(null);
+  const [stillKeptClipUrl, setStillKeptClipUrl] = useState<string | null>(
+    null,
+  );
+  const [stillResult, setStillResult] =
+    useState<StillToLipSyncResult | null>(null);
+
+  const startStillToLipSync = async () => {
+    if (!canStill || !stillImageUrl || !audioUrl || !getAccessToken) return;
+    setStillBusy(true);
+    setStillError(null);
+    setStillResult(null);
+    setStillKeptClipUrl(null);
+    setStillPhase("animating");
+    try {
+      const result = await runStillToLipSync({
+        imageUrl: stillImageUrl,
+        audioUrl,
+        projectId: projectId ?? null,
+        artistVaultId: activeArtist?.id ?? null,
+        getAccessToken,
+        fetchImpl: confirmedFetch,
+        onPhase: setStillPhase,
+      });
+      setStillResult(result);
+    } catch (e) {
+      setStillPhase("failed");
+      if (e instanceof StillToLipSyncError) {
+        setStillError(e.message);
+        if (e.clipUrl) setStillKeptClipUrl(e.clipUrl);
+      } else {
+        setStillError(
+          e instanceof Error ? e.message : "Still-to-lip-sync failed.",
+        );
+      }
+    } finally {
+      setStillBusy(false);
+    }
+  };
 
   /* ── One-click run-all state ── */
   const [confirming, setConfirming] = useState(false);
@@ -537,30 +606,41 @@ export function LipSyncStudio({
           )}
         </div>
 
-        {/* Stack-28 #43: these two single-source actions stay disabled —
-            HONESTLY labelled. Decision (from code): they cannot be wired to
-            the existing run flow. The only lip-sync rail this component has
-            is the one-click run-all above (startRun), which syncs EVERY scene
-            of a saved project via projectId; the component receives no
-            artist-image input and no selected-clip input (props are only
-            audioUrl / transcriptText / activeArtist / projectId /
-            getAccessToken), so pointing either button at run-all would make
-            it do something different from what its label promises. Until a
-            per-image / per-clip rail exists, they follow the honest
-            placeholder pattern of analytics-hub.tsx ("Coming soon" + title). */}
+        {/* Stack-28 #43 kept both single-source buttons disabled because
+            no per-image / per-clip rail existed. Stack-100 #3 W3 Lane 7
+            built the still→clip rail from the existing rails (see
+            still-to-lipsync.ts): the artist image button now animates
+            the active artist's photo on /api/generate-runway-clip and
+            hands the produced clip to /api/lip-sync/preview, so it is
+            ENABLED whenever its real inputs exist (a hosted artist
+            photo + a song). The selected-clip button still has no
+            selected-clip input in this component, so it stays disabled
+            and honestly labelled — it is NOT pointed at the image flow. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             type="button"
-            disabled
-            title="Coming soon — single-image lip sync is not connected yet. Use Sync All Scenes & Export above to lip-sync a saved project."
+            onClick={() => void startStillToLipSync()}
+            disabled={!canStill || stillBusy}
+            title={
+              canStill
+                ? `Animate the artist photo into a clip (${stillClipCost} Visual Bucs, charged only if the clip succeeds), then lip-sync it to your song (${stillLipSyncCost} Visual Bucs).`
+                : !stillImageUsable
+                  ? "Needs an active artist with a hosted reference photo."
+                  : "Upload a song first — the animated clip is lip-synced to it."
+            }
             data-testid="btn-lipsync-from-image"
-            className="h-11 flex items-center justify-start gap-2 px-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm font-bold text-white/30 cursor-not-allowed"
+            className="h-11 flex items-center justify-start gap-2 px-4 rounded-lg bg-primary text-black text-sm font-black hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Mic2 className="h-4 w-4 shrink-0" />
-            Create Lip Sync From Artist Image
-            <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-white/40">
-              Coming soon
-            </span>
+            {stillBusy ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <Mic2 className="h-4 w-4 shrink-0" />
+            )}
+            {stillBusy
+              ? stillPhase === "syncing" || stillPhase === "clip-ready"
+                ? "Lip-syncing your clip…"
+                : "Animating your photo…"
+              : "Create Lip Sync From Artist Image"}
           </button>
 
           <button
@@ -577,6 +657,92 @@ export function LipSyncStudio({
             </span>
           </button>
         </div>
+        {!canStill && !stillBusy && (
+          <p className="text-[10px] text-white/30">
+            {!stillImageUsable
+              ? "Set an Active Artist with a hosted reference photo and upload a song to enable this."
+              : "Upload a song first — the animated clip is lip-synced to it."}
+          </p>
+        )}
+
+        {/* Still → clip → lip-sync progress / result */}
+        {(stillBusy || stillResult || stillError) && (
+          <div
+            className="rounded-lg border border-white/[0.08] bg-black/30 p-3 space-y-2"
+            data-testid="still-lipsync-panel"
+          >
+            {stillBusy && (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+                <p className="text-xs text-white/60">
+                  {stillPhase === "syncing" || stillPhase === "clip-ready"
+                    ? "Clip made — lip-syncing it to your song…"
+                    : "Animating the artist photo into a clip…"}
+                </p>
+              </div>
+            )}
+            {stillError && (
+              <div className="flex items-start gap-2">
+                <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-red-200/80 leading-relaxed">
+                  {stillError}
+                </p>
+              </div>
+            )}
+            {stillKeptClipUrl && (
+              <p className="text-[11px] text-white/50 leading-relaxed">
+                Your animated clip:{" "}
+                <a
+                  href={stillKeptClipUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline break-all"
+                >
+                  {stillKeptClipUrl}
+                </a>
+              </p>
+            )}
+            {stillResult && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                  <p className="text-xs font-black text-green-200">
+                    {stillResult.lipSyncUrl
+                      ? "Your lip-synced clip is ready"
+                      : "Lip sync is still processing on the server"}
+                  </p>
+                </div>
+                <p className="text-[11px] text-white/50 leading-relaxed">
+                  Animated clip:{" "}
+                  <a
+                    href={stillResult.clipUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline break-all"
+                  >
+                    {stillResult.clipUrl}
+                  </a>
+                </p>
+                {stillResult.lipSyncUrl ? (
+                  <a
+                    href={stillResult.lipSyncUrl}
+                    download="bow-down-visuals-still-lip-sync.mp4"
+                    data-testid="btn-still-lipsync-download"
+                    className="h-10 w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-black text-sm font-black hover:brightness-110"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download lip-synced clip
+                  </a>
+                ) : (
+                  <p className="text-[11px] text-white/40 leading-relaxed">
+                    The lip-sync job keeps running even if you leave — the
+                    animated clip above is already yours.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Not connected notice */}
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5">
