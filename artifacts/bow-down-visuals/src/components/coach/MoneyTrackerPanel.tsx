@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import SplitsOverview, { fetchReleaseOptions } from "./SplitsOverview";
+import PublishingSplitsPanel from "./PublishingSplitsPanel";
 import SplitCalculator from "../wave8/SplitCalculator";
 import RoyaltyTrackerPanel from "./RoyaltyTrackerPanel";
 
@@ -407,7 +408,10 @@ export default function MoneyTrackerPanel() {
       ) : view === "splitSheets" ? (
         <SplitCalculator />
       ) : view === "splits" ? (
-        <SplitsOverview />
+        <>
+          <SplitsOverview />
+          <PublishingSplitsPanel />
+        </>
       ) : loading ? (
         <div className={`mt-6 flex items-center justify-center gap-2 rounded-3xl border p-12 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/50"}`}>
           <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
