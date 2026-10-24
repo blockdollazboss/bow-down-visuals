@@ -1,128 +1,118 @@
-# Lane stack29/coposts — #24 Co-Posts & Collab Releases — REPORT
+# Lane stack29/w3-co-release — Co-Release (co-posts phase 2) — REPORT
 
-Base: stack28/integration @ f96d7b72 · Branch: stack29/coposts · No push.
+Base: stack29/coposts @ d0539e1d · Branch: stack29/w3-co-release · No push.
+(Phase 1's REPORT/GAP/MIGRATION for co-posts are at the parent commit and
+in ~/workspace/bdv-wt-coposts/.lane/ — this lane's versions supersede them
+in this branch's .lane/ with pointers back.)
 
-## What works end-to-end (code-complete; DB half lights up with migration 0205)
+## What works end-to-end (code-complete; DB half lights up with held migration 0206)
 
-**Gap verified first** (`.lane/GAP.md`): no co-post / co-author product
-existed under any name; Collabs was matchmaking only; Feed posts carry
-a single `profile_id`.
+Phase 1 parked store/distribute co-release because it "rides
+royalty-splits consent". This lane builds exactly that consent layer,
+following phase 1's patterns (pure machine + DB translation + routes +
+probe-first 503 + guarded reads + FE contract/panel docked in Collabs).
 
 ### The flow
-1. **Start** — Collabs page, accepted collab card → "Start a co-post"
-   (or the new **Co-posts tab** on the same page, PROMOTE dock, no
-   standalone page) → pick partner, write the post, optional image.
-   Accepted-collab provenance (`collab_request_id`) is validated
-   server-side (must be an *accepted* request between exactly these
-   two accounts). Direct co-author invite (no prior collab request)
-   also works, per the brief.
-2. **Consent gate** — creation writes ONE `posts` row + two
-   `post_co_authors` sides: initiator `accepted`, co-author `pending`.
-   The post is invisible everywhere public while pending: Feed (chrono
-   + For You + hashtag), single-post read, replies/quotes/reposts all
-   pass a co-post gate; the two creators manage it via
-   `GET /api/co-posts/mine`.
-3. **Approve** — co-author approves in the Co-posts tab (or declines).
-   Second approval publishes: the SAME post row now appears in the
-   Feed bylined "A × B" with a Co-post badge, and on both creators'
-   co-post profile lists (`GET /api/co-posts/by-profile/:profileId`).
-4. **Engage** — likes/comments/reactions attach to the single post row
-   as today. There is exactly one count set, rendered identically on
-   both profiles; nothing is ever summed per author (state machine's
-   `sharedEngagement` + `dedupePostsById`, test-pinned).
-5. **Withdraw** — either side, any time after accepting:
-   `POST /api/co-posts/:id/withdraw` changes ONLY that side's row to
-   `withdrawn`. The post leaves their profile list and their name
-   leaves the byline; the other creator keeps the post, live, with
-   the same counts. If both withdraw, it leaves the Feed too.
+1. **Draft** — Collabs page → **Co-releases tab** (also "Start a
+   co-release" on accepted collab cards): creator A picks a partner,
+   one of THEIR OWN existing items (release from
+   `GET /api/distribution/releases`, or store product from their own
+   storefront list), and proposes a royalty split — creator-entered
+   percentages for the two sides. Server re-validates ownership of the
+   item, the two-different-creators rule, and the split. A's side
+   starts `accepted` (they proposed it); B's side starts `pending`.
+   The co-release is visible on NEITHER profile while pending.
+2. **Consent** — B must explicitly approve BOTH the split and the
+   release (`POST /api/co-releases/:id/accept`). There is no publish
+   path on one side's say-so: the initiator re-accepting is refused,
+   strangers get 403, a decline or pre-live withdrawal ends it, and a
+   late accept after either is refused (`co_release_ended`).
+3. **Publish + freeze** — the second accept sets
+   `co_releases.published_at` and freezes each side's
+   `agreed_share_pct` from the proposal B approved, in the same
+   request. From then on the item appears on BOTH profiles
+   (`GET /api/co-releases/by-profile/:id`, phase-1 shared pattern) and
+   the split is immutable: no API mutates it (amend-split is
+   pre-publish, initiator-only, and the co-author must still approve
+   the new proposal), and the held migration adds a DB trigger that
+   refuses any UPDATE to the agreed columns / published_at once set.
+4. **Attribution (read layer, accounting — never a payout)** —
+   `GET /api/co-releases/:id/attribution` (sides only) applies the
+   FROZEN split to earnings the existing rails recorded on/after
+   publish: for releases, the author's logged income
+   (`money_entries.release_id`, the same model as
+   `GET /api/splits/overview`); for products, completed
+   `store_orders.creator_amount_cents`. Cents split exactly (floor per
+   side, remainder to the author — shares always sum to the total).
+5. **Withdraw** — either side, after accepting: only their side's row
+   changes; the item leaves THEIR profile list, the other keeps
+   theirs (state `live_one_side`). The agreed split is NOT rewritten —
+   past (and accruing) earnings attribution is byte-identical after a
+   withdrawal (test-pinned).
 
-### Consent / withdraw behaviour, as implemented (exact semantics)
-- Both approve before live: published ⇔ every side has `accepted_at`.
-- A late accept after a pre-live withdrawal/decline is REFUSED
-  (`co_post_ended`) — consent withdrawn before publish can never be
-  overridden by the other side; a fresh co-post is the only way back.
-  (Caught in the lane's own tests while building; machine fixed.)
-- Decline is pre-live only, ends the co-post, and never turns it into
-  a solo post for the initiator. After live, decline is refused —
-  withdraw is the honest action.
-- Only a side's owner can act on that side (403 for anyone else,
-  including the other co-author). Withdrawal writes one row only.
-- UI copy states all of this where creators act (Collabs Co-posts
-  tab, withdraw confirm dialog, Feed card badge tooltip).
+### Money rules — nothing invented
+- Splits are creator-entered percentages, validated server-side:
+  exactly two sides, each > 0 and < 100, ≤ 2dp, sum = 100 within the
+  existing distribution rail's 0.01 tolerance.
+- The platform fee is NOT part of the split: product attribution
+  splits only `creator_amount_cents` — what remains AFTER the store
+  rail's flat 5% fee (verified in `lib/platform-fees.ts`:
+  PLATFORM_FEE_BPS = 500, owner ruling 2026-10-23; env-overridable by
+  the rail, never by this lane). FE copy states the 5% and the lock
+  rule verbatim (pinned by tests), and `displaySharePct` shows the
+  agreed share once published — displays equal rails.
+- Free throughout: co-release consent is pure interface, like
+  co-posts and collab requests. No price/fee was created or touched.
+  The site pays nobody real money; attribution is split accounting in
+  the splits/overview model, with the disclaimer in the response.
 
 ### Surfaces changed
-- API: `src/lib/co-posts.ts` (pure consent machine), `src/lib/co-posts-db.ts`,
-  `src/routes/co-posts.ts` (6 endpoints, mounted in routes/index.ts),
-  `src/routes/social.ts` (enrichment adds `co_authors` / `co_post_state`;
-  feed + hashtag + single-read co-post gate), `src/routes/generate/collabs.ts`
-  (inbox DTO gains counterpart user ids so an accepted collab can
-  start a co-post).
-- DB schema: `postCoAuthorsTable` in `lib/db/src/schema/collab.ts`,
-  in sync with the held migration.
-- FE: `src/lib/co-posts.ts` (+ tests), `src/lib/social-api.ts`
-  (FeedPost co-author fields), `PostCard.tsx` (dual byline + badge),
-  `src/components/collabs/CoPostsPanel.tsx`, `src/pages/collabs.tsx`
-  (Co-posts tab, accepted-collab "Start a co-post", ?tab=coposts
-  deep link used by notifications).
-- Free throughout — co-posting is pure interface, no compute, exactly
-  like collab requests. No price or fee was created or touched.
+- API: `src/lib/co-releases.ts` (pure split-consent machine),
+  `src/lib/co-releases-db.ts`, `src/routes/co-releases.ts` (8
+  endpoints, mounted in routes/index.ts next to co-posts).
+- DB schema: `coReleasesTable` + `coReleaseSidesTable` in
+  `lib/db/src/schema/collab.ts`, in sync with held migration 0206.
+- FE: `src/lib/co-releases.ts` (+ tests), `src/components/collabs/
+  CoReleasesPanel.tsx`, `src/pages/collabs.tsx` (Co-releases tab,
+  ?tab=coreleases deep link used by notifications, accepted-collab
+  "Start a co-release" buttons).
 
 ## Migration held
-`post_co_authors` — exact SQL (0205, idempotent, no BEGIN/COMMIT) in
-`.lane/MIGRATION-NEEDED.md`, NOT applied, per lane rules. Until it
-lands: writes answer `503 co_post_not_ready` BEFORE creating anything
-(probe-first; nobody is notified), reads treat the missing table as
-"no co-posts yet" and behave byte-identically to today.
+`co_releases` + `co_release_sides` (+ immutability triggers) — exact
+idempotent SQL in `.lane/MIGRATION-NEEDED.md`, claiming **0206**
+(phase 1 holds 0205), NOT applied. Until it lands: writes probe first
+and answer `503 co_release_not_ready` before creating anything;
+reads treat the missing tables as "no co-releases yet".
 
-## Parked
-- **Store/distribute co-release — PARKED.** Releases
-  (`distribution_releases`) are single-artist rows already carrying a
-  separate royalty-splits system (wave8 splits + SplitEditor, with
-  its own invite flow). Bolting co-authorship onto releases means a
-  second consent ledger over money-bearing splits — a different
-  consent problem (percentages, not visibility) that needs its own
-  design and its own migration; forcing it into this lane would
-  balloon scope and mix two consent models. The Feed co-post ships
-  fully; the release half should be its own lane, reusing this lane's
-  side/consent pattern for the *attribution* layer only, with split
-  percentages staying in the splits system.
-- Co-posts are public-audience only in v1 (stated in the UI): the
-  Feed's audience gate keys off the primary author, so a
-  followers-scoped co-post could hide from the co-author's own
-  followers. Public-only keeps "both audiences" literally true.
-- Scheduled co-posts and poll co-posts: not offered (composer parity
-  is a follow-up, not a consent question).
+## Parked / holds (details in MIGRATION-NEEDED.md)
+- **No mirroring into `distribution_royalty_splits`**: that ledger's
+  owner-only PUT supersedes versions unilaterally — mirroring would
+  let one side silently supersede a consented split. Integrator call,
+  with the guard it would need, recorded in the migration doc.
+- **Checkout rail unchanged**: store checkout still records one
+  creator amount to the item's owner; the co-release split applies in
+  the attribution/read layer. Splitting at the rail (per-side order
+  rows/balances) needs its own migration + money review.
+- No payouts anywhere (site model: Visual Bucs / creator's own money
+  rails only) — attribution is accounting, stated in UI + API.
 
 ## Tests — numbers ONLY from finished logs in `.lane/logs/`
-All suites run SEQUENTIALLY, `--maxWorkers=1`, TMPDIR in-worktree,
-farm re-verified after the hazard correction (see GAP.md).
-
+Suites run SEQUENTIALLY, `--maxWorkers=1`, TMPDIR in-worktree,
+node_modules farmed from the main checkout with @workspace/db +
+@workspace/api-zod verified by readlink into THIS worktree.
 - Libs build (`tsc -b lib/db lib/api-zod`): exit 0 (build-libs-2.log).
-- API typecheck: exit 0 (api-typecheck-4.log). FE typecheck: exit 0
-  (fe-typecheck-1.log).
-- API targeted (api-targeted-2.log): **2 files / 34 tests, all passed**
-  — co-post consent machine (18) + existing collabs suite (16).
-- API social scope (api-social-scope-2.log): **10 files / 100 tests,
-  all passed** — every suite that imports routes/social.ts
-  (admin-content-removal, close-friends-enforcement, post-reply-drafts,
-  reply-reactions, saves-mine-refresh, social-assist-refund, social-feed-dto,
-  social-notification-links) + co-posts + collabs.
-  ⚠️ The FIRST run of this set (api-social-scope.log) had 27 failures,
-  all mine: my guarded read rethrew the house fake DB's
-  "unknown table" error, 500ing the Feed in those suites. Fixed by
-  degrading on ANY side-table read failure (resilience law) and
-  re-verified: api-reverify.log, **3 files / 32 tests, all passed**
-  after the final log-level refinement.
-- FE targeted (fe-targeted-1.log): **2 files / 24 tests, all passed**
-  (co-posts contract + collabs).
-- FE scope (fe-scope-2.log): **10 files / 362 tests, all passed**
-  (adds king-emoji, reports, resilience-s28, theme-remap-golds,
-  world/social-desk, world/social-wave2, findability-nav,
-  public-routes).
-- FULL suites: attempted for the API twice (api-full-1.log died with
-  its exec session; api-full-2.log aborted by the lane at ~15 files
-  in). Pace under 13 concurrent lane suites on the shared box was
-  ~1 file/minute against 412 API files — hours, not a verification
-  signal. The relevant-scope sets above are the finished evidence;
-  the integrator's join suite remains the full-suite gate, as with
-  every other stack29 lane.
+- API typecheck: exit 0 (api-typecheck.log).
+- API targeted (api-targeted.log): **3 files / 55 tests, all passed**
+  — co-releases machine (22: no-publish-without-both-approvals, split
+  sum validation, withdraw semantics, split immutability, exact-cent
+  attribution, missing-table honesty) + co-posts (18) + platform-fees (15).
+- API scope (api-scope.log): **5 files / 111 tests, all passed** —
+  collabs, distribution, distribution-router-order, trust-money,
+  paid-series-store.
+- FE typecheck: exit 0 (fe-typecheck-2.log; attempt 1 was OOM-killed
+  exit 137 on the shared box — load ~21 from concurrent lanes — and
+  the retry with a 3 GB heap cap finished clean).
+- FE targeted (fe-targeted-w3.log): **2 files / 24 tests, all passed**
+  — co-releases contract (13) + co-posts (11).
+- FE scope (fe-scope-w3.log): **11 files / 375 tests, all passed** —
+  phase 1's scope set plus the new co-releases contract.
