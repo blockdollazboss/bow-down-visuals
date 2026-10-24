@@ -31,12 +31,16 @@
    - Persistence follows the cursor pattern ("bdv-cursor-choice"):
      localStorage "bdv-theme-pack", validated against the registry,
      with a "bdv-theme-pack-changed" window event.
-   - Premium packs are ownable items in shape only: `tier: "premium"`
-     renders visible-but-locked in the desk. The preset-pack selling
-     model is an OPEN owner decision, so NO charge is wired and NO price
-     exists anywhere in this system; `isThemePackUnlocked` is the single
-     seam a future entitlement feed plugs into (owned ids arrive as an
-     argument; today nothing feeds it, so premium packs stay locked).
+   - Premium packs are ownable items (owner pricing ruling, Oct 24
+     2026): each premium pack costs THEME_PACK_PRICE_VB (1,000 VB)
+     one-time, owned forever, charged on the server rail
+     (POST /api/theme-packs/purchase, migration 0220) with exactly-once
+     discipline. Creator Elite members have every pack included while
+     subscribed; a lapse ends that access EXCEPT packs bought outright,
+     which stay owned. `isThemePackUnlocked` is the single seam the
+     desk's entitlement feed (GET /api/theme-packs/state) plugs into:
+     owned ids + the live Elite flag arrive as arguments. The house
+     packs and every included pack stay FREE for everyone.
    - Design law (owner steer, Oct 24 2026): every pack's language comes
      from bowdownvisuals.com itself — golden marble / black marble
      grounds, the antique-gold accent system, the King Shark's worlds
@@ -923,11 +927,23 @@ export function resolvePackMode(pack: ThemePack, preferred: ThemePackMode): Them
   return packModes(pack)[0] ?? preferred;
 }
 
-/** Ownable-item seam: included packs are always unlocked; premium packs
-    unlock when a future entitlement feed reports the id as owned.
-    No feed exists yet, so premium packs are locked for everyone. */
-export function isThemePackUnlocked(pack: ThemePack, ownedPackIds: readonly string[] = []): boolean {
-  return pack.tier === "included" || ownedPackIds.includes(pack.id);
+/** The one premium price (owner ruling, Oct 24 2026): 1,000 VB,
+    one-time, owned forever. Mirrored on the server rail
+    (api-server/src/routes/theme-packs.ts) and pinned equal by tests
+    on both sides — displays must equal charges. */
+export const THEME_PACK_PRICE_VB = 1000;
+
+/** Entitlement seam: included packs are always unlocked; a premium
+    pack unlocks when the visitor owns it outright (a purchase row —
+    owned forever, survives an Elite lapse) or holds an ACTIVE Creator
+    Elite subscription (the server resolves lapsed subs to non-Elite,
+    so `elite` here always means "Elite right now"). */
+export function isThemePackUnlocked(
+  pack: ThemePack,
+  ownedPackIds: readonly string[] = [],
+  elite = false,
+): boolean {
+  return pack.tier === "included" || ownedPackIds.includes(pack.id) || elite;
 }
 
 /* ─── Color math (pure; the contrast pins run on these) ───────────────── */

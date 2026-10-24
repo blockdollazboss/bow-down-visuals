@@ -5,8 +5,9 @@
  *  1. The registry: ONE house pack carrying the site's own light +
  *     dark themes as its two variants, plus four more worlds grown
  *     from the site itself — EVERY pack in BOTH modes, no exceptions —
- *     every paired cursor a real cursor, no price anywhere in the
- *     data, and a shipped device ground for every pack × mode.
+ *     every paired cursor a real cursor, and a shipped device ground
+ *     for every pack × mode. Prices live OUTSIDE the pack data: one
+ *     ruled price (1,000 VB) on the lib + server rail, pinned equal.
  *  2. CSS parity: the palettes in theme-packs.ts and the token blocks
  *     in index.css are the same values (house blocks included — the
  *     stylesheet stays the source of truth, this mirror serves the
@@ -27,6 +28,7 @@ import {
   EXTRA_VAR_NAMES,
   HOUSE_PACK_FOR_MODE,
   THEME_PACKS,
+  THEME_PACK_PRICE_VB,
   TOKEN_VAR_NAMES,
   applyThemeMode,
   applyThemePack,
@@ -121,20 +123,40 @@ describe("theme pack registry", () => {
     }
   });
 
-  it("carries no price anywhere in the pack data (selling model is the owner's open call)", () => {
+  it("carries no price inside the pack data itself — the price is one ruled constant", () => {
     const data = JSON.stringify(THEME_PACKS);
     expect(data).not.toMatch(/price/i);
     expect(data).not.toMatch(/\$\s?\d/);
     expect(data).not.toMatch(/\bVB\b|Visual Bucs|credits/i);
   });
 
-  it("premium packs exist in shape and stay locked without an entitlement feed", () => {
+  it("the premium price is the ruled 1,000 VB — and the server rail charges the same", () => {
+    expect(THEME_PACK_PRICE_VB).toBe(1000);
+    const rail = readFileSync(
+      new URL("../../../api-server/src/routes/theme-packs.ts", import.meta.url),
+      "utf8",
+    );
+    expect(rail).toContain("THEME_PACK_PRICE_VB = 1000");
+    for (const p of THEME_PACKS.filter((x) => x.tier === "premium")) {
+      expect(rail, `premium pack ${p.id} must be sellable on the rail`).toContain(`"${p.id}"`);
+    }
+  });
+
+  it("unlock matrix: included free, premium needs ownership or active Elite", () => {
     const premium = THEME_PACKS.filter((p) => p.tier === "premium");
     expect(premium.length).toBeGreaterThanOrEqual(1);
     for (const p of premium) {
+      // No entitlement at all → locked.
       expect(isThemePackUnlocked(p)).toBe(false);
-      expect(isThemePackUnlocked(p, [p.id])).toBe(true);
       expect(isThemePackUnlocked(p, ["someone-else"])).toBe(false);
+      // Bought outright → owned forever.
+      expect(isThemePackUnlocked(p, [p.id])).toBe(true);
+      // Active Creator Elite → included.
+      expect(isThemePackUnlocked(p, [], true)).toBe(true);
+      // Elite LAPSED (server resolves lapsed to elite=false): a pack
+      // bought outright stays owned; an unbought pack locks again.
+      expect(isThemePackUnlocked(p, [p.id], false)).toBe(true);
+      expect(isThemePackUnlocked(p, [], false)).toBe(false);
     }
     for (const p of THEME_PACKS.filter((x) => x.tier === "included")) {
       expect(isThemePackUnlocked(p)).toBe(true);

@@ -17,6 +17,7 @@ import {
   HOUSE_PACK_FOR_MODE,
   THEME_PACKS,
   THEME_PACK_EVENT,
+  THEME_PACK_PRICE_VB,
   applyThemePack,
   getActiveThemePack,
   getThemeMode,
@@ -41,10 +42,11 @@ import { WALLPAPER_PRESETS, type WallpaperPreset } from "@/lib/wallpapers";
    wallpaper desk's rails: the pack's ground artwork is rendered at
    every device preset (branded renders are free; the full logo lockup
    rides whole on every piece) and zipped per device kind. Premium
-   packs are visible but locked: the selling model is an open owner
-   decision, so nothing here carries a price or a charge — locked
-   means locked (see lib/theme-packs.ts). The video editor keeps its
-   own look under every pack, and the desk copy says so. */
+   packs sell for 1,000 VB one-time, owned forever (owner pricing
+   ruling, Oct 24 2026), charged on the server rail; Creator Elite
+   includes every pack while subscribed. House and included packs are
+   free for everyone. The video editor keeps its own look under every
+   pack, and the desk copy says so. */
 
 const DEVICE_KINDS: Array<{ kind: WallpaperPreset["kind"]; label: string }> = [
   { kind: "phone", label: "Phone set" },
@@ -315,7 +317,7 @@ function PackDeviceDownloads({
       ) : (
         <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
           <Lock className="h-3 w-3" />
-          {t("settings.themePacksDeviceLocked", { defaultValue: "Device packs unlock with the pack at launch." })}
+          {t("settings.themePacksDeviceLocked", { defaultValue: "Device packs unlock with the pack." })}
         </p>
       )}
       {error ? (
@@ -332,14 +334,27 @@ function PackCard({
   siteMode,
   active,
   onApply,
+  ownedIds,
+  elite,
+  signedIn,
+  buying,
+  buyError,
+  onBuy,
 }: {
   pack: ThemePack;
   siteMode: ThemePackMode;
   active: boolean;
   onApply: (pack: ThemePack, mode: ThemePackMode) => void;
+  ownedIds: readonly string[];
+  elite: boolean;
+  signedIn: boolean;
+  buying: boolean;
+  buyError: string | null;
+  onBuy: (pack: ThemePack) => void;
 }) {
   const { t } = useTranslation();
-  const unlocked = isThemePackUnlocked(pack);
+  const owned = ownedIds.includes(pack.id);
+  const unlocked = isThemePackUnlocked(pack, ownedIds, elite);
   const modes = packModes(pack);
   // The card's Light | Dark toggle: follows the site mode until the
   // visitor picks a side, then drives preview + apply + downloads.
@@ -364,7 +379,17 @@ function PackCard({
           <p className="text-xs text-muted-foreground">{pack.tagline}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          {pack.tier === "premium" ? (
+          {pack.tier === "premium" && owned ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
+              <Check className="h-3 w-3" />
+              {t("settings.themePacksOwned", { defaultValue: "Owned" })}
+            </span>
+          ) : pack.tier === "premium" && elite ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
+              <Check className="h-3 w-3" />
+              {t("settings.themePacksEliteIncluded", { defaultValue: "Elite included" })}
+            </span>
+          ) : pack.tier === "premium" ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
               <Lock className="h-3 w-3" />
               {t("settings.themePacksPremium", { defaultValue: "Premium" })}
@@ -464,6 +489,27 @@ function PackCard({
                   : t("settings.themePacksDark", { defaultValue: "Dark" }),
             })}
           </button>
+        ) : signedIn ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={buying}
+              onClick={() => onBuy(pack)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60"
+              data-testid={`theme-pack-buy-${pack.id}`}
+            >
+              {buying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+              {t("settings.themePacksBuy", {
+                defaultValue: "Own it forever — {{price}} VB",
+                price: THEME_PACK_PRICE_VB.toLocaleString(),
+              })}
+            </button>
+            {buyError ? (
+              <p role="alert" className="text-[11px] text-destructive">
+                {buyError}
+              </p>
+            ) : null}
+          </div>
         ) : (
           <button
             type="button"
@@ -473,7 +519,10 @@ function PackCard({
             data-testid={`theme-pack-locked-${pack.id}`}
           >
             <Lock className="h-4 w-4" />
-            {t("settings.themePacksComingWithLaunch", { defaultValue: "Premium pack — coming with launch" })}
+            {t("settings.themePacksSignInToBuy", {
+              defaultValue: "Sign in to make it yours — {{price}} VB",
+              price: THEME_PACK_PRICE_VB.toLocaleString(),
+            })}
           </button>
         )}
 
@@ -485,8 +534,84 @@ function PackCard({
 
 export function ThemePacksDesk() {
   const { t } = useTranslation();
+  const { getAccessToken, user } = useAuth();
   const [activeId, setActiveId] = useState<string>(() => getActiveThemePack().id);
   const [siteMode, setSiteMode] = useState<ThemePackMode>(() => getThemeMode());
+  /* Entitlement feed (owner pricing ruling, Oct 24 2026): owned pack
+     ids + the live Creator Elite flag from the server rail. Anonymous
+     visitors get no feed — premium packs show the sign-in price line. */
+  const [ownedIds, setOwnedIds] = useState<readonly string[]>([]);
+  const [elite, setElite] = useState(false);
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [buyErrors, setBuyErrors] = useState<Record<string, string>>({});
+
+  const refreshEntitlements = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await fetch("/api/theme-packs/state", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const json = (await res.json()) as { owned?: string[]; elite?: boolean };
+      setOwnedIds(json.owned ?? []);
+      setElite(json.elite === true);
+    } catch {
+      /* the desk still renders; premium packs stay locked without a feed */
+    }
+  };
+
+  useEffect(() => {
+    void refreshEntitlements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const buyPack = async (pack: ThemePack) => {
+    setBuyingId(pack.id);
+    setBuyErrors((prev) => {
+      const next = { ...prev };
+      delete next[pack.id];
+      return next;
+    });
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("signin");
+      const res = await fetch("/api/theme-packs/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ packId: pack.id }),
+      });
+      const json = (await res.json().catch(() => null)) as
+        | { owned?: boolean; eliteIncluded?: boolean; message?: string }
+        | null;
+      if (res.status === 402) {
+        setBuyErrors((prev) => ({
+          ...prev,
+          [pack.id]:
+            json?.message ??
+            t("settings.themePacksInsufficient", {
+              defaultValue: "Not enough Visual Bucs yet — nothing was charged.",
+            }),
+        }));
+        return;
+      }
+      if (!res.ok) throw new Error(`purchase failed (${res.status})`);
+      if (json?.eliteIncluded) setElite(true);
+      if (json?.owned) {
+        setOwnedIds((prev) => (prev.includes(pack.id) ? prev : [...prev, pack.id]));
+      }
+      void refreshEntitlements();
+    } catch {
+      setBuyErrors((prev) => ({
+        ...prev,
+        [pack.id]: t("settings.themePacksBuyError", {
+          defaultValue: "That purchase hit a snag — check your packs before trying again.",
+        }),
+      }));
+    } finally {
+      setBuyingId(null);
+    }
+  };
 
   useEffect(() => {
     const sync = () => {
@@ -539,6 +664,12 @@ export function ThemePacksDesk() {
             onApply={(p, m) => {
               applyThemePack(p.id, { mode: m });
             }}
+            ownedIds={ownedIds}
+            elite={elite}
+            signedIn={Boolean(user)}
+            buying={buyingId === pack.id}
+            buyError={buyErrors[pack.id] ?? null}
+            onBuy={(p) => void buyPack(p)}
           />
         ))}
       </div>

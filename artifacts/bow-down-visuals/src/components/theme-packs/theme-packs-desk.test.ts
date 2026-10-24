@@ -5,8 +5,10 @@
  * wallpapers-desk.test.ts uses): the desk lives where appearance
  * already lives (Settings, beside the cursor card), applies packs
  * through the one engine in lib/theme-packs.ts, shows live previews
- * built from the packs' real tokens, and keeps premium packs honestly
- * locked — no price, no charge, no fake unlock.
+ * built from the packs' real tokens. Premium packs carry the ruled
+ * selling model (owner, Oct 24 2026): 1,000 VB one-time, owned
+ * forever, Creator Elite included — displayed price == charged price,
+ * both from the one THEME_PACK_PRICE_VB constant.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -100,22 +102,30 @@ describe("device delivery — the pack reaches the actual phone + computer", () 
   });
 
   it("locked packs keep their device packs locked too", () => {
-    expect(desk).toContain("Device packs unlock with the pack at launch.");
+    expect(desk).toContain("Device packs unlock with the pack.");
   });
 });
 
 describe("honest product shape", () => {
-  it("premium packs render locked with the launch copy — no buy path", () => {
-    expect(desk).toContain("isThemePackUnlocked(pack)");
-    expect(desk).toContain("Premium pack — coming with launch");
+  it("premium packs render through the entitlement seam with a real buy path", () => {
+    expect(desk).toContain("isThemePackUnlocked(pack, ownedIds, elite)");
+    expect(desk).toContain('"/api/theme-packs/state"');
+    expect(desk).toContain('"/api/theme-packs/purchase"');
+    expect(desk).toContain("theme-pack-buy-${pack.id}");
     expect(desk).toContain("theme-pack-locked-${pack.id}");
+    expect(desk).not.toContain("coming with launch");
   });
 
-  it("no price, pack cost, or currency amount appears in the desk", () => {
+  it("the displayed price is the one ruled constant — never a second literal", () => {
+    expect(desk).toContain("THEME_PACK_PRICE_VB");
+    expect(desk).toContain("Own it forever — {{price}} VB");
     expect(desk).not.toMatch(/\$\s?\d/);
-    expect(desk).not.toMatch(/\b\d+\s?VB\b/);
-    expect(desk).not.toContain("Visual Bucs");
-    expect(desk).not.toMatch(/checkout|purchase|buy now/i);
+    expect(desk).not.toContain("1000");
+  });
+
+  it("insufficient balance is answered honestly — no fake unlock", () => {
+    expect(desk).toContain("res.status === 402");
+    expect(desk).toContain("Not enough Visual Bucs yet — nothing was charged.");
   });
 
   it("the desk states the editor keeps its own look under every pack", () => {
