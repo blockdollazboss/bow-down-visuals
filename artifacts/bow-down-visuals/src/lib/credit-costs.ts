@@ -117,7 +117,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/upscale": { cost: 300, feature: "Upscale" },
   "/api/upscale/image": { cost: 300, feature: "Upscale Image" },
   // PLACEHOLDER prices — the user must approve real prices before these go live.
-  "/api/ai-upscale": { cost: 1500, feature: "Generative AI Upscale (price TBD)" },
+  "/api/ai-upscale": { cost: 1500, feature: "Generative AI Upscale" },
   "/api/avatar-presenter": { cost: 1200, feature: "Avatar Presenter (price TBD)" },
   "/api/singing-voice": { cost: 800, feature: "Singing-Voice Conversion (price TBD)" },
   "/api/watermark-removal": { cost: 200, feature: "Remove Watermark" },

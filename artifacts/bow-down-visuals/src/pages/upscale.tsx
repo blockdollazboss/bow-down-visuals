@@ -322,10 +322,10 @@ function VideoUpscaleTool() {
    This is a SEPARATE, premium-priced product from the classic ffmpeg
    upscaler above (300 VB) — the two are never merged, replaced, or priced
    the same. Gated: no provider key is configured yet, so the submit CTA
-   stays disabled with a clear message. Price is a PLACEHOLDER (1500 VB)
-   until the user approves the real price. */
+   stays disabled with a clear message. Price is official: 1,500 VB
+   (owner-approved 2026-10-24). */
 
-const GENERATIVE_UPSCALE_CREDIT_COST = 1500; // PLACEHOLDER — needs user price approval
+const GENERATIVE_UPSCALE_CREDIT_COST = 1500;
 
 type GenerativeModeStatus = "idle" | "checking" | "ready" | "unconfigured";
 
@@ -418,14 +418,14 @@ function GenerativeUpscaleTool() {
         className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {t("upscale.genButton", {
-          defaultValue: "Generative upscale to {{target}} ({{cost}} VB — price TBD)",
+          defaultValue: "Generative upscale to {{target}} ({{cost}} VB)",
           target: genTarget === "4k" ? "4K" : "1080p",
           cost: GENERATIVE_UPSCALE_CREDIT_COST,
         })}
       </button>
       <p className="text-center text-[11px] text-white/35">
         {t("upscale.genPriceNote", {
-          defaultValue: "Placeholder price — the real price needs owner approval before this goes live. Classic ffmpeg upscale stays 300 VB.",
+          defaultValue: "Generative AI Upscale costs 1500 Visual Bucs per video. Classic ffmpeg upscale stays 300 VB.",
         })}
       </p>
     </div>

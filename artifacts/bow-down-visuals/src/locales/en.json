@@ -6875,8 +6875,8 @@
     "genNotConfigured": "Generative AI upscaling isn't connected yet — the site owner needs to add a provider key. The classic ffmpeg upscaler above works right now. You won't be charged.",
     "genStatusFailed": "Could not reach the upscale service.",
     "genDisabledTitle": "Connect a provider key to enable",
-    "genButton": "Generative upscale to {{target}} (1500 VB — price TBD)",
-    "genPriceNote": "Placeholder price — the real price needs owner approval before this goes live. Classic ffmpeg upscale stays 300 VB."
+    "genButton": "Generative upscale to {{target}} (1500 VB)",
+    "genPriceNote": "Generative AI Upscale costs 1500 Visual Bucs per video. Classic ffmpeg upscale stays 300 VB."
   },
   "videoEditor": {
     "activeSceneNoClip": "Active scene has no clip — audio still playing",

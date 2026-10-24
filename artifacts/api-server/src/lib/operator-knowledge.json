@@ -12084,7 +12084,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -12556,7 +12556,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -12924,7 +12924,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13314,7 +13314,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13709,7 +13709,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14098,7 +14098,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14488,7 +14488,7 @@
       ],
       "prices": [
         {
-          "feature": "Generative AI Upscale (price TBD)",
+          "feature": "Generative AI Upscale",
           "vb": 1500,
           "endpoint": "/api/ai-upscale",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
