@@ -46,6 +46,18 @@ interface PresaveRelease {
   /* Migration 0187: the creator's own retargeting pixels for this
      release (all null when none are configured — nothing fires). */
   pixels?: SmartlinkPixels;
+  /* Territory / language routing (Stack-100 #3 W3): the destination
+     the server resolved for THIS fan from their country / language —
+     null when no override matched (the platform links are then the
+     whole story, exactly as before). */
+  routing?: {
+    routedDestination: {
+      url: string;
+      rule: "territory" | "language";
+      country?: string;
+      language?: string;
+    } | null;
+  };
   accountPresave?: { platform: string; supported: boolean; itemKind?: string; actionLabel: string | null; accountSaveCount?: number; reason?: string };
 }
 
@@ -203,7 +215,7 @@ export default function PresaveLanding() {
   /* Fire-and-forget outbound tap recording; the server resolves the
      key against the links really on this page — the anchor's own
      navigation is never delayed or blocked by it. */
-  const trackClick = (kind: "platform" | "video" | "store" | "social" | "bonus", key = "") => {
+  const trackClick = (kind: "platform" | "video" | "store" | "social" | "bonus" | "routed", key = "") => {
     void fetch(`/api/distribution/presave/${encodeURIComponent(slug)}/click`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -523,6 +535,37 @@ export default function PresaveLanding() {
                     <p className="text-xs text-red-300">{followMsg}</p>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ── Territory / language routing: when the server resolved
+                a routed destination for this fan (their country has an
+                override, or their language has a destination), it leads
+                the link block as the featured action. Its tap records
+                through the same click rail with kind "routed" — the
+                server re-resolves and stores which rule fired. When
+                nothing matched this block simply doesn't exist and the
+                page is exactly what it was before routing. ── */}
+            {data.routing?.routedDestination && (
+              <div className="mt-6">
+                <a
+                  href={data.routing.routedDestination.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => trackClick("routed")}
+                  className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-primary/60 bg-primary/20 px-4 py-3.5 text-sm font-black text-primary transition hover:bg-primary/30"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <PartyPopper className="h-4 w-4" />
+                    {released ? "Stream it now" : "Listen here"} — picked for you
+                  </span>
+                  <ExternalLink className="h-4 w-4 opacity-60" />
+                </a>
+                <p className="mt-1.5 text-[11px] text-white/35">
+                  {data.routing.routedDestination.rule === "territory"
+                    ? `Showing the destination for fans in ${data.routing.routedDestination.country}.`
+                    : "Showing the destination for your language."}
+                </p>
               </div>
             )}
 
