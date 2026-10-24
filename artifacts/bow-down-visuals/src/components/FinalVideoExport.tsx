@@ -792,6 +792,10 @@ export function FinalVideoExport({
     const data = await pollExportJob({
       jobId: accepted.jobId,
       getAccessToken,
+      // The poll deadline scales with the timeline duration (Lane D A-10):
+      // the server's per-step budget is 10x media duration, so a flat
+      // 20-minute client cap timed out on legal long renders.
+      durationSec: estimateDurationSec,
       onProgress: (stage, progress) => setProgressStep(`${stage} · ${progress}%`),
     });
     return finishExport(data as unknown as ExportPayload);
