@@ -18,6 +18,8 @@
  */
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { findReservation, redeemReservation } from "./gift-cards";
+import { logger } from "./logger";
 
 export interface MarketSaleRow {
   id: string;
@@ -99,6 +101,31 @@ export async function markMarketSalePaid(
         SET used_count = used_count + 1
         WHERE shop_id = ${row.shop_id} AND UPPER(code) = ${row.discount_code.toUpperCase()}
       `);
+    }
+  }
+  /* Gift-card settlement (Stack-100 #3 #26): if this checkout held a
+     gift-card reservation (rail 'shops', ref = checkout group), the
+     flip is the moment the tender becomes a real debit — exactly
+     once, because only the call that flipped rows runs it, and
+     redeemReservation itself is idempotent. Best-effort with a LOUD
+     log: the sale stands (the buyer paid the rest by card), and the
+     reservation id is the reconciliation key. A pre-migration DB
+     (gift tables not landed) throws inside findReservation — caught
+     here so a gift-card-less sale can never be blocked by it. */
+  if (updated.rows.length > 0) {
+    try {
+      const groupId = rows[0]?.checkout_group_id ? String(rows[0].checkout_group_id) : null;
+      if (groupId) {
+        const reservation = await findReservation("shops", groupId);
+        if (reservation && reservation.status === "reserved") {
+          const redeemed = await redeemReservation({ reservationId: String(reservation.id), ref: groupId });
+          if (!redeemed) {
+            logger.error({ sessionId, groupId }, "[market-sale] gift-card redeem failed after sale flip — needs reconciliation");
+          }
+        }
+      }
+    } catch (err) {
+      logger.error({ err, sessionId }, "[market-sale] gift-card settlement check failed (sale stands)");
     }
   }
   return { flipped: updated.rows.length, rows };

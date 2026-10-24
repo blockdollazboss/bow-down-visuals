@@ -45,6 +45,17 @@ import {
   marketSaleReceipt,
 } from "../../lib/market-sale";
 import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../../lib/objectStorage";
+import {
+  GiftCardsUnavailable,
+  findCardByCode,
+  findReservation,
+  isGiftCardCodeShape,
+  releaseExpiredReservations,
+  reserveGiftCard,
+  redeemReservation,
+  releaseReservation,
+  tenderFor,
+} from "../../lib/gift-cards";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 
 /* Mirror-on-save (2026-10-13 law): shop banners + product images are
@@ -1399,6 +1410,12 @@ const checkoutSchema = z.object({
      THIS shop's codes, exactly like the storefront rail validates
      against the seller's profile. */
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Gift-card tender (Stack-100 #3 #26) — sits beside the discount
+     code but is stored value, not a markdown: the discount prices the
+     cart first, then the card (issued by THIS shop's owner in their
+     creator store) tenders against the total. Fee stays on the full
+     discounted gross (lib/gift-cards.ts fee law). */
+  giftCardCode: z.string().trim().min(1).max(40).optional(),
 });
 
 interface CheckoutLine {
@@ -1492,6 +1509,58 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   const listGross = lines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
   const fee = lines.reduce((s, l) => s + l.fee, 0);
   const groupId = randomUUID();
+
+  /* ── Gift-card tender: hold the card against this checkout group.
+     The card must belong to THIS shop's owner (their creator profile
+     is the issuing store); the hold settles in markMarketSalePaid —
+     the one flip both verify and the webhook run. */
+  let giftCardAppliedCents = 0;
+  let giftReservationId: string | null = null;
+  let giftCardLast4: string | null = null;
+  if (parsed.data.giftCardCode) {
+    if (!isGiftCardCodeShape(parsed.data.giftCardCode)) {
+      res.status(400).json({ error: "BAD_GIFT_CARD", message: "That doesn't look like a gift-card code (BDV-XXXX-XXXX-XXXX-XXXX)." });
+      return;
+    }
+    try {
+      await releaseExpiredReservations();
+      const card = await findCardByCode(parsed.data.giftCardCode);
+      if (!card || card.status !== "active") {
+        res.status(400).json({ error: "BAD_GIFT_CARD", message: "That gift card isn't active." });
+        return;
+      }
+      const ownerRes = await db.execute(sql`
+        SELECT user_id FROM creator_profiles WHERE id = ${String(card.profile_id)} LIMIT 1
+      `);
+      const ownerId = (ownerRes.rows[0] as Record<string, unknown> | undefined)?.["user_id"];
+      if (!ownerId || String(ownerId) !== String(shop.user_id)) {
+        res.status(400).json({ error: "WRONG_STORE", message: "That gift card is for a different store." });
+        return;
+      }
+      const tender = tenderFor(Number(card.balance_cents) - Number(card.reserved_cents), gross);
+      if (tender <= 0) {
+        res.status(400).json({ error: "NO_BALANCE", message: "That gift card has no balance left to spend." });
+        return;
+      }
+      const reservation = await reserveGiftCard({
+        cardId: String(card.id), rail: "shops", ref: groupId, amountCents: tender,
+      });
+      if (!reservation) {
+        res.status(409).json({ error: "GIFT_CARD_BUSY", message: "That gift card's balance is held by another checkout right now — try again in a moment." });
+        return;
+      }
+      giftCardAppliedCents = tender;
+      giftReservationId = String(reservation.id);
+      giftCardLast4 = String(card.code_last4);
+    } catch (err) {
+      if (err instanceof GiftCardsUnavailable) {
+        res.status(503).json({ error: "GIFT_CARDS_UNAVAILABLE", message: "Gift cards aren't live yet — check out without the code for now. Nothing was charged." });
+        return;
+      }
+      throw err;
+    }
+  }
+  const amountDueCents = gross - giftCardAppliedCents;
   const totals = {
     gross_cents: gross,
     list_gross_cents: listGross,
@@ -1500,6 +1569,9 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     platform_fee_cents: fee,
     platform_fee_pct: PLATFORM_FEE_PCT,
     seller_net_cents: gross - fee,
+    gift_card_applied_cents: giftCardAppliedCents,
+    gift_card_last4: giftCardLast4,
+    amount_due_cents: amountDueCents,
     buyerEmail: buyerEmail || null,
   };
   const lineReceipts = lines.map((l) => ({
@@ -1508,13 +1580,15 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     gross_cents: l.gross, platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
   }));
 
-  /* Free cart: no card exists to charge — record the sale as paid
-     with the honest no-payment status, exactly once, right here. */
-  if (gross <= 0) {
+  /* Free cart — OR a cart the gift card covers in full: no card
+     payment exists to charge, so record the sale as paid right here,
+     exactly once, with the honest payment status for each case. */
+  if (gross <= 0 || amountDueCents <= 0) {
+    const paidByGiftCard = gross > 0 && amountDueCents <= 0;
     for (const l of lines) {
       await db.execute(sql`
         INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
-        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${discountCode})
+        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, ${paidByGiftCard ? "gift_card" : "no_payment_required"}, now(), ${l.quantity}, ${groupId}, ${discountCode})
       `);
     }
     /* The sale is recorded right here, so a presented code's use is
@@ -1522,12 +1596,22 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     if (discountCode) {
       await countShopDiscountUse(shopId, discountCode);
     }
+    /* …and a gift-card hold settles right here too, against the group. */
+    if (paidByGiftCard && giftReservationId) {
+      const redeemed = await redeemReservation({ reservationId: giftReservationId, ref: groupId });
+      if (!redeemed) {
+        logger.error({ shopId, groupId, giftReservationId }, "[storefronts] gift-card redeem failed after free-path sale record — needs reconciliation");
+      }
+    }
     res.status(201).json({
       saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,
-      status: "paid", paid: true, free: true, paymentStatus: "no_payment_required",
+      status: "paid", paid: true, free: !paidByGiftCard, paidWithGiftCard: paidByGiftCard,
+      paymentStatus: paidByGiftCard ? "gift_card" : "no_payment_required",
       productName: lines[0]!.name, quantity: lines.reduce((s, l) => s + l.quantity, 0),
       lines: lineReceipts, ...totals,
-      note: "Free order — no payment was needed, and none was taken. It's yours.",
+      note: paidByGiftCard
+        ? "Paid in full with your gift card — no card payment was taken. Whatever balance is left stays on the card."
+        : "Free order — no payment was needed, and none was taken. It's yours.",
     });
     return;
   }
@@ -1538,6 +1622,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   try {
     stripe = getCheckoutStripe();
   } catch {
+    if (giftReservationId) await releaseReservation(giftReservationId).catch(() => {});
     res.status(503).json({ error: "Payments are not configured yet." });
     return;
   }
@@ -1559,14 +1644,27 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     session = await stripe.checkout.sessions.create({
       mode: "payment",
       ...(buyerEmail ? { customer_email: buyerEmail } : {}),
-      line_items: lines.map((l) => ({
-        price_data: {
-          currency: "usd",
-          unit_amount: l.unitCents,
-          product_data: { name: l.name, description: shop.name },
-        },
-        quantity: l.quantity,
-      })),
+      /* With a gift card in play the session charges only the amount
+         still due, as one line — the shop_events rows still carry the
+         full gross and the full 5% fee (tender is payment, not a
+         markdown). Verify expects due, not gross, for these groups. */
+      line_items: giftCardAppliedCents > 0
+        ? [{
+            price_data: {
+              currency: "usd",
+              unit_amount: amountDueCents,
+              product_data: { name: `${shop.name} — order`, description: `Gift card applied: $${(giftCardAppliedCents / 100).toFixed(2)}` },
+            },
+            quantity: 1,
+          }]
+        : lines.map((l) => ({
+            price_data: {
+              currency: "usd",
+              unit_amount: l.unitCents,
+              product_data: { name: l.name, description: shop.name },
+            },
+            quantity: l.quantity,
+          })),
       metadata: {
         type: "marketplace_shop_purchase",
         shop_id: shopId,
@@ -1580,6 +1678,9 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     if (!session.url) throw new Error("Checkout session did not return a URL");
   } catch (err) {
     await db.execute(sql`DELETE FROM shop_events WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'`).catch(() => {});
+    /* The gift-card hold dies with the checkout — cents go back now,
+       not at expiry. */
+    if (giftReservationId) await releaseReservation(giftReservationId).catch(() => {});
     logger.error({ err, shopId, groupId }, "[storefronts] checkout session failed — pending order removed");
     res.status(502).json({ error: "Could not start checkout. Nothing was charged — try again." });
     return;
@@ -1647,7 +1748,19 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
     res.json({ sessionId, order: receipt, ...receipt });
     return;
   }
-  const expected = rows.reduce((s, r) => s + Number(r.amount_cents), 0);
+  /* A gift-card group was charged only its amount DUE (gross minus
+     tender) — the session total must match that, not the gross. The
+     reservation (rail 'shops', ref = group) is the record; a missing
+     table (pre-migration) simply means no tender existed. */
+  let giftAppliedForGroup = 0;
+  const groupIdForVerify = rows[0]?.checkout_group_id ? String(rows[0].checkout_group_id) : null;
+  if (groupIdForVerify) {
+    try {
+      const reservation = await findReservation("shops", groupIdForVerify);
+      if (reservation) giftAppliedForGroup = Number(reservation.amount_cents);
+    } catch { /* no gift tables yet → no tender */ }
+  }
+  const expected = rows.reduce((s, r) => s + Number(r.amount_cents), 0) - giftAppliedForGroup;
   if ((session.amount_total ?? 0) !== expected) {
     logger.error({ sessionId, amountTotal: session.amount_total, expected }, "[storefronts] verify: paid amount does not match the order");
     res.status(400).json({ error: "The paid amount doesn't match this order." });
