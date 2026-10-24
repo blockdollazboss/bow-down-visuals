@@ -104,7 +104,7 @@ const DDL = `
     amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0,
     settled_payout_id uuid, settled_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now()
-  );
+  , affiliate_code text, bump_for_product_id uuid);
 `;
 
 async function seed() {

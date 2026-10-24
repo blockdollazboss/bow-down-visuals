@@ -36,7 +36,7 @@ CREATE TABLE store_orders (
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY, shop_id uuid, user_id uuid NOT NULL, event_type text NOT NULL,
   amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0
-);
+, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE fan_members (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0,
   stripe_session_id text, status text NOT NULL DEFAULT 'active'

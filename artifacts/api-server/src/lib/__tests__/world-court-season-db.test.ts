@@ -79,7 +79,7 @@ CREATE TABLE store_orders (
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE fan_members (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, stripe_session_id text,
   status text NOT NULL DEFAULT 'active', joined_at timestamptz NOT NULL DEFAULT now()

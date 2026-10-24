@@ -57,7 +57,7 @@ CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, is_p
 CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, is_published boolean NOT NULL DEFAULT false, thumbnail_alt_text text);
 CREATE TABLE export_jobs (id uuid PRIMARY KEY, user_id uuid NOT NULL, state text NOT NULL DEFAULT 'queued');
 CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, status text NOT NULL DEFAULT 'completed');
-CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL);
+CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE fan_members (id uuid PRIMARY KEY, user_id uuid NOT NULL, status text NOT NULL DEFAULT 'active', stripe_session_id text);
 CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL);
 CREATE TABLE live_streams (id uuid PRIMARY KEY, user_id uuid NOT NULL);

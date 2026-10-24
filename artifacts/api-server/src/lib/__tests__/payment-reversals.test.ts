@@ -297,7 +297,7 @@ CREATE TABLE shop_events (
   quantity integer NOT NULL DEFAULT 1,
   created_at timestamptz NOT NULL DEFAULT now(),
   affiliate_code text
-);
+, bump_for_product_id uuid);
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_user_id uuid,

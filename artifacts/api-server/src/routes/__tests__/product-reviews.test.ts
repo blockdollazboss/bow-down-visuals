@@ -87,7 +87,7 @@ CREATE TABLE shop_events (
   product_id uuid, amount_cents integer NOT NULL DEFAULT 0,
   buyer_email text, payment_status text,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE product_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_type TEXT NOT NULL,

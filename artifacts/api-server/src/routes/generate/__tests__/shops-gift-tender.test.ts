@@ -126,7 +126,7 @@ CREATE TABLE shop_events (
   stripe_session_id text, payment_status text, paid_at timestamptz,
   quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text, affiliate_code text,
   created_at timestamptz NOT NULL DEFAULT now()
-);
+, bump_for_product_id uuid);
 CREATE TABLE shop_discount_codes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), shop_id uuid NOT NULL, code text NOT NULL,
   percent_off integer NOT NULL, max_uses integer NOT NULL DEFAULT -1,

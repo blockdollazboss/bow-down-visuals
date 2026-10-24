@@ -66,7 +66,7 @@ CREATE TABLE email_lists (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 CREATE TABLE email_subscribers (id uuid PRIMARY KEY, list_id uuid NOT NULL, unsubscribed_at timestamptz, subscribed_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE fan_members (id uuid PRIMARY KEY, user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, stripe_session_id text, status text NOT NULL DEFAULT 'active', joined_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0);
+CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0, creator_credited_at timestamptz);
 CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, play_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
@@ -85,7 +85,7 @@ const FULL_DDL = TABLES + BEATS_TABLE;
    the audience panel must 500 while revenue still answers. */
 const NO_AUDIENCE_DDL = `
 CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0);
+CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0, creator_credited_at timestamptz);
 CREATE TABLE social_accounts (id uuid PRIMARY KEY, user_id uuid NOT NULL, platform text NOT NULL, username text);

@@ -63,7 +63,7 @@ const SALE_COLUMNS_WITH_BUMP = sql`
   e.id, e.shop_id, e.user_id, e.product_id, p.name AS product_name,
   e.quantity, e.amount_cents, e.platform_fee_cents, e.buyer_email,
   e.event_type, e.payment_status, e.stripe_session_id, e.checkout_group_id,
-  e.discount_code, e.bump_for_product_id,
+  e.discount_code, e.affiliate_code, e.bump_for_product_id,
   e.paid_at, e.created_at
 `;
 

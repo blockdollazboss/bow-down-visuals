@@ -109,7 +109,7 @@ CREATE TABLE shop_events (
   quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text,
   created_at timestamptz NOT NULL DEFAULT now(),
   affiliate_code text
-);
+, bump_for_product_id uuid);
 CREATE TABLE creator_profiles (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text
 );`;
