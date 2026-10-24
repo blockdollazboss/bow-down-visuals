@@ -75,7 +75,9 @@ describe("profile Follow — guest gets “Sign in to follow”, members keep th
 
 describe("Shout Wall composer — guests get a pitch, members keep the composer", () => {
   it("ShoutWallSection reads the session", () => {
-    expect(shoutWall).toContain("const { user } = useAuth();");
+    /* #27: also pulls getAccessToken so the wall read can identify the
+       owner/author (held/hidden visibility + inline creator controls). */
+    expect(shoutWall).toContain("const { user, getAccessToken } = useAuth();");
   });
 
   it("the guest pitch renders in the composer's place, linking back to this profile", () => {

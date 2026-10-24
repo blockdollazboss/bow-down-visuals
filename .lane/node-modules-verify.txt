@@ -1,4 +1,0 @@
-Farm source: main checkout ~/workspace/bow-down-visuals (via bookings template, NOT bdv-wt-integration)
-@workspace/db readlink -f (all 5 node_modules roots) -> ~/workspace/bdv-wt-reviews/lib/db
-@workspace/api-zod readlink -f (all 5) -> ~/workspace/bdv-wt-reviews/lib/api-zod
-Frontend react/@capacitor resolve to real dirs in main checkout (not ELOOP) - verified ls package.json

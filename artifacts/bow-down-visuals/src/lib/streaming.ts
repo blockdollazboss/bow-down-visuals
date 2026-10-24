@@ -119,6 +119,15 @@ export interface MediaComment {
   avatar_url: string | null;
   body: string;
   created_at: string;
+  /* Creator comment controls (#27) — status 'public' | 'held' | 'hidden';
+     pinned comments arrive first and render badged. */
+  status?: "public" | "held" | "hidden";
+  is_held?: boolean;
+  is_hidden?: boolean;
+  held_reason?: string | null;
+  held_copy?: string | null;
+  pinned?: boolean;
+  is_pinned?: boolean;
 }
 
 /**
