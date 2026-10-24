@@ -43,6 +43,10 @@ interface Product {
      for buyers but stay fully visible here so the seller can resume
      them. Buyer reads never carry this. */
   status: "active" | "paused";
+  /* Order-bump setting (feature #13): the raw add-on attachment, so
+     the editor can show and change it even while the add-on is
+     paused. Buyer reads carry the resolved offer instead. */
+  bumpConfig?: { bumpProductId: string; percentOff: number } | null;
 }
 
 const inputClass =
@@ -106,6 +110,13 @@ export default function MyShop() {
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
   const [aiImageLoading, setAiImageLoading] = useState<"standard" | "premium" | null>(null);
   const [imageStyleHint, setImageStyleHint] = useState("");
+  /* Order-bump editor (feature #13): which of this shop's products is
+     offered as the add-on for the product being edited, and the
+     seller-set % off. Saved on its own rail (PUT …/bump). */
+  const [bumpTargetId, setBumpTargetId] = useState("");
+  const [bumpPercent, setBumpPercent] = useState("0");
+  const [bumpSaving, setBumpSaving] = useState(false);
+  const [bumpMsg, setBumpMsg] = useState<string | null>(null);
 
   async function authed(path: string, init?: RequestInit) {
     const token = await getAccessToken();
@@ -283,7 +294,51 @@ export default function MyShop() {
     setPDesc(p.description ?? "");
     setPImageUrl(p.image_url ?? "");
     setImageStyleHint("");
+    setBumpTargetId(p.bumpConfig?.bumpProductId ?? "");
+    setBumpPercent(String(p.bumpConfig?.percentOff ?? 0));
+    setBumpMsg(null);
     setShowProductForm(true);
+  }
+
+  async function saveBump() {
+    if (!activeShop || !editingProduct || bumpSaving) return;
+    const pct = Number.parseInt(bumpPercent, 10);
+    if (!Number.isInteger(pct) || pct < 0 || pct > 90) {
+      setBumpMsg("Percent off must be a whole number from 0 to 90.");
+      return;
+    }
+    setBumpSaving(true);
+    setBumpMsg(null);
+    try {
+      const res = await authed(`/api/shops/${activeShop.id}/products/${editingProduct.id}/bump`, {
+        method: "PUT",
+        body: JSON.stringify({
+          bumpProductId: bumpTargetId || null,
+          percentOff: bumpTargetId ? pct : 0,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        bumpConfig?: { bumpProductId: string; percentOff: number } | null;
+        offerLive?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(data.message || data.error || "Could not save the add-on offer.");
+      setProducts((ps) =>
+        ps.map((x) => (x.id === editingProduct.id ? { ...x, bumpConfig: data.bumpConfig ?? null } : x)),
+      );
+      setBumpMsg(
+        !bumpTargetId
+          ? "Add-on offer removed."
+          : data.offerLive
+            ? "Add-on is live — buyers can tick it at checkout."
+            : "Saved. The add-on isn't offered until it's active and priced.",
+      );
+    } catch (err) {
+      setBumpMsg(err instanceof Error ? err.message : "Could not save the add-on offer.");
+    } finally {
+      setBumpSaving(false);
+    }
   }
 
   async function togglePauseProduct(p: Product) {
@@ -668,6 +723,49 @@ export default function MyShop() {
                           placeholder={t("myShop.imageUrlPlaceholder")}
                         />
                       </div>
+                      {editingProduct && (
+                        <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-4">
+                          <label className="text-xs font-semibold text-white/50">
+                            Add-on offer — one more thing buyers can tick at checkout
+                          </label>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <select
+                              className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none"
+                              value={bumpTargetId}
+                              onChange={(e) => setBumpTargetId(e.target.value)}
+                              aria-label="Add-on product"
+                            >
+                              <option value="">No add-on</option>
+                              {products
+                                .filter((x) => x.id !== editingProduct.id && x.price_cents > 0)
+                                .map((x) => (
+                                  <option key={x.id} value={x.id}>
+                                    {x.name} — ${(x.price_cents / 100).toFixed(2)}{x.status === "paused" ? " (paused)" : ""}
+                                  </option>
+                                ))}
+                            </select>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                className="w-20 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none"
+                                value={bumpPercent}
+                                onChange={(e) => setBumpPercent(e.target.value)}
+                                inputMode="numeric"
+                                aria-label="Percent off the add-on"
+                              />
+                              <span className="text-xs text-white/50">% off</span>
+                            </div>
+                            <button className={ghostBtn} onClick={saveBump} disabled={bumpSaving}>
+                              {bumpSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                              <span className="text-xs">Save add-on</span>
+                            </button>
+                          </div>
+                          <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+                            The add-on sells at its own price (or your % off it) in the same checkout — one charge.
+                            The platform fee stays the flat 5%. A discount code never discounts the add-on.
+                          </p>
+                          {bumpMsg && <p className="mt-1.5 text-xs text-amber-200/90">{bumpMsg}</p>}
+                        </div>
+                      )}
                       <div className="mt-4 flex gap-3">
                         <button className={goldBtn} onClick={saveProduct} disabled={pSaving}>
                           {pSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
