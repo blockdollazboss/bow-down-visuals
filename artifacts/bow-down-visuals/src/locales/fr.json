@@ -6354,7 +6354,9 @@
     "tipHeading": "Pourboire",
     "tipStats": "{{count}} pourboires jusqu'ici · ${{total}} au total",
     "paidTitle": "Pourboire envoyé !",
-    "paidBody": "{{name}} vient de recevoir votre pourboire de {{amount}} $ — merci de soutenir son travail."
+    "paidBody": "{{name}} vient de recevoir votre pourboire de {{amount}} $ — merci de soutenir son travail.",
+    "goalReachedTitle": "Objectif atteint ! 🎉",
+    "goalReachedBody": "{{label}} — ${{raised}} récoltés sur l'objectif de ${{goal}}. Merci à tous ceux qui ont donné un pourboire !"
   },
   "tips": {
     "anonymousFan": "Fan anonyme",
@@ -6394,7 +6396,12 @@
     "titlePrefix": "Ta",
     "totalsTitle": "Totaux de la tirelire",
     "updateButton": "Mettre à jour la page de pourboires",
-    "shareTipPage": "Partager la page de pourboires"
+    "shareTipPage": "Partager la page de pourboires",
+    "goalReached": "Objectif atteint — bravo ! Définis un nouvel objectif ci-dessus quand tu veux.",
+    "goalPaidOnlyNote": "La progression ne compte que les pourboires payés — les intentions enregistrées ne font jamais bouger la barre.",
+    "goalRemove": "Retirer l'objectif",
+    "goalHistoryTitle": "Objectifs que tu as atteints",
+    "goalHistoryLine": "{{label}} — ${{raised}} sur ${{goal}} · atteint le {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "tous les tags",

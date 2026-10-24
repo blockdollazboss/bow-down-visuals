@@ -6196,7 +6196,9 @@
     "tipHeading": "Gorjeta",
     "tipStats": "{{count}} em gorjetas até agora · ${{total}} no total",
     "paidBody": "{{name}} acabou de receber sua gorjeta de ${{amount}} — obrigado por apoiar o trabalho dele.",
-    "paidTitle": "Gorjeta enviada!"
+    "paidTitle": "Gorjeta enviada!",
+    "goalReachedTitle": "Meta alcançada! 🎉",
+    "goalReachedBody": "{{label}} — ${{raised}} arrecadados da meta de ${{goal}}. Obrigado a todos que deram gorjeta!"
   },
   "tips": {
     "anonymousFan": "Fã anônimo",
@@ -6236,7 +6238,12 @@
     "titlePrefix": "Sua",
     "totalsTitle": "Totais da caixinha",
     "updateButton": "Atualizar página de gorjetas",
-    "shareTipPage": "Compartilhar página de gorjetas"
+    "shareTipPage": "Compartilhar página de gorjetas",
+    "goalReached": "Meta alcançada — bom trabalho! Defina uma nova meta acima quando quiser.",
+    "goalPaidOnlyNote": "O progresso conta apenas gorjetas pagas — intenções registradas nunca movem a barra.",
+    "goalRemove": "Remover meta",
+    "goalHistoryTitle": "Metas que você alcançou",
+    "goalHistoryLine": "{{label}} — ${{raised}} de ${{goal}} · alcançada em {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "todas as tags",

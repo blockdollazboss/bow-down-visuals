@@ -6196,7 +6196,9 @@
     "tipHeading": "Propina",
     "tipStats": "{{count}} propinas hasta ahora · ${{total}} en total",
     "paidTitle": "¡Propina enviada!",
-    "paidBody": "{{name}} acaba de recibir tu propina de ${{amount}}: gracias por apoyar su trabajo."
+    "paidBody": "{{name}} acaba de recibir tu propina de ${{amount}}: gracias por apoyar su trabajo.",
+    "goalReachedTitle": "¡Meta alcanzada! 🎉",
+    "goalReachedBody": "{{label}} — ${{raised}} recaudados de la meta de ${{goal}}. ¡Gracias a todos los que dejaron propina!"
   },
   "tips": {
     "anonymousFan": "Fan anónimo",
@@ -6236,7 +6238,12 @@
     "titlePrefix": "Tu",
     "totalsTitle": "Totales de la jarra de propinas",
     "updateButton": "Actualizar página de propinas",
-    "shareTipPage": "Compartir página de propinas"
+    "shareTipPage": "Compartir página de propinas",
+    "goalReached": "Meta alcanzada — ¡buen trabajo! Define una nueva meta arriba cuando quieras.",
+    "goalPaidOnlyNote": "El progreso solo cuenta las propinas pagadas — las intenciones registradas nunca mueven la barra.",
+    "goalRemove": "Quitar meta",
+    "goalHistoryTitle": "Metas que has alcanzado",
+    "goalHistoryLine": "{{label}} — ${{raised}} de ${{goal}} · alcanzada el {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "todas las etiquetas",

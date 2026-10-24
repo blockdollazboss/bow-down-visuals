@@ -1,0 +1,510 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fundgoals/artifacts/bow-down-visuals[39m
+
+ [31m❯[39m src/lib/locale-waves-hi.test.ts [2m([22m[2m37 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 3555[2mms[22m[39m
+   [31m❯[39m Stack-28 Hindi locale waves [2m(37)[22m
+     [31m❯[39m W1 [2m(6)[22m
+[31m       [31m×[31m is complete: every en leaf present and non-empty in hi[39m[32m 295[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 133[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 12[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 120[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 65[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 92[2mms[22m[39m
+     [32m✓[39m W2 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 68[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 96[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 4[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 90[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 75[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 92[2mms[22m[39m
+     [32m✓[39m W3 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 59[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 85[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 0[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 97[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 66[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 55[2mms[22m[39m
+     [32m✓[39m W4 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 51[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 30[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 4[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 55[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 24[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 32[2mms[22m[39m
+     [32m✓[39m W5 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 183[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 109[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 7[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 237[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 269[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 159[2mms[22m[39m
+     [32m✓[39m W6 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 223[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 62[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 1[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 144[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 83[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 166[2mms[22m[39m
+     [32m✓[39m whole-file U+FFFD keys are exactly the pinned remainder[32m 108[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-ar.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2894[2mms[22m[39m
+   [31m❯[39m ar-W1 (Stack-28 #70) commerce namespaces fully translated [2m(1)[22m
+[31m     [31m×[31m every en key present, non-empty, placeholders intact, no untranslated residue[39m[33m 635[2mms[22m[39m
+   [32m✓[39m ar-W2 (Stack-28 #79) retention/invite + video namespaces fully translated [2m(1)[22m
+     [33m[2m✓[22m[39m every en key present, non-empty, placeholders intact, no untranslated residue[33m 327[2mms[22m[39m
+   [32m✓[39m ar-W3 (Stack-28 #88) studio-tool namespaces fully translated [2m(1)[22m
+     [32m✓[39m every en key present, non-empty, placeholders intact, no untranslated residue[32m 261[2mms[22m[39m
+   [32m✓[39m ar-W4 (Stack-28 #97) audio + scheduler/projects namespaces fully translated [2m(1)[22m
+     [32m✓[39m every en key present, non-empty, placeholders intact, no untranslated residue[32m 137[2mms[22m[39m
+   [32m✓[39m ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces fully translated [2m(2)[22m
+     [33m[2m✓[22m[39m wave is closed[33m 386[2mms[22m[39m
+     [32m✓[39m carries mediaDetector.filesSkipped plurals whole (ar six forms)[32m 1[2mms[22m[39m
+   [32m✓[39m ar-W6 (Stack-28 appendix) milestones/lufs/presave/stabilize/create + promote/coach/release namespaces fully translated [2m(1)[22m
+     [33m[2m✓[22m[39m wave is closed[33m 1099[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-fr.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 1131[2mms[22m[39m
+   [31m❯[39m fr-W1 (Stack-28 #73) [2m(4)[22m
+[31m     [31m×[31m every en key in the wave namespaces is present in fr[39m[33m 372[2mms[22m[39m
+     [32m✓[39m no identical-to-en values remain outside the legit allowlist[32m 117[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 4[2mms[22m[39m
+[31m     [31m×[31m placeholders match en exactly for every wave key[39m[32m 68[2mms[22m[39m
+   [32m✓[39m fr-W2 (Stack-28 #82) [2m(4)[22m
+     [32m✓[39m every en key in the wave namespaces is present in fr[32m 47[2mms[22m[39m
+     [32m✓[39m no identical-to-en values remain outside the legit allowlist[32m 55[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 3[2mms[22m[39m
+     [32m✓[39m placeholders match en exactly for every wave key[32m 62[2mms[22m[39m
+   [32m✓[39m fr-W3 (Stack-28 #91) [2m(4)[22m
+     [32m✓[39m every en key in the wave namespaces is present in fr[32m 109[2mms[22m[39m
+     [32m✓[39m no identical-to-en values remain outside the legit allowlist[32m 32[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 0[2mms[22m[39m
+     [32m✓[39m placeholders match en exactly for every wave key[32m 46[2mms[22m[39m
+   [32m✓[39m fr W4 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in fr[32m 5[2mms[22m[39m
+     [32m✓[39m no fr value is identical to en outside the legit allowlist[32m 11[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 26[2mms[22m[39m
+   [32m✓[39m fr W5 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in fr[32m 9[2mms[22m[39m
+     [32m✓[39m no fr value is identical to en outside the legit allowlist[32m 11[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 37[2mms[22m[39m
+   [32m✓[39m fr W6 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in fr[32m 6[2mms[22m[39m
+     [32m✓[39m no fr value is identical to en outside the legit allowlist[32m 25[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 25[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-de.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1121[2mms[22m[39m
+   [31m❯[39m de locale wave W1 (Stack-28) [2m(1)[22m
+[31m     [31m×[31m every en key exists non-empty in de and no untranslated residue remains[39m[33m 573[2mms[22m[39m
+   [32m✓[39m de locale wave W2 (Stack-28) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 150[2mms[22m[39m
+   [32m✓[39m de locale wave W3 (Stack-28) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 89[2mms[22m[39m
+   [32m✓[39m de locale wave W4 (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 85[2mms[22m[39m
+   [32m✓[39m de locale wave W5 (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 96[2mms[22m[39m
+   [32m✓[39m de W6 namespaces (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 39[2mms[22m[39m
+   [32m✓[39m de W7 namespaces (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 28[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-ja.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 346[2mms[22m[39m
+   [31m❯[39m ja locale waves (Stack-28) [2m(18)[22m
+[31m     [31m×[31m W1: all en keys present in ja except legit/CLDR allowlist[39m[32m 65[2mms[22m[39m
+     [32m✓[39m W1: no REAL identical-to-en values remain[32m 7[2mms[22m[39m
+     [32m✓[39m W1: placeholder parity and no U+FFFD on wave keys[32m 19[2mms[22m[39m
+     [32m✓[39m W2: all en keys present in ja except legit/CLDR allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m W2: no REAL identical-to-en values remain[32m 2[2mms[22m[39m
+     [32m✓[39m W2: placeholder parity and no U+FFFD on wave keys[32m 5[2mms[22m[39m
+     [32m✓[39m W3: all en keys present in ja except legit/CLDR allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m W3: no REAL identical-to-en values remain[32m 9[2mms[22m[39m
+     [32m✓[39m W3: placeholder parity and no U+FFFD on wave keys[32m 11[2mms[22m[39m
+     [32m✓[39m W4: all en keys present in ja except legit/CLDR allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m W4: no REAL identical-to-en values remain[32m 1[2mms[22m[39m
+     [32m✓[39m W4: placeholder parity and no U+FFFD on wave keys[32m 6[2mms[22m[39m
+     [32m✓[39m W5: all en keys present in ja except legit/CLDR allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m W5: no REAL identical-to-en values remain[32m 4[2mms[22m[39m
+     [32m✓[39m W5: placeholder parity and no U+FFFD on wave keys[32m 34[2mms[22m[39m
+     [32m✓[39m W6: all en keys present in ja except legit/CLDR allowlist[32m 1[2mms[22m[39m
+     [32m✓[39m W6: no REAL identical-to-en values remain[32m 54[2mms[22m[39m
+     [32m✓[39m W6: placeholder parity and no U+FFFD on wave keys[32m 106[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-es.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 720[2mms[22m[39m
+   [31m❯[39m es W1 (Stack-28 #72) — namespaces closed whole [2m(3)[22m
+[31m     [31m×[31m every en key of the wave namespaces is present and non-empty in es[39m[32m 248[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 43[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 28[2mms[22m[39m
+   [32m✓[39m es W2 (Stack-28 #81) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 11[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 17[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 13[2mms[22m[39m
+   [32m✓[39m es W3 (Stack-28 #90) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 9[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 25[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 25[2mms[22m[39m
+   [32m✓[39m es W4 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 13[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 23[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 28[2mms[22m[39m
+   [32m✓[39m es W5 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 13[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 25[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 33[2mms[22m[39m
+   [32m✓[39m es W6 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 10[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 60[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 61[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-ko.test.ts [2m([22m[2m30 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 555[2mms[22m[39m
+   [31m❯[39m Stack-28 ko locale waves [2m(30)[22m
+     [31m❯[39m ko-W1 [2m(5)[22m
+[31m       [31m×[31m wave namespaces are complete and non-empty in ko[39m[32m 241[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 18[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 16[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 31[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 15[2mms[22m[39m
+     [32m✓[39m ko-W2 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 13[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 5[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 9[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 12[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 14[2mms[22m[39m
+     [32m✓[39m ko-W3 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 7[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 0[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 0[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 9[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 0[2mms[22m[39m
+     [32m✓[39m ko-W4 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 0[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 0[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 13[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 1[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 0[2mms[22m[39m
+     [32m✓[39m ko-W5 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 11[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 3[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 0[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 15[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 1[2mms[22m[39m
+     [32m✓[39m ko-W6 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 12[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 11[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 12[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 18[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 3[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-it.test.ts [2m([22m[2m24 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 187[2mms[22m[39m
+   [31m❯[39m it-W1 (Stack-28 #75) — commerce namespaces fully Italian [2m(4)[22m
+[31m     [31m×[31m covers every en key in the wave namespaces[39m[32m 148[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 1[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+     [32m✓[39m carries pricing.wantedMeter plurals whole (_one/_other/_many)[32m 1[2mms[22m[39m
+   [32m✓[39m it-W2 (Stack-28 #84) — sponsors/retention/create-entry namespaces fully Italian [2m(4)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+     [32m✓[39m carries promo-clip plurals whole (_one/_other/_many)[32m 0[2mms[22m[39m
+   [32m✓[39m it-W3 (Stack-28 #93) — create video/image + audio namespaces fully Italian [2m(4)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 1[2mms[22m[39m
+     [32m✓[39m carries thumbnailTest.filesSkipped plurals whole (_one/_other/_many)[32m 0[2mms[22m[39m
+   [32m✓[39m it-W4 (Stack-28 appendix) — audio + tools namespaces fully Italian [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 2[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+   [32m✓[39m it W5 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+   [32m✓[39m it W6 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+   [32m✓[39m it W7 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-pt.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 471[2mms[22m[39m
+   [31m❯[39m pt W1 (Stack-28 #78) — namespaces closed whole [2m(4)[22m
+[31m     [31m×[31m every en key of the wave namespaces is present and non-empty in pt[39m[32m 90[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 3[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 27[2mms[22m[39m
+     [32m✓[39m pt carries the _many plural forms for the pricing families (§4)[32m 5[2mms[22m[39m
+   [32m✓[39m pt W2 (Stack-28 #87) — namespaces closed whole [2m(4)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 4[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 11[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 20[2mms[22m[39m
+     [32m✓[39m pt carries the _many plural forms for the promo-clip families (§4)[32m 1[2mms[22m[39m
+   [32m✓[39m pt W3 (Stack-28 #96) — namespaces closed whole [2m(4)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 1[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 18[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 13[2mms[22m[39m
+     [32m✓[39m pt carries the _many plural form for the thumbnailTest family (§4)[32m 0[2mms[22m[39m
+   [32m✓[39m pt W4 (Stack-28 appendix) — namespaces closed whole [2m(9)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 16[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 5[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 12[2mms[22m[39m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 5[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 56[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 56[2mms[22m[39m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 1[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 82[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 36[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 10 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-ar.test.ts[2m > [22mar-W1 (Stack-28 #70) commerce namespaces fully translated[2m > [22mevery en key present, non-empty, placeholders intact, no untranslated residue
+[31m[1mAssertionError[22m: ar missing tipPage.goalReachedTitle: expected undefined to be defined[39m
+[36m [2m❯[22m checkWave src/lib/locale-waves-ar.test.ts:[2m50:36[22m[39m
+    [90m 48|[39m   for (const k of keys) {
+    [90m 49|[39m     const arv = AR[k];
+    [90m 50|[39m     expect(arv, `ar missing ${k}`).toBeDefined();
+    [90m   |[39m                                    [31m^[39m
+    [90m 51|[39m     if (typeof EN[k] === "string" && EN[k] === "") continue; // en its…
+    [90m 52|[39m     const ars = typeof arv === "string" ? arv : JSON.stringify(arv);
+[90m [2m❯[22m src/lib/locale-waves-ar.test.ts:[2m149:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-de.test.ts[2m > [22mde locale wave W1 (Stack-28)[2m > [22mevery en key exists non-empty in de and no untranslated residue remains
+[31m[1mAssertionError[22m: missing/empty de keys: tipPage.goalReachedTitle, tipPage.goalReachedBody, tips.goalReached, tips.goalPaidOnlyNote, tips.goalRemove, tips.goalHistoryTitle, tips.goalHistoryLine: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m checkWave src/lib/locale-waves-de.test.ts:[2m39:80[22m[39m
+    [90m 37|[39m     else if (JSON.stringify(v) === JSON.stringify(EN[k]) && !allowlist…
+    [90m 38|[39m   }
+    [90m 39|[39m   expect(missing, `missing/empty de keys: ${missing.slice(0, 20).join(…
+    [90m   |[39m                                                                                [31m^[39m
+    [90m 40|[39m   expect(identical, `untranslated (identical to en, not allowlisted): …
+    [90m 41|[39m }
+[90m [2m❯[22m src/lib/locale-waves-de.test.ts:[2m179:87[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-es.test.ts[2m > [22mes W1 (Stack-28 #72) — namespaces closed whole[2m > [22mevery en key of the wave namespaces is present and non-empty in es
+[31m[1mAssertionError[22m: es W1 missing/empty: tipPage.goalReachedTitle, tipPage.goalReachedBody, tips.goalReached, tips.goalPaidOnlyNote, tips.goalRemove, tips.goalHistoryTitle, tips.goalHistoryLine: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-es.test.ts:[2m149:72[22m[39m
+    [90m147|[39m   it("every en key of the wave namespaces is present and non-empty in …
+    [90m148|[39m     const bad = keys.filter((k) => !(k in ES) || !nonEmpty(ES[k]));
+    [90m149|[39m     expect(bad, `es W1 missing/empty: ${bad.slice(0, 10).join(", ")}`)…
+    [90m   |[39m                                                                        [31m^[39m
+    [90m150|[39m   });
+    [90m151|[39m   it("no es value is identical to en outside the legit allowlist", () …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-fr.test.ts[2m > [22mfr-W1 (Stack-28 #73)[2m > [22mevery en key in the wave namespaces is present in fr
+[31m[1mAssertionError[22m: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-fr.test.ts:[2m357:21[22m[39m
+    [90m355|[39m   it("every en key in the wave namespaces is present in fr", () => {
+    [90m356|[39m     const missing = waveKeys(W1_NAMESPACES).filter((k) => !(k in FR) |…
+    [90m357|[39m     expect(missing).toEqual([]);
+    [90m   |[39m                     [31m^[39m
+    [90m358|[39m   });
+    [90m359|[39m   it("no identical-to-en values remain outside the legit allowlist", (…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-fr.test.ts[2m > [22mfr-W1 (Stack-28 #73)[2m > [22mplaceholders match en exactly for every wave key
+[31m[1mAssertionError[22m: expected [ 'tipPage.goalReachedBody', …(1) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-fr.test.ts:[2m370:17[22m[39m
+    [90m368|[39m     const shape = (v: unknown) => (typeof v === "string" ? v.split("{"…
+    [90m369|[39m     const bad = waveKeys(W1_NAMESPACES).filter((k) => JSON.stringify(s…
+    [90m370|[39m     expect(bad).toEqual([]);
+    [90m   |[39m                 [31m^[39m
+    [90m371|[39m   });
+    [90m372|[39m });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-hi.test.ts[2m > [22mStack-28 Hindi locale waves[2m > [22mW1[2m > [22mis complete: every en leaf present and non-empty in hi
+[31m[1mAssertionError[22m: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-hi.test.ts:[2m97:25[22m[39m
+    [90m 95|[39m           else if (Array.isArray(v) && (!Array.isArray(hv) || hv.lengt…
+    [90m 96|[39m         }
+    [90m 97|[39m         expect(missing).toEqual([]);
+    [90m   |[39m                         [31m^[39m
+    [90m 98|[39m       });
+    [90m 99|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-it.test.ts[2m > [22mit-W1 (Stack-28 #75) — commerce namespaces fully Italian[2m > [22mcovers every en key in the wave namespaces
+[31m[1mAssertionError[22m: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-it.test.ts:[2m179:23[22m[39m
+    [90m177|[39m   const r = checkWave(W1_NAMESPACES, [...W1_LEGIT]);
+    [90m178|[39m   it("covers every en key in the wave namespaces", () => {
+    [90m179|[39m     expect(r.missing).toEqual([]);
+    [90m   |[39m                       [31m^[39m
+    [90m180|[39m     expect(r.empty).toEqual([]);
+    [90m181|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-ja.test.ts[2m > [22mja locale waves (Stack-28)[2m > [22mW1: all en keys present in ja except legit/CLDR allowlist
+[31m[1mAssertionError[22m: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-ja.test.ts:[2m75:23[22m[39m
+    [90m 73|[39m     it(`${wave}: all en keys present in ja except legit/CLDR allowlist…
+    [90m 74|[39m       const missing = keys.filter((k) => !(k in JA) && !def.legitMissi…
+    [90m 75|[39m       expect(missing).toEqual([]);
+    [90m   |[39m                       [31m^[39m
+    [90m 76|[39m     });
+    [90m 77|[39m     it(`${wave}: no REAL identical-to-en values remain`, () => {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-ko.test.ts[2m > [22mStack-28 ko locale waves[2m > [22mko-W1[2m > [22mwave namespaces are complete and non-empty in ko
+[31m[1mAssertionError[22m: expected [ …(7) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle (absent)",[39m
+[31m+   "tipPage.goalReachedBody (absent)",[39m
+[31m+   "tips.goalReached (absent)",[39m
+[31m+   "tips.goalPaidOnlyNote (absent)",[39m
+[31m+   "tips.goalRemove (absent)",[39m
+[31m+   "tips.goalHistoryTitle (absent)",[39m
+[31m+   "tips.goalHistoryLine (absent)",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-ko.test.ts:[2m226:25[22m[39m
+    [90m224|[39m           if (typeof v !== "string" || !v.trim()) missing.push(`${k} (…
+    [90m225|[39m         }
+    [90m226|[39m         expect(missing).toEqual([]);
+    [90m   |[39m                         [31m^[39m
+    [90m227|[39m       });
+    [90m228|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-pt.test.ts[2m > [22mpt W1 (Stack-28 #78) — namespaces closed whole[2m > [22mevery en key of the wave namespaces is present and non-empty in pt
+[31m[1mAssertionError[22m: pt W1 missing/empty: tipPage.goalReachedTitle, tipPage.goalReachedBody, tips.goalReached, tips.goalPaidOnlyNote, tips.goalRemove, tips.goalHistoryTitle, tips.goalHistoryLine: expected [ 'tipPage.goalReachedTitle', …(6) ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "tipPage.goalReachedTitle",[39m
+[31m+   "tipPage.goalReachedBody",[39m
+[31m+   "tips.goalReached",[39m
+[31m+   "tips.goalPaidOnlyNote",[39m
+[31m+   "tips.goalRemove",[39m
+[31m+   "tips.goalHistoryTitle",[39m
+[31m+   "tips.goalHistoryLine",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-pt.test.ts:[2m47:77[22m[39m
+    [90m 45|[39m   it("every en key of the wave namespaces is present and non-empty in …
+    [90m 46|[39m     const bad = keys.filter((k) => !(k in PT) || !nonEmpty(PT[k]));
+    [90m 47|[39m     expect(bad, `pt ${wave} missing/empty: ${bad.slice(0, 10).join(", …
+    [90m   |[39m                                                                             [31m^[39m
+    [90m 48|[39m   });
+    [90m 49|[39m   it("no pt value is identical to en outside the legit allowlist", () …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m9 failed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[31m10 failed[39m[22m[2m | [22m[1m[32m173 passed[39m[22m[90m (183)[39m
+[2m   Start at [22m 14:04:01
+[2m   Duration [22m 39.59s[2m (tests 46%, import 43%, transform 8%, worker 3%)[22m
+
+[2m    Isolate [22m [33m9 workers spawned[39m[2m · ~1.64s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~13.13s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
