@@ -116,6 +116,7 @@ import upscaleGenerativeRouter from "./generate/upscale-generative";
 import avatarPresenterRouter from "./generate/avatar-presenter";
 import singingVoiceRouter from "./generate/singing-voice";
 import moneyRouter from "./money";
+import publishingSplitsRouter from "./publishing-splits";
 import coachTrackerRouter from "./coach-tracker";
 import earningsRouter from "./earnings";
 import commandRouter from "./command";
@@ -468,7 +469,8 @@ router.use(academyRouter);
 router.use(commentRepliesRouter);
 router.use(contentCalendarRouter);
 router.use(tipJarRouter);
-router.use(moneyRouter);router.use(coachTrackerRouter);router.use(earningsRouter);router.use(commandRouter);router.use(contentIdRouter);router.use(interviewPrepRouter);router.use(upscaleRouter);
+router.use(moneyRouter);router.use(publishingSplitsRouter); // /api/publishing-splits/* (songwriter registry, #22)
+router.use(coachTrackerRouter);router.use(earningsRouter);router.use(commandRouter);router.use(contentIdRouter);router.use(interviewPrepRouter);router.use(upscaleRouter);
 router.use(upscaleGenerativeRouter);router.use(avatarPresenterRouter);router.use(singingVoiceRouter);
 router.use(bgGenerateRouter);
 router.use(titleStudioRouter);
