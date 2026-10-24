@@ -5302,6 +5302,7 @@ function MasterPreviewPlayer({
           waveformPosition={settings.waveformPosition ?? "bottom-safe"}
           overlayQualityMode={settings.overlayQualityMode ?? "music-video"}
           overlayProtectCaptions={settings.overlayProtectCaptions ?? true}
+          overlayProtectFace={settings.overlayProtectFace ?? true}
           soloPreviewOverlay={settings.soloPreviewOverlay ?? null}
         />
 

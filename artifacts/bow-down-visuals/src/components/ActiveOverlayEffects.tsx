@@ -1071,7 +1071,19 @@ export interface ActiveOverlayEffectsProps {
   waveformPosition?: string;
   overlayQualityMode?: string;
   overlayProtectCaptions?: boolean;
+  /** "Protect face / center" (Effects tab): when true, the visual overlay
+   *  effects are masked out of a soft-edged ellipse at the upper-center of
+   *  the frame — where a performer's face normally sits — so overlays never
+   *  cover the subject. The watermark is not an overlay effect and is not
+   *  masked. Opt-in per mount: only the editor preview passes it (from
+   *  settings.overlayProtectFace). */
+  overlayProtectFace?: boolean;
 }
+
+/* Soft center hole punched through the overlay stack when face protection
+ * is on: transparent inside the ellipse, fully opaque outside it. */
+const FACE_PROTECT_MASK =
+  "radial-gradient(ellipse 36% 32% at 50% 40%, transparent 0%, transparent 58%, black 82%)";
 
 const BRANDING_WM_OPACITY: Record<string, number> = { low: 0.30, medium: 0.60, high: 0.90 };
 
@@ -1094,6 +1106,7 @@ export function ActiveOverlayEffects({
   brandingWatermark = null,
   waveformPosition = "bottom-safe",
   overlayProtectCaptions = true,
+  overlayProtectFace = false,
 }: ActiveOverlayEffectsProps) {
   // branding.watermark (the "Watermark & Logo" panel) is the source of truth when
   // enabled — same precedence as export-video.ts, which prefers branding.watermark
@@ -1131,6 +1144,17 @@ export function ActiveOverlayEffects({
     >
       <style>{KEYFRAMES}</style>
 
+      {/* Visual effects stack — face/center protection masks this whole
+          layer (never the watermark below) out of the subject's area. */}
+      <div
+        style={{
+          position: "absolute", inset: 0,
+          ...(overlayProtectFace
+            ? { maskImage: FACE_PROTECT_MASK, WebkitMaskImage: FACE_PROTECT_MASK }
+            : {}),
+        }}
+        data-face-protect={overlayProtectFace ? "on" : "off"}
+      >
       {show.includes("Rain")              && <RainEffect        opacity={o("Rain")}        isPlaying={isPlaying} />}
       {show.includes("Smoke")             && <SmokeEffect       opacity={o("Smoke")}       isPlaying={isPlaying} />}
       {show.includes("Sparks")            && <SparksEffect      opacity={o("Sparks")}      isPlaying={isPlaying} />}
@@ -1159,6 +1183,7 @@ export function ActiveOverlayEffects({
           isPlaying={isPlaying}
         />
       )}
+      </div>
       {show.includes("Logo / Watermark") && (
         <WatermarkEffect
           opacity={useBrandingWm ? BRANDING_WM_OPACITY[brandingWatermark!.opacity] ?? 0.60 : gi(intensity, "Logo / Watermark")}
