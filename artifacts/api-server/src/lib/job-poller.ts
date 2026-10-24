@@ -33,6 +33,7 @@ import {
   trimAndUploadVideoSegment,
 } from "./sync-labs";
 import { recordLipSyncHistory } from "./payment-record";
+import { runViralSpikeWatch } from "./viral-spike-watch";
 import { mirrorExternalMediaUrl } from "./mirrorMedia";
 
 /**
@@ -150,6 +151,12 @@ export async function runPollerTick(): Promise<void> {
        the 24h lead window (DB-backed, restart-safe, exactly-once). */
     await notifyDueBookingReminders().catch((err) =>
       logger.error({ err }, "[job-poller] booking reminder phase failed"),
+    /* Viral Spike Watch: baseline-relative spike detection over
+       play_events, alerting through the notifications bell rail.
+       Internally throttled (SPIKE_WATCH_INTERVAL_MS, default 1h) and
+       never throws — this catch is belt-and-braces like every phase. */
+    await runViralSpikeWatch().catch((err) =>
+      logger.error({ err }, "[job-poller] viral spike watch phase failed"),
     );
   } finally {
     tickInFlight = false;
