@@ -21,6 +21,8 @@ import { objectStorageClient } from "../../lib/objectStorage";
 import { r2Upload, r2GetSignedUrl, isR2Configured } from "../../lib/r2-client";
 import { isAllowedStemUrl } from "../../lib/audioExport";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
+import { stampVideoFileWithDisclosure } from "../../lib/disclosure-metadata";
+import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../../lib/provenance";
 
 /* Upload an export-doctor diagnostic file and return a signed URL.
    R2 first (works on Render); legacy Replit GCS sidecar as fallback. */
@@ -45,6 +47,41 @@ async function uploadExportDoctorFile(
 
 const execFileAsync = promisify(execFile);
 const router = Router();
+
+/* ─── AI disclosure for doctor exports (lane F7 kit, more-provenance) ────
+   Every export endpoint in this file produces its MP4 at a local path and
+   uploads it through the one funnel below, so the stamp lives here:
+   DEFAULT ON (absent aiDisclosure = on; only an explicit false opts out),
+   applied to the finished file BEFORE upload via a stream-copy remux
+   (no re-encode). A failed stamp NEVER fails the export: the unstamped
+   file ships and the response reports aiDisclosure:"stamp_failed". */
+export type DoctorDisclosureState = "embedded" | "off" | "stamp_failed";
+
+export function doctorDisclosureEnabled(body: unknown): boolean {
+  return (body as { aiDisclosure?: unknown } | null | undefined)?.aiDisclosure !== false;
+}
+
+async function uploadDoctorExport(
+  objectName: string,
+  outputPath: string,
+  aiDisclosureEnabled: boolean,
+): Promise<{ signedUrl: string; aiDisclosure: DoctorDisclosureState }> {
+  if (!aiDisclosureEnabled) {
+    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+    return { signedUrl, aiDisclosure: "off" };
+  }
+  const stampedPath = `${outputPath}.disclosed.mp4`;
+  const stamped = await stampVideoFileWithDisclosure(outputPath, stampedPath, {
+    text: aiDisclosureMetadataText({ createdWith: { tool: "Video Editor", model: null, platform: PROVENANCE_PLATFORM } }),
+    tool: "Video Editor",
+  });
+  if (!stamped) {
+    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+    return { signedUrl, aiDisclosure: "stamp_failed" };
+  }
+  const signedUrl = await uploadExportDoctorFile(objectName, stampedPath, "video/mp4");
+  return { signedUrl, aiDisclosure: "embedded" };
+}
 
 const SIDECAR = "http://127.0.0.1:1106";
 const SUPABASE_HOST = (() => {
@@ -1250,10 +1287,12 @@ const downloadSchema = z.object({
 });
 
 const doctorIdSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   doctorId: z.string().optional(),
 });
 
 const exportAudioSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   doctorId: z.string().optional(),
   audioUrl: z.string().optional(),
   audioStartSec: z.number().optional(),
@@ -1282,6 +1321,7 @@ const downloadAllSchema = z.object({
 });
 
 const multiIdSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
 });
 
@@ -1291,6 +1331,7 @@ const sceneRefSchema = z.object({
 });
 
 const exportAllAudioSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   audioUrl: z.string().optional(),
   audioStartSec: z.number().optional(),
@@ -1306,6 +1347,7 @@ const clipEditsSchema = z.record(
 );
 
 const exportAudioSyncDiagnosticSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   audioUrl: z.string().optional(),
   audioStartSec: z.number().optional(),
@@ -1314,6 +1356,7 @@ const exportAudioSyncDiagnosticSchema = z.object({
 });
 
 const exportAudioSyncShortSchema = exportAudioSyncDiagnosticSchema.extend({
+  aiDisclosure: z.boolean().optional(),
   durationSec: z.number().optional(),
   lipSyncFineTuneSec: z.number().optional(),
 });
@@ -1331,12 +1374,14 @@ const captionsSchema = z.object({
 const conflictModeSchema = z.enum(["bw-only", "gold-only", "blend"]).optional();
 
 const exportAllCaptionsSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   audioUrl: z.string().optional(),
   captions: captionsSchema,
 });
 
 const exportAllEffectsSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   audioUrl: z.string().optional(),
   captions: captionsSchema,
@@ -1345,6 +1390,7 @@ const exportAllEffectsSchema = z.object({
 });
 
 const exportAllOverlaysSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   watermarkType: z.string().optional(),
   watermarkPosition: z.string().optional(),
@@ -1360,6 +1406,7 @@ const exportAllOverlaysSchema = z.object({
 });
 
 const exportEffectsRangeSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   audioUrl: z.string().optional(),
   captions: captionsSchema,
@@ -1375,6 +1422,7 @@ const exportOverlaysRangeSchema = exportAllOverlaysSchema.extend({
 });
 
 const exportEffectsTransitionsSchema = z.object({
+  aiDisclosure: z.boolean().optional(),
   multiId: z.string().optional(),
   audioUrl: z.string().optional(),
   effects: z.array(z.string()).nullable().optional(),
@@ -1700,11 +1748,12 @@ router.post("/export-doctor/export", requireAuth, async (req, res) => {
 
     const probe = await probeMedia(outputPath);
     const objectName = `export-doctor/${doctorId}-scene1.mp4`;
-    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+    const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
     res.json({
       success: true,
       url: signedUrl,
+      aiDisclosure: doctorAiDisclosure,
       fileSize: statSync(outputPath).size,
       duration: probe.duration,
       width: probe.width,
@@ -1939,11 +1988,12 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
 
     const probe = await probeMedia(outputPath);
     const objectName = `export-doctor/${doctorId}-scene1-audio.mp4`;
-    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+    const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
     res.json({
       success: true,
       url: signedUrl,
+      aiDisclosure: doctorAiDisclosure,
       audioDownloaded: true,
       audioValid: true,
       audioFileSize: statSync(audioPath).size,
@@ -2699,11 +2749,12 @@ router.post("/export-doctor/export-all", requireAuth, async (req, res) => {
 
     const probe = await probeMedia(outputPath);
     const objectName = `export-doctor/${multiId}-all-clips.mp4`;
-    const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+    const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
     res.json({
       success: true,
       url: signedUrl,
+      aiDisclosure: doctorAiDisclosure,
       clipCount: normPaths.length,
       fileSize: statSync(outputPath).size,
       duration: probe.duration,
@@ -2898,11 +2949,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-all-clips-audio.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         clipCount: normPaths.length,
         audioDownloaded: true,
         audioValid: true,
@@ -3076,7 +3128,7 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-sync-diag.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       const hasLipSync = session.clips.some(
         (_, i) => clipEdits?.[`scene-${i + 1}`]?.useLipSync || false,
@@ -3085,6 +3137,7 @@ router.post(
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         fileSize: statSync(outputPath).size,
         duration: probe.duration,
         width: probe.width,
@@ -3431,8 +3484,8 @@ router.post(
         "EXPORT SHORT TEST: uploading",
       );
 
-      const signedUrl = await Promise.race([
-        uploadExportDoctorFile(objectName, outputPath, "video/mp4"),
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await Promise.race([
+        uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body)),
         new Promise<never>((_, reject) =>
           setTimeout(
             () =>
@@ -3460,6 +3513,7 @@ router.post(
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         fileSize: statSync(outputPath).size,
         duration: probe.duration,
         width: probe.width,
@@ -3762,11 +3816,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-all-clips-audio-captions.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         clipCount: normPaths.length,
         captionsFound,
         captionRows,
@@ -4094,11 +4149,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-all-clips-audio-captions-effects.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         clipCount: normPaths.length,
         effectsFound,
         effectsCount,
@@ -4412,11 +4468,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-all-clips-overlays-watermark.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         clipCount: normPaths.length,
         overlaysFound,
         unsupportedOverlays,
@@ -4647,11 +4704,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-effect-match-test.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         rangeStart,
         rangeDuration,
         activeSceneIndex,
@@ -4971,11 +5029,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-overlay-match-test.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         rangeStart,
         rangeDuration,
         activeSceneIndex,
@@ -5175,11 +5234,12 @@ router.post(
 
       const probe = await probeMedia(outputPath);
       const objectName = `export-doctor/${multiId}-transitions-test.mp4`;
-      const signedUrl = await uploadExportDoctorFile(objectName, outputPath, "video/mp4");
+      const { signedUrl, aiDisclosure: doctorAiDisclosure } = await uploadDoctorExport(objectName, outputPath, doctorDisclosureEnabled(req.body));
 
       res.json({
         success: true,
         url: signedUrl,
+        aiDisclosure: doctorAiDisclosure,
         clipCount,
         transitionsConnected,
         transitionPlan: plan,
