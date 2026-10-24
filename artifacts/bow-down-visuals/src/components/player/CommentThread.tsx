@@ -37,7 +37,7 @@ export function CommentThread({ kind, mediaId }: { kind: MediaKind; mediaId: str
   const load = useCallback(async () => {
     const token = user ? await getAccessToken().catch(() => null) : null;
     const { comments: list, viewerIsOwner: isOwner } = await fetchMediaThread(kind, mediaId, token);
-    setComments(list as MediaComment[]);
+    setComments(list as unknown as MediaComment[]);
     setViewerIsOwner(isOwner);
   }, [kind, mediaId, user, getAccessToken]);
 

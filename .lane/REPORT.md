@@ -47,7 +47,16 @@ writes + held queue answer 503 comment_controls_not_ready.
   @workspace/db + @workspace/api-zod readlink -f resolve INTO this
   worktree (node-modules-verify.txt).
 - API typecheck: exit 0 (api-typecheck-1.log).
-- FE typecheck: exit 0 (fe-typecheck-1.log).
+- FE typecheck: fe-typecheck-1.log was exit 1 (5 errors, all in this
+  lane's new code: a duplicate `Pin` import in profile-sections, two
+  ControlledComment assignability errors, one cast). Fixed
+  (ownerActionsFor now takes a minimal structural shape; cast via
+  unknown; duplicate import removed) — fe-typecheck-3.log is a
+  NON-incremental full `tsc --noEmit` run: exit 0, no errors. The FE
+  targeted tests were re-run after the fix (fe-comments-2.log):
+  3 files / 36 tests passed. Note the FE full suite below ran before
+  this type-only fix; the fix changed no runtime behaviour (import
+  dedupe, a type signature, a cast).
 - API targeted (api-comments-1.log): 3 files / 40 tests passed —
   lib comment-controls 16, routes comment-controls 14, pre-existing
   creator-comments-dto regression 10.

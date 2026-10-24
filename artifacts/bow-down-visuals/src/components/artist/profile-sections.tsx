@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { mediaUrl } from "@/lib/media-cdn";
 import {
   Play, Pause, Heart, Share2, Check, Calendar, Radio, ShoppingBag,
-  Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw, Pin,
+  Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw,
   ExternalLink, MapPin, Crown, Pin,
 } from "lucide-react";
 import { PROFILE_VISIT_WORLD_TEST_ID, VISIT_WORLD_LABEL, WORLD_ROUTE } from "@/lib/world-entry";

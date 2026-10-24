@@ -134,8 +134,10 @@ export async function fetchMediaThread(
   return { comments: d.comments ?? [], viewerIsOwner: d.viewer_is_owner === true };
 }
 
-/** Inline controls available to the owner for a comment's current state. */
-export function ownerActionsFor(c: ControlledComment): CommentControlAction[] {
+/** Inline controls available to the owner for a comment's current state.
+    Takes the minimal structural shape so both MediaComment and
+    ProfileComment (which carry no index signature) can be passed. */
+export function ownerActionsFor(c: { status?: string | null; pinned?: boolean | null; is_pinned?: boolean | null }): CommentControlAction[] {
   const status = c.status ?? "public";
   if (status === "held") return ["approve", "reject"];
   if (status === "hidden") return ["unhide"];
