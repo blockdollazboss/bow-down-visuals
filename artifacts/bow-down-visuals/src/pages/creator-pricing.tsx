@@ -240,7 +240,7 @@ export default function CreatorPricing() {
             </div>
           )}
           <p className="mt-4 text-xs text-white/35">
-            Real USD via Stripe (test mode). Prices and fee rates are proposed — the owner signs off before anything bills.
+            Real USD via Stripe (test mode). Prices approved 2026-10-07 — Stripe stays in test mode until launch.
           </p>
         </section>
 

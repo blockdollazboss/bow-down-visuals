@@ -52,6 +52,12 @@ describe("storefront fee displays tell the single flat-5% story", () => {
     }
   });
 
+  it("pricing switcher caption: plans do NOT change your cut (Stack-100 #3 lane 12)", () => {
+    const switcher = readFe("components/PricingSwitcher.tsx");
+    expect(switcher).not.toContain("change your cut");
+    expect(switcher).toContain("Creator Plans add your own domain, unlimited products and AI boosts");
+  });
+
   it("server TIER_PLANS labels + tier welcome email match the flat 5%", () => {
     const fees = readApi("lib/platform-fees.ts");
     expect(fees).toContain("flat 5% platform fee");

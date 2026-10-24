@@ -38,7 +38,7 @@ export function PricingSwitcher({ active }: { active: "credits" | "plans" }) {
       </div>
       <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         {active === "credits"
-          ? t("pricingSwitcher.creditsCaption", { defaultValue: "Creator Plans change your cut on every sale — that's the subscription side." })
+          ? t("pricingSwitcher.creditsCaption", { defaultValue: "Creator Plans add your own domain, unlimited products and AI boosts — that's the subscription side." })
           : t("pricingSwitcher.plansCaption", { defaultValue: "Need credits right now? Credit Packs top up your Visual Bucs." })}
       </p>
     </div>
