@@ -16,6 +16,7 @@ const lipSection = readFileSync(new URL("./sections/LipSyncSection.tsx", import.
 const autoAiEdit = readFileSync(new URL("./sections/AutoAiEditSection.tsx", import.meta.url), "utf8");
 const transport = readFileSync(new URL("./music/PreviewTransport.tsx", import.meta.url), "utf8");
 const keyframes = readFileSync(new URL("./sections/KeyframesSection.tsx", import.meta.url), "utf8");
+const threeSecondLab = readFileSync(new URL("./sections/ThreeSecondLabSection.tsx", import.meta.url), "utf8");
 
 describe("editor honesty fixes (N-series)", () => {
   it("N-01: Studio Editor never fabricates a placeholder video URL", () => {
@@ -59,5 +60,15 @@ describe("editor honesty fixes (N-series)", () => {
     expect(keyframes).toContain("parseRawSceneDuration(activeScene.timestamp)");
     expect(keyframes).not.toContain("Add at playhead");
     expect(keyframes).toContain("Add at start");
+  });
+
+  it("N-08: 3-Second Lab never overrides its price — the registry (rail-pinned 200 VB) speaks", () => {
+    // The section once passed overrideCost: 2 (pre-x100 figure), so the
+    // confirm dialog and the spent toast claimed 2 VB while the rail
+    // charged OPENINGS_CREDITS = 200. With no override, useConfirmedApi
+    // falls back to the credit-costs registry, whose 200 is pinned to the
+    // rail constant by credit-costs-rail-truth.test.ts.
+    expect(threeSecondLab).not.toContain("overrideCost");
+    expect(threeSecondLab).not.toContain("const COST = 2");
   });
 });

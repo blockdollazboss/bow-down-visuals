@@ -11,9 +11,12 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    timeline's opening when available); AI writes 5 alternate opening hooks
    — spoken/visual text + visual direction — and SCORES each 0-100 for
    scroll-stopping power with one-line reasoning. Text-model analysis only;
-   no extra generation cost beyond the 2 VB analysis. */
-
-const COST = 2;
+   no extra generation cost beyond the 200 VB analysis.
+   Price display comes from the credit-costs registry (pinned to the
+   rail's OPENINGS_CREDITS by credit-costs-rail-truth.test.ts) — never
+   override it here: a hardcoded override of 2 (the pre-x100 figure) once
+   made the confirm dialog and the spent toast claim 2 VB for a 200 VB
+   charge. */
 
 interface Opening {
   text: string;
@@ -94,7 +97,6 @@ export function ThreeSecondLabSection({ openingHint, bare }: ThreeSecondLabSecti
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        overrideCost: COST,
         overrideFeature: "3-Second Lab",
         body: JSON.stringify({ videoDescription: description.trim(), niche: niche.trim() }),
       });
