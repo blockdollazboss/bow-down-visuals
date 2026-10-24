@@ -1155,6 +1155,30 @@ const DOCKED_FEATURES = [
     pricedEndpoints: [],
   },
   {
+    /* Post-purchase upsell (Stack-100 #3, Wave 3): the SAME add-on
+       designation as the order bump, offered once right after a
+       purchase completes on the order-success moment and charged in
+       one click off the saved payment method through its own
+       PaymentIntent. Docked at the money stage with the store rail;
+       real-money Stripe pricing at the seller-set product price, so
+       pricedEndpoints stays empty (the order-bumps precedent). */
+    id: "post-purchase-upsell",
+    name: { text: "Post-Purchase One-Click Add-on" },
+    path: "/store/dashboard",
+    hostPath: "/store/dashboard",
+    stage: "money",
+    description: {
+      text: "If a buyer skipped your add-on at checkout, it's offered once more right after they pay: one click charges the card they just used at your listed price or percent off, and it arrives as its own order. Same add-on setting as checkout bumps.",
+    },
+    endpoints: [
+      "/api/storefront/verify",
+      "/api/storefront/orders/:param/upsell",
+      "/api/storefront/orders/:param/upsell/accept",
+      "/api/storefront/orders/:param/upsell/decline",
+    ],
+    pricedEndpoints: [],
+  },
+  {
     id: "social-proof",
     name: { ns: "social-proof", field: "title" },
     path: "/settings",

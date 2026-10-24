@@ -1,0 +1,706 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server[39m
+
+[14:09:10.650] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "ba8cbf9a-2b6d-47d3-ab52-df15ff16d808"
+    [35mkind[39m: "digital"
+[14:09:11.199] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "75f3826e-77be-4e65-9238-ae8a92b3ae00"
+    [35mkind[39m: "digital"
+[14:09:11.484] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "ba8cbf9a-2b6d-47d3-ab52-df15ff16d808"
+    [35mbumpProductId[39m: "75f3826e-77be-4e65-9238-ae8a92b3ae00"
+    [35mpercentOff[39m: 10
+[14:09:11.991] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "3198af4e-2d4f-47d7-a5c8-32c6287c548f"
+    [35mkind[39m: "digital"
+[14:09:12.162] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "732fa163-b7e1-4ae8-b8e8-2e57c53fce99"
+    [35mkind[39m: "digital"
+[14:09:12.461] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "3198af4e-2d4f-47d7-a5c8-32c6287c548f"
+    [35mbumpProductId[39m: "732fa163-b7e1-4ae8-b8e8-2e57c53fce99"
+    [35mpercentOff[39m: 10
+[14:09:12.539] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "3198af4e-2d4f-47d7-a5c8-32c6287c548f"
+    [35mbumpProductId[39m: null
+    [35mpercentOff[39m: 0
+[14:09:12.828] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "f4a9bfa7-ba4f-48c6-a8d4-76d796677103"
+    [35mkind[39m: "digital"
+[14:09:13.329] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "53678349-29a9-48af-94a2-8ab41cd6a868"
+    [35mkind[39m: "digital"
+[14:09:13.500] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "117b753c-b648-4333-bad9-7b40d4b25a28"
+    [35mproductId[39m: "06de51aa-7622-4e5c-a616-fb58a728d3b2"
+    [35mkind[39m: "digital"
+[14:09:13.822] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "74181e77-2a4c-47a7-a213-d2a2ed9440e5"
+    [35mkind[39m: "digital"
+[14:09:13.982] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "7de4f2d2-1413-47fc-ae6a-7025fd00c2b7"
+    [35mkind[39m: "digital"
+[14:09:14.423] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "f9126e13-0603-4693-9a97-ecaba7333559"
+    [35mkind[39m: "digital"
+[14:09:14.579] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "5c69bc25-216c-458c-815b-725df8454d82"
+    [35mkind[39m: "digital"
+[14:09:14.971] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "3611c3aa-5b3e-4c1d-b286-b735c54a6438"
+    [35mkind[39m: "digital"
+[14:09:15.457] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "96ca2c41-994f-4e4b-85d4-effd1fccd19f"
+    [35mkind[39m: "digital"
+[14:09:15.567] [32mINFO[39m (35853): [36m[storefront] product deactivated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "96ca2c41-994f-4e4b-85d4-effd1fccd19f"
+[14:09:15.830] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "3611c3aa-5b3e-4c1d-b286-b735c54a6438"
+    [35mbumpProductId[39m: "96ca2c41-994f-4e4b-85d4-effd1fccd19f"
+    [35mpercentOff[39m: 0
+[14:09:16.177] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "b39cd08c-b8a3-4d0b-a462-e7c08a4fb697"
+    [35mkind[39m: "digital"
+[14:09:16.242] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "8eb2c2a0-750b-4e22-a4c4-f7c10533915b"
+    [35mkind[39m: "digital"
+[14:09:16.447] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "648aa9fd-d784-43cd-8ed6-e0dd54a8ac89"
+    [35mkind[39m: "digital"
+[14:09:16.554] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "e7bdd04f-8975-4307-b053-c54dfd68b1e5"
+    [35mkind[39m: "digital"
+[14:09:16.704] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "648aa9fd-d784-43cd-8ed6-e0dd54a8ac89"
+    [35mbumpProductId[39m: "e7bdd04f-8975-4307-b053-c54dfd68b1e5"
+    [35mpercentOff[39m: 10
+[14:09:16.934] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "648aa9fd-d784-43cd-8ed6-e0dd54a8ac89"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 4000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:17.180] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "f39d52f7-4d52-48fb-8f81-a03da0f88e7d"
+    [35mkind[39m: "digital"
+[14:09:17.300] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "b5b6eef3-aeb7-491a-9558-796de0b8ac48"
+    [35mkind[39m: "digital"
+[14:09:17.463] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "f39d52f7-4d52-48fb-8f81-a03da0f88e7d"
+    [35mbumpProductId[39m: "b5b6eef3-aeb7-491a-9558-796de0b8ac48"
+    [35mpercentOff[39m: 10
+[14:09:17.621] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "f39d52f7-4d52-48fb-8f81-a03da0f88e7d"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "b5b6eef3-aeb7-491a-9558-796de0b8ac48"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:17.762] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "725aa48c-786d-419f-8a99-8db4e8e035de"
+    [35mkind[39m: "digital"
+[14:09:17.850] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "1cbe11a7-9271-4354-b6ef-e7ddf099f9a6"
+    [35mkind[39m: "digital"
+[14:09:17.963] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "725aa48c-786d-419f-8a99-8db4e8e035de"
+    [35mbumpProductId[39m: "1cbe11a7-9271-4354-b6ef-e7ddf099f9a6"
+    [35mpercentOff[39m: 10
+[14:09:18.377] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "725aa48c-786d-419f-8a99-8db4e8e035de"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "1cbe11a7-9271-4354-b6ef-e7ddf099f9a6"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:18.486] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "725aa48c-786d-419f-8a99-8db4e8e035de"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "1cbe11a7-9271-4354-b6ef-e7ddf099f9a6"
+    [35msessionId[39m: "cs_test_2"
+    [35mdiscountCode[39m: null
+[14:09:18.583] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "725aa48c-786d-419f-8a99-8db4e8e035de"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 4000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_3"
+    [35mdiscountCode[39m: null
+[14:09:18.875] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "6da6fb26-3e03-4bc0-ac8c-9c930c8818ec"
+    [35mkind[39m: "digital"
+[14:09:19.228] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "ccd1c9bd-9090-4e43-86c1-2c5efade2320"
+    [35mkind[39m: "digital"
+[14:09:19.370] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "bb5e6d93-62b8-467d-abb6-c7cc494575da"
+    [35mkind[39m: "digital"
+[14:09:19.595] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "ccd1c9bd-9090-4e43-86c1-2c5efade2320"
+    [35mbumpProductId[39m: "bb5e6d93-62b8-467d-abb6-c7cc494575da"
+    [35mpercentOff[39m: 0
+[14:09:20.146] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "76c93daf-9597-4165-a3e7-3b23bd8cf922"
+    [35mkind[39m: "digital"
+[14:09:20.237] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "ab75606f-fcaf-48b1-a328-d9164a1a0ae6"
+    [35mkind[39m: "digital"
+[14:09:20.352] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "76c93daf-9597-4165-a3e7-3b23bd8cf922"
+    [35mbumpProductId[39m: "ab75606f-fcaf-48b1-a328-d9164a1a0ae6"
+    [35mpercentOff[39m: 10
+[14:09:20.553] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "76c93daf-9597-4165-a3e7-3b23bd8cf922"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 1000
+    [35mgrandTotal[39m: 3700
+    [35mbumpProductId[39m: "ab75606f-fcaf-48b1-a328-d9164a1a0ae6"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: "HALF"
+[14:09:20.642] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "dc80ec01-c07d-49f8-baca-8d2d2ec1dd57"
+    [35mkind[39m: "digital"
+[14:09:20.749] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "0d4908d5-a9ff-4248-8d56-35f2aa48cc0b"
+    [35mkind[39m: "digital"
+[14:09:20.869] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "dc80ec01-c07d-49f8-baca-8d2d2ec1dd57"
+    [35mbumpProductId[39m: "0d4908d5-a9ff-4248-8d56-35f2aa48cc0b"
+    [35mpercentOff[39m: 10
+[14:09:21.123] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "dc80ec01-c07d-49f8-baca-8d2d2ec1dd57"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 6700
+    [35mbumpProductId[39m: "0d4908d5-a9ff-4248-8d56-35f2aa48cc0b"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:21.294] [32mINFO[39m (35853): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "01ebe204-e81f-4134-b2df-84035f667de7"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 6700
+[14:09:21.477] [33mWARN[39m (35853): [36m[storefront] upsell offer unavailable for this order[39m
+    [35morderId[39m: "01ebe204-e81f-4134-b2df-84035f667de7"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  \nparams: 01ebe204-e81f-4134-b2df-84035f667de7: relation \"store_upsell_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = '01ebe204-e81f-4134-b2df-84035f667de7' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1
+            
+          params: 01ebe204-e81f-4134-b2df-84035f667de7
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at loadUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1024:13)
+              at ensureUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1085:20)
+              at /home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1597:21
+          caused by: Error: relation "store_upsell_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = '01ebe204-e81f-4134-b2df-84035f667de7' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  ",
+      "params": [
+        "01ebe204-e81f-4134-b2df-84035f667de7"
+      ]
+    }
+[14:09:21.758] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "92f5773a-cdc3-4711-a694-20c9c210e314"
+    [35mkind[39m: "digital"
+[14:09:21.848] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "8d2241f6-169e-43cd-803e-a7a1ceabafb3"
+    [35mkind[39m: "digital"
+[14:09:21.943] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "92f5773a-cdc3-4711-a694-20c9c210e314"
+    [35mbumpProductId[39m: "8d2241f6-169e-43cd-803e-a7a1ceabafb3"
+    [35mpercentOff[39m: 10
+[14:09:22.083] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "92f5773a-cdc3-4711-a694-20c9c210e314"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 1000
+    [35mgrandTotal[39m: 3700
+    [35mbumpProductId[39m: "8d2241f6-169e-43cd-803e-a7a1ceabafb3"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: "HALF"
+[14:09:22.325] [32mINFO[39m (35853): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "a42156cc-6a43-4f59-96b7-d022fb597903"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 3700
+[14:09:22.481] [33mWARN[39m (35853): [36m[storefront] upsell offer unavailable for this order[39m
+    [35morderId[39m: "a42156cc-6a43-4f59-96b7-d022fb597903"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  \nparams: a42156cc-6a43-4f59-96b7-d022fb597903: relation \"store_upsell_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = 'a42156cc-6a43-4f59-96b7-d022fb597903' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1
+            
+          params: a42156cc-6a43-4f59-96b7-d022fb597903
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at loadUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1024:13)
+              at ensureUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1085:20)
+              at /home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1597:21
+          caused by: Error: relation "store_upsell_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = 'a42156cc-6a43-4f59-96b7-d022fb597903' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  ",
+      "params": [
+        "a42156cc-6a43-4f59-96b7-d022fb597903"
+      ]
+    }
+[14:09:22.554] [32mINFO[39m (35853): [36m[storefront] verify: duplicate ignored[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "a42156cc-6a43-4f59-96b7-d022fb597903"
+[14:09:22.650] [33mWARN[39m (35853): [36m[storefront] upsell offer unavailable for this order[39m
+    [35morderId[39m: "a42156cc-6a43-4f59-96b7-d022fb597903"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  \nparams: a42156cc-6a43-4f59-96b7-d022fb597903: relation \"store_upsell_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = 'a42156cc-6a43-4f59-96b7-d022fb597903' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1
+            
+          params: a42156cc-6a43-4f59-96b7-d022fb597903
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at loadUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1024:13)
+              at ensureUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1085:20)
+              at /home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1597:21
+          caused by: Error: relation "store_upsell_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = 'a42156cc-6a43-4f59-96b7-d022fb597903' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  ",
+      "params": [
+        "a42156cc-6a43-4f59-96b7-d022fb597903"
+      ]
+    }
+[14:09:22.739] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "93e2c3ed-cc66-4f94-97c9-6f62456cf88f"
+    [35mkind[39m: "digital"
+[14:09:22.751] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "93e2c3ed-cc66-4f94-97c9-6f62456cf88f"
+    [35mquantity[39m: 2
+    [35mlineTotal[39m: 4000
+    [35mgrandTotal[39m: 4000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:22.761] [32mINFO[39m (35853): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "616d1f8e-e2eb-40e8-95b3-11a4b3b22680"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 4000
+[14:09:22.766] [33mWARN[39m (35853): [36m[storefront] upsell offer unavailable for this order[39m
+    [35morderId[39m: "616d1f8e-e2eb-40e8-95b3-11a4b3b22680"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  \nparams: 616d1f8e-e2eb-40e8-95b3-11a4b3b22680: relation \"store_upsell_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = '616d1f8e-e2eb-40e8-95b3-11a4b3b22680' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1
+            
+          params: 616d1f8e-e2eb-40e8-95b3-11a4b3b22680
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at loadUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1024:13)
+              at ensureUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1085:20)
+              at /home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1597:21
+          caused by: Error: relation "store_upsell_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = '616d1f8e-e2eb-40e8-95b3-11a4b3b22680' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  ",
+      "params": [
+        "616d1f8e-e2eb-40e8-95b3-11a4b3b22680"
+      ]
+    }
+[14:09:22.833] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "163abdde-c47f-4757-a33c-1c1dc6bf8bc2"
+    [35mkind[39m: "digital"
+[14:09:23.046] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "4cef4d04-f469-4c1a-8ecb-b9ac1eda928d"
+    [35mkind[39m: "digital"
+[14:09:23.318] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "163abdde-c47f-4757-a33c-1c1dc6bf8bc2"
+    [35mbumpProductId[39m: "4cef4d04-f469-4c1a-8ecb-b9ac1eda928d"
+    [35mpercentOff[39m: 10
+[14:09:23.588] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "163abdde-c47f-4757-a33c-1c1dc6bf8bc2"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35mgrandTotal[39m: 4700
+    [35mbumpProductId[39m: "4cef4d04-f469-4c1a-8ecb-b9ac1eda928d"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:23.743] [32mINFO[39m (35853): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "6c9fb7a1-a245-4c1d-b007-7c467504b9f2"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 4700
+[14:09:23.793] [33mWARN[39m (35853): [36m[storefront] upsell offer unavailable for this order[39m
+    [35morderId[39m: "6c9fb7a1-a245-4c1d-b007-7c467504b9f2"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  \nparams: 6c9fb7a1-a245-4c1d-b007-7c467504b9f2: relation \"store_upsell_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = '6c9fb7a1-a245-4c1d-b007-7c467504b9f2' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1
+            
+          params: 6c9fb7a1-a245-4c1d-b007-7c467504b9f2
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at loadUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1024:13)
+              at ensureUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1085:20)
+              at /home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1597:21
+          caused by: Error: relation "store_upsell_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = '6c9fb7a1-a245-4c1d-b007-7c467504b9f2' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  ",
+      "params": [
+        "6c9fb7a1-a245-4c1d-b007-7c467504b9f2"
+      ]
+    }
+[14:09:24.006] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "626e6cb5-fb5b-4cb7-9bd1-59b4a11b6fa2"
+    [35mkind[39m: "digital"
+[14:09:24.058] [32mINFO[39m (35853): [36m[storefront] product created[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "4e6db9b8-8552-4ca2-afd7-81fc4e4ff350"
+    [35mkind[39m: "digital"
+[14:09:24.130] [32mINFO[39m (35853): [36m[storefront] product bump updated[39m
+    [35muserId[39m: "4bbc878a-844c-4366-971f-fb1517472847"
+    [35mproductId[39m: "626e6cb5-fb5b-4cb7-9bd1-59b4a11b6fa2"
+    [35mbumpProductId[39m: "4e6db9b8-8552-4ca2-afd7-81fc4e4ff350"
+    [35mpercentOff[39m: 10
+[14:09:24.401] [32mINFO[39m (35853): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "e80f4e31-1bb5-494b-9674-2f8913b8fa9a"
+    [35mproductId[39m: "626e6cb5-fb5b-4cb7-9bd1-59b4a11b6fa2"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35mgrandTotal[39m: 4700
+    [35mbumpProductId[39m: "4e6db9b8-8552-4ca2-afd7-81fc4e4ff350"
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:24.447] [32mINFO[39m (35853): [36m[storefront] order recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a"
+    [35mkind[39m: "digital"
+    [35mamountCents[39m: 4700
+[14:09:24.457] [33mWARN[39m (35853): [36m[storefront] upsell offer unavailable for this order[39m
+    [35morderId[39m: "ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  \nparams: ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a: relation \"store_upsell_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM store_upsell_offers WHERE parent_order_id = 'ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1
+            
+          params: ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at loadUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1024:13)
+              at ensureUpsellOffer (/home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1085:20)
+              at /home/hatch/workspace/bdv-wt-w3-upsell/artifacts/api-server/src/routes/storefront.ts:1597:21
+          caused by: Error: relation "store_upsell_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM store_upsell_offers WHERE parent_order_id = 'ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM store_upsell_offers WHERE parent_order_id = $1 LIMIT 1\n  ",
+      "params": [
+        "ba2fb3bf-503d-4c7e-a3c2-5db5ed83f97a"
+      ]
+    }
+ [32m✓[39m src/routes/__tests__/storefront-order-bumps.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 16471[2mms[22m[39m
+   [32m✓[39m seller attach — one add-on, own products only [2m(8)[22m
+     [33m[2m✓[22m[39m attaches and the buyer payload resolves the live offer at the seller-set % off[33m 3484[2mms[22m[39m
+     [33m[2m✓[22m[39m detaching clears the setting and the offer[33m 799[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a product as its own add-on[33m 396[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses another seller's product[33m 648[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a $0 lead magnet as the add-on[33m 484[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses a percent off above the 90 ceiling[33m 594[2mms[22m[39m
+     [33m[2m✓[22m[39m an inactive add-on may be attached but shows no live offer[33m 1190[2mms[22m[39m
+     [33m[2m✓[22m[39m a non-owner cannot set another seller's bump[33m 413[2mms[22m[39m
+   [32m✓[39m checkout — server-computed totals, one session [2m(6)[22m
+     [33m[2m✓[22m[39m unticked: legacy totals exactly, one line item, no bump in metadata[33m 679[2mms[22m[39m
+     [33m[2m✓[22m[39m ticked: two line items, grand total and per-line fee split on the flat 5%[33m 669[2mms[22m[39m
+     [33m[2m✓[22m[39m double-charge impossibility: a double-submit reuses ONE idempotency key; ticking changes it[33m 965[2mms[22m[39m
+     [33m[2m✓[22m[39m a tick with no offer attached refuses — no session, no charge[33m 363[2mms[22m[39m
+     [33m[2m✓[22m[39m a tick whose add-on sold out after attaching refuses — no session[33m 830[2mms[22m[39m
+     [33m[2m✓[22m[39m a discount code discounts the MAIN line only — the bump stays at its seller price[33m 742[2mms[22m[39m
+   [32m✓[39m verify — the bump recorded as its own line, exactly once [2m(5)[22m
+     [33m[2m✓[22m[39m records one order whose bump columns and receipt lines reconcile to the cent[33m 1106[2mms[22m[39m
+     [33m[2m✓[22m[39m a duplicate verify is a pure no-op: one order, no second claim, no second discount use[33m 1035[2mms[22m[39m
+     [33m[2m✓[22m[39m a bump that sells out between payment and verify still records — with the exact refund owed in the note[33m 1076[2mms[22m[39m
+     [33m[2m✓[22m[39m sales and purchases both show the bump as its own receipt line[33m 713[2mms[22m[39m
+[14:09:44.082] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "1176b72d-000c-44a8-a474-b004b2c3eb12"
+    [35mkind[39m: "digital"
+[14:09:44.492] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "7d4be3b7-e73f-4817-98e0-9891d12e350c"
+    [35mkind[39m: "digital"
+[14:09:45.382] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "d7cbf265-8d6a-4375-9ee7-69fa4e41f450"
+    [35mkind[39m: "digital"
+[14:09:46.256] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "ced79dd3-f6fb-4b7b-8c01-6a66696d09c6"
+    [35mkind[39m: "digital"
+[14:09:46.844] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "3eaa49d3-3096-44f9-9615-e917ce6192c8"
+    [35mkind[39m: "digital"
+[14:09:47.431] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "9a2dc62e-5875-4695-85a6-6dbdebf51aaf"
+    [35mkind[39m: "digital"
+[14:09:47.595] [32mINFO[39m (36204): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "c519ee9f-c2f7-4105-b84b-01c1f37d1672"
+    [35mproductId[39m: "9a2dc62e-5875-4695-85a6-6dbdebf51aaf"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35mgrandTotal[39m: 2000
+    [35mbumpProductId[39m: null
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:09:47.823] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "dd32ff4c-8988-421c-be41-322ed2cc9e0f"
+    [35mkind[39m: "digital"
+[14:09:48.427] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "94027944-fa1c-454b-a038-9e7edd5492fc"
+    [35mkind[39m: "digital"
+[14:09:49.083] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "f2d4aaa8-a9de-46a3-ab8d-00755eda4796"
+    [35mkind[39m: "digital"
+[14:09:49.995] [32mINFO[39m (36204): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "c519ee9f-c2f7-4105-b84b-01c1f37d1672"
+    [35mproductId[39m: "f2d4aaa8-a9de-46a3-ab8d-00755eda4796"
+    [35morderId[39m: "a060f534-1141-4670-a3b7-29e6e258cfd9"
+    [35mkind[39m: "digital"
+[14:09:51.053] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "3b0265fb-f593-49b4-9dd7-a2fdc75acc21"
+    [35mkind[39m: "digital"
+[14:09:51.263] [32mINFO[39m (36204): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "c519ee9f-c2f7-4105-b84b-01c1f37d1672"
+    [35mproductId[39m: "3b0265fb-f593-49b4-9dd7-a2fdc75acc21"
+    [35morderId[39m: "5dee33d8-cd2c-454c-a365-a67a2d53f628"
+    [35mkind[39m: "digital"
+[14:09:51.392] [32mINFO[39m (36204): [36m[storefront] product created[39m
+    [35muserId[39m: "0c5fd4c6-7bda-49b7-b2bf-9b69b085eed5"
+    [35mproductId[39m: "5f0e426a-c695-47d3-a450-9b440aca5ed2"
+    [35mkind[39m: "digital"
+[14:09:51.546] [32mINFO[39m (36204): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "c519ee9f-c2f7-4105-b84b-01c1f37d1672"
+    [35mproductId[39m: "5f0e426a-c695-47d3-a450-9b440aca5ed2"
+    [35morderId[39m: "efd657b1-f9e2-43ff-a086-4746bb12cc25"
+    [35mkind[39m: "digital"
+[14:09:51.725] [32mINFO[39m (36204): [36m[storefront] claim: duplicate returned[39m
+    [35muserId[39m: "c519ee9f-c2f7-4105-b84b-01c1f37d1672"
+    [35mproductId[39m: "5f0e426a-c695-47d3-a450-9b440aca5ed2"
+    [35morderId[39m: "efd657b1-f9e2-43ff-a086-4746bb12cc25"
+ [32m✓[39m src/routes/__tests__/storefront-lead-magnet.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 9209[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — create + edit validation [2m(4)[22m
+     [33m[2m✓[22m[39m creates a $0 product and labels it free on the payload[33m 1505[2mms[22m[39m
+     [33m[2m✓[22m[39m a paid product is not flagged free, and paid validation is unchanged[33m 568[2mms[22m[39m
+     [33m[2m✓[22m[39m editing a paid product down to $0 turns it into a lead magnet[33m 1072[2mms[22m[39m
+     [33m[2m✓[22m[39m the public product page payload carries free + the claim note[33m 641[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — never a paid checkout [2m(3)[22m
+     [33m[2m✓[22m[39m checkout refuses a $0 product and creates zero Stripe sessions[33m 601[2mms[22m[39m
+     [33m[2m✓[22m[39m a paid product is NOT refused by the free guard (the guard is $0-only)[33m 541[2mms[22m[39m
+     [33m[2m✓[22m[39m the claim rail refuses a paid product[33m 478[2mms[22m[39m
+   [32m✓[39m $0 lead magnets — the claim exchange [2m(4)[22m
+     [33m[2m✓[22m[39m requires explicit email consent before anything is recorded[33m 493[2mms[22m[39m
+     [33m[2m✓[22m[39m claim = email capture + instant delivery, $0 order, no Stripe session anywhere[33m 1781[2mms[22m[39m
+     [33m[2m✓[22m[39m captures the email the buyer types, not only the account email[33m 907[2mms[22m[39m
+     [33m[2m✓[22m[39m a repeat claim returns the same order — no double subscribe, no second order[33m 546[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/storefronts-profile-slug.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 920[2mms[22m[39m
+   [32m✓[39m GET /api/storefronts/slug/:slug — creator-profile slug (MediaLinkBar caller) [2m(2)[22m
+     [33m[2m✓[22m[39m finds the shop BY OWNER'S PROFILE SLUG when the shop handle differs from it[33m 604[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m34 passed[39m[22m[90m (34)[39m
+[2m   Start at [22m 14:08:39
+[2m   Duration [22m 96.38s[2m (import 51%, tests 30%, transform 19%)[22m
+
+[2m     Import [22m [33m161 modules were evaluated 285 times[39m[2m · 45.68s total, 51% of tracked time[22m
+[2m            [22m [2m~19.88s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+
