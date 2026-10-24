@@ -25,7 +25,13 @@ import { creatorProfilesTable } from "./creator-platform";
  * it — this module never rebuilds fulfillment.
  */
 
-export const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket"] as const;
+/* 'course' (Creator Courses) is PENDING MIGRATION: the kind CHECK below
+   only accepts it once the held migration (see the lane's
+   MIGRATION-NEEDED.md; number assigned at join) widens
+   store_products_kind_check. The type carries it now so course code
+   typechecks; the DB still refuses course rows until the migration
+   lands, and the courses API fails closed (503) until then. */
+export const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket", "course"] as const;
 export type StoreProductKind = (typeof STORE_PRODUCT_KINDS)[number];
 
 /** Link-graph item: the track, video, drop page, or event a product relates to. */
@@ -118,7 +124,8 @@ export const storeProductsTable = pgTable("store_products", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
-  check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket')`),
+  /* PENDING MIGRATION widens this to include 'course' — see header note. */
+  check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket','course')`),
   /* >= 0 (migration 0190): $0 is a lead magnet — claimed by email via
      POST /api/storefront/claim, never run through Stripe checkout. */
   check("store_products_price_check", sql`${t.priceCents} >= 0`),

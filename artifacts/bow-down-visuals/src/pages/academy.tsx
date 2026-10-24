@@ -19,8 +19,9 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Guides from "@/pages/guides";
 import TutorialsPanel from "@/components/TutorialsPanel";
+import MyCoursesPanel from "@/components/courses/MyCoursesPanel";
 
-type AcademyTab = "academy" | "tutorials" | "guides";
+type AcademyTab = "academy" | "tutorials" | "guides" | "courses";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
  The education hub for creators: a free-to-browse course catalog with
@@ -880,7 +881,7 @@ export default function CreatorAcademy() {
   const [tab, setTab] = useState<AcademyTab>(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("tab");
-      if (q === "guides" || q === "tutorials") return q;
+      if (q === "guides" || q === "tutorials" || q === "courses") return q;
     } catch { /* non-browser — ignore */ }
     return "academy";
   });
@@ -889,6 +890,7 @@ export default function CreatorAcademy() {
     { key: "academy", label: t("academy.tabAcademy", { defaultValue: "Academy" }) },
     { key: "tutorials", label: t("academy.tabTutorials", { defaultValue: "How-To Videos" }) },
     { key: "guides", label: t("academy.tabGuides", { defaultValue: "Guides" }) },
+    { key: "courses", label: t("academy.tabCourses", { defaultValue: "My Courses" }) },
   ];
 
   return (
@@ -911,7 +913,7 @@ export default function CreatorAcademy() {
           ))}
         </div>
       </div>
-      {tab === "academy" ? <AcademyMain /> : tab === "tutorials" ? <TutorialsPanel /> : <Guides />}
+      {tab === "academy" ? <AcademyMain /> : tab === "tutorials" ? <TutorialsPanel /> : tab === "courses" ? <MyCoursesPanel /> : <Guides />}
     </div>
   );
 }

@@ -349,6 +349,7 @@ import worldTutorialRouter from "./world-tutorial";
 import moveHomeRouter from "./move-home";
 import catalogImportRouter from "./catalog-import";
 import tutorialsRouter from "./tutorials";
+import coursesRouter from "./courses";
 import dailyQuestsRouter from "./daily-quests";
 import publishRouter from "./publish";
 import mirrorMediaRouter from "./mirror-media";
@@ -692,6 +693,7 @@ router.use(worldTutorialRouter);              // /api/world/tutorial (Your First
 router.use(moveHomeRouter);                   // /api/move-home (Move Home concierge onboarding, 0193)
 router.use(catalogImportRouter);              // /api/catalog-import (Back-Catalog Migration Assistant, 0200)
 router.use(tutorialsRouter);                  // /api/tutorials (Tutorials V1 — Academy how-tos + fan progress, 0201)
+router.use(coursesRouter);                    // /api/courses (Creator Courses — storefront kind='course', curriculum + drip + progress; tables pending migration)
 router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Daily Quest Trio, 0150)
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)

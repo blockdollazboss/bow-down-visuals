@@ -9,6 +9,7 @@ import ProductReviews from "@/components/product-reviews/ProductReviews";
 import { dropCountdown, formatDropLocal, pad2 } from "@/lib/product-drop";
 import type { ProductDropDTO } from "@/lib/storefront-api";
 import { usePageTitle } from "@/hooks/use-page-title";
+import CourseOutline from "@/components/courses/CourseOutline";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
    The landing page for one store product (downloads, merch, digital
@@ -26,6 +27,7 @@ export const PRODUCT_KIND_LABELS: Record<string, string> = {
   digital: "Digital product",
   service: "Service",
   ticket: "Ticket",
+  course: "Course",
 };
 
 /** The add-on offer (feature #13): resolved server-side — present only
@@ -642,6 +644,8 @@ export default function StorefrontProduct() {
                     </label>
                   )}
                   <div className="mt-6 flex flex-wrap items-center gap-3">
+                    {/* A course is one unlock per buyer — no quantity picker. */}
+                    {data.product.kind !== "course" && (
                     <div className="inline-flex items-center rounded-full border border-amber-500/30">
                       <button
                         type="button"
@@ -663,6 +667,7 @@ export default function StorefrontProduct() {
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>
+                    )}
                     <input
                       value={discountCode}
                       onChange={(e) => setDiscountCode(e.target.value)}
@@ -694,6 +699,12 @@ export default function StorefrontProduct() {
         {/* Verified-purchase reviews docked on the product page itself
             (Stack-100 #3, #14) — summary + list + the buyer's form. */}
         {data && <ProductReviews productType="store_product" productId={data.product.id} />}
+        {/* A course's sales page carries its curriculum outline: the
+            full structure + drip schedule + free preview, with lesson
+            content enforced server-side (never in this page's payload). */}
+        {data && data.product.kind === "course" && (
+          <CourseOutline productId={data.product.id} />
+        )}
       </div>
     </div>
   );
