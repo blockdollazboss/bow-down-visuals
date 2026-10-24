@@ -41,6 +41,13 @@ vi.mock("../../middlewares/require-auth", () => ({
   },
 }));
 
+/* The suite drives the real router over one loopback IP; the public
+   limiter (30/min/IP) would 429 later tests depending on wall-clock
+   timing. Rate limiting is not what's under test here. */
+vi.mock("../../lib/rate-limit", () => ({
+  publicApiLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   return { ...actual, get db() { return h.db; } };
@@ -195,6 +202,10 @@ beforeEach(async () => {
     name: "gen_random_uuid",
     args: [],
     returns: "uuid" as never,
+    /* impure: pg-mem otherwise constant-folds the call and every
+       job_notifications row gets the same PK — later inserts in a test
+       then die silently on ON CONFLICT DO NOTHING. */
+    impure: true,
     implementation: () => randomUUID(),
   });
   /* createTestDb pre-creates job_notifications WITHOUT the id default

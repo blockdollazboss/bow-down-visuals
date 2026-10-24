@@ -350,6 +350,29 @@ async function checkSlot(
   };
 }
 
+/** The buyer's own confirmed CLAIM booking (free rail: no Stripe session)
+ *  at exactly `startUtc`, if one exists. A re-claim of that slot is a
+ *  duplicate of this booking — never a SLOT_TAKEN. */
+async function findOwnClaimAtSlot(
+  run: SqlRunner,
+  args: { buyerUserId: string; productId: string; startUtc: Date },
+): Promise<{ orderId: string; record: BookingRecord } | null> {
+  const r = await run.execute(sql`
+    SELECT id, fulfillment_note FROM store_orders
+    WHERE buyer_user_id = ${args.buyerUserId} AND product_id = ${args.productId}
+      AND stripe_session_id IS NULL AND status = 'completed'
+      AND fulfillment_note LIKE '%⟦bk1:%'
+    ORDER BY created_at ASC
+  `);
+  for (const row of r.rows as Array<Record<string, unknown>>) {
+    const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
+    if (rec && rec.s === args.startUtc.toISOString() && bookingBlocksSlot(rec)) {
+      return { orderId: String(row["id"]), record: rec };
+    }
+  }
+  return null;
+}
+
 /** Serialize booking writes per product: an UPDATE that changes nothing
  *  still takes the row lock in Postgres, held until the transaction ends. */
 async function lockProductRow(run: SqlRunner, productId: string): Promise<void> {
@@ -1514,11 +1537,21 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
       });
       if (!preCheck.ok && preCheck.code !== "SLOT_HELD_BY_YOU") {
         /* SLOT_HELD_BY_YOU can't occur on the claim rail (no holds are
-           placed here) — any other failure is a real refusal. */
-        res.status(preCheck.code === "SLOT_NOT_OFFERED" ? 400 : 409).json({
-          error: preCheck.code, message: preCheck.message,
-        });
-        return;
+           placed here). One SLOT_TAKEN is not a refusal either: the slot
+           may be blocked by the claimer's OWN confirmed claim — a
+           re-claim of it is a duplicate, and the duplicate return below
+           hands back the same order. Everything else is a real refusal. */
+        const ownClaim = preCheck.code === "SLOT_TAKEN"
+          ? await findOwnClaimAtSlot(db, {
+              buyerUserId: req.userId!, productId, startUtc: claimBookingStart,
+            })
+          : null;
+        if (!ownClaim) {
+          res.status(preCheck.code === "SLOT_NOT_OFFERED" ? 400 : 409).json({
+            error: preCheck.code, message: preCheck.message,
+          });
+          return;
+        }
       }
     }
 
