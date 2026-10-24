@@ -1627,11 +1627,29 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     Record<string, unknown> & { pinned_ugc_ad_id: string | null }
   >;
   const pinnedAds = await pinnedAdVideosById(rawProducts);
+  /* Order bumps (feature #13): the live add-on offer rides each
+     product exactly as on the handle read — this is the payload the
+     shop page's cart actually renders from. */
+  const bumpConfigs = await fetchShopBumpConfigs(shop.id);
+  const bumpTargets = new Map<string, ShopProductLite>();
+  for (const cfg of bumpConfigs.values()) {
+    if (!bumpTargets.has(cfg.bumpProductId)) {
+      const t = await fetchShopProductLite(cfg.bumpProductId);
+      if (t) bumpTargets.set(t.id, t);
+    }
+  }
   const buyerProducts = rawProducts.map((p) => {
     const { pinned_ugc_ad_id, ...pub } = p;
+    const pid = String(p["id"] ?? "");
+    const cfg = bumpConfigs.get(pid) ?? null;
     return {
       ...pub,
       pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
+      bump: shopBumpOfferFromRows(
+        { id: pid, shop_id: shop.id },
+        cfg,
+        cfg ? (bumpTargets.get(cfg.bumpProductId) ?? null) : null,
+      ),
     };
   });
   res.json(await refreshSupabaseStorageUrlsDeep({

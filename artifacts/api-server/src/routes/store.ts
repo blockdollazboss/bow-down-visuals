@@ -1281,46 +1281,59 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
 
   try {
     /* ── IDEMPOTENCY: Stripe may redirect/verify twice; stripe_session_id is
-       UNIQUE, so the second attempt is a harmless no-op. ─────────────── */
-    const inserted = splits.bump
-      ? await db.execute(sql`
-          INSERT INTO digital_sales
-            (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
-             amount_cents, platform_fee_cents, creator_amount_cents,
-             bump_item_kind, bump_item_id, bump_title, bump_amount_cents,
-             bump_platform_fee_cents, bump_creator_amount_cents)
-          VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
-                  ${amountCents}, ${feeCents}, ${creatorCents},
-                  ${bumpKind}, ${bumpItemId}, ${bumpTitle}, ${splits.bump.grossCents},
-                  ${splits.bump.feeCents}, ${splits.bump.creatorCents})
-          ON CONFLICT (stripe_session_id) DO NOTHING
-          RETURNING id
-        `)
-      : await db.execute(sql`
-          INSERT INTO digital_sales
-            (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
-             amount_cents, platform_fee_cents, creator_amount_cents)
-          VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
-                  ${amountCents}, ${feeCents}, ${creatorCents})
-          ON CONFLICT (stripe_session_id) DO NOTHING
-          RETURNING id
-        `);
+       UNIQUE, so the second attempt is a harmless no-op. The existing
+       sale is selected FIRST (the storefront rail's order): the
+       ON CONFLICT … RETURNING below stays as the race backstop, but a
+       plain duplicate never depends on its row count. ────────────── */
     let saleId: string;
     let duplicate = false;
-    if (inserted.rows.length > 0) {
-      saleId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
-      logger.info({ sessionId, saleId, amountCents }, "[store] digital sale recorded");
-    } else {
-      const existing = await db.execute(sql`
-        SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
-      `);
-      if (existing.rows.length === 0) {
-        res.status(500).json({ error: "Sale could not be recorded." });
-        return;
-      }
-      saleId = String((existing.rows[0] as Record<string, unknown>)["id"]);
+    const already = await db.execute(sql`
+      SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
+    `);
+    if (already.rows.length > 0) {
+      saleId = String((already.rows[0] as Record<string, unknown>)["id"]);
       duplicate = true;
       logger.info({ sessionId, saleId }, "[store] verify: duplicate ignored, sale already recorded");
+    } else {
+      const inserted = splits.bump
+        ? await db.execute(sql`
+            INSERT INTO digital_sales
+              (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+               amount_cents, platform_fee_cents, creator_amount_cents,
+               bump_item_kind, bump_item_id, bump_title, bump_amount_cents,
+               bump_platform_fee_cents, bump_creator_amount_cents)
+            VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
+                    ${amountCents}, ${feeCents}, ${creatorCents},
+                    ${bumpKind}, ${bumpItemId}, ${bumpTitle}, ${splits.bump.grossCents},
+                    ${splits.bump.feeCents}, ${splits.bump.creatorCents})
+            ON CONFLICT (stripe_session_id) DO NOTHING
+            RETURNING id
+          `)
+        : await db.execute(sql`
+            INSERT INTO digital_sales
+              (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
+               amount_cents, platform_fee_cents, creator_amount_cents)
+            VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
+                    ${amountCents}, ${feeCents}, ${creatorCents})
+            ON CONFLICT (stripe_session_id) DO NOTHING
+            RETURNING id
+          `);
+      if (inserted.rows.length > 0) {
+        saleId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+        logger.info({ sessionId, saleId, amountCents }, "[store] digital sale recorded");
+      } else {
+        /* Lost a same-instant race: the winner's row is the sale. */
+        const existing = await db.execute(sql`
+          SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
+        `);
+        if (existing.rows.length === 0) {
+          res.status(500).json({ error: "Sale could not be recorded." });
+          return;
+        }
+        saleId = String((existing.rows[0] as Record<string, unknown>)["id"]);
+        duplicate = true;
+        logger.info({ sessionId, saleId }, "[store] verify: duplicate ignored, sale already recorded");
+      }
     }
 
     /* Settle the gift-card hold against this sale (idempotent —

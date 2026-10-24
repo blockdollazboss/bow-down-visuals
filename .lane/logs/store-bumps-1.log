@@ -1,0 +1,455 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-morebumps/artifacts/api-server[39m
+
+[13:33:29.651] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "9eca6026-9a1e-43af-98bd-6f70f2daccbf"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "7115b8a4-12a0-4f8f-8485-d27fd2b81127"
+    [35mpercentOff[39m: 10
+[13:33:29.723] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "9eca6026-9a1e-43af-98bd-6f70f2daccbf"
+    [35mbumpKind[39m: null
+    [35mbumpItemId[39m: null
+    [35mpercentOff[39m: 0
+[13:33:30.144] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "0b01518c-d1d9-41f7-a047-45f3fd18ecdd"
+    [35mbumpKind[39m: "video"
+    [35mbumpItemId[39m: "71958c45-a7aa-4075-ac8f-7efd34e24c05"
+    [35mpercentOff[39m: 25
+[13:33:30.238] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "51aeabbd-2974-438d-a12b-35af3006c086"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "40789077-7470-48ef-91b1-ecb966861f08"
+    [35mpercentOff[39m: 10
+[13:33:30.432] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "89fc0c91-081b-4c56-bc4e-0167fd352b02"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "ddeca952-124c-4c63-8b41-69c7300ccd7a"
+    [35mpercentOff[39m: 10
+[13:33:30.450] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "89fc0c91-081b-4c56-bc4e-0167fd352b02"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "ddeca952-124c-4c63-8b41-69c7300ccd7a"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:30.579] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "bd3a3592-8321-403c-bd36-a9a0162761de"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "16374135-7734-4c01-83b2-263f110b27d1"
+    [35mpercentOff[39m: 10
+[13:33:30.634] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "bd3a3592-8321-403c-bd36-a9a0162761de"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 2000
+    [35mbumpItemId[39m: null
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:31.022] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "489d58fe-93e9-4d8d-b187-1703b64410fd"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "c7cae005-bcaa-4d27-8016-bf9df65e04fe"
+    [35mpercentOff[39m: 10
+[13:33:31.061] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "489d58fe-93e9-4d8d-b187-1703b64410fd"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "c7cae005-bcaa-4d27-8016-bf9df65e04fe"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:31.071] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "489d58fe-93e9-4d8d-b187-1703b64410fd"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "c7cae005-bcaa-4d27-8016-bf9df65e04fe"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_2"
+[13:33:31.082] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "489d58fe-93e9-4d8d-b187-1703b64410fd"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 2000
+    [35mbumpItemId[39m: null
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_3"
+[13:33:31.148] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "series"
+    [35mid[39m: "493ecdd1-7dbc-4a65-9bbf-c99e68c9d689"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "5bc690e6-b848-4aca-a8e3-8dc6073d9dc4"
+    [35mpercentOff[39m: 0
+[13:33:31.173] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "series"
+    [35mid[39m: "493ecdd1-7dbc-4a65-9bbf-c99e68c9d689"
+    [35mpriceCents[39m: 5000
+    [35mtotalCents[39m: 8000
+    [35mbumpItemId[39m: "5bc690e6-b848-4aca-a8e3-8dc6073d9dc4"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:31.191] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "50e6d538-50e2-4cd9-9ed5-e584196b87ad"
+    [35mamountCents[39m: 8000
+[13:33:31.281] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "8ad8600f-4fbb-44aa-9126-2ef5709b823e",
+        "sale",
+        "50e6d538-50e2-4cd9-9ed5-e584196b87ad",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Series” just sold for $80.00 — $76.00 is now in your pending payout. The cheat code works. Includes the “Bonus Beats Pack” add-on ($30.00).",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "50e6d538-50e2-4cd9-9ed5-e584196b87ad"
+[13:33:31.373] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "db001dcf-88e4-4337-a3e4-cb9a46c92d20"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "34d8672c-190e-40ee-a646-2458b9386c5a"
+    [35mpercentOff[39m: 10
+[13:33:31.396] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "db001dcf-88e4-4337-a3e4-cb9a46c92d20"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "34d8672c-190e-40ee-a646-2458b9386c5a"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:31.429] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "985da1c8-e11f-4436-9664-c48d9d5c7d77"
+    [35mamountCents[39m: 4700
+[13:33:31.449] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "87b2bcac-a9b1-4e6d-858b-d512e982aa53",
+        "sale",
+        "985da1c8-e11f-4436-9664-c48d9d5c7d77",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Track” just sold for $47.00 — $44.65 is now in your pending payout. The cheat code works. Includes the “Bonus Beats Pack” add-on ($27.00).",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "985da1c8-e11f-4436-9664-c48d9d5c7d77"
+[13:33:31.519] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "79f409b9-4c45-4d58-b79d-3fda0b9d0981"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "2536966e-93de-46dc-9ef2-364f200ff6db"
+    [35mpercentOff[39m: 10
+[13:33:31.538] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "79f409b9-4c45-4d58-b79d-3fda0b9d0981"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "2536966e-93de-46dc-9ef2-364f200ff6db"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:31.550] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "152727d5-36a4-4d60-b03a-06bc947a0f9d"
+    [35mamountCents[39m: 4700
+[13:33:31.579] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "efd6575a-7f77-4e8e-a8ac-c8a8cad52f8c",
+        "sale",
+        "152727d5-36a4-4d60-b03a-06bc947a0f9d",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Track” just sold for $47.00 — $44.65 is now in your pending payout. The cheat code works. Includes the “Bonus Beats Pack” add-on ($27.00).",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "152727d5-36a4-4d60-b03a-06bc947a0f9d"
+[13:33:31.596] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "152727d5-36a4-4d60-b03a-06bc947a0f9d"
+    [35mamountCents[39m: 4700
+[13:33:31.627] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "7ae42b0c-1f91-4208-843e-fbca0665a7b7",
+        "sale",
+        "152727d5-36a4-4d60-b03a-06bc947a0f9d",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Track” just sold for $47.00 — $44.65 is now in your pending payout. The cheat code works. Includes the “Bonus Beats Pack” add-on ($27.00).",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "152727d5-36a4-4d60-b03a-06bc947a0f9d"
+[13:33:31.779] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "ff70e763-b44f-40bc-9268-f002cc522c07"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "d2f72f1a-69f8-462d-814b-fbfe2f842c9e"
+    [35mpercentOff[39m: 10
+[13:33:31.877] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "ff70e763-b44f-40bc-9268-f002cc522c07"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "d2f72f1a-69f8-462d-814b-fbfe2f842c9e"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:31.893] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "841cd9b0-03f5-48cc-88d0-140bf7c1a7be"
+    [35mamountCents[39m: 4700
+[13:33:31.918] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "b61f7556-efe5-4f58-84af-15c61b7ec599",
+        "sale",
+        "841cd9b0-03f5-48cc-88d0-140bf7c1a7be",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Track” just sold for $47.00 — $44.65 is now in your pending payout. The cheat code works. Includes the “Bonus Beats Pack” add-on ($27.00).",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "841cd9b0-03f5-48cc-88d0-140bf7c1a7be"
+[13:33:32.146] [32mINFO[39m (20481): [36m[store] item bump updated[39m
+    [35muserId[39m: "fd3bbb91-c357-4b0a-b91a-262b1da27540"
+    [35mkind[39m: "track"
+    [35mid[39m: "039514f5-7b43-4830-864a-45c077b5ce75"
+    [35mbumpKind[39m: "track"
+    [35mbumpItemId[39m: "f67f925e-2e33-4b21-af63-c7abc52f55d4"
+    [35mpercentOff[39m: 10
+[13:33:32.168] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "039514f5-7b43-4830-864a-45c077b5ce75"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 4700
+    [35mbumpItemId[39m: "f67f925e-2e33-4b21-af63-c7abc52f55d4"
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:32.192] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "c7821961-9dab-401a-a989-41f22b40b471"
+    [35mamountCents[39m: 4700
+[13:33:32.224] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "24acdcb9-0822-4e1a-bf77-e57c8f5d3847",
+        "sale",
+        "c7821961-9dab-401a-a989-41f22b40b471",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Track” just sold for $47.00 — $44.65 is now in your pending payout. The cheat code works. Includes the “Add-on” add-on ($27.00).",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "c7821961-9dab-401a-a989-41f22b40b471"
+[13:33:32.420] [31mERROR[39m (20481): [36m[store] item bump update failed[39m
+    [35mkind[39m: "track"
+    [35mid[39m: "796f8bec-1a87-4b23-b6f0-c037e6916e17"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n        INSERT INTO digital_bump_offers (item_kind, item_id, bump_kind, bump_item_id, percent_off, updated_at)\n        VALUES ($1, $2, $3, $4, $5, now())\n        ON CONFLICT (item_kind, item_id) DO UPDATE\n          SET bump_kind = EXCLUDED.bump_kind,\n              bump_item_id = EXCLUDED.bump_item_id,\n              percent_off = EXCLUDED.percent_off,\n              updated_at = now()\n      \nparams: track,796f8bec-1a87-4b23-b6f0-c037e6916e17,track,2e7eed99-0d6d-4a10-a4b3-403b3200f180,10: relation \"digital_bump_offers\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n        INSERT INTO digital_bump_offers (item_kind, item_id, bump_kind, bump_item_id, percent_off, updated_at)\n        VALUES ('track', '796f8bec-1a87-4b23-b6f0-c037e6916e17', 'track', '2e7eed99-0d6d-4a10-a4b3-403b3200f180', '10', now())\n        ON CONFLICT (item_kind, item_id) DO UPDATE\n          SET bump_kind = EXCLUDED.bump_kind,\n              bump_item_id = EXCLUDED.bump_item_id,\n              percent_off = EXCLUDED.percent_off,\n              updated_at = now()\n      ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                  INSERT INTO digital_bump_offers (item_kind, item_id, bump_kind, bump_item_id, percent_off, updated_at)
+                  VALUES ($1, $2, $3, $4, $5, now())
+                  ON CONFLICT (item_kind, item_id) DO UPDATE
+                    SET bump_kind = EXCLUDED.bump_kind,
+                        bump_item_id = EXCLUDED.bump_item_id,
+                        percent_off = EXCLUDED.percent_off,
+                        updated_at = now()
+                
+          params: track,796f8bec-1a87-4b23-b6f0-c037e6916e17,track,2e7eed99-0d6d-4a10-a4b3-403b3200f180,10
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-morebumps/artifacts/api-server/src/routes/store.ts:593:7
+          caused by: Error: relation "digital_bump_offers" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                  INSERT INTO digital_bump_offers (item_kind, item_id, bump_kind, bump_item_id, percent_off, updated_at)
+                  VALUES ('track', '796f8bec-1a87-4b23-b6f0-c037e6916e17', 'track', '2e7eed99-0d6d-4a10-a4b3-403b3200f180', '10', now())
+                  ON CONFLICT (item_kind, item_id) DO UPDATE
+                    SET bump_kind = EXCLUDED.bump_kind,
+                        bump_item_id = EXCLUDED.bump_item_id,
+                        percent_off = EXCLUDED.percent_off,
+                        updated_at = now()
+                ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at new Insert (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9602:64)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2998:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+              at StackOf.usingValue (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:1192:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:134
+              at StackOf.usingValue (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:1192:24)
+      "query": "\n        INSERT INTO digital_bump_offers (item_kind, item_id, bump_kind, bump_item_id, percent_off, updated_at)\n        VALUES ($1, $2, $3, $4, $5, now())\n        ON CONFLICT (item_kind, item_id) DO UPDATE\n          SET bump_kind = EXCLUDED.bump_kind,\n              bump_item_id = EXCLUDED.bump_item_id,\n              percent_off = EXCLUDED.percent_off,\n              updated_at = now()\n      ",
+      "params": [
+        "track",
+        "796f8bec-1a87-4b23-b6f0-c037e6916e17",
+        "track",
+        "2e7eed99-0d6d-4a10-a4b3-403b3200f180",
+        10
+      ]
+    }
+[13:33:32.485] [32mINFO[39m (20481): [36m[store] checkout session created[39m
+    [35muserId[39m: "7d47cde0-447d-4c28-adb3-432c7a924fae"
+    [35mkind[39m: "track"
+    [35mid[39m: "ff14210a-331b-4158-a20c-09b80687c391"
+    [35mpriceCents[39m: 2000
+    [35mtotalCents[39m: 2000
+    [35mbumpItemId[39m: null
+    [35mpwyw[39m: false
+    [35msessionId[39m: "cs_test_1"
+[13:33:32.499] [32mINFO[39m (20481): [36m[store] digital sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35msaleId[39m: "4f5f1dd8-587c-4155-ac91-ce96f5fefaee"
+    [35mamountCents[39m: 2000
+[13:33:32.541] [31mERROR[39m (20481): [36m[store] sale notification failed (non-fatal)[39m
+    [35mnotifyErr[39m: {
+      "query": "\n    INSERT INTO job_notifications (id, job_type, job_id, user_id, project_id, status, title, message, video_url)\n    VALUES (\n      $1,\n      $2,\n      $3,\n      $4,\n      $5,\n      $6,\n      $7,\n      $8,\n      $9\n    )\n    ON CONFLICT DO NOTHING\n    RETURNING id, job_type, job_id, user_id, project_id, status, title, message, video_url, delivered_at, delivery_channel, delivery_attempts, created_at\n  ",
+      "params": [
+        "40221fb6-b958-4f5b-bb1e-aac151214a9d",
+        "sale",
+        "4f5f1dd8-587c-4155-ac91-ce96f5fefaee",
+        "fd3bbb91-c357-4b0a-b91a-262b1da27540",
+        null,
+        "completed",
+        "You just got paid 👑",
+        "“Golden Track” just sold for $20.00 — $19.00 is now in your pending payout. The cheat code works.",
+        null
+      ],
+      "cause": {
+        "code": "ECONNREFUSED"
+      }
+    }
+    [35msaleId[39m: "4f5f1dd8-587c-4155-ac91-ce96f5fefaee"
+ [31m❯[39m src/routes/__tests__/store-order-bumps.test.ts [2m([22m[2m15 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 4089[2mms[22m[39m
+   [32m✓[39m store bumps — seller attach [2m(3)[22m
+     [33m[2m✓[22m[39m attaches, reports live, and detaches[33m 1123[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses foreign targets, self, series targets, PWYW targets; non-owner 404s[33m 347[2mms[22m[39m
+     [32m✓[39m a video can ride as the add-on for a track[32m 69[2mms[22m[39m
+   [32m✓[39m store bumps — buyer offer + checkout [2m(6)[22m
+     [32m✓[39m the item payload resolves the live offer at the seller-set % off[32m 227[2mms[22m[39m
+     [32m✓[39m ticked checkout: one session, two line items, totals + splits reconcile[32m 79[2mms[22m[39m
+     [32m✓[39m unticked checkout is byte-identical to the pre-feature rail[32m 182[2mms[22m[39m
+     [32m✓[39m a tick with no live offer refuses the checkout — no session created[32m 212[2mms[22m[39m
+     [32m✓[39m double-submit of the same ticked checkout derives the SAME idempotency key; unticked differs[32m 235[2mms[22m[39m
+     [32m✓[39m a series main can carry a track bump; verify unlocks + delivers both[32m 200[2mms[22m[39m
+   [31m❯[39m store bumps — verify / receipts / double-charge impossibility [2m(4)[22m
+     [32m✓[39m verify records ONE sale with the bump as its own line; receipts reconcile[32m 166[2mms[22m[39m
+[31m     [31m×[31m duplicate verify is a pure no-op: one sale, both links reused, nothing re-minted[39m[32m 189[2mms[22m[39m
+     [33m[2m✓[22m[39m purchases + sales carry lines[] that sum to the recorded totals[33m 385[2mms[22m[39m
+     [32m✓[39m an add-on that vanishes after payment still records, with the exact refund owed[32m 206[2mms[22m[39m
+   [32m✓[39m store bumps — pre-migration (attachment table + bump columns absent) [2m(2)[22m
+     [32m✓[39m no offers anywhere; a tick refuses; attach 500s honestly[32m 218[2mms[22m[39m
+     [32m✓[39m legacy checkout + verify + purchases work byte-identically[32m 170[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/store-order-bumps.test.ts[2m > [22mstore bumps — verify / receipts / double-charge impossibility[2m > [22mduplicate verify is a pure no-op: one sale, both links reused, nothing re-minted
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/routes/__tests__/store-order-bumps.test.ts:[2m374:31[22m[39m
+    [90m372|[39m     const v1 = await req("POST", "/store/verify", { sessionId }, BUYER…
+    [90m373|[39m     const v2 = await req("POST", "/store/verify", { sessionId }, BUYER…
+    [90m374|[39m     expect(v2.json.duplicate).toBe(true);
+    [90m   |[39m                               [31m^[39m
+    [90m375|[39m     expect(v2.json.sale.id).toBe(v1.json.sale.id);
+    [90m376|[39m     expect(v2.json.download.token).toBe(v1.json.download.token);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m14 passed[39m[22m[90m (15)[39m
+[2m   Start at [22m 13:33:22
+[2m   Duration [22m 10.28s[2m (tests 42%, import 30%, transform 27%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 2.64s[39m[2m · 27% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
