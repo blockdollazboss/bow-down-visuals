@@ -23,6 +23,14 @@ import {
   type PlatformDeliveryStatus,
 } from "../../lib/distribution-aggregator";
 import { parseSpotifyItem } from "../../lib/distribution-legacy";
+import {
+  cleanLanguageDestinations,
+  cleanTerritoryDestinations,
+  resolveSmartlinkDestination,
+  sanitizeDestinationMap,
+  type DestinationMap,
+  type SmartlinkRoutedDestination,
+} from "../../lib/smartlink-routing";
 import { fanOutToFollowers } from "../../lib/notify-fanout";
 import { APP_PUBLIC_URL, presaveUrl } from "../../lib/presave-url";
 
@@ -1899,6 +1907,21 @@ router.get("/distribution/presave/:slug", async (req, res) => {
       const lrow = lr.rows[0] as unknown as { video_url: string | null; store_url: string | null; social_links: Record<string, string> | null } | undefined;
       if (lrow) landing = { videoUrl: lrow.video_url, storeUrl: lrow.store_url, socialLinks: lrow.social_links ?? {} };
     } catch { /* landing extras are additive */ }
+    /* ── Smartlink territory / language routing (Stack-100 #3 W3) ──
+       The creator may carry per-country destination overrides and
+       per-language destinations for this smartlink. Resolve HERE, from
+       the same signals the analytics rail already trusts (the CDN geo
+       header via requestCountry + the fan's Accept-Language), in the
+       order territory → language → default (no routed destination —
+       the page renders its flat links exactly as before). Pre-migration
+       installs (routing columns absent) resolve to null. */
+    const routingConfig = await loadSmartlinkRouting(row.id);
+    const routedDestination = resolveSmartlinkDestination({
+      territoryDestinations: routingConfig.territoryDestinations,
+      languageDestinations: routingConfig.languageDestinations,
+      country: requestCountry(req),
+      acceptLanguage: req.get("accept-language"),
+    });
     const releaseTargetMs = row.release_date
       ? (/^\d{4}-\d{2}-\d{2}$/.test(row.release_date.trim())
           ? new Date(`${row.release_date.trim()}T00:00:00Z`).getTime()
@@ -1940,6 +1963,10 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         released,
         persistsAfterRelease: true,
         landing,
+        /* ── Territory / language routing: the destination resolved
+           for THIS fan (null = no override matched — the flat platform
+           links below are the default destination set, unchanged). ── */
+        routing: { routedDestination },
         /* ── Retargeting pixels (migration 0187): the creator's own
            ad-platform IDs for this release. The landing fires exactly
            these on view; all null = nothing extra fires. ── */
@@ -2190,12 +2217,75 @@ function requestCountry(req: Request): string | null {
   return /^[A-Z]{2}$/.test(raw) && raw !== "XX" ? raw : null;
 }
 
+/* ─── Smartlink territory / language routing (Stack-100 #3 W3) ────────
+   Creator-entered routed destinations live in two jsonb columns on
+   distribution_releases (migration HELD — .lane/MIGRATION-NEEDED.md).
+   Every read goes through this guarded probe, the release_landing_
+   content discipline: a missing column on an older install degrades
+   to "no routing configured" (ready: false), never an error. Stored
+   maps are re-sanitized on read so a row written any other way can
+   never route a fan to a bent URL. */
+interface SmartlinkRoutingConfig {
+  ready: boolean;
+  territoryDestinations: DestinationMap;
+  languageDestinations: DestinationMap;
+}
+
+async function loadSmartlinkRouting(releaseId: string): Promise<SmartlinkRoutingConfig> {
+  try {
+    const r = await db.execute(sql`
+      SELECT smartlink_territory_destinations, smartlink_language_destinations
+      FROM distribution_releases WHERE id = ${releaseId} LIMIT 1
+    `);
+    const row = r.rows[0] as {
+      smartlink_territory_destinations?: unknown;
+      smartlink_language_destinations?: unknown;
+    } | undefined;
+    if (!row) return { ready: true, territoryDestinations: {}, languageDestinations: {} };
+    return {
+      ready: true,
+      territoryDestinations: sanitizeDestinationMap(row.smartlink_territory_destinations, "territory"),
+      languageDestinations: sanitizeDestinationMap(row.smartlink_language_destinations, "language"),
+    };
+  } catch {
+    return { ready: false, territoryDestinations: {}, languageDestinations: {} };
+  }
+}
+
+/** Resolve the routed destination for THIS request (public landing +
+    routed-click recording share it, so a recorded rule always matches
+    the destination the fan was actually shown). */
+async function routedDestinationForRequest(
+  req: Request,
+  releaseId: string,
+): Promise<SmartlinkRoutedDestination | null> {
+  const config = await loadSmartlinkRouting(releaseId);
+  return resolveSmartlinkDestination({
+    territoryDestinations: config.territoryDestinations,
+    languageDestinations: config.languageDestinations,
+    country: requestCountry(req),
+    acceptLanguage: req.get("accept-language"),
+  });
+}
+
 interface SmartlinkTarget { linkKey: string; linkTitle: string }
 async function resolveSmartlinkTarget(
   release: { id: string; platformLinks: Record<string, string>; bonusUrl: string | null },
   kind: string,
   key: string,
+  routed: SmartlinkRoutedDestination | null = null,
 ): Promise<SmartlinkTarget | null> {
+  if (kind === "routed") {
+    /* The routed destination is resolved server-side from the fan's
+       own signals — the client names no URL and no rule, so a tap can
+       only ever record the route this request actually resolves to.
+       link_key/link_title carry which rule fired into the existing
+       per-link analytics (no schema change needed). */
+    if (!routed) return null;
+    return routed.rule === "territory"
+      ? { linkKey: "routed:territory", linkTitle: `Territory route (${routed.country})` }
+      : { linkKey: "routed:language", linkTitle: `Language route (${routed.language})` };
+  }
   if (kind === "platform") {
     if (!PRESAVE_LINK_PLATFORMS.has(key) || !release.platformLinks[key]) return null;
     return { linkKey: key, linkTitle: (PLATFORM_LABEL as Record<string, string>)[key] ?? key };
@@ -2227,7 +2317,7 @@ const linkEventSchema = z.object({
 });
 
 const linkClickSchema = z.object({
-  kind: z.enum(["platform", "video", "store", "social", "bonus"]).optional().default("platform"),
+  kind: z.enum(["platform", "video", "store", "social", "bonus", "routed"]).optional().default("platform"),
   key: z.string().max(60).optional().default(""),
   channel: z.string().max(120).optional().default(""),
 });
@@ -2281,10 +2371,14 @@ router.post("/distribution/presave/:slug/click", publicApiLimiter, async (req, r
       SELECT presave_platform_links FROM distribution_releases WHERE id = ${release.id} LIMIT 1
     `);
     const row = (full.rows[0] ?? {}) as { presave_platform_links?: Record<string, string> | null };
+    const routed = parsed.data.kind === "routed"
+      ? await routedDestinationForRequest(req, release.id)
+      : null;
     const target = await resolveSmartlinkTarget(
       { id: release.id, platformLinks: row.presave_platform_links ?? {}, bonusUrl: release.bonusUrl },
       parsed.data.kind,
       parsed.data.key.trim().toLowerCase(),
+      routed,
     );
     if (!target) {
       res.status(400).json({ error: "That link isn't on this release page." });
@@ -2306,6 +2400,12 @@ const presaveSettingsSchema = z.object({
   metaPixelId: z.string().max(64).optional(),
   tiktokPixelId: z.string().max(64).optional(),
   googleTagId: z.string().max(64).optional(),
+  /* Smartlink territory / language routing (Stack-100 #3 W3):
+     country code → destination URL, language code → destination URL.
+     Shape-checked loosely here; cleanTerritoryDestinations /
+     cleanLanguageDestinations produce the specific refusal messages. */
+  territoryDestinations: z.record(z.string().max(40), z.string().max(2000)).optional(),
+  languageDestinations: z.record(z.string().max(40), z.string().max(2000)).optional(),
 });
 
 const PRESAVE_LINK_PLATFORMS = new Set([
@@ -2332,7 +2432,33 @@ router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (
       res.status(400).json({ error: "Invalid pre-save settings." });
       return;
     }
-    const { headline, platformLinks, bonusUrl, metaPixelId, tiktokPixelId, googleTagId } = parsed.data;
+    const { headline, platformLinks, bonusUrl, metaPixelId, tiktokPixelId, googleTagId, territoryDestinations, languageDestinations } = parsed.data;
+
+    /* Territory / language routing: probed + validated BEFORE any
+       mutation, so a refused routing save changes nothing at all.
+       Pre-migration installs (routing columns absent) answer an
+       honest 503 for a routing save — the rest of the settings rail
+       keeps working there (see loadSmartlinkRouting). */
+    const routingTouched = territoryDestinations !== undefined || languageDestinations !== undefined;
+    let routingConfig: SmartlinkRoutingConfig | null = null;
+    let nextTerritory: DestinationMap | null = null;
+    let nextLanguage: DestinationMap | null = null;
+    if (routingTouched) {
+      routingConfig = await loadSmartlinkRouting(release.id);
+      if (!routingConfig.ready) {
+        res.status(503).json({
+          error: "smartlink_routing_not_ready",
+          message: "Territory routing isn't switched on for this install yet — nothing was saved.",
+        });
+        return;
+      }
+      const terr = cleanTerritoryDestinations(territoryDestinations, routingConfig.territoryDestinations);
+      if (!terr.ok) { res.status(400).json({ error: terr.error }); return; }
+      const lang = cleanLanguageDestinations(languageDestinations, routingConfig.languageDestinations);
+      if (!lang.ok) { res.status(400).json({ error: lang.error }); return; }
+      nextTerritory = terr.value;
+      nextLanguage = lang.value;
+    }
 
     /* Keep only known platform keys with real http(s) URLs. */
     const links: Record<string, string> = {};
@@ -2376,6 +2502,17 @@ router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (
           updated_at = now()
       WHERE id = ${release.id}
     `);
+    if (routingTouched && nextTerritory && nextLanguage) {
+      await db.execute(sql`
+        UPDATE distribution_releases
+        SET smartlink_territory_destinations = ${JSON.stringify(nextTerritory)}::jsonb,
+            smartlink_language_destinations = ${JSON.stringify(nextLanguage)}::jsonb,
+            updated_at = now()
+        WHERE id = ${release.id}
+      `);
+      routingConfig = { ready: true, territoryDestinations: nextTerritory, languageDestinations: nextLanguage };
+    }
+    if (!routingConfig) routingConfig = await loadSmartlinkRouting(release.id);
     res.json({
       ok: true,
       settings: {
@@ -2383,6 +2520,9 @@ router.patch("/distribution/releases/:id/presave-settings", requireAuth, async (
         platformLinks: merged,
         bonusUrl: nextBonus,
         pixels: { metaPixelId: metaPx.value, tiktokPixelId: tiktokPx.value, googleTagId: googlePx.value },
+        territoryDestinations: routingConfig.territoryDestinations,
+        languageDestinations: routingConfig.languageDestinations,
+        routingReady: routingConfig.ready,
       },
     });
   } catch (err) {
@@ -2462,6 +2602,7 @@ router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, 
           .map((r) => ({ country: r.country, clicks: Number(r.c ?? 0) })),
       };
     } catch { linkAnalytics = null; }
+    const routingConfig = await loadSmartlinkRouting(release.id);
     res.json({
       settings: {
         headline: s.presave_headline ?? null,
@@ -2472,6 +2613,9 @@ router.get("/distribution/releases/:id/presave-stats", requireAuth, async (req, 
           tiktokPixelId: s.tiktok_pixel_id ?? null,
           googleTagId: s.google_tag_id ?? null,
         },
+        territoryDestinations: routingConfig.territoryDestinations,
+        languageDestinations: routingConfig.languageDestinations,
+        routingReady: routingConfig.ready,
       },
       linkAnalytics,
       followers: Number((followCount.rows[0] as { c: string | number }).c ?? 0),

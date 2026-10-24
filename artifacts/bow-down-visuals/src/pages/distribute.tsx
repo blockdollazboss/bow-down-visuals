@@ -23,6 +23,12 @@ import { useHubProject } from "@/lib/hub-project";
 import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-handoff";
 import { isValidPixelId, type SmartlinkPixels } from "@/lib/smartlink-pixels";
 import {
+  destinationMapFromRows,
+  destinationRows,
+  type DestinationMap,
+  type DestinationRow,
+} from "@/lib/smartlink-routing";
+import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
   DISTRIBUTION_PACKAGING_CREDITS,
@@ -1430,6 +1436,12 @@ interface PresaveStats {
     platformLinks: Record<string, string>;
     bonusUrl: string | null;
     pixels: SmartlinkPixels;
+    /* Territory / language routing (Stack-100 #3 W3). routingReady is
+       false on a pre-migration install — the maps then read empty and
+       a routing save answers an honest 503 from the server. */
+    territoryDestinations?: DestinationMap;
+    languageDestinations?: DestinationMap;
+    routingReady?: boolean;
   };
   /* null on a pre-0187 install (analytics not collected yet) — the UI
      hides the panel rather than showing invented zeros. */
@@ -1458,6 +1470,9 @@ function PresaveManager(props: {
   const [metaPixelId, setMetaPixelId] = useState("");
   const [tiktokPixelId, setTiktokPixelId] = useState("");
   const [googleTagId, setGoogleTagId] = useState("");
+  const [territoryRows, setTerritoryRows] = useState<DestinationRow[]>([]);
+  const [languageRows, setLanguageRows] = useState<DestinationRow[]>([]);
+  const [routingReady, setRoutingReady] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const loadStats = useCallback(async () => {
@@ -1474,6 +1489,9 @@ function PresaveManager(props: {
       setMetaPixelId(data.settings?.pixels?.metaPixelId ?? "");
       setTiktokPixelId(data.settings?.pixels?.tiktokPixelId ?? "");
       setGoogleTagId(data.settings?.pixels?.googleTagId ?? "");
+      setTerritoryRows(destinationRows(data.settings?.territoryDestinations));
+      setLanguageRows(destinationRows(data.settings?.languageDestinations));
+      setRoutingReady(data.settings?.routingReady !== false);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't load pre-save stats.");
     } finally {
@@ -1490,6 +1508,12 @@ function PresaveManager(props: {
     if (!isValidPixelId("meta", metaPixelId)) { onError("That Meta Pixel ID doesn't look right — it should be 6–20 digits. Nothing was saved."); return; }
     if (!isValidPixelId("tiktok", tiktokPixelId)) { onError("That TikTok Pixel ID doesn't look right — check it and try again. Nothing was saved."); return; }
     if (!isValidPixelId("google", googleTagId)) { onError("That Google tag ID doesn't look right — it starts with G-, AW-, GT- or UA-. Nothing was saved."); return; }
+    /* Routing rows are shape-checked here too; the server validates
+       again and refuses a bent map whole (nothing half-saved). */
+    const territory = destinationMapFromRows(territoryRows, "territory");
+    if (!territory.ok) { onError(territory.error); return; }
+    const language = destinationMapFromRows(languageRows, "language");
+    if (!language.ok) { onError(language.error); return; }
     setSaving(true);
     onError("");
     try {
@@ -1503,11 +1527,16 @@ function PresaveManager(props: {
           metaPixelId: metaPixelId.trim(),
           tiktokPixelId: tiktokPixelId.trim(),
           googleTagId: googleTagId.trim(),
+          territoryDestinations: territory.value,
+          languageDestinations: language.value,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as PresaveStats & { error?: string; message?: string };
       if (!res.ok) throw new Error((data as { message?: string; error?: string }).message || (data as { error?: string }).error || "Couldn't save pre-save settings.");
       setStats((prev) => (prev ? { ...prev, settings: data.settings } : prev));
+      setTerritoryRows(destinationRows(data.settings?.territoryDestinations));
+      setLanguageRows(destinationRows(data.settings?.languageDestinations));
+      setRoutingReady(data.settings?.routingReady !== false);
       setEditing(false);
       onNotice("Pre-save page updated — free.");
     } catch (err) {
@@ -1662,7 +1691,7 @@ function PresaveManager(props: {
           {/* settings editor */}
           {!editing ? (
             <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110">
-              <Type className="h-3.5 w-3.5" /> Customize the pre-save page — headline, platform links, bonus content, retargeting pixels
+              <Type className="h-3.5 w-3.5" /> Customize the pre-save page — headline, platform links, bonus content, retargeting pixels, territory routing
             </button>
           ) : (
             <div className={`space-y-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
@@ -1737,6 +1766,89 @@ function PresaveManager(props: {
                 </div>
                 <p className="mt-2 text-xs text-white/40">
                   When a fan opens your release page, these fire so the visit becomes an audience you can advertise back to. Leave blank for none.
+                </p>
+              </div>
+              <div>
+                <label className={labelClass}>Territory &amp; language routing <span className="font-normal normal-case text-white/30">(optional — send fans to the destination that works where they are)</span></label>
+                {!routingReady && (
+                  <p className="mb-2 text-xs text-amber-300/80">
+                    Routing isn&apos;t switched on for this install yet — you can look, but a routing save won&apos;t go through until it is.
+                  </p>
+                )}
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/35">By country</p>
+                <div className="space-y-2">
+                  {territoryRows.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        value={row.code}
+                        onChange={(e) => setTerritoryRows((prev) => prev.map((r, j) => (j === i ? { ...r, code: e.target.value } : r)))}
+                        placeholder="DE"
+                        maxLength={2}
+                        aria-label="Country code"
+                        className={`${inputClass} w-20 shrink-0 py-2 text-xs uppercase`}
+                      />
+                      <input
+                        value={row.url}
+                        onChange={(e) => setTerritoryRows((prev) => prev.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)))}
+                        placeholder="https://… (the store / stream link that works there)"
+                        inputMode="url"
+                        aria-label="Territory destination URL"
+                        className={`${inputClass} py-2 text-xs`}
+                      />
+                      <button
+                        onClick={() => setTerritoryRows((prev) => prev.filter((_, j) => j !== i))}
+                        className="shrink-0 text-white/40 hover:text-red-300"
+                        aria-label="Remove territory destination"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setTerritoryRows((prev) => [...prev, { code: "", url: "" }])}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add a country
+                  </button>
+                </div>
+                <p className="mb-2 mt-4 text-[11px] font-bold uppercase tracking-widest text-white/35">By language</p>
+                <div className="space-y-2">
+                  {languageRows.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        value={row.code}
+                        onChange={(e) => setLanguageRows((prev) => prev.map((r, j) => (j === i ? { ...r, code: e.target.value } : r)))}
+                        placeholder="es"
+                        maxLength={5}
+                        aria-label="Language code"
+                        className={`${inputClass} w-20 shrink-0 py-2 text-xs lowercase`}
+                      />
+                      <input
+                        value={row.url}
+                        onChange={(e) => setLanguageRows((prev) => prev.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)))}
+                        placeholder="https://… (the localized destination)"
+                        inputMode="url"
+                        aria-label="Language destination URL"
+                        className={`${inputClass} py-2 text-xs`}
+                      />
+                      <button
+                        onClick={() => setLanguageRows((prev) => prev.filter((_, j) => j !== i))}
+                        className="shrink-0 text-white/40 hover:text-red-300"
+                        aria-label="Remove language destination"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setLanguageRows((prev) => [...prev, { code: "", url: "" }])}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add a language
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-white/40">
+                  A fan whose country has a destination gets that one first; otherwise their browser language decides; otherwise your platform links above — untouched. Clear a URL and save to remove that route. Routed taps show in your link analytics as “Territory route” / “Language route”.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
