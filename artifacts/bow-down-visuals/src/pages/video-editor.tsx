@@ -56,6 +56,7 @@ import {
   type VideoFormat,
   type FitMode,
 } from "@/lib/editor-settings";
+import { isTimelineLocked, timelineLockBlocksScenesChange, timelineLockBlocksSettingsChange, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
 import { computeMasterPlayerFit } from "@/lib/master-player-size";
 import { fetchTrack, resolveMedia } from "@/lib/streaming";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
@@ -1218,12 +1219,12 @@ export default function VideoEditor() {
         // Auto-parse scenes from saved result text when none were persisted
         if (savedScenes.length === 0 && savedResult) {
           const parsed = parseScenes(extractBreakdownContent(savedResult));
-          setScenes(parsed);
+          setScenesInternal(parsed);
           if (parsed.length > 0) setRebuildStatus("done");
         } else {
-          setScenes(savedScenes);
+          setScenesInternal(savedScenes);
         }
-        setSettings(normalizeEditorSettings(data.project.output_data?.editorSettings));
+        setSettingsInternal(normalizeEditorSettings(data.project.output_data?.editorSettings));
         setTranscriptText(data.project.output_data?.transcriptText ?? null);
         resetHistory();
         hydrated.current = true;
@@ -1262,14 +1263,48 @@ export default function VideoEditor() {
     settings: settingsRef.current,
   }), []);
 
-  const setScenes = useCallback((update: SetStateAction<SceneData[]>) => {
-    const prev = scenesRef.current;
-    const next = typeof update === "function" ? (update as (p: SceneData[]) => SceneData[])(prev) : update;
-    if (next === prev) return;
+  /* ── Timeline lock enforcement (lib/timeline-lock.ts) ──────────────────
+   * The wrapped setScenes/setSettings below are what every editor section
+   * receives, so they are the chokepoint: while settings.timelineLocked is
+   * on, any scenes change (move/split/delete/duplicate/paste/rename/
+   * replace/add — they all replace the array) and any settings change that
+   * rewrites the per-clip edits record (settings.clips: trims, manual
+   * positions, transitions, effects, speed, volume, lip-sync) is refused
+   * with a (throttled) toast. Non-clip settings — playback, captions,
+   * export range, dock layout — keep flowing while locked. The *Internal
+   * variants exist ONLY for the project-load effect: loading establishes
+   * the state (including the lock flag itself) and must never be refused. */
+  const lockToastAtRef = useRef(0);
+  const notifyTimelineLocked = useCallback(() => {
+    const nowMs = Date.now();
+    if (nowMs - lockToastAtRef.current < 2500) return;
+    lockToastAtRef.current = nowMs;
+    toast({ title: "Timeline locked", description: TIMELINE_LOCKED_MESSAGE, variant: "destructive" });
+  }, [toast]);
+
+  const commitScenes = useCallback((next: SceneData[]) => {
     pushHistory(snapshotNow());
     scenesRef.current = next;
     setScenesState(next);
   }, [pushHistory, snapshotNow]);
+
+  const setScenes = useCallback((update: SetStateAction<SceneData[]>) => {
+    const prev = scenesRef.current;
+    const next = typeof update === "function" ? (update as (p: SceneData[]) => SceneData[])(prev) : update;
+    if (next === prev) return;
+    if (timelineLockBlocksScenesChange(settingsRef.current, prev, next)) {
+      notifyTimelineLocked();
+      return;
+    }
+    commitScenes(next);
+  }, [commitScenes, notifyTimelineLocked]);
+
+  const setScenesInternal = useCallback((update: SetStateAction<SceneData[]>) => {
+    const prev = scenesRef.current;
+    const next = typeof update === "function" ? (update as (p: SceneData[]) => SceneData[])(prev) : update;
+    if (next === prev) return;
+    commitScenes(next);
+  }, [commitScenes]);
 
   /* ── Hub project spine: drop a project clip/video straight into the
      timeline as its own scene (marked intentionally-reused so the export's
@@ -1389,27 +1424,43 @@ export default function VideoEditor() {
     });
   }, [setTab, toast, t]);
 
-  const setSettings = useCallback((update: SetStateAction<EditorSettings>) => {
-    const prev = settingsRef.current;
-    const next = typeof update === "function" ? (update as (p: EditorSettings) => EditorSettings)(prev) : update;
-    if (next === prev) return;
+  const commitSettings = useCallback((next: EditorSettings) => {
     pushHistory(snapshotNow());
     settingsRef.current = next;
     setSettingsState(next);
   }, [pushHistory, snapshotNow]);
+
+  const setSettings = useCallback((update: SetStateAction<EditorSettings>) => {
+    const prev = settingsRef.current;
+    const next = typeof update === "function" ? (update as (p: EditorSettings) => EditorSettings)(prev) : update;
+    if (next === prev) return;
+    if (timelineLockBlocksSettingsChange(prev, next)) {
+      notifyTimelineLocked();
+      return;
+    }
+    commitSettings(next);
+  }, [commitSettings, notifyTimelineLocked]);
+
+  const setSettingsInternal = useCallback((update: SetStateAction<EditorSettings>) => {
+    const prev = settingsRef.current;
+    const next = typeof update === "function" ? (update as (p: EditorSettings) => EditorSettings)(prev) : update;
+    if (next === prev) return;
+    commitSettings(next);
+  }, [commitSettings]);
 
   /* Trending Remix Feed deep-link (?remix=<slug>) — applies the preset's
      effect/motion and opens the relevant tab. */
   useRemixDeeplink({ setSettings, setTab });
 
   const handleUndo = useCallback(() => {
+    if (isTimelineLocked(settingsRef.current)) { notifyTimelineLocked(); return; }
     const snap = undoStep(snapshotNow());
     if (!snap) return;
     scenesRef.current = snap.scenes;
     settingsRef.current = snap.settings;
     setScenesState(snap.scenes);
     setSettingsState(snap.settings);
-  }, [undoStep, snapshotNow]);
+  }, [undoStep, snapshotNow, notifyTimelineLocked]);
 
   /** Wave 9 — apply beat-cut times as real scene splits in the timeline model.
       Same split semantics as TimelineDock's doSplit: the scene under each cut
@@ -1418,6 +1469,7 @@ export default function VideoEditor() {
       Undoable via the wrapped setScenes/setSettings. Returns the number of
       cuts actually applied. */
   const applyBeatCuts = useCallback((cuts: number[]): number => {
+    if (isTimelineLocked(settingsRef.current)) { notifyTimelineLocked(); return 0; }
     const curScenes = scenesRef.current;
     const curSettings = settingsRef.current;
     if (!curScenes.length || !cuts.length) return 0;
@@ -1462,16 +1514,17 @@ export default function VideoEditor() {
       setSettings({ ...curSettings, clips: nextClips });
     }
     return applied;
-  }, [previewEngineState?.audioDuration, setScenes, setSettings]);
+  }, [previewEngineState?.audioDuration, setScenes, setSettings, notifyTimelineLocked]);
 
   const handleRedo = useCallback(() => {
+    if (isTimelineLocked(settingsRef.current)) { notifyTimelineLocked(); return; }
     const snap = redoStep(snapshotNow());
     if (!snap) return;
     scenesRef.current = snap.scenes;
     settingsRef.current = snap.settings;
     setScenesState(snap.scenes);
     setSettingsState(snap.settings);
-  }, [redoStep, snapshotNow]);
+  }, [redoStep, snapshotNow, notifyTimelineLocked]);
 
   /* Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — skipped inside text fields so native
    * field-level undo keeps working there; the toolbar buttons always work. */
