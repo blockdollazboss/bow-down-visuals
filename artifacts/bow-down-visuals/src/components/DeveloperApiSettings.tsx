@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { KeyRound, Loader2, Copy, Check, Trash2, AlertTriangle, BookOpen } from "lucide-react";
+import { KeyRound, Loader2, Copy, Check, Trash2, AlertTriangle, BookOpen, Webhook, Pause, Play, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -237,8 +237,328 @@ export function DeveloperApiSettings() {
               <p><strong>Not in v1:</strong> songs, music videos, video generation/editing, lip-sync, image generation, publishing/social posting, the store, payouts, and anything admin. Keys can only ever act as you — never as anyone else.</p>
             </div>
           </div>
+
+          <WebhooksSettings getAccessToken={getAccessToken} sub={sub} isLight={isLight} />
         </div>
       )}
     </section>
+  );
+}
+
+/* ─── Webhooks (Stack-100 #3 wave 3, lane 20) ────────────────────────────
+   Docked INSIDE the Developer door — never a standalone page. Register an
+   https endpoint for new-sale / new-follower / new-member, get a signing
+   secret shown exactly once (we store only its hash), pause/resume,
+   delete, and read the per-attempt delivery history. This section loads
+   independently: if webhooks aren't available yet it says so plainly
+   instead of taking the keys UI down with it. */
+
+interface WebhookPublic {
+  id: string;
+  url: string;
+  events: string[];
+  secretPrefix: string;
+  status: string;
+  consecutiveFailures: number;
+  createdAt: string;
+  disabledAt: string | null;
+}
+
+interface WebhookDelivery {
+  id: string;
+  eventId: string;
+  eventType: string;
+  attempt: number;
+  status: string;
+  responseStatus: number | null;
+  error: string | null;
+  createdAt: string;
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  "new-sale": "New sale — a store order completes",
+  "new-follower": "New follower — someone follows your profile",
+  "new-member": "New member — a fan joins one of your membership tiers",
+};
+
+function WebhooksSettings({
+  getAccessToken,
+  sub,
+  isLight,
+}: {
+  getAccessToken: () => Promise<string | null>;
+  sub: string;
+  isLight: boolean;
+}) {
+  const { toast } = useToast();
+  const [hooks, setHooks] = useState<WebhookPublic[] | null>(null);
+  const [eventTypes, setEventTypes] = useState<string[]>([]);
+  const [unavailable, setUnavailable] = useState(false);
+  const [url, setUrl] = useState("");
+  const [pickedEvents, setPickedEvents] = useState<string[]>(["new-sale"]);
+  const [creatingHook, setCreatingHook] = useState(false);
+  const [freshSecret, setFreshSecret] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[] | null>(null);
+
+  async function authHeaders(): Promise<Record<string, string>> {
+    const token = await getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function loadHooks() {
+    try {
+      const res = await fetch("/api/api-webhooks", { headers: await authHeaders() });
+      if (!res.ok) throw new Error("load failed");
+      const data = (await res.json()) as { webhooks: WebhookPublic[]; availableEventTypes: string[] };
+      setHooks(data.webhooks);
+      setEventTypes(data.availableEventTypes);
+      setUnavailable(false);
+    } catch {
+      setUnavailable(true);
+    }
+  }
+
+  useEffect(() => { void loadHooks(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function createHook() {
+    if (!url.trim() || pickedEvents.length === 0 || creatingHook) return;
+    setCreatingHook(true);
+    try {
+      const res = await fetch("/api/api-webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ url: url.trim(), events: pickedEvents }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { secret?: string; message?: string };
+      if (!res.ok) throw new Error(data.message ?? "create failed");
+      setFreshSecret(data.secret ?? null);
+      setSecretCopied(false);
+      setUrl("");
+      await loadHooks();
+    } catch (err) {
+      toast({ title: "Couldn't create the webhook", description: err instanceof Error ? err.message : "Please try again.", variant: "destructive" });
+    } finally {
+      setCreatingHook(false);
+    }
+  }
+
+  async function setStatus(id: string, status: "paused" | "active") {
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/api-webhooks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("update failed");
+      await loadHooks();
+    } catch {
+      toast({ title: "Couldn't update that webhook", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function removeHook(id: string) {
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/api-webhooks/${id}`, { method: "DELETE", headers: await authHeaders() });
+      if (!res.ok) throw new Error("delete failed");
+      if (historyFor === id) setHistoryFor(null);
+      await loadHooks();
+    } catch {
+      toast({ title: "Couldn't delete that webhook", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function toggleHistory(id: string) {
+    if (historyFor === id) {
+      setHistoryFor(null);
+      return;
+    }
+    setHistoryFor(id);
+    setDeliveries(null);
+    try {
+      const res = await fetch(`/api/api-webhooks/${id}/deliveries`, { headers: await authHeaders() });
+      if (!res.ok) throw new Error("history failed");
+      const data = (await res.json()) as { deliveries: WebhookDelivery[] };
+      setDeliveries(data.deliveries);
+    } catch {
+      setDeliveries([]);
+    }
+  }
+
+  return (
+    <div className="border-t border-white/10 pt-6">
+      <div className="flex items-center gap-2">
+        <Webhook className="h-4 w-4 text-primary" />
+        <p className="text-sm font-bold">Webhooks</p>
+      </div>
+      <p className={`mt-1 text-xs ${sub}`}>
+        We POST a signed JSON event to your endpoint when a sale, follow, or membership happens for you — and only for you.
+        Failed deliveries retry 5 times (30s, 5 min, 30 min, 2 hrs); an endpoint that keeps failing is switched off automatically.
+      </p>
+
+      {unavailable ? (
+        <p className="mt-3 flex items-center gap-2 text-sm">
+          <AlertTriangle className="h-4 w-4 text-amber-400" />
+          Webhooks aren't switched on yet — check back soon.
+        </p>
+      ) : hooks === null ? (
+        <div className="mt-3 flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-5">
+          {freshSecret && (
+            <div className="rounded-xl border border-amber-400/50 bg-amber-400/10 p-4">
+              <p className="text-sm font-bold text-amber-300">Copy this signing secret now — it is shown only once.</p>
+              <p className={`mt-1 text-xs ${sub}`}>We store only a scrambled hash of it. Use it to verify that deliveries really came from us (recipe below). Lose it and you'll need to delete the endpoint and make a new one.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <code className="break-all rounded-lg bg-black/60 px-3 py-2 text-xs text-amber-200">{freshSecret}</code>
+                <button
+                  type="button"
+                  onClick={() => { void navigator.clipboard.writeText(freshSecret).then(() => setSecretCopied(true)); }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-400/10"
+                >
+                  {secretCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {secretCopied ? "Copied" : "Copy"}
+                </button>
+                <button type="button" onClick={() => setFreshSecret(null)} className="text-xs font-semibold underline">Done, hide it</button>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="text-sm font-bold">Register an endpoint</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://your-server.example/webhooks/bowdown"
+                maxLength={2048}
+                className="w-full max-w-md rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-sm text-white outline-none focus:border-primary placeholder:text-white/25"
+              />
+              <button
+                type="button"
+                onClick={() => { void createHook(); }}
+                disabled={!url.trim() || pickedEvents.length === 0 || creatingHook}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {creatingHook ? <Loader2 className="h-4 w-4 animate-spin" /> : <Webhook className="h-4 w-4" />}
+                Add webhook
+              </button>
+            </div>
+            <p className={`mt-1 text-[11px] ${sub}`}>https only — the address must resolve to a public server (private / local addresses are rejected).</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {eventTypes.map((t) => (
+                <label key={t} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={pickedEvents.includes(t)}
+                    onChange={(e) => setPickedEvents((p) => (e.target.checked ? [...p, t] : p.filter((x) => x !== t)))}
+                    className="h-4 w-4 accent-amber-500"
+                  />
+                  <span>{EVENT_LABELS[t] ?? t}</span>
+                  <code className={`text-[11px] ${sub}`}>{t}</code>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-bold">Your endpoints</p>
+            {hooks.length === 0 ? (
+              <p className={`mt-1 text-xs ${sub}`}>No endpoints yet. Register one above to start receiving events.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {hooks.map((h) => (
+                  <li key={h.id} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{h.url}</p>
+                        <p className={`text-[11px] ${sub}`}>
+                          {h.events.join(", ")} · secret {h.secretPrefix}… · created {new Date(h.createdAt).toLocaleDateString()}
+                          {" · "}<strong>{h.status}</strong>
+                          {h.consecutiveFailures > 0 ? ` · ${h.consecutiveFailures} failed deliver${h.consecutiveFailures === 1 ? "y" : "ies"} in a row` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => { void toggleHistory(h.id); }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+                        >
+                          <History className="h-3.5 w-3.5" /> Deliveries
+                        </button>
+                        {h.status === "active" ? (
+                          <button
+                            type="button"
+                            onClick={() => { void setStatus(h.id, "paused"); }}
+                            disabled={busyId === h.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-40"
+                          >
+                            <Pause className="h-3.5 w-3.5" /> Pause
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => { void setStatus(h.id, "active"); }}
+                            disabled={busyId === h.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-40"
+                          >
+                            <Play className="h-3.5 w-3.5" /> {h.status === "disabled" ? "Re-enable" : "Resume"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { void removeHook(h.id); }}
+                          disabled={busyId === h.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+                        >
+                          {busyId === h.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    {historyFor === h.id && (
+                      <div className="mt-3 border-t border-white/10 pt-2">
+                        {deliveries === null ? (
+                          <p className={`flex items-center gap-2 text-xs ${sub}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading deliveries…</p>
+                        ) : deliveries.length === 0 ? (
+                          <p className={`text-xs ${sub}`}>No deliveries yet for this endpoint.</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {deliveries.map((d) => (
+                              <li key={d.id} className={`text-[11px] ${sub}`}>
+                                {new Date(d.createdAt).toLocaleString()} · {d.eventType} · attempt {d.attempt} ·{" "}
+                                <strong>{d.status}</strong>
+                                {d.responseStatus ? ` (HTTP ${d.responseStatus})` : ""}
+                                {d.error ? ` · ${d.error}` : ""} · event {d.eventId.slice(0, 8)}…
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+            <p className="text-sm font-bold">Verifying a delivery really came from us</p>
+            <div className={`mt-2 space-y-2 text-xs leading-relaxed ${isLight ? "text-[#55471f]" : "text-white/65"}`}>
+              <p>Every delivery is a POST with headers <code>X-BDV-Event-Id</code> (stable per event — dedupe retries on it), <code>X-BDV-Timestamp</code>, and <code>X-BDV-Signature: t=&lt;timestamp&gt;,v1=&lt;signature&gt;</code>. The body is <code>{"{ id, type, createdAt, data }"}</code>; sale amounts are integer cents, exactly as recorded.</p>
+              <p>To verify: take the secret you were shown once, hash it — <code>key = SHA-256(secret)</code> as a hex string — then compute <code>HMAC-SHA256(key, timestamp + "." + rawBody)</code> and compare it (in constant time) with <code>v1</code>. Reject deliveries whose timestamp is more than 5 minutes from your clock.</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

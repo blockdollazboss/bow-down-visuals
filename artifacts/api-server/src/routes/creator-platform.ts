@@ -114,6 +114,7 @@ import {
   type CreatorCommentSettings,
 } from "../lib/comment-controls";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { emitNewFollowerWebhook } from "../lib/api-webhooks";
 import { resolvePaidPlan } from "../lib/profile-website";
 
 /** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
@@ -1611,6 +1612,9 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
     const followerName = followerProfile[0]?.displayName ?? null;
     const followerSlug = followerProfile[0]?.slug ?? null;
     if (isNewFollow) {
+      // Public-API webhook (lane 20): fire-and-forget, never awaited —
+      // a webhook failure can never fail or roll back this follow.
+      emitNewFollowerWebhook(profile.userId, { profileId: profile.id, followerUserId: userId });
       // A follow that lands while the creator is live surfaces as an
       // on-screen alert in their studio Program feed (same WS room as
       // chat). Best-effort only — a follow never fails over an alert.
