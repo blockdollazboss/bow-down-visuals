@@ -63,7 +63,8 @@ import { logger } from "../lib/logger";
    the ONE shared fee location. The base fee is a flat 5% (env
    PLATFORM_FEE_BPS; owner ruling 2026-10-23) — the same rate the
    shops/store rails charge, on every tier. */
-import { PLATFORM_FEE_BPS, feeSplit, formatUsd } from "../lib/platform-fees";
+import { PLATFORM_FEE_BPS, feeSplit, formatUsd, bpsToPct } from "../lib/platform-fees";
+import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../lib/affiliates";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
@@ -219,6 +220,7 @@ interface ProductRow extends Record<string, unknown> {
   inventory: number; media_urls: string[]; service_details: Record<string, unknown> | null;
   event_id: string | null; related_links: Array<{ label: string; url: string }>;
   is_active: boolean; created_at: string;
+  affiliate_enabled?: boolean; affiliate_commission_bps?: number | null;
   artist_name: string; artist_slug: string;
   event_title: string | null;
 }
@@ -248,6 +250,13 @@ function withLinks(p: ProductRow) {
     relatedLinks: p.related_links ?? [],
     isActive: p.is_active,
     createdAt: p.created_at,
+    /* Creator Product Affiliates (#16): the creator's own per-product
+       setting, presented so seller + buyer surfaces render the same
+       truth. Commission is a % of the CREATOR's cut — buyers never pay
+       it and it never changes the listed price. */
+    affiliatesEnabled: p.affiliate_enabled === true,
+    affiliateCommissionBps: p.affiliate_commission_bps == null ? null : Number(p.affiliate_commission_bps),
+    affiliateCommissionPct: p.affiliate_commission_bps == null ? null : bpsToPct(Number(p.affiliate_commission_bps)),
     /* Link graph — the store is woven into the profile, not bolted on. */
     links: {
       creatorUrl: artistUrl,
@@ -399,6 +408,11 @@ const BaseProductSchema = z.object({
   eventId: z.string().regex(UUID_RE).nullable().optional(),
   relatedLinks: z.array(RelatedLinkSchema).max(10).default([]),
   isActive: z.boolean().default(true),
+  /* Creator Product Affiliates (#16): creator-set, never defaulted to a
+     rate by the platform. Enabling REQUIRES the rate (refine below on
+     create; the PATCH handler checks the stored rate the same way). */
+  affiliateEnabled: z.boolean().default(false),
+  affiliateCommissionBps: z.number().int().min(1).max(10_000).nullable().optional(),
 });
 
 /* Create-time cross-field rules live on the refined schema. The base stays
@@ -410,6 +424,9 @@ const CreateProductSchema = BaseProductSchema.refine((d) => d.kind !== "ticket" 
 }).refine((d) => d.kind !== "service" || !!d.serviceDetails, {
   message: "Service products need service details (duration, location, booking link).",
   path: ["serviceDetails"],
+}).refine((d) => !d.affiliateEnabled || (d.affiliateCommissionBps != null && d.affiliateCommissionBps >= 1), {
+  message: "Turning affiliates on needs the commission you'll pay them (affiliateCommissionBps, 1–10000 = 0.01%–100% of your cut).",
+  path: ["affiliateCommissionBps"],
 });
 
 router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, res) => {
@@ -428,11 +445,13 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
     const r = await db.execute(sql`
       INSERT INTO store_products
         (profile_id, kind, title, description, price_cents, compare_at_cents,
-         inventory, media_urls, service_details, event_id, related_links, is_active)
+         inventory, media_urls, service_details, event_id, related_links, is_active,
+         affiliate_enabled, affiliate_commission_bps)
       VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${d.priceCents},
               ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb,
               ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
-              ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive})
+              ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive},
+              ${d.affiliateEnabled}, ${d.affiliateCommissionBps ?? null})
       RETURNING id
     `);
     const id = String((r.rows[0] as Record<string, unknown>)["id"]);
@@ -477,6 +496,27 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
     if (d.eventId !== undefined) sets.push(sql`event_id = ${d.eventId}`);
     if (d.relatedLinks !== undefined) sets.push(sql`related_links = ${JSON.stringify(d.relatedLinks)}::jsonb`);
     if (d.isActive !== undefined) sets.push(sql`is_active = ${d.isActive}`);
+    if (d.affiliateCommissionBps !== undefined) sets.push(sql`affiliate_commission_bps = ${d.affiliateCommissionBps ?? null}`);
+    if (d.affiliateEnabled !== undefined) {
+      /* Enabling without a rate in the same patch is only honest when a
+         rate is already stored — otherwise the seller would flip a
+         switch that promises affiliates a % nobody set. */
+      if (d.affiliateEnabled && d.affiliateCommissionBps === undefined) {
+        const cur = await db.execute(sql`
+          SELECT affiliate_commission_bps FROM store_products
+          WHERE id = ${id} AND profile_id = ${profile.id} LIMIT 1
+        `);
+        const curBps = (cur.rows[0] as Record<string, unknown> | undefined)?.["affiliate_commission_bps"];
+        if (curBps == null) {
+          res.status(400).json({
+            error: "COMMISSION_REQUIRED",
+            message: "Set the commission you'll pay affiliates (affiliateCommissionBps) when you turn affiliates on.",
+          });
+          return;
+        }
+      }
+      sets.push(sql`affiliate_enabled = ${d.affiliateEnabled}`);
+    }
     if (sets.length === 0) {
       res.status(400).json({ error: "Nothing to update." });
       return;
@@ -537,6 +577,10 @@ const CheckoutSchema = z.object({
   productId: z.string().regex(UUID_RE, "productId must be a UUID"),
   quantity: z.number().int().min(1).max(99).default(1),
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Creator Product Affiliates (#16): the fan share code from the
+     ?ref= link, validated server-side below exactly like a discount
+     code — the client can present it, only the server believes it. */
+  affiliateCode: z.string().trim().min(1).max(64).optional(),
 });
 
 router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -602,6 +646,23 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
 
     const lineTotal = unitCents * quantity;
     const { feeCents, creatorCents } = splitTotals(lineTotal);
+
+    /* Affiliate attribution (#16): a presented code must be an active
+       code FOR THIS product on a product the creator opened to
+       affiliates. It rides the Stripe metadata to verify, where the
+       commission is recorded exactly once with the order. It never
+       changes the price, the fee, or the buyer's total. */
+    let affiliateCode: string | null = null;
+    if (parsed.data.affiliateCode) {
+      const v = await validateAffiliateCodeForProduct({
+        code: parsed.data.affiliateCode, surface: "store_product", productId,
+      });
+      if (!v.ok) {
+        res.status(400).json({ error: "BAD_AFFILIATE_CODE", message: v.reason });
+        return;
+      }
+      affiliateCode = v.code.code;
+    }
     /* Purchase sequence for the session idempotency key (see
        buildStorefrontCheckoutKey). A read failure throws into the
        catch below — no session is minted, so the failure is closed. */
@@ -655,6 +716,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         product_kind: p.kind,
         quantity: String(quantity),
         discount_code: discountCode ?? "",
+        affiliate_code: affiliateCode ?? "",
         amount_cents: String(lineTotal),
         platform_fee_cents: String(feeCents),
         creator_amount_cents: String(creatorCents),
@@ -674,6 +736,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         percentOff, discountCode,
         platformFeeCents: feeCents, creatorCents,
       },
+      affiliate: affiliateCode ? { code: affiliateCode } : null,
     });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
@@ -740,6 +803,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
   const kind = meta["product_kind"] ?? "digital";
   const quantity = Math.max(1, parseInt(meta["quantity"] ?? "1", 10) || 1);
   const discountCode = meta["discount_code"] || null;
+  const affiliateCode = meta["affiliate_code"] || null;
   const eventId = meta["event_id"] || null;
   if (!productId || !profileId) {
     res.status(400).json({ error: "This session is missing its purchase details." });
@@ -758,6 +822,9 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     let orderId: string;
     let duplicate = false;
     let fulfillmentNote: string | null = null;
+    /* Affiliate commission recorded with THIS order (#16) — stays null
+       on duplicates: a replayed verify never records a second one. */
+    let affiliateCommission: { recorded: boolean; commissionCents: number } | null = null;
     if (existing.rows.length > 0) {
       const er = existing.rows[0] as Record<string, unknown>;
       orderId = String(er["id"]);
@@ -821,6 +888,30 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
               AND UPPER(code) = ${discountCode.toUpperCase()}
               AND (max_uses = -1 OR used_count < max_uses)
           `);
+        }
+
+        /* Affiliate commission (#16) — recorded exactly-once with the
+           order insert, out of the creator's cut (creatorCents above is
+           gross − the flat 5% fee; the commission is a % of THAT). The
+           buyer's total and the platform fee are untouched. Safely =
+           a ledger failure never fails a paid order. Self-referral
+           (buyer == affiliate) records nothing — lib/affiliates owns
+           the discipline. */
+        if (affiliateCode) {
+          const aff = await recordAffiliateSaleSafely({
+            code: affiliateCode,
+            surface: "store_product",
+            productId,
+            productTitle,
+            orderRef: sessionId,
+            buyerUserId: req.userId!,
+            grossCents: amountCents,
+            platformFeeCents: feeCents,
+          });
+          affiliateCommission = {
+            recorded: aff.recorded,
+            commissionCents: aff.recorded ? aff.commissionCents : 0,
+          };
         }
 
         /* Kind-specific fulfillment. */
@@ -899,6 +990,12 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         creatorAmountCents: creatorCents, creatorAmount: money(creatorCents),
         discountCode,
         fulfillmentNote,
+        /* #16: present only when this order carried an affiliate code;
+           recorded=false with 0 = the code earned nothing (e.g. the
+           buyer was the affiliate themselves). */
+        affiliate: affiliateCode
+          ? { code: affiliateCode, commissionRecorded: affiliateCommission?.recorded ?? false, commissionCents: affiliateCommission?.commissionCents ?? 0 }
+          : null,
       },
       delivery,
       /* Link graph: no dead ends after payment — the highest-trust moment. */
