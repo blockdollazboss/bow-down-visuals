@@ -1,0 +1,9 @@
+# (Wave 3 lane GAP — phase 1 GAP for stack29/coposts lives in that branch/worktree: ~/workspace/bdv-wt-coposts/.lane/GAP.md and in this branch parent commit d0539e1d)
+# Lane stack29/w3-co-release — Co-Release (co-posts phase 2) — GAP
+Base: stack29/coposts @ d0539e1d (phase 1 REPORT/MIGRATION in bdv-wt-coposts/.lane)
+Verified 2026-10-24 in source before building:
+- Phase 1: ONE posts row + post_co_authors sides (migration 0205 HELD, not a file in lib/db/migrations — tops at 0204). Consent machine artifacts/api-server/src/lib/co-posts.ts. Store/distribute co-release explicitly PARKED: "second consent ledger over money-bearing splits".
+- Existing splits (distribution-v2.ts): distribution_royalty_splits — versioned, owner-only PUT (no second-party consent: invite_status is email-token stub, payees are name/email not accounts/profiles), shares sum 100, supersede-on-edit (future earnings only). Wave8 splits: free-form name/pct JSON sheets, no consent at all. Neither can honestly hold BOTH creators' consent to a split on a shared release.
+- Attribution rails honestly reachable: (a) money_entries.release_id -> GET /api/splits/overview applies versioned splits to logged income per release (read-layer accounting, no payout); (b) store_orders (storefront products): amount_cents, platform_fee_cents, creator_amount_cents — creator amount is post-fee. Fee rail: flat 5% (owner ruling; shops checkout aligned 500bps) — NOT part of split negotiation; co-release splits apply to creator_amount_cents / logged income only.
+- distribution_releases: single user_id. store_products: single profile_id. No table holds a second creator's consent + agreed split for either -> NEW tables required -> migration HELD (this lane claims 0206, after phase-1's held 0205; integrator renumbers if join order differs).
+- Site pays nobody real money; splits here are attribution/accounting in the same model as splits/overview — never a payout.

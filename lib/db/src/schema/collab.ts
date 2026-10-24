@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, numeric, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -165,3 +165,84 @@ export const postCoAuthorsTable = pgTable(
 );
 
 export type PostCoAuthor = typeof postCoAuthorsTable.$inferSelect;
+
+/* ── Co-release sides + agreed splits (Stack-100 #3 Wave 3, co-posts phase 2) ──
+   ONE existing item — a distribution release (`item_kind='release'`,
+   item_id = distribution_releases.id) or a store product
+   (`item_kind='product'`, item_id = store_products.id) — published to
+   BOTH creators' profiles, with a royalty split BOTH creators consent
+   to before anything publishes. The consent machine is the single
+   source: api-server lib/co-releases.ts.
+
+   *** MIGRATION HELD *** Both tables are created by the held migration
+   written out in full in .lane/MIGRATION-NEEDED.md (claims 0206, after
+   phase 1's held 0205) and NOT applied by this lane. Until it lands,
+   every co-release WRITE answers an honest 503 (CO_RELEASE_NOT_READY,
+   probe-first — nothing created, nobody notified) and every READ path
+   treats a missing table as "no co-releases yet".
+
+   Immutability, enforced in the migration itself: once a co-release
+   publishes, agreed_share_pct / agreed_at on the sides and
+   published_at on the parent can never be updated (BEFORE UPDATE
+   trigger raises). The proposed share_pct stays the pre-publish
+   proposal record; attribution reads ONLY the agreed columns. */
+export const CO_RELEASE_ITEM_KINDS = ["release", "product"] as const;
+export type CoReleaseItemKind = (typeof CO_RELEASE_ITEM_KINDS)[number];
+export const CO_RELEASE_SIDE_STATUSES = ["pending", "accepted", "declined", "withdrawn"] as const;
+export type CoReleaseSideStatusDb = (typeof CO_RELEASE_SIDE_STATUSES)[number];
+
+export const coReleasesTable = pgTable(
+  "co_releases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /* Polymorphic item pointer — validated at the route against the
+       owner's own rows (no FK: two possible target tables). */
+    item_kind: text("item_kind").notNull().default("release"), // 'release' | 'product'
+    item_id: uuid("item_id").notNull(),
+    /* Title snapshot at draft time so profile lists render even if the
+       underlying item is later renamed/deleted. */
+    item_title: text("item_title").notNull().default(""),
+    /* Set exactly once, at the second side's accept — the publish
+       moment. Trigger-protected in the held migration. */
+    published_at: timestamp("published_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("co_releases_item_idx").on(t.item_kind, t.item_id),
+    index("co_releases_published_idx").on(t.published_at),
+  ],
+);
+
+export const coReleaseSidesTable = pgTable(
+  "co_release_sides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    co_release_id: uuid("co_release_id").notNull(),
+    profile_id: uuid("profile_id").notNull(),
+    user_id: uuid("user_id").notNull(),
+    role: text("role").notNull().default("co_author"), // 'author' | 'co_author'
+    status: text("status").notNull().default("pending"), // CO_RELEASE_SIDE_STATUSES
+    /* Proposed share (creator-entered %, numeric(5,2) semantics stored
+       as numeric string by drizzle) — the proposal BOTH sides see. */
+    share_pct: numeric("share_pct", { precision: 5, scale: 2 }).notNull(),
+    /* FROZEN agreed share — written once at publish, trigger-protected
+       afterwards. Null until published. Attribution reads only this. */
+    agreed_share_pct: numeric("agreed_share_pct", { precision: 5, scale: 2 }),
+    accepted_at: timestamp("accepted_at", { withTimezone: true }),
+    responded_at: timestamp("responded_at", { withTimezone: true }),
+    withdrawn_at: timestamp("withdrawn_at", { withTimezone: true }),
+    agreed_at: timestamp("agreed_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("co_release_sides_release_profile_uidx").on(t.co_release_id, t.profile_id),
+    index("co_release_sides_release_idx").on(t.co_release_id),
+    index("co_release_sides_profile_status_idx").on(t.profile_id, t.status),
+    index("co_release_sides_user_status_idx").on(t.user_id, t.status),
+  ],
+);
+
+export type CoReleaseRow = typeof coReleasesTable.$inferSelect;
+export type CoReleaseSideRow = typeof coReleaseSidesTable.$inferSelect;

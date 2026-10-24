@@ -1,0 +1,16 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-corel/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/co-releases.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 210[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/co-posts.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/platform-fees.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 283[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m55 passed[39m[22m[90m (55)[39m
+[2m   Start at [22m 14:08:33
+[2m   Duration [22m 9.90s[2m (transform 39%, import 33%, tests 17%, setup 7%, worker 4%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~1.67s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~3.34s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
+exit:0

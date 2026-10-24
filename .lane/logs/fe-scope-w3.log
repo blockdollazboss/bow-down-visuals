@@ -1,0 +1,31 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-corel/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/resilience-s28.test.ts [2m([22m[2m50 tests[22m[2m)[22m[33m 1081[2mms[22m[39m
+   [32m✓[39m #28 social-api: shared fetch timeout (A3-F6) [2m(6)[22m
+     [33m[2m✓[22m[39m signalWithTimeout aborts a stalled request after the timeout[33m 316[2mms[22m[39m
+ [32m✓[39m src/lib/findability-nav.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1959[2mms[22m[39m
+   [32m✓[39m findability — nav labels are the features' real names [2m(4)[22m
+     [33m[2m✓[22m[39m every locale has every wired key, and none of them is a poetic Thy-label[33m 1434[2mms[22m[39m
+ [32m✓[39m src/lib/co-releases.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m src/lib/co-posts.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/lib/king-emoji.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 579[2mms[22m[39m
+ [32m✓[39m src/lib/theme-remap-golds.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 292[2mms[22m[39m
+ [32m✓[39m src/lib/public-routes.test.ts [2m([22m[2m127 tests[22m[2m)[22m[33m 923[2mms[22m[39m
+   [32m✓[39m the census — App.tsx route table ↔ ROUTE_MATRIX [2m(11)[22m
+     [33m[2m✓[22m[39m gives no non-redirect route a redirect target, and vice versa[33m 574[2mms[22m[39m
+ [32m✓[39m src/lib/collabs.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-desk.test.ts [2m([22m[2m51 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/lib/reports.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 259[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-wave2.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 347[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m11 passed[39m[22m[90m (11)[39m
+[2m      Tests [22m [1m[32m375 passed[39m[22m[90m (375)[39m
+[2m   Start at [22m 14:31:04
+[2m   Duration [22m 45.52s[2m (transform 40%, tests 34%, import 22%, worker 4%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 6.73s[39m[2m · 40% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
+exit:0

@@ -5,12 +5,13 @@ import { Link } from "wouter";
 import {
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
-  AlertTriangle, RotateCcw, Megaphone,
+  AlertTriangle, RotateCcw, Megaphone, Disc3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { NicheLabel, PlatformLabel, scoreColor, fillProposalTemplate, clampFollowers } from "@/lib/collabs";
 import { CoPostsPanel, type CoPostPartner } from "@/components/collabs/CoPostsPanel";
+import { CoReleasesPanel } from "@/components/collabs/CoReleasesPanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── Collab Finder ─────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ interface InboxRequest {
   toNiche?: string | null;
 }
 
-type Tab = "browse" | "profile" | "match" | "inbox" | "coposts";
+type Tab = "browse" | "profile" | "match" | "inbox" | "coposts" | "coreleases";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -99,7 +100,8 @@ export default function CollabFinder() {
      inbox for co-post invites lives on this tab). */
   const [tab, setTab] = useState<Tab>(() => {
     try {
-      return new URLSearchParams(window.location.search).get("tab") === "coposts" ? "coposts" : "browse";
+      const tabParam = new URLSearchParams(window.location.search).get("tab");
+      return tabParam === "coposts" ? "coposts" : tabParam === "coreleases" ? "coreleases" : "browse";
     } catch {
       return "browse";
     }
@@ -385,6 +387,11 @@ export default function CollabFinder() {
     setTab("coposts");
   }
 
+  function startCoRelease(userId: string) {
+    setCoPostPreselect(userId);
+    setTab("coreleases");
+  }
+
   const pendingCount = received.filter((r) => r.status === "pending").length;
   const tabs: { key: Tab; label: string; icon: typeof Search }[] = [
     { key: "browse", label: t("collabs.tabBrowse"), icon: Search },
@@ -392,6 +399,7 @@ export default function CollabFinder() {
     { key: "match", label: t("collabs.tabMatch"), icon: Sparkles },
     { key: "inbox", label: pendingCount > 0 ? t("collabs.tabInboxWithCount", { count: pendingCount }) : t("collabs.tabInbox"), icon: Inbox },
     { key: "coposts", label: "Co-posts", icon: Megaphone },
+    { key: "coreleases", label: "Co-releases", icon: Disc3 },
   ];
 
   return (
@@ -666,9 +674,14 @@ export default function CollabFinder() {
                             </div>
                           )}
                           {r.status === "accepted" && r.fromUserId && (
-                            <button onClick={() => startCoPost(r.fromUserId!)} className={ghostBtn}>
-                              <Megaphone className="h-4 w-4" /> Start a co-post
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button onClick={() => startCoPost(r.fromUserId!)} className={ghostBtn}>
+                                <Megaphone className="h-4 w-4" /> Start a co-post
+                              </button>
+                              <button onClick={() => startCoRelease(r.fromUserId!)} className={ghostBtn}>
+                                <Disc3 className="h-4 w-4" /> Start a co-release
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -689,9 +702,14 @@ export default function CollabFinder() {
                           </div>
                           <p className="text-sm text-white/60">{r.message}</p>
                           {r.status === "accepted" && r.toUserId && (
-                            <button onClick={() => startCoPost(r.toUserId!)} className={`${ghostBtn} mt-3`}>
-                              <Megaphone className="h-4 w-4" /> Start a co-post
-                            </button>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button onClick={() => startCoPost(r.toUserId!)} className={ghostBtn}>
+                                <Megaphone className="h-4 w-4" /> Start a co-post
+                              </button>
+                              <button onClick={() => startCoRelease(r.toUserId!)} className={ghostBtn}>
+                                <Disc3 className="h-4 w-4" /> Start a co-release
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -705,6 +723,10 @@ export default function CollabFinder() {
 
         {user && tab === "coposts" && (
           <CoPostsPanel authed={authed} partners={coPostPartners} preselectUserId={coPostPreselect} />
+        )}
+
+        {user && tab === "coreleases" && (
+          <CoReleasesPanel authed={authed} partners={coPostPartners} preselectUserId={coPostPreselect} />
         )}
 
         {/* proposal modal */}
