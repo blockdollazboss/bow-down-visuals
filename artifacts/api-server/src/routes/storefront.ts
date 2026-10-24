@@ -1016,18 +1016,30 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         `);
         const hid = String((inserted.rows[0] as Record<string, unknown>)["id"]);
         /* Hardened dual-write (no-op pre-migration): the service_bookings
-           row is the DB-level slot claim. An exclusion violation throws
-           BookingSlotConflictError out of this transaction — the hold
-           order rolls back with it and the caller answers SLOT_TAKEN. */
-        await placeServiceBooking(run, {
-          orderId: hid,
-          productId,
-          profileId: prod.profile_id,
-          buyerUserId: req.userId!,
-          record: check.record,
-          holdExpiresAt: new Date(now.getTime() + BOOKING_HOLD_TTL_MIN * 60_000),
-          now,
-        });
+           row is the DB-level slot claim. If the DB guard refuses it
+           (BookingSlotConflictError), the hold is voided EXPLICITLY —
+           deleted in this same transaction — rather than by relying on
+           rollback: the loser walks away with SLOT_TAKEN and no order,
+           on every engine. */
+        try {
+          await placeServiceBooking(run, {
+            orderId: hid,
+            productId,
+            profileId: prod.profile_id,
+            buyerUserId: req.userId!,
+            record: check.record,
+            holdExpiresAt: new Date(now.getTime() + BOOKING_HOLD_TTL_MIN * 60_000),
+            now,
+          });
+        } catch (err) {
+          if (err instanceof BookingSlotConflictError) {
+            await run.execute(sql`
+              DELETE FROM store_orders WHERE id = ${hid} AND status = 'booking_held'
+            `);
+            return { ok: false, status: 409, code: "SLOT_TAKEN", message: err.message } as const;
+          }
+          throw err;
+        }
         return { ok: true, holdId: hid, record: check.record } as const;
       }); }
       if (!holdResult.ok) {
@@ -1846,22 +1858,32 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
         `);
         const newOrderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
         /* Hardened dual-write (no-op pre-migration): the confirmed slot
-           claim. An exclusion violation throws BookingSlotConflictError
-           out of the transaction (the claim order rolls back with it)
-           and is translated to SLOT_TAKEN just below. */
-        await placeServiceBooking(run, {
-          orderId: newOrderId,
-          productId,
-          profileId: p.profile_id,
-          buyerUserId: req.userId!,
-          record: rec,
-        });
-        return { orderId: newOrderId, record: rec } as const;
-      }).catch((err: unknown) => {
-        if (err instanceof BookingSlotConflictError) {
-          return { error: "SLOT_TAKEN", message: err.message } as const;
+           claim. If the DB guard refuses it, the claim is unwound
+           EXPLICITLY in this transaction (order deleted, the in-tx
+           inventory claim restored) instead of relying on rollback,
+           and the buyer gets the same SLOT_TAKEN as any lost race. */
+        try {
+          await placeServiceBooking(run, {
+            orderId: newOrderId,
+            productId,
+            profileId: p.profile_id,
+            buyerUserId: req.userId!,
+            record: rec,
+          });
+        } catch (err) {
+          if (err instanceof BookingSlotConflictError) {
+            await run.execute(sql`DELETE FROM store_orders WHERE id = ${newOrderId}`);
+            if (inventory > 0) {
+              await run.execute(sql`
+                UPDATE store_products SET inventory = inventory + 1, updated_at = now()
+                WHERE id = ${productId}
+              `);
+            }
+            return { error: "SLOT_TAKEN", message: err.message } as const;
+          }
+          throw err;
         }
-        throw err;
+        return { orderId: newOrderId, record: rec } as const;
       });
       if ("error" in txResult) {
         const status =

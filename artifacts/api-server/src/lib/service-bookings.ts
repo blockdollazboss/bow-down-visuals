@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS service_bookings (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS service_bookings_order_ux ON service_bookings (order_id);
 CREATE INDEX IF NOT EXISTS service_bookings_product_idx ON service_bookings (product_id, status, slot_start);
+-- Same-slot tie-breaker: two ACTIVE bookings for one product can never
+-- share a slot_start (same start + positive duration always overlaps),
+-- so this partial unique index is sound on its own and — unlike the
+-- exclusion clause below — is enforceable by every Postgres-compatible
+-- engine, including the pg-mem test harness. The exclusion constraint
+-- remains the general guard for different-duration overlaps.
+CREATE UNIQUE INDEX IF NOT EXISTS service_bookings_slot_start_ux ON service_bookings (product_id, slot_start) WHERE status IN ('held', 'confirmed');
 `.trim();
 
 export const SERVICE_BOOKINGS_EXCLUSION_SQL = `
