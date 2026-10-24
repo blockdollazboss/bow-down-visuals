@@ -1,0 +1,36 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/__tests__/tip-page-profile-slug.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 999[2mms[22m[39m
+   [32m✓[39m GET /api/tips/page/:handle — creator-profile slug (Shorts feed caller) [2m(2)[22m
+     [33m[2m✓[22m[39m finds the tip page BY OWNER'S PROFILE SLUG when the tip handle differs from it[33m 491[2mms[22m[39m
+[13:51:07.722] [32mINFO[39m (26909): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[13:51:08.017] [32mINFO[39m (26909): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[13:51:08.317] [32mINFO[39m (26909): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[13:51:08.381] [32mINFO[39m (26909): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[13:51:08.444] [32mINFO[39m (26909): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+ [32m✓[39m src/routes/generate/__tests__/tip-jar-checkout.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1214[2mms[22m[39m
+   [32m✓[39m tip jar checkout (0142, DE-14) [2m(5)[22m
+     [33m[2m✓[22m[39m checkout records a durable tip row and returns the session URL[33m 540[2mms[22m[39m
+     [33m[2m✓[22m[39m verify marks the tip paid exactly once[33m 344[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/tip-jar.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m   Start at [22m 13:50:42
+[2m   Duration [22m 35.38s[2m (import 66%, transform 26%, tests 8%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 7.91s[39m[2m · 26% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

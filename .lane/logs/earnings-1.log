@@ -1,0 +1,62 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/__tests__/earnings.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 2088[2mms[22m[39m
+   [32m✓[39m GET /earnings [2m(3)[22m
+     [33m[2m✓[22m[39m honest zeros: a creator with no data reads 0 everywhere, nothing partial[33m 1717[2mms[22m[39m
+[13:51:58.007] [31mERROR[39m (27199): [36m[earnings] source failed[39m
+    [35muserId[39m: "39f9e777-2d2b-4906-83d9-86fe8d742994"
+    [35msource[39m: "memberships"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n\n    FROM fan_members\n    WHERE user_id = $1 AND stripe_session_id IS NOT NULL\n  \nparams: 39f9e777-2d2b-4906-83d9-86fe8d742994: relation \"fan_members\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n\n    FROM fan_members\n    WHERE user_id = '39f9e777-2d2b-4906-83d9-86fe8d742994' AND stripe_session_id IS NOT NULL\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n
+              FROM fan_members
+              WHERE user_id = $1 AND stripe_session_id IS NOT NULL
+            
+          params: 39f9e777-2d2b-4906-83d9-86fe8d742994
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at memberships (/home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server/src/routes/earnings.ts:79:13)
+              at settle (/home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server/src/routes/earnings.ts:122:14)
+              at /home/hatch/workspace/bdv-wt-fundgoals/artifacts/api-server/src/routes/earnings.ts:130:16
+          caused by: Error: relation "fan_members" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n
+              FROM fan_members
+              WHERE user_id = '39f9e777-2d2b-4906-83d9-86fe8d742994' AND stripe_session_id IS NOT NULL
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n\n    FROM fan_members\n    WHERE user_id = $1 AND stripe_session_id IS NOT NULL\n  ",
+      "params": [
+        "39f9e777-2d2b-4906-83d9-86fe8d742994"
+      ]
+    }
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m 13:51:28
+[2m   Duration [22m 29.43s[2m (transform 49%, import 44%, tests 8%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 13.46s[39m[2m · 49% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

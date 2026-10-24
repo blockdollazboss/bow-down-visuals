@@ -1063,6 +1063,25 @@ const FEATURE_PRICE_LINKS = [
     the whole generation — a stale docked entry is worse than none. */
 const DOCKED_FEATURES = [
   {
+    /* Funding goals (Stack-100 #3): one active goal on the creator's
+       public tip page — a setting inside the Tip Jar desk plus the
+       goal bar on /tips/:handle; no route of its own. Progress is
+       derived server-side from real paid tips only (the tip_jar_tips
+       rows the checkout rail marks paid) — tip intent never counts —
+       so there is no Visual Bucs price to quote: pricedEndpoints
+       stays empty (the order-bumps precedent). */
+    id: "funding-goals",
+    name: { text: "Funding Goals" },
+    path: "/tips",
+    hostPath: "/tips",
+    stage: "money",
+    description: {
+      text: "Set one funding goal on your tip page — a target amount and what it's for, like a new microphone. The public page shows progress filled only by tips that actually completed payment, and celebrates when the goal is reached. Reached goals stay in your Tip Jar history.",
+    },
+    endpoints: ["/api/tips/goal", "/api/tips/settings", "/api/tips/page/:param", "/api/tips/dashboard"],
+    pricedEndpoints: [],
+  },
+  {
     id: "tab-tutorials",
     name: { ns: "tutorials", field: "heading" },
     path: "/academy?tab=tutorials",
