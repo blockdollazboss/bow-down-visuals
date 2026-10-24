@@ -10,6 +10,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildProposedReferenceSet,
+  mergeSceneCast,
   normalizeReferenceSet,
   planSceneReferences,
   sortReferenceSet,
@@ -122,5 +123,63 @@ describe("planSceneReferences — per-model truth", () => {
   it("empty set plans nothing and says nothing", () => {
     const plan = planSceneReferences("seedance2_5", []);
     expect(plan).toEqual({ submittedCount: 0, setSize: 0, reduced: false, summary: null });
+  });
+});
+
+describe("mergeSceneCast — picked + linked co-stars, one cast (D2/D8)", () => {
+  const picked = [
+    { id: "v-pick", name: "Picked Pam", imageUrl: "https://img.example/pam.jpg" },
+  ];
+  const linked = [
+    { id: "v-link", name: "Linked Lou", imageUrl: "https://img.example/lou.jpg" },
+  ];
+
+  it("includes linked co-stars, not just manual picks", () => {
+    const cast = mergeSceneCast({ leadId: "v-lead", picked, linked });
+    expect(cast.map((c) => c.id)).toEqual(["v-pick", "v-link"]);
+  });
+
+  it("a linked co-star's photo flows into the proposed reference set", () => {
+    const cast = mergeSceneCast({ leadId: "v-lead", picked: [], linked });
+    const set = buildProposedReferenceSet({
+      characterPhotoUrl: CHAR,
+      characterName: "Lead",
+      coStars: cast.map((c) => ({ name: c.name, imageUrl: c.imageUrl ?? "" })),
+      brandLogoUrl: null,
+    });
+    expect(set.map((r) => r.url)).toContain("https://img.example/lou.jpg");
+  });
+
+  it("dedupes by vault id when a character is both picked and linked", () => {
+    const cast = mergeSceneCast({
+      leadId: "v-lead",
+      picked,
+      linked: [{ id: "v-pick", name: "Picked Pam (link row)", imageUrl: "https://img.example/pam2.jpg" }, ...linked],
+    });
+    expect(cast.map((c) => c.id)).toEqual(["v-pick", "v-link"]);
+    /* The pick wins — it is the creator's per-scene choice. */
+    expect(cast[0].imageUrl).toBe("https://img.example/pam.jpg");
+  });
+
+  it("never casts the lead as their own co-star", () => {
+    const cast = mergeSceneCast({
+      leadId: "v-lead",
+      picked: [{ id: "v-lead", name: "Lead", imageUrl: CHAR }],
+      linked: [{ id: "v-lead", name: "Lead", imageUrl: CHAR }],
+    });
+    expect(cast).toEqual([]);
+  });
+
+  it("D8: two distinct characters who share a name BOTH stay in the cast", () => {
+    const cast = mergeSceneCast({
+      leadId: "v-lead",
+      picked: [{ id: "v-a", name: "Nova", imageUrl: "https://img.example/nova-a.jpg" }],
+      linked: [{ id: "v-b", name: "Nova", imageUrl: "https://img.example/nova-b.jpg" }],
+    });
+    expect(cast.map((c) => c.id)).toEqual(["v-a", "v-b"]);
+  });
+
+  it("empty sources merge to an empty cast", () => {
+    expect(mergeSceneCast({ leadId: null, picked: [], linked: [] })).toEqual([]);
   });
 });

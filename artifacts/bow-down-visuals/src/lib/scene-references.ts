@@ -122,6 +122,41 @@ export function normalizeReferenceSet(raw: unknown): SceneReference[] {
   return sortReferenceSet(out).slice(0, MAX_SCENE_REFERENCES);
 }
 
+/** One cast candidate for a scene: a vault character with an identity. */
+export interface SceneCastMember {
+  /** Vault id — the ONLY safe dedupe key (two characters can share a name). */
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+}
+
+/**
+ * Merge a scene's co-star sources into one cast list: manually picked
+ * co-stars first (the creator's per-scene choice), then vault-LINKED
+ * co-stars not already picked. Deduped by vault id, lead excluded.
+ *
+ * Linked co-stars belong here — not just in the prompt text. A co-star
+ * who is only DESCRIBED to the model gets an invented face; their photo
+ * has to ride the reference set / cast composite like a picked co-star's
+ * does. (Before this merge, Scene Studio built both from picks alone
+ * and linked co-stars were text-only.)
+ */
+export function mergeSceneCast(opts: {
+  leadId?: string | null;
+  picked: SceneCastMember[];
+  linked: SceneCastMember[];
+}): SceneCastMember[] {
+  const seen = new Set<string>();
+  if (opts.leadId) seen.add(opts.leadId);
+  const out: SceneCastMember[] = [];
+  for (const c of [...opts.picked, ...opts.linked]) {
+    if (!c.id || seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(c);
+  }
+  return out;
+}
+
 export interface ReferenceSetProposalSources {
   /** The lead artist's Artist Vault photo (character). */
   characterPhotoUrl?: string | null;

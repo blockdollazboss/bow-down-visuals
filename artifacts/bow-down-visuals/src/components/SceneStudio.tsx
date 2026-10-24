@@ -22,7 +22,7 @@ import { composeScenePrompt } from "@/lib/scene-look";
 import { LookRailsPanel } from "@/components/SceneStudio/LookRailsPanel";
 import { EffectsRail } from "@/components/SceneStudio/EffectsRail";
 import { Link } from "wouter";
-import { buildProposedReferenceSet, normalizeReferenceSet, planSceneReferences, sortReferenceSet, REFERENCE_ROLE_LABEL, type SceneReference } from "@/lib/scene-references";
+import { buildProposedReferenceSet, mergeSceneCast, normalizeReferenceSet, planSceneReferences, sortReferenceSet, REFERENCE_ROLE_LABEL, type SceneReference } from "@/lib/scene-references";
 import { fetchBrandKit } from "@/lib/brand-kit";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -418,6 +418,49 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Linked co-stars: characters linked in the vault appear in scenes together. ──
+     Declared before the reference-set proposal below because the
+     proposal consumes it. Linked co-stars keep their vault id (the
+     dedupe key — names collide) and their reference photo, so they can
+     anchor generation like a picked co-star instead of being
+     described to the model as text only. */
+  const [coStars, setCoStars] = useState<{ id: string; name: string; role: string; description: string; imageUrl: string | null }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setCoStars([]);
+    const vaultId = artistVault?.id;
+    if (!vaultId) return;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/artist-vaults/${vaultId}/links`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const list: { id: string; name: string; role: string; description: string; imageUrl: string | null }[] = (data.links ?? [])
+          .filter((l: any) => l.character)
+          .map((l: any) => ({
+            id: l.character.id as string,
+            name: l.character.artist_name ?? "Co-star",
+            role: String(l.role ?? "collaborator").split("-").map((w: string) => w[0]?.toUpperCase() + w.slice(1)).join(" "),
+            imageUrl: (l.character.reference_image_url as string | null) ?? null,
+            description: [
+              l.character.personality,
+              l.character.visual_style,
+              l.character.clothing_style,
+              l.character.jewelry,
+            ].filter(Boolean).join(". ") || "character",
+          }));
+        if (!cancelled) setCoStars(list);
+      } catch {
+        /* co-stars are optional — generation works without them */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistVault?.id]);
+
   /* ── Reference set (multi-reference generation) ──────────────────────
      Proposed from the creator's OWN seed sources — Artist Vault photo,
      picked co-stars, brand-kit logo — plus the scene's location plate,
@@ -428,9 +471,17 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const proposedReferenceSet: SceneReference[] = buildProposedReferenceSet({
     characterPhotoUrl: artistVault && hasReferencePhoto(artistVault) ? artistVault.reference_image_url : null,
     characterName: artistVault?.artist_name ?? null,
-    coStars: allVaults
-      .filter((v) => pickedCoStarIds.has(v.id) && v.id !== artistVault?.id && hasReferencePhoto(v))
-      .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
+    /* Picked co-stars AND vault-linked co-stars, merged by vault id:
+       a linked co-star's photo anchors generation exactly like a
+       picked one's does (previously links were prompt-text only and
+       the model invented their faces). */
+    coStars: mergeSceneCast({
+      leadId: artistVault?.id ?? null,
+      picked: allVaults
+        .filter((v) => pickedCoStarIds.has(v.id) && hasReferencePhoto(v))
+        .map((v) => ({ id: v.id, name: v.artist_name, imageUrl: v.reference_image_url })),
+      linked: coStars.map((c) => ({ id: c.id, name: c.name, imageUrl: c.imageUrl })),
+    }).map((c) => ({ name: c.name, imageUrl: c.imageUrl ?? "" })),
     brandLogoUrl,
   });
   const baseReferenceSet: SceneReference[] = scene.referenceSet
@@ -515,11 +566,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   /* Manually picked co-stars + vault-linked co-stars, deduped by vault id. */
   const sceneCoStars = (() => {
     const seen = new Set<string>();
-    const out: { name: string; role: string; description: string }[] = [];
+    const out: { id: string; name: string; role: string; description: string }[] = [];
     const push = (id: string, name: string, role: string, description: string) => {
       if (seen.has(id)) return;
       seen.add(id);
-      out.push({ name, role, description });
+      out.push({ id, name, role, description });
     };
     for (const v of allVaults) {
       if (!pickedCoStarIds.has(v.id)) continue;
@@ -531,50 +582,18 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     return out;
   })();
 
-  /* ── Linked co-stars: characters linked in the vault appear in scenes together. ── */
-  const [coStars, setCoStars] = useState<{ name: string; role: string; description: string }[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    setCoStars([]);
-    const vaultId = artistVault?.id;
-    if (!vaultId) return;
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        const res = await fetch(`/api/artist-vaults/${vaultId}/links`, {
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
-        const list: { name: string; role: string; description: string }[] = (data.links ?? [])
-          .filter((l: any) => l.character)
-          .map((l: any) => ({
-            name: l.character.artist_name ?? "Co-star",
-            role: String(l.role ?? "collaborator").split("-").map((w: string) => w[0]?.toUpperCase() + w.slice(1)).join(" "),
-            description: [
-              l.character.personality,
-              l.character.visual_style,
-              l.character.clothing_style,
-              l.character.jewelry,
-            ].filter(Boolean).join(". ") || "character",
-          }));
-        if (!cancelled) setCoStars(list);
-      } catch {
-        /* co-stars are optional — generation works without them */
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artistVault?.id]);
-
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; });
 
-  /* Merge vault-linked co-stars (matched by name to avoid dupes). */
+  /* Merge vault-linked co-stars (deduped by vault id — two distinct
+     characters can share a name, and name-matching silently dropped
+     one of them from the prompt). */
   const sceneCoStarsWithLinks = (() => {
+    const seenIds = new Set(sceneCoStars.map((o) => o.id));
     const out = [...sceneCoStars];
     for (const c of coStars) {
-      if (out.some((o) => o.name === c.name)) continue;
+      if (seenIds.has(c.id)) continue;
+      seenIds.add(c.id);
       out.push(c);
     }
     return out;
@@ -722,9 +741,18 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         ...(artistVault && vaultPhotoUrl
           ? [{ name: artistVault.artist_name, imageUrl: vaultPhotoUrl }]
           : []),
-        ...allVaults
-          .filter((v) => pickedCoStarIds.has(v.id) && hasReferencePhoto(v))
-          .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
+        /* Picked + linked co-stars (merged by vault id): a linked
+           co-star's face belongs in the composite cast photo too,
+           not just in the prompt text. */
+        ...mergeSceneCast({
+          leadId: artistVault?.id ?? null,
+          picked: allVaults
+            .filter((v) => pickedCoStarIds.has(v.id) && hasReferencePhoto(v))
+            .map((v) => ({ id: v.id, name: v.artist_name, imageUrl: v.reference_image_url! })),
+          linked: coStars
+            .filter((c) => !!c.imageUrl && /^https:\/\//i.test(c.imageUrl))
+            .map((c) => ({ id: c.id, name: c.name, imageUrl: c.imageUrl! })),
+        }).map((c) => ({ name: c.name, imageUrl: c.imageUrl! })),
       ];
       if (castMembers.length >= 2 && !chaining && !outfitRefUrl && !scene.locationImageUrl) {
         const composite = await buildCastReference(castMembers, user?.id ?? "anon", token);

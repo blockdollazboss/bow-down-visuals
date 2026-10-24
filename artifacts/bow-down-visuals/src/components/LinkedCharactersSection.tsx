@@ -97,11 +97,17 @@ export function LinkedCharactersSection({
   async function handleUnlink(linkId: string) {
     try {
       const token = await getAccessToken();
-      await fetch(`/api/artist-vaults/${vault.id}/links/${linkId}`, {
+      const res = await fetch(`/api/artist-vaults/${vault.id}/links/${linkId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      setLinks((prev) => prev.filter((l) => l.id !== linkId));
+      /* Only drop the row when the server actually unlinked it. The
+         DELETE 404s for a missing/not-owned link; removing the row
+         anyway would tell the creator the co-star is out while the
+         server keeps casting them. */
+      if (res.ok) {
+        setLinks((prev) => prev.filter((l) => l.id !== linkId));
+      }
     } catch {
       /* keep the link on failure */
     }
