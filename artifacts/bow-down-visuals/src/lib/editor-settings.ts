@@ -206,6 +206,44 @@ export function getValidCaptionWords(line: { text: string; words?: CaptionWord[]
 
 export type CaptionSplitStyle = "short" | "medium" | "long";
 
+/** Stable id of the caption line the 3-Second Lab's apply writes. */
+export const OPENING_HOOK_LINE_ID = "opening-hook";
+
+/**
+ * Apply a 3-Second Lab opening as the project's hook caption
+ * (Stack-100 #3, Lane D): the lab's ranked hooks are text, and the
+ * editor's timeline text track IS the captions — specifically the
+ * "hook" caption mode (hookText + generated lines). Writes the source
+ * fields the Captions tab itself edits (enabled, mode "hook", hookText)
+ * and seeds the timed line at 0–3s — the window the Lab exists for — so
+ * preview and export show it immediately. Re-applying replaces the
+ * previous opening-hook line (stable id) instead of stacking; all other
+ * caption lines and settings are preserved.
+ */
+export function withOpeningHook(
+  settings: EditorSettings,
+  hookText: string,
+  lineId: string = OPENING_HOOK_LINE_ID,
+): EditorSettings {
+  const text = hookText.trim();
+  if (!text) return settings;
+  const rest = settings.captions.lines.filter((l) => l.id !== lineId);
+  const lines: CaptionLine[] = [
+    { id: lineId, startSec: 0, endSec: 3, text },
+    ...rest,
+  ].sort((a, b) => a.startSec - b.startSec);
+  return {
+    ...settings,
+    captions: {
+      ...settings.captions,
+      enabled: true,
+      mode: "hook",
+      hookText: text,
+      lines,
+    },
+  };
+}
+
 export interface CaptionLine {
   id: string;
   startSec: number;

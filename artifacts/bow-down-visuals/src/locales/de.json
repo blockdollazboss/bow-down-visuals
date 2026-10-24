@@ -6850,6 +6850,8 @@
     "labRemove": "Clip entfernen",
     "labReplace": "Ersetzen",
     "labResults": "Sortiert nach Scroll-Stopp-Score",
+    "labApplyHook": "Als Eröffnungs-Hook verwenden",
+    "labAppliedHook": "Eröffnungs-Hook gesetzt — er ist die Beschriftung deiner ersten 3 Sekunden (siehe den Tab Untertitel).",
     "labTitle": "3-Sekunden-Lab",
     "labUploadCta": "Einen Videoclip wählen (MP4/MOV, ≤ 80 MB) — oder analysiere unten den Timeline-Anfang",
     "labUploadTitle": "Deinen Clip hochladen",

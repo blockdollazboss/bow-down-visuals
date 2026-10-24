@@ -6850,6 +6850,8 @@
     "labRemove": "클립 제거",
     "labReplace": "교체",
     "labResults": "스크롤을 멈추는 점수 순 순위",
+    "labApplyHook": "오프닝 훅으로 사용",
+    "labAppliedHook": "오프닝 훅이 설정되었습니다 — 처음 3초의 캡션입니다(자막 탭을 확인하세요).",
     "labTitle": "3초 랩",
     "labUploadCta": "비디오 클립 선택 (MP4/MOV, ≤ 80 MB) — 또는 아래 타임라인 오프닝을 분석하세요",
     "labUploadTitle": "클립 업로드",
