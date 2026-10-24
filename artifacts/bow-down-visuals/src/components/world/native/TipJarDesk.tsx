@@ -139,7 +139,7 @@ export function TipJarDesk({ isLight }: { isLight: boolean }) {
             </div>
             {dashboard.goalAmount !== null && (
               <p className={`text-[11px] ${muted}`}>
-                {dashboard.goalLabel || "Goal"}: ${dashboard.total.toFixed(2)} of ${dashboard.goalAmount.toFixed(2)}
+                {dashboard.goalLabel || "Goal"}: ${(dashboard.goalRaisedDollars ?? dashboard.total).toFixed(2)} of ${dashboard.goalAmount.toFixed(2)}
                 {dashboard.goalProgress !== null ? ` · ${Math.round(dashboard.goalProgress * 100)}%` : ""}
               </p>
             )}

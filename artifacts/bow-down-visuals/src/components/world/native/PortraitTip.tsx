@@ -131,7 +131,7 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
       {page.message && <p className={`text-xs ${muted}`}>{page.message}</p>}
       {page.goalAmount !== null && (
         <p className={`mt-1 text-[11px] ${muted}`}>
-          {page.goalLabel || "Goal"}: ${page.totalDollars.toFixed(2)} of ${page.goalAmount.toFixed(2)}
+          {page.goalLabel || "Goal"}: ${(page.goalRaisedDollars ?? page.totalDollars).toFixed(2)} of ${page.goalAmount.toFixed(2)}
           {page.goalProgress !== null ? ` · ${Math.round(page.goalProgress * 100)}%` : ""}
         </p>
       )}

@@ -1,0 +1,26 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-fundgoals/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/locale-newest-surfaces.test.ts [2m([22m[2m125 tests[22m[2m)[22m[33m 1761[2mms[22m[39m
+   [32m✓[39m admin — full parity, no untranslated English residue, single-brace tokens intact [2m(20)[22m
+     [33m[2m✓[22m[39m the admin namespace is 189 leaves in en and every catalog carries all of them[33m 360[2mms[22m[39m
+ [32m✓[39m src/lib/locale-source-auto.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 2044[2mms[22m[39m
+ [32m✓[39m src/lib/locale-numeric-parity.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1504[2mms[22m[39m
+   [32m✓[39m locale numeric parity [2m(11)[22m
+     [33m[2m✓[22m[39m ar numeric tokens match en outside the explicit allowlist[33m 306[2mms[22m[39m
+ [32m✓[39m src/lib/locale-email-opens.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 1730[2mms[22m[39m
+ [32m✓[39m src/lib/locale-email-explainer.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1369[2mms[22m[39m
+   [32m✓[39m email-list explainer — tracked-era disclosure in every catalog [2m(11)[22m
+     [33m[2m✓[22m[39m en carries the explainer, corrected[33m 423[2mms[22m[39m
+ [32m✓[39m src/lib/locale-subject-reframe.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m src/lib/locale-split.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/lib/server-strings-locale.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m220 passed[39m[22m[90m (220)[39m
+[2m   Start at [22m 14:03:24
+[2m   Duration [22m 26.75s[2m (tests 51%, import 40%, transform 7%, worker 3%)[22m
+
+[2m    Isolate [22m [33m8 workers spawned[39m[2m · ~1.14s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~7.98s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

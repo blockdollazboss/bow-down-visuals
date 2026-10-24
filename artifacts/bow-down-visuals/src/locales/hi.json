@@ -6203,7 +6203,9 @@
     "tipHeading": "टिप",
     "tipStats": "अब तक {{count}} टिप्स · कुल ${{total}}",
     "paidTitle": "टिप भेजी गई!",
-    "paidBody": "{{name}} को आपकी ${{amount}} टिप अभी मिली — उनके काम का समर्थन करने के लिए धन्यवाद।"
+    "paidBody": "{{name}} को आपकी ${{amount}} टिप अभी मिली — उनके काम का समर्थन करने के लिए धन्यवाद।",
+    "goalReachedTitle": "लक्ष्य पूरा हुआ! 🎉",
+    "goalReachedBody": "{{label}} — ${{goal}} के लक्ष्य में से ${{raised}} जुटाए गए। टिप देने वाले सभी का धन्यवाद!"
   },
   "tips": {
     "anonymousFan": "अज्ञात फ़ैन",
@@ -6243,7 +6245,12 @@
     "titlePrefix": "आपका",
     "totalsTitle": "टिप जार कुल योग",
     "updateButton": "टिप पेज अपडेट करें",
-    "shareTipPage": "टिप पेज शेयर करें"
+    "shareTipPage": "टिप पेज शेयर करें",
+    "goalReached": "लक्ष्य पूरा — बढ़िया काम! जब चाहो ऊपर नया लक्ष्य तय करो।",
+    "goalPaidOnlyNote": "प्रगति में सिर्फ़ भुगतान की गई टिप्स गिनी जाती हैं — दर्ज की गई मंशा बार को कभी नहीं बढ़ाती।",
+    "goalRemove": "लक्ष्य हटाएं",
+    "goalHistoryTitle": "आपके पूरे हुए लक्ष्य",
+    "goalHistoryLine": "{{label}} — ${{goal}} में से ${{raised}} · {{date}} को पूरा"
   },
   "titles": {
     "allTagsCopyLabel": "सभी टैग्स",

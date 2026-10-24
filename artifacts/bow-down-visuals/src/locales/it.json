@@ -6216,7 +6216,9 @@
     "tipHeading": "Mancia",
     "tipStats": "{{count}} mance finora · ${{total}} in totale",
     "paidBody": "{{name}} ha appena ricevuto la tua mancia di ${{amount}} — grazie per sostenere il suo lavoro.",
-    "paidTitle": "Mancia inviata!"
+    "paidTitle": "Mancia inviata!",
+    "goalReachedTitle": "Obiettivo raggiunto! 🎉",
+    "goalReachedBody": "{{label}} — ${{raised}} raccolti su un obiettivo di ${{goal}}. Grazie a tutti quelli che hanno lasciato una mancia!"
   },
   "tips": {
     "anonymousFan": "Fan anonimo",
@@ -6256,7 +6258,12 @@
     "titlePrefix": "Il tuo",
     "totalsTitle": "Totali barattolo mance",
     "updateButton": "Aggiorna pagina tip",
-    "shareTipPage": "Condividi la pagina mance"
+    "shareTipPage": "Condividi la pagina mance",
+    "goalReached": "Obiettivo raggiunto — ottimo lavoro! Imposta un nuovo obiettivo qui sopra quando vuoi.",
+    "goalPaidOnlyNote": "I progressi contano solo le mance pagate — le intenzioni registrate non muovono mai la barra.",
+    "goalRemove": "Rimuovi obiettivo",
+    "goalHistoryTitle": "Obiettivi che hai raggiunto",
+    "goalHistoryLine": "{{label}} — ${{raised}} di ${{goal}} · raggiunto il {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "tutti i tag",

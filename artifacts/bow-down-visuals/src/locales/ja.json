@@ -6202,7 +6202,9 @@
     "tipHeading": "チップ",
     "tipStats": "これまで {{count}} 件のチップ · 合計 ${{total}}",
     "paidTitle": "チップを送りました！",
-    "paidBody": "{{name}}があなたの${{amount}}のチップを受け取りました — 彼らの活動を応援してくれてありがとうございます。"
+    "paidBody": "{{name}}があなたの${{amount}}のチップを受け取りました — 彼らの活動を応援してくれてありがとうございます。",
+    "goalReachedTitle": "目標達成！🎉",
+    "goalReachedBody": "{{label}} — 目標 ${{goal}} のうち ${{raised}} が集まりました。チップをくれた皆さん、ありがとうございます！"
   },
   "tips": {
     "anonymousFan": "匿名のファン",
@@ -6242,7 +6244,12 @@
     "titlePrefix": "あなたの",
     "totalsTitle": "投げ銭ジャーの合計",
     "updateButton": "投げ銭ページを更新",
-    "shareTipPage": "チップページをシェア"
+    "shareTipPage": "チップページをシェア",
+    "goalReached": "目標達成 — お見事！準備ができたら上で新しい目標を設定してね。",
+    "goalPaidOnlyNote": "進捗に数えられるのは支払い済みのチップだけです — 記録されただけの意思表示でバーは動きません。",
+    "goalRemove": "目標を削除",
+    "goalHistoryTitle": "達成した目標",
+    "goalHistoryLine": "{{label}} — ${{goal}} のうち ${{raised}} · {{date}} に達成"
   },
   "titles": {
     "allTagsCopyLabel": "すべてのタグ",

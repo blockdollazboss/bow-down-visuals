@@ -6203,7 +6203,9 @@
     "tipHeading": "Trinkgeld",
     "tipStats": "{{count}} Trinkgelder bisher · ${{total}} insgesamt",
     "paidBody": "{{name}} hat gerade dein Trinkgeld von ${{amount}} erhalten — danke, dass du ihre Arbeit unterstützt.",
-    "paidTitle": "Trinkgeld gesendet!"
+    "paidTitle": "Trinkgeld gesendet!",
+    "goalReachedTitle": "Ziel erreicht! 🎉",
+    "goalReachedBody": "{{label}} — ${{raised}} von ${{goal}} Ziel gesammelt. Danke an alle, die ein Trinkgeld gegeben haben!"
   },
   "tips": {
     "anonymousFan": "Anonymer Fan",
@@ -6243,7 +6245,12 @@
     "titlePrefix": "Dein",
     "totalsTitle": "Trinkgeld-Glas-Summen",
     "updateButton": "Trinkgeld-Seite aktualisieren",
-    "shareTipPage": "Trinkgeldseite teilen"
+    "shareTipPage": "Trinkgeldseite teilen",
+    "goalReached": "Ziel erreicht — starke Arbeit! Lege oben jederzeit ein neues Ziel fest.",
+    "goalPaidOnlyNote": "Der Fortschritt zählt nur bezahlte Trinkgelder — aufgezeichnete Absichten bewegen die Anzeige nie.",
+    "goalRemove": "Ziel entfernen",
+    "goalHistoryTitle": "Erreichte Ziele",
+    "goalHistoryLine": "{{label}} — ${{raised}} von ${{goal}} · erreicht am {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "alle Tags",

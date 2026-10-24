@@ -6255,7 +6255,9 @@
     "tipHeading": "إكرامية",
     "tipStats": "{{count}} إكرامية حتى الآن · ${{total}} الإجمالي",
     "paidTitle": "أُرسلت الإكرامية!",
-    "paidBody": "{{name}} تلقى للتو إكراميتك ${{amount}} — شكراً لدعمك عمله."
+    "paidBody": "{{name}} تلقى للتو إكراميتك ${{amount}} — شكراً لدعمك عمله.",
+    "goalReachedTitle": "تم تحقيق الهدف! 🎉",
+    "goalReachedBody": "{{label}} — تم جمع ${{raised}} من هدف ${{goal}}. شكرًا لكل من قدّم إكرامية!"
   },
   "tips": {
     "anonymousFan": "معجب مجهول",
@@ -6295,7 +6297,12 @@
     "titlePrefix": "لك",
     "totalsTitle": "إجماليات جرّة الإكراميات",
     "updateButton": "حدّث صفحة الإكراميات",
-    "shareTipPage": "مشاركة صفحة الإكرامية"
+    "shareTipPage": "مشاركة صفحة الإكرامية",
+    "goalReached": "تم تحقيق الهدف — عمل رائع! حدّد هدفًا جديدًا أعلاه متى شئت.",
+    "goalPaidOnlyNote": "التقدم يحسب الإكراميات المدفوعة فقط — النوايا المسجلة لا تحرّك الشريط أبدًا.",
+    "goalRemove": "إزالة الهدف",
+    "goalHistoryTitle": "الأهداف التي حققتها",
+    "goalHistoryLine": "{{label}} — ${{raised}} من ${{goal}} · تحقق في {{date}}"
   },
   "titles": {
     "allTagsCopyLabel": "كل الوسوم",

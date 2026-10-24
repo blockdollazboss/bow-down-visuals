@@ -6203,7 +6203,9 @@
     "tipHeading": "팁",
     "tipStats": "지금까지 {{count}}개의 팁 · 총 ${{total}}",
     "paidTitle": "팁이 전송됐습니다!",
-    "paidBody": "{{name}}님이 방금 ${{amount}} 팁을 받았습니다 — 그들의 작업을 응원해 주셔서 감사합니다."
+    "paidBody": "{{name}}님이 방금 ${{amount}} 팁을 받았습니다 — 그들의 작업을 응원해 주셔서 감사합니다.",
+    "goalReachedTitle": "목표 달성! 🎉",
+    "goalReachedBody": "{{label}} — 목표 ${{goal}} 중 ${{raised}} 모금. 팁을 보내주신 모든 분께 감사합니다!"
   },
   "tips": {
     "anonymousFan": "익명의 팬",
@@ -6243,7 +6245,12 @@
     "titlePrefix": "내",
     "totalsTitle": "팁 항아리 총액",
     "updateButton": "팁 페이지 업데이트",
-    "shareTipPage": "팁 페이지 공유"
+    "shareTipPage": "팁 페이지 공유",
+    "goalReached": "목표 달성 — 수고했어요! 준비되면 위에서 새 목표를 설정하세요.",
+    "goalPaidOnlyNote": "진행 상황은 결제 완료된 팁만 셉니다 — 기록된 의향만으로는 바가 움직이지 않습니다.",
+    "goalRemove": "목표 삭제",
+    "goalHistoryTitle": "달성한 목표",
+    "goalHistoryLine": "{{label}} — ${{goal}} 중 ${{raised}} · {{date}} 달성"
   },
   "titles": {
     "allTagsCopyLabel": "모든 태그",
