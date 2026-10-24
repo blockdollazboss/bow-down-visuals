@@ -54,6 +54,13 @@ export const storeProductsTable = pgTable("store_products", {
   /** -1 = unlimited / digital. 0 = sold out (blocks checkout). */
   inventory:      integer("inventory").notNull().default(-1),
   mediaUrls:      jsonb("media_urls").$type<string[]>().notNull().default([]),
+  /** Accessibility descriptions for mediaUrls, index-aligned (#29,
+   *  Stack-100 #3): mediaAltTexts[i] describes mediaUrls[i]'s image
+   *  ("" = none). Creator-written or AI-suggested, editable before it
+   *  ships. Column lands via the held migration in that lane's
+   *  .lane/MIGRATION-NEEDED.md — the storefront routes probe for it
+   *  and degrade gracefully until it lands. */
+  mediaAltTexts:  jsonb("media_alt_texts").$type<string[]>().notNull().default([]),
   serviceDetails: jsonb("service_details").$type<ServiceDetails | null>(),
   eventId:        uuid("event_id"),
   relatedLinks:   jsonb("related_links").$type<RelatedLink[]>().notNull().default([]),

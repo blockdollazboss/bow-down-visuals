@@ -140,13 +140,20 @@ export const postReplyDraftsTable = pgTable("post_reply_drafts", {
 
 export type PostReplyDraft = typeof postReplyDraftsTable.$inferSelect;
 
-/** Attachment shapes stored in posts.media_urls — every kind has a link target. */
+/** Attachment shapes stored in posts.media_urls — every kind has a link target.
+ *  `alt` (#29, Stack-100 #3): the creator-written / AI-suggested accessibility
+ *  description of the attachment's image (for video: its cover frame; for
+ *  track/watch: the artwork/thumbnail; for product: the product shot). It
+ *  rides INSIDE this JSONB — no column, no migration — is sanitized at the
+ *  write doors (lib/alt-text sanitizeAttachmentAlts), and renders as the
+ *  image's alt / aria description on public surfaces. Never identifies a
+ *  person: scene, objects, visible text and mood only. */
 export type Attachment =
-  | { kind: "image"; url: string }
-  | { kind: "video"; url: string; thumb?: string }
-  | { kind: "track"; id: string; title?: string; artwork?: string; artistSlug?: string }
-  | { kind: "watch"; id: string; title?: string; thumb?: string; artistSlug?: string }
-  | { kind: "product"; id: string; kindSlug: string; title?: string; image?: string; storeSlug?: string }
+  | { kind: "image"; url: string; alt?: string }
+  | { kind: "video"; url: string; thumb?: string; alt?: string }
+  | { kind: "track"; id: string; title?: string; artwork?: string; artistSlug?: string; alt?: string }
+  | { kind: "watch"; id: string; title?: string; thumb?: string; artistSlug?: string; alt?: string }
+  | { kind: "product"; id: string; kindSlug: string; title?: string; image?: string; storeSlug?: string; alt?: string }
   | { kind: "event"; id: string; title?: string; date?: string; venue?: string };
 
 export const REACTION_EMOJIS = ["like", "love", "fire", "clap", "mindblown"] as const;

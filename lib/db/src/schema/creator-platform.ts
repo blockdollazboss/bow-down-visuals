@@ -119,6 +119,13 @@ export const profileVideosTable = pgTable("profile_videos", {
   title:             text("title").notNull(),
   videoUrl:          text("video_url").notNull(),
   thumbnailUrl:      text("thumbnail_url"),
+  /** Accessibility description of the cover frame (#29, Stack-100 #3):
+   *  creator-written or AI-suggested at the publish door, editable before
+   *  it ships, rendered as the cover image's alt on public surfaces.
+   *  Column lands via the held migration in this lane's
+   *  .lane/MIGRATION-NEEDED.md — write doors probe for it and degrade
+   *  gracefully (publish/shorts keep working) until it lands. */
+  thumbnailAltText:  text("thumbnail_alt_text"),
   description:       text("description").notNull().default(""),
   genre:             text("genre"),
   tags:              text("tags").array().notNull().default([]),
