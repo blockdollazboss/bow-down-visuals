@@ -3,7 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { Link, useSearch } from "wouter";
 import {
   Loader2, Wallet, TrendingUp, BadgeDollarSign, PiggyBank, Copy, Check,
-  Plus, Minus, Tag, ShoppingBag, CalendarClock, ExternalLink, AlertCircle,
+  Plus, Minus, Tag, ShoppingBag, CalendarClock, ExternalLink, AlertCircle, Gift,
   CheckCircle2, Sparkles, ArrowRight, CircleDollarSign,
   PlusCircle, ListChecks, CircleDashed, Wand2, Music2, AlertTriangle,
   RotateCcw, Upload, Download, FileSpreadsheet, MessageSquare,
@@ -15,6 +15,8 @@ import { levelInfo } from "@/lib/creator-level";
 import {
   listProducts, moneyChecklist, mySales, createProduct, updateProduct, deactivateProduct, setProductBump,
   listDiscounts, createDiscount, updateDiscount, deleteDiscount,
+  soldGiftCards, myGiftCards, giftCardBalance, refundGiftCard,
+  type GiftCardDTO,
   logSaleToTracker, confirmServiceBooking,
   previewShopifyImport, commitShopifyImport, downloadShopifyExport,
   scheduleProductDrop, cancelProductDrop, getProductDrop,
@@ -65,7 +67,7 @@ const STORE_OVERVIEW_SECTION_KEYS: readonly StoreOverviewSectionKey[] = ["overvi
  * Cheat-code voice throughout: short, money-forward, zero fluff.
  */
 
-type Tab = "overview" | "products" | "orders" | "discounts" | "reviews";
+type Tab = "overview" | "products" | "orders" | "discounts" | "reviews" | "giftcards";
 
 /* ── Revenue surface: Storefront (original dashboard) · Digital music sales
    (absorbed from /music-sales) · Royalties (link to the dedicated page). */
@@ -75,7 +77,7 @@ type Surface = "storefront" | "digital";
    creator's own, typed in the Course Builder below — never a
    suggested starting price. */
 const KIND_STARTING_PRICE: Record<Exclude<StoreProductKind, "course">, number> = {
-  digital: 999, download: 499, merch: 2999, service: 9900, ticket: 2500,
+  digital: 999, download: 499, merch: 2999, service: 9900, ticket: 2500, gift_card: 2500,
 };
 
 function useToken() {
@@ -638,6 +640,8 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     /* #16 affiliates: fan-resale switch + my chosen commission %. */
     affiliatesEnabled: false,
     affiliatePct: "",
+    /* kind='gift_card': seller-set amounts, comma-separated dollars. */
+    denominations: "25, 50, 100",
   });
 
   const load = useCallback(async () => {
@@ -663,8 +667,10 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     if (!form.title.trim()) { setErr("Give it a title."); return; }
     const cents = dollarsToCents(form.priceDollars);
     /* $0 is a real price here: a free lead magnet (0190) — fans claim
-       it with their email instead of checking out. Negative isn't. */
-    if (!Number.isFinite(cents) || cents < 0) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
+       it with their email instead of checking out. Negative isn't.
+       Gift cards skip this: their price IS their amounts list (the
+       server sets the listing price to the smallest denomination). */
+    if (form.kind !== "gift_card" && (!Number.isFinite(cents) || cents < 0)) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
     /* #16: the commission is the creator's own number — required when
        affiliates are on, never invented. */
     let affiliateBps: number | null = null;
@@ -680,7 +686,9 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         kind: form.kind,
         title: form.title.trim(),
         description: form.description.trim(),
-        priceCents: cents,
+        /* Gift cards: placeholder 0 — the server sets the real listing
+           price from the amounts list (smallest denomination). */
+        priceCents: form.kind === "gift_card" ? 0 : cents,
         compareAtCents: form.compareAtDollars ? dollarsToCents(form.compareAtDollars) : null,
         inventory: form.kind === "digital" || form.kind === "download" ? -1 : parseInt(form.inventory, 10) || -1,
         mediaUrls: form.mediaUrl.trim() ? [form.mediaUrl.trim()] : [],
@@ -693,13 +701,21 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
           booking_calendar_link: form.calendarLink.trim() || undefined,
         } : null,
         eventId: form.kind === "ticket" && form.eventId.trim() ? form.eventId.trim() : null,
+        giftCardDenominationsCents: form.kind === "gift_card"
+          ? form.denominations.split(",").map((s) => dollarsToCents(s.trim())).filter((c) => Number.isFinite(c) && c > 0)
+          : null,
         isActive: true,
         affiliateEnabled: form.affiliatesEnabled,
         affiliateCommissionBps: affiliateBps,
       };
+      if (form.kind === "gift_card" && (!input.giftCardDenominationsCents || input.giftCardDenominationsCents.length === 0)) {
+        setErr("Gift cards need amounts — list the dollar amounts fans can pick, like 25, 50, 100.");
+        setBusy(false);
+        return;
+      }
       await createProduct(token, input);
       setShowForm(false);
-      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", mediaAlt: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "" });
+      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", mediaAlt: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "", denominations: "25, 50, 100" });
       await load();
       onChanged();
     } catch (e) {
@@ -874,6 +890,14 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
               <div className="mt-3">
                 <input value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })} placeholder="Event ID (from your /shows event)" className={inputCls} />
                 <p className="mt-1 text-[10px] text-white/35">Ticket sales create an event RSVP automatically.</p>
+              </div>
+            )}
+            {form.kind === "gift_card" && (
+              <div className="mt-3">
+                <input value={form.denominations} onChange={(e) => setForm({ ...form, denominations: e.target.value })} placeholder="Amounts fans can pick ($) — e.g. 25, 50, 100" className={inputCls} />
+                <p className="mt-1 text-[10px] text-white/35">
+                  You set the amounts ($5–$500, up to 8). The listing shows the smallest as the "from" price. Fans buy it for someone else — it lands in their email as stored value for your whole store. No platform fee is taken from a gift card; the standard fee applies when it's spent, on that sale.
+                </p>
               </div>
             )}
           </div>
@@ -1257,6 +1281,182 @@ function OrdersTab() {
   );
 }
 
+/* ── Gift cards tab (Stack-100 #3 #26) ───────────────────────────────────
+   The seller's stored-value desk: cards sold against this store and
+   the outstanding LIABILITY (value sold, not yet spent — held for the
+   holder, not the seller's money until redemption), plus the buyer's
+   own cards with balance lookup by code and unspent-balance refunds. */
+function GiftCardsTab() {
+  const getToken = useToken();
+  const [sold, setSold] = useState<Awaited<ReturnType<typeof soldGiftCards>> | null>(null);
+  const [mine, setMine] = useState<{ bought: GiftCardDTO[]; received: GiftCardDTO[] } | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [lookupCode, setLookupCode] = useState("");
+  const [lookup, setLookup] = useState<{ balance: string; status: string; store: string } | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [refundMsg, setRefundMsg] = useState<string | null>(null);
+  const [refunding, setRefunding] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoadError(false);
+    try {
+      const token = await getToken();
+      const [s, m] = await Promise.all([
+        soldGiftCards(token).catch(() => null),
+        myGiftCards(token).catch(() => null),
+      ]);
+      if (!s && !m) { setLoadError(true); return; }
+      setSold(s);
+      setMine(m);
+    } catch {
+      setLoadError(true);
+    }
+  }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const doLookup = async () => {
+    setLookup(null);
+    setLookupError(null);
+    try {
+      const r = await giftCardBalance(lookupCode.trim());
+      setLookup({ balance: r.card.balance, status: r.card.status, store: r.store?.name ?? "this store" });
+    } catch (e) {
+      setLookupError(e instanceof Error ? e.message : "Couldn't check that card.");
+    }
+  };
+
+  const doRefund = async (card: GiftCardDTO) => {
+    setRefunding(card.id);
+    setRefundMsg(null);
+    try {
+      const token = await getToken();
+      const r = await refundGiftCard(token, card.id);
+      setRefundMsg(r.note || `${r.refunded} refunded to your original payment method.`);
+      await load();
+    } catch (e) {
+      setRefundMsg(e instanceof Error ? e.message : "Couldn't refund that card.");
+    } finally {
+      setRefunding(null);
+    }
+  };
+
+  const cardRow = (c: GiftCardDTO, withRefund: boolean) => (
+    <tr key={c.id} className="border-t border-white/5">
+      <td className="px-4 py-3 font-mono text-xs text-white/70">…{c.codeLast4}</td>
+      <td className="px-4 py-3 text-white/80">{c.recipientEmail}</td>
+      <td className="px-4 py-3 text-white/80">{usd(c.initialCents)}</td>
+      <td className="px-4 py-3 font-bold text-white">{usd(c.balanceCents)}</td>
+      <td className="px-4 py-3 text-white/60">{c.status}</td>
+      {withRefund && (
+        <td className="px-4 py-3">
+          {c.status === "active" && c.balanceCents > 0 && (
+            <button
+              onClick={() => doRefund(c)}
+              disabled={refunding === c.id}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold text-white/80 hover:bg-white/10 disabled:opacity-50"
+            >
+              {refunding === c.id ? "Refunding…" : "Refund unspent"}
+            </button>
+          )}
+        </td>
+      )}
+    </tr>
+  );
+
+  return (
+    <div>
+      <h3 className="mb-1 text-base font-black text-white">Gift cards 🎁</h3>
+      <p className="mb-4 text-xs text-white/45">
+        Stored value for your whole store. Fans buy a card for someone else; it lands in the recipient's email and spends like money at your checkout — a little at a time or all at once.
+      </p>
+      {loadError ? (
+        <div className="rounded-2xl border border-primary/25 bg-zinc-950 p-8 text-center">
+          <p className="font-bold text-white">Couldn't load gift cards.</p>
+          <p className="mt-1 text-sm text-white/50">Your cards are safe — this tab just couldn't load them.</p>
+          <button onClick={load} className="mt-4 rounded-full border border-white/15 px-4 py-2 text-sm text-white/80">Retry</button>
+        </div>
+      ) : !sold && !mine ? (
+        <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : (
+        <>
+          {sold && (
+            <div className="mb-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div className="text-[11px] uppercase tracking-wider text-white/40">Sold (all time)</div>
+                <div className="mt-1 text-2xl font-black text-white">{sold.liability.issued}</div>
+                <div className="text-xs text-white/40">{sold.liability.cardCount} cards</div>
+              </div>
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                <div className="text-[11px] uppercase tracking-wider text-white/40">Still out there (liability)</div>
+                <div className="mt-1 text-2xl font-black text-primary">{sold.liability.outstanding}</div>
+                <div className="text-xs text-white/40">Held for holders — becomes your sale when they spend it.</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <div className="text-[11px] uppercase tracking-wider text-white/40">How you get paid</div>
+                <p className="mt-1 text-xs leading-relaxed text-white/60">{sold.liability.note}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-6 rounded-2xl border border-white/10 bg-black/40 p-4">
+            <div className="text-sm font-bold text-white">Check a card's balance</div>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={lookupCode}
+                onChange={(e) => setLookupCode(e.target.value)}
+                placeholder="BDV-XXXX-XXXX-XXXX-XXXX"
+                aria-label="Gift card code"
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/60 px-3 py-2 font-mono text-sm text-white placeholder:text-white/25"
+              />
+              <button onClick={doLookup} disabled={!lookupCode.trim()} className="shrink-0 rounded-lg border border-white/15 px-4 py-2 text-sm font-bold text-white/80 hover:bg-white/10 disabled:opacity-50">
+                Check
+              </button>
+            </div>
+            {lookup && <p className="mt-2 text-sm text-emerald-300">{lookup.balance} left on this card ({lookup.status}) — good at {lookup.store}.</p>}
+            {lookupError && <p className="mt-2 text-sm text-red-300">{lookupError}</p>}
+          </div>
+
+          {sold && sold.cards.length > 0 && (
+            <>
+              <h4 className="mb-2 text-sm font-bold text-white">Sold against your store</h4>
+              <div className="mb-6 overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead><tr className="text-[11px] uppercase tracking-wider text-white/40">
+                    <th className="px-4 py-2">Card</th><th className="px-4 py-2">Recipient</th><th className="px-4 py-2">Sold for</th><th className="px-4 py-2">Balance</th><th className="px-4 py-2">Status</th>
+                  </tr></thead>
+                  <tbody>{sold.cards.map((c) => cardRow(c, false))}</tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {mine && (mine.bought.length > 0 || mine.received.length > 0) && (
+            <>
+              <h4 className="mb-2 text-sm font-bold text-white">Cards you bought</h4>
+              {refundMsg && <p className="mb-2 text-sm text-amber-200">{refundMsg}</p>}
+              <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead><tr className="text-[11px] uppercase tracking-wider text-white/40">
+                    <th className="px-4 py-2">Card</th><th className="px-4 py-2">Recipient</th><th className="px-4 py-2">Bought for</th><th className="px-4 py-2">Balance</th><th className="px-4 py-2">Status</th><th className="px-4 py-2"></th>
+                  </tr></thead>
+                  <tbody>{mine.bought.map((c) => cardRow(c, true))}</tbody>
+                </table>
+              </div>
+              {mine.received.length > 0 && (
+                <p className="mt-3 text-xs text-white/45">{mine.received.length} card{mine.received.length === 1 ? "" : "s"} sent to your email — the codes live in those emails; check a balance above anytime.</p>
+              )}
+            </>
+          )}
+          {sold && sold.cards.length === 0 && (!mine || (mine.bought.length === 0 && mine.received.length === 0)) && (
+            <p className="text-sm text-white/45">No gift cards yet. List one from the Products tab (kind: Gift card), set the amounts fans can pick, and it sells itself on birthdays. 🎂</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ── Discounts tab ───────────────────────────────────────────────────── */
 function DiscountsTab() {
   const isLight = useIsLightTheme();
@@ -1431,7 +1631,7 @@ export default function StoreDashboard() {
   const search = useSearch();
   const initialTab = useMemo<Tab>(() => {
     const t = new URLSearchParams(search).get("tab");
-    return t === "products" || t === "orders" || t === "discounts" || t === "reviews" ? t : "overview";
+    return t === "products" || t === "orders" || t === "discounts" || t === "reviews" || t === "giftcards" ? t : "overview";
   }, [search]);
   const [tab, setTab] = useState<Tab>(initialTab);
   /* Revenue surface — ?view=digital deep link; defaults to storefront so
@@ -1492,6 +1692,7 @@ export default function StoreDashboard() {
     { id: "orders", label: "Orders", icon: TrendingUp },
     { id: "discounts", label: "Discounts", icon: Tag },
     { id: "reviews", label: "Reviews", icon: MessageSquare },
+    { id: "giftcards", label: "Gift Cards", icon: Gift },
   ];
 
   return (
@@ -1635,6 +1836,7 @@ export default function StoreDashboard() {
           {tab === "orders" && <OrdersTab />}
           {tab === "discounts" && <DiscountsTab />}
           {tab === "reviews" && <SellerReviewsPanel productType="store_product" />}
+          {tab === "giftcards" && <GiftCardsTab />}
           </>
           )}
           {surface === "digital" && <DigitalSalesTab />}

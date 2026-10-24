@@ -25,13 +25,10 @@ import { creatorProfilesTable } from "./creator-platform";
  * it — this module never rebuilds fulfillment.
  */
 
-/* 'course' (Creator Courses) is PENDING MIGRATION: the kind CHECK below
-   only accepts it once the held migration (see the lane's
-   MIGRATION-NEEDED.md; number assigned at join) widens
-   store_products_kind_check. The type carries it now so course code
-   typechecks; the DB still refuses course rows until the migration
-   lands, and the courses API fails closed (503) until then. */
-export const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket", "course"] as const;
+/* 'course' (Creator Courses, migration 0214) and 'gift_card' (Gift
+   Cards, migration 0215) widened store_products_kind_check in this
+   stack; the type and the CHECK below carry the full union. */
+export const STORE_PRODUCT_KINDS = ["download", "merch", "digital", "service", "ticket", "course", "gift_card"] as const;
 export type StoreProductKind = (typeof STORE_PRODUCT_KINDS)[number];
 
 /** Link-graph item: the track, video, drop page, or event a product relates to. */
@@ -107,6 +104,11 @@ export const storeProductsTable = pgTable("store_products", {
    *  and degrade gracefully until it lands. */
   mediaAltTexts:  jsonb("media_alt_texts").$type<string[]>().notNull().default([]),
   serviceDetails: jsonb("service_details").$type<ServiceDetails | null>(),
+  /** kind='gift_card' only (PENDING-MIGRATION, see schema/gift-cards.ts):
+   *  the denominations the SELLER offers, integer cents. The buyer picks
+   *  one at purchase; price_cents carries the smallest denomination as
+   *  the listing's "from" price. Null for every other kind. */
+  giftCardDenominationsCents: jsonb("gift_card_denominations_cents").$type<number[] | null>(),
   eventId:        uuid("event_id"),
   relatedLinks:   jsonb("related_links").$type<RelatedLink[]>().notNull().default([]),
   /* Order bump (Stack-100 #3 #13, migration 0206): the ONE add-on product
@@ -124,8 +126,7 @@ export const storeProductsTable = pgTable("store_products", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
-  /* PENDING MIGRATION widens this to include 'course' — see header note. */
-  check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket','course')`),
+  check("store_products_kind_check", sql`${t.kind} IN ('download','merch','digital','service','ticket','course','gift_card')`),
   /* >= 0 (migration 0190): $0 is a lead magnet — claimed by email via
      POST /api/storefront/claim, never run through Stripe checkout. */
   check("store_products_price_check", sql`${t.priceCents} >= 0`),

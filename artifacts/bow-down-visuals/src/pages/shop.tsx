@@ -77,6 +77,10 @@ export default function ShopStorefront() {
      is always the pricing authority — the totals shown here mirror
      its exact unit-rounding formula. */
   const [discountInput, setDiscountInput] = useState("");
+  /* Gift-card tender (Stack-100 #3 #26): stored value beside the
+     discount code — the server validates it against this shop's owner
+     and applies it to the total due at checkout. */
+  const [giftCardInput, setGiftCardInput] = useState("");
   const [appliedCode, setAppliedCode] = useState<{ code: string; percentOff: number } | null>(null);
   const [codeMsg, setCodeMsg] = useState<string | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
@@ -237,11 +241,12 @@ export default function ShopStorefront() {
           ...(new URLSearchParams(window.location.search).get("ref")?.trim()
             ? { affiliateCode: new URLSearchParams(window.location.search).get("ref")!.trim() }
             : {}),
+          ...(giftCardInput.trim() ? { giftCardCode: giftCardInput.trim() } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
-      if (data.free === true && data.paid === true) {
+      if ((data.free === true || data.paidWithGiftCard === true) && data.paid === true) {
         setOrderDone({ lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0 });
         setCart([]);
         return;
@@ -495,6 +500,16 @@ export default function ShopStorefront() {
                 {codeMsg && (
                   <p className={`mt-2 text-xs ${appliedCode ? "text-emerald-300" : "text-red-300"}`}>{codeMsg}</p>
                 )}
+                <input
+                  value={giftCardInput}
+                  onChange={(e) => setGiftCardInput(e.target.value)}
+                  placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
+                  aria-label="Gift card code"
+                  className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                />
+                <p className="mt-1.5 text-[11px] leading-relaxed text-white/35">
+                  Paying with a gift card from this creator? It covers what it can, the rest goes on your card, and what's left stays on the gift card.
+                </p>
                 <input
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
