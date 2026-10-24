@@ -42,6 +42,7 @@ import {
   TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT,
 } from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
+import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
 import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
 import { Shuffle, ListOrdered } from "lucide-react";
 
@@ -152,6 +153,11 @@ export function TimelineDock({
   }, [audioUrl]);
 
   const clipEdits = settings.clips ?? {};
+  /* Timeline lock (Studio Editor → Lock Timeline): while locked, no clip in
+     this dock can be moved, trimmed, split, deleted, or otherwise edited.
+     Playback, selection, zoom, and export stay live. The page's wrapped
+     setters refuse the same writes as a backstop (lib/timeline-lock.ts). */
+  const timelineLocked = isTimelineLocked(settings);
   const isManual = settings.timelineLayout === "manual";
   const manualCalc = isManual ? computeManualTimings(scenes, audioDuration, clipEdits) : null;
   const sceneTimings = isManual ? manualCalc!.timings : computeSceneTimings(scenes, audioDuration);
@@ -208,11 +214,12 @@ export function TimelineDock({
 
   /* ── Trim drag ── */
   const startTrimDrag = useCallback((e: React.PointerEvent, side: "start" | "end", sceneId: string, clipDur: number, clipStart: number) => {
+    if (timelineLocked) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     const ce = clipEdits[sceneId];
     trimDragRef.current = { side, sceneId, startX: e.clientX, startVal: side === "start" ? (ce?.trimStart ?? 0) : (ce?.trimEnd ?? 0), clipDur, clipStart };
-  }, [clipEdits]);
+  }, [clipEdits, timelineLocked]);
 
   /* ── Fade handle drag ── */
   const startFadeDrag = useCallback((e: React.PointerEvent, side: "in" | "out") => {
@@ -237,11 +244,11 @@ export function TimelineDock({
 
   /* ── Freeform clip move drag (manual layout only) ── */
   const startMoveDrag = useCallback((e: React.PointerEvent, sceneId: string, curStart: number) => {
-    if (!isManual) return;
+    if (timelineLocked || !isManual) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     moveDragRef.current = { sceneId, startX: e.clientX, startVal: curStart };
-  }, [isManual]);
+  }, [isManual, timelineLocked]);
 
   /* ── Dock resize drag (top-edge handle) — vertical, independent of totalDur/audio state ── */
   const startResizeDrag = useCallback((e: React.PointerEvent) => {
@@ -379,7 +386,7 @@ export function TimelineDock({
   const onPointerUp = useCallback(() => {
     if (rangeCreateRef.current?.moved) suppressNextClickRef.current = true;
     if (loopCreateRef.current?.moved) suppressNextClickRef.current = true;
-    if (moveDragRef.current && isManual) {
+    if (moveDragRef.current && isManual && !timelineLocked) {
       const sceneId = moveDragRef.current.sceneId;
       const result = computeManualTimings(scenes, audioDuration, clipEdits);
       const idx = scenes.findIndex((s) => s.id === sceneId);
@@ -459,6 +466,7 @@ export function TimelineDock({
 
   /* ── Drag-to-reorder (back-to-back only — flex layout structurally enforces no gaps) ── */
   function onDragEnd(event: DragEndEvent) {
+    if (timelineLocked) return;
     const { active, over } = event;
     if (!over || active.id === over.id || !setScenes) return;
     const oldIdx = scenes.findIndex((s) => s.id === active.id);
@@ -480,7 +488,7 @@ export function TimelineDock({
   const splitScene = playheadIdx !== null ? scenes[playheadIdx] : null;
   const splitStart = playheadIdx !== null ? (offsets[playheadIdx] ?? 0) : 0;
   const splitDur = playheadIdx !== null ? (durs[playheadIdx] ?? 0) : 0;
-  const canSplit = !!splitScene && currentTime > splitStart + 0.3 && currentTime < splitStart + splitDur - 0.3;
+  const canSplit = !timelineLocked && !!splitScene && currentTime > splitStart + 0.3 && currentTime < splitStart + splitDur - 0.3;
 
   /* ── Freeze frame — one click at the playhead (CapCut-style).
      Holds the frame for 2s and returns a floating result card with
@@ -490,7 +498,7 @@ export function TimelineDock({
   const freezeSceneIdRef = useRef<string | null>(null);
 
   const canFreeze =
-    !!splitScene?.demoClipUrl && !freezeBusy &&
+    !timelineLocked && !!splitScene?.demoClipUrl && !freezeBusy &&
     currentTime > splitStart + 0.2 && currentTime < splitStart + splitDur - 0.2;
 
   async function pollFreezeJob(jobId: string): Promise<void> {
@@ -513,6 +521,10 @@ export function TimelineDock({
      Freeze tool and the right-click menu). Renders a 2s hold of the current
      frame server-side; the floating result card offers "Use in editor". ── */
   const freezeClipAt = useCallback(async (idx: number) => {
+    if (timelineLocked) {
+      toast({ title: "Timeline locked", description: TIMELINE_LOCKED_MESSAGE, variant: "destructive" });
+      return;
+    }
     const scene = scenes[idx];
     const start = offsets[idx] ?? 0;
     const dur = durs[idx] ?? 0;
@@ -565,7 +577,7 @@ export function TimelineDock({
       setFreezeBusy(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenes, offsets, durs, currentTime, freezeBusy, clipEdits, confirmedFetch, toast, t]);
+  }, [scenes, offsets, durs, currentTime, freezeBusy, clipEdits, confirmedFetch, toast, t, timelineLocked]);
 
   async function doFreeze() {
     if (playheadIdx === null) return;
@@ -616,6 +628,7 @@ export function TimelineDock({
      not necessarily the one under the playhead. Same scene/clipEdit math as
      doSplit above. ── */
   const splitClipAt = useCallback((idx: number) => {
+    if (timelineLocked) return;
     if (!setScenes || idx < 0 || idx >= scenes.length) return;
     const scene = scenes[idx]!;
     const start = offsets[idx] ?? 0;
@@ -655,7 +668,7 @@ export function TimelineDock({
     setSelectedIdx(idx + 1);
     toast({ title: "Clip split", description: `Split at ${fmt(snap(currentTime))}` });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setScenes, scenes, offsets, durs, currentTime, clipEdits, settings, setSettings, setSelectedIdx, toast, snapEnabled, beatGrid]);
+  }, [setScenes, scenes, offsets, durs, currentTime, clipEdits, settings, setSettings, setSelectedIdx, toast, snapEnabled, beatGrid, timelineLocked]);
 
   /* ── Keyboard shortcut: "S" splits the clip under the playhead (ignored while typing) ── */
   useEffect(() => {
@@ -688,9 +701,10 @@ export function TimelineDock({
 
   /** Patch a clip's ClipEdit (same merge pattern as EffectsSection.patchClip). */
   const patchClipEdit = useCallback((sceneId: string, patch: Partial<ClipEdit>) => {
+    if (timelineLocked) return;
     const current = { ...defaultClipEdit(), ...(clipEdits[sceneId] ?? {}) };
     setSettings({ ...settings, clips: { ...clipEdits, [sceneId]: { ...current, ...patch } } });
-  }, [clipEdits, settings, setSettings]);
+  }, [clipEdits, settings, setSettings, timelineLocked]);
 
   /** Patch a clip's Pro Tools settings (speed / reverse / color grade). */
   const patchProTools = useCallback((sceneId: string, patch: Partial<ProToolsSettings>) => {
@@ -699,6 +713,7 @@ export function TimelineDock({
   }, [clipEdits, patchClipEdit]);
 
   const duplicateClip = useCallback((idx: number) => {
+    if (timelineLocked) return;
     if (!setScenes || idx < 0 || idx >= scenes.length) return;
     const scene = scenes[idx]!;
     const newId = genId();
@@ -712,9 +727,10 @@ export function TimelineDock({
     }
     setSelectedIdx(idx + 1);
     toast({ title: "Clip duplicated", description: `${scene.section || `Scene ${idx + 1}`} copied after itself.` });
-  }, [setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+  }, [setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast, timelineLocked]);
 
   const deleteClip = useCallback((idx: number) => {
+    if (timelineLocked) return;
     if (!setScenes || idx < 0 || idx >= scenes.length) return;
     const scene = scenes[idx]!;
     setScenes(scenes.filter((_, i) => i !== idx));
@@ -726,7 +742,7 @@ export function TimelineDock({
     if (selectedIdx === idx) setSelectedIdx(null);
     else if (selectedIdx !== null && selectedIdx > idx) setSelectedIdx(selectedIdx - 1);
     toast({ title: "Clip deleted", description: scene.section || `Scene ${idx + 1}` });
-  }, [setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, setSelectedIdx, toast]);
+  }, [setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, setSelectedIdx, toast, timelineLocked]);
 
   const copyClip = useCallback((idx: number) => {
     const scene = scenes[idx];
@@ -737,6 +753,7 @@ export function TimelineDock({
   }, [scenes, clipEdits, toast]);
 
   const pasteClip = useCallback((afterIdx: number) => {
+    if (timelineLocked) return;
     if (!sceneClipboard || !setScenes) return;
     const newId = genId();
     const copy: SceneData = {
@@ -750,9 +767,10 @@ export function TimelineDock({
     setSettings({ ...settings, clips: { ...clipEdits, [newId]: { ...sceneClipboard.edit } } });
     setSelectedIdx(afterIdx + 1);
     toast({ title: "Clip pasted", description: sceneClipboard.scene.section || "Clip" });
-  }, [sceneClipboard, setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast]);
+  }, [sceneClipboard, setScenes, scenes, clipEdits, settings, setSettings, setSelectedIdx, toast, timelineLocked]);
 
   const renameClip = useCallback((idx: number) => {
+    if (timelineLocked) return;
     const scene = scenes[idx];
     if (!scene || !setScenes) return;
     const next = window.prompt("Rename clip", scene.section || `Scene ${idx + 1}`);
@@ -761,7 +779,7 @@ export function TimelineDock({
     if (!label) return;
     setScenes(scenes.map((s, i) => (i === idx ? { ...s, section: label } : s)));
     toast({ title: "Clip renamed", description: label });
-  }, [scenes, setScenes, toast]);
+  }, [scenes, setScenes, toast, timelineLocked]);
 
   /** Replace-clip file picker flow — uploads via /api/upload-clip, then swaps the clip URL. */
   const handleReplaceFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -769,6 +787,7 @@ export function TimelineDock({
     e.target.value = "";
     const sceneId = replaceTargetId;
     setReplaceTargetId(null);
+    if (timelineLocked) return;
     if (!file || !sceneId || !onReplaceClipVideo) return;
     if (file.size > 80 * 1024 * 1024) {
       toast({ title: "That clip is over 80 MB — trim it or pick a smaller file.", variant: "destructive" });
@@ -800,7 +819,7 @@ export function TimelineDock({
         variant: "destructive",
       });
     }
-  }, [replaceTargetId, onReplaceClipVideo, toast]);
+  }, [replaceTargetId, onReplaceClipVideo, toast, timelineLocked]);
 
   /* ── Build the right-click menu items for the clip at index `idx`. Every
      item performs a real action — nothing here is a dead button. ── */
@@ -817,22 +836,28 @@ export function TimelineDock({
     const pt = ce.proTools;
     const label = scene.section || `Scene ${idx + 1}`;
     const pasteAfter = selectedIdx ?? idx;
+    /* Timeline lock: every mutating item is disabled with the reason shown;
+       a disabled parent also never opens its submenu. Copy stays live (it
+       doesn't change the timeline). The handlers are gated too, as backstop. */
+    const lockOff = timelineLocked
+      ? { disabled: true, disabledTitle: TIMELINE_LOCKED_MESSAGE }
+      : {};
 
     return [
       {
         key: "split", label: <span>Split at playhead <span className="ml-1 text-[10px] text-white/30 font-mono">S</span></span>,
         icon: <Scissors className="h-3.5 w-3.5" />,
-        disabled: !idxCanSplit,
-        disabledTitle: idxCanSplit ? undefined : "Move the playhead over this clip to split it",
+        disabled: timelineLocked || !idxCanSplit,
+        disabledTitle: timelineLocked ? TIMELINE_LOCKED_MESSAGE : idxCanSplit ? undefined : "Move the playhead over this clip to split it",
         onClick: () => splitClipAt(idx),
       },
       {
-        key: "duplicate", label: "Duplicate clip",
+        key: "duplicate", label: "Duplicate clip", ...lockOff,
         icon: <Copy className="h-3.5 w-3.5" />,
         onClick: () => duplicateClip(idx),
       },
       {
-        key: "delete", label: "Delete clip", danger: true,
+        key: "delete", label: "Delete clip", danger: true, ...lockOff,
         icon: <Trash2 className="h-3.5 w-3.5" />,
         onClick: () => deleteClip(idx),
       },
@@ -845,13 +870,13 @@ export function TimelineDock({
       {
         key: "paste", label: "Paste clip",
         icon: <ClipboardPaste className="h-3.5 w-3.5" />,
-        disabled: !sceneClipboard,
-        disabledTitle: !sceneClipboard ? "Copy a clip first" : undefined,
+        disabled: timelineLocked || !sceneClipboard,
+        disabledTitle: timelineLocked ? TIMELINE_LOCKED_MESSAGE : !sceneClipboard ? "Copy a clip first" : undefined,
         onClick: () => pasteClip(pasteAfter),
       },
       { key: "div-2", divider: true, label: "" },
       {
-        key: "speed", label: "Speed", icon: <Gauge className="h-3.5 w-3.5" />,
+        key: "speed", label: "Speed", icon: <Gauge className="h-3.5 w-3.5" />, ...lockOff,
         children: [0.25, 0.5, 1, 1.5, 2, 4].map((v) => ({
           key: `speed-${v}`, label: `${v}×`,
           checked: pt.speed === v && !pt.speedCurve,
@@ -862,7 +887,7 @@ export function TimelineDock({
         })),
       },
       {
-        key: "reverse", label: "Reverse clip", icon: <Rewind className="h-3.5 w-3.5" />,
+        key: "reverse", label: "Reverse clip", icon: <Rewind className="h-3.5 w-3.5" />, ...lockOff,
         checked: pt.reverse,
         onClick: () => {
           patchProTools(scene.id, { reverse: !pt.reverse });
@@ -872,13 +897,13 @@ export function TimelineDock({
       {
         key: "freeze", label: "Freeze frame",
         icon: <Snowflake className="h-3.5 w-3.5" />,
-        disabled: !idxCanFreeze,
-        disabledTitle: !idxCanFreeze ? "Move the playhead over a clip with video to freeze it" : undefined,
+        disabled: timelineLocked || !idxCanFreeze,
+        disabledTitle: timelineLocked ? TIMELINE_LOCKED_MESSAGE : !idxCanFreeze ? "Move the playhead over a clip with video to freeze it" : undefined,
         onClick: () => { void freezeClipAt(idx); },
       },
       { key: "div-3", divider: true, label: "" },
       {
-        key: "transition", label: "Transition into clip", icon: <ArrowLeftRight className="h-3.5 w-3.5" />,
+        key: "transition", label: "Transition into clip", icon: <ArrowLeftRight className="h-3.5 w-3.5" />, ...lockOff,
         children: (idx === 0 ? ["Cut"] : [...TRANSITIONS]).map((tr) => ({
           key: `transition-${tr}`, label: tr,
           checked: ce.transition === tr,
@@ -889,7 +914,7 @@ export function TimelineDock({
         })),
       },
       {
-        key: "effect", label: "Add effect", icon: <Sparkles className="h-3.5 w-3.5" />,
+        key: "effect", label: "Add effect", icon: <Sparkles className="h-3.5 w-3.5" />, ...lockOff,
         children: ["None", ...EFFECTS].map((fx) => ({
           key: `effect-${fx}`, label: fx,
           checked: ce.effect === fx,
@@ -900,7 +925,7 @@ export function TimelineDock({
         })),
       },
       {
-        key: "grade", label: "Adjust color", icon: <Palette className="h-3.5 w-3.5" />,
+        key: "grade", label: "Adjust color", icon: <Palette className="h-3.5 w-3.5" />, ...lockOff,
         children: [
           ...[...COLOR_GRADES].map((g) => ({
             key: `grade-${g}`, label: g,
@@ -934,6 +959,7 @@ export function TimelineDock({
             </div>
             <input
               type="range" min={0} max={100} step={1} value={ce.volume}
+              disabled={timelineLocked}
               onChange={(e) => patchClipEdit(scene.id, { volume: Number(e.target.value) })}
               onPointerDown={(e) => e.stopPropagation()}
               className="w-full accent-[#C9A84C] cursor-pointer"
@@ -944,7 +970,7 @@ export function TimelineDock({
         keepOpen: true,
       },
       {
-        key: "mute", label: ce.muted ? "Unmute clip" : "Mute clip",
+        key: "mute", label: ce.muted ? "Unmute clip" : "Mute clip", ...lockOff,
         icon: ce.muted ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />,
         checked: ce.muted,
         onClick: () => {
@@ -956,8 +982,8 @@ export function TimelineDock({
       {
         key: "replace", label: "Replace clip…",
         icon: <Upload className="h-3.5 w-3.5" />,
-        disabled: !onReplaceClipVideo,
-        disabledTitle: !onReplaceClipVideo ? "Not available" : undefined,
+        disabled: timelineLocked || !onReplaceClipVideo,
+        disabledTitle: timelineLocked ? TIMELINE_LOCKED_MESSAGE : !onReplaceClipVideo ? "Not available" : undefined,
         onClick: () => {
           setReplaceTargetId(scene.id);
           // Defer so the menu unmounts before the file dialog opens.
@@ -965,7 +991,7 @@ export function TimelineDock({
         },
       },
       {
-        key: "rename", label: "Rename clip",
+        key: "rename", label: "Rename clip", ...lockOff,
         icon: <Pencil className="h-3.5 w-3.5" />,
         onClick: () => renameClip(idx),
       },
@@ -1107,7 +1133,7 @@ export function TimelineDock({
         </span>
 
         <button type="button" onClick={doSplit} disabled={!canSplit}
-          data-testid="timeline-dock-split" title="Split the clip under the playhead (S)"
+          data-testid="timeline-dock-split" title={timelineLocked ? TIMELINE_LOCKED_MESSAGE : "Split the clip under the playhead (S)"}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-muted-foreground border border-border hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors ml-1">
           <Scissors className="h-3 w-3" /> Split
         </button>
@@ -1179,8 +1205,10 @@ export function TimelineDock({
         {audioWarningPill}
 
         <span className="text-[9px] text-muted-foreground/60 hidden md:inline">
-          {isManual ? "Drag clip anywhere · overlap for auto-transition · " : "Drag clip to reorder · "}
-          drag edges to trim · drag waveform to select export range · S to split
+          {timelineLocked
+            ? "Timeline locked — playback, selection, and export still work · unlock in the Studio tab to edit"
+            : <>{isManual ? "Drag clip anywhere · overlap for auto-transition · " : "Drag clip to reorder · "}
+              drag edges to trim · drag waveform to select export range · S to split</>}
         </span>
 
         <div className="flex items-center gap-1">
@@ -1452,7 +1480,7 @@ export function TimelineDock({
                         {!hasClip && <span className="text-[9px] text-amber-400 mr-1 shrink-0 pointer-events-none">⚠</span>}
                         {useLipSync && <span className="text-[8px] text-violet-300 mr-1 shrink-0 font-bold pointer-events-none">LS</span>}
                         {hasOverlap && <span className="text-[8px] text-pink-300 mr-1 shrink-0 font-bold pointer-events-none" title={`Overlap: ${timing.overlapWithPrevSec.toFixed(1)}s → transition`}>⇄{timing.overlapWithPrevSec.toFixed(1)}s</span>}
-                        {selected && (
+                        {selected && !timelineLocked && (
                           <>
                             <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                               title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
@@ -1490,7 +1518,7 @@ export function TimelineDock({
                       const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);
                       const hasClip = useLipSync || !!scene.demoClipUrl;
                       return (
-                        <SortableClip key={scene.id} id={scene.id} widthPct={widthPct}>
+                        <SortableClip key={scene.id} id={scene.id} widthPct={widthPct} disabled={timelineLocked}>
                           {(dragHandleProps, isDragging) => (
                             <div
                               {...dragHandleProps}
@@ -1531,7 +1559,7 @@ export function TimelineDock({
                               </div>
                               {!hasClip && <span className="text-[9px] text-amber-400 mr-1 shrink-0">⚠</span>}
                               {useLipSync && <span className="text-[8px] text-violet-300 mr-1 shrink-0 font-bold">LS</span>}
-                              {selected && (
+                              {selected && !timelineLocked && (
                                 <>
                                   <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                                     title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
@@ -1590,13 +1618,15 @@ export function TimelineDock({
 
 /* ── Sortable clip wrapper — flexBasis keeps clips back-to-back, no gaps/overlap ── */
 function SortableClip({
-  id, widthPct, children,
+  id, widthPct, disabled = false, children,
 }: {
   id: string;
   widthPct: number;
+  /** Timeline lock: dnd-kit drag is fully disabled so clips cannot be reordered. */
+  disabled?: boolean;
   children: (dragHandleProps: React.HTMLAttributes<HTMLElement>, isDragging: boolean) => React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   return (
     <div
       ref={setNodeRef}

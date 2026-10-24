@@ -1564,6 +1564,13 @@ export interface EditorSettings {
   masterPlayerTheater: boolean;
   /** Whether the bottom Timeline Dock is collapsed/hidden to reclaim screen space. */
   timelineDockHidden: boolean;
+  /** Whether the timeline is locked via the Studio Editor's "Lock Timeline".
+   *  While true, the timeline's clips cannot be moved, trimmed, split, deleted,
+   *  or otherwise edited anywhere in the editor until unlocked (enforced by the
+   *  page's setScenes/setSettings wrappers + per-surface gates — see
+   *  lib/timeline-lock.ts). Playback, selection, zoom/scroll, and export stay
+   *  available while locked. Persisted with the rest of the editor settings. */
+  timelineLocked: boolean;
   /** User-resizable px height of the Timeline Dock's body (ruler + waveform + clip track), set by
    *  dragging the handle on the dock's top edge. Clamped to TIMELINE_DOCK_MIN/MAX_HEIGHT. */
   timelineDockHeight: number;
@@ -1781,6 +1788,7 @@ export function defaultEditorSettings(): EditorSettings {
     masterPlayerHidden: false,
     masterPlayerTheater: false,
     timelineDockHidden: false,
+    timelineLocked: false,
     timelineDockHeight: TIMELINE_DOCK_DEFAULT_HEIGHT,
     autoEdit: {
       preset: "drill",
@@ -2134,6 +2142,7 @@ export function normalizeEditorSettings(
     masterPlayerHidden: typeof stored.masterPlayerHidden === "boolean" ? stored.masterPlayerHidden : false,
     masterPlayerTheater: typeof stored.masterPlayerTheater === "boolean" ? stored.masterPlayerTheater : false,
     timelineDockHidden: typeof stored.timelineDockHidden === "boolean" ? stored.timelineDockHidden : false,
+    timelineLocked: typeof stored.timelineLocked === "boolean" ? stored.timelineLocked : false,
     timelineDockHeight: typeof stored.timelineDockHeight === "number" && isFinite(stored.timelineDockHeight)
       ? Math.min(TIMELINE_DOCK_MAX_HEIGHT, Math.max(TIMELINE_DOCK_MIN_HEIGHT, stored.timelineDockHeight))
       : TIMELINE_DOCK_DEFAULT_HEIGHT,
