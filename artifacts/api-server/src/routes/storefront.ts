@@ -975,6 +975,9 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       }
       async function placeCheckoutHold() { return db.transaction(async (tx) => {
         const run = tx as unknown as SqlRunner;
+        /* p was null-checked above; the closure boundary drops the
+           narrowing, so re-assert it once here. */
+        const prod = p!;
         await lockProductRow(run, productId);
         const cur = await run.execute(sql`
           SELECT service_details, is_active FROM store_products WHERE id = ${productId} LIMIT 1
@@ -1006,7 +1009,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
             (buyer_user_id, profile_id, product_id, product_title, product_kind,
              quantity, amount_cents, discount_code, platform_fee_cents,
              creator_amount_cents, stripe_session_id, status, fulfillment_note)
-          VALUES (${req.userId!}, ${p.profile_id}, ${p.id}, ${p.title}, 'service',
+          VALUES (${req.userId!}, ${prod.profile_id}, ${prod.id}, ${prod.title}, 'service',
                   1, ${lineTotal}, ${discountCode}, ${feeCents},
                   ${creatorCents}, NULL, 'booking_held', ${encodeBookingNote(check.record)})
           RETURNING id
@@ -1019,7 +1022,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         await placeServiceBooking(run, {
           orderId: hid,
           productId,
-          profileId: p.profile_id,
+          profileId: prod.profile_id,
           buyerUserId: req.userId!,
           record: check.record,
           holdExpiresAt: new Date(now.getTime() + BOOKING_HOLD_TTL_MIN * 60_000),
