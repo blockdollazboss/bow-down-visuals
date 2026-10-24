@@ -1,24 +1,24 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "6cc14c93f03139e7bb6a0c98e94f5b9df29818e2",
+  "baseCommit": "18fb3b5322271420665f569ad050d7b1643d869c",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-23",
+  "generatedAt": "2026-10-24",
   "counts": {
-    "routesInApp": 226,
-    "pageFiles": 179,
-    "features": 237,
+    "routesInApp": 227,
+    "pageFiles": 180,
+    "features": 238,
     "excludedRoutes": 64,
     "excludedPageFiles": 35,
-    "pricedActions": 217,
+    "pricedActions": 227,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 227,
+    "withDescriptions": 228,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -732,6 +732,21 @@
       "nextSteps": [],
       "description": "Score your post's viral readiness before you ship it — hook strength, caption, hashtags, and best posting time.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"viralityCheck.pageDescription\""
+    },
+    {
+      "id": "app",
+      "name": "Get the App",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
+      "path": "/app",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/app.tsx",
+      "component": "AppPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "Get the Bow Down Visuals app — download the Android APK or the Chrome extension, or install the web app on iPhone, iPad, Windows and Mac.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/app.tsx usePageTitle meta description"
     },
     {
       "id": "arcade",
@@ -5549,6 +5564,24 @@
           "vb": 100,
           "endpoint": "/api/comment-replies",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Community Moderation (per 50 comments)",
+          "vb": 100,
+          "endpoint": "/api/community/moderate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Community Sentiment Report",
+          "vb": 100,
+          "endpoint": "/api/community/sentiment",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Community Superfan Scan",
+          "vb": 100,
+          "endpoint": "/api/community/superfans",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "nextSteps": [],
@@ -5579,6 +5612,24 @@
           "feature": "Comment Replies",
           "vb": 100,
           "endpoint": "/api/comment-replies",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Community Moderation (per 50 comments)",
+          "vb": 100,
+          "endpoint": "/api/community/moderate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Community Sentiment Report",
+          "vb": 100,
+          "endpoint": "/api/community/sentiment",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Community Superfan Scan",
+          "vb": 100,
+          "endpoint": "/api/community/superfans",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -7474,6 +7525,18 @@
           "vb": 100,
           "endpoint": "/api/show-finder/pitch",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Clip Plan",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/clip-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Prep",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/prep",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "description": "Stream dashboard — announce your Discord streams and hype your community.",
@@ -7613,6 +7676,18 @@
           "vb": 100,
           "endpoint": "/api/show-finder/pitch",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Clip Plan",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/clip-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Prep",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/prep",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "nextSteps": [
@@ -7686,6 +7761,18 @@
           "vb": 100,
           "endpoint": "/api/show-finder/pitch",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Clip Plan",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/clip-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Prep",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/prep",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
       "nextSteps": [
@@ -7758,6 +7845,18 @@
           "feature": "Show Pitch Draft",
           "vb": 100,
           "endpoint": "/api/show-finder/pitch",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Clip Plan",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/clip-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Copilot Prep",
+          "vb": 100,
+          "endpoint": "/api/stream-copilot/prep",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -7961,6 +8060,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Lyric Stories (per card)",
+          "vb": 200,
+          "endpoint": "/api/lyric-stories/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Content Randomizer",
           "vb": 100,
           "endpoint": "/api/randomizer",
@@ -8043,6 +8148,12 @@
           "feature": "Hook Studio",
           "vb": 100,
           "endpoint": "/api/hook-studio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Lyric Stories (per card)",
+          "vb": 200,
+          "endpoint": "/api/lyric-stories/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -8131,6 +8242,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Lyric Stories (per card)",
+          "vb": 200,
+          "endpoint": "/api/lyric-stories/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Content Randomizer",
           "vb": 100,
           "endpoint": "/api/randomizer",
@@ -8216,6 +8333,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Lyric Stories (per card)",
+          "vb": 200,
+          "endpoint": "/api/lyric-stories/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Content Randomizer",
           "vb": 100,
           "endpoint": "/api/randomizer",
@@ -8298,6 +8421,12 @@
           "feature": "Hook Studio",
           "vb": 100,
           "endpoint": "/api/hook-studio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Lyric Stories (per card)",
+          "vb": 200,
+          "endpoint": "/api/lyric-stories/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10014,6 +10143,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Trend Jacker Draft",
+          "vb": 200,
+          "endpoint": "/api/trend-jacker/draft",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Trend Predictor",
           "vb": 100,
           "endpoint": "/api/trend-predictor",
@@ -10118,6 +10253,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Trend Jacker Draft",
+          "vb": 200,
+          "endpoint": "/api/trend-jacker/draft",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Trend Predictor",
           "vb": 100,
           "endpoint": "/api/trend-predictor",
@@ -10219,6 +10360,12 @@
           "feature": "Publish to TikTok",
           "vb": 100,
           "endpoint": "/api/social/tiktok/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Trend Jacker Draft",
+          "vb": 200,
+          "endpoint": "/api/trend-jacker/draft",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -11096,7 +11243,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -11256,7 +11403,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -11435,7 +11582,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -11620,7 +11767,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12169,7 +12316,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12183,6 +12330,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12234,9 +12387,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12623,7 +12788,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -12637,6 +12802,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12688,9 +12859,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13009,7 +13192,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13023,6 +13206,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13074,9 +13263,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13399,7 +13600,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13413,6 +13614,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13464,9 +13671,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13794,7 +14013,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -13808,6 +14027,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13859,9 +14084,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -14183,7 +14420,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14197,6 +14434,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -14248,9 +14491,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -14573,7 +14828,7 @@
         },
         {
           "feature": "Generate Thumbnail",
-          "vb": 100,
+          "vb": 300,
           "endpoint": "/api/generate-thumbnail",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
@@ -14587,6 +14842,12 @@
           "feature": "AI Lyric Alignment (synced lyrics)",
           "vb": 200,
           "endpoint": "/api/lyric-video/align",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Meme Machine Captions",
+          "vb": 100,
+          "endpoint": "/api/meme-machine/captions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -14638,9 +14899,21 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Style Stealer Analysis",
+          "vb": 200,
+          "endpoint": "/api/style-stealer/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Subtitle Burn-In",
           "vb": 200,
           "endpoint": "/api/style-subtitles",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "3-Second Lab Openings",
+          "vb": 200,
+          "endpoint": "/api/three-second-lab/openings",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
