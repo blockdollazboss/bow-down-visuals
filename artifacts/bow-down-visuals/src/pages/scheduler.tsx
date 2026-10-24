@@ -7,6 +7,7 @@ import {
   History, GripVertical, RefreshCw, ExternalLink, Megaphone, Copy,
   Clapperboard, AtSign, Share2, Link2, TrendingUp, Zap, Droplets,
   Play, Images, Radio, MessageSquare, Stethoscope, ArrowRight, RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "wouter";
@@ -38,6 +39,8 @@ import {
   monthGridDays,
   normalizeHashtags,
   planReschedule,
+  disclosureChannelFor,
+  postProvenance,
   postReleaseId,
   postingAccountStates,
   prettyDateTime,
@@ -47,6 +50,7 @@ import {
   type ScheduledPostShape,
   type SchedulerPlatformKey,
 } from "@/lib/scheduler";
+import { fetchProvenance, type ProvenanceRecord as AssetProvenanceRecord, type LicenceOption } from "@/lib/asset-library";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
   parseSchedulerMediaType,
@@ -920,6 +924,7 @@ function QueueTab(props: {
                 </span>
               )}
               <FromReleaseChip post={p} />
+              <ProvenanceChip post={p} />
             </div>
             <p className="mt-1.5 truncate text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
             <p className="mt-1 flex items-center gap-1.5 text-[13px] text-white/45">
@@ -986,6 +991,7 @@ function DraftsTab(props: {
               </span>
             ))}
             <FromReleaseChip post={p} />
+              <ProvenanceChip post={p} />
           </div>
           <div className="mt-4 flex gap-2">
             <Button size="sm" className="flex-1 bg-primary font-bold text-black hover:bg-primary/90" onClick={() => props.onSchedule(p)}>
@@ -1026,6 +1032,7 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={p.status} />
               <FromReleaseChip post={p} />
+              <ProvenanceChip post={p} />
               {p.results.map((r) => (
                 <span
                   key={r.platform}
@@ -1063,6 +1070,36 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
    no per-release lookup of its own. Renders nothing for the far more
    common unstamped post (postReleaseId reads the DTO field
    tolerantly: absent pre-0143, null when scheduled any other way). */
+/* Provenance chip (wave 3): shown on any post carrying a provenance
+   snapshot — the record that traveled with it. Title carries the
+   disclosure honesty: where the AI disclosure actually went (or that
+   it stayed on the record page). Renders nothing for unlinked posts. */
+function ProvenanceChip({ post }: { post: ScheduledPostShape }) {
+  const { t } = useTranslation();
+  const prov = postProvenance(post);
+  if (!prov) return null;
+  const perPlatform = post.results?.length
+    ? post.results
+    : post.platforms.map((platform) => ({ platform, disclosure: post.disclosure?.[platform] }));
+  const notes = perPlatform
+    .filter((r) => r.disclosure)
+    .map((r) => {
+      const label = t(`scheduler.platforms.${r.platform}.label`);
+      if (r.disclosure === "caption") return `${label}: ${t("scheduler.chip.disclosureCaption", { defaultValue: "disclosure in caption" })}`;
+      if (r.disclosure === "record_only") return `${label}: ${t("scheduler.chip.disclosureRecordOnly", { defaultValue: "disclosure on record page only" })}`;
+      return `${label}: ${t("scheduler.chip.disclosureNone", { defaultValue: "no AI disclosure applies" })}`;
+    });
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/70"
+      title={`${t("scheduler.chip.madeWith", { defaultValue: "Made with" })} ${prov.tool}${prov.model ? ` · ${prov.model}` : ""}${notes.length ? ` — ${notes.join(" · ")}` : ""}`}
+    >
+      <ShieldCheck className="h-3 w-3" />
+      {prov.tool}
+    </span>
+  );
+}
+
 function FromReleaseChip({ post }: { post: ScheduledPostShape }) {
   const { t } = useTranslation();
   if (!postReleaseId(post)) return null;
@@ -1934,6 +1971,35 @@ function ComposerModal(props: {
     if (post?.scheduledAt) return timeLocal(new Date(post.scheduledAt));
     return prefill?.time ?? "18:00";
   });
+  /* Provenance linkage (wave 3): set when the media came from the
+     creator's library — a ProjectFlowBar pick below, or the snapshot
+     the post being edited already carries. The record id rides the
+     save payload and the server stamps the snapshot; nothing here
+     derives a record from the media URL. Uploads and pasted media
+     have no linkage, and replacing the media clears it. */
+  const [provenanceAssetId, setProvenanceAssetId] = useState<string | null>(() => postProvenance(post)?.assetId ?? null);
+  const [provenanceRecord, setProvenanceRecord] = useState<AssetProvenanceRecord | null>(null);
+  const [licenceOptions, setLicenceOptions] = useState<LicenceOption[]>([]);
+  useEffect(() => {
+    if (!provenanceAssetId) { setProvenanceRecord(null); return; }
+    let live = true;
+    fetchProvenance(getAccessToken, provenanceAssetId)
+      .then((r) => {
+        if (!live || !r) return;
+        setProvenanceRecord(r.record);
+        setLicenceOptions(r.licenceOptions);
+      })
+      .catch(() => { /* snapshot on the post (edit mode) still shows */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provenanceAssetId]);
+  /* What the card shows: the freshly loaded record when we have it,
+     else the snapshot stamped on the post being edited. */
+  const linkedProv = provenanceRecord
+    ? { title: provenanceRecord.title, tool: provenanceRecord.createdWith.tool, model: provenanceRecord.createdWith.model, aiGenerated: provenanceRecord.aiGenerated, licence: provenanceRecord.licence as string }
+    : (() => { const s = postProvenance(post); return s ? { title: s.title, tool: s.tool, model: s.model, aiGenerated: s.aiGenerated, licence: s.licence } : null; })();
+  const licenceName = linkedProv ? (licenceOptions.find((o) => o.id === linkedProv.licence)?.name ?? linkedProv.licence) : null;
+
   const [saving, setSaving] = useState(false);
   const [aiCaptionLoading, setAiCaptionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1971,6 +2037,8 @@ function ComposerModal(props: {
       setMediaRef(data.ref);
       setPreviewUrl(data.url ?? "");
       setMediaType("video");
+      /* A fresh upload is not the linked library asset — clear any linkage. */
+      setProvenanceAssetId(null);
       toast({ title: t("scheduler.toast.videoUploaded"), description: t("scheduler.toast.readyToSchedule") });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("scheduler.error.uploadFailed"));
@@ -2047,6 +2115,14 @@ function ComposerModal(props: {
         /* Release attribution rides CREATE only, and only when this
            composer was opened from a release handoff. */
         ...(isEdit ? {} : props.releaseIdPrefill ? { releaseId: props.releaseIdPrefill } : {}),
+        /* Provenance linkage: CREATE stamps it when a library asset is
+           linked; edits always send the current value (null = cleared)
+           so a media swap can never leave a stale record attached. */
+        ...(isEdit
+          ? { provenanceAssetId: provenanceAssetId ?? null }
+          : provenanceAssetId
+            ? { provenanceAssetId }
+            : {}),
       };
       if (isEdit) {
         await api(`/api/scheduler/posts/${post!.id}`, token, { method: "PATCH", body: JSON.stringify(payload) });
@@ -2108,6 +2184,9 @@ function ComposerModal(props: {
               setMediaRef(asset.url);
               setPreviewUrl(asset.url);
               setMediaType("video");
+              /* The pick IS a library asset — its provenance record
+                 (hub:<id>) links to this post. */
+              setProvenanceAssetId(`hub:${asset.id}`);
             }}
           />
         )}
@@ -2129,7 +2208,7 @@ function ComposerModal(props: {
                 </div>
               )}
               <button
-                onClick={() => { setMediaRef(""); setPreviewUrl(""); }}
+                onClick={() => { setMediaRef(""); setPreviewUrl(""); setProvenanceAssetId(null); }}
                 className="absolute right-3 top-3 rounded-lg bg-black/70 p-2 text-white/70 hover:text-white"
                 aria-label={t("scheduler.composer.removeVideo")}
               >
@@ -2155,6 +2234,46 @@ function ComposerModal(props: {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
           />
         </div>
+
+        {/* provenance — the asset's record, shown BEFORE posting, with
+            the honest per-platform disclosure plan (wave 3) */}
+        {linkedProv && (
+          <div className="mt-5 rounded-2xl border border-primary/25 bg-primary/[0.05] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
+              <p className="text-[13px] font-bold text-white/90">
+                {t("scheduler.composer.provenanceTitle", { defaultValue: "Provenance — travels with this post" })}
+              </p>
+              {linkedProv.aiGenerated ? (
+                <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                  {t("scheduler.composer.aiBadge", { defaultValue: "Made with AI" })}
+                </span>
+              ) : (
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/60">
+                  {t("scheduler.composer.noAiBadge", { defaultValue: "No AI generation recorded" })}
+                </span>
+              )}
+            </div>
+            <p className="mt-1.5 text-[13px] text-white/65">
+              {t("scheduler.composer.madeWith", { defaultValue: "Made with" })} {linkedProv.tool}
+              {linkedProv.model ? ` · ${linkedProv.model}` : ""} · {licenceName}
+            </p>
+            {platforms.map((p) => {
+              const channel = disclosureChannelFor(p, linkedProv);
+              const label = t(`scheduler.platforms.${p}.label`);
+              return (
+                <p key={p} className="mt-1 text-[12px] text-white/45">
+                  {channel === "caption" &&
+                    t("scheduler.composer.disclosureCaption", { platform: label, defaultValue: `${label}: the AI disclosure rides in the caption when this posts.` })}
+                  {channel === "record_only" &&
+                    t("scheduler.composer.disclosureRecordOnly", { platform: label, defaultValue: `${label}: drafts can't carry a caption or AI label, so the disclosure stays on this asset's provenance record page — it is not sent to ${label}.` })}
+                  {channel === "not_applicable" &&
+                    t("scheduler.composer.disclosureNone", { platform: label, defaultValue: `${label}: no AI disclosure applies to this asset.` })}
+                </p>
+              );
+            })}
+          </div>
+        )}
 
         {/* caption */}
         <div className="mt-5">
