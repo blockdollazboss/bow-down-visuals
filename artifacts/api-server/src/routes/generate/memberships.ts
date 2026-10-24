@@ -1,8 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db, fanTiersTable, fanMembersTable, fanMembershipGiftsTable } from "@workspace/db";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import {
+  db,
+  fanTiersTable,
+  fanMembersTable,
+  fanMembershipGiftsTable,
+  emailListsTable,
+  emailAutomationsTable,
+  emailAutomationSendsTable,
+} from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import {
   createPaymentCheckout,
@@ -12,6 +20,14 @@ import {
   isCheckoutTestMode,
 } from "../../lib/stripe-checkout";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import {
+  dunningDaysLeft,
+  dunningGraceEndsAt,
+  isDunningExpired,
+  memberIdFromDunningRef,
+  pastDueSince,
+  recoveryForMember,
+} from "../../lib/dunning";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
@@ -32,6 +48,12 @@ const router = Router();
    Renewal: memberships are one paid period at a time (monthly/annual) —
    there is no silent auto-charge; when a period ends the membership
    reads expired and the fan renews with a fresh checkout.
+   Dunning (#21): a past_due membership gets a 7-day grace (lib/dunning)
+   — the recovery email sequence chases it, the fan fixes it through
+   POST /memberships/mine/:id/update-payment (a fresh Stripe-hosted
+   checkout; verify reactivates), the creator works it from
+   GET /memberships/recovery, and once grace runs out unpaid the seat
+   reads expired at exactly the date the fan was told.
    Pricing: free to set up. The site's 10% platform fee comes out of the
    creator's cut. Only the AI perk suggester costs credits (1 credit,
    charge-before-generate, refund on provider failure). */
@@ -160,12 +182,21 @@ type MemberLike = {
   fan_user_id: string | null;
   trial_ends_at: Date | null;
   current_period_end: Date | null;
+  /* Dunning grace reads these (lib/dunning): updated_at is the row's
+     last status change — for a past_due row, when the failure episode
+     began. Optional so read-only callers with partial rows stay safe:
+     no timestamp, no grace expiry is ever invented. */
+  updated_at?: Date | null;
+  created_at?: Date | null;
 };
 
 /** The status a member is REALLY in right now: an unconverted trial past
     its end is expired, and a paid period that ran out without a renewal
-    checkout is expired too. Stored rows are never silently rewritten —
-    this is computed at read time so every surface agrees. */
+    checkout is expired too. A past_due PAID membership is expired once
+    its dunning grace (7 days from the failure, lib/dunning) has fully
+    run out unpaid — the exact date the recovery emails and the fan's
+    own page stated in advance. Stored rows are never silently
+    rewritten — this is computed at read time so every surface agrees. */
 export function effectiveMemberStatus(m: MemberLike, now: Date = new Date()): string {
   if (m.status === "trialing" && m.trial_ends_at && new Date(m.trial_ends_at) <= now) {
     return "expired";
@@ -175,6 +206,21 @@ export function effectiveMemberStatus(m: MemberLike, now: Date = new Date()): st
     m.fan_user_id &&
     m.current_period_end &&
     new Date(m.current_period_end) <= now
+  ) {
+    return "expired";
+  }
+  if (
+    m.status === "past_due" &&
+    isDunningExpired(
+      {
+        id: "",
+        status: m.status,
+        fan_user_id: m.fan_user_id,
+        updated_at: m.updated_at ?? null,
+        created_at: m.created_at ?? null,
+      },
+      now,
+    )
   ) {
     return "expired";
   }
@@ -200,6 +246,7 @@ function toTierJson(t: typeof fanTiersTable.$inferSelect) {
 }
 
 function toMemberJson(m: typeof fanMembersTable.$inferSelect, tierName?: string) {
+  const graceEnds = dunningGraceEndsAt(m);
   return {
     id: m.id,
     tierId: m.tier_id,
@@ -218,6 +265,12 @@ function toMemberJson(m: typeof fanMembersTable.$inferSelect, tierName?: string)
     isGift: m.is_gift,
     giftedByUserId: m.gifted_by_user_id,
     joinedAt: m.joined_at,
+    /* Dunning (only meaningful while past_due; null otherwise): when
+       the payment failed, and the exact date access pauses if no
+       payment succeeds — the same date the recovery emails state. */
+    pastDueSince: m.status === "past_due" ? (pastDueSince(m)?.toISOString() ?? null) : null,
+    accessEndsAt: graceEnds ? graceEnds.toISOString() : null,
+    pastDueDaysLeft: m.status === "past_due" ? dunningDaysLeft(m) : null,
   };
 }
 
@@ -364,6 +417,74 @@ router.get("/memberships/members", publicApiLimiter, requireAuth, async (req, re
   const tierNames = new Map(tiers.map((t) => [t.id, t.name]));
   res.json({
     members: members.map((m) => toMemberJson(m, tierNames.get(m.tier_id) ?? "Unknown tier")),
+  });
+});
+
+/* GET /api/memberships/recovery — the creator's dunning worklist:
+   every member currently past due, plus every member the recovery
+   sequence has chased (from the email-automation claim ledger), with
+   the recovery picture derived per member by lib/dunning — steps
+   actually sent, the grace end the fan was told, and whether the seat
+   recovered (row active again — only a verified payment or the
+   creator's own hand does that) or access ended unpaid. Also reports
+   whether the recovery automation is switched on for any of the
+   creator's lists, so the desk never implies a chase is running when
+   it isn't. */
+router.get("/memberships/recovery", publicApiLimiter, requireAuth, async (req, res) => {
+  const me = req.userId!;
+  const [members, tiers, lists] = await Promise.all([
+    db.select().from(fanMembersTable).where(eq(fanMembersTable.user_id, me)),
+    db.select({ id: fanTiersTable.id, name: fanTiersTable.name }).from(fanTiersTable).where(eq(fanTiersTable.user_id, me)),
+    db.select().from(emailListsTable).where(eq(emailListsTable.userId, me)),
+  ]);
+  const tierNames = new Map(tiers.map((t) => [t.id, t.name]));
+
+  const automations = lists.length
+    ? (await db
+        .select()
+        .from(emailAutomationsTable)
+        .where(inArray(emailAutomationsTable.listId, lists.map((l) => l.id))))
+        .filter((a) => a.kind === "membership_payment_recovery")
+    : [];
+  const sends = automations.length
+    ? await db
+        .select()
+        .from(emailAutomationSendsTable)
+        .where(inArray(emailAutomationSendsTable.automationId, automations.map((a) => a.id)))
+    : [];
+  const sendsByMember = new Map<string, typeof sends>();
+  for (const s of sends) {
+    const memberId = memberIdFromDunningRef(s.triggerRef);
+    if (!memberId) continue;
+    const arr = sendsByMember.get(memberId) ?? [];
+    arr.push(s);
+    sendsByMember.set(memberId, arr);
+  }
+
+  const rows = members
+    .filter((m) => m.status === "past_due" || sendsByMember.has(m.id))
+    .map((m) => {
+      const effective = effectiveMemberStatus(m);
+      return {
+        member: toMemberJson(m, tierNames.get(m.tier_id) ?? "Unknown tier"),
+        recovery: recoveryForMember(m, sendsByMember.get(m.id) ?? [], effective),
+      };
+    })
+    .sort((a, b) => {
+      /* The live chase first (soonest access end first), then the rest
+         by most recent failure. */
+      const rank = (r: (typeof rows)[number]) => (r.recovery.state === "in_grace" ? 0 : 1);
+      if (rank(a) !== rank(b)) return rank(a) - rank(b);
+      if (rank(a) === 0) {
+        return String(a.recovery.graceEndsAt ?? "").localeCompare(String(b.recovery.graceEndsAt ?? ""));
+      }
+      return String(b.recovery.pastDueSince ?? "").localeCompare(String(a.recovery.pastDueSince ?? ""));
+    });
+
+  res.json({
+    members: rows,
+    automationEnabled: automations.some((a) => a.enabled),
+    automationProvisioned: automations.length > 0,
   });
 });
 
@@ -894,6 +1015,127 @@ router.post("/memberships/mine/:memberId/cancel", publicApiLimiter, requireAuth,
     .returning();
   const tier = await findTierById(member.tier_id);
   res.json({ membership: toMemberJson(updated!, tier?.name) });
+});
+
+/* POST /api/memberships/mine/:memberId/update-payment — the fan's
+   card-update door for a past-due membership. Fan-scoped exactly like
+   cancel (anyone else's seat reads 404). Fan memberships hold no
+   saved card and never auto-charge — a join is one paid period via a
+   Stripe-hosted checkout — so "update your card" honestly means: a
+   fresh Stripe-hosted checkout for the same tier + period, where the
+   fan enters the new card on Stripe's page (no card data ever touches
+   this site), and the seat reactivates ONLY through the existing
+   /memberships/verify once Stripe confirms the payment. The checkout
+   is built with the identical metadata + amount-lock + idempotency
+   shape as POST /memberships/checkout, so verify treats it as the
+   renewal it is. A free tier has no payment to fix: it reactivates
+   directly with a fresh period. Access state before payment is
+   untouched — nothing here marks anything paid. */
+router.post("/memberships/mine/:memberId/update-payment", publicApiLimiter, requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(fanMembersTable)
+    .where(
+      and(
+        eq(fanMembersTable.id, param(req.params.memberId)),
+        eq(fanMembersTable.fan_user_id, req.userId!),
+      ),
+    )
+    .limit(1);
+  const member = rows[0];
+  if (!member) {
+    res.status(404).json({ error: "Membership not found." });
+    return;
+  }
+  if (member.status !== "past_due") {
+    res.status(409).json({
+      error: "NOT_PAST_DUE",
+      message: "This membership isn't past due — there's no failed payment to fix.",
+    });
+    return;
+  }
+  const tier = await findTierById(member.tier_id);
+  if (!tier) {
+    res.status(404).json({ error: "The tier for this membership no longer exists." });
+    return;
+  }
+  const billingPeriod = member.billing_period === "annual" ? "annual" : "monthly";
+  const amountCents = checkoutChargeCents(tier, billingPeriod);
+  const now = new Date();
+
+  /* Free tier: nothing to charge — reactivate honestly with a real period. */
+  if (amountCents <= 0) {
+    const [updated] = await db
+      .update(fanMembersTable)
+      .set({
+        status: "active",
+        current_period_start: now,
+        current_period_end: membershipPeriodEnd(billingPeriod, now),
+        trial_ends_at: null,
+        canceled_at: null,
+        updated_at: now,
+      })
+      .where(eq(fanMembersTable.id, member.id))
+      .returning();
+    res.json({ free: true, membership: toMemberJson(updated!, tier.name) });
+    return;
+  }
+
+  try {
+    const baseUrl = checkoutBaseUrl(req);
+    const session = await createPaymentCheckout({
+      amountCents,
+      productName: `${tier.name} membership — ${billingPeriod}`,
+      description: "Fan membership — payment update / renewal",
+      successUrl: `${baseUrl}/memberships?creator=${tier.user_id}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${baseUrl}/memberships?creator=${tier.user_id}`,
+      metadata: {
+        purchase_kind: "membership",
+        tier_id: tier.id,
+        creator_user_id: tier.user_id,
+        fan_user_id: req.userId!,
+        purchaser_user_id: req.userId!,
+        billing_period: billingPeriod,
+        amount_cents: String(amountCents),
+        is_gift: "false",
+      },
+      idempotency: {
+        memberId: req.userId!,
+        rail: "membership",
+        purchaseIntent: {
+          tierId: tier.id,
+          creatorUserId: tier.user_id,
+          recipientUserId: req.userId!,
+          billingPeriod,
+          amountCents,
+          isGift: false,
+          existingMember: {
+            id: member.id,
+            status: member.status,
+            billingPeriod: member.billing_period,
+            currentPeriodStart: member.current_period_start,
+            currentPeriodEnd: member.current_period_end,
+            updatedAt: member.updated_at,
+          },
+        },
+      },
+    });
+    logger.info(
+      { memberId: member.id, tierId: tier.id, amountCents, billingPeriod, sessionId: session.sessionId },
+      "[memberships] past-due update-payment checkout created",
+    );
+    res.json({
+      url: session.url,
+      sessionId: session.sessionId,
+      amountCents,
+      amountDollars: centsToDollars(amountCents),
+      billingPeriod,
+      testMode: isCheckoutTestMode(),
+    });
+  } catch (err) {
+    logger.error({ err, memberId: member.id }, "[memberships] update-payment checkout failed");
+    res.status(500).json({ error: "Could not start the payment update. Try again in a moment." });
+  }
 });
 
 /* POST /api/memberships/ai-perks { niche, audienceSize, tierCount }

@@ -111,7 +111,7 @@ interface CampaignRow {
    statement of what fires it — including its blind spots. */
 interface AutomationRow {
  id: string;
- kind: "post_purchase" | "abandoned_checkout" | "membership_winback";
+ kind: "post_purchase" | "abandoned_checkout" | "membership_winback" | "membership_payment_recovery";
  label: string;
  triggerNote: string;
  enabled: boolean;

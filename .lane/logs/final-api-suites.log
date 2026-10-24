@@ -1,0 +1,136 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/generate/__tests__/email-automations.test.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 6674[2mms[22m[39m
+   [32m✓[39m provisioning + API [2m(4)[22m
+     [33m[2m✓[22m[39m provisions the four starters disabled, with defaults, exactly once[33m 439[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects unknown kinds and out-of-range patches[33m 361[2mms[22m[39m
+     [33m[2m✓[22m[39m edits copy + delay, stamps enabled_at on switch-on, keeps it on switch-off[33m 395[2mms[22m[39m
+   [32m✓[39m runner — abandoned checkout [2m(1)[22m
+     [33m[2m✓[22m[39m fires once for a pending checkout that never paid; paid groups and emailless checkouts never fire[33m 348[2mms[22m[39m
+   [32m✓[39m runner — no provider + per-creator isolation [2m(2)[22m
+     [33m[2m✓[22m[39m two creators' automations fire only from their own shops, sales, and lists[33m 308[2mms[22m[39m
+   [32m✓[39m carrier campaigns are not newsletters [2m(1)[22m
+     [33m[2m✓[22m[39m stay out of campaign history and refuse manual dispatch at both doors[33m 348[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/memberships-dunning.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1693[2mms[22m[39m
+   [32m✓[39m GET /memberships/mine — the fan hears it before access ends [2m(2)[22m
+     [33m[2m✓[22m[39m a past-due seat carries since / access-ends / days-left, still reading past_due in grace[33m 698[2mms[22m[39m
+   [32m✓[39m POST /memberships/mine/:id/update-payment — the fan's card-update door [2m(3)[22m
+     [33m[2m✓[22m[39m returns a Stripe-hosted checkout shaped like a join, and marks NOTHING paid[33m 429[2mms[22m[39m
+[02:07:01.968] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "2923cbb6-503b-47a3-b51d-6e61265a06f3"
+    [35mfanUserId[39m: "1f1195f8-821e-4a4e-810d-e2d8fec6840e"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[02:07:02.517] [32mINFO[39m (10572): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "076a656e-cae3-4e9f-82b3-2d860b48a8ab"
+    [35mamountCents[39m: 1000
+[02:07:02.817] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "0463adf4-5729-41c3-aef1-604cac0b08f4"
+    [35mfanUserId[39m: "1f1195f8-821e-4a4e-810d-e2d8fec6840e"
+    [35mamountCents[39m: 9000
+    [35mbillingPeriod[39m: "annual"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[02:07:02.945] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "0426627d-46da-4c67-8ff6-ebaafe0ddc96"
+    [35mfanUserId[39m: "1f1195f8-821e-4a4e-810d-e2d8fec6840e"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[02:07:02.995] [32mINFO[39m (10572): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "349effe0-ee98-4183-a2cc-052f755c1702"
+    [35mamountCents[39m: 1000
+[02:07:03.077] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "417efa05-b9cc-4d99-a649-29ccb2a007c3"
+    [35mfanUserId[39m: "1f1195f8-821e-4a4e-810d-e2d8fec6840e"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[02:07:03.175] [31mERROR[39m (10572): [36m[memberships] verify: tier deleted after payment[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mrefunded[39m: true
+[02:07:03.229] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "e2e549a7-e2b4-4acf-8b00-6d549f349041"
+    [35mfanUserId[39m: "1f1195f8-821e-4a4e-810d-e2d8fec6840e"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[02:07:03.374] [31mERROR[39m (10572): [36m[memberships] verify: amount mismatch[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mamountCents[39m: 500
+    [35mexpectedCents[39m: 1000
+[02:07:03.859] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "6509e1e2-749e-42b6-b428-aff39443ae0f"
+    [35mfanUserId[39m: "1f1195f8-821e-4a4e-810d-e2d8fec6840e"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[02:07:03.887] [32mINFO[39m (10572): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "8730e08b-bcb6-4c47-bcf7-4ebf235cefef"
+    [35mamountCents[39m: 1000
+[02:07:04.061] [32mINFO[39m (10572): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "fefe7009-f416-4078-b06d-5bccc3e3ffc0"
+    [35mfanUserId[39m: "9d8d16cf-418b-4810-8bd8-38eccc453763"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: true
+    [35msessionId[39m: "cs_test_1"
+[02:07:04.146] [32mINFO[39m (10572): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "e4ac3d38-58a6-4260-b4d0-cafdb5836a3f"
+    [35mamountCents[39m: 1000
+[02:07:04.465] [31mERROR[39m (10572): [36m[memberships] public tiers load failed[39m
+    [35mcreatorUserId[39m: "9b532cb6-c014-4ba6-8ed2-86e927e02760"
+    err: {
+      "type": "Error",
+      "message": "fake db failure reading fan_tiers",
+      "stack":
+          Error: fake db failure reading fan_tiers
+              at matchRows (/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server/src/routes/generate/__tests__/memberships-payments.test.ts:46:11)
+              at Object.then (/home/hatch/workspace/bdv-wt-dunning/artifacts/api-server/src/routes/generate/__tests__/memberships-payments.test.ts:71:62)
+    }
+ [32m✓[39m src/routes/generate/__tests__/memberships-payments.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 3489[2mms[22m[39m
+   [32m✓[39m POST /memberships/checkout + verify [2m(7)[22m
+     [33m[2m✓[22m[39m charges the displayed monthly price and activates only after paid verify[33m 1492[2mms[22m[39m
+   [32m✓[39m gifted memberships [2m(1)[22m
+     [33m[2m✓[22m[39m purchaser pays, recipient becomes the member, both sides see it[33m 301[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/memberships-management.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 3036[2mms[22m[39m
+   [32m✓[39m POST /memberships/mine/:memberId/cancel — the fan's own door [2m(9)[22m
+     [33m[2m✓[22m[39m cancels the fan's own active membership and writes the standard end state[33m 1167[2mms[22m[39m
+   [32m✓[39m Tier pause/unpublish — the is_active verb on PUT /tiers/:id [2m(2)[22m
+     [33m[2m✓[22m[39m pausing hides the tier from the public join list; resuming brings it back[33m 692[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/operator-knowledge.test.ts [2m([22m[2m62 tests[22m[2m)[22m[33m 5155[2mms[22m[39m
+   [32m✓[39m operator knowledge — description coverage (no silent thinning) [2m(6)[22m
+     [33m[2m✓[22m[39m the description-less set is exactly the reviewed allowlist[33m 330[2mms[22m[39m
+   [32m✓[39m operator knowledge — sourced facts only [2m(4)[22m
+     [33m[2m✓[22m[39m every price names the registry as its source and is a whole VB figure[33m 1108[2mms[22m[39m
+   [32m✓[39m operator knowledge — matching and grounding [2m(10)[22m
+     [33m[2m✓[22m[39m matches My Music first for music-collection locators[33m 373[2mms[22m[39m
+   [32m✓[39m operator knowledge — Stack-28 KB integration [2m(6)[22m
+     [33m[2m✓[22m[39m no entry lists the stale /api/video-background-removal endpoint[33m 330[2mms[22m[39m
+     [33m[2m✓[22m[39m the create entry counts ten ways to start, not nine[33m 482[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/dunning.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 655[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-webhook-abandoned.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 434[2mms[22m[39m
+   [32m✓[39m checkout.session.expired — abandoned store/storefront checkouts [2m(5)[22m
+     [33m[2m✓[22m[39m files an expired storefront checkout once and answers kind=abandoned_checkout[33m 310[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/email-automation-i18n.test.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 437[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m187 passed[39m[22m[90m (187)[39m
+[2m   Start at [22m 02:05:30
+[2m   Duration [22m 262.61s[2m (import 64%, transform 26%, tests 9%, setup 1%)[22m
+
+[2m     Import [22m [33m158 modules were evaluated 415 times[39m[2m · 148.89s total, 64% of tracked time[22m
+[2m            [22m [2m~92.20s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

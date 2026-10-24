@@ -29,6 +29,7 @@ const EN_LABELS = {
   post_purchase: "Post-purchase thank-you",
   abandoned_checkout: "Abandoned checkout",
   membership_winback: "Membership winback",
+  membership_payment_recovery: "Membership payment recovery",
 } as const;
 
 const EN_NOTES = {
@@ -38,6 +39,8 @@ const EN_NOTES = {
     "Fires when a checkout is started but left unpaid until it closes — a shop checkout that never pays, or a checkout in your store or on your profile that expires unpaid (an unpaid checkout closes about a day after it starts). One email per checkout.",
   membership_winback:
     "Fires when a fan's membership is canceled or expires. The fan is emailed at the address on their account, or the email you recorded for them.",
+  membership_payment_recovery:
+    "Fires when a fan's membership payment fails and the membership is past due: a notice at the failure, a reminder after 3 days, a card-update nudge after 5 days, and a final warning after 6 days — one day before access pauses at the end of the 7-day grace. The first email uses the subject and body here; the later steps use fixed recovery wording so the dates fans are told never drift.",
 } as const;
 
 const EN_DEFAULTS = {
@@ -55,6 +58,11 @@ const EN_DEFAULTS = {
     subject: "We miss you — your membership is waiting",
     body: "Hi there,\n\nYour membership recently ended, and the door is still open. Everything you loved is still here, plus everything new since you've been gone.\n\nCome back any time — we'd love to have you again.",
     delayHours: 72,
+  },
+  membership_payment_recovery: {
+    subject: "Your membership payment didn't go through",
+    body: "Hi there,\n\nWe tried to take the payment for your membership and it didn't go through — this happens with expired cards, replaced cards, and banks being careful.\n\nYour membership is still on for now. You have 7 days from the failed payment to update your card before access pauses. Update it any time from Your Memberships on Bow Down Visuals (/memberships) — you'll enter your new card on Stripe's secure page.\n\nIf you already fixed it, you can ignore this — a successful payment ends these reminders.",
+    delayHours: 0,
   },
 } as const;
 

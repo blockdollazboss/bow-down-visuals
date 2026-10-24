@@ -1,9 +1,10 @@
 /**
  * Email automations (migration 0198).
  *
- * Three starter sequences on the tracked email rail (0189): a
- * post-purchase thank-you, an abandoned-checkout nudge, and a
- * membership winback. One email_automations row per (list, kind),
+ * Four starter sequences on the tracked email rail (0189): a
+ * post-purchase thank-you, an abandoned-checkout nudge, a
+ * membership winback, and a membership payment-recovery (dunning)
+ * sequence. One email_automations row per (list, kind),
  * materialized lazily with enabled = FALSE — nothing ever sends for
  * a creator who hasn't switched an automation on.
  *
@@ -42,6 +43,15 @@
  *                       Address from fan_user_id via the auth rail,
  *                       or the fan_label when the creator recorded
  *                       an email address there.
+ *   membership_payment_recovery
+ *                       fan_members rows in past_due — the dunning
+ *                       sequence (lib/dunning): a notice at failure,
+ *                       a reminder at +3d, a card-update nudge at +5d,
+ *                       and a final warning at +6d, one day before the
+ *                       7-day grace ends and access pauses. Each step
+ *                       is its own trigger (eventAt = its due time,
+ *                       ref carries member + episode + step), so the
+ *                       gates and dedupe below work unchanged.
  *
  * Laws:
  *   - enabled_at gate: a trigger older than the moment the creator
@@ -85,6 +95,7 @@ import {
   type EmailList,
 } from "@workspace/db";
 import { prepareCampaignSend, sendCampaignDelivery } from "./email-campaign-send";
+import { dunningTriggersForMember, pastDueSince } from "./dunning";
 import { getUserEmail } from "./stripe-connect";
 import { logger } from "./logger";
 import {
@@ -314,8 +325,20 @@ export interface AutomationTrigger {
   ref: string;
   /** Lowercased recipient address. */
   email: string;
-  /** When the triggering thing happened. */
+  /** When the triggering thing happened — for a multi-step sequence,
+   *  the moment this STEP comes due (the due gate reads this). */
   eventAt: Date;
+  /** The moment the underlying EVENT happened, when it differs from
+   *  the step's due time (dunning: every step's event is the payment
+   *  failure). The enabled-at gate reads this when present, so a
+   *  failure that predates the switch-on never fires — not even its
+   *  later steps, whose due times fall after the switch-on. */
+  gateAt?: Date;
+  /** Per-trigger copy override (dunning steps 2–4 carry their own
+   *  fixed copy; the first step and every other kind send the
+   *  automation's stored subject/body). */
+  subject?: string;
+  body?: string;
 }
 
 export interface AutomationDeps {
@@ -527,6 +550,53 @@ async function collectWinbackTriggers(
   return out;
 }
 
+/** Past-due memberships owned by the creator — the dunning chase
+ *  (lib/dunning). One member produces up to four step triggers on the
+ *  recovery timeline; the runner's eventAt gate fires each step when
+ *  it comes due and the claim ledger dedupes per episode + step. The
+ *  FIRST step sends the automation's own stored copy (creator-editable,
+ *  seeded with the failure notice); steps 2–4 carry their fixed step
+ *  copy. Address resolution is the winback rail's: fan_user_id via the
+ *  auth rail, or an email-shaped fan_label the creator recorded. A
+ *  member whose row leaves past_due produces no triggers — the chase
+ *  stops the moment payment reality changes. */
+async function collectRecoveryTriggers(
+  ownerUserId: string,
+  deps: AutomationDeps,
+): Promise<AutomationTrigger[]> {
+  const members = await db
+    .select()
+    .from(fanMembersTable)
+    .where(and(eq(fanMembersTable.user_id, ownerUserId), eq(fanMembersTable.status, "past_due")));
+  const out: AutomationTrigger[] = [];
+  const emailByUser = new Map<string, string | null>();
+  for (const m of members) {
+    let email: string | null = null;
+    if (m.fan_user_id) {
+      if (!emailByUser.has(m.fan_user_id)) {
+        const resolved = await deps.resolveUserEmail(m.fan_user_id);
+        emailByUser.set(m.fan_user_id, resolved ? lower(resolved) : null);
+      }
+      email = emailByUser.get(m.fan_user_id) ?? null;
+    }
+    if (!email && m.fan_label && EMAIL_RE.test(m.fan_label.trim())) {
+      email = lower(m.fan_label);
+    }
+    if (!email) continue;
+    const failureAt = pastDueSince(m) ?? undefined;
+    for (const t of dunningTriggersForMember(m, email)) {
+      out.push({
+        ref: t.ref,
+        email: t.email,
+        eventAt: t.eventAt,
+        ...(failureAt ? { gateAt: failureAt } : {}),
+        ...(t.stepKey === "payment_failed_notice" ? {} : { subject: t.subject, body: t.body }),
+      });
+    }
+  }
+  return out;
+}
+
 async function collectTriggers(
   automation: EmailAutomation,
   ownerUserId: string,
@@ -544,6 +614,8 @@ async function collectTriggers(
       return collectAbandonedTriggers(ownerUserId, deps);
     case "membership_winback":
       return collectWinbackTriggers(ownerUserId, deps);
+    case "membership_payment_recovery":
+      return collectRecoveryTriggers(ownerUserId, deps);
     default:
       return [];
   }
@@ -562,14 +634,20 @@ export interface AutomationRunSummary {
 }
 
 /** Mint the per-send carrier campaign (see header: one carrier per
- *  physical email, so every send gets its own tracked delivery). */
-async function mintCarrier(automation: EmailAutomation, list: EmailList): Promise<EmailCampaign> {
+ *  physical email, so every send gets its own tracked delivery). A
+ *  trigger's copy override (dunning steps) wins over the automation's
+ *  stored copy for that send only. */
+async function mintCarrier(
+  automation: EmailAutomation,
+  list: EmailList,
+  trigger?: AutomationTrigger,
+): Promise<EmailCampaign> {
   const [carrier] = await db
     .insert(emailCampaignsTable)
     .values({
       listId: list.id,
-      subject: automation.subject,
-      body: automation.body,
+      subject: trigger?.subject ?? automation.subject,
+      body: trigger?.body ?? automation.body,
       status: "sending",
       automationId: automation.id,
     })
@@ -618,7 +696,12 @@ export async function runAutomation(
     const since = automation.enabledAt ?? automation.createdAt;
     const delayMs = Math.max(0, automation.delayHours) * 3_600_000;
     const triggers = (await collectTriggers(automation, list.userId, deps))
-      .filter((t) => since != null && t.eventAt >= since && t.eventAt.getTime() + delayMs <= now.getTime())
+      .filter(
+        (t) =>
+          since != null &&
+          (t.gateAt ?? t.eventAt) >= since &&
+          t.eventAt.getTime() + delayMs <= now.getTime(),
+      )
       .sort((a, b) => a.eventAt.getTime() - b.eventAt.getTime());
     summary.candidates = triggers.length;
     if (triggers.length === 0) return summary;
@@ -629,7 +712,6 @@ export async function runAutomation(
       .where(eq(emailSubscribersTable.listId, list.id));
     const subByEmail = new Map(subscribers.map((s) => [lower(s.email), s]));
 
-    let prep: ReturnType<typeof prepareCampaignSend> | null = null;
     for (const trigger of triggers) {
       const sub = subByEmail.get(trigger.email);
       if (!sub) {
@@ -687,8 +769,10 @@ export async function runAutomation(
         continue;
       }
 
-      const carrier = await mintCarrier(automation, list);
-      prep ??= prepareCampaignSend(carrier);
+      const carrier = await mintCarrier(automation, list, trigger);
+      /* Prep is per-carrier: a dunning step's override body can carry
+         different links than the automation's stored copy. */
+      const prep = prepareCampaignSend(carrier);
       const { outcome, deliveryId } = await sendCampaignDelivery(carrier, fresh, prep);
       const status =
         outcome === "sent" || outcome === "already_sent"
