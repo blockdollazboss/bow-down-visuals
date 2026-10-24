@@ -1,0 +1,30 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server[39m
+
+[90mstdout[2m | src/lib/__tests__/zz-probe-excl.test.ts[2m > [22m[2mprobe pg-mem exclusion support[2m > [22m[2mextension + tstzrange + exclude gist
+[22m[39mext: FAIL Extension does not exist: btree_gist
+
+💥 This is a nasty error, which was unexpected by pg-mem. Also known "a bug" 😁 Please file an issue !
+
+*️⃣ Failed SQL statement: CREATE EXTENSION IF NOT EXISTS b
+table: FAIL type "tstzrange" does not exist
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot be executed → Probably not a pg-mem err
+excl: FAIL 💔 Your query failed to parse.
+This is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.
+If this is the case, please file an issue a
+
+[90mstdout[2m | src/lib/__tests__/zz-probe-excl.test.ts[2m > [22m[2mprobe pg-mem exclusion support[2m > [22m[2munique partial index fallback
+[22m[39mtable2: OK
+check-overlap-trigger?: OK
+
+ [32m✓[39m src/lib/__tests__/zz-probe-excl.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 710[2mms[22m[39m
+   [32m✓[39m probe pg-mem exclusion support [2m(2)[22m
+     [33m[2m✓[22m[39m extension + tstzrange + exclude gist[33m 465[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m 14:02:53
+[2m   Duration [22m 8.44s[2m (import 78%, tests 11%, transform 8%, worker 1%, setup 1%)[22m
+

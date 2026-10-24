@@ -1,0 +1,23 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/service-bookings.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 4546[2mms[22m[39m
+   [32m✓[39m pre-migration: the hardened store is absent and everything degrades to v1 [2m(1)[22m
+     [33m[2m✓[22m[39m probe says absent; writes are no-ops; reads are empty; nothing throws[33m 765[2mms[22m[39m
+   [32m✓[39m post-migration: rows move with the booking lifecycle [2m(4)[22m
+     [33m[2m✓[22m[39m place held → blocks; confirm → still blocks; cancel → frees[33m 1362[2mms[22m[39m
+     [33m[2m✓[22m[39m an expired hold does not block: the range read skips it and the next place expires it[33m 894[2mms[22m[39m
+     [33m[2m✓[22m[39m expireStaleServiceBookingHolds only flips lapsed holds for the product[33m 686[2mms[22m[39m
+   [32m✓[39m reconciliation: trailer-only v1 bookings gain hardened rows [2m(1)[22m
+     [33m[2m✓[22m[39m backfills live bookings, skips lapsed holds and cancelled records, never double-inserts[33m 424[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/booking-slots.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 410[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/booking-note.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 14:57:53
+[2m   Duration [22m 21.15s[2m (import 45%, tests 35%, transform 16%, worker 2%, setup 2%)[22m
+
+[2m    Isolate [22m [33m3 workers spawned[39m[2m · ~2.00s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~3.99s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

@@ -1,0 +1,22 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server[39m
+
+[90mstdout[2m | src/lib/__tests__/zz-probe-excl.test.ts[2m > [22m[2mprobe pg-mem trigger emulation[2m > [22m[2mplpgsql function + trigger raising on overlap
+[22m[39mtable: OK
+fn: FAIL Unkonwn language "plpgsql". If you plan to use a script language, you must declare it to pg-mem via ".registerLanguage()"
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot
+trig: FAIL 💔 Your query failed to parse.
+This is most likely due to a SQL syntax error. However, you might also have hit a bug, or an unimplemented feature of pg-mem.
+If this is the case, please file an issue at https://github.com/oguimbal/pg-mem along with a 
+
+ [32m✓[39m src/lib/__tests__/zz-probe-excl.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 353[2mms[22m[39m
+   [32m✓[39m probe pg-mem trigger emulation [2m(1)[22m
+     [33m[2m✓[22m[39m plpgsql function + trigger raising on overlap[33m 335[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 14:03:45
+[2m   Duration [22m 8.22s[2m (import 82%, transform 10%, tests 6%, setup 1%, worker 1%)[22m
+

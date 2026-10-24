@@ -1,0 +1,169 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server[39m
+
+[14:58:56.507] [32mINFO[39m (46360): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "65831329-640f-4ddd-9d94-624545eabfff"
+    [35mproductId[39m: "915e33d0-5977-420c-a980-2bc80e0c61c4"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:58:56.959] [32mINFO[39m (46360): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "ac4e509c-f149-4058-a8a0-a27a86615b10"
+    [35mkind[39m: "service"
+[14:58:57.160] [32mINFO[39m (46360): [36m[storefront] booking cancelled[39m
+    [35morderId[39m: "ac4e509c-f149-4058-a8a0-a27a86615b10"
+    [35mby[39m: "buyer"
+    [35mrefundState[39m: "refunded"
+[14:58:58.390] [32mINFO[39m (46360): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "65831329-640f-4ddd-9d94-624545eabfff"
+    [35mproductId[39m: "8a3d6e1d-fc30-41d5-945b-1cb251de1309"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:58:58.439] [32mINFO[39m (46360): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "73ea9229-624c-43ef-9e48-0aecf88112d5"
+    [35mkind[39m: "service"
+[14:58:58.487] [32mINFO[39m (46360): [36m[storefront] booking cancelled[39m
+    [35morderId[39m: "73ea9229-624c-43ef-9e48-0aecf88112d5"
+    [35mby[39m: "creator"
+    [35mrefundState[39m: "refunded"
+[14:58:59.657] [32mINFO[39m (46360): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "65831329-640f-4ddd-9d94-624545eabfff"
+    [35mproductId[39m: "1a035b3b-1e6e-49a6-9da5-dec641428755"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:58:59.977] [32mINFO[39m (46360): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "bc7f2808-d388-4421-a6e8-193dd7c9832d"
+    [35mkind[39m: "service"
+[14:59:00.343] [31mERROR[39m (46360): [36m[storefront] booking refund failed — cancelling with refund_failed marker[39m
+    [35morderId[39m: "bc7f2808-d388-4421-a6e8-193dd7c9832d"
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "Error",
+      "message": "card network refused the refund",
+      "stack":
+          Error: card network refused the refund
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server/src/routes/__tests__/storefront-bookings-cancel.test.ts:91:36)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server/src/routes/storefront.ts:2568:30
+    }
+[14:59:00.735] [32mINFO[39m (46360): [36m[storefront] booking cancelled[39m
+    [35morderId[39m: "bc7f2808-d388-4421-a6e8-193dd7c9832d"
+    [35mby[39m: "buyer"
+    [35mrefundState[39m: "refund_failed"
+[14:59:01.908] [32mINFO[39m (46360): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "65831329-640f-4ddd-9d94-624545eabfff"
+    [35mproductId[39m: "6bf663cf-440b-4817-8b7a-7d0c3ca87e6c"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:59:02.053] [32mINFO[39m (46360): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "ba083e48-341b-4611-a603-5e98f6c0f592"
+    [35mkind[39m: "service"
+[14:59:02.199] [32mINFO[39m (46360): [36m[storefront] booking cancelled[39m
+    [35morderId[39m: "34151072-2a9c-4c81-aed7-dbc8f1b5bb72"
+    [35mby[39m: "buyer"
+    [35mrefundState[39m: "not_required"
+[14:59:03.635] [32mINFO[39m (46360): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "65831329-640f-4ddd-9d94-624545eabfff"
+    [35mproductId[39m: "9e1f9b5b-3574-497d-b11c-8f03fed06737"
+    [35morderId[39m: "240b2741-f0e8-4397-8673-c119a0accb31"
+    [35mkind[39m: "service"
+[14:59:03.938] [32mINFO[39m (46360): [36m[storefront] claim: duplicate returned[39m
+    [35muserId[39m: "65831329-640f-4ddd-9d94-624545eabfff"
+    [35mproductId[39m: "9e1f9b5b-3574-497d-b11c-8f03fed06737"
+    [35morderId[39m: "240b2741-f0e8-4397-8673-c119a0accb31"
+[14:59:04.573] [32mINFO[39m (46360): [36m[storefront] free product claimed[39m
+    [35muserId[39m: "743c8076-9b6a-402a-9a2f-4e5d3af8d69d"
+    [35mproductId[39m: "9e1f9b5b-3574-497d-b11c-8f03fed06737"
+    [35morderId[39m: "96af731a-aa0e-41b9-b4bf-fe20c08526dd"
+    [35mkind[39m: "service"
+[14:59:04.736] [32mINFO[39m (46360): [36m[storefront] booking cancelled[39m
+    [35morderId[39m: "240b2741-f0e8-4397-8673-c119a0accb31"
+    [35mby[39m: "buyer"
+    [35mrefundState[39m: "not_required"
+ [32m✓[39m src/routes/__tests__/storefront-bookings-cancel.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 14399[2mms[22m[39m
+   [32m✓[39m bookings list — both sides, honest statuses [2m(1)[22m
+     [33m[2m✓[22m[39m buyer and seller see the booking; a stranger sees nothing; statuses derive[33m 2897[2mms[22m[39m
+   [32m✓[39m cancellation — either side, refund through Stripe [2m(7)[22m
+     [33m[2m✓[22m[39m buyer cancels: full Stripe refund exactly once, order refunded, slot freed, seller notified[33m 3290[2mms[22m[39m
+     [33m[2m✓[22m[39m seller cancels: buyer is refunded and notified[33m 693[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed refund still cancels — but the record says refund_failed, never 'refunded'[33m 2233[2mms[22m[39m
+     [33m[2m✓[22m[39m a third party cannot cancel someone else's booking[33m 1304[2mms[22m[39m
+     [33m[2m✓[22m[39m a booking that already happened cannot be cancelled[33m 421[2mms[22m[39m
+     [33m[2m✓[22m[39m a non-booking order refuses booking-cancel with NOT_A_BOOKING[33m 507[2mms[22m[39m
+   [32m✓[39m free ($0) bookable services — the claim rail books too [2m(2)[22m
+     [33m[2m✓[22m[39m claim confirms instantly, re-claim is the same booking, racers 409, cancel frees the slot[33m 1946[2mms[22m[39m
+   [32m✓[39m legacy services — the old flow survives, and can't corrupt a booking [2m(2)[22m
+     [33m[2m✓[22m[39m service-confirm refuses a calendar booking (USE_BOOKING_CANCEL) — the trailer survives[33m 385[2mms[22m[39m
+[14:59:37.027] [32mINFO[39m (46604): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "5f9504b4-6f4c-40ef-b5e6-33741ab8812e"
+    [35mproductId[39m: "f90257ef-f8b9-44ef-b048-6ca6f05ac8f8"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:59:38.795] [32mINFO[39m (46604): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "5f9504b4-6f4c-40ef-b5e6-33741ab8812e"
+    [35mproductId[39m: "59233627-ce88-43a6-ac5e-45d355b57d25"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:59:39.540] [32mINFO[39m (46604): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "5f9504b4-6f4c-40ef-b5e6-33741ab8812e"
+    [35mproductId[39m: "ae98db78-698d-4498-8d06-96e7a5defd2a"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:59:41.385] [32mINFO[39m (46604): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "5f9504b4-6f4c-40ef-b5e6-33741ab8812e"
+    [35mproductId[39m: "a5b9fbed-1fb9-4af6-9e1a-935dbc2fb2ae"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 2000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:59:42.012] [32mINFO[39m (46604): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "5f9504b4-6f4c-40ef-b5e6-33741ab8812e"
+    [35mproductId[39m: "763b6e95-911d-4b0e-aba5-9e05c02c6d84"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+[14:59:42.330] [32mINFO[39m (46604): [36m[storefront] booking confirmed from hold[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "5db08514-089e-4f24-a6d1-5b799e575366"
+    [35mkind[39m: "service"
+[14:59:42.473] [32mINFO[39m (46604): [36m[storefront] verify: duplicate ignored[39m
+    [35msessionId[39m: "cs_test_1"
+    [35morderId[39m: "5db08514-089e-4f24-a6d1-5b799e575366"
+ [32m✓[39m src/routes/__tests__/storefront-bookings.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 13627[2mms[22m[39m
+   [32m✓[39m slots endpoint — a real calendar, in UTC [2m(5)[22m
+     [33m[2m✓[22m[39m serves open slots anchored to the creator's wall clock, stored as UTC[33m 3734[2mms[22m[39m
+     [33m[2m✓[22m[39m a confirmed booking removes its slot from the calendar[33m 887[2mms[22m[39m
+     [33m[2m✓[22m[39m a per-date override day-off closes that creator-local date[33m 687[2mms[22m[39m
+     [33m[2m✓[22m[39m an expired hold (older than the 30-minute TTL) frees its slot[33m 2187[2mms[22m[39m
+   [32m✓[39m checkout — the hold is the double-book lock [2m(6)[22m
+     [33m[2m✓[22m[39m a bookable service refuses checkout without a picked slot[33m 362[2mms[22m[39m
+     [33m[2m✓[22m[39m checkout places the hold first, then the session (expiry + booking metadata)[33m 1399[2mms[22m[39m
+     [33m[2m✓[22m[39m the same slot cannot be sold twice — second buyer 409s, holder is told it's theirs[33m 1137[2mms[22m[39m
+     [33m[2m✓[22m[39m an off-grid time is refused — buyers pick from the grid, not arbitrary minutes[33m 599[2mms[22m[39m
+     [33m[2m✓[22m[39m plain non-booking checkout still works end to end[33m 528[2mms[22m[39m
+   [32m✓[39m verify — the hold becomes the booking [2m(1)[22m
+     [33m[2m✓[22m[39m verify confirms the hold in place, pings the creator once, and a repeat verify is a no-op[33m 1458[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 14:58:24
+[2m   Duration [22m 78.62s[2m (import 45%, tests 38%, transform 17%)[22m
+

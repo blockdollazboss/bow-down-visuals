@@ -1,0 +1,23 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-w3-bookhard/artifacts/api-server[39m
+
+[14:56:50.210] [32mINFO[39m (45314): [36m[storefront] checkout session created[39m
+    [35muserId[39m: "27678935-587a-4392-b5a5-00da2023e51e"
+    [35mproductId[39m: "068819a2-ce5e-4c28-b932-fea4c8aa1941"
+    [35mquantity[39m: 1
+    [35mlineTotal[39m: 5000
+    [35msessionId[39m: "cs_test_1"
+    [35mdiscountCode[39m: null
+ [32m✓[39m src/routes/__tests__/storefront-bookings-hardened.test.ts [2m([22m[2m7 tests[22m[2m | [22m[33m6 skipped[39m[2m)[22m[33m 4358[2mms[22m[39m
+   [32m✓[39m dual-write lifecycle [2m(4)[22m
+     [33m[2m✓[22m[39m concurrent holds for the same slot: exactly one wins, the loser gets SLOT_TAKEN, one row exists[33m 3954[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[2m | [22m[33m6 skipped[39m[90m (7)[39m
+[2m   Start at [22m 14:56:05
+[2m   Duration [22m 44.82s[2m (transform 44%, import 44%, tests 11%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 18.41s[39m[2m · 44% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+
