@@ -333,10 +333,12 @@ export default function VideoEditor() {
   const { confirmedFetch } = useConfirmedApi();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
   const { isSimple, setMode, gateStars } = useUserMode();
-  /** Simple mode hides the technical/advanced panels behind the mode toggle
-   *  (the sidebar Creator Level picker + the in-editor Simple/Pro switch in
-   *  the top bar below); the underlying settings/tabs are untouched so
-   *  switching to Pro reveals everything. Captions and promo-clips are
+  /** Simple mode gates the technical/advanced panels behind the mode
+   *  toggle (the in-editor Simple/Pro switch in the top bar below):
+   *  gated rail tabs render LOCKED and labelled (Lane 6), setTab refuses
+   *  to land on them with a stated reason, and the underlying
+   *  settings/tabs are untouched so switching to Pro reveals everything.
+   *  Captions and promo-clips are
    *  Simple front-and-center tools — auto captions is a headline Simple
    *  feature (the top-bar Auto Captions button targets the captions tab)
    *  and the right rail already displayed Promo Clips in Simple — so both
@@ -562,8 +564,18 @@ export default function VideoEditor() {
   function setTab(t: EditorTab) {
     // Centralized enforcement: even internal "go to X" callbacks (captions,
     // effects, branding, lip-sync, studio) must never land a Simple-mode
-    // user on an advanced tab. Redirect to a safe default instead.
-    const next = isSimple && !SIMPLE_VISIBLE_TABS.includes(t) ? "clips" : t;
+    // user on an advanced tab. Redirect to a safe default instead — and
+    // SAY SO (Lane 6 mode-gating): a silent redirect reads as a broken
+    // button; the toast names the gate and the way through it.
+    const gated = isSimple && !SIMPLE_VISIBLE_TABS.includes(t);
+    if (gated) {
+      const sectionName = t.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      toast({
+        title: `${sectionName} is an Advanced-mode section`,
+        description: "Switch the editor to Advanced in the top bar to use it — nothing about your project changes.",
+      });
+    }
+    const next = gated ? "clips" : t;
     setRawTab(next);
     // Route to the correct side's independent tab state.
     if (RIGHT_TABS.has(next)) {
@@ -3111,15 +3123,18 @@ export default function VideoEditor() {
               <Button onClick={() => openSectionFromRail("captions")} size="sm" variant="ghost" className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-10 border border-[#C9A84C]/30" title={t("videoEditor.autoCaptionsTitle", { defaultValue: "Auto-generate captions from audio" })} data-testid="btn-auto-captions">
                 <Captions className="h-3.5 w-3.5" /> <span className="hidden md:inline">{t("videoEditor.autoCaptions", { defaultValue: "Auto Captions" })}</span>
               </Button>
-              {/* ── Simple / Pro editor mode switch — drives the site-wide
-                  Creator Level (UserModeContext): Simple keeps the guided
-                  dock (prompt bar, templates, auto captions, auto music);
-                  Pro reveals the full dock, unchanged. Persisted per user
-                  by the context (localStorage bdv_user_mode_<id>) and
-                  shared with the sidebar star picker — one source of truth.
-                  Pro is plan-gated: when the plan caps the level below the
-                  advanced band, the segment renders locked and links to
-                  plans, mirroring the sidebar's locked stars. ── */}
+              {/* ── Simple / Pro editor mode switch — the Turbo/Advanced
+                  display preference (UserModeContext, persisted per user
+                  as bdv_ui_mode_<id>): Simple keeps the guided dock
+                  (prompt bar, templates, auto captions, auto music); Pro
+                  reveals the full dock, unchanged. Per lib/creator-level.ts
+                  §3 the mode itself is a free user pick EXCEPT this
+                  switch, which follows gate stars like every other
+                  exposure gate: below Creator Level 4 the Pro segment
+                  renders locked (Lock + reason in its title) and links to
+                  the dashboard where stars are earned. A user already IN
+                  Advanced always sees the segment active — never lock
+                  someone out of the mode they are in. ── */}
               <div
                 className="flex items-center rounded-lg border vv-border vv-wash-5 p-0.5 shrink-0"
                 role="radiogroup"
@@ -3136,7 +3151,7 @@ export default function VideoEditor() {
                 >
                   {t("videoEditor.modeSimple", { defaultValue: "Turbo" })}
                 </button>
-                {gateStars >= 4 ? (
+                {gateStars >= 4 || !isSimple ? (
                   <button
                     type="button"
                     role="radio"
@@ -3225,23 +3240,37 @@ export default function VideoEditor() {
                     { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                   ])
                     .filter((item) => !RIGHT_TABS.has(item.id))
-                    .filter((item) => !isSimple || (["clips", "templates", "music", "lip-sync", "timeline", "captions"] as string[]).includes(item.id))
-                    .map((item) => (
+                    .map((item) => {
+                      /* Lane 6 mode gating: in Simple mode a gated section
+                         stays in the rail as a LOCKED button (icon, label,
+                         lock badge, reason on hover/click) instead of
+                         silently vanishing. Allowed set = the same
+                         SIMPLE_VISIBLE_TABS the setTab guard enforces. */
+                      const gated = isSimple && !SIMPLE_VISIBLE_TABS.includes(item.id as EditorTab);
+                      return (
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => openSectionFromRail(item.id as EditorTab)}
+                        onClick={() => gated
+                          ? toast({ title: `${item.label} is an Advanced-mode section`, description: "Switch the editor to Advanced in the top bar to use it — nothing about your project changes." })
+                          : openSectionFromRail(item.id as EditorTab)}
                         data-testid={item.testId}
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
-                        title={item.label}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
+                        data-mode-gate={gated ? "advanced" : undefined}
+                        aria-disabled={gated || undefined}
+                        title={gated ? `${item.label} — Advanced mode only. Switch the editor to Advanced in the top bar to use it.` : item.label}
+                        className={`relative flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
+                          gated ? "opacity-50 cursor-not-allowed" : ""
+                        } ${
                           leftTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "vv-ink-45 vv-hover-ink vv-hover-wash-5 border-transparent"
                         }`}
                       >
                         {item.icon}
+                        {gated && <Lock className="absolute top-1 right-1 h-3 w-3 text-primary" />}
                         <span className="text-[11px] font-bold leading-none">{item.label}</span>
                       </button>
-                    ))}
+                      );
+                    })}
               </nav>
 
               {/* ── LEFT PANEL: active section (draggable divider on its right edge) ── */}
@@ -3614,23 +3643,35 @@ export default function VideoEditor() {
                     { id: "pro-tools", label: t("videoEditor.railProTools"), icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
                     { id: "export", label: t("videoEditor.railExport"), icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                   ])
-                    .filter((item) => !isSimple || (["promo-clips", "export"] as string[]).includes(item.id))
-                    .map((item) => (
+                    .map((item) => {
+                      /* Same Lane 6 pattern as the left rail: gated
+                         sections render locked + labelled in Simple,
+                         never silently filtered out. */
+                      const gated = isSimple && !SIMPLE_VISIBLE_TABS.includes(item.id as EditorTab);
+                      return (
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => openSectionFromRail(item.id as EditorTab)}
+                        onClick={() => gated
+                          ? toast({ title: `${item.label} is an Advanced-mode section`, description: "Switch the editor to Advanced in the top bar to use it — nothing about your project changes." })
+                          : openSectionFromRail(item.id as EditorTab)}
                         data-testid={item.testId}
                         data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
-                        title={item.label}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
+                        data-mode-gate={gated ? "advanced" : undefined}
+                        aria-disabled={gated || undefined}
+                        title={gated ? `${item.label} — Advanced mode only. Switch the editor to Advanced in the top bar to use it.` : item.label}
+                        className={`relative flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
+                          gated ? "opacity-50 cursor-not-allowed" : ""
+                        } ${
                           rightTab === item.id ? "bg-primary/15 text-primary border-primary/30" : "vv-ink-45 vv-hover-ink vv-hover-wash-5 border-transparent"
                         }`}
                       >
                         {item.icon}
+                        {gated && <Lock className="absolute top-1 right-1 h-3 w-3 text-primary" />}
                         <span className="text-[11px] font-bold leading-none">{item.label}</span>
                       </button>
-                    ))}
+                      );
+                    })}
               </nav>
 
               {/* ── CONTEXTUAL INSPECTOR: floating overlay, slides in only when a scene
