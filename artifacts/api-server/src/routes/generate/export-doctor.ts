@@ -3247,7 +3247,7 @@ router.post(
         syncExpected: true,
         // Per-clip map
         clipTimeline,
-        // Audio Sync Export Check status. NOTE: no videoOnlyExportPassed
+        // Audio Sync Export Check status. NOTE: no "video-only passed"
         // field — this route never runs a video-only export, and an earlier
         // version reported one as passed anyway. audioSourceReady is true
         // here because the audio download + ffprobe above actually passed.

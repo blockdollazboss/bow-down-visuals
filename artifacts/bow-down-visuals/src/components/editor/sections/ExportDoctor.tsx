@@ -4199,10 +4199,10 @@ export function ExportDoctor({
 
             {/* ── Clear audio test results ──
                 This button only ever cleared test results — its old label
-                ("Reset Export Audio To Song Start") claimed it changed the
-                export's audio start, which it never did (doctor exports
-                always start audio at 0:00 by design). Label now matches the
-                actual behaviour, and it clears every audio test result. */}
+                claimed it reset the export's audio start to the song start,
+                which it never did (doctor exports always start audio at
+                0:00 by design). Label now matches the actual behaviour,
+                and it clears every audio test result. */}
             <Button
               onClick={() => {
                 setAudioSyncDiagResult(null);

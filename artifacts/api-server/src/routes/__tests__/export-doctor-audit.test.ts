@@ -106,9 +106,10 @@ describe("session ownership", () => {
     expect(getOwnedMultiSession(null, null)).toBeNull();
   });
   it("every session-consuming handler goes through the ownership helpers", () => {
-    expect(rail).not.toContain("sessions.get(doctorId)");
-    expect(rail).not.toContain("multiSessions.get(multiId)");
-    const ownedCalls = rail.match(/getOwned(Multi)?Session\(/g) ?? [];
+    // The helpers themselves contain the raw Map gets; handlers must not.
+    expect(rail).not.toContain("? sessions.get(");
+    expect(rail).not.toContain("? multiSessions.get(");
+    const ownedCalls = rail.match(/getOwned(Doctor|Multi)Session\(/g) ?? [];
     // 2 definitions + 14 handler call sites (2 single + 12 multi).
     expect(ownedCalls.length).toBeGreaterThanOrEqual(16);
   });
