@@ -97,6 +97,8 @@ CREATE TABLE store_products (
   compare_at_cents integer, inventory integer NOT NULL DEFAULT -1,
   media_urls jsonb NOT NULL DEFAULT '[]', service_details jsonb,
   event_id uuid, related_links jsonb NOT NULL DEFAULT '[]',
+  bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0,
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (price_cents >= 0)
@@ -109,6 +111,8 @@ CREATE TABLE store_orders (
   discount_code text, platform_fee_cents integer NOT NULL DEFAULT 0,
   creator_amount_cents integer NOT NULL DEFAULT 0,
   stripe_session_id text, status text NOT NULL DEFAULT 'completed',
+  bump_product_id uuid, bump_title text, bump_amount_cents integer,
+  bump_platform_fee_cents integer, bump_creator_amount_cents integer,
   fulfillment_note text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
