@@ -293,6 +293,17 @@ export async function recordAffiliateSale(args: {
   const commissionCents = affiliateCommissionCents(sellerNet, commissionBps);
   if (commissionCents <= 0) return { recorded: false, reason: "zero_commission" };
 
+  /* Exactly-once, belt and suspenders: the pre-check answers replays;
+     the UNIQUE(surface, order_ref, product_id) index + ON CONFLICT
+     below closes the race between two doors landing at the same
+     instant (the loser inserts 0 rows and reads as a duplicate). */
+  const prior = await db.execute(sql`
+    SELECT id FROM affiliate_sales
+    WHERE surface = ${args.surface} AND order_ref = ${args.orderRef} AND product_id = ${args.productId}
+    LIMIT 1
+  `);
+  if (prior.rows.length > 0) return { recorded: false, reason: "duplicate" };
+
   const inserted = await db.execute(sql`
     INSERT INTO affiliate_sales
       (id, affiliate_code_id, affiliate_user_id, seller_user_id, surface, product_id,
