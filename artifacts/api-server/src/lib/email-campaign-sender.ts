@@ -226,9 +226,15 @@ function defaultDeps(): Required<EmailSenderDeps> {
             eq(emailCampaignsTable.status, "queued"),
             /* Segment campaigns belong to the tracked dispatch and
                automation carriers to the automation runner — the
-               drain never claims either (see header). */
+               drain never claims either (see header). Fan-segment
+               campaigns (kind "fan_segment", fan-graph phase 2)
+               belong to dispatchCampaignToAudience alone: their
+               audience is a fan-graph resolution the drain cannot
+               reproduce, and claiming one here would widen it to
+               the whole list. */
             isNull(emailCampaignsTable.segmentId),
             isNull(emailCampaignsTable.automationId),
+            eq(emailCampaignsTable.kind, "campaign"),
           ),
         )
         .orderBy(asc(emailCampaignsTable.createdAt))
