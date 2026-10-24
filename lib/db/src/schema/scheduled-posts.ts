@@ -47,6 +47,28 @@ export type SchedulerPlatform = "instagram" | "tiktok" | "facebook";
 
 export type SchedulerMediaType = "video" | "image";
 
+/** Provenance linkage stamped on a post at schedule time (wave-3
+ *  provenance-in-publish): when the creator schedules/publishes an asset
+ *  that has a provenance record, the record's id AND a factual snapshot
+ *  ride the row, so the linkage survives until the post fires — it is
+ *  never re-derived from the media URL at fire time. The snapshot is
+ *  what the publish UI showed the creator before posting: tool/model,
+ *  AI state, the licence they stated, and the exact disclosure line.
+ *  `licence` is the provenance kit's LicenceId (lib/provenance.ts). */
+export interface ScheduledPostProvenance {
+  /** Library asset id the record belongs to: "gen:<uuid>" | "hub:<id>". */
+  assetId: string;
+  title: string;
+  tool: string;
+  model: string | null;
+  aiGenerated: boolean;
+  licence: string;
+  /** The full AI-disclosure sentence ("" when no AI generation is recorded). */
+  disclosureLine: string;
+  /** ISO timestamp of when the linkage was stamped. */
+  linkedAt: string;
+}
+
 /** Per-platform result recorded when the worker fires. */
 export interface ScheduledPlatformResult {
   platform: SchedulerPlatform;
@@ -54,6 +76,16 @@ export interface ScheduledPlatformResult {
   mediaId?: string;
   permalink?: string | null;
   error?: string;
+  /** Provenance disclosure delivery for this platform (wave-3), set
+   *  only when the post carries a provenance snapshot:
+   *  - "caption": the disclosure line rode the caption/description text
+   *    (Instagram, Facebook — their publish calls take caption text).
+   *  - "record_only": the destination accepted NO caption or AI-label
+   *    field (TikTok draft uploads), so nothing was sent — the
+   *    disclosure stays on the asset's provenance record page.
+   *  - "not_applicable": the record shows no AI generation, so there
+   *    was no disclosure to deliver. */
+  disclosure?: "caption" | "record_only" | "not_applicable";
   /** Stack-30 C4: a failure that can never succeed on retry — the
    *  platform cannot accept this post's media type at all (e.g. an
    *  image post aimed at video-only TikTok). The scheduler worker
@@ -118,6 +150,11 @@ export const scheduledPostsTable = pgTable(
        attribution only; deleting a release must never block on or cascade
        into already-scheduled posts. */
     release_id: uuid("release_id"),
+    /* Provenance linkage + snapshot (see ScheduledPostProvenance).
+       Nullable — posts scheduled without a library asset keep it NULL.
+       Column added by the migration named in the wave-3 lane's
+       .lane/MIGRATION-NEEDED.md (suggested 0205_scheduled_post_provenance). */
+    provenance: jsonb("provenance").$type<ScheduledPostProvenance | null>(),
     ai_best_time: jsonb("ai_best_time").$type<AiBestTimeSuggestion | null>(),
     results: jsonb("results")
       .notNull()

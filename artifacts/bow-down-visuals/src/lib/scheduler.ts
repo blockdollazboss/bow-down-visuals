@@ -3,6 +3,29 @@
 
 export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook";
 
+/** Provenance snapshot stamped on a scheduled post at schedule time
+ *  (wave-3 provenance-in-publish) — mirrors ScheduledPostProvenance in
+ *  the API/@workspace/db. The record id rides the post; the snapshot is
+ *  what the publish UI showed the creator before posting. */
+export interface ScheduledPostProvenanceShape {
+  assetId: string;
+  title: string;
+  tool: string;
+  model: string | null;
+  aiGenerated: boolean;
+  licence: string;
+  disclosureLine: string;
+  linkedAt: string;
+}
+
+/** Where a platform honestly carries the AI disclosure:
+ *  "caption" = it rides the caption/description text (Instagram,
+ *  Facebook); "record_only" = the destination accepts no caption or
+ *  AI-label field (TikTok drafts), so the disclosure stays on the
+ *  asset's provenance record page; "not_applicable" = no AI
+ *  generation is recorded, so there is nothing to disclose. */
+export type DisclosureChannel = "caption" | "record_only" | "not_applicable";
+
 export interface ScheduledPostShape {
   id: string;
   status: "draft" | "scheduled" | "publishing" | "posted" | "failed" | "canceled";
@@ -20,7 +43,12 @@ export interface ScheduledPostShape {
   /** Distribution release this post announces (0143 attribution), or
    *  null when it wasn't scheduled from a release. */
   releaseId: string | null;
-  results: Array<{ platform: SchedulerPlatformKey; status: string; error?: string | null }>;
+  /** Provenance snapshot (wave 3) — absent/null on posts scheduled
+   *  without a library asset. Optional: older payloads lack it. */
+  provenance?: ScheduledPostProvenanceShape | null;
+  /** Server-computed per-platform disclosure plan for this post. */
+  disclosure?: Partial<Record<SchedulerPlatformKey, DisclosureChannel>>;
+  results: Array<{ platform: SchedulerPlatformKey; status: string; error?: string | null; disclosure?: DisclosureChannel }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -212,6 +240,44 @@ export function normalizeHashtags(raw: string): string {
 export function postReleaseId(post: ScheduledPostShape | Record<string, unknown>): string | null {
   const v = (post as { releaseId?: unknown }).releaseId;
   return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+/**
+ * Provenance snapshot read TOLERANTLY (same discipline as postReleaseId):
+ * yields the snapshot only when the payload actually carries a
+ * well-formed one — absent on posts scheduled before wave 3 or without
+ * a library asset. Never invents a record from the media URL.
+ */
+export function postProvenance(
+  post: ScheduledPostShape | Record<string, unknown> | null | undefined,
+): ScheduledPostProvenanceShape | null {
+  const v = (post as { provenance?: unknown } | null | undefined)?.provenance;
+  if (!v || typeof v !== "object") return null;
+  const p = v as Record<string, unknown>;
+  if (typeof p.assetId !== "string" || !p.assetId) return null;
+  if (typeof p.tool !== "string" || !p.tool) return null;
+  return {
+    assetId: p.assetId,
+    title: typeof p.title === "string" ? p.title : "",
+    tool: p.tool,
+    model: typeof p.model === "string" ? p.model : null,
+    aiGenerated: p.aiGenerated === true,
+    licence: typeof p.licence === "string" ? p.licence : "all-rights-reserved",
+    disclosureLine: typeof p.disclosureLine === "string" ? p.disclosureLine : "",
+    linkedAt: typeof p.linkedAt === "string" ? p.linkedAt : "",
+  };
+}
+
+/** Mirror of the API's disclosureChannelFor — the pre-publish plan the
+ *  composer shows per selected platform. Depends only on the record's
+ *  AI state and the platform's real capabilities in this integration. */
+export function disclosureChannelFor(
+  platform: SchedulerPlatformKey,
+  provenance: { aiGenerated: boolean } | null | undefined,
+): DisclosureChannel {
+  if (!provenance || !provenance.aiGenerated) return "not_applicable";
+  if (platform === "tiktok") return "record_only";
+  return "caption";
 }
 
 /** Days (YYYY-MM-DD) for the visible month grid, including leading blanks. */
