@@ -19,6 +19,7 @@ import {
   createJobNotification,
   notifyTerminalExportJobs,
 } from "./job-notifications";
+import { notifyDueBookingReminders } from "./booking-reminders";
 import {
   MAX_SUBMIT_DEFERRALS,
   PROVIDER_LIMIT_SEC,
@@ -144,6 +145,11 @@ export async function runPollerTick(): Promise<void> {
        through the Resend sender (DB-backed, restart-safe). */
     await drainEmailQueue().catch((err) =>
       logger.error({ err }, "[job-poller] email sender phase failed"),
+    );
+    /* Paid bookings: buyer reminders for confirmed appointments inside
+       the 24h lead window (DB-backed, restart-safe, exactly-once). */
+    await notifyDueBookingReminders().catch((err) =>
+      logger.error({ err }, "[job-poller] booking reminder phase failed"),
     );
   } finally {
     tickInFlight = false;

@@ -40,6 +40,13 @@ export interface BookingRecord {
   cx?: string;
   /** Refund outcome for a cancelled booking. */
   rf?: BookingRefundState;
+  /** Buyer-reminder stamp (UTC ISO): set by the reminder sweep
+   *  (lib/booking-reminders.ts) in the same transaction that inserts
+   *  the buyer's job_notifications row. Presence means the reminder
+   *  has fired — the sweep never sends a second one for a record that
+   *  carries it. Absent on every record written before reminders
+   *  existed and on any booking not yet due. */
+  rm?: string;
 }
 
 const TRAILER_RE = /⟦bk1:([A-Za-z0-9_-]+)⟧\s*$/;
@@ -59,6 +66,7 @@ function isValidRecord(x: unknown): x is BookingRecord {
     r["rf"] !== undefined &&
     r["rf"] !== "refunded" && r["rf"] !== "refund_failed" && r["rf"] !== "not_required"
   ) return false;
+  if (r["rm"] !== undefined && (typeof r["rm"] !== "string" || Number.isNaN(Date.parse(r["rm"])))) return false;
   return true;
 }
 
