@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── Viral Sound Finder ────────────────────────────────────────────────
@@ -266,6 +267,11 @@ export default function ViralSoundFinder() {
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
             {t("sounds.aiAudioCta", { defaultValue: "Need a custom sound? Generate SFX with AI" })}
           </Link>
+        </div>
+
+        {/* ── SOUND-FIT DISCOVERY (docked: sounds that fit your song) ── */}
+        <div className="relative mt-10">
+          <SoundFitPanel />
         </div>
 
         {/* ── BROWSE ─────────────────────────────────────────────────── */}
