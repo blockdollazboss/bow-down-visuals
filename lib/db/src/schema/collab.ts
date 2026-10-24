@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -108,3 +108,60 @@ export const insertCollabRequestSchema = createInsertSchema(collabRequestsTable)
 });
 export type InsertCollabRequest = z.infer<typeof insertCollabRequestSchema>;
 export type CollabRequest = typeof collabRequestsTable.$inferSelect;
+
+/* ── Co-post author sides (Stack-100 #3, #24) ──────────────────────────────
+   ONE Feed post (`posts`, single author column = the initiator) with TWO
+   author sides. This table is the second side's record AND the consent
+   ledger for both: a row per creator per co-post, with the side's status
+   and the moment it accepted. The post itself stays a single row, so its
+   likes / replies / reactions exist exactly once — engagement can never
+   double-count across the two profiles it appears on.
+
+   *** MIGRATION HELD *** The table is created by migration 0205, written
+   out in full in .lane/MIGRATION-NEEDED.md and NOT applied by this lane.
+   Until it lands, every co-post write answers an honest 503
+   (CO_POST_NOT_READY) and every read path treats a missing table as
+   "no co-posts exist yet" — behaviour is byte-identical to today.
+
+   Status machine (pure logic + tests: api-server lib/co-posts.ts):
+   author side starts `accepted` (they wrote it), co-author side starts
+   `pending`; published ⇔ every side has accepted_at set; `declined`
+   (pre-live only) ends it; `withdrawn` removes ONLY that side — the
+   other creator keeps the post on their profile. */
+export const CO_POST_SIDE_STATUSES = ["pending", "accepted", "declined", "withdrawn"] as const;
+export type CoPostSideStatus = (typeof CO_POST_SIDE_STATUSES)[number];
+
+export const postCoAuthorsTable = pgTable(
+  "post_co_authors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /* The single shared post. Cascade: deleting the post ends the co-post. */
+    post_id: uuid("post_id").notNull(),
+    /* Creator profile this side belongs to (FK added in migration 0205
+       with ON DELETE CASCADE — kept as a plain column here to avoid an
+       import cycle with creator-stories-posts / creator-platform). */
+    profile_id: uuid("profile_id").notNull(),
+    /* The account behind the profile — routes authorize by user_id. */
+    user_id: uuid("user_id").notNull(),
+    role: text("role").notNull().default("co_author"), // 'author' | 'co_author'
+    status: text("status").notNull().default("pending"), // CO_POST_SIDE_STATUSES
+    /* Set the moment this side accepted; KEPT after a later withdrawal —
+       "every side has accepted_at" is the publish test. */
+    accepted_at: timestamp("accepted_at", { withTimezone: true }),
+    responded_at: timestamp("responded_at", { withTimezone: true }),
+    withdrawn_at: timestamp("withdrawn_at", { withTimezone: true }),
+    /* Provenance: the accepted collab request this co-post grew out of,
+       when it was created from one (null for a direct invite). */
+    collab_request_id: uuid("collab_request_id"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("post_co_authors_post_profile_uidx").on(t.post_id, t.profile_id),
+    index("post_co_authors_post_idx").on(t.post_id),
+    index("post_co_authors_profile_status_idx").on(t.profile_id, t.status),
+    index("post_co_authors_user_status_idx").on(t.user_id, t.status),
+  ],
+);
+
+export type PostCoAuthor = typeof postCoAuthorsTable.$inferSelect;
