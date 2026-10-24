@@ -15,6 +15,9 @@ import {
   Play,
 } from "lucide-react";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { computeSceneTimings } from "@/lib/scene-timing";
+import type { SceneData } from "@/lib/scene-parser";
 
 interface LipSyncStudioProps {
   audioUrl: string | null;
@@ -243,6 +246,203 @@ export function LipSyncStudio({
     } catch {
       /* ignore */
     }
+  };
+
+  /* ── Single-clip lip sync (Stack-100 #3, Lane D D-02) ──────────────────
+   * The Stack-28 #43 note below kept this disabled because no per-clip rail
+   * existed and the component had no clip input. Both facts changed: the
+   * per-scene rail POST /api/lip-sync/scene-test (+ GET poll) is live — the
+   * editor's LipSyncSection drives it — and this component can now load the
+   * project's own scenes via projectId and compute their song windows with
+   * the editor's own computeSceneTimings, the same source the section uses.
+   * The single-IMAGE action stays disabled: no still→clip rail exists. */
+  const { confirmedFetch } = useConfirmedApi();
+
+  interface ClipSceneOption {
+    index: number;
+    clipUrl: string;
+    startSec: number;
+    endSec: number;
+  }
+
+  const [clipScenes, setClipScenes] = useState<ClipSceneOption[] | null>(null);
+  const [clipScenesLoading, setClipScenesLoading] = useState(false);
+  const [clipSceneIdx, setClipSceneIdx] = useState(0);
+  const [clipPhase, setClipPhase] = useState<
+    "idle" | "starting" | "running" | "done" | "failed"
+  >("idle");
+  const [clipStep, setClipStep] = useState("");
+  const [clipResultUrl, setClipResultUrl] = useState<string | null>(null);
+  const [clipError, setClipError] = useState<string | null>(null);
+  const [clipJobId, setClipJobId] = useState<string | null>(null);
+
+  const canSingleClip = Boolean(projectId && audioUrl && getAccessToken);
+
+  useEffect(() => {
+    if (!canSingleClip || !projectId || !audioUrl || !getAccessToken) return;
+    let cancelled = false;
+    setClipScenesLoading(true);
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/projects/${projectId}`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as {
+          project?: {
+            output_data?: { scenes?: SceneData[] };
+            scenes?: SceneData[];
+          };
+        };
+        const scenes: SceneData[] =
+          data.project?.output_data?.scenes ?? data.project?.scenes ?? [];
+        // Song length drives the windows — probe the audio, editor-style.
+        const duration = await new Promise<number>((resolve) => {
+          const a = new Audio();
+          a.preload = "metadata";
+          a.onloadedmetadata = () =>
+            resolve(Number.isFinite(a.duration) ? a.duration : 0);
+          a.onerror = () => resolve(0);
+          a.src = audioUrl;
+        });
+        const timings = computeSceneTimings(
+          scenes,
+          duration > 0 ? duration : null,
+        );
+        const opts: ClipSceneOption[] = [];
+        scenes.forEach((s, i) => {
+          const url = (s as { demoClipUrl?: string }).demoClipUrl;
+          const t = timings[i];
+          if (url && t) {
+            opts.push({
+              index: i,
+              clipUrl: url,
+              startSec: t.startSec,
+              endSec: t.endSec,
+            });
+          }
+        });
+        if (!cancelled) setClipScenes(opts);
+      } catch {
+        if (!cancelled) setClipScenes([]);
+      } finally {
+        if (!cancelled) setClipScenesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Load when the project/song pair changes; getAccessToken is a stable
+    // context getter read at call time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, audioUrl]);
+
+  useEffect(() => {
+    if (!clipJobId || !getAccessToken) return;
+    let cancelled = false;
+    let ticks = 0;
+    const tick = async () => {
+      ticks++;
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/lip-sync/scene-test/${clipJobId}`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          status?: string;
+          step?: string;
+          resultUrl?: string;
+          error?: string;
+        };
+        if (cancelled) return;
+        if (data.status === "succeeded" && data.resultUrl) {
+          setClipPhase("done");
+          setClipResultUrl(data.resultUrl);
+          setClipJobId(null);
+          return;
+        }
+        if (data.status === "failed") {
+          setClipPhase("failed");
+          setClipError(data.error ?? "Lip sync failed.");
+          setClipJobId(null);
+          return;
+        }
+        setClipStep(data.step ?? "Working…");
+        if (ticks >= 120) {
+          setClipPhase("failed");
+          setClipError("Timed out. Check your connection and try again.");
+          setClipJobId(null);
+        }
+      } catch {
+        if (!cancelled && ticks >= 120) {
+          setClipPhase("failed");
+          setClipError("Could not check on the lip sync job.");
+          setClipJobId(null);
+        }
+      }
+    };
+    void tick();
+    const t = setInterval(() => void tick(), 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [clipJobId, getAccessToken]);
+
+  const startSingleClip = async () => {
+    const scene = clipScenes?.[clipSceneIdx];
+    if (
+      !scene ||
+      !audioUrl ||
+      clipPhase === "starting" ||
+      clipPhase === "running"
+    )
+      return;
+    setClipPhase("starting");
+    setClipError(null);
+    setClipResultUrl(null);
+    setClipStep("");
+    try {
+      const res = await confirmedFetch("/api/lip-sync/scene-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clipUrl: scene.clipUrl,
+          audioUrl,
+          sceneStartSec: scene.startSec,
+          sceneEndSec: scene.endSec,
+          videoOffsetSec: 0,
+        }),
+      });
+      if (res === null) {
+        // User cancelled the credit confirmation.
+        setClipPhase("idle");
+        return;
+      }
+      const data = (await res.json().catch(() => ({}))) as {
+        jobId?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok || !data.jobId) {
+        throw new Error(
+          data.message ?? data.error ?? `Could not start (HTTP ${res.status})`,
+        );
+      }
+      setClipPhase("running");
+      setClipJobId(data.jobId);
+    } catch (e) {
+      setClipPhase("failed");
+      setClipError(
+        e instanceof Error ? e.message : "Could not start lip sync.",
+      );
+    }
+  };
+
+  const mmss = (sec: number) => {
+    const s = Math.max(0, Math.round(sec));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
 
   const renderSceneRow = (s: RunAllSceneStatus) => (
@@ -537,56 +737,126 @@ export function LipSyncStudio({
           )}
         </div>
 
-        {/* Stack-28 #43: these two single-source actions stay disabled —
-            HONESTLY labelled. Decision (from code): they cannot be wired to
-            the existing run flow. The only lip-sync rail this component has
-            is the one-click run-all above (startRun), which syncs EVERY scene
-            of a saved project via projectId; the component receives no
-            artist-image input and no selected-clip input (props are only
-            audioUrl / transcriptText / activeArtist / projectId /
-            getAccessToken), so pointing either button at run-all would make
-            it do something different from what its label promises. Until a
-            per-image / per-clip rail exists, they follow the honest
-            placeholder pattern of analytics-hub.tsx ("Coming soon" + title). */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled
-            title="Coming soon — single-image lip sync is not connected yet. Use Sync All Scenes & Export above to lip-sync a saved project."
-            data-testid="btn-lipsync-from-image"
-            className="h-11 flex items-center justify-start gap-2 px-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm font-bold text-white/30 cursor-not-allowed"
+        {/* Stack-28 #43 kept both single-source actions disabled because no
+            per-clip rail existed and this component had no clip input.
+            Stack-100 #3 (Lane D, D-02): the per-scene rail
+            (POST /api/lip-sync/scene-test) is live and the project's scenes
+            are loaded above by projectId, so single-clip sync is WIRED
+            below. The single-IMAGE action stays disabled + honestly
+            labelled — there is still no still-image→clip rail. */}
+        {canSingleClip && (
+          <div
+            className="rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 space-y-2.5"
+            data-testid="lipsync-single-clip"
           >
-            <Mic2 className="h-4 w-4 shrink-0" />
-            Create Lip Sync From Artist Image
-            <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-white/40">
-              Coming soon
-            </span>
-          </button>
+            <p className="text-[11px] font-black text-white/70 flex items-center gap-1.5">
+              <Film className="h-3.5 w-3.5 text-primary" />
+              Sync one scene clip
+            </p>
+            {clipScenesLoading ? (
+              <p className="text-[11px] text-white/40 flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Loading this project's scene clips…
+              </p>
+            ) : clipScenes && clipScenes.length > 0 ? (
+              <>
+                <select
+                  value={clipSceneIdx}
+                  onChange={(e) => {
+                    setClipSceneIdx(Number(e.target.value));
+                    setClipPhase("idle");
+                    setClipError(null);
+                    setClipResultUrl(null);
+                  }}
+                  disabled={clipPhase === "running" || clipPhase === "starting"}
+                  className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-xs text-white/85"
+                  data-testid="lipsync-clip-scene-select"
+                  aria-label="Scene clip to lip sync"
+                >
+                  {clipScenes.map((s, i) => (
+                    <option key={s.index} value={i}>
+                      Scene {s.index + 1} · {mmss(s.startSec)}–{mmss(s.endSec)}{" "}
+                      of the song
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void startSingleClip()}
+                  disabled={clipPhase === "starting" || clipPhase === "running"}
+                  data-testid="btn-lipsync-from-clip"
+                  className="h-11 w-full flex items-center justify-center gap-2 px-4 rounded-lg bg-primary text-black text-sm font-black hover:brightness-110 disabled:opacity-50"
+                >
+                  {clipPhase === "starting" || clipPhase === "running" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  Lip Sync Selected Video Clip
+                </button>
+                {clipPhase === "running" && (
+                  <p className="text-[11px] text-blue-300">
+                    {clipStep || "Syncing the clip to the song…"}
+                  </p>
+                )}
+                {clipPhase === "failed" && clipError && (
+                  <p className="text-[11px] text-red-300">{clipError}</p>
+                )}
+                {clipPhase === "done" && clipResultUrl && (
+                  <div className="space-y-2">
+                    <video
+                      src={clipResultUrl}
+                      controls
+                      className="w-full rounded-lg border border-white/10"
+                      data-testid="lipsync-clip-result"
+                    />
+                    <a
+                      href={clipResultUrl}
+                      download="bow-down-visuals-lip-sync-clip.mp4"
+                      data-testid="btn-lipsync-clip-download"
+                      className="h-10 w-full flex items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 text-primary text-sm font-black hover:bg-primary/20"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download synced clip
+                    </a>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-[11px] text-white/40 leading-relaxed">
+                This project has no scene clips yet — generate scene clips in
+                the editor first, then sync a single clip here.
+              </p>
+            )}
+          </div>
+        )}
 
-          <button
-            type="button"
-            disabled
-            title="Coming soon — single-clip lip sync is not connected yet. Use Sync All Scenes & Export above to lip-sync a saved project."
-            data-testid="btn-lipsync-from-clip"
-            className="h-11 flex items-center justify-start gap-2 px-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm font-bold text-white/30 cursor-not-allowed"
-          >
-            <Mic2 className="h-4 w-4 shrink-0" />
-            Lip Sync Selected Video Clip
-            <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-white/40">
-              Coming soon
-            </span>
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled
+          title="Coming soon — turning a still artist image into a moving, lip-synced clip is not built yet. Use Sync All Scenes & Export above, or sync a single scene clip."
+          data-testid="btn-lipsync-from-image"
+          className="h-11 w-full flex items-center justify-start gap-2 px-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm font-bold text-white/30 cursor-not-allowed"
+        >
+          <Mic2 className="h-4 w-4 shrink-0" />
+          Create Lip Sync From Artist Image
+          <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-bold text-white/40">
+            Coming soon
+          </span>
+        </button>
 
-        {/* Not connected notice */}
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5">
-          <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+        {/* How it works — Stack-100 #3 (D-03): the old banner here claimed
+            lip sync was not connected and told users to connect a rival
+            service. Lip sync IS connected (run-all + single-clip above);
+            the banner now tells the truth. */}
+        <div className="flex items-start gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5">
+          <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <p className="text-xs font-black text-amber-300">Lip Sync not connected yet</p>
-            <p className="text-[11px] text-amber-200/70 leading-relaxed">
+            <p className="text-xs font-black text-white/80">Lip Sync is connected</p>
+            <p className="text-[11px] text-white/45 leading-relaxed">
               {songReady && lyricsReady
-                ? "Your uploaded song and lyrics are ready. Connect a lip sync service (Hedra, Sync.so, D-ID, or HeyGen) to animate the artist's mouth to the song."
-                : "Upload your song and extract lyrics first — then connect a lip sync service to animate the artist's performance."}
+                ? "Your song and lyrics are ready. Sync every scene with the run-all above, or sync a single scene clip on its own. Turning a still artist image into a lip-synced clip is still on the way."
+                : "Add your song and lyrics above to unlock lip sync — every scene at once, or a single scene clip."}
             </p>
           </div>
         </div>
