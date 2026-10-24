@@ -287,6 +287,21 @@ export async function fetchServiceBookingRanges(
   }));
 }
 
+/** Every order id that HAS a hardened row for this product (any status).
+ *  The taken-range union uses this as the coverage set: an order with a
+ *  hardened row is represented by that row, never double-counted from
+ *  its trailer. Empty when the table is absent. */
+export async function fetchServiceBookingOrderIds(
+  run: SqlRunner,
+  productId: string,
+): Promise<Set<string>> {
+  if (!(await serviceBookingsAvailable(run))) return new Set();
+  const r = await run.execute(sql`
+    SELECT order_id FROM service_bookings WHERE product_id = ${productId}
+  `);
+  return new Set((r.rows as Array<Record<string, unknown>>).map((row) => String(row["order_id"])));
+}
+
 /**
  * Reconciliation: backfill hardened rows for live trailer bookings that
  * don't have one yet (every v1 booking, on first touch post-migration —

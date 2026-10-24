@@ -85,6 +85,14 @@ import {
   withBookingState,
   type BookingRecord,
 } from "../lib/booking-note";
+import {
+  BookingSlotConflictError,
+  cancelServiceBooking,
+  confirmServiceBooking,
+  fetchServiceBookingOrderIds,
+  fetchServiceBookingRanges,
+  placeServiceBooking,
+} from "../lib/service-bookings";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
@@ -262,23 +270,53 @@ function bookableInfo(serviceDetails: Record<string, unknown> | null | undefined
 }
 
 /** Orders that currently block slots for a product: fresh holds + paid
- *  bookings whose trailer is live (not cancelled). */
+ *  bookings whose trailer is live (not cancelled).
+ *
+ *  HARDENED UNION (Stack-100 #3): when the service_bookings table exists
+ *  (lib/service-bookings.ts), an order WITH a hardened row is represented
+ *  by that row — its status/hold-expiry is the slot truth — and orders
+ *  WITHOUT one (every v1 trailer-only booking) keep counting from their
+ *  trailer, so legacy and hardened bookings block side by side and none
+ *  is ever double-counted. A trailer that says CANCELLED vetoes its
+ *  hardened row too: if a cancel ever landed on the order but missed the
+ *  table, the slot still frees. Pre-migration the hardened side is
+ *  empty and this is exactly the v1 behavior. */
 async function fetchTakenRanges(run: SqlRunner, productId: string, now: Date): Promise<TakenRange[]> {
   const r = await run.execute(sql`
-    SELECT fulfillment_note, status, created_at
+    SELECT id, fulfillment_note, status, created_at
     FROM store_orders
     WHERE product_id = ${productId} AND product_kind = 'service'
-      AND status IN ('booking_held', 'completed')
+      AND fulfillment_note LIKE '%⟦bk1:%'
   `);
-  const taken: TakenRange[] = [];
+  const trailerCandidates: Array<{ orderId: string; startUtc: string; endUtc: string }> = [];
+  const trailerCancelled = new Set<string>();
   for (const row of r.rows as Array<Record<string, unknown>>) {
     const rec = decodeBookingNote(row["fulfillment_note"] as string | null);
-    if (!rec || !bookingBlocksSlot(rec)) continue;
-    if (String(row["status"]) === "booking_held") {
+    if (!rec) continue;
+    const orderId = String(row["id"]);
+    const status = String(row["status"]);
+    if (rec.st === "cancelled" || status === "cancelled" || status === "refunded") {
+      trailerCancelled.add(orderId);
+      continue;
+    }
+    if (!bookingBlocksSlot(rec)) continue;
+    if (status !== "booking_held" && status !== "completed") continue;
+    if (status === "booking_held") {
       const created = new Date(String(row["created_at"])).getTime();
       if (Number.isNaN(created) || created + BOOKING_HOLD_TTL_MIN * 60_000 <= now.getTime()) continue;
     }
-    taken.push({ startUtc: rec.s, endUtc: rec.e });
+    trailerCandidates.push({ orderId, startUtc: rec.s, endUtc: rec.e });
+  }
+  const covered = await fetchServiceBookingOrderIds(run, productId);
+  if (covered.size === 0) {
+    return trailerCandidates.map(({ startUtc, endUtc }) => ({ startUtc, endUtc }));
+  }
+  const hardened = await fetchServiceBookingRanges(run, productId, now);
+  const taken: TakenRange[] = hardened
+    .filter((h) => !trailerCancelled.has(h.orderId))
+    .map(({ startUtc, endUtc }) => ({ startUtc, endUtc }));
+  for (const t of trailerCandidates) {
+    if (!covered.has(t.orderId)) taken.push({ startUtc: t.startUtc, endUtc: t.endUtc });
   }
   return taken;
 }
@@ -922,7 +960,20 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
           ? parsed.data.buyerTimezone
           : bookInfo.availability!.timezone;
       const now = new Date();
-      const holdResult = await db.transaction(async (tx) => {
+      let holdResult: Awaited<ReturnType<typeof placeCheckoutHold>>;
+      try {
+        holdResult = await placeCheckoutHold();
+      } catch (err) {
+        /* The hardened table's exclusion constraint is the final guard:
+           it fired inside the transaction, which rolled the hold back.
+           Translate to the existing SLOT_TAKEN honesty. */
+        if (err instanceof BookingSlotConflictError) {
+          res.status(409).json({ error: "SLOT_TAKEN", message: err.message });
+          return;
+        }
+        throw err;
+      }
+      async function placeCheckoutHold() { return db.transaction(async (tx) => {
         const run = tx as unknown as SqlRunner;
         await lockProductRow(run, productId);
         const cur = await run.execute(sql`
@@ -961,8 +1012,21 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
           RETURNING id
         `);
         const hid = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+        /* Hardened dual-write (no-op pre-migration): the service_bookings
+           row is the DB-level slot claim. An exclusion violation throws
+           BookingSlotConflictError out of this transaction — the hold
+           order rolls back with it and the caller answers SLOT_TAKEN. */
+        await placeServiceBooking(run, {
+          orderId: hid,
+          productId,
+          profileId: p.profile_id,
+          buyerUserId: req.userId!,
+          record: check.record,
+          holdExpiresAt: new Date(now.getTime() + BOOKING_HOLD_TTL_MIN * 60_000),
+          now,
+        });
         return { ok: true, holdId: hid, record: check.record } as const;
-      });
+      }); }
       if (!holdResult.ok) {
         res.status(holdResult.status).json({ error: holdResult.code, message: holdResult.message });
         return;
@@ -1057,6 +1121,8 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
           SET status = 'cancelled', fulfillment_note = ${encodeBookingNote(cancelled)}
           WHERE id = ${bookingHold.id} AND status = 'booking_held'
         `).catch(() => undefined);
+        /* Free the hardened slot claim too (no-op pre-migration). */
+        await cancelServiceBooking(db, bookingHold.id).catch(() => undefined);
       }
       throw err;
     }
@@ -1210,6 +1276,19 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
               creator_amount_cents = ${creatorCents}
           WHERE id = ${orderId}
         `);
+        /* Hardened dual-write: flip the slot claim held → confirmed. A
+           "conflict" outcome means the hold lapsed and the slot was
+           re-sold — the paid booking is still honored (existing rule);
+           the clash check below surfaces it to the creator. A failure
+           here must never fail a completed payment, so it is logged,
+           not thrown. */
+        const sbConfirm = await confirmServiceBooking(db, orderId).catch((e) => {
+          logger.error({ err: e, orderId }, "[storefront] verify: service_bookings confirm failed");
+          return "missing" as const;
+        });
+        if (sbConfirm === "conflict") {
+          logger.warn({ orderId, sessionId }, "[storefront] verify: hardened slot already re-sold after hold lapse — honoring paid booking, clash notice follows");
+        }
         confirmedBooking = confirmed;
         if (discountCode) {
           await db.execute(sql`
@@ -1377,6 +1456,21 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         await db.execute(sql`
           UPDATE store_orders SET fulfillment_note = ${fulfillmentNote} WHERE id = ${orderId}
         `);
+        /* Hardened dual-write for the hold-missing path (no-op
+           pre-migration): record the confirmed slot claim. Best-effort
+           — the payment completed; a conflict is logged loudly, never
+           silently dropped and never a failed verify. */
+        if (confirmedBooking && kind === "service") {
+          await placeServiceBooking(db, {
+            orderId,
+            productId,
+            profileId,
+            buyerUserId: req.userId!,
+            record: confirmedBooking,
+          }).catch((e) => {
+            logger.error({ err: e, orderId, sessionId }, "[storefront] verify: service_bookings place failed for metadata booking");
+          });
+        }
         logger.info({ sessionId, orderId, kind, amountCents }, "[storefront] order recorded");
       }
     }
@@ -1747,7 +1841,24 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
                   1, 0, NULL, 0, 0, NULL, 'completed', ${encodeBookingNote(rec)})
           RETURNING id
         `);
-        return { orderId: String((inserted.rows[0] as Record<string, unknown>)["id"]), record: rec } as const;
+        const newOrderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+        /* Hardened dual-write (no-op pre-migration): the confirmed slot
+           claim. An exclusion violation throws BookingSlotConflictError
+           out of the transaction (the claim order rolls back with it)
+           and is translated to SLOT_TAKEN just below. */
+        await placeServiceBooking(run, {
+          orderId: newOrderId,
+          productId,
+          profileId: p.profile_id,
+          buyerUserId: req.userId!,
+          record: rec,
+        });
+        return { orderId: newOrderId, record: rec } as const;
+      }).catch((err: unknown) => {
+        if (err instanceof BookingSlotConflictError) {
+          return { error: "SLOT_TAKEN", message: err.message } as const;
+        }
+        throw err;
       });
       if ("error" in txResult) {
         const status =
@@ -2459,6 +2570,12 @@ router.post("/storefront/orders/:id/booking-cancel", requireAuth, publicApiLimit
       res.json({ ok: true, alreadyCancelled: true, bookingStatus: "cancelled", refundState });
       return;
     }
+    /* Free the hardened slot claim too (no-op pre-migration; best-effort
+       — the trailer-cancel veto in fetchTakenRanges frees the slot in
+       reads even if this write ever missed). */
+    await cancelServiceBooking(db, id).catch((e) =>
+      logger.error({ err: e, orderId: id }, "[storefront] booking-cancel: service_bookings cancel failed"),
+    );
 
     /* Tell the other side. */
     const otherUserId = isBuyer
