@@ -88,6 +88,7 @@ CREATE TABLE events (
   id uuid PRIMARY KEY, title text, rsvp_count integer NOT NULL DEFAULT 0
 );
 CREATE TABLE store_products (
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer,
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id uuid NOT NULL, kind text NOT NULL, title text NOT NULL,
   description text NOT NULL DEFAULT '', price_cents integer NOT NULL,

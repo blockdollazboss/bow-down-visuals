@@ -144,7 +144,7 @@ CREATE TABLE creator_profiles (
 CREATE TABLE profile_videos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id uuid NOT NULL,
-  title text NOT NULL, video_url text NOT NULL, thumbnail_url text,
+  title text NOT NULL, video_url text NOT NULL, thumbnail_url text, thumbnail_alt_text text,
   description text NOT NULL DEFAULT '', genre text, tags text[] NOT NULL DEFAULT '{}',
   duration_sec integer NOT NULL DEFAULT 0,
   season integer, episode integer, sound_track_id uuid,
@@ -161,6 +161,9 @@ CREATE TABLE profile_videos (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE store_products (
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer,
+  media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb,
+  bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0,
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
   kind text NOT NULL,
