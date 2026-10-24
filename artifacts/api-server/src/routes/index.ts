@@ -331,6 +331,7 @@ import reactionVideoRouter from "./generate/reaction-video";
 import videoDubRouter from "./generate/video-dub";
 // ── Creator Streaming Platform (12-worker build, 2026-10-07) ──
 import creatorPlatformRouter from "./creator-platform";
+import podcastFeedRouter from "./podcast-feed";
 import royalCourtRouter from "./royal-court";
 import profileWebsiteRouter from "./profile-website";
 import profileHostingRouter from "./profile-hosting";
@@ -668,6 +669,7 @@ router.use(reactionVideoRouter);
 
 // ── Creator Streaming Platform ──
 router.use(creatorPlatformRouter);          // /api/creator-profiles/*, follows, likes, plays, DMCA
+router.use(podcastFeedRouter);              // /api/podcast-feed/* — hosted per-show RSS for Apple/Spotify (Lane F10)
 router.use(royalCourtRouter);               // /api/creator-profiles/:slug/court, /me/court (The Front Row)
 router.use(profileWebsiteRouter);           // /api/creator-profiles layout/theme/store/spotlight, /api/collections/* (Stack 3)
 router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 Hosting plan)

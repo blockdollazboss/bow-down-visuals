@@ -710,6 +710,8 @@ const W6_LEGIT = new Set([
   "podcast.generate.creditsEstimate",
   "podcast.hosts.solo",
   "podcast.modes.videoLabel",
+  "podcast.publish.appleHeading",
+  "podcast.publish.spotifyHeading",
   "podcast.result.apple",
   "podcast.result.durationApprox",
   "podcast.result.spotify",

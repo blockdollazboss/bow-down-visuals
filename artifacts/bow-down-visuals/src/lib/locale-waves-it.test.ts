@@ -841,6 +841,8 @@ const W7_LEGIT: string[] = [
   "podcast.hosts.duo",
   "podcast.hosts.solo",
   "podcast.modes.videoLabel",
+  "podcast.publish.appleHeading",
+  "podcast.publish.spotifyHeading",
   "podcast.result.apple",
   "podcast.result.durationApprox",
   "podcast.result.spotify",

@@ -837,6 +837,8 @@ const W6_LEGIT = new Set([
   "podcast.hosts.solo",
   "podcast.modes.dialogueLabel",
   "podcast.modes.scriptLabel",
+  "podcast.publish.appleHeading",
+  "podcast.publish.spotifyHeading",
   "podcast.result.apple",
   "podcast.result.durationApprox",
   "podcast.result.spotify",

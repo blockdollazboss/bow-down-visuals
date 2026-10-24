@@ -969,6 +969,8 @@ describe("de W6 namespaces (Stack-28 appendix)", () => {
 
 const W7_NAMESPACES: string[] = ["videoEditor", "lufs", "presave", "release", "stabilize", "nav", "create", "moveHome", "press-kit", "press-public", "wave9", "wave8", "podcast", "outreach", "admin", "contentIntelligence", "captionSuite", "dashboard", "videoExport", "analyticsHub", "brandingKit", "cover-art", "hubSpine", "proFinishing", "playlist", "review", "settings", "tutorials", "djSets", "paidSeries", "share", "smartClips", "wallpapers", "catalogImport", "create-simple", "liveGuests", "showcasePublish"];
 const W7_LEGIT_IDENTICAL = new Set([
+  "podcast.publish.appleHeading",
+  "podcast.publish.spotifyHeading",
   "lufs.labelOriginal",
   "lufs.pause",
   "lufs.abOriginal",

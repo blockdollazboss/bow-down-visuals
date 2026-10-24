@@ -98,6 +98,22 @@ export async function r2KeyExists(key: string): Promise<boolean> {
   }
 }
 
+/** Exact byte size + content type of an R2 object, or null when the object
+ *  is missing/unreachable. Podcast RSS enclosures need a truthful length —
+ *  Apple hard-rejects length<=0 — so feed building reads it from here. */
+export async function r2ObjectSize(
+  key: string,
+): Promise<{ size: number; contentType: string | null } | null> {
+  const s3 = getR2Client();
+  try {
+    const res = await s3.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+    if (typeof res.ContentLength !== "number" || res.ContentLength <= 0) return null;
+    return { size: res.ContentLength, contentType: res.ContentType ?? null };
+  } catch {
+    return null;
+  }
+}
+
 export async function r2List(prefix: string): Promise<string[]> {
   const s3 = getR2Client();
   const keys: string[] = [];
