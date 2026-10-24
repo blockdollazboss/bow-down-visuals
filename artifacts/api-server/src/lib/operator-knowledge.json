@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f96d7b729e4cc11ae1ab284d346d3db1113afc47",
+  "baseCommit": "d7975901d67880b3818af443a78cab60c90bc081",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,16 +9,16 @@
   },
   "generatedAt": "2026-10-24",
   "counts": {
-    "routesInApp": 226,
+    "routesInApp": 233,
     "pageFiles": 179,
-    "features": 238,
-    "excludedRoutes": 64,
+    "features": 240,
+    "excludedRoutes": 71,
     "excludedPageFiles": 35,
     "pricedActions": 227,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 228,
+    "withDescriptions": 230,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -973,6 +973,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1195,6 +1197,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1411,6 +1415,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1627,6 +1633,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -1843,6 +1851,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2059,6 +2069,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2279,6 +2291,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2499,6 +2513,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2715,6 +2731,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -2931,6 +2949,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3132,6 +3152,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3348,6 +3370,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3567,6 +3591,8 @@
         "/api/mix-master/job/:param",
         "/api/mix-master/master",
         "/api/mix-master/mix",
+        "/api/podcast-feed/me",
+        "/api/podcast-feed/me/settings",
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
@@ -3776,8 +3802,10 @@
         "/api/beats/mine/dashboard",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/dj/library",
         "/api/hub/project",
-        "/api/referrals/me"
+        "/api/referrals/me",
+        "/api/sound-fit/:param"
       ],
       "prices": [],
       "nextSteps": [
@@ -7005,6 +7033,10 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/affiliates/codes",
+        "/api/affiliates/codes/mine",
+        "/api/affiliates/desk",
+        "/api/affiliates/offers",
         "/api/catalog-export",
         "/api/catalog-export/build",
         "/api/content-id/claims",
@@ -9318,8 +9350,8 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"myClips.pageDescription\""
     },
     {
-      "id": "tab-songs",
-      "name": "Songs",
+      "id": "tab-albums",
+      "name": "Albums",
       "nameSource": "legacy route slug (App.tsx redirect)",
       "path": "/my-projects?tab=songs",
       "stage": "studio",
@@ -9413,8 +9445,8 @@
         }
       ],
       "nextSteps": [],
-      "description": "Your AI-generated song library.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"songs.pageDescription\""
+      "description": "All your songs, videos, and creative projects in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"myProjects.pageDescription\""
     },
     {
       "id": "tab-dj-set-prep",
@@ -9456,10 +9488,17 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/generate/alt-text",
+        "/api/product-reviews/:param/flag",
+        "/api/product-reviews/:param/respond",
+        "/api/product-reviews/:param/unflag",
+        "/api/product-reviews/seller:param",
         "/api/shops",
         "/api/shops/:param",
         "/api/shops/:param/discounts",
         "/api/shops/:param/discounts/:param",
+        "/api/shops/:param/pos/cash-sale",
+        "/api/shops/:param/pos/checkout",
         "/api/shops/:param/products",
         "/api/shops/:param/products/:param",
         "/api/shops/ai/product-description",
@@ -9468,6 +9507,7 @@
         "/api/shops/mine",
         "/api/storefronts/:param/analytics",
         "/api/storefronts/:param/domain",
+        "/api/storefronts/checkout/verify",
         "/api/storefronts/domain/verify"
       ],
       "prices": [
@@ -9909,6 +9949,7 @@
         "/api/cover-art",
         "/api/creator-profiles",
         "/api/credits/claim-trial",
+        "/api/generate/alt-text",
         "/api/mirror-media",
         "/api/publish/:param",
         "/api/publish/:param/:param",
@@ -10465,6 +10506,8 @@
         "/api/account/export",
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/api-keys",
+        "/api/api-keys/:param",
         "/api/auth/webauthn/credentials",
         "/api/auth/webauthn/login-options",
         "/api/auth/webauthn/login-verify",
@@ -10572,6 +10615,7 @@
       "pageFile": "artifacts/bow-down-visuals/src/pages/shop.tsx",
       "component": "ShopStorefront",
       "endpoints": [
+        "/api/product-reviews",
         "/api/storefronts/checkout",
         "/api/storefronts/checkout/verify"
       ],
@@ -10882,8 +10926,16 @@
         "/api/connect/status",
         "/api/credits/claim-trial",
         "/api/email-list/lists/:param/campaigns",
+        "/api/generate/alt-text",
+        "/api/gift-cards",
+        "/api/product-reviews/:param/flag",
+        "/api/product-reviews/:param/respond",
+        "/api/product-reviews/:param/unflag",
+        "/api/product-reviews/seller:param",
         "/api/referrals/me",
         "/api/retention/rank",
+        "/api/store/bundles",
+        "/api/store/bundles/:param",
         "/api/store/checklist",
         "/api/store/log-to-tracker",
         "/api/store/price",
@@ -10972,9 +11024,15 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/gift-cards",
+        "/api/gift-cards/checkout",
+        "/api/gift-cards/verify",
+        "/api/product-reviews",
+        "/api/storefront",
         "/api/storefront/checkout",
         "/api/storefront/claim",
-        "/api/storefront/product/:param"
+        "/api/storefront/product/:param",
+        "/api/storefront/products/:param/drop/capture"
       ],
       "prices": [
         {
@@ -10987,6 +11045,24 @@
       "nextSteps": [],
       "description": "Buy directly from the creator on Bow Down Visuals.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-product.tsx usePageTitle meta description"
+    },
+    {
+      "id": "product-drops",
+      "name": "Product Drops",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/storefront/product/:id",
+      "stage": "discover",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/store-dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/storefront/products/:param/drop",
+        "/api/storefront/products/:param/drop/capture"
+      ],
+      "prices": [],
+      "description": "Schedule any store product to drop at a future moment: until then its page is a countdown with an email capture (fans join your list), it cannot be bought early, and at the moment it goes live everyone on the list gets exactly one email. Set it up in the store dashboard.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
     },
     {
       "id": "storefronts",
@@ -15292,6 +15368,41 @@
       "kind": "route",
       "key": "/broadcast",
       "reason": "Redirect to /go-live — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/sponsor-dashboard",
+      "reason": "Redirect to /sponsors/dashboard — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/tip-page",
+      "reason": "Redirect to /tips — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/nfc-card-profile",
+      "reason": "Redirect to /nfc-cards — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/group-detail",
+      "reason": "Redirect to /groups — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/challenge",
+      "reason": "Redirect to /contests — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/albums",
+      "reason": "Redirect to /my-projects?tab=songs — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/hashtag",
+      "reason": "Redirect to /trending — the target carries the knowledge entry."
     },
     {
       "kind": "route",
