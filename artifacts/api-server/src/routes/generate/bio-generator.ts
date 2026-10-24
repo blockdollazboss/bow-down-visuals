@@ -12,7 +12,10 @@ const router = Router();
    bio respects that platform's character limit.
    50 Visual Bucs. */
 
-export const BIO_COST = Number(process.env["BIO_GENERATOR_CREDITS"]) || 50;
+/* 100 VB — the published operator price (owner ruling 2026-10-24: the
+   operator list said 100 while this rail's default charged 50; the rail
+   aligns to the published price). Env override unchanged. */
+export const BIO_COST = Number(process.env["BIO_GENERATOR_CREDITS"]) || 100;
 
 /** Character limits enforced per platform (generous-safe margins). */
 export const PLATFORM_LIMITS = {

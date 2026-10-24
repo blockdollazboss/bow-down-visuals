@@ -3,8 +3,9 @@
  *
  * Proves the charging invariants against the website rail's own core
  * (generateBiosForUser in routes/generate/bio-generator):
- * - price is the rail's BIO_COST constant (50 Visual Bucs by default,
- *   env-overridable exactly like the rail) — never client-supplied;
+ * - price is the rail's BIO_COST constant (100 Visual Bucs by default —
+ *   the published price, owner ruling 2026-10-24; env-overridable exactly
+ *   like the rail) — never client-supplied;
  * - exactly ONE chargeCredits call per completed generation, labelled
  *   with the caller's action ("API: Bio Generator" from the API);
  * - a failed generation refunds in full and never double-charges;
@@ -66,8 +67,8 @@ function mockFetchOk() {
 }
 
 describe("BIO_COST — the rail's own constant", () => {
-  it("is 50 Visual Bucs (the website Bio Generator price)", () => {
-    expect(BIO_COST).toBe(50);
+  it("is 100 Visual Bucs (the published Bio Generator price)", () => {
+    expect(BIO_COST).toBe(100);
   });
 });
 

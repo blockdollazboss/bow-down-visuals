@@ -30,7 +30,7 @@ const SCOPE_LABELS: Record<string, string> = {
   "profile:read": "Read my profile",
   "content:read": "Read my content list",
   "earnings:read": "Read my balance & earnings",
-  "generate:bio": "Generate bios (charged, 50 VB each)",
+  "generate:bio": "Generate bios (charged, 100 VB each)",
 };
 
 export function DeveloperApiSettings() {
