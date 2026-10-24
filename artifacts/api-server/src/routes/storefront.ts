@@ -473,17 +473,32 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
     const effectivePriceCents = giftDenominations && giftDenominations.length > 0
       ? giftDenominations[0]!
       : d.priceCents;
-    const r = await db.execute(sql`
-      INSERT INTO store_products
-        (profile_id, kind, title, description, price_cents, compare_at_cents,
-         inventory, media_urls, service_details, gift_card_denominations_cents, event_id, related_links, is_active)
-      VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${effectivePriceCents},
-              ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb,
-              ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
-              ${giftDenominations ? JSON.stringify(giftDenominations) : null}::jsonb,
-              ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive})
-      RETURNING id
-    `);
+    /* The denominations column lands with the held gift-card
+       migration — only a gift-card create may touch it, so every
+       other kind keeps creating exactly as before until it lands. */
+    const mirroredMedia = JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!));
+    const r = giftDenominations
+      ? await db.execute(sql`
+          INSERT INTO store_products
+            (profile_id, kind, title, description, price_cents, compare_at_cents,
+             inventory, media_urls, service_details, gift_card_denominations_cents, event_id, related_links, is_active)
+          VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${effectivePriceCents},
+                  ${d.compareAtCents ?? null}, ${d.inventory}, ${mirroredMedia}::jsonb,
+                  ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
+                  ${JSON.stringify(giftDenominations)}::jsonb,
+                  ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive})
+          RETURNING id
+        `)
+      : await db.execute(sql`
+          INSERT INTO store_products
+            (profile_id, kind, title, description, price_cents, compare_at_cents,
+             inventory, media_urls, service_details, event_id, related_links, is_active)
+          VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${effectivePriceCents},
+                  ${d.compareAtCents ?? null}, ${d.inventory}, ${mirroredMedia}::jsonb,
+                  ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
+                  ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive})
+          RETURNING id
+        `);
     const id = String((r.rows[0] as Record<string, unknown>)["id"]);
     const p = await fetchProduct(id, false);
     logger.info({ userId: req.userId, productId: id, kind: d.kind }, "[storefront] product created");
