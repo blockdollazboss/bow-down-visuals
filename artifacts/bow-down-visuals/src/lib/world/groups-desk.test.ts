@@ -4,7 +4,7 @@ import {
   groupFeedPath, groupPostsPath, groupPostPath, forumChannelsPath, forumChannelPath,
   forumChannelThreadsPath, forumThreadPath, forumThreadRepliesPath, forumReplyPath,
   normalizeGroups, normalizeGroupDetail, normalizeGroupFeed, normalizeForumChannels,
-  normalizeForumThreads, normalizeForumThreadDetail, forumCapsOf,
+  normalizeForumThreads, normalizeForumThreadDetail, forumCapsOf, forumChannelKnock,
   groupMembershipAction, groupFeedCanPost, forumReplyAllowed, forumModerationVisible,
   groupSlugFromName, groupSlugValid, groupCreateReady, buildGroupCreateBody,
   stashPendingGroupSlug, takePendingGroupSlug, PENDING_GROUP_KEY,
@@ -81,6 +81,45 @@ describe("77 — forum normalizers + caps come from the rail", () => {
     });
     expect(channels[0]).toMatchObject({ name: "General", thread_count: 4 });
     expect(caps).toEqual({ viewer_role: "admin", can_post: true, can_moderate: true, can_manage_channels: true });
+  });
+
+  it("tier-gated channels (#19) normalize their gate + knock, and gate options ride along", () => {
+    const { channels, gateOptions } = normalizeForumChannels({
+      channels: [
+        {
+          id: "c1", name: "VIP Lounge", description: "", thread_count: 2,
+          min_fan_tier_id: "t2",
+          gate: {
+            tier_id: "t2", tier_name: "Silver", viewer_has_access: false, viewer_status: "lapsed",
+            knock: {
+              message: "Your membership has ended…", history_note: "Your posts are never deleted…",
+              join_url: "/memberships?creator=owner-1", viewer_status: "lapsed",
+              required_tier: { id: "t2", name: "Silver" },
+            },
+          },
+        },
+        { id: "c2", name: "General", description: "", thread_count: 5, min_fan_tier_id: null, gate: null },
+      ],
+      gate_options: [{ id: "t1", name: "Bronze" }, { id: "t2", name: "Silver" }],
+      viewer_role: "member", can_post: true, can_moderate: false, can_manage_channels: false,
+    });
+    expect(channels[0]!.gate?.tier_name).toBe("Silver");
+    expect(forumChannelKnock(channels[0]!)?.join_url).toBe("/memberships?creator=owner-1");
+    expect(forumChannelKnock(channels[0]!)?.viewer_status).toBe("lapsed");
+    expect(channels[1]!.gate).toBeNull();
+    expect(forumChannelKnock(channels[1]!)).toBeNull();
+    expect(gateOptions.map((t) => t.name)).toEqual(["Bronze", "Silver"]);
+  });
+
+  it("a gated channel the viewer CAN enter has no knock", () => {
+    const { channels } = normalizeForumChannels({
+      channels: [{
+        id: "c1", name: "VIP", description: "", thread_count: 0, min_fan_tier_id: "t2",
+        gate: { tier_id: "t2", tier_name: "Silver", viewer_has_access: true, viewer_status: null, knock: null },
+      }],
+    });
+    expect(channels[0]!.gate?.viewer_has_access).toBe(true);
+    expect(forumChannelKnock(channels[0]!)).toBeNull();
   });
 
   it("thread detail carries pin/lock, replies and per-row can_delete", () => {
