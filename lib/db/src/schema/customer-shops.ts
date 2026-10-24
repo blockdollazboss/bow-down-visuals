@@ -66,6 +66,13 @@ export const shopProductsTable = pgTable("shop_products", {
       like ugc_ads.shop_product_id — the rails validate ownership at
       write time and reads tolerate a dangling id as "no pin". */
   pinned_ugc_ad_id: uuid("pinned_ugc_ad_id"),
+  /** Creator Product Affiliates (#16, migration 0205): the creator turns
+      affiliates on per product and sets the commission themselves. The
+      commission is a % of the SELLER's net (bps, 1..10000), never of the
+      platform fee and never added to the buyer's price. Null = not set;
+      checkout attribution reads these at sale time (schema/affiliates.ts). */
+  affiliate_enabled: boolean("affiliate_enabled").notNull().default(false),
+  affiliate_commission_bps: integer("affiliate_commission_bps"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -132,6 +139,11 @@ export const shopEventsTable = pgTable("shop_events", {
       use is counted exactly once, when the sale is recorded — the
       storefront's redemption discipline. Null = no code. */
   discount_code: text("discount_code"),
+  /** The affiliate share code this line was bought through (migration
+      0205), carried from the pending rows through the paid flip exactly
+      like discount_code, so the commission is recorded exactly once, when
+      the sale records (lib/affiliates.ts). Null = no affiliate. */
+  affiliate_code: text("affiliate_code"),
   /** Connect settlement (migration 0142, DE-14): the creator_payouts row
       that paid this sale out. Null = not yet settled. A linked payout in
       'failed' status does not settle (see pendingPayoutCents). */

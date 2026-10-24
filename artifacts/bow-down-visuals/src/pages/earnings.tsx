@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { EarningsDocuments } from "@/components/trust/TrustPanels";
+import AffiliateDeskSection from "@/components/affiliates/AffiliateDeskSection";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -167,6 +168,9 @@ export default function Earnings() {
           )}
         </div>
       </div>
+      {/* #16: the affiliate desk docks in the money desk — its own fetch,
+          its own failure state, never a standalone page. */}
+      <AffiliateDeskSection />
       <div className="mt-4"><EarningsDocuments /></div>
     </div>
   );

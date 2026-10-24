@@ -57,6 +57,9 @@ interface ProductData {
     mediaUrls: string[];
     /** One tick-to-add add-on, or null when none is on offer. */
     bump?: BumpOfferData | null;
+    /* #16: the creator's published affiliate offer, when on. */
+    affiliatesEnabled?: boolean;
+    affiliateCommissionPct?: string | null;
     links: {
       creatorUrl: string;
       creatorName: string;
@@ -219,6 +222,12 @@ export default function StorefrontProduct() {
           quantity,
           ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
           ...(includeBump && data.product.bump ? { includeBump: true } : {}),
+          /* #16: a fan's share link lands here with ?ref=CODE — pass it
+             through so the sale attributes to them. The server validates
+             it; a stale code refuses honestly at checkout. */
+          ...(new URLSearchParams(window.location.search).get("ref")?.trim()
+            ? { affiliateCode: new URLSearchParams(window.location.search).get("ref")!.trim() }
+            : {}),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
@@ -284,6 +293,17 @@ export default function StorefrontProduct() {
               {data.product.description && (
                 <p className="mt-3 whitespace-pre-line text-sm text-amber-100/70">{data.product.description}</p>
               )}
+
+              {/* #16: affiliate transparency — who earns what from this sale. */}
+              {new URLSearchParams(window.location.search).get("ref") ? (
+                <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-100/70">
+                  You came through a fan&apos;s link — if you buy, they earn a commission out of the creator&apos;s cut. You pay the same price either way.
+                </p>
+              ) : data.product.affiliatesEnabled && data.product.affiliateCommissionPct ? (
+                <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-100/70">
+                  Resell this and earn {data.product.affiliateCommissionPct} of the creator&apos;s cut on every sale through your link — grab yours on the Earnings page.
+                </p>
+              ) : null}
 
               <div className="mt-6 rounded-xl border border-amber-500/20 bg-black/40 p-5">
                 <div className="flex items-baseline justify-between">

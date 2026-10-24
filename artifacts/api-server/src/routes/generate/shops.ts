@@ -46,6 +46,7 @@ import {
 } from "../../lib/market-sale";
 import { SHOP_PRODUCTS_BUCKET, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../../lib/affiliates";
 
 /* Mirror-on-save (2026-10-13 law): shop banners + product images are
    re-hosted into permanent storage at save time; presenters mint fresh
@@ -171,6 +172,10 @@ const createProductSchema = z.object({
   price_cents: z.number().int().min(0).max(100_000_000),
   description: z.string().trim().max(2000).optional().default(""),
   image_url: z.string().trim().max(2000).optional().default(""),
+  /* Creator Product Affiliates (#16): creator-set, never defaulted to a
+     rate by the platform. Enabling REQUIRES the rate (handler checks). */
+  affiliate_enabled: z.boolean().optional().default(false),
+  affiliate_commission_bps: z.number().int().min(1).max(10_000).nullable().optional(),
 });
 
 const updateProductSchema = z.object({
@@ -182,6 +187,9 @@ const updateProductSchema = z.object({
      the same edit rail — 'active' is live in the storefront, 'paused'
      is seller-only and refused at checkout. */
   status: z.enum(["active", "paused"]).optional(),
+  /* Creator Product Affiliates (#16) — see createProductSchema. */
+  affiliate_enabled: z.boolean().optional(),
+  affiliate_commission_bps: z.number().int().min(1).max(10_000).nullable().optional(),
 });
 
 const shopDescriptionSchema = z.object({
@@ -238,6 +246,10 @@ interface ProductRow {
       status: owner DTOs carry it, buyer payloads never do (they get
       the resolved `pinned_ad` video instead). */
   pinned_ugc_ad_id: string | null;
+  /** Creator Product Affiliates (#16, migration 0205) — owner DTOs only,
+      like status: buyer reads select explicit columns without them. */
+  affiliate_enabled?: boolean;
+  affiliate_commission_bps?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -475,7 +487,7 @@ router.get("/shops/handle/:handle", async (req, res) => {
      selected only to resolve the pin; it is stripped from the payload
      and replaced by the resolved `pinned_ad` video. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id
+    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -516,7 +528,7 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
     return;
   }
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
     FROM shop_products
     WHERE shop_id = ${shop.id}
     ORDER BY created_at ASC
@@ -549,18 +561,28 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
     });
     return;
   }
+  /* Affiliates (#16): enabling without a creator-set rate would promise
+     fans a % nobody chose — refuse, exactly like the storefront rail. */
+  if (parsed.data.affiliate_enabled && parsed.data.affiliate_commission_bps == null) {
+    res.status(400).json({
+      error: "COMMISSION_REQUIRED",
+      message: "Set the commission you'll pay affiliates (affiliate_commission_bps, 1–10000 = 0.01%–100% of your cut) when you turn affiliates on.",
+    });
+    return;
+  }
   const id = randomUUID();
   const storedImageUrl = parsed.data.image_url
     ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
     : null;
   await db.execute(sql`
-    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path)
+    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps)
     VALUES (${id}, ${shop.id}, ${req.userId!},
             ${parsed.data.name.trim()}, ${parsed.data.price_cents},
-            ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null})
+            ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null},
+            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
   const createdRow = (result.rows as unknown as ProductRow[])[0];
@@ -587,13 +609,25 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     return;
   }
   const existing = await db.execute(sql`
-    SELECT id FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id} LIMIT 1
+    SELECT id, affiliate_commission_bps FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id} LIMIT 1
   `);
   if ((existing.rows as unknown[]).length === 0) {
     res.status(404).json({ error: "Product not found." });
     return;
   }
   const d = parsed.data;
+  /* Affiliates (#16): enabling without a rate in this patch is only
+     honest when a rate is already stored (the storefront rail's rule). */
+  if (d.affiliate_enabled === true && d.affiliate_commission_bps === undefined) {
+    const curBps = (existing.rows[0] as Record<string, unknown>)["affiliate_commission_bps"];
+    if (curBps == null) {
+      res.status(400).json({
+        error: "COMMISSION_REQUIRED",
+        message: "Set the commission you'll pay affiliates (affiliate_commission_bps) when you turn affiliates on.",
+      });
+      return;
+    }
+  }
   const storedImageUrl = d.image_url
     ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
     : null;
@@ -605,11 +639,13 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       image_url = COALESCE(${storedImageUrl}, image_url),
       image_path = COALESCE(${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null}, image_path),
       status = COALESCE(${d.status ?? null}, status),
+      affiliate_enabled = COALESCE(${d.affiliate_enabled ?? null}, affiliate_enabled),
+      affiliate_commission_bps = COALESCE(${d.affiliate_commission_bps ?? null}, affiliate_commission_bps),
       updated_at = NOW()
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
   const updatedRow = (result.rows as unknown as ProductRow[])[0];
@@ -1262,7 +1298,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
      stripped before the payload leaves, exactly as on the handle
      read; the minted video URL passes the deep refresh untouched. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id
+    SELECT id, name, price_cents, description, image_url, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -1399,6 +1435,10 @@ const checkoutSchema = z.object({
      THIS shop's codes, exactly like the storefront rail validates
      against the seller's profile. */
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /* Optional affiliate share code (#16) — validated server-side against
+     ONE product in the cart; that line's shop_events rows carry it to
+     the paid flip, where the commission records exactly once. */
+  affiliateCode: z.string().trim().min(1).max(64).optional(),
 });
 
 interface CheckoutLine {
@@ -1412,6 +1452,8 @@ interface CheckoutLine {
   gross: number;
   fee: number;
   saleId: string;
+  /** The validated affiliate code for THIS line, or null (#16). */
+  affiliateCode: string | null;
 }
 
 router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
@@ -1486,7 +1528,30 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       productId, name: product.name, unitCents, listUnitCents, quantity,
       gross, fee: Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000),
       saleId: randomUUID(),
+      affiliateCode: null,
     });
+  }
+
+  /* Affiliate attribution (#16): the presented code must be an active
+     code for ONE of the cart's products, on a product the seller opened
+     to affiliates. Only that line carries it; it never changes prices,
+     the fee, or the buyer's total. */
+  let affiliateCode: string | null = null;
+  if (parsed.data.affiliateCode) {
+    let matched: CheckoutLine | undefined;
+    let lastReason = "That affiliate code isn't for anything in this cart.";
+    for (const line of lines) {
+      const v = await validateAffiliateCodeForProduct({
+        code: parsed.data.affiliateCode, surface: "shop_product", productId: line.productId,
+      });
+      if (v.ok) { matched = line; affiliateCode = v.code.code; break; }
+      lastReason = v.reason;
+    }
+    if (!matched || !affiliateCode) {
+      res.status(400).json({ error: "BAD_AFFILIATE_CODE", message: lastReason });
+      return;
+    }
+    matched.affiliateCode = affiliateCode;
   }
   const gross = lines.reduce((s, l) => s + l.gross, 0);
   const listGross = lines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
@@ -1506,6 +1571,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     saleId: l.saleId, productId: l.productId, productName: l.name, quantity: l.quantity,
     unit_cents: l.unitCents, list_unit_cents: l.listUnitCents,
     gross_cents: l.gross, platform_fee_cents: l.fee, seller_net_cents: l.gross - l.fee,
+    affiliate_code: l.affiliateCode,
   }));
 
   /* Free cart: no card exists to charge — record the sale as paid
@@ -1513,9 +1579,18 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   if (gross <= 0) {
     for (const l of lines) {
       await db.execute(sql`
-        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
-        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${discountCode})
+        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code, affiliate_code)
+        VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${discountCode}, ${l.affiliateCode})
       `);
+      /* A $0 line owes a $0 commission — recordAffiliateSale's
+         zero-commission guard returns without a row, honestly. */
+      if (l.affiliateCode) {
+        await recordAffiliateSaleSafely({
+          code: l.affiliateCode, surface: "shop_product", productId: l.productId,
+          productTitle: l.name, orderRef: groupId, buyerEmail: buyerEmail || null,
+          grossCents: l.gross, platformFeeCents: l.fee,
+        });
+      }
     }
     /* The sale is recorded right here, so a presented code's use is
        counted right here too (0190 redemption discipline). */
@@ -1545,8 +1620,8 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   /* 1) Record the order as PENDING first (brief + house pattern). */
   for (const l of lines) {
     await db.execute(sql`
-      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id, discount_code)
-      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId}, ${discountCode})
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, quantity, checkout_group_id, discount_code, affiliate_code)
+      VALUES (${l.saleId}, ${shopId}, ${shop.user_id}, 'pending_sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'pending', ${l.quantity}, ${groupId}, ${discountCode}, ${l.affiliateCode})
     `);
   }
 

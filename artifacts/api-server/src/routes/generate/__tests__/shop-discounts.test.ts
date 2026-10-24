@@ -122,7 +122,8 @@ CREATE TABLE shop_products (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
   name text NOT NULL, price_cents integer NOT NULL DEFAULT 0, description text,
   image_url text, image_path text, status text NOT NULL DEFAULT 'active', pinned_ugc_ad_id uuid,
-  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer
 );
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
@@ -131,7 +132,8 @@ CREATE TABLE shop_events (
   settled_payout_id uuid, settled_at timestamptz, ip_hash text,
   stripe_session_id text, payment_status text, paid_at timestamptz,
   quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  affiliate_code text
 );
 CREATE TABLE shop_discount_codes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), shop_id uuid NOT NULL, code text NOT NULL,

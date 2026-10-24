@@ -295,7 +295,8 @@ CREATE TABLE shop_events (
   stripe_session_id text,
   payment_status text,
   quantity integer NOT NULL DEFAULT 1,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  affiliate_code text
 );
 CREATE TABLE store_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

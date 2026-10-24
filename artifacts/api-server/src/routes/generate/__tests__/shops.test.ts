@@ -145,7 +145,8 @@ CREATE TABLE shop_products (
   status text NOT NULL DEFAULT 'active',
   pinned_ugc_ad_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer
 );`;
 
 const mockCharge = vi.mocked(chargeCredits);
