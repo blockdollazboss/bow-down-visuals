@@ -129,7 +129,10 @@ CREATE TABLE shop_discount_codes (
   expires_at timestamptz, is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE TABLE ugc_ads (id uuid PRIMARY KEY, status text, video_ref text);`;
+CREATE TABLE ugc_ads (id uuid PRIMARY KEY, status text, video_ref text);
+CREATE TABLE creator_profiles (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text NOT NULL, display_name text NOT NULL
+);`;
 
 const realFetch = globalThis.fetch;
 let server: any; let baseUrl: string;
@@ -255,6 +258,16 @@ describe("shops bumps — buyer offer + checkout", () => {
     expect(pub.status).toBe(200);
     const pa = (pub.json.products as Array<any>).find((p) => p.id === A);
     expect(pa.bump).toMatchObject({ productId: C, listPriceCents: 3000, percentOff: 10, priceCents: 2700 });
+    const pb = (pub.json.products as Array<any>).find((p) => p.id === B);
+    expect(pb.bump).toBeNull();
+  });
+
+  it("the slug storefront payload (the shop page's read) resolves the offer too", async () => {
+    await attach(A, C, 10);
+    const pub = await req("GET", "/storefronts/slug/queen-shop");
+    expect(pub.status).toBe(200);
+    const pa = (pub.json.products as Array<any>).find((p) => p.id === A);
+    expect(pa.bump).toMatchObject({ productId: C, priceCents: 2700, percentOff: 10 });
     const pb = (pub.json.products as Array<any>).find((p) => p.id === B);
     expect(pb.bump).toBeNull();
   });

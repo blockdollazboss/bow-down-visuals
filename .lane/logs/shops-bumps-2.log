@@ -1,0 +1,211 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-morebumps/artifacts/api-server[39m
+
+[13:39:46.967] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "f5d39673-85f0-4687-8897-32160cf59dcd"
+    [35mbumpProductId[39m: "56951f83-373d-4b61-9b70-339d58750192"
+    [35mpercentOff[39m: 10
+[13:39:47.049] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "f5d39673-85f0-4687-8897-32160cf59dcd"
+    [35mbumpProductId[39m: null
+    [35mpercentOff[39m: 0
+[13:39:47.491] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "045fd97c-f77f-4cd0-bbb8-92ed4f260b5b"
+    [35mbumpProductId[39m: "9c2dd3dc-0add-4ee6-a64e-78cacc6c5dfd"
+    [35mpercentOff[39m: 0
+[13:39:47.719] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "dc23ca35-58ef-4705-8e25-79db1b6b0b61"
+    [35mbumpProductId[39m: "56414de6-a8a6-4515-a496-b563949e5a0f"
+    [35mpercentOff[39m: 10
+[13:39:47.886] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "f674402d-e9e1-444d-ad81-8f8d12aee865"
+    [35mbumpProductId[39m: "08363138-9350-4339-9b1f-9a7ee180a48a"
+    [35mpercentOff[39m: 10
+[13:39:48.072] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "c9572fdb-1448-4cfb-b0de-84dd6f1c450a"
+    [35mbumpProductId[39m: "f09fa45c-0d82-4b0a-8bde-d193171fe018"
+    [35mpercentOff[39m: 10
+[13:39:48.153] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "0e671755-60ad-4c38-a5fe-8c869bdccd9b"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 7700
+[13:39:48.417] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "508aba5d-2144-4a60-b8b5-8c1b5276b7ca"
+    [35mbumpProductId[39m: "b6cec2d6-9c6f-468d-b9e4-f1f75e451dac"
+    [35mpercentOff[39m: 10
+[13:39:48.491] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "9f165cb1-37e3-479d-b401-20c1cb06d0ce"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 5000
+[13:39:48.929] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "6819ee8b-b02b-48f2-9443-1f28ec1c4480"
+    [35mbumpProductId[39m: "835971bf-b421-4700-ac74-7082c5bcc06a"
+    [35mpercentOff[39m: 10
+[13:39:49.183] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "b18ebeb1-80f1-4045-a46b-07c25c024da4"
+    [35mbumpProductId[39m: "32b0bd6c-8afd-4b54-b19a-7632b415c2eb"
+    [35mpercentOff[39m: 10
+[13:39:49.255] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "7fac8d55-7288-49f7-a600-bbe69a8eb36f"
+    [35mbumpProductId[39m: "32b0bd6c-8afd-4b54-b19a-7632b415c2eb"
+    [35mpercentOff[39m: 10
+[13:39:49.359] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "aa3fb397-66d6-4bbf-bdf5-dc3bca9b7c18"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 5700
+[13:39:49.464] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "3b6e877f-4537-47db-90a6-cad882076ec5"
+    [35mbumpProductId[39m: "5ac0990c-fd63-47e4-b75e-37ebc5cb78dc"
+    [35mpercentOff[39m: 10
+[13:39:49.676] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "d723d945-a953-4fdf-9dcb-db6c95c31b3e"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[13:39:49.995] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "d34eb42b-55f4-4618-861d-be4db09baa0f"
+    [35mbumpProductId[39m: "2e432d78-27c3-4f78-85cd-378a8caab348"
+    [35mpercentOff[39m: 0
+[13:39:50.351] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "fe6f2f02-cfce-4512-b482-4836d45f10ec"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 3000
+[13:39:50.540] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "0d30b9e5-08c5-4863-bf7d-539e5d923e7e"
+    [35mbumpProductId[39m: "2303be5e-1eda-43a8-8738-cdc63e10f98b"
+    [35mpercentOff[39m: 10
+[13:39:50.617] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "52a617ad-daff-42b0-b594-28fe4bf78050"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[13:39:50.865] [32mINFO[39m (23382): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 2
+[13:39:51.145] [32mINFO[39m (23382): [36m[shops] product bump updated[39m
+    [35muserId[39m: "3e9b1128-e109-415a-9cfe-d521925d09df"
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "acfb522b-2948-4a89-af38-e75768a800ce"
+    [35mbumpProductId[39m: "2db4a285-f536-46cb-80cf-75d24907cf97"
+    [35mpercentOff[39m: 10
+[13:39:51.185] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "9de7090e-c8e1-441a-b76c-9f0c6b9c627a"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[13:39:51.200] [32mINFO[39m (23382): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 2
+[13:39:51.268] [31mERROR[39m (23382): [36m[shops] product bump update failed[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mproductId[39m: "fd0ffc0e-ceed-45b3-80b3-378345b9271b"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      UPDATE shop_products\n      SET bump_product_id = $1, bump_percent_off = $2,\n          updated_at = NOW()\n      WHERE id = $3 AND shop_id = $4\n      RETURNING id\n    \nparams: fda4a17a-305b-455a-b114-bdb4f34bba33,10,fd0ffc0e-ceed-45b3-80b3-378345b9271b,d77a6290-4fe2-4674-81f6-80381ce1b42e: Column \"bump_product_id\" not found\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      UPDATE shop_products\n      SET bump_product_id = 'fda4a17a-305b-455a-b114-bdb4f34bba33', bump_percent_off = '10',\n          updated_at = NOW()\n      WHERE id = 'fd0ffc0e-ceed-45b3-80b3-378345b9271b' AND shop_id = 'd77a6290-4fe2-4674-81f6-80381ce1b42e'\n      RETURNING id\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                UPDATE shop_products
+                SET bump_product_id = $1, bump_percent_off = $2,
+                    updated_at = NOW()
+                WHERE id = $3 AND shop_id = $4
+                RETURNING id
+              
+          params: fda4a17a-305b-455a-b114-bdb4f34bba33,10,fd0ffc0e-ceed-45b3-80b3-378345b9271b,d77a6290-4fe2-4674-81f6-80381ce1b42e
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at /home/hatch/workspace/bdv-wt-morebumps/artifacts/api-server/src/routes/generate/shops.ts:892:15
+          caused by: Error: Column "bump_product_id" not found
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                UPDATE shop_products
+                SET bump_product_id = 'fda4a17a-305b-455a-b114-bdb4f34bba33', bump_percent_off = '10',
+                    updated_at = NOW()
+                WHERE id = 'fd0ffc0e-ceed-45b3-80b3-378345b9271b' AND shop_id = 'd77a6290-4fe2-4674-81f6-80381ce1b42e'
+                RETURNING id
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at MemoryTable.getColumnRef (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:6280:19)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4607:34
+              at Array.map (<anonymous>)
+              at /home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4606:28
+              at StackOf.usingValue (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:1192:24)
+              at createSetter (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:4604:40)
+              at new Update (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:9562:56)
+              at buildWithable (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2996:20)
+              at new SelectExec (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bow-down-visuals/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+      "query": "\n      UPDATE shop_products\n      SET bump_product_id = $1, bump_percent_off = $2,\n          updated_at = NOW()\n      WHERE id = $3 AND shop_id = $4\n      RETURNING id\n    ",
+      "params": [
+        "fda4a17a-305b-455a-b114-bdb4f34bba33",
+        10,
+        "fd0ffc0e-ceed-45b3-80b3-378345b9271b",
+        "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+      ]
+    }
+[13:39:51.488] [32mINFO[39m (23382): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d77a6290-4fe2-4674-81f6-80381ce1b42e"
+    [35mgroupId[39m: "d977d17b-47c8-4147-939a-56a6fa05f4dd"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 5000
+[13:39:51.600] [32mINFO[39m (23382): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 2
+ [32m✓[39m src/routes/__tests__/shops-order-bumps.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 5024[2mms[22m[39m
+   [32m✓[39m shops bumps — seller attach [2m(3)[22m
+     [33m[2m✓[22m[39m attaches, reports live, and detaches[33m 448[2mms[22m[39m
+   [32m✓[39m shops bumps — buyer offer + checkout [2m(9)[22m
+     [33m[2m✓[22m[39m unticked checkout is byte-identical to the pre-feature rail[33m 360[2mms[22m[39m
+     [33m[2m✓[22m[39m a tick for a product not in the cart refuses the whole checkout[33m 362[2mms[22m[39m
+     [33m[2m✓[22m[39m the same add-on ticked via two cart products collapses to one line[33m 341[2mms[22m[39m
+     [33m[2m✓[22m[39m the shop discount code discounts cart lines only, never the bump[33m 318[2mms[22m[39m
+     [33m[2m✓[22m[39m a free cart with a ticked bump takes the card path (the bump is priced)[33m 673[2mms[22m[39m
+   [32m✓[39m shops bumps — verify / double-charge impossibility [2m(2)[22m
+     [33m[2m✓[22m[39m verify flips the bump row with its group; the receipt flags the bump line[33m 517[2mms[22m[39m
+     [33m[2m✓[22m[39m duplicate verify is a pure no-op and the discount use is counted exactly once[33m 341[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/shops-pinned-ad.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 306[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/storefronts-profile-slug.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 471[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 13:39:37
+[2m   Duration [22m 26.93s[2m (import 54%, tests 23%, transform 22%)[22m
+
+[2m     Import [22m [33m157 modules were evaluated 294 times[39m[2m · 13.27s total, 54% of tracked time[22m
+[2m            [22m [2m~6.18s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

@@ -1,0 +1,47 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-morebumps/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/payment-reversals.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 6639[2mms[22m[39m
+   [32m✓[39m credit packs — the VB rail [2m(12)[22m
+     [33m[2m✓[22m[39m a full refund claws back exactly the granted VB, with a ledger row and a completed audit row[33m 1162[2mms[22m[39m
+     [33m[2m✓[22m[39m a webhook replay does NOT double-claw[33m 368[2mms[22m[39m
+     [33m[2m✓[22m[39m partial refunds claw pro-rata; a completing refund claws only the remainder[33m 511[2mms[22m[39m
+     [33m[2m✓[22m[39m D7 replay: pack claw landed, referral leg failed — the retry runs the referral leg only, nothing claws twice[33m 356[2mms[22m[39m
+   [32m✓[39m memberships — entitlement revocation [2m(3)[22m
+     [33m[2m✓[22m[39m a full refund revokes the membership and its gift row[33m 369[2mms[22m[39m
+     [33m[2m✓[22m[39m a partial refund keeps the entitlement (and records that it did); completing the refund revokes[33m 352[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-webhook-reversals.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1455[2mms[22m[39m
+   [32m✓[39m webhook reversal branches [2m(5)[22m
+     [33m[2m✓[22m[39m charge.refunded reverses the pack grant and answers 200[33m 1026[2mms[22m[39m
+[13:38:40.894] [32mINFO[39m (22827): [36m[live-shopping] paid sale recorded[39m
+    [35msessionId[39m: "cs_test_ls_1"
+    [35msaleId[39m: "a6c076f6-5441-4e45-b1af-709532cd2feb"
+    [35mtotalCents[39m: 9998
+[13:38:40.992] [32mINFO[39m (22827): [36m[live-shopping] paid sale recorded[39m
+    [35msessionId[39m: "cs_test_ls_1"
+    [35msaleId[39m: "24b27fc7-91b2-4d2f-bfac-bf8a027b04fc"
+    [35mtotalCents[39m: 9998
+[13:38:41.045] [31mERROR[39m (22827): [36m[live-shopping] verify: product deleted after payment[39m
+    [35msessionId[39m: "cs_test_ls_1"
+    [35mrefunded[39m: true
+[13:38:41.230] [32mINFO[39m (22827): [36m[live-shopping] paid sale recorded[39m
+    [35msessionId[39m: "cs_test_ls_1"
+    [35msaleId[39m: "bfd8c1a5-74b6-4ec2-93d8-800772c7f74a"
+    [35mtotalCents[39m: 4999
+ [32m✓[39m src/routes/__tests__/live-shopping-checkout.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1177[2mms[22m[39m
+   [32m✓[39m live-shopping native checkout [2m(5)[22m
+     [33m[2m✓[22m[39m checkout charges listed price × quantity; verify records a paid sale (idempotent)[33m 787[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-webhook-abandoned.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 699[2mms[22m[39m
+   [32m✓[39m checkout.session.expired — abandoned store/storefront checkouts [2m(5)[22m
+     [33m[2m✓[22m[39m files an expired storefront checkout once and answers kind=abandoned_checkout[33m 643[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/stripe-checkout-idempotency.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m45 passed[39m[22m[90m (45)[39m
+[2m   Start at [22m 13:37:54
+[2m   Duration [22m 57.40s[2m (import 56%, transform 23%, tests 20%, worker 1%)[22m
+
+[2m     Import [22m [33m152 modules were evaluated 401 times[39m[2m · 28.53s total, 56% of tracked time[22m
+[2m            [22m [2m~17.72s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+
