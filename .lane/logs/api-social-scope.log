@@ -1,0 +1,557 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server[39m
+
+ [31m❯[39m src/routes/__tests__/post-reply-drafts.test.ts [2m([22m[2m11 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[33m 2439[2mms[22m[39m
+   [31m❯[39m post reply drafts — save, read, replace [2m(4)[22m
+[31m     [31m×[31m a draft saves with its tone and reads back verbatim; a second save replaces it — still one row[39m[33m 1012[2mms[22m[39m
+[31m     [31m×[31m no saved draft reads as null, not an error[39m[32m 173[2mms[22m[39m
+[31m     [31m×[31m an omitted tone defaults to hype on first save and is kept on body-only saves; a bad tone is a 400[39m[32m 88[2mms[22m[39m
+[31m     [31m×[31m the cap is the reply route's own 500: 500 saves, 501 is refused and changes nothing[39m[32m 51[2mms[22m[39m
+   [31m❯[39m post reply drafts — clearing [2m(1)[22m
+[31m     [31m×[31m saving an empty or whitespace body clears; DELETE clears and is a calm no-op when nothing is saved[39m[32m 154[2mms[22m[39m
+   [31m❯[39m post reply drafts — privacy and gates [2m(4)[22m
+[31m     [31m×[31m another member reads only their own slot on the same post; their save never touches mine[39m[32m 101[2mms[22m[39m
+     [32m✓[39m guests get 401 on read, save and clear — and nothing is written[32m 117[2mms[22m[39m
+     [32m✓[39m unknown posts are 404 and malformed ids are 400 on every verb[32m 168[2mms[22m[39m
+[31m     [31m×[31m a close-friends post is a 404 to a non-circle member on read/save/clear; the circle member drafts freely[39m[32m 60[2mms[22m[39m
+   [31m❯[39m post reply drafts — a landed reply retires the draft [2m(2)[22m
+[31m     [31m×[31m sending clears the SENDER's draft only; the other member's words on the same post survive[39m[32m 182[2mms[22m[39m
+[31m     [31m×[31m a FAILED send leaves the draft exactly as it was[39m[32m 121[2mms[22m[39m
+ [31m❯[39m src/routes/__tests__/admin-content-removal.test.ts [2m([22m[2m20 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[33m 2818[2mms[22m[39m
+   [32m✓[39m authorization matrix [2m(4)[22m
+     [33m[2m✓[22m[39m guest gets 401, member gets 403, allowlisted admin gets 200[33m 897[2mms[22m[39m
+     [32m✓[39m fails closed when ADMIN_EMAILS is unset[32m 228[2mms[22m[39m
+     [32m✓[39m allowlist matching is case-insensitive[32m 29[2mms[22m[39m
+     [32m✓[39m the removed-list rail carries the same gate[32m 41[2mms[22m[39m
+   [32m✓[39m state read [2m(3)[22m
+     [32m✓[39m a live post reads back live with its author and body[32m 31[2mms[22m[39m
+     [32m✓[39m a thread reply reads back as a comment[32m 19[2mms[22m[39m
+     [32m✓[39m missing target 404s and a malformed id 400s[32m 71[2mms[22m[39m
+   [32m✓[39m the PATCH state machine [2m(7)[22m
+     [32m✓[39m remove with a reason records who, when and why[32m 113[2mms[22m[39m
+     [32m✓[39m removing without a reason is a 400 and changes nothing[32m 87[2mms[22m[39m
+     [32m✓[39m an unknown reason category is a 400[32m 50[2mms[22m[39m
+     [32m✓[39m double-remove is a 409; restore clears the record; restore-of-live is a 409[32m 97[2mms[22m[39m
+     [32m✓[39m PATCH on a missing target 404s; on a malformed id 400s[32m 75[2mms[22m[39m
+     [32m✓[39m a member's PATCH attempt is a 403 and the row is untouched[32m 69[2mms[22m[39m
+     [32m✓[39m a comment is removed through the same rail[32m 155[2mms[22m[39m
+   [31m❯[39m read-path suppression (the point of the rail) [2m(6)[22m
+[31m     [31m×[31m a removed post leaves the feed — for a stranger AND for its own author[39m[32m 184[2mms[22m[39m
+[31m     [31m×[31m the single-post read 404s for everyone but the author; the author sees the moderation state[39m[33m 313[2mms[22m[39m
+[31m     [31m×[31m a live post's DTO carries moderation_removed false and no reason[39m[32m 23[2mms[22m[39m
+[31m     [31m×[31m a removed reply leaves the replies read; its parent stays up[39m[32m 32[2mms[22m[39m
+[31m     [31m×[31m a removed quoted post renders quoted:null in someone else's feed[39m[32m 70[2mms[22m[39m
+[31m     [31m×[31m restoring brings the post back to every read[39m[32m 66[2mms[22m[39m
+ [31m❯[39m src/routes/__tests__/close-friends-enforcement.test.ts [2m([22m[2m9 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[33m 2320[2mms[22m[39m
+   [31m❯[39m posts — feed surfaces [2m(3)[22m
+[31m     [31m×[31m chrono feed: follower-not-in-circle and outsider never receive the close-friends post; the circle member and author do[39m[33m 794[2mms[22m[39m
+[31m     [31m×[31m for-you feed: same enforcement, and the circle member's item carries an honest why[39m[33m 360[2mms[22m[39m
+[31m     [31m×[31m quoted embeds: a public quote of a close-friends post shows quoted=null outside the circle[39m[32m 64[2mms[22m[39m
+   [31m❯[39m posts — detail, hashtag, saves [2m(3)[22m
+[31m     [31m×[31m GET /posts/:id is a 404 (not a leak) for outsiders and non-circle followers; 200 in the circle[39m[32m 123[2mms[22m[39m
+[31m     [31m×[31m hashtag surface filters scoped posts for non-circle viewers[39m[32m 92[2mms[22m[39m
+     [32m✓[39m saves: a saved close-friends post leaves the saver's list once they're outside the circle[32m 87[2mms[22m[39m
+   [32m✓[39m stories — feed, by-profile, view [2m(3)[22m
+     [32m✓[39m stories/feed: non-circle follower gets only the public story; circle member gets both[32m 199[2mms[22m[39m
+     [32m✓[39m stories/by-profile: anonymous sees public only; circle member (Bearer) sees both[32m 96[2mms[22m[39m
+     [32m✓[39m story view counting refuses scoped stories to non-circle viewers[32m 245[2mms[22m[39m
+ [31m❯[39m src/routes/__tests__/reply-reactions.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[33m 123122[2mms[22m[39m
+   [31m❯[39m reactions on a thread reply (target_kind 'post', reply id) [2m(5)[22m
+[31m     [31m×[31m toggles on and reads back through the replies DTO — counts for everyone, viewer state only for the reactor[39m[33m 119433[2mms[22m[39m
+[31m     [31m×[31m re-posting the same emoji is an unchanged no-op, never a double count[39m[33m 1598[2mms[22m[39m
+[31m     [31m×[31m switching emoji moves the count and restores the reply's like_count[39m[33m 417[2mms[22m[39m
+[31m     [31m×[31m DELETE removes the reaction — counts empty out, never fake-zero[39m[33m 397[2mms[22m[39m
+[31m     [31m×[31m works at nesting depth 2 — a reply's own replies carry reactions too[39m[32m 49[2mms[22m[39m
+   [31m❯[39m guests at the reaction rail [2m(1)[22m
+[31m     [31m×[31m cannot POST or DELETE a reaction (401), members-only[39m[32m 69[2mms[22m[39m
+   [32m✓[39m the closed contract [2m(1)[22m
+     [32m✓[39m refuses an emoji outside the server's set and a 'reply' target kind — replies ride 'post'[32m 271[2mms[22m[39m
+   [31m❯[39m visibility — reactions never leak a thread the viewer can't read [2m(1)[22m
+[31m     [31m×[31m replies under a followers-only parent 404 for strangers; a follower reads and reacts[39m[32m 69[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/social-notification-links.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 1792[2mms[22m[39m
+   [32m✓[39m DE-17 — post alerts link the post, never /home [2m(8)[22m
+     [33m[2m✓[22m[39m mention → the mentioning post's page[33m 711[2mms[22m[39m
+     [33m[2m✓[22m[39m no notification inserted by any of these paths links /home[33m 328[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/saves-mine-refresh.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 860[2mms[22m[39m
+   [32m✓[39m GET /api/saves/mine — storage refs are refreshed at the response boundary [2m(1)[22m
+     [33m[2m✓[22m[39m returns refreshed (non-ref) URLs for saved track artwork, video thumbnail and profile avatar[33m 716[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/social-feed-dto.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 607[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/social-assist-refund.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1492[2mms[22m[39m
+   [32m✓[39m POST /posts/assist — owner-ruled 100 VB price + refund leg (G15) [2m(4)[22m
+     [33m[2m✓[22m[39m refunds exactly 100, once, when the provider throws after the charge[33m 741[2mms[22m[39m
+     [33m[2m✓[22m[39m a double-submit of the same draft charges once[33m 409[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 27 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/admin-content-removal.test.ts[2m > [22mread-path suppression (the point of the rail)[2m > [22ma removed post leaves the feed — for a stranger AND for its own author
+[31m[1mAssertionError[22m: expected [] to include '44444444-4444-4444-8444-444444444444'[39m
+[36m [2m❯[22m src/routes/__tests__/admin-content-removal.test.ts:[2m366:61[22m[39m
+    [90m364|[39m     const member = await call("GET", "/feed", { user: MEMBER });
+    [90m365|[39m     expect((member.json.posts ?? []).map((p: any) => p.id)).not.toCont…
+    [90m366|[39m     expect((member.json.posts ?? []).map((p: any) => p.id)).toContain(…
+    [90m   |[39m                                                             [31m^[39m
+    [90m367|[39m     const author = await call("GET", "/feed", { user: AUTHOR });
+    [90m368|[39m     expect((author.json.posts ?? []).map((p: any) => p.id)).not.toCont…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/admin-content-removal.test.ts[2m > [22mread-path suppression (the point of the rail)[2m > [22mthe single-post read 404s for everyone but the author; the author sees the moderation state
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/admin-content-removal.test.ts:[2m376:24[22m[39m
+    [90m374|[39m     expect((await call("GET", `/posts/${POST_TARGET}`, { bearer: MEMBE…
+    [90m375|[39m     const own = await call("GET", `/posts/${POST_TARGET}`, { bearer: A…
+    [90m376|[39m     expect(own.status).toBe(200);
+    [90m   |[39m                        [31m^[39m
+    [90m377|[39m     expect(own.json.post.moderation_removed).toBe(true);
+    [90m378|[39m     expect(own.json.post.removal_reason).toBe("spam");
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/admin-content-removal.test.ts[2m > [22mread-path suppression (the point of the rail)[2m > [22ma live post's DTO carries moderation_removed false and no reason
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/admin-content-removal.test.ts:[2m387:24[22m[39m
+    [90m385|[39m   it("a live post's DTO carries moderation_removed false and no reason…
+    [90m386|[39m     const own = await call("GET", `/posts/${POST_LIVE}`, { bearer: AUT…
+    [90m387|[39m     expect(own.status).toBe(200);
+    [90m   |[39m                        [31m^[39m
+    [90m388|[39m     expect(own.json.post.moderation_removed).toBe(false);
+    [90m389|[39m     expect(own.json.post.removal_reason).toBeNull();
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/admin-content-removal.test.ts[2m > [22mread-path suppression (the point of the rail)[2m > [22ma removed reply leaves the replies read; its parent stays up
+[31m[1mAssertionError[22m: expected [] to include '55555555-5555-4555-8555-555555555555'[39m
+[36m [2m❯[22m src/routes/__tests__/admin-content-removal.test.ts:[2m394:63[22m[39m
+    [90m392|[39m   it("a removed reply leaves the replies read; its parent stays up", a…
+    [90m393|[39m     const before = await call("GET", `/posts/${POST_LIVE}/replies`, { …
+    [90m394|[39m     expect((before.json.replies ?? []).map((p: any) => p.id)).toContai…
+    [90m   |[39m                                                               [31m^[39m
+    [90m395|[39m     await call("PATCH", `/admin/content/${REPLY_TARGET}`, { ...asAdmin…
+    [90m396|[39m     const after = await call("GET", `/posts/${POST_LIVE}/replies`, { b…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/admin-content-removal.test.ts[2m > [22mread-path suppression (the point of the rail)[2m > [22ma removed quoted post renders quoted:null in someone else's feed
+[31m[1mAssertionError[22m: expected undefined to be truthy[39m
+
+[32m- Expected:[39m
+true
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/routes/__tests__/admin-content-removal.test.ts:[2m406:15[22m[39m
+    [90m404|[39m     const member = await call("GET", "/feed", { user: MEMBER });
+    [90m405|[39m     const q = (member.json.posts ?? []).find((p: any) => p.id === QUOT…
+    [90m406|[39m     expect(q).toBeTruthy();
+    [90m   |[39m               [31m^[39m
+    [90m407|[39m     expect(q.quoted).toBeNull();
+    [90m408|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/admin-content-removal.test.ts[2m > [22mread-path suppression (the point of the rail)[2m > [22mrestoring brings the post back to every read
+[31m[1mAssertionError[22m: expected [] to include '33333333-3333-4333-8333-333333333333'[39m
+[36m [2m❯[22m src/routes/__tests__/admin-content-removal.test.ts:[2m414:61[22m[39m
+    [90m412|[39m     await call("PATCH", `/admin/content/${POST_TARGET}`, { ...asAdmin,…
+    [90m413|[39m     const member = await call("GET", "/feed", { user: MEMBER });
+    [90m414|[39m     expect((member.json.posts ?? []).map((p: any) => p.id)).toContain(…
+    [90m   |[39m                                                             [31m^[39m
+    [90m415|[39m     const read = await call("GET", `/posts/${POST_TARGET}`, { bearer: …
+    [90m416|[39m     expect(read.status).toBe(200);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/close-friends-enforcement.test.ts[2m > [22mposts — feed surfaces[2m > [22mchrono feed: follower-not-in-circle and outsider never receive the close-friends post; the circle member and author do
+[31m[1mAssertionError[22m: expected [] to include '22222222-2222-4222-8222-2222222222a2'[39m
+[36m [2m❯[22m src/routes/__tests__/close-friends-enforcement.test.ts:[2m239:36[22m[39m
+    [90m237|[39m   it("chrono feed: follower-not-in-circle and outsider never receive t…
+    [90m238|[39m     const follower = await call("GET", "/feed", { user: FOLLOWER });
+    [90m239|[39m     expect(feedIds(follower.json)).toContain(PUB_POST);
+    [90m   |[39m                                    [31m^[39m
+    [90m240|[39m     expect(feedIds(follower.json)).not.toContain(CF_POST);
+    [90m241|[39m     const outsider = await call("GET", "/feed", { user: OUTSIDER });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/close-friends-enforcement.test.ts[2m > [22mposts — feed surfaces[2m > [22mfor-you feed: same enforcement, and the circle member's item carries an honest why
+[31m[1mAssertionError[22m: expected undefined to be truthy[39m
+
+[32m- Expected:[39m
+true
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/routes/__tests__/close-friends-enforcement.test.ts:[2m254:16[22m[39m
+    [90m252|[39m     const circle = await call("GET", "/feed?mode=foryou", { user: CIRC…
+    [90m253|[39m     const cf = (circle.json.posts ?? []).find((p: any) => p.id === CF_…
+    [90m254|[39m     expect(cf).toBeTruthy();
+    [90m   |[39m                [31m^[39m
+    [90m255|[39m     expect(cf.why?.kind).toBe("following");
+    [90m256|[39m     expect(cf.why?.label).toMatch(/follow/i);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/close-friends-enforcement.test.ts[2m > [22mposts — feed surfaces[2m > [22mquoted embeds: a public quote of a close-friends post shows quoted=null outside the circle
+[31m[1mAssertionError[22m: expected undefined to be truthy[39m
+
+[32m- Expected:[39m
+true
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/routes/__tests__/close-friends-enforcement.test.ts:[2m262:15[22m[39m
+    [90m260|[39m     const outsider = await call("GET", "/feed", { user: OUTSIDER });
+    [90m261|[39m     const q = (outsider.json.posts ?? []).find((p: any) => p.id === QU…
+    [90m262|[39m     expect(q).toBeTruthy();
+    [90m   |[39m               [31m^[39m
+    [90m263|[39m     expect(q.quoted).toBeNull();
+    [90m264|[39m     const circle = await call("GET", "/feed", { user: CIRCLE });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/close-friends-enforcement.test.ts[2m > [22mposts — detail, hashtag, saves[2m > [22mGET /posts/:id is a 404 (not a leak) for outsiders and non-circle followers; 200 in the circle
+[31m[1mAssertionError[22m: expected 500 to be 404 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 404[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/close-friends-enforcement.test.ts:[2m272:61[22m[39m
+    [90m270|[39m describe("posts — detail, hashtag, saves", () => {
+    [90m271|[39m   it("GET /posts/:id is a 404 (not a leak) for outsiders and non-circl…
+    [90m272|[39m     expect((await call("GET", `/posts/${CF_POST}`)).status).toBe(404);
+    [90m   |[39m                                                             [31m^[39m
+    [90m273|[39m     expect((await call("GET", `/posts/${CF_POST}`, { bearer: FOLLOWER …
+    [90m274|[39m     const circle = await call("GET", `/posts/${CF_POST}`, { bearer: CI…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/close-friends-enforcement.test.ts[2m > [22mposts — detail, hashtag, saves[2m > [22mhashtag surface filters scoped posts for non-circle viewers
+[31m[1mAssertionError[22m: expected [] to include '22222222-2222-4222-8222-2222222222a2'[39m
+[36m [2m❯[22m src/routes/__tests__/close-friends-enforcement.test.ts:[2m282:36[22m[39m
+    [90m280|[39m     const follower = await call("GET", "/hashtag/secret/posts", { bear…
+    [90m281|[39m     expect(feedIds(follower.json)).not.toContain(CF_POST);
+    [90m282|[39m     expect(feedIds(follower.json)).toContain(PUB_POST);
+    [90m   |[39m                                    [31m^[39m
+    [90m283|[39m     const circle = await call("GET", "/hashtag/secret/posts", { bearer…
+    [90m284|[39m     expect(feedIds(circle.json)).toContain(CF_POST);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — save, read, replace[2m > [22ma draft saves with its tone and reads back verbatim; a second save replaces it — still one row
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m255:24[22m[39m
+    [90m253|[39m       body: { body: "half a thought", tone: "playful" },
+    [90m254|[39m     });
+    [90m255|[39m     expect(put.status).toBe(200);
+    [90m   |[39m                        [31m^[39m
+    [90m256|[39m     expect(put.json.draft.body).toBe("half a thought");
+    [90m257|[39m     expect(put.json.draft.tone).toBe("playful");
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — save, read, replace[2m > [22mno saved draft reads as null, not an error
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m278:24[22m[39m
+    [90m276|[39m   it("no saved draft reads as null, not an error", async () => {
+    [90m277|[39m     const got = await call("GET", draftPath(PUB_POST), { user: MEMBER …
+    [90m278|[39m     expect(got.status).toBe(200);
+    [90m   |[39m                        [31m^[39m
+    [90m279|[39m     expect(got.json.draft).toBeNull();
+    [90m280|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — save, read, replace[2m > [22man omitted tone defaults to hype on first save and is kept on body-only saves; a bad tone is a 400
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'tone')[39m
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m284:29[22m[39m
+    [90m282|[39m   it("an omitted tone defaults to hype on first save and is kept on bo…
+    [90m283|[39m     const first = await call("PUT", draftPath(PUB_POST), { user: MEMBE…
+    [90m284|[39m     expect(first.json.draft.tone).toBe("hype");
+    [90m   |[39m                             [31m^[39m
+    [90m285|[39m     await call("PUT", draftPath(PUB_POST), { user: MEMBER, body: { bod…
+    [90m286|[39m     const kept = await call("PUT", draftPath(PUB_POST), { user: MEMBER…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — save, read, replace[2m > [22mthe cap is the reply route's own 500: 500 saves, 501 is refused and changes nothing
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m297:23[22m[39m
+    [90m295|[39m   it("the cap is the reply route's own 500: 500 saves, 501 is refused …
+    [90m296|[39m     const ok = await call("PUT", draftPath(PUB_POST), { user: MEMBER, …
+    [90m297|[39m     expect(ok.status).toBe(200);
+    [90m   |[39m                       [31m^[39m
+    [90m298|[39m     const tooLong = await call("PUT", draftPath(PUB_POST), { user: MEM…
+    [90m299|[39m     expect(tooLong.status).toBe(400);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — clearing[2m > [22msaving an empty or whitespace body clears; DELETE clears and is a calm no-op when nothing is saved
+[31m[1mAssertionError[22m: expected undefined to be null[39m
+
+[32m- Expected:[39m
+null
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m309:32[22m[39m
+    [90m307|[39m     await call("PUT", draftPath(PUB_POST), { user: MEMBER, body: { bod…
+    [90m308|[39m     const blanked = await call("PUT", draftPath(PUB_POST), { user: MEM…
+    [90m309|[39m     expect(blanked.json.draft).toBeNull();
+    [90m   |[39m                                [31m^[39m
+    [90m310|[39m     expect(draftRows()).toHaveLength(0);
+    [90m311|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — privacy and gates[2m > [22manother member reads only their own slot on the same post; their save never touches mine
+[31m[1mAssertionError[22m: expected undefined to be null[39m
+
+[32m- Expected:[39m
+null
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m326:34[22m[39m
+    [90m324|[39m     await call("PUT", draftPath(PUB_POST), { user: MEMBER, body: { bod…
+    [90m325|[39m     const otherView = await call("GET", draftPath(PUB_POST), { user: O…
+    [90m326|[39m     expect(otherView.json.draft).toBeNull();
+    [90m   |[39m                                  [31m^[39m
+    [90m327|[39m     await call("PUT", draftPath(PUB_POST), { user: OTHER, body: { body…
+    [90m328|[39m     expect(draftRows()).toHaveLength(2);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — privacy and gates[2m > [22ma close-friends post is a 404 to a non-circle member on read/save/clear; the circle member drafts freely
+[31m[1mAssertionError[22m: expected 500 to be 404 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 404[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m352:77[22m[39m
+    [90m350|[39m
+    [90m351|[39m   it("a close-friends post is a 404 to a non-circle member on read/sav…
+    [90m352|[39m     expect((await call("GET", draftPath(CF_POST), { user: OTHER })).st…
+    [90m   |[39m                                                                             [31m^[39m
+    [90m353|[39m     expect((await call("PUT", draftPath(CF_POST), { user: OTHER, body:…
+    [90m354|[39m     expect((await call("DELETE", draftPath(CF_POST), { user: OTHER }))…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — a landed reply retires the draft[2m > [22msending clears the SENDER's draft only; the other member's words on the same post survive
+[31m[1mAssertionError[22m: expected 500 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m373:25[22m[39m
+    [90m371|[39m       body: { body: "about to send this" },
+    [90m372|[39m     });
+    [90m373|[39m     expect(sent.status).toBe(201);
+    [90m   |[39m                         [31m^[39m
+    [90m374|[39m
+    [90m375|[39m     const mine = await call("GET", draftPath(PUB_POST), { user: MEMBER…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/post-reply-drafts.test.ts[2m > [22mpost reply drafts — a landed reply retires the draft[2m > [22ma FAILED send leaves the draft exactly as it was
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'body')[39m
+[36m [2m❯[22m src/routes/__tests__/post-reply-drafts.test.ts:[2m390:27[22m[39m
+    [90m388|[39m     expect(failed.status).toBe(400);
+    [90m389|[39m     const got = await call("GET", draftPath(PUB_POST), { user: MEMBER …
+    [90m390|[39m     expect(got.json.draft.body).toBe("keep me");
+    [90m   |[39m                           [31m^[39m
+    [90m391|[39m   });
+    [90m392|[39m });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mreactions on a thread reply (target_kind 'post', reply id)[2m > [22mtoggles on and reads back through the replies DTO — counts for everyone, viewer state only for the reactor
+[31m[1mError[22m: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m275:3[22m[39m
+    [90m273|[39m
+    [90m274|[39m describe("reactions on a thread reply (target_kind 'post', reply id)",…
+    [90m275|[39m   it("toggles on and reads back through the replies DTO — counts for e…
+    [90m   |[39m   [31m^[39m
+    [90m276|[39m     as(FAN_USER);
+    [90m277|[39m     const on = await req("POST", "/react", { target_kind: "post", targ…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mreactions on a thread reply (target_kind 'post', reply id)[2m > [22mre-posting the same emoji is an unchanged no-op, never a double count
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m replyDto src/routes/__tests__/reply-reactions.test.ts:[2m263:18[22m[39m
+    [90m261|[39m async function replyDto(parentId: string, replyId: string) {
+    [90m262|[39m   const { status, json } = await req("GET", `/posts/${parentId}/replie…
+    [90m263|[39m   expect(status).toBe(200);
+    [90m   |[39m                  [31m^[39m
+    [90m264|[39m   const reply = (json.replies as any[]).find((r) => r.id === replyId);
+    [90m265|[39m   expect(reply, `reply ${replyId} in DTO`).toBeTruthy();
+[90m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m303:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mreactions on a thread reply (target_kind 'post', reply id)[2m > [22mswitching emoji moves the count and restores the reply's like_count
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m replyDto src/routes/__tests__/reply-reactions.test.ts:[2m263:18[22m[39m
+    [90m261|[39m async function replyDto(parentId: string, replyId: string) {
+    [90m262|[39m   const { status, json } = await req("GET", `/posts/${parentId}/replie…
+    [90m263|[39m   expect(status).toBe(200);
+    [90m   |[39m                  [31m^[39m
+    [90m264|[39m   const reply = (json.replies as any[]).find((r) => r.id === replyId);
+    [90m265|[39m   expect(reply, `reply ${replyId} in DTO`).toBeTruthy();
+[90m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m313:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mreactions on a thread reply (target_kind 'post', reply id)[2m > [22mDELETE removes the reaction — counts empty out, never fake-zero
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m replyDto src/routes/__tests__/reply-reactions.test.ts:[2m263:18[22m[39m
+    [90m261|[39m async function replyDto(parentId: string, replyId: string) {
+    [90m262|[39m   const { status, json } = await req("GET", `/posts/${parentId}/replie…
+    [90m263|[39m   expect(status).toBe(200);
+    [90m   |[39m                  [31m^[39m
+    [90m264|[39m   const reply = (json.replies as any[]).find((r) => r.id === replyId);
+    [90m265|[39m   expect(reply, `reply ${replyId} in DTO`).toBeTruthy();
+[90m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m324:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mreactions on a thread reply (target_kind 'post', reply id)[2m > [22mworks at nesting depth 2 — a reply's own replies carry reactions too
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m replyDto src/routes/__tests__/reply-reactions.test.ts:[2m263:18[22m[39m
+    [90m261|[39m async function replyDto(parentId: string, replyId: string) {
+    [90m262|[39m   const { status, json } = await req("GET", `/posts/${parentId}/replie…
+    [90m263|[39m   expect(status).toBe(200);
+    [90m   |[39m                  [31m^[39m
+    [90m264|[39m   const reply = (json.replies as any[]).find((r) => r.id === replyId);
+    [90m265|[39m   expect(reply, `reply ${replyId} in DTO`).toBeTruthy();
+[90m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m340:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mguests at the reaction rail[2m > [22mcannot POST or DELETE a reaction (401), members-only
+[31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 200[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m replyDto src/routes/__tests__/reply-reactions.test.ts:[2m263:18[22m[39m
+    [90m261|[39m async function replyDto(parentId: string, replyId: string) {
+    [90m262|[39m   const { status, json } = await req("GET", `/posts/${parentId}/replie…
+    [90m263|[39m   expect(status).toBe(200);
+    [90m   |[39m                  [31m^[39m
+    [90m264|[39m   const reply = (json.replies as any[]).find((r) => r.id === replyId);
+    [90m265|[39m   expect(reply, `reply ${replyId} in DTO`).toBeTruthy();
+[90m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m354:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/27]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/routes/__tests__/reply-reactions.test.ts[2m > [22mvisibility — reactions never leak a thread the viewer can't read[2m > [22mreplies under a followers-only parent 404 for strangers; a follower reads and reacts
+[31m[1mAssertionError[22m: expected 500 to be 404 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 404[39m
+[31m+ 500[39m
+
+[36m [2m❯[22m src/routes/__tests__/reply-reactions.test.ts:[2m375:27[22m[39m
+    [90m373|[39m     as(STRANGER_USER);
+    [90m374|[39m     const hidden = await req("GET", `/posts/${PRIVATE_PARENT_ID}/repli…
+    [90m375|[39m     expect(hidden.status).toBe(404);
+    [90m   |[39m                           [31m^[39m
+    [90m376|[39m
+    [90m377|[39m     /* The author reacts to their own insider reply; the stranger's
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/27]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[31m27 failed[39m[22m[2m | [22m[1m[32m39 passed[39m[22m[90m (66)[39m
+[2m   Start at [22m 01:49:03
+[2m   Duration [22m 718.27s[2m (import 75%, tests 19%, transform 5%)[22m
+
+[2m    Isolate [22m [33m8 workers spawned[39m[2m · ~2.28s startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~15.93s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

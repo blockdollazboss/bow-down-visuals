@@ -214,9 +214,10 @@ export function dedupePostsById<T extends { id: string }>(lists: T[][]): T[] {
 }
 
 /** Postgres "undefined table" (42P01) — the post_co_authors table only
- *  exists once the held migration 0205 lands. Routes use this to answer
- *  an honest 503 instead of a 500, and read paths use it to behave
- *  exactly as before (no co-posts exist yet) until then. */
+ *  exists once the held migration 0205 lands. WRITE routes use this to
+ *  answer an honest 503 instead of a 500. READ paths go further (see
+ *  loadCoPostsGuarded in co-posts-db.ts): any side-table failure
+ *  degrades to "no co-posts yet", so enrichment can never 500 a feed. */
 export function isMissingCoPostTable(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const e = err as { code?: string; message?: string; cause?: { code?: string; message?: string } };

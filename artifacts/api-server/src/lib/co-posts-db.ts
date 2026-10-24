@@ -21,6 +21,7 @@ import {
   type CoPost,
   type CoPostSide,
 } from "./co-posts";
+import { logger } from "./logger";
 
 type CoAuthorRow = typeof postCoAuthorsTable.$inferSelect;
 type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
@@ -58,8 +59,15 @@ export async function probeCoPostTable(): Promise<void> {
   await db.select({ id: postCoAuthorsTable.id }).from(postCoAuthorsTable).limit(1);
 }
 
-/** Guarded batch load for READ paths (Feed enrichment, profile lists).
- *  Missing table → empty map (pre-migration behaviour = today's). */
+/** Guarded batch load for READ paths (Feed enrichment, visibility
+ *  gates, profile lists). Co-post data is purely ADDITIVE enrichment
+ *  on surfaces that existed before it: if the side table can't be
+ *  read — table not migrated yet (42P01), a test fake that doesn't
+ *  know the table, a transient DB error — the surface must degrade
+ *  to exactly today's behaviour (no co-posts), never fail. One bad
+ *  section never takes the whole feed down. The failure is logged,
+ *  not silent. WRITE paths stay strict: they use the unguarded
+ *  loaders and answer 503 co_post_not_ready. */
 export async function loadCoPostsGuarded(postIds: string[]): Promise<Map<string, CoPost>> {
   const out = new Map<string, CoPost>();
   if (postIds.length === 0) return out;
@@ -79,7 +87,14 @@ export async function loadCoPostsGuarded(postIds: string[]): Promise<Map<string,
       if (co) out.set(postId, co);
     }
   } catch (err) {
-    if (!isMissingCoPostTable(err)) throw err;
+    /* The not-migrated-yet state is EXPECTED until 0205 lands — debug
+       level, or every feed load would spam the log. Anything else is
+       a real read failure degrading a surface: warn. */
+    if (isMissingCoPostTable(err)) {
+      logger.debug("[co-posts] side table not present yet — serving posts without co-post data");
+    } else {
+      logger.warn({ err }, "[co-posts] side-table read failed — serving posts without co-post data");
+    }
   }
   return out;
 }

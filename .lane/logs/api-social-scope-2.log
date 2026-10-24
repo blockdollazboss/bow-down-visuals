@@ -1,0 +1,1464 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server[39m
+
+[02:09:32.542] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:32.714] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:32.891] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:32.892] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:33.192] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:33.193] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:33.542] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:33.579] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:33.868] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:33.879] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:34.200] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:34.233] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:34.457] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:34.470] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:34.549] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:34.550] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:09:34.691] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:34.747] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:34.755] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:09:34.763] [33mWARN[39m (10794): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+ [32m✓[39m src/routes/__tests__/reply-reactions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 4039[2mms[22m[39m
+   [32m✓[39m reactions on a thread reply (target_kind 'post', reply id) [2m(5)[22m
+     [33m[2m✓[22m[39m toggles on and reads back through the replies DTO — counts for everyone, viewer state only for the reactor[33m 2247[2mms[22m[39m
+     [33m[2m✓[22m[39m re-posting the same emoji is an unchanged no-op, never a double count[33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m DELETE removes the reaction — counts empty out, never fake-zero[33m 427[2mms[22m[39m
+[02:10:14.918] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:10:14.942] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:14.948] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:14.975] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:10:14.978] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:14.990] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:15.128] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2112:24
+    }
+[02:10:15.168] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2111:17
+    }
+[02:10:15.168] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2112:24
+    }
+[02:10:15.187] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:10:15.190] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2133:32
+    }
+[02:10:15.203] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2127:17
+    }
+[02:10:15.220] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2111:17
+    }
+[02:10:15.220] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2112:24
+    }
+[02:10:15.238] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:10:15.242] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:15.245] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:15.291] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:10:15.292] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:15.295] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:10:15.320] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2111:17
+    }
+[02:10:15.326] [33mWARN[39m (11105): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2112:24
+    }
+ [32m✓[39m src/routes/__tests__/admin-content-removal.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 4784[2mms[22m[39m
+   [32m✓[39m authorization matrix [2m(4)[22m
+     [33m[2m✓[22m[39m guest gets 401, member gets 403, allowlisted admin gets 200[33m 1645[2mms[22m[39m
+     [33m[2m✓[22m[39m fails closed when ADMIN_EMAILS is unset[33m 342[2mms[22m[39m
+     [33m[2m✓[22m[39m the removed-list rail carries the same gate[33m 304[2mms[22m[39m
+   [32m✓[39m read-path suppression (the point of the rail) [2m(6)[22m
+     [33m[2m✓[22m[39m a removed post leaves the feed — for a stranger AND for its own author[33m 416[2mms[22m[39m
+[02:10:38.339] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:38.475] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:38.541] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:38.652] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:38.792] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:38.944] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:38.960] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:38.976] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:38.989] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.058] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:39.083] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.117] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.159] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:39.204] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.228] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.344] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.395] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2313:20
+    }
+[02:10:39.440] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2313:20
+    }
+[02:10:39.507] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.548] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:39.627] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:39.650] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:39.687] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:40.031] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:40.075] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:40.096] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2313:20
+    }
+[02:10:40.145] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:40.183] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:40.251] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:40.288] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:40.361] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2151:17
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[02:10:40.395] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2176:24
+    }
+[02:10:40.453] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:40.498] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+[02:10:40.592] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at savePostReplyDraft (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2262:15)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2299:21
+    }
+[02:10:40.659] [33mWARN[39m (11333): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at replyDraftParent (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2235:15)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2286:20
+    }
+ [32m✓[39m src/routes/__tests__/post-reply-drafts.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 3167[2mms[22m[39m
+   [32m✓[39m post reply drafts — save, read, replace [2m(4)[22m
+     [33m[2m✓[22m[39m a draft saves with its tone and reads back verbatim; a second save replaces it — still one row[33m 1017[2mms[22m[39m
+   [32m✓[39m post reply drafts — a landed reply retires the draft [2m(2)[22m
+     [33m[2m✓[22m[39m sending clears the SENDER's draft only; the other member's words on the same post survive[33m 322[2mms[22m[39m
+[02:11:02.021] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:11:02.078] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.101] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.388] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:11:02.389] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.397] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.434] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:11:02.439] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.442] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.471] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:11:02.480] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.480] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.576] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2069:56
+    }
+[02:11:02.592] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2088:22
+    }
+[02:11:02.634] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2088:22
+    }
+[02:11:02.825] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2069:56
+    }
+[02:11:02.838] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2088:22
+    }
+[02:11:02.846] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2088:22
+    }
+[02:11:02.896] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:11:02.909] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.909] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.940] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2055:54
+    }
+[02:11:02.945] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1468:26
+              at async Promise.all (index 3)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1454:61)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.951] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2056:24
+    }
+[02:11:02.990] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2111:17
+    }
+[02:11:03.075] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2111:17
+    }
+[02:11:03.198] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at postVisibleTo (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1309:25)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2111:17
+    }
+[02:11:03.217] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2112:24
+    }
+[02:11:03.306] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2769:52
+    }
+[02:11:03.307] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2770:35
+    }
+[02:11:03.331] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at filterCoPostVisible (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1281:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2769:52
+    }
+[02:11:03.332] [33mWARN[39m (11434): [36m[co-posts] side-table read failed — serving posts without co-post data[39m
+    [35mmissingTable[39m: false
+    err: {
+      "type": "Error",
+      "message": "fake db: unknown table in select",
+      "stack":
+          Error: fake db: unknown table in select
+              at Object.from (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/__tests__/_reach-fake-db.ts:261:27)
+              at loadCoPostsGuarded (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/lib/co-posts-db.ts:77:8)
+              at enrichPosts (/home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:1509:23)
+              at /home/hatch/workspace/bdv-wt-coposts/artifacts/api-server/src/routes/social.ts:2770:35
+    }
+ [32m✓[39m src/routes/__tests__/close-friends-enforcement.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 2267[2mms[22m[39m
+   [32m✓[39m posts — feed surfaces [2m(3)[22m
+     [33m[2m✓[22m[39m chrono feed: follower-not-in-circle and outsider never receive the close-friends post; the circle member and author do[33m 928[2mms[22m[39m
+     [33m[2m✓[22m[39m for-you feed: same enforcement, and the circle member's item carries an honest why[33m 359[2mms[22m[39m
+   [32m✓[39m posts — detail, hashtag, saves [2m(3)[22m
+     [33m[2m✓[22m[39m GET /posts/:id is a 404 (not a leak) for outsiders and non-circle followers; 200 in the circle[33m 327[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/social-notification-links.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 2436[2mms[22m[39m
+   [32m✓[39m DE-17 — post alerts link the post, never /home [2m(8)[22m
+     [33m[2m✓[22m[39m mention → the mentioning post's page[33m 1289[2mms[22m[39m
+     [33m[2m✓[22m[39m reply composed in POST /posts → the reply post's page[33m 373[2mms[22m[39m
+     [33m[2m✓[22m[39m quote composed in POST /posts → the quote post's page[33m 370[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/social-assist-refund.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 591[2mms[22m[39m
+   [32m✓[39m POST /posts/assist — owner-ruled 100 VB price + refund leg (G15) [2m(4)[22m
+     [33m[2m✓[22m[39m refunds exactly 100, once, when the provider throws after the charge[33m 324[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/saves-mine-refresh.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 874[2mms[22m[39m
+   [32m✓[39m GET /api/saves/mine — storage refs are refreshed at the response boundary [2m(1)[22m
+     [33m[2m✓[22m[39m returns refreshed (non-ref) URLs for saved track artwork, video thumbnail and profile avatar[33m 692[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/social-feed-dto.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 2501[2mms[22m[39m
+   [32m✓[39m GET /api/feed — post DTO contract [2m(1)[22m
+     [33m[2m✓[22m[39m ships snake_case post fields (media_urls, created_at, counts)[33m 1357[2mms[22m[39m
+   [32m✓[39m GET /api/posts/:id — post DTO contract [2m(1)[22m
+     [33m[2m✓[22m[39m ships the same snake_case DTO as the feed[33m 423[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/co-posts.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 473[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/collabs.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 302[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m100 passed[39m[22m[90m (100)[39m
+[2m   Start at [22m 02:07:10
+[2m   Duration [22m 370.25s[2m (import 62%, transform 32%, tests 6%)[22m
+
+[2m     Import [22m [33m206 modules were evaluated 339 times[39m[2m · 209.75s total, 62% of tracked time[22m
+[2m            [22m [2m~82.29s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+
