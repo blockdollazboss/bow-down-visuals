@@ -1,4 +1,4 @@
-import { Sparkles, SlidersHorizontal, Mic2, BookOpen, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Pause, Music2, Upload, Plus, Clock3, Disc3, ListMusic } from "lucide-react";
+import { Sparkles, SlidersHorizontal, Mic2, BookOpen, CheckCircle2, Circle, ChevronDown, ChevronUp, Play, Pause, Music2, Upload, Plus, Clock3, Disc3, ListMusic, Lock } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import type { EditorSettings, MusicStudioSettings, AudioStem } from "@/lib/editor-settings";
 import { defaultStemEffects } from "@/lib/editor-settings";
@@ -33,7 +33,7 @@ interface MusicStudioProps {
   activeArtist?: ArtistVault | null;
   /** Navigate user to the Captions tab */
   onGoToCaptions?: () => void;
-  /** Simple mode: hide the Manual DAW / Lip Sync mode switcher and force AI Auto Mix. */
+  /** Simple mode: Manual DAW / Lip Sync render locked in the mode switcher; AI Auto Mix is the effective mode (stored mode preserved). */
   isSimple?: boolean;
   /** Edge-triggered request from the video-audio fallback warning. */
   requestedExport?: AudioExportType | null;
@@ -81,16 +81,14 @@ export function MusicStudio({
   const [guideOpen, setGuideOpen] = useState(false);
   const [studioTab, setStudioTab] = useState<"create" | "library">("create");
 
-  // Simple mode is AI-Auto-Mix only — Manual DAW / Lip Sync are advanced
-  // surfaces (stem mixing, EQ, sync tools) hidden behind the mode toggle.
-  // Force the setting back to "auto" if it somehow drifted (e.g. user
-  // started in Advanced, picked Manual, then switched to Simple).
-  useEffect(() => {
-    if (isSimple && ms.mode !== "auto") {
-      onChange({ ...settings, musicStudio: { ...ms, mode: "auto" } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSimple, ms.mode]);
+  // Simple (Turbo) mode is AI-Auto-Mix only — Manual DAW / Lip Sync are
+  // Advanced-mode surfaces (stem mixing, EQ, sync tools). The gate is
+  // PRESENTATION ONLY: the effective mode is "auto" while Simple, but the
+  // stored mode is never rewritten, so switching back to Advanced
+  // restores exactly the mode (and music) the user left. The switcher
+  // below stays visible in Simple with the gated modes locked and
+  // labelled — a gate the user can see, not a vanished feature.
+  const effectiveMode: MusicStudioSettings["mode"] = isSimple ? "auto" : ms.mode;
 
   /* Wave 9A Remix Chain handoff: a song version sent from the Remix Chain
      arrives here as a stem so it can be mixed into the video's audio.
@@ -313,15 +311,20 @@ export function MusicStudio({
         </button>
         <button
           type="button"
-          onClick={() => { setStudioTab("library"); if (!isSimple) setMode("manual"); }}
+          onClick={() => { if (isSimple) return; setStudioTab("library"); setMode("manual"); }}
+          disabled={isSimple}
+          aria-disabled={isSimple || undefined}
+          title={isSimple ? "Upload & stem mixing live in the Manual DAW — an Advanced-mode tool. Switch the editor to Advanced in the top bar to use it." : undefined}
           className={`flex items-center justify-center gap-2 h-11 rounded-xl text-[13px] font-black transition-colors border ${
-            studioTab === "library"
-              ? "bg-primary text-black border-primary hover:bg-primary/90"
-              : "bg-white/[0.03] text-white/70 border-white/10 hover:bg-white/[0.06]"
+            isSimple
+              ? "bg-white/[0.03] text-white/35 border-white/10 cursor-not-allowed"
+              : studioTab === "library"
+                ? "bg-primary text-black border-primary hover:bg-primary/90"
+                : "bg-white/[0.03] text-white/70 border-white/10 hover:bg-white/[0.06]"
           }`}
           data-testid="musicstudio-tab-library"
         >
-          <Upload className="h-4 w-4" /> Upload
+          {isSimple ? <Lock className="h-4 w-4" /> : <Upload className="h-4 w-4" />} Upload
         </button>
       </div>
 
@@ -352,31 +355,46 @@ export function MusicStudio({
         </div>
       )}
 
-      {/* ── Mode tabs — Suno-style segmented ── */}
-      {!isSimple && (
+      {/* ── Mode tabs — Suno-style segmented. Always rendered: in Simple
+          (Turbo) mode the Manual / Lip Sync modes stay VISIBLE but locked
+          with the reason, instead of the switcher vanishing and stranding
+          the user's music workflow (Lane 6 mode-gating fix). ── */}
+      <div>
         <div className="flex p-1 rounded-xl bg-black border border-white/10 gap-1">
           {MODES.map((m) => {
             const Icon = m.icon;
-            const active = ms.mode === m.id;
+            const active = effectiveMode === m.id;
+            const locked = isSimple && m.id !== "auto";
             return (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => { setMode(m.id); setStudioTab(m.id === "manual" ? "library" : "create"); }}
+                onClick={() => { if (locked) return; setMode(m.id); setStudioTab(m.id === "manual" ? "library" : "create"); }}
+                disabled={locked}
+                aria-disabled={locked || undefined}
                 data-testid={`music-mode-${m.id}`}
+                data-mode-gate={locked ? "advanced" : undefined}
                 className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-[11px] font-black transition-colors ${
-                  active ? "bg-primary/15 text-primary border border-primary/30" : "text-white/40 hover:text-white/70 border border-transparent"
+                  locked
+                    ? "text-white/30 border border-transparent cursor-not-allowed"
+                    : active ? "bg-primary/15 text-primary border border-primary/30" : "text-white/40 hover:text-white/70 border border-transparent"
                 }`}
-                title={m.note}
+                title={locked ? `${m.label} is an Advanced-mode tool — switch the editor to Advanced in the top bar to use it.` : m.note}
               >
-                <Icon className="h-3.5 w-3.5" />
+                {locked ? <Lock className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                 <span className="hidden sm:inline">{m.label}</span>
                 <span className="sm:hidden">{m.label.split(" ")[0]}</span>
               </button>
             );
           })}
         </div>
-      )}
+        {isSimple && (
+          <p className="mt-1.5 text-[10px] leading-relaxed text-white/40" data-testid="music-mode-gate-note">
+            <Lock className="inline h-3 w-3 -mt-0.5 mr-1" />
+            Library (Manual DAW) and Lip Sync are Advanced-mode tools — switch the editor to Advanced in the top bar to use them. Your tracks and mix settings stay exactly as you left them.
+          </p>
+        )}
+      </div>
 
       {/* ── Bow Down AI Guide — collapsible ── */}
       <div className="rounded-xl border border-white/10 bg-[#0c0c0c] overflow-hidden">
@@ -453,8 +471,10 @@ export function MusicStudio({
         durationSec={durationSec}
       />
 
-      {/* ── Mode content — organized sections ── */}
-      {ms.mode === "auto" && (
+      {/* ── Mode content — driven by the EFFECTIVE mode: Simple shows the
+          Auto Mix surface without touching the stored mode, so Advanced
+          restores Manual / Lip Sync exactly as left. ── */}
+      {effectiveMode === "auto" && (
         <AiAutoMix
           settings={settings}
           onChange={onChange}
@@ -463,7 +483,7 @@ export function MusicStudio({
         />
       )}
 
-      {!isSimple && ms.mode === "manual" && (
+      {effectiveMode === "manual" && (
         <ManualDAW
           settings={settings}
           onChange={onChange}
@@ -474,7 +494,7 @@ export function MusicStudio({
         />
       )}
 
-      {!isSimple && ms.mode === "lipsync" && (
+      {effectiveMode === "lipsync" && (
         <LipSyncStudio
           audioUrl={effectiveAudioUrl}
           transcriptText={transcriptText ?? null}
