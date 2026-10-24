@@ -173,6 +173,7 @@ CREATE TABLE store_products (
   event_id uuid, related_links jsonb NOT NULL DEFAULT '[]',
   is_active boolean NOT NULL DEFAULT true,
   bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0,
+  affiliate_enabled boolean NOT NULL DEFAULT false, affiliate_commission_bps integer,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (price_cents >= 0)
 );
