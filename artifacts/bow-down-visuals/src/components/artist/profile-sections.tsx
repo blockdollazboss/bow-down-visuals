@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { mediaUrl } from "@/lib/media-cdn";
 import {
   Play, Pause, Heart, Share2, Check, Calendar, Radio, ShoppingBag,
-  Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw,
+  Megaphone, ChevronDown, MessageSquare, Sparkles, BadgeCheck, Gift, AlertTriangle, RotateCcw, Pin,
   ExternalLink, MapPin, Crown, Pin,
 } from "lucide-react";
 import { PROFILE_VISIT_WORLD_TEST_ID, VISIT_WORLD_LABEL, WORLD_ROUTE } from "@/lib/world-entry";
@@ -18,6 +18,11 @@ import { apiJson, type Story, type StoryHighlight } from "@/lib/social-api";
 import { StoryViewer } from "@/components/social/StoryViewer";
 import { ReportButton } from "@/components/social/ReportButton";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  fetchWallThread, runCommentAction, ownerActionsFor,
+  HELD_COPY, HIDDEN_COPY, type CommentControlAction,
+} from "@/lib/comment-controls";
+import { CommentControlsPanel } from "@/components/comments/CommentControlsPanel";
 
 /* ─── Shared profile section renderer ─────────────────────────────────────
    Used by the public /artist/:slug page, the AI Designer preview, and the
@@ -666,31 +671,61 @@ export function LinkCardSection({
 
 /* ─── Shout wall ─── */
 export function ShoutWallSection({ title, slug, preview }: { title: string; slug: string; preview?: boolean }) {
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const [comments, setComments] = useState<ProfileComment[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  /* Creator comment controls (#27): the server only returns held/hidden
+     comments to the wall owner and their authors, and flags the owner —
+     the owner gets inline pin/hide/approve/reject + the settings panel. */
+  const [viewerIsOwner, setViewerIsOwner] = useState(false);
+  const [heldNotice, setHeldNotice] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const loadWall = async () => {
+    const token = user ? await getAccessToken().catch(() => null) : null;
+    const { comments: list, viewerIsOwner: isOwner } = await fetchWallThread(slug, token);
+    setComments(list as unknown as ProfileComment[]);
+    setViewerIsOwner(isOwner);
+  };
 
   useEffect(() => {
     if (preview) return;
     let cancelled = false;
     setLoadError(false);
-    fetchComments(slug)
-      .then((c) => { if (!cancelled) setComments(c); })
+    loadWall()
+      .catch(async () => {
+        /* Fall back to the plain public read if the threaded read fails. */
+        const c = await fetchComments(slug);
+        if (!cancelled) setComments(c);
+      })
       .catch(() => { if (!cancelled) setLoadError(true); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, preview, retryNonce]);
+
+  const actOnComment = async (c: ProfileComment, action: CommentControlAction) => {
+    setActingId(c.id);
+    try {
+      const token = await getAccessToken();
+      await runCommentAction(token, "wall", c.id, action);
+      await loadWall();
+    } catch { /* leave the list as-is; the next load tells the truth */ }
+    finally { setActingId(null); }
+  };
 
   const send = async () => {
     const body = draft.trim();
     if (!body || sending) return;
     setSending(true);
+    setHeldNotice(null);
     try {
       const c = await postComment(slug, body);
       setComments((prev) => [c, ...prev]);
       setDraft("");
+      if (c.status === "held") setHeldNotice(c.held_copy ?? HELD_COPY);
     } catch { /* auth wall or error — leave the draft in place */ }
     finally { setSending(false); }
   };
@@ -773,6 +808,21 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
                 ) : (
                   <span className="text-xs font-bold" style={{ color: "var(--ap-primary)" }}>{c.author_name}</span>
                 )}
+                {(c.pinned || c.is_pinned) && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--ap-primary)", color: "#000" }}>
+                    <Pin className="h-3 w-3" /> Pinned by creator
+                  </span>
+                )}
+                {c.status === "held" && (
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--ap-surface)", color: "var(--ap-text)" }}>
+                    Held for review
+                  </span>
+                )}
+                {c.status === "hidden" && (
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--ap-surface)", color: "var(--ap-muted)" }}>
+                    Hidden
+                  </span>
+                )}
                 {user && (
                   <span className="ml-auto">
                     <ReportButton
@@ -786,10 +836,38 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
                 )}
               </div>
               <p className="text-sm" style={{ color: "var(--ap-text)" }}>{c.body}</p>
+              {c.status === "held" && (
+                <p className="mt-1 text-xs" style={{ color: "var(--ap-muted)" }}>{c.held_copy ?? HELD_COPY}</p>
+              )}
+              {c.status === "hidden" && (
+                <p className="mt-1 text-xs" style={{ color: "var(--ap-muted)" }}>{HIDDEN_COPY}</p>
+              )}
+              {viewerIsOwner && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {ownerActionsFor(c).map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      disabled={actingId === c.id}
+                      onClick={() => void actOnComment(c, a)}
+                      className="rounded-full border px-2.5 py-1 text-[11px] font-bold disabled:opacity-40"
+                      style={{ borderColor: "var(--ap-border)", color: "var(--ap-text)" }}
+                    >
+                      {a === "pin" ? "Pin" : a === "unpin" ? "Unpin" : a === "hide" ? "Hide" : a === "unhide" ? "Unhide" : a === "approve" ? "Approve" : "Reject"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+      {heldNotice && (
+        <p className="mt-3 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--ap-border)", color: "var(--ap-text)" }}>
+          Your shout was posted — and it's being held: {heldNotice}
+        </p>
+      )}
+      {!preview && viewerIsOwner && <CommentControlsPanel />}
     </Shell>
   );
 }

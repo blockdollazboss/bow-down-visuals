@@ -623,6 +623,16 @@ export interface ProfileComment {
   author_slug?: string | null;
   body: string;
   created_at: string;
+  /* Creator comment controls (#27) — see lib/comment-controls.ts. */
+  author_user_id?: string;
+  user_id?: string;
+  status?: "public" | "held" | "hidden";
+  is_held?: boolean;
+  is_hidden?: boolean;
+  held_reason?: string | null;
+  held_copy?: string | null;
+  pinned?: boolean;
+  is_pinned?: boolean;
 }
 
 export async function fetchComments(slug: string): Promise<ProfileComment[]> {
