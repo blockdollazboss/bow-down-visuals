@@ -11,6 +11,7 @@ import {
   type CartLine,
 } from "@/lib/shops";
 import { usePageTitle } from "@/hooks/use-page-title";
+import ProductReviews from "@/components/product-reviews/ProductReviews";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
@@ -358,7 +359,7 @@ export default function ShopStorefront() {
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelected(null)}>
           <div
-            className={`w-full max-w-lg rounded-2xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/15 bg-[#0c0c0c]"}`}
+            className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-white/15 bg-[#0c0c0c]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {selected.image_url ? (
@@ -398,6 +399,9 @@ export default function ShopStorefront() {
               >
                 {t("shop.addToCart")}
               </button>
+              {/* Verified-purchase reviews for this shop product,
+                  docked in its detail view (Stack-100 #3, #14). */}
+              <ProductReviews productType="shop_product" productId={selected.id} />
             </div>
           </div>
         </div>

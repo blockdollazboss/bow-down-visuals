@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
+import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── My Shop — the customer storefront builder ──────────────────────────
@@ -738,6 +739,11 @@ export default function MyShop() {
                     </div>
                   )}
                 </section>
+
+                {/* Verified-purchase reviews for this shop's products —
+                    respond + flag/hide moderation, docked in the
+                    seller's shop dashboard (Stack-100 #3, #14). */}
+                <SellerReviewsPanel productType="shop_product" heading="Shop reviews" />
 
                 <DiscountCodesCard shop={activeShop} authed={authed} />
 
