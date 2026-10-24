@@ -285,8 +285,8 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        lane's +2 opening-hook keys. Joined Stack-100 #3 total:
        4358 (fan graph + podcast RSS + provenance) + 2 = 4360.
        Plus wave-2 more-provenance: +1 aiUnknown key = 4361.
-       Plus the app-page lane: +47 appPage keys = 4408. */
-    Plus the fan-segments lane: +33 fanSegments keys = 4441. */
+       Plus the app-page lane: +47 appPage keys = 4408.
+       Plus the fan-segments lane: +33 fanSegments keys = 4441. */
     expect(REQUIRED.length).toBe(4441);
   });
 

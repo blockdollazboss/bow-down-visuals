@@ -602,7 +602,7 @@ export default function ShopStorefront() {
                   onChange={(e) => setGiftCardInput(e.target.value)}
                   placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
                   aria-label="Gift card code"
-                  className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                  className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/50 outline-none focus:border-amber-400/60"
                 />
                 <p className="mt-1.5 text-[11px] leading-relaxed text-white/35">
                   Paying with a gift card from this creator? It covers what it can, the rest goes on your card, and what's left stays on the gift card.
