@@ -15,19 +15,28 @@ import {
   PROVIDER_LIMIT_SEC,
   SYNC_LABS_MODEL,
   SYNC_LABS_REMOVED_FIELDS,
+  buildResolutionMeta,
   detectUrlType,
   getActiveKeyVar,
   getLipSyncApiKey,
   getLipSyncProviderName,
   getSyncLabsBase,
   hasMultipleKeys,
-  isLipSyncServerKeyFound,
+  isLipSyncProviderConfigured,
+  normalizeLipSyncProvider,
   normalizeProviderStatus,
   probeUrl,
+  probeVideoDimensions,
   signGetUrl,
   syncLabsStatus,
   uploadAudioToSupabase,
 } from "../lib/sync-labs";
+import {
+  getLatentSyncModel,
+  getWaveSpeedApiKey,
+  normalizeWaveSpeedStatus,
+  waveSpeedStatus,
+} from "../lib/wavespeed";
 import type { UrlType } from "../lib/sync-labs";
 import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
 import {
@@ -82,6 +91,10 @@ function toClientLipSyncJob(job: LipSyncJob) {
     status,
     url: job.resultUrl ?? undefined,
     provider: job.params.provider ?? "sync",
+    /* Provider result metadata (0230): includes input/output dimensions
+       and resolutionReduced when the finishing path probed them — the
+       client can state a smaller-than-submitted result plainly. */
+    resultMeta: job.resultMeta ?? undefined,
     error: job.error?.message,
     code: job.error?.code,
     durationSec: Number.isFinite(durationSec) ? durationSec : undefined,
@@ -104,23 +117,28 @@ router.get("/lip-sync/health", (_req, res) => {
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/status", (_req, res) => {
   const providerName = getLipSyncProviderName();
-  const serverKeyFound = isLipSyncServerKeyFound();
-  const missingKeyMessage =
-    providerName === "sync" && !serverKeyFound
-      ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
-      : !serverKeyFound
-        ? "Lip Sync API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
-        : null;
+  const connected = isLipSyncProviderConfigured(providerName);
+  const missingKeyMessage = connected
+    ? null
+    : providerName === "latentsync"
+      ? "WaveSpeed API key missing. Add WAVESPEED_API_KEY in the server environment."
+      : providerName === "sync"
+        ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in the server environment."
+        : "Lip Sync provider not connected. Add WAVESPEED_API_KEY (default route) or LIP_SYNC_API_KEY in the server environment.";
 
   res.json({
-    connected: serverKeyFound,
+    connected,
     providerName: providerName ?? null,
-    serverKeyFound,
+    serverKeyFound: connected,
     frontendKeyExposed: false,
-    mode: serverKeyFound ? "real" : "mock",
+    mode: connected ? "real" : "mock",
     missingKeyMessage,
     providerLimitSec: PROVIDER_LIMIT_SEC,
-    model: SYNC_LABS_MODEL,
+    model: providerName === "latentsync" ? getLatentSyncModel() : SYNC_LABS_MODEL,
+    /* Per-route readiness, so the effective default is never a surprise:
+       the default route is LatentSync whenever its key is configured. */
+    latentsyncConfigured: isLipSyncProviderConfigured("latentsync"),
+    syncConfigured: isLipSyncProviderConfigured("sync"),
   });
 });
 
@@ -254,8 +272,10 @@ router.get(
         .json({ error: "syncJobId is required", code: "missing_param" });
       return;
     }
-    const apiKey = getLipSyncApiKey();
-    if (!apiKey) {
+    const provider = getLipSyncProviderName();
+    const apiKey =
+      provider === "latentsync" ? getWaveSpeedApiKey() : getLipSyncApiKey();
+    if (!provider || !apiKey) {
       res
         .status(503)
         .json({ error: "Lip Sync API key not configured", code: "no_api_key" });
@@ -263,6 +283,15 @@ router.get(
     }
 
     try {
+      if (provider === "latentsync") {
+        const job = await waveSpeedStatus(syncJobId, apiKey);
+        res.json({
+          status: normalizeWaveSpeedStatus(job), // "pending" | "processing" | "completed" | "failed"
+          outputUrl: job.outputUrl ?? null,
+          error: job.error ?? null,
+        });
+        return;
+      }
       const job = await syncLabsStatus(syncJobId, apiKey);
       res.json({
         status: normalizeProviderStatus(job), // "pending" | "processing" | "completed" | "failed"
@@ -274,7 +303,7 @@ router.get(
       const m = /HTTP (\d+)/.exec(msg);
       if (m) {
         res.status(502).json({
-          error: `Sync.so returned HTTP ${m[1]}`,
+          error: `${provider === "latentsync" ? "WaveSpeed" : "Sync.so"} returned HTTP ${m[1]}`,
           detail: msg.slice(0, 300),
           code: "provider_error",
         });
@@ -335,7 +364,8 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
     checkUrl(clipUrl, "clip"),
   ]);
 
-  const readyToSubmit = audio.found && clip.found && isLipSyncServerKeyFound();
+  const readyToSubmit =
+    audio.found && clip.found && isLipSyncProviderConfigured(getLipSyncProviderName());
 
   /* Payload validation:
      removedFields = fields that WERE in the payload and have been stripped out.
@@ -348,7 +378,7 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
     audio: { url: audioUrl ?? null, ...audio },
     clip: { url: clipUrl ?? null, ...clip },
     provider: {
-      connected: isLipSyncServerKeyFound(),
+      connected: isLipSyncProviderConfigured(getLipSyncProviderName()),
       providerName: getLipSyncProviderName() ?? null,
     },
     payload: {
@@ -486,16 +516,21 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       });
       return;
     }
-    const apiKey = getLipSyncApiKey();
-    if (!apiKey) {
+    /* Fail closed BEFORE any charge when the selected route is not
+       configured: an unconfigured provider must never take a charge and
+       then strand the job. (Provider-side balance failures surface in
+       the poller as provider_balance — see lib/job-poller.ts.) */
+    const provider = getLipSyncProviderName();
+    if (!isLipSyncProviderConfigured(provider)) {
       const msg =
-        getLipSyncProviderName() === "sync"
-          ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
-          : "Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.";
+        provider === "latentsync"
+          ? "WaveSpeed API key missing. Add WAVESPEED_API_KEY in the server environment."
+          : provider === "sync"
+            ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in the server environment."
+            : "Lip Sync provider not connected. Add WAVESPEED_API_KEY (default route) or LIP_SYNC_API_KEY in the server environment.";
       res.status(503).json({ error: msg, code: "provider_not_connected" });
       return;
     }
-    void apiKey;
 
     /* ── Pre-flight: verify audio URL is reachable (fast HEAD check) ── */
     const audioProbe = await probeUrl(audioUrl);
@@ -1394,34 +1429,69 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
       throw new Error(job.error?.message ?? "Lip-sync provider failed.");
     if (Date.now() >= deadline) break;
   }
-  /* Provider-direct recovery: our poller may have given up while Sync.so is
-     still working. Check the provider job directly before failing the scene. */
+  /* Provider-direct recovery: our poller may have given up while the
+     provider is still working. Check the provider job directly before
+     failing the scene — on the sub-job's OWN provider (the id in
+     provider_job_id belongs to whichever route submitted it). */
   const jobRow = await getLipSyncJob(subJobId);
   const syncId = jobRow?.providerJobId;
-  const apiKey = getLipSyncApiKey();
-  if (syncId && apiKey) {
+  const jobProvider =
+    normalizeLipSyncProvider(jobRow?.params.provider) ?? getLipSyncProviderName();
+  const apiKey =
+    jobProvider === "latentsync" ? getWaveSpeedApiKey() : getLipSyncApiKey();
+  if (syncId && apiKey && jobProvider) {
+    const failPrefix =
+      jobProvider === "latentsync" ? "WaveSpeed job failed" : "Sync Labs job failed";
     const recoverUntil = Date.now() + 10 * 60 * 1000;
     while (Date.now() < recoverUntil) {
       await new Promise((r) => setTimeout(r, 15000));
       try {
-        const pj = await syncLabsStatus(syncId, apiKey);
-        const st = normalizeProviderStatus(pj);
-        if (st === "completed" && pj.outputUrl) {
+        let st: string;
+        let outputUrl: string | undefined;
+        let providerError: string | undefined;
+        if (jobProvider === "latentsync") {
+          const pj = await waveSpeedStatus(syncId, apiKey);
+          st = normalizeWaveSpeedStatus(pj);
+          outputUrl = pj.outputUrl;
+          providerError = pj.error;
+        } else {
+          const pj = await syncLabsStatus(syncId, apiKey);
+          st = normalizeProviderStatus(pj);
+          outputUrl = pj.outputUrl;
+          providerError = pj.error;
+        }
+        if (st === "completed" && outputUrl) {
           /* Mirror-on-save (2026-10-13 law): never persist the provider's
              raw CDN URL — re-host first, exactly like the job-poller's
              completion path. */
           const storedUrl =
-            (await mirrorExternalMediaUrl(pj.outputUrl, {
+            (await mirrorExternalMediaUrl(outputUrl, {
               kind: "video",
               ownerKey: jobRow?.userId ?? subJobId,
-            })) ?? pj.outputUrl;
-          await completeLipSyncJob(subJobId, storedUrl);
+            })) ?? outputUrl;
+          /* Same resolution honesty as the poller path: probe the output
+             and record the comparison on the job before completing it. */
+          const outputDims = await probeVideoDimensions(outputUrl);
+          const metaIn = jobRow?.resultMeta;
+          const inputDims =
+            metaIn &&
+            typeof metaIn["inputWidth"] === "number" &&
+            typeof metaIn["inputHeight"] === "number"
+              ? {
+                  width: metaIn["inputWidth"] as number,
+                  height: metaIn["inputHeight"] as number,
+                }
+              : null;
+          await completeLipSyncJob(subJobId, storedUrl, {
+            ...buildResolutionMeta(inputDims, outputDims),
+            provider: jobProvider,
+          });
           return storedUrl;
         }
         if (st === "failed")
-          throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);
+          throw new Error(`${failPrefix}: ${providerError ?? "unknown error"}`);
       } catch (e) {
-        if (e instanceof Error && e.message.startsWith("Sync Labs job failed"))
+        if (e instanceof Error && e.message.startsWith(failPrefix))
           throw e;
         /* transient — keep polling */
       }
@@ -1813,7 +1883,7 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
         .json({ error: "projectId is required.", code: "missing_project_id" });
       return;
     }
-    if (!isLipSyncServerKeyFound() || !getLipSyncApiKey()) {
+    if (!isLipSyncProviderConfigured(getLipSyncProviderName())) {
       res.status(503).json({
         error: "Lip Sync provider not connected.",
         code: "provider_not_connected",

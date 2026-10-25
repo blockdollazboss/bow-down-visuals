@@ -66,6 +66,10 @@ export interface LipSyncJob {
   params: LipSyncJobParams;
   providerJobId: string | null;
   resultUrl: string | null;
+  /** Provider result metadata (0230): provider/model + probed input and
+      output dimensions + resolutionReduced — the record that keeps a
+      smaller-than-submitted provider output from ever being silent. */
+  resultMeta: Record<string, unknown> | null;
   error: LipSyncJobError | null;
   attempts: number;
   polls: number;
@@ -106,7 +110,7 @@ function db(): DrizzleDb {
   return _dbOverride ?? drizzle(getPool());
 }
 
-const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, artist_vault_id, state, params, provider_job_id, result_url, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, created_at, updated_at`;
+const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, artist_vault_id, state, params, provider_job_id, result_url, result_meta, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, created_at, updated_at`;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (v == null) return null;
@@ -133,6 +137,7 @@ function toLipSyncJob(row: Record<string, unknown>): LipSyncJob {
     params: params ?? { clipUrl: "", audioUrl: "", sceneStartSec: 0, sceneEndSec: 0 },
     providerJobId: row["provider_job_id"] != null ? String(row["provider_job_id"]) : null,
     resultUrl: row["result_url"] != null ? String(row["result_url"]) : null,
+    resultMeta: asRecord(row["result_meta"]),
     error: asRecord(row["error"]) as LipSyncJobError | null,
     attempts: Number(row["attempts"] ?? 0),
     polls: Number(row["polls"] ?? 0),
@@ -220,6 +225,49 @@ export async function claimQueuedJobs(limit: number): Promise<LipSyncJob[]> {
   return (res.rows as Record<string, unknown>[]).map(toLipSyncJob);
 }
 
+/**
+ * Peek at the oldest due queued jobs WITHOUT claiming them. The poller
+ * checks each job's provider key before claiming, so a job whose route
+ * is not configured stays queued and untouched (no attempt burned) —
+ * with two providers behind the switch, the old claim-first flow could
+ * strand the other provider's jobs inside a worker that cannot run them.
+ */
+export async function peekQueuedJobs(limit: number): Promise<LipSyncJob[]> {
+  const res = await db().execute(sql`
+    SELECT ${JOB_COLUMNS} FROM lip_sync_jobs
+    WHERE state = 'queued'
+      AND (next_attempt_at IS NULL OR next_attempt_at <= now())
+    ORDER BY created_at ASC
+    LIMIT ${limit}
+  `);
+  return (res.rows as Record<string, unknown>[]).map(toLipSyncJob);
+}
+
+/**
+ * Merge a patch into the job's result_meta. Used at submit (provider,
+ * model, probed input dimensions) and at completion (output dimensions
+ * + resolutionReduced). Never overwrites sibling keys.
+ *
+ * Read-modify-write in JS rather than a SQL `||` merge: the writers are
+ * phase-exclusive by the job state machine (the submit worker owns the
+ * job while `submitting`, one poll worker owns it while `polling`), and
+ * the pg-mem verification harness cannot execute jsonb `||` — a plain
+ * parameterized UPDATE behaves identically on both.
+ */
+export async function mergeLipSyncJobResultMeta(
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const current = await getLipSyncJob(id).catch(() => undefined);
+  const merged = { ...(current?.resultMeta ?? {}), ...(patch ?? {}) };
+  await db().execute(sql`
+    UPDATE lip_sync_jobs
+    SET result_meta = ${JSON.stringify(merged)}::jsonb,
+        updated_at = now()
+    WHERE id = ${id}
+  `);
+}
+
 /** Submit accepted by the provider: submitting → polling with the provider job id. */
 export async function markJobSubmitted(id: string, providerJobId: string, nextPollInMs: number): Promise<void> {
   const nextPollAt = new Date(Date.now() + nextPollInMs).toISOString();
@@ -279,13 +327,21 @@ export async function getJobsDueForPoll(limit: number): Promise<LipSyncJob[]> {
   return (res.rows as Record<string, unknown>[]).map(toLipSyncJob);
 }
 
-/** Mark a job done with the provider's output URL. */
-export async function completeLipSyncJob(id: string, resultUrl: string): Promise<void> {
+/** Mark a job done with the provider's output URL (and, when the caller
+    probed the output, the resolution metadata merged in the same write). */
+export async function completeLipSyncJob(
+  id: string,
+  resultUrl: string,
+  resultMeta?: Record<string, unknown>,
+): Promise<void> {
   await db().execute(sql`
     UPDATE lip_sync_jobs
     SET state = 'done', result_url = ${resultUrl}, updated_at = now()
     WHERE id = ${id} AND state IN ('submitting', 'polling')
   `);
+  if (resultMeta) {
+    await mergeLipSyncJobResultMeta(id, resultMeta);
+  }
 }
 
 export async function failLipSyncJob(id: string, error: LipSyncJobError): Promise<void> {
@@ -333,9 +389,10 @@ export async function deferSubmitJob(
   id: string,
   backoffMs: number,
   maxDeferrals: number,
+  timeoutErrorOverride?: LipSyncJobError,
 ): Promise<{ deferrals: number; failed: boolean } | null> {
   const nextAttemptAt = new Date(Date.now() + Math.max(backoffMs, 0)).toISOString();
-  const timeoutError: LipSyncJobError = {
+  const timeoutError: LipSyncJobError = timeoutErrorOverride ?? {
     message:
       "Sync.so was at its plan concurrency limit for ~24 hours and the job was not submitted. Try again later or upgrade the Sync.so plan.",
     code: "provider_busy_timeout",

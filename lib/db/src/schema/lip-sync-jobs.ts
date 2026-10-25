@@ -38,6 +38,14 @@ export const lipSyncJobsTable = pgTable("lip_sync_jobs", {
   provider_job_id: text("provider_job_id"),
   /** Provider-reported output URL on success. */
   result_url: text("result_url"),
+  /**
+   * Provider result metadata (migration 0230): provider + model, the
+   * input dimensions probed at submit time, the output dimensions probed
+   * at completion, and resolution_reduced — so a provider that returns a
+   * smaller frame than it was given (LatentSync does) can never do so
+   * silently. NULL until a submit/completion writes it.
+   */
+  result_meta: jsonb("result_meta"),
   /** Normalized error payload on failure. */
   error: jsonb("error"),
   /** How many times a worker has claimed this job for submit. Poison jobs stop at 3. */
