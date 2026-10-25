@@ -8,6 +8,7 @@ import { randomUUID } from "crypto";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { logger } from "./logger";
 import { r2Upload, r2GetSignedUrl, isR2Configured } from "./r2-client";
+import { getWaveSpeedApiKey } from "./wavespeed";
 
 const execFileAsync = promisify(execFile);
 
@@ -50,10 +51,61 @@ export function isLipSyncServerKeyFound(): boolean {
   return !!(key && key.length > 0);
 }
 
-/** Effective provider name: explicit LIP_SYNC_PROVIDER, or "sync" when a key exists. */
-export function getLipSyncProviderName(): string | null {
+/* ── Provider switch ─────────────────────────────────────────────────────
+   Two routes sit behind LIP_SYNC_PROVIDER (owner's verdict, 2026-10-24,
+   judged twice against timed lyrics):
+
+   - "latentsync" — LatentSync via WaveSpeed. The DEFAULT route: it is
+     what new jobs use whenever its key is configured.
+   - "sync" — the direct Sync.so route. Kept as the premium upsell;
+     select it explicitly with LIP_SYNC_PROVIDER=sync.
+
+   An explicit value wins over key detection. An UNRECOGNIZED explicit
+   value resolves to null (fail closed — the routes answer 503
+   provider_not_connected) rather than silently routing jobs somewhere
+   nobody chose. */
+export type LipSyncProviderId = "latentsync" | "sync";
+
+/** Normalize a raw provider string (env value or a job's stored params). */
+export function normalizeLipSyncProvider(
+  raw: string | null | undefined,
+): LipSyncProviderId | null {
+  switch ((raw ?? "").toLowerCase().trim()) {
+    case "latentsync":
+    case "wavespeed":
+    case "latent-sync":
+    case "latent_sync":
+      return "latentsync";
+    case "sync":
+    case "sync-labs":
+    case "synclabs":
+    case "sync.so":
+      return "sync";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Effective provider name: explicit LIP_SYNC_PROVIDER wins; otherwise
+ * LatentSync when the WaveSpeed key is configured, else Sync.so when its
+ * key exists, else null (nothing connected).
+ */
+export function getLipSyncProviderName(): LipSyncProviderId | null {
   const explicit = (process.env["LIP_SYNC_PROVIDER"] ?? "").toLowerCase().trim();
-  return explicit || (isLipSyncServerKeyFound() ? "sync" : null);
+  if (explicit) return normalizeLipSyncProvider(explicit);
+  if (getWaveSpeedApiKey()) return "latentsync";
+  if (isLipSyncServerKeyFound()) return "sync";
+  return null;
+}
+
+/** Is the given provider's server key configured? */
+export function isLipSyncProviderConfigured(
+  provider: LipSyncProviderId | null | undefined,
+): boolean {
+  if (provider === "latentsync") return getWaveSpeedApiKey() !== null;
+  if (provider === "sync") return isLipSyncServerKeyFound();
+  return false;
 }
 
 const SIDECAR = "http://127.0.0.1:1106";
@@ -317,6 +369,72 @@ export async function probeUrl(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/* ── Video dimension probing + resolution honesty ──────────────────────────
+   LatentSync (the default route) is known to return a smaller frame
+   than it was given (clean 5s test, 2026-10-24: 672x1344 in, 432x880
+   out). The owner's hard rule is that savings never come from a silent
+   quality downgrade, so the poller probes the dimensions of the exact
+   clip it submits and of the video the provider returns, and records
+   both on the job (lip_sync_jobs.result_meta, migration 0230). A probe
+   that cannot answer yields null — unknown is recorded as unknown. */
+
+/** ffprobe the first video stream of a remote URL. Null when unprobeable. */
+export async function probeVideoDimensions(
+  url: string,
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height",
+        "-of",
+        "default=noprint_wrappers=1",
+        url,
+      ],
+      { timeout: 15_000 },
+    );
+    const width = Number(/width=(\d+)/.exec(stdout)?.[1]);
+    const height = Number(/height=(\d+)/.exec(stdout)?.[1]);
+    if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+      return { width, height };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export interface LipSyncResolutionMeta {
+  inputWidth: number | null;
+  inputHeight: number | null;
+  outputWidth: number | null;
+  outputHeight: number | null;
+  /** true = provider returned a smaller frame; false = same/larger; null = a probe could not answer. */
+  resolutionReduced: boolean | null;
+}
+
+/** Build the resolution half of a job's result_meta from probed dimensions. */
+export function buildResolutionMeta(
+  input: { width: number; height: number } | null,
+  output: { width: number; height: number } | null,
+): LipSyncResolutionMeta {
+  return {
+    inputWidth: input?.width ?? null,
+    inputHeight: input?.height ?? null,
+    outputWidth: output?.width ?? null,
+    outputHeight: output?.height ?? null,
+    resolutionReduced:
+      input && output
+        ? output.width < input.width || output.height < input.height
+        : null,
+  };
 }
 
 /* ── Supabase storage for trimmed audio segments ─────────────────────────── */

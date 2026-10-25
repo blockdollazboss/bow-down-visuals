@@ -20,6 +20,7 @@ CREATE TABLE lip_sync_jobs (
   params jsonb NOT NULL,
   provider_job_id text,
   result_url text,
+  result_meta jsonb,
   error jsonb,
   attempts integer NOT NULL DEFAULT 0,
   polls integer NOT NULL DEFAULT 0,
