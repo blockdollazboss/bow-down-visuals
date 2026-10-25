@@ -164,8 +164,8 @@ export function actionPoseAt(id: WorldActionId, elapsedMs: number): ActionPose |
       // Come-here leans: three swells of a forward rock inside a
       // swelling envelope, the way you'd wave someone over.
       const env = Math.pow(Math.sin(Math.PI * clamp01(p * 1.04)), 0.7);
-      const rock = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 1.9 - Math.PI / 2);
-      return { tiltX: -0.26 * rock * env, tiltZ: 0, spinY: 0, y: 0.015 * env };
+      const rock = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 2.6 - Math.PI / 2);
+      return { tiltX: -0.28 * rock * env, tiltZ: 0, spinY: 0, y: 0.015 * env };
     }
     case "salute": {
       // A snap to attention: rise a touch, stand tall, hold a
