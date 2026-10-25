@@ -36,6 +36,10 @@ export function DiscordWebhookSettings() {
      loaded, a later failed refresh (after save/disconnect) must NOT
      blank the loaded settings into the error state. */
   const [loadError, setLoadError] = useState(false);
+  /* 503 discord_not_ready (the webhook table isn't on this database
+     yet — migration 0241) is an honest "isn't switched on yet" state,
+     rendered plainly instead of the error card. */
+  const [unavailable, setUnavailable] = useState(false);
   const statusLoadedRef = useRef(false);
 
   async function load() {
@@ -44,6 +48,11 @@ export function DiscordWebhookSettings() {
       const res = await fetch("/api/discord/status", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (res.status === 503) {
+        setUnavailable(true);
+        setLoadError(false);
+        return;
+      }
       if (!res.ok) throw new Error("load failed");
       const s: DiscordStatus = await res.json();
       setStatus(s);
@@ -51,6 +60,7 @@ export function DiscordWebhookSettings() {
       setMentionEveryone(s.mention_everyone);
       statusLoadedRef.current = true;
       setLoadError(false);
+      setUnavailable(false);
     } catch {
       if (!statusLoadedRef.current) setLoadError(true);
     }
@@ -120,7 +130,11 @@ export function DiscordWebhookSettings() {
         Your webhook URL is encrypted on our servers and never shown again after saving.
       </p>
 
-      {loadError ? (
+      {unavailable ? (
+        <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.05] p-4 text-sm text-amber-100/80">
+          Discord announcements aren't switched on for this site yet — this card will open once they're ready.
+        </div>
+      ) : loadError ? (
         <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
           <AlertTriangle className="mx-auto h-10 w-10 text-primary" />
           <p className={`mt-3 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>Couldn't load your Discord settings.</p>

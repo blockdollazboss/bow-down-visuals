@@ -57,6 +57,10 @@ export function SocialProofSettings() {
   const [state, setState] = useState<ProofState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  /* 503 social_proof_not_ready (a backing table isn't on this database
+     yet — migration 0241) is an honest "isn't switched on yet" state,
+     rendered plainly — never the broken error card. */
+  const [unavailable, setUnavailable] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -77,9 +81,15 @@ export function SocialProofSettings() {
     setLoading(true);
     try {
       const res = await authedFetch("/api/social-proof/me");
+      if (res.status === 503) {
+        setUnavailable(true);
+        setLoadError(false);
+        return;
+      }
       if (!res.ok) throw new Error("load failed");
       setState((await res.json()) as ProofState);
       setLoadError(false);
+      setUnavailable(false);
     } catch {
       setLoadError(true);
     } finally {
@@ -95,11 +105,17 @@ export function SocialProofSettings() {
         const res = await fetch("/api/social-proof/me", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!cancelled && res.status === 503) {
+          setUnavailable(true);
+          setLoadError(false);
+          return;
+        }
         if (!res.ok) throw new Error("load failed");
         const data = (await res.json()) as ProofState;
         if (!cancelled) {
           setState(data);
           setLoadError(false);
+          setUnavailable(false);
         }
       } catch {
         if (!cancelled) setLoadError(true);
@@ -190,6 +206,8 @@ export function SocialProofSettings() {
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : unavailable ? (
+        <p className={`mt-4 text-sm ${sub}`}>{t("social-proof.notReady")}</p>
       ) : loadError ? (
         <div className="py-6 text-center">
           <AlertTriangle className="mx-auto h-6 w-6 text-amber-400" />

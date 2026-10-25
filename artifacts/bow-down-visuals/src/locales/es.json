@@ -5589,6 +5589,7 @@
     "refreshError": "La actualización no se completó. Inténtalo de nuevo.",
     "saveError": "Ese cambio no se guardó. Inténtalo de nuevo.",
     "loadError": "Tu prueba social no se pudo cargar.",
+    "notReady": "La prueba social aún no está activada en este sitio — vuelve pronto.",
     "retry": "Reintentar",
     "noProfile": "La prueba social vive en tu perfil de creador.",
     "noProfileCta": "Crea tu perfil",

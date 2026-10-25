@@ -5747,6 +5747,7 @@
     "refreshError": "L'actualisation n'a pas abouti. Réessayez.",
     "saveError": "Ce réglage ne s'est pas enregistré. Réessayez.",
     "loadError": "Votre preuve sociale n'a pas pu se charger.",
+    "notReady": "La preuve sociale n'est pas encore activée sur ce site — revenez bientôt.",
     "retry": "Réessayer",
     "noProfile": "La preuve sociale vit sur votre profil de créateur.",
     "noProfileCta": "Créer votre profil",

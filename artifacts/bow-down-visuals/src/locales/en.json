@@ -5836,6 +5836,7 @@
     "refreshError": "The refresh didn't go through. Give it another shot.",
     "saveError": "That switch didn't save. Give it another shot.",
     "loadError": "Your social proof wouldn't load.",
+    "notReady": "Social proof isn't switched on for this site yet — check back soon.",
     "retry": "Try again",
     "noProfile": "Social proof lives on your creator profile.",
     "noProfileCta": "Create your profile",
