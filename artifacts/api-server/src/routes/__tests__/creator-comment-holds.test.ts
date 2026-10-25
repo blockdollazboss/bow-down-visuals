@@ -245,7 +245,11 @@ describe("media POST under the owner's comment controls", () => {
     h.state.mediaComments = [{ id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", kind: "track", mediaId: TRACK_ID, authorUserId: FAN, body: "earlier", status: "public", createdAt: new Date() }];
     const { json } = await post(`/media/track/${TRACK_ID}/comments`, { body: "clean return" });
     expect(json.comment.status).toBe("public");
-    expect(h.state.executeCalls).toBe(1);
+    // Exactly 2 raw executes: 1 = the counter bump itself (a double
+    // bump would make this 3), +1 = the keyword-automations rules
+    // read, which fires fire-and-forget once a comment lands public
+    // (migration 0232). Held comments fire neither — see the 0 above.
+    expect(h.state.executeCalls).toBe(2);
   });
 });
 

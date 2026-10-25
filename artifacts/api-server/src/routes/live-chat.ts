@@ -19,6 +19,7 @@ import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
 import { isTicketed, canEnterStream, ticketDoorInfo, countActiveTickets } from "../lib/live-tickets";
 import { sweepIfLarge } from "../lib/sweep-map";
 import { awardChatPoints } from "../lib/loyalty";
+import { queueKeywordComment } from "../lib/keyword-automations";
 import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
 import { evaluateAutomod } from "../lib/automod";
 
@@ -374,6 +375,16 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
     // Loyalty (Stack 9 #6): chatting earns the channel's points —
     // fire-and-forget, it can never fail the message itself.
     void awardChatPoints(userId, stream.profile_id, stream.user_id);
+    /* Keyword automations (Wave 4 #32): a chat message carrying the
+       streamer's keyword fires their rule — fire-and-forget, same
+       contract as the loyalty award above. */
+    queueKeywordComment({
+      ownerUserId: stream.user_id,
+      commenterUserId: userId,
+      body,
+      surface: "live",
+      surfaceRefId: stream.id,
+    });
     res.status(201).json({ message: dto });
   } catch (err) {
     logger.error({ err }, "live chat post failed");

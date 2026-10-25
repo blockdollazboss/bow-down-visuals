@@ -35,6 +35,7 @@ import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-rec
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { queueKeywordComment } from "../lib/keyword-automations";
 
 /* Mirror-on-save (2026-10-13 law): post attachments, story media and
    highlight covers are re-hosted into permanent storage at save time.
@@ -2177,6 +2178,18 @@ router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request
     if (pa && pa.userId !== req.userId) {
       await notifyUser(pa.userId, "post_reply", `${me.displayName} replied to you 💬`,
         parsed.data.body.slice(0, 120), postNotificationLink(post.id));
+    }
+    /* Keyword automations (Wave 4 #32): a reply carrying the post
+       owner's keyword fires their rule — fire-and-forget, it can
+       never fail the reply that landed. */
+    if (pa) {
+      queueKeywordComment({
+        ownerUserId: pa.userId,
+        commenterUserId: req.userId!,
+        body: parsed.data.body,
+        surface: "post",
+        surfaceRefId: parent.id,
+      });
     }
     const [enriched] = await enrichPosts([post], req.userId!);
     return res.status(201).json({ post: enriched });

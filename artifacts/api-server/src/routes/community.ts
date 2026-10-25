@@ -35,6 +35,7 @@ import {
 } from "../lib/fan-tier-gate";
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { queueDmEmailCapture } from "../lib/keyword-automations";
 import {
   refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl,
   uploadMediaToSupabaseStorage, isStorageRef,
@@ -1975,6 +1976,11 @@ router.post("/dm/:id/send", requireAuth, dmSendLimiter, async (req, res) => {
     } catch (draftErr) {
       console.error("[community] send landed but the draft clear failed", draftErr);
     }
+    /* Keyword automations (Wave 4 #32): if this sender is a fan with
+       a pending email capture in this thread and the message carries
+       an address, the capture rail files it into the creator's list.
+       Fire-and-forget — it can never fail the send that landed. */
+    queueDmEmailCapture({ senderUserId: userId, conversationId: conv.id, body });
     res.status(201).json({ message: msg ? await toMessageDtoFresh(msg) : msg });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Keep it under 2000 characters." }); return; }

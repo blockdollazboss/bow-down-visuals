@@ -114,6 +114,7 @@ import {
   type CreatorCommentSettings,
 } from "../lib/comment-controls";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { queueKeywordComment } from "../lib/keyword-automations";
 import { emitNewFollowerWebhook } from "../lib/api-webhooks";
 import { resolvePaidPlan } from "../lib/profile-website";
 
@@ -1754,6 +1755,17 @@ router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
       if (!isMissingCommentControlsSchema(insertErr)) throw insertErr;
       [comment] = await db.insert(profileCommentsTable).values(baseValues).returning();
     }
+    /* Keyword automations (Wave 4 #32): a PUBLIC wall comment carrying
+       the profile owner's keyword fires their rule — fire-and-forget. */
+    if (decision.status === "public") {
+      queueKeywordComment({
+        ownerUserId: profile.userId,
+        commenterUserId: req.userId!,
+        body: parsed.data.body,
+        surface: "wall",
+        surfaceRefId: profile.id,
+      });
+    }
     const authors = await authorProfileMap([comment.authorUserId]);
     await notify(profile.userId, {
       kind: decision.status === "held" ? "comment_held" : "comment",
@@ -1859,6 +1871,18 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
     }
     if (decision.status === "public") {
       await bumpCounter(kind, media.id, "comment");
+      /* Keyword automations (Wave 4 #32): a PUBLIC media comment
+         carrying the owner's keyword fires their rule (shorts are
+         videos on this rail) — fire-and-forget. */
+      if (ownerProfileForSettings) {
+        queueKeywordComment({
+          ownerUserId: ownerProfileForSettings.userId,
+          commenterUserId: req.userId!,
+          body: parsed.data.body,
+          surface: "media",
+          surfaceRefId: media.id,
+        });
+      }
     }
     const profile = ownerProfileForSettings;
     const commentAuthors = await authorProfileMap([comment.authorUserId]);

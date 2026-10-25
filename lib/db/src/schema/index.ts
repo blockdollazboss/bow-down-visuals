@@ -109,6 +109,7 @@ export * from "./viral-spike-watch";
 export * from "./creator-stories-posts";
 export * from "./creator-shorts";
 export * from "./community";
+export * from "./keyword-automations";
 export * from "./digital-sales";
 export * from "./storefront";
 export * from "./affiliates";
