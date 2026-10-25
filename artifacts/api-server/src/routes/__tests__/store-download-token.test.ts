@@ -210,6 +210,23 @@ vi.mock("@workspace/db", async (importOriginal) => {
         h.state.mintedToken = String(params[0]);
         return { rows: [] };
       }
+      // Delivery gate (Wave 4 #35): the handler pre-reads the link row
+      // (sale + file + expiry) before burning a use — answer it from
+      // the captured mint, exactly as Postgres would.
+      if (text.includes("FROM download_links") && text.includes("used_count")) {
+        const ins = h.state.linkInserts.find((i) => i.token === String(params[0]));
+        if (!ins) return { rows: [] };
+        return {
+          rows: [
+            {
+              sale_id: ins.saleId,
+              file_url: ins.fileUrl,
+              expires_at: ins.expiresAt,
+              used_count: 0,
+            },
+          ],
+        };
+      }
       // resolveSellableItem — keyed on its unique `AS file_url` projection.
       if (text.includes("AS file_url")) {
         return { rows: [h.state.itemGone ? { ...sellableRow(), is_published: false } : sellableRow()] };
