@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart } from "lucide-react";
+import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { apiJson, type Attachment, type FeedPost } from "@/lib/social-api";
@@ -37,7 +37,12 @@ export function Composer({
   const [pollOpen, setPollOpen] = useState(false);
   const [pollDraft, setPollDraft] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
-  const [audience, setAudience] = useState<"public" | "followers" | "close_friends">("public");
+  const [audience, setAudience] = useState<"public" | "followers" | "close_friends" | "members">("public");
+  /* Members audience (Wave 4 #33): the floor tier on MY OWN fan-club
+     ladder — null = every member. My tiers load lazily the first time
+     the Members audience is picked (GET /api/memberships/tiers). */
+  const [minTierId, setMinTierId] = useState<string | null>(null);
+  const [myTiers, setMyTiers] = useState<Array<{ id: string; name: string }> | null>(null);
   const [urlDraft, setUrlDraft] = useState("");
   const [showUrlBox, setShowUrlBox] = useState(false);
   const [urlMode, setUrlMode] = useState<"media" | "product" | "track" | "event">("media");
@@ -55,6 +60,20 @@ export function Composer({
 
   function addAttachment(a: Attachment) {
     setAttachments((prev) => (prev.length >= 10 ? prev : [...prev, a]));
+  }
+
+  async function loadMyTiers() {
+    if (myTiers !== null) return;
+    try {
+      const data = await apiJson<{ tiers: Array<{ id: string; name: string; isActive?: boolean }> }>(
+        getAccessToken,
+        "/api/memberships/tiers",
+        { method: "GET" },
+      );
+      setMyTiers((data.tiers ?? []).filter((t) => t.isActive !== false).map((t) => ({ id: t.id, name: t.name })));
+    } catch {
+      setMyTiers([]);
+    }
   }
 
   /* King tray: stickers insert their :shortcode: at the caret (stored
@@ -156,6 +175,7 @@ export function Composer({
         kind: quoteOf ? "quote" : "post",
         quote_of: quoteOf?.id ?? null,
         audience,
+        min_tier_id: audience === "members" ? minTierId : null,
         scheduled_for: scheduledFor || null,
       };
       if (pollOptions.length >= 2) payload.poll = pollOptions;
@@ -397,7 +417,34 @@ export function Composer({
           <button onClick={() => setAudience("close_friends")} className={`flex items-center gap-1 px-3 py-1.5 ${audience === "close_friends" ? "bg-[#d4af37] font-bold text-black" : "text-neutral-400"}`} title="Only your close-friends circle can see it — manage the list on your feed page">
             <Heart className="h-3.5 w-3.5" /> Close friends
           </button>
+          <button onClick={() => { setAudience("members"); void loadMyTiers(); }} className={`flex items-center gap-1 px-3 py-1.5 ${audience === "members" ? "bg-[#d4af37] font-bold text-black" : "text-neutral-400"}`} title="Only your fan-club members can read it — everyone else sees a locked teaser with the join door">
+            <Crown className="h-3.5 w-3.5" /> Members
+          </button>
         </div>
+        {audience === "members" && (
+          <div className="flex w-full items-center gap-2 text-xs text-neutral-400">
+            <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" />
+            {myTiers === null ? (
+              <span>Loading your tiers…</span>
+            ) : myTiers.length === 0 ? (
+              <span>No fan tiers yet — create one under Memberships. Until then, only you can read members posts.</span>
+            ) : (
+              <>
+                <span className="shrink-0">Who can read it:</span>
+                <select
+                  value={minTierId ?? ""}
+                  onChange={(e) => setMinTierId(e.target.value || null)}
+                  className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-1.5 text-xs text-white focus:border-[#d4af37] focus:outline-none"
+                >
+                  <option value="">Every member</option>
+                  {myTiers.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name} and up</option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
+        )}
       </div>}
 
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}

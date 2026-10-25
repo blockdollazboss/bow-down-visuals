@@ -25,6 +25,8 @@ import {
   closeFriendsTable,
   conversationsTable,
   messagesTable,
+  fanTiersTable,
+  fanMembersTable,
   type Attachment,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
@@ -93,7 +95,15 @@ import {
   type TikTokOAuthConfig,
 } from "../lib/social-tiktok";
 import { logger } from "../lib/logger";
-import { audienceVisible, circleAuthorIdsFor, type AudienceContext } from "../lib/close-friends";
+import {
+  audienceVisible,
+  circleAuthorIdsFor,
+  evaluateMemberPost,
+  buildMemberPostLock,
+  type AudienceContext,
+  type MemberPostLock,
+} from "../lib/close-friends";
+import { orderFanTiers } from "../lib/fan-tier-gate";
 import { affinityScore, forYouScore, whyReason } from "../lib/for-you";
 import { deriveCoPostState, isCoPostVisibleInFeed } from "../lib/co-posts";
 import { loadCoPostsGuarded, coAuthorSummaries, fetchProfilesById } from "../lib/co-posts-db";
@@ -1211,7 +1221,7 @@ async function optionalAuth(req: Request): Promise<void> {
 /** Build the read-time audience context for a viewer (Stack 9 #7). */
 async function audienceContext(viewerUserId: string | null): Promise<AudienceContext> {
   if (!viewerUserId) {
-    return { viewerUserId: null, viewerProfileId: null, followedProfileIds: new Set(), circleAuthorUserIds: new Set() };
+    return { viewerUserId: null, viewerProfileId: null, followedProfileIds: new Set(), circleAuthorUserIds: new Set(), memberGates: new Map() };
   }
   const [me, followed, circle] = await Promise.all([
     myProfile(viewerUserId),
@@ -1223,12 +1233,38 @@ async function audienceContext(viewerUserId: string | null): Promise<AudienceCon
     viewerProfileId: me?.id ?? null,
     followedProfileIds: new Set(followed.map((f) => f.profileId)),
     circleAuthorUserIds: circle,
+    memberGates: new Map(),
   };
+}
+
+/** Members-only posts (Wave 4 #33): load fan-club gate data for the
+ *  given authors into the context — each author's tier ladder plus the
+ *  viewer's membership rows with them. Batched (two queries for any
+ *  number of authors) and memoised on the context: an author already
+ *  present is never reloaded. Anonymous viewers load ladders only
+ *  (their member set is empty — the teaser still names the tier). */
+async function loadMemberGates(ctx: AudienceContext, authorUserIds: Iterable<string>): Promise<void> {
+  const wanted = [...new Set(authorUserIds)].filter((id) => id && !ctx.memberGates.has(id));
+  if (wanted.length === 0) return;
+  const [tierRows, memberRows] = await Promise.all([
+    db.select().from(fanTiersTable).where(inArray(fanTiersTable.user_id, wanted)),
+    ctx.viewerUserId
+      ? db.select().from(fanMembersTable).where(
+          and(inArray(fanMembersTable.user_id, wanted), eq(fanMembersTable.fan_user_id, ctx.viewerUserId)),
+        )
+      : Promise.resolve([] as Array<typeof fanMembersTable.$inferSelect>),
+  ]);
+  for (const id of wanted) {
+    ctx.memberGates.set(id, {
+      tiers: orderFanTiers(tierRows.filter((t) => t.user_id === id)),
+      members: memberRows.filter((m) => m.user_id === id),
+    });
+  }
 }
 
 /** Filter post rows through read-time audience enforcement. Author
  *  user ids resolve from the profiles table (posts carry profileId). */
-async function filterVisiblePosts<T extends { profileId: string; audience: string; removedAt?: Date | string | null }>(
+async function filterVisiblePosts<T extends { profileId: string; audience: string; minTierId?: string | null; removedAt?: Date | string | null }>(
   rows: T[],
   ctx: AudienceContext,
   profilesById?: Map<string, { userId: string }>,
@@ -1240,6 +1276,16 @@ async function filterVisiblePosts<T extends { profileId: string; audience: strin
     const profiles = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, ids));
     byId = new Map(profiles.map((pr) => [pr.id, pr]));
   }
+  /* Members posts (Wave 4 #33) PASS this filter for every viewer —
+     full for qualifying members, the locked teaser for everyone else;
+     enrichPosts makes that call per post. Loading the gate data here
+     means the teaser decision never has to guess. Removed members
+     posts still leave every list, like any removed item. */
+  const memberAuthorIds = rows
+    .filter((r) => r.audience === "members" && !r.removedAt)
+    .map((r) => byId!.get(r.profileId)?.userId)
+    .filter((x): x is string => !!x);
+  if (memberAuthorIds.length) await loadMemberGates(ctx, memberAuthorIds);
   return rows.filter((r) => {
     /* Moderation removal (Stack-4): list surfaces never serve a
        removed item — not even to its author. The author's honest
@@ -1247,8 +1293,9 @@ async function filterVisiblePosts<T extends { profileId: string; audience: strin
        (postVisibleTo), which attaches the moderation state. */
     if (r.removedAt) return false;
     const author = byId!.get(r.profileId);
-    if (!author) return r.audience !== "close_friends" && r.audience !== "followers" ? true : false;
-    return audienceVisible(r.audience, { userId: author.userId, profileId: r.profileId }, ctx);
+    if (!author) return r.audience !== "close_friends" && r.audience !== "followers" && r.audience !== "members";
+    if (r.audience === "members") return true; // full or teaser — enrichPosts decides
+    return audienceVisible(r.audience, { userId: author.userId, profileId: r.profileId }, ctx, { minTierId: r.minTierId ?? null });
   });
 }
 
@@ -1288,9 +1335,14 @@ async function filterCoPostVisible<T extends { id: string }>(rows: T[]): Promise
   });
 }
 
-/** One post's read-time visibility for a viewer (Stack 9 #7). */
+/** One post's read-time FULL-access visibility for a viewer (Stack 9
+ *  #7). For a members post (Wave 4 #33) this is the qualifying-member
+ *  test only — a non-qualifying viewer is NOT fully visible-to here;
+ *  the single-post read serves them the locked teaser instead, while
+ *  every other consumer of this predicate (replies, drafts, quote and
+ *  repost writes) correctly treats the post as not theirs to touch. */
 async function postVisibleTo(
-  post: { id?: string; profileId: string; audience: string; removedAt?: Date | string | null },
+  post: { id?: string; profileId: string; audience: string; minTierId?: string | null; removedAt?: Date | string | null },
   viewerUserId: string | null,
 ): Promise<boolean> {
   if (post.removedAt) {
@@ -1318,7 +1370,8 @@ async function postVisibleTo(
   const [author] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, post.profileId)).limit(1);
   if (!author) return false;
   const ctx = await audienceContext(viewerUserId);
-  return audienceVisible(post.audience, { userId: author.userId, profileId: post.profileId }, ctx);
+  if (post.audience === "members") await loadMemberGates(ctx, [author.userId]);
+  return audienceVisible(post.audience, { userId: author.userId, profileId: post.profileId }, ctx, { minTierId: post.minTierId ?? null });
 }
 
 /* Story DTO, field-by-field: the frontend Story contract
@@ -1436,7 +1489,12 @@ const createPostSchema = z.object({
   quote_of: z.string().uuid().optional().nullable(),
   group_id: z.string().uuid().optional().nullable(),
   scheduled_for: z.string().datetime().optional().nullable(),
-  audience: z.enum(["public", "followers", "close_friends"]).optional().default("public"),
+  audience: z.enum(["public", "followers", "close_friends", "members"]).optional().default("public"),
+  /* Members posts (Wave 4 #33): the minimum fan tier on the AUTHOR's
+     own ladder that opens the post ("this tier and up"). Omitted /
+     null = any member. Validated against the author's own tiers in
+     the handler; stored only for the members audience. */
+  min_tier_id: z.string().uuid().optional().nullable(),
   poll: z.array(z.string().trim().min(1).max(80)).min(2).max(4).optional(),
 });
 
@@ -1479,10 +1537,14 @@ async function enrichPosts(
 
   /* Quoted-post enforcement (Stack 9 #7): a quote EMBEDS another
      post — if the viewer can't see the quoted post, it renders as
-     null, exactly like a deleted quote. */
+     null, exactly like a deleted quote. Members quotes (Wave 4 #33)
+     are NOT judged here: the recursive enrich above already built
+     each quoted post's DTO as full-or-teaser for this viewer, which
+     is the honest embed — a locked members post shows its lock card
+     inside the quote, never its content. */
   const invisibleQuoteIds = new Set<string>();
   if (viewerUserId) {
-    const scopedQuotes = quotes.filter((q) => (q as { audience?: string }).audience && (q as { audience?: string }).audience !== "public");
+    const scopedQuotes = quotes.filter((q) => (q as { audience?: string }).audience && (q as { audience?: string }).audience !== "public" && (q as { audience?: string }).audience !== "members");
     if (scopedQuotes.length) {
       const ctx = await audienceContext(viewerUserId);
       const qProfileIds = [...new Set(scopedQuotes.map((q) => String((q as { profile_id?: string }).profile_id)))];
@@ -1545,12 +1607,104 @@ async function enrichPosts(
     viewerVotes = new Map(vv.map((v) => [v.postId, v.optionId]));
   }
 
+  /* Members-only posts (Wave 4 #33): evaluate the fan-club gate for
+     every members post in the batch. Qualifying members (and the
+     author) get the full DTO below; everyone else gets the locked
+     teaser — body, media, poll and quote embed never leave the
+     server. Evaluated HERE, in the one place every post DTO is
+     built, so no surface can forget: feed, single post, hashtag,
+     saves and quote embeds (via the recursion above) all pass
+     through this map. */
+  const memberLocks = new Map<string, MemberPostLock>();
+  const minTierByPost = new Map<string, { id: string; name: string } | null>();
+  const memberRows = rows.filter((p) => p.audience === "members");
+  if (memberRows.length) {
+    const mctx = await audienceContext(viewerUserId);
+    await loadMemberGates(
+      mctx,
+      memberRows.map((p) => pmap.get(p.profileId)?.userId).filter((x): x is string => !!x),
+    );
+    for (const p of memberRows) {
+      const authorProfile = pmap.get(p.profileId);
+      const gate = authorProfile ? mctx.memberGates.get(authorProfile.userId) : undefined;
+      const minTier = p.minTierId && gate ? gate.tiers.find((t) => t.id === p.minTierId) : undefined;
+      minTierByPost.set(p.id, minTier ? { id: minTier.id, name: minTier.name } : null);
+      if (!authorProfile || !gate) {
+        /* No resolvable author/gate — lock it down rather than guess. */
+        memberLocks.set(p.id, {
+          required_tier: null,
+          creator_user_id: "",
+          join_url: "/memberships",
+          viewer_status: "not_member",
+          viewer_tier: null,
+          message: "This post is for members only. Join the fan club to read it.",
+        });
+        continue;
+      }
+      if (viewerUserId && authorProfile.userId === viewerUserId) continue; // the author reads their own
+      const evaluation = evaluateMemberPost(gate, p.minTierId ?? null);
+      if (!evaluation.hasAccess) {
+        memberLocks.set(p.id, buildMemberPostLock({
+          authorUserId: authorProfile.userId,
+          authorDisplayName: authorProfile.displayName,
+          evaluation,
+        }));
+      }
+    }
+  }
+
   /* Stored media values may be storage refs (mirrored at save) — mint
      fresh URLs for attachments + author avatars on every read. Quoted
      posts arrive already refreshed via the recursive call above. */
   return (await Promise.all(
     rows.map(async (p) => {
       const author = pickProfile(pmap.get(p.profileId));
+      const authorDto = author
+        ? {
+            ...author,
+            avatar_url: author.avatar_url ? await refreshSupabaseStorageUrl(author.avatar_url) : author.avatar_url,
+          }
+        : author;
+      const lock = memberLocks.get(p.id);
+      if (lock) {
+        /* The locked teaser (Wave 4 #33): the post exists, it's
+           members-only, here's the door — and nothing else. The
+           counts are the post's public shape (a locked post on any
+           membership platform shows its shape); the words, the media,
+           the poll and the quote embed are the content, and they
+           stay on the server. */
+        return {
+          id: p.id,
+          profile_id: p.profileId,
+          body: "",
+          media_urls: [],
+          kind: p.kind,
+          reply_to: p.replyTo,
+          quote_of: null,
+          repost_of: p.repostOf,
+          group_id: p.groupId,
+          scheduled_for: p.scheduledFor,
+          audience: p.audience,
+          min_tier_id: p.minTierId ?? null,
+          min_tier: minTierByPost.get(p.id) ?? null,
+          member_lock: lock,
+          like_count: p.likeCount,
+          repost_count: p.repostCount,
+          reply_count: p.replyCount,
+          created_at: p.createdAt,
+          moderation_removed: false,
+          removal_reason: null,
+          is_co_post: coMap.has(p.id),
+          co_post_state: coMap.has(p.id) ? deriveCoPostState(coMap.get(p.id)!) : null,
+          co_authors: coMap.has(p.id) ? coAuthorSummaries(coMap.get(p.id)!, allProfiles) : [],
+          author: authorDto,
+          viewer_emoji: null,
+          viewer_saved: savedSet.has(p.id),
+          reaction_counts: {},
+          quoted: null,
+          poll: null,
+        };
+      }
       /* DTO built field-by-field (the toPublicProfile pattern): the
          frontend contract (FeedPost in lib/social-api.ts) is snake_case
          end to end, so the camelCase table keys must never leak through
@@ -1569,6 +1723,9 @@ async function enrichPosts(
         group_id: p.groupId,
         scheduled_for: p.scheduledFor,
         audience: p.audience,
+        min_tier_id: p.minTierId ?? null,
+        min_tier: minTierByPost.get(p.id) ?? null,
+        member_lock: null,
         like_count: p.likeCount,
         repost_count: p.repostCount,
         reply_count: p.replyCount,
@@ -1589,12 +1746,7 @@ async function enrichPosts(
         is_co_post: coMap.has(p.id),
         co_post_state: coMap.has(p.id) ? deriveCoPostState(coMap.get(p.id)!) : null,
         co_authors: coMap.has(p.id) ? coAuthorSummaries(coMap.get(p.id)!, allProfiles) : [],
-        author: author
-          ? {
-              ...author,
-              avatar_url: author.avatar_url ? await refreshSupabaseStorageUrl(author.avatar_url) : author.avatar_url,
-            }
-          : author,
+        author: authorDto,
         viewer_emoji: viewerEmoji.get(p.id) ?? null,
         viewer_saved: savedSet.has(p.id),
         reaction_counts: countMap.get(p.id) ?? {},
@@ -1927,6 +2079,20 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
       return res.status(400).json({ error: "bad_schedule", message: "Schedule it in the future — the cheat code can't time-travel. 🦈" });
     }
 
+    /* Members posts (Wave 4 #33): the floor tier must be one of the
+       AUTHOR's own fan tiers — a creator can only gate to their own
+       club's ladder. Any other audience stores no floor at all. */
+    let minTierId: string | null = null;
+    if (d.audience === "members" && d.min_tier_id) {
+      const [tier] = await db.select({ id: fanTiersTable.id }).from(fanTiersTable)
+        .where(and(eq(fanTiersTable.id, d.min_tier_id), eq(fanTiersTable.user_id, req.userId!)))
+        .limit(1);
+      if (!tier) {
+        return res.status(400).json({ error: "bad_min_tier", message: "That tier isn't one of yours — pick one of your own fan tiers as the floor, or leave the post open to every member." });
+      }
+      minTierId = d.min_tier_id;
+    }
+
     const [post] = await db.insert(postsTable).values({
       profileId: me.id,
       body: d.body,
@@ -1937,6 +2103,7 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
       groupId: d.group_id ?? null,
       scheduledFor,
       audience: d.audience,
+      minTierId,
     }).returning();
 
     if (d.poll && d.poll.length >= 2 && !scheduledFor) {
@@ -1950,14 +2117,17 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
         .where(eq(postsTable.id, d.reply_to));
     }
 
-    /* @mentions → notify the mentioned creators (their handle links to /artist/:slug). */
+    /* @mentions → notify the mentioned creators (their handle links to /artist/:slug).
+       A members post's words are members-only content (Wave 4 #33): the
+       mention still notifies, but the body excerpt never rides along —
+       the mentioned creator reads the post itself if they qualify. */
     const mentions = extractMentions(d.body);
     if (mentions.length > 0) {
       const mentioned = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.slug, mentions));
       for (const m of mentioned) {
         if (m.userId !== req.userId) {
           await notifyUser(m.userId, "mention", `${me.displayName} mentioned you 📣`,
-            d.body.slice(0, 120), postNotificationLink(post.id));
+            d.audience === "members" ? "" : d.body.slice(0, 120), postNotificationLink(post.id));
         }
       }
     }
@@ -2113,8 +2283,15 @@ router.get("/posts/:id", async (req: Request, res: Response) => {
     const viewer = (req as Request & { userId?: string }).userId ?? null;
     /* Read-time audience enforcement (Stack 9 #7): a scoped post is
        a 404 to anyone outside its audience — its existence doesn't
-       leak either. */
-    if (!(await postVisibleTo(post, viewer))) return res.status(404).json({ error: "not_found" });
+       leak either. Members posts (Wave 4 #33) are the one exception
+       BY DESIGN: a non-qualifying viewer gets the locked teaser (the
+       post exists, it's members-only, here's the door) — enrichPosts
+       builds it; the content itself still never leaves the server.
+       A REMOVED members post keeps the removal law: 404 to everyone
+       but its author. */
+    if (!(await postVisibleTo(post, viewer))) {
+      if (post.removedAt || post.audience !== "members") return res.status(404).json({ error: "not_found" });
+    }
     const [enriched] = await enrichPosts([post], viewer);
     return res.json({ post: enriched });
   } catch {
@@ -2347,6 +2524,11 @@ router.post("/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Reques
     if (!orig) return res.status(404).json({ error: "not_found" });
     if (!(await postVisibleTo(orig, req.userId!))) return res.status(404).json({ error: "not_found" });
     if (orig.audience === "close_friends") return res.status(400).json({ error: "circle_only", message: "Close-friends posts stay in the circle — they can't be reposted or quoted." });
+    /* Members posts (Wave 4 #33): a repost's whole job is carrying a
+       post to the reposter's audience — for a members post that
+       audience was never promised the content. The post stays in the
+       fan club; members read, react and reply in place. */
+    if (orig.audience === "members") return res.status(400).json({ error: "members_only", message: "Members-only posts stay in the fan club — they can't be reposted." });
     const [existing] = await db.select({ id: postsTable.id }).from(postsTable)
       .where(and(eq(postsTable.profileId, me.id), eq(postsTable.repostOf, id))).limit(1);
     if (existing) return res.status(409).json({ error: "already_reposted", post_id: existing.id });
