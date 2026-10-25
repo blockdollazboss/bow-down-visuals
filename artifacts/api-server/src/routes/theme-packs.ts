@@ -2,7 +2,13 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError, CreditsDisabledError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+  CreditsDisabledError,
+} from "../lib/credits";
 import { resolveCreatorTier } from "../middlewares/require-tier";
 import { logger } from "../lib/logger";
 
@@ -34,7 +40,13 @@ import { logger } from "../lib/logger";
       an idempotent success and the insert then lands — the purchase
       heals instead of double-charging.
    4. INSERT … ON CONFLICT DO NOTHING — a lost race inserts nothing;
-      the winner's row stands and both callers converge on owned. */
+      the winner's row stands and both callers converge on owned.
+   5. D5 (payments sweep): if the INSERT itself throws, the charge is
+      refunded in full and the charge's idempotency key is voided
+      before the 500 — the member never sits on a paid-but-unowned
+      pack waiting for a retry that may never come, and the voided
+      key means their next attempt charges fresh exactly once
+      (never double, never free-after-refund). */
 
 export const THEME_PACK_PRICE_VB = 1000;
 export const THEME_PACK_PREMIUM_IDS: ReadonlySet<string> = new Set([
@@ -129,15 +141,43 @@ router.post("/theme-packs/purchase", requireAuth, async (req, res) => {
       }
       throw err;
     }
-    await db.execute(
-      sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb)
-          VALUES (${userId}, ${packId}, ${THEME_PACK_PRICE_VB})
-          ON CONFLICT DO NOTHING`,
-    );
+    try {
+      await db.execute(
+        sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb)
+            VALUES (${userId}, ${packId}, ${THEME_PACK_PRICE_VB})
+            ON CONFLICT DO NOTHING`,
+      );
+    } catch (insertErr) {
+      /* D5 refund leg: the charge landed but ownership didn't. Refund
+         in full, then void the charge's idempotency key so a retry
+         charges fresh (refundCredits alone would leave the key spent
+         and the retry would replay-suppress the charge — a free pack
+         after a refund). If the refund itself fails, the error below
+         still surfaces and the log line carries the reconciliation
+         context. */
+      let refunded = false;
+      try {
+        await refundCredits(userId, THEME_PACK_PRICE_VB, {
+          action: "theme_pack_purchase (ownership record failed refund)",
+        });
+        refunded = true;
+        await voidChargeIdempotencyKey(`theme-pack:${userId}:${packId}`);
+      } catch (refundErr) {
+        logger.error(
+          { err: refundErr, userId, packId },
+          "theme-packs: CRITICAL — ownership insert failed AND refund failed; manual reconciliation required",
+        );
+      }
+      logger.error(
+        { err: insertErr, userId, packId, refunded },
+        "theme-packs: ownership insert failed after charge — charge refunded, purchase aborted",
+      );
+      throw insertErr;
+    }
     res.json({ owned: true, alreadyOwned: false, chargedVb: THEME_PACK_PRICE_VB, balance });
   } catch (err) {
     logger.error({ err, userId, packId }, "theme-packs purchase failed");
-    res.status(500).json({ error: "PURCHASE_FAILED", message: "That purchase hit a snag — check your packs before trying again." });
+    res.status(500).json({ error: "PURCHASE_FAILED", message: "That purchase hit a snag — if you were charged, the Visual Bucs were refunded. Please try again." });
   }
 });
 

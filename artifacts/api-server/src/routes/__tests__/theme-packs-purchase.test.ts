@@ -31,6 +31,8 @@ const h = vi.hoisted(() => ({
   balance: 0,
   charges: [] as Array<{ userId: string; cost: number; key: string | null }>,
   chargedKeys: new Set<string>(),
+  refunds: [] as Array<{ userId: string; cost: number; action: string }>,
+  voided: [] as string[],
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -81,6 +83,17 @@ vi.mock("../../lib/credits", async (importOriginal) => {
       if (key) h.chargedKeys.add(key);
       h.charges.push({ userId, cost, key });
       return h.balance;
+    }),
+    /* D5 refund leg fakes: refund restores the balance and records the
+       reversal; voiding frees the charge's idempotency key (mirrors
+       the real voidChargeIdempotencyKey contract). */
+    refundCredits: vi.fn(async (userId: string, cost: number, rec: { action: string }) => {
+      h.balance += cost;
+      h.refunds.push({ userId, cost, action: rec.action });
+    }),
+    voidChargeIdempotencyKey: vi.fn(async (key: string) => {
+      h.voided.push(key);
+      return h.chargedKeys.delete(key);
     }),
   };
 });
@@ -163,6 +176,8 @@ beforeEach(async () => {
   h.balance = 0;
   h.charges = [];
   h.chargedKeys = new Set();
+  h.refunds = [];
+  h.voided = [];
   await h.db.execute(sql`DELETE FROM theme_pack_purchases`);
   await setTier("none", "active");
 });
@@ -261,5 +276,34 @@ describe("theme pack purchase rail", () => {
 
   it("random uuid import is used (harness sanity)", () => {
     expect(randomUUID()).toBeTruthy();
+  });
+
+  it("D5: an ownership INSERT failure refunds the charge and voids its key", async () => {
+    h.balance = 2500;
+    /* Add a CHECK that rejects this pack, so the pre-charge SELECT
+       works (empty table) but the post-charge INSERT throws — the
+       silent-charge window the refund leg closes. (ALTER, not a table
+       swap: pg-mem keeps a dropped table's pkey index name alive.) */
+    await h.db.execute(sql`
+      ALTER TABLE theme_pack_purchases
+        ADD CONSTRAINT reject_kings_set CHECK (pack_id <> 'kings-set')`);
+    try {
+      const r = await call("POST", "/theme-packs/purchase", { packId: "kings-set" });
+      expect(r.status).toBe(500);
+      expect(r.json.error).toBe("PURCHASE_FAILED");
+      /* Charged once, refunded in full: the member is whole. */
+      expect(h.charges).toHaveLength(1);
+      expect(h.refunds).toEqual([
+        { userId: USER, cost: 1000, action: "theme_pack_purchase (ownership record failed refund)" },
+      ]);
+      expect(h.balance).toBe(2500);
+      /* The charge's idempotency key was voided, so a retry charges
+         fresh exactly once — never suppressed-free after a refund. */
+      expect(h.voided).toEqual([`theme-pack:${USER}:kings-set`]);
+      expect(h.chargedKeys.has(`theme-pack:${USER}:kings-set`)).toBe(false);
+    } finally {
+      await h.db.execute(sql`
+        ALTER TABLE theme_pack_purchases DROP CONSTRAINT reject_kings_set`);
+    }
   });
 });

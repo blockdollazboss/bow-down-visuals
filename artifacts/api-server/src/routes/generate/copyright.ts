@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 
 /* ─── Copyright Filing Assistant ──────────────────────────────────────────
    AI layer for the /copyright page (per the standing "everything AI-powered"
@@ -19,7 +19,12 @@ import { chargeCredits, OutOfCreditsError } from "../../lib/credits";
    The form itself is free UI; only the AI calls cost credits. Both endpoints
    follow the hook-studio money pattern: balance pre-check, deduct BEFORE the
    model call, 402 when broke. Uses max_completion_tokens (GPT-6 does not
-   accept max_tokens). */
+   accept max_tokens).
+
+   D5 (payments sweep): because the deduct lands BEFORE the model call,
+   every post-charge failure path refunds in full — the llc-guide sibling
+   pattern. Before this leg existed, a provider failure (502/503) kept
+   the member's 100 VB for an answer they never got. */
 
 export const COPYRIGHT_DRAFT_CREDITS = Number(process.env["COPYRIGHT_DRAFT_CREDIT_COST"]) || 100;
 export const COPYRIGHT_ASK_CREDITS = Number(process.env["COPYRIGHT_ASK_CREDIT_COST"]) || 100;
@@ -199,13 +204,16 @@ router.post("/copyright/draft", publicApiLimiter, requireAuth, async (req, res) 
 
     res.json({ description, filingNotes, creditsUsed: COPYRIGHT_DRAFT_CREDITS, creditsRemaining });
   } catch (err) {
+    await refundCredits(req.userId!, COPYRIGHT_DRAFT_CREDITS, {
+      action: "Copyright Assistant Draft (provider failure refund)",
+    }).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[copyright] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The assistant is catching its breath — try again in a moment." });
+      res.status(503).json({ error: "The assistant is catching its breath — try again in a moment. (Visual Buc refunded.)" });
       return;
     }
     logger.error({ err }, "[copyright] draft failed");
-    res.status(502).json({ error: "The assistant hiccupped — try again." });
+    res.status(502).json({ error: "The assistant hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 
@@ -243,13 +251,16 @@ router.post("/copyright/ask", publicApiLimiter, requireAuth, async (req, res) =>
 
     res.json({ answer, creditsUsed: COPYRIGHT_ASK_CREDITS, creditsRemaining });
   } catch (err) {
+    await refundCredits(req.userId!, COPYRIGHT_ASK_CREDITS, {
+      action: "Copyright Assistant Ask (provider failure refund)",
+    }).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[copyright] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The assistant is catching its breath — try again in a moment." });
+      res.status(503).json({ error: "The assistant is catching its breath — try again in a moment. (Visual Buc refunded.)" });
       return;
     }
     logger.error({ err }, "[copyright] ask failed");
-    res.status(502).json({ error: "The assistant hiccupped — try again." });
+    res.status(502).json({ error: "The assistant hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 

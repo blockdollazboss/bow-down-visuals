@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { recordGrantLedger, STARTER_GRANT_CREDITS } from "../lib/grant-ledger";
+import { logger } from "../lib/logger";
 import { resolveCreatorTier } from "./require-tier";
 import {
   meetsTier,
@@ -108,7 +110,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         email: user.email ?? "",
         display_name: (user.user_metadata as Record<string, unknown>)?.display_name ?? null,
         plan: "free",
-        credits: 300,
+        credits: STARTER_GRANT_CREDITS,
       })
       .select("credits")
       .single();
@@ -117,13 +119,28 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       console.log(`[requireAuth] insert newProfile=${!!newProfile} insertError=${insertError?.message ?? "none"}`);
     }
 
-    req.userCredits = newProfile?.credits ?? 300;
+    req.userCredits = newProfile?.credits ?? STARTER_GRANT_CREDITS;
     // Genuinely free: this branch is the account's first authed contact
     // (it creates the profile row), so no ladder tier or subscription
     // can exist yet.
     req.userPlan = "free";
 
     if (newProfile) {
+      /* Strict ledger row for the starter grant (board item 58,
+         referral pattern): /credit-history reads credit_usage, so a
+         bare profiles.credits insert leaves the 300 VB invisible there.
+         Keyed `starter-grant:${userId}` — this branch runs exactly once
+         per user, and the keyed row makes any replay a no-op. Auth must
+         never fail over bookkeeping (the King's Welcome rule below), so
+         a failed write is logged loudly for reconciliation instead. */
+      try {
+        await recordGrantLedger("starter", user.id);
+      } catch (ledgerErr) {
+        logger.error(
+          { err: ledgerErr, userId: user.id },
+          "[require-auth] starter grant landed without its ledger row — reconcile from the starter-grant key",
+        );
+      }
       // Brand-new account (this branch runs exactly once per user — when
       // their profile row is first provisioned). The Tom move: Thy Cheat
       // Code becomes their first friend, both directions. Idempotent and
