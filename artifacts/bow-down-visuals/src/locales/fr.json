@@ -5753,7 +5753,41 @@
     "deletePlaceholder": "Tape DELETE pour confirmer",
     "deleteButton": "Supprimer mon compte",
     "deleting": "Suppression…",
-    "deleteError": "La suppression a échoué. Réessaie."
+    "deleteError": "La suppression a échoué. Réessaie.",
+    "sounds": {
+      "title": "Sons",
+      "subtitle": "Vos sons signature — le motif royal qui retentit quand le site s'adresse à vous.",
+      "master": {
+        "title": "Tous les sons",
+        "desc": "L'interrupteur principal. Coupez-le et tout le site devient silencieux — aucun son ne joue nulle part."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "desc": "Un léger carillon quand quelque chose de nouveau arrive dans votre cloche — abonnements, sorties, mentions et plus."
+      },
+      "messages": {
+        "title": "Messages",
+        "desc": "Un toc plus chaleureux quand un nouveau message ou une demande de message arrive."
+      },
+      "successStings": {
+        "title": "Réussites et fanfare royale",
+        "desc": "Le son de réussite quand ce que vous avez créé ou acheté aboutit — et la fanfare royale quand le Roi et le palais prennent la parole."
+      },
+      "errors": {
+        "title": "Erreurs",
+        "desc": "Un ton grave quand quelque chose que le site vous montre tourne mal. Les échecs silencieux en arrière-plan ne font jamais de bruit."
+      },
+      "ringtone": {
+        "title": "Sonnerie d'appel",
+        "desc": "La sonnerie royale pour les appels vidéo entrants."
+      },
+      "deviceNote": "Un appareil en mode silencieux reste silencieux quoi que disent ces interrupteurs — le mode silencieux de votre téléphone ou navigateur gagne toujours.",
+      "saved": "Réglages sonores enregistrés",
+      "saveFailed": "Impossible d'enregistrer les réglages sonores",
+      "loadError": "Vos réglages sonores n'ont pas pu se charger pour le moment.",
+      "retry": "Réessayer",
+      "test": "Jouer un son de test"
+    }
   },
   "social-proof": {
     "title": "Preuve sociale",

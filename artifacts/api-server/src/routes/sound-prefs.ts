@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { requireAuth } from "../middlewares/requireAuth";
-import { publicApiLimiter } from "../middlewares/rate-limit";
+import { requireAuth } from "../middlewares/require-auth";
+import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import {
   drizzleSoundPrefsStore,

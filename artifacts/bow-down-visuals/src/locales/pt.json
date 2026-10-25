@@ -5595,7 +5595,41 @@
     "deletePlaceholder": "Digite DELETE para confirmar",
     "deleteButton": "Excluir minha conta",
     "deleting": "Excluindo…",
-    "deleteError": "Falha na exclusão. Tente novamente."
+    "deleteError": "Falha na exclusão. Tente novamente.",
+    "sounds": {
+      "title": "Sons",
+      "subtitle": "Os seus sons de assinatura — o motivo real que toca quando o site fala consigo.",
+      "master": {
+        "title": "Todos os sons",
+        "desc": "O interruptor principal. Desligue-o e todo o site fica em silêncio — nenhum som toca em lado nenhum."
+      },
+      "notifications": {
+        "title": "Notificações",
+        "desc": "Um toque suave quando algo novo chega ao seu sino — seguidores, lançamentos, menções e mais."
+      },
+      "messages": {
+        "title": "Mensagens",
+        "desc": "Uma batida mais quente quando chega uma nova mensagem ou pedido de mensagem."
+      },
+      "successStings": {
+        "title": "Sucessos e fanfarra real",
+        "desc": "O som de sucesso quando algo que você criou ou comprou se conclui — e a fanfarra real quando o Rei e o palácio falam."
+      },
+      "errors": {
+        "title": "Erros",
+        "desc": "Um tom grave quando algo que o site lhe mostra corre mal. As falhas silenciosas em segundo plano nunca fazem barulho."
+      },
+      "ringtone": {
+        "title": "Toque de chamada",
+        "desc": "O toque real para videochamadas recebidas."
+      },
+      "deviceNote": "Um dispositivo silenciado permanece em silêncio, digam estes interruptores o que disserem — o silêncio do seu telefone ou navegador vence sempre.",
+      "saved": "Definições de som guardadas",
+      "saveFailed": "Não foi possível guardar as definições de som",
+      "loadError": "As suas definições de som não carregaram agora.",
+      "retry": "Tentar de novo",
+      "test": "Reproduzir som de teste"
+    }
   },
   "social-proof": {
     "title": "Prova social",

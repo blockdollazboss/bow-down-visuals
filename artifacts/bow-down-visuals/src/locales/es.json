@@ -5595,7 +5595,41 @@
     "deletePlaceholder": "Escribe DELETE para confirmar",
     "deleteButton": "Eliminar mi cuenta",
     "deleting": "Eliminando…",
-    "deleteError": "La eliminación falló. Inténtalo de nuevo."
+    "deleteError": "La eliminación falló. Inténtalo de nuevo.",
+    "sounds": {
+      "title": "Sonidos",
+      "subtitle": "Tus sonidos insignia: el motivo real que suena cuando el sitio te habla.",
+      "master": {
+        "title": "Todos los sonidos",
+        "desc": "El interruptor principal. Apágalo y todo el sitio queda en silencio: no suena nada en ninguna parte."
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "desc": "Un toque suave cuando algo nuevo llega a tu campana: seguimientos, lanzamientos, menciones y más."
+      },
+      "messages": {
+        "title": "Mensajes",
+        "desc": "Un golpe más cálido cuando llega un mensaje nuevo o una solicitud de mensaje."
+      },
+      "successStings": {
+        "title": "Éxitos y fanfarria real",
+        "desc": "El sonido de éxito cuando algo que creaste o compraste se completa, y la fanfarria real cuando el Rey y el palacio hablan."
+      },
+      "errors": {
+        "title": "Errores",
+        "desc": "Un tono grave cuando algo que el sitio te muestra sale mal. Los fallos silenciosos en segundo plano nunca suenan."
+      },
+      "ringtone": {
+        "title": "Tono de llamada",
+        "desc": "El tono real para las videollamadas entrantes."
+      },
+      "deviceNote": "Un dispositivo en silencio permanece en silencio sin importar estos interruptores: el silencio de tu teléfono o navegador siempre gana.",
+      "saved": "Ajustes de sonido guardados",
+      "saveFailed": "No se pudieron guardar los ajustes de sonido",
+      "loadError": "Tus ajustes de sonido no se pudieron cargar ahora.",
+      "retry": "Intentar de nuevo",
+      "test": "Reproducir sonido de prueba"
+    }
   },
   "social-proof": {
     "title": "Prueba social",
