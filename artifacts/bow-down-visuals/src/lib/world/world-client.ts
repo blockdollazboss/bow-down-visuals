@@ -537,6 +537,36 @@ export function worldGuestSessionId(): string {
   return id;
 }
 
+/** How far (metres, floor plane) the rig may stand from a transfer
+ *  welcome's landing before the transfer counts as a JUMP, not a
+ *  doorway walk. A doorway crossing sends the crossing pose with
+ *  the transfer and the server lands the peer on it (clamped into
+ *  the destination's apron) — the rig already stands within a step
+ *  of the landing. A jump — a directory pick, a room card, a deep
+ *  entry: every enterRoom sent WITHOUT a pose — teleports the
+ *  presence server-side to the room's spawn, tens of metres from
+ *  where the rig stands. */
+export const TRANSFER_RESEAT_DISTANCE_M = 2.5;
+
+/** Whether a landed transfer must re-place the rig on the
+ *  welcome's landing. The scene's room flips on ANY transfer
+ *  welcome (the page's onRoomChanged), but nothing moved the rig
+ *  on a jump: it kept the old room's coordinates, now read against
+ *  the new room — stranded inside its walls and floor, in the
+ *  dark, with no characters in view (the owner's Oct 24 walk:
+ *  tapped into the King's Hall, stood inside the floor). The page
+ *  asks this on every room change and setSpawns the rig when the
+ *  landing is far; doorway walks and same-spot reconnect landings
+ *  measure near zero and are never disturbed. */
+export function transferNeedsReseat(
+  rig: { x: number; z: number },
+  landing: { x: number; z: number },
+): boolean {
+  const dx = landing.x - rig.x;
+  const dz = landing.z - rig.z;
+  return dx * dx + dz * dz > TRANSFER_RESEAT_DISTANCE_M * TRANSFER_RESEAT_DISTANCE_M;
+}
+
 /** The page overlay for a client status — null means "you're inside,
  *  no overlay". Error and full are honest dead-ends with their own
  *  cards; the two lock states are honest dead-ends too (a locked

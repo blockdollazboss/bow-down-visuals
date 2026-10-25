@@ -36,6 +36,7 @@ import {
 import {
   WorldClient,
   worldOverlay,
+  transferNeedsReseat,
   formatLockDuration,
   defaultWorldSocketUrl,
   worldGuestSessionId,
@@ -1699,6 +1700,17 @@ export default function WorldPage() {
         setMyAction(null);
         myActionRef.current = null;
         scene.setRoom(room.id);
+        /* A doorway walk lands where the figure already stands —
+           the crossing pose rode with the transfer. A JUMP (a
+           directory pick, a room card, a deep entry) teleports the
+           presence server-side to the room's spawn while the rig
+           stays at the old room's coordinates: inside the new
+           room's walls, its floor, its dark — the owner's Oct 24
+           walk. When the welcome's landing is far from the rig,
+           place the rig on it: a spawn is a placement, not a walk. */
+        if (client.self && transferNeedsReseat(scene.localPose(), client.self)) {
+          scene.setSpawn(client.self.x, client.self.z);
+        }
         scene.removeAllPeers();
         setScreenPanelOpen(false);
         setSayLog((log) => [

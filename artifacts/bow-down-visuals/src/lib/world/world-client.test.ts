@@ -18,6 +18,8 @@ import { describe, it, expect } from "vitest";
 import {
   WorldClient,
   worldOverlay,
+  transferNeedsReseat,
+  TRANSFER_RESEAT_DISTANCE_M,
   formatLockDuration,
   defaultWorldSocketUrl,
   worldGuestSessionId,
@@ -2067,5 +2069,41 @@ describe("stage tips from seats (Ring 3, item 3.3)", () => {
     const guestRun = await inside({ t: 0 }, { ...SELF, guest: true }, [OTHER]);
     guestRun.client.tipStage(250);
     expect(guestRun.socket.sent).toEqual([]);
+  });
+
+  /* The jump fix (Oct 24): the page re-places the rig on the
+   * welcome's landing when transferNeedsReseat says the transfer
+   * was a jump — before this, a directory pick into the hall left
+   * the rig standing on the plaza in the hall's room state:
+   * inside the floor, no characters, the owner's exact words. */
+  describe("transferNeedsReseat — doorway walk vs jump", () => {
+    it("a doorway landing (the crossing pose, clamped a step in) never reseats", () => {
+      // Rig stands at the hall door apron; the welcome lands it there.
+      expect(transferNeedsReseat({ x: 0, z: 10.9 }, { x: 0, z: 10.4 })).toBe(false);
+      expect(transferNeedsReseat({ x: -14.3, z: -2 }, { x: -15, z: -2 })).toBe(false);
+    });
+
+    it("a reconnect landing on the carried position never reseats", () => {
+      expect(transferNeedsReseat({ x: 3.25, z: 18.75 }, { x: 3.25, z: 18.75 })).toBe(false);
+    });
+
+    it("a directory jump plaza → hall reseats (the Oct 24 bug)", () => {
+      // Rig on the plaza spawn; the hall welcome lands it at the hall door.
+      expect(transferNeedsReseat({ x: 0, z: 31.5 }, { x: 0, z: 9.5 })).toBe(true);
+    });
+
+    it("a deep entry into a creator room reseats", () => {
+      expect(transferNeedsReseat({ x: 0, z: 9.5 }, { x: 14.6, z: 24.6 })).toBe(true);
+    });
+
+    it("the threshold is the named constant, measured on the floor plane", () => {
+      expect(TRANSFER_RESEAT_DISTANCE_M).toBeGreaterThan(1.5);
+      expect(TRANSFER_RESEAT_DISTANCE_M).toBeLessThan(5);
+      const d = TRANSFER_RESEAT_DISTANCE_M;
+      expect(transferNeedsReseat({ x: 0, z: 0 }, { x: d - 0.01, z: 0 })).toBe(false);
+      expect(transferNeedsReseat({ x: 0, z: 0 }, { x: d + 0.01, z: 0 })).toBe(true);
+      // Diagonal distance counts, not per-axis.
+      expect(transferNeedsReseat({ x: 0, z: 0 }, { x: d * 0.8, z: d * 0.8 })).toBe(true);
+    });
   });
 });
