@@ -13,6 +13,17 @@ import {
   type LiveIngestKey,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
+import { verifyAccessToken } from "../lib/live-ws";
+import {
+  isTicketed,
+  ticketDoorInfo,
+  countActiveTickets,
+  canEnterStream,
+  mintPlaybackToken,
+  verifyPlaybackToken,
+  type TicketDoorInfo,
+} from "../lib/live-tickets";
+import { LIVE_TICKET_MIN_VB, LIVE_TICKET_MAX_VB, LIVE_TICKET_MAX_CAPACITY } from "../lib/live-config";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { isUniqueViolation } from "../lib/pg-errors";
@@ -94,6 +105,16 @@ import {
    Going live is FREE at launch: no credit charge exists for
    broadcasting (any running cost is the site's; a streamer charge is an
    owner ruling for later, not something this code invents).
+
+   Ticketed live (Wave 4 #31): create accepts ticket_price_vb +
+   ticket_capacity — the creator sells entry to the show. The door is
+   enforced HERE at the watch surfaces (the DTO withholds playback and
+   the replay from non-entrants; the HLS plane requires the signed
+   playback token the entitled DTO carries; the heartbeat counts only
+   entitled presence) and at the room surfaces in live-chat/live-tips
+   through the one predicate, lib/live-tickets canEnterStream. Buying
+   lives in routes/live-tickets.ts. The public rail and profile
+   surfaces show the door (price, seats) but never playback.
 
    No status webhook: the provider's live-input notifications are
    configured account-wide in its dashboard and carry no per-stream secret
@@ -321,6 +342,21 @@ export interface LiveStreamDto {
   destinations: StreamDestinationDto[];
   creator: LiveCreatorDto | null;
   playback: { whep_url: string | null; hls_url: string | null } | null;
+  /** Ticketed live (Wave 4 #31): the public door facts (price, seats)
+   *  when this stream sells entry; null for a free stream. Door facts
+   *  are public — playback is what a ticket buys, and playback below
+   *  is present only for viewers entitled to enter (see
+   *  resolveStreamAccess). */
+  ticket: TicketDoorInfo | null;
+  /** Whether the viewer this DTO was built for may enter (ticket
+   *  holder, owner, or channel moderator; every viewer of a free
+   *  stream). List surfaces build DTOs with no viewer — a ticketed
+   *  stream reads false there even though its door facts show. */
+  viewer_ticket: boolean;
+  /** Signed own-server playback token, minted for an entitled viewer
+   *  of a ticketed stream (the HLS plane requires it). Null for free
+   *  streams and for viewers without entry. */
+  playback_token: string | null;
 }
 
 export interface LiveStreamOwnerDto extends LiveStreamDto {
@@ -343,16 +379,40 @@ export function toCreatorDto(profile: CreatorProfile | null | undefined): LiveCr
   };
 }
 
+/** One viewer's entry standing for one stream (ticketed live, #31).
+ *  Built by resolveStreamAccess; the DTO builder below is the single
+ *  place door standing turns into what a response may carry: no
+ *  entry, no playback URLs, no replay URL — on every surface that
+ *  uses this builder, lists included. */
+export interface StreamAccess {
+  door: TicketDoorInfo | null;
+  entitled: boolean;
+  playbackToken: string | null;
+}
+
 export function toStreamDto(
   row: LiveStream,
   profile: CreatorProfile | null | undefined,
   liveViewerCount?: number,
+  access?: StreamAccess,
 ): LiveStreamDto {
   const isLive = row.status === "live";
-  const urls = !isLive
+  const ticketed = isTicketed(row);
+  // No access context supplied (internal/test callers): a ticketed
+  // stream is treated as seen by the public — door facts with a zero
+  // count, no entry. Route handlers always resolve real access.
+  const acc: StreamAccess = access ?? {
+    door: ticketed ? ticketDoorInfo(row, 0) : null,
+    entitled: !ticketed,
+    playbackToken: null,
+  };
+  const urls = !isLive || (ticketed && !acc.entitled)
     ? { whep_url: null, hls_url: null }
     : row.provider === "own-server"
-      ? { whep_url: null, hls_url: `/api/live-streams/${row.id}/hls/playlist.m3u8` }
+      ? {
+          whep_url: null,
+          hls_url: `/api/live-streams/${row.id}/hls/playlist.m3u8${ticketed && acc.playbackToken ? `?t=${acc.playbackToken}` : ""}`,
+        }
       : playbackUrlsFromWhip(row.whip_url);
   return {
     id: row.id,
@@ -363,10 +423,16 @@ export function toStreamDto(
     ended_at: iso(row.ended_at),
     viewer_count: isLive ? Math.max(liveViewerCount ?? 0, 0) : 0,
     peak_viewers: row.peak_viewers ?? 0,
-    vod_url: row.vod_url ?? null,
+    // A ticket buys the show; the replay is the show. An ended
+    // ticketed stream's recording stays behind the same door (the
+    // Paid Series precedent: purchased content stays gated).
+    vod_url: ticketed && !acc.entitled ? null : (row.vod_url ?? null),
     destinations: normalizeDestinations(row.destinations),
     creator: toCreatorDto(profile),
     playback: isLive && (urls.whep_url || urls.hls_url) ? urls : null,
+    ticket: acc.door,
+    viewer_ticket: acc.entitled,
+    playback_token: acc.playbackToken,
   };
 }
 
@@ -374,8 +440,39 @@ export function toOwnerDto(
   row: LiveStream,
   profile: CreatorProfile | null | undefined,
   liveViewerCount?: number,
+  access?: StreamAccess,
 ): LiveStreamOwnerDto {
-  return { ...toStreamDto(row, profile, liveViewerCount), whip_url: row.whip_url ?? null };
+  return { ...toStreamDto(row, profile, liveViewerCount, access), whip_url: row.whip_url ?? null };
+}
+
+/** Resolve one viewer's door standing for a stream. Free streams
+ *  short-circuit (no ticket queries, the pre-#31 behavior exactly). */
+export async function resolveStreamAccess(row: LiveStream, viewerId: string | null): Promise<StreamAccess> {
+  if (!isTicketed(row)) return { door: null, entitled: true, playbackToken: null };
+  const sold = await countActiveTickets(row.id);
+  const entitled = await canEnterStream(row, viewerId);
+  return {
+    door: ticketDoorInfo(row, sold),
+    entitled,
+    playbackToken: entitled && viewerId ? mintPlaybackToken(row.id, viewerId) : null,
+  };
+}
+
+/** The owner always holds entry to their own stream. */
+export async function resolveOwnerAccess(row: LiveStream): Promise<StreamAccess> {
+  return resolveStreamAccess(row, row.user_id);
+}
+
+/** Optional viewer identity for the public watch surfaces: a Bearer
+ *  token, when one arrives and verifies (the same verification the
+ *  chat socket uses), names the viewer; anything else is a guest.
+ *  Never rejects — a guest is a legitimate watch-page visitor; the
+ *  door decides what a guest may see. */
+export async function optionalViewerId(req: Request): Promise<string | null> {
+  const header = req.headers["authorization"];
+  if (!header?.startsWith("Bearer ")) return null;
+  const verified = await verifyAccessToken(header.slice(7)).catch(() => null);
+  return verified?.userId ?? null;
 }
 
 /* ── DB helpers ─────────────────────────────────────────────────────────── */
@@ -697,6 +794,13 @@ initRtmpIngest({
 
 const createSchema = z.object({
   title: z.string().trim().min(1, "Give your stream a title").max(200),
+  /* Ticketed live (Wave 4 #31): the pay-per-view door, set here at
+     Go Live setup. ticket_price_vb absent/0 = a free stream; a real
+     price runs LIVE_TICKET_MIN_VB..LIVE_TICKET_MAX_VB (validated in
+     the handler, where the honest error copy lives). Capacity only
+     means anything on a ticketed stream. */
+  ticket_price_vb: z.number().int().min(0).max(LIVE_TICKET_MAX_VB).optional(),
+  ticket_capacity: z.number().int().min(1).max(LIVE_TICKET_MAX_CAPACITY).nullable().optional(),
   /* Optional multistream destinations — stored normalized (site always
      first + active in v1; everything else pending/off, never faked live). */
   destinations: z
@@ -718,6 +822,10 @@ const vodSchema = z.object({
 
 const heartbeatSchema = z.object({
   session_id: z.string().min(8).max(64),
+  /* Ticketed streams: the playback token from the watch DTO proves
+     this presence belongs to an entitled viewer (see the heartbeat
+     handler). Ignored for free streams. */
+  access_token: z.string().max(512).optional(),
 });
 
 /* ── Broadcaster endpoints ──────────────────────────────────────────────── */
@@ -731,7 +839,10 @@ router.get("/live-streams/status", requireAuth, async (req: Request, res: Respon
     res.json({
       configured: isLiveTransportReady(transport),
       transport,
-      live_stream: live && live.status === "live" ? toOwnerDto(live, profile, countViewers(live.id)) : null,
+      live_stream:
+        live && live.status === "live"
+          ? toOwnerDto(live, profile, countViewers(live.id), await resolveOwnerAccess(live))
+          : null,
     });
   } catch (err) {
     logger.error({ err }, "live-streams/status failed");
@@ -754,6 +865,28 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
       res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Give your stream a title." });
       return;
     }
+    /* The ticket door, normalized once for both transports: no price
+       (or 0) = free stream, door columns stay NULL; a real price must
+       clear the ticket floor, and a seat cap needs a price to cap. */
+    const ticketPriceVb =
+      typeof parsed.data.ticket_price_vb === "number" && parsed.data.ticket_price_vb > 0
+        ? parsed.data.ticket_price_vb
+        : null;
+    if (ticketPriceVb !== null && ticketPriceVb < LIVE_TICKET_MIN_VB) {
+      res.status(400).json({
+        error: `Tickets start at ${LIVE_TICKET_MIN_VB} Visual Bucs — below that, the door costs more to run than it takes in.`,
+        code: "TICKET_TOO_CHEAP",
+      });
+      return;
+    }
+    if (ticketPriceVb === null && parsed.data.ticket_capacity != null) {
+      res.status(400).json({
+        error: "A seat limit needs a ticket price — set the price and the limit together.",
+        code: "CAPACITY_NEEDS_PRICE",
+      });
+      return;
+    }
+    const ticketCapacity = ticketPriceVb !== null ? (parsed.data.ticket_capacity ?? null) : null;
     const profile = await getProfileByUserId(req.userId!);
     if (!profile) {
       res.status(400).json({
@@ -769,7 +902,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
         res.status(409).json({
           error: "You're already live. End that stream before starting a new one.",
           code: "ALREADY_LIVE",
-          stream: toOwnerDto(reconciled, profile, countViewers(reconciled.id)),
+          stream: toOwnerDto(reconciled, profile, countViewers(reconciled.id), await resolveOwnerAccess(reconciled)),
         });
         return;
       }
@@ -800,6 +933,8 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
             provider_input_id: null,
             playback_id: null,
             whip_url: null,
+            ticket_price_vb: ticketPriceVb,
+            ticket_capacity: ticketCapacity,
             destinations: sanitizeRequestedDestinations(parsed.data.destinations),
           })
           .returning();
@@ -816,7 +951,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
         }
         // Go-live alerts fan out off the response path (dedupe-safe).
         void fanOutGoLiveAlerts(row, { displayName: profile.displayName, slug: profile.slug });
-        res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
+        res.status(201).json({ stream: toOwnerDto(row, profile, 0, await resolveOwnerAccess(row)) });
         return;
       } catch (err) {
         if (isUniqueViolation(err)) {
@@ -824,7 +959,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           res.status(409).json({
             error: "You're already live. End that stream before starting a new one.",
             code: "ALREADY_LIVE",
-            stream: liveNow ? toOwnerDto(liveNow, profile, countViewers(liveNow.id)) : null,
+            stream: liveNow ? toOwnerDto(liveNow, profile, countViewers(liveNow.id), await resolveOwnerAccess(liveNow)) : null,
           });
           return;
         }
@@ -864,13 +999,15 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           provider_input_id: input.providerInputId,
           playback_id: input.playbackId,
           whip_url: input.whipUrl,
+          ticket_price_vb: ticketPriceVb,
+          ticket_capacity: ticketCapacity,
           destinations: sanitizeRequestedDestinations(parsed.data.destinations),
         })
         .returning();
       const row = inserted[0]!;
       // Go-live alerts fan out off the response path (dedupe-safe).
       void fanOutGoLiveAlerts(row, { displayName: profile.displayName, slug: profile.slug });
-      res.status(201).json({ stream: toOwnerDto(row, profile, 0) });
+      res.status(201).json({ stream: toOwnerDto(row, profile, 0, await resolveOwnerAccess(row)) });
     } catch (err) {
       // Lost a race against the one-live-per-user unique index: clean up
       // the provider input we just made and report the real live stream.
@@ -880,7 +1017,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
         res.status(409).json({
           error: "You're already live. End that stream before starting a new one.",
           code: "ALREADY_LIVE",
-          stream: liveNow ? toOwnerDto(liveNow, profile, countViewers(liveNow.id)) : null,
+          stream: liveNow ? toOwnerDto(liveNow, profile, countViewers(liveNow.id), await resolveOwnerAccess(liveNow)) : null,
         });
         return;
       }
@@ -907,7 +1044,7 @@ router.post("/live-streams/:id/end", requireAuth, async (req: Request, res: Resp
     }
     const profile = await getProfileById(row.profile_id);
     if (row.status === "ended") {
-      res.json({ stream: toStreamDto(row, profile) });
+      res.json({ stream: toStreamDto(row, profile, undefined, await resolveOwnerAccess(row)) });
       return;
     }
     const finalCount = countViewers(row.id);
@@ -923,7 +1060,7 @@ router.post("/live-streams/:id/end", requireAuth, async (req: Request, res: Resp
         logger.warn({ err }, "live-streams end: provider input delete failed (stream already ended locally)");
       });
     }
-    res.json({ stream: toStreamDto(ended, profile) });
+    res.json({ stream: toStreamDto(ended, profile, undefined, await resolveOwnerAccess(ended)) });
   } catch (err) {
     logger.error({ err }, "live-streams end failed");
     res.status(500).json({ error: "Could not end your stream." });
@@ -957,11 +1094,11 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
     }
     const profile = await getProfileById(row.profile_id);
     if (row.vod_url && row.vod_clip_id) {
-      res.json({ stream: toStreamDto(row, profile), clip_id: row.vod_clip_id });
+      res.json({ stream: toStreamDto(row, profile, undefined, await resolveOwnerAccess(row)), clip_id: row.vod_clip_id });
       return;
     }
     const { row: updated, clipId } = await registerStreamVod(row, vodUrl);
-    res.json({ stream: toStreamDto(updated, profile), clip_id: clipId });
+    res.json({ stream: toStreamDto(updated, profile, undefined, await resolveOwnerAccess(updated)), clip_id: clipId });
   } catch (err) {
     logger.error({ err }, "live-streams vod failed");
     res.status(500).json({ error: "Could not save your recording." });
@@ -1228,6 +1365,24 @@ router.get("/live-streams/:id/hls/:file", publicApiLimiter, async (req: Request,
       res.status(404).json({ error: "Not found." });
       return;
     }
+    /* Ticketed live (#31): the media plane is behind the door. Every
+       file — playlist and segments alike — requires the signed
+       playback token the watch DTO minted for an entitled viewer;
+       the playlist is served with the token carried into its segment
+       lines, so a token can't be peeled off the playlist and reused
+       to walk the segments in anonymously. Free streams keep the
+       exact pre-#31 behavior (no token, no rewrite). */
+    let playbackToken: string | null = null;
+    if (isTicketed(row)) {
+      playbackToken = typeof req.query.t === "string" ? req.query.t : null;
+      if (!verifyPlaybackToken(row.id, playbackToken)) {
+        res.status(403).json({
+          error: "This show is ticketed — your ticket opens the feed.",
+          code: "TICKET_REQUIRED",
+        });
+        return;
+      }
+    }
     const filePath = liveFilePath(row.id, name);
     if (!filePath) {
       res.status(404).json({ error: "Not found." });
@@ -1235,6 +1390,19 @@ router.get("/live-streams/:id/hls/:file", publicApiLimiter, async (req: Request,
     }
     res.setHeader("Content-Type", liveFileContentType(name));
     res.setHeader("Cache-Control", name === "playlist.m3u8" ? "no-cache" : "public, max-age=30");
+    if (playbackToken && name === "playlist.m3u8") {
+      const raw = await fs.promises.readFile(filePath, "utf8");
+      const rewritten = raw
+        .split("\n")
+        .map((line) => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) return line;
+          return `${trimmed}${trimmed.includes("?") ? "&" : "?"}t=${playbackToken}`;
+        })
+        .join("\n");
+      res.send(rewritten);
+      return;
+    }
     const stream = fs.createReadStream(filePath);
     stream.on("error", () => {
       if (!res.headersSent) res.status(404).json({ error: "Not found." });
@@ -1263,9 +1431,13 @@ router.get("/live-streams/live", async (_req: Request, res: Response) => {
       ? await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.id, profileIds))
       : [];
     const byId = new Map(profiles.map((p) => [p.id, p]));
-    res.json({
-      streams: rows.map((r) => toStreamDto(r, byId.get(r.profile_id), countViewers(r.id))),
-    });
+    // Public rail: door facts ride along, but a ticketed stream's
+    // playback is never handed out here — entry is resolved per
+    // viewer on the watch page's own GET.
+    const streams = await Promise.all(
+      rows.map(async (r) => toStreamDto(r, byId.get(r.profile_id), countViewers(r.id), await resolveStreamAccess(r, null))),
+    );
+    res.json({ streams });
   } catch (err) {
     logger.error({ err }, "live-streams/live failed");
     res.status(500).json({ error: "Could not load who's live." });
@@ -1282,7 +1454,7 @@ router.get("/live-streams/profile/:slug", async (req: Request, res: Response) =>
     let live = await getLiveStreamForProfile(profile.id);
     if (live) live = await reconcileStale(live);
     res.json({
-      stream: live && live.status === "live" ? toStreamDto(live, profile, countViewers(live.id)) : null,
+      stream: live && live.status === "live" ? toStreamDto(live, profile, countViewers(live.id), await resolveStreamAccess(live, null)) : null,
     });
   } catch (err) {
     logger.error({ err }, "live-streams/profile failed");
@@ -1299,7 +1471,11 @@ router.get("/live-streams/:id", async (req: Request, res: Response) => {
     }
     row = await reconcileStale(row);
     const profile = await getProfileById(row.profile_id);
-    res.json({ stream: toStreamDto(row, profile, countViewers(row.id)) });
+    // The watch door: the viewer's own standing decides whether this
+    // response carries playback (and, for an ended show, the replay).
+    const viewerId = await optionalViewerId(req);
+    const access = await resolveStreamAccess(row, viewerId);
+    res.json({ stream: toStreamDto(row, profile, countViewers(row.id), access) });
   } catch (err) {
     logger.error({ err }, "live-streams get failed");
     res.status(500).json({ error: "Could not load that stream." });
@@ -1321,6 +1497,24 @@ router.post("/live-streams/:id/heartbeat", publicApiLimiter, async (req: Request
     if (row.status !== "live") {
       res.status(410).json({ error: "That stream has ended.", code: "STREAM_ENDED" });
       return;
+    }
+    /* Ticketed live (#31): presence is a room function — only an
+       entitled viewer's heartbeat counts (or samples, or peaks).
+       The playback token is the proof the watch page holds; an
+       entitled session token is accepted too. */
+    if (isTicketed(row)) {
+      let entitled = !!verifyPlaybackToken(row.id, parsed.data.access_token ?? null);
+      if (!entitled) {
+        const viewerId = await optionalViewerId(req);
+        entitled = viewerId ? await canEnterStream(row, viewerId) : false;
+      }
+      if (!entitled) {
+        res.status(403).json({
+          error: "This show is ticketed — your ticket opens the room.",
+          code: "TICKET_REQUIRED",
+        });
+        return;
+      }
     }
     const count = touchViewer(row.id, parsed.data.session_id);
     // Viewer samples for the post-stream summary's average: one row
