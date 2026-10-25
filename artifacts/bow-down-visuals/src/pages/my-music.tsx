@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink, Play } from "lucide-react";
+import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink, Play, KeyRound, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KIND_LABELS } from "./store-buy";
 import { shareDrop } from "@/lib/share-drop";
@@ -29,6 +29,22 @@ interface Purchase {
   artistUrl: string | null;
   /** Series purchases unlock streaming instead of a download. */
   watchUrl?: string | null;
+  /** License keys (Wave 4 #35): the main item's key + every key on
+      the purchase (add-on / bundle components ride `licenses`). */
+  license?: PurchaseLicense | null;
+  licenses?: PurchaseLicense[];
+}
+
+interface PurchaseLicense {
+  id: string;
+  itemKind: string;
+  itemId: string;
+  itemTitle: string;
+  key: string | null;
+  status: "active" | "revoked";
+  maxDownloads: number | null;
+  downloadsUsed: number;
+  downloadsLeft: number | null;
 }
 
 export default function MyMusic() {
@@ -40,6 +56,18 @@ export default function MyMusic() {
   const [error, setError] = useState<string | null>(null);
   const [minting, setMinting] = useState<string | null>(null);
   const [sharedId, setSharedId] = useState<string | null>(null);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
+  async function onCopyKey(lic: PurchaseLicense) {
+    if (!lic.key) return;
+    try {
+      await navigator.clipboard.writeText(lic.key);
+      setCopiedKeyId(lic.id);
+      setTimeout(() => setCopiedKeyId((cur) => (cur === lic.id ? null : cur)), 2000);
+    } catch {
+      /* Clipboard unavailable — the key stays visible to copy by hand. */
+    }
+  }
 
   async function onShare(p: Purchase) {
     const outcome = await shareDrop({
@@ -85,8 +113,10 @@ export default function MyMusic() {
         },
         body: JSON.stringify({ saleId: p.id }),
       });
-      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !body.url) throw new Error(body.error || "Couldn't make a download link.");
+      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
+      /* License blocks (revoked key / spent cap) answer with a plain
+         `message` — surface it word for word. */
+      if (!res.ok || !body.url) throw new Error(body.message || body.error || "Couldn't make a download link.");
       window.location.href = body.url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't make a download link.");
@@ -134,8 +164,9 @@ export default function MyMusic() {
             {purchases.map((p) => (
               <div
                 key={p.id}
-                className={`${isLight ? "flex items-center gap-4 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-4" : "flex items-center gap-4 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-4"}`}
+                className={`${isLight ? "flex flex-col gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-4" : "flex flex-col gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#141004] to-[#0d0a04] p-4"}`}
               >
+               <div className="flex items-center gap-4">
                 {p.artworkUrl ? (
                   <img src={p.artworkUrl} alt={p.title} className="h-16 w-16 rounded-xl object-cover" />
                 ) : (
@@ -192,6 +223,37 @@ export default function MyMusic() {
                     Download
                   </button>
                 )}
+               </div>
+                {(p.licenses ?? []).map((lic) => (
+                  <div
+                    key={lic.id}
+                    className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 ${isLight ? "border-amber-600/25 bg-white/50" : "border-amber-500/15 bg-black/40"}`}
+                  >
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-amber-400/80">
+                      <KeyRound className="h-3.5 w-3.5" /> License key
+                      {(p.licenses?.length ?? 0) > 1 ? ` · ${lic.itemTitle}` : ""}
+                    </span>
+                    <span className="font-mono text-sm tracking-wider text-amber-100">
+                      {lic.key ?? "Key unavailable — contact the creator"}
+                    </span>
+                    {lic.key && (
+                      <button
+                        onClick={() => onCopyKey(lic)}
+                        className="inline-flex items-center gap-1 text-xs text-amber-200/80 hover:text-amber-200"
+                      >
+                        {copiedKeyId === lic.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copiedKeyId === lic.id ? "Copied" : "Copy"}
+                      </button>
+                    )}
+                    <span className={`text-xs ${lic.status === "revoked" ? "font-bold text-red-300" : "text-amber-100/50"}`}>
+                      {lic.status === "revoked"
+                        ? "Revoked — downloads stopped"
+                        : lic.maxDownloads === null
+                          ? `Unlimited downloads · ${lic.downloadsUsed} used`
+                          : `${lic.downloadsLeft} of ${lic.maxDownloads} downloads left`}
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

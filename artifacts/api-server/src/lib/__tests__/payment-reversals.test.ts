@@ -283,6 +283,26 @@ CREATE TABLE download_links (
   expires_at timestamptz NOT NULL,
   used_count integer NOT NULL DEFAULT 0
 );
+CREATE TABLE digital_license_keys (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  sale_id uuid NOT NULL,
+  profile_id uuid NOT NULL,
+  buyer_user_id uuid NOT NULL,
+  item_kind text NOT NULL,
+  item_id uuid NOT NULL,
+  item_title text NOT NULL DEFAULT '',
+  file_url text NOT NULL,
+  key_hash text NOT NULL UNIQUE,
+  key_cipher text NOT NULL,
+  key_suffix text NOT NULL,
+  max_downloads integer,
+  download_count integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'active',
+  revoked_at timestamptz,
+  revoked_reason text,
+  reissue_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -960,6 +980,31 @@ describe("beats / digital / marketplace — access + seller ledger", () => {
     expect(s[0]?.["refunded_at"]).not.toBeNull();
     const link = await q(sql`SELECT expires_at FROM download_links WHERE token = 'tok_1'`);
     expect(new Date(String(link[0]?.["expires_at"])).getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("a refunded digital sale revokes its license key (Wave 4 #35)", async () => {
+    sessionsByPi.set("pi_dk", [{ id: "cs_dk_1", metadata: {} }]);
+    const sale = await q(sql`
+      INSERT INTO digital_sales (buyer_user_id, profile_id, stripe_session_id, amount_cents, creator_amount_cents)
+      VALUES (${BUYER}, ${CREATOR}, 'cs_dk_1', 2000, 1900) RETURNING id
+    `);
+    const saleId = String(sale[0]?.["id"]);
+    await q(sql`
+      INSERT INTO digital_license_keys
+        (sale_id, profile_id, buyer_user_id, item_kind, item_id, item_title, file_url,
+         key_hash, key_cipher, key_suffix, max_downloads, download_count, status)
+      VALUES (${saleId}, ${CREATOR}, ${BUYER}, 'track', gen_random_uuid(), 'Song',
+              'https://files.example/song.mp3', 'hash_dk', 'cipher_dk', 'K7QX2', 3, 1, 'active')
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_dk1", trigger: "charge.refunded",
+      charge: charge({ id: "ch_dk", paymentIntentId: "pi_dk", amountCents: 2000, refundedCents: 2000 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "digital_sale" });
+    const k = await q(sql`SELECT status, revoked_reason, revoked_at FROM digital_license_keys WHERE sale_id = ${saleId}`);
+    expect(k[0]?.["status"]).toBe("revoked");
+    expect(k[0]?.["revoked_reason"]).toBe("refund");
+    expect(k[0]?.["revoked_at"]).not.toBeNull();
   });
 
   it("a refunded BUNDLE sale unwinds its series grant rows — but never the buyer's standalone purchase of the same series", async () => {

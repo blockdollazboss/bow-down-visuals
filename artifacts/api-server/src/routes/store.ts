@@ -1888,83 +1888,95 @@ router.get("/store/download/:token", publicApiLimiter, async (req, res) => {
   }
   try {
     /* License keys (Wave 4 #35): when a key governs this sale + file,
-       the KEY is the entitlement — the per-link cap no longer applies
-       (a keyed purchase's downloads are counted per buyer on the key),
-       and a revoked or cap-spent key blocks the gate outright. The
-       probe keeps a pre-migration database on the legacy statement,
-       byte-identical to before. */
+       the KEY is the entitlement — downloads count per buyer on the
+       key (a single conditional UPDATE, so the cap can never be
+       overshot) and the per-link cap steps aside. The probe keeps a
+       pre-migration database on the legacy statement, byte-identical
+       to before. */
     let keysLive = true;
     try {
       await db.execute(sql`SELECT 1 FROM digital_license_keys LIMIT 0`);
     } catch {
       keysLive = false;
     }
-    /* Atomic: increment only if still valid and under the cap. */
-    const updated = keysLive
-      ? await db.execute(sql`
-          UPDATE download_links
-          SET used_count = used_count + 1
-          WHERE token = ${token}
-            AND expires_at > now()
-            AND (used_count < ${DOWNLOAD_MAX_USES} OR EXISTS (
-                  SELECT 1 FROM digital_license_keys k
-                  WHERE k.sale_id = download_links.sale_id AND k.file_url = download_links.file_url
-                    AND k.status = 'active'))
-            AND NOT EXISTS (
-                  SELECT 1 FROM digital_license_keys k
-                  WHERE k.sale_id = download_links.sale_id AND k.file_url = download_links.file_url
-                    AND (k.status <> 'active'
-                         OR (k.max_downloads IS NOT NULL AND k.download_count >= k.max_downloads)))
-          RETURNING file_url, expires_at, used_count, sale_id
-        `)
-      : await db.execute(sql`
-          UPDATE download_links
-          SET used_count = used_count + 1
-          WHERE token = ${token}
-            AND expires_at > now()
-            AND used_count < ${DOWNLOAD_MAX_USES}
-          RETURNING file_url, expires_at, used_count, sale_id
-        `);
-    const row = updated.rows[0] as Record<string, unknown> | undefined;
-    if (!row) {
-      /* Say WHY, honestly: a keyed purchase names its real blocker
-         (revoked key / spent cap) instead of the generic link story. */
-      let message = "This link expired (48 hours) or hit its 5-download limit. Your purchase is safe — mint a fresh link from My Music.";
-      if (keysLive) {
-        try {
-          const diag = await db.execute(sql`
-            SELECT sale_id, file_url FROM download_links WHERE token = ${token} LIMIT 1
-          `);
-          const drow = diag.rows[0] as Record<string, unknown> | undefined;
-          if (drow) {
-            const key = await getLicenseKeyForDownload(String(drow["sale_id"]), String(drow["file_url"]));
-            if (key && key.status === "revoked") {
-              message = "This purchase's license key has been revoked, so downloads are stopped. If you bought this and think that's a mistake, contact the creator.";
-            } else if (key && key.max_downloads !== null && key.download_count >= key.max_downloads) {
-              message = `You've used all ${key.max_downloads} downloads included with this purchase. Your purchase and key are safe in My Music — if you need more, ask the creator to re-issue your key.`;
-            }
-          }
-        } catch {
-          /* Diagnosis is best-effort; the generic message stands. */
-        }
-      }
-      res.status(410).send(downloadPageHtml({ ok: false, message }));
+    const legacyGone = () =>
+      res.status(410).send(
+        downloadPageHtml({
+          ok: false,
+          message: "This link expired (48 hours) or hit its 5-download limit. Your purchase is safe — mint a fresh link from My Music.",
+        })
+      );
+    /* Read the link first (no burn yet): the key lookup needs its
+       sale + file, and the failure page needs to name the real
+       blocker — link expiry, key revocation, or a spent cap. */
+    const linkRows = await db.execute(sql`
+      SELECT sale_id, file_url, expires_at, used_count FROM download_links
+      WHERE token = ${token} LIMIT 1
+    `);
+    const linkRow = linkRows.rows[0] as Record<string, unknown> | undefined;
+    if (!linkRow) {
+      legacyGone();
       return;
     }
-    /* Count the served download against the governing key (a single
-       conditional UPDATE — the gate above already authorized this
-       download atomically; if a revoke raced in between, the count
-       simply doesn't move and the serve stands). */
+    const licKey = keysLive
+      ? await getLicenseKeyForDownload(String(linkRow["sale_id"]), String(linkRow["file_url"]))
+      : null;
+    let row: Record<string, unknown> | undefined;
     let keyMetaNote: string | undefined;
-    if (keysLive) {
-      const licKey = await getLicenseKeyForDownload(String(row["sale_id"]), String(row["file_url"]));
-      if (licKey) {
-        const noted = await noteLicenseDownload(licKey.id);
-        if (noted) {
-          keyMetaNote = noted.maxDownloads === null
-            ? "Unlimited downloads with your license key"
-            : `${Math.max(0, noted.maxDownloads - noted.downloadCount)} of ${noted.maxDownloads} license downloads left`;
-        }
+    if (licKey) {
+      if (new Date(String(linkRow["expires_at"])).getTime() <= Date.now()) {
+        legacyGone();
+        return;
+      }
+      /* Count FIRST, atomically, on the key: a revoked or cap-spent
+         key refuses here and no link use is burned. */
+      const noted = await noteLicenseDownload(licKey.id);
+      if (!noted) {
+        res.status(410).send(
+          downloadPageHtml({
+            ok: false,
+            message: licKey.status === "revoked"
+              ? "This purchase's license key has been revoked, so downloads are stopped. If you bought this and think that's a mistake, contact the creator."
+              : `You've used all ${licKey.max_downloads} downloads included with this purchase. Your purchase and key are safe in My Music — if you need more, ask the creator to re-issue your key.`,
+          })
+        );
+        return;
+      }
+      keyMetaNote = noted.maxDownloads === null
+        ? "Unlimited downloads with your license key"
+        : `${Math.max(0, noted.maxDownloads - noted.downloadCount)} of ${noted.maxDownloads} license downloads left`;
+      const burned = await db.execute(sql`
+        UPDATE download_links
+        SET used_count = used_count + 1
+        WHERE token = ${token} AND expires_at > now()
+        RETURNING file_url, expires_at, used_count, sale_id
+      `);
+      row = burned.rows[0] as Record<string, unknown> | undefined;
+      if (!row) {
+        /* The link expired in the same instant: give the count back
+           so the buyer's cap is never spent on an undelivered file. */
+        await db.execute(sql`
+          UPDATE digital_license_keys SET download_count = download_count - 1
+          WHERE id = ${licKey.id} AND download_count > 0
+        `);
+        legacyGone();
+        return;
+      }
+    } else {
+      /* Legacy rail, unchanged: atomic increment only if still valid
+         and under the per-link cap. */
+      const updated = await db.execute(sql`
+        UPDATE download_links
+        SET used_count = used_count + 1
+        WHERE token = ${token}
+          AND expires_at > now()
+          AND used_count < ${DOWNLOAD_MAX_USES}
+        RETURNING file_url, expires_at, used_count, sale_id
+      `);
+      row = updated.rows[0] as Record<string, unknown> | undefined;
+      if (!row) {
+        legacyGone();
+        return;
       }
     }
     /* Item title/artist for the branded page. */
