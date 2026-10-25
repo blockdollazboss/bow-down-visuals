@@ -39,6 +39,7 @@ import { FloatingStarLevel } from "@/components/layout/floating-star-level";
 import { FloatingAdminPanel } from "@/components/layout/floating-admin-panel";
 import { FloatingLanguageSwitcher } from "@/components/layout/floating-language-switcher";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { FeedbackPromptHost } from "@/components/FeedbackPromptHost";
 import { LiveBadge } from "@/components/LiveBadge";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -207,6 +208,7 @@ const Earnings = lazyWithRetry(() => import("@/pages/earnings"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
+const PitchFixPage = lazyWithRetry(() => import("@/pages/pitch-fix"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
 const StorefrontProduct = lazyWithRetry(() => import("@/pages/storefront-product"));
@@ -436,6 +438,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
         <FloatingAdminPanel />
         {(isHome || location.startsWith("/settings")) && <FloatingLanguageSwitcher />}
         <PWAInstallPrompt />
+        <FeedbackPromptHost />
         {typeof window !== "undefined" && <OnboardingTour />}
         {typeof window !== "undefined" && <StreamingPlayerBar />}
       </div>
@@ -733,6 +736,10 @@ function AppShell() {
                 <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
                 <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
                 <Route path="/community"><CommunityManager /></Route>
+                {/* Pitch & Fix (UPGRADES 196): inside the shell in the
+                    Social/community flow — boards are public reads,
+                    the doors require sign-in at the API. */}
+                <Route path="/pitch-fix"><PitchFixPage /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
                 <Route path="/mix-master"><QueryPreservingRedirect to="/audio-studio?tab=master" /></Route>
                 <Route path="/stems"><QueryPreservingRedirect to="/audio-studio?tab=stems" /></Route>

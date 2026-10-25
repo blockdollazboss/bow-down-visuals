@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "fba41b48db3b18fa8af1c63e467234a46ff8e8cb",
+  "baseCommit": "185bbcb52bda668828beee0be0141272cbfa709b",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,16 +9,16 @@
   },
   "generatedAt": "2026-10-25",
   "counts": {
-    "routesInApp": 234,
-    "pageFiles": 180,
-    "features": 243,
+    "routesInApp": 235,
+    "pageFiles": 181,
+    "features": 244,
     "excludedRoutes": 71,
     "excludedPageFiles": 35,
     "pricedActions": 228,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 233,
+    "withDescriptions": 234,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -277,6 +277,8 @@
         "/api/admin/dmca-reports",
         "/api/admin/dmca-reports/:param",
         "/api/admin/import-artists",
+        "/api/admin/pitch-fix/:param",
+        "/api/admin/pitch-fix/queue",
         "/api/admin/plan/set",
         "/api/admin/reports",
         "/api/admin/reports/:param",
@@ -9737,6 +9739,31 @@
       "nextSteps": []
     },
     {
+      "id": "pitch-fix",
+      "name": "Pitch & Fix",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
+      "path": "/pitch-fix",
+      "stage": "social",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/pitch-fix.tsx",
+      "component": "PitchFixPage",
+      "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/credits/claim-trial",
+        "/api/pitch-fix/:param/vote",
+        "/api/pitch-fix/board",
+        "/api/pitch-fix/fixes",
+        "/api/pitch-fix/mine",
+        "/api/pitch-fix/pitches",
+        "/api/referrals/apply"
+      ],
+      "prices": [],
+      "description": "Pitch what we should build next, report what needs fixing, and watch it happen.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"pitchFix.subtitle\" (page's own string)",
+      "nextSteps": []
+    },
+    {
       "id": "plan--slug",
       "name": "Plan Public",
       "nameSource": "App.tsx component name",
@@ -10688,6 +10715,7 @@
         "/api/legacy/inbox/:param/respond",
         "/api/mod-console",
         "/api/mod-console/automod",
+        "/api/pitch-fix/feedback-prefs",
         "/api/referrals/apply",
         "/api/retention/prefs",
         "/api/social-proof/me",
@@ -10701,6 +10729,7 @@
         "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
         "/api/social/tiktok/publish",
+        "/api/sound-prefs",
         "/api/team-seats",
         "/api/team-seats/:param",
         "/api/team-seats/accept",
@@ -15678,6 +15707,7 @@
         "/api/retention/shark-drop",
         "/api/retention/shark-drop/claim",
         "/api/retention/streak",
+        "/api/sound-prefs",
         "/api/world/creator-rooms",
         "/api/world/directory",
         "/api/world/events",

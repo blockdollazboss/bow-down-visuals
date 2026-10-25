@@ -728,7 +728,8 @@
     "logoMaker": "Créateur de logo",
     "introsOutros": "Intros et outros",
     "streamPack": "Pack stream",
-    "thumbnailABTest": "Test A/B miniatures"
+    "thumbnailABTest": "Test A/B miniatures",
+    "pitchFix": "Idées et correctifs"
   },
   "tutorials": {
     "heading": "Vidéos pratiques",
@@ -1064,6 +1065,28 @@
       "banConfirm": "Bannir {email} ? La connexion lui sera bloquée.",
       "unbanConfirm": "Débannir {email} ?",
       "banError": "Impossible de mettre à jour le statut de bannissement."
+    },
+    "pitchFix": {
+      "title": "Idées et correctifs : examen de l'équipe",
+      "description": "Chaque idée, signalement et avis attend ici d'abord. Approuvez pour le publier sur les tableaux publics, puis faites avancer son statut au fil du travail.",
+      "empty": "Rien en attente : la file est vide.",
+      "approve": "Approuver et publier",
+      "reject": "Rejeter",
+      "statusError": "Impossible de mettre à jour cet envoi. Réessayez.",
+      "loading": "Chargement de la file…",
+      "loadErrorTitle": "Impossible de charger la file Idées et correctifs.",
+      "loadError": "Les envois sont en sécurité : cette file n'a simplement pas pu se charger.",
+      "retry": "Réessayer",
+      "kind": {
+        "pitch": "Idée",
+        "fix": "Correctif",
+        "feedback": "Avis"
+      },
+      "poolLine": "Enveloppe de la semaine : {{spent}} / {{cap}} VB payés · {{queued}} en file",
+      "markDuplicate": "Marquer comme doublon du premier :",
+      "duplicatePlaceholder": "Choisissez l'envoi d'origine…",
+      "applyDuplicate": "Marquer le doublon",
+      "duplicateOf": "Doublon de : {{title}}"
     }
   },
   "analyticsHub": {
@@ -5798,6 +5821,16 @@
       "loadError": "Vos réglages sonores n'ont pas pu se charger pour le moment.",
       "retry": "Réessayer",
       "test": "Jouer un son de test"
+    },
+    "feedbackPrompts": {
+      "title": "Invites d'avis",
+      "subtitle": "Une invite occasionnelle dans l'app pour savoir comment ça s'est passé : jamais plus d'une fois par semaine, jamais en plein flux.",
+      "toggleTitle": "Invites d'avis",
+      "toggleDesc": "Si c'est activé, une courte invite d'étoiles peut apparaître après un grand moment : une exportation terminée, une création réussie. Désactivez-la et elle n'apparaîtra jamais. Dans tous les cas, vous pouvez toujours proposer des idées et signaler des correctifs dans Idées et correctifs.",
+      "saved": "Réglage des invites enregistré",
+      "saveFailed": "Impossible d'enregistrer ce réglage",
+      "loadError": "Impossible de charger votre réglage d'invites.",
+      "retry": "Réessayer"
     }
   },
   "social-proof": {
@@ -14953,5 +14986,134 @@
     "unavailable": "Pas en vente en ce moment — on le garde ici au cas où il reviendrait.",
     "view": "Voir le produit",
     "remove": "Retirer de la liste d'envies"
+  },
+  "pitchFix": {
+    "title": "Idées",
+    "titleFix": "Correctifs",
+    "subtitle": "Proposez ce que nous devrions construire, signalez ce qu'il faut corriger, et regardez-le arriver.",
+    "flow": {
+      "pitch": "IDÉE",
+      "review": "EXAMEN",
+      "build": "CONSTRUCTION",
+      "shipped": "LIVRÉ"
+    },
+    "pitchDoor": {
+      "title": "Proposer une idée",
+      "sub": "Dites-nous quoi construire. Les meilleures idées sont examinées en premier : les votes des autres créateurs les font monter.",
+      "titleLabel": "Titre",
+      "titlePlaceholder": "ex. Mode duo pour les clips musicaux",
+      "whatLabel": "De quoi s'agit-il ?",
+      "whatPlaceholder": "Décrivez l'idée en une phrase ou deux.",
+      "whyLabel": "Pourquoi c'est important",
+      "whyPlaceholder": "Qui cela aide-t-il, et qu'est-ce que cela débloque ?",
+      "categoryLabel": "Catégorie",
+      "submit": "Envoyer l'idée à l'examen"
+    },
+    "fixDoor": {
+      "title": "Signaler un correctif",
+      "sub": "Quelque chose de cassé, bloqué ou simplement anormal ? Montrez-le. Les signalements rejoignent le tableau des correctifs après un examen rapide, avec un statut que vous pouvez suivre.",
+      "whatLabel": "Qu'est-ce qui est cassé ?",
+      "whatPlaceholder": "ex. Le bouton d'export tourne indéfiniment",
+      "whereLabel": "Où est-ce ?",
+      "severityLabel": "Gravité",
+      "detailsLabel": "Détails",
+      "detailsPlaceholder": "Que faisiez-vous quand c'est arrivé ? Qu'attendiez-vous à la place ?",
+      "submit": "Envoyer le signalement à l'examen"
+    },
+    "nameLabel": "Votre nom de créateur",
+    "namePlaceholder": "ex. Maya Waves",
+    "pitchSent": "Idée envoyée : l'équipe examine chaque idée avant de la publier sur le tableau.",
+    "fixSent": "Signalement envoyé : l'équipe examine chaque signalement avant de le publier sur le tableau.",
+    "signInToSubmit": "Connectez-vous pour envoyer : les tableaux sont publics, mais publier demande un compte.",
+    "titleRequired": "Donnez un titre à votre idée et une ligne sur ce que c'est, puis renvoyez-la.",
+    "fixRequired": "Dites-nous en une ligne ce qui est cassé, puis renvoyez-le.",
+    "sendError": "Un problème est survenu lors de l'envoi. Veuillez réessayer.",
+    "loadError": "Impossible de charger les tableaux.",
+    "retry": "Réessayer",
+    "loading": "Chargement…",
+    "mineTitle": "En attente d'examen : les vôtres",
+    "moderation": {
+      "pending": "En examen",
+      "approved": "Publié",
+      "rejected": "Non publié"
+    },
+    "pitchBoard": "Tableau des idées",
+    "fixBoard": "Tableau des correctifs",
+    "pitchesCount": "{{count}} idées",
+    "reportsCount": "{{count}} signalements",
+    "sortTop": "Meilleurs votes",
+    "sortNewest": "Plus récentes",
+    "votes": "VOTES",
+    "upvote": "Voter pour {{title}}",
+    "by": "par {{name}}",
+    "whyMatters": "Pourquoi c'est important",
+    "reportedIn": "Signalé dans {{page}}",
+    "emptyPitches": "Aucune idée sur le tableau pour l'instant : soyez le premier à passer la porte ci-dessus.",
+    "emptyFixes": "Aucun signalement sur le tableau pour l'instant : rien de cassé, c'est une bonne nouvelle.",
+    "feedbackRow": "Avis : {{rating}} étoiles sur 5",
+    "pitchStatus": {
+      "reviewing": "En examen",
+      "approved": "Approuvée",
+      "building": "En construction",
+      "shipped": "Livrée"
+    },
+    "fixStatus": {
+      "received": "Reçu",
+      "confirmed": "Confirmé",
+      "fixing": "En correction",
+      "fixed": "Corrigé"
+    },
+    "category": {
+      "create": "Créer",
+      "world": "Monde",
+      "money": "Argent",
+      "social": "Social",
+      "other": "Autre"
+    },
+    "page": {
+      "video_editor": "Éditeur vidéo",
+      "make_song_video": "Créer chanson + vidéo",
+      "audio_studio": "Studio audio",
+      "thumbnail_studio": "Studio de miniatures",
+      "branding_kit": "Kit de marque",
+      "the_world": "Le Monde",
+      "go_live": "Passer en direct",
+      "earnings": "Revenus",
+      "profile": "Profil",
+      "somewhere_else": "Ailleurs"
+    },
+    "severity": {
+      "blocks_me": "Me bloque",
+      "annoying": "Gênant",
+      "small": "Mineur"
+    },
+    "shipped": {
+      "title": "Récemment livré",
+      "sub": "Construit parce qu'un créateur l'a proposé ici, ou l'a signalé cassé.",
+      "ideaBy": "Idée de",
+      "fixBy": "Correctif signalé par",
+      "shippedWord": "livré",
+      "fixedWord": "corrigé"
+    },
+    "note": {
+      "title": "Lus par l'équipe, tous",
+      "body": "Chaque idée et chaque signalement sont lus par l'équipe Bow Down Visuals. Les publications n'apparaissent sur ces tableaux qu'après un examen rapide, et quand quelque chose est livré, le créateur qui l'a soulevé reçoit le crédit."
+    },
+    "popup": {
+      "title": "Comment c'était ?",
+      "sub": "Un mot rapide nous aide à construire ce que vous voulez vraiment.",
+      "rateLabel": "Votre note",
+      "stars": "{{count}} étoiles",
+      "textPlaceholder": "Une ligne : ce qui a marché, ou pas ? (facultatif)",
+      "submit": "Envoyer l'avis",
+      "dismiss": "Pas maintenant",
+      "thanks": "Merci : votre avis part à l'équipe."
+    },
+    "rewardsLine": "Les idées livrées rapportent 500 VB · les correctifs livrés rapportent 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB payés",
+      "queued": "{{amount}} VB en file",
+      "ineligible": "Aucune récompense : doublon"
+    }
   }
 }

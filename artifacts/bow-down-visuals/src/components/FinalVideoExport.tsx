@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
+import { notifyQualifyingMoment } from "@/lib/feedback-prompt";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
@@ -887,6 +888,10 @@ export function FinalVideoExport({
 
       setExportUrl(data.url);
       setStatus("completed");
+      /* Feedback Pop-Ups (UPGRADES 180): a finished export is a
+         qualifying moment — the host decides (toggle, cap,
+         suppression, roll) whether a prompt follows. */
+      notifyQualifyingMoment("export_finished");
       setProgressStep("");
 
       const record: ExportRecord = {

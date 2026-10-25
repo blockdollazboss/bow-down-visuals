@@ -728,7 +728,8 @@
     "logoMaker": "Creador de Logos",
     "introsOutros": "Intros y Outros",
     "streamPack": "Pack de Stream",
-    "thumbnailABTest": "Prueba A/B de Miniaturas"
+    "thumbnailABTest": "Prueba A/B de Miniaturas",
+    "pitchFix": "Ideas y correcciones"
   },
   "tutorials": {
     "heading": "Videos instructivos",
@@ -1064,6 +1065,28 @@
       "banConfirm": "¿Banear a {email}? Se le bloqueará el inicio de sesión.",
       "unbanConfirm": "¿Desbanear a {email}?",
       "banError": "No se pudo actualizar el estado de baneo."
+    },
+    "pitchFix": {
+      "title": "Ideas y correcciones: revisión del equipo",
+      "description": "Toda propuesta, reporte y comentario espera aquí primero. Aprueba para publicarlo en los tableros públicos y luego mueve su estado a medida que avanza el trabajo.",
+      "empty": "Nada en espera: la bandeja está despejada.",
+      "approve": "Aprobar y publicar",
+      "reject": "Rechazar",
+      "statusError": "No se pudo actualizar ese envío. Inténtalo de nuevo.",
+      "loading": "Cargando la cola…",
+      "loadErrorTitle": "No se pudo cargar la cola de Ideas y correcciones.",
+      "loadError": "Los envíos están a salvo: esta cola simplemente no pudo cargarse.",
+      "retry": "Reintentar",
+      "kind": {
+        "pitch": "Propuesta",
+        "fix": "Corrección",
+        "feedback": "Comentario"
+      },
+      "poolLine": "Fondo de esta semana: {{spent}} / {{cap}} VB pagados · {{queued}} en cola",
+      "markDuplicate": "Marcar como duplicado del primero:",
+      "duplicatePlaceholder": "Elige el envío original…",
+      "applyDuplicate": "Marcar duplicado",
+      "duplicateOf": "Duplicado de: {{title}}"
     }
   },
   "analyticsHub": {
@@ -5640,6 +5663,16 @@
       "loadError": "Tus ajustes de sonido no se pudieron cargar ahora.",
       "retry": "Intentar de nuevo",
       "test": "Reproducir sonido de prueba"
+    },
+    "feedbackPrompts": {
+      "title": "Avisos de comentarios",
+      "subtitle": "Un aviso ocasional en la app preguntando qué tal fue: nunca más de una vez por semana, nunca en mitad de un flujo.",
+      "toggleTitle": "Avisos de comentarios",
+      "toggleDesc": "Si está activo, puede aparecer un breve aviso de estrellas tras un momento importante: una exportación terminada, una creación lograda. Apágalo y nunca aparecerá. En cualquier caso, siempre puedes proponer ideas y reportar correcciones en Ideas y correcciones.",
+      "saved": "Ajuste de avisos guardado",
+      "saveFailed": "No se pudo guardar ese ajuste",
+      "loadError": "No se pudo cargar tu ajuste de avisos.",
+      "retry": "Reintentar"
     }
   },
   "social-proof": {
@@ -14953,5 +14986,134 @@
     "unavailable": "No está a la venta ahora mismo — lo guardaremos aquí por si vuelve.",
     "view": "Ver producto",
     "remove": "Quitar de la lista de deseos"
+  },
+  "pitchFix": {
+    "title": "Ideas",
+    "titleFix": "Correcciones",
+    "subtitle": "Propón lo que deberíamos construir, reporta lo que hay que corregir y míralo suceder.",
+    "flow": {
+      "pitch": "PROPUESTA",
+      "review": "REVISIÓN",
+      "build": "CONSTRUCCIÓN",
+      "shipped": "PUBLICADO"
+    },
+    "pitchDoor": {
+      "title": "Propón una idea",
+      "sub": "Cuéntanos qué construir. Las mejores propuestas se revisan primero: los votos de otros creadores las ayudan a subir.",
+      "titleLabel": "Título",
+      "titlePlaceholder": "ej. Modo dúo para videos musicales",
+      "whatLabel": "¿Qué es?",
+      "whatPlaceholder": "Describe la idea en una o dos frases.",
+      "whyLabel": "Por qué importa",
+      "whyPlaceholder": "¿A quién ayuda y qué le permite lograr?",
+      "categoryLabel": "Categoría",
+      "submit": "Enviar propuesta a revisión"
+    },
+    "fixDoor": {
+      "title": "Reporta una corrección",
+      "sub": "¿Algo roto, atascado o simplemente mal? Señálalo. Los reportes llegan al tablero de correcciones tras una revisión rápida, con un estado que puedes seguir.",
+      "whatLabel": "¿Qué está roto?",
+      "whatPlaceholder": "ej. El botón de exportar gira sin parar",
+      "whereLabel": "¿Dónde está?",
+      "severityLabel": "Gravedad",
+      "detailsLabel": "Detalles",
+      "detailsPlaceholder": "¿Qué estabas haciendo cuando pasó? ¿Qué esperabas en su lugar?",
+      "submit": "Enviar reporte a revisión"
+    },
+    "nameLabel": "Tu nombre de creador",
+    "namePlaceholder": "ej. Maya Waves",
+    "pitchSent": "Propuesta enviada: el equipo revisa cada propuesta antes de publicarla en el tablero.",
+    "fixSent": "Reporte enviado: el equipo revisa cada reporte antes de publicarlo en el tablero.",
+    "signInToSubmit": "Inicia sesión para enviar: los tableros son públicos, pero publicar necesita una cuenta.",
+    "titleRequired": "Dale un título a tu propuesta y una línea sobre qué es, y envíala de nuevo.",
+    "fixRequired": "Cuéntanos en una línea qué está roto, y envíalo de nuevo.",
+    "sendError": "Algo salió mal al enviarlo. Inténtalo de nuevo.",
+    "loadError": "No se pudieron cargar los tableros.",
+    "retry": "Reintentar",
+    "loading": "Cargando…",
+    "mineTitle": "En espera de revisión: los tuyos",
+    "moderation": {
+      "pending": "En revisión",
+      "approved": "Publicado",
+      "rejected": "No publicado"
+    },
+    "pitchBoard": "Tablero de ideas",
+    "fixBoard": "Tablero de correcciones",
+    "pitchesCount": "{{count}} propuestas",
+    "reportsCount": "{{count}} reportes",
+    "sortTop": "Más votadas",
+    "sortNewest": "Más recientes",
+    "votes": "VOTOS",
+    "upvote": "Votar {{title}}",
+    "by": "por {{name}}",
+    "whyMatters": "Por qué importa",
+    "reportedIn": "Reportado en {{page}}",
+    "emptyPitches": "Aún no hay propuestas en el tablero: sé el primero en usar la puerta de arriba.",
+    "emptyFixes": "Aún no hay reportes en el tablero: que nada esté roto es una buena noticia.",
+    "feedbackRow": "Comentario: {{rating}} de 5 estrellas",
+    "pitchStatus": {
+      "reviewing": "En revisión",
+      "approved": "Aprobada",
+      "building": "En construcción",
+      "shipped": "Publicada"
+    },
+    "fixStatus": {
+      "received": "Recibido",
+      "confirmed": "Confirmado",
+      "fixing": "Corrigiendo",
+      "fixed": "Corregido"
+    },
+    "category": {
+      "create": "Crear",
+      "world": "Mundo",
+      "money": "Dinero",
+      "social": "Social",
+      "other": "Otro"
+    },
+    "page": {
+      "video_editor": "Editor de video",
+      "make_song_video": "Crear canción + video",
+      "audio_studio": "Estudio de audio",
+      "thumbnail_studio": "Estudio de miniaturas",
+      "branding_kit": "Kit de marca",
+      "the_world": "El Mundo",
+      "go_live": "Transmitir en vivo",
+      "earnings": "Ganancias",
+      "profile": "Perfil",
+      "somewhere_else": "En otro lugar"
+    },
+    "severity": {
+      "blocks_me": "Me bloquea",
+      "annoying": "Molesto",
+      "small": "Menor"
+    },
+    "shipped": {
+      "title": "Publicado recientemente",
+      "sub": "Construido porque un creador lo propuso aquí, o lo reportó roto.",
+      "ideaBy": "Idea de",
+      "fixBy": "Corrección reportada por",
+      "shippedWord": "publicado",
+      "fixedWord": "corregido"
+    },
+    "note": {
+      "title": "El equipo los lee todos",
+      "body": "El equipo de Bow Down Visuals lee cada propuesta y cada reporte. Las publicaciones aparecen en estos tableros solo tras una revisión rápida, y cuando algo se publica, el creador que lo planteó recibe el crédito."
+    },
+    "popup": {
+      "title": "¿Qué tal fue?",
+      "sub": "Un comentario rápido nos ayuda a construir lo que de verdad quieres.",
+      "rateLabel": "Tu valoración",
+      "stars": "{{count}} estrellas",
+      "textPlaceholder": "Una línea: ¿qué funcionó o qué no? (opcional)",
+      "submit": "Enviar comentario",
+      "dismiss": "Ahora no",
+      "thanks": "Gracias: tu comentario llega al equipo."
+    },
+    "rewardsLine": "Las ideas publicadas ganan 500 VB · las correcciones publicadas ganan 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB pagados",
+      "queued": "{{amount}} VB en cola",
+      "ineligible": "Sin recompensa: duplicado"
+    }
   }
 }

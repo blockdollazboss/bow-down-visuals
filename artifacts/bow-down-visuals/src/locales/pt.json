@@ -728,7 +728,8 @@
     "stemSplitter": "Separador de Stems",
     "streamPack": "Pacote de Stream",
     "thumbnailABTest": "Teste A/B de Miniaturas",
-    "viralityCheck": "Cheque de Viralidade"
+    "viralityCheck": "Cheque de Viralidade",
+    "pitchFix": "Ideias e correções"
   },
   "tutorials": {
     "heading": "Vídeos de instruções",
@@ -1064,6 +1065,28 @@
       "banConfirm": "Banir {email}? Ele será impedido de entrar.",
       "unbanConfirm": "Desbanir {email}?",
       "banError": "Não foi possível atualizar o status de banimento."
+    },
+    "pitchFix": {
+      "title": "Ideias e correções — revisão da equipe",
+      "description": "Cada ideia, relato e feedback espera aqui primeiro. Aprove para postar nos quadros públicos; depois mova o status conforme o trabalho avança.",
+      "empty": "Nada aguardando — a fila está limpa.",
+      "approve": "Aprovar e postar",
+      "reject": "Rejeitar",
+      "statusError": "Não foi possível atualizar esse envio — tente de novo.",
+      "loading": "Carregando a fila…",
+      "loadErrorTitle": "Não foi possível carregar a fila de Ideias e correções.",
+      "loadError": "Os envios estão seguros — esta fila apenas não conseguiu carregar.",
+      "retry": "Tentar de novo",
+      "kind": {
+        "pitch": "Ideia",
+        "fix": "Correção",
+        "feedback": "Comentário"
+      },
+      "poolLine": "Fundo desta semana: {{spent}} / {{cap}} VB pagos · {{queued}} na fila",
+      "markDuplicate": "Marcar como duplicado do primeiro:",
+      "duplicatePlaceholder": "Escolha o envio original…",
+      "applyDuplicate": "Marcar duplicado",
+      "duplicateOf": "Duplicado de: {{title}}"
     }
   },
   "analyticsHub": {
@@ -5640,6 +5663,16 @@
       "loadError": "As suas definições de som não carregaram agora.",
       "retry": "Tentar de novo",
       "test": "Reproduzir som de teste"
+    },
+    "feedbackPrompts": {
+      "title": "Pedidos de feedback",
+      "subtitle": "Um pedido ocasional no app perguntando como foi — nunca mais de uma vez por semana, nunca no meio de um fluxo.",
+      "toggleTitle": "Pedidos de feedback",
+      "toggleDesc": "Quando ativo, um breve pedido de estrelas pode aparecer após um grande momento — uma exportação concluída, uma criação bem-sucedida. Desative e ele nunca aparece. De qualquer forma, você sempre pode sugerir ideias e relatar correções em Ideias e correções.",
+      "saved": "Configuração de feedback salva",
+      "saveFailed": "Não foi possível salvar essa configuração",
+      "loadError": "Não foi possível carregar sua configuração de feedback.",
+      "retry": "Tentar de novo"
     }
   },
   "social-proof": {
@@ -14953,5 +14986,134 @@
     "unavailable": "Não está à venda no momento — vamos mantê-lo aqui caso volte.",
     "view": "Ver produto",
     "remove": "Remover da lista de desejos"
+  },
+  "pitchFix": {
+    "title": "Ideias",
+    "titleFix": "Correções",
+    "subtitle": "Sugira o que devemos construir, relate o que precisa de correção e veja acontecer.",
+    "flow": {
+      "pitch": "IDEIA",
+      "review": "REVISÃO",
+      "build": "CONSTRUÇÃO",
+      "shipped": "ENTREGUE"
+    },
+    "pitchDoor": {
+      "title": "Sugerir uma ideia",
+      "sub": "Conte-nos o que construir. As ideias mais fortes são revisadas primeiro — votos de outros criadores ajudam-nas a subir.",
+      "titleLabel": "Título",
+      "titlePlaceholder": "ex.: Modo dueto para vídeos musicais",
+      "whatLabel": "O que é?",
+      "whatPlaceholder": "Descreva a ideia em uma ou duas frases.",
+      "whyLabel": "Por que importa",
+      "whyPlaceholder": "Quem ela ajuda e o que destrava para essa pessoa?",
+      "categoryLabel": "Categoria",
+      "submit": "Enviar ideia para revisão"
+    },
+    "fixDoor": {
+      "title": "Relatar uma correção",
+      "sub": "Algo quebrado, travado ou simplesmente estranho? Aponte. Os relatos entram no quadro de correções após uma revisão rápida, com um status que você pode acompanhar.",
+      "whatLabel": "O que está quebrado?",
+      "whatPlaceholder": "ex.: O botão de exportar gira para sempre",
+      "whereLabel": "Onde está?",
+      "severityLabel": "Gravidade",
+      "detailsLabel": "Detalhes",
+      "detailsPlaceholder": "O que você estava fazendo quando aconteceu? O que esperava em vez disso?",
+      "submit": "Enviar relato para revisão"
+    },
+    "nameLabel": "Seu nome de criador",
+    "namePlaceholder": "ex.: Maya Waves",
+    "pitchSent": "Ideia enviada — a equipe revisa cada ideia antes de ela aparecer no quadro.",
+    "fixSent": "Relato enviado — a equipe revisa cada relato antes de ele aparecer no quadro.",
+    "signInToSubmit": "Entre para enviar — os quadros são públicos, mas postar precisa de uma conta.",
+    "titleRequired": "Dê um título à sua ideia e uma linha sobre o que ela é, e envie de novo.",
+    "fixRequired": "Conte-nos em uma linha o que está quebrado, e envie de novo.",
+    "sendError": "Algo deu errado ao enviar — tente de novo.",
+    "loadError": "Não foi possível carregar os quadros.",
+    "retry": "Tentar de novo",
+    "loading": "Carregando…",
+    "mineTitle": "Aguardando revisão — os seus",
+    "moderation": {
+      "pending": "Em revisão",
+      "approved": "Postado",
+      "rejected": "Não postado"
+    },
+    "pitchBoard": "Quadro de ideias",
+    "fixBoard": "Quadro de correções",
+    "pitchesCount": "{{count}} ideias",
+    "reportsCount": "{{count}} relatos",
+    "sortTop": "Mais votadas",
+    "sortNewest": "Mais recentes",
+    "votes": "VOTOS",
+    "upvote": "Votar em {{title}}",
+    "by": "por {{name}}",
+    "whyMatters": "Por que importa",
+    "reportedIn": "Relatado em {{page}}",
+    "emptyPitches": "Ainda não há ideias no quadro — seja o primeiro pela porta acima.",
+    "emptyFixes": "Ainda não há relatos no quadro — nada quebrado é uma boa notícia.",
+    "feedbackRow": "Feedback — {{rating}} de 5 estrelas",
+    "pitchStatus": {
+      "reviewing": "Em revisão",
+      "approved": "Aprovada",
+      "building": "Em construção",
+      "shipped": "Entregue"
+    },
+    "fixStatus": {
+      "received": "Recebido",
+      "confirmed": "Confirmado",
+      "fixing": "Corrigindo",
+      "fixed": "Corrigido"
+    },
+    "category": {
+      "create": "Criar",
+      "world": "Mundo",
+      "money": "Dinheiro",
+      "social": "Social",
+      "other": "Outro"
+    },
+    "page": {
+      "video_editor": "Editor de vídeo",
+      "make_song_video": "Criar música + vídeo",
+      "audio_studio": "Estúdio de áudio",
+      "thumbnail_studio": "Estúdio de miniaturas",
+      "branding_kit": "Kit de marca",
+      "the_world": "O Mundo",
+      "go_live": "Entrar ao vivo",
+      "earnings": "Ganhos",
+      "profile": "Perfil",
+      "somewhere_else": "Outro lugar"
+    },
+    "severity": {
+      "blocks_me": "Me bloqueia",
+      "annoying": "Irritante",
+      "small": "Pequeno"
+    },
+    "shipped": {
+      "title": "Entregue recentemente",
+      "sub": "Construído porque um criador sugeriu aqui — ou relatou quebrado.",
+      "ideaBy": "Ideia de",
+      "fixBy": "Correção relatada por",
+      "shippedWord": "entregue",
+      "fixedWord": "corrigido"
+    },
+    "note": {
+      "title": "Lidos pela equipe, todos eles",
+      "body": "Cada ideia e cada relato de correção é lido pela equipe da Bow Down Visuals. As postagens aparecem nestes quadros apenas após uma revisão rápida — e quando algo é entregue, o criador que levantou a questão recebe o crédito."
+    },
+    "popup": {
+      "title": "Como foi?",
+      "sub": "Uma palavra rápida ajuda-nos a construir o que você realmente quer.",
+      "rateLabel": "Sua avaliação",
+      "stars": "{{count}} estrelas",
+      "textPlaceholder": "Uma linha — o que funcionou, ou o que não? (opcional)",
+      "submit": "Enviar feedback",
+      "dismiss": "Agora não",
+      "thanks": "Obrigado — seu feedback vai para a equipe."
+    },
+    "rewardsLine": "Ideias entregues rendem 500 VB · correções entregues rendem 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB pagos",
+      "queued": "{{amount}} VB na fila",
+      "ineligible": "Sem recompensa — duplicado"
+    }
   }
 }

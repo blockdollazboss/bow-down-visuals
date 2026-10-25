@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
+import { notifyQualifyingMoment } from "@/lib/feedback-prompt";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useToast } from "@/hooks/use-toast";
@@ -336,6 +337,10 @@ export function HumToSong() {
       if (data.creditsRemaining !== undefined) refreshProfile();
       setPhase("done");
       toast({ title: "Your song is ready", description: "Built around your hum — take it to video, cover art, or extend it." });
+      /* Feedback Pop-Ups (UPGRADES 180): a creation that just succeeded
+         is a qualifying moment — the host's gates (toggle, 7-day cap,
+         suppression, roll) decide whether anything follows. */
+      notifyQualifyingMoment("creation_succeeded");
       setTimeout(() => {
         document.getElementById("hum-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
