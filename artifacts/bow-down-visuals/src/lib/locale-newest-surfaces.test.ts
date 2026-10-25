@@ -273,7 +273,7 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill (4462 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-200 Pitch & Fix fill (4489 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
@@ -293,8 +293,13 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        Plus Stack-200 UPGRADES 183 (signature sounds): +20
        settings.sounds keys — the SOUNDS section's copy (master +
        per-kind switches, device-mute note, save/load states) in all
-       ten catalogs = 4462. */
-    expect(REQUIRED.length).toBe(4462);
+       ten catalogs = 4462.
+       Plus Stack-200 UPGRADES 196+180 (Pitch & Fix + feedback
+       pop-ups): +27 keys — nav.pitchFix, settings.feedbackPrompts
+       (8), admin.pitchFix (18: bench + reward pool + duplicate
+       marking; the rating renders as a bare number + star glyph, no
+       copy key) in all ten catalogs = 4489. */
+    expect(REQUIRED.length).toBe(4489);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -750,11 +755,14 @@ describe("admin — full parity, no untranslated English residue, single-brace t
   const singleTokens = (s: string): string[] =>
     [...s.replace(/\{\{[^}]+\}\}/g, "").matchAll(/\{[^{}]+\}/g)].map((m) => m[0]).sort();
 
-  it("the admin namespace is 189 leaves in en and every catalog carries all of them", () => {
-    expect(ADMIN_KEYS.length).toBe(189);
+  it("the admin namespace is 207 leaves in en and every catalog carries all of them", () => {
+    /* 189 + 18 Stack-200 Pitch & Fix bench keys (admin.pitchFix:
+       queue/moderation/status + reward pool line + duplicate
+       marking) in all ten catalogs = 207. */
+    expect(ADMIN_KEYS.length).toBe(207);
     for (const locale of ALL) {
       const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("admin.")).length;
-      expect(count, `${locale} admin leaf count`).toBe(189);
+      expect(count, `${locale} admin leaf count`).toBe(207);
     }
   });
 

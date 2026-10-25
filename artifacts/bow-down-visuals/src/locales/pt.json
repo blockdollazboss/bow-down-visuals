@@ -1077,11 +1077,10 @@
       "loadErrorTitle": "Não foi possível carregar a fila de Ideias e correções.",
       "loadError": "Os envios estão seguros — esta fila apenas não conseguiu carregar.",
       "retry": "Tentar de novo",
-      "rating": "{{rating}}★",
       "kind": {
         "pitch": "Ideia",
         "fix": "Correção",
-        "feedback": "Feedback"
+        "feedback": "Comentário"
       },
       "poolLine": "Fundo desta semana: {{spent}} / {{cap}} VB pagos · {{queued}} na fila",
       "markDuplicate": "Marcar como duplicado do primeiro:",

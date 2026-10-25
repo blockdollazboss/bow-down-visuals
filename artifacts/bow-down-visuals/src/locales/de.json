@@ -1077,11 +1077,10 @@
       "loadErrorTitle": "Die Ideen-&-Fehler-Warteschlange konnte nicht geladen werden.",
       "loadError": "Die Einträge sind sicher — diese Warteschlange konnte nur nicht geladen werden.",
       "retry": "Erneut versuchen",
-      "rating": "{{rating}}★",
       "kind": {
         "pitch": "Idee",
         "fix": "Fehler",
-        "feedback": "Feedback"
+        "feedback": "Rückmeldung"
       },
       "poolLine": "Pool dieser Woche: {{spent}} / {{cap}} VB gezahlt · {{queued}} in Warteschlange",
       "markDuplicate": "Als Duplikat des ersten markieren:",

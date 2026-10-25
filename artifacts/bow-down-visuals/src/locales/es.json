@@ -1077,7 +1077,6 @@
       "loadErrorTitle": "No se pudo cargar la cola de Ideas y correcciones.",
       "loadError": "Los envíos están a salvo: esta cola simplemente no pudo cargarse.",
       "retry": "Reintentar",
-      "rating": "{{rating}}★",
       "kind": {
         "pitch": "Propuesta",
         "fix": "Corrección",

@@ -1059,7 +1059,6 @@
       "loadErrorTitle": "Couldn't load the Pitch & Fix queue.",
       "loadError": "The submissions are safe — this queue just couldn't load them.",
       "retry": "Retry",
-      "rating": "{{rating}}★",
       "kind": {
         "pitch": "Pitch",
         "fix": "Fix",

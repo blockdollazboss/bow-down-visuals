@@ -1077,11 +1077,10 @@
       "loadErrorTitle": "Impossibile caricare la coda di Idee e correzioni.",
       "loadError": "Gli invii sono al sicuro: questa coda semplicemente non è riuscita a caricarsi.",
       "retry": "Riprova",
-      "rating": "{{rating}}★",
       "kind": {
         "pitch": "Idea",
         "fix": "Correzione",
-        "feedback": "Feedback"
+        "feedback": "Riscontro"
       },
       "poolLine": "Fondo della settimana: {{spent}} / {{cap}} VB pagati · {{queued}} in coda",
       "markDuplicate": "Segna come duplicato del primo:",

@@ -934,7 +934,7 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
                   {r.kind === "pitch"
                     ? <span className="rounded-full border border-white/20 px-2.5 py-0.5 text-white/60">{t(`pitchFix.pitchStatus.${r.status}`, { defaultValue: r.status })}</span>
                     : <span className="rounded-full border border-white/20 px-2.5 py-0.5 text-white/60">{t(`pitchFix.fixStatus.${r.status}`, { defaultValue: r.status })}</span>}
-                  {r.rating != null && <span className="text-[#d4a017]">{t("admin.pitchFix.rating", { rating: r.rating })}</span>}
+                  {r.rating != null && <span className="text-[#d4a017]">{r.rating} ★</span>}
                   {r.kind === "pitch" && <span className="text-white/50">{r.upvoteCount} ▲</span>}
                   {r.rewardStatus === "paid" && r.rewardAmount != null && (
                     <span className="rounded-full border border-emerald-400/30 px-2.5 py-0.5 text-emerald-300">{t("pitchFix.reward.paid", { amount: r.rewardAmount })}</span>
