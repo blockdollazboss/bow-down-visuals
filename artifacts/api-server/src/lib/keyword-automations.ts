@@ -50,23 +50,15 @@
  *     the first email-shaped token in the fan's reply subscribes
  *     that address to the rule's list exactly once (the capture row
  *     flips to 'captured' and stops listening).
+ *
+ * Data access is raw SQL through db.execute — the house pattern for
+ * pg-mem-verifiable libs (the lip-sync job store, booking reminders):
+ * the $0 suite drives this module against an in-memory Postgres, and
+ * drizzle's typed selects cannot run there.
  */
 import { randomUUID } from "node:crypto";
-import { and, count, desc, eq, gt, inArray, isNull, type SQL } from "drizzle-orm";
-import {
-  db,
-  conversationsTable,
-  creatorProfilesTable,
-  emailListsTable,
-  emailSubscribersTable,
-  followsTable,
-  keywordAutomationCapturesTable,
-  keywordAutomationEventsTable,
-  keywordAutomationRulesTable,
-  messagesTable,
-  type KeywordAutomationRule,
-  type KeywordAutomationSurface,
-} from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { db, type EmailList, type EmailSubscriber } from "@workspace/db";
 import { queueWelcomeSequence } from "./email-campaign-sender";
 import { logger } from "./logger";
 
@@ -90,6 +82,8 @@ export const KW_LIST_FREE_SUBSCRIBER_LIMIT = 1000;
  *  explicit and identical for every fan. */
 export const KW_CAPTURE_PROMPT =
   "\n\nWant it in your inbox too? Reply here with your email address and I'll add you to my list.";
+
+export type KwSurface = "post" | "media" | "wall" | "live";
 
 /* ── Pure helpers (pinned directly by tests) ──────────────────────────── */
 
@@ -117,6 +111,56 @@ export function extractEmail(body: string): string | null {
   return m ? m[0].toLowerCase() : null;
 }
 
+/* ── Row shapes (raw SQL returns snake_case) ──────────────────────────── */
+
+interface RuleRow {
+  id: string;
+  creator_user_id: string;
+  list_id: string | null;
+  keyword: string;
+  surfaces: unknown;
+  dm_body: string;
+  capture_email: boolean;
+  enabled: boolean;
+  enabled_at: Date | string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+interface CaptureRow {
+  id: string;
+  rule_id: string;
+  creator_user_id: string;
+  fan_user_id: string;
+  conversation_id: string;
+  status: string;
+  captured_email: string | null;
+  created_at: Date | string;
+  captured_at: Date | string | null;
+}
+
+function asDate(v: Date | string | null | undefined): Date | null {
+  if (v == null) return null;
+  return v instanceof Date ? v : new Date(v);
+}
+
+function asSurfaces(v: unknown): KwSurface[] {
+  const arr = Array.isArray(v) ? v : typeof v === "string" ? JSON.parse(v) as unknown : [];
+  return (Array.isArray(arr) ? arr : []).filter(
+    (s): s is KwSurface => s === "post" || s === "media" || s === "wall" || s === "live",
+  );
+}
+
+async function rows<T>(query: Parameters<typeof db.execute>[0]): Promise<T[]> {
+  const res = await db.execute(query);
+  return res.rows as T[];
+}
+
+async function first<T>(query: Parameters<typeof db.execute>[0]): Promise<T | null> {
+  const r = await rows<T>(query);
+  return r[0] ?? null;
+}
+
 /* ── The DM rail (mirrors routes/community.ts /dm/start + /dm/:id/send) ── */
 
 function canonicalPair(a: string, b: string): [string, string] {
@@ -124,20 +168,18 @@ function canonicalPair(a: string, b: string): [string, string] {
 }
 
 async function isMutual(aUserId: string, bUserId: string): Promise<boolean> {
-  const profiles = await db
-    .select({ id: creatorProfilesTable.id, userId: creatorProfilesTable.userId })
-    .from(creatorProfilesTable)
-    .where(inArray(creatorProfilesTable.userId, [aUserId, bUserId]));
-  const aProf = profiles.find((p) => p.userId === aUserId);
-  const bProf = profiles.find((p) => p.userId === bUserId);
+  const profiles = await rows<{ id: string; user_id: string }>(sql`
+    SELECT id, user_id FROM creator_profiles WHERE user_id IN (${aUserId}, ${bUserId})`);
+  const aProf = profiles.find((p) => p.user_id === aUserId);
+  const bProf = profiles.find((p) => p.user_id === bUserId);
   if (!aProf || !bProf) return false;
-  const rows = await db.select().from(followsTable).where(
-    and(eq(followsTable.followerUserId, aUserId), eq(followsTable.profileId, bProf.id)),
-  );
-  const back = await db.select().from(followsTable).where(
-    and(eq(followsTable.followerUserId, bUserId), eq(followsTable.profileId, aProf.id)),
-  );
-  return rows.length > 0 && back.length > 0;
+  const follows = await rows<{ follower_user_id: string; profile_id: string }>(sql`
+    SELECT follower_user_id, profile_id FROM follows
+    WHERE (follower_user_id = ${aUserId} AND profile_id = ${bProf.id})
+       OR (follower_user_id = ${bUserId} AND profile_id = ${aProf.id})`);
+  const aFollowsB = follows.some((f) => f.follower_user_id === aUserId && f.profile_id === bProf.id);
+  const bFollowsA = follows.some((f) => f.follower_user_id === bUserId && f.profile_id === aProf.id);
+  return aFollowsB && bFollowsA;
 }
 
 export type AutomatedDmResult =
@@ -156,77 +198,58 @@ export async function sendAutomatedDm(
   body: string,
 ): Promise<AutomatedDmResult> {
   const [a, b] = canonicalPair(fromUserId, toUserId);
-  const [existing] = await db
-    .select()
-    .from(conversationsTable)
-    .where(and(eq(conversationsTable.participantA, a), eq(conversationsTable.participantB, b)))
-    .limit(1);
+  const existing = await first<{ id: string; status: string; requested_by: string | null }>(sql`
+    SELECT id, status, requested_by FROM conversations
+    WHERE participant_a = ${a} AND participant_b = ${b} LIMIT 1`);
 
   let conversationId: string;
   if (existing) {
     if (existing.status === "blocked") return { ok: false, reason: "blocked" };
-    if (existing.status === "request" && existing.requestedBy === toUserId) {
+    if (existing.status === "request" && existing.requested_by === toUserId) {
       return { ok: false, reason: "request_pending" };
     }
     conversationId = existing.id;
   } else {
     const mutual = await isMutual(fromUserId, toUserId);
-    const [conv] = await db
-      .insert(conversationsTable)
-      .values({
-        participantA: a,
-        participantB: b,
-        status: mutual ? "inbox" : "request",
-        requestedBy: fromUserId,
-      })
-      .returning();
-    if (!conv) throw new Error("conversation insert returned no row");
-    conversationId = conv.id;
+    conversationId = randomUUID();
+    await db.execute(sql`
+      INSERT INTO conversations (id, participant_a, participant_b, status, requested_by)
+      VALUES (${conversationId}, ${a}, ${b}, ${mutual ? "inbox" : "request"}, ${fromUserId})`);
   }
 
-  const [msg] = await db
-    .insert(messagesTable)
-    .values({ conversationId, senderUserId: fromUserId, body })
-    .returning();
-  if (!msg) throw new Error("message insert returned no row");
-  await db
-    .update(conversationsTable)
-    .set({ lastMessageAt: new Date() })
-    .where(eq(conversationsTable.id, conversationId));
-  return { ok: true, messageId: msg.id, conversationId };
+  const messageId = randomUUID();
+  await db.execute(sql`
+    INSERT INTO messages (id, conversation_id, sender_user_id, body)
+    VALUES (${messageId}, ${conversationId}, ${fromUserId}, ${body})`);
+  await db.execute(sql`
+    UPDATE conversations SET last_message_at = now() WHERE id = ${conversationId}`);
+  return { ok: true, messageId, conversationId };
 }
 
 /* ── Audit ────────────────────────────────────────────────────────────── */
 
 async function recordEvent(row: {
-  rule: KeywordAutomationRule;
+  ruleId: string;
+  creatorUserId: string;
   fanUserId: string;
-  surface: KeywordAutomationSurface;
+  surface: KwSurface;
   surfaceRef: string;
-  outcome: "sent" | "rate_limited" | "blocked" | "failed";
+  outcome: "sent" | "rate_limited" | "blocked" | "failed" | "captured" | "already_on_list";
   dmMessageId?: string;
+  capturedEmail?: string;
   detail?: string;
 }): Promise<void> {
-  await db.insert(keywordAutomationEventsTable).values({
-    ruleId: row.rule.id,
-    creatorUserId: row.rule.creatorUserId,
-    fanUserId: row.fanUserId,
-    surface: row.surface,
-    surfaceRef: row.surfaceRef,
-    outcome: row.outcome,
-    dmMessageId: row.dmMessageId ?? null,
-    detail: row.detail ?? null,
-  });
+  await db.execute(sql`
+    INSERT INTO keyword_automation_events
+      (rule_id, creator_user_id, fan_user_id, surface, surface_ref, outcome, dm_message_id, captured_email, detail)
+    VALUES (${row.ruleId}, ${row.creatorUserId}, ${row.fanUserId}, ${row.surface}, ${row.surfaceRef},
+            ${row.outcome}, ${row.dmMessageId ?? null}, ${row.capturedEmail ?? null}, ${row.detail ?? null})`);
 }
 
-async function sentCountSince(
-  where: SQL[],
-  since: Date,
-): Promise<number> {
-  const [row] = await db
-    .select({ value: count() })
-    .from(keywordAutomationEventsTable)
-    .where(and(...where, eq(keywordAutomationEventsTable.outcome, "sent"), gt(keywordAutomationEventsTable.createdAt, since)));
+async function sentCountSince(whereSql: ReturnType<typeof sql>, since: Date): Promise<number> {
+  const row = await first<{ value: number }>(sql`
+    SELECT count(*)::int AS value FROM keyword_automation_events
+    WHERE outcome = 'sent' AND created_at > ${since} AND ${whereSql}`);
   return row?.value ?? 0;
 }
 
@@ -236,7 +259,7 @@ export interface KeywordCommentTrigger {
   ownerUserId: string;
   commenterUserId: string;
   body: string;
-  surface: KeywordAutomationSurface;
+  surface: KwSurface;
   /** The thing commented on (post id / media id / profile id / stream id). */
   surfaceRefId: string;
 }
@@ -249,23 +272,19 @@ export async function handleKeywordComment(trigger: KeywordCommentTrigger): Prom
     const { ownerUserId, commenterUserId, body, surface, surfaceRefId } = trigger;
     if (!ownerUserId || !commenterUserId || commenterUserId === ownerUserId) return;
 
-    const rules = await db
-      .select()
-      .from(keywordAutomationRulesTable)
-      .where(
-        and(
-          eq(keywordAutomationRulesTable.creatorUserId, ownerUserId),
-          eq(keywordAutomationRulesTable.enabled, true),
-        ),
-      )
-      .orderBy(keywordAutomationRulesTable.createdAt);
+    const rules = await rows<RuleRow>(sql`
+      SELECT * FROM keyword_automation_rules
+      WHERE creator_user_id = ${ownerUserId} AND enabled = true
+      ORDER BY created_at ASC`);
     const now = new Date();
-    const matching = rules.filter(
-      (r) =>
-        (r.enabledAt == null || r.enabledAt <= now) &&
-        (r.surfaces ?? []).includes(surface) &&
-        keywordMatches(body, r.keyword),
-    );
+    const matching = rules.filter((r) => {
+      const enabledAt = asDate(r.enabled_at);
+      return (
+        (enabledAt == null || enabledAt <= now) &&
+        asSurfaces(r.surfaces).includes(surface) &&
+        keywordMatches(body, r.keyword)
+      );
+    });
 
     for (const rule of matching) {
       try {
@@ -273,7 +292,8 @@ export async function handleKeywordComment(trigger: KeywordCommentTrigger): Prom
       } catch (err) {
         logger.error({ err, ruleId: rule.id }, "[keyword-automations] rule fire failed");
         await recordEvent({
-          rule,
+          ruleId: rule.id,
+          creatorUserId: rule.creator_user_id,
           fanUserId: commenterUserId,
           surface,
           surfaceRef: surfaceRefId,
@@ -288,39 +308,29 @@ export async function handleKeywordComment(trigger: KeywordCommentTrigger): Prom
 }
 
 async function fireRule(
-  rule: KeywordAutomationRule,
-  args: { fanUserId: string; surface: KeywordAutomationSurface; surfaceRefId: string; now: Date },
+  rule: RuleRow,
+  args: { fanUserId: string; surface: KwSurface; surfaceRefId: string; now: Date },
 ): Promise<void> {
   const { fanUserId, surface, surfaceRefId, now } = args;
 
   /* Dedupe: this rule already DM'd this fan about this surface ref. */
-  const [dupe] = await db
-    .select({ id: keywordAutomationEventsTable.id })
-    .from(keywordAutomationEventsTable)
-    .where(
-      and(
-        eq(keywordAutomationEventsTable.ruleId, rule.id),
-        eq(keywordAutomationEventsTable.fanUserId, fanUserId),
-        eq(keywordAutomationEventsTable.surface, surface),
-        eq(keywordAutomationEventsTable.surfaceRef, surfaceRefId),
-        eq(keywordAutomationEventsTable.outcome, "sent"),
-      ),
-    )
-    .limit(1);
+  const dupe = await first<{ id: string }>(sql`
+    SELECT id FROM keyword_automation_events
+    WHERE rule_id = ${rule.id} AND fan_user_id = ${fanUserId}
+      AND surface = ${surface} AND surface_ref = ${surfaceRefId} AND outcome = 'sent'
+    LIMIT 1`);
   if (dupe) return;
 
   /* Rate limits — fan first (cheapest troll stop), then rule, then creator. */
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const fanSent = await sentCountSince(
-    [eq(keywordAutomationEventsTable.creatorUserId, rule.creatorUserId), eq(keywordAutomationEventsTable.fanUserId, fanUserId)],
-    dayAgo,
-  );
+    sql`creator_user_id = ${rule.creator_user_id} AND fan_user_id = ${fanUserId}`, dayAgo);
   const ruleSent = fanSent < KW_FAN_DAILY_CAP
-    ? await sentCountSince([eq(keywordAutomationEventsTable.ruleId, rule.id)], hourAgo)
+    ? await sentCountSince(sql`rule_id = ${rule.id}`, hourAgo)
     : KW_RULE_HOURLY_SEND_CAP;
   const creatorSent = ruleSent < KW_RULE_HOURLY_SEND_CAP
-    ? await sentCountSince([eq(keywordAutomationEventsTable.creatorUserId, rule.creatorUserId)], dayAgo)
+    ? await sentCountSince(sql`creator_user_id = ${rule.creator_user_id}`, dayAgo)
     : KW_CREATOR_DAILY_SEND_CAP;
 
   const capHit =
@@ -333,58 +343,41 @@ async function fireRule(
           : null;
   if (capHit) {
     /* Audit the cap honestly, but at most once per rule+fan per hour. */
-    const [recentCap] = await db
-      .select({ id: keywordAutomationEventsTable.id })
-      .from(keywordAutomationEventsTable)
-      .where(
-        and(
-          eq(keywordAutomationEventsTable.ruleId, rule.id),
-          eq(keywordAutomationEventsTable.fanUserId, fanUserId),
-          eq(keywordAutomationEventsTable.outcome, "rate_limited"),
-          gt(keywordAutomationEventsTable.createdAt, hourAgo),
-        ),
-      )
-      .limit(1);
+    const recentCap = await first<{ id: string }>(sql`
+      SELECT id FROM keyword_automation_events
+      WHERE rule_id = ${rule.id} AND fan_user_id = ${fanUserId}
+        AND outcome = 'rate_limited' AND created_at > ${hourAgo}
+      LIMIT 1`);
     if (!recentCap) {
-      await recordEvent({ rule, fanUserId, surface, surfaceRef: surfaceRefId, outcome: "rate_limited", detail: capHit });
+      await recordEvent({
+        ruleId: rule.id, creatorUserId: rule.creator_user_id, fanUserId,
+        surface, surfaceRef: surfaceRefId, outcome: "rate_limited", detail: capHit,
+      });
     }
     return;
   }
 
-  const dmBody = rule.captureEmail && rule.listId ? rule.dmBody + KW_CAPTURE_PROMPT : rule.dmBody;
-  const sent = await sendAutomatedDm(rule.creatorUserId, fanUserId, dmBody);
+  const dmBody = rule.capture_email && rule.list_id ? rule.dm_body + KW_CAPTURE_PROMPT : rule.dm_body;
+  const sent = await sendAutomatedDm(rule.creator_user_id, fanUserId, dmBody);
   if (!sent.ok) {
     await recordEvent({
-      rule,
-      fanUserId,
-      surface,
-      surfaceRef: surfaceRefId,
-      outcome: "blocked",
-      detail: sent.reason,
+      ruleId: rule.id, creatorUserId: rule.creator_user_id, fanUserId,
+      surface, surfaceRef: surfaceRefId, outcome: "blocked", detail: sent.reason,
     });
     return;
   }
 
   await recordEvent({
-    rule,
-    fanUserId,
-    surface,
-    surfaceRef: surfaceRefId,
-    outcome: "sent",
-    dmMessageId: sent.messageId,
+    ruleId: rule.id, creatorUserId: rule.creator_user_id, fanUserId,
+    surface, surfaceRef: surfaceRefId, outcome: "sent", dmMessageId: sent.messageId,
   });
 
-  if (rule.captureEmail && rule.listId) {
-    await db
-      .insert(keywordAutomationCapturesTable)
-      .values({
-        ruleId: rule.id,
-        creatorUserId: rule.creatorUserId,
-        fanUserId,
-        conversationId: sent.conversationId,
-        status: "pending",
-      })
-      .onConflictDoNothing();
+  if (rule.capture_email && rule.list_id) {
+    await db.execute(sql`
+      INSERT INTO keyword_automation_captures
+        (rule_id, creator_user_id, fan_user_id, conversation_id, status)
+      VALUES (${rule.id}, ${rule.creator_user_id}, ${fanUserId}, ${sent.conversationId}, 'pending')
+      ON CONFLICT DO NOTHING`);
   }
 }
 
@@ -394,6 +387,40 @@ export interface DmCaptureInput {
   senderUserId: string;
   conversationId: string;
   body: string;
+}
+
+interface ListRow {
+  id: string; user_id: string; name: string; handle: string;
+  description: string | null; welcome_subject: string | null; welcome_body: string | null;
+  welcome2_subject: string | null; welcome2_body: string | null;
+  welcome3_subject: string | null; welcome3_body: string | null;
+  created_at: Date | string;
+}
+
+interface SubscriberRow {
+  id: string; list_id: string; email: string; name: string | null;
+  source: string; confirmed: boolean; opens: number; clicks: number;
+  unsubscribe_token: string | null; unsubscribed_at: Date | string | null;
+  subscribed_at: Date | string;
+}
+
+function toEmailList(r: ListRow): EmailList {
+  return {
+    id: r.id, userId: r.user_id, name: r.name, handle: r.handle,
+    description: r.description, welcomeSubject: r.welcome_subject, welcomeBody: r.welcome_body,
+    welcome2Subject: r.welcome2_subject, welcome2Body: r.welcome2_body,
+    welcome3Subject: r.welcome3_subject, welcome3Body: r.welcome3_body,
+    createdAt: asDate(r.created_at) ?? new Date(),
+  } as EmailList;
+}
+
+function toEmailSubscriber(r: SubscriberRow): EmailSubscriber {
+  return {
+    id: r.id, listId: r.list_id, email: r.email, name: r.name,
+    source: r.source, confirmed: r.confirmed, opens: r.opens, clicks: r.clicks,
+    unsubscribeToken: r.unsubscribe_token, unsubscribedAt: asDate(r.unsubscribed_at),
+    subscribedAt: asDate(r.subscribed_at) ?? new Date(),
+  } as EmailSubscriber;
 }
 
 /** Called (fire-and-forget) after any DM lands. If the sender is a
@@ -406,134 +433,90 @@ export async function handleDmEmailCapture(input: DmCaptureInput): Promise<void>
     const email = extractEmail(input.body);
     if (!email) return;
 
-    const pending = await db
-      .select()
-      .from(keywordAutomationCapturesTable)
-      .where(
-        and(
-          eq(keywordAutomationCapturesTable.fanUserId, input.senderUserId),
-          eq(keywordAutomationCapturesTable.conversationId, input.conversationId),
-          eq(keywordAutomationCapturesTable.status, "pending"),
-        ),
-      )
-      .orderBy(desc(keywordAutomationCapturesTable.createdAt))
-      .limit(1);
-    const capture = pending[0];
+    const capture = await first<CaptureRow>(sql`
+      SELECT * FROM keyword_automation_captures
+      WHERE fan_user_id = ${input.senderUserId} AND conversation_id = ${input.conversationId}
+        AND status = 'pending'
+      ORDER BY created_at DESC LIMIT 1`);
     if (!capture) return;
 
-    if (Date.now() - capture.createdAt.getTime() > KW_CAPTURE_WINDOW_MS) {
-      await db
-        .update(keywordAutomationCapturesTable)
-        .set({ status: "expired" })
-        .where(eq(keywordAutomationCapturesTable.id, capture.id));
+    if (Date.now() - (asDate(capture.created_at)?.getTime() ?? 0) > KW_CAPTURE_WINDOW_MS) {
+      await db.execute(sql`
+        UPDATE keyword_automation_captures SET status = 'expired' WHERE id = ${capture.id}`);
       return;
     }
 
-    const [rule] = await db
-      .select()
-      .from(keywordAutomationRulesTable)
-      .where(eq(keywordAutomationRulesTable.id, capture.ruleId))
-      .limit(1);
-    if (!rule || !rule.listId) return;
+    const rule = await first<RuleRow>(sql`
+      SELECT * FROM keyword_automation_rules WHERE id = ${capture.rule_id} LIMIT 1`);
+    if (!rule || !rule.list_id) return;
 
-    const [list] = await db
-      .select()
-      .from(emailListsTable)
-      .where(and(eq(emailListsTable.id, rule.listId), eq(emailListsTable.userId, capture.creatorUserId)))
-      .limit(1);
-    if (!list) return;
-
-    const [existing] = await db
-      .select()
-      .from(emailSubscribersTable)
-      .where(and(eq(emailSubscribersTable.listId, list.id), eq(emailSubscribersTable.email, email)))
-      .limit(1);
+    const listRow = await first<ListRow>(sql`
+      SELECT * FROM email_lists WHERE id = ${rule.list_id} AND user_id = ${capture.creator_user_id} LIMIT 1`);
+    if (!listRow) return;
+    const list = toEmailList(listRow);
 
     /* The capture belongs to the comment that started the flow: the
        audit row carries that fire's surface + ref, not the DM's. */
-    const [fire] = await db
-      .select({
-        surface: keywordAutomationEventsTable.surface,
-        surfaceRef: keywordAutomationEventsTable.surfaceRef,
-      })
-      .from(keywordAutomationEventsTable)
-      .where(
-        and(
-          eq(keywordAutomationEventsTable.ruleId, rule.id),
-          eq(keywordAutomationEventsTable.fanUserId, input.senderUserId),
-          eq(keywordAutomationEventsTable.outcome, "sent"),
-        ),
-      )
-      .orderBy(desc(keywordAutomationEventsTable.createdAt))
-      .limit(1);
+    const fire = await first<{ surface: KwSurface; surface_ref: string }>(sql`
+      SELECT surface, surface_ref FROM keyword_automation_events
+      WHERE rule_id = ${rule.id} AND fan_user_id = ${input.senderUserId} AND outcome = 'sent'
+      ORDER BY created_at DESC LIMIT 1`);
     const fireSurface = fire?.surface ?? "post";
-    const fireRef = fire?.surfaceRef ?? capture.conversationId;
+    const fireRef = fire?.surface_ref ?? capture.conversation_id;
+
+    const existing = await first<SubscriberRow>(sql`
+      SELECT * FROM email_subscribers WHERE list_id = ${list.id} AND email = ${email} LIMIT 1`);
 
     let outcome: "captured" | "already_on_list";
-    if (existing && !existing.unsubscribedAt) {
+    if (existing && !existing.unsubscribed_at) {
       outcome = "already_on_list";
     } else {
-      const [subRow] = await db
-        .select({ value: count() })
-        .from(emailSubscribersTable)
-        .where(and(eq(emailSubscribersTable.listId, list.id), isNull(emailSubscribersTable.unsubscribedAt)));
-      if (!existing && (subRow?.value ?? 0) >= KW_LIST_FREE_SUBSCRIBER_LIMIT) {
-        await db.insert(keywordAutomationEventsTable).values({
-          ruleId: rule.id,
-          creatorUserId: rule.creatorUserId,
-          fanUserId: input.senderUserId,
-          surface: fireSurface,
-          surfaceRef: fireRef,
-          outcome: "failed",
-          capturedEmail: email,
-          detail: "list_full",
-        });
-        return;
+      if (!existing) {
+        const countRow = await first<{ value: number }>(sql`
+          SELECT count(*)::int AS value FROM email_subscribers
+          WHERE list_id = ${list.id} AND unsubscribed_at IS NULL`);
+        if ((countRow?.value ?? 0) >= KW_LIST_FREE_SUBSCRIBER_LIMIT) {
+          await recordEvent({
+            ruleId: rule.id, creatorUserId: rule.creator_user_id, fanUserId: input.senderUserId,
+            surface: fireSurface, surfaceRef: fireRef, outcome: "failed",
+            capturedEmail: email, detail: "list_full",
+          });
+          return;
+        }
       }
-      let subscriber = existing;
+      let subscriber: EmailSubscriber;
       if (existing) {
         /* Re-subscribing an unsubscribed address re-activates it —
            the public subscribe door's exact behavior. */
-        const [fresh] = await db
-          .update(emailSubscribersTable)
-          .set({ unsubscribedAt: null, source: "keyword_automation" })
-          .where(eq(emailSubscribersTable.id, existing.id))
-          .returning();
-        subscriber = fresh ?? existing;
+        await db.execute(sql`
+          UPDATE email_subscribers SET unsubscribed_at = NULL, source = 'keyword_automation'
+          WHERE id = ${existing.id}`);
+        subscriber = toEmailSubscriber({ ...existing, unsubscribed_at: null, source: "keyword_automation" });
       } else {
-        const [fresh] = await db
-          .insert(emailSubscribersTable)
-          .values({
-            listId: list.id,
-            email,
-            name: null,
-            source: "keyword_automation",
-            confirmed: true,
-            unsubscribeToken: randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, ""),
-          })
-          .returning();
-        subscriber = fresh;
+        const subId = randomUUID();
+        const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+        await db.execute(sql`
+          INSERT INTO email_subscribers (id, list_id, email, name, source, confirmed, unsubscribe_token)
+          VALUES (${subId}, ${list.id}, ${email}, NULL, 'keyword_automation', true, ${token})`);
+        subscriber = toEmailSubscriber({
+          id: subId, list_id: list.id, email, name: null, source: "keyword_automation",
+          confirmed: true, opens: 0, clicks: 0, unsubscribe_token: token,
+          unsubscribed_at: null, subscribed_at: new Date(),
+        });
       }
-      if (subscriber) {
-        await queueWelcomeSequence(list, subscriber).catch((err) =>
-          logger.error({ err, listId: list.id }, "[keyword-automations] welcome sequence queue failed"),
-        );
-      }
+      await queueWelcomeSequence(list, subscriber).catch((err) =>
+        logger.error({ err, listId: list.id }, "[keyword-automations] welcome sequence queue failed"),
+      );
       outcome = "captured";
     }
 
-    await db
-      .update(keywordAutomationCapturesTable)
-      .set({ status: "captured", capturedEmail: email, capturedAt: new Date() })
-      .where(eq(keywordAutomationCapturesTable.id, capture.id));
-    await db.insert(keywordAutomationEventsTable).values({
-      ruleId: rule.id,
-      creatorUserId: rule.creatorUserId,
-      fanUserId: input.senderUserId,
-      surface: fireSurface,
-      surfaceRef: fireRef,
-      outcome,
-      capturedEmail: email,
+    await db.execute(sql`
+      UPDATE keyword_automation_captures
+      SET status = 'captured', captured_email = ${email}, captured_at = now()
+      WHERE id = ${capture.id}`);
+    await recordEvent({
+      ruleId: rule.id, creatorUserId: rule.creator_user_id, fanUserId: input.senderUserId,
+      surface: fireSurface, surfaceRef: fireRef, outcome, capturedEmail: email,
     });
   } catch (err) {
     logger.error({ err }, "[keyword-automations] DM email capture failed");
