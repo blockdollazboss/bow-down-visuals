@@ -147,7 +147,21 @@ export default function Earnings() {
           source={sources.storeSales}
           detail={
             sources.storeSales.status === "ok" && sources.storeSales.breakdown
-              ? `profile store ${usd(sources.storeSales.breakdown.profileStoreCents)} · shop ${usd(sources.storeSales.breakdown.shopSalesCents)}`
+              ? [
+                  `profile store ${usd(sources.storeSales.breakdown.profileStoreCents)} · shop ${usd(sources.storeSales.breakdown.shopSalesCents)}`,
+                  /* #36 co-seller splits: what my sales paid my
+                     co-sellers, and what I earned as a co-seller on
+                     other creators' products — each shown only when
+                     it actually happened. */
+                  sources.storeSales.breakdown.coSellerSharesPaidOutCents > 0
+                    ? `paid to co-sellers ${usd(sources.storeSales.breakdown.coSellerSharesPaidOutCents)}`
+                    : null,
+                  sources.storeSales.breakdown.coSellerSplitCents > 0
+                    ? `earned as a co-seller ${usd(sources.storeSales.breakdown.coSellerSplitCents)} (${sources.storeSales.breakdown.coSellerSplitSales} ${sources.storeSales.breakdown.coSellerSplitSales === 1 ? "sale" : "sales"})`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
               : undefined
           }
         />

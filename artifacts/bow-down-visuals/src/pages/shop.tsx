@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "wouter";
 import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
-  Store, ArrowLeft, Check, BadgeCheck, Play,
+  Store, ArrowLeft, Check, BadgeCheck, Play, Users,
 } from "lucide-react";
 import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
@@ -58,6 +58,11 @@ interface PublicProduct {
     priceCents: number;
     price: string;
   } | null;
+  /* Co-seller splits (Wave 4 #36): the normalized list the shop rail
+     presents — [{ userId, sharePct }] including the seller's own
+     entry; null when the product is solo. Shop reads carry no names,
+     so the buyer surface states the sharing, not the roster. */
+  splits?: { userId: string; sharePct: number }[] | null;
 }
 
 /** $0 shop products are FREE goods — label them, never "$0.00". */
@@ -457,6 +462,14 @@ export default function ShopStorefront() {
                 </button>
               </div>
               <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents)}</div>
+              {/* #36: a shared product says so — the sellers split
+                  this sale's net between them. */}
+              {selected.splits && selected.splits.length > 1 && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-white/45">
+                  <Users className="h-3.5 w-3.5" style={{ color: accent }} />
+                  {t("splits.shopSharedLine", { count: selected.splits.length - 1 })}
+                </p>
+              )}
               {selected.description && (
                 <p className="mt-3 text-sm text-white/60 whitespace-pre-line">{selected.description}</p>
               )}

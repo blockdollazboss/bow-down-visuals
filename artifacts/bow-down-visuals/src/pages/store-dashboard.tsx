@@ -542,12 +542,16 @@ function SplitsRowEditor({ p, ownerUserId, getAccessToken, onDone, onCancel }: {
   const save = async () => {
     const check = validateSplitsDraft(ownerUserId, drafts);
     if (!check.ok) { setMsg(splitsErrorText(check.reason)); return; }
+    const payload = splitsPayload(ownerUserId, drafts);
+    /* Nothing to write: solo product, empty editor — close quietly
+       instead of sending a clearing write for a split that isn't. */
+    if (payload === null && !p.splits) { onDone(); return; }
     setBusy(true);
     setMsg("");
     try {
       const token = await getToken();
       /* Empty drafts → null payload → the split clears back to solo. */
-      await updateProduct(token, p.id, { splits: splitsPayload(ownerUserId, drafts) });
+      await updateProduct(token, p.id, { splits: payload });
       onDone();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Couldn't save the split.");
@@ -838,7 +842,13 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         isActive: true,
         affiliateEnabled: form.affiliatesEnabled,
         affiliateCommissionBps: affiliateBps,
-        splits: splitsPayload(ownerUserId, splitDrafts),
+        /* The splits key rides only when it sets a split — on the
+           server an explicit null is a (clearing) write, and any
+           splits write pre-migration answers 503; a solo product's
+           create must never carry it. */
+        ...(splitsPayload(ownerUserId, splitDrafts) !== null
+          ? { splits: splitsPayload(ownerUserId, splitDrafts) }
+          : {}),
       };
       if (form.kind === "gift_card" && (!input.giftCardDenominationsCents || input.giftCardDenominationsCents.length === 0)) {
         setErr("Gift cards need amounts — list the dollar amounts fans can pick, like 25, 50, 100.");

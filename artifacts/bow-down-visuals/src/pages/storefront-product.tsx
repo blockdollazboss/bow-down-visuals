@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
-import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Minus, Plus, Timer, BellRing, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Minus, Plus, Timer, BellRing, Mail, CheckCircle2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
@@ -71,6 +71,9 @@ interface ProductData {
     mediaAltTexts?: string[];
     /** kind='gift_card': seller-set amounts (cents) to pick from. */
     giftCardDenominationsCents?: number[] | null;
+    /* #36: co-seller splits as presented — every seller sharing this
+       product's net, with names/slugs; null when the product is solo. */
+    splits?: { userId: string; sharePct: number; name?: string | null; slug?: string | null }[] | null;
     links: {
       creatorUrl: string;
       creatorName: string;
@@ -858,6 +861,28 @@ export default function StorefrontProduct() {
                 <ShieldCheck className="h-4 w-4 text-amber-400" />
                 Sold by {data.product.links.creatorName} on Bow Down Visuals
               </div>
+
+              {/* #36: a shared product names its co-sellers — the same
+                  presented truth the seller sees, shares included. */}
+              {data.product.splits && data.product.splits.length > 1 && (
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-amber-100/50">
+                  <Users className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Sold with</span>
+                  {data.product.splits.map((s, i) => (
+                    <span key={s.userId}>
+                      {i > 0 && <span>{i === data.product.splits!.length - 1 ? " & " : ", "}</span>}
+                      {s.slug ? (
+                        <Link href={`/artist/${s.slug}`} className="font-semibold text-amber-200/80 transition hover:text-amber-200">
+                          {s.name ?? s.slug}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-amber-200/80">{s.name ?? "a co-seller"}</span>
+                      )}
+                      <span className="text-amber-100/40"> · {Number.isInteger(s.sharePct) ? s.sharePct : s.sharePct.toFixed(2)}%</span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
