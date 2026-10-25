@@ -6,6 +6,7 @@ import { ThemePacksDesk } from "@/components/theme-packs/ThemePacksDesk";
 import { SocialProofSettings } from "@/components/SocialProofSettings";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
+import { ContentWarningSettings } from "@/components/ContentWarningSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { DeveloperApiSettings } from "@/components/DeveloperApiSettings";
 import { TeamSeats } from "@/components/TeamSeats";
@@ -258,6 +259,8 @@ export default function Settings() {
         <PasskeyManager />
 
         <RetentionPrefsSettings />
+
+        <ContentWarningSettings />
 
         <DiscordWebhookSettings />
 

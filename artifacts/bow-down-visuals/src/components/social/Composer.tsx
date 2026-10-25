@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart, Crown } from "lucide-react";
+import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart, Crown, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { apiJson, type Attachment, type FeedPost } from "@/lib/social-api";
+import { CONTENT_WARNING_LABELS, CONTENT_WARNING_DISPLAY_NAMES, type ContentWarningLabel } from "@/lib/content-warnings";
 import { EmojiTray, useKingArtTheme } from "./KingEmoji";
 import { AltTextField } from "@/components/accessibility/AltTextField";
 import { gifImageAttachment, insertAtCursor, type KingGifDef } from "@/lib/king-emoji";
@@ -43,6 +44,14 @@ export function Composer({
      the Members audience is picked (GET /api/memberships/tiers). */
   const [minTierId, setMinTierId] = useState<string | null>(null);
   const [myTiers, setMyTiers] = useState<Array<{ id: string; name: string }> | null>(null);
+  /* Content warnings (Wave 4 #40): MY labels for this post — the
+     creator's honesty tool. Labelled media renders covered until a
+     fan taps to reveal it. Only the author can ever set these. */
+  const [contentWarnings, setContentWarnings] = useState<ContentWarningLabel[]>([]);
+
+  function toggleContentWarning(label: ContentWarningLabel) {
+    setContentWarnings((prev) => (prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]));
+  }
   const [urlDraft, setUrlDraft] = useState("");
   const [showUrlBox, setShowUrlBox] = useState(false);
   const [urlMode, setUrlMode] = useState<"media" | "product" | "track" | "event">("media");
@@ -176,6 +185,7 @@ export function Composer({
         quote_of: quoteOf?.id ?? null,
         audience,
         min_tier_id: audience === "members" ? minTierId : null,
+        content_warnings: contentWarnings,
         scheduled_for: scheduledFor || null,
       };
       if (pollOptions.length >= 2) payload.poll = pollOptions;
@@ -198,6 +208,7 @@ export function Composer({
       setThreadExtras([]);
       setPollOptions([]);
       setPollOpen(false);
+      setContentWarnings([]);
       setScheduledFor("");
       onPosted?.(data.post);
     } catch (e) {
@@ -446,6 +457,35 @@ export function Composer({
           </div>
         )}
       </div>}
+
+      {/* content warnings (Wave 4 #40) — my labels, my post: labelled
+          media stays covered until a fan taps to reveal it */}
+      {!replyTo && (
+        <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="composer-content-warnings">
+          <span className="flex items-center gap-1.5 text-xs text-neutral-400">
+            <AlertTriangle className="h-4 w-4 text-amber-400" /> Content warning
+          </span>
+          {CONTENT_WARNING_LABELS.map((label) => {
+            const on = contentWarnings.includes(label);
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => toggleContentWarning(label)}
+                aria-pressed={on}
+                className={`rounded-full border px-3 py-1.5 text-xs ${on ? "border-amber-400 bg-amber-400/15 font-bold text-amber-200" : "border-[#2a2a2a] text-neutral-400 hover:border-amber-400/50"}`}
+              >
+                {CONTENT_WARNING_DISPLAY_NAMES[label]}
+              </button>
+            );
+          })}
+          {contentWarnings.length > 0 && (
+            <span className="w-full text-[11px] text-neutral-500">
+              Your media will post covered behind this warning — fans tap to reveal it. Only you can label your posts.
+            </span>
+          )}
+        </div>
+      )}
 
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
 

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert, Lock, Crown } from "lucide-react";
+import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert, Lock, Crown, AlertTriangle, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { apiFetch, apiJson, profileHref, type FeedPost, type PollData } from "@/lib/social-api";
+import { apiFetch, apiJson, profileHref, revealPostContent, type FeedPost, type LooseAttachment, type PollData } from "@/lib/social-api";
+import { contentWarningNames, revealedMediaThisSession } from "@/lib/content-warnings";
 import { removalReasonLabel } from "@/lib/content-removal";
 import { Avatar } from "./Avatar";
 import { RichText } from "./RichText";
@@ -58,6 +59,31 @@ export function PostCard({
   const [earningHint, setEarningHint] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  /* Content warnings (Wave 4 #40): a covered post arrives with NO
+     media — the reveal fetches this one item's media through the
+     reveal door, and the session registry remembers it (per item,
+     per session; a reload covers everything again). */
+  const cover = post.content_cover ?? null;
+  const [revealedMedia, setRevealedMedia] = useState<LooseAttachment[] | null>(
+    () => (revealedMediaThisSession(post.id) as LooseAttachment[] | null) ?? null,
+  );
+  const [revealing, setRevealing] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const coveredNow = !!cover && !revealedMedia;
+
+  async function reveal() {
+    if (revealing) return;
+    setRevealing(true);
+    setRevealError(null);
+    try {
+      const media = await revealPostContent(getAccessToken, post.id);
+      setRevealedMedia(media);
+    } catch (e) {
+      setRevealError(e instanceof Error ? e.message : "Couldn't reveal that media.");
+    } finally {
+      setRevealing(false);
+    }
+  }
 
   /* Delete/analytics are owner-gated server-side (403 otherwise) — no client
      hint needed; the buttons fail closed. `user` gates the Report action:
@@ -255,6 +281,15 @@ export function PostCard({
                 members{post.min_tier ? ` · ${post.min_tier.name}+` : ""}
               </span>
             )}
+            {!removed && (post.content_warnings?.length ?? 0) > 0 && (
+              <span
+                className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/50 px-2 py-0.5 text-[10px] text-amber-300"
+                title="The creator labelled this post — its media stays covered until you tap to reveal it"
+                data-testid="post-content-warning-chip"
+              >
+                <AlertTriangle className="h-3 w-3" /> {contentWarningNames(post.content_warnings ?? [])}
+              </span>
+            )}
           </div>
 
           {post.why && (
@@ -289,7 +324,45 @@ export function PostCard({
           )}
           {!locked && post.body && <RichText body={post.body} className="mt-1.5 text-[15px] leading-relaxed text-neutral-100" />}
 
-          {!removed && !locked && <AttachmentView attachments={post.media_urls ?? []} />}
+          {!removed && !locked && (
+            coveredNow && cover ? (
+              /* The cover (Wave 4 #40): the media never arrived, so
+                 there is nothing here to blur, fetch or autoplay —
+                 a frosted panel names the warning and holds the one
+                 door (this item's reveal, this session only). */
+              <div className="relative mt-3 overflow-hidden rounded-xl border border-amber-400/40 px-3 py-3" data-testid="post-content-cover">
+                <div aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_140%_at_20%_0%,rgba(217,164,65,0.28),rgba(20,16,8,0.92)_60%)] backdrop-blur-md" />
+                <div className="relative">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-200">
+                    <AlertTriangle className="h-4 w-4 shrink-0" /> Content warning: {contentWarningNames(cover.labels)}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-neutral-300">{cover.message}</p>
+                  <p className="mt-1 text-[11px] text-neutral-400">
+                    {cover.media_count} attachment{cover.media_count === 1 ? "" : "s"} covered
+                  </p>
+                  {cover.mode === "covered" ? (
+                    <button
+                      onClick={reveal}
+                      disabled={revealing}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black hover:bg-[#e8c86a] disabled:opacity-50"
+                    >
+                      <Eye className="h-3.5 w-3.5" /> {revealing ? "Revealing…" : "Show media"}
+                    </button>
+                  ) : (
+                    <Link
+                      href="/settings"
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 px-4 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-400/10"
+                    >
+                      Review my content warning settings
+                    </Link>
+                  )}
+                  {revealError && <p className="mt-2 text-xs text-red-400">{revealError}</p>}
+                </div>
+              </div>
+            ) : (
+              <AttachmentView attachments={revealedMedia ?? post.media_urls ?? []} />
+            )
+          )}
 
           {/* poll */}
           {!removed && !locked && poll && (
