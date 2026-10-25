@@ -557,6 +557,21 @@ export default function WorldPage() {
   const [nearStation, setNearStation] = useState<PalaceStation | null>(null);
   const nearStationIdRef = useRef<string | null>(null);
   const [panelTarget, setPanelTarget] = useState<StationPanelTarget | null>(null);
+  /* The opened panel's anchor + the bring-it-to-the-walker effect.
+   * The sheet mounts BELOW the stage in page flow (its root is
+   * relative, under the canvas), so without this, opening a desk
+   * changed nothing on screen — the press looked dead until the
+   * walker happened to scroll (owner's live report, 2026-10-25:
+   * "haven't been able to do anything inside of the VR world").
+   * On open: release pointer lock (taken on canvas click; it was
+   * never released anywhere, leaving the panel unclickable until
+   * Esc) and scroll the sheet into view. */
+  const panelAnchorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!panelTarget) return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    panelAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [panelTarget]);
   /* The door-opener behind both the E key and the controller's LB:
    * a prompt must be showing and no panel may be open — one guard,
    * whatever drives it. The scene's pad callbacks bind once at
@@ -3772,6 +3787,7 @@ export default function WorldPage() {
           portrait pointed at). The step-through kind renders itself
           full-screen from inside this same mount. */}
       {panelTarget && status === "inside" && (
+        <div ref={panelAnchorRef}>
         <StationPanel
           target={panelTarget}
           isLight={isLight}
@@ -3827,6 +3843,7 @@ export default function WorldPage() {
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
           onJukeboxRemove={(entryId) => clientRef.current?.jukeboxRemove(entryId)}
         />
+        </div>
       )}
 
       {/* ── Bottom bar: say + voice + VR ── */}
