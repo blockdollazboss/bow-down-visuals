@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Sun, Moon } from "lucide-react";
 import { applyThemeMode, bootThemePack } from "@/lib/theme-packs";
+import { ThemePackQuickPicker } from "@/components/theme-packs/ThemePackQuickPicker";
 
 /* Floating theme toggle — always visible on every page, draggable.
    User directive 2026-10-10: theme switch must never be hidden.
@@ -87,6 +88,7 @@ export function FloatingThemeToggle() {
     : { top: 16, left: 72 };
 
   return (
+    <>
     <button
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -99,5 +101,9 @@ export function FloatingThemeToggle() {
     >
       {isLight ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
     </button>
+    {/* FIX 14: theme packs surface at the toggle itself, not only in
+        the Settings desk. The picker is a sibling fixed element. */}
+    <ThemePackQuickPicker />
+    </>
   );
 }
