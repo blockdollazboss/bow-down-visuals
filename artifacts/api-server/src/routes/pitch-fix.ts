@@ -18,12 +18,18 @@ import {
   togglePitchVote,
   listModerationQueue,
   moderateSubmission,
-  setSubmissionStatus,
   getFeedbackPrefs,
   setFeedbackEnabled,
   getFeedbackEligibility,
   recordPromptShown,
+  markDuplicate,
+  getRewardPoolState,
 } from "../lib/pitch-fix";
+import {
+  defaultRewardPayDeps,
+  processRewardQueue,
+  setStatusAndProcessRewards,
+} from "../lib/pitch-fix-rewards";
 
 const router = Router();
 
@@ -40,13 +46,25 @@ const router = Router();
    PATCH  /api/pitch-fix/feedback-prefs   { enabled } Settings toggle
    GET    /api/pitch-fix/feedback-prompt/eligibility
    POST   /api/pitch-fix/feedback-prompt/shown   stamp a showing (cap)
-   GET    /api/admin/pitch-fix/queue      team review queue (admin)
+   GET    /api/admin/pitch-fix/queue      team review queue (admin) —
+                                          opening it first processes
+                                          the reward queue (weekly
+                                          roll-over pays here)
    PATCH  /api/admin/pitch-fix/:id        { moderation } and/or
-                                          { status } (admin)
+                                          { status } and/or
+                                          { duplicate_of } (admin)
+   POST   /api/admin/pitch-fix/rewards/process
+                                          run the reward queue now
+                                          (the 3x/day intake checks)
 
    Submissions land PENDING: nothing posts publicly until the team
-   approves it. NO prices and NO Visual Bucs reward exist anywhere in
-   this section — no charge rail, no grant rail, no price copy. */
+   approves it. NO PRICES exist anywhere in this section — no charge
+   rail, no price copy. REWARDS (owner ruling, Oct 25, 18:12 EDT):
+   the team-set Shipped/Fixed transition queues a VB reward (pitch
+   500; fix/feedback 100, blocks_me 250) paid exactly once, first
+   voice only, from a shared 1,000 VB/week pool with over-cap items
+   queued into next week — see lib/pitch-fix-rewards.ts. There is NO
+   self-serve claim path: only this admin surface moves statuses. */
 
 function fail(res: Response, err: unknown, scope: string) {
   if (err instanceof PitchFixError) {
@@ -195,13 +213,41 @@ router.post("/pitch-fix/feedback-prompt/shown", requireAuth, publicApiLimiter, a
 
 router.get("/admin/pitch-fix/queue", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
   try {
-    res.json({ submissions: await listModerationQueue(store) });
+    /* Opening the bench is a processing trigger: rewards queued in a
+       prior week pay when the new week's pool opens, without waiting
+       for a status change. A processing failure never hides the queue
+       — the bench renders and the failure is logged. */
+    try {
+      await processRewardQueue(store, defaultRewardPayDeps);
+    } catch (err) {
+      logger.error({ err }, "[pitch-fix] reward processing on queue open failed (queue still served)");
+    }
+    const pool = await getRewardPoolState(store);
+    res.json({
+      submissions: await listModerationQueue(store),
+      rewardPool: {
+        weekStart: pool.weekStart,
+        capVb: pool.capVb,
+        spentVb: pool.spentVb,
+        remainingVb: pool.remainingVb,
+        queuedIds: pool.queued.map((q) => q.id),
+      },
+    });
   } catch (err) { fail(res, err, "admin queue"); }
+});
+
+router.post("/admin/pitch-fix/rewards/process", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rewards = await processRewardQueue(store, defaultRewardPayDeps);
+    const pool = await getRewardPoolState(store);
+    res.json({ rewards, rewardPool: { weekStart: pool.weekStart, capVb: pool.capVb, spentVb: pool.spentVb, remainingVb: pool.remainingVb, queuedIds: pool.queued.map((q) => q.id) } });
+  } catch (err) { fail(res, err, "admin rewards process"); }
 });
 
 const adminPatchSchema = z.object({
   moderation: z.enum(["approved", "rejected"]).optional(),
   status: z.string().trim().min(1).max(20).optional(),
+  duplicate_of: z.string().trim().min(1).max(64).optional(),
 });
 
 router.patch("/admin/pitch-fix/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {
@@ -209,14 +255,22 @@ router.patch("/admin/pitch-fix/:id", requireAuth, requireAdmin, async (req: Requ
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
   try {
     let row = null;
+    let rewards = null;
     if (parsed.data.moderation) {
       row = await moderateSubmission(store, req.userId!, String(req.params["id"]), parsed.data.moderation);
     }
+    if (parsed.data.duplicate_of) {
+      row = await markDuplicate(store, String(req.params["id"]), parsed.data.duplicate_of);
+    }
     if (parsed.data.status) {
-      row = await setSubmissionStatus(store, String(req.params["id"]), parsed.data.status);
+      /* The status transition is the ONLY reward trigger: it queues
+         on Shipped/Fixed and the queue processes in the same action. */
+      const result = await setStatusAndProcessRewards(store, defaultRewardPayDeps, String(req.params["id"]), parsed.data.status);
+      row = result.submission;
+      rewards = result.rewards;
     }
     if (!row) { res.status(400).json({ error: "Nothing to update." }); return; }
-    res.json({ submission: row });
+    res.json({ submission: row, ...(rewards ? { rewards } : {}) });
   } catch (err) { fail(res, err, "admin patch"); }
 });
 

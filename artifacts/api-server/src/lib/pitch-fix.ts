@@ -7,8 +7,13 @@
    rows. Team members approve/reject and set board statuses through
    the admin functions — statuses are never submitter-set.
 
-   NO PRICES, NO REWARDS: nothing in this module charges, grants, or
-   prices anything. The shipped-idea reward question was never ruled.
+   NO PRICES: nothing in this module charges or prices anything.
+   REWARDS (owner ruling, Oct 25, 18:12 EDT): the Shipped/Fixed
+   transition queues a Visual Bucs reward (pitch 500; fix/feedback
+   100, or 250 for blocks_me) — exactly once, first voice only, from
+   a shared 1,000 VB/week pool. The money itself moves in
+   lib/pitch-fix-rewards.ts on the referral pattern; this module
+   owns the queueing, the duplicate rule, and the pool accounting.
 
    Feedback Pop-Up law (item 180), server half: the prompt may show
    at most once per 7 days per account (FEEDBACK_PROMPT_CAP_MS),
@@ -27,6 +32,10 @@ import {
   FIX_SEVERITIES,
   PITCH_BOARD_STATUSES,
   FIX_BOARD_STATUSES,
+  PITCH_REWARD_VB,
+  FIX_REWARD_VB,
+  FIX_CRITICAL_REWARD_VB,
+  PITCH_FIX_WEEKLY_POOL_VB,
   type PitchCategory,
   type FixPage,
   type FixSeverity,
@@ -56,13 +65,18 @@ export interface SubmissionWire {
   status: string;
   moderationStatus: ModerationStatus;
   upvoteCount: number;
+  rewardStatus: "none" | "queued" | "paid" | "ineligible";
+  rewardAmount: number | null;
+  rewardQueuedAt: string | null;
+  rewardPaidAt: string | null;
+  duplicateOfId: string | null;
   shippedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export class PitchFixError extends Error {
-  code: "not_found" | "not_votable" | "invalid_status" | "validation";
+  code: "not_found" | "not_votable" | "invalid_status" | "validation" | "already_paid" | "invalid_duplicate";
   constructor(code: PitchFixError["code"], message: string) {
     super(message);
     this.code = code;
@@ -84,6 +98,8 @@ export interface NewSubmissionRow {
   severity: string | null;
   rating: number | null;
   status: string;
+  rewardStatus?: "none" | "ineligible";
+  duplicateOfId?: string | null;
 }
 
 export interface FeedbackPrefsRow {
@@ -98,8 +114,15 @@ export interface PitchFixStore {
   getSubmission(id: string): Promise<SubmissionWire | null>;
   updateSubmission(
     id: string,
-    patch: Partial<Pick<SubmissionWire, "status" | "moderationStatus" | "shippedAt">> & { moderatedByUserId?: string | null; moderatedAt?: string | null },
+    patch: Partial<Pick<SubmissionWire, "status" | "moderationStatus" | "shippedAt" | "rewardStatus" | "rewardAmount" | "rewardQueuedAt" | "rewardPaidAt" | "duplicateOfId">> & { moderatedByUserId?: string | null; moderatedAt?: string | null },
   ): Promise<SubmissionWire | null>;
+  /** The reward claim: atomically flip queued → paid (stamping
+   *  rewardPaidAt) ONLY if the row is still queued. False = another
+   *  processor already claimed it — the caller must not pay. */
+  claimReward(id: string, paidAt: string): Promise<boolean>;
+  /** Release a claimed-but-unpaid reward back to queued (the
+   *  referral pattern's claim release, after a clawback). */
+  releaseRewardClaim(id: string): Promise<void>;
   hasVote(submissionId: string, userId: string): Promise<boolean>;
   /** Set the vote on/off; returns the submission's new upvote count. */
   setVote(submissionId: string, userId: string, on: boolean): Promise<number>;
@@ -125,6 +148,11 @@ function rowToWire(r: typeof pitchFixSubmissionsTable.$inferSelect): SubmissionW
     status: r.status,
     moderationStatus: r.moderationStatus as ModerationStatus,
     upvoteCount: r.upvoteCount,
+    rewardStatus: r.rewardStatus as SubmissionWire["rewardStatus"],
+    rewardAmount: r.rewardAmount,
+    rewardQueuedAt: r.rewardQueuedAt ? r.rewardQueuedAt.toISOString() : null,
+    rewardPaidAt: r.rewardPaidAt ? r.rewardPaidAt.toISOString() : null,
+    duplicateOfId: r.duplicateOfId,
     shippedAt: r.shippedAt ? r.shippedAt.toISOString() : null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
@@ -133,7 +161,11 @@ function rowToWire(r: typeof pitchFixSubmissionsTable.$inferSelect): SubmissionW
 
 export const drizzlePitchFixStore: PitchFixStore = {
   async insertSubmission(input) {
-    const rows = await db.insert(pitchFixSubmissionsTable).values(input).returning();
+    const rows = await db.insert(pitchFixSubmissionsTable).values({
+      ...input,
+      rewardStatus: input.rewardStatus ?? "none",
+      duplicateOfId: input.duplicateOfId ?? null,
+    }).returning();
     return rowToWire(rows[0]!);
   },
   async listSubmissions() {
@@ -148,11 +180,28 @@ export const drizzlePitchFixStore: PitchFixStore = {
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (patch.status !== undefined) set["status"] = patch.status;
     if (patch.moderationStatus !== undefined) set["moderationStatus"] = patch.moderationStatus;
+    if (patch.rewardStatus !== undefined) set["rewardStatus"] = patch.rewardStatus;
+    if (patch.rewardAmount !== undefined) set["rewardAmount"] = patch.rewardAmount;
+    if (patch.rewardQueuedAt !== undefined) set["rewardQueuedAt"] = patch.rewardQueuedAt ? new Date(patch.rewardQueuedAt) : null;
+    if (patch.rewardPaidAt !== undefined) set["rewardPaidAt"] = patch.rewardPaidAt ? new Date(patch.rewardPaidAt) : null;
+    if (patch.duplicateOfId !== undefined) set["duplicateOfId"] = patch.duplicateOfId;
     if (patch.shippedAt !== undefined) set["shippedAt"] = patch.shippedAt ? new Date(patch.shippedAt) : null;
     if (patch.moderatedByUserId !== undefined) set["moderatedByUserId"] = patch.moderatedByUserId;
     if (patch.moderatedAt !== undefined) set["moderatedAt"] = patch.moderatedAt ? new Date(patch.moderatedAt) : null;
     const rows = await db.update(pitchFixSubmissionsTable).set(set).where(eq(pitchFixSubmissionsTable.id, id)).returning();
     return rows[0] ? rowToWire(rows[0]) : null;
+  },
+  async claimReward(id, paidAt) {
+    const rows = await db.update(pitchFixSubmissionsTable)
+      .set({ rewardStatus: "paid", rewardPaidAt: new Date(paidAt), updatedAt: new Date() })
+      .where(and(eq(pitchFixSubmissionsTable.id, id), eq(pitchFixSubmissionsTable.rewardStatus, "queued")))
+      .returning({ id: pitchFixSubmissionsTable.id });
+    return rows.length > 0;
+  },
+  async releaseRewardClaim(id) {
+    await db.update(pitchFixSubmissionsTable)
+      .set({ rewardStatus: "queued", rewardPaidAt: null, updatedAt: new Date() })
+      .where(and(eq(pitchFixSubmissionsTable.id, id), eq(pitchFixSubmissionsTable.rewardStatus, "paid")));
   },
   async hasVote(submissionId, userId) {
     const rows = await db.select().from(pitchFixVotesTable)
@@ -197,6 +246,104 @@ export const drizzlePitchFixStore: PitchFixStore = {
   },
 };
 
+/* ─── Rewards: amounts, duplicates, pool ───────────────────────────────
+   The ruled amounts live in @workspace/db (PITCH_REWARD_VB etc.) next
+   to the schema; the pool cap is PITCH_FIX_WEEKLY_POOL_VB = 1,000 VB,
+   a SEPARATE envelope from lib/quest-pool's 300 VB/member/week — the
+   two share only the week anchor shape (Monday, UTC), never funds.
+   This pool is GLOBAL (all members together): first-shipped is
+   first-paid, and anything that doesn't fit queues into next week. */
+
+/** The reward a submission earns when it reaches its terminal
+ *  status: pitch → 500; fix/feedback → 100, or 250 for blocks_me.
+ *  Pop-up feedback follows the uniform fix rule (coordinator ruling):
+ *  no severity on a pop-up item, so it earns the plain 100. */
+export function rewardAmountFor(sub: Pick<SubmissionWire, "kind" | "severity">): number {
+  if (sub.kind === "pitch") return PITCH_REWARD_VB;
+  return sub.severity === "blocks_me" ? FIX_CRITICAL_REWARD_VB : FIX_REWARD_VB;
+}
+
+/** Monday (UTC) of the week containing `now`, as YYYY-MM-DD — the
+ *  same anchor lib/quest-pool uses, reimplemented so this envelope
+ *  stays independent of the quest pool's module and funds. */
+export function pitchFixWeekStart(now: Date): string {
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
+  day.setUTCDate(day.getUTCDate() - dow);
+  return day.toISOString().slice(0, 10);
+}
+
+export interface RewardPoolState {
+  weekStart: string;
+  capVb: number;
+  spentVb: number;
+  remainingVb: number;
+  /** Queued rewards across ALL weeks still waiting, oldest first —
+   *  the roll-over queue. Queued is never lost and never dropped. */
+  queued: SubmissionWire[];
+}
+
+/** Pool accounting from the items themselves: spent = rewards whose
+ *  rewardPaidAt falls inside this week; the queue is every row still
+ *  in reward_status 'queued', ordered by when it reached terminal
+ *  (first-shipped first). */
+export async function getRewardPoolState(store: PitchFixStore, now: Date = new Date()): Promise<RewardPoolState> {
+  const weekStart = pitchFixWeekStart(now);
+  const weekEnd = new Date(new Date(`${weekStart}T00:00:00.000Z`).getTime() + 7 * 24 * 3600 * 1000).toISOString();
+  const all = await store.listSubmissions();
+  const spentVb = all
+    .filter((s) => s.rewardStatus === "paid" && s.rewardPaidAt && s.rewardPaidAt >= `${weekStart}T00:00:00.000Z` && s.rewardPaidAt < weekEnd)
+    .reduce((sum, s) => sum + (s.rewardAmount ?? 0), 0);
+  const queued = all
+    .filter((s) => s.rewardStatus === "queued")
+    .sort((a, b) => (a.rewardQueuedAt ?? a.createdAt).localeCompare(b.rewardQueuedAt ?? b.createdAt));
+  return { weekStart, capVb: PITCH_FIX_WEEKLY_POOL_VB, spentVb, remainingVb: PITCH_FIX_WEEKLY_POOL_VB - spentVb, queued };
+}
+
+/** Title fingerprint for duplicate detection: case/punctuation/
+ *  whitespace-insensitive, so "Export spins!" and "export  spins"
+ *  are the same report. */
+export function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+}
+
+/** The FIRST earlier submission of the same kind carrying the same
+ *  normalized title (rejected rows don't count — they never posted).
+ *  Later copies are duplicates of it: first voice only. */
+async function findOriginal(store: PitchFixStore, kind: SubmissionKind, title: string): Promise<SubmissionWire | null> {
+  const norm = normalizeTitle(title);
+  if (!norm) return null;
+  const all = await store.listSubmissions();
+  const matches = all
+    .filter((s) => s.kind === kind && s.moderationStatus !== "rejected" && normalizeTitle(s.title) === norm)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return matches[0] ?? null;
+}
+
+async function duplicateFields(
+  store: PitchFixStore, kind: SubmissionKind, title: string,
+): Promise<Pick<NewSubmissionRow, "rewardStatus" | "duplicateOfId">> {
+  const original = await findOriginal(store, kind, title);
+  return original ? { rewardStatus: "ineligible", duplicateOfId: original.id } : {};
+}
+
+/** Team duplicate marking (the review surface): point a submission
+ *  at the FIRST submission it duplicates. A paid item can never be
+ *  marked (its money already moved, exactly once); a queued item
+ *  leaves the queue. The target must itself be a first voice. */
+export async function markDuplicate(store: PitchFixStore, id: string, duplicateOfId: string): Promise<SubmissionWire> {
+  const sub = await store.getSubmission(id);
+  if (!sub) throw new PitchFixError("not_found", "Submission not found.");
+  const target = await store.getSubmission(duplicateOfId);
+  if (!target) throw new PitchFixError("not_found", "The submission it duplicates was not found.");
+  if (id === duplicateOfId) throw new PitchFixError("invalid_duplicate", "A submission cannot duplicate itself.");
+  if (target.kind !== sub.kind) throw new PitchFixError("invalid_duplicate", "A duplicate must match the original's kind.");
+  if (target.duplicateOfId) throw new PitchFixError("invalid_duplicate", "That submission is itself a duplicate — point at the first one.");
+  if (sub.rewardStatus === "paid") throw new PitchFixError("already_paid", "That reward already paid — it cannot be marked a duplicate now.");
+  const updated = await store.updateSubmission(id, { duplicateOfId, rewardStatus: "ineligible", rewardAmount: null, rewardQueuedAt: null });
+  return updated!;
+}
+
 /* ─── Submissions ──────────────────────────────────────────────────── */
 
 function cleanName(name: string | undefined): string {
@@ -217,6 +364,7 @@ export async function submitPitch(
     title: input.title.trim(), body: input.body.trim(), why: input.why?.trim() || null,
     category: input.category, page: null, severity: null, rating: null,
     status: "reviewing",
+    ...(await duplicateFields(store, "pitch", input.title)),
   });
 }
 
@@ -236,6 +384,7 @@ export async function submitFix(
     title: input.title.trim(), body: (input.body ?? "").trim(), why: null,
     category: null, page: input.page, severity: input.severity, rating: null,
     status: "received",
+    ...(await duplicateFields(store, "fix", input.title)),
   });
 }
 
@@ -257,6 +406,7 @@ export async function submitFeedback(
     title: line, body: "", why: null,
     category: null, page: null, severity: null, rating: input.rating,
     status: "received",
+    ...(line ? await duplicateFields(store, "feedback", line) : {}),
   });
 }
 
@@ -335,9 +485,26 @@ export async function setSubmissionStatus(
     throw new PitchFixError("invalid_status", `Status "${status}" does not belong to a ${sub.kind}.`);
   }
   const terminal = status === "shipped" || status === "fixed";
+  /* Reward queueing rides the SAME transition (owner ruling): reaching
+     Shipped/Fixed queues the reward exactly once; leaving the terminal
+     status before payment un-queues it; a PAID reward never moves
+     again — re-shipping later can never pay twice, and an INELIGIBLE
+     (duplicate) item never queues at all. */
+  const rewardPatch: Partial<Pick<SubmissionWire, "rewardStatus" | "rewardAmount" | "rewardQueuedAt" | "rewardPaidAt">> = {};
+  if (terminal && sub.rewardStatus === "none") {
+    rewardPatch.rewardStatus = "queued";
+    rewardPatch.rewardAmount = rewardAmountFor(sub);
+    rewardPatch.rewardQueuedAt = now.toISOString();
+  } else if (!terminal && sub.rewardStatus === "queued") {
+    rewardPatch.rewardStatus = "none";
+    rewardPatch.rewardAmount = null;
+    rewardPatch.rewardQueuedAt = null;
+    rewardPatch.rewardPaidAt = null;
+  }
   const updated = await store.updateSubmission(id, {
     status,
     shippedAt: terminal ? (sub.shippedAt ?? now.toISOString()) : null,
+    ...rewardPatch,
   });
   return updated!;
 }

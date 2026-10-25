@@ -58,6 +58,11 @@ function memoryStore(): PitchFixStore {
         ...input,
         moderationStatus: "pending",
         upvoteCount: 0,
+        rewardStatus: input.rewardStatus ?? "none",
+        rewardAmount: null,
+        rewardQueuedAt: null,
+        rewardPaidAt: null,
+        duplicateOfId: input.duplicateOfId ?? null,
         shippedAt: null,
         createdAt: stamp(),
         updatedAt: stamp(),
@@ -78,6 +83,16 @@ function memoryStore(): PitchFixStore {
       const next = { ...r, ...patch, updatedAt: stamp() } as SubmissionWire;
       rows.set(id, next);
       return { ...next };
+    },
+    async claimReward(id, paidAt) {
+      const r = rows.get(id);
+      if (!r || r.rewardStatus !== "queued") return false;
+      rows.set(id, { ...r, rewardStatus: "paid", rewardPaidAt: paidAt });
+      return true;
+    },
+    async releaseRewardClaim(id) {
+      const r = rows.get(id);
+      if (r && r.rewardStatus === "paid") rows.set(id, { ...r, rewardStatus: "queued", rewardPaidAt: null });
     },
     async hasVote(submissionId, userId) {
       return votes.has(`${submissionId}:${userId}`);
@@ -165,13 +180,16 @@ describe("pitch & fix intake + moderation gate", () => {
     expect(board.fixes[0]!.rating).toBe(4);
   });
 
-  it("no wire shape carries a price, credit, or reward field", async () => {
+  it("no wire shape carries a PRICE — rewards are ruled VB amounts, never a price", async () => {
     const store = memoryStore();
     const row = await approvedPitch(store);
     const board = await getPublicBoard(store);
     for (const obj of [row, board.pitches[0]!]) {
       const keys = Object.keys(obj).join(",");
-      expect(keys).not.toMatch(/price|credit|reward|visual.?bucs|vb/i);
+      expect(keys).not.toMatch(/price/i);
+      // The ruled reward state rides the wire (owner, Oct 25, 18:12):
+      expect(obj.rewardStatus).toBe("none");
+      expect(obj.rewardAmount).toBeNull();
     }
   });
 });
