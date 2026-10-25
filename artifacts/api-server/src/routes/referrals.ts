@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
+import { recordCreditUsageStrict } from "../lib/payment-record";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -310,7 +311,31 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       return;
     }
 
-    await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
+    /* Grant + display ledger, Shark-Drop style (money integrity): the
+       welcome grant must appear on the referee's /credit-history, whose
+       activity feed reads the credit_usage ledger — a bare profiles.credits
+       bump is invisible there (the Pass 0 "balance moved, no rows" bug).
+       If either leg fails after the referrals row landed, release the
+       claim (delete the row) and claw back any credits that moved, so the
+       referee can retry cleanly instead of being stuck "already referred"
+       with nothing granted. */
+    let welcomeGranted = false;
+    try {
+      await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
+      welcomeGranted = true;
+      await recordCreditUsageStrict({
+        userId,
+        action: "Referral Welcome Grant",
+        creditsUsed: -REFEREE_WELCOME_CREDITS,
+        idempotencyKey: `referral-welcome:${userId}`,
+      });
+    } catch (grantErr) {
+      if (welcomeGranted) {
+        await addCreditsToProfile(userId, -REFEREE_WELCOME_CREDITS).catch(() => {});
+      }
+      await supabase.from("referrals").delete().eq("referee_user_id", userId);
+      throw grantErr;
+    }
 
     // Promoter Program: check for newly unlocked star milestones (idempotent).
     const newMilestones = await awardMilestoneBonuses(codeRow.user_id);
@@ -386,7 +411,37 @@ export async function awardReferralPayout(
       return 0;
     }
 
-    await addCreditsToProfile(referral.referrer_user_id, awarded);
+    /* Grant + display ledger. The payout row above is the claim; if the
+       grant or its credit_usage ledger row fails, release the claim
+       (delete the row) and claw back any credits that moved, so a later
+       fulfillment path (webhook retry, the other verify) can retry the
+       award instead of the claim sitting burned and unpaid. The ledger
+       row is what makes the share visible on the referrer's
+       /credit-history — a bare profiles.credits bump is invisible there. */
+    let payoutGranted = false;
+    try {
+      await addCreditsToProfile(referral.referrer_user_id, awarded);
+      payoutGranted = true;
+      await recordCreditUsageStrict({
+        userId: referral.referrer_user_id,
+        action: "Referral Revenue Share",
+        creditsUsed: -awarded,
+        idempotencyKey: `referral-payout:${stripeSessionId}`,
+      });
+    } catch (payErr) {
+      if (payoutGranted) {
+        await addCreditsToProfile(referral.referrer_user_id, -awarded).catch(() => {});
+      }
+      const { error: releaseErr } = await supabase
+        .from("referral_payouts")
+        .delete()
+        .eq("stripe_session_id", stripeSessionId);
+      logger.error(
+        { err: payErr, releaseErr: releaseErr?.message, referralId: referral.id, stripeSessionId },
+        "Referral payout failed after claim — claim released for retry"
+      );
+      return 0;
+    }
 
     // Bump the running total (best-effort; the payouts table is the ledger)
     await supabase.rpc("increment_referrer_earned", {

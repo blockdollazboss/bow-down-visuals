@@ -367,14 +367,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* One-time trial credits: covers email + social signups. The endpoint is
    * idempotent; localStorage gates the call so it only fires until the first
-   * success (or confirmed already-claimed). Best-effort — it must never
-   * break sign-in. */
+   * success (or confirmed already-claimed). The gate key is PER ACCOUNT:
+   * the old shared key meant a second account signing in on the same
+   * browser never claimed its trial at all (Pass 0, Oct 24 2026 — the
+   * test's second account sat at the 300 starter while the first got
+   * 1,300). The server's trial_credits_claimed flag is the real guard.
+   * Best-effort — it must never break sign-in. */
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       try {
-        if (localStorage.getItem("bdv_trial_claimed") === "1") return;
+        if (localStorage.getItem(`bdv_trial_claimed:${user.id}`) === "1") return;
       } catch {
         return;
       }
@@ -387,11 +391,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (!res.ok || cancelled) return;
         try {
-          localStorage.setItem("bdv_trial_claimed", "1");
+          localStorage.setItem(`bdv_trial_claimed:${user.id}`, "1");
         } catch { /* noop */ }
         // Show the new balance immediately.
         await refreshProfile();
       } catch { /* noop */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  /* Referral attribution (?ref=): App.tsx captures the code into
+   * localStorage at landing; this effect binds it the moment a real
+   * session exists — which, with email confirmation on, is only AFTER
+   * the user clicks the confirmation link and signs in. (The old flow
+   * fired the apply from the signup form with no session and deleted
+   * the code first, so referred signups never bound — Pass 0,
+   * Oct 24 2026.) The stored code is removed ONLY when the server has
+   * adjudicated it: 200 applied, or 400/404 (already used, own code,
+   * invalid) — retrying those can never succeed. A network failure or
+   * 401 leaves the code in place for the next session. Server-side,
+   * /api/referrals/apply is one-per-user, so a repeat call is a safe
+   * 400, never a double grant. Best-effort — it must never break
+   * sign-in. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      let code: string | null = null;
+      try {
+        code = localStorage.getItem("bdv_referral_code");
+      } catch {
+        return;
+      }
+      if (!code) return;
+      const token = await getAccessToken();
+      if (cancelled || !token) return;
+      try {
+        const res = await fetch("/api/referrals/apply", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ code }),
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          try {
+            localStorage.removeItem("bdv_referral_code");
+          } catch { /* noop */ }
+          // Show the welcome grant in the balance immediately.
+          await refreshProfile();
+        } else if (res.status === 400 || res.status === 404) {
+          // Adjudicated: already referred, own code, or invalid code.
+          try {
+            localStorage.removeItem("bdv_referral_code");
+          } catch { /* noop */ }
+        }
+        // Anything else (401, 5xx): keep the code for the next session.
+      } catch { /* network failure — keep the code for the next session */ }
     })();
     return () => {
       cancelled = true;
