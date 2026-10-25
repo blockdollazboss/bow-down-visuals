@@ -115,7 +115,7 @@ export interface MemberPostLock {
   creator_user_id: string;
   /** The fan-club join door: /memberships?creator=<creatorUserId>. */
   join_url: string;
-  viewer_status: "not_member" | "below_tier" | "lapsed";
+  viewer_status: "not_member" | "below_tier" | "lapsed" | "paused";
   viewer_tier: { id: string; name: string } | null;
   message: string;
 }

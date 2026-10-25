@@ -29,6 +29,8 @@ interface Tier {
   perks: string[];
   isActive: boolean;
   trialEnabled: boolean;
+  /* Pause offer (#39): members may rest 1–3 months unless off. */
+  pauseEnabled: boolean;
   annualDiscountPct: number;
   annualPriceCents: number;
   annualPriceDollars: number;
@@ -44,6 +46,7 @@ interface TierBreakdown {
 
 interface Dashboard {
   activeMembers: number;
+  pausedMembers: number;
   pastDueMembers: number;
   canceledMembers: number;
   mrrCents: number;
@@ -60,7 +63,7 @@ interface Member {
   tierName: string;
   fanLabel: string;
   fanUserId: string | null;
-  status: "trialing" | "active" | "past_due" | "canceled" | "expired";
+  status: "trialing" | "active" | "past_due" | "canceled" | "expired" | "paused";
   priceDollars: number;
   billingPeriod: string;
   currentPeriodEnd: string | null;
@@ -88,6 +91,13 @@ interface MyMembership {
   pastDueSince: string | null;
   accessEndsAt: string | null;
   pastDueDaysLeft: number | null;
+  /* Pause (#39): when the rest began, the resume date stated before
+     the fan confirmed, the period end after resuming on that date,
+     and whether this tier offers pause at all (creator toggle). */
+  pausedAt: string | null;
+  pauseResumesAt: string | null;
+  pauseNewPeriodEnd: string | null;
+  pauseOffered: boolean | null;
 }
 
 /* Creator Recovery view (GET /memberships/recovery): a past-due (or
@@ -133,6 +143,20 @@ const CARD =
   "rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6";
 const INPUT =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none";
+
+/* Calendar months later, clamped to the target month's last day —
+   mirrors the server's pause math (lib/membership-pause addMonths),
+   so the resume date stated in the fan's confirm is the date the
+   server stores and honors. */
+function addMonthsClamped(from: Date, months: number): Date {
+  const d = new Date(from.getTime());
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return d;
+}
 
 async function api(path: string, token: string | null, init?: RequestInit) {
   const res = await fetch(`/api${path}`, {
@@ -336,6 +360,7 @@ export default function Memberships() {
   const [perkInput, setPerkInput] = useState("");
   const [perks, setPerks] = useState<string[]>([]);
   const [trialEnabled, setTrialEnabled] = useState(false);
+  const [pauseOfferEnabled, setPauseOfferEnabled] = useState(true);
   const [annualDiscount, setAnnualDiscount] = useState("0");
 
   /* Fan-side state: my memberships + gifts, checkout-return message.
@@ -345,6 +370,12 @@ export default function Memberships() {
   const [mineError, setMineError] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
+  /* Fan pause (#39): the row whose pause picker is open, the chosen
+     months, and the in-flight pause/resume row. */
+  const [pausePickId, setPausePickId] = useState<string | null>(null);
+  const [pauseMonths, setPauseMonths] = useState(1);
+  const [pausingMemberId, setPausingMemberId] = useState<string | null>(null);
+  const [resumingId, setResumingId] = useState<string | null>(null);
   /* Creator Recovery view state (dunning worklist). Its own error —
      a failed recovery load never reads as "nobody is past due". */
   const [recovery, setRecovery] = useState<{ members: RecoveryRow[]; automationEnabled: boolean; automationProvisioned: boolean } | null>(null);
@@ -534,6 +565,53 @@ export default function Memberships() {
     }
   }
 
+  /* Fan pause (POST /memberships/mine/:id/pause). The confirm states
+     the resume date PLAINLY before the fan commits — the same date
+     the server computes and stores (addMonthsClamped mirrors it).
+     While paused: access sleeps everywhere, nothing charges, and the
+     paid period doesn't burn — resume shifts the period end. */
+  async function pauseMembership(m: MyMembership) {
+    const months = pauseMonths;
+    const resumes = addMonthsClamped(new Date(), months);
+    const when = resumes.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+    if (!confirm(`Pause your ${m.tierName ?? "membership"} membership for ${months} ${months === 1 ? "month" : "months"}?\n\nYour access sleeps right away — members-only posts, rooms and perks included — and comes back on ${when}, or sooner if you resume. Nothing charges while you're paused, and your paid time doesn't burn: your period end moves by the time you rest.`)) return;
+    setPausingMemberId(m.id);
+    try {
+      const token = await getAccessToken();
+      const { res, data } = await api(`/memberships/mine/${m.id}/pause`, token, {
+        method: "POST",
+        body: JSON.stringify({ months }),
+      });
+      if (!res.ok) throw new Error(String((data as { message?: string }).message ?? data.error ?? "pause failed"));
+      const back = data.resumesAt ? new Date(String(data.resumesAt)).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) : when;
+      setFanMsg(`Membership paused — rest easy. Your access comes back on ${back}, or the moment you resume.`);
+      setPausePickId(null);
+      await loadMine();
+    } catch (e) {
+      setFanMsg(e instanceof Error ? e.message : "Couldn't pause that membership — try again in a moment.");
+    } finally {
+      setPausingMemberId(null);
+    }
+  }
+
+  /* Fan resume (POST /memberships/mine/:id/resume) — one tap back.
+     The server shifts the period end by the time rested, so the fan
+     returns to exactly the paid time they had left. */
+  async function resumeMembership(m: MyMembership) {
+    setResumingId(m.id);
+    try {
+      const token = await getAccessToken();
+      const { res, data } = await api(`/memberships/mine/${m.id}/resume`, token, { method: "POST" });
+      if (!res.ok) throw new Error(String((data as { message?: string }).message ?? data.error ?? "resume failed"));
+      setFanMsg(`Welcome back — your ${m.tierName ?? "membership"} membership is active again.`);
+      await loadMine();
+    } catch (e) {
+      setFanMsg(e instanceof Error ? e.message : "Couldn't resume that membership — try again in a moment.");
+    } finally {
+      setResumingId(null);
+    }
+  }
+
   function resetForm() {
     setEditingId(null);
     setName("");
@@ -542,6 +620,7 @@ export default function Memberships() {
     setPerks([]);
     setPerkInput("");
     setTrialEnabled(false);
+    setPauseOfferEnabled(true);
     setAnnualDiscount("0");
   }
 
@@ -553,6 +632,7 @@ export default function Memberships() {
     setPerks(t.perks);
     setPerkInput("");
     setTrialEnabled(!!t.trialEnabled);
+    setPauseOfferEnabled(t.pauseEnabled !== false);
     setAnnualDiscount(String(t.annualDiscountPct ?? 0));
   }
 
@@ -567,6 +647,7 @@ export default function Memberships() {
         description: description.trim(),
         perks,
         trialEnabled,
+        pauseEnabled: pauseOfferEnabled,
         annualDiscountPct: Math.max(0, Math.min(90, Math.round(parseFloat(annualDiscount) || 0))),
       };
       const { res } = editingId
@@ -810,7 +891,8 @@ export default function Memberships() {
                             <div className="text-xs text-white/40">
                               {fmt$(m.priceDollars)} · {m.billingPeriod} · member since {new Date(m.joinedAt).toLocaleDateString()}
                               {m.status === "trialing" && m.trialEndsAt && <> · trial ends {new Date(m.trialEndsAt).toLocaleDateString()}</>}
-                              {m.status !== "trialing" && m.status !== "past_due" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                              {m.status !== "trialing" && m.status !== "past_due" && m.status !== "paused" && m.currentPeriodEnd && <> · {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</>}
+                              {m.status === "paused" && m.pauseResumesAt && <> · resumes {new Date(m.pauseResumesAt).toLocaleDateString()}</>}
                               {m.status === "past_due" && m.pastDueSince && <> · payment failed {new Date(m.pastDueSince).toLocaleDateString()}</>}
                             </div>
                           </div>
@@ -819,9 +901,27 @@ export default function Memberships() {
                               m.status === "active" ? "bg-emerald-500/15 text-emerald-300"
                               : m.status === "trialing" ? "bg-primary/15 text-primary"
                               : m.status === "past_due" ? "bg-red-500/15 text-red-300"
+                              : m.status === "paused" ? "bg-sky-500/15 text-sky-300"
                               : "bg-white/10 text-white/50"
                             }`}>{m.status.replace("_", " ")}</span>
-                            {(m.status === "active" || m.status === "trialing" || m.status === "past_due") && (
+                            {m.status === "active" && m.pauseOffered !== false && (
+                              <button
+                                onClick={() => { setPauseMonths(1); setPausePickId(pausePickId === m.id ? null : m.id); }}
+                                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 hover:border-sky-400/40 hover:text-sky-300"
+                              >
+                                Pause
+                              </button>
+                            )}
+                            {m.status === "paused" && (
+                              <button
+                                onClick={() => void resumeMembership(m)}
+                                disabled={resumingId === m.id}
+                                className="rounded-lg bg-sky-400/90 px-3 py-1.5 text-xs font-black text-black hover:bg-sky-300 disabled:opacity-50"
+                              >
+                                {resumingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Resume"}
+                              </button>
+                            )}
+                            {(m.status === "active" || m.status === "trialing" || m.status === "past_due" || m.status === "paused") && (
                               <button
                                 onClick={() => void cancelMembership(m)}
                                 disabled={cancelingId === m.id}
@@ -852,6 +952,57 @@ export default function Memberships() {
                               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-red-400/90 px-3 py-1.5 text-xs font-black text-black hover:bg-red-300 disabled:opacity-50"
                             >
                               {fixingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Update card & renew"}
+                            </button>
+                          </div>
+                        )}
+                        {/* Paused: the fan hears the whole truth — access
+                            is asleep, nothing charges, the paid clock is
+                            frozen, and the resume date is the one stated
+                            before they confirmed. Resume is one tap. */}
+                        {m.status === "paused" && (
+                          <div className="mt-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm text-sky-200 flex flex-wrap items-center gap-3">
+                            <Pause className="h-4 w-4 shrink-0" />
+                            <span className="flex-1 min-w-[220px]">
+                              Paused — your access is asleep and nothing is charging.
+                              {m.pauseResumesAt && <> It comes back on <strong>{new Date(m.pauseResumesAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</strong></>}
+                              {m.pauseNewPeriodEnd && <>, and your paid period will then run to <strong>{new Date(m.pauseNewPeriodEnd).toLocaleDateString()}</strong></>}
+                              {" "}— or resume right now and pick up exactly where you left off.
+                            </span>
+                            <button
+                              onClick={() => void resumeMembership(m)}
+                              disabled={resumingId === m.id}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-sky-400/90 px-3 py-1.5 text-xs font-black text-black hover:bg-sky-300 disabled:opacity-50"
+                            >
+                              {resumingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Resume now"}
+                            </button>
+                          </div>
+                        )}
+                        {/* Pause picker: 1–3 months, with the resume date
+                            for the chosen length stated before the fan
+                            confirms (the confirm repeats it). */}
+                        {m.status === "active" && pausePickId === m.id && (
+                          <div className="mt-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-3 text-sm flex flex-wrap items-center gap-3">
+                            <span className="text-white/70">Rest for:</span>
+                            {[1, 2, 3].map((n) => (
+                              <button
+                                key={n}
+                                onClick={() => setPauseMonths(n)}
+                                className={`rounded-lg border px-3 py-1.5 text-xs font-bold ${pauseMonths === n ? "border-sky-400/60 bg-sky-400/15 text-sky-200" : "border-white/15 text-white/60 hover:border-white/30"}`}
+                              >
+                                {n} {n === 1 ? "month" : "months"}
+                              </button>
+                            ))}
+                            <span className="text-white/60">
+                              Access sleeps now and comes back on{" "}
+                              <strong className="text-white">{addMonthsClamped(new Date(), pauseMonths).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</strong>
+                              {" "}— nothing charges while you rest.
+                            </span>
+                            <button
+                              onClick={() => void pauseMembership(m)}
+                              disabled={pausingMemberId === m.id}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-sky-400/90 px-3 py-1.5 text-xs font-black text-black hover:bg-sky-300 disabled:opacity-50"
+                            >
+                              {pausingMemberId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm pause"}
                             </button>
                           </div>
                         )}
@@ -1020,6 +1171,16 @@ export default function Memberships() {
                     Offer a 7-day free trial
                     <span className="text-xs text-white/40">No charge during the trial</span>
                   </label>
+                  <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pauseOfferEnabled}
+                      onChange={(e) => setPauseOfferEnabled(e.target.checked)}
+                      className="h-4 w-4 accent-[#C9A84C]"
+                    />
+                    Let members pause (1–3 months)
+                    <span className="text-xs text-white/40">Rest instead of cancelling — access sleeps, billing skips</span>
+                  </label>
                   <div className="relative">
                     <BadgePercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                     <input
@@ -1105,6 +1266,7 @@ export default function Memberships() {
                           {tier.trialEnabled && (
                             <div className="text-xs text-emerald-300/80">7-day free trial</div>
                           )}
+                          <div className="text-xs text-white/50">{tier.pauseEnabled === false ? "Member pause off" : "Members can pause 1–3 months"}</div>
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -1255,6 +1417,9 @@ export default function Memberships() {
                             {(m.status === "active" || m.status === "expired") && m.currentPeriodEnd && (
                               <span className="ml-1">· {m.status === "expired" ? "ended" : "renews"} {new Date(m.currentPeriodEnd).toLocaleDateString()}</span>
                             )}
+                            {m.status === "paused" && (
+                              <span className="ml-1 text-sky-300/80">· paused — resting, not churned</span>
+                            )}
                             {m.billingPeriod === "annual" && <span className="ml-1">· annual</span>}
                           </div>
                         </div>
@@ -1265,6 +1430,7 @@ export default function Memberships() {
                             onChange={(e) => setMemberStatus(m.id, e.target.value as Member["status"])}
                           >
                             <option value="active">{t("memberships.statusActive")}</option>
+                            {m.status === "paused" && <option value="paused" disabled>Paused (fan is resting)</option>}
                             <option value="trialing">Trialing</option>
                             <option value="past_due">{t("memberships.statusPastDue")}</option>
                             <option value="canceled">{t("memberships.statusCanceled")}</option>

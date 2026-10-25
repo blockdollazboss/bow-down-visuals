@@ -272,6 +272,11 @@ function memberStatusRank(status: string): number {
       return 3;
     case "past_due":
       return 2;
+    case "paused":
+      /* Resting (#39): not a live membership (never counted as an
+         active member), but the relationship is alive — it outranks
+         a dead row when a fan holds several. */
+      return 2;
     default:
       return 1; // canceled / expired / refunded
   }

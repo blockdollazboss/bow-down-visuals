@@ -616,7 +616,7 @@ function GroupForum({
             {knock.history_note && <p className={`max-w-md text-xs ${muted}`}>{knock.history_note}</p>}
             {knock.join_url ? (
               <a href={knock.join_url} className={goldBtn} data-testid="world-forum-tier-gate-join">
-                {knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
+                {knock.viewer_status === "paused" ? "Resume your membership" : knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
               </a>
             ) : (
               <p className={`text-xs ${muted}`}>Ask the group owner how to join their fan club.</p>

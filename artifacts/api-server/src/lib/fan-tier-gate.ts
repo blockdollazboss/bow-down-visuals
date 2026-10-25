@@ -18,6 +18,8 @@
  * against the membership rows only, never against their content.
  */
 
+import { pausedEffectiveStatus } from "./membership-pause";
+
 export interface FanTierLike {
   id: string;
   name: string;
@@ -31,12 +33,32 @@ export interface FanMemberLike {
   fan_user_id: string | null;
   trial_ends_at: Date | string | null;
   current_period_end: Date | string | null;
+  /* Membership pause (wave-4 #39): optional so partial-row callers
+     stay safe — a paused row without its window reads as resting
+     (access asleep), never as admitted. */
+  paused_at?: Date | string | null;
+  paused_until?: Date | string | null;
 }
 
 /** The status a member is REALLY in right now — a read-time mirror of
  *  effectiveMemberStatus (routes/generate/memberships.ts). Stored rows
  *  are never rewritten by the gate. */
 export function effectiveFanMemberStatus(m: FanMemberLike, now: Date = new Date()): string {
+  /* Paused (#39): the shared pause mirror decides — resting seats
+     admit nowhere; a seat whose stated resume date has arrived reads
+     active again on its pause-shifted period. */
+  const paused = pausedEffectiveStatus(
+    {
+      status: m.status,
+      fan_user_id: m.fan_user_id,
+      trial_ends_at: m.trial_ends_at,
+      current_period_end: m.current_period_end,
+      paused_at: m.paused_at ?? null,
+      paused_until: m.paused_until ?? null,
+    },
+    now,
+  );
+  if (paused !== null) return paused;
   if (m.status === "trialing" && m.trial_ends_at && new Date(m.trial_ends_at) <= now) {
     return "expired";
   }
@@ -77,7 +99,7 @@ export function fanTierRank(orderedTiers: readonly FanTierLike[], tierId: string
   return orderedTiers.findIndex((t) => t.id === tierId);
 }
 
-export type TierGateViewerStatus = "not_member" | "below_tier" | "lapsed";
+export type TierGateViewerStatus = "not_member" | "below_tier" | "lapsed" | "paused";
 
 export interface TierGateEvaluation {
   /** A gate is configured on the channel at all. */
@@ -128,6 +150,7 @@ export function evaluateTierGate(opts: {
 
   let bestAdmitting: { rank: number; tier: FanTierLike } | null = null;
   let heldQualifying = false; // a non-admitting row at/above the gate — they HAD the room
+  let heldPausedQualifying = false; // a resting (#39) row at/above the gate — the room sleeps, honestly labelled
   let heldAny = false;
   for (const m of opts.members) {
     heldAny = true;
@@ -140,6 +163,7 @@ export function evaluateTierGate(opts: {
       }
     } else if (gateRank >= 0 && rank >= gateRank) {
       heldQualifying = true;
+      if (effectiveFanMemberStatus(m, now) === "paused") heldPausedQualifying = true;
     }
   }
   const viewerTier = bestAdmitting ? { id: bestAdmitting.tier.id, name: bestAdmitting.tier.name } : null;
@@ -153,6 +177,9 @@ export function evaluateTierGate(opts: {
   }
   if (bestAdmitting && bestAdmitting.rank >= gateRank) {
     return { gated: true, hasAccess: true, viewerStatus: null, requiredTier, viewerTier };
+  }
+  if (heldPausedQualifying) {
+    return { gated: true, hasAccess: false, viewerStatus: "paused", requiredTier, viewerTier };
   }
   if (heldQualifying || (!bestAdmitting && heldAny)) {
     return { gated: true, hasAccess: false, viewerStatus: "lapsed", requiredTier, viewerTier };
@@ -197,7 +224,9 @@ export function buildTierGateKnock(opts: {
   const { evaluation } = opts;
   const tierName = evaluation.requiredTier?.name ?? "a fan membership tier";
   let message: string;
-  if (evaluation.viewerStatus === "lapsed") {
+  if (evaluation.viewerStatus === "paused") {
+    message = `Your membership is paused right now, so this room is asleep for you too. Resume your membership and you're straight back in — everything you posted is still here.`;
+  } else if (evaluation.viewerStatus === "lapsed") {
     message = evaluation.requiredTier
       ? `Your membership has ended, so this room is closed for now. Rejoin at the ${tierName} tier or above and you're straight back in.`
       : "Your membership has ended, so this room is closed for now. Rejoin the fan club and you're straight back in.";

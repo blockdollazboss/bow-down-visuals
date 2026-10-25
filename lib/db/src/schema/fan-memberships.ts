@@ -24,6 +24,11 @@ export const fanTiersTable = pgTable(
     sort_order: integer("sort_order").notNull().default(0),
     /* Creator-enabled 7-day free trial on join (migration 0132). */
     trial_enabled: boolean("trial_enabled").notNull().default(false),
+    /* Membership pause offer (migration 0239, wave-4 #39): creators
+       can disable the fan's Pause (1–3 months) offer per tier. Rows
+       default to offered — pause is the churn-save that costs the
+       creator nothing, so it is on unless they turn it off. */
+    pause_enabled: boolean("pause_enabled").notNull().default(true),
     /* Creator-set discount (0–90%) for fans who pay annually. */
     annual_discount_pct: integer("annual_discount_pct").notNull().default(0),
     is_active: text("is_active").notNull().default("true"),
@@ -41,7 +46,12 @@ export type FanTier = typeof fanTiersTable.$inferSelect;
    was refunded or lost to a chargeback — the clawback engine sets it
    and the entitlement is dead (access checks admit only trialing /
    active; payout sums exclude refunded rows explicitly). */
-export type FanMemberStatus = "trialing" | "active" | "past_due" | "canceled" | "expired" | "refunded";
+/* "paused" (migration 0239, wave-4 #39): the fan chose to rest for
+   1–3 months instead of cancelling. Access sleeps everywhere (every
+   gate admits only trialing / active effective statuses) and the
+   paid-period clock freezes — on resume the period end shifts by the
+   time spent paused, so no paid time ever burns while resting. */
+export type FanMemberStatus = "trialing" | "active" | "past_due" | "canceled" | "expired" | "refunded" | "paused";
 
 /* Members join two ways: paid/trial joins through checkout (fan_user_id set,
    real period + expiry) and legacy manual tracking by the creator
@@ -82,6 +92,13 @@ export const fanMembersTable = pgTable(
     gifted_by_user_id: uuid("gifted_by_user_id"),
     joined_at: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     canceled_at: timestamp("canceled_at", { withTimezone: true }),
+    /* Membership pause (migration 0239): set while status = "paused".
+       paused_at = when the rest began; paused_until = the resume date
+       stated to the fan before they confirmed. Both clear on resume /
+       cancel / reactivation. The elapsed pause shifts
+       current_period_end forward on resume (billing skip). */
+    paused_at: timestamp("paused_at", { withTimezone: true }),
+    paused_until: timestamp("paused_until", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
