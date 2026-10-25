@@ -99,6 +99,9 @@ export interface StoreProductDTO {
   splits?: ProductSplitDTO[] | null;
   /* Null when the product has no drop scheduled. */
   drop: ProductDropDTO | null;
+  /* Back-in-stock alerts (#37): fans currently waiting for a restock.
+     The seller's demand signal; rides list + detail payloads. */
+  stockAlertWaiting?: number;
 }
 
 /* Removed 2026-10-10: FeeSplit was only used by dead getProduct. */
@@ -369,6 +372,28 @@ export const captureProductDrop = (id: string, input: { email: string; name?: st
   req<{ ok: boolean; alreadyCaptured: boolean; captureCount: number; dropAt: string | null }>(
     `/products/${id}/drop/capture`, null, { method: "POST", body: JSON.stringify(input) },
   );
+
+/* ── Back-in-stock alerts (#37) ────────────────────────────────────────
+   The signed-in fan's one-tap wait on a sold-out product. Fires once
+   through the notifications rail when stock returns (plus an email
+   only when the fan already subscribes to the seller's list), then
+   the wait is consumed — re-subscribing is a fresh tap. */
+export interface StockAlertStateDTO {
+  subscribed: boolean;
+  waitingCount: number;
+  soldOut: boolean;
+}
+
+export const getStockAlert = (token: string, id: string) =>
+  get<StockAlertStateDTO>(`/products/${id}/stock-alert`, token);
+
+export const subscribeStockAlert = (token: string, id: string) =>
+  post<{ subscribed: boolean; alreadyWaiting: boolean; waitingCount: number }>(
+    `/products/${id}/stock-alert`, {}, token,
+  );
+
+export const unsubscribeStockAlert = (token: string, id: string) =>
+  del<{ subscribed: boolean; wasWaiting: boolean }>(`/products/${id}/stock-alert`, token);
 
 export const listDiscounts = (token: string) =>
   get<{ codes: DiscountCodeDTO[] }>("/discounts", token);

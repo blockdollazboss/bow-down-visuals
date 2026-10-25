@@ -49,6 +49,9 @@
  *   DELETE /storefront/products/:id/drop          auth: cancel a scheduled drop
  *   GET    /storefront/products/:id/drop          auth: drop + capture list (owner)
  *   POST   /storefront/products/:id/drop/capture  public: join the drop list (email capture)
+ *   POST   /storefront/products/:id/stock-alert   auth: "tell me when it's back" — one-tap wait on a sold-out product (#37)
+ *   DELETE /storefront/products/:id/stock-alert   auth: cancel the wait
+ *   GET    /storefront/products/:id/stock-alert   auth: am I waiting? + the waiting count
  *   GET    /storefront/promote/email              auth: email-list broadcast hook (links, not rebuilds)
  *   GET    /storefront/money-checklist            auth: earnings + money checklist + next-move nudge
  *
@@ -147,6 +150,17 @@ import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { emitNewSaleWebhook } from "../lib/api-webhooks";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
+/* Back-in-stock alerts (Wave 4 #37): the fan's one-tap wait lives in
+   lib/stock-alerts.ts — subscribe/claim/fire-once fan-out over the
+   notifications rail (+ email only via the seller's list subscribers). */
+import {
+  subscribeStockAlert,
+  unsubscribeStockAlert,
+  isWaitingOnStockAlert,
+  countWaitingStockAlerts,
+  countWaitingStockAlertsForProducts,
+  maybeFireRestockAlerts,
+} from "../lib/stock-alerts";
 import { ALT_TEXT_MAX_CHARS, sanitizeAltTextList } from "../lib/alt-text";
 
 /* #29: store_products.media_alt_texts lands via a held migration
@@ -906,12 +920,16 @@ router.get("/storefront/products", publicApiLimiter, async (req, res) => {
        always the same seller's product); a target outside the window
        just shows no offer here — the product page resolves it fully. */
     const byId = new Map(rows.map((row) => [row.id, row]));
+    /* Back-in-stock demand signal (#37): fans waiting per product —
+       one aggregate read for the whole page (0s until migration 0236). */
+    const alertCounts = await countWaitingStockAlertsForProducts(rows.map((row) => row.id));
     res.json({
       profile: { id: profile.id, slug: profile.slug, displayName: profile.displayName },
       products: await Promise.all(
-        rows.map((row) => {
+        rows.map(async (row) => {
           const cfg = readBumpConfig(row);
-          return presentProduct(row, cfg ? bumpOfferFromRows(row, byId.get(cfg.bumpProductId) ?? null) : null);
+          const presented = await presentProduct(row, cfg ? bumpOfferFromRows(row, byId.get(cfg.bumpProductId) ?? null) : null);
+          return { ...presented, stockAlertWaiting: alertCounts.get(row.id) ?? 0 };
         }),
       ),
       feeNote: `Real-money purchases via Stripe. Bow Down Visuals takes ${PLATFORM_FEE_PCT}% from the creator's cut — you pay the listed price, nothing extra. This is not Visual Bucs (AI credits).`,
@@ -938,6 +956,10 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
     const { feeCents, creatorCents } = splitTotals(Number(p.price_cents));
     const isFree = Number(p.price_cents) === 0;
     const presented = await presentProduct(p);
+    /* Back-in-stock (#37): the waiting count rides the payload like
+       the drop captureCount — demand signal for the seller, honest
+       social proof for the next fan deciding whether to wait too. */
+    const productPayload = { ...presented, stockAlertWaiting: await countWaitingStockAlerts(p.id) };
     /* Drop page payload (#25): while the drop is upcoming this same
        page renders the countdown + capture instead of the buy box. */
     const drop = presented.drop
@@ -951,7 +973,7 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
       : null;
     const isGiftCard = p.kind === "gift_card";
     res.json({
-      product: presented,
+      product: productPayload,
       drop,
       free: isFree,
       /* Gift cards carry NO fee split at purchase: the full amount is
@@ -1229,6 +1251,18 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
       return;
     }
     const d = parsed.data;
+    /* .partial() keeps the base schema's field defaults, so the parsed
+       object "has" inventory / isActive / description / mediaUrls even
+       when the seller never sent them — and the sets below would
+       silently reset every unsent field (a price-only edit flipped
+       inventory to unlimited and wiped the media list). A PATCH
+       touches what was sent: drop every parsed key the raw body
+       didn't carry. (Found by the #37 lane: its restock trigger fired
+       on price edits because the edit itself moved the stock.) */
+    const rawBody = (req.body ?? {}) as Record<string, unknown>;
+    for (const key of Object.keys(d) as Array<keyof typeof d>) {
+      if (!(key in rawBody)) delete d[key];
+    }
     const sets: ReturnType<typeof sql>[] = [];
     if (d.title !== undefined) sets.push(sql`title = ${d.title}`);
     if (d.description !== undefined) sets.push(sql`description = ${d.description}`);
@@ -1301,6 +1335,21 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
       res.status(400).json({ error: "Nothing to update." });
       return;
     }
+    /* Back-in-stock (#37): when this edit touches stock or visibility,
+       remember the pre-edit state — a sold-out → buyable transition is
+       the restock moment, and the waiting fans fire off it below. */
+    let prevStock: { inventory: number; isActive: boolean } | null = null;
+    if (d.inventory !== undefined || d.isActive !== undefined) {
+      const cur = await db.execute(sql`
+        SELECT inventory, is_active FROM store_products
+        WHERE id = ${id} AND profile_id = ${profile.id}
+        LIMIT 1
+      `);
+      const curRow = cur.rows[0] as Record<string, unknown> | undefined;
+      if (curRow) {
+        prevStock = { inventory: Number(curRow["inventory"]), isActive: Boolean(curRow["is_active"]) };
+      }
+    }
     const r = await db.execute(sql`
       UPDATE store_products
       SET ${sql.join(sets, sql`, `)}, updated_at = now()
@@ -1312,6 +1361,17 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
       return;
     }
     const p = await fetchProduct(id, false);
+    if (prevStock && p) {
+      /* Fire-and-forget discipline with an await: the lib never throws
+         and re-checks buyability itself, so this can only ever alert
+         fans about a product that is actually back — and an alert
+         failure can never fail the seller's edit. */
+      await maybeFireRestockAlerts({
+        productId: id,
+        prev: prevStock,
+        next: { inventory: Number(p.inventory), isActive: Boolean(p.is_active) },
+      }).catch((err) => logger.error({ err, id }, "[storefront] restock alert fan-out failed"));
+    }
     res.json({ product: p ? await presentProduct(p) : { id } });
   } catch (err) {
     logger.error({ err, id }, "[storefront] product update failed");
@@ -5187,6 +5247,80 @@ router.post("/storefront/products/:id/drop/capture", publicApiLimiter, async (re
     if (isMissingDropTables(err)) { res.status(503).json(DROP_UNAVAILABLE); return; }
     logger.error({ err, id }, "[storefront] drop capture failed");
     res.status(500).json({ error: "Couldn't join the drop list — try again." });
+  }
+});
+
+/* ═══════════════ FAN: back-in-stock alerts (Wave 4 #37) ═════════════
+   "Tell me when it's back." Unlike the drop capture above (a public
+   email door for an UPCOMING product), this is an account feature for
+   a SOLD-OUT product: the fan must be signed in (guests browse the
+   store freely; the tap needs an account, per the access law), the
+   wait is one row per (fan, product), and the restock fires it
+   exactly once through the notifications rail — plus one email only
+   when the fan already subscribes to the seller's email list. All of
+   the claim/consume discipline lives in lib/stock-alerts.ts. */
+const STOCK_ALERTS_UNAVAILABLE = {
+  error: "stock_alerts_unavailable",
+  message: "Restock alerts aren't switched on yet — check back soon.",
+};
+
+router.post("/storefront/products/:id/stock-alert", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  try {
+    const r = await subscribeStockAlert({ userId: req.userId!, productId: id });
+    if (!r.ok) {
+      if (r.reason === "not_found") {
+        res.status(404).json({ error: "Product not found or no longer for sale." });
+        return;
+      }
+      if (r.reason === "not_sold_out") {
+        res.status(409).json({
+          error: "NOT_SOLD_OUT",
+          message: "This one's in stock right now — no need to wait for it.",
+        });
+        return;
+      }
+      res.status(503).json(STOCK_ALERTS_UNAVAILABLE);
+      return;
+    }
+    res.json({
+      subscribed: true,
+      alreadyWaiting: r.alreadyWaiting,
+      waitingCount: await countWaitingStockAlerts(id),
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] stock-alert subscribe failed");
+    res.status(500).json({ error: "Couldn't set that alert — try again." });
+  }
+});
+
+router.delete("/storefront/products/:id/stock-alert", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  try {
+    const r = await unsubscribeStockAlert({ userId: req.userId!, productId: id });
+    res.json({ subscribed: false, wasWaiting: r.ok });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] stock-alert unsubscribe failed");
+    res.status(500).json({ error: "Couldn't cancel that alert — try again." });
+  }
+});
+
+router.get("/storefront/products/:id/stock-alert", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) { res.status(400).json({ error: "Invalid product id." }); return; }
+  try {
+    const p = await fetchProduct(id, false);
+    if (!p) { res.status(404).json({ error: "Product not found." }); return; }
+    res.json({
+      subscribed: await isWaitingOnStockAlert({ userId: req.userId!, productId: id }),
+      waitingCount: await countWaitingStockAlerts(id),
+      soldOut: Number(p.inventory) === 0,
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] stock-alert state read failed");
+    res.status(500).json({ error: "Could not load the alert state." });
   }
 });
 

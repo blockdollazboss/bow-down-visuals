@@ -6,7 +6,7 @@ import {
   Plus, Minus, Tag, ShoppingBag, CalendarClock, ExternalLink, AlertCircle, Gift,
   CheckCircle2, Sparkles, ArrowRight, CircleDollarSign,
   PlusCircle, ListChecks, CircleDashed, Wand2, Music2, AlertTriangle,
-  RotateCcw, Upload, Download, FileSpreadsheet, MessageSquare,
+  RotateCcw, Upload, Download, FileSpreadsheet, MessageSquare, BellRing,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -1179,6 +1179,15 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                           <Plus className="h-3 w-3" />
                         </button>
                       </span>
+                    )}
+                    {/* Back-in-stock demand signal (#37): fans who tapped
+                        "tell me when it's back" on this sold-out product.
+                        Restocking pings every one of them, once. */}
+                    {p.soldOut && (p.stockAlertWaiting ?? 0) > 0 && (
+                      <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
+                        <BellRing className="h-3 w-3" />
+                        {p.stockAlertWaiting} {p.stockAlertWaiting === 1 ? "fan" : "fans"} waiting — restock pings them
+                      </p>
                     )}
                   </td>
                   <td className="px-4 py-3">

@@ -44,6 +44,9 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+/* Back-in-stock alerts (Wave 4 #37): an import that restocks a sold-out
+   listing is a restock like any other — the waiting fans fire off it. */
+import { maybeFireRestockAlerts } from "../lib/stock-alerts";
 
 const router = Router();
 
@@ -408,9 +411,16 @@ function loadImportPlan(csvText: string, existing: { id: string; title: string }
   return { plan: planShopifyImport(table, existing) } as const;
 }
 
-async function existingListings(profileId: string): Promise<{ id: string; title: string }[]> {
-  const r = await db.execute(sql`SELECT id, title FROM store_products WHERE profile_id = ${profileId}`);
-  return (r.rows as Record<string, unknown>[]).map((row) => ({ id: String(row["id"]), title: String(row["title"]) }));
+async function existingListings(
+  profileId: string,
+): Promise<{ id: string; title: string; inventory: number; isActive: boolean }[]> {
+  const r = await db.execute(sql`SELECT id, title, inventory, is_active FROM store_products WHERE profile_id = ${profileId}`);
+  return (r.rows as Record<string, unknown>[]).map((row) => ({
+    id: String(row["id"]),
+    title: String(row["title"]),
+    inventory: Number(row["inventory"]),
+    isActive: Boolean(row["is_active"]),
+  }));
 }
 
 router.post("/storefront/shopify-import/preview", requireAuth, publicApiLimiter, async (req, res) => {
@@ -456,7 +466,11 @@ router.post("/storefront/shopify-import/commit", requireAuth, publicApiLimiter, 
     };
 
     const titleToId = new Map<string, string>();
-    for (const p of existing) if (!titleToId.has(p.title)) titleToId.set(p.title, p.id);
+    const prevById = new Map<string, { inventory: number; isActive: boolean }>();
+    for (const p of existing) {
+      if (!titleToId.has(p.title)) titleToId.set(p.title, p.id);
+      prevById.set(p.id, { inventory: p.inventory, isActive: p.isActive });
+    }
 
     for (const row of rows) {
       if ((row.action !== "create" && row.action !== "update") || !row.listing) continue;
@@ -464,6 +478,7 @@ router.post("/storefront/shopify-import/commit", requireAuth, publicApiLimiter, 
       const media = await mirrorAll(l.mediaUrls);
       const knownId = titleToId.get(l.title);
       if (knownId) {
+        const prev = prevById.get(knownId);
         await db.execute(sql`
           UPDATE store_products
           SET kind = ${l.kind}, title = ${l.title}, description = ${l.description},
@@ -474,6 +489,17 @@ router.post("/storefront/shopify-import/commit", requireAuth, publicApiLimiter, 
         `);
         row.action = "update";
         row.productId = knownId;
+        /* Back-in-stock (#37): an import that brings a sold-out listing
+           back fires the waiting fans' alerts, same as a seller edit.
+           The lib re-checks buyability and never throws. */
+        if (prev) {
+          await maybeFireRestockAlerts({
+            productId: knownId,
+            prev,
+            next: { inventory: l.inventory, isActive: l.isActive },
+          }).catch((err) => logger.error({ err, productId: knownId }, "[shopify-bridge] restock alert fan-out failed"));
+          prevById.set(knownId, { inventory: l.inventory, isActive: l.isActive });
+        }
       } else {
         const r = await db.execute(sql`
           INSERT INTO store_products
