@@ -1034,6 +1034,93 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/video-template/apply",
     attachToFeatureIds: ["templates-videos"],
   },
+  /* Stack-200 editor lane (Lane D item A-03 remainder): the rest of
+     the editor's own rails the one-hop scan cannot reach — the
+     multi-ratio export (called from a section two hops down), the
+     lip-sync run-all orchestration (called from the Music Studio's
+     LipSyncStudio, also two hops), and the Export Doctor's thirteen
+     free rails (its section is likewise nested). Without these links
+     the operator could not truthfully describe how the editor exports
+     in other ratios, runs lip sync across scenes, or repairs clips. */
+  {
+    endpoint: "/api/export-multi-ratio",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/lip-sync/run-all",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-audio",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-all",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-all-audio",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-all-captions",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-all-effects",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-all-overlays",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-overlays-range",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-effects-range",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-effects-transitions",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/export-audio-sync-short",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/repair-normalize",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-doctor/repair-clip",
+    attachToFeatureIds: ["video-editor"],
+  },
+];
+
+/** Unpriced sub-step endpoints of a priced rail — the poll and prepare
+    steps a feature's flow calls but the registry never charges for, so
+    FEATURE_PRICE_LINKS cannot carry them (it throws without a registry
+    entry). CLASSIFICATION only: which feature entry's endpoint list
+    names them. Stack-200 editor lane (A-03 remainder): the editor's
+    export flow prepares files then polls the job — both steps were
+    absent from the video-editor entry, so the operator's grounding
+    skipped the middle of the export story entirely. */
+const FEATURE_ENDPOINT_LINKS = [
+  {
+    endpoint: "/api/prepare-export-files",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/export-video-job/:param",
+    attachToFeatureIds: ["video-editor"],
+  },
 ];
 
 /** Docked surfaces: real features that live as a tab, panel, or mode
@@ -1845,6 +1932,26 @@ function main() {
           source: CREDIT_COSTS_SOURCE,
         });
         entry.prices.sort((a, b) => a.endpoint.localeCompare(b.endpoint));
+      }
+    }
+  }
+
+  /* Feature endpoint links: every reviewed link above — priced rails
+     (FEATURE_PRICE_LINKS) and unpriced sub-steps
+     (FEATURE_ENDPOINT_LINKS) — also names its endpoint in the target
+     entry's endpoint list. The price pass alone left the video-editor
+     entry's prices describing rails its endpoint list never mentioned
+     (Lane D item A-03: the entry's endpoints are the operator's map
+     of what the editor actually calls). Copy-on-write, like the
+     price pass; a missing attach target throws. */
+  for (const link of [...FEATURE_PRICE_LINKS, ...FEATURE_ENDPOINT_LINKS]) {
+    for (const id of link.attachToFeatureIds) {
+      const entry = features.find((f) => f.id === id);
+      if (!entry) {
+        throw new Error(`feature endpoint links: attach target feature "${id}" for ${link.endpoint} is not in the knowledge base`);
+      }
+      if (!entry.endpoints.includes(link.endpoint)) {
+        entry.endpoints = [...entry.endpoints, link.endpoint].sort((a, b) => a.localeCompare(b));
       }
     }
   }

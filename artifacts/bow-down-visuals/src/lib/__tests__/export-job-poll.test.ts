@@ -63,6 +63,71 @@ describe("pollExportJob", () => {
     expect(calls).toBe(26);
   });
 
+  it("rides out transient poll failures (network blip + 5xx) and still resolves", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchStub = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("network down");
+      if (calls === 2) {
+        return { ok: false, status: 503, json: async () => ({}) } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ status: "done", result: { url: "https://cdn.example/out.mp4" } }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchStub);
+
+    const promise = pollExportJob({
+      jobId: "job-3",
+      getAccessToken: async () => null,
+      pollMs: 1000,
+    });
+    const assertion = expect(promise).resolves.toEqual({ url: "https://cdn.example/out.mp4" });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await assertion;
+    expect(calls).toBe(3);
+  });
+
+  it("surfaces plainly after the consecutive-failure budget is exhausted", async () => {
+    vi.useFakeTimers();
+    const fetchStub = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    vi.stubGlobal("fetch", fetchStub);
+
+    const promise = pollExportJob({
+      jobId: "job-4",
+      getAccessToken: async () => null,
+      pollMs: 1000,
+    });
+    const assertion = expect(promise).rejects.toThrow(/kept failing/);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await assertion;
+  });
+
+  it("does not tolerate a non-transient 4xx status check", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchStub = vi.fn(async () => {
+      calls += 1;
+      return { ok: false, status: 404, json: async () => ({}) } as Response;
+    });
+    vi.stubGlobal("fetch", fetchStub);
+
+    const promise = pollExportJob({
+      jobId: "job-5",
+      getAccessToken: async () => null,
+      pollMs: 1000,
+    });
+    const assertion = expect(promise).rejects.toThrow(/HTTP 404/);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await assertion;
+    expect(calls).toBe(1);
+  });
+
   it("times out with honest copy — no pointer to a nonexistent Exports history", async () => {
     vi.useFakeTimers();
     const fetchStub = vi.fn(async () => {
