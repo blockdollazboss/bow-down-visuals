@@ -141,7 +141,11 @@ describe("rung table (item 99: meaningful rungs)", () => {
   it("medium keeps shadows with a smaller map and a throttled glimpse reflector", () => {
     const med = rungFor("medium");
     expect(med.shadows).toBe(true);
-    expect(med.shadowMapSize).toBe(1024);
+    /* PIN CORRECTION (Stack-300 graphics pass, task-ordered): the
+     * medium map rises 1024 → 2048 for texel density on the rung
+     * most phones land on — the frozen map keeps the cost in
+     * memory, never frame time (see quality.ts header). */
+    expect(med.shadowMapSize).toBe(2048);
     expect(med.reflectorSize).toBe(512);
     expect(med.reflectorGlimpseEveryN).toBe(2);
     /* PIN CORRECTION (Stack-100 #2 item 15, task-ordered): the

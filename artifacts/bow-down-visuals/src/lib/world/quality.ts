@@ -32,6 +32,13 @@
  *   - MEDIUM reflector updates every 2nd frame while the mirror is
  *     only a glimpse (see visibility.ts reflector gate); inside the
  *     hall it updates every frame at every rung that has one.
+ *   - MEDIUM shadow map 1024 → 2048 (graphics pass, Stack-300): at
+ *     1024 the sun's map spreads ≈7 cm/texel over the plaza fit —
+ *     shadow edges on the rung most phones land on read as blocks.
+ *     2048 halves that to ≈3.5 cm/texel. The map is FROZEN
+ *     (rendered on aim/look/step refresh only), so the cost is
+ *     memory (≈+12 MB for the one directional map; medium carries
+ *     no local shadow lights), never frame time.
  *   - antialias is a CONSTRUCTION-time flag: the table carries it
  *     (a scene built for low gets no MSAA), but stepping the ladder
  *     at runtime cannot toggle MSAA without rebuilding the renderer
@@ -125,7 +132,10 @@ export const QUALITY_RUNGS: Record<QualityTier, QualityRung> = {
     reflectorSize: 512,
     reflectorGlimpseEveryN: 2,
     shadows: true,
-    shadowMapSize: 1024,
+    /* 2048 since the Stack-300 graphics pass (see header): the
+     * mid rung's texel density doubles; frozen-map discipline
+     * keeps the cost in memory, not frames. */
+    shadowMapSize: 2048,
     shadowRadius: 3,
     localShadowLights: false,
     antialias: true,
