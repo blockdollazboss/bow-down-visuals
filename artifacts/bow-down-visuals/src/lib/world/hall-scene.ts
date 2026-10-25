@@ -154,6 +154,8 @@ import {
   isCreatorRoomId,
   palaceRoomLayout,
   resolvePalaceMove,
+  crossingIsFlap,
+  type CrossingRecord,
   groundHeightAt,
   pullInCamera,
   clampToRoom,
@@ -1531,6 +1533,9 @@ export class KingsHallScene {
    *  (the scene has already flipped its own room: movement, camera
    *  and visibility follow the body, not the paperwork). */
   onRoomEnter: ((roomId: string) => void) | null = null;
+  /** The last doorway crossing that fired a transfer — the flap
+   *  guard's memory (see crossingIsFlap in palace-layout). */
+  private lastCrossing: CrossingRecord | null = null;
   /** The palace room the walker physically stands in. The hall is
    *  home: spawn, stage, the palace's one mirror floor. */
   private currentRoom: string = HALL_ROOM_ID;
@@ -8604,8 +8609,25 @@ export class KingsHallScene {
 
   /** A doorway crossing, detected by the movement resolver: flip
    *  the scene's room and tell the page (which transfers presence
-   *  server-side to match). */
+   *  server-side to match). A reversal at the same doorway within
+   *  the flap window is the boundary oscillating under a standing
+   *  walker, not a room change: the scene keeps the room the
+   *  server holds and stays silent, so the feed cannot spam
+   *  alternating "walked into" lines (owner's Oct 25 walk). */
   private crossedInto(roomId: string): void {
+    const p = this.rig.position;
+    if (
+      crossingIsFlap(this.lastCrossing, { room: roomId, x: p.x, z: p.z }, performance.now())
+    ) {
+      return;
+    }
+    this.lastCrossing = {
+      from: this.currentRoom,
+      to: roomId,
+      atMs: performance.now(),
+      x: p.x,
+      z: p.z,
+    };
     this.currentRoom = roomId;
     this.applyRoomVisibility();
     this.onRoomEnter?.(roomId);

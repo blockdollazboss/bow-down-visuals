@@ -46,6 +46,7 @@ import {
   isWalkable,
   roomAt,
   resolvePalaceMove,
+  crossingIsFlap,
   clampToRoom,
 } from "./palace-layout";
 import { DISTRICT_THRESHOLDS } from "./district-gates";
@@ -139,6 +140,35 @@ describe("crossings", () => {
   it("clamping lands inside the named room", () => {
     const p = clampToRoom(GAME_ROOMS_ID, 0, 0);
     expect(roomAt(p.x, p.z, HALL_ROOM_ID)).toBe(GAME_ROOMS_ID);
+  });
+});
+
+describe("the room-boundary flap guard", () => {
+  // The hall→plaza arch crossing, fired at the plane (z 12.2).
+  const arch = { from: HALL_ROOM_ID, to: COURTYARD_ID, atMs: 10_000, x: 0, z: 12.4 };
+
+  it("a first crossing is never a flap", () => {
+    expect(crossingIsFlap(null, { room: COURTYARD_ID, x: 0, z: 12.4 }, 10_000)).toBe(false);
+  });
+
+  it("an instant step back at the same doorway is a flap", () => {
+    expect(crossingIsFlap(arch, { room: HALL_ROOM_ID, x: 0.2, z: 12.1 }, 10_400)).toBe(true);
+  });
+
+  it("pacing the apron inside the window stays a flap", () => {
+    expect(crossingIsFlap(arch, { room: HALL_ROOM_ID, x: -0.8, z: 11.6 }, 12_900)).toBe(true);
+  });
+
+  it("a reversal after the window lapses is a real crossing", () => {
+    expect(crossingIsFlap(arch, { room: HALL_ROOM_ID, x: 0, z: 12.1 }, 13_001)).toBe(false);
+  });
+
+  it("a reversal from deep inside the room is a real crossing", () => {
+    expect(crossingIsFlap(arch, { room: HALL_ROOM_ID, x: 0, z: 10.4 }, 10_400)).toBe(false);
+  });
+
+  it("crossing onward to a third room is never a flap", () => {
+    expect(crossingIsFlap(arch, { room: MUSIC_HALL_ID, x: 0, z: 12.4 }, 10_100)).toBe(false);
   });
 });
 

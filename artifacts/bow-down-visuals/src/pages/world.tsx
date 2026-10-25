@@ -1874,11 +1874,11 @@ export default function WorldPage() {
         setScreenPanelOpen(false);
         setSayLog((log) => [
           ...log.slice(-7),
-          { peerId: "hall", displayName: "The Palace", body: `You walked into the ${room.name}.` },
+          { peerId: "hall", displayName: "The Palace", body: `You walked into ${room.name}.` },
         ]);
         if (wasInVoice) {
           setVoiceNote(
-            `Voice stayed in the room you left — it's per-room here. Join voice to talk in the ${room.name}.`,
+            `Voice stayed in the room you left — it's per-room here. Join voice to talk in ${room.name}.`,
           );
         }
       };
@@ -1890,7 +1890,7 @@ export default function WorldPage() {
         scene.setRoom(client.room?.id ?? HALL_ROOM_ID);
         scene.returnThroughDoor();
         setVoiceNote(
-          `The ${name} is full right now — ${cap} people inside. You're still in the ${client.room?.name ?? "King's Hall"}.`,
+          `${name} is full right now — ${cap} people inside. You're still in ${client.room?.name ?? "The King's Hall"}.`,
         );
       };
       /* A LOCK refused the doorway: I never left either. Same step
@@ -2534,7 +2534,7 @@ export default function WorldPage() {
         )}
         <span className={`ml-auto inline-flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
           <Users className="h-4 w-4 text-[#d4af37]" />
-          {status === "inside" ? `${peopleCount} ${inHall ? "in the hall" : `in the ${roomName}`}` : "—"}
+          {status === "inside" ? `${peopleCount} ${inHall ? "in the hall" : `in ${roomName}`}` : "—"}
         </span>
         {status === "inside" && (
           <button

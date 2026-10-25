@@ -3,6 +3,7 @@ import {
   FIXTURE_BODIES,
   KING_FIXTURE_HEIGHT,
   WORLD_FIXTURES,
+  bodyTexturesLanded,
   fixtureFallbackFor,
   fixtureNormalization,
   fixtureRotY,
@@ -141,5 +142,22 @@ describe("fixtureSway — statues barely breathe", () => {
     const p = fixtureSwayPhase("hall-king");
     expect(p).toBeGreaterThanOrEqual(0);
     expect(p).toBeLessThanOrEqual(Math.PI * 2);
+  });
+});
+
+describe("bodyTexturesLanded — a white statue is a failed load", () => {
+  it("a body that declares no textures is honest as-is", () => {
+    expect(bodyTexturesLanded(0, [])).toBe(true);
+    expect(bodyTexturesLanded(0, [{}])).toBe(true);
+  });
+
+  it("declared textures with a landed map pass", () => {
+    expect(bodyTexturesLanded(2, [{ map: {} }, {}])).toBe(true);
+    expect(bodyTexturesLanded(2, [{ metallicRoughnessMap: {} }])).toBe(true);
+  });
+
+  it("declared textures with NO landed map fail — the white-statue parse", () => {
+    expect(bodyTexturesLanded(2, [{}, {}])).toBe(false);
+    expect(bodyTexturesLanded(1, [])).toBe(false);
   });
 });
