@@ -71,14 +71,14 @@ function OfficialBadge() {
 /* ─── Live now badge — the creator is broadcasting natively on the site
    (GET /api/live-streams/profile/:slug). Links straight to the watch page. */
 function LiveNowBadge({ slug }: { slug: string }) {
-  const [live, setLive] = useState<{ id: string; title: string } | null>(null);
+  const [live, setLive] = useState<{ id: string; title: string; ticket?: { price_vb: number } | null } | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`/api/live-streams/profile/${encodeURIComponent(slug)}`);
         if (!res.ok) return;
-        const d = (await res.json()) as { stream: { id: string; title: string } | null };
+        const d = (await res.json()) as { stream: { id: string; title: string; ticket?: { price_vb: number } | null } | null };
         if (!cancelled) setLive(d.stream);
       } catch {
         /* badge just stays hidden — the profile itself already loaded */
@@ -101,7 +101,7 @@ function LiveNowBadge({ slug }: { slug: string }) {
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
         </span>
-        Live now — watch
+        Live now — watch{live.ticket ? ` · ${live.ticket.price_vb.toLocaleString("en-US")} VB ticket` : ""}
       </Link>
     </div>
   );

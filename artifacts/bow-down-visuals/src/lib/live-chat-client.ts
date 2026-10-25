@@ -138,6 +138,12 @@ export class LiveChatClient {
   onAlert: ((alert: LiveAlertEvent) => void) | null = null;
   /** Appointed channel moderators, from server data only. */
   moderatorIds = new Set<string>();
+  /** Ticketed live (Wave 4 #31): the room sits behind the stream's
+   *  ticket door for this viewer — history was refused (402) and the
+   *  panel shows the door instead of the room. The price rides along
+   *  when the server sent it, so the notice can name it. */
+  ticketLocked = false;
+  ticketPriceVb: number | null = null;
 
   /** My role on this stream, from server data (owner / moderator / viewer). */
   get selfRole(): "owner" | "moderator" | "viewer" {
@@ -186,6 +192,12 @@ export class LiveChatClient {
     this.onChange();
     try {
       const { status, json } = await this.deps.fetchJson(`/api/live/${this.streamId}/chat`);
+      if (status === 402 && json?.code === "TICKET_REQUIRED") {
+        this.applyTicketLock(json);
+        this.loadState = "ready";
+        this.onChange();
+        return;
+      }
       if (status !== 200 || !json) throw new Error("history failed");
       this.applyPage(json as ChatPage);
       this.loadState = "ready";
@@ -193,6 +205,14 @@ export class LiveChatClient {
       this.loadState = "error";
     }
     this.onChange();
+  }
+
+  /** The door answered: record it (the panel renders the lock, the
+   *  poller stands down — a locked room has nothing to catch up). */
+  private applyTicketLock(json: any): void {
+    this.ticketLocked = true;
+    const price = json?.ticket?.price_vb;
+    this.ticketPriceVb = typeof price === "number" ? price : null;
   }
 
   /* ---------------------------------------------------------- store */
@@ -297,7 +317,7 @@ export class LiveChatClient {
   }
 
   private syncPolling(): void {
-    const shouldPoll = !this._stopped && this.delivery === "polling" && this.loadState === "ready";
+    const shouldPoll = !this._stopped && !this.ticketLocked && this.delivery === "polling" && this.loadState === "ready";
     if (shouldPoll && !this._pollTimer) {
       const setIntervalFn = this.deps.setIntervalFn ?? setInterval;
       this._pollTimer = setIntervalFn(() => void this.catchUp(), POLL_MS);
@@ -320,6 +340,12 @@ export class LiveChatClient {
       const after = this.lastMessageId();
       const path = after ? `/api/live/${this.streamId}/chat?after=${encodeURIComponent(after)}` : `/api/live/${this.streamId}/chat`;
       const { status, json } = await this.deps.fetchJson(path);
+      if (status === 402 && json?.code === "TICKET_REQUIRED") {
+        this.applyTicketLock(json);
+        this.stopPolling();
+        this.onChange();
+        return;
+      }
       if (status !== 200 || !json) return;
       const page = json as ChatPage;
       const statusChanged = page.streamStatus !== this.streamStatus;
@@ -389,6 +415,7 @@ export class LiveChatClient {
         this.onChange();
         return true;
       }
+      if (status === 402 && json?.code === "TICKET_REQUIRED") this.applyTicketLock(json);
       if (status === 403 && json?.code === "MUTED") this.mutedSelf = true;
       if (status === 409) this.streamStatus = "ended";
       this.notice = (json?.error as string) ?? "Your message didn't go through. Try again.";

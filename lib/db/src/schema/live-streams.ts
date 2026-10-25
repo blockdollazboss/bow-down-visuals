@@ -60,6 +60,15 @@ export const liveStreamsTable = pgTable(
     /* The creator's Visual Bucs tip goal for this stream (0133);
        null = no goal set. Drives the overlay goal bar. */
     tip_goal_vb: integer("tip_goal_vb"),
+    /* Ticketed live (Wave 4 #31, migration 0231): the pay-per-view
+       door set at Go Live setup. ticket_price_vb NULL (or 0) = a free
+       stream, exactly as before; a positive price means entry rides a
+       live_stream_tickets row (schema/live-alive.ts). ticket_capacity
+       NULL = unlimited seats. Enforcement lives in lib/live-tickets.ts
+       and every entry surface consults it — the columns alone grant
+       nothing. */
+    ticket_price_vb: integer("ticket_price_vb"),
+    ticket_capacity: integer("ticket_capacity"),
     viewer_count: integer("viewer_count").notNull().default(0),
     peak_viewers: integer("peak_viewers").notNull().default(0),
     vod_url: text("vod_url"),

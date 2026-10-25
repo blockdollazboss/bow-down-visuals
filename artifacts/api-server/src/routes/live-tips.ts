@@ -34,6 +34,7 @@ import {
   LIVE_TIP_PIN_DURATION_MS,
 } from "../lib/live-config";
 import { liveChatHub, effectiveStatus, getActivePin, chatMessageDtos } from "./live-chat";
+import { isTicketed, canEnterStream } from "../lib/live-tickets";
 import { awardTipPoints } from "../lib/loyalty";
 
 /* ── Stream tips + paid pinned messages ──────────────────────────────────
@@ -144,6 +145,16 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
     }
     if (stream.user_id === tipperUserId) {
       res.status(400).json({ error: "You can't tip your own stream.", code: "SELF_TIP" });
+      return;
+    }
+    /* Ticketed live (#31): a tip IS a chat message, and the chat room
+       is inside the door — no entry, no tip. The door predicate is
+       the same one the chat and watch surfaces consult. */
+    if (isTicketed(stream) && !(await canEnterStream(stream, tipperUserId))) {
+      res.status(402).json({
+        error: "This show is ticketed — your ticket opens the room, tips included.",
+        code: "TICKET_REQUIRED",
+      });
       return;
     }
     const parsed = tipBodySchema.safeParse(req.body ?? {});

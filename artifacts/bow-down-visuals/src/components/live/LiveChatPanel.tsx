@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { AlertTriangle, ChevronDown, ChevronUp, Loader2, RotateCcw, Send, Trash2, VolumeX, Volume2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Loader2, RotateCcw, Send, Trash2, VolumeX, Volume2, Ticket } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/social-api";
 import { formatBucs } from "@/lib/visual-bucs";
@@ -165,11 +165,13 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
   const isOwner = !!user && !!client.ownerId && user.id === client.ownerId;
   const selfRole = user ? client.selfRole : "viewer";
   const canModerate = selfRole === "owner" || selfRole === "moderator";
-  const composer = composerState({
-    signedIn: !!user,
-    streamStatus: client.streamStatus,
-    muted: client.mutedSelf,
-  });
+  const composer = client.ticketLocked
+    ? { enabled: false, signIn: false, note: "This show is ticketed — your ticket opens the chat." }
+    : composerState({
+        signedIn: !!user,
+        streamStatus: client.streamStatus,
+        muted: client.mutedSelf,
+      });
   const ended = client.streamStatus === "ended";
 
   async function onSend(e: React.FormEvent) {
@@ -319,7 +321,18 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                 </button>
               </div>
             )}
-            {client.loadState === "ready" && mergedMessages.length === 0 && (
+            {client.ticketLocked && (
+              <div className="py-6 text-center" data-testid="chat-ticket-locked">
+                <Ticket className="mx-auto h-6 w-6 text-amber-400" />
+                <p className="mt-2 text-sm font-bold">This show is ticketed.</p>
+                <p className="mx-auto mt-1 max-w-[240px] text-xs text-white/50">
+                  {client.ticketPriceVb != null
+                    ? `A ticket is ${client.ticketPriceVb.toLocaleString("en-US")} Visual Bucs — it opens the stream, this chat, and the replay. Get yours on the watch page.`
+                    : "Your ticket opens the stream, this chat, and the replay. Get yours on the watch page."}
+                </p>
+              </div>
+            )}
+            {client.loadState === "ready" && !client.ticketLocked && mergedMessages.length === 0 && (
               <p className="py-6 text-center text-sm text-white/45" data-testid="chat-empty">
                 {ended ? "No chat was saved from this stream." : "Be the first to say something."}
               </p>

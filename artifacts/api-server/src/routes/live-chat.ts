@@ -16,6 +16,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
+import { isTicketed, canEnterStream, ticketDoorInfo, countActiveTickets } from "../lib/live-tickets";
 import { sweepIfLarge } from "../lib/sweep-map";
 import { awardChatPoints } from "../lib/loyalty";
 import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
@@ -84,6 +85,28 @@ async function getStreamRow(id: string): Promise<LiveStream | null> {
   if (!UUID_RE.test(id)) return null;
   const rows = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, id)).limit(1);
   return rows[0] ?? null;
+}
+
+/* ── Ticketed live door (Wave 4 #31) ─────────────────────────────────────
+   The chat room is inside the ticket door: history, posting, and the
+   delivery socket all consult the one predicate (lib/live-tickets
+   canEnterStream — owner, appointed moderators, and ticket holders
+   enter; everyone else gets the door facts and nothing of the room).
+   A guest's history read is refused too — chat content is part of
+   the show they haven't bought. */
+async function optionalViewerId(req: Request): Promise<string | null> {
+  const header = req.headers["authorization"];
+  if (!header?.startsWith("Bearer ")) return null;
+  const verified = await verifyAccessToken(header.slice(7)).catch(() => null);
+  return verified?.userId ?? null;
+}
+
+async function ticketRequiredBody(stream: LiveStream) {
+  return {
+    error: "This show is ticketed — your ticket opens the chat.",
+    code: "TICKET_REQUIRED",
+    ticket: ticketDoorInfo(stream, await countActiveTickets(stream.id)),
+  };
 }
 
 /** The status the chat acts on — a "live" row older than the stream
@@ -195,6 +218,13 @@ router.get("/live/:id/chat", publicApiLimiter, async (req: Request, res: Respons
       res.status(404).json({ error: "That stream doesn't exist." });
       return;
     }
+    if (isTicketed(stream)) {
+      const viewerId = await optionalViewerId(req);
+      if (!(await canEnterStream(stream, viewerId))) {
+        res.status(402).json(await ticketRequiredBody(stream));
+        return;
+      }
+    }
     const after = typeof req.query.after === "string" ? req.query.after : null;
     let cursor: LiveChatMessage | null = null;
     if (after && UUID_RE.test(after)) {
@@ -265,6 +295,10 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
     }
     if (effectiveStatus(stream) !== "live") {
       res.status(409).json({ error: "Chat is closed — this stream isn't live right now.", code: "STREAM_NOT_LIVE" });
+      return;
+    }
+    if (isTicketed(stream) && !(await canEnterStream(stream, userId))) {
+      res.status(402).json(await ticketRequiredBody(stream));
       return;
     }
 
@@ -528,6 +562,10 @@ export function registerLiveChatWs(
     const stream = await getStreamRow(params.id);
     if (!stream) {
       socket.close(4404, "That stream doesn't exist");
+      return;
+    }
+    if (isTicketed(stream) && !(await canEnterStream(stream, auth.userId))) {
+      socket.close(4403, "This show is ticketed — your ticket opens the chat");
       return;
     }
     const client = socket as unknown as WsClientSocket;

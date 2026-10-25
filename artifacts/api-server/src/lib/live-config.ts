@@ -36,6 +36,17 @@ export const LIVE_TIP_MAXIMUM_VB = 1_000_000;
 export const LIVE_TIP_PIN_MINIMUM_VB = 500;
 export const LIVE_TIP_PIN_DURATION_MS = 2 * 60 * 1000;
 
+/* ── Ticketed live (Wave 4 #31) ──────────────────────────────────────────
+   A creator-set ticket price for a stream, in Visual Bucs. The bounds
+   mirror the tip range above (and the 100–1,000,000 VB range the owner
+   ratified for World stage tips): below 100 VB a door is noise, above
+   1,000,000 it is not a ticket. 0 / unset = a free stream. Named
+   constants so the owner can rule on them in one place. */
+export const LIVE_TICKET_MIN_VB = 100;
+export const LIVE_TICKET_MAX_VB = 1_000_000;
+/** Seat capacity bounds when a creator caps the room (null = no cap). */
+export const LIVE_TICKET_MAX_CAPACITY = 100_000;
+
 export function isLiveTransportReady(
   kind: LiveTransportKind,
   env: NodeJS.ProcessEnv = process.env,

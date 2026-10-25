@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { Loader2, AlertTriangle, RotateCcw, Radio, Users, Volume2, VideoOff } from "lucide-react";
+import { Loader2, AlertTriangle, RotateCcw, Radio, Users, Volume2, VideoOff, Ticket } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { FollowButton, useFollowStates } from "@/components/discovery/FollowButton";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
@@ -31,6 +32,13 @@ interface LiveStreamDto {
   vod_url: string | null;
   creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
   playback: { whep_url: string | null; hls_url: string | null } | null;
+  /** Ticketed live (Wave 4 #31): the door facts (null on a free
+   *  stream), whether THIS viewer may enter, and the signed playback
+   *  token the entitled fetch carries for the heartbeat. Playback
+   *  itself is only present when viewer_ticket is true. */
+  ticket: { price_vb: number; capacity: number | null; sold: number; seats_left: number | null } | null;
+  viewer_ticket: boolean;
+  playback_token: string | null;
 }
 
 type LoadState = "loading" | "ready" | "error" | "notfound";
@@ -76,9 +84,86 @@ function OnStageGuests({ streamId }: { streamId: string }) {
   );
 }
 
+/* The ticket door (Wave 4 #31) — what a viewer without entry sees
+   where the player would be. The public facts (price, seats) are the
+   server's; the buy button is the VB rail on this very stream. An
+   ended show's door is informational: tickets were sold while it was
+   live, and the replay stays with the holders. */
+function TicketDoor({
+  priceVb,
+  seatsLeft,
+  ended,
+  signedIn,
+  buying,
+  error,
+  onBuy,
+}: {
+  priceVb: number;
+  seatsLeft: number | null;
+  ended: boolean;
+  signedIn: boolean;
+  buying: boolean;
+  error: string | null;
+  onBuy: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/85 p-6 text-center" data-testid="ticket-door">
+      <Ticket className="h-9 w-9 text-amber-400" />
+      <p className="text-base font-black text-white">This show is ticketed.</p>
+      <p className="max-w-sm text-sm text-white/55">
+        {ended ? (
+          "The replay is for ticket holders — tickets were sold while the show was live."
+        ) : (
+          <>
+            One ticket — <span className="font-bold text-white">{priceVb.toLocaleString("en-US")} Visual Bucs</span> —
+            opens the live stream, the chat, and the replay.
+          </>
+        )}
+      </p>
+      {!ended && seatsLeft != null && (
+        <p className="text-xs font-bold uppercase tracking-wider text-amber-300">
+          {seatsLeft} seat{seatsLeft === 1 ? "" : "s"} left
+        </p>
+      )}
+      {!ended &&
+        (signedIn ? (
+          <button
+            type="button"
+            onClick={onBuy}
+            disabled={buying}
+            className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="btn-buy-ticket"
+          >
+            {buying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
+            Buy ticket — {priceVb.toLocaleString("en-US")} VB
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105"
+            data-testid="btn-signin-for-ticket"
+          >
+            Sign in to buy a ticket
+          </Link>
+        ))}
+      {error && (
+        <p className="max-w-sm text-xs font-semibold text-red-300" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function LiveWatch() {
   const [, params] = useRoute("/live/:id");
   const id = params?.id ?? "";
+  const { user, getAccessToken } = useAuth();
+  const tokenFnRef = useRef(getAccessToken);
+  tokenFnRef.current = getAccessToken;
+  const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const buyKeyRef = useRef("");
   const [stream, setStream] = useState<LiveStreamDto | null>(null);
   const [load, setLoad] = useState<LoadState>("loading");
   const [retryNonce, setRetryNonce] = useState(0);
@@ -101,7 +186,13 @@ export default function LiveWatch() {
   );
 
   const fetchStream = useCallback(async (): Promise<LiveStreamDto | null> => {
-    const res = await fetch(`/api/live-streams/${id}`);
+    /* The session token rides along when there is one: it's how the
+       server knows this viewer holds a ticket (the door answers
+       playback only to entitled viewers). Guests fetch bare. */
+    const token = await tokenFnRef.current().catch(() => null);
+    const res = await fetch(`/api/live-streams/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (res.status === 404) {
       setLoad("notfound");
       return null;
@@ -133,6 +224,54 @@ export default function LiveWatch() {
   }, [fetchStream, retryNonce]);
 
   const isLive = stream?.status === "live";
+  /* The ticket door for THIS viewer (server-decided): a ticketed
+     stream whose DTO carried no entry for us. */
+  const door = stream?.ticket ?? null;
+  const doorLocked = !!door && !stream?.viewer_ticket;
+  const playbackTokenRef = useRef<string | null>(null);
+  playbackTokenRef.current = stream?.playback_token ?? null;
+
+  /* Buy the ticket on the VB rail, then re-read the stream — the
+     entitled DTO that comes back carries the playback this page was
+     missing, and the player effect re-runs on the retry nonce. One
+     client idempotency key per purchase intent, so a double-tap or
+     a retried tap is the same purchase (the server dedupes on its
+     side too). */
+  async function buyTicket() {
+    if (!user || buying) return;
+    setBuying(true);
+    setBuyError(null);
+    try {
+      if (!buyKeyRef.current) {
+        buyKeyRef.current =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `ticket-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+      const token = await tokenFnRef.current().catch(() => null);
+      const res = await fetch(`/api/live-streams/${id}/ticket`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ idempotencyKey: buyKeyRef.current }),
+      });
+      const d = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setBuyError(d?.error ?? "That purchase didn't go through. Try again.");
+        return;
+      }
+      buyKeyRef.current = "";
+      const s = await fetchStream();
+      if (s) setStream(s);
+      setRetryNonce((n) => n + 1);
+    } catch {
+      setBuyError("That purchase didn't go through. Try again.");
+    } finally {
+      setBuying(false);
+    }
+  }
 
   /* Connect the WHEP player when the stream is live. */
   useEffect(() => {
@@ -214,7 +353,10 @@ export default function LiveWatch() {
         await fetch(`/api/live-streams/${sid}/heartbeat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionRef.current }),
+          body: JSON.stringify({
+            session_id: sessionRef.current,
+            ...(playbackTokenRef.current ? { access_token: playbackTokenRef.current } : {}),
+          }),
         });
       } catch {
         /* presence is best-effort */
@@ -280,7 +422,17 @@ export default function LiveWatch() {
         <div className="flex flex-col gap-5 lg:flex-row">
           <div className="min-w-0 flex-1">
         <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[#C9A84C]/25 bg-black">
-          {isLive ? (
+          {isLive && doorLocked ? (
+            <TicketDoor
+              priceVb={door.price_vb}
+              seatsLeft={door.seats_left}
+              ended={false}
+              signedIn={!!user}
+              buying={buying}
+              error={buyError}
+              onBuy={() => void buyTicket()}
+            />
+          ) : isLive ? (
             <>
               <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full object-contain" data-testid="live-player" />
               {play === "connecting" && (
@@ -322,6 +474,16 @@ export default function LiveWatch() {
             </>
           ) : stream.vod_url ? (
             <video src={stream.vod_url} controls playsInline className="h-full w-full object-contain" data-testid="vod-player" />
+          ) : doorLocked ? (
+            <TicketDoor
+              priceVb={door.price_vb}
+              seatsLeft={door.seats_left}
+              ended
+              signedIn={!!user}
+              buying={buying}
+              error={buyError}
+              onBuy={() => void buyTicket()}
+            />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
               <Radio className="h-8 w-8 text-[#C9A84C]/60" />
