@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import { db as defaultDb } from "@workspace/db";
 import { formatUsd } from "./platform-fees";
@@ -129,22 +130,44 @@ export async function addWishlistItem(
   const item = await resolveWishlistItem(itemKind, itemId, db);
   if (!item) return { ok: false, reason: "item_not_found" };
   if (!item.available) return { ok: false, reason: "item_unavailable" };
+  /* Existence is checked first and the insert is the fallback: an
+     INSERT … ON CONFLICT … RETURNING cannot distinguish "inserted"
+     from "skipped" under pg-mem (its RETURNING yields the conflicting
+     row), while check-then-insert reads identically on both engines.
+     The id is minted app-side (the product-reviews pattern): a
+     gen_random_uuid() column default is evaluated once per prepared
+     statement by pg-mem, which would collide on the second insert —
+     and app-minted ids are equally valid on real Postgres. The
+     ON CONFLICT stays as the real-Postgres race guard; if it ever
+     skips, the re-read below returns the winner's row. */
+  const selectExisting = async (): Promise<WishlistRow | null> => {
+    const r = await db.execute(sql`
+      SELECT id, user_id, item_kind, item_id, price_at_add_cents, lowest_cents, created_at
+      FROM wishlists
+      WHERE user_id = ${userId}::uuid AND item_kind = ${itemKind} AND item_id = ${itemId}::uuid
+      LIMIT 1
+    `);
+    return r.rows.length ? rowToWishlist(r.rows[0] as Record<string, unknown>) : null;
+  };
+  const already = await selectExisting();
+  if (already) return { ok: true, wishlist: already, created: false };
+  const newId = randomUUID();
   const inserted = await db.execute(sql`
-    INSERT INTO wishlists (user_id, item_kind, item_id, price_at_add_cents, lowest_cents)
-    VALUES (${userId}::uuid, ${itemKind}, ${itemId}::uuid, ${item.priceCents}, ${item.priceCents})
+    INSERT INTO wishlists (id, user_id, item_kind, item_id, price_at_add_cents, lowest_cents)
+    VALUES (${newId}::uuid, ${userId}::uuid, ${itemKind}, ${itemId}::uuid, ${item.priceCents}, ${item.priceCents})
     ON CONFLICT (user_id, item_kind, item_id) DO NOTHING
     RETURNING id, user_id, item_kind, item_id, price_at_add_cents, lowest_cents, created_at
   `);
-  if (inserted.rows.length) {
+  /* "Created" is proven by identity: the returned row is ours iff it
+     carries the id this call minted. A skipped insert (real-PG race,
+     or pg-mem's conflicting-row RETURNING echo) yields either no row
+     or the winner's row — both mean created: false with that row. */
+  if (inserted.rows.length && String((inserted.rows[0] as Record<string, unknown>)["id"]) === newId) {
     return { ok: true, wishlist: rowToWishlist(inserted.rows[0] as Record<string, unknown>), created: true };
   }
-  const existing = await db.execute(sql`
-    SELECT id, user_id, item_kind, item_id, price_at_add_cents, lowest_cents, created_at
-    FROM wishlists
-    WHERE user_id = ${userId}::uuid AND item_kind = ${itemKind} AND item_id = ${itemId}::uuid
-    LIMIT 1
-  `);
-  return { ok: true, wishlist: rowToWishlist(existing.rows[0] as Record<string, unknown>), created: false };
+  const after = await selectExisting();
+  if (!after) throw new Error("wishlist insert vanished");
+  return { ok: true, wishlist: after, created: false };
 }
 
 /** Remove a product from the fan's own wishlist. Removing stops all
@@ -254,8 +277,9 @@ export async function detectWishlistPriceDrop(
         `);
         if (!claim.rows.length) continue;
         await db.execute(sql`
-          INSERT INTO notifications (user_id, kind, title, body, link)
+          INSERT INTO notifications (id, user_id, kind, title, body, link)
           VALUES (
+            ${randomUUID()}::uuid,
             ${userId}::uuid,
             ${WISHLIST_PRICE_DROP_KIND},
             ${"Price drop on your wishlist"},
