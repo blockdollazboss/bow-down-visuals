@@ -2126,6 +2126,23 @@ interface DigitalProduct {
   /* Order-bump setting (feature #13): the raw add-on attachment for
      the editor below; buyer reads carry the resolved offer instead. */
   bumpConfig?: { bumpKind: string; bumpItemId: string; percentOff: number } | null;
+  /* License-key settings (Wave 4 #35): the raw opt-in + per-buyer
+     download cap for the license editor below; null when never set. */
+  licenseConfig?: { licenseKeysEnabled: boolean; maxDownloads: number | null } | null;
+}
+
+/* One issued key as the SELLER sees it — masked, never the full key. */
+interface SellerLicenseRow {
+  id: string;
+  maskedKey: string;
+  buyerUserId: string;
+  status: "active" | "revoked";
+  revokedReason: string | null;
+  maxDownloads: number | null;
+  downloadsUsed: number;
+  downloadsLeft: number | null;
+  reissueCount: number;
+  issuedAt: string;
 }
 
 interface DigitalProductsData {
@@ -2275,6 +2292,188 @@ function DigitalBumpEditor({ product, candidates }: { product: DigitalProduct; c
         Buyers can tick it at checkout — same charge, both delivered. The flat 5% platform fee applies, split per line.
       </p>
       {msg && <p className="mt-1 text-[11px] font-semibold text-amber-200/90">{msg}</p>}
+    </div>
+  );
+}
+
+/* License keys (Wave 4 #35): opt this item into per-buyer license
+   keys and set the download cap each purchase includes. Keys issue
+   automatically at purchase (exactly one per buyer per item, shown in
+   the buyer's library and receipt); downloads count against the key,
+   so a fresh link never resets them. The seller manages issued keys
+   here — masked only — with revoke (downloads stop at once) and
+   re-issue (a fresh key for the same buyer, count reset). */
+function DigitalLicenseEditor({ product }: { product: DigitalProduct }) {
+  const { getAccessToken } = useAuth();
+  const cfgOn = product.licenseConfig?.licenseKeysEnabled ?? false;
+  const cfgMax = product.licenseConfig?.maxDownloads ?? null;
+  const [enabled, setEnabled] = useState(cfgOn);
+  const [maxText, setMaxText] = useState(cfgMax === null ? "" : String(cfgMax));
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [keys, setKeys] = useState<SellerLicenseRow[] | null>(null);
+  const [keysBusy, setKeysBusy] = useState(false);
+  const [actingKey, setActingKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnabled(cfgOn);
+    setMaxText(cfgMax === null ? "" : String(cfgMax));
+  }, [cfgOn, cfgMax]);
+
+  const loadKeys = useCallback(async () => {
+    setKeysBusy(true);
+    try {
+      const token = await getAccessToken();
+      const res = await digitalAuthed(`/api/store/item/${product.kind}/${product.id}/licenses`, token);
+      const data = (await res.json().catch(() => ({}))) as { licenses?: SellerLicenseRow[] };
+      if (res.ok) setKeys(data.licenses ?? []);
+    } catch {
+      /* The list is best-effort here; saving settings still works. */
+    } finally {
+      setKeysBusy(false);
+    }
+  }, [getAccessToken, product.kind, product.id]);
+
+  useEffect(() => {
+    if (enabled) void loadKeys();
+  }, [enabled, loadKeys]);
+
+  async function save() {
+    const trimmed = maxText.trim();
+    let maxDownloads: number | null = null;
+    if (trimmed !== "") {
+      const n = Number.parseInt(trimmed, 10);
+      if (!Number.isInteger(n) || n < 1 || n > 100000 || String(n) !== trimmed) {
+        setMsg("Download limit must be a whole number of at least 1 — or leave it blank for unlimited.");
+        return;
+      }
+      maxDownloads = n;
+    }
+    setSaving(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await digitalAuthed(`/api/store/item/${product.kind}/${product.id}/license-settings`, token, {
+        method: "PUT",
+        body: JSON.stringify({ licenseKeysEnabled: enabled, maxDownloads }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || "Could not save license settings.");
+      setMsg(
+        enabled
+          ? "License keys on — new purchases get a key with " +
+            (maxDownloads === null ? "unlimited downloads." : `a ${maxDownloads}-download limit.`)
+          : "License keys off for new purchases. Keys already issued keep working on their own terms.",
+      );
+      if (enabled) void loadKeys();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Could not save license settings.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function act(keyId: string, action: "revoke" | "reissue") {
+    setActingKey(keyId);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await digitalAuthed(`/api/store/licenses/${keyId}/${action}`, token, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || `Could not ${action} the key.`);
+      setMsg(action === "revoke" ? "Key revoked — its downloads are stopped." : "Key re-issued — the buyer has a fresh key and a reset download count.");
+      await loadKeys();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : `Could not ${action} the key.`);
+    } finally {
+      setActingKey(null);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/[0.03] px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400/70">License keys</span>
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-amber-100">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+            aria-label={`Issue license keys for ${product.title}`}
+            className="h-4 w-4 accent-amber-500"
+          />
+          Give each buyer a license key
+        </label>
+        <span className="flex items-center gap-1">
+          <input
+            className="w-20 rounded-lg border border-amber-500/25 bg-black px-2 py-1.5 text-xs text-amber-100 outline-none disabled:opacity-40"
+            value={maxText}
+            onChange={(e) => setMaxText(e.target.value.replace(/[^0-9]/g, ""))}
+            inputMode="numeric"
+            placeholder="∞"
+            disabled={!enabled}
+            aria-label="Downloads per buyer (blank = unlimited)"
+          />
+          <span className="text-[11px] text-amber-100/50">downloads per buyer (blank = unlimited)</span>
+        </span>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="rounded-full border border-amber-500/40 px-3 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+        >
+          {saving ? "Saving…" : "Save license settings"}
+        </button>
+      </div>
+      <p className="mt-1.5 text-[11px] text-amber-100/40">
+        The key is the buyer's proof of ownership — it lands in their receipt and library. Downloads count against
+        the key itself, so minting a fresh link never resets them. Changing the limit only affects new purchases.
+      </p>
+      {msg && <p className="mt-1 text-[11px] font-semibold text-amber-200/90">{msg}</p>}
+      {enabled && (
+        <div className="mt-2">
+          {keysBusy && keys === null ? (
+            <p className="text-[11px] text-amber-100/40">Loading issued keys…</p>
+          ) : keys && keys.length === 0 ? (
+            <p className="text-[11px] text-amber-100/40">No keys issued yet — the first purchase of this item creates one.</p>
+          ) : keys ? (
+            <ul className="divide-y divide-amber-500/10">
+              {keys.map((k) => (
+                <li key={k.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-[11px]">
+                  <span className="font-mono text-amber-100">{k.maskedKey}</span>
+                  <span className="text-amber-100/50">buyer {k.buyerUserId.slice(0, 8)}…</span>
+                  <span className="text-amber-100/50">{new Date(k.issuedAt).toLocaleDateString()}</span>
+                  <span className="text-amber-100/50">
+                    {k.maxDownloads === null ? `${k.downloadsUsed} downloads · unlimited` : `${k.downloadsUsed} of ${k.maxDownloads} downloads used`}
+                  </span>
+                  {k.status === "revoked" ? (
+                    <span className="font-bold text-red-300">Revoked{k.revokedReason === "refund" ? " (refunded)" : ""}</span>
+                  ) : (
+                    <span className="font-bold text-emerald-300/90">Active</span>
+                  )}
+                  {k.status === "active" && (
+                    <button
+                      onClick={() => act(k.id, "revoke")}
+                      disabled={actingKey === k.id}
+                      className="rounded-full border border-red-400/40 px-2 py-0.5 font-bold text-red-200 hover:bg-red-500/10 disabled:opacity-40"
+                    >
+                      Revoke
+                    </button>
+                  )}
+                  {k.revokedReason !== "refund" && (
+                    <button
+                      onClick={() => act(k.id, "reissue")}
+                      disabled={actingKey === k.id}
+                      className="rounded-full border border-amber-500/40 px-2 py-0.5 font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-40"
+                    >
+                      Re-issue
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -2694,6 +2893,7 @@ function DigitalSalesTab() {
                         {customCents > 0 ? feePreview(customCents) : "Type a custom price to see the live fee split."}
                       </span>
                       <DigitalBumpEditor product={p} candidates={products?.products ?? []} />
+                      <DigitalLicenseEditor product={p} />
                     </div>
                   );
                 })}

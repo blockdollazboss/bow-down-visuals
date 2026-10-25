@@ -20,6 +20,15 @@
  * Endpoints:
  *   GET    /api/store/item/:kind/:id   public: item + fee split for the buy page
  *   PUT    /api/store/item/:kind/:id/bump  auth: set/clear the item's order-bump add-on (owner)
+ *   PUT    /api/store/item/:kind/:id/license-settings  auth: opt the item
+ *                                         into license keys + set the per-buyer
+ *                                         download cap (owner; Wave 4 #35)
+ *   GET    /api/store/item/:kind/:id/licenses  auth: keys issued for the
+ *                                         item (owner; masked keys only)
+ *   POST   /api/store/licenses/:keyId/revoke   auth: seller kills a key —
+ *                                         its downloads stop at once (owner)
+ *   POST   /api/store/licenses/:keyId/reissue  auth: rotate a buyer's key —
+ *                                         old key dies, download count resets
  *   POST   /api/store/checkout         auth: create a Stripe Checkout Session
  *   POST   /api/store/verify           auth: verify a paid session, record the
  *                                         sale idempotently, mint a download token
@@ -63,6 +72,27 @@ import {
   MAX_BUMP_PERCENT_OFF,
 } from "../lib/order-bumps";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+/* License keys + per-buyer download limits (Wave 4 #35, migration
+   0234): all key logic lives in lib/license-keys.ts — issuance is
+   exactly-once per purchased item, the download cap counts on the
+   KEY (never per link), and the full key reaches only the buyer. */
+import {
+  MAX_DOWNLOADS_CEILING,
+  buyerLicenseView,
+  ensureLicenseKeyForItem,
+  fetchLicenseConfig,
+  getLicenseKeyForDownload,
+  getLicenseSettings,
+  licenseBlocksMint,
+  listLicenseKeysForProduct,
+  listLicenseKeysForSales,
+  noteLicenseDownload,
+  reissueLicenseKey,
+  revokeLicenseKey,
+  sellerLicenseView,
+  setLicenseSettings,
+  type LicenseKeyRow,
+} from "../lib/license-keys";
 import { sendEmail, emailShell, emailButton, emailDetailBox, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 import {
   GiftCardsUnavailable,
@@ -618,8 +648,14 @@ router.get("/store/item/:kind/:id", publicApiLimiter, async (req, res) => {
     /* Order bump (feature #13): the live add-on offer, resolved —
        null when this item has no add-on a buyer could take right now. */
     const bump = await resolveDigitalBumpOffer(kind, id, item.profileId);
+    /* License keys (Wave 4 #35): the buy page says up front when a
+       purchase carries a key and how many downloads it includes. */
+    const licSettings = await getLicenseSettings(kind, id);
     res.json({
       bump,
+      license: licSettings.licenseKeysEnabled
+        ? { keysIssued: true, maxDownloads: licSettings.maxDownloads }
+        : null,
       item: {
         kind: item.itemKind,
         id,
@@ -769,6 +805,142 @@ router.put("/store/item/:kind/:id/bump", requireAuth, publicApiLimiter, async (r
   } catch (err) {
     logger.error({ err, kind, id }, "[store] item bump update failed");
     res.status(500).json({ error: "Could not update the add-on offer." });
+  }
+});
+
+/* ── License keys (Wave 4 #35) — seller settings + key management ──────
+   Settings live in digital_product_settings (one row per item, the
+   bump-offers keyed-table pattern); keys live in digital_license_keys.
+   The seller's list NEVER carries the full key — masked only. */
+const SetLicenseSettingsSchema = z.object({
+  licenseKeysEnabled: z.boolean(),
+  /* Per-buyer download cap for NEW purchases (each issued key snapshots
+     it, so editing this never rewrites a sold purchase's terms).
+     null = unlimited downloads. */
+  maxDownloads: z.number().int().min(1).max(MAX_DOWNLOADS_CEILING).nullable().default(null),
+});
+
+router.put("/store/item/:kind/:id/license-settings", requireAuth, publicApiLimiter, async (req, res) => {
+  const kind = String(req.params.kind ?? "");
+  const id = String(req.params.id ?? "");
+  if (!DIGITAL_ITEM_KINDS.includes(kind as (typeof DIGITAL_ITEM_KINDS)[number]) || !UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid item." });
+    return;
+  }
+  if (kind === "series") {
+    res.status(400).json({
+      error: "SERIES_UNLOCK",
+      message: "A series unlocks streaming access — there's no file to license. License keys are for downloadable items.",
+    });
+    return;
+  }
+  const parsed = SetLicenseSettingsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid license settings.", details: parsed.error.issues });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const owner = await resolveItemOwnerProfileId(kind, id);
+    if (!owner || owner !== profile.id) {
+      res.status(404).json({ error: "Item not found." });
+      return;
+    }
+    const saved = await setLicenseSettings(kind, id, parsed.data);
+    logger.info({ userId: req.userId, kind, id, licenseKeysEnabled: saved.licenseKeysEnabled }, "[store] license settings updated");
+    res.json({ settings: saved });
+  } catch (err) {
+    logger.error({ err, kind, id }, "[store] license settings update failed");
+    res.status(500).json({ error: "Could not update license settings." });
+  }
+});
+
+/* GET /api/store/item/:kind/:id/licenses — keys issued for one product
+   (owner only, masked keys). */
+router.get("/store/item/:kind/:id/licenses", requireAuth, publicApiLimiter, async (req, res) => {
+  const kind = String(req.params.kind ?? "");
+  const id = String(req.params.id ?? "");
+  if (!DIGITAL_ITEM_KINDS.includes(kind as (typeof DIGITAL_ITEM_KINDS)[number]) || !UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid item." });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const owner = await resolveItemOwnerProfileId(kind, id);
+    if (!owner || owner !== profile.id) {
+      res.status(404).json({ error: "Item not found." });
+      return;
+    }
+    const keys = await listLicenseKeysForProduct(profile.id, kind, id);
+    res.json({ licenses: keys.map(sellerLicenseView) });
+  } catch (err) {
+    logger.error({ err, kind, id }, "[store] license list failed");
+    res.status(500).json({ error: "Could not load license keys." });
+  }
+});
+
+/* POST /api/store/licenses/:keyId/revoke — downloads stop at once. */
+router.post("/store/licenses/:keyId/revoke", requireAuth, publicApiLimiter, async (req, res) => {
+  const keyId = String(req.params.keyId ?? "");
+  if (!UUID_RE.test(keyId)) {
+    res.status(400).json({ error: "Invalid key." });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const row = await revokeLicenseKey(keyId, profile.id, "seller");
+    if (!row) {
+      res.status(404).json({ error: "License key not found." });
+      return;
+    }
+    logger.info({ userId: req.userId, keyId }, "[store] license key revoked");
+    res.json({ license: sellerLicenseView(row) });
+  } catch (err) {
+    logger.error({ err, keyId }, "[store] license revoke failed");
+    res.status(500).json({ error: "Could not revoke the key." });
+  }
+});
+
+/* POST /api/store/licenses/:keyId/reissue — a fresh key for the same
+   buyer: the old key string dies, the download count resets. The buyer
+   sees the new key in their library. Refused for refunded sales. */
+router.post("/store/licenses/:keyId/reissue", requireAuth, publicApiLimiter, async (req, res) => {
+  const keyId = String(req.params.keyId ?? "");
+  if (!UUID_RE.test(keyId)) {
+    res.status(400).json({ error: "Invalid key." });
+    return;
+  }
+  try {
+    const profile = await callerProfile(req.userId!);
+    if (!profile) {
+      res.status(404).json({ error: "NO_PROFILE", message: "You don't have a creator profile yet." });
+      return;
+    }
+    const row = await reissueLicenseKey(keyId, profile.id);
+    if (!row) {
+      res.status(404).json({
+        error: "LICENSE_NOT_REISSUABLE",
+        message: "That key can't be re-issued — it isn't yours, doesn't exist, or its sale was refunded.",
+      });
+      return;
+    }
+    logger.info({ userId: req.userId, keyId }, "[store] license key re-issued");
+    res.json({ license: sellerLicenseView(row) });
+  } catch (err) {
+    logger.error({ err, keyId }, "[store] license reissue failed");
+    res.status(500).json({ error: "Could not re-issue the key." });
   }
 });
 
@@ -988,6 +1160,14 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
       if (!redeemed) {
         logger.error({ saleId, giftReservationId }, "[store] gift-card redeem failed after sale record — needs reconciliation");
       }
+      /* License key (Wave 4 #35): issued exactly once per purchase —
+         the gift-card path is a fulfillment path like verify. */
+      const giftLicense = kind === "series"
+        ? null
+        : await ensureLicenseKeyForItem({
+            saleId, buyerUserId: req.userId!, profileId: item.profileId,
+            itemKind: kind, itemId: id, itemTitle: item.title, fileUrl: item.fileUrl,
+          });
       const link = kind === "series"
         ? null
         : (await findReusableDownloadLink(saleId, item.fileUrl)) ?? (await mintDownloadLink(saleId, item.fileUrl));
@@ -1010,6 +1190,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         download: link
           ? { token: link.token, url: `/api/store/download/${link.token}`, expiresAt: link.expiresAt.toISOString(), maxUses: DOWNLOAD_MAX_USES }
           : null,
+        license: giftLicense ? buyerLicenseView(giftLicense) : null,
         access: kind === "series" ? { unlocked: true, watchUrl: `/playlist/${id}` } : null,
         note: "Paid in full with your gift card — no card payment was taken.",
       });
@@ -1366,6 +1547,9 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
     const bundleDownloads: {
       itemKind: string; itemId: string; title: string;
       token: string; url: string; expiresAt: string; maxUses: number;
+      /* License key (Wave 4 #35) when the component's seller issues
+         keys — attached after issuance below. */
+      licenseKey?: string | null;
     }[] = [];
     const bundleUnlockedSeries: { id: string; title: string; watchUrl: string }[] = [];
     if (kind === BUNDLE_KIND && bundleDef) {
@@ -1417,6 +1601,51 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       ? (await findReusableDownloadLink(saleId, bumpFileUrl)) ?? (await mintDownloadLink(saleId, bumpFileUrl))
       : null;
 
+    /* ── License keys (Wave 4 #35): exactly one key per purchased
+       item, issued on EVERY verify (the find-or-issue discipline the
+       bundle grants use) so an interrupted verify heals on the next
+       confirmation — and never for a sale the clawback refunded.
+       Issuance fails soft: a key problem can never fail a purchase. ── */
+    let mainLicense: LicenseKeyRow | null = null;
+    let bumpLicense: LicenseKeyRow | null = null;
+    const bundleLicenses = new Map<string, LicenseKeyRow>();
+    {
+      const licStatusRows = await db.execute(sql`
+        SELECT status FROM digital_sales WHERE id = ${saleId} LIMIT 1
+      `);
+      const licSaleStatus = String(
+        (licStatusRows.rows[0] as Record<string, unknown> | undefined)?.["status"] ?? "completed",
+      );
+      if (licSaleStatus !== "refunded") {
+        if (kind !== "series" && kind !== BUNDLE_KIND) {
+          mainLicense = await ensureLicenseKeyForItem({
+            saleId, buyerUserId: req.userId!, profileId,
+            itemKind: kind, itemId, itemTitle, fileUrl,
+          });
+        }
+        if (bumpDeliverable && bumpKind && bumpItemId && bumpFileUrl) {
+          bumpLicense = await ensureLicenseKeyForItem({
+            saleId, buyerUserId: req.userId!, profileId,
+            itemKind: bumpKind, itemId: bumpItemId, itemTitle: bumpTitle, fileUrl: bumpFileUrl,
+          });
+        }
+        if (kind === BUNDLE_KIND && bundleDef) {
+          for (const comp of bundleDef.components) {
+            if (comp.kind === "series") continue;
+            const compKey = await ensureLicenseKeyForItem({
+              saleId, buyerUserId: req.userId!, profileId,
+              itemKind: comp.kind, itemId: comp.id, itemTitle: comp.title, fileUrl: comp.fileUrl,
+            });
+            if (compKey) bundleLicenses.set(comp.id, compKey);
+          }
+        }
+      }
+      for (const d of bundleDownloads) {
+        const k = bundleLicenses.get(d.itemId);
+        if (k) d.licenseKey = buyerLicenseView(k).key;
+      }
+    }
+
     /* ── "YOU JUST GOT PAID" — the money finale. Best-effort: the sale is
        already recorded; a notification failure must never fail the purchase.
        The relay pings the creator in chat (exactly-once via the
@@ -1455,6 +1684,23 @@ ${bundleDef.components.map((c) => `<div style="display:flex;justify-content:spac
 ${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:#a67c1a;font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
 </div>`
           : "";
+        /* License keys (Wave 4 #35): the receipt carries the buyer's
+           key(s) in full — the delivery half of "shown in their
+           library/receipt". Only on the first verify, like the receipt
+           itself. */
+        const licenseRows: { title: string; view: ReturnType<typeof buyerLicenseView> }[] = [];
+        if (mainLicense) licenseRows.push({ title: itemTitle, view: buyerLicenseView(mainLicense) });
+        if (bumpLicense) licenseRows.push({ title: bumpTitle, view: buyerLicenseView(bumpLicense) });
+        for (const k of bundleLicenses.values()) {
+          licenseRows.push({ title: k.item_title, view: buyerLicenseView(k) });
+        }
+        const licenseReceiptHtml = licenseRows.length
+          ? `<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;">
+<div style="color:#d4af37;font-weight:700;font-size:14px;margin-bottom:8px;">Your license key${licenseRows.length > 1 ? "s" : ""}</div>
+${licenseRows.map(({ title, view }) => `<div style="margin:0 0 10px;"><div style="color:#ccc;font-size:13px;">${escapeHtml(title)}</div><div style="font-family:monospace;color:#fff;font-size:15px;letter-spacing:1px;">${escapeHtml(view.key ?? "")}</div><div style="color:#888;font-size:12px;">${view.maxDownloads === null ? "Unlimited downloads" : `${view.maxDownloads} download${view.maxDownloads === 1 ? "" : "s"} included`} · always available under your purchases</div></div>`).join("")}
+<div style="color:#888;font-size:12px;">This key is proof this copy is yours. Downloads are counted per purchase — refreshing a link never resets them.</div>
+</div>`
+          : "";
         const receiptHtml = emailShell(
           "Purchase confirmed",
           `<p style="margin:0 0 12px;">You're in. Your purchase is ready:</p>
@@ -1464,6 +1710,7 @@ ${splits.bump ? `<div style="font-size:13px;margin-top:4px;">Includes add-on: ${
 <div style="font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
 <div style="color:#8a7c5c;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>`)}
 ${bundleReceiptHtml}
+${licenseReceiptHtml}
 <p style="margin:0 0 16px;font-size:14px;">${kind === "series"
   ? "The full series is unlocked on your account — watch it anytime, right from the series page."
   : kind === BUNDLE_KIND
@@ -1529,6 +1776,10 @@ ${emailButton(`${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` :
             maxUses: DOWNLOAD_MAX_USES,
           }
         : null,
+      /* License keys (Wave 4 #35): the buyer's keys in full — the
+         confirmation half of "shown in their library/receipt". */
+      license: mainLicense ? buyerLicenseView(mainLicense) : null,
+      bumpLicense: bumpLicense ? buyerLicenseView(bumpLicense) : null,
       /* Paid for an add-on that can no longer be delivered: the sale
          stands, and this states the exact refund the creator owes. */
       bumpNote:
@@ -1576,10 +1827,13 @@ function downloadPageHtml(opts: {
   title?: string;
   artist?: string;
   usesLeft?: number;
+  /* License-keyed downloads state their remaining count against the
+     KEY (or its unlimited terms) instead of the per-link count. */
+  metaNote?: string;
   expiresAt?: string;
   message?: string;
 }): string {
-  const { ok, fileUrl, title, artist, usesLeft, expiresAt, message } = opts;
+  const { ok, fileUrl, title, artist, usesLeft, metaNote, expiresAt, message } = opts;
   const safe = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1615,7 +1869,7 @@ ${ok && fileUrl ? `<meta http-equiv="refresh" content="1;url=${safe(fileUrl)}"/>
       ? `“${safe(title ?? "Your content")}”${artist ? ` by ${safe(artist)}` : ""} — your download starts automatically. No waiting rooms, no hoops. That's the cheat code.`
       : safe(message ?? "This link expired or hit its download limit.")}</p>
     ${ok && fileUrl ? `<a class="btn" href="${safe(fileUrl)}" download>Download now</a>` : ""}
-    ${ok ? `<div class="meta">${usesLeft ?? 0} download${(usesLeft ?? 0) === 1 ? "" : "s"} left · link expires ${safe(expiresAt ?? "")}<br/>Lost this file? Re-download anytime from <a href="/my-music" style="color:#e8c547;">My Music</a> on Bow Down Visuals.</div>` : ""}
+    ${ok ? `<div class="meta">${metaNote ? safe(metaNote) : `${usesLeft ?? 0} download${(usesLeft ?? 0) === 1 ? "" : "s"} left`} · link expires ${safe(expiresAt ?? "")}<br/>Lost this file? Re-download anytime from <a href="/my-music" style="color:#e8c547;">My Music</a> on Bow Down Visuals.</div>` : ""}
     <div class="brand">Bow Down Visuals</div>
   </div>
 </body>
@@ -1631,24 +1885,97 @@ router.get("/store/download/:token", publicApiLimiter, async (req, res) => {
     return;
   }
   try {
-    /* Atomic: increment only if still valid and under the cap. */
-    const updated = await db.execute(sql`
-      UPDATE download_links
-      SET used_count = used_count + 1
-      WHERE token = ${token}
-        AND expires_at > now()
-        AND used_count < ${DOWNLOAD_MAX_USES}
-      RETURNING file_url, expires_at, used_count, sale_id
-    `);
-    const row = updated.rows[0] as Record<string, unknown> | undefined;
-    if (!row) {
+    /* License keys (Wave 4 #35): when a key governs this sale + file,
+       the KEY is the entitlement — downloads count per buyer on the
+       key (a single conditional UPDATE, so the cap can never be
+       overshot) and the per-link cap steps aside. The probe keeps a
+       pre-migration database on the legacy statement, byte-identical
+       to before. */
+    let keysLive = true;
+    try {
+      await db.execute(sql`SELECT 1 FROM digital_license_keys LIMIT 0`);
+    } catch {
+      keysLive = false;
+    }
+    const legacyGone = () =>
       res.status(410).send(
         downloadPageHtml({
           ok: false,
           message: "This link expired (48 hours) or hit its 5-download limit. Your purchase is safe — mint a fresh link from My Music.",
         })
       );
+    /* Read the link first (no burn yet): the key lookup needs its
+       sale + file, and the failure page needs to name the real
+       blocker — link expiry, key revocation, or a spent cap. */
+    const linkRows = await db.execute(sql`
+      SELECT sale_id, file_url, expires_at, used_count FROM download_links
+      WHERE token = ${token} LIMIT 1
+    `);
+    const linkRow = linkRows.rows[0] as Record<string, unknown> | undefined;
+    if (!linkRow) {
+      legacyGone();
       return;
+    }
+    const licKey = keysLive
+      ? await getLicenseKeyForDownload(String(linkRow["sale_id"]), String(linkRow["file_url"]))
+      : null;
+    let row: Record<string, unknown> | undefined;
+    let keyMetaNote: string | undefined;
+    if (licKey) {
+      if (new Date(String(linkRow["expires_at"])).getTime() <= Date.now()) {
+        legacyGone();
+        return;
+      }
+      /* Count FIRST, atomically, on the key: a revoked or cap-spent
+         key refuses here and no link use is burned. */
+      const noted = await noteLicenseDownload(licKey.id);
+      if (!noted) {
+        res.status(410).send(
+          downloadPageHtml({
+            ok: false,
+            message: licKey.status === "revoked"
+              ? "This purchase's license key has been revoked, so downloads are stopped. If you bought this and think that's a mistake, contact the creator."
+              : `You've used all ${licKey.max_downloads} downloads included with this purchase. Your purchase and key are safe in My Music — if you need more, ask the creator to re-issue your key.`,
+          })
+        );
+        return;
+      }
+      keyMetaNote = noted.maxDownloads === null
+        ? "Unlimited downloads with your license key"
+        : `${Math.max(0, noted.maxDownloads - noted.downloadCount)} of ${noted.maxDownloads} license downloads left`;
+      const burned = await db.execute(sql`
+        UPDATE download_links
+        SET used_count = used_count + 1
+        WHERE token = ${token} AND expires_at > now()
+        RETURNING file_url, expires_at, used_count, sale_id
+      `);
+      row = burned.rows[0] as Record<string, unknown> | undefined;
+      if (!row) {
+        /* The link expired in the same instant: give the count back
+           so the buyer's cap is never spent on an undelivered file. */
+        await db.execute(sql`
+          UPDATE digital_license_keys SET download_count = download_count - 1
+          WHERE id = ${licKey.id} AND download_count > 0
+        `);
+        legacyGone();
+        return;
+      }
+    } else {
+      /* Legacy rail, unchanged: atomic increment only if still valid
+         and under the per-link cap. */
+      const updated = await db.execute(sql`
+        UPDATE download_links
+        SET used_count = used_count + 1
+        WHERE token = ${token}
+          AND expires_at > now()
+          AND used_count < ${DOWNLOAD_MAX_USES}
+        RETURNING file_url, expires_at, used_count, sale_id
+      `);
+      row = updated.rows[0] as Record<string, unknown> | undefined;
+      if (!row) {
+        legacyGone();
+        return;
+      }
     }
     /* Item title/artist for the branded page. */
     const sale = await db.execute(sql`
@@ -1682,6 +2009,7 @@ router.get("/store/download/:token", publicApiLimiter, async (req, res) => {
         title,
         artist: srow ? String(srow["artist_name"] ?? "") : undefined,
         usesLeft,
+        metaNote: keyMetaNote,
         expiresAt,
       })
     );
@@ -1735,6 +2063,16 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
             LIMIT 200
           `);
     }
+    /* License keys (Wave 4 #35): the buyer's keys ride their purchases
+       — the library half of "shown in their library/receipt". The lib
+       read fails soft to none on a pre-migration database. */
+    const pageSaleIds = result.rows.map((r) => String((r as Record<string, unknown>)["id"]));
+    const keyBySale = new Map<string, LicenseKeyRow[]>();
+    for (const k of await listLicenseKeysForSales(pageSaleIds)) {
+      const arr = keyBySale.get(k.sale_id) ?? [];
+      arr.push(k);
+      keyBySale.set(k.sale_id, arr);
+    }
     /* Refresh at the response boundary: the joined artwork_url /
        thumbnail_url is stored as a storage ref (r2:// / supabase://),
        which clients cannot render — mint a fresh signed URL per row. */
@@ -1754,6 +2092,8 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           Number(row["bump_amount_cents"] ?? 0) || 0,
           PLATFORM_FEE_BPS,
         );
+        const saleKeys = keyBySale.get(String(row["id"])) ?? [];
+        const mainKey = saleKeys.find((k) => k.item_kind === kind && k.item_id === itemId);
         return {
           id: String(row["id"]),
           itemKind: kind,
@@ -1798,6 +2138,12 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
           /* Bundle purchases say how many items they hold. */
           bundleItemCount:
             kind === BUNDLE_KIND ? Number(row["bundle_count"] ?? 0) || null : null,
+          /* License keys (Wave 4 #35): `license` is the main item's
+             key; `licenses` carries every key on the purchase (the
+             add-on's and each bundle component's too). Full keys —
+             buyers only; this endpoint is scoped to the caller. */
+          license: mainKey ? buyerLicenseView(mainKey) : null,
+          licenses: saleKeys.map(buyerLicenseView),
         };
       })),
     });
@@ -1806,6 +2152,35 @@ router.get("/store/purchases", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Could not load your purchases." });
   }
 });
+
+/* ── License mint gate (Wave 4 #35) ─────────────────────────────────────
+   A fresh link must never resurrect what the key forbids: when a key
+   governs this sale + file and it is revoked or its per-buyer cap is
+   spent, minting stops with the honest reason. Returns true when the
+   caller has been answered and minting must not proceed. */
+async function licenseMintBlocked(
+  res: import("express").Response,
+  saleId: string,
+  fileUrl: string,
+): Promise<boolean> {
+  const key = await getLicenseKeyForDownload(saleId, fileUrl);
+  const verdict = licenseBlocksMint(key);
+  if (!verdict.blocked || !key) return false;
+  if (verdict.reason === "revoked") {
+    res.status(403).json({
+      error: "LICENSE_REVOKED",
+      message: "This purchase's license key has been revoked, so downloads are stopped. If you bought this and think that's a mistake, contact the creator.",
+    });
+  } else {
+    res.status(403).json({
+      error: "DOWNLOAD_LIMIT_REACHED",
+      message: `You've used all ${key.max_downloads} downloads included with this purchase. If you need more, ask the creator to re-issue your key.`,
+      downloadsUsed: key.download_count,
+      maxDownloads: key.max_downloads,
+    });
+  }
+  return true;
+}
 
 /* ── POST /api/store/token — mint a fresh download token for a purchase ─ */
 const TokenSchema = z.object({
@@ -1877,6 +2252,10 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
         token: string; url: string; expiresAt: string; maxUses: number;
       }[] = [];
       let unlockedSeries: { id: string; title: string; watchUrl: string }[] = [];
+      /* License keys (Wave 4 #35): a component whose key is revoked or
+         spent is skipped; if that was the bundle's only content, the
+         mint answers with the key's honest reason (below). */
+      let firstBlockedFile: string | null = null;
       if (grantFiles.rows.length > 0 || grantSeries.rows.length > 0) {
         const titles = new Map<string, { kind: string; title: string }>();
         if (!("notForSale" in bundleItem) && !("notWired" in bundleItem) && bundleItem.bundle) {
@@ -1887,6 +2266,27 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
           const comp = !("notForSale" in bundleItem) && !("notWired" in bundleItem) && bundleItem.bundle
             ? bundleItem.bundle.components.find((c) => c.fileUrl === fileUrl)
             : undefined;
+          /* Heal a component whose verify died before issuance (when
+             the live bundle still names it), then honor its key. */
+          if (comp) {
+            const saleProfileRows = await db.execute(sql`
+              SELECT profile_id FROM digital_sales WHERE id = ${saleId} LIMIT 1
+            `);
+            const saleProfileId = String(
+              (saleProfileRows.rows[0] as Record<string, unknown> | undefined)?.["profile_id"] ?? "",
+            );
+            if (saleProfileId) {
+              await ensureLicenseKeyForItem({
+                saleId, buyerUserId: req.userId!, profileId: saleProfileId,
+                itemKind: comp.kind, itemId: comp.id, itemTitle: comp.title, fileUrl,
+              });
+            }
+          }
+          const grantKey = await getLicenseKeyForDownload(saleId, fileUrl);
+          if (licenseBlocksMint(grantKey).blocked) {
+            firstBlockedFile = firstBlockedFile ?? fileUrl;
+            continue;
+          }
           const l = await mintDownloadLink(saleId, fileUrl);
           downloads.push({
             itemKind: comp?.kind ?? "track",
@@ -1922,6 +2322,16 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
             `);
             unlockedSeries.push({ id: comp.id, title: comp.title, watchUrl: `/playlist/${comp.id}` });
           } else {
+            /* Heal + honor the component's key, exactly like the
+               recorded-grants path above. */
+            const compKey = await ensureLicenseKeyForItem({
+              saleId, buyerUserId: req.userId!, profileId: bundleItem.profileId,
+              itemKind: comp.kind, itemId: comp.id, itemTitle: comp.title, fileUrl: comp.fileUrl,
+            });
+            if (licenseBlocksMint(compKey).blocked) {
+              firstBlockedFile = firstBlockedFile ?? comp.fileUrl;
+              continue;
+            }
             const l = await mintDownloadLink(saleId, comp.fileUrl);
             downloads.push({
               itemKind: comp.kind,
@@ -1938,6 +2348,9 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
         res.status(400).json({ error: "This content is no longer available." });
         return;
       }
+      if (downloads.length === 0 && unlockedSeries.length === 0 && firstBlockedFile) {
+        if (await licenseMintBlocked(res, saleId, firstBlockedFile)) return;
+      }
       res.json({ bundle: true, downloads, unlockedSeries });
       return;
     }
@@ -1946,6 +2359,14 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
       res.status(400).json({ error: "This content is no longer available." });
       return;
     }
+    /* License keys (Wave 4 #35): heal a purchase whose verify was
+       interrupted before issuance, then honor the key's state — a
+       fresh link never resets the per-buyer count or a revocation. */
+    await ensureLicenseKeyForItem({
+      saleId: parsed.data.saleId, buyerUserId: req.userId!, profileId: item.profileId,
+      itemKind: kind, itemId, itemTitle: item.title, fileUrl: item.fileUrl,
+    });
+    if (await licenseMintBlocked(res, parsed.data.saleId, item.fileUrl)) return;
     const link = await mintDownloadLink(parsed.data.saleId, item.fileUrl);
     res.json({
       token: link.token,
@@ -2467,6 +2888,9 @@ router.get("/store/products", requireAuth, async (req, res) => {
              the dashboard's add-on editor; null pre-migration or when
              no add-on is set. */
           bumpConfig: await fetchDigitalBumpConfig(kind, String(r["id"])),
+          /* License-key settings (Wave 4 #35): the raw opt-in + cap
+             for the dashboard's license editor; same null discipline. */
+          licenseConfig: await fetchLicenseConfig(kind, String(r["id"])),
         };
       }));
     const prof = await db.execute(sql`

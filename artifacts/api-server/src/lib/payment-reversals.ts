@@ -57,6 +57,7 @@ import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { isUniqueViolation } from "./pg-errors";
+import { revokeLicenseKeysForSales } from "./license-keys";
 
 /* ── Shapes ──────────────────────────────────────────────────────────── */
 
@@ -609,6 +610,19 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
         )
           AND expires_at > now()
       `);
+      /* License keys (Wave 4 #35): a refunded purchase's keys die with
+         the sale — same clawback, same flipped id set (bundle component
+         keys ride the bundle's sale id, so they are covered). Guarded:
+         key revocation is additive and must never fail the reversal
+         itself (e.g. on a database the 0234 migration hasn't reached). */
+      try {
+        await revokeLicenseKeysForSales(
+          s.rows.map((r) => String((r as Record<string, unknown>)["id"])),
+          "refund",
+        );
+      } catch (err) {
+        logger.error({ err, sid }, "[reversals] license-key revocation failed (sale reversal stands)");
+      }
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
     }
     case "marketplace_shop": {
