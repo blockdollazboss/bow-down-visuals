@@ -97,6 +97,8 @@ vi.mock("../generate/milestones", () => ({
 vi.mock("../../lib/email", () => ({
   sendEmail: async () => undefined,
   emailShell: (x: string) => x,
+  emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
+  emailDetailBox: (html: string) => html,
   escapeHtml: (s: string) => s,
   isEmailConfigured: () => false,
 }));

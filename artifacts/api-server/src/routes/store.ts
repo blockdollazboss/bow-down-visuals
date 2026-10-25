@@ -63,7 +63,7 @@ import {
   MAX_BUMP_PERCENT_OFF,
 } from "../lib/order-bumps";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
-import { sendEmail, emailShell, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
+import { sendEmail, emailShell, emailButton, emailDetailBox, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 import {
   GiftCardsUnavailable,
   findCardByCode,
@@ -1450,28 +1450,26 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
            list price, the bought-separately total, and the saving. */
         const bundleReceiptHtml = bundleDef
           ? `<div style="margin:0 0 12px;">
-${bundleDef.components.map((c) => `<div style="display:flex;justify-content:space-between;color:#ccc;font-size:13px;padding:3px 0;"><span>${escapeHtml(c.title)}</span><span>${emailMoney(c.listPriceCents)}</span></div>`).join("")}
-<div style="display:flex;justify-content:space-between;color:#888;font-size:12px;border-top:1px solid #333;margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
-${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:#d4af37;font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
+${bundleDef.components.map((c) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span>${escapeHtml(c.title)}</span><span>${emailMoney(c.listPriceCents)}</span></div>`).join("")}
+<div style="display:flex;justify-content:space-between;color:#8a7c5c;font-size:12px;border-top:1px solid #d9c68d;margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
+${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:#a67c1a;font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
 </div>`
           : "";
         const receiptHtml = emailShell(
-          "Purchase confirmed 👑",
+          "Purchase confirmed",
           `<p style="margin:0 0 12px;">You're in. Your purchase is ready:</p>
-<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;">
-<div style="color:#d4af37;font-weight:700;font-size:16px;">${escapeHtml(itemTitle)}</div>
-${artistName ? `<div style="color:#aaa;font-size:13px;">by ${escapeHtml(artistName)}</div>` : ""}
-${splits.bump ? `<div style="color:#ccc;font-size:13px;margin-top:4px;">Includes add-on: ${escapeHtml(bumpTitle)} — ${emailMoney(splits.bump.grossCents)}</div>` : ""}
-<div style="color:#eee;font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
-<div style="color:#888;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>
-</div>
+${emailDetailBox(`<div style="color:#a67c1a;font-weight:700;font-size:17px;">${escapeHtml(itemTitle)}</div>
+${artistName ? `<div style="font-size:13px;">by ${escapeHtml(artistName)}</div>` : ""}
+${splits.bump ? `<div style="font-size:13px;margin-top:4px;">Includes add-on: ${escapeHtml(bumpTitle)} — ${emailMoney(splits.bump.grossCents)}</div>` : ""}
+<div style="font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
+<div style="color:#8a7c5c;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>`)}
 ${bundleReceiptHtml}
-<p style="margin:0 0 16px;color:#ccc;font-size:14px;">${kind === "series"
+<p style="margin:0 0 16px;font-size:14px;">${kind === "series"
   ? "The full series is unlocked on your account — watch it anytime, right from the series page."
   : kind === BUNDLE_KIND
     ? "Everything in the bundle is on the confirmation page and in your purchases — downloads are good for 48 hours at a time, and any series in the bundle stays unlocked on your account."
     : "Your download link is on the confirmation page (48h, 5 downloads max)."}</p>
-<a href="${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` : "/store/purchases"}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">${kind === "series" ? "Watch the series" : "View my purchases"}</a>`
+${emailButton(`${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` : "/store/purchases"}`, kind === "series" ? "Watch the series" : "View my purchases")}`
         );
         // Fire-and-forget: never block the purchase response on email.
         void sendEmail({

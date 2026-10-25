@@ -149,8 +149,8 @@ export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl
     )
     .join("");
   const footer =
-    `<p style="margin:20px 0 0;font-size:12px;color:#888;">` +
-    `Don't want these emails? <a href="${unsubscribeUrl}" style="color:#d4af37;">Unsubscribe</a>` +
+    `<p style="margin:20px 0 0;font-size:12px;color:#8a7c5c;">` +
+    `Don't want these emails? <a href="${unsubscribeUrl}" style="color:#a67c1a;">Unsubscribe</a>` +
     `</p>`;
   return emailShell(subject, paragraphs + footer);
 }

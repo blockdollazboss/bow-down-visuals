@@ -3,7 +3,7 @@ import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTabl
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
-import { sendEmail, emailShell, escapeHtml, baseUrlForEmail } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail } from "./email";
 import { createGuardedStripeClient } from "./stripe-client";
 
 /* ── Creator tier subscription sync — Worker 12 ────────────────────────────
@@ -137,15 +137,15 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
     if (typeof buyerEmail === "string" && buyerEmail.length > 0) {
       const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
       const html = emailShell(
-        `You're ${tierName} 👑`,
-        `<p style="margin:0 0 12px;">Your <strong style="color:#d4af37;">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
-<ul style="color:#ccc;font-size:14px;line-height:1.8;margin:0 0 16px;padding-left:20px;">
+        `Welcome to ${tierName}`,
+        `<p style="margin:0 0 12px;">Your <strong style="color:#a67c1a;">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
+<ul style="font-size:14px;line-height:1.8;margin:0 0 16px;padding-left:20px;">
 <li>One flat 5% platform fee on everything you sell</li>
 <li>Higher AI generation limits across the studio</li>
 <li>Priority placement in discovery and charts</li>
 </ul>
-${currentPeriodEnd ? `<p style="color:#888;font-size:13px;">Renews ${currentPeriodEnd.toLocaleDateString()} — cancel anytime from your dashboard.</p>` : ""}
-<a href="${baseUrlForEmail()}/dashboard" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Open my dashboard</a>`
+${currentPeriodEnd ? `<p style="color:#8a7c5c;font-size:13px;">Renews ${currentPeriodEnd.toLocaleDateString()} — cancel anytime from your dashboard.</p>` : ""}
+${emailButton(`${baseUrlForEmail()}/dashboard`, "Open my dashboard")}`
       );
       // Fire-and-forget: webhook must return 200 to Stripe promptly.
       void sendEmail({ to: buyerEmail, subject: `Welcome to ${tierName} — your subscription is active`, html });

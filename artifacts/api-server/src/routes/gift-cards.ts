@@ -40,7 +40,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
-import { sendEmail, emailShell, money as emailMoney, escapeHtml } from "../lib/email";
+import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml } from "../lib/email";
 import {
   GiftCardsUnavailable,
   generateGiftCardCode,
@@ -307,20 +307,20 @@ router.post("/gift-cards/verify", requireAuth, publicApiLimiter, async (req, res
          pattern): the buyer's response below also carries the code
          exactly this once. */
       const html = emailShell(
-        `You've got a ${emailMoney(amountCents)} gift card 👑`,
+        `You've got a ${emailMoney(amountCents)} gift card`,
         `<p style="margin:0 0 12px;">${escapeHtml(meta["recipient_name"] || "You")} — someone sent you stored value for <strong>${escapeHtml(storeName)}</strong>'s store on Bow Down Visuals.</p>
-${meta["gift_message"] ? `<p style="margin:0 0 12px;color:#ccc;">“${escapeHtml(meta["gift_message"])}”</p>` : ""}
-<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;text-align:center;">
-<div style="color:#888;font-size:12px;letter-spacing:2px;">YOUR GIFT CARD CODE</div>
-<div style="color:#d4af37;font-weight:700;font-size:22px;letter-spacing:1px;margin-top:6px;">${escapeHtml(code)}</div>
-<div style="color:#eee;font-size:14px;margin-top:8px;">Worth <strong>${emailMoney(amountCents)}</strong> — spend it all at once or a little at a time, on anything in ${escapeHtml(storeName)}'s store.</div>
+${meta["gift_message"] ? `<p style="margin:0 0 12px;">“${escapeHtml(meta["gift_message"])}”</p>` : ""}
+<div style="background:#f3ecdb;border:1px solid #d9c68d;border-radius:10px;padding:18px 20px;margin:0 0 18px;text-align:center;">
+<div style="color:#8a7c5c;font-size:12px;letter-spacing:2px;">YOUR GIFT CARD CODE</div>
+<div style="color:#a67c1a;font-weight:700;font-size:24px;letter-spacing:1px;margin-top:6px;">${escapeHtml(code)}</div>
+<div style="font-size:14px;margin-top:8px;">Worth <strong>${emailMoney(amountCents)}</strong> — spend it all at once or a little at a time, on anything in ${escapeHtml(storeName)}'s store.</div>
 </div>
-<p style="margin:0 0 16px;color:#ccc;font-size:14px;">At checkout, paste the code in the gift-card field (right beside the discount code). Whatever you don't spend stays on the card.</p>
-<a href="${storeUrl}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Shop ${escapeHtml(storeName)}'s store</a>`
+<p style="margin:0 0 16px;font-size:14px;">At checkout, paste the code in the gift-card field (right beside the discount code). Whatever you don't spend stays on the card.</p>
+${emailButton(storeUrl, `Shop ${escapeHtml(storeName)}'s store`)}`
       );
       void sendEmail({
         to: String(card.recipient_email),
-        subject: `Your ${emailMoney(amountCents)} gift card for ${storeName} 👑`,
+        subject: `Your ${emailMoney(amountCents)} gift card for ${storeName}`,
         html,
       }).catch(() => undefined);
     }

@@ -10,7 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { sendEmail, emailShell, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
+import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 
@@ -1754,10 +1754,10 @@ router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req,
     if (isEmailConfigured() && split.payee_email) {
       const releaseTitle = (existing as { title?: string } | null)?.title ?? "a release";
       const html = emailShell(
-        "You've got a revenue split 💰",
-        `<p style="margin:0 0 12px;"><strong style="color:#d4af37;">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
-<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Review and accept your split agreement so royalties flow to you automatically when the release earns.</p>
-<a href="${baseUrlForEmail()}/distribution?splitInvite=${escapeHtml(inviteToken)}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Review my split</a>`
+        "You've got a revenue split",
+        `<p style="margin:0 0 12px;"><strong style="color:#a67c1a;">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
+<p style="margin:0 0 16px;font-size:14px;">Review and accept your split agreement so royalties flow to you automatically when the release earns.</p>
+${emailButton(`${baseUrlForEmail()}/distribution?splitInvite=${escapeHtml(inviteToken)}`, "Review my split")}`
       );
       const result = await sendEmail({
         to: split.payee_email,
