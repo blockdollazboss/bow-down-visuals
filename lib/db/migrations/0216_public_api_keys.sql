@@ -3,10 +3,14 @@
 -- credit rails with the key's user as the charged account. Only the
 -- SHA-256 of the secret is stored — the plaintext shows once at mint.
 -- Idempotent: safe to re-run as a no-op. No BEGIN/COMMIT, no CONCURRENTLY.
+-- Schema alignment: api_keys.user_id carries NO foreign key — the Drizzle
+-- schema (lib/db/src/schema/api-keys.ts) defines it as a plain uuid and no
+-- migration creates a users table, so the REFERENCES clause was dropped to
+-- let this file apply on any database.
 
 CREATE TABLE IF NOT EXISTS api_keys (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL,
   name text NOT NULL,
   key_prefix text NOT NULL,
   key_hash text NOT NULL,
