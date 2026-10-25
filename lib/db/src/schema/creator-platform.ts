@@ -56,6 +56,14 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   socialLinks:     jsonb("social_links").$type<Record<string, string>>().notNull().default({}),
   topCreators:     jsonb("top_creators").$type<Array<Record<string, unknown>>>().notNull().default([]),
   tipJarEnabled:   boolean("tip_jar_enabled").notNull().default(true),
+  /** Commerce tracking pixels (migration 0240, wave-4 #41): the
+      creator's OWN Meta / TikTok / Google ad-platform IDs for their
+      storefront — the same fields the release rail carries on
+      distribution_releases (migration 0186). Validated server-side on
+      save; all null = no pixel ever fires from the storefront. */
+  metaPixelId:     text("meta_pixel_id"),
+  tiktokPixelId:   text("tiktok_pixel_id"),
+  googleTagId:     text("google_tag_id"),
   aiDesign:        jsonb("ai_design").$type<Record<string, unknown> | null>(),
   isPublic:        boolean("is_public").notNull().default(true),
   /** Gold checkmark: staff-verified creator (Worker 8, migration 0091). */
