@@ -39,6 +39,21 @@
     "signInButton": "Sign In",
     "signUpFree": "Sign up free"
   },
+  "commercePixels": {
+    "title": "Tracking pixels",
+    "blurb": "Your own ad-platform IDs for this store. When a fan views your store or buys, the view and purchase are reported to YOUR ad accounts — so your ads learn who buys. Only IDs you enter here ever fire; Bow Down Visuals adds none of its own.",
+    "metaLabel": "Meta Pixel ID",
+    "tiktokLabel": "TikTok Pixel ID",
+    "googleLabel": "Google Tag ID",
+    "save": "Save pixels",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save your pixels — try again.",
+    "invalidId": "That {{field}} doesn't look right — double-check it.",
+    "blankNote": "Leave a field blank to switch that pixel off. All blank = nothing fires.",
+    "loading": "Loading your pixel settings…",
+    "notReady": "Tracking pixels aren't switched on for this install yet — nothing was saved.",
+    "loadFailed": "Couldn't load your pixel settings — refresh to try again."
+  },
   "common": {
     "back": "Back",
     "beta": "Beta",

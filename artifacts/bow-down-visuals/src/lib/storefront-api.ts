@@ -427,6 +427,24 @@ export const confirmServiceBooking = (token: string, orderId: string, confirmed:
 export const moneyChecklist = (token: string) =>
   get<MoneyChecklist>("/money-checklist", token);
 
+/* ── Commerce tracking pixels (wave-4 #41) ──────────────────────────
+   The storefront owner's own Meta/TikTok/Google IDs (the release
+   rail's per-release fields, at store level). ready=false on a
+   pre-migration install: the settings card says so honestly instead
+   of pretending a save landed. */
+export interface StorefrontPixelsDto {
+  ready: boolean;
+  pixels: { metaPixelId: string | null; tiktokPixelId: string | null; googleTagId: string | null };
+}
+
+export const getStorefrontPixels = (token: string) =>
+  get<StorefrontPixelsDto>("/pixels", token);
+
+export const saveStorefrontPixels = (
+  token: string,
+  pixels: { metaPixelId: string; tiktokPixelId: string; googleTagId: string },
+) => patch<{ ok: boolean; ready: boolean; pixels: StorefrontPixelsDto["pixels"] }>("/pixels", pixels, token);
+
 export const emailPromoteHook = (token: string, productId?: string) =>
   get<{
     lists: { id: string; name: string; subscribers: number }[];

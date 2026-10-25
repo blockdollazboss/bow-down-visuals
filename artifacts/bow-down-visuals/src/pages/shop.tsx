@@ -14,6 +14,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
 import WishlistButton from "@/components/wishlist/WishlistButton";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
+import {
+  fireCommercePageView,
+  fireCommercePurchase,
+  type CommercePixels,
+} from "@/lib/commerce-pixels";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
@@ -123,7 +128,7 @@ export default function ShopStorefront() {
           if (!cancelled) setNotFound(true);
           return;
         }
-        const data = (await res.json()) as { shop?: PublicShop; products?: PublicProduct[]; platformFeePct?: number };
+        const data = (await res.json()) as { shop?: PublicShop; products?: PublicProduct[]; platformFeePct?: number; pixels?: CommercePixels };
         if (!data.shop) {
           if (!cancelled) setNotFound(true);
           return;
@@ -132,6 +137,10 @@ export default function ShopStorefront() {
           setShop(data.shop);
           setProducts(data.products ?? []);
           setFeePct(data.platformFeePct ?? 5);
+          /* Commerce pixels (wave-4 #41): the shop owner's own IDs —
+             the view event fires from the payload's sanitized pixels;
+             none configured → nothing loads, nothing fires. */
+          fireCommercePageView(data.pixels);
         }
       } catch {
         if (!cancelled) setNotFound(true);
@@ -252,6 +261,13 @@ export default function ShopStorefront() {
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (res.ok && data.paid === true) {
+          /* Commerce pixels (wave-4 #41): Purchase fires ONLY at this
+             verified-paid point — never on the redirect alone — and
+             only on the seller's own configured IDs. */
+          fireCommercePurchase(data.pixels, {
+            orderId: String(data.order?.id ?? sessionId),
+            valueCents: Number(data.gross_cents ?? 0),
+          });
           const lines = Array.isArray(data.lines) ? data.lines : [];
           setOrderDone({
             lines: lines.reduce((s: number, l: { quantity?: number }) => s + (l.quantity ?? 1), 0) || 1,

@@ -30,6 +30,14 @@ export const shopsTable = pgTable("shops", {
   custom_domain: text("custom_domain"),
   /** True once the TXT verification challenge passes. */
   domain_verified: boolean("domain_verified").notNull().default(false),
+  /** Commerce tracking pixels (migration 0240, wave-4 #41): the shop
+      owner's OWN Meta / TikTok / Google ad-platform IDs — the same
+      fields the release rail carries on distribution_releases
+      (migration 0186). Validated server-side on save; all null = no
+      pixel ever fires from this shop. */
+  meta_pixel_id: text("meta_pixel_id"),
+  tiktok_pixel_id: text("tiktok_pixel_id"),
+  google_tag_id: text("google_tag_id"),
   /** TXT token the owner must publish at bdv-verify.<domain>. */
   domain_verification_token: text("domain_verification_token"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

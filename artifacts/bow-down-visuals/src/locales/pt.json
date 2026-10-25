@@ -39,6 +39,21 @@
     "watchInbox": ". Fique de olho na sua caixa de entrada.",
     "welcomeTo": "Bem-vindo ao "
   },
+  "commercePixels": {
+    "title": "Pixels de rastreamento",
+    "blurb": "Seus próprios IDs de plataformas de anúncios para esta loja. Quando um fã visita sua loja ou compra, a visita e a compra são relatadas às SUAS contas de anúncios — assim seus anúncios aprendem quem compra. Só disparam os IDs que você inserir aqui; a Bow Down Visuals não adiciona nenhum próprio.",
+    "metaLabel": "ID do pixel da Meta",
+    "tiktokLabel": "ID do pixel do TikTok",
+    "googleLabel": "ID da tag do Google",
+    "save": "Salvar pixels",
+    "saved": "Salvo",
+    "saveFailed": "Não foi possível salvar seus pixels — tente novamente.",
+    "invalidId": "Esse {{field}} não parece correto — confira.",
+    "blankNote": "Deixe um campo em branco para desligar esse pixel. Tudo em branco = nada dispara.",
+    "loading": "Carregando suas configurações de pixel…",
+    "notReady": "Os pixels de rastreamento ainda não estão ativados nesta instalação — nada foi salvo.",
+    "loadFailed": "Não foi possível carregar suas configurações de pixel — atualize para tentar de novo."
+  },
   "common": {
     "back": "Voltar",
     "beta": "Beta",

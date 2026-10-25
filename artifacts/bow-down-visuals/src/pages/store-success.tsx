@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Loader2, Download, PartyPopper, ReceiptText, Music2, Share2, User, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
+import { fireCommercePurchase } from "@/lib/commerce-pixels";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
   acceptUpsell,
@@ -58,7 +59,11 @@ interface VerifyResult {
 interface SfVerifyResult {
   success: boolean;
   duplicate?: boolean;
-  order: { id: string; amount: string; fulfillmentNote: string | null };
+  /* Commerce pixels (wave-4 #41): the seller's sanitized IDs + the
+     order's gross cents ride the verify payload for the Purchase
+     event at this checkout-success path. */
+  pixels?: import("@/lib/commerce-pixels").CommercePixels;
+  order: { id: string; amount: string; amountCents?: number; fulfillmentNote: string | null };
   delivery: { url: string; expiresAt: string; maxUses: number } | null;
   bumpDelivery: { url: string; expiresAt: string; maxUses: number } | null;
   upsell: UpsellOfferDTO | null;
@@ -244,6 +249,12 @@ export default function StoreSuccess() {
         if (!sfRes.ok || !sfBody.success) {
           throw new Error(sfBody.error || body.error || "Verification failed.");
         }
+        /* Commerce pixels (wave-4 #41): Purchase fires ONLY here —
+           payment verified by the server — on the seller's own IDs. */
+        fireCommercePurchase(sfBody.pixels, {
+          orderId: sfBody.order.id,
+          valueCents: Number(sfBody.order.amountCents ?? 0),
+        });
         setSfResult(sfBody);
         setState("ok");
       } catch (err) {

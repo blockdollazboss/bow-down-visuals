@@ -39,6 +39,21 @@
     "watchInbox": ". Surveille ta boîte mail.",
     "welcomeTo": "Bienvenue sur "
   },
+  "commercePixels": {
+    "title": "Pixels de suivi",
+    "blurb": "Vos propres identifiants de plateformes publicitaires pour cette boutique. Quand un fan visite votre boutique ou achète, la visite et l'achat sont signalés à VOS comptes publicitaires — vos publicités apprennent ainsi qui achète. Seuls les identifiants saisis ici se déclenchent ; Bow Down Visuals n'en ajoute aucun.",
+    "metaLabel": "ID de pixel Meta",
+    "tiktokLabel": "ID de pixel TikTok",
+    "googleLabel": "ID de balise Google",
+    "save": "Enregistrer les pixels",
+    "saved": "Enregistré",
+    "saveFailed": "Impossible d'enregistrer vos pixels — réessayez.",
+    "invalidId": "Ce {{field}} ne semble pas correct — vérifiez-le.",
+    "blankNote": "Laissez un champ vide pour désactiver ce pixel. Tout vide = rien ne se déclenche.",
+    "loading": "Chargement de vos réglages de pixels…",
+    "notReady": "Les pixels de suivi ne sont pas encore activés sur cette installation — rien n'a été enregistré.",
+    "loadFailed": "Impossible de charger vos réglages de pixels — actualisez pour réessayer."
+  },
   "common": {
     "back": "Retour",
     "beta": "Bêta",

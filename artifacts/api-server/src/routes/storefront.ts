@@ -52,6 +52,8 @@
  *   POST   /storefront/products/:id/stock-alert   auth: "tell me when it's back" — one-tap wait on a sold-out product (#37)
  *   DELETE /storefront/products/:id/stock-alert   auth: cancel the wait
  *   GET    /storefront/products/:id/stock-alert   auth: am I waiting? + the waiting count
+ *   GET    /storefront/pixels                     auth: the storefront's tracking-pixel IDs (owner)
+ *   PATCH  /storefront/pixels                     auth: save them (invalid IDs refused)
  *   GET    /storefront/promote/email              auth: email-list broadcast hook (links, not rebuilds)
  *   GET    /storefront/money-checklist            auth: earnings + money checklist + next-move nudge
  *
@@ -163,6 +165,52 @@ import {
   maybeFireRestockAlerts,
 } from "../lib/stock-alerts";
 import { ALT_TEXT_MAX_CHARS, sanitizeAltTextList } from "../lib/alt-text";
+import {
+  cleanCommercePixels,
+  sanitizeCommercePixels,
+  NO_PIXELS,
+  type CommercePixels,
+} from "../lib/commerce-pixels";
+
+/* Commerce tracking pixels (wave-4 #41, migration 0240): the
+   storefront's pixels live on the creator profile (the storefront is
+   per-profile). Same probe discipline as the shops rail: reads
+   present sanitized pixels only when the columns exist; a pixel
+   WRITE before the migration lands answers 503 instead of silently
+   dropping the setting. Consent rule mirrors the release rail
+   exactly: only the seller's own configured IDs can fire, and with
+   none configured nothing fires — never wider. */
+let profilePixelColsKnown: boolean | null = null;
+async function profilesHavePixels(): Promise<boolean> {
+  if (profilePixelColsKnown !== null) return profilePixelColsKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'creator_profiles' AND column_name = 'meta_pixel_id'
+      LIMIT 1
+    `);
+    profilePixelColsKnown = r.rows.length > 0;
+  } catch {
+    profilePixelColsKnown = false;
+  }
+  return profilePixelColsKnown;
+}
+
+/** The storefront's pixels for a public/checkout surface: sanitized
+ *  (bent stored shapes present as "not configured"), all-null when
+ *  the columns haven't landed or the profile is gone. */
+async function pixelsForProfile(profileId: string): Promise<CommercePixels> {
+  if (!profileId || !(await profilesHavePixels())) return { ...NO_PIXELS };
+  try {
+    const r = await db.execute(sql`
+      SELECT meta_pixel_id, tiktok_pixel_id, google_tag_id
+      FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+    `);
+    return sanitizeCommercePixels(r.rows[0] as Parameters<typeof sanitizeCommercePixels>[0]);
+  } catch {
+    return { ...NO_PIXELS };
+  }
+}
 
 /* #29: store_products.media_alt_texts lands via a held migration
    (numbering assigned at join). Probe once and cache (publish.ts season
@@ -926,6 +974,9 @@ router.get("/storefront/products", publicApiLimiter, async (req, res) => {
     const alertCounts = await countWaitingStockAlertsForProducts(rows.map((row) => row.id));
     res.json({
       profile: { id: profile.id, slug: profile.slug, displayName: profile.displayName },
+      /* Commerce pixels (wave-4 #41): sanitized seller IDs for the
+         storefront view event — all null = the page fires nothing. */
+      pixels: await pixelsForProfile(profile.id),
       products: await Promise.all(
         rows.map(async (row) => {
           const cfg = readBumpConfig(row);
@@ -975,6 +1026,10 @@ router.get("/storefront/product/:id", publicApiLimiter, async (req, res) => {
     const isGiftCard = p.kind === "gift_card";
     res.json({
       product: productPayload,
+      /* Commerce pixels (wave-4 #41): the seller's sanitized IDs —
+         the product page fires its view event from these, and only
+         these. All null = nothing fires. */
+      pixels: await pixelsForProfile(p.profile_id),
       drop,
       free: isFree,
       /* Gift cards carry NO fee split at purchase: the full amount is
@@ -3057,6 +3112,11 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
       success: true,
       duplicate,
       upsell,
+      /* Commerce pixels (wave-4 #41): the seller's sanitized IDs ride
+         the checkout-success payload so the success page can fire the
+         Purchase event — at this path only, and only when the seller
+         configured them. */
+      pixels: await pixelsForProfile(profileId),
       order: {
         id: orderId,
         productKind: kind,
@@ -3096,6 +3156,69 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     logger.error({ err, sessionId }, "[storefront] verify failed");
     res.status(500).json({ error: "Payment confirmed but the order couldn't be recorded. Contact support." });
   }
+});
+
+/* ═══════════ COMMERCE TRACKING PIXELS: settings (wave-4 #41) ════════
+   The storefront owner's own Meta / TikTok / Google IDs — the same
+   fields the release rail carries per release (migration 0186),
+   docked in the storefront/shop settings (MONEY workflow). Reads and
+   writes are owner-only; the public surfaces receive only the
+   sanitized pixels object (see pixelsForProfile). */
+
+const storefrontPixelsSchema = z.object({
+  metaPixelId: z.string().max(64).optional(),
+  tiktokPixelId: z.string().max(64).optional(),
+  googleTagId: z.string().max(64).optional(),
+});
+
+router.get("/storefront/pixels", requireAuth, async (req, res) => {
+  const profile = await callerProfile(req.userId!);
+  if (!profile) {
+    res.status(404).json({ error: "NO_PROFILE", message: "You need a creator profile before you can sell." });
+    return;
+  }
+  const ready = await profilesHavePixels();
+  res.json({
+    ready,
+    pixels: ready ? await pixelsForProfile(profile.id) : { ...NO_PIXELS },
+  });
+});
+
+router.patch("/storefront/pixels", requireAuth, publicApiLimiter, async (req, res) => {
+  const profile = await callerProfile(req.userId!);
+  if (!profile) {
+    res.status(404).json({ error: "NO_PROFILE", message: "You need a creator profile before you can sell." });
+    return;
+  }
+  if (!(await profilesHavePixels())) {
+    res.status(503).json({
+      error: "commerce_pixels_not_ready",
+      message: "Tracking pixels aren't switched on for this install yet — nothing was saved.",
+    });
+    return;
+  }
+  const parsed = storefrontPixelsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid pixel settings." });
+    return;
+  }
+  /* Invalid IDs are refused before any write — a bent ID stored
+     silently would fire nothing and lie by omission (release-rail
+     rule). "" clears a field; omitted fields stay as they are. */
+  const cleaned = cleanCommercePixels(parsed.data, await pixelsForProfile(profile.id));
+  if (!cleaned.ok) {
+    res.status(400).json({ error: cleaned.error });
+    return;
+  }
+  await db.execute(sql`
+    UPDATE creator_profiles
+    SET meta_pixel_id = ${cleaned.value.metaPixelId},
+        tiktok_pixel_id = ${cleaned.value.tiktokPixelId},
+        google_tag_id = ${cleaned.value.googleTagId},
+        updated_at = now()
+    WHERE id = ${profile.id}
+  `);
+  res.json({ ok: true, ready: true, pixels: cleaned.value });
 });
 
 /* ═══════════ POST-PURCHASE UPSELL: offer / accept / decline ═════════
