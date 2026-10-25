@@ -239,8 +239,8 @@ beforeEach(async () => {
   h.userId = FAN_A;
   h.userEmail = "fan-a@example.com";
   await h.db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug, display_name) VALUES (${PROFILE_ID}, ${SELLER}, 'seller-sam', 'Seller Sam')`);
-  await h.db.execute(sql`INSERT INTO store_products (id, profile_id, kind, title, price_cents) VALUES (${STORE_PRODUCT}, ${PROFILE_ID}, 'digital', 'Beat Pack Deluxe', 5000)`);
-  await h.db.execute(sql`INSERT INTO store_products (id, profile_id, kind, title, price_cents, is_active) VALUES (${INACTIVE_PRODUCT}, ${PROFILE_ID}, 'digital', 'Retired Pack', 3000, false)`);
+  await h.db.execute(sql`INSERT INTO store_products (id, profile_id, kind, title, price_cents, media_urls) VALUES (${STORE_PRODUCT}, ${PROFILE_ID}, 'digital', 'Beat Pack Deluxe', 5000, ${JSON.stringify([])}::jsonb)`);
+  await h.db.execute(sql`INSERT INTO store_products (id, profile_id, kind, title, price_cents, is_active, media_urls) VALUES (${INACTIVE_PRODUCT}, ${PROFILE_ID}, 'digital', 'Retired Pack', 3000, false, ${JSON.stringify([])}::jsonb)`);
   await h.db.execute(sql`INSERT INTO shops (id, user_id, name, handle) VALUES (${SHOP_ID}, ${SHOP_SELLER}, 'Sam''s Shop', 'sams-shop')`);
   await h.db.execute(sql`INSERT INTO shop_products (id, shop_id, user_id, name, price_cents) VALUES (${SHOP_PRODUCT}, ${SHOP_ID}, ${SHOP_SELLER}, 'Gold Chain Print', 8000)`);
   await h.db.execute(sql`INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, status) VALUES (${PAUSED_PRODUCT}, ${SHOP_ID}, ${SHOP_SELLER}, 'Paused Print', 2000, 'paused')`);
