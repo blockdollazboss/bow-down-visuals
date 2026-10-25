@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
  Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
  Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
- Inbox, Send, FileText, RotateCcw, Zap, Network,
+ Inbox, Send, FileText, RotateCcw, Zap, Network, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -128,6 +128,32 @@ interface AutomationRow {
  delivered: number;
  opens: number;
  clicks: number;
+}
+
+/* Keyword automations (migration 0232, Wave 4 #32): creator-scoped
+   rules — a keyword in a comment sends an in-app DM, and an emailed
+   reply lands in the chosen list. Counts are measured from the
+   engine's audit ledger (lib/keyword-automations), never estimated. */
+interface KeywordRuleRow {
+ id: string;
+ keyword: string;
+ dmBody: string;
+ surfaces: string[];
+ captureEmail: boolean;
+ listId: string | null;
+ enabled: boolean;
+ sent: number;
+ captured: number;
+}
+
+interface KeywordEventRow {
+ id: string;
+ keyword: string;
+ surface: string;
+ outcome: string;
+ capturedEmail: string | null;
+ detail: string | null;
+ createdAt: string;
 }
 
 const AUTO_TAG_KEYS = ["presave", "member", "buyer", "opened", "clicked", "engaged"] as const;
@@ -438,6 +464,91 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  } finally {
  setAutoSaving(null);
  }
+ }
+
+ /* Keyword automations (migration 0232): creator-scoped, so they
+    load once for the page — not per list. The engine (caps, dedupe,
+    loop guards, the DM rail's own gates) is server-side; this card
+    is the rule desk plus the honest activity log. */
+ const [kwRules, setKwRules] = useState<KeywordRuleRow[]>([]);
+ const [kwEvents, setKwEvents] = useState<KeywordEventRow[]>([]);
+ const [kwFailed, setKwFailed] = useState(false);
+ const [kwSaving, setKwSaving] = useState<string | null>(null);
+ const [kwError, setKwError] = useState<string | null>(null);
+ const [kwNonce, setKwNonce] = useState(0);
+ const [kwKeyword, setKwKeyword] = useState("");
+ const [kwDmBody, setKwDmBody] = useState("");
+ const [kwSurfaces, setKwSurfaces] = useState<string[]>(["post"]);
+ const [kwCapture, setKwCapture] = useState(false);
+ const [kwListId, setKwListId] = useState("");
+
+ useEffect(() => {
+ let cancelled = false;
+ (async () => {
+ try {
+ const [rulesRes, eventsRes] = await Promise.all([
+ authedFetch("/api/keyword-automations/rules"),
+ authedFetch("/api/keyword-automations/events?limit=20"),
+ ]);
+ if (!rulesRes.ok) throw new Error("keyword rules failed");
+ const rules = ((await rulesRes.json()).rules ?? []) as KeywordRuleRow[];
+ const events = eventsRes.ok ? (((await eventsRes.json()).events ?? []) as KeywordEventRow[]) : [];
+ if (!cancelled) { setKwRules(rules); setKwEvents(events); setKwFailed(false); }
+ } catch { if (!cancelled) setKwFailed(true); }
+ })();
+ return () => { cancelled = true; };
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [kwNonce]);
+
+ async function patchKwRule(rule: KeywordRuleRow, patch: Record<string, unknown>) {
+ setKwSaving(rule.id); setKwError(null);
+ try {
+ const res = await authedFetch(`/api/keyword-automations/rules/${rule.id}`, {
+ method: "PATCH",
+ body: JSON.stringify(patch),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save that rule.");
+ const fresh = data.rule as KeywordRuleRow;
+ /* The PATCH door returns no measured counts — keep the loaded ones. */
+ setKwRules((rows) => rows.map((r) => (r.id === fresh.id ? { ...fresh, sent: r.sent, captured: r.captured } : r)));
+ } catch (e) {
+ setKwError(e instanceof Error ? e.message : "Couldn't save that rule.");
+ } finally { setKwSaving(null); }
+ }
+
+ async function createKwRule() {
+ setKwSaving("new"); setKwError(null);
+ try {
+ const res = await authedFetch("/api/keyword-automations/rules", {
+ method: "POST",
+ body: JSON.stringify({
+ keyword: kwKeyword,
+ dmBody: kwDmBody,
+ surfaces: kwSurfaces,
+ captureEmail: kwCapture,
+ listId: kwCapture ? (kwListId || activeListId || null) : null,
+ enabled: true,
+ }),
+ });
+ const data = await res.json();
+ if (!res.ok) throw new Error(data.error ?? "Couldn't save that rule.");
+ setKwRules((rows) => [...rows, data.rule as KeywordRuleRow]);
+ setKwKeyword(""); setKwDmBody("");
+ } catch (e) {
+ setKwError(e instanceof Error ? e.message : "Couldn't save that rule.");
+ } finally { setKwSaving(null); }
+ }
+
+ async function deleteKwRule(rule: KeywordRuleRow) {
+ setKwSaving(rule.id); setKwError(null);
+ try {
+ const res = await authedFetch(`/api/keyword-automations/rules/${rule.id}`, { method: "DELETE" });
+ if (!res.ok) throw new Error("Couldn't delete that rule.");
+ setKwRules((rows) => rows.filter((r) => r.id !== rule.id));
+ } catch (e) {
+ setKwError(e instanceof Error ? e.message : "Couldn't delete that rule.");
+ } finally { setKwSaving(null); }
  }
 
  async function createTag() {
@@ -1417,6 +1528,141 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  );
  })}
  </div>
+ )}
+ </div>
+
+ {/* ── keyword automations (migration 0232): comment the word → get the DM ── */}
+ <div className={`${cardClass} mt-4`}>
+ <h3 className="flex items-center gap-2 font-semibold"><MessageSquare className="h-4 w-4 text-primary" />{t("email-list.kw_title")}</h3>
+ <p className="mt-1 text-sm text-white/50">{t("email-list.kw_intro")}</p>
+ {kwFailed ? (
+ <p className="mt-2 text-sm text-red-300" data-testid="keyword-automations-error">
+ {t("email-list.kw_error_load")}{" "}
+ <button type="button" className="font-bold underline" onClick={() => setKwNonce((n) => n + 1)}>Try again</button>
+ </p>
+ ) : (
+ <>
+ {kwRules.length === 0 ? (
+ <p className="mt-2 text-sm text-white/45">{t("email-list.kw_empty")}</p>
+ ) : (
+ <div className="mt-3 space-y-4">
+ {kwRules.map((r) => (
+ <div key={r.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
+ <div className="flex items-center justify-between gap-3">
+ <p className="font-semibold">
+ <span className="rounded-md bg-primary/15 px-2 py-0.5 font-mono text-sm text-primary">{r.keyword.toUpperCase()}</span>
+ </p>
+ <div className="flex items-center gap-2">
+ <button
+ type="button"
+ onClick={() => patchKwRule(r, { enabled: !r.enabled })}
+ disabled={kwSaving === r.id}
+ className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${r.enabled ? "border-emerald-400/40 text-emerald-300" : "border-white/15 text-white/50 hover:text-white"}`}
+ >
+ {kwSaving === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : r.enabled ? t("email-list.automation_on") : t("email-list.automation_off")}
+ </button>
+ <button
+ type="button"
+ onClick={() => deleteKwRule(r)}
+ disabled={kwSaving === r.id}
+ className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/50 transition hover:border-red-400/40 hover:text-red-300"
+ >
+ {t("email-list.kw_delete")}
+ </button>
+ </div>
+ </div>
+ <p className="mt-2 text-sm text-white/60">{r.dmBody}</p>
+ <p className="mt-2 text-xs text-white/40">
+ {r.surfaces.map((s) => t(`email-list.kw_surface_${s}`)).join(" · ")}
+ {r.captureEmail && <> · {t("email-list.kw_capture_on")}</>}
+ {" · "}{r.sent} {t("email-list.kw_sent_word")} · {r.captured} {t("email-list.kw_captured_word")}
+ </p>
+ </div>
+ ))}
+ </div>
+ )}
+ <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
+ <label className="text-xs text-white/50">{t("email-list.kw_keyword_label")}</label>
+ <input
+ className={inputClass + " mt-1"}
+ placeholder={t("email-list.kw_keyword_placeholder")}
+ value={kwKeyword}
+ onChange={(e) => setKwKeyword(e.target.value)}
+ maxLength={40}
+ />
+ <label className="mt-3 block text-xs text-white/50">{t("email-list.kw_dm_label")}</label>
+ <textarea
+ className={inputClass + " mt-1"}
+ rows={3}
+ placeholder={t("email-list.kw_dm_placeholder")}
+ value={kwDmBody}
+ onChange={(e) => setKwDmBody(e.target.value)}
+ maxLength={1000}
+ />
+ <label className="mt-3 block text-xs text-white/50">{t("email-list.kw_surfaces_label")}</label>
+ <div className="mt-1 flex flex-wrap gap-2">
+ {(["post", "media", "wall", "live"] as const).map((s) => (
+ <button
+ key={s}
+ type="button"
+ onClick={() => setKwSurfaces((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]))}
+ className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${kwSurfaces.includes(s) ? "border-primary/60 text-primary" : "border-white/15 text-white/50 hover:text-white"}`}
+ >
+ {t(`email-list.kw_surface_${s}`)}
+ </button>
+ ))}
+ </div>
+ <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-white/70">
+ <input
+ type="checkbox"
+ checked={kwCapture}
+ onChange={(e) => setKwCapture(e.target.checked)}
+ className="h-4 w-4 accent-amber-500"
+ />
+ {t("email-list.kw_capture_label")}
+ </label>
+ {kwCapture && (
+ <select
+ value={kwListId || activeListId}
+ onChange={(e) => setKwListId(e.target.value)}
+ className="mt-2 w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
+ >
+ {lists.map((l) => (
+ <option key={l.id} value={l.id}>{l.name}</option>
+ ))}
+ </select>
+ )}
+ {kwError && <p className="mt-2 text-sm text-red-300">{kwError}</p>}
+ <button
+ type="button"
+ className={tabBtn(true) + " mt-3"}
+ onClick={createKwRule}
+ disabled={kwSaving === "new" || !kwKeyword.trim() || !kwDmBody.trim() || kwSurfaces.length === 0}
+ >
+ {kwSaving === "new" ? <Loader2 className="h-3 w-3 animate-spin" /> : t("email-list.kw_create")}
+ </button>
+ </div>
+ <div className="mt-4">
+ <p className="text-xs font-semibold uppercase tracking-wide text-white/40">{t("email-list.kw_activity")}</p>
+ {kwEvents.length === 0 ? (
+ <p className="mt-1 text-sm text-white/45">{t("email-list.kw_activity_empty")}</p>
+ ) : (
+ <ul className="mt-2 space-y-1.5">
+ {kwEvents.map((e) => (
+ <li key={e.id} className="flex flex-wrap items-center gap-2 text-xs text-white/55">
+ <span className={`rounded-full border px-2 py-0.5 font-semibold ${e.outcome === "sent" || e.outcome === "captured" ? "border-emerald-400/40 text-emerald-300" : e.outcome === "failed" ? "border-red-400/40 text-red-300" : "border-white/15 text-white/50"}`}>
+ {t(`email-list.kw_outcome_${e.outcome}`)}
+ </span>
+ <span className="font-mono text-primary">{e.keyword.toUpperCase()}</span>
+ <span>{t(`email-list.kw_surface_${e.surface}`)}</span>
+ {e.capturedEmail && <span>{e.capturedEmail}</span>}
+ <span className="text-white/35">{new Date(e.createdAt).toLocaleString()}</span>
+ </li>
+ ))}
+ </ul>
+ )}
+ </div>
+ </>
  )}
  </div>
  </>
