@@ -37,7 +37,9 @@ interface CreatorSearchHit {
 const inputCls =
   "rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
-function errorKey(reason: SplitsDraftError): string {
+/** The splits.* locale key for a draft refusal — shared with the
+    host forms so their save guards speak with the editor's voice. */
+export function splitsErrorI18nKey(reason: SplitsDraftError): string {
   switch (reason) {
     case "owner-crowded-out":
       return "splits.errOwner";
@@ -215,7 +217,7 @@ export default function SplitsEditor({
       )}
 
       {!validation.ok && drafts.length > 0 && (
-        <p className="mt-2 text-xs font-semibold text-red-300">{t(errorKey(validation.reason))}</p>
+        <p className="mt-2 text-xs font-semibold text-red-300">{t(splitsErrorI18nKey(validation.reason))}</p>
       )}
 
       {/* The picker. */}
