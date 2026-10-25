@@ -838,6 +838,18 @@ export const WORLD_ACTIONS = {
   spin: "once",
   dance: "toggle",
   sit: "toggle",
+  /* The social set (client lib/world/actions.ts carries the
+   * poses; the design is .lane/ACTIONS-DESIGN §2.1 in the
+   * world-actions lane): the relay treats them exactly like the
+   * original seven — an id it knows, relayed; nothing new is
+   * authorized by their presence here. */
+  point: "once",
+  beckon: "once",
+  salute: "once",
+  laugh: "once",
+  shrug: "once",
+  highfive: "once",
+  kneel: "toggle",
 } as const;
 export type WorldActionId = keyof typeof WORLD_ACTIONS;
 
