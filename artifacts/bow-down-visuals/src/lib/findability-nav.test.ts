@@ -30,6 +30,9 @@ const WIRED_KEYS = [
   "makeSong", "beatMaker", "earnings", "quests", "allFeatures",
   "memberships", "team", "tips", "community", "liveShopping", "nfcCards",
   "beatsMarketplace", "fanShoutouts",
+  /* Stack-200 lane 1: the back-office trio's keys — nav.contracts was
+     missing from ALL ten locales before this pass. */
+  "contracts", "llcGuide", "copyright",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
 
@@ -57,6 +60,9 @@ describe("findability — nav labels are the features' real names", () => {
     expect(nav.allFeatures).toBe("All Features");
     expect(nav.beatsMarketplace).toBe("Beats Marketplace");
     expect(nav.fanShoutouts).toBe("Fan Shoutouts");
+    expect(nav.contracts).toBe("Contracts");
+    expect(nav.llcGuide).toBe("LLC Guide");
+    expect(nav.copyright).toBe("Copyright");
   });
 
   it("page titles carry the same real names in en", () => {
@@ -126,6 +132,10 @@ describe("findability — the doors are hung in their home sections", () => {
       ["/features", "nav.allFeatures"],
       ["/beats", "nav.beatsMarketplace"],
       ["/shoutouts", "nav.fanShoutouts"],
+      /* Stack-200 lane 1: the back-office trio leaves the Coach-only path. */
+      ["/contracts", "nav.contracts"],
+      ["/llc-guide", "nav.llcGuide"],
+      ["/copyright", "nav.copyright"],
     ];
     for (const [href, labelKey] of doors) {
       expect(sidebar, `${href} / ${labelKey}`).toContain(
@@ -138,6 +148,14 @@ describe("findability — the doors are hung in their home sections", () => {
     const getPaid = sidebar.slice(sidebar.indexOf('titleKey: "nav.getPaid"'));
     const section = getPaid.slice(0, getPaid.indexOf("];"));
     for (const href of ["/earnings", "/memberships", "/team", "/tips"]) {
+      expect(section).toContain(`href: "${href}"`);
+    }
+  });
+
+  it("puts the back-office trio (Contracts, LLC Guide, Copyright) inside Get Paid", () => {
+    const getPaid = sidebar.slice(sidebar.indexOf('titleKey: "nav.getPaid"'));
+    const section = getPaid.slice(0, getPaid.indexOf("];"));
+    for (const href of ["/contracts", "/llc-guide", "/copyright"]) {
       expect(section).toContain(`href: "${href}"`);
     }
   });
@@ -159,9 +177,38 @@ describe("findability — the doors are hung in their home sections", () => {
   });
 
   it("the sidebar search filters on the rendered (real-name) labels", () => {
-    expect(sidebar).toContain(
-      "t(link.labelKey).toLowerCase().includes(searchQuery.trim().toLowerCase())",
-    );
+    expect(sidebar).toContain("t(link.labelKey).toLowerCase().includes(q)");
+  });
+
+  it("the sidebar search also matches alias terms and routes (Stack-200 lane 1)", () => {
+    /* The label alone can't find "stream" (Go Live), "logo" (Branding
+       Kit) or an English alias typed in a non-English locale — the
+       per-link searchTerms carry those words and the filter reads them. */
+    expect(sidebar).toContain('(link.searchTerms ?? "").toLowerCase().includes(q)');
+    expect(sidebar).toContain("link.href.toLowerCase().includes(q)");
+    const aliasPins: Array<[string, string]> = [
+      ["/go-live", "stream"],
+      ["/go-live", "live"],
+      ["/create?panel=song", "song"],
+      ["/audio-studio?tab=aiaudio&sub=beats", "beat"],
+      ["/branding-kit", "brand"],
+      ["/branding-kit", "logo"],
+      ["/coach", "coach"],
+      ["/my-projects", "projects"],
+      ["/earnings", "earnings"],
+      ["/contracts", "legal"],
+      ["/copyright", "copyright"],
+    ];
+    for (const [href, word] of aliasPins) {
+      const at = sidebar.indexOf(`href: "${href}"`);
+      expect(at, href).toBeGreaterThan(-1);
+      const entry = sidebar.slice(at, sidebar.indexOf("}", at));
+      expect(entry, `${href} aliases`).toContain("searchTerms:");
+      expect(entry.toLowerCase(), `${href} ~ ${word}`).toContain(word);
+    }
+    /* Pricing is a footer link: the footer never filters out, so the
+       Pricing door stays visible during every search. */
+    expect(sidebar).toContain('{ href: "/pricing", labelKey: "nav.pricing"');
   });
 });
 
