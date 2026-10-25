@@ -44,6 +44,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { detectWishlistPriceDrop } from "../lib/wishlists";
 
 const router = Router();
 
@@ -472,6 +473,16 @@ router.post("/storefront/shopify-import/commit", requireAuth, publicApiLimiter, 
               is_active = ${l.isActive}, updated_at = now()
           WHERE id = ${knownId} AND profile_id = ${profile.id}
         `);
+        /* Wave 4 #38: a re-import that overwrites a listing's price is
+           a price edit — a drop alerts fans who wishlisted it, once
+           per drop (lib/wishlists owns the law and never throws). */
+        await detectWishlistPriceDrop({
+          itemKind: "store_product",
+          itemId: knownId,
+          newPriceCents: l.priceCents,
+          title: l.title,
+          link: `/storefront/product/${knownId}`,
+        });
         row.action = "update";
         row.productId = knownId;
       } else {
