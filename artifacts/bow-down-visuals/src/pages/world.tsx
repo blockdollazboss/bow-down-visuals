@@ -46,6 +46,7 @@ import {
 } from "@/lib/world/announce";
 import {
   WorldClient,
+  worldDelay,
   worldOverlay,
   transferNeedsReseat,
   formatLockDuration,
@@ -2203,7 +2204,18 @@ export default function WorldPage() {
          false) exactly as when it was awaited at the tail. */
       bootPhase = false;
       const connectPromise = client.connect();
-      await loadScreen();
+      /* The screen fetch gets ten seconds of the boot's patience,
+       * no more. loadScreen's fetch has no timeout of its own, and
+       * EVERY interaction tick (station prompts, peer sync, voice,
+       * lips) arms below this await — a hung fetch on the waking
+       * box used to hold them all hostage for the whole session:
+       * the socket entered, the feed flowed, the composer worked,
+       * and nothing in-world ever responded (owner's live report,
+       * 2026-10-25). The screen still lands whenever its fetch
+       * does — loadScreen runs on past the race, and the poll
+       * below keeps it fresh — it just can't gate the room's
+       * interactivity anymore. */
+      await Promise.race([loadScreen(), worldDelay(10_000)]);
       /* Boot-lifecycle guard: if the effect was cleaned up while
          the screen fetch was in flight, this boot is DEAD — its
          cleanup already ran, reading the interval slots below as
