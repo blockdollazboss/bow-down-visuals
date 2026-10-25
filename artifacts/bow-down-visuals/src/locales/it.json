@@ -5595,7 +5595,41 @@
     "deletePlaceholder": "Digita DELETE per confermare",
     "deleteButton": "Elimina il mio account",
     "deleting": "Eliminazione…",
-    "deleteError": "Eliminazione non riuscita. Riprova."
+    "deleteError": "Eliminazione non riuscita. Riprova.",
+    "sounds": {
+      "title": "Suoni",
+      "subtitle": "I tuoi suoni distintivi: il motivo reale che suona quando il sito ti parla.",
+      "master": {
+        "title": "Tutti i suoni",
+        "desc": "L'interruttore principale. Disattivalo e l'intero sito tace: nessun suono viene riprodotto da nessuna parte."
+      },
+      "notifications": {
+        "title": "Notifiche",
+        "desc": "Un lieve rintocco quando qualcosa di nuovo arriva nella tua campanella: nuovi follower, uscite, menzioni e altro."
+      },
+      "messages": {
+        "title": "Messaggi",
+        "desc": "Un tocco più caldo quando arriva un nuovo messaggio o una richiesta di messaggio."
+      },
+      "successStings": {
+        "title": "Successi e fanfara reale",
+        "desc": "Il suono di successo quando ciò che hai creato o acquistato va a buon fine, e la fanfara reale quando parlano il Re e il palazzo."
+      },
+      "errors": {
+        "title": "Errori",
+        "desc": "Un tono basso quando qualcosa che il sito ti mostra va storto. I fallimenti silenziosi in background non fanno mai rumore."
+      },
+      "ringtone": {
+        "title": "Suoneria chiamate",
+        "desc": "La suoneria reale per le videochiamate in arrivo."
+      },
+      "deviceNote": "Un dispositivo silenzioso resta silenzioso qualunque cosa dicano questi interruttori: il silenzioso del telefono o del browser vince sempre.",
+      "saved": "Impostazioni audio salvate",
+      "saveFailed": "Impossibile salvare le impostazioni audio",
+      "loadError": "Le tue impostazioni audio non si sono caricate in questo momento.",
+      "retry": "Riprova",
+      "test": "Riproduci suono di prova"
+    }
   },
   "social-proof": {
     "title": "Prova sociale",

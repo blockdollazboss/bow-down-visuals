@@ -5583,7 +5583,41 @@
     "deletePlaceholder": "Gib DELETE zur Bestätigung ein",
     "deleteButton": "Mein Konto löschen",
     "deleting": "Wird gelöscht…",
-    "deleteError": "Löschen fehlgeschlagen. Versuch es erneut."
+    "deleteError": "Löschen fehlgeschlagen. Versuch es erneut.",
+    "sounds": {
+      "title": "Klänge",
+      "subtitle": "Deine Signaturklänge — das königliche Motiv, das erklingt, wenn die Seite mit dir spricht.",
+      "master": {
+        "title": "Alle Klänge",
+        "desc": "Der Hauptschalter. Schalte ihn aus, und die ganze Seite verstummt — nirgends spielt ein Klang."
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "desc": "Ein sanftes Läuten, wenn etwas Neues in deiner Glocke landet — Follows, Releases, Erwähnungen und mehr."
+      },
+      "messages": {
+        "title": "Nachrichten",
+        "desc": "Ein wärmeres Klopfen, wenn eine neue Nachricht oder Nachrichtenanfrage ankommt."
+      },
+      "successStings": {
+        "title": "Erfolg & Fanfare",
+        "desc": "Der Erfolgsklang, wenn etwas, das du erstellt oder gekauft hast, fertig wird — und die königliche Fanfare, wenn der König und der Palast sprechen."
+      },
+      "errors": {
+        "title": "Fehler",
+        "desc": "Ein tiefer Ton, wenn etwas, das dir die Seite zeigt, schiefgeht. Stille Fehler im Hintergrund machen nie ein Geräusch."
+      },
+      "ringtone": {
+        "title": "Anruf-Klingelton",
+        "desc": "Der königliche Klingelton für eingehende Videoanrufe."
+      },
+      "deviceNote": "Ein stummgeschaltetes Gerät bleibt stumm, egal was diese Schalter sagen — die Stummschaltung deines Telefons oder Browsers gewinnt immer.",
+      "saved": "Klangeinstellungen gespeichert",
+      "saveFailed": "Klangeinstellungen konnten nicht gespeichert werden",
+      "loadError": "Deine Klangeinstellungen konnten gerade nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "test": "Testklang abspielen"
+    }
   },
   "social-proof": {
     "title": "Sozialer Nachweis",

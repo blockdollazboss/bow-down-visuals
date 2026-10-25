@@ -5842,7 +5842,41 @@
     "deletePlaceholder": "Type DELETE to confirm",
     "deleteButton": "Delete my account",
     "deleting": "Deleting…",
-    "deleteError": "Deletion failed. Try again."
+    "deleteError": "Deletion failed. Try again.",
+    "sounds": {
+      "title": "Sounds",
+      "subtitle": "Your signature sounds — the royal motif that plays when the site speaks to you.",
+      "master": {
+        "title": "All sounds",
+        "desc": "The master switch. Turn it off and the whole site goes silent — no sound plays anywhere."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "desc": "A soft chime when something new lands in your bell — follows, releases, mentions and more."
+      },
+      "messages": {
+        "title": "Messages",
+        "desc": "A warmer knock when a new message or message request arrives."
+      },
+      "successStings": {
+        "title": "Success & stings",
+        "desc": "The success sound when something you made or bought lands — and the royal sting when the King and the palace speak."
+      },
+      "errors": {
+        "title": "Errors",
+        "desc": "A low tone when something the site shows you goes wrong. Silent failures in the background never make a sound."
+      },
+      "ringtone": {
+        "title": "Call ringtone",
+        "desc": "The royal ringtone for incoming video calls."
+      },
+      "deviceNote": "A muted device stays silent no matter what these switches say — your phone or browser mute always wins.",
+      "saved": "Sound settings saved",
+      "saveFailed": "Couldn't save sound settings",
+      "loadError": "Your sound settings wouldn't load just now.",
+      "retry": "Try again",
+      "test": "Play test sound"
+    }
   },
   "social-proof": {
     "title": "Social proof",

@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Bell, CheckCheck, Flame, Music2, UserPlus, Megaphone, Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { markItemRead, decrementUnread, markAllItemsRead } from "./notifications-read-state";
+import { createArrivalTracker, playSignatureSound } from "@/lib/signature-sounds";
 
 /* ─── NotificationsBell — header dropdown (Worker 6, discovery) ───────────
    Self-contained: drop <NotificationsBell /> into the header and it handles
@@ -51,6 +52,11 @@ export function NotificationsBell() {
   const [unread, setUnread] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  /* Signature sounds (UPGRADES 183): a genuinely NEW arrival on a
+     later poll sounds its role (message arrivals outrank plain
+     notifications) through the one gated engine — the first load
+     seeds silently, so opening the site on old unread mail is quiet. */
+  const arrivalTrackerRef = useRef(createArrivalTracker());
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -65,8 +71,11 @@ export function NotificationsBell() {
       if (!r.ok) { setLoadError(true); return; }
       const d = await r.json();
       setLoadError(false);
-      setItems(Array.isArray(d.items) ? d.items : []);
+      const nextItems: NotificationItem[] = Array.isArray(d.items) ? d.items : [];
+      setItems(nextItems);
       setUnread(typeof d.unread === "number" ? d.unread : 0);
+      const arrivalRole = arrivalTrackerRef.current.observe(nextItems);
+      if (arrivalRole) playSignatureSound(arrivalRole);
     } catch {
       setLoadError(true);
     }
