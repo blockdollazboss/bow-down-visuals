@@ -216,7 +216,7 @@ const GREEN = "#00FF00";
 /**
  * The camera-effects library. The UI renders its preset row from this
  * array; growing the library = adding an entry here plus its grade /
- * overlay in CAMERA_EFFECT_FILTERS / _compositeMatte(). Grades are cheap
+ * overlay in CAMERA_EFFECT_FILTERS / _compositeLive(). Grades are cheap
  * canvas filter strings applied to the composited frame; Vignette and
  * Gold Frame are pre-rendered overlays (built once per frame size).
  */
@@ -802,13 +802,21 @@ export class BackgroundChanger {
   private readonly _frameStall = new FrameStallTracker(0);
   /* Governs the matte-refinement steps in 'auto' quality while
      the STANDARD engine is live: sustained slowness sheds edge
-     work, sustained speed restores it. */
-  private readonly _perf = new PerfLadder({ maxStep: MATTE_MAX_STEP });
+     work, sustained speed restores it. Thresholds are ROUND-TRIP
+     numbers (motion fix, Oct 25, 2026): the ladder is fed
+     send→results times, and with compositing decoupled from
+     inference a ~150 ms matte update is perfectly usable — the
+     old desktop-tuned slowMs 46 marched every phone to the
+     floor. The ladder now rescues only sustained drowning. */
+  private readonly _perf = new PerfLadder({ maxStep: MATTE_MAX_STEP, slowMs: 150, fastMs: 45 });
   /* Governs the Pro engine's internal steps (RVM_STEPS) while it
      is live: active in 'auto' AND 'pro' — a step retune is not an
      engine switch. At the Pro floor its 'degrade' verdict is acted
-     on in 'auto' only (degrade to the Standard engine). */
-  private readonly _perfPro = new PerfLadder({ maxStep: RVM_MAX_STEP });
+     on in 'auto' only (degrade to the Standard engine). Same
+     round-trip calibration as the Standard ladder: an RVM frame
+     that lands every ~200 ms still drives a good live composite,
+     so only sustained slowness past that sheds steps. */
+  private readonly _perfPro = new PerfLadder({ maxStep: RVM_MAX_STEP, slowMs: 200, fastMs: 60 });
   /* An auto-mode degrade to the Standard engine is in flight. */
   private _degradingToStandard = false;
   /* The studio's matte pipeline runs the MOTION-ADAPTIVE blend
@@ -820,6 +828,19 @@ export class BackgroundChanger {
      (OUTPUT_HEIGHT_CAP); the perf governor can step it down once
      to the floor on a device that genuinely cannot hold the top. */
   private _canvasCapH = OUTPUT_HEIGHT_CAP;
+  /* The latest landed matte, post-processed and rasterised into
+     _matteCanvas by _storeLandedMatte, tagged with the engine
+     epoch that produced it. The loop composites the LIVE camera
+     frame with this matte on every tick (motion fix, Oct 25,
+     2026 — see the header note); inference only replaces it. An
+     epoch mismatch means the matte belongs to a retired engine
+     and is never painted. */
+  private _liveMatte: { epoch: number; width: number; height: number } | null = null;
+  /* A matte landed since the last composite — the despill pass
+     runs on those composites (and on a slow cadence otherwise),
+     instead of paying the full-frame pixel pass every tick. */
+  private _liveMatteFresh = false;
+  private _compositeCount = 0;
   private _matteCanvas: HTMLCanvasElement;
   private _matteCtx: CanvasRenderingContext2D;
   private _matteImage: ImageData | null = null;
@@ -1544,6 +1565,18 @@ export class BackgroundChanger {
         this._applyRefinement(next as MediaPipeEngine, this._refinementStep());
       }
     }
+    if (next instanceof MediaPipeEngine) {
+      /* A late result after a capped send proves this engine is
+         alive, merely slow (see MediaPipeEngine's send
+         discipline): reset the failure run it was accumulating —
+         slowness alone must never park a working engine. The
+         identity guard keeps a retired engine's late result from
+         clearing the LIVE engine's run. */
+      const adopted = next;
+      adopted.onProofOfLife = () => {
+        if (this._engine === adopted) this._consecutiveInferenceFailures = 0;
+      };
+    }
     this.segmenter = next instanceof MediaPipeEngine ? next.segmenter : null;
     this._engineError = next
       ? null
@@ -1818,10 +1851,14 @@ export class BackgroundChanger {
   }
 
   /**
-   * Render loop. Runs one engine inference at a time — frames are
-   * dropped rather than queued while an inference is in flight, which
-   * keeps latency low and the UI thread free. With no engine live,
-   * the raw frame is drawn instead (degraded start).
+   * Render loop (motion fix, Oct 25, 2026 — see the header note).
+   * Compositing and inference are DECOUPLED: every tick composites
+   * the LIVE camera frame with the latest landed matte, so the
+   * person's motion renders at camera rate no matter how slow the
+   * engine is; inference runs alongside (one episode at a time —
+   * frames are dropped rather than queued) and only replaces the
+   * matte. With no engine live, the raw frame is drawn instead
+   * (degraded start).
    */
   private _loop(): void {
     if (!this._running) return;
@@ -1845,15 +1882,25 @@ export class BackgroundChanger {
       this._noteFrameMiss();
       return;
     }
-    // Stall fallback: while the engine produces nothing, keep the live
-    // raw picture on the canvas instead of a blank (or frozen) frame.
-    // Inference attempts continue below, so a recovered engine takes
-    // over again on its next landed matte.
-    if (this._frameStall.stalled) this._compositeRaw();
+    if (this._liveMatte && this._liveMatte.epoch === this._engineEpoch) {
+      // The effect, live: this tick's camera frame cut with the
+      // newest matte we have. This runs through engine stalls
+      // too — the stall channel reports the silence honestly,
+      // but the raw room NEVER paints over a live backdrop.
+      this._compositeLive();
+    } else if (this._frameStall.stalled) {
+      // No matte has landed for this engine yet (or its engine
+      // was just swapped): while the engine produces nothing,
+      // keep the live raw picture on the canvas instead of a
+      // blank (or frozen) frame. Inference attempts continue
+      // below, so a recovered engine takes over again on its
+      // next landed matte.
+      this._compositeRaw();
+    }
     if (this._busy) {
-      // An inference is in flight. Its wait still counts toward the
-      // stall clock — a hung inference must trip the fallback, not
-      // wedge the canvas blank forever.
+      // An inference is in flight. Its wait still counts toward
+      // the stall clock — a hung inference must trip the status
+      // fallback, not wedge the status "on" forever.
       this._noteFrameMiss();
       return;
     }
@@ -1866,7 +1913,10 @@ export class BackgroundChanger {
         this._governPerf(engine);
         if (matte) {
           this._consecutiveInferenceFailures = 0;
-          this._compositeMatte(matte);
+          this._storeLandedMatte(matte, epoch);
+          // Composite the fresh matte immediately, against the
+          // live frame of this instant — don't wait a tick.
+          this._compositeLive();
           this._noteMatteFrame();
         } else {
           this._noteInferenceFailure();
@@ -1888,13 +1938,14 @@ export class BackgroundChanger {
   }
 
   /**
-   * One loop pass produced no matte composite. When the frameless
+   * One loop pass produced no landed matte. When the mateless
    * passes add up to a stall (frame-stall.ts), say so ONCE through
    * the engine-status channel: the studio drops to its engine-down
-   * presentation ("Background engine: Off", camera running plain)
-   * for the length of the episode, while the loop paints the raw
-   * camera — the feed is never dressed up as effects-active while
-   * no effects frames are flowing.
+   * presentation ("Background engine: Off") for the length of the
+   * episode. The canvas keeps compositing the last matte over
+   * live frames — the effect degrades to a stale matte, it never
+   * snaps to the raw room (motion fix, Oct 25, 2026); the status
+   * is the honest channel, and it says Off.
    */
   private _noteFrameMiss(): void {
     if (!this._frameStall.noteMiss(performance.now())) return;
@@ -1957,40 +2008,18 @@ export class BackgroundChanger {
   }
 
   /**
-   * Engine frame: post-process the alpha matte, cut the person out
-   * with it, and lay the cutout over the background layer. The matte
-   * pipeline (matte-post.ts, tuned by the live refinement step):
-   * temporal blend → choke → levels curve → feather, rasterised as
-   * a white image whose alpha IS the matte, then used as the person
-   * layer's stencil ('copy' the matte in, 'source-in' the camera
-   * picture). Edge despill runs on the person layer's own pixels,
-   * keyed on its alpha band, so the engine needs to know nothing
-   * about it.
+   * A matte landed: run it through the matte pipeline once
+   * (matte-post.ts, tuned by the live refinement step: temporal
+   * blend → choke → levels curve → feather) and rasterise it as a
+   * white image whose alpha IS the matte. The result is stored as
+   * the live matte; _compositeLive cuts every subsequent camera
+   * frame with it until the next matte lands. Post-processing
+   * advances at inference rate (its temporal state assumes
+   * matte-rate calls) — compositing is what runs at camera rate.
    */
-  private _compositeMatte(matte: EngineMatte): void {
-    if (!this._running) return;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
-    const ctx = this._ctx;
-    if (!W || !H) return;
-    // A freshly-live engine fades in over the raw picture: paint
-    // the raw frame first (it applies the effect finish), then lay
-    // the composited layers over it at the fade alpha and skip the
-    // second finish below — the grade/overlays are already on.
-    const fade = this._fadeAlpha(performance.now());
-    if (fade < 1) this._compositeRaw();
+  private _storeLandedMatte(matte: EngineMatte, epoch: number): void {
     const mw = matte.width;
     const mh = matte.height;
-    /* FRAME ALIGNMENT: the person is cut from the frame this matte
-       was computed from (the engine's send-time snapshot), never
-       from the live video — the live frame is a whole inference
-       round trip NEWER than the matte, and cutting it with the
-       stale matte tears every moving edge (the ghost where the
-       subject was, the subject erased where it now is). Engines
-       without a snapshot fall back to the live video. */
-    const frameSource: CanvasImageSource = matte.frame ?? this._video;
-
-    // 0 — post-process + rasterise the matte.
     const post = this._mattePost.process(matte.alpha, mw, mh);
     if (this._matteCanvas.width !== mw || this._matteCanvas.height !== mh) {
       this._matteCanvas.width = mw;
@@ -2006,9 +2035,46 @@ export class BackgroundChanger {
       px[j + 3] = Math.round(post[i] * 255);
     }
     this._matteCtx.putImageData(this._matteImage, 0, 0);
+    this._liveMatte = { epoch, width: mw, height: mh };
+    this._liveMatteFresh = true;
+  }
+
+  /**
+   * One composited frame: cut the person out of the CURRENT camera
+   * frame with the latest landed matte (stored rasterised in
+   * _matteCanvas), and lay the cutout over the background layer.
+   * The person layer is built with the matte as its stencil
+   * ('copy' the matte in, 'source-in' the camera picture). Edge
+   * despill runs on the person layer's own pixels, keyed on its
+   * alpha band — but only when a matte just landed or every 3rd
+   * composite: it is a full-frame pixel pass on the main thread,
+   * and paying it on every tick starves the very engines this
+   * loop waits on (motion fix, Oct 25, 2026).
+   *
+   * The picture source is the LIVE video, never the matte's
+   * send-time snapshot: the snapshot doctrine (Oct 23) is retired
+   * for the live path — see the header note. A matte that lags a
+   * moving edge by one round trip is a smaller error than a
+   * person who only moves when mattes land.
+   */
+  private _compositeLive(): void {
+    if (!this._running) return;
+    if (!this._liveMatte) return;
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const ctx = this._ctx;
+    if (!W || !H) return;
+    // A freshly-live engine fades in over the raw picture: paint
+    // the raw frame first (it applies the effect finish), then lay
+    // the composited layers over it at the fade alpha and skip the
+    // second finish below — the grade/overlays are already on.
+    const fade = this._fadeAlpha(performance.now());
+    if (fade < 1) this._compositeRaw();
+    this._compositeCount++;
 
     // 1 — person cutout (built unmirrored; the mirror transform below
-    // applies to the whole frame, exactly like before).
+    // applies to the whole frame, exactly like before). The picture
+    // is the live video; the stencil is the latest matte.
     if (this.mode !== "none") {
       const p = this._personCtx;
       p.save();
@@ -2016,11 +2082,14 @@ export class BackgroundChanger {
       p.globalCompositeOperation = "copy";
       p.drawImage(this._matteCanvas, 0, 0, W, H);
       p.globalCompositeOperation = "source-in";
-      p.drawImage(frameSource, 0, 0, W, H);
+      p.drawImage(this._video, 0, 0, W, H);
       p.restore();
-      const personData = p.getImageData(0, 0, W, H);
-      despillRgba(personData.data);
-      p.putImageData(personData, 0, 0);
+      if (this._liveMatteFresh || this._compositeCount % 3 === 0) {
+        const personData = p.getImageData(0, 0, W, H);
+        despillRgba(personData.data);
+        p.putImageData(personData, 0, 0);
+      }
+      this._liveMatteFresh = false;
     }
 
     ctx.save();
@@ -2038,16 +2107,16 @@ export class BackgroundChanger {
       this._drawCover(ctx, this._backdrop, W, H);
     } else if (this.mode === "blur") {
       // Slight overscale hides the fringe the blur leaves at the frame edges.
-      // The blurred backdrop is the matte's OWN frame too — the one
-      // instant this composite describes.
+      // The blurred backdrop is the live frame, blurred — the backdrop
+      // moves with the room while the matte holds the person out of it.
       ctx.save();
       ctx.filter = `blur(${this.blurAmount}px)`;
       const s = 1.06;
-      ctx.drawImage(frameSource, -(W * (s - 1)) / 2, -(H * (s - 1)) / 2, W * s, H * s);
+      ctx.drawImage(this._video, -(W * (s - 1)) / 2, -(H * (s - 1)) / 2, W * s, H * s);
       ctx.restore();
     } else {
-      // 'none' — or 'image' with no backdrop set yet: the matte's own frame.
-      ctx.drawImage(frameSource, 0, 0, W, H);
+      // 'none' — or 'image' with no backdrop set yet: the live frame.
+      ctx.drawImage(this._video, 0, 0, W, H);
     }
 
     // 3 — person cutout (skipped for the raw passthrough)
