@@ -2268,6 +2268,22 @@ router.post("/store/token", requireAuth, publicApiLimiter, async (req, res) => {
           const comp = !("notForSale" in bundleItem) && !("notWired" in bundleItem) && bundleItem.bundle
             ? bundleItem.bundle.components.find((c) => c.fileUrl === fileUrl)
             : undefined;
+          /* Heal a component whose verify died before issuance (when
+             the live bundle still names it), then honor its key. */
+          if (comp) {
+            const saleProfileRows = await db.execute(sql`
+              SELECT profile_id FROM digital_sales WHERE id = ${saleId} LIMIT 1
+            `);
+            const saleProfileId = String(
+              (saleProfileRows.rows[0] as Record<string, unknown> | undefined)?.["profile_id"] ?? "",
+            );
+            if (saleProfileId) {
+              await ensureLicenseKeyForItem({
+                saleId, buyerUserId: req.userId!, profileId: saleProfileId,
+                itemKind: comp.kind, itemId: comp.id, itemTitle: comp.title, fileUrl,
+              });
+            }
+          }
           const grantKey = await getLicenseKeyForDownload(saleId, fileUrl);
           if (licenseBlocksMint(grantKey).blocked) {
             firstBlockedFile = firstBlockedFile ?? fileUrl;
