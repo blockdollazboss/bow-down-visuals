@@ -6,9 +6,12 @@
  *   AuthedLayout's Switch + a sidebar door with the real name;
  * - two doors, two boards, the shipped strip, and the review-first
  *   copy all exist on the page;
- * - NO prices and NO Visual Bucs reward anywhere in the section's
- *   surfaces (page, host, settings card, admin bench) — the reward
- *   question was never ruled;
+ * - NO PRICES anywhere in the section's surfaces (page, host,
+ *   settings card, admin bench) and no charge rail — while the RULED
+ *   VB reward (owner, Oct 25, 18:12 EDT) IS public copy: the header
+ *   rewards line renders, shipped cards show paid/queued VB, and
+ *   nothing grants from the client (the server rail pays on the
+ *   team-set status transition only);
  * - the admin bench talks to the admin queue/patch endpoints;
  * - the feedback host only listens for qualifying-moment events and
  *   stamps a showing through the server — it has no load-time show
@@ -59,24 +62,39 @@ describe("pitch & fix section wiring", () => {
     expect(page).toContain('t("pitchFix.fixSent")');
   });
 
-  it("NO prices and NO Visual Bucs reward anywhere in the section", () => {
+  it("NO prices and no charge rail anywhere in the section — VB rewards are server-paid only", () => {
     // The admin bench slice only — the rest of admin.tsx runs other
     // benches (credit grants etc.) that are not this section.
     const adminStart = admin.indexOf("function PitchFixInbox");
     const adminSlice = admin.slice(adminStart, admin.indexOf("/* ─── Content Reports", adminStart));
     expect(adminSlice.length).toBeGreaterThan(500);
     for (const [name, src] of Object.entries({ page, host, settingsCard, adminBench: adminSlice })) {
-      expect(src, name).not.toMatch(/Visual Bucs|visualBucs|chargeCredits|grantCredits/);
+      expect(src, name).not.toMatch(/chargeCredits|visualBucs|VisualBucsIcon/);
       expect(src, name).not.toMatch(/\$\d|\bprice\b/i);
+    }
+    // The client never grants: no surface calls a credit-grant path.
+    for (const src of [page, host, settingsCard, adminSlice]) {
+      expect(src).not.toMatch(/credits\/grant|addCredits/);
     }
   });
 
-  it("the admin bench is the moderation surface for the same intake", () => {
+  it("the ruled reward is public copy: header line + paid/queued states on shipped cards", () => {
+    expect(page).toContain('data-testid="pitch-fix-rewards-line"');
+    expect(page).toContain('t("pitchFix.rewardsLine")');
+    expect(page).toContain('t("pitchFix.reward.paid"');
+    expect(page).toContain('t("pitchFix.reward.queued"');
+  });
+
+  it("the admin bench is the moderation + reward surface for the same intake", () => {
     expect(admin).toContain("PitchFixInbox");
     expect(admin).toContain('"/api/admin/pitch-fix/queue"');
     expect(admin).toContain("/api/admin/pitch-fix/${id}");
     expect(admin).toContain('moderation: "approved"');
     expect(admin).toContain('moderation: "rejected"');
+    // Pool line, reward states, and duplicate marking are visible:
+    expect(admin).toContain('data-testid="pitch-fix-pool-line"');
+    expect(admin).toContain("duplicate_of: dupTargets[r.id]");
+    expect(admin).toContain('t("pitchFix.reward.ineligible")');
   });
 });
 

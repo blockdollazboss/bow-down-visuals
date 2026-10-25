@@ -1082,7 +1082,12 @@
         "pitch": "Ideia",
         "fix": "Correção",
         "feedback": "Feedback"
-      }
+      },
+      "poolLine": "Fundo desta semana: {{spent}} / {{cap}} VB pagos · {{queued}} na fila",
+      "markDuplicate": "Marcar como duplicado do primeiro:",
+      "duplicatePlaceholder": "Escolha o envio original…",
+      "applyDuplicate": "Marcar duplicado",
+      "duplicateOf": "Duplicado de: {{title}}"
     }
   },
   "analyticsHub": {
@@ -15093,6 +15098,12 @@
       "submit": "Enviar feedback",
       "dismiss": "Agora não",
       "thanks": "Obrigado — seu feedback vai para a equipe."
+    },
+    "rewardsLine": "Ideias entregues rendem 500 VB · correções entregues rendem 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB pagos",
+      "queued": "{{amount}} VB na fila",
+      "ineligible": "Sem recompensa — duplicado"
     }
   }
 }

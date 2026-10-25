@@ -1082,7 +1082,12 @@
         "pitch": "Idee",
         "fix": "Fehler",
         "feedback": "Feedback"
-      }
+      },
+      "poolLine": "Pool dieser Woche: {{spent}} / {{cap}} VB gezahlt · {{queued}} in Warteschlange",
+      "markDuplicate": "Als Duplikat des ersten markieren:",
+      "duplicatePlaceholder": "Den ersten Eintrag wählen…",
+      "applyDuplicate": "Als Duplikat markieren",
+      "duplicateOf": "Duplikat von: {{title}}"
     }
   },
   "analyticsHub": {
@@ -15070,6 +15075,12 @@
       "submit": "Feedback senden",
       "dismiss": "Nicht jetzt",
       "thanks": "Danke — dein Feedback geht ans Team."
+    },
+    "rewardsLine": "Gelieferte Ideen verdienen 500 VB · gelieferte Fehlerbehebungen 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB gezahlt",
+      "queued": "{{amount}} VB in Warteschlange",
+      "ineligible": "Keine Belohnung — Duplikat"
     }
   }
 }

@@ -1082,7 +1082,12 @@
         "pitch": "提案",
         "fix": "修正",
         "feedback": "フィードバック"
-      }
+      },
+      "poolLine": "今週のプール： {{spent}} / {{cap}} VB 支払済み · {{queued}} 件待機",
+      "markDuplicate": "最初の重複としてマーク:",
+      "duplicatePlaceholder": "最初の送信を選んでください…",
+      "applyDuplicate": "重複としてマーク",
+      "duplicateOf": "重複元：{{title}}"
     }
   },
   "analyticsHub": {
@@ -15065,6 +15070,12 @@
       "submit": "フィードバックを送る",
       "dismiss": "今はしない",
       "thanks": "ありがとうございます。フィードバックはチームに届きます。"
+    },
+    "rewardsLine": "公開されたアイデアは 500 VB、公開された修正は 100〜250 VB 獲得できます",
+    "reward": {
+      "paid": "{{amount}} VB 支払済み",
+      "queued": "{{amount}} VB 待機中",
+      "ineligible": "報酬なし — 重複"
     }
   }
 }

@@ -805,7 +805,13 @@ function DmcaReportsInbox({ authHeaders }: { authHeaders: () => Promise<HeadersI
    this bench. Approving posts it to the boards with its starting
    status; the status buttons then walk it through its lifecycle
    (pitch: Reviewing → Approved → Building → Shipped; fix/feedback:
-   Received → Confirmed → Fixing → Fixed). Same honesty as the other
+   Received → Confirmed → Fixing → Fixed). The Shipped/Fixed button
+   is also the reward trigger (owner ruling, Oct 25, 18:12 EDT): it
+   queues and — pool permitting — pays the VB reward (500 pitch /
+   100 fix / 250 blocks_me) through the server rail; the pool line
+   above the list shows this week's spend and the roll-over queue,
+   each row shows its reward state, and duplicates are marked here
+   (first voice only — a marked row can never pay). Same honesty as the other
    inboxes: a failed load is an error card, never a fake-empty queue. */
 interface PitchFixRow {
   id: string;
@@ -822,7 +828,20 @@ interface PitchFixRow {
   status: string;
   moderationStatus: "pending" | "approved" | "rejected";
   upvoteCount: number;
+  rewardStatus: "none" | "queued" | "paid" | "ineligible";
+  rewardAmount: number | null;
+  rewardQueuedAt: string | null;
+  rewardPaidAt: string | null;
+  duplicateOfId: string | null;
   createdAt: string;
+}
+
+interface PitchFixPool {
+  weekStart: string;
+  capVb: number;
+  spentVb: number;
+  remainingVb: number;
+  queuedIds: string[];
 }
 
 const PITCH_FIX_PITCH_STATUSES = ["reviewing", "approved", "building", "shipped"] as const;
@@ -832,6 +851,8 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [rows, setRows] = useState<PitchFixRow[]>([]);
+  const [pool, setPool] = useState<PitchFixPool | null>(null);
+  const [dupTargets, setDupTargets] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -843,8 +864,9 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
     try {
       const res = await fetch("/api/admin/pitch-fix/queue", { headers: await authHeaders() });
       if (!res.ok) throw new Error("queue failed");
-      const data = (await res.json()) as { submissions?: PitchFixRow[] };
+      const data = (await res.json()) as { submissions?: PitchFixRow[]; rewardPool?: PitchFixPool };
       setRows(data.submissions ?? []);
+      setPool(data.rewardPool ?? null);
     } catch {
       setLoadError(true);
     } finally {
@@ -854,7 +876,7 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
 
   useEffect(() => { void load(); }, [load]);
 
-  async function patch(id: string, body: { moderation?: string; status?: string }) {
+  async function patch(id: string, body: { moderation?: string; status?: string; duplicate_of?: string }) {
     setBusyId(id);
     setError(null);
     try {
@@ -866,6 +888,9 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
       if (!res.ok) throw new Error("patch failed");
       const data = (await res.json()) as { submission: PitchFixRow };
       setRows((list) => list.map((r) => (r.id === id ? data.submission : r)));
+      /* A status move can pay rewards and a duplicate mark dequeues
+         one — refresh the whole bench + pool line from the server. */
+      if (body.status || body.duplicate_of) void load();
     } catch {
       setError(t("admin.pitchFix.statusError"));
     } finally {
@@ -877,6 +902,11 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
     <section className={`rounded-3xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="pitch-fix-inbox">
       <h2 className={`text-base font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{t("admin.pitchFix.title")}</h2>
       <p className={`mt-0.5 text-xs ${isLight ? "text-[#5c5138]" : "text-white/40"}`}>{t("admin.pitchFix.description")}</p>
+      {pool && (
+        <p className="mt-2 text-xs font-extrabold text-[#d4a017]" data-testid="pitch-fix-pool-line">
+          {t("admin.pitchFix.poolLine", { spent: pool.spentVb, cap: pool.capVb, queued: pool.queuedIds.length })}
+        </p>
+      )}
       {error && <p className="mt-3 text-sm font-bold text-red-400">{error}</p>}
       {loading ? (
         <p className="mt-4 flex items-center gap-2 text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin" />{t("admin.pitchFix.loading")}</p>
@@ -906,7 +936,21 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
                     : <span className="rounded-full border border-white/20 px-2.5 py-0.5 text-white/60">{t(`pitchFix.fixStatus.${r.status}`, { defaultValue: r.status })}</span>}
                   {r.rating != null && <span className="text-[#d4a017]">{t("admin.pitchFix.rating", { rating: r.rating })}</span>}
                   {r.kind === "pitch" && <span className="text-white/50">{r.upvoteCount} ▲</span>}
+                  {r.rewardStatus === "paid" && r.rewardAmount != null && (
+                    <span className="rounded-full border border-emerald-400/30 px-2.5 py-0.5 text-emerald-300">{t("pitchFix.reward.paid", { amount: r.rewardAmount })}</span>
+                  )}
+                  {r.rewardStatus === "queued" && r.rewardAmount != null && (
+                    <span className="rounded-full border border-[#d4a017]/50 px-2.5 py-0.5 text-[#d4a017]">{t("pitchFix.reward.queued", { amount: r.rewardAmount })}</span>
+                  )}
+                  {r.rewardStatus === "ineligible" && (
+                    <span className="rounded-full border border-red-400/30 px-2.5 py-0.5 text-red-300">{t("pitchFix.reward.ineligible")}</span>
+                  )}
                 </div>
+                {r.duplicateOfId && (
+                  <p className="mt-1.5 text-xs font-bold text-red-300">
+                    {t("admin.pitchFix.duplicateOf", { title: rows.find((x) => x.id === r.duplicateOfId)?.title || r.duplicateOfId })}
+                  </p>
+                )}
                 <h3 className={`mt-2 font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{r.title || t("pitchFix.feedbackRow", { rating: r.rating ?? 0 })}</h3>
                 {r.body && <p className={`text-sm ${isLight ? "text-[#5c5138]" : "text-white/55"}`}>{r.body}</p>}
                 {r.why && <p className={`text-sm ${isLight ? "text-[#5c5138]" : "text-white/55"}`}><em>{t("pitchFix.whyMatters")}:</em> {r.why}</p>}
@@ -933,6 +977,33 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
                     </button>
                   ))}
                 </div>
+                {/* Duplicate marking (first voice only): visible on every
+                    unpaid row; the server refuses paid items, self-marks,
+                    cross-kind marks, and pointing at another duplicate. */}
+                {r.rewardStatus !== "paid" && !r.duplicateOfId && (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <label className={`text-xs font-bold ${isLight ? "text-[#5c5138]" : "text-white/50"}`} htmlFor={`pf-dup-${r.id}`}>{t("admin.pitchFix.markDuplicate")}</label>
+                    <select
+                      id={`pf-dup-${r.id}`}
+                      value={dupTargets[r.id] ?? ""}
+                      onChange={(e) => setDupTargets((m) => ({ ...m, [r.id]: e.target.value }))}
+                      className={`rounded-lg border px-2 py-1.5 text-xs ${isLight ? "border-[#C9A84C]/50 bg-white text-[#2A1E07]" : "border-white/15 bg-black/40 text-white"}`}
+                    >
+                      <option value="">{t("admin.pitchFix.duplicatePlaceholder")}</option>
+                      {rows.filter((x) => x.id !== r.id && x.kind === r.kind && !x.duplicateOfId).map((x) => (
+                        <option key={x.id} value={x.id}>{x.title || t("pitchFix.feedbackRow", { rating: x.rating ?? 0 })} — {x.submitterName}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={busyId === r.id || !dupTargets[r.id]}
+                      onClick={() => void patch(r.id, { duplicate_of: dupTargets[r.id] })}
+                      className="rounded-lg border border-red-400/40 px-3 py-1.5 text-xs font-extrabold text-red-300 disabled:opacity-50"
+                    >
+                      {t("admin.pitchFix.applyDuplicate")}
+                    </button>
+                  </div>
+                )}
               </article>
             );
           })}

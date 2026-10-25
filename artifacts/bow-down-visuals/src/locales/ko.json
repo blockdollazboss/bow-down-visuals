@@ -1082,7 +1082,12 @@
         "pitch": "제안",
         "fix": "수정",
         "feedback": "피드백"
-      }
+      },
+      "poolLine": "이번 주 풀: {{spent}} / {{cap}} VB 지급 · {{queued}}개 대기",
+      "markDuplicate": "첫 번째 항목의 중복으로 표시:",
+      "duplicatePlaceholder": "첫 번째 제출을 선택하세요…",
+      "applyDuplicate": "중복으로 표시",
+      "duplicateOf": "중복 원본: {{title}}"
     }
   },
   "analyticsHub": {
@@ -15070,6 +15075,12 @@
       "submit": "피드백 보내기",
       "dismiss": "나중에",
       "thanks": "감사합니다 — 피드백은 팀에 전달됩니다."
+    },
+    "rewardsLine": "출시된 아이디어는 500 VB, 출시된 수정은 100–250 VB를 받습니다",
+    "reward": {
+      "paid": "{{amount}} VB 지급됨",
+      "queued": "{{amount}} VB 대기 중",
+      "ineligible": "보상 없음 — 중복"
     }
   }
 }

@@ -42,6 +42,14 @@ export interface PitchFixSubmission {
   status: string;
   moderationStatus: "pending" | "approved" | "rejected";
   upvoteCount: number;
+  /** Reward rail (owner ruling, Oct 25, 18:12 EDT): paid ONLY on the
+   *  team-set Shipped/Fixed transition, exactly once, first voice
+   *  only, from the shared 1,000 VB/week pool. */
+  rewardStatus: "none" | "queued" | "paid" | "ineligible";
+  rewardAmount: number | null;
+  rewardQueuedAt: string | null;
+  rewardPaidAt: string | null;
+  duplicateOfId: string | null;
   shippedAt: string | null;
   createdAt: string;
   updatedAt: string;

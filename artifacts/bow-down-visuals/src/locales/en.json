@@ -1064,7 +1064,12 @@
         "pitch": "Pitch",
         "fix": "Fix",
         "feedback": "Feedback"
-      }
+      },
+      "poolLine": "This week's pool: {{spent}} / {{cap}} VB paid · {{queued}} queued",
+      "markDuplicate": "Mark as duplicate of the first:",
+      "duplicatePlaceholder": "Choose the first submission…",
+      "applyDuplicate": "Mark duplicate",
+      "duplicateOf": "Duplicate of: {{title}}"
     }
   },
   "analyticsHub": {
@@ -15049,6 +15054,12 @@
       "submit": "Send feedback",
       "dismiss": "Not now",
       "thanks": "Thanks — your feedback goes to the team."
+    },
+    "rewardsLine": "Shipped pitches earn 500 VB · shipped fixes earn 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB paid",
+      "queued": "{{amount}} VB queued",
+      "ineligible": "No reward — duplicate"
     }
   }
 }

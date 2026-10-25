@@ -1082,7 +1082,12 @@
         "pitch": "اقتراح",
         "fix": "إصلاح",
         "feedback": "ملاحظات"
-      }
+      },
+      "poolLine": "صندوق هذا الأسبوع: {{spent}} / {{cap}} VB مدفوعة · {{queued}} في الانتظار",
+      "markDuplicate": "علّم كمكرر للأول:",
+      "duplicatePlaceholder": "اختر الإرسال الأول…",
+      "applyDuplicate": "علّم كمكرر",
+      "duplicateOf": "مكرر من: {{title}}"
     }
   },
   "analyticsHub": {
@@ -15162,6 +15167,12 @@
       "submit": "إرسال الملاحظات",
       "dismiss": "ليس الآن",
       "thanks": "شكرًا — ملاحظاتك تصل إلى الفريق."
+    },
+    "rewardsLine": "الأفكار المسلّمة تكسب 500 VB · الإصلاحات المسلّمة تكسب 100–250 VB",
+    "reward": {
+      "paid": "تم دفع {{amount}} VB",
+      "queued": "{{amount}} VB في الانتظار",
+      "ineligible": "لا مكافأة — مكرر"
     }
   }
 }

@@ -1082,7 +1082,12 @@
         "pitch": "सुझाव",
         "fix": "सुधार",
         "feedback": "फ़ीडबैक"
-      }
+      },
+      "poolLine": "इस हफ़्ते का पूल: {{spent}} / {{cap}} VB दिए गए · {{queued}} कतार में",
+      "markDuplicate": "पहले का डुप्लिकेट चिह्नित करें:",
+      "duplicatePlaceholder": "पहला सबमिशन चुनें…",
+      "applyDuplicate": "डुप्लिकेट चिह्नित करें",
+      "duplicateOf": "इसका डुप्लिकेट: {{title}}"
     }
   },
   "analyticsHub": {
@@ -15070,6 +15075,12 @@
       "submit": "फ़ीडबैक भेजें",
       "dismiss": "अभी नहीं",
       "thanks": "धन्यवाद — आपका फ़ीडबैक टीम तक जाता है।"
+    },
+    "rewardsLine": "लाइव हुए सुझाव 500 VB कमाते हैं · लाइव हुए सुधार 100–250 VB कमाते हैं",
+    "reward": {
+      "paid": "{{amount}} VB दिए गए",
+      "queued": "{{amount}} VB कतार में",
+      "ineligible": "कोई इनाम नहीं — डुप्लिकेट"
     }
   }
 }

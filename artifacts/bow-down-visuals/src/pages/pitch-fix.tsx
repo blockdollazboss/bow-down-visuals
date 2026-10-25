@@ -23,9 +23,13 @@ import {
    appear here after approval — the API board endpoint returns
    approved rows only, and the door success copy says exactly that.
 
-   NO PRICES, NO REWARDS: nothing in this section charges, grants, or
-   promises anything. It lives inside the site shell (AuthedLayout)
-   in the Social/community flow — never a standalone page. */
+   NO PRICES: nothing in this section charges anything. REWARDS
+   (owner ruling, Oct 25, 18:12 EDT): shipped pitches earn 500 VB and
+   shipped fixes earn 100–250 VB, paid by the team-set status
+   transition exactly once (first voice only) from a shared weekly
+   pool — the header line below is the public copy of that ruling.
+   It lives inside the site shell (AuthedLayout) in the
+   Social/community flow — never a standalone page. */
 
 interface BoardData {
   pitches: PitchFixSubmission[];
@@ -191,6 +195,7 @@ export default function PitchFixPage() {
           {t("pitchFix.title")} <span className="text-[#d4a017]">&amp;</span> {t("pitchFix.titleFix")}
         </h1>
         <p className={`mt-2 max-w-2xl text-base ${subCls}`}>{t("pitchFix.subtitle")}</p>
+        <p className="mt-2 text-sm font-extrabold tracking-wide text-[#d4a017]" data-testid="pitch-fix-rewards-line">{t("pitchFix.rewardsLine")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-extrabold tracking-widest" aria-hidden="true">
           {[t("pitchFix.flow.pitch"), t("pitchFix.flow.review"), t("pitchFix.flow.build"), t("pitchFix.flow.shipped")].map((step, i, arr) => (
             <span key={step} className="flex items-center gap-2">
@@ -385,6 +390,12 @@ export default function PitchFixPage() {
                     ? <>{t("pitchFix.shipped.ideaBy")} <b className="text-[#d4a017]">{s.submitterName}</b> — {t("pitchFix.shipped.shippedWord")}</>
                     : <>{t("pitchFix.shipped.fixBy")} <b className="text-[#d4a017]">{s.submitterName}</b> — {t("pitchFix.shipped.fixedWord")}</>}
                 </p>
+                {s.rewardStatus === "paid" && s.rewardAmount != null && (
+                  <p className="mt-1 text-xs font-extrabold text-emerald-500">{t("pitchFix.reward.paid", { amount: s.rewardAmount })}</p>
+                )}
+                {s.rewardStatus === "queued" && s.rewardAmount != null && (
+                  <p className="mt-1 text-xs font-extrabold text-[#d4a017]">{t("pitchFix.reward.queued", { amount: s.rewardAmount })}</p>
+                )}
                 <p className={`mt-0.5 text-xs ${subCls}`}>
                   {s.kind === "pitch" ? `${t("pitchFix.pitchBoard")} · ${t(`pitchFix.category.${s.category ?? "other"}`, { defaultValue: "" })}` : `${t("pitchFix.fixBoard")} · ${s.page ? t(`pitchFix.page.${s.page}`, { defaultValue: "" }) : ""}`}
                 </p>

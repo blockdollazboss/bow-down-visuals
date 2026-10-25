@@ -1082,7 +1082,12 @@
         "pitch": "Idée",
         "fix": "Correctif",
         "feedback": "Avis"
-      }
+      },
+      "poolLine": "Enveloppe de la semaine : {{spent}} / {{cap}} VB payés · {{queued}} en file",
+      "markDuplicate": "Marquer comme doublon du premier :",
+      "duplicatePlaceholder": "Choisissez l'envoi d'origine…",
+      "applyDuplicate": "Marquer le doublon",
+      "duplicateOf": "Doublon de : {{title}}"
     }
   },
   "analyticsHub": {
@@ -15093,6 +15098,12 @@
       "submit": "Envoyer l'avis",
       "dismiss": "Pas maintenant",
       "thanks": "Merci : votre avis part à l'équipe."
+    },
+    "rewardsLine": "Les idées livrées rapportent 500 VB · les correctifs livrés rapportent 100–250 VB",
+    "reward": {
+      "paid": "{{amount}} VB payés",
+      "queued": "{{amount}} VB en file",
+      "ineligible": "Aucune récompense : doublon"
     }
   }
 }
