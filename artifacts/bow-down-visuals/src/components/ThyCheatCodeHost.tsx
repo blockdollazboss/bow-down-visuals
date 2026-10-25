@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { X, MessageCircle, Sparkles, Footprints } from "lucide-react";
 import { getGuideForRoute } from "@/guides";
-import { openThyChat } from "@/components/ThyCheatCodeChat";
+import { openThyChat } from "@/lib/open-thy-chat";
 import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 

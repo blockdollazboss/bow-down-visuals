@@ -651,6 +651,17 @@ export interface ClipEdit {
   lipSyncStatus: LipSyncStatus | null;
   /** Provider that produced the lip-sync result. */
   lipSyncProvider: string | null;
+  /** Provider result metadata (migration 0230 result_meta): input/output
+   *  dimensions + whether the provider reduced the resolution. Surfaced
+   *  plainly in the editor at completion (Stack-200 item 191). Optional —
+   *  projects saved before it existed simply carry no record. */
+  lipSyncResultMeta?: {
+    inputWidth?: number | null;
+    inputHeight?: number | null;
+    outputWidth?: number | null;
+    outputHeight?: number | null;
+    resolutionReduced?: boolean | null;
+  } | null;
   /** ISO timestamp when lip sync was created. */
   lipSyncCreatedAt: string | null;
   /** Error message if lip sync failed. */

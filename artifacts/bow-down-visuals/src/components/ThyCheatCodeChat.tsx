@@ -205,12 +205,11 @@ function renderRich(content: string) {
   });
 }
 
-/** Open the Thy Cheat Code chat drawer, optionally with a prefilled prompt. */
-export function openThyChat(prompt?: string) {
-  window.dispatchEvent(
-    new CustomEvent("thy-chat:open", { detail: { prompt } })
-  );
-}
+/** Open the Thy Cheat Code chat drawer, optionally with a prefilled prompt.
+ *  The implementation lives in lib/open-thy-chat.ts (Stack-200 item 186)
+ *  so surfaces that only OPEN the chat don't import this whole module;
+ *  this re-export keeps existing import sites working. */
+export { openThyChat } from "@/lib/open-thy-chat";
 
 export function ThyCheatCodeChat() {
   // Free version: direct fetch to /api/free-chat (no credits)
