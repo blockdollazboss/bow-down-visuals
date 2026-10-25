@@ -5,6 +5,30 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { fulfillCreditPurchase, getStripePaymentStatus } from "../lib/payment-record";
+
+/* Referral revenue share (25% of purchased credits to the referrer).
+   Exactly-once by construction — referral_payouts carries
+   UNIQUE(stripe_session_id) and only the insert winner pays — so every
+   fulfillment path calls it once the purchase is known complete (see
+   the twin helper in stripe-payments.ts). Keyed by the payment intent
+   id, the same key the webhook's express branch awards under. Lazy
+   import avoids a module cycle; fully guarded — a referral failure
+   must never change the verify answer the buyer sees. */
+async function awardReferralShare(
+  userId: string,
+  creditsAmount: number,
+  paymentIntentId: string,
+): Promise<void> {
+  try {
+    const { awardReferralPayout } = await import("./referrals");
+    await awardReferralPayout(userId, creditsAmount, paymentIntentId);
+  } catch (err) {
+    logger.error(
+      { err, userId, paymentIntentId },
+      "express/verify: referral award attempt failed (non-fatal)"
+    );
+  }
+}
 import { createGuardedStripeClient } from "../lib/stripe-client";
 
 const router = Router();
@@ -156,6 +180,9 @@ router.post("/payments/express/verify", requireAuth, publicApiLimiter, async (re
         currency: pi.currency,
       });
       if (result.outcome === "duplicate") {
+        // Complete purchase; pays the referral share if the completing
+        // path never ran it — a no-op when it already landed.
+        await awardReferralShare(req.userId!, creditsToAdd, pi.id);
         res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
         return;
       }
@@ -167,6 +194,7 @@ router.post("/payments/express/verify", requireAuth, publicApiLimiter, async (re
         { userId: req.userId, creditsToAdd, pack: metaPack, paymentIntentId: pi.id },
         "express_pay/verify: credits applied successfully"
       );
+      await awardReferralShare(req.userId!, creditsToAdd, pi.id);
       res.json({ success: true, credits: result.newCredits, added: creditsToAdd, pack: metaPack });
     } catch (err: unknown) {
       logger.error({ err, userId: req.userId }, "express_pay/verify: credit grant failed");
@@ -177,6 +205,7 @@ router.post("/payments/express/verify", requireAuth, publicApiLimiter, async (re
          the truthful pending message; never quote the internal error. */
       const status = await getStripePaymentStatus(pi.id).catch(() => null);
       if (status === "completed") {
+        await awardReferralShare(req.userId!, creditsToAdd, pi.id);
         res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
         return;
       }

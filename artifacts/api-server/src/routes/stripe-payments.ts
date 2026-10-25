@@ -23,6 +23,34 @@ function getStripe(): Stripe {
   return createGuardedStripeClient();
 }
 
+/* Referral revenue share (25% of purchased credits to the referrer).
+   The award is exactly-once by construction — referral_payouts carries
+   UNIQUE(stripe_session_id) and only the insert winner pays — so EVERY
+   fulfillment path calls it once the purchase is known complete:
+   whichever path (webhook, this verify) completes first pays, and every
+   later call is a no-op. Before this, only the webhook called it, and
+   only when the webhook itself won the fulfillment claim — a purchase
+   the buyer's browser verified first never paid the referrer at all
+   (Pass 0, Oct 24 2026). Lazy import avoids a module cycle
+   (routes/referrals reaches the payments ledger), and the call is fully
+   guarded: a referral failure must never change the verify answer the
+   buyer sees. */
+async function awardReferralShare(
+  userId: string,
+  creditsAmount: number,
+  stripeSessionId: string,
+): Promise<void> {
+  try {
+    const { awardReferralPayout } = await import("./referrals");
+    await awardReferralPayout(userId, creditsAmount, stripeSessionId);
+  } catch (err) {
+    logger.error(
+      { err, userId, stripeSessionId },
+      "checkout/verify: referral award attempt failed (non-fatal)"
+    );
+  }
+}
+
 function getBaseUrl(req?: import("express").Request): string {
   const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
   if (domain) return `https://${domain}`;
@@ -232,6 +260,10 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
 
     if (result.outcome === "duplicate") {
       logger.info({ sessionId, userId: req.userId }, "checkout/verify: duplicate payment — already completed");
+      // The purchase is complete; if the completing path never ran the
+      // referral award (e.g. it predates the award-on-verify fix), this
+      // pays it — otherwise a no-op under the payout's UNIQUE key.
+      await awardReferralShare(req.userId!, creditsToAdd, sessionId);
       res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
       return;
     }
@@ -245,6 +277,7 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
       { userId: req.userId, creditsToAdd, pack: metaPack, sessionId, newCredits: result.newCredits },
       "checkout/verify: credits applied successfully"
     );
+    await awardReferralShare(req.userId!, creditsToAdd, sessionId);
     res.json({ success: true, credits: result.newCredits, added: creditsToAdd, pack: metaPack });
   } catch (err: unknown) {
     logger.error({ err, userId: req.userId }, "checkout/verify: credit grant failed");
@@ -260,6 +293,7 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     const status = await getStripePaymentStatus(sessionId).catch(() => null);
     if (status === "completed") {
       logger.info({ sessionId, userId: req.userId }, "checkout/verify: grant failed locally but payment already completed elsewhere");
+      await awardReferralShare(req.userId!, creditsToAdd, sessionId);
       res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
       return;
     }
