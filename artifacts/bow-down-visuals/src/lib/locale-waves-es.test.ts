@@ -696,7 +696,6 @@ const W6_LEGIT = new Set([
   "nav.shorts",
   "nav.social",
   "nav.videoEditor",
-  "notFound.myProjects",
   "outreach.audiencePlaceholder",
   "outreach.brandNamePlaceholder",
   "outreach.contactPlaceholder",
