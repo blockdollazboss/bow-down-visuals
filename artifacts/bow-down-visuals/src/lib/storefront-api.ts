@@ -92,6 +92,11 @@ export interface StoreProductDTO {
   affiliatesEnabled?: boolean;
   affiliateCommissionBps?: number | null;
   affiliateCommissionPct?: string | null;
+  /* Co-seller revenue splits (Wave 4 #36): the sellers sharing this
+     product's net, presented with names; null/absent = solo product.
+     The editor surface ships with Preview 2; the payload is typed
+     end-to-end now so it can dock straight into the dashboard. */
+  splits?: ProductSplitDTO[] | null;
   /* Null when the product has no drop scheduled. */
   drop: ProductDropDTO | null;
 }
@@ -162,6 +167,25 @@ export interface MoneyChecklist {
   links: { storeUrl: string; dashboardUrl: string; ordersUrl: string; trackerNote: string };
 }
 
+/** One co-seller's share of a product (Wave 4 #36). Shares across
+    the list sum to exactly 100 and always include the product owner;
+    the split divides the seller NET (the flat 5% platform fee comes
+    off the top first). `name`/`slug` are presentation-only, present
+    on reads. */
+export interface ProductSplitDTO {
+  userId: string;
+  sharePct: number;
+  name?: string | null;
+  slug?: string | null;
+}
+
+/** The write shape for splits: sellers set the percentages
+    themselves; the server validates the sum-to-100 contract. */
+export interface ProductSplitInput {
+  userId: string;
+  sharePct: number;
+}
+
 export interface CreateProductInput {
   kind: StoreProductKind;
   title: string;
@@ -181,6 +205,9 @@ export interface CreateProductInput {
      server when the switch is on — the % is never invented). */
   affiliateEnabled?: boolean;
   affiliateCommissionBps?: number | null;
+  /* #36: co-seller splits on create; PATCH (Partial) semantics:
+     absent = keep, null = clear the co-sellers, list = replace. */
+  splits?: ProductSplitInput[] | null;
 }
 
 const BASE = "/api/storefront";

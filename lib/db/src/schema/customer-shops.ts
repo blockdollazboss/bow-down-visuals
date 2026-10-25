@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, check, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, check, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
@@ -79,6 +79,12 @@ export const shopProductsTable = pgTable("shop_products", {
       checkout attribution reads these at sale time (schema/affiliates.ts). */
   affiliate_enabled: boolean("affiliate_enabled").notNull().default(false),
   affiliate_commission_bps: integer("affiliate_commission_bps"),
+  /** Co-seller revenue splits (Wave 4 #36, migration 0235): the sellers
+      who share this product's net and their shares — a jsonb list of
+      { userId, sharePct } summing to exactly 100, owner included (the
+      publishing-splits sum-to-100 machine; schema/sale-splits.ts).
+      Null = no co-sellers: the product sells exactly as before. */
+  splits: jsonb("splits").$type<import("./sale-splits").ProductSplit[] | null>(),
   /** Order bump (feature #13, migration 0219): the seller's one add-on
       attachment for this product + the seller-set % off its list price. */
   bump_product_id: uuid("bump_product_id"),

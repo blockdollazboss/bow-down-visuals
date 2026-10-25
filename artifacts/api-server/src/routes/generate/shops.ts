@@ -45,6 +45,14 @@ import {
   marketSaleReceipt,
 } from "../../lib/market-sale";
 import {
+  recordShopEventSplitsSafely,
+  validateProductSplits,
+  assertCoSellersResolvable,
+  normalizeSplits,
+  SaleSplitError,
+  type ProductSplit,
+} from "../../lib/sale-splits";
+import {
   readBumpConfig,
   validateBumpTarget,
   bumpUnitCents,
@@ -87,6 +95,56 @@ async function shopProductsHasImageAlt(): Promise<boolean> {
   return shopAltColKnown;
 }
 
+/* Co-seller splits (#36, migration 0235): same probe discipline as the
+   alt-text column — reads/writes work exactly as before until the
+   column lands; a splits WRITE before then answers 503 instead of
+   silently dropping a money setting. */
+let shopSplitsColKnown: boolean | null = null;
+async function shopProductsHasSplits(): Promise<boolean> {
+  if (shopSplitsColKnown !== null) return shopSplitsColKnown;
+  try {
+    /* Row-length form (see lib/sale-splits' probe note): COUNT over
+       information_schema.columns throws inside the pg-mem harness. */
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'shop_products' AND column_name = 'splits'
+      LIMIT 1
+    `);
+    shopSplitsColKnown = r.rows.length > 0;
+  } catch {
+    shopSplitsColKnown = false;
+  }
+  return shopSplitsColKnown;
+}
+
+/** Co-seller splits (#36) on product writes: validate the whole list
+ *  (sum-to-100 machine + owner share + co-seller resolution) and hand
+ *  back the JSON to store, or throw a tagged refusal the handler maps
+ *  to a status. Returns undefined when the write carries no splits. */
+async function prepareSplitsWrite(
+  ownerUserId: string,
+  input: unknown,
+): Promise<{ json: string | null } | { errorStatus: number; error: string; message: string } | undefined> {
+  if (input === undefined) return undefined;
+  if (!(await shopProductsHasSplits())) {
+    return {
+      errorStatus: 503,
+      error: "SPLITS_NOT_READY",
+      message: "Co-seller splits aren't switched on yet — save the product without splits for now; nothing was saved.",
+    };
+  }
+  try {
+    const valid = validateProductSplits(ownerUserId, input);
+    if (valid) await assertCoSellersResolvable(ownerUserId, valid);
+    return { json: valid ? JSON.stringify(valid) : null };
+  } catch (err) {
+    if (err instanceof SaleSplitError) {
+      return { errorStatus: 400, error: err.code, message: err.message };
+    }
+    throw err;
+  }
+}
+
 /* Mirror-on-save (2026-10-13 law): shop banners + product images are
    re-hosted into permanent storage at save time; presenters mint fresh
    signed URLs from the stored refs on every read. */
@@ -99,7 +157,16 @@ async function presentShopRow<T extends { banner_image_url: string | null }>(row
 
 async function presentShopProductRow<T extends { image_url: string | null; image_path: string | null }>(row: T): Promise<T> {
   const source = row.image_path ?? row.image_url;
-  return { ...row, image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url };
+  const presented: T & { splits?: ProductSplit[] | null } = {
+    ...row,
+    image_url: source ? await refreshSupabaseStorageUrl(source) : row.image_url,
+  };
+  /* Co-seller splits (#36): surfaces that select the column present
+     the normalized list (or null) — never a malformed stored value. */
+  if ("splits" in presented) {
+    presented.splits = normalizeSplits((presented as { splits?: unknown }).splits);
+  }
+  return presented;
 }
 
 /* ── Pinned UGC ads (migration 0178) ─────────────────────────────────────
@@ -215,6 +282,14 @@ const createProductSchema = z.object({
      rate by the platform. Enabling REQUIRES the rate (handler checks). */
   affiliate_enabled: z.boolean().optional().default(false),
   affiliate_commission_bps: z.number().int().min(1).max(10_000).nullable().optional(),
+  /* Co-seller revenue splits (Wave 4 #36): [{ userId, sharePct }]
+     summing to exactly 100, owner included — the sum/owner/resolution
+     rules run server-side in lib/sale-splits. */
+  splits: z
+    .array(z.object({ userId: z.string().uuid(), sharePct: z.number() }))
+    .max(20)
+    .nullable()
+    .optional(),
   /* #29: accessibility description of the product shot — creator-written
      or AI-suggested, editable before it ships. */
   image_alt_text: z.string().max(ALT_TEXT_MAX_CHARS).optional().default(""),
@@ -233,6 +308,13 @@ const updateProductSchema = z.object({
   /* Creator Product Affiliates (#16) — see createProductSchema. */
   affiliate_enabled: z.boolean().optional(),
   affiliate_commission_bps: z.number().int().min(1).max(10_000).nullable().optional(),
+  /* Co-seller revenue splits (#36) — see createProductSchema.
+     Absent = keep; null = clear the co-sellers. */
+  splits: z
+    .array(z.object({ userId: z.string().uuid(), sharePct: z.number() }))
+    .max(20)
+    .nullable()
+    .optional(),
 });
 
 const shopDescriptionSchema = z.object({
@@ -297,6 +379,9 @@ interface ProductRow {
       like status: buyer reads select explicit columns without them. */
   affiliate_enabled?: boolean;
   affiliate_commission_bps?: number | null;
+  /* Co-seller revenue splits (Wave 4 #36, migration 0235). Optional:
+     selects include the column only once the migration lands. */
+  splits?: ProductSplit[] | null;
   /* Order-bump attachment (feature #13, more-bumps lane). Optional:
      the columns arrive with the lane's reported migration (see
      .lane/MIGRATION-NEEDED.md); rows without them simply have no bump
@@ -690,7 +775,7 @@ router.get("/shops/handle/:handle", async (req, res) => {
      selected only to resolve the pin; it is stripped from the payload
      and replaced by the resolved `pinned_ad` video. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
+    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -751,7 +836,7 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
     return;
   }
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}, created_at, updated_at
     FROM shop_products
     WHERE shop_id = ${shop.id}
     ORDER BY created_at ASC
@@ -798,6 +883,12 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
     });
     return;
   }
+  /* Co-seller splits (#36): whole-list validation before the write. */
+  const splitsWrite = await prepareSplitsWrite(req.userId!, parsed.data.splits);
+  if (splitsWrite && "errorStatus" in splitsWrite) {
+    res.status(splitsWrite.errorStatus).json({ error: splitsWrite.error, message: splitsWrite.message });
+    return;
+  }
   const id = randomUUID();
   const storedImageUrl = parsed.data.image_url
     ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
@@ -805,14 +896,14 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
   const hasAlt = await shopProductsHasImageAlt();
   const imageAltText = sanitizeAltText(parsed.data.image_alt_text) || null;
   await db.execute(sql`
-    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps${hasAlt ? sql`, image_alt_text` : sql``})
+    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps${hasAlt ? sql`, image_alt_text` : sql``}${splitsWrite ? sql`, splits` : sql``})
     VALUES (${id}, ${shop.id}, ${req.userId!},
             ${parsed.data.name.trim()}, ${parsed.data.price_cents},
             ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null},
-            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null}${hasAlt ? sql`, ${imageAltText}` : sql``})
+            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null}${hasAlt ? sql`, ${imageAltText}` : sql``}${splitsWrite ? sql`, ${splitsWrite.json}::jsonb` : sql``})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
   const createdRow = (result.rows as unknown as ProductRow[])[0];
@@ -862,6 +953,13 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       return;
     }
   }
+  /* Co-seller splits (#36): absent = keep, null = clear, list =
+     replace — validated whole before the write. */
+  const splitsWrite = await prepareSplitsWrite(req.userId!, d.splits);
+  if (splitsWrite && "errorStatus" in splitsWrite) {
+    res.status(splitsWrite.errorStatus).json({ error: splitsWrite.error, message: splitsWrite.message });
+    return;
+  }
   const storedImageUrl = d.image_url
     ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
     : null;
@@ -879,12 +977,13 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       image_alt_text = CASE WHEN ${imageAltText} IS NULL THEN image_alt_text ELSE ${imageAltText} END,` : sql``}
       status = COALESCE(${d.status ?? null}, status),
       affiliate_enabled = COALESCE(${d.affiliate_enabled ?? null}, affiliate_enabled),
-      affiliate_commission_bps = COALESCE(${d.affiliate_commission_bps ?? null}, affiliate_commission_bps),
+      affiliate_commission_bps = COALESCE(${d.affiliate_commission_bps ?? null}, affiliate_commission_bps),${splitsWrite ? sql`
+      splits = ${splitsWrite.json}::jsonb,` : sql``}
       updated_at = NOW()
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
   const updatedRow = (result.rows as unknown as ProductRow[])[0];
@@ -1619,7 +1718,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
      stripped before the payload leaves, exactly as on the handle
      read; the minted video URL passes the deep refresh untouched. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps
+    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -2072,6 +2171,9 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
         eventType: "sale", paymentStatus: paidByGiftCard ? "gift_card" : "no_payment_required", paidNow: true,
         buyerEmail, groupId, discountCode: l.isBump ? null : discountCode,
       });
+      /* Co-seller splits (#36): this line recorded as a sale right
+         here, so its net divides right here (no-op without splits). */
+      await recordShopEventSplitsSafely(l.saleId);
       /* A $0 line owes a $0 commission — recordAffiliateSale's
          zero-commission guard returns without a row, honestly. */
       if (l.affiliateCode) {
@@ -2443,6 +2545,9 @@ router.post("/shops/:id/pos/checkout", publicApiLimiter, requireAuth, async (req
         INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code)
         VALUES (${l.saleId}, ${shop.id}, ${shop.user_id}, 'sale', ${l.productId}, ${l.gross}, ${l.fee}, ${buyerEmail || null}, 'no_payment_required', now(), ${l.quantity}, ${groupId}, ${null})
       `);
+      /* Co-seller splits (#36): recorded as a sale right here, so its
+         net divides right here (a $0 line divides nothing). */
+      await recordShopEventSplitsSafely(l.saleId);
     }
     res.status(201).json({
       saleId: lines[0]!.saleId, saleIds: lines.map((l) => l.saleId), groupId,

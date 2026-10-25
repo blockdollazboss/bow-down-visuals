@@ -15,6 +15,7 @@ import {
   createPayoutTransfer,
   getUserEmail,
 } from "../lib/stripe-connect";
+import { saleSplitAdjustments } from "../lib/sale-splits";
 
 const router = Router();
 
@@ -110,7 +111,25 @@ export async function pendingPayoutCents(profileId: string): Promise<number> {
       AS available
   `);
   const row = r.rows[0] as Record<string, unknown> | undefined;
-  return Math.max(0, Number(row?.["available"] ?? 0));
+  const base = Number(row?.["available"] ?? 0);
+  /* Co-seller splits (Wave 4 #36): the bulk ledgers above carry the
+     FULL seller net of this creator's sales, including co-sellers'
+     shares — those come out here — and this creator's own co-seller
+     shares on other creators' products (invisible to the ledgers
+     above) come in. Split entries settle in the same bulk discipline
+     as digital_sales / store_orders: the creator_payouts subtraction
+     above already settles them, so no per-row stamps exist. A sale
+     refunded after a payout flips its entries 'reversed', which drops
+     them from both adjustments and the creator's future availability
+     absorbs it — the same posture as the bulk ledgers themselves.
+     Pre-migration the adjustments are 0 and this is the old number. */
+  const userRow = await db.execute(sql`
+    SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+  `);
+  const userId = (userRow.rows[0] as Record<string, unknown> | undefined)?.["user_id"];
+  if (!userId) return Math.max(0, base);
+  const splits = await saleSplitAdjustments(String(userId));
+  return Math.max(0, base - splits.subtractCents + splits.addCents);
 }
 
 /* Stamp the extension-ledger rows a new payout covers (0142). Runs

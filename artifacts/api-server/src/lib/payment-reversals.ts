@@ -58,6 +58,7 @@ import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { isUniqueViolation } from "./pg-errors";
 import { revokeLicenseKeysForSales } from "./license-keys";
+import { reverseSplitEntriesForSession } from "./sale-splits";
 
 /* ── Shapes ──────────────────────────────────────────────────────────── */
 
@@ -636,6 +637,16 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
         WHERE stripe_session_id = ${sid} AND event_type IN ('sale', 'pending_sale')
         RETURNING id
       `);
+      /* Co-seller splits (Wave 4 #36): the split entries on these
+         lines flip with them — BOTH sellers lose the sale in the same
+         pass, symmetrically, exactly once (status-guarded). Guarded:
+         split unwinding is additive and must never fail the reversal
+         itself (e.g. on a database the 0235 migration hasn't reached). */
+      try {
+        await reverseSplitEntriesForSession("shop_event", sid);
+      } catch (err) {
+        logger.error({ err, sid }, "[reversals] split-entry reversal failed (sale reversal stands)");
+      }
       /* Analytics, earnings and payout sums read event_type='sale'. */
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
     }
@@ -650,6 +661,16 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
         WHERE order_id IN (SELECT id FROM store_orders WHERE stripe_session_id = ${sid})
           AND expires_at > now()
       `);
+      /* Co-seller splits (Wave 4 #36): the split entries on this order
+         flip with it — BOTH sellers lose the sale in the same pass,
+         symmetrically, exactly once (status-guarded). Guarded like
+         the shop rail: the flip is additive and must never fail the
+         reversal itself. */
+      try {
+        await reverseSplitEntriesForSession("store_order", sid);
+      } catch (err) {
+        logger.error({ err, sid }, "[reversals] split-entry reversal failed (order reversal stands)");
+      }
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
     }
     case "live_shop_sale": {
