@@ -10,6 +10,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import PosMode from "@/components/PosMode";
+import CommercePixelsSettings, {
+  pixelsToForm,
+  type CommercePixelsFormValue,
+} from "@/components/CommercePixelsSettings";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import { useTranslation } from "react-i18next";
@@ -38,6 +42,13 @@ interface Shop {
   banner_image_url: string | null;
   custom_domain: string | null;
   domain_verified: boolean;
+  /* Commerce tracking pixels (wave-4 #41, migration 0240): the owner's
+     own ad-platform IDs — raw columns on owner reads, plus the
+     sanitized object the settings form seeds from. */
+  meta_pixel_id?: string | null;
+  tiktok_pixel_id?: string | null;
+  google_tag_id?: string | null;
+  pixels?: { metaPixelId: string | null; tiktokPixelId: string | null; googleTagId: string | null };
   product_count?: number;
 }
 
@@ -268,6 +279,24 @@ export default function MyShop() {
     } finally {
       setSaving(false);
     }
+  }
+
+  /* Commerce pixels (wave-4 #41): a pixel-only PATCH — the shops rail
+     validates shapes and refuses bent IDs before writing anything. */
+  async function saveShopPixels(value: CommercePixelsFormValue) {
+    if (!activeShop) return;
+    const res = await authed(`/api/shops/${activeShop.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        meta_pixel_id: value.metaPixelId,
+        tiktok_pixel_id: value.tiktokPixelId,
+        google_tag_id: value.googleTagId,
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string; message?: string };
+    if (!res.ok || !data.shop) throw new Error(data.error || data.message || t("commercePixels.saveFailed"));
+    setActiveShop(data.shop);
+    setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
   }
 
   async function deleteShop() {
@@ -718,6 +747,24 @@ export default function MyShop() {
                   </div>
 
                   <DomainManager shop={activeShop} authed={authed} onUpdate={setActiveShop} />
+                </section>
+
+                {/* Commerce tracking pixels (wave-4 #41) — docked in the
+                    shop settings (MONEY workflow): the owner's own
+                    Meta/TikTok/Google IDs for this shop. */}
+                <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                  <CommercePixelsSettings
+                    key={activeShop.id}
+                    testIdPrefix="myshop-pixels"
+                    initial={pixelsToForm(
+                      activeShop.pixels ?? {
+                        metaPixelId: activeShop.meta_pixel_id ?? null,
+                        tiktokPixelId: activeShop.tiktok_pixel_id ?? null,
+                        googleTagId: activeShop.google_tag_id ?? null,
+                      },
+                    )}
+                    onSave={saveShopPixels}
+                  />
                 </section>
 
                 {/* Sell in person (POS mode) — QR / payment-link till +

@@ -39,6 +39,21 @@
     "signInButton": "Accedi",
     "signUpFree": "Registrati gratis"
   },
+  "commercePixels": {
+    "title": "Pixel di tracciamento",
+    "blurb": "I tuoi ID delle piattaforme pubblicitarie per questo negozio. Quando un fan visita il tuo negozio o acquista, la visita e l'acquisto vengono segnalati ai TUOI account pubblicitari — così le tue inserzioni imparano chi compra. Si attivano solo gli ID che inserisci qui; Bow Down Visuals non ne aggiunge di propri.",
+    "metaLabel": "ID pixel Meta",
+    "tiktokLabel": "ID pixel TikTok",
+    "googleLabel": "ID tag Google",
+    "save": "Salva pixel",
+    "saved": "Salvato",
+    "saveFailed": "Impossibile salvare i tuoi pixel — riprova.",
+    "invalidId": "Quel {{field}} non sembra corretto — ricontrollalo.",
+    "blankNote": "Lascia un campo vuoto per spegnere quel pixel. Tutto vuoto = non si attiva nulla.",
+    "loading": "Caricamento delle impostazioni pixel…",
+    "notReady": "I pixel di tracciamento non sono ancora attivi in questa installazione — non è stato salvato nulla.",
+    "loadFailed": "Impossibile caricare le impostazioni pixel — ricarica per riprovare."
+  },
   "common": {
     "back": "Indietro",
     "beta": "Beta",

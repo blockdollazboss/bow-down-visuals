@@ -39,6 +39,21 @@
     "signInButton": "Iniciar Sesión",
     "signUpFree": "Regístrate gratis"
   },
+  "commercePixels": {
+    "title": "Píxeles de seguimiento",
+    "blurb": "Tus propios ID de plataformas publicitarias para esta tienda. Cuando un fan visita tu tienda o compra, la visita y la compra se informan a TUS cuentas publicitarias, para que tus anuncios aprendan quién compra. Solo se activan los ID que escribas aquí; Bow Down Visuals no añade ninguno propio.",
+    "metaLabel": "ID de píxel de Meta",
+    "tiktokLabel": "ID de píxel de TikTok",
+    "googleLabel": "ID de etiqueta de Google",
+    "save": "Guardar píxeles",
+    "saved": "Guardado",
+    "saveFailed": "No se pudieron guardar tus píxeles. Inténtalo de nuevo.",
+    "invalidId": "Ese {{field}} no parece correcto. Revísalo.",
+    "blankNote": "Deja un campo en blanco para desactivar ese píxel. Todo en blanco = no se activa nada.",
+    "loading": "Cargando tu configuración de píxeles…",
+    "notReady": "Los píxeles de seguimiento aún no están activados en esta instalación. No se guardó nada.",
+    "loadFailed": "No se pudo cargar tu configuración de píxeles. Actualiza la página para intentarlo de nuevo."
+  },
   "common": {
     "back": "Atrás",
     "beta": "Beta",

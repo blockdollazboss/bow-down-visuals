@@ -39,6 +39,21 @@
     "signInButton": "Anmelden",
     "signUpFree": "Kostenlos registrieren"
   },
+  "commercePixels": {
+    "title": "Tracking-Pixel",
+    "blurb": "Deine eigenen Werbeplattform-IDs für diesen Shop. Wenn ein Fan deinen Shop ansieht oder kauft, werden Ansicht und Kauf an DEINE Werbekonten gemeldet — so lernen deine Anzeigen, wer kauft. Nur IDs, die du hier eingibst, feuern jemals; Bow Down Visuals fügt keine eigenen hinzu.",
+    "metaLabel": "Meta-Pixel-ID",
+    "tiktokLabel": "TikTok-Pixel-ID",
+    "googleLabel": "Google-Tag-ID",
+    "save": "Pixel speichern",
+    "saved": "Gespeichert",
+    "saveFailed": "Deine Pixel konnten nicht gespeichert werden — versuch es erneut.",
+    "invalidId": "Diese {{field}} sieht nicht richtig aus — bitte prüfen.",
+    "blankNote": "Lass ein Feld leer, um diesen Pixel abzuschalten. Alles leer = nichts feuert.",
+    "loading": "Deine Pixel-Einstellungen werden geladen…",
+    "notReady": "Tracking-Pixel sind in dieser Installation noch nicht aktiviert — es wurde nichts gespeichert.",
+    "loadFailed": "Deine Pixel-Einstellungen konnten nicht geladen werden — lade die Seite neu."
+  },
   "common": {
     "back": "Zurück",
     "beta": "Beta",

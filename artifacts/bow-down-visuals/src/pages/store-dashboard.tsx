@@ -21,12 +21,18 @@ import {
   previewShopifyImport, commitShopifyImport, downloadShopifyExport,
   scheduleProductDrop, cancelProductDrop, getProductDrop,
   KIND_LABELS, KIND_EMOJI, dollarsToCents, usd,
+  getStorefrontPixels, saveStorefrontPixels,
   type StoreProductDTO, type StoreOrderDTO, type DiscountCodeDTO,
   type MoneyChecklist, type CreateProductInput, type StoreProductKind,
   type ShopifyImportResultDTO, type ShopifyExportKind,
 } from "@/lib/storefront-api";
 import { formatDropLocal } from "@/lib/product-drop";
 import SplitsEditor from "@/components/splits/SplitsEditor";
+import CommercePixelsSettings, {
+  pixelsToForm,
+  type CommercePixelsFormValue,
+} from "@/components/CommercePixelsSettings";
+import { useTranslation } from "react-i18next";
 import {
   draftsFromPresented, splitsPayload, validateSplitsDraft,
   type SplitCoSellerDraft, type SplitsDraftError,
@@ -1810,6 +1816,62 @@ function DiscountsTab() {
 }
 
 /* ── Page ────────────────────────────────────────────────────────────── */
+/* ── Commerce tracking pixels card (wave-4 #41) ──────────────────────
+   The storefront's own Meta/TikTok/Google IDs, docked in the Store
+   Dashboard overview (MONEY workflow) — the same fields the release
+   rail carries per release. Loads the owner's current IDs; a
+   pre-migration install answers ready=false and the card says so
+   honestly instead of faking a save. */
+function StorefrontPixelsCard() {
+  const { t } = useTranslation();
+  const getToken = useToken();
+  const [state, setState] = useState<
+    | { phase: "loading" }
+    | { phase: "not-ready" }
+    | { phase: "error" }
+    | { phase: "ready"; initial: CommercePixelsFormValue }
+  >({ phase: "loading" });
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const token = await getToken();
+        const dto = await getStorefrontPixels(token);
+        if (!alive) return;
+        setState(dto.ready ? { phase: "ready", initial: pixelsToForm(dto.pixels) } : { phase: "not-ready" });
+      } catch {
+        if (alive) setState({ phase: "error" });
+      }
+    })();
+    return () => { alive = false; };
+  }, [getToken]);
+
+  async function save(value: CommercePixelsFormValue) {
+    const token = await getToken();
+    await saveStorefrontPixels(token, value);
+  }
+
+  return (
+    <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      {state.phase === "ready" ? (
+        <CommercePixelsSettings initial={state.initial} onSave={save} testIdPrefix="storefront-pixels" />
+      ) : (
+        <>
+          <h3 className="text-sm font-black uppercase tracking-wider text-white/70">{t("commercePixels.title")}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-white/50">
+            {state.phase === "loading"
+              ? t("commercePixels.loading")
+              : state.phase === "not-ready"
+                ? t("commercePixels.notReady")
+                : t("commercePixels.loadFailed")}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function StoreDashboard() {
   usePageTitle("Store Dashboard — Get Paid", "Your store earnings, orders, products, and discount codes. The Get Paid finale.");
   const isLight = useIsLightTheme();
@@ -2013,6 +2075,7 @@ export default function StoreDashboard() {
               </Link>
             </div>
           )}
+          {tab === "overview" && <StorefrontPixelsCard />}
           {tab === "products" && <ProductsTab slug={slug} onChanged={load} />}
           {tab === "products" && <CourseBuilderPanel />}
           {tab === "products" && (

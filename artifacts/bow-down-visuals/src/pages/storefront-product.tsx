@@ -8,6 +8,7 @@ import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
 import WishlistButton from "@/components/wishlist/WishlistButton";
 import { dropCountdown, formatDropLocal, pad2 } from "@/lib/product-drop";
+import { fireCommercePageView, type CommercePixels } from "@/lib/commerce-pixels";
 import type { ProductDropDTO } from "@/lib/storefront-api";
 import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert } from "@/lib/storefront-api";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -429,12 +430,15 @@ export default function StorefrontProduct() {
     (async () => {
       try {
         const res = await fetch(`/api/storefront/product/${params.id}`);
-        const body = (await res.json().catch(() => ({}))) as ProductData & { error?: string };
+        const body = (await res.json().catch(() => ({}))) as ProductData & { error?: string; pixels?: CommercePixels };
         if (!alive) return;
         if (!res.ok) {
           setError(body.error || "Couldn't load this product.");
           return;
         }
+        /* Commerce pixels (wave-4 #41): the seller's own IDs from the
+           payload fire the view event; none configured → nothing. */
+        fireCommercePageView(body.pixels);
         setData(body);
       } catch {
         if (alive) setError("Couldn't load this product. Check your connection.");
