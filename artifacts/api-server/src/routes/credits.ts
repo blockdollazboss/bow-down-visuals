@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { getPaymentHistory, getCreditUsage } from "../lib/payment-record";
 import { getSupabaseAdmin, addCreditsAtomic } from "../lib/supabase-admin";
+import { recordGrantLedger, TRIAL_GRANT_CREDITS } from "../lib/grant-ledger";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -53,7 +54,7 @@ router.get("/credits/history", requireAuth, async (req, res) => {
    database from Supabase, so any ALTER executed here could never create
    the column where it is actually read. A previous ensureTrialColumn()
    did exactly that — DDL against the wrong database — and was removed. */
-const TRIAL_CREDITS = 1000;
+const TRIAL_CREDITS = TRIAL_GRANT_CREDITS;
 
 /** PostgREST code for "column does not exist" — the 0055 migration was never run. */
 const PG_UNDEFINED_COLUMN = "42703";
@@ -114,6 +115,25 @@ router.post("/credits/claim-trial", requireAuth, async (req, res) => {
         }
         throw new Error(`Failed to create profile: ${insertError.message}`);
       }
+      /* Strict ledger row (board item 58, referral pattern): the grant
+         must appear on /credit-history, which reads credit_usage — a
+         bare profiles insert is invisible there. On ledger failure,
+         claw the credits back and release the claim flag so the user
+         can retry cleanly instead of holding invisible money. */
+      try {
+        await recordGrantLedger("trial", userId);
+      } catch (ledgerErr) {
+        await addCreditsAtomic(userId, -TRIAL_CREDITS).catch(() => {});
+        await supabase
+          .from("profiles")
+          .update({ trial_credits_claimed: false })
+          .eq("id", userId)
+          .then(
+            () => {},
+            () => {},
+          );
+        throw ledgerErr;
+      }
     } else {
       /* Claim the flag FIRST with a compare-and-swap (only rows still
          unclaimed match), then grant. The old order — grant, then set the
@@ -138,9 +158,18 @@ router.post("/credits/claim-trial", requireAuth, async (req, res) => {
         res.json({ granted: false, reason: "already_claimed" });
         return;
       }
+      let granted = false;
       try {
         await addCreditsAtomic(userId, TRIAL_CREDITS);
+        granted = true;
+        /* Strict ledger row (board item 58, referral pattern): if this
+           throws, the grant above is clawed back and the claim flag is
+           released below, so a retry starts from a clean state. */
+        await recordGrantLedger("trial", userId);
       } catch (grantErr) {
+        if (granted) {
+          await addCreditsAtomic(userId, -TRIAL_CREDITS).catch(() => {});
+        }
         // Best-effort rollback so the user can retry the claim.
         await supabase
           .from("profiles")
