@@ -9,6 +9,7 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { isMissingSchemaError } from "../lib/pg-errors";
 
 /* ── Discord Live integration (v1) ─────────────────────────────────────────
    The user streams on Discord via Go Live — it's their community hub. This
@@ -127,6 +128,16 @@ router.get("/discord/status", requireAuth, async (req: Request, res: Response) =
       crypto_ready: isSocialTokenKeyConfigured(),
     });
   } catch (err) {
+    /* discord_webhooks is created only by baseline migration 0008 (see
+       migration 0241): where it never landed, the honest answer is the
+       not-ready state, not a 500 error card. */
+    if (isMissingSchemaError(err)) {
+      res.status(503).json({
+        error: "discord_not_ready",
+        message: "Discord announcements aren't switched on for this server yet.",
+      });
+      return;
+    }
     logger.error({ err }, "[discord] status failed");
     res.status(500).json({ error: "Could not read Discord settings." });
   }

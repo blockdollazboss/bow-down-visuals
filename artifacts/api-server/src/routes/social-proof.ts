@@ -27,6 +27,7 @@ import {
   type ProofOverviewFetcher,
 } from "../lib/social-proof";
 import { logger } from "../lib/logger";
+import { isMissingSchemaError } from "../lib/pg-errors";
 
 const router = Router();
 
@@ -59,6 +60,18 @@ router.get("/social-proof/me", requireAuth, async (req: Request, res: Response) 
     }
     res.json(state);
   } catch (err) {
+    /* The owner state reads creator_profiles + creator_social_proof +
+       social_accounts in parallel, so ONE missing table (social_accounts
+       is a baseline-migration table — see migration 0241) killed the
+       whole card even for users with no profile. Missing schema is the
+       honest not-ready state, not a 500 error card. */
+    if (isMissingSchemaError(err)) {
+      res.status(503).json({
+        error: "social_proof_not_ready",
+        message: "Social proof isn't switched on for this server yet.",
+      });
+      return;
+    }
     req.log.error({ err }, "social-proof/me error");
     res.status(500).json({ error: "Your social proof wouldn't load. Give it another shot." });
   }
