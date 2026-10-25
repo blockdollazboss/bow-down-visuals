@@ -674,6 +674,7 @@
     "creatorAcademy": "क्रिएटर अकादमी",
     "copyright": "कॉपीराइट",
     "llcGuide": "LLC गाइड",
+    "contracts": "कॉन्ट्रैक्ट",
     "tools": "टूल्स",
     "chromeExtension": "Chrome एक्सटेंशन",
     "getTheApp": "ऐप पाएं",
@@ -12763,7 +12764,7 @@
     "fontDisplay": "डिस्प्ले",
     "exportBtn": "एक्सपोर्ट {count} VB",
     "exporting": "एक्सपोर्ट हो रहा है…",
-    "exportDone": "{count} स्लाइड एक्सपोर्ट हुईं — Thy Vision में सेव हुईं",
+    "exportDone": "{count} स्लाइड एक्सपोर्ट हुईं — मेरे प्रोजेक्ट में सेव हुईं",
     "exportFailed": "एक्सपोर्ट विफल रहा",
     "scheduleBtn": "इस कैरोसेल को शेड्यूल करें",
     "defaultCaption": "नया कैरोसेल — Bow Down Visuals के साथ बनाया गया",
@@ -14683,7 +14684,7 @@
     "heading": "तिजोरी में खो गए?",
     "description": "यह पृष्ठ नक्शे से बाहर निकल गया। लेकिन ताज अभी भी यहीं है — स्टूडियो पर लौटते हैं।",
     "backToHome": "होम पर वापस",
-    "myProjects": "Thy Vision"
+    "myProjects": "मेरे प्रोजेक्ट"
   },
   "nfcCardProfile": {
     "shareTitle": "डिजिटल बिज़नेस कार्ड",

@@ -674,6 +674,7 @@
     "creatorAcademy": "크리에이터 아카데미",
     "copyright": "저작권",
     "llcGuide": "LLC 가이드",
+    "contracts": "계약",
     "tools": "도구",
     "chromeExtension": "Chrome 확장 프로그램",
     "getTheApp": "앱 받기",
@@ -12982,7 +12983,7 @@
     "fontDisplay": "디스플레이",
     "exportBtn": "내보내기 {count} VB",
     "exporting": "내보내는 중…",
-    "exportDone": "슬라이드 {count}개 내보냄 — Thy Vision에 저장됨",
+    "exportDone": "슬라이드 {count}개 내보냄 — 내 프로젝트에 저장됨",
     "exportFailed": "내보내기 실패",
     "scheduleBtn": "이 캐러셀 예약하기",
     "defaultCaption": "새 캐러셀 — Bow Down Visuals로 제작",
@@ -14437,7 +14438,7 @@
     "heading": "볼트에서 길을 잃었나요?",
     "description": "이 페이지는 지도에서 벗어났습니다. 하지만 왕관은 여전히 여기 있습니다 — 스튜디오로 돌아가세요.",
     "backToHome": "홈으로 돌아가기",
-    "myProjects": "Thy Vision"
+    "myProjects": "내 프로젝트"
   },
   "nfcCardProfile": {
     "shareTitle": "디지털 명함",

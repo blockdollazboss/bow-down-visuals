@@ -674,6 +674,7 @@
     "creatorAcademy": "Academia del Creador",
     "copyright": "Derechos de Autor",
     "llcGuide": "Guía LLC",
+    "contracts": "Contratos",
     "tools": "Herramientas",
     "chromeExtension": "Extensión de Chrome",
     "getTheApp": "Obtén la app",
@@ -10524,7 +10525,7 @@
     "heading": "¿Perdido en la bóveda?",
     "description": "Esta página se salió del mapa. Pero la corona sigue aquí — volvamos al estudio.",
     "backToHome": "Volver al inicio",
-    "myProjects": "Thy Vision"
+    "myProjects": "Mis Proyectos"
   },
   "nfcCardProfile": {
     "shareTitle": "Tarjeta de visita digital",
@@ -13552,7 +13553,7 @@
     "fontDisplay": "Display",
     "exportBtn": "Exportar {count} VB",
     "exporting": "Exportando…",
-    "exportDone": "{count} diapositivas exportadas — guardadas en Thy Vision",
+    "exportDone": "{count} diapositivas exportadas — guardadas en Mis Proyectos",
     "exportFailed": "La exportación falló",
     "scheduleBtn": "Programar este carrusel",
     "defaultCaption": "Nuevo carrusel — hecho con Bow Down Visuals",

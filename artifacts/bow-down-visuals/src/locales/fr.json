@@ -674,6 +674,7 @@
     "creatorAcademy": "Académie des Créateurs",
     "copyright": "Droits d'auteur",
     "llcGuide": "Guide LLC",
+    "contracts": "Contrats",
     "tools": "Outils",
     "chromeExtension": "Extension Chrome",
     "getTheApp": "Obtenir l'app",
@@ -10816,7 +10817,7 @@
     "heading": "Perdu dans le coffre ?",
     "description": "Cette page est sortie de la carte. Mais la couronne est toujours là — retour au studio.",
     "backToHome": "Retour à l'accueil",
-    "myProjects": "My Projects"
+    "myProjects": "Mes Projets"
   },
   "nfcCardProfile": {
     "shareTitle": "Carte de visite digitale",
@@ -12221,7 +12222,7 @@
     "fontDisplay": "Display",
     "exportBtn": "Exporter {count} VB",
     "exporting": "Export…",
-    "exportDone": "{count} diapositives exportées — enregistrées dans Thy Vision",
+    "exportDone": "{count} diapositives exportées — enregistrées dans Mes Projets",
     "exportFailed": "Échec de l'export",
     "scheduleBtn": "Programmer ce carrousel",
     "defaultCaption": "Nouveau carrousel — créé avec Bow Down Visuals",

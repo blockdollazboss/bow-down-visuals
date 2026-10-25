@@ -674,6 +674,7 @@
     "creatorAcademy": "Creator Academy",
     "copyright": "Urheberrecht",
     "llcGuide": "LLC-Guide",
+    "contracts": "Verträge",
     "tools": "Tools",
     "chromeExtension": "Chrome-Erweiterung",
     "getTheApp": "App holen",
@@ -10501,7 +10502,7 @@
     "heading": "Im Vault verloren?",
     "description": "Diese Seite ist von der Karte abgetrieben. Die Krone ist aber noch da — bringen wir dich zurück ins Studio.",
     "backToHome": "Zurück zur Startseite",
-    "myProjects": "Thy Vision"
+    "myProjects": "Meine Projekte"
   },
   "nfcCardProfile": {
     "shareTitle": "Digitale Visitenkarte",
@@ -13434,7 +13435,7 @@
     "deleteSlide": "Diese Slide löschen",
     "editSlide": "Slide {n} von {total}",
     "exportBtn": "Export {count} VB",
-    "exportDone": "{count} Slides exportiert — in Thy Vision gespeichert",
+    "exportDone": "{count} Slides exportiert — in Meine Projekte gespeichert",
     "exportFailed": "Export fehlgeschlagen",
     "exporting": "Wird exportiert…",
     "fillHint": "Schreibe mindestens eine Slide zum Exportieren",

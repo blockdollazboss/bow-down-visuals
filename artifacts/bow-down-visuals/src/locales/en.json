@@ -674,6 +674,7 @@
     "creatorAcademy": "Creator Academy",
     "copyright": "Copyright",
     "llcGuide": "LLC Guide",
+    "contracts": "Contracts",
     "tools": "Tools",
     "chromeExtension": "Chrome Extension",
     "getTheApp": "Get the App",
@@ -10998,7 +10999,7 @@
     "heading": "Lost in the vault?",
     "description": "This page drifted off the map. The crown's still here, though — let's get you back to the studio.",
     "backToHome": "Back to Home",
-    "myProjects": "Thy Vision"
+    "myProjects": "My Projects"
   },
   "nfcCardProfile": {
     "shareTitle": "Digital business card",
@@ -12876,7 +12877,7 @@
     "fontDisplay": "Display",
     "exportBtn": "Export {count} VB",
     "exporting": "Exporting…",
-    "exportDone": "{count} slides exported — saved to Thy Vision",
+    "exportDone": "{count} slides exported — saved to My Projects",
     "exportFailed": "Export failed",
     "scheduleBtn": "Schedule this carousel",
     "defaultCaption": "New carousel — made with Bow Down Visuals",

@@ -420,7 +420,6 @@ const W6_ALLOW = new Set([
   "nav.contentCalendar",
   "nav.credits",
   "nav.videoEditor",
-  "notFound.myProjects",
   "outreach.audiencePlaceholder",
   "outreach.brandNamePlaceholder",
   "outreach.contactPlaceholder",

@@ -89,6 +89,7 @@ import {
   Nfc,
   Copyright,
   Scale,
+  FileText,
   UsersRound,
   Maximize,
   Eraser,
@@ -195,6 +196,13 @@ interface NavLink {
   adminOnly?: boolean;
   tour?: string;
   badge?: string;
+  /* Extra words the sidebar search matches beyond the rendered label
+     (findability closure, Stack-200 lane 1): the label alone can't
+     cover every word a user types — "stream" for Go Live, "logo" for
+     Branding Kit — and in a non-English locale the rendered label
+     won't contain the English alias at all. Aliases are English,
+     lowercase, and matched case-insensitively like the label. */
+  searchTerms?: string;
 }
 
 interface NavSection {
@@ -222,33 +230,33 @@ const SECTIONS: NavSection[] = [
        Get Paid. My Projects / Vault / Library moved out of Create. */
     titleKey: "nav.myStudio",
     links: [
-      { href: "/", labelKey: "nav.home", icon: Home },
-      { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
-      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen },
-      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck },
-      { href: "/library", labelKey: "nav.library", icon: Library },
-      { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW" },
-      { href: "/app", labelKey: "nav.getTheApp", icon: Smartphone },
+      { href: "/", labelKey: "nav.home", icon: Home, searchTerms: "home start landing" },
+      { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, searchTerms: "dashboard home overview quests" },
+      { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen, searchTerms: "projects my projects work" },
+      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck, searchTerms: "vault files safe storage" },
+      { href: "/library", labelKey: "nav.library", icon: Library, searchTerms: "library saved media uploads" },
+      { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW", searchTerms: "chrome extension browser" },
+      { href: "/app", labelKey: "nav.getTheApp", icon: Smartphone, searchTerms: "app mobile android download phone" },
     ],
   },
   {
     titleKey: "nav.create",
     links: [
-      { href: "/create", labelKey: "nav.create", icon: Layers },
+      { href: "/create", labelKey: "nav.create", icon: Layers, searchTerms: "create make build studio hub" },
       /* The two headline creation verbs get their own front doors
          (findability fix, 2026-10-18) — they used to sit 2–3 layers
          deep inside the hub and the Audio Studio tab strip. */
-      { href: "/create?panel=song", labelKey: "nav.makeSong", icon: Music2 },
-      { href: "/audio-studio?tab=aiaudio&sub=beats", labelKey: "nav.beatMaker", icon: Drum },
+      { href: "/create?panel=song", labelKey: "nav.makeSong", icon: Music2, searchTerms: "song make song music track sing" },
+      { href: "/audio-studio?tab=aiaudio&sub=beats", labelKey: "nav.beatMaker", icon: Drum, searchTerms: "beat beats beat maker instrumental drums" },
       /* The beat shelf gets its own front door with the shell wrap
          (2026-10-18): creators pick beats for their songs here; the
          page used to render outside the sidebar shell entirely. */
-      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3 },
-      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard },
-      { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform },
-      { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb },
-      { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles },
-      { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen },
+      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3, searchTerms: "beats marketplace buy beats instrumental" },
+      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard, searchTerms: "video editor visual vibes edit clips" },
+      { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform, searchTerms: "audio studio music sound voice podcast mastering" },
+      { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb, searchTerms: "hook hooks studio ideas titles scripts" },
+      { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles, searchTerms: "thumbnail thumbnails studio click image" },
+      { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen, searchTerms: "books book ebook read" },
     ],
   },
   {
@@ -256,22 +264,22 @@ const SECTIONS: NavSection[] = [
        de-hosted Storefronts and My Shop out of the Coach into here. */
     titleKey: "nav.branding",
     links: [
-      { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown },
-      { href: "/storefronts", labelKey: "nav.storefronts", icon: Store },
-      { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag },
-      { href: "/nfc-cards", labelKey: "nav.nfcCards", icon: Nfc },
+      { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown, searchTerms: "brand branding kit logo identity" },
+      { href: "/storefronts", labelKey: "nav.storefronts", icon: Store, searchTerms: "store storefront shop sell" },
+      { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag, searchTerms: "shop store my shop sell products" },
+      { href: "/nfc-cards", labelKey: "nav.nfcCards", icon: Nfc, searchTerms: "nfc cards business card tap" },
     ],
   },
   {
     titleKey: "nav.promote",
     links: [
-      { href: "/promote", labelKey: "nav.promote", icon: Megaphone },
-      { href: "/referrals", labelKey: "nav.referrals", icon: Gift },
-      { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock },
-      { href: "/go-live", labelKey: "nav.goLive", icon: Radio },
-      { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart },
-      { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper },
-      { href: "/email-list", labelKey: "nav.emailList", icon: Mail },
+      { href: "/promote", labelKey: "nav.promote", icon: Megaphone, searchTerms: "promote promotion marketing grow audience" },
+      { href: "/referrals", labelKey: "nav.referrals", icon: Gift, searchTerms: "referrals invite earn friends" },
+      { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock, searchTerms: "scheduler schedule calendar posts" },
+      { href: "/go-live", labelKey: "nav.goLive", icon: Radio, searchTerms: "live stream streaming broadcast go live" },
+      { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart, searchTerms: "live shopping shop live sell stream" },
+      { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper, searchTerms: "press kit media kit epk bio" },
+      { href: "/email-list", labelKey: "nav.emailList", icon: Mail, searchTerms: "email list subscribers newsletter audience" },
     ],
   },
   {
@@ -280,54 +288,64 @@ const SECTIONS: NavSection[] = [
        the creator timeline); Thy Cheat Code is every member's first friend. */
     titleKey: "nav.social",
     links: [
-      { href: "/home", labelKey: "nav.feed", icon: Newspaper },
-      { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard },
-      { href: "/explore", labelKey: "nav.explore", icon: Compass },
-      { href: "/groups", labelKey: "nav.groups", icon: Users },
-      { href: "/community", labelKey: "nav.community", icon: MessageSquareReply },
-      { href: "/events", labelKey: "nav.events", icon: CalendarDays },
-      { href: "/messages", labelKey: "nav.messages", icon: MessageCircle },
-      { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound },
-      { href: "/contests", labelKey: "nav.contests", icon: Trophy },
+      { href: "/home", labelKey: "nav.feed", icon: Newspaper, searchTerms: "feed timeline posts social" },
+      { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard, searchTerms: "shorts short video reels clips" },
+      { href: "/explore", labelKey: "nav.explore", icon: Compass, searchTerms: "explore discover search browse" },
+      { href: "/groups", labelKey: "nav.groups", icon: Users, searchTerms: "groups community fans" },
+      { href: "/community", labelKey: "nav.community", icon: MessageSquareReply, searchTerms: "community manager comments superfans replies" },
+      { href: "/events", labelKey: "nav.events", icon: CalendarDays, searchTerms: "events shows calendar" },
+      { href: "/messages", labelKey: "nav.messages", icon: MessageCircle, searchTerms: "messages chat dm inbox" },
+      { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound, searchTerms: "collabs collaborations features partners" },
+      { href: "/contests", labelKey: "nav.contests", icon: Trophy, searchTerms: "contests competitions win prizes" },
       /* Fan Shoutouts joins Social with the shell wrap (2026-10-18) —
          the marketplace page used to render outside the shell and had
          no sidebar door at all. */
-      { href: "/shoutouts", labelKey: "nav.fanShoutouts", icon: Megaphone },
-      { href: "/arcade", labelKey: "nav.arcade", icon: Gamepad2, badge: "NEW" },
-      { href: "/party", labelKey: "nav.partyGames", icon: Swords, badge: "NEW" },
+      { href: "/shoutouts", labelKey: "nav.fanShoutouts", icon: Megaphone, searchTerms: "shoutouts fan shoutouts fans requests" },
+      { href: "/arcade", labelKey: "nav.arcade", icon: Gamepad2, badge: "NEW", searchTerms: "arcade games play" },
+      { href: "/party", labelKey: "nav.partyGames", icon: Swords, badge: "NEW", searchTerms: "party games play friends" },
       /* Quests live on the dashboard surface — this is their front door
          (findability fix, 2026-10-18); the World Quest Board is the other. */
-      { href: "/dashboard#quests", labelKey: "nav.quests", icon: ClipboardCheck },
-      { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown },
+      { href: "/dashboard#quests", labelKey: "nav.quests", icon: ClipboardCheck, searchTerms: "quests missions rewards tasks earn" },
+      { href: "/winners", labelKey: "nav.winnersCircle", icon: Crown, searchTerms: "winners circle leaderboard champions" },
     ],
   },
   {
     titleKey: "nav.getPaid",
     links: [
-      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign },
+      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign, searchTerms: "coach monetization money earn revenue" },
       /* The money-ops cluster gets real doors (findability fix,
          2026-10-18): Earnings had NO website link anywhere; Memberships
          and Tips were footer-only; Team hid inside the Coach. */
-      { href: "/earnings", labelKey: "nav.earnings", icon: Wallet },
-      { href: "/memberships", labelKey: "nav.memberships", icon: Ticket },
-      { href: "/team", labelKey: "nav.team", icon: Users },
-      { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake },
-      { href: "/brand-deals", labelKey: "nav.brandDeals", icon: Handshake },
-      { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket },
-      { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3 },
-      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap },
+      { href: "/earnings", labelKey: "nav.earnings", icon: Wallet, searchTerms: "earnings money payouts revenue income paid" },
+      { href: "/memberships", labelKey: "nav.memberships", icon: Ticket, searchTerms: "memberships members subscribers fans plans" },
+      { href: "/team", labelKey: "nav.team", icon: Users, searchTerms: "team workspace collaborators staff" },
+      { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake, searchTerms: "tips tip jar donations fans" },
+      { href: "/brand-deals", labelKey: "nav.brandDeals", icon: Handshake, searchTerms: "brand deals sponsors sponsorships money" },
+      { href: "/distribute", labelKey: "nav.distributeMusic", icon: Rocket, searchTerms: "distribute distribution music release streaming platforms" },
+      { href: "/analytics-hub", labelKey: "nav.analyticsHub", icon: BarChart3, searchTerms: "analytics hub stats insights views numbers" },
+      { href: "/academy", labelKey: "nav.creatorAcademy", icon: GraduationCap, searchTerms: "academy learn courses creator academy playbook guides" },
+      /* The back-office trio gets its own doors in its home section
+         (findability closure, Stack-200 lane 1): Contracts, LLC Guide
+         and Copyright used to hang off the Coach's link cards only. */
+      { href: "/contracts", labelKey: "nav.contracts", icon: FileText, searchTerms: "contracts agreements legal analyzer deals" },
+      { href: "/llc-guide", labelKey: "nav.llcGuide", icon: Scale, searchTerms: "llc guide business legal company taxes" },
+      { href: "/copyright", labelKey: "nav.copyright", icon: Copyright, searchTerms: "copyright legal rights dmca claims" },
     ],
   },
 ];
 
 const FOOTER_LINKS: NavLink[] = [
-  { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
+  /* Footer links stay visible during a sidebar search (never filtered
+     out), so their searchTerms document the alias words their real
+     names answer to — "pricing" above all (Stack-200 lane 1 closure):
+     the Pricing door is on screen for every search, by design. */
+  { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard, searchTerms: "pricing plans price cost subscriptions" },
   /* The safety net: the /features registry names every feature by its
      real name (findability fix, 2026-10-18). */
-  { href: "/features", labelKey: "nav.allFeatures", icon: LayoutGrid },
-  { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
-  { href: "/settings", labelKey: "nav.settings", icon: Settings },
-  { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true },
+  { href: "/features", labelKey: "nav.allFeatures", icon: LayoutGrid, searchTerms: "features all features tools index every feature" },
+  { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap, searchTerms: "credits visual bucs history balance spent" },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings, searchTerms: "settings account profile preferences" },
+  { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true, searchTerms: "admin panel moderation" },
 ];
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
@@ -526,9 +544,18 @@ export function AppSidebar() {
         {(searchQuery.trim()
           ? SECTIONS.map((section) => ({
               ...section,
-              links: section.links.filter((link) =>
-                t(link.labelKey).toLowerCase().includes(searchQuery.trim().toLowerCase())
-              ),
+              /* Search matches the rendered real-name label PLUS the
+                 link's alias terms and its route (findability closure,
+                 Stack-200 lane 1) — "stream", "logo", "projects" and
+                 English aliases in any locale all land on their door. */
+              links: section.links.filter((link) => {
+                const q = searchQuery.trim().toLowerCase();
+                return (
+                  t(link.labelKey).toLowerCase().includes(q) ||
+                  (link.searchTerms ?? "").toLowerCase().includes(q) ||
+                  link.href.toLowerCase().includes(q)
+                );
+              }),
             })).filter((section) => section.links.length > 0)
           : SECTIONS
         ).map((section) => (

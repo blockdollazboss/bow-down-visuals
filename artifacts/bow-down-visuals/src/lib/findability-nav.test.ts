@@ -30,6 +30,9 @@ const WIRED_KEYS = [
   "makeSong", "beatMaker", "earnings", "quests", "allFeatures",
   "memberships", "team", "tips", "community", "liveShopping", "nfcCards",
   "beatsMarketplace", "fanShoutouts",
+  /* Stack-200 lane 1: the back-office trio's keys — nav.contracts was
+     missing from ALL ten locales before this pass. */
+  "contracts", "llcGuide", "copyright",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
 
@@ -57,6 +60,9 @@ describe("findability — nav labels are the features' real names", () => {
     expect(nav.allFeatures).toBe("All Features");
     expect(nav.beatsMarketplace).toBe("Beats Marketplace");
     expect(nav.fanShoutouts).toBe("Fan Shoutouts");
+    expect(nav.contracts).toBe("Contracts");
+    expect(nav.llcGuide).toBe("LLC Guide");
+    expect(nav.copyright).toBe("Copyright");
   });
 
   it("page titles carry the same real names in en", () => {
@@ -126,6 +132,10 @@ describe("findability — the doors are hung in their home sections", () => {
       ["/features", "nav.allFeatures"],
       ["/beats", "nav.beatsMarketplace"],
       ["/shoutouts", "nav.fanShoutouts"],
+      /* Stack-200 lane 1: the back-office trio leaves the Coach-only path. */
+      ["/contracts", "nav.contracts"],
+      ["/llc-guide", "nav.llcGuide"],
+      ["/copyright", "nav.copyright"],
     ];
     for (const [href, labelKey] of doors) {
       expect(sidebar, `${href} / ${labelKey}`).toContain(
@@ -138,6 +148,14 @@ describe("findability — the doors are hung in their home sections", () => {
     const getPaid = sidebar.slice(sidebar.indexOf('titleKey: "nav.getPaid"'));
     const section = getPaid.slice(0, getPaid.indexOf("];"));
     for (const href of ["/earnings", "/memberships", "/team", "/tips"]) {
+      expect(section).toContain(`href: "${href}"`);
+    }
+  });
+
+  it("puts the back-office trio (Contracts, LLC Guide, Copyright) inside Get Paid", () => {
+    const getPaid = sidebar.slice(sidebar.indexOf('titleKey: "nav.getPaid"'));
+    const section = getPaid.slice(0, getPaid.indexOf("];"));
+    for (const href of ["/contracts", "/llc-guide", "/copyright"]) {
       expect(section).toContain(`href: "${href}"`);
     }
   });
@@ -159,9 +177,86 @@ describe("findability — the doors are hung in their home sections", () => {
   });
 
   it("the sidebar search filters on the rendered (real-name) labels", () => {
-    expect(sidebar).toContain(
-      "t(link.labelKey).toLowerCase().includes(searchQuery.trim().toLowerCase())",
+    expect(sidebar).toContain("t(link.labelKey).toLowerCase().includes(q)");
+  });
+
+  it("the sidebar search also matches alias terms and routes (Stack-200 lane 1)", () => {
+    /* The label alone can't find "stream" (Go Live), "logo" (Branding
+       Kit) or an English alias typed in a non-English locale — the
+       per-link searchTerms carry those words and the filter reads them. */
+    expect(sidebar).toContain('(link.searchTerms ?? "").toLowerCase().includes(q)');
+    expect(sidebar).toContain("link.href.toLowerCase().includes(q)");
+    const aliasPins: Array<[string, string]> = [
+      ["/go-live", "stream"],
+      ["/go-live", "live"],
+      ["/create?panel=song", "song"],
+      ["/audio-studio?tab=aiaudio&sub=beats", "beat"],
+      ["/branding-kit", "brand"],
+      ["/branding-kit", "logo"],
+      ["/coach", "coach"],
+      ["/my-projects", "projects"],
+      ["/earnings", "earnings"],
+      ["/contracts", "legal"],
+      ["/copyright", "copyright"],
+    ];
+    for (const [href, word] of aliasPins) {
+      const at = sidebar.indexOf(`href: "${href}"`);
+      expect(at, href).toBeGreaterThan(-1);
+      const entry = sidebar.slice(at, sidebar.indexOf("}", at));
+      expect(entry, `${href} aliases`).toContain("searchTerms:");
+      expect(entry.toLowerCase(), `${href} ~ ${word}`).toContain(word);
+    }
+    /* Pricing is a footer link: the footer never filters out, so the
+       Pricing door stays visible during every search. */
+    expect(sidebar).toContain('{ href: "/pricing", labelKey: "nav.pricing"');
+  });
+
+  it("every section entry carries alias terms, and the footer pins its aliases too (Stack-200 lane 1 closure)", () => {
+    /* No sidebar entry may rely on its label alone: each SECTIONS entry
+       carries English searchTerms, so the required alias words (live,
+       stream, song, beat, brand, coach, pricing, projects) land in
+       every locale. Pricing lives in the footer — it stays visible
+       during every search AND carries its alias terms. */
+    const sectionsBlock = sidebar.slice(
+      sidebar.indexOf("const SECTIONS"),
+      sidebar.indexOf("const FOOTER_LINKS"),
     );
+    const labelCount = (sectionsBlock.match(/labelKey:/g) ?? []).length;
+    const termCount = (sectionsBlock.match(/searchTerms:/g) ?? []).length;
+    expect(labelCount).toBeGreaterThan(0);
+    expect(termCount).toBe(labelCount);
+    const footerBlock = sidebar.slice(
+      sidebar.indexOf("const FOOTER_LINKS"),
+      sidebar.indexOf("function SidebarSection"),
+    );
+    for (const href of ["/pricing", "/features", "/credit-history", "/settings", "/admin"]) {
+      const at = footerBlock.indexOf(`href: "${href}"`);
+      expect(at, href).toBeGreaterThan(-1);
+      const entry = footerBlock.slice(at, footerBlock.indexOf("}", at));
+      expect(entry, `${href} footer aliases`).toContain("searchTerms:");
+    }
+    const pricingAt = footerBlock.indexOf('href: "/pricing"');
+    const pricingEntry = footerBlock.slice(pricingAt, footerBlock.indexOf("}", pricingAt));
+    expect(pricingEntry.toLowerCase()).toContain("pricing");
+    expect(pricingEntry.toLowerCase()).toContain("plans");
+  });
+
+  it("the retired Thy Vision name survives nowhere — the 404 door and the carousel toast use My Projects", () => {
+    /* Stack-200 lane 1 closure: nav.myProjects was renamed on the
+       Oct-18 pass, but two non-sidebar strings kept the poetic name —
+       notFound.myProjects (the 404 page's My Projects button) in 9 of
+       10 catalogs and carouselMaker.exportDone ("saved to Thy Vision")
+       in all 10. Both now carry each locale's real My Projects name. */
+    for (const loc of LOCALES) {
+      const cat = readJson(`../locales/${loc}.json`);
+      expect(cat.notFound.myProjects, `${loc}.notFound.myProjects`).toBe(cat.nav.myProjects);
+      expect(
+        cat.carouselMaker.exportDone,
+        `${loc}.carouselMaker.exportDone`,
+      ).toContain(cat.nav.myProjects);
+      expect(read(`../locales/${loc}.json`), `${loc} raw`).not.toContain("Thy Vision");
+    }
+    expect(readJson("../locales/en.json").notFound.myProjects).toBe("My Projects");
   });
 });
 
