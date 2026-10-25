@@ -12,6 +12,32 @@
 --   profile and the other creator keeps theirs.
 -- Idempotent, no BEGIN/COMMIT, no CONCURRENTLY (house migration rules).
 
+-- Deploy repair (2026-10-25): collab_requests is created by
+-- 0018_collab_finder.sql, which sits at/below the migrate-boot BASELINE
+-- (55) — the boot runner skips <= 0055 on existing databases, assuming
+-- they were applied manually pre-runner. 0018 evidently never ran
+-- against production, so collab_requests is missing there and the
+-- post_co_authors FK below FATALed the bc755447 deploy. This file has
+-- never successfully applied on any database where it FATALs, and where
+-- it has applied the runner skips it by filename, so this edit never
+-- re-runs there; IF NOT EXISTS makes the guard a no-op where the table
+-- already exists. Definition copied exactly from 0018.
+CREATE TABLE IF NOT EXISTS collab_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_user_id UUID NOT NULL,
+  to_user_id UUID NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS collab_requests_to_user_id_idx
+  ON collab_requests (to_user_id);
+
+CREATE INDEX IF NOT EXISTS collab_requests_from_user_id_idx
+  ON collab_requests (from_user_id);
+
 CREATE TABLE IF NOT EXISTS post_co_authors (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
