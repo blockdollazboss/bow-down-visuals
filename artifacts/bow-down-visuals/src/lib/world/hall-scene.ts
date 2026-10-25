@@ -3150,11 +3150,13 @@ export class KingsHallScene {
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;
     } else if (outdoors) {
-      // Night on the plaza: moonlight — cool, dim, shadow-casting.
+      // Night on the plaza: moonlight — cool, shadow-casting, and
+      // (Oct 24 readability lift) strong enough that the guards on
+      // the hall steps read as bodies from the spawn, not shadows.
       sun.position.set(-14, 27, 42);
       tgt.position.set(inBoardwalk ? 7.6 : inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inBoardwalk ? 49 : inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
       sun.color.set(0x93a7d4);
-      sun.intensity = 0.6;
+      sun.intensity = 0.95;
       const fit = inDistrict || inGardens || inRow || inAteliers || inBoardwalk ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;

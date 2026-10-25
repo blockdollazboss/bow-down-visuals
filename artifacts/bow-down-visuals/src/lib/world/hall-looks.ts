@@ -114,7 +114,7 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     fogColor: 0xe2d0a8,
     fogNear: 30,
     fogFar: 68,
-    exposure: 1.12,
+    exposure: 1.16,
     environmentIntensity: 0.55,
     marbleTextureUrl: `${TEXTURE_BASE}/marble-cream.jpg`,
     throneFabricTextureUrl: `${TEXTURE_BASE}/brocade-gold.jpg`,
@@ -135,8 +135,8 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     candles: false,
     haze: false,
     chandeliers: true,
-    ambient: { color: 0xffe9c4, intensity: 0.5 },
-    hemisphere: { sky: 0xfff3da, ground: 0x8a6f4d, intensity: 0.7 },
+    ambient: { color: 0xffe9c4, intensity: 0.6 },
+    hemisphere: { sky: 0xfff3da, ground: 0x8a6f4d, intensity: 0.85 },
     stageSpot: { color: 0xffe9bb, intensity: 130 },
     houseLight: { color: 0xffd9a0, intensity: 55 },
   },
@@ -145,10 +145,18 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     name: "Midnight Throne Room",
     background: 0x030303,
     fogColor: 0x060505,
-    fogNear: 16,
-    fogFar: 46,
-    exposure: 1.05,
-    environmentIntensity: 0.3,
+    /* Oct 24 readability lift (owner: "the dark theme too dark" —
+     * the King and his guards read as silhouettes). The night stays
+     * night — black marble, pooled candlelight — but the wash,
+     * exposure and spots are raised and the fog pushed back so a
+     * subject at the dais (~23 m from the door spawn) stands clear
+     * of it: fogNear 16 → 24 takes the dais view from ~22% fogged
+     * to unfogged. Values tuned against the software-GL rig, which
+     * renders darker than a phone GPU; devices read brighter. */
+    fogNear: 24,
+    fogFar: 64,
+    exposure: 1.28,
+    environmentIntensity: 0.5,
     marbleTextureUrl: `${TEXTURE_BASE}/marble-black.jpg`,
     throneFabricTextureUrl: `${TEXTURE_BASE}/velvet-black.jpg`,
     facadeStoneTextureUrl: `${TEXTURE_BASE}/stone-dark.jpg`,
@@ -168,10 +176,10 @@ export const HALL_LOOKS: Record<HallTheme, HallLook> = {
     candles: true,
     haze: true,
     chandeliers: false,
-    ambient: { color: 0x4a3a22, intensity: 0.5 },
-    hemisphere: { sky: 0x2a2438, ground: 0x050403, intensity: 0.4 },
-    stageSpot: { color: 0xffbe78, intensity: 95 },
-    houseLight: { color: 0xffc98a, intensity: 30 },
+    ambient: { color: 0x6e5636, intensity: 0.75 },
+    hemisphere: { sky: 0x3d3654, ground: 0x141008, intensity: 0.55 },
+    stageSpot: { color: 0xffbe78, intensity: 150 },
+    houseLight: { color: 0xffc98a, intensity: 50 },
   },
 };
 

@@ -180,6 +180,29 @@ export function buildWorldFixtures(opts?: {
     group.rotation.y = fixtureRotY(def);
     const standin = buildStandin(def, shadowTex);
     group.add(standin);
+    /* Key light per post (Oct 24 readability lift — owner: "the
+     * dark theme too dark", the King and guards near-silhouettes):
+     * a warm spot standing in front of and above the body, aimed
+     * at its chest — the sconce the post never had. The bodies
+     * otherwise live off the look's ambient wash alone. No shadow
+     * pass (the posts are figures, not set), and the light rides
+     * the post group, so area visibility and the idle sway take it
+     * with the body. The King's key burns stronger — he is the
+     * King. Local +Z is the post's facing, so the spot stands
+     * where a visitor stands: in front of the figure. */
+    const bodyHeight = FIXTURE_BODIES[def.body].height;
+    const key = new THREE.SpotLight(
+      0xffd9a3,
+      def.body === "king" ? 95 : 60,
+      11,
+      0.55,
+      0.9,
+      1.6,
+    );
+    key.position.set(0, bodyHeight + 1.7, 2.7);
+    key.target.position.set(0, bodyHeight * 0.55, 0);
+    group.add(key);
+    group.add(key.target);
     (def.area === "hall" ? hall : plaza).add(group);
     slots.push({ def, group, standin, live: false });
   }
