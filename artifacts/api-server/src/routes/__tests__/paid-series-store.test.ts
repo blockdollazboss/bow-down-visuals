@@ -74,6 +74,8 @@ vi.mock("../../lib/job-notifications", () => ({
 vi.mock("../../lib/email", () => ({
   sendEmail: vi.fn(async () => undefined),
   emailShell: (inner: string) => inner,
+  emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
+  emailDetailBox: (html: string) => html,
   money: (cents: number) => `$${(cents / 100).toFixed(2)}`,
   escapeHtml: (s: string) => s,
   baseUrlForEmail: () => "https://bowdownvisuals.test",

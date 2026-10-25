@@ -245,6 +245,8 @@ vi.mock("../../lib/logger", () => ({
 vi.mock("../../lib/email", () => ({
   sendEmail: async () => ({ ok: true }),
   emailShell: (_title: string, html: string) => html,
+  emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
+  emailDetailBox: (html: string) => html,
   money: (cents: number) => `$${(cents / 100).toFixed(2)}`,
   escapeHtml: (s: string) => s,
   baseUrlForEmail: () => "https://example.com",
