@@ -293,6 +293,10 @@ const SECTIONS: NavSection[] = [
       { href: "/explore", labelKey: "nav.explore", icon: Compass, searchTerms: "explore discover search browse" },
       { href: "/groups", labelKey: "nav.groups", icon: Users, searchTerms: "groups community fans" },
       { href: "/community", labelKey: "nav.community", icon: MessageSquareReply, searchTerms: "community manager comments superfans replies" },
+      /* Pitch & Fix (UPGRADES 196): the community's idea + fix board,
+         filed in Social beside Community Manager — real feature name,
+         per the findability law. */
+      { href: "/pitch-fix", labelKey: "nav.pitchFix", icon: Lightbulb, badge: "NEW", searchTerms: "pitch fix ideas suggestions report bug feedback board" },
       { href: "/events", labelKey: "nav.events", icon: CalendarDays, searchTerms: "events shows calendar" },
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle, searchTerms: "messages chat dm inbox" },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound, searchTerms: "collabs collaborations features partners" },
