@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 import { liveStreamsTable } from "./live-streams";
 import { liveChatMessagesTable } from "./live-chat";
 import { creatorProfilesTable } from "./creator-platform";
@@ -74,6 +74,50 @@ export const liveStreamTipsTable = pgTable(
   ],
 );
 
+/* Ticketed live (Wave 4 #31, migration 0231): one row = one fan's
+   paid entry to one ticketed stream. The purchase is a fan -> creator
+   Visual Bucs transfer built from the same house parts as tips
+   (chargeCredits debit + addCreditsAtomic creator credit + strict
+   ledger rows), with the platform's cut taken through
+   lib/platform-fees feeSplit (PLATFORM_FEE_BPS, flat 5% — the module
+   whose header names tickets as a surface it owns).
+   Exactly-once is structural, twice over: the charge idempotency key
+   is UNIQUE, and (stream_id, buyer_user_id) is UNIQUE — a fan can
+   hold at most one ticket per show, so a retry, a double-tap, or a
+   second buy with a fresh key can never charge twice or stack seats.
+   status: 'active' grants entry; 'refunded' (via the refund unwind in
+   lib/live-tickets.ts) revokes it. creator_credited_at mirrors the
+   tips discipline: a retried purchase resumes at the credit step
+   instead of paying the creator twice. */
+export const liveStreamTicketsTable = pgTable(
+  "live_stream_tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    stream_id: uuid("stream_id")
+      .notNull()
+      .references(() => liveStreamsTable.id, { onDelete: "cascade" }),
+    buyer_user_id: uuid("buyer_user_id").notNull(),
+    creator_user_id: uuid("creator_user_id").notNull(),
+    /* What the fan paid, in Visual Bucs (the listed ticket price). */
+    price_vb: integer("price_vb").notNull(),
+    /* The platform's cut of price_vb (feeSplit at PLATFORM_FEE_BPS). */
+    platform_fee_vb: integer("platform_fee_vb").notNull().default(0),
+    /* What the creator was credited: price_vb - platform_fee_vb. */
+    creator_net_vb: integer("creator_net_vb").notNull(),
+    idempotency_key: text("idempotency_key").notNull().unique(),
+    /* 'active' | 'refunded' */
+    status: text("status").notNull().default("active"),
+    creator_credited_at: timestamp("creator_credited_at", { withTimezone: true }),
+    refunded_at: timestamp("refunded_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("live_stream_tickets_stream_buyer_uniq").on(t.stream_id, t.buyer_user_id),
+    index("live_stream_tickets_stream_idx").on(t.stream_id, t.created_at.desc()),
+    index("live_stream_tickets_buyer_idx").on(t.buyer_user_id),
+  ],
+);
+
 export const liveChannelModeratorsTable = pgTable(
   "live_channel_moderators",
   {
@@ -104,6 +148,7 @@ export const liveViewerSamplesTable = pgTable(
 );
 
 export type LiveStreamTip = typeof liveStreamTipsTable.$inferSelect;
+export type LiveStreamTicket = typeof liveStreamTicketsTable.$inferSelect;
 export type LiveChannelModerator = typeof liveChannelModeratorsTable.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptionsTable.$inferSelect;
 export type LiveViewerSample = typeof liveViewerSamplesTable.$inferSelect;
