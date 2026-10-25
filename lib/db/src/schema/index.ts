@@ -149,3 +149,4 @@ export * from "./api-keys";
 export * from "./theme-packs";
 export * from "./publishing-splits";
 export * from "./api-webhooks";
+export * from "./wishlists";
