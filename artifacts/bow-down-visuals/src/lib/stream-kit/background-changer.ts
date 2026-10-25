@@ -128,6 +128,53 @@
  *  path and stands — it simply was not the whole story while the
  *  Pro engine never reached the phone.
  *
+ * MOTION FIX (Oct 25, 2026 — the owner retested the build above on
+ * his phone: "The green screen is not fixed"; when he MOVES, the
+ * background gets erased/lost). Full diagnosis: .lane/DIAGNOSIS.md
+ * in the lane worktree. What the audit of THIS path found:
+ *  1. THE PICTURE ONLY MOVED WHEN A MATTE LANDED. Compositing lived
+ *     exclusively in the inference promise callback, so the person
+ *     rendered at the inference rate (on a phone, 2–8 fps) as a
+ *     succession of send-time snapshots, each already one round
+ *     trip old. The frame-aligned doctrine was correct on a fast
+ *     desktop and is the wrong trade on a phone: a matte ~150 ms
+ *     stale at a moving edge is a smaller, shorter error than the
+ *     whole person frozen for 300–600 ms. RETIRED for the live
+ *     path: the loop now composites EVERY tick from the LIVE
+ *     camera frame with the latest landed matte (the Meet/Zoom
+ *     arrangement); inference only replaces the matte. The
+ *     send-time snapshot still rides on EngineMatte.frame for
+ *     callers that want the aligned still (photo path included).
+ *  2. THE STALL FALLBACK PAINTED HIS ROOM OVER THE EFFECT. Any
+ *     2 s matte gap (frame-stall.ts) made the loop paint the raw
+ *     camera full-frame — and the stall clock ran during ordinary
+ *     in-flight inference, so on a phone the green screen was
+ *     repeatedly replaced by his actual room. The stall STATUS
+ *     still reports honestly; the painting never goes raw over a
+ *     backdrop again once a matte exists.
+ *  3. THE PERF LADDERS WERE CALIBRATED IN DESKTOP MILLISECONDS
+ *     (slowMs 46 on ROUND-TRIP times no phone sustains), so 'auto'
+ *     on a phone always marched Pro down its steps, degraded to
+ *     Standard, walked its refinement to the floor and dropped
+ *     the output to 720p. With compositing decoupled from
+ *     inference, a 200 ms matte update is perfectly usable; the
+ *     ladders now rescue only sustained drowning (Pro slowMs 200,
+ *     Standard slowMs 150).
+ *  4. MEDIAPIPE'S 1 s SEND TIMEOUT discarded late results (and
+ *     could mispair one send's mask with the next send's
+ *     snapshot), wrote an invented ≥1000 ms sample into the perf
+ *     ladder, and counted toward the 30-failure park. A send is
+ *     now one episode that settles on its own result whenever it
+ *     lands (pairing can never cross sends), capped at
+ *     MEDIAPIPE_SEND_CAP_MS; a result that lands after the cap is
+ *     proof of life and resets the failure run instead of being
+ *     dropped.
+ *  5. THE DESPILL PIXEL PASS ran on every composite at up to
+ *     1080p on the main thread — the same thread MediaPipe's
+ *     results callback needs. It now runs when a matte lands and
+ *     at most every 3rd tick; per-tick compositing is canvas draw
+ *     ops only.
+ *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)
  * first — the output stream then holds the processed picture and the
@@ -344,6 +391,17 @@ export const OUTPUT_HEIGHT_FLOOR = 720;
  */
 export const MAX_CONSECUTIVE_INFERENCE_FAILURES = 30;
 
+/**
+ * Hard cap (ms) on one MediaPipe send episode (motion fix, Oct 25,
+ * 2026 — see the header note). A send settles on its own result
+ * whenever it lands; only a send still silent at this cap counts
+ * as failed. The old 1000 ms skip-timeout abandoned sends that
+ * were merely slow on a loaded phone, discarded their results
+ * when they landed, and wrote the invented timeout value into
+ * the perf ladder as if it were a measured round trip.
+ */
+export const MEDIAPIPE_SEND_CAP_MS = 8_000;
+
 /** How long a freshly-live engine's effect takes to fade in over
  *  the raw picture (ms) when it arrives while the session is
  *  already running. */
@@ -454,20 +512,30 @@ export interface BackgroundChangerConfig {
  * Segmentation behind the MattingEngine contract. MediaPipe is push-based
  * (send → onResults), so process() pairs one send with its results
  * callback; a frame requested while another is in flight is skipped
- * (null), never queued, and a results callback that never arrives
- * times out into a skipped frame rather than wedging the pipeline.
- * The mask arrives as a canvas whose ALPHA channel carries the
- * person mask (the same channel the composite has always keyed on);
- * the matte is read at a capped width set by the live refinement
- * step (MATTE_REFINEMENT_STEPS — a finer read is the light engine's
- * answer to rough edges). Flicker is calmed by the shared matte
- * post-processing (motion-adaptive temporal blend), not here.
+ * (null), never queued. The mask arrives as a canvas whose ALPHA channel
+ * carries the person mask (the same channel the composite has always
+ * keyed on); the matte is read at a capped width set by the live
+ * refinement step (MATTE_REFINEMENT_STEPS — a finer read is the light
+ * engine's answer to rough edges). Flicker is calmed by the shared
+ * matte post-processing (motion-adaptive temporal blend), not here.
  *
  * Each send also SNAPSHOTS the video frame it is given, and the
  * matte that comes back carries that snapshot (EngineMatte.frame):
- * the matte describes the sent instant, and the changer composites
- * it against its own frame — never against the newer live frame,
- * which is what tore every moving edge (see the header note).
+ * the matte describes the sent instant. (The changer's LIVE path
+ * no longer cuts that snapshot — it composites the live frame with
+ * the latest matte; see the header's motion-fix note. The snapshot
+ * remains for callers that want the aligned still.)
+ *
+ * Send discipline (motion fix, Oct 25, 2026): a send is ONE
+ * episode that settles on its own result whenever the result
+ * lands — pairing is tracked separately from the promise, so a
+ * result can never be paired with a NEWER send's snapshot (the
+ * old 1000 ms timeout allowed exactly that mispairing, and threw
+ * the late mask away besides). Only a send still silent at
+ * MEDIAPIPE_SEND_CAP_MS settles as failed — and even then its
+ * late result, when it lands, is proof of life: it clears the
+ * pairing and fires onProofOfLife so the changer resets the
+ * failure run a slow-but-alive engine should never accumulate.
  */
 class MediaPipeEngine implements MattingEngine {
   readonly kind = "standard" as const;
@@ -477,15 +545,36 @@ class MediaPipeEngine implements MattingEngine {
    *  read it. The changer samples this into the perf ladder (auto
    *  quality) and clears it back to null. */
   lastMs: number | null = null;
+  /** Fired when a result lands for a send whose episode already
+   *  settled as failed at the cap: the engine is alive, merely
+   *  slow, and the failure run it was accumulating should reset.
+   *  Wired by the changer on adoption. */
+  onProofOfLife: (() => void) | null = null;
   private _maskCap = MATTE_REFINEMENT_STEPS[1].maskCap;
   private _sentAt = 0;
-  private _pending: { resolve: (m: EngineMatte | null) => void; timer: ReturnType<typeof setTimeout> } | null = null;
+  /* The in-flight send episode: the promise the changer is
+     waiting on, plus its cap timer. Null between episodes.
+     A "drain" episode is not a send: it is the wait for a
+     capped send's late result (see process()). */
+  private _episode: {
+    promise: Promise<EngineMatte | null>;
+    resolve: (m: EngineMatte | null) => void;
+    capTimer: ReturnType<typeof setTimeout> | null;
+    drain: boolean;
+  } | null = null;
+  /* True from send() until its result (or a send rejection) —
+     pairing lives here, NOT in the episode promise, so a result
+     always pairs with its own send's snapshot even after the
+     episode settled at the cap. No new send starts while this is
+     set: MediaPipe answers sends in order, and overlapping sends
+     are how masks get paired with the wrong frame. */
+  private _sendOutstanding = false;
   private _work: HTMLCanvasElement;
   private _workCtx: CanvasRenderingContext2D;
   /* The send-time frame snapshot (reused across sends — a snapshot
-     is consumed by its own matte's composite before the next send
-     can overwrite it, because the changer holds one inference in
-     flight at a time). */
+     is consumed by its own matte before the next send can
+     overwrite it, because sends never overlap: see
+     _sendOutstanding). */
   private _frame: HTMLCanvasElement;
   private _frameCtx: CanvasRenderingContext2D;
   private _frameInFlight: HTMLCanvasElement | null = null;
@@ -515,16 +604,32 @@ class MediaPipeEngine implements MattingEngine {
       throw new BackgroundChangerError("CDN_LOAD_FAILED", "The background-effects engine failed to initialise.", err);
     }
     segmenter.onResults((results) => {
-      const pending = this._pending;
-      if (!pending) return; // a late result for a frame already given up on
-      this._pending = null;
-      clearTimeout(pending.timer);
+      if (!this._sendOutstanding) return; // a result with no send behind it — nothing to pair
+      this._sendOutstanding = false;
+      /* The TRUE round trip, measured to the result that actually
+         landed — never an invented timeout value. */
       this.lastMs = performance.now() - this._sentAt;
       const frame = this._frameInFlight;
       this._frameInFlight = null;
       const matte = this._extract((results as MediaPipeResults).segmentationMask);
       if (matte && frame) matte.frame = frame;
-      pending.resolve(matte);
+      const episode = this._episode;
+      if (episode && !episode.drain) {
+        this._episode = null;
+        if (episode.capTimer) clearTimeout(episode.capTimer);
+        episode.resolve(matte);
+      } else {
+        /* The episode already settled at the cap (or this result
+           answers a drain wait): the matte is spent — far too old
+           to cut a live frame with — but the proof of life is
+           not. It resets the failure run a slow-but-alive engine
+           should never accumulate. */
+        if (episode) {
+          this._episode = null;
+          episode.resolve(null);
+        }
+        this.onProofOfLife?.();
+      }
     });
     this.segmenter = segmenter;
   }
@@ -537,11 +642,28 @@ class MediaPipeEngine implements MattingEngine {
   process(video: HTMLVideoElement): Promise<EngineMatte | null> {
     const segmenter = this.segmenter;
     if (!segmenter) return Promise.resolve(null);
-    if (this._pending) return Promise.resolve(null); // one send in flight — skip, never queue
+    if (this._episode) return this._episode.promise; // one episode at a time — never queue, never overlap
+    if (this._sendOutstanding) {
+      /* A previous send blew the cap and its result is still
+         coming. Wait for THAT result rather than piling a second
+         send onto the graph: MediaPipe answers in order, and
+         overlapping sends are how a mask gets paired with the
+         wrong frame. The wait resolves null when the late result
+         lands (proof of life fires with it) — or at dispose().
+         No cap of its own: the capped send already counted its
+         failure, and a graph that never answers is stood down by
+         the dispose every mode/quality/stop path performs. */
+      let resolveDrain!: (m: EngineMatte | null) => void;
+      const promise = new Promise<EngineMatte | null>((res) => {
+        resolveDrain = res;
+      });
+      this._episode = { promise, resolve: resolveDrain, capTimer: null, drain: true };
+      return promise;
+    }
     /* Snapshot the frame being sent, synchronously, before the
        send: the returned matte describes THIS instant and rides
-       back on EngineMatte.frame so the composite cuts this frame
-       with its own matte (frame-aligned compositing). */
+       back on EngineMatte.frame for callers that want the
+       aligned still. */
     const vw = video.videoWidth;
     const vh = video.videoHeight;
     if (vw && vh) {
@@ -554,27 +676,35 @@ class MediaPipeEngine implements MattingEngine {
     } else {
       this._frameInFlight = null;
     }
-    return new Promise<EngineMatte | null>((resolve) => {
-      const timer = setTimeout(() => {
-        if (this._pending?.resolve === resolve) {
-          this._pending = null;
-          this._frameInFlight = null;
-        }
-        this.lastMs = performance.now() - this._sentAt; // a timed-out trip is a slow trip
-        resolve(null);
-      }, 1000);
-      this._pending = { resolve, timer };
-      this._sentAt = performance.now();
-      segmenter.send({ image: video }).catch(() => {
-        if (this._pending?.resolve === resolve) {
-          this._pending = null;
-          this._frameInFlight = null;
-          clearTimeout(timer);
-        }
-        this.lastMs = performance.now() - this._sentAt;
-        resolve(null);
-      });
+    let resolveEpisode!: (m: EngineMatte | null) => void;
+    const promise = new Promise<EngineMatte | null>((res) => {
+      resolveEpisode = res;
     });
+    const capTimer = setTimeout(() => {
+      /* Still silent at the cap: the episode settles as a failed
+         frame. The SEND stays outstanding — pairing is untouched,
+         no newer send starts, and when the result finally lands
+         it reports proof of life instead of being dropped (and
+         instead of poisoning the perf ladder with an invented
+         round-trip time: lastMs is written only by real results
+         and real rejections). */
+      if (this._episode?.resolve === resolveEpisode) this._episode = null;
+      resolveEpisode(null);
+    }, MEDIAPIPE_SEND_CAP_MS);
+    this._episode = { promise, resolve: resolveEpisode, capTimer, drain: false };
+    this._sendOutstanding = true;
+    this._sentAt = performance.now();
+    segmenter.send({ image: video }).catch(() => {
+      if (this._episode?.resolve === resolveEpisode) {
+        this._episode = null;
+        clearTimeout(capTimer);
+      }
+      this._sendOutstanding = false;
+      this._frameInFlight = null;
+      this.lastMs = performance.now() - this._sentAt;
+      resolveEpisode(null);
+    });
+    return promise;
   }
 
   private _extract(mask: HTMLCanvasElement): EngineMatte | null {
@@ -601,10 +731,11 @@ class MediaPipeEngine implements MattingEngine {
 
   async dispose(): Promise<void> {
     this._frameInFlight = null;
-    if (this._pending) {
-      clearTimeout(this._pending.timer);
-      this._pending.resolve(null);
-      this._pending = null;
+    this._sendOutstanding = false;
+    if (this._episode) {
+      if (this._episode.capTimer) clearTimeout(this._episode.capTimer);
+      this._episode.resolve(null);
+      this._episode = null;
     }
     if (this.segmenter) {
       try {
