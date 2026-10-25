@@ -37,6 +37,7 @@ const h = vi.hoisted(() => ({
     referrals: [] as Row[],
     payouts: [] as Row[],
     milestones: [] as Row[],
+    profiles: [] as Row[],
     balances: new Map<string, number>(),
     payCalls: [] as Array<{ userId: string; amount: number }>,
     ledger: [] as Array<{ userId: string; action: string; creditsUsed: number; idempotencyKey?: string | null }>,
@@ -53,14 +54,53 @@ function makeFakeSupabase() {
     referrals: s.referrals,
     referral_payouts: s.payouts,
     referral_milestones: s.milestones,
+    creator_profiles: s.profiles,
   };
 
   function selectChain(rows: Row[]) {
-    const filters: Array<[string, unknown]> = [];
-    const matched = () => rows.filter((r) => filters.every(([k, v]) => r[k] === v));
+    /* Predicate-based builder: supports the eq reads the routes always
+       used PLUS the gte/lt/in/order/range shapes the unified Supabase
+       standings aggregation (computeStandings) queries with. */
+    const preds: Array<(r: Row) => boolean> = [];
+    let sortCol: string | null = null;
+    let slice: [number, number] | null = null;
+    const matchedBase = () => rows.filter((r) => preds.every((p) => p(r)));
+    const matched = () => {
+      let m = matchedBase();
+      if (sortCol) {
+        const col = sortCol;
+        m = [...m].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")));
+      }
+      if (slice) m = m.slice(slice[0], slice[1] + 1);
+      return m;
+    };
     const builder: any = {
       eq: (col: string, v: unknown) => {
-        filters.push([col, v]);
+        preds.push((r) => r[col] === v);
+        return builder;
+      },
+      gte: (col: string, v: unknown) => {
+        preds.push((r) => r[col] != null && String(r[col]) >= String(v));
+        return builder;
+      },
+      lt: (col: string, v: unknown) => {
+        preds.push((r) => r[col] != null && String(r[col]) < String(v));
+        return builder;
+      },
+      in: (col: string, vals: unknown[]) => {
+        preds.push((r) => vals.includes(r[col]));
+        return builder;
+      },
+      order: (col: string) => {
+        sortCol = col;
+        return builder;
+      },
+      range: (from: number, to: number) => {
+        slice = [from, to];
+        return builder;
+      },
+      limit: (n: number) => {
+        slice = [0, n - 1];
         return builder;
       },
       single: async () => {
@@ -71,7 +111,7 @@ function makeFakeSupabase() {
       },
       maybeSingle: async () => ({ data: matched()[0] ?? null, error: null }),
       then: (res: any, rej: any) =>
-        Promise.resolve({ data: matched(), error: null, count: matched().length }).then(res, rej),
+        Promise.resolve({ data: matched(), error: null, count: matchedBase().length }).then(res, rej),
     };
     return builder;
   }
@@ -196,6 +236,7 @@ beforeEach(() => {
   s.referrals = [];
   s.payouts = [];
   s.milestones = [];
+  s.profiles = [];
   s.balances = new Map([[A, 87475], [B, 1300], [C, 300]]);
   s.payCalls = [];
   s.ledger = [];

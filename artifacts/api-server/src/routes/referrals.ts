@@ -1,7 +1,5 @@
 import { Router } from "express";
 import { randomBytes } from "crypto";
-import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
@@ -531,30 +529,137 @@ interface StandingRow {
   slug: string | null;
 }
 
+/* ── Standings: read the SAME store the writes use ─────────────────────
+   Topology decision (Stack-200 lane 2, flagged by the referral-fix
+   lane's DIAGNOSIS.md Q4): every referral write — apply, payout,
+   milestones, contests — goes through the Supabase admin client, and
+   supabase/migrations/0059 documents that the Supabase project is a
+   DIFFERENT database from DATABASE_URL (Render Postgres). The old
+   getStandings() and the contest-settlement query read referrals /
+   referral_payouts / creator_profiles through the drizzle db
+   (DATABASE_URL) — a store the write path never touches — so the
+   leaderboard, the /referrals/me ranks, and contest settlement could
+   all read an empty (or stale) mirror while Promoter HQ showed the
+   truth. Standings now aggregate from Supabase, in JS, over the same
+   tables: window semantics are unchanged (signups = referrals created
+   in-window; revenue = payouts created in-window on those referrals;
+   order = signups desc, revenue desc, first signup asc). Reads are
+   paged so PostgREST's default row cap can't silently truncate a
+   window. */
+const STANDINGS_PAGE = 1000;
+
+async function selectAllReferralRows(
+  table: "referrals" | "referral_payouts",
+  columns: string,
+  start: Date | null,
+  end: Date | null,
+): Promise<Array<Record<string, unknown>>> {
+  const supabase = getSupabaseAdmin();
+  const out: Array<Record<string, unknown>> = [];
+  for (let from = 0; ; from += STANDINGS_PAGE) {
+    let q: any = supabase.from(table).select(columns);
+    if (start) q = q.gte("created_at", start.toISOString());
+    if (end) q = q.lt("created_at", end.toISOString());
+    const { data, error } = await q
+      .order("created_at", { ascending: true })
+      .range(from, from + STANDINGS_PAGE - 1);
+    if (error) throw new Error(`standings read failed (${table}): ${error.message}`);
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    out.push(...rows);
+    if (rows.length < STANDINGS_PAGE) break;
+  }
+  return out;
+}
+
+async function computeStandings(
+  start: Date | null,
+  end: Date | null,
+): Promise<StandingRow[]> {
+  const [referralRows, payoutRows] = await Promise.all([
+    selectAllReferralRows("referrals", "id, referrer_user_id, created_at", start, end),
+    selectAllReferralRows(
+      "referral_payouts",
+      "referral_id, referrer_credits_awarded, created_at",
+      start,
+      end,
+    ),
+  ]);
+
+  const revenueByReferralId = new Map<string, number>();
+  for (const p of payoutRows) {
+    const id = String(p["referral_id"]);
+    revenueByReferralId.set(
+      id,
+      (revenueByReferralId.get(id) ?? 0) + (Number(p["referrer_credits_awarded"]) || 0),
+    );
+  }
+
+  interface Agg extends StandingRow {
+    referralIds: Set<string>;
+  }
+  const byReferrer = new Map<string, Agg>();
+  for (const r of referralRows) {
+    const referrerUserId = String(r["referrer_user_id"]);
+    const createdAt = r["created_at"] ? String(r["created_at"]) : "";
+    let agg = byReferrer.get(referrerUserId);
+    if (!agg) {
+      agg = {
+        referrerUserId,
+        signups: 0,
+        revenue: 0,
+        firstSignup: createdAt,
+        displayName: null,
+        slug: null,
+        referralIds: new Set(),
+      };
+      byReferrer.set(referrerUserId, agg);
+    }
+    agg.signups += 1;
+    if (createdAt && (!agg.firstSignup || createdAt < agg.firstSignup)) {
+      agg.firstSignup = createdAt;
+    }
+    agg.referralIds.add(String(r["id"]));
+  }
+  for (const agg of byReferrer.values()) {
+    for (const id of agg.referralIds) {
+      agg.revenue += revenueByReferralId.get(id) ?? 0;
+    }
+  }
+
+  /* Public names come from the same Supabase creator_profiles the
+     contest-winners read uses — public profiles only, as before. */
+  const ids = [...byReferrer.keys()];
+  if (ids.length > 0) {
+    const supabase = getSupabaseAdmin();
+    const { data: profiles, error } = await supabase
+      .from("creator_profiles")
+      .select("user_id, display_name, slug, is_public")
+      .in("user_id", ids);
+    if (error) throw new Error(`standings read failed (creator_profiles): ${error.message}`);
+    for (const p of (profiles ?? []) as Array<Record<string, unknown>>) {
+      if (p["is_public"] !== true) continue;
+      const agg = byReferrer.get(String(p["user_id"]));
+      if (agg) {
+        agg.displayName = (p["display_name"] as string | null) ?? null;
+        agg.slug = (p["slug"] as string | null) ?? null;
+      }
+    }
+  }
+
+  return [...byReferrer.values()]
+    .sort(
+      (a, b) =>
+        b.signups - a.signups ||
+        b.revenue - a.revenue ||
+        a.firstSignup.localeCompare(b.firstSignup),
+    )
+    .map(({ referralIds: _ids, ...row }) => row);
+}
+
 async function getStandings(window: LeaderboardWindow): Promise<StandingRow[]> {
   const { start, end } = windowBounds(window);
-  const result = await db.execute(sql`
-    SELECT r.referrer_user_id AS "referrerUserId",
-           COUNT(*)::int AS signups,
-           COALESCE(p.awarded, 0)::int AS revenue,
-           MIN(r.created_at)::text AS "firstSignup",
-           cp.display_name AS "displayName",
-           cp.slug AS slug
-    FROM referrals r
-    LEFT JOIN (
-      SELECT rp.referral_id, SUM(rp.referrer_credits_awarded)::int AS awarded
-      FROM referral_payouts rp
-      ${start && end ? sql`WHERE rp.created_at >= ${start.toISOString()} AND rp.created_at < ${end.toISOString()}` : sql``}
-      GROUP BY rp.referral_id
-    ) p ON p.referral_id = r.id
-    LEFT JOIN creator_profiles cp
-      ON cp.user_id = r.referrer_user_id AND cp.is_public = true
-    ${start && end ? sql`WHERE r.created_at >= ${start.toISOString()} AND r.created_at < ${end.toISOString()}` : sql``}
-    GROUP BY r.referrer_user_id, cp.display_name, cp.slug
-    ORDER BY signups DESC, revenue DESC, "firstSignup" ASC
-    LIMIT 50
-  `);
-  return result.rows as unknown as StandingRow[];
+  const rows = await computeStandings(start, end);
+  return rows.slice(0, 50);
 }
 
 function badgeForSignups(signups: number): { stars: number; title: string } | null {
@@ -646,23 +751,11 @@ async function ensureOpenContest(period: string, startsAt: Date, endsAt: Date): 
 
 async function settleOneContest(contestId: string, startsAt: Date, endsAt: Date): Promise<void> {
   const supabase = getSupabaseAdmin();
-  const rows = await db.execute(sql`
-    SELECT r.referrer_user_id AS "referrerUserId",
-           COUNT(*)::int AS signups,
-           COALESCE(p.awarded, 0)::int AS revenue,
-           MIN(r.created_at)::text AS "firstSignup"
-    FROM referrals r
-    LEFT JOIN (
-      SELECT rp.referral_id, SUM(rp.referrer_credits_awarded)::int AS awarded
-      FROM referral_payouts rp
-      WHERE rp.created_at >= ${startsAt.toISOString()} AND rp.created_at < ${endsAt.toISOString()}
-      GROUP BY rp.referral_id
-    ) p ON p.referral_id = r.id
-    WHERE r.created_at >= ${startsAt.toISOString()} AND r.created_at < ${endsAt.toISOString()}
-    GROUP BY r.referrer_user_id
-    ORDER BY signups DESC, revenue DESC, "firstSignup" ASC
-  `);
-  const standings = rows.rows as unknown as StandingRow[];
+  /* Settlement standings come from computeStandings — the same
+     Supabase store the payouts were written to. (This was the second
+     drizzle/DATABASE_URL read; settling from a store the award path
+     never writes could crown the wrong winners or none at all.) */
+  const standings = await computeStandings(startsAt, endsAt);
   const qualifiers = standings.filter((s) => s.signups >= CONTEST_MIN_SIGNUPS);
 
   let payoutFailures = 0;

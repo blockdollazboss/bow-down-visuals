@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useSearch } from "wouter";
 import {
   Library as LibraryIcon, Search, Sparkles, Type, Wand2, Heart,
   ArrowRight, Clock, X, Check, Copy, ChevronRight,
@@ -22,6 +22,7 @@ import {
 import { ensureLibraryFonts } from "@/lib/load-fonts";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchWishlist } from "@/lib/wishlists";
+import { libraryTabFromParams, type LibraryTab } from "@/lib/library-tab";
 import WishlistPanel from "@/components/wishlist/WishlistPanel";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
@@ -31,8 +32,6 @@ import WishlistPanel from "@/components/wishlist/WishlistPanel";
    - ?category=<name> — pre-select category
    - ?tool=thumbnail|video|brand — context hint from the calling tool
    Recent + favorites tracked in localStorage per user. */
-
-type LibraryTab = "templates" | "presets" | "fonts" | "wishlist";
 
 const RECENT_KEY = "thy-library-recent-v1";
 const FAV_KEY = "thy-library-favorites-v1";
@@ -47,27 +46,30 @@ function readFavs(): string[] {
   try { return JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]"); } catch { return []; }
 }
 
-function useQueryParams() {
-  const [loc] = useLocation();
-  return useMemo(() => new URLSearchParams(loc.split("?")[1] ?? ""), [loc]);
-}
-
 export default function Library() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   usePageTitle(t("library.pageTitle", { defaultValue: "Thy Library" }), t("library.pageDescription", { defaultValue: "Templates, presets, and fonts for creators." }));
-  const params = useQueryParams();
+  /* Root cause of the ?tab= bug (Stack-200 lane 2): this page read its
+     params from wouter's useLocation(), which returns the PATHNAME
+     ONLY — the query string never reaches it, so params.get("tab") was
+     always null and the page always opened on Templates. wouter's
+     useSearch() is the query-string hook (the pattern settings.tsx,
+     create.tsx and coach.tsx already use). */
+  const search = useSearch();
+  const params = useMemo(() => new URLSearchParams(search), [search]);
 
-  const initialTab = ((): LibraryTab => {
-    const tab = params.get("tab");
-    if (tab === "presets" || tab === "fonts" || tab === "templates" || tab === "wishlist") return tab;
-    // Context-aware: tool hint selects the most relevant tab
-    const tool = params.get("tool");
-    if (tool === "video") return "presets";
-    return "templates";
-  })();
+  const [tab, setTab] = useState<LibraryTab>(() => libraryTabFromParams(params) ?? "templates");
 
-  const [tab, setTab] = useState<LibraryTab>(initialTab);
+  /* Honor ?tab= on mount AND when the URL changes while the page stays
+     mounted (SPA navigation from another tool's "Browse Library"
+     button). A manual tab click doesn't touch the URL, so this effect
+     never fights the user — it only fires when the search string
+     itself changes. */
+  useEffect(() => {
+    const wanted = libraryTabFromParams(params);
+    if (wanted) setTab(wanted);
+  }, [params]);
   /* Wishlist tab (Wave 4 #38): the count badge reads the fan's real
      wishlist; the panel keeps it honest as items are removed. */
   const { user, getAccessToken } = useAuth();

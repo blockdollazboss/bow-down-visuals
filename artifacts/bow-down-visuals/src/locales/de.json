@@ -5593,6 +5593,7 @@
     "refreshError": "Die Aktualisierung hat nicht geklappt. Versuch es noch einmal.",
     "saveError": "Dieser Schalter wurde nicht gespeichert. Versuch es noch einmal.",
     "loadError": "Dein sozialer Nachweis konnte nicht geladen werden.",
+    "notReady": "Social Proof ist auf dieser Seite noch nicht aktiviert — schau bald wieder vorbei.",
     "retry": "Erneut versuchen",
     "noProfile": "Der soziale Nachweis lebt auf deinem Creator-Profil.",
     "noProfileCta": "Profil erstellen",

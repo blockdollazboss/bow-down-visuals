@@ -5605,6 +5605,7 @@
     "refreshError": "A atualização não foi concluída. Tente novamente.",
     "saveError": "Essa opção não foi salva. Tente novamente.",
     "loadError": "Sua prova social não pôde ser carregada.",
+    "notReady": "A prova social ainda não está ativada neste site — volte em breve.",
     "retry": "Tentar novamente",
     "noProfile": "A prova social vive no seu perfil de criador.",
     "noProfileCta": "Crie seu perfil",

@@ -30,6 +30,11 @@ export function useSocialAccounts() {
   /* A failed load is NOT "no accounts connected" — it gets its own error
      state so a connected user is never presented as never-connected. */
   const [loadError, setLoadError] = useState(false);
+  /* A 503 social_accounts_not_ready from the server (its table isn't
+     on this database yet — migration 0241) is NOT a failure either:
+     it's the honest "isn't switched on yet" state, rendered plainly
+     instead of the red error card. */
+  const [unavailable, setUnavailable] = useState(false);
 
   async function reload(): Promise<SocialAccountInfo[]> {
     setLoading(true);
@@ -38,11 +43,18 @@ export function useSocialAccounts() {
       const res = await fetch("/api/social/accounts", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (res.status === 503) {
+        setAccounts([]);
+        setLoadError(false);
+        setUnavailable(true);
+        return [];
+      }
       if (!res.ok) throw new Error("load failed");
       const data = await res.json();
       const list: SocialAccountInfo[] = data.accounts ?? [];
       setAccounts(list);
       setLoadError(false);
+      setUnavailable(false);
       return list;
     } catch {
       setAccounts([]);
@@ -62,11 +74,18 @@ export function useSocialAccounts() {
         const res = await fetch("/api/social/accounts", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!cancelled && res.status === 503) {
+          setAccounts([]);
+          setLoadError(false);
+          setUnavailable(true);
+          return;
+        }
         if (!res.ok) throw new Error("load failed");
         const data = await res.json();
         if (!cancelled) {
           setAccounts(data.accounts ?? []);
           setLoadError(false);
+          setUnavailable(false);
         }
       } catch {
         if (!cancelled) {
@@ -82,7 +101,7 @@ export function useSocialAccounts() {
     };
   }, [getAccessToken]);
 
-  return { accounts, loading, reload, loadError };
+  return { accounts, loading, reload, loadError, unavailable };
 }
 
 interface PlatformConfig {
@@ -133,7 +152,7 @@ export function ConnectedAccounts() {
   const socialPostCost = getCreditCost("/api/social/instagram/publish")?.cost ?? 100;
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
-  const { accounts, loading, reload, loadError } = useSocialAccounts();
+  const { accounts, loading, reload, loadError, unavailable } = useSocialAccounts();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
@@ -190,6 +209,10 @@ export function ConnectedAccounts() {
       {loading ? (
         <div className="flex items-center gap-2 text-white/40 text-sm py-4">
           <Loader2 className="h-4 w-4 animate-spin" /> Checking connections…
+        </div>
+      ) : unavailable ? (
+        <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.05] p-4 text-sm text-amber-100/80">
+          Social posting isn't switched on for this site yet — connecting accounts will open here once it's ready.
         </div>
       ) : loadError ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/[0.06] p-4 text-sm text-red-200/80 flex items-center gap-3">

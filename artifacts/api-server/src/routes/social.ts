@@ -41,6 +41,7 @@ import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/s
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { queueKeywordComment } from "../lib/keyword-automations";
+import { isMissingSchemaError } from "../lib/pg-errors";
 
 /* Mirror-on-save (2026-10-13 law): post attachments, story media and
    highlight covers are re-hosted into permanent storage at save time.
@@ -369,7 +370,15 @@ router.get("/social/facebook/callback", async (req: Request, res: Response) => {
 
 /* ── 3. List connected accounts (no tokens) ───────────────────────────── */
 router.get("/social/accounts", requireAuth, async (req: Request, res: Response) => {
-  const rows = await db
+  /* This handler used to have NO try/catch: any DB failure became an
+     unhandled rejection and a bare 500, which the Settings card renders
+     as a broken error card. A missing/mis-shaped social_accounts table
+     (created only by baseline migrations 0002/0004/0007 — see migration
+     0241) is not a user error: answer the honest not-ready state the
+     house pattern uses, and keep real failures as logged 500s. */
+  let rows;
+  try {
+    rows = await db
     .select({
       id: socialAccountsTable.id,
       platform: socialAccountsTable.platform,
@@ -381,6 +390,18 @@ router.get("/social/accounts", requireAuth, async (req: Request, res: Response) 
     })
     .from(socialAccountsTable)
     .where(eq(socialAccountsTable.user_id, req.userId!));
+  } catch (err) {
+    if (isMissingSchemaError(err)) {
+      res.status(503).json({
+        error: "social_accounts_not_ready",
+        message: "Connected accounts aren't switched on for this server yet.",
+      });
+      return;
+    }
+    logger.error({ err }, "[social] accounts list failed");
+    res.status(500).json({ error: "Couldn't load your connected accounts." });
+    return;
+  }
   res.json({
     accounts: rows.map((r) => {
       /* TikTok access tokens live ~24h but refresh silently server-side, so a

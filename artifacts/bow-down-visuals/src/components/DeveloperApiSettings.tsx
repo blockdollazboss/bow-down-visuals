@@ -40,6 +40,11 @@ export function DeveloperApiSettings() {
   const [keys, setKeys] = useState<ApiKeyPublic[] | null>(null);
   const [availableScopes, setAvailableScopes] = useState<string[]>([]);
   const [loadError, setLoadError] = useState(false);
+  /* 503 api_keys_not_ready (the api_keys table isn't on this database
+     in the shape the code reads yet — migration 0241) is an honest
+     "isn't switched on yet" state, rendered plainly instead of the
+     error line. */
+  const [unavailable, setUnavailable] = useState(false);
   const loadedRef = useRef(false);
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<string[]>(["profile:read"]);
@@ -56,12 +61,18 @@ export function DeveloperApiSettings() {
   async function load() {
     try {
       const res = await fetch("/api/api-keys", { headers: await authHeaders() });
+      if (res.status === 503) {
+        setUnavailable(true);
+        setLoadError(false);
+        return;
+      }
       if (!res.ok) throw new Error("load failed");
       const data = (await res.json()) as { keys: ApiKeyPublic[]; availableScopes: string[] };
       setKeys(data.keys);
       setAvailableScopes(data.availableScopes);
       loadedRef.current = true;
       setLoadError(false);
+      setUnavailable(false);
     } catch {
       if (!loadedRef.current) setLoadError(true);
     }
@@ -124,7 +135,12 @@ export function DeveloperApiSettings() {
         </div>
       </div>
 
-      {loadError ? (
+      {unavailable ? (
+        <p className="mt-5 flex items-center gap-2 text-sm">
+          <AlertTriangle className="h-4 w-4 text-amber-400" />
+          API keys aren't switched on for this site yet — check back soon.
+        </p>
+      ) : loadError ? (
         <div className="mt-5 flex items-center gap-3 text-sm">
           <AlertTriangle className="h-4 w-4 text-red-400" />
           <span>Couldn't load your API keys.</span>

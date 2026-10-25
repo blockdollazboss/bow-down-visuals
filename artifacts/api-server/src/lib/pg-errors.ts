@@ -43,6 +43,18 @@ export function isUndefinedColumn(err: unknown): boolean {
   return pgErrorCode(err) === "42703";
 }
 
+/** Missing schema (undefined table OR undefined column), wherever it
+ *  hides. pg-code first; the message fallback covers drivers that
+ *  report the same condition without a SQLSTATE (pg-mem, the house
+ *  test engine, phrases it as: relation "x" does not exist / column
+ *  "x" does not exist). Used by read endpoints that must answer an
+ *  honest not-ready state instead of a 500 when a held/baseline
+ *  migration has not landed on this database. */
+export function isMissingSchemaError(err: unknown): boolean {
+  if (isUndefinedTable(err) || isUndefinedColumn(err)) return true;
+  return /(relation|column) "[^"]+" does not exist/i.test(pgErrorText(err));
+}
+
 /* Every message along the cause chain, outermost first. For checks
  * written against the raw pg message ("duplicate key value violates
  * unique constraint …", "relation \"x\" does not exist") — on a

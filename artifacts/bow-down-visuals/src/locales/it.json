@@ -5605,6 +5605,7 @@
     "refreshError": "L'aggiornamento non è riuscito. Riprova.",
     "saveError": "Quell'interruttore non si è salvato. Riprova.",
     "loadError": "La tua prova sociale non si è caricata.",
+    "notReady": "La prova sociale non è ancora attiva su questo sito — riprova presto.",
     "retry": "Riprova",
     "noProfile": "La prova sociale vive sul tuo profilo da creator.",
     "noProfileCta": "Crea il tuo profilo",

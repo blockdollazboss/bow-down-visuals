@@ -13,11 +13,14 @@
  * the payment throws and leaves the contest OPEN if any prize failed,
  * so the next lazy settle pass retries exactly the unpaid winners.
  *
- * Fake Supabase (in-memory tables, UNIQUE emulated) + fake db.execute
- * standings. The module's settle-once promise guard is real.
+ * Fake Supabase (in-memory tables, UNIQUE emulated) — including the
+ * referrals / referral_payouts rows the standings are aggregated
+ * from since the Stack-200 topology unification (standings read the
+ * same Supabase store the awards write; there is no drizzle read
+ * left in routes/referrals). The module's settle-once promise guard
+ * is real.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PgDialect } from "drizzle-orm/pg-core";
 
 const A = "aaaaaaaa-1111-4111-8111-111111111111"; // rank 1 — 25,000
 const B = "bbbbbbbb-2222-4222-8222-222222222222"; // rank 2 — 10,000
@@ -27,6 +30,9 @@ const h = vi.hoisted(() => ({
   state: {
     contests: [] as Array<Record<string, any>>,
     prizes: [] as Array<Record<string, any>>,
+    referrals: [] as Array<Record<string, any>>,
+    payouts: [] as Array<Record<string, any>>,
+    profiles: [] as Array<Record<string, any>>,
     payCalls: [] as Array<{ userId: string; amount: number }>,
     payFailures: new Set<string>(),
     prizeDeletes: [] as Array<{ contest_id: string; referrer_user_id: string }>,
@@ -34,14 +40,49 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-const dialect = new PgDialect();
-
 function eqChain(rows: Array<Record<string, any>>) {
-  const filters: Array<[string, unknown]> = [];
-  const matched = () => rows.filter((r) => filters.every(([k, v]) => r[k] === v));
+  /* Predicate builder — eq plus the gte/lt/in/order/range shapes the
+     unified standings aggregation (computeStandings) queries with. */
+  const preds: Array<(r: Record<string, any>) => boolean> = [];
+  let sortCol: string | null = null;
+  let slice: [number, number] | null = null;
+  const matchedBase = () => rows.filter((r) => preds.every((p) => p(r)));
+  const matched = () => {
+    let m = matchedBase();
+    if (sortCol) {
+      const col = sortCol;
+      m = [...m].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")));
+    }
+    if (slice) m = m.slice(slice[0], slice[1] + 1);
+    return m;
+  };
   const builder: any = {
     eq: (col: string, v: unknown) => {
-      filters.push([col, v]);
+      preds.push((r) => r[col] === v);
+      return builder;
+    },
+    gte: (col: string, v: unknown) => {
+      preds.push((r) => r[col] != null && String(r[col]) >= String(v));
+      return builder;
+    },
+    lt: (col: string, v: unknown) => {
+      preds.push((r) => r[col] != null && String(r[col]) < String(v));
+      return builder;
+    },
+    in: (col: string, vals: unknown[]) => {
+      preds.push((r) => vals.includes(r[col]));
+      return builder;
+    },
+    order: (col: string) => {
+      sortCol = col;
+      return builder;
+    },
+    range: (from: number, to: number) => {
+      slice = [from, to];
+      return builder;
+    },
+    limit: (n: number) => {
+      slice = [0, n - 1];
       return builder;
     },
     maybeSingle: async () => ({ data: matched()[0] ?? null, error: null }),
@@ -76,6 +117,11 @@ function makeFakeSupabase() {
             },
           }),
         };
+      }
+      if (table === "referrals" || table === "referral_payouts" || table === "creator_profiles") {
+        const rows =
+          table === "referrals" ? s.referrals : table === "referral_payouts" ? s.payouts : s.profiles;
+        return { select: (_cols: string) => eqChain(rows) };
       }
       if (table === "referral_contest_prizes") {
         return {
@@ -135,28 +181,6 @@ vi.mock("../../lib/supabase-admin", () => ({
   }),
 }));
 
-vi.mock("@workspace/db", async (importOriginal) => {
-  const actual = await importOriginal<any>();
-  return {
-    ...actual,
-    db: {
-      execute: async (arg: unknown) => {
-        const text = dialect.sqlToQuery(arg as never).sql;
-        if (text.includes("FROM referrals")) {
-          return {
-            rows: [
-              { referrerUserId: A, signups: 30, revenue: 900, firstSignup: "2026-09-02" },
-              { referrerUserId: B, signups: 20, revenue: 500, firstSignup: "2026-09-03" },
-              { referrerUserId: C, signups: 10, revenue: 100, firstSignup: "2026-09-04" },
-            ],
-          };
-        }
-        return { rows: [] }; // DDL from ensureReferralTables
-      },
-    },
-  };
-});
-
 import { settleReferralContests } from "../referrals";
 
 const ENDED_ID = "contest-ended";
@@ -186,6 +210,36 @@ beforeEach(() => {
     },
   ];
   h.state.prizes = [];
+  /* Standings seed (the rows the old fake db.execute used to invent,
+     now as real Supabase-shaped rows inside the ended contest's
+     window): A 30 signups / 900 revenue, B 20 / 500, C 10 / 100. */
+  const inWindow = new Date(now.getTime() - 20 * 86400000).toISOString();
+  h.state.referrals = [
+    ...Array.from({ length: 30 }, (_, i) => ({
+      id: `ref-${A}-${i}`,
+      referrer_user_id: A,
+      referee_user_id: `referee-${A}-${i}`,
+      created_at: inWindow,
+    })),
+    ...Array.from({ length: 20 }, (_, i) => ({
+      id: `ref-${B}-${i}`,
+      referrer_user_id: B,
+      referee_user_id: `referee-${B}-${i}`,
+      created_at: inWindow,
+    })),
+    ...Array.from({ length: 10 }, (_, i) => ({
+      id: `ref-${C}-${i}`,
+      referrer_user_id: C,
+      referee_user_id: `referee-${C}-${i}`,
+      created_at: inWindow,
+    })),
+  ];
+  h.state.payouts = [
+    { id: "pay-a", referral_id: `ref-${A}-0`, referrer_credits_awarded: 900, created_at: inWindow },
+    { id: "pay-b", referral_id: `ref-${B}-0`, referrer_credits_awarded: 500, created_at: inWindow },
+    { id: "pay-c", referral_id: `ref-${C}-0`, referrer_credits_awarded: 100, created_at: inWindow },
+  ];
+  h.state.profiles = [];
   h.state.payCalls = [];
   h.state.payFailures = new Set();
   h.state.prizeDeletes = [];

@@ -16,6 +16,7 @@ import { OutOfCreditsError, CreditsDisabledError } from "../lib/credits";
 import { bioSchema, generateBiosForUser, BIO_COST } from "./generate/bio-generator";
 import * as earnings from "./earnings";
 import { logger } from "../lib/logger";
+import { isMissingSchemaError } from "../lib/pg-errors";
 import {
   WEBHOOK_EVENT_TYPES,
   createWebhookEndpoint,
@@ -61,6 +62,18 @@ router.get("/api-keys", requireAuth, async (req, res) => {
     const keys = await listApiKeys(req.userId!);
     res.json({ keys, availableScopes: API_KEY_SCOPES });
   } catch (err) {
+    /* Migration 0216 created api_keys in a shape the Drizzle schema
+       never reads (jsonb scopes + status, no revoked_at), so this list
+       failed with 42703 for every user until migration 0241 aligned
+       the table. Any remaining missing-schema failure is the honest
+       not-ready state, not a 500 error card. */
+    if (isMissingSchemaError(err)) {
+      res.status(503).json({
+        error: "api_keys_not_ready",
+        message: "API keys aren't switched on for this server yet.",
+      });
+      return;
+    }
     req.log.error({ err }, "[api-keys] list failed");
     res.status(500).json({ error: "Failed to load API keys." });
   }
