@@ -258,6 +258,7 @@ import analyticsHubRouter from "./generate/analytics-hub";
 import competitorTrackerRouter from "./generate/competitor-tracker";
 import retentionDoctorRouter from "./retention-doctor";
 import retentionRouter from "./retention";
+import soundPrefsRouter from "./sound-prefs";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
@@ -622,6 +623,7 @@ router.use(analyticsHubRouter);
 router.use(competitorTrackerRouter);
 router.use(retentionDoctorRouter);
 router.use(retentionRouter);
+router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);
