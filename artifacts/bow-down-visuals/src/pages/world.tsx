@@ -1999,12 +1999,12 @@ export default function WorldPage() {
           ...log.slice(-7),
           { peerId: "hall", displayName: announceSpeaker(a), body: announceLine(a) },
         ]);
-        if (!announceMutedRef.current && isAnnounceFresh(a, Date.now())) {
-          showAnnounce(a);
-          /* A palace announcement is the brand speaking — the royal
-             sting rides it (same device-mute respect as the banner). */
-          playSignatureSound("sting");
-        }
+        if (!announceMutedRef.current && isAnnounceFresh(a, Date.now())) showAnnounce(a);
+        /* Signature sounds (UPGRADES 183): a palace announcement is
+           the brand speaking — the royal sting rides the same
+           unmuted-and-fresh moment as the banner, through the one
+           gated engine. */
+        if (!announceMutedRef.current && isAnnounceFresh(a, Date.now())) playSignatureSound("sting");
       };
       /* My herald was refused (not the host — the server checked —
        * or too soon after the last one): the host panel says why

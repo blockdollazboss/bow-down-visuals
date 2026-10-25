@@ -877,6 +877,11 @@ const W6_LEGIT = new Set([
   "release.types.ep.label",
   "release.types.single.label",
   "settings.teamRole_manager",
+  /* UPGRADES 183 (signature sounds): "Notifications" and "Messages"
+     are spelled identically in French — the standard French UI words
+     themselves, not untranslated residue. */
+  "settings.sounds.notifications.title",
+  "settings.sounds.messages.title",
   "share.attribution",
   "share.whatsapp",
   "showcasePublish.descLabel",
