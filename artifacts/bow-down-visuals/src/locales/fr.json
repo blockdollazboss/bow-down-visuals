@@ -12235,7 +12235,8 @@
     "useFont": "Copier la police",
     "copied": "Copié !",
     "browse": "Parcourir la bibliothèque",
-    "noResults": "Rien trouvé — essayez une autre recherche."
+    "noResults": "Rien trouvé — essayez une autre recherche.",
+    "tabWishlist": "Liste d'envies"
   },
   "motionGraphics": {
     "accentColor": "Couleur d'accent",
@@ -14846,5 +14847,24 @@
     "handoffTitle": "Étape suivante",
     "handoffMaster": "Envoyer à l'onglet Master →",
     "handoffDistribute": "Le distribuer →"
+  },
+  "wishlist": {
+    "save": "Ajouter à la liste d'envies",
+    "saved": "Ajouté à votre liste d'envies",
+    "saveShort": "Garder pour plus tard",
+    "savedShort": "Enregistré",
+    "loadError": "Votre liste d'envies n'a pas pu se charger — vérifiez votre connexion et réessayez.",
+    "emptyTitle": "Rien d'enregistré pour le moment",
+    "emptyBody": "Touchez le cœur sur un produit dans la boutique d'un créateur pour l'enregistrer ici. Si son prix baisse, on vous prévient.",
+    "kindStore": "Boutique",
+    "kindShop": "Shop",
+    "goneTitle": "Un produit enregistré",
+    "savedAt": "Enregistré à",
+    "now": "Maintenant",
+    "gone": "N'est plus en ligne",
+    "droppedBy": "−{{amount}} depuis l'enregistrement",
+    "unavailable": "Pas en vente en ce moment — on le garde ici au cas où il reviendrait.",
+    "view": "Voir le produit",
+    "remove": "Retirer de la liste d'envies"
   }
 }

@@ -11632,7 +11632,8 @@
     "useFont": "Copiar fuente",
     "copied": "¡Copiado!",
     "browse": "Explorar la biblioteca",
-    "noResults": "Nada encontrado — prueba otra búsqueda."
+    "noResults": "Nada encontrado — prueba otra búsqueda.",
+    "tabWishlist": "Lista de deseos"
   },
   "retention": {
     "streak_title": "Racha de creación",
@@ -14846,5 +14847,24 @@
     "handoffTitle": "Siguiente paso",
     "handoffMaster": "Enviar a la pestaña Máster →",
     "handoffDistribute": "Distribuirlo →"
+  },
+  "wishlist": {
+    "save": "Guardar en la lista de deseos",
+    "saved": "Guardado en tu lista de deseos",
+    "saveShort": "Guardar para después",
+    "savedShort": "Guardado",
+    "loadError": "No se pudo cargar tu lista de deseos — revisa tu conexión e inténtalo de nuevo.",
+    "emptyTitle": "Aún no guardaste nada",
+    "emptyBody": "Toca el corazón en cualquier producto de la tienda o el shop de un creador para guardarlo aquí. Si baja el precio, te avisamos.",
+    "kindStore": "Tienda",
+    "kindShop": "Shop",
+    "goneTitle": "Un producto guardado",
+    "savedAt": "Guardado a",
+    "now": "Ahora",
+    "gone": "Ya no está publicado",
+    "droppedBy": "Bajó {{amount}} desde que lo guardaste",
+    "unavailable": "No está a la venta ahora mismo — lo guardaremos aquí por si vuelve.",
+    "view": "Ver producto",
+    "remove": "Quitar de la lista de deseos"
   }
 }

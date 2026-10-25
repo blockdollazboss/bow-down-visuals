@@ -10725,7 +10725,8 @@
     "useFont": "フォントをコピー",
     "copied": "コピーしました！",
     "browse": "ライブラリを閲覧",
-    "noResults": "見つかりませんでした — 別の検索をお試しください。"
+    "noResults": "見つかりませんでした — 別の検索をお試しください。",
+    "tabWishlist": "ウィッシュリスト"
   },
   "retention": {
     "streak_title": "作成ストリーク",
@@ -14818,5 +14819,24 @@
     "handoffTitle": "次のステップ",
     "handoffMaster": "マスタータブへ送る →",
     "handoffDistribute": "配信する →"
+  },
+  "wishlist": {
+    "save": "ウィッシュリストに保存",
+    "saved": "ウィッシュリストに保存しました",
+    "saveShort": "あとで買う",
+    "savedShort": "保存済み",
+    "loadError": "ウィッシュリストを読み込めませんでした — 接続を確認してもう一度お試しください。",
+    "emptyTitle": "まだ何も保存されていません",
+    "emptyBody": "クリエイターのストアやショップで商品のハートをタップすると、ここに保存されます。値下がりしたらお知らせします。",
+    "kindStore": "ストア",
+    "kindShop": "ショップ",
+    "goneTitle": "保存した商品",
+    "savedAt": "保存時の価格",
+    "now": "現在",
+    "gone": "販売終了",
+    "droppedBy": "保存時より {{amount}} 値下がり",
+    "unavailable": "現在は販売していません — 戻ってきた時のためにここに残します。",
+    "view": "商品を見る",
+    "remove": "ウィッシュリストから削除"
   }
 }

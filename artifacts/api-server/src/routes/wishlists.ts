@@ -21,6 +21,8 @@
  */
 import { Router } from "express";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
+import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
@@ -31,8 +33,6 @@ import {
   listWishlistItems,
   type WishlistItemKind,
 } from "../lib/wishlists";
-import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
 
 const router = Router();
 

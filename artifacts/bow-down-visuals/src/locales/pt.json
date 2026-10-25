@@ -9135,13 +9135,13 @@
           "credits": "1.000 Visual Bucs",
           "price": "$9"
         },
-        "150": {
-          "credits": "15.000 Visual Bucs",
-          "price": "$99"
-        },
         "50": {
           "credits": "5.000 Visual Bucs",
           "price": "$39"
+        },
+        "150": {
+          "credits": "15.000 Visual Bucs",
+          "price": "$99"
         },
         "500": {
           "credits": "50.000 Visual Bucs",
@@ -10748,7 +10748,8 @@
     "useFont": "Copiar fonte",
     "copied": "Copiado!",
     "browse": "Navegar na biblioteca",
-    "noResults": "Nada encontrado — tente outra busca."
+    "noResults": "Nada encontrado — tente outra busca.",
+    "tabWishlist": "Lista de desejos"
   },
   "retention": {
     "streak_title": "Sequência de Criação",
@@ -14846,5 +14847,24 @@
     "handoffTitle": "Próximo passo",
     "handoffMaster": "Enviar para a aba Master →",
     "handoffDistribute": "Distribuir →"
+  },
+  "wishlist": {
+    "save": "Salvar na lista de desejos",
+    "saved": "Salvo na sua lista de desejos",
+    "saveShort": "Salvar para depois",
+    "savedShort": "Salvo",
+    "loadError": "Sua lista de desejos não carregou — verifique sua conexão e tente de novo.",
+    "emptyTitle": "Nada salvo ainda",
+    "emptyBody": "Toque no coração em qualquer produto da loja ou shop de um criador para salvá-lo aqui. Se o preço cair, a gente te avisa.",
+    "kindStore": "Loja",
+    "kindShop": "Shop",
+    "goneTitle": "Um produto salvo",
+    "savedAt": "Salvo por",
+    "now": "Agora",
+    "gone": "Não está mais à venda",
+    "droppedBy": "Caiu {{amount}} desde que você salvou",
+    "unavailable": "Não está à venda no momento — vamos mantê-lo aqui caso volte.",
+    "view": "Ver produto",
+    "remove": "Remover da lista de desejos"
   }
 }
