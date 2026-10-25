@@ -46,6 +46,7 @@ import {
 } from "@/lib/world/announce";
 import {
   WorldClient,
+  worldDelay,
   worldOverlay,
   transferNeedsReseat,
   formatLockDuration,
@@ -563,6 +564,21 @@ export default function WorldPage() {
   const [nearStation, setNearStation] = useState<PalaceStation | null>(null);
   const nearStationIdRef = useRef<string | null>(null);
   const [panelTarget, setPanelTarget] = useState<StationPanelTarget | null>(null);
+  /* The opened panel's anchor + the bring-it-to-the-walker effect.
+   * The sheet mounts BELOW the stage in page flow (its root is
+   * relative, under the canvas), so without this, opening a desk
+   * changed nothing on screen — the press looked dead until the
+   * walker happened to scroll (owner's live report, 2026-10-25:
+   * "haven't been able to do anything inside of the VR world").
+   * On open: release pointer lock (taken on canvas click; it was
+   * never released anywhere, leaving the panel unclickable until
+   * Esc) and scroll the sheet into view. */
+  const panelAnchorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!panelTarget) return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    panelAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [panelTarget]);
   /* The door-opener behind both the E key and the controller's LB:
    * a prompt must be showing and no panel may be open — one guard,
    * whatever drives it. The scene's pad callbacks bind once at
@@ -588,6 +604,10 @@ export default function WorldPage() {
   const courtesyWins =
     !!nearCourtesy &&
     (stationDistRef.current === null || nearCourtesy.distance <= stationDistRef.current);
+  /* The "nothing in reach" note: what an interact press with no
+   * target says instead of staying silent (see the resolver). */
+  const [interactNote, setInteractNote] = useState<string | null>(null);
+  const interactNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /* The one interact resolver behind E, the controller's LB and
    * the touch strip: a courtesy showing nearer than any door is
    * performed; otherwise the door at its prompt opens. Photo mode
@@ -599,7 +619,18 @@ export default function WorldPage() {
       performAction(nearCourtesy.action);
       return;
     }
-    openStationRef.current();
+    if (nearStation) {
+      openStationRef.current();
+      return;
+    }
+    /* Nothing in reach: say so, plainly. Until this note existed
+     * the press was a silent no-op — and at the plaza spawn EVERY
+     * first press lands here (the nearest offer stands 7+ m out),
+     * which reads exactly like a dead world (owner's live report,
+     * 2026-10-25: "haven't been able to do anything"). */
+    setInteractNote("Nothing in reach — walk to a gold ring or a standing figure, then press E.");
+    if (interactNoteTimerRef.current) clearTimeout(interactNoteTimerRef.current);
+    interactNoteTimerRef.current = setTimeout(() => setInteractNote(null), 4000);
   };
   /* My role for the binding table's gates, read at press time
      (the admin flag lands a few declarations below, so the refs
@@ -2194,7 +2225,18 @@ export default function WorldPage() {
          false) exactly as when it was awaited at the tail. */
       bootPhase = false;
       const connectPromise = client.connect();
-      await loadScreen();
+      /* The screen fetch gets ten seconds of the boot's patience,
+       * no more. loadScreen's fetch has no timeout of its own, and
+       * EVERY interaction tick (station prompts, peer sync, voice,
+       * lips) arms below this await — a hung fetch on the waking
+       * box used to hold them all hostage for the whole session:
+       * the socket entered, the feed flowed, the composer worked,
+       * and nothing in-world ever responded (owner's live report,
+       * 2026-10-25). The screen still lands whenever its fetch
+       * does — loadScreen runs on past the race, and the poll
+       * below keeps it fresh — it just can't gate the room's
+       * interactivity anymore. */
+      await Promise.race([loadScreen(), worldDelay(10_000)]);
       /* Boot-lifecycle guard: if the effect was cleaned up while
          the screen fetch was in flight, this boot is DEAD — its
          cleanup already ran, reading the interval slots below as
@@ -3245,8 +3287,27 @@ export default function WorldPage() {
         {/* Controls hint */}
         {status === "inside" && !photoMode && (
           <p className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
-            WASD to walk · drag or click to look · Shift to hurry
+            WASD to walk · drag or click to look · Shift to hurry · E opens what&rsquo;s in reach
           </p>
+        )}
+
+        {/* The nothing-in-reach note: an interact press with no
+            target used to be a silent no-op. Rendered where the
+            prompts live; hides itself the moment a real prompt
+            exists, and the resolver retires it after 4 s. */}
+        {status === "inside" && interactNote && !nearStation && !nearCourtesy && !panelTarget && !photoMode && (
+          <div
+            className="absolute bottom-24 left-1/2 z-10 w-[min(92vw,440px)] -translate-x-1/2 sm:bottom-20"
+            data-testid="world-interact-note"
+          >
+            <div
+              className={`rounded-2xl border px-4 py-3 text-center text-sm shadow-xl backdrop-blur-sm ${
+                isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#5b4a1e]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"
+              }`}
+            >
+              {interactNote}
+            </div>
+          </div>
         )}
 
         {/* The walk-up prompt: the door you're standing at. The gold
@@ -3793,6 +3854,7 @@ export default function WorldPage() {
           portrait pointed at). The step-through kind renders itself
           full-screen from inside this same mount. */}
       {panelTarget && status === "inside" && (
+        <div ref={panelAnchorRef}>
         <StationPanel
           target={panelTarget}
           isLight={isLight}
@@ -3848,6 +3910,7 @@ export default function WorldPage() {
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
           onJukeboxRemove={(entryId) => clientRef.current?.jukeboxRemove(entryId)}
         />
+        </div>
       )}
 
       {/* ── Bottom bar: say + voice + VR ── */}

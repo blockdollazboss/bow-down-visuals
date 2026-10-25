@@ -156,13 +156,16 @@ describe("item 77 (D-X1) — tutorial follows the walker: STALE, pinned", () => 
 });
 
 describe("item 78 (D-X2) — no side-effects in render: STALE, pinned", () => {
-  it("world.tsx's only setTimeout calls live inside the two TimerRef callbacks, never in render", () => {
+  it("world.tsx's only setTimeout calls live inside TimerRef callbacks, never in render", () => {
     const lines = worldSrc.split("\n").filter((l) => l.includes("setTimeout("));
     /* The useRef declarations mention setTimeout in their TYPE
-       (ReturnType<typeof setTimeout>) — the two CALLS are what
-       this pin counts. */
+       (ReturnType<typeof setTimeout>) — the CALLS are what this
+       pin counts. Three since 2026-10-25: the original two, plus
+       the interact note's retire timer — armed only inside the
+       interact resolver (a TimerRef press callback), never in
+       render, so the invariant this pin guards still holds. */
     const calls = lines.filter((l) => l.includes("= setTimeout("));
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
     for (const call of calls) {
       expect(call).toMatch(/TimerRef\.current = setTimeout\(/);
     }

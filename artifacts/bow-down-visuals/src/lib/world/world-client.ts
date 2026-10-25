@@ -595,6 +595,13 @@ export function worldOverlay(
   }
 }
 
+/** A plain timer promise, exported so the world page's boot can
+ *  bound a wait without owning a timer of its own (the page's
+ *  setTimeout calls are pinned to its TimerRef callbacks). */
+export function worldDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class WorldClient {
   status: WorldStatus = "connecting";
   /** True while a dropped session is quietly re-entering: the
