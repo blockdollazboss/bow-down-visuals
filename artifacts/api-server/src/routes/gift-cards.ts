@@ -40,7 +40,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
-import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml } from "../lib/email";
+import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 import {
   GiftCardsUnavailable,
   generateGiftCardCode,
@@ -299,6 +299,10 @@ router.post("/gift-cards/verify", requireAuth, publicApiLimiter, async (req, res
     const profile = profileRes.rows[0] as Record<string, unknown> | undefined;
     const storeName = profile ? String(profile["display_name"]) : "the creator";
     const storeUrl = profile ? `/artist/${String(profile["slug"])}` : "/";
+    /* The delivery email's CTA must be absolute — a site-relative href
+       cannot resolve in a real inbox. (The links.storeUrl in the JSON
+       response below stays relative: our own frontend consumes it.) */
+    const storeEmailUrl = `${baseUrlForEmail()}${storeUrl}`;
 
     if (!duplicate) {
       /* Delivery: the recipient's email carries the code — the buyer
@@ -316,7 +320,7 @@ ${meta["gift_message"] ? `<p style="margin:0 0 12px;">“${escapeHtml(meta["gift
 <div style="font-size:14px;margin-top:8px;">Worth <strong>${emailMoney(amountCents)}</strong> — spend it all at once or a little at a time, on anything in ${escapeHtml(storeName)}'s store.</div>
 </div>
 <p style="margin:0 0 16px;font-size:14px;">At checkout, paste the code in the gift-card field (right beside the discount code). Whatever you don't spend stays on the card.</p>
-${emailButton(storeUrl, `Shop ${escapeHtml(storeName)}'s store`)}`
+${emailButton(storeEmailUrl, `Shop ${escapeHtml(storeName)}'s store`)}`
       );
       void sendEmail({
         to: String(card.recipient_email),

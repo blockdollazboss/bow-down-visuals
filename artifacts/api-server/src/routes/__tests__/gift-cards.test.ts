@@ -43,6 +43,7 @@ const h = vi.hoisted(() => ({
   cards: new Map<string, CardRow>(),
   reservations: new Map<string, ReservationRow>(),
   ledger: [] as Array<Record<string, unknown>>,
+  emails: [] as Array<{ to?: unknown; subject?: unknown; html?: unknown }>,
   stripe: {
     createParams: null as any,
     session: null as any,
@@ -243,7 +244,10 @@ vi.mock("../../lib/logger", () => ({
 }));
 
 vi.mock("../../lib/email", () => ({
-  sendEmail: async () => ({ ok: true }),
+  sendEmail: async (args: { to?: unknown; subject?: unknown; html?: unknown }) => {
+    h.emails.push(args);
+    return { ok: true };
+  },
   emailShell: (_title: string, html: string) => html,
   emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
   emailDetailBox: (html: string) => html,
@@ -330,6 +334,7 @@ beforeEach(() => {
   h.cards.clear();
   h.reservations.clear();
   h.ledger.length = 0;
+  h.emails.length = 0;
   h.stripe.createParams = null;
   h.stripe.session = null;
   h.stripe.refunds = [];
@@ -411,6 +416,25 @@ describe("verify: issuance is a liability, exactly once, code shown once", () =>
     const issue = h.ledger.find((l) => l["kind"] === "issue");
     expect(issue?.["amount_cents"]).toBe(5000);
     expect(issue?.["balance_after_cents"]).toBe(5000);
+  });
+
+  it("the delivery email's store CTA is an ABSOLUTE url (a relative href cannot resolve in an inbox)", async () => {
+    h.stripe.session = paidSession();
+    const r = await call("POST", "/gift-cards/verify", { sessionId: "cs_test_gift_1" });
+    expect(r.status).toBe(200);
+    /* sendEmail is fire-and-forget in the route; the mock records the
+       call synchronously, but flush a tick before asserting. */
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.emails).toHaveLength(1);
+    expect(h.emails[0]!.to).toBe("friend@example.com");
+    const html = String(h.emails[0]!.html ?? "");
+    /* baseUrlForEmail is stubbed to https://example.com above; the CTA
+       (stubbed emailButton renders <a href="...">) must carry it. */
+    expect(html).toContain('href="https://example.com/artist/queen-creator"');
+    expect(html).not.toContain('href="/artist/');
+    /* The buyer-facing JSON keeps its relative storeUrl — only the
+       email needed the absolute form. */
+    expect(r.data.links.storeUrl).toBe("/artist/queen-creator");
   });
 
   it("a duplicate verify returns the card WITHOUT the code and issues nothing twice", async () => {
