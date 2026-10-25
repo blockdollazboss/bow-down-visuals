@@ -384,6 +384,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/sponsors/:id", disposition: "locked" },
   { path: "/titles", disposition: "redirect", redirectTo: "/hooks?tab=titles", targetDisposition: "locked" },
   { path: "/community", disposition: "locked" },
+  { path: "/pitch-fix", disposition: "locked" },
   { path: "/mastering", disposition: "redirect", redirectTo: "/audio-studio?tab=master&mode=quick", targetDisposition: "locked" },
   { path: "/mix-master", disposition: "redirect", redirectTo: "/audio-studio?tab=master", targetDisposition: "locked" },
   { path: "/stems", disposition: "redirect", redirectTo: "/audio-studio?tab=stems", targetDisposition: "locked" },
