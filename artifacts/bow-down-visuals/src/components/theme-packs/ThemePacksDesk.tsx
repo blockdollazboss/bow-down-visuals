@@ -30,6 +30,8 @@ import {
   type ThemePackVariant,
 } from "@/lib/theme-packs";
 import { WALLPAPER_PRESETS, type WallpaperPreset } from "@/lib/wallpapers";
+import { CreatorPacksSection, ThemeKitPanel } from "@/components/theme-packs/ThemeKitPanel";
+import { decodeLook, type PackCustomization } from "@/lib/theme-kit";
 
 /* ─── Theme Packs desk (Settings → Appearance) ──────────────────────────
    One tap on a pack reskins the whole site — page ground, panels,
@@ -340,6 +342,7 @@ function PackCard({
   buying,
   buyError,
   onBuy,
+  previewMix,
 }: {
   pack: ThemePack;
   siteMode: ThemePackMode;
@@ -351,6 +354,7 @@ function PackCard({
   buying: boolean;
   buyError: string | null;
   onBuy: (pack: ThemePack) => void;
+  previewMix?: PackCustomization | null;
 }) {
   const { t } = useTranslation();
   const owned = ownedIds.includes(pack.id);
@@ -527,6 +531,7 @@ function PackCard({
         )}
 
         <PackDeviceDownloads pack={pack} mode={viewMode} unlocked={unlocked} />
+        <ThemeKitPanel pack={pack} mode={viewMode} unlocked={unlocked} previewMix={previewMix} />
       </div>
     </article>
   );
@@ -632,8 +637,23 @@ export function ThemePacksDesk() {
 
   const activePack = THEME_PACKS.find((p) => p.id === activeId) ?? getActiveThemePack();
 
+  /* GET THIS LOOK landing (virality loop): ?look=<code> carries the
+     sender's pack + exact customization mix. The mix renders as a
+     PREVIEW on that pack's card; a premium pack still requires its
+     purchase to own/apply — the price is respected end to end. */
+  const [look] = useState(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get("look");
+      return code ? decodeLook(code) : null;
+    } catch {
+      return null;
+    }
+  });
+  const lookPack = look ? THEME_PACKS.find((p) => p.id === look.packId) : undefined;
+
   return (
     <section
+      id="theme-packs"
       className="rounded-2xl border border-primary/25 bg-gradient-to-b from-card to-background p-5 md:p-6"
       data-testid="theme-packs-settings"
     >
@@ -654,6 +674,18 @@ export function ThemePacksDesk() {
         </div>
       </div>
 
+      {look && lookPack ? (
+        <div className="mt-4 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3" role="status" data-testid="theme-pack-look-banner">
+          <p className="text-xs text-foreground">
+            You're previewing a shared look — <strong>{lookPack.name}</strong> wearing the sender's
+            exact customization mix.
+            {lookPack.tier === "premium"
+              ? " This pack is premium: the preview is free, owning it is still 1,000 VB — the sender's link never bypasses the price."
+              : " This pack is included — apply it any time."}
+          </p>
+        </div>
+      ) : null}
+
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {THEME_PACKS.map((pack) => (
           <PackCard
@@ -663,6 +695,16 @@ export function ThemePacksDesk() {
             active={pack.id === activePack.id}
             onApply={(p, m) => {
               applyThemePack(p.id, { mode: m });
+              /* Sound sync (owner ruling, Oct 25 17:39): applying a pack
+                 applies its sounds too — the pack's sounds ARE the site
+                 sound library's signature set by role. Stamp the library
+                 set as the active sound choice; the signature lane's
+                 per-account sound prefs own playback and read this seam
+                 at join. No per-pack sound files exist. */
+              try {
+                localStorage.setItem("bdv-sound-set", "library:signature-house");
+                window.dispatchEvent(new CustomEvent("bdv-pack-sounds-applied", { detail: { packId: p.id } }));
+              } catch { /* private mode — apply still landed */ }
             }}
             ownedIds={ownedIds}
             elite={elite}
@@ -670,9 +712,12 @@ export function ThemePacksDesk() {
             buying={buyingId === pack.id}
             buyError={buyErrors[pack.id] ?? null}
             onBuy={(p) => void buyPack(p)}
+            previewMix={look && look.packId === pack.id ? look.mix : null}
           />
         ))}
       </div>
+
+      <CreatorPacksSection />
 
       {!activePack.house && (
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3">

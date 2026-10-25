@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
@@ -311,11 +312,11 @@ router.post("/theme-packs/creator-packs", requireAuth, async (req, res) => {
       res.status(403).json({ error: "BASE_LOCKED", message: "You can design on a premium base once it's yours." });
       return;
     }
-    const { rows } = await db.execute(sql`
-      INSERT INTO creator_theme_packs (creator_user_id, name, base_pack_id, price_vb, mix)
-      VALUES (${req.userId!}, ${name}, ${basePackId}, ${priceVb}, ${JSON.stringify(clean.value)}::jsonb)
-      RETURNING id`);
-    const id = (rows[0] as { id: string }).id;
+    const newId = randomUUID();
+    await db.execute(sql`
+      INSERT INTO creator_theme_packs (id, creator_user_id, name, base_pack_id, price_vb, mix)
+      VALUES (${newId}, ${req.userId!}, ${name}, ${basePackId}, ${priceVb}, ${JSON.stringify(clean.value)}::jsonb)`);
+    const id = newId;
     res.json({ id, packId: `creator:${id}`, published: false });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "creator pack create failed");
