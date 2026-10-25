@@ -103,11 +103,14 @@ let shopSplitsColKnown: boolean | null = null;
 async function shopProductsHasSplits(): Promise<boolean> {
   if (shopSplitsColKnown !== null) return shopSplitsColKnown;
   try {
+    /* Row-length form (see lib/sale-splits' probe note): COUNT over
+       information_schema.columns throws inside the pg-mem harness. */
     const r = await db.execute(sql`
-      SELECT COUNT(*)::int AS n FROM information_schema.columns
+      SELECT column_name FROM information_schema.columns
       WHERE table_name = 'shop_products' AND column_name = 'splits'
+      LIMIT 1
     `);
-    shopSplitsColKnown = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+    shopSplitsColKnown = r.rows.length > 0;
   } catch {
     shopSplitsColKnown = false;
   }

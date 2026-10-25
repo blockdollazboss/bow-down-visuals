@@ -135,6 +135,10 @@ export function validateProductSplits(
       `Seller shares must total 100% — yours total ${total.toFixed(2)}%.`,
     );
   }
+  /* A lone entry can only be the owner at 100% (the checks above force
+     it) — that IS "no co-sellers", so the setting collapses to off and
+     the product stores null, exactly like an empty list. */
+  if (out.length === 1) return null;
   return out;
 }
 
@@ -243,11 +247,16 @@ let entriesReadyCache: boolean | null = null;
 export async function saleSplitEntriesReady(): Promise<boolean> {
   if (entriesReadyCache !== null) return entriesReadyCache;
   try {
+    /* Row-length form, not COUNT: the pg-mem harness throws inside
+       COUNT over information_schema.columns, and a thrown probe here
+       would read as "not ready" forever in tests while meaning
+       "landed" in production. */
     const r = await db.execute(sql`
-      SELECT COUNT(*)::int AS n FROM information_schema.tables
-      WHERE table_name = 'sale_split_entries'
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'sale_split_entries' AND column_name = 'sale_kind'
+      LIMIT 1
     `);
-    entriesReadyCache = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+    entriesReadyCache = r.rows.length > 0;
   } catch {
     entriesReadyCache = false;
   }
@@ -333,8 +342,20 @@ async function recordSplitLine(args: {
   }
   const profiles = await profileIdsByUser(splits.map((s) => s.userId));
   const amounts = allocateSplitCents(line.netCents, splits);
+  /* Exactly-once, belt and suspenders (the affiliate rail's pattern):
+     the pre-check answers replays deterministically; the UNIQUE key +
+     ON CONFLICT below closes the race between two doors landing at
+     the same instant. */
+  const prior = await db.execute(sql`
+    SELECT seller_user_id FROM sale_split_entries
+    WHERE sale_kind = ${args.saleKind} AND sale_id = ${args.saleId} AND product_id = ${line.productId}
+  `);
+  const alreadyRecorded = new Set(
+    (prior.rows as Array<Record<string, unknown>>).map((r) => String(r["seller_user_id"])),
+  );
   let recorded = 0;
   for (const a of amounts) {
+    if (alreadyRecorded.has(a.userId)) continue;
     const ins = await db.execute(sql`
       INSERT INTO sale_split_entries (
         sale_kind, sale_id, surface, product_id, product_title,
