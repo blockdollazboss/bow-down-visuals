@@ -367,14 +367,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* One-time trial credits: covers email + social signups. The endpoint is
    * idempotent; localStorage gates the call so it only fires until the first
-   * success (or confirmed already-claimed). Best-effort — it must never
-   * break sign-in. */
+   * success (or confirmed already-claimed). The gate key is PER ACCOUNT:
+   * the old shared key meant a second account signing in on the same
+   * browser never claimed its trial at all (Pass 0, Oct 24 2026 — the
+   * test's second account sat at the 300 starter while the first got
+   * 1,300). The server's trial_credits_claimed flag is the real guard.
+   * Best-effort — it must never break sign-in. */
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       try {
-        if (localStorage.getItem("bdv_trial_claimed") === "1") return;
+        if (localStorage.getItem(`bdv_trial_claimed:${user.id}`) === "1") return;
       } catch {
         return;
       }
@@ -387,7 +391,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (!res.ok || cancelled) return;
         try {
-          localStorage.setItem("bdv_trial_claimed", "1");
+          localStorage.setItem(`bdv_trial_claimed:${user.id}`, "1");
         } catch { /* noop */ }
         // Show the new balance immediately.
         await refreshProfile();
