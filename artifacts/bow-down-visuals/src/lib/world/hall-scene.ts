@@ -358,6 +358,13 @@ const CAM_CLAMP = PALACE_LAYOUT[HALL_ROOM_ID]!.camClamp;
 const GOLD = 0xd4af37;
 const GOLD_DEEP = 0x8a6a1c;
 
+/** Graphics pass (Stack-300): the factor the dark look multiplies
+ *  every derived-PBR surface's envMapIntensity by (see the surface
+ *  factory in makeMaterials). 1.4 lifts the midnight marble's relief
+ *  out of flat black without touching the day look or the exposure
+ *  the owner already approved. */
+export const DARK_ENV_LIFT = 1.4;
+
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
@@ -632,6 +639,41 @@ function hazeTexture(): THREE.CanvasTexture {
     ]);
   }
   return hazeTex;
+}
+
+let windowGlowTex: THREE.CanvasTexture | null = null;
+/** Lamplight falloff for the façade glass (graphics pass,
+ *  Stack-300): the windows wore a FLAT emissive — every pane the
+ *  same cream sticker, day and night. This grayscale emissiveMap
+ *  gives each pane a lit-interior falloff: a warm core riding
+ *  slightly above centre (a lamp inside, not a decal), dimming
+ *  toward the frame, with a darker sill line at the foot. It
+ *  multiplies the style's emissive colour, so the day/night
+ *  emissive intensities the exterior table tunes are untouched —
+ *  only the flatness goes. One 96×144 canvas, generated once,
+ *  shared by every pane on the façade. */
+function windowGlowTexture(): THREE.CanvasTexture {
+  if (windowGlowTex) return windowGlowTex;
+  const c = document.createElement("canvas");
+  c.width = 96;
+  c.height = 144;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(48, 60, 4, 48, 66, 92);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.45, "#b4b4b4");
+  grad.addColorStop(0.8, "#6e6e6e");
+  grad.addColorStop(1, "#454545");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 96, 144);
+  // The sill: the pane's foot sits in the frame's shadow.
+  const sill = g.createLinearGradient(0, 118, 0, 144);
+  sill.addColorStop(0, "rgba(0,0,0,0)");
+  sill.addColorStop(1, "rgba(0,0,0,0.35)");
+  g.fillStyle = sill;
+  g.fillRect(0, 118, 96, 26);
+  const tex = new THREE.CanvasTexture(c);
+  windowGlowTex = tex;
+  return tex;
 }
 
 /* ── Door name plates ───────────────────────────────────────────────
@@ -1895,7 +1937,18 @@ export class KingsHallScene {
         normalMap: pbr.normalMap, normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.surface, MATERIAL_NORMAL_SCALES.surface),
         roughnessMap: pbr.roughnessMap, roughness: 1,
         aoMap: pbr.aoMap,
-        color: opts.color, metalness: opts.metalness ?? 0.05, envMapIntensity: opts.envMapIntensity,
+        /* Graphics pass (Stack-300): in the dark look the marble
+         * family's direct light is scarce — candle pools and stage
+         * spots — so the derived relief (vein normals, polish
+         * roughness, baked AO) read as flat black. The environment
+         * response is lifted by DARK_ENV_LIFT there, giving the
+         * relief a sky/palace glow to answer to; the light look's
+         * values are the tuned ones and stay untouched. One factor
+         * at this choke point: every derived-PBR surface (marble,
+         * stone, paving, lawn, façade marble) shares it, and the
+         * per-family values at the call sites stay distinct. */
+        color: opts.color, metalness: opts.metalness ?? 0.05,
+        envMapIntensity: opts.envMapIntensity * (look.theme === "dark" ? DARK_ENV_LIFT : 1),
       });
     };
     const marbleSurface = (
@@ -1945,12 +1998,23 @@ export class KingsHallScene {
             color: 0xd9b45c, metalness: 1, roughness: 1,
             roughnessMap: maps.roughnessMap, normalMap: maps.normalMap,
             normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.gold, MATERIAL_NORMAL_SCALES.gold), envMapIntensity: 1.35,
+            /* Graphics pass (Stack-300): bright gold had NO emissive,
+             * so at night the façade trim and cornice lines lived on
+             * env reflection alone and read dull brown. A whisper of
+             * deep-gold emissive in the dark look only (0 by day —
+             * the material renders exactly as before) lets the gilt
+             * carry its own candle-warm glow. */
+            emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.22 : 0,
           })
         : new THREE.MeshStandardMaterial({
             color: 0x9a7a24, metalness: 1, roughness: 1,
             roughnessMap: maps.roughnessMap, normalMap: maps.normalMap,
             normalScale: new THREE.Vector2(MATERIAL_NORMAL_SCALES.gold, MATERIAL_NORMAL_SCALES.gold), envMapIntensity: 0.9,
-            emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05,
+            /* Graphics pass: the deep gold's night emissive rises
+             * 0.18 → 0.30 — the dais inlay and sconce plates were
+             * going silhouette-dark between candle pools. Day stays
+             * at the tuned 0.05. */
+            emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.3 : 0.05,
           });
     };
     const gold = makeGold("bright", 2, 2);
@@ -2022,10 +2086,21 @@ export class KingsHallScene {
     this.buildScreen(hall, mats);
     this.buildSpeakersAndMic(hall, mats);
     this.buildLights(hall, look);
+    /* Graphics pass (Stack-300): at night the three stage spots
+     * get visible shafts — the air over the dais was pure void
+     * between the spot heads and the stage they light. Day wears
+     * the window beams instead; the two never stack. */
+    if (look.theme === "dark") this.buildStageShafts(hall, look);
     if (look.chandeliers) this.buildChandeliers(hall, mats);
     if (look.candles) this.buildBraziers(hall, mats, anim);
     if (look.lightBeams) this.buildBeams(hall);
     if (look.dust) anim.dust = this.buildDust(hall);
+    /* Graphics pass (Stack-300): the candlelit look gets its own
+     * dust — motes hanging in the candle pools and stage light
+     * instead of sunbeams (the look's `dust` flag stays the
+     * sunbeam field's; this rides the candles flag that defines
+     * the look). */
+    else if (look.candles) anim.dust = this.buildCandleDust(hall);
     if (look.haze) this.buildHaze(hall, anim);
     this.buildRoomShells(group, look, mats, anim);
     /* Stage C (items 1–4): the palace's outside + the real sky.
@@ -2138,6 +2213,10 @@ export class KingsHallScene {
       new THREE.PlaneGeometry(FACADE_WINDOW_W, FACADE_WINDOW_H),
       new THREE.MeshStandardMaterial({
         color: style.color, emissive: style.emissive,
+        /* Graphics pass (Stack-300): the lamplight falloff map —
+         * see windowGlowTexture. The pane glows like a room, not
+         * a sticker. */
+        emissiveMap: windowGlowTexture(),
         emissiveIntensity: style.emissiveIntensity, roughness: style.roughness,
         metalness: style.metalness, envMapIntensity: style.envMapIntensity,
       }),
@@ -2428,8 +2507,15 @@ export class KingsHallScene {
         normalMap: floorPbr.normalMap, normalScale: new THREE.Vector2(0.5, 0.5),
         roughnessMap: floorPbr.roughnessMap, aoMap: floorPbr.aoMap,
         transparent: true, opacity: q.reflectorSize > 0 ? look.floorOverlayOpacity : 0.97,
-        roughness: 1, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3,
-        envMapIntensity: 0.85, depthWrite: false,
+        /* Graphics pass (Stack-300): the midnight floor is the
+         * hall's hero surface — the mirror the dais stands on. Its
+         * clearcoat polish and env response rise in the dark look
+         * (0.55 → 0.7, 0.85 → 1.05) so candlelight and the gold
+         * inlay smear across the polish the way they do off the
+         * reflector beneath; the day values are untouched. */
+        roughness: 1, metalness: 0,
+        clearcoat: look.theme === "dark" ? 0.7 : 0.55, clearcoatRoughness: 0.3,
+        envMapIntensity: look.theme === "dark" ? 1.05 : 0.85, depthWrite: false,
       }),
     );
     overlay.rotation.x = -Math.PI / 2;
@@ -3379,6 +3465,36 @@ export class KingsHallScene {
     }
   }
 
+  /** Fake volumetric shafts for the three stage spots (Look B,
+   *  graphics pass Stack-300): one open cone per spot, narrow at
+   *  the head (buildLights: y 6.3, z −10.5) and widening onto its
+   *  target on the stage (y 0.7, z −15.5) — the same proportions
+   *  the real SpotLight cone (angle 0.55) throws. Additive,
+   *  depth-write off, a whisper of opacity: a shaft you sense
+   *  more than see, doubling where the candle dust drifts through
+   *  it. Three draws, no lights, no animation — the cone is still
+   *  air; only the dust inside it moves. */
+  private buildStageShafts(group: THREE.Group, look: HallLook): void {
+    for (const x of [-6, 0, 6]) {
+      const head = new THREE.Vector3(x, 6.3, -10.5);
+      const target = new THREE.Vector3(x * 0.6, 0.7, -15.5);
+      const len = head.distanceTo(target);
+      const geo = new THREE.CylinderGeometry(0.16, 1.55, len, 20, 1, true);
+      const shaft = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+        color: look.stageSpot.color, transparent: true, opacity: 0.05,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+        side: THREE.DoubleSide, fog: false,
+      }));
+      shaft.position.copy(head).add(target).multiplyScalar(0.5);
+      shaft.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        head.clone().sub(target).normalize(),
+      );
+      shaft.renderOrder = 4;
+      group.add(shaft);
+    }
+  }
+
   /** Dust motes hanging in the sunbeams (Look A). */
   private buildDust(group: THREE.Group): THREE.Points {
     const count = 340;
@@ -3396,6 +3512,35 @@ export class KingsHallScene {
     geo.setDrawRange(0, Math.floor(count * QUALITY[this.quality].particleScale));
     const dust = new THREE.Points(geo, new THREE.PointsMaterial({
       map: hazeTexture(), size: 0.055, transparent: true, opacity: 0.5, color: 0xffe9bb,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    }));
+    dust.renderOrder = 5;
+    group.add(dust);
+    return dust;
+  }
+
+  /** Dust motes in the candlelight (Look B, graphics pass
+   *  Stack-300): the midnight twin of buildDust — the same single
+   *  Points cloud, the same particle-scale draw range, the same
+   *  ultra-slow drift the tick already applies to anim.dust. The
+   *  field spreads the whole hall instead of the window beams,
+   *  rides a touch larger and dimmer, and wears the sconces' warm
+   *  tint, so the air over the dais and the audience floor has
+   *  depth where the haze sheets end. Calm by construction: the
+   *  tick's 0.12 rad/s breathing is the only motion. */
+  private buildCandleDust(group: THREE.Group): THREE.Points {
+    const count = 300;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = -13 + Math.random() * 26;
+      positions[i * 3 + 1] = 0.3 + Math.random() * 5.5;
+      positions[i * 3 + 2] = -16.5 + Math.random() * 27;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setDrawRange(0, Math.floor(count * QUALITY[this.quality].particleScale));
+    const dust = new THREE.Points(geo, new THREE.PointsMaterial({
+      map: hazeTexture(), size: 0.07, transparent: true, opacity: 0.32, color: 0xffbe78,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
     }));
     dust.renderOrder = 5;

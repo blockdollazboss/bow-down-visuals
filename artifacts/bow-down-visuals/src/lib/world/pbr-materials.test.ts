@@ -362,3 +362,40 @@ describe("three-facing texture registry", () => {
     expect(leaned).toBeGreaterThan(1000);
   });
 });
+
+describe("graphics pass (Stack-300): the midnight relief + glow round", () => {
+  it("the dark look lifts every derived surface's env response by one named factor", () => {
+    expect(sceneSrc).toContain("export const DARK_ENV_LIFT = 1.4");
+    // Applied once, at the surface factory every PBR family funnels
+    // through — and only for the dark look.
+    expect(sceneSrc).toContain('envMapIntensity: opts.envMapIntensity * (look.theme === "dark" ? DARK_ENV_LIFT : 1)');
+  });
+
+  it("gold carries its own glow at night: bright gains an emissive, deep gold's rises", () => {
+    expect(sceneSrc).toContain('emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.22 : 0');
+    expect(sceneSrc).toContain('emissive: GOLD_DEEP, emissiveIntensity: look.theme === "dark" ? 0.3 : 0.05');
+    // The superseded night value is gone.
+    expect(sceneSrc).not.toContain('emissiveIntensity: look.theme === "dark" ? 0.18 : 0.05');
+  });
+
+  it("the mirror floor polishes harder at night (clearcoat + env), day untouched", () => {
+    expect(sceneSrc).toContain('clearcoat: look.theme === "dark" ? 0.7 : 0.55');
+    expect(sceneSrc).toContain('envMapIntensity: look.theme === "dark" ? 1.05 : 0.85');
+  });
+
+  it("façade glass wears the lamplight falloff map, not a flat emissive", () => {
+    expect(sceneSrc).toContain("function windowGlowTexture()");
+    expect(sceneSrc).toContain("emissiveMap: windowGlowTexture()");
+  });
+
+  it("the candlelit look gets candle dust; the sunbeam field keeps its own gate", () => {
+    expect(sceneSrc).toContain("if (look.dust) anim.dust = this.buildDust(hall);");
+    expect(sceneSrc).toContain("else if (look.candles) anim.dust = this.buildCandleDust(hall);");
+    expect(sceneSrc).toContain("private buildCandleDust(group: THREE.Group): THREE.Points");
+  });
+
+  it("stage spots throw visible shafts at night only", () => {
+    expect(sceneSrc).toContain('if (look.theme === "dark") this.buildStageShafts(hall, look);');
+    expect(sceneSrc).toContain("private buildStageShafts(group: THREE.Group, look: HallLook): void");
+  });
+});
