@@ -728,7 +728,8 @@
     "logoMaker": "Logo Maker",
     "introsOutros": "Intros & Outros",
     "streamPack": "Stream Pack",
-    "thumbnailABTest": "Thumbnail A/B Test"
+    "thumbnailABTest": "Thumbnail A/B Test",
+    "pitchFix": "아이디어와 수정"
   },
   "tutorials": {
     "heading": "하우투 비디오",
@@ -1064,6 +1065,24 @@
       "banConfirm": "{email}님을 차단할까요? 로그인이 차단됩니다.",
       "unbanConfirm": "{email}님의 차단을 해제할까요?",
       "banError": "차단 상태를 업데이트할 수 없습니다."
+    },
+    "pitchFix": {
+      "title": "아이디어와 수정 — 팀 검토",
+      "description": "모든 제안, 수정 신고, 피드백이 먼저 여기서 기다립니다. 승인하면 공개 보드에 게시되고, 이후 작업 진행에 따라 상태를 옮깁니다.",
+      "empty": "대기 중인 항목이 없습니다 — 접수함이 비었습니다.",
+      "approve": "승인하고 게시",
+      "reject": "거절",
+      "statusError": "그 제출을 업데이트하지 못했습니다 — 다시 시도하세요.",
+      "loading": "대기열 불러오는 중…",
+      "loadErrorTitle": "아이디어와 수정 대기열을 불러오지 못했습니다.",
+      "loadError": "제출물은 안전합니다 — 이 대기열만 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "rating": "{{rating}}★",
+      "kind": {
+        "pitch": "제안",
+        "fix": "수정",
+        "feedback": "피드백"
+      }
     }
   },
   "analyticsHub": {
@@ -5617,6 +5636,16 @@
       "loadError": "사운드 설정을 지금 불러오지 못했습니다.",
       "retry": "다시 시도",
       "test": "테스트 소리 재생"
+    },
+    "feedbackPrompts": {
+      "title": "피드백 요청",
+      "subtitle": "가끔 앱에서 어땠는지 묻는 요청입니다 — 주 1회를 넘지 않고, 작업 흐름 중간에는 절대 나오지 않습니다.",
+      "toggleTitle": "피드백 요청",
+      "toggleDesc": "켜 두면 내보내기 완료나 제작 성공 같은 큰 순간 뒤에 짧은 별점 요청이 나올 수 있습니다. 끄면 다시는 나오지 않습니다. 어느 쪽이든 아이디어와 수정에서는 언제든 제안하고 신고할 수 있습니다.",
+      "saved": "피드백 설정이 저장됐습니다",
+      "saveFailed": "그 설정을 저장하지 못했습니다",
+      "loadError": "피드백 설정을 불러오지 못했습니다.",
+      "retry": "다시 시도"
     }
   },
   "social-proof": {
@@ -14919,5 +14948,128 @@
     "unavailable": "지금은 판매 중이 아닙니다 — 돌아올 경우를 위해 여기에 보관합니다.",
     "view": "상품 보기",
     "remove": "위시리스트에서 제거"
+  },
+  "pitchFix": {
+    "title": "아이디어",
+    "titleFix": "수정",
+    "subtitle": "다음에 만들 것을 제안하고, 고칠 것을 알리고, 실제로 이뤄지는 모습을 지켜보세요.",
+    "flow": {
+      "pitch": "제안",
+      "review": "검토",
+      "build": "제작",
+      "shipped": "출시됨"
+    },
+    "pitchDoor": {
+      "title": "아이디어 제안하기",
+      "sub": "무엇을 만들지 알려주세요. 강한 제안일수록 먼저 검토됩니다. 다른 크리에이터의 투표가 순위를 올립니다.",
+      "titleLabel": "제목",
+      "titlePlaceholder": "예: 뮤직비디오 듀엣 모드",
+      "whatLabel": "어떤 아이디어인가요?",
+      "whatPlaceholder": "아이디어를 한두 문장으로 설명해 주세요.",
+      "whyLabel": "왜 중요한가요",
+      "whyPlaceholder": "누구에게 도움이 되고, 무엇을 가능하게 하나요?",
+      "categoryLabel": "카테고리",
+      "submit": "검토받으러 보내기"
+    },
+    "fixDoor": {
+      "title": "수정 신고하기",
+      "sub": "고장 났거나, 멈췄거나, 그냥 이상한가요? 짚어 주세요. 신고는 빠른 검토 후, 따라갈 수 있는 상태와 함께 수정 보드에 올라갑니다.",
+      "whatLabel": "무엇이 고장 났나요?",
+      "whatPlaceholder": "예: 내보내기 버튼이 계속 돕니다",
+      "whereLabel": "어디에서인가요?",
+      "severityLabel": "심각도",
+      "detailsLabel": "자세히",
+      "detailsPlaceholder": "문제가 생겼을 때 무엇을 하고 있었나요? 대신 무엇을 기대했나요?",
+      "submit": "검토받으러 보내기"
+    },
+    "nameLabel": "크리에이터 이름",
+    "namePlaceholder": "예: Maya Waves",
+    "pitchSent": "제안을 보냈습니다 — 팀이 모든 제안을 검토한 뒤 보드에 올립니다.",
+    "fixSent": "신고를 보냈습니다 — 팀이 모든 신고를 검토한 뒤 보드에 올립니다.",
+    "signInToSubmit": "보내려면 로그인하세요 — 보드는 공개지만 게시에는 계정이 필요합니다.",
+    "titleRequired": "제안에 제목과 한 줄 설명을 붙여 다시 보내 주세요.",
+    "fixRequired": "무엇이 고장 났는지 한 줄로 알려 주고 다시 보내 주세요.",
+    "sendError": "보내는 중 문제가 생겼습니다 — 다시 시도해 주세요.",
+    "loadError": "보드를 불러오지 못했습니다.",
+    "retry": "다시 시도",
+    "loading": "불러오는 중…",
+    "mineTitle": "검토 대기 중 — 내 것",
+    "moderation": {
+      "pending": "검토 중",
+      "approved": "게시됨",
+      "rejected": "게시 안 됨"
+    },
+    "pitchBoard": "아이디어 보드",
+    "fixBoard": "수정 보드",
+    "pitchesCount": "제안 {{count}}개",
+    "reportsCount": "신고 {{count}}개",
+    "sortTop": "투표순",
+    "sortNewest": "최신순",
+    "votes": "표",
+    "upvote": "{{title}}에 투표",
+    "by": "{{name}} 님",
+    "whyMatters": "왜 중요한가요",
+    "reportedIn": "{{page}}에서 신고됨",
+    "emptyPitches": "보드에 아직 제안이 없습니다 — 위의 문으로 첫 제안을 해 보세요.",
+    "emptyFixes": "보드에 아직 신고가 없습니다 — 고장 난 게 없다는 건 좋은 소식입니다.",
+    "feedbackRow": "피드백 — 5점 만점에 {{rating}}점",
+    "pitchStatus": {
+      "reviewing": "검토 중",
+      "approved": "승인됨",
+      "building": "제작 중",
+      "shipped": "출시됨"
+    },
+    "fixStatus": {
+      "received": "접수됨",
+      "confirmed": "확인됨",
+      "fixing": "수정 중",
+      "fixed": "수정 완료"
+    },
+    "category": {
+      "create": "만들기",
+      "world": "월드",
+      "money": "수익",
+      "social": "소셜",
+      "other": "기타"
+    },
+    "page": {
+      "video_editor": "동영상 편집기",
+      "make_song_video": "노래 + 동영상 만들기",
+      "audio_studio": "오디오 스튜디오",
+      "thumbnail_studio": "썸네일 스튜디오",
+      "branding_kit": "브랜딩 키트",
+      "the_world": "더 월드",
+      "go_live": "라이브 시작",
+      "earnings": "수익",
+      "profile": "프로필",
+      "somewhere_else": "다른 곳"
+    },
+    "severity": {
+      "blocks_me": "막혀요",
+      "annoying": "불편해요",
+      "small": "사소해요"
+    },
+    "shipped": {
+      "title": "최근 출시",
+      "sub": "크리에이터가 여기서 제안했거나 — 고장 신고를 했기에 만들어졌습니다.",
+      "ideaBy": "아이디어:",
+      "fixBy": "수정 신고:",
+      "shippedWord": "출시됨",
+      "fixedWord": "수정 완료"
+    },
+    "note": {
+      "title": "팀이 전부 읽습니다",
+      "body": "모든 제안과 수정 신고를 Bow Down Visuals 팀이 읽습니다. 게시물은 빠른 검토를 거친 뒤에만 이 보드에 공개되며, 무언가 출시되면 처음 알린 크리에이터가 크레딧을 받습니다."
+    },
+    "popup": {
+      "title": "어떠셨나요?",
+      "sub": "짧은 한마디가 정말 원하는 것을 만드는 데 도움이 됩니다.",
+      "rateLabel": "내 평점",
+      "stars": "별 {{count}}개",
+      "textPlaceholder": "한 줄로 — 무엇이 좋았거나 아쉬웠나요? (선택)",
+      "submit": "피드백 보내기",
+      "dismiss": "나중에",
+      "thanks": "감사합니다 — 피드백은 팀에 전달됩니다."
+    }
   }
 }

@@ -710,7 +710,8 @@
     "beatMaker": "Beat Maker",
     "earnings": "Earnings",
     "quests": "Quests",
-    "allFeatures": "All Features"
+    "allFeatures": "All Features",
+    "pitchFix": "Pitch & Fix"
   },
   "tutorials": {
     "heading": "How-To Videos",
@@ -1046,6 +1047,24 @@
       "banConfirm": "Ban {email}? They will be blocked from signing in.",
       "unbanConfirm": "Unban {email}?",
       "banError": "Could not update the ban status."
+    },
+    "pitchFix": {
+      "title": "Pitch & Fix — team review",
+      "description": "Every pitch, fix report, and feedback submission waits here first. Approve to post it to the public boards; then walk its status as the work moves.",
+      "empty": "Nothing waiting — the intake is clear.",
+      "approve": "Approve & post",
+      "reject": "Reject",
+      "statusError": "Couldn't update that submission — try again.",
+      "loading": "Loading the queue…",
+      "loadErrorTitle": "Couldn't load the Pitch & Fix queue.",
+      "loadError": "The submissions are safe — this queue just couldn't load them.",
+      "retry": "Retry",
+      "rating": "{{rating}}★",
+      "kind": {
+        "pitch": "Pitch",
+        "fix": "Fix",
+        "feedback": "Feedback"
+      }
     }
   },
   "analyticsHub": {
@@ -5876,6 +5895,16 @@
       "loadError": "Your sound settings wouldn't load just now.",
       "retry": "Try again",
       "test": "Play test sound"
+    },
+    "feedbackPrompts": {
+      "title": "Feedback prompts",
+      "subtitle": "An occasional in-app prompt asking how things went — never more than once a week, never mid-flow.",
+      "toggleTitle": "Feedback prompts",
+      "toggleDesc": "When on, a short star-rating prompt may appear after a big moment — an export finishing, a creation succeeding. Turn it off and it never appears. Either way, you can always pitch ideas and report fixes on Pitch & Fix.",
+      "saved": "Feedback prompt setting saved",
+      "saveFailed": "Couldn't save that setting",
+      "loadError": "Couldn't load your feedback prompt setting.",
+      "retry": "Retry"
     }
   },
   "social-proof": {
@@ -14898,5 +14927,128 @@
     "slideshowBlurb": "A folder of your set's images, ready to point a slideshow screensaver at — no video, just your art rotating on screen.",
     "slideshowButton": "Download the slideshow pack (.zip)",
     "aiDisclosure": "AI disclosure in file details"
+  },
+  "pitchFix": {
+    "title": "Pitch",
+    "titleFix": "Fix",
+    "subtitle": "Pitch what we should build next, report what needs fixing, and watch it happen.",
+    "flow": {
+      "pitch": "PITCH",
+      "review": "REVIEW",
+      "build": "BUILD",
+      "shipped": "SHIPPED"
+    },
+    "pitchDoor": {
+      "title": "Pitch an idea",
+      "sub": "Tell us what to build. The strongest pitches get reviewed first — votes from other creators help them rise.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Duet mode for music videos",
+      "whatLabel": "What is it?",
+      "whatPlaceholder": "Describe the idea in a sentence or two.",
+      "whyLabel": "Why it matters",
+      "whyPlaceholder": "Who does it help, and what does it unlock for them?",
+      "categoryLabel": "Category",
+      "submit": "Send pitch for review"
+    },
+    "fixDoor": {
+      "title": "Report a fix",
+      "sub": "Something broken, stuck, or just off? Point at it. Reports join the Fix Board once they've had a quick review, with a status you can follow.",
+      "whatLabel": "What's broken?",
+      "whatPlaceholder": "e.g. Export button spins forever",
+      "whereLabel": "Where is it?",
+      "severityLabel": "Severity",
+      "detailsLabel": "Details",
+      "detailsPlaceholder": "What were you doing when it happened? What did you expect instead?",
+      "submit": "Send report for review"
+    },
+    "nameLabel": "Your creator name",
+    "namePlaceholder": "e.g. Maya Waves",
+    "pitchSent": "Pitch sent — the team reviews every pitch before it posts to the board.",
+    "fixSent": "Report sent — the team reviews every report before it posts to the board.",
+    "signInToSubmit": "Sign in to send this — the boards are public, posting needs an account.",
+    "titleRequired": "Give your pitch a title and a line on what it is, then send it again.",
+    "fixRequired": "Tell us what's broken in one line, then send it again.",
+    "sendError": "Something went wrong sending that — please try again.",
+    "loadError": "Couldn't load the boards.",
+    "retry": "Retry",
+    "loading": "Loading…",
+    "mineTitle": "Waiting for review — yours",
+    "moderation": {
+      "pending": "In review",
+      "approved": "Posted",
+      "rejected": "Not posted"
+    },
+    "pitchBoard": "Pitch Board",
+    "fixBoard": "Fix Board",
+    "pitchesCount": "{{count}} pitches",
+    "reportsCount": "{{count}} reports",
+    "sortTop": "Top votes",
+    "sortNewest": "Newest",
+    "votes": "VOTES",
+    "upvote": "Upvote {{title}}",
+    "by": "by {{name}}",
+    "whyMatters": "Why it matters",
+    "reportedIn": "Reported in {{page}}",
+    "emptyPitches": "No pitches on the board yet — be the first through the door above.",
+    "emptyFixes": "No reports on the board yet — nothing broken is good news.",
+    "feedbackRow": "Feedback — {{rating}} of 5 stars",
+    "pitchStatus": {
+      "reviewing": "Reviewing",
+      "approved": "Approved",
+      "building": "Building",
+      "shipped": "Shipped"
+    },
+    "fixStatus": {
+      "received": "Received",
+      "confirmed": "Confirmed",
+      "fixing": "Fixing",
+      "fixed": "Fixed"
+    },
+    "category": {
+      "create": "Create",
+      "world": "World",
+      "money": "Money",
+      "social": "Social",
+      "other": "Other"
+    },
+    "page": {
+      "video_editor": "Video Editor",
+      "make_song_video": "Make Song + Video",
+      "audio_studio": "Audio Studio",
+      "thumbnail_studio": "Thumbnail Studio",
+      "branding_kit": "Branding Kit",
+      "the_world": "The World",
+      "go_live": "Go Live",
+      "earnings": "Earnings",
+      "profile": "Profile",
+      "somewhere_else": "Somewhere else"
+    },
+    "severity": {
+      "blocks_me": "Blocks me",
+      "annoying": "Annoying",
+      "small": "Small"
+    },
+    "shipped": {
+      "title": "Recently shipped",
+      "sub": "Built because a creator pitched it here — or reported it broken.",
+      "ideaBy": "Idea by",
+      "fixBy": "Fix reported by",
+      "shippedWord": "shipped",
+      "fixedWord": "fixed"
+    },
+    "note": {
+      "title": "Read by the team, every one",
+      "body": "Every pitch and every fix report is read by the Bow Down Visuals team. Posts appear publicly on these boards only after a quick review — and when something ships, the creator who raised it gets the credit."
+    },
+    "popup": {
+      "title": "How was that?",
+      "sub": "A quick word helps us build what you actually want.",
+      "rateLabel": "Your rating",
+      "stars": "{{count}} stars",
+      "textPlaceholder": "One line — what worked, or what didn't? (optional)",
+      "submit": "Send feedback",
+      "dismiss": "Not now",
+      "thanks": "Thanks — your feedback goes to the team."
+    }
   }
 }

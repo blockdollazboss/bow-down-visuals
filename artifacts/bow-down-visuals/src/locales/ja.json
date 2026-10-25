@@ -728,7 +728,8 @@
     "logoMaker": "Logo Maker",
     "introsOutros": "Intros & Outros",
     "streamPack": "Stream Pack",
-    "thumbnailABTest": "Thumbnail A/B Test"
+    "thumbnailABTest": "Thumbnail A/B Test",
+    "pitchFix": "アイデアと修正"
   },
   "tutorials": {
     "heading": "ハウツー動画",
@@ -1064,6 +1065,24 @@
       "banConfirm": "{email} を禁止しますか？サインインがブロックされます。",
       "unbanConfirm": "{email} の禁止を解除しますか？",
       "banError": "禁止ステータスを更新できませんでした。"
+    },
+    "pitchFix": {
+      "title": "アイデアと修正 — チームレビュー",
+      "description": "すべての提案、修正報告、フィードバックはまずここで待ちます。承認すると公開ボードに載り、その後、作業の進行に合わせてステータスを進めます。",
+      "empty": "待機中はありません——受付は空です。",
+      "approve": "承認して掲載",
+      "reject": "却下",
+      "statusError": "その送信を更新できませんでした。再試行してください。",
+      "loading": "キューを読み込み中…",
+      "loadErrorTitle": "アイデアと修正のキューを読み込めませんでした。",
+      "loadError": "送信内容は無事です。このキューが読み込めなかっただけです。",
+      "retry": "再試行",
+      "rating": "{{rating}}★",
+      "kind": {
+        "pitch": "提案",
+        "fix": "修正",
+        "feedback": "フィードバック"
+      }
     }
   },
   "analyticsHub": {
@@ -5617,6 +5636,16 @@
       "loadError": "サウンド設定を今読み込めませんでした。",
       "retry": "もう一度試す",
       "test": "テスト音を再生"
+    },
+    "feedbackPrompts": {
+      "title": "フィードバックのお願い",
+      "subtitle": "アプリ内で時々、感想を聞くお願いです。週に1回まで、作業の途中には決して出ません。",
+      "toggleTitle": "フィードバックのお願い",
+      "toggleDesc": "オンにすると、書き出しの完了や作成の成功といった大きな瞬間の後に、短い星評価のお願いが出ることがあります。オフにすれば二度と出ません。どちらでも、アイデアと修正ではいつでも提案や報告ができます。",
+      "saved": "フィードバック設定を保存しました",
+      "saveFailed": "その設定を保存できませんでした",
+      "loadError": "フィードバック設定を読み込めませんでした。",
+      "retry": "再試行"
     }
   },
   "social-proof": {
@@ -14914,5 +14943,128 @@
     "unavailable": "現在は販売していません — 戻ってきた時のためにここに残します。",
     "view": "商品を見る",
     "remove": "ウィッシュリストから削除"
+  },
+  "pitchFix": {
+    "title": "アイデア",
+    "titleFix": "修正",
+    "subtitle": "次に作るべきものを提案し、直すべきものを報告して、実現する様子を見届けましょう。",
+    "flow": {
+      "pitch": "提案",
+      "review": "レビュー",
+      "build": "制作",
+      "shipped": "公開済み"
+    },
+    "pitchDoor": {
+      "title": "アイデアを提案する",
+      "sub": "何を作るか教えてください。強い提案ほど先にレビューされます。他のクリエイターの投票が後押しします。",
+      "titleLabel": "タイトル",
+      "titlePlaceholder": "例：ミュージックビデオのデュエットモード",
+      "whatLabel": "どんなものですか？",
+      "whatPlaceholder": "アイデアを1〜2文で説明してください。",
+      "whyLabel": "なぜ大切か",
+      "whyPlaceholder": "誰の役に立ち、何が可能になりますか？",
+      "categoryLabel": "カテゴリ",
+      "submit": "レビューに送る"
+    },
+    "fixDoor": {
+      "title": "修正を報告する",
+      "sub": "壊れている、止まる、おかしい——指さしてください。報告は簡単なレビューの後、追跡できるステータス付きで修正ボードに載ります。",
+      "whatLabel": "何が壊れていますか？",
+      "whatPlaceholder": "例：書き出しボタンが回り続ける",
+      "whereLabel": "どこで起きましたか？",
+      "severityLabel": "深刻さ",
+      "detailsLabel": "詳細",
+      "detailsPlaceholder": "起きたとき何をしていましたか？ 本来どうなるはずでしたか？",
+      "submit": "レビューに送る"
+    },
+    "nameLabel": "クリエイター名",
+    "namePlaceholder": "例：Maya Waves",
+    "pitchSent": "提案を送りました。チームがすべての提案をレビューしてからボードに載せます。",
+    "fixSent": "報告を送りました。チームがすべての報告をレビューしてからボードに載せます。",
+    "signInToSubmit": "送信にはサインインが必要です。ボードは公開ですが、投稿にはアカウントが必要です。",
+    "titleRequired": "提案にタイトルと、内容を一行で添えて、もう一度送ってください。",
+    "fixRequired": "何が壊れているか一行で教えて、もう一度送ってください。",
+    "sendError": "送信中に問題が起きました。もう一度お試しください。",
+    "loadError": "ボードを読み込めませんでした。",
+    "retry": "再試行",
+    "loading": "読み込み中…",
+    "mineTitle": "レビュー待ち — あなたの分",
+    "moderation": {
+      "pending": "レビュー中",
+      "approved": "掲載済み",
+      "rejected": "未掲載"
+    },
+    "pitchBoard": "アイデアボード",
+    "fixBoard": "修正ボード",
+    "pitchesCount": "提案 {{count}} 件",
+    "reportsCount": "報告 {{count}} 件",
+    "sortTop": "投票順",
+    "sortNewest": "新着順",
+    "votes": "票",
+    "upvote": "「{{title}}」に投票",
+    "by": "{{name}} さん",
+    "whyMatters": "なぜ大切か",
+    "reportedIn": "{{page}} で報告",
+    "emptyPitches": "ボードにはまだ提案がありません。上の扉から最初の提案をどうぞ。",
+    "emptyFixes": "ボードにはまだ報告がありません。壊れているものがないのは良い知らせです。",
+    "feedbackRow": "フィードバック — 5点中 {{rating}} 点",
+    "pitchStatus": {
+      "reviewing": "レビュー中",
+      "approved": "承認済み",
+      "building": "制作中",
+      "shipped": "公開済み"
+    },
+    "fixStatus": {
+      "received": "受付済み",
+      "confirmed": "確認済み",
+      "fixing": "修正中",
+      "fixed": "修正済み"
+    },
+    "category": {
+      "create": "作成",
+      "world": "ワールド",
+      "money": "お金",
+      "social": "ソーシャル",
+      "other": "その他"
+    },
+    "page": {
+      "video_editor": "動画エディター",
+      "make_song_video": "曲＋動画を作る",
+      "audio_studio": "オーディオスタジオ",
+      "thumbnail_studio": "サムネイルスタジオ",
+      "branding_kit": "ブランディングキット",
+      "the_world": "ザ・ワールド",
+      "go_live": "ライブ配信",
+      "earnings": "収益",
+      "profile": "プロフィール",
+      "somewhere_else": "その他"
+    },
+    "severity": {
+      "blocks_me": "進めない",
+      "annoying": "煩わしい",
+      "small": "小さい"
+    },
+    "shipped": {
+      "title": "最近公開されたもの",
+      "sub": "クリエイターがここで提案した——または壊れていると報告した——から作られました。",
+      "ideaBy": "アイデア：",
+      "fixBy": "修正報告：",
+      "shippedWord": "公開済み",
+      "fixedWord": "修正済み"
+    },
+    "note": {
+      "title": "チームが全部読みます",
+      "body": "すべての提案と修正報告を Bow Down Visuals のチームが読みます。投稿がこれらのボードに公開されるのは簡単なレビューの後だけです。そして何かが公開されたら、声を上げたクリエイターにクレジットが入ります。"
+    },
+    "popup": {
+      "title": "いかがでしたか？",
+      "sub": "ひと言が、本当に欲しいものを作る助けになります。",
+      "rateLabel": "あなたの評価",
+      "stars": "{{count}} つ星",
+      "textPlaceholder": "一行で——良かった点、またはダメだった点は？（任意）",
+      "submit": "フィードバックを送る",
+      "dismiss": "今はしない",
+      "thanks": "ありがとうございます。フィードバックはチームに届きます。"
+    }
   }
 }

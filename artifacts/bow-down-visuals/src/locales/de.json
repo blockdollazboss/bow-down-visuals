@@ -728,7 +728,8 @@
     "logoMaker": "Logo-Maker",
     "introsOutros": "Intros & Outros",
     "streamPack": "Stream-Pack",
-    "thumbnailABTest": "Thumbnail-A/B-Test"
+    "thumbnailABTest": "Thumbnail-A/B-Test",
+    "pitchFix": "Ideen & Fehler"
   },
   "tutorials": {
     "heading": "Anleitungsvideos",
@@ -1064,6 +1065,24 @@
       "banConfirm": "{email} sperren? Die Person wird an der Anmeldung gehindert.",
       "unbanConfirm": "Sperre von {email} aufheben?",
       "banError": "Der Sperrstatus konnte nicht aktualisiert werden."
+    },
+    "pitchFix": {
+      "title": "Ideen & Fehler — Team-Prüfung",
+      "description": "Jede Idee, Fehlermeldung und jedes Feedback wartet zuerst hier. Genehmige, um es auf den öffentlichen Listen zu posten; dann bewege seinen Status mit der Arbeit weiter.",
+      "empty": "Nichts wartet — der Eingang ist leer.",
+      "approve": "Genehmigen & posten",
+      "reject": "Ablehnen",
+      "statusError": "Dieser Eintrag konnte nicht aktualisiert werden — versuch es erneut.",
+      "loading": "Warteschlange wird geladen…",
+      "loadErrorTitle": "Die Ideen-&-Fehler-Warteschlange konnte nicht geladen werden.",
+      "loadError": "Die Einträge sind sicher — diese Warteschlange konnte nur nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "rating": "{{rating}}★",
+      "kind": {
+        "pitch": "Idee",
+        "fix": "Fehler",
+        "feedback": "Feedback"
+      }
     }
   },
   "analyticsHub": {
@@ -5617,6 +5636,16 @@
       "loadError": "Deine Klangeinstellungen konnten gerade nicht geladen werden.",
       "retry": "Erneut versuchen",
       "test": "Testklang abspielen"
+    },
+    "feedbackPrompts": {
+      "title": "Feedback-Abfragen",
+      "subtitle": "Eine gelegentliche Abfrage in der App, wie es lief — nie öfter als einmal pro Woche, nie mitten in einem Ablauf.",
+      "toggleTitle": "Feedback-Abfragen",
+      "toggleDesc": "Wenn an, kann nach einem großen Moment — einem fertigen Export, einer gelungenen Kreation — eine kurze Sterne-Abfrage erscheinen. Schalt sie aus, und sie erscheint nie. Ideen vorschlagen und Fehler melden kannst du auf Ideen & Fehler so oder so jederzeit.",
+      "saved": "Feedback-Einstellung gespeichert",
+      "saveFailed": "Diese Einstellung konnte nicht gespeichert werden",
+      "loadError": "Deine Feedback-Einstellung konnte nicht geladen werden.",
+      "retry": "Erneut versuchen"
     }
   },
   "social-proof": {
@@ -14919,5 +14948,128 @@
     "handoffTitle": "Nächster Schritt",
     "handoffMaster": "An den Master-Tab senden →",
     "handoffDistribute": "Vertreiben →"
+  },
+  "pitchFix": {
+    "title": "Ideen",
+    "titleFix": "Fehler",
+    "subtitle": "Schlage vor, was wir als Nächstes bauen sollen, melde, was kaputt ist, und sieh zu, wie es passiert.",
+    "flow": {
+      "pitch": "IDEE",
+      "review": "PRÜFUNG",
+      "build": "BAU",
+      "shipped": "GELIEFERT"
+    },
+    "pitchDoor": {
+      "title": "Eine Idee vorschlagen",
+      "sub": "Sag uns, was wir bauen sollen. Die stärksten Ideen werden zuerst geprüft — Stimmen anderer Creator helfen ihnen aufzusteigen.",
+      "titleLabel": "Titel",
+      "titlePlaceholder": "z. B. Duett-Modus für Musikvideos",
+      "whatLabel": "Was ist es?",
+      "whatPlaceholder": "Beschreibe die Idee in ein oder zwei Sätzen.",
+      "whyLabel": "Warum es zählt",
+      "whyPlaceholder": "Wem hilft es, und was macht es möglich?",
+      "categoryLabel": "Kategorie",
+      "submit": "Idee zur Prüfung senden"
+    },
+    "fixDoor": {
+      "title": "Einen Fehler melden",
+      "sub": "Etwas kaputt, hängengeblieben oder einfach daneben? Zeig darauf. Meldungen landen nach einer kurzen Prüfung auf der Fehlerliste — mit einem Status, dem du folgen kannst.",
+      "whatLabel": "Was ist kaputt?",
+      "whatPlaceholder": "z. B. Export-Button dreht endlos",
+      "whereLabel": "Wo ist es?",
+      "severityLabel": "Schweregrad",
+      "detailsLabel": "Details",
+      "detailsPlaceholder": "Was hast du gerade getan, als es passierte? Was hattest du stattdessen erwartet?",
+      "submit": "Meldung zur Prüfung senden"
+    },
+    "nameLabel": "Dein Creator-Name",
+    "namePlaceholder": "z. B. Maya Waves",
+    "pitchSent": "Idee gesendet — das Team prüft jede Idee, bevor sie auf der Liste erscheint.",
+    "fixSent": "Meldung gesendet — das Team prüft jede Meldung, bevor sie auf der Liste erscheint.",
+    "signInToSubmit": "Melde dich an, um zu senden — die Listen sind öffentlich, Posten braucht ein Konto.",
+    "titleRequired": "Gib deiner Idee einen Titel und eine Zeile, was es ist, und sende sie erneut.",
+    "fixRequired": "Sag uns in einer Zeile, was kaputt ist, und sende sie erneut.",
+    "sendError": "Beim Senden ist etwas schiefgelaufen — bitte versuch es erneut.",
+    "loadError": "Die Listen konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "loading": "Laden…",
+    "mineTitle": "Warten auf Prüfung — deine",
+    "moderation": {
+      "pending": "In Prüfung",
+      "approved": "Gepostet",
+      "rejected": "Nicht gepostet"
+    },
+    "pitchBoard": "Ideenliste",
+    "fixBoard": "Fehlerliste",
+    "pitchesCount": "{{count}} Ideen",
+    "reportsCount": "{{count}} Meldungen",
+    "sortTop": "Top-Stimmen",
+    "sortNewest": "Neueste",
+    "votes": "STIMMEN",
+    "upvote": "Für {{title}} stimmen",
+    "by": "von {{name}}",
+    "whyMatters": "Warum es zählt",
+    "reportedIn": "Gemeldet in {{page}}",
+    "emptyPitches": "Noch keine Ideen auf der Liste — sei der Erste durch die Tür oben.",
+    "emptyFixes": "Noch keine Meldungen auf der Liste — nichts Kaputtes ist eine gute Nachricht.",
+    "feedbackRow": "Feedback — {{rating}} von 5 Sternen",
+    "pitchStatus": {
+      "reviewing": "In Prüfung",
+      "approved": "Genehmigt",
+      "building": "Im Bau",
+      "shipped": "Geliefert"
+    },
+    "fixStatus": {
+      "received": "Erhalten",
+      "confirmed": "Bestätigt",
+      "fixing": "Wird behoben",
+      "fixed": "Behoben"
+    },
+    "category": {
+      "create": "Erstellen",
+      "world": "Welt",
+      "money": "Geld",
+      "social": "Sozial",
+      "other": "Andere"
+    },
+    "page": {
+      "video_editor": "Video-Editor",
+      "make_song_video": "Song + Video erstellen",
+      "audio_studio": "Audio-Studio",
+      "thumbnail_studio": "Thumbnail-Studio",
+      "branding_kit": "Branding-Kit",
+      "the_world": "Die Welt",
+      "go_live": "Live gehen",
+      "earnings": "Einnahmen",
+      "profile": "Profil",
+      "somewhere_else": "Woanders"
+    },
+    "severity": {
+      "blocks_me": "Blockiert mich",
+      "annoying": "Ärgerlich",
+      "small": "Klein"
+    },
+    "shipped": {
+      "title": "Zuletzt geliefert",
+      "sub": "Gebaut, weil ein Creator es hier vorgeschlagen — oder als kaputt gemeldet — hat.",
+      "ideaBy": "Idee von",
+      "fixBy": "Fehler gemeldet von",
+      "shippedWord": "geliefert",
+      "fixedWord": "behoben"
+    },
+    "note": {
+      "title": "Vom Team gelesen, jede einzelne",
+      "body": "Jede Idee und jede Fehlermeldung wird vom Bow-Down-Visuals-Team gelesen. Beiträge erscheinen auf diesen Listen erst nach einer kurzen Prüfung — und wenn etwas geliefert wird, bekommt der Creator, der es angestoßen hat, die Anerkennung."
+    },
+    "popup": {
+      "title": "Wie war's?",
+      "sub": "Ein kurzes Wort hilft uns, das zu bauen, was du wirklich willst.",
+      "rateLabel": "Deine Bewertung",
+      "stars": "{{count}} Sterne",
+      "textPlaceholder": "Eine Zeile — was lief gut, was nicht? (optional)",
+      "submit": "Feedback senden",
+      "dismiss": "Nicht jetzt",
+      "thanks": "Danke — dein Feedback geht ans Team."
+    }
   }
 }

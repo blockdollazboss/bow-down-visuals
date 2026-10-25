@@ -728,7 +728,8 @@
     "logoMaker": "Creatore di Loghi",
     "introsOutros": "Intro & Outro",
     "streamPack": "Pacchetto Stream",
-    "thumbnailABTest": "Test A/B Thumbnail"
+    "thumbnailABTest": "Test A/B Thumbnail",
+    "pitchFix": "Idee e correzioni"
   },
   "tutorials": {
     "heading": "Video pratici",
@@ -1064,6 +1065,24 @@
       "banConfirm": "Bannare {email}? Non potrà più accedere.",
       "unbanConfirm": "Revocare il ban di {email}?",
       "banError": "Impossibile aggiornare lo stato del ban."
+    },
+    "pitchFix": {
+      "title": "Idee e correzioni — revisione del team",
+      "description": "Ogni idea, segnalazione e feedback aspetta qui per prima cosa. Approva per pubblicarlo sulle bacheche pubbliche; poi fai avanzare il suo stato man mano che il lavoro procede.",
+      "empty": "Niente in attesa: la coda è libera.",
+      "approve": "Approva e pubblica",
+      "reject": "Rifiuta",
+      "statusError": "Impossibile aggiornare quell'invio: riprova.",
+      "loading": "Caricamento della coda…",
+      "loadErrorTitle": "Impossibile caricare la coda di Idee e correzioni.",
+      "loadError": "Gli invii sono al sicuro: questa coda semplicemente non è riuscita a caricarsi.",
+      "retry": "Riprova",
+      "rating": "{{rating}}★",
+      "kind": {
+        "pitch": "Idea",
+        "fix": "Correzione",
+        "feedback": "Feedback"
+      }
     }
   },
   "analyticsHub": {
@@ -5629,6 +5648,16 @@
       "loadError": "Le tue impostazioni audio non si sono caricate in questo momento.",
       "retry": "Riprova",
       "test": "Riproduci suono di prova"
+    },
+    "feedbackPrompts": {
+      "title": "Richieste di feedback",
+      "subtitle": "Una richiesta occasionale nell'app per sapere com'è andata: mai più di una volta a settimana, mai a metà di un flusso.",
+      "toggleTitle": "Richieste di feedback",
+      "toggleDesc": "Quando è attiva, una breve richiesta a stelle può apparire dopo un grande momento: un'esportazione finita, una creazione riuscita. Disattivala e non apparirà mai. In ogni caso, puoi sempre proporre idee e segnalare correzioni in Idee e correzioni.",
+      "saved": "Impostazione feedback salvata",
+      "saveFailed": "Impossibile salvare quell'impostazione",
+      "loadError": "Impossibile caricare la tua impostazione di feedback.",
+      "retry": "Riprova"
     }
   },
   "social-proof": {
@@ -14942,5 +14971,128 @@
     "unavailable": "Non in vendita al momento — lo teniamo qui in caso torni.",
     "view": "Vedi prodotto",
     "remove": "Rimuovi dalla lista dei desideri"
+  },
+  "pitchFix": {
+    "title": "Idee",
+    "titleFix": "Correzioni",
+    "subtitle": "Proponi cosa dovremmo costruire, segnala cosa va corretto e guardalo accadere.",
+    "flow": {
+      "pitch": "IDEA",
+      "review": "REVISIONE",
+      "build": "COSTRUZIONE",
+      "shipped": "CONSEGNATO"
+    },
+    "pitchDoor": {
+      "title": "Proponi un'idea",
+      "sub": "Dicci cosa costruire. Le idee più forti vengono esaminate per prime: i voti degli altri creator le aiutano a salire.",
+      "titleLabel": "Titolo",
+      "titlePlaceholder": "es. Modalità duetto per i video musicali",
+      "whatLabel": "Cos'è?",
+      "whatPlaceholder": "Descrivi l'idea in una o due frasi.",
+      "whyLabel": "Perché conta",
+      "whyPlaceholder": "Chi aiuta, e cosa sblocca per loro?",
+      "categoryLabel": "Categoria",
+      "submit": "Invia idea alla revisione"
+    },
+    "fixDoor": {
+      "title": "Segnala una correzione",
+      "sub": "Qualcosa di rotto, bloccato o semplicemente storto? Indicalo. Le segnalazioni arrivano alla bacheca delle correzioni dopo una rapida revisione, con uno stato che puoi seguire.",
+      "whatLabel": "Cosa è rotto?",
+      "whatPlaceholder": "es. Il pulsante di esportazione gira all'infinito",
+      "whereLabel": "Dov'è?",
+      "severityLabel": "Gravità",
+      "detailsLabel": "Dettagli",
+      "detailsPlaceholder": "Cosa stavi facendo quando è successo? Cosa ti aspettavi invece?",
+      "submit": "Invia segnalazione alla revisione"
+    },
+    "nameLabel": "Il tuo nome da creator",
+    "namePlaceholder": "es. Maya Waves",
+    "pitchSent": "Idea inviata: il team esamina ogni idea prima che appaia sulla bacheca.",
+    "fixSent": "Segnalazione inviata: il team esamina ogni segnalazione prima che appaia sulla bacheca.",
+    "signInToSubmit": "Accedi per inviare: le bacheche sono pubbliche, ma per postare serve un account.",
+    "titleRequired": "Dai un titolo alla tua idea e una riga su cos'è, poi inviala di nuovo.",
+    "fixRequired": "Dicci in una riga cosa è rotto, poi inviala di nuovo.",
+    "sendError": "Qualcosa è andato storto durante l'invio: riprova.",
+    "loadError": "Impossibile caricare le bacheche.",
+    "retry": "Riprova",
+    "loading": "Caricamento…",
+    "mineTitle": "In attesa di revisione: i tuoi",
+    "moderation": {
+      "pending": "In revisione",
+      "approved": "Pubblicato",
+      "rejected": "Non pubblicato"
+    },
+    "pitchBoard": "Bacheca delle idee",
+    "fixBoard": "Bacheca delle correzioni",
+    "pitchesCount": "{{count}} idee",
+    "reportsCount": "{{count}} segnalazioni",
+    "sortTop": "Più votate",
+    "sortNewest": "Più recenti",
+    "votes": "VOTI",
+    "upvote": "Vota {{title}}",
+    "by": "di {{name}}",
+    "whyMatters": "Perché conta",
+    "reportedIn": "Segnalato in {{page}}",
+    "emptyPitches": "Ancora nessuna idea sulla bacheca: sii il primo a passare dalla porta qui sopra.",
+    "emptyFixes": "Ancora nessuna segnalazione sulla bacheca: niente di rotto è una buona notizia.",
+    "feedbackRow": "Feedback: {{rating}} stelle su 5",
+    "pitchStatus": {
+      "reviewing": "In revisione",
+      "approved": "Approvata",
+      "building": "In costruzione",
+      "shipped": "Consegnata"
+    },
+    "fixStatus": {
+      "received": "Ricevuta",
+      "confirmed": "Confermata",
+      "fixing": "In correzione",
+      "fixed": "Corretta"
+    },
+    "category": {
+      "create": "Crea",
+      "world": "Mondo",
+      "money": "Denaro",
+      "social": "Social",
+      "other": "Altro"
+    },
+    "page": {
+      "video_editor": "Editor video",
+      "make_song_video": "Crea canzone + video",
+      "audio_studio": "Studio audio",
+      "thumbnail_studio": "Studio miniature",
+      "branding_kit": "Kit di branding",
+      "the_world": "Il Mondo",
+      "go_live": "Vai in diretta",
+      "earnings": "Guadagni",
+      "profile": "Profilo",
+      "somewhere_else": "Altrove"
+    },
+    "severity": {
+      "blocks_me": "Mi blocca",
+      "annoying": "Fastidioso",
+      "small": "Minore"
+    },
+    "shipped": {
+      "title": "Consegnato di recente",
+      "sub": "Costruito perché un creator l'ha proposto qui — o l'ha segnalato rotto.",
+      "ideaBy": "Idea di",
+      "fixBy": "Correzione segnalata da",
+      "shippedWord": "consegnato",
+      "fixedWord": "corretto"
+    },
+    "note": {
+      "title": "Letti dal team, tutti quanti",
+      "body": "Ogni idea e ogni segnalazione viene letta dal team di Bow Down Visuals. I post appaiono su queste bacheche solo dopo una rapida revisione — e quando qualcosa viene consegnato, il creator che l'ha sollevato riceve il credito."
+    },
+    "popup": {
+      "title": "Com'è andata?",
+      "sub": "Una parola veloce ci aiuta a costruire ciò che vuoi davvero.",
+      "rateLabel": "La tua valutazione",
+      "stars": "{{count}} stelle",
+      "textPlaceholder": "Una riga: cosa ha funzionato, o cosa no? (facoltativo)",
+      "submit": "Invia feedback",
+      "dismiss": "Non ora",
+      "thanks": "Grazie: il tuo feedback va al team."
+    }
   }
 }
