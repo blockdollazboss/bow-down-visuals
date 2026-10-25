@@ -123,6 +123,7 @@ import publishingSplitsRouter from "./publishing-splits";
 import coachTrackerRouter from "./coach-tracker";
 import earningsRouter from "./earnings";
 import affiliatesRouter from "./affiliates";
+import saleSplitsRouter from "./sale-splits";
 import commandRouter from "./command";
 import contentIdRouter from "./content-id";
 import titleStudioRouter from "./generate/title-studio";
@@ -490,7 +491,7 @@ router.use(commentRepliesRouter);
 router.use(contentCalendarRouter);
 router.use(tipJarRouter);
 router.use(moneyRouter);router.use(publishingSplitsRouter); // /api/publishing-splits/* (songwriter registry, #22)
-router.use(moneyRouter);router.use(coachTrackerRouter);router.use(earningsRouter);router.use(affiliatesRouter);router.use(commandRouter);router.use(contentIdRouter);router.use(interviewPrepRouter);router.use(upscaleRouter);
+router.use(moneyRouter);router.use(coachTrackerRouter);router.use(earningsRouter);router.use(affiliatesRouter);router.use(saleSplitsRouter);router.use(commandRouter);router.use(contentIdRouter);router.use(interviewPrepRouter);router.use(upscaleRouter);
 router.use(upscaleGenerativeRouter);router.use(avatarPresenterRouter);router.use(singingVoiceRouter);
 router.use(bgGenerateRouter);
 router.use(titleStudioRouter);

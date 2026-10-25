@@ -104,6 +104,14 @@ import {
   MAX_BUMP_PERCENT_OFF,
 } from "../lib/order-bumps";
 import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../lib/affiliates";
+import {
+  recordStoreOrderSplitsSafely,
+  validateProductSplits,
+  assertCoSellersResolvable,
+  normalizeSplits,
+  SaleSplitError,
+  type ProductSplit,
+} from "../lib/sale-splits";
 /* Post-purchase upsell (Stack-100 #3, Wave 3): the SAME seller
    attachment as the bump, offered once after the purchase completes
    and charged in one click off the saved payment method through its
@@ -161,6 +169,25 @@ async function storeProductsHasMediaAlt(): Promise<boolean> {
   return storeAltColKnown;
 }
 
+/* Co-seller splits (#36, migration 0235): same probe discipline as the
+   alt-text column — product reads/writes work exactly as before until
+   the column lands; a splits WRITE before then answers 503 instead of
+   silently dropping a money setting. */
+let storeSplitsColKnown: boolean | null = null;
+async function storeProductsHasSplits(): Promise<boolean> {
+  if (storeSplitsColKnown !== null) return storeSplitsColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM information_schema.columns
+      WHERE table_name = 'store_products' AND column_name = 'splits'
+    `);
+    storeSplitsColKnown = ((r.rows[0] as { n?: number } | undefined)?.n ?? 0) === 1;
+  } catch {
+    storeSplitsColKnown = false;
+  }
+  return storeSplitsColKnown;
+}
+
 /* Mirror-on-save (2026-10-13 law): product media is re-hosted into
    permanent storage at save time (kind inferred from the URL extension —
    the helper honors the real content-type); presenters re-sign per read. */
@@ -180,10 +207,38 @@ async function mirrorStoreMediaUrls(urls: string[], ownerKey: string): Promise<s
   );
 }
 
+/** Co-seller splits (#36) as presented: the stored list with each
+ *  seller's creator name/slug resolved, or null when the product has
+ *  no co-sellers. A seller whose profile vanished presents by id —
+ *  the share itself is never hidden. */
+async function presentSplits(p: ProductRow) {
+  const splits = normalizeSplits(p.splits);
+  if (!splits) return null;
+  const ids = sql.join(splits.map((s) => sql`${s.userId}`), sql`, `);
+  const r = await db.execute(sql`
+    SELECT user_id, display_name, slug FROM creator_profiles WHERE user_id IN (${ids})
+  `);
+  const byUser = new Map(
+    (r.rows as Array<Record<string, unknown>>).map((row) => [
+      String(row["user_id"]),
+      { name: (row["display_name"] as string | null) ?? null, slug: (row["slug"] as string | null) ?? null },
+    ]),
+  );
+  return splits.map((s) => ({
+    userId: s.userId,
+    sharePct: s.sharePct,
+    name: byUser.get(s.userId)?.name ?? null,
+    slug: byUser.get(s.userId)?.slug ?? null,
+  }));
+}
+
 async function presentProduct(p: ProductRow, bumpOffer?: BumpOfferPayload | null) {
   const pub = withLinks(p);
   return {
     ...pub,
+    /* Co-seller splits (#36): who shares this product's net and their
+       shares — the same truth for seller and buyer surfaces. */
+    splits: await presentSplits(p),
     /* The live add-on offer (feature #13): resolved, or null when the
        product has no bump a buyer could actually take right now. */
     bump: bumpOffer !== undefined ? bumpOffer : await resolveBumpOffer(p),
@@ -592,6 +647,9 @@ interface ProductRow extends Record<string, unknown> {
      no bump (readBumpConfig treats absent keys as "no offer"). */
   bump_product_id?: string | null;
   bump_percent_off?: number | null;
+  /* Co-seller splits (Wave 4 #36, migration 0235). Optional for the
+     same reason: rows without the column simply have no co-sellers. */
+  splits?: ProductSplit[] | null;
 }
 
 function withLinks(p: ProductRow) {
@@ -1045,6 +1103,15 @@ const BaseProductSchema = z.object({
      create; the PATCH handler checks the stored rate the same way). */
   affiliateEnabled: z.boolean().default(false),
   affiliateCommissionBps: z.number().int().min(1).max(10_000).nullable().optional(),
+  /* Co-seller revenue splits (Wave 4 #36): the sellers sharing this
+     product's net — [{ userId, sharePct }] summing to exactly 100,
+     owner included. The sum/owner/resolution rules run server-side in
+     lib/sale-splits (zod alone can't span rows). null clears. */
+  splits: z
+    .array(z.object({ userId: z.string().regex(UUID_RE), sharePct: z.number() }))
+    .max(20)
+    .nullable()
+    .optional(),
 });
 
 /* Create-time cross-field rules live on the refined schema. The base stays
@@ -1078,6 +1145,34 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
     }
     const d = parsed.data;
     const hasMediaAlt = await storeProductsHasMediaAlt();
+    /* Co-seller splits (#36): the whole list validates server-side
+       (sum-to-100 machine + the owner holds a share + every co-seller
+       resolves to a creator profile) before anything is stored. A
+       splits write before migration 0235 lands answers 503 — a money
+       setting is never silently dropped. */
+    let splitsJson: string | null = null;
+    let hasSplits = false;
+    if (d.splits !== undefined) {
+      if (!(await storeProductsHasSplits())) {
+        res.status(503).json({
+          error: "SPLITS_NOT_READY",
+          message: "Co-seller splits aren't switched on yet — create the product without splits for now; nothing was saved.",
+        });
+        return;
+      }
+      try {
+        const valid = validateProductSplits(req.userId!, d.splits);
+        if (valid) await assertCoSellersResolvable(req.userId!, valid);
+        splitsJson = valid ? JSON.stringify(valid) : null;
+        hasSplits = true;
+      } catch (err) {
+        if (err instanceof SaleSplitError) {
+          res.status(400).json({ error: err.code, message: err.message });
+          return;
+        }
+        throw err;
+      }
+    }
     /* Gift cards: the listing price is the smallest denomination (the
        "from" price); buyers pick the real amount at gift-card checkout
        from the seller's denominations. Other kinds price as given. */
@@ -1093,12 +1188,12 @@ router.post("/storefront/products", requireAuth, publicApiLimiter, async (req, r
       INSERT INTO store_products
         (profile_id, kind, title, description, price_cents, compare_at_cents,
          inventory, media_urls, service_details, event_id, related_links, is_active,
-         affiliate_enabled, affiliate_commission_bps${hasMediaAlt ? sql`, media_alt_texts` : sql``}${giftDenominations ? sql`, gift_card_denominations_cents` : sql``})
+         affiliate_enabled, affiliate_commission_bps${hasMediaAlt ? sql`, media_alt_texts` : sql``}${giftDenominations ? sql`, gift_card_denominations_cents` : sql``}${hasSplits ? sql`, splits` : sql``})
       VALUES (${profile.id}, ${d.kind}, ${d.title}, ${d.description}, ${effectivePriceCents},
               ${d.compareAtCents ?? null}, ${d.inventory}, ${JSON.stringify(await mirrorStoreMediaUrls(d.mediaUrls, req.userId!))}::jsonb,
               ${d.serviceDetails ? JSON.stringify(d.serviceDetails) : null}::jsonb,
               ${d.eventId ?? null}, ${JSON.stringify(d.relatedLinks)}::jsonb, ${d.isActive},
-              ${d.affiliateEnabled}, ${d.affiliateCommissionBps ?? null}${hasMediaAlt ? sql`, ${JSON.stringify(sanitizeAltTextList(d.mediaAltTexts, 20))}::jsonb` : sql``}${giftDenominations ? sql`, ${JSON.stringify(giftDenominations)}::jsonb` : sql``})
+              ${d.affiliateEnabled}, ${d.affiliateCommissionBps ?? null}${hasMediaAlt ? sql`, ${JSON.stringify(sanitizeAltTextList(d.mediaAltTexts, 20))}::jsonb` : sql``}${giftDenominations ? sql`, ${JSON.stringify(giftDenominations)}::jsonb` : sql``}${hasSplits ? sql`, ${splitsJson}::jsonb` : sql``})
       RETURNING id
     `);
     const id = String((r.rows[0] as Record<string, unknown>)["id"]);
@@ -1175,6 +1270,29 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
         }
       }
       sets.push(sql`affiliate_enabled = ${d.affiliateEnabled}`);
+    }
+    if (d.splits !== undefined) {
+      /* Co-seller splits (#36): same whole-list validation as create;
+         null (or an empty list) clears the co-sellers. Pre-migration
+         the write answers 503 rather than dropping a money setting. */
+      if (!(await storeProductsHasSplits())) {
+        res.status(503).json({
+          error: "SPLITS_NOT_READY",
+          message: "Co-seller splits aren't switched on yet — your other changes weren't saved either; try again shortly.",
+        });
+        return;
+      }
+      try {
+        const valid = validateProductSplits(req.userId!, d.splits);
+        if (valid) await assertCoSellersResolvable(req.userId!, valid);
+        sets.push(sql`splits = ${valid ? JSON.stringify(valid) : null}::jsonb`);
+      } catch (err) {
+        if (err instanceof SaleSplitError) {
+          res.status(400).json({ error: err.code, message: err.message });
+          return;
+        }
+        throw err;
+      }
     }
     if (sets.length === 0) {
       res.status(400).json({ error: "Nothing to update." });
@@ -1664,6 +1782,12 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       const redeemed = await redeemReservation({ reservationId: giftReservationId, ref: orderId });
       if (!redeemed) {
         logger.error({ orderId, giftReservationId }, "[storefront] gift-card redeem failed after order record — needs reconciliation");
+      }
+      /* Co-seller splits (#36): the order recorded as a completed sale
+         right here, so its creator net divides right here — only on
+         the fresh insert (the duplicate path's winner recorded it). */
+      if (inserted.rows.length > 0) {
+        await recordStoreOrderSplitsSafely(orderId);
       }
       logger.info({ userId: req.userId, productId, orderId, giftCardAppliedCents }, "[storefront] order paid in full by gift card");
       res.json({
@@ -2408,6 +2532,9 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
               creator_amount_cents = ${creatorCents}
           WHERE id = ${orderId}
         `);
+        /* Co-seller splits (#36): the hold just became a completed
+           sale — its creator net divides now (no-op without splits). */
+        await recordStoreOrderSplitsSafely(orderId);
         /* Hardened dual-write: flip the slot claim held → confirmed. A
            "conflict" outcome means the hold lapsed and the slot was
            re-sold — the paid booking is still honored (existing rule);
@@ -2609,6 +2736,12 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
             commissionCents: aff.recorded ? aff.commissionCents : 0,
           };
         }
+
+        /* Co-seller splits (#36) — recorded exactly-once with the
+           order insert, out of the same creator net (the flat 5% fee
+           is already out of it). Safely = a ledger failure never
+           fails a paid order. */
+        await recordStoreOrderSplitsSafely(orderId);
 
         /* Kind-specific fulfillment. */
         if (kind === "ticket" && eventId) {
@@ -3158,6 +3291,13 @@ router.post("/storefront/orders/:id/upsell/accept", requireAuth, publicApiLimite
       }
       upsellOrderId = String((byPi.rows[0] as Record<string, unknown>)["id"]);
       duplicate = true;
+    }
+
+    /* Co-seller splits (#36): the upsell is its own completed order —
+       if the upsell product is co-sold, its net divides like any
+       other order's (fresh insert only; the winner recorded it). */
+    if (!duplicate) {
+      await recordStoreOrderSplitsSafely(upsellOrderId);
     }
 
     let delivery: { url: string; expiresAt: string; maxUses: number } | null = null;

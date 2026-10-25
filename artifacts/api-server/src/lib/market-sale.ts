@@ -19,6 +19,7 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { recordAffiliateSaleSafely } from "./affiliates";
+import { recordShopEventSplitsSafely } from "./sale-splits";
 import { findReservation, redeemReservation } from "./gift-cards";
 import { logger } from "./logger";
 
@@ -150,6 +151,15 @@ export async function markMarketSalePaid(
         grossCents: Number(row.amount_cents),
         platformFeeCents: Number(row.platform_fee_cents),
       });
+    }
+    /* Co-seller splits (Wave 4 #36) — the same exactly-once discipline:
+       a product sold by two creators divides its net (amount − the
+       flat 5% fee, already out) between them in sale_split_entries,
+       only for rows THIS call flipped. Safely = a ledger failure never
+       breaks the flip that records the sale. */
+    for (const row of rows) {
+      if (!flippedIds.has(String(row.id)) || !row.product_id) continue;
+      await recordShopEventSplitsSafely(String(row.id));
     }
   }
   /* Gift-card settlement (Stack-100 #3 #26): if this checkout held a

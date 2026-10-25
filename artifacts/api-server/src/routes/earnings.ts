@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { tipJarPendingForUser } from "./generate/tip-jar";
+import { saleSplitAdjustments } from "../lib/sale-splits";
 
 /* ─── Unified earnings (Stack 8 #5) ──────────────────────────────────────
    ONE money picture per creator, read-only over the existing ledgers —
@@ -11,7 +12,9 @@ import { tipJarPendingForUser } from "./generate/tip-jar";
      storeSales   store_orders.creator_amount_cents (profile store,
                   status 'completed', via creator_profiles ownership)
                   + shop_events 'sale' net (amount − platform fee) from
-                  the shops/storefronts surface
+                  the shops/storefronts surface, adjusted for co-seller
+                  splits (#36): my co-sellers' shares of my sales out,
+                  my shares of co-sold products in (sale_split_entries)
      memberships  fan_members.price_cents for verified paid checkouts
                   (stripe_session_id present — Stack 1's paid marker)
      tips         live_stream_tips.amount_vb actually credited to the
@@ -62,15 +65,25 @@ export async function storeSales(userId: string) {
   `);
   const o = (orders.rows as any[])[0] ?? { cents: 0, n: 0 };
   const s = (shopSales.rows as any[])[0] ?? { cents: 0, n: 0 };
+  /* Co-seller splits (Wave 4 #36): the parent rows above carry the
+     FULL seller net of my sales — my co-sellers' shares come OUT of
+     my total (subtractCents), and my shares of other creators'
+     co-sold products come IN (addCents). With no splits anywhere the
+     adjustments are 0 and this reads exactly as before; pre-migration
+     they are 0 too (lib/sale-splits owns that discipline). */
+  const splits = await saleSplitAdjustments(userId);
   return {
     status: "ok" as const,
-    totalCents: Number(o.cents) + Number(s.cents),
-    count: Number(o.n) + Number(s.n),
+    totalCents: Number(o.cents) + Number(s.cents) - splits.subtractCents + splits.addCents,
+    count: Number(o.n) + Number(s.n) + splits.addCount,
     breakdown: {
       profileStoreCents: Number(o.cents),
       profileStoreOrders: Number(o.n),
       shopSalesCents: Number(s.cents),
       shopSales: Number(s.n),
+      coSellerSharesPaidOutCents: splits.subtractCents,
+      coSellerSplitCents: splits.addCents,
+      coSellerSplitSales: splits.addCount,
     },
   };
 }
