@@ -3324,6 +3324,17 @@
     "updatesExtension": "Téléchargez le nouveau zip depuis cette page, décompressez-le, puis cliquez sur Recharger pour Thy Cheat Code dans chrome://extensions.",
     "updatesWebLabel": "Application web iPhone, iPad et bureau",
     "updatesWeb": "Rien à faire — l'application web se met à jour toute seule à chaque ouverture.",
+    "installLabel": "Installer",
+    "downloadLabel": "Télécharger",
+    "installTitle": "Installez Bow Down Visuals",
+    "installBody": "Un seul geste installe tout le studio sur votre appareil — sa propre icône, sa propre fenêtre, toujours à jour.",
+    "installNow": "Installer l'app",
+    "installed": "Installée sur cet appareil",
+    "installMenuHint": "Pas encore de bouton d'installation ? Votre navigateur le garde dans la barre d'adresse ou le menu — les étapes pour votre appareil sont ci-dessous.",
+    "iosInstallSteps": "Dans Safari, touchez Partager, puis « Sur l'écran d'accueil », puis Ajouter — l'app arrive sur votre écran d'accueil.",
+    "extensionStoreNote": "L'installation en un toucher ouvrira le jour où notre fiche Chrome Web Store sera en ligne. D'ici là, elle s'installe à la main en environ une minute — les étapes sont ci-dessous.",
+    "iosNoFile": "Il n'existe aucun fichier pour iPhone — Apple installe les apps web directement depuis Safari. L'installation ci-dessus, c'est toute l'app.",
+    "desktopNoFile": "Il n'existe aucun .exe ni .dmg — méfiez-vous de quiconque en propose un. L'installation ci-dessus est la vraie app de bureau.",
     "faqTitle": "Questions"
   },
   "email-list": {

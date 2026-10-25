@@ -3211,6 +3211,17 @@
     "updatesExtension": "이 페이지에서 새 zip을 다운로드해 압축을 풀고, chrome://extensions에서 Thy Cheat Code의 새로고침을 누르세요.",
     "updatesWebLabel": "iPhone, iPad 및 데스크톱 웹 앱",
     "updatesWeb": "할 일이 없습니다 — 웹 앱은 열 때마다 자동으로 업데이트됩니다.",
+    "installLabel": "설치",
+    "downloadLabel": "다운로드",
+    "installTitle": "Bow Down Visuals 설치",
+    "installBody": "한 번의 탭으로 스튜디오 전체가 내 기기에 — 전용 아이콘, 전용 창, 항상 최신 상태.",
+    "installNow": "앱 설치",
+    "installed": "이 기기에 설치됨",
+    "installMenuHint": "아직 설치 버튼이 보이지 않나요? 브라우저가 주소 표시줄이나 메뉴에 보관하고 있습니다 — 내 기기에 맞는 단계는 아래에 있습니다.",
+    "iosInstallSteps": "Safari에서 공유를 누른 뒤 '홈 화면에 추가', 그리고 '추가'를 누르세요 — 앱이 홈 화면에 나타납니다.",
+    "extensionStoreNote": "원탭 설치는 Chrome 웹 스토어 등록이 공개되는 날 열립니다. 그때까지는 손으로 잠깐이면 설치됩니다 — 단계는 아래에 있습니다.",
+    "iosNoFile": "iPhone용 다운로드 파일은 없습니다 — Apple은 웹 앱을 Safari에서 바로 설치합니다. 위의 설치가 앱 전체입니다.",
+    "desktopNoFile": ".exe나 .dmg는 존재하지 않습니다 — 제공하겠다는 사람을 조심하세요. 위의 설치가 진짜 데스크톱 앱입니다.",
     "faqTitle": "질문"
   },
   "email-list": {
