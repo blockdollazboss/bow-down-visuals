@@ -141,6 +141,7 @@ import fanSegmentsRouter from "./generate/fan-segments";
 import liveShoppingRouter from "./live-shopping";
 import liveStreamsRouter from "./live-streams";
 import liveChatRouter from "./live-chat";
+import keywordAutomationsRouter from "./keyword-automations";
 import liveGuestsRouter from "./live-guests";
 import pushRouter from "./push";
 import liveTipsRouter from "./live-tips";
@@ -504,6 +505,7 @@ router.use(coverArtRouter);
 router.use(emailListRouter);
 router.use(fanGraphRouter);                    // /api/email-list/fan-graph (One Fan Graph — unified fan view)
 router.use(fanSegmentsRouter);                 // /api/email-list/fan-segments (fan-graph phase 2 — saved segments + desk send)
+router.use(keywordAutomationsRouter);          // /api/keyword-automations/* (Wave 4 #32 — keyword → DM rules + audit log)
 router.use(liveShoppingRouter);
 router.use(liveStreamsRouter);              // /api/live-streams/* (Go Live broadcasts)
 router.use(liveChatRouter);                 // /api/live/:id/chat (stream chat + moderation)
