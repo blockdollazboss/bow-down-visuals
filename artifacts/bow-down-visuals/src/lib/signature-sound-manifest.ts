@@ -9,7 +9,7 @@
    if their names change, update the six lines below. No call site,
    no engine line, no test of the gating logic changes.
 
-   Current set: the owner-approved v2 stereo masters (Oct 25, 2026) —
+   Current set: SET V7, approved by the owner Oct 25, 2026 (supersedes the v2 masters) —
    one royal motif running through all six, copied byte-identical
    from the signature-sounds masters. */
 
