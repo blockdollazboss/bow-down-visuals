@@ -154,7 +154,7 @@ router.get("/pitch-fix/mine", requireAuth, publicApiLimiter, async (req: Request
 
 router.post("/pitch-fix/:id/vote", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
-    res.json(await togglePitchVote(store, req.userId!, req.params["id"]!));
+    res.json(await togglePitchVote(store, req.userId!, String(req.params["id"])));
   } catch (err) { fail(res, err, "vote"); }
 });
 
@@ -210,10 +210,10 @@ router.patch("/admin/pitch-fix/:id", requireAuth, requireAdmin, async (req: Requ
   try {
     let row = null;
     if (parsed.data.moderation) {
-      row = await moderateSubmission(store, req.userId!, req.params["id"]!, parsed.data.moderation);
+      row = await moderateSubmission(store, req.userId!, String(req.params["id"]), parsed.data.moderation);
     }
     if (parsed.data.status) {
-      row = await setSubmissionStatus(store, req.params["id"]!, parsed.data.status);
+      row = await setSubmissionStatus(store, String(req.params["id"]), parsed.data.status);
     }
     if (!row) { res.status(400).json({ error: "Nothing to update." }); return; }
     res.json({ submission: row });
