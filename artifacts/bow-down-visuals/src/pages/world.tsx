@@ -84,6 +84,7 @@ import {
   kingMomentLine,
   kingStripLine,
 } from "@/lib/world/king-moment";
+import { playSignatureSound } from "@/lib/signature-sounds";
 import { monumentBoardData } from "@/lib/world/monument-board";
 import {
   directorySlate,
@@ -437,6 +438,11 @@ export default function WorldPage() {
    * lands in kingNote, in plain words. */
   const [kingMoment, setKingMoment] = useState<WorldKingMomentState | null>(null);
   const [kingNote, setKingNote] = useState<string | null>(null);
+  /* Signature sounds (UPGRADES 183): the royal sting sounds ONCE per
+     King moment — keyed by the moment's claim deadline so standing
+     state mirrors don't re-sting. Through the one gated engine: the
+     account's success & stings switch decides. */
+  const kingStingKeyRef = useRef<number | null>(null);
   /* Stage tips (Ring 3, item 3.3): the refusal of MY tip, in plain
    * words, on the tip bar. Landed tips speak for themselves — the
    * room witnesses them (the log + the moment toast). */
@@ -1993,7 +1999,12 @@ export default function WorldPage() {
           ...log.slice(-7),
           { peerId: "hall", displayName: announceSpeaker(a), body: announceLine(a) },
         ]);
-        if (!announceMutedRef.current && isAnnounceFresh(a, Date.now())) showAnnounce(a);
+        if (!announceMutedRef.current && isAnnounceFresh(a, Date.now())) {
+          showAnnounce(a);
+          /* A palace announcement is the brand speaking — the royal
+             sting rides it (same device-mute respect as the banner). */
+          playSignatureSound("sting");
+        }
       };
       /* My herald was refused (not the host — the server checked —
        * or too soon after the last one): the host panel says why
@@ -2012,6 +2023,16 @@ export default function WorldPage() {
         if (cancelled) return;
         setKingMoment(moment);
         if (!moment) setKingNote(null);
+        /* The King's moment going live is the brand speaking — the
+           royal sting, once per moment (deadline-keyed). */
+        if (
+          moment &&
+          isKingMomentLive(moment, Date.now()) &&
+          kingStingKeyRef.current !== moment.claimDeadlineMs
+        ) {
+          kingStingKeyRef.current = moment.claimDeadlineMs;
+          playSignatureSound("sting");
+        }
       };
       client.onKingClaimed = (claim) => {
         if (cancelled) return;

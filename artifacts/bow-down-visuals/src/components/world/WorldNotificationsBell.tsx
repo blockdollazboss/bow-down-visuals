@@ -6,6 +6,7 @@ import {
   markReadBody, notificationTarget, prepareNotificationNavigation, unreadBadge,
   type WorldNotification,
 } from "@/lib/world/notifications";
+import { createArrivalTracker, playSignatureSound } from "@/lib/signature-sounds";
 
 /* ─── The World chrome bell (stack-100 item 78) ────────────────────
    A member standing in the palace was deaf to follows, tips, group
@@ -53,6 +54,10 @@ export function WorldNotificationsBell({
   const [unread, setUnread] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  /* Signature sounds (UPGRADES 183): the World rides the site's one
+     engine and the same account switches — a new arrival on a later
+     poll sounds its role; the first load seeds silently. */
+  const arrivalTrackerRef = useRef(createArrivalTracker());
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -67,6 +72,8 @@ export function WorldNotificationsBell({
       setLoadError(false);
       setItems(parsed.items);
       setUnread(parsed.unread);
+      const arrivalRole = arrivalTrackerRef.current.observe(parsed.items);
+      if (arrivalRole) playSignatureSound(arrivalRole);
     } catch {
       setLoadError(true);
     }

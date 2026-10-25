@@ -4,6 +4,7 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
+import { playSignatureSound } from "@/lib/signature-sounds"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -141,6 +142,16 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
+
+  /* Signature sounds (UPGRADES 183): the toast rail is where the
+     site surfaces completions and errors, so it is where the success
+     and error sounds live — a destructive toast sounds the error
+     role, any other toast the success role, always through the one
+     gated engine (the account's switches, the device mute and the
+     engine's cooldown decide; a toast in a background tab or with
+     its switch off stays silent). Silent/background failures never
+     toast, so they never sound either. */
+  playSignatureSound(props.variant === "destructive" ? "error" : "success")
 
   const update = (props: ToasterToast) =>
     dispatch({

@@ -5,7 +5,8 @@ import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type 
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { loadSoundPrefsIntoEngine } from "@/lib/signature-sounds";
 import { HubProjectProvider } from "@/lib/hub-project";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
@@ -369,6 +370,15 @@ function DistributeRoute() {
 }
 
 function AuthedLayout({ children }: { children: ReactNode }) {
+  /* Signature sounds (UPGRADES 183): load the signed-in account's
+     sound switches into the one engine as soon as the session is
+     known — every surface (bell, World, toasts, King's moments)
+     gates on them, so no sound can outrun the account's settings. */
+  const { user, getAccessToken } = useAuth();
+  useEffect(() => {
+    if (user) void loadSoundPrefsIntoEngine(getAccessToken);
+  }, [user, getAccessToken]);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   const userTouchedSidebar = useRef(false);
   const [location] = useLocation();
