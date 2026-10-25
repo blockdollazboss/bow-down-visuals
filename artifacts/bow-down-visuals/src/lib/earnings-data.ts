@@ -30,13 +30,25 @@ export interface EarningsTips {
   tipJarStatus: string;
 }
 
+/** Store-sales breakdown. The co-seller fields (Wave 4 #36) ride the
+    same source: shares I paid my co-sellers out of my sales, and my
+    earnings as a co-seller on other creators' products. They default
+    to 0 when an older payload doesn't carry them. */
+export interface StoreSalesBreakdown {
+  profileStoreCents: number;
+  shopSalesCents: number;
+  coSellerSharesPaidOutCents: number;
+  coSellerSplitCents: number;
+  coSellerSplitSales: number;
+}
+
 export interface EarningsResponse {
   currency: string;
   totalCents: number;
   totalTipsVb: number | null;
   partial: boolean;
   sources: {
-    storeSales: (SourceOk & { breakdown: { profileStoreCents: number; shopSalesCents: number } | null }) | (SourceErr & { breakdown: null });
+    storeSales: (SourceOk & { breakdown: StoreSalesBreakdown | null }) | (SourceErr & { breakdown: null });
     memberships: EarningsSource;
     brandDeals: EarningsSource;
     tips: EarningsTips;
@@ -162,11 +174,20 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
   const rawStore = sources.storeSales;
   const storeBase = moneySource(rawStore);
   if (storeBase.status === "error") degraded = true;
-  let breakdown: { profileStoreCents: number; shopSalesCents: number } | null = null;
+  let breakdown: StoreSalesBreakdown | null = null;
   if (storeBase.status === "ok" && isObj(rawStore) && isObj(rawStore.breakdown)) {
     const p = finite(rawStore.breakdown.profileStoreCents);
     const s = finite(rawStore.breakdown.shopSalesCents);
-    if (p !== null && s !== null) breakdown = { profileStoreCents: p, shopSalesCents: s };
+    if (p !== null && s !== null) {
+      breakdown = {
+        profileStoreCents: p,
+        shopSalesCents: s,
+        /* #36 co-seller splits: absent on older payloads → 0. */
+        coSellerSharesPaidOutCents: finite(rawStore.breakdown.coSellerSharesPaidOutCents) ?? 0,
+        coSellerSplitCents: finite(rawStore.breakdown.coSellerSplitCents) ?? 0,
+        coSellerSplitSales: finite(rawStore.breakdown.coSellerSplitSales) ?? 0,
+      };
+    }
   }
   const storeSales = storeBase.status === "ok"
     ? { ...storeBase, breakdown }
