@@ -244,17 +244,25 @@ export async function peekQueuedJobs(limit: number): Promise<LipSyncJob[]> {
 }
 
 /**
- * Merge a patch into the job's result_meta (jsonb ||). Used at submit
- * (provider, model, probed input dimensions) and at completion (output
- * dimensions + resolutionReduced). Never overwrites sibling keys.
+ * Merge a patch into the job's result_meta. Used at submit (provider,
+ * model, probed input dimensions) and at completion (output dimensions
+ * + resolutionReduced). Never overwrites sibling keys.
+ *
+ * Read-modify-write in JS rather than a SQL `||` merge: the writers are
+ * phase-exclusive by the job state machine (the submit worker owns the
+ * job while `submitting`, one poll worker owns it while `polling`), and
+ * the pg-mem verification harness cannot execute jsonb `||` — a plain
+ * parameterized UPDATE behaves identically on both.
  */
 export async function mergeLipSyncJobResultMeta(
   id: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
+  const current = await getLipSyncJob(id).catch(() => undefined);
+  const merged = { ...(current?.resultMeta ?? {}), ...(patch ?? {}) };
   await db().execute(sql`
     UPDATE lip_sync_jobs
-    SET result_meta = COALESCE(result_meta, '{}'::jsonb) || ${JSON.stringify(patch ?? {})}::jsonb,
+    SET result_meta = ${JSON.stringify(merged)}::jsonb,
         updated_at = now()
     WHERE id = ${id}
   `);
@@ -326,21 +334,14 @@ export async function completeLipSyncJob(
   resultUrl: string,
   resultMeta?: Record<string, unknown>,
 ): Promise<void> {
-  if (resultMeta) {
-    await db().execute(sql`
-      UPDATE lip_sync_jobs
-      SET state = 'done', result_url = ${resultUrl},
-          result_meta = COALESCE(result_meta, '{}'::jsonb) || ${JSON.stringify(resultMeta)}::jsonb,
-          updated_at = now()
-      WHERE id = ${id} AND state IN ('submitting', 'polling')
-    `);
-    return;
-  }
   await db().execute(sql`
     UPDATE lip_sync_jobs
     SET state = 'done', result_url = ${resultUrl}, updated_at = now()
     WHERE id = ${id} AND state IN ('submitting', 'polling')
   `);
+  if (resultMeta) {
+    await mergeLipSyncJobResultMeta(id, resultMeta);
+  }
 }
 
 export async function failLipSyncJob(id: string, error: LipSyncJobError): Promise<void> {
