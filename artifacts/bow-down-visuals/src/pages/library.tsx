@@ -20,16 +20,19 @@ import {
   type LibraryFont, type LibraryFontCategory,
 } from "@/data/library-fonts";
 import { ensureLibraryFonts } from "@/lib/load-fonts";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchWishlist } from "@/lib/wishlists";
+import WishlistPanel from "@/components/wishlist/WishlistPanel";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
    The connective tissue between tools: templates, presets, and fonts.
    Every "Use" deep-links into the exact tool with the item pre-loaded.
-   - ?tab=templates|presets|fonts — pre-select tab (context-aware entry)
+   - ?tab=templates|presets|fonts|wishlist — pre-select tab (context-aware entry)
    - ?category=<name> — pre-select category
    - ?tool=thumbnail|video|brand — context hint from the calling tool
    Recent + favorites tracked in localStorage per user. */
 
-type LibraryTab = "templates" | "presets" | "fonts";
+type LibraryTab = "templates" | "presets" | "fonts" | "wishlist";
 
 const RECENT_KEY = "thy-library-recent-v1";
 const FAV_KEY = "thy-library-favorites-v1";
@@ -57,7 +60,7 @@ export default function Library() {
 
   const initialTab = ((): LibraryTab => {
     const tab = params.get("tab");
-    if (tab === "presets" || tab === "fonts" || tab === "templates") return tab;
+    if (tab === "presets" || tab === "fonts" || tab === "templates" || tab === "wishlist") return tab;
     // Context-aware: tool hint selects the most relevant tab
     const tool = params.get("tool");
     if (tool === "video") return "presets";
@@ -65,6 +68,21 @@ export default function Library() {
   })();
 
   const [tab, setTab] = useState<LibraryTab>(initialTab);
+  /* Wishlist tab (Wave 4 #38): the count badge reads the fan's real
+     wishlist; the panel keeps it honest as items are removed. */
+  const { user, getAccessToken } = useAuth();
+  const [wishlistCount, setWishlistCount] = useState(0);
+  useEffect(() => {
+    if (!user) {
+      setWishlistCount(0);
+      return;
+    }
+    let alive = true;
+    fetchWishlist(getAccessToken)
+      .then((list) => { if (alive) setWishlistCount(list.length); })
+      .catch(() => { /* badge only — the panel reports its own errors */ });
+    return () => { alive = false; };
+  }, [user, getAccessToken]);
   const [query, setQuery] = useState("");
   const [templateCat, setTemplateCat] = useState<string>(params.get("category") ?? "All");
   const [presetCat, setPresetCat] = useState<string>("All");
@@ -133,6 +151,7 @@ export default function Library() {
     { key: "templates", label: t("library.tabTemplates", { defaultValue: "Templates" }), icon: Sparkles, count: LIBRARY_TEMPLATES.length },
     { key: "presets", label: t("library.tabPresets", { defaultValue: "Presets" }), icon: Wand2, count: LIBRARY_PRESETS.length },
     { key: "fonts", label: t("library.tabFonts", { defaultValue: "Fonts" }), icon: Type, count: LIBRARY_FONTS.length },
+    { key: "wishlist", label: t("library.tabWishlist", { defaultValue: "Wishlist" }), icon: Heart, count: wishlistCount },
   ];
 
   return (
@@ -258,6 +277,11 @@ export default function Library() {
             </div>
             {filteredFonts.length === 0 && <EmptyState t={t} />}
           </>
+        )}
+
+        {/* ═══ WISHLIST (Wave 4 #38) ═══ */}
+        {tab === "wishlist" && (
+          <WishlistPanel onCountChange={setWishlistCount} />
         )}
       </div>
     </div>

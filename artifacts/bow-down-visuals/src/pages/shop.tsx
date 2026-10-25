@@ -12,6 +12,7 @@ import {
 } from "@/lib/shops";
 import { usePageTitle } from "@/hooks/use-page-title";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
+import WishlistButton from "@/components/wishlist/WishlistButton";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
@@ -457,6 +458,11 @@ export default function ShopStorefront() {
                 </button>
               </div>
               <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents)}</div>
+              {/* Wave 4 #38: save-for-later — a price drop on this
+                  product notifies the fan once per drop. */}
+              <div className="mt-4">
+                <WishlistButton itemKind="shop_product" itemId={selected.id} variant="labeled" />
+              </div>
               {selected.description && (
                 <p className="mt-3 text-sm text-white/60 whitespace-pre-line">{selected.description}</p>
               )}
