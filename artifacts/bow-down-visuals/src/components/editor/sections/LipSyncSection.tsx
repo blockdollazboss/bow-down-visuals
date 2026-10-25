@@ -2546,15 +2546,20 @@ export function LipSyncSection({
                     </div>
                   )}
 
-                  {/* Apply to All Clips — disabled until per-scene workflow proven */}
+                  {/* Apply to All Clips — wired to the same confirm flow
+                      as the Apply card's Apply to All (Stack-200 item
+                      188: this was a permanently-disabled duplicate of
+                      that working control, with a stale rationale). */}
                   <button
                     type="button"
-                    disabled
-                    title="Apply to All Clips will be enabled once the selected-scene automation is fully reliable"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-white/20 text-[11px] font-semibold cursor-not-allowed"
+                    disabled={clipsWithFaces.length === 0 || (!demoMode && !audioReady)}
+                    onClick={() => { setApplyError(null); setConfirmOpen("all"); }}
+                    title="Opens the Apply to All confirmation in the Apply Lip Sync card below"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    data-testid="btn-lip-sync-apply-all-auto"
                   >
                     <SkipForward className="h-3.5 w-3.5" />
-                    Apply to All Clips (confirm selected scene first)
+                    Apply to All Clips
                   </button>
 
                 </div>
