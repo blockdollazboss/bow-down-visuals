@@ -104,6 +104,7 @@ import {
   MAX_BUMP_PERCENT_OFF,
 } from "../lib/order-bumps";
 import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../lib/affiliates";
+import { detectWishlistPriceDrop } from "../lib/wishlists";
 /* Post-purchase upsell (Stack-100 #3, Wave 3): the SAME seller
    attachment as the bump, offered once after the purchase completes
    and charged in one click off the saved payment method through its
@@ -1191,6 +1192,18 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
       return;
     }
     const p = await fetchProduct(id, false);
+    if (p && (d.priceCents !== undefined || d.giftCardDenominationsCents !== undefined)) {
+      /* Wave 4 #38: a price write is the drop moment — fans who saved
+         this product get one alert per drop (lib/wishlists owns the
+         price law and never throws into the seller's request). */
+      await detectWishlistPriceDrop({
+        itemKind: "store_product",
+        itemId: id,
+        newPriceCents: Number(p.price_cents),
+        title: String(p.title ?? ""),
+        link: `/storefront/product/${id}`,
+      });
+    }
     res.json({ product: p ? await presentProduct(p) : { id } });
   } catch (err) {
     logger.error({ err, id }, "[storefront] product update failed");
