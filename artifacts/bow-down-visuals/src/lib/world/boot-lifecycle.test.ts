@@ -38,11 +38,15 @@ describe("world boot lifecycle — a cleaned-up boot arms nothing and holds no s
   it("the connect segment exists, fetch first", () => {
     expect(segStart).toBeGreaterThan(-1);
     expect(segEnd).toBeGreaterThan(segStart);
-    expect(segment).toContain("await loadScreen();");
+    /* The fetch is raced against a 10 s bound since 2026-10-25
+       (a hung fetch held every interaction tick hostage) — the
+       ordering this pin guards is unchanged: connect, then the
+       screen wait, then the guard, then the arming. */
+    expect(segment).toContain("await Promise.race([loadScreen(), worldDelay(10_000)]);");
   });
 
   it("a cancelled guard stands between the screen fetch and every interval arming", () => {
-    const fetchIdx = segment.indexOf("await loadScreen();");
+    const fetchIdx = segment.indexOf("await Promise.race([loadScreen(), worldDelay(10_000)]);");
     const guardIdx = segment.indexOf("if (cancelled) {");
     expect(guardIdx).toBeGreaterThan(fetchIdx);
     for (const arm of [
