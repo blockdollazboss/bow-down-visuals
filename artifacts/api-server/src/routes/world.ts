@@ -83,6 +83,7 @@ import {
 } from "../lib/world-court-season";
 import { gateCourtSeasonHerald } from "../lib/operator-duties";
 import { createStageTipper } from "../lib/world-stage-tips";
+import { isTicketed } from "../lib/live-tickets";
 import { createTutorialActionNotifier } from "../lib/world-tutorial";
 
 const router = Router();
@@ -206,7 +207,11 @@ router.get("/world/screen", publicApiLimiter, async (_req, res) => {
           .from(liveStreamsTable)
           .where(and(eq(liveStreamsTable.id, stage.streamId), eq(liveStreamsTable.status, "live")))
           .limit(1);
-        if (stageRow) {
+        /* Ticketed live (#31): the hall screen is a PUBLIC surface —
+           a door'd show never plays on it, whoever holds the stage.
+           A ticketed stage pick falls through to the ambient screen
+           exactly like an ended stream does. */
+        if (stageRow && !isTicketed(stageRow)) {
           const hlsUrl =
             stageRow.provider === "own-server"
               ? `/api/live-streams/${stageRow.id}/hls/playlist.m3u8`
@@ -236,12 +241,16 @@ router.get("/world/screen", publicApiLimiter, async (_req, res) => {
          * ambient screen rather than pointing the hall at a corpse. */
       }
     }
-    const [row] = await db
+    /* The ambient screen only ever carries FREE streams — a ticketed
+       show is behind its door, never the hall's background programming
+       (#31). Look past any ticketed rows at the top of the rail. */
+    const recentLive = await db
       .select()
       .from(liveStreamsTable)
       .where(eq(liveStreamsTable.status, "live"))
       .orderBy(desc(liveStreamsTable.started_at))
-      .limit(1);
+      .limit(8);
+    const row = recentLive.find((r) => !isTicketed(r));
     if (!row) {
       res.json({ screen: pickScreenContent(null) });
       return;
@@ -1645,6 +1654,11 @@ async function resolveStageStream(userId: string, streamId: string): Promise<Wor
       )
       .limit(1);
     if (!row) return null;
+    /* Ticketed live (#31): a door'd show can't be claimed for the
+       hall screen — the screen is public and the ticket is the door.
+       The claim is refused here, at the same server verification
+       every stage pick passes through. */
+    if (isTicketed(row)) return null;
     let performerName = "Creator";
     let performerSlug: string | null = null;
     if (row.profile_id) {
