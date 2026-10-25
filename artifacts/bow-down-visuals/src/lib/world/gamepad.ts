@@ -7,38 +7,38 @@
  * without hardware. The scene polls it each frame and merges the
  * intent with keyboard/mouse/touch, which stay exactly as they were.
  *
- * Standard mapping (the W3C "standard" layout both controller
- * families report):
+ * The button LAYOUT lives in bindings.ts — the one table every
+ * input family reads — and this module only polls it:
  *   axes[0..1]  left stick   → walk (x = strafe, y = forward/back)
  *   axes[2..3]  right stick  → look (x = yaw, y = pitch)
- *   buttons[7]  right trigger ┐
- *   buttons[10] L3 (stick click) ┘ → hurry/sprint (held)
- *   buttons[0]  A / Cross    → step the voice mode (edge):
- *                              Off → Proximity → Lobby → Deafen → Off
- *   buttons[6]  LT / L2      → step the voice mode BACKWARD (edge):
- *                              the A button's reverse, so the two
- *                              shoulders of the voice ring walk it
- *                              both ways (Off ← Proximity ← Lobby ←
- *                              Deafen ← Off). LT was the pad's one
- *                              dead trigger until Stack-100 #2
- *                              item 59 — every other indexed button
- *                              already had a job.
- *   buttons[3]  Y / Triangle → toggle first/third person (edge)
- *   buttons[4]  LB / L1      → station interact (edge): open the
- *                              door you're standing at. Every face
- *                              button is taken (voice, view, and
- *                              the actions), so the free shoulder
- *                              takes it; the page honors the press
- *                              only while a station prompt shows.
- *   D-pad ↑ → Bow · D-pad → → Cheer · D-pad ↓ → Sit · D-pad ← → Wave
- *   buttons[2]  X / Square   → Clap
- *   buttons[1]  B / Circle   → Dance (toggle — press again to stop)
- *   buttons[5]  RB / R1      → Spin
+ *   RT (7) / L3 (10) held    → hurry/sprint
+ *   A (0)                    → step the voice mode forward (edge)
+ *   LT (6)                   → step the voice mode BACKWARD (edge)
+ *   Y (3)                    → toggle first/third person (edge)
+ *   LB (4)                   → contextual interact (edge): the door
+ *                              or courtesy at the showing prompt
+ *   The seven ACTION SLOTS (D-pad ↑ → ↓ ←, X, B, RB) perform the
+ *   ACTIVE PAGE's actions (bindings.ACTION_PAGES): page 1 is the
+ *   shipped layout — D↑ Bow · D→ Cheer · D↓ Sit · D← Wave · X Clap
+ *   · B Dance · RB Spin — and Back (8) cycles to page 2 (Point ·
+ *   Laugh · Kneel · Beckon · Salute · High-five · Shrug).
+ *   Start (9)                → photo mode (edge)
+ *   R3 (11)                  → moment claim (edge): the live drop
+ *                              or the King's gift, when one is up
  * Avatar actions ride the same edge discipline as the toggles:
  * one press, one performance — holding a button never machine-guns
  * the room with bows.
  */
 import type { WorldActionId } from "./actions";
+import {
+  PAD_SLOTS,
+  PAD_SPRINT_BUTTONS,
+  PAD_VERBS,
+  actionForPadButton,
+  DEFAULT_ACTION_PAGE,
+  type ActionPageId,
+  type WorldVerb,
+} from "./bindings";
 
 export const GAMEPAD_DEADZONE = 0.18;
 
@@ -53,6 +53,12 @@ export interface GamepadEdges {
   interact: boolean;
   /** LT held at the last poll (the voice-back edge state). */
   lt: boolean;
+  /** Back held at the last poll (the page-cycle edge state). */
+  page: boolean;
+  /** Start held at the last poll (the photo edge state). */
+  photo: boolean;
+  /** R3 held at the last poll (the moment-claim edge state). */
+  claim: boolean;
   /** Action buttons held at the last poll, by action id. */
   actions: Partial<Record<WorldActionId, boolean>>;
 }
@@ -72,11 +78,17 @@ export interface GamepadIntent {
    *  mode BACKWARD (the A button's reverse). */
   voiceBack: boolean;
   toggleView: boolean;
-  /** Edge-triggered: LB went down this frame — the station
-   *  interact (open the door at the showing prompt). */
+  /** Edge-triggered: LB went down this frame — the contextual
+   *  interact (the door or courtesy at the showing prompt). */
   interact: boolean;
+  /** Edge-triggered: Back went down — cycle the action page. */
+  pageCycle: boolean;
+  /** Edge-triggered: Start went down — toggle photo mode. */
+  photoMode: boolean;
+  /** Edge-triggered: R3 went down — claim the live moment. */
+  momentClaim: boolean;
   /** Edge-triggered avatar action for this frame (the first fresh
-   *  press, in map order), or null. */
+   *  press, in slot order), or null. */
   action: WorldActionId | null;
 }
 
@@ -90,22 +102,29 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   voiceBack: false,
   toggleView: false,
   interact: false,
+  pageCycle: false,
+  photoMode: false,
+  momentClaim: false,
   action: null,
 };
 
-export const IDLE_GAMEPAD_EDGES: GamepadEdges = { voice: false, view: false, interact: false, lt: false, actions: {} };
+export const IDLE_GAMEPAD_EDGES: GamepadEdges = {
+  voice: false,
+  view: false,
+  interact: false,
+  lt: false,
+  page: false,
+  photo: false,
+  claim: false,
+  actions: {},
+};
 
-/** Action buttons in priority order — if two go down on the same
- *  frame, the first in this list is the performance. */
-const ACTION_BUTTONS: ReadonlyArray<readonly [number, WorldActionId]> = [
-  [12, "bow"], // D-pad up
-  [15, "cheer"], // D-pad right
-  [13, "sit"], // D-pad down
-  [14, "wave"], // D-pad left
-  [2, "clap"], // X / Square
-  [1, "dance"], // B / Circle
-  [5, "spin"], // RB / R1
-];
+/** Button index per fixed verb, inverted from the table. */
+const VERB_BUTTON: Record<WorldVerb, number> = (() => {
+  const out = {} as Record<WorldVerb, number>;
+  for (const [btn, verb] of Object.entries(PAD_VERBS)) out[verb] = Number(btn);
+  return out;
+})();
 
 /** Radial deadzone with rescaling: inside the zone the stick reads
  *  exactly zero (no drift); outside it, the remaining travel is
@@ -133,28 +152,35 @@ function pressed(pad: GamepadLike, i: number): boolean {
 }
 
 /** One poll: the pad's intent for this frame + the edge state to
- *  carry into the next poll. A missing pad reads as a clean idle
- *  (and resets the edges, so a reconnect never swallows or repeats
- *  a press). */
+ *  carry into the next poll. `page` is the active action page —
+ *  the seven slots perform ITS actions. A missing pad reads as a
+ *  clean idle (and resets the edges, so a reconnect never swallows
+ *  or repeats a press). */
 export function pollGamepad(
   pad: GamepadLike | null,
   prev: GamepadEdges,
+  page: ActionPageId = DEFAULT_ACTION_PAGE,
 ): { intent: GamepadIntent; edges: GamepadEdges } {
   if (!pad) return { intent: IDLE_GAMEPAD_INTENT, edges: IDLE_GAMEPAD_EDGES };
   const [moveX, moveY] = applyRadialDeadzone(axis(pad, 0), axis(pad, 1));
   const [lookX, lookY] = applyRadialDeadzone(axis(pad, 2), axis(pad, 3));
   const actionEdges: Partial<Record<WorldActionId, boolean>> = {};
   let action: WorldActionId | null = null;
-  for (const [button, id] of ACTION_BUTTONS) {
+  for (const button of PAD_SLOTS) {
+    const id = actionForPadButton(page, button);
+    if (!id) continue;
     const down = pressed(pad, button);
     actionEdges[id] = down;
     if (action === null && down && prev.actions[id] !== true) action = id;
   }
   const edges: GamepadEdges = {
-    voice: pressed(pad, 0),
-    view: pressed(pad, 3),
-    interact: pressed(pad, 4),
-    lt: pressed(pad, 6),
+    voice: pressed(pad, VERB_BUTTON.voiceStep),
+    view: pressed(pad, VERB_BUTTON.viewToggle),
+    interact: pressed(pad, VERB_BUTTON.interact),
+    lt: pressed(pad, VERB_BUTTON.voiceBack),
+    page: pressed(pad, VERB_BUTTON.pageCycle),
+    photo: pressed(pad, VERB_BUTTON.photoMode),
+    claim: pressed(pad, VERB_BUTTON.momentClaim),
     actions: actionEdges,
   };
   return {
@@ -163,11 +189,14 @@ export function pollGamepad(
       moveY,
       lookX,
       lookY,
-      sprint: pressed(pad, 7) || pressed(pad, 10),
+      sprint: PAD_SPRINT_BUTTONS.some((b) => pressed(pad, b)),
       toggleVoice: edges.voice && !prev.voice,
       voiceBack: edges.lt && !prev.lt,
       toggleView: edges.view && !prev.view,
       interact: edges.interact && !prev.interact,
+      pageCycle: edges.page && !prev.page,
+      photoMode: edges.photo && !prev.photo,
+      momentClaim: edges.claim && !prev.claim,
       action,
     },
     edges,

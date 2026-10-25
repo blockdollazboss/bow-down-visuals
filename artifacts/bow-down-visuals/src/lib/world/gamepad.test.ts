@@ -172,3 +172,50 @@ describe("avatar action buttons", () => {
     expect(intent.action).toBeNull();
   });
 });
+
+describe("the paged layout + the three new verbs", () => {
+  it("on the social page the same slots perform the social set", () => {
+    const cases: Array<[number, string]> = [
+      [12, "point"],
+      [15, "laugh"],
+      [13, "kneel"],
+      [14, "beckon"],
+      [2, "salute"],
+      [1, "highfive"],
+      [5, "shrug"],
+    ];
+    for (const [button, action] of cases) {
+      const { intent } = pollGamepad(pad([0, 0, 0, 0], [button]), IDLE_GAMEPAD_EDGES, "social");
+      expect(intent.action).toBe(action);
+    }
+    // …and page 1's bow button is a point now — no page bleeds.
+    expect(pollGamepad(pad([0, 0, 0, 0], [12]), IDLE_GAMEPAD_EDGES, "perform").intent.action).toBe("bow");
+  });
+
+  it("Back, Start and R3 edge-fire page, photo and claim — and steal nothing", () => {
+    const back = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES);
+    expect(back.intent.pageCycle).toBe(true);
+    expect(back.intent.action).toBeNull();
+    expect(back.intent.toggleVoice).toBe(false);
+    const held = pollGamepad(pad([0, 0, 0, 0], [8]), back.edges);
+    expect(held.intent.pageCycle).toBe(false);
+
+    const start = pollGamepad(pad([0, 0, 0, 0], [9]), IDLE_GAMEPAD_EDGES);
+    expect(start.intent.photoMode).toBe(true);
+    expect(start.intent.action).toBeNull();
+
+    const r3 = pollGamepad(pad([0, 0, 0, 0], [11]), IDLE_GAMEPAD_EDGES);
+    expect(r3.intent.momentClaim).toBe(true);
+    expect(r3.intent.sprint).toBe(false); // L3 (10) sprints; R3 (11) claims
+    expect(r3.intent.action).toBeNull();
+  });
+
+  it("the new verbs ride the same reset rule: a vanished pad forgets them", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [8, 9, 11]), IDLE_GAMEPAD_EDGES);
+    expect(down.intent.pageCycle).toBe(true);
+    const gone = pollGamepad(null, down.edges);
+    expect(gone.edges).toEqual(IDLE_GAMEPAD_EDGES);
+    const back_ = pollGamepad(pad([0, 0, 0, 0], [8]), gone.edges);
+    expect(back_.intent.pageCycle).toBe(true);
+  });
+});
