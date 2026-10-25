@@ -14,6 +14,12 @@ import {
   type ClipEdit,
 } from "@/lib/editor-settings";
 import { requestAudioExport } from "@/lib/audio-export";
+import {
+  formatLipSyncResultMeta,
+  lipSyncProviderLabel,
+  type LipSyncResultMeta,
+} from "@/lib/lip-sync-result-meta";
+import { PollFailureBudget, isTransientPollHttpStatus } from "@/lib/poll-tolerance";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
@@ -816,7 +822,7 @@ export function LipSyncSection({
     }
 
     if (!providerConnected) {
-      setApplyError("Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.");
+      setApplyError("Lip Sync is not connected on this site yet — real lip sync is unavailable right now. Demo mode still works.");
       return;
     }
     if (!audioReady) { setApplyError("No audio source available."); return; }
@@ -889,6 +895,7 @@ export function LipSyncSection({
         lipSyncUrl:             result.url,
         lipSyncStatus:          "done",
         lipSyncProvider:        result.provider,
+        lipSyncResultMeta:      result.resultMeta ?? null,
         lipSyncCreatedAt:       new Date().toISOString(),
         lipSyncError:           null,
         lipSyncJobId:           null,
@@ -940,7 +947,7 @@ export function LipSyncSection({
     }
 
     if (!providerConnected) {
-      setApplyError("Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.");
+      setApplyError("Lip Sync is not connected on this site yet — real lip sync is unavailable right now. Demo mode still works.");
       return;
     }
     if (!audioReady) { setApplyError("No audio source available."); return; }
@@ -1007,6 +1014,7 @@ export function LipSyncSection({
           lipSyncUrl:         result.url,
           lipSyncStatus:      "done",
           lipSyncProvider:    result.provider,
+          lipSyncResultMeta:  result.resultMeta ?? null,
           lipSyncCreatedAt:   new Date().toISOString(),
           lipSyncError:       null,
           lipSyncJobId:       null,
@@ -1060,7 +1068,7 @@ export function LipSyncSection({
 
     /* Check provider */
     if (!providerConnected) {
-      setAutoAiMessage("Sync.so not connected — add LIP_SYNC_API_KEY in Replit Secrets.");
+      setAutoAiMessage("Lip Sync is not connected on this site yet — real lip sync is unavailable right now.");
       setAutoAiOk(false);
       return;
     }
@@ -1471,15 +1479,17 @@ export function LipSyncSection({
         failed:                       "failed",
       };
 
+      const pollBudget = new PollFailureBudget();
+
       for (let i = 0; i < MAX_POLLS; i++) {
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
 
-        const pollRes  = await fetch(`/api/lip-sync/scene-test/${jobId}`, {
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
-        if (!pollRes.ok) throw new Error(`Poll failed: HTTP ${pollRes.status}`);
-
-        const job = (await pollRes.json()) as {
+        /* Transient tolerance (Stack-200 item 187): the scene-test job is
+           durable server-side, so one network blip / abort / 5xx while
+           polling must not kill the run. Tolerate a bounded run of
+           consecutive transient failures inside the same MAX_POLLS cap;
+           a real 4xx answer still surfaces at once. */
+        let job: {
           status:     string;
           step?:      string;
           resultUrl?: string;
@@ -1495,6 +1505,27 @@ export function LipSyncSection({
             lastError:      string | null;
           };
         };
+        try {
+          const pollRes = await fetch(`/api/lip-sync/scene-test/${jobId}`, {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          });
+          if (!pollRes.ok) {
+            if (isTransientPollHttpStatus(pollRes.status) && pollBudget.noteTransientFailure()) {
+              continue;
+            }
+            throw new Error(`Poll failed: HTTP ${pollRes.status}`);
+          }
+          job = (await pollRes.json()) as typeof job;
+          pollBudget.noteSuccess();
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("Poll failed: HTTP")) throw err;
+          if (!pollBudget.noteTransientFailure()) {
+            throw new Error(
+              "Status checks kept failing — the scene test may still be rendering on the server. Please try again in a bit.",
+            );
+          }
+          continue;
+        }
 
         /* Update step label */
         const stepLabel = STEP_LABELS[job.step ?? ""] ?? job.step ?? "running…";
@@ -1558,7 +1589,7 @@ export function LipSyncSection({
               {!providerLoading && providerConnected && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[11px] font-semibold">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  Connected · {providerName}
+                  Connected · {lipSyncProviderLabel(providerName)}
                 </div>
               )}
 
@@ -1587,7 +1618,7 @@ export function LipSyncSection({
                       {providerStatus?.missingKeyMessage ?? "Lip Sync is not connected yet."}
                       <br />
                       <span className="font-normal text-amber-400">
-                        To use real lip sync, connect a lip sync provider API key in Replit Secrets.
+                        Real lip sync turns on when the site connects its lip-sync service. Until then, Demo Mode below still lets you rehearse the full flow.
                       </span>
                     </span>
                   </div>
@@ -1598,10 +1629,10 @@ export function LipSyncSection({
                       <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3 space-y-2">
                         <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Lip Sync Setup</p>
                         {[
-                          "Choose a lip sync provider (e.g. HeyGen, Sync.so, Hedra)",
-                          "Copy your API key from that provider's dashboard",
-                          "Add it to Replit Secrets as LIP_SYNC_API_KEY",
-                          "Refresh this page",
+                          "Lip Sync is a site service — there is nothing for you to install or connect.",
+                          "When the service is connected, this panel shows Connected and Apply runs for real.",
+                          "Your project, clips, and settings are saved either way.",
+                          "Use Demo Mode below to rehearse the flow with simulations.",
                         ].map((step, i) => (
                           <div key={i} className="flex items-start gap-2">
                             <span className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full bg-white/10 text-[9px] font-black text-white/50 mt-0.5">{i + 1}</span>
@@ -1617,7 +1648,7 @@ export function LipSyncSection({
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors"
                         >
                           <KeyRound className="h-3.5 w-3.5" />
-                          I Have An API Key
+                          Why Is It Off?
                         </button>
                         <button
                           type="button"
@@ -1631,17 +1662,15 @@ export function LipSyncSection({
                     </>
                   )}
 
-                  {/* "I Have An API Key" instructions */}
+                  {/* "Why Is It Off?" instructions */}
                   {showKeyInstructions && (
                     <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3 py-3 space-y-2.5">
-                      <p className="text-[11px] font-bold text-primary">Add your API key to Replit Secrets:</p>
+                      <p className="text-[11px] font-bold text-primary">Lip Sync is connected by the site, not by creators:</p>
                       <div className="space-y-1.5">
                         {[
-                          "Open Replit → Tools → Secrets",
-                          "Click + Add new secret",
-                          "Key: LIP_SYNC_API_KEY",
-                          "Value: paste your provider API key",
-                          "Save, then click Refresh below",
+                          "There is no key for you to add — the connection lives on the site's server.",
+                          "When the site connects the service, this panel flips to Connected on its own.",
+                          "Hit Refresh to check again, or use Demo Mode to keep working.",
                         ].map((step, i) => (
                           <div key={i} className="flex items-start gap-2">
                             <span className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full bg-primary/20 text-[9px] font-black text-primary/70 mt-0.5">{i + 1}</span>
@@ -1760,7 +1789,7 @@ export function LipSyncSection({
                         ? "Route unreachable — check API server is running"
                         : !routeTest.returnsJson
                           ? "Route not returning JSON — check server logs"
-                          : "Provider key missing — add LIP_SYNC_API_KEY in Replit Secrets"}
+                          : "Lip Sync service not connected on this site yet"}
                     </div>
                   )}
                 </div>
@@ -1861,7 +1890,7 @@ export function LipSyncSection({
                   {!accountCheck.keyPresent && (
                     <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold">
                       <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                      Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets
+                      The lip-sync service is not connected on this site yet
                     </div>
                   )}
 
@@ -2303,7 +2332,7 @@ export function LipSyncSection({
                     <StatusRow label="detected clip duration" value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s ✓` : selectedScene?.demoClipUrl ? "loading…" : "—"}                  ok={clipVideoDuration != null ? true : null} />
                     <StatusRow label="detected audio segment" value={selectedTiming ? `${selectedTiming.durationSec.toFixed(2)}s  (${fmtSec(selectedTiming.startSec)} → ${fmtSec(selectedTiming.endSec)})` : "—"} ok={!!selectedTiming} />
                     <StatusRow label="timing safe"            value={timingOk === null ? "checking…" : timingOk ? "yes ✓ (< 0.25s diff)" : `no — diff ${timingDiff!.toFixed(2)}s`}                    ok={timingOk} />
-                    <StatusRow label="provider"               value={providerConnected ? `${providerName ?? "Sync.so"} ✓` : "not connected"}                                                           ok={providerConnected} />
+                    <StatusRow label="provider"               value={providerConnected ? `${lipSyncProviderLabel(providerName)} ✓` : "not connected"}                                                           ok={providerConnected} />
                     <StatusRow label="audio source"           value={audioReady ? "ready ✓" : "none"}                                                                                                 ok={audioReady} />
                     <StatusRow label="paid job confirmation"  value={!demoMode ? "required before submit" : "skipped (demo mode)"}                                                                     ok={null} />
                     <StatusRow label="job submitted"          value={ce?.lipSyncSubmittedAt ? `yes — ${fmtDate(ce.lipSyncSubmittedAt)}` : "no"}                                                        ok={ce?.lipSyncSubmittedAt ? true : null} />
@@ -2368,6 +2397,13 @@ export function LipSyncSection({
                         <p className="text-[10px] text-green-400/70 leading-snug">
                           Do not resubmit. Use the actions below, or scroll to Apply Lip Sync to submit a corrected job if needed.
                         </p>
+                        {/* Item 191: the 0230 result_meta, stated plainly —
+                            final dimensions + any resolution reduction. */}
+                        {formatLipSyncResultMeta(ce?.lipSyncResultMeta) && (
+                          <p className="text-[10px] text-green-300/90 leading-snug" data-testid="lipsync-result-meta">
+                            {formatLipSyncResultMeta(ce?.lipSyncResultMeta)}
+                          </p>
+                        )}
 
                         {/* Action buttons */}
                         <div className="grid grid-cols-2 gap-2">
@@ -2534,15 +2570,20 @@ export function LipSyncSection({
                     </div>
                   )}
 
-                  {/* Apply to All Clips — disabled until per-scene workflow proven */}
+                  {/* Apply to All Clips — wired to the same confirm flow
+                      as the Apply card's Apply to All (Stack-200 item
+                      188: this was a permanently-disabled duplicate of
+                      that working control, with a stale rationale). */}
                   <button
                     type="button"
-                    disabled
-                    title="Apply to All Clips will be enabled once the selected-scene automation is fully reliable"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 text-white/20 text-[11px] font-semibold cursor-not-allowed"
+                    disabled={clipsWithFaces.length === 0 || (!demoMode && !audioReady)}
+                    onClick={() => { setApplyError(null); setConfirmOpen("all"); }}
+                    title="Opens the Apply to All confirmation in the Apply Lip Sync card below"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    data-testid="btn-lip-sync-apply-all-auto"
                   >
                     <SkipForward className="h-3.5 w-3.5" />
-                    Apply to All Clips (confirm selected scene first)
+                    Apply to All Clips
                   </button>
 
                 </div>
@@ -2634,7 +2675,7 @@ export function LipSyncSection({
                       </div>
                     ) : !providerConnected ? (
                       <p className="text-[10px] text-red-400/80 font-semibold">
-                        ⚠ Provider not connected — add LIP_SYNC_API_KEY in Replit Secrets.
+                        ⚠ Lip Sync is not connected on this site yet — real lip sync is unavailable right now.
                       </p>
                     ) : null}
 
@@ -4009,6 +4050,8 @@ class StillProcessingError extends Error {
 interface LipSyncResult {
   url:      string;
   provider: string;
+  /** Migration-0230 result metadata from the job poll (may be absent). */
+  resultMeta?: LipSyncResultMeta | null;
 }
 
 async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncResult | null> {
@@ -4050,9 +4093,9 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       startRes.status === 401 || startRes.status === 403
         ? "Sign in again or refresh the page."
         : startRes.status === 402
-          ? "Sync Labs billing blocked — replace API key with a paid account key in Replit Secrets."
+          ? "Lip Sync is unavailable right now — please try again later."
           : startRes.status === 503
-            ? "API server not available. Check Replit Secrets or try again."
+            ? "API server not available. Try again in a moment."
             : startRes.status >= 500
               ? "Server error. Try again in a moment."
               : startCt.includes("text/html")
@@ -4076,28 +4119,50 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
      so we allow up to 8 minutes total before giving up.                    */
   const deadline = Date.now() + 480_000;
   let syncLabsJobNotified = false;
+  const pollBudget = new PollFailureBudget();
 
   while (Date.now() < deadline) {
     await new Promise<void>(r => setTimeout(r, 3_000));
 
-    const pollRes = await fetch(`/api/lip-sync/job/${jobId}`, {
-      headers: { Authorization: `Bearer ${token ?? ""}` },
-      signal:  AbortSignal.timeout(15_000),
-    });
-
-    if (!pollRes.ok) {
-      const body = await pollRes.text().catch(() => "");
-      throw new Error(`Job polling failed: HTTP ${pollRes.status} — ${body.slice(0, 200)}`);
-    }
-
-    const job = await pollRes.json() as {
+    /* Transient tolerance (Stack-200 item 187): the lip-sync job is
+       durable server-side, so one network blip / 15s poll abort / 5xx
+       must not kill the client's view of a healthy job. Tolerate a
+       bounded run of consecutive transient failures inside the same
+       8-minute deadline; a real 4xx answer still surfaces at once. */
+    let job: {
       status:         string;
       url?:           string;
       provider?:      string;
       error?:         string;
       code?:          string;
       syncLabsJobId?: string;
+      resultMeta?:    LipSyncResultMeta | null;
     };
+    try {
+      const pollRes = await fetch(`/api/lip-sync/job/${jobId}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        signal:  AbortSignal.timeout(15_000),
+      });
+
+      if (!pollRes.ok) {
+        if (isTransientPollHttpStatus(pollRes.status) && pollBudget.noteTransientFailure()) {
+          continue;
+        }
+        const body = await pollRes.text().catch(() => "");
+        throw new Error(`Job polling failed: HTTP ${pollRes.status} — ${body.slice(0, 200)}`);
+      }
+
+      job = await pollRes.json() as typeof job;
+      pollBudget.noteSuccess();
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("Job polling failed: HTTP")) throw err;
+      if (!pollBudget.noteTransientFailure()) {
+        throw new Error(
+          "Job status checks kept failing — the lip sync job may still be running on the server. Use 'Check Job Status' to follow up.",
+        );
+      }
+      continue;
+    }
 
     /* Notify caller the moment the Sync.so provider job ID becomes available */
     if (job.syncLabsJobId && !syncLabsJobNotified) {
@@ -4107,7 +4172,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
 
     if (job.status === "done") {
       if (!job.url) throw new Error("Lip sync job completed but returned no URL.");
-      return { url: job.url, provider: job.provider ?? "sync" };
+      return { url: job.url, provider: job.provider ?? "sync", resultMeta: job.resultMeta ?? null };
     }
     if (job.status === "failed") {
       throw new Error(job.error ?? "Lip sync job failed.");

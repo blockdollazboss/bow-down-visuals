@@ -400,6 +400,13 @@ export function FinalVideoExport({
   const [exportQualityMeta, setExportQualityMeta]   = useState<{
     resolution: string; width: number; height: number; fps: number; crf: number; container: string; codec?: string;
   } | null>(null);
+  /* Item 191 (export honesty): the render result carries the final
+     frame size for EVERY export (executeExport's quality block reports
+     TARGET_W x TARGET_H even when quality mode is off), but the
+     completion notice only showed it for quality-controlled exports —
+     standard exports showed just the aspect ratio. Keep the actual
+     final dimensions for the completion notice. */
+  const [exportFinalDims, setExportFinalDims]       = useState<{ width: number; height: number } | null>(null);
 
   /* The live estimate effect lives below (after estimateDurationSec) — the
      deps array is evaluated during render, so it must come after every
@@ -782,6 +789,11 @@ export function FinalVideoExport({
       } else {
         setExportQualityMeta(null);
       }
+      setExportFinalDims(
+        data.quality && data.quality.width > 0 && data.quality.height > 0
+          ? { width: data.quality.width, height: data.quality.height }
+          : null,
+      );
       return { data, timelineOrder };
     };
 
@@ -974,6 +986,17 @@ export function FinalVideoExport({
                 {t(selectedScenes.length !== 1 ? "videoExport.downloadBtnOther" : "videoExport.downloadBtnOne", { count: selectedScenes.length, audio: hasAudio ? t("videoExport.audioPlus") : "" })}
               </Button>
             </a>
+            {/* ── Final dimensions (standard exports; item 191) ── */}
+            {!exportQualityMeta && exportFinalDims && (
+              <p className="text-[10px] text-white/35 font-mono text-center" data-testid="export-final-size">
+                {t("videoExport.finalSize", {
+                  defaultValue: "Final size: {{width}}×{{height}}",
+                  width: exportFinalDims.width,
+                  height: exportFinalDims.height,
+                })}
+              </p>
+            )}
+
             {/* ── Quality summary (quality-controlled exports) ── */}
             {exportQualityMeta && (
               <p className="text-[10px] text-white/35 font-mono text-center" data-testid="export-quality-summary">
@@ -1023,7 +1046,7 @@ export function FinalVideoExport({
             </div>
 
             <button
-              onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); setExportQualityMeta(null); }}
+              onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); setExportQualityMeta(null); setExportFinalDims(null); }}
               className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
               data-testid="btn-export-again"
             >

@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "86dad540d3061a2a71fa99c9a8295eb2d96b7e20",
+  "baseCommit": "fba41b48db3b18fa8af1c63e467234a46ff8e8cb",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-24",
+  "generatedAt": "2026-10-25",
   "counts": {
     "routesInApp": 234,
     "pageFiles": 180,
@@ -175,6 +175,7 @@
         "/api/challenges/weekly",
         "/api/credits/claim-trial",
         "/api/public/stats",
+        "/api/referrals/apply",
         "/api/retention/prefs",
         "/api/waitlist"
       ],
@@ -199,7 +200,8 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
@@ -222,7 +224,8 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -287,6 +290,7 @@
         "/api/jewelry/admin/orders.csv",
         "/api/nfc-cards/admin/orders",
         "/api/nfc-cards/admin/orders.csv",
+        "/api/referrals/apply",
         "/api/reports"
       ],
       "prices": [],
@@ -358,6 +362,7 @@
         "/api/mod-console",
         "/api/mod-console/automod",
         "/api/money",
+        "/api/referrals/apply",
         "/api/retention-doctor",
         "/api/virality-check"
       ],
@@ -464,6 +469,7 @@
         "/api/mod-console",
         "/api/mod-console/automod",
         "/api/money",
+        "/api/referrals/apply",
         "/api/retention-doctor",
         "/api/virality-check"
       ],
@@ -570,6 +576,7 @@
         "/api/mod-console",
         "/api/mod-console/automod",
         "/api/money",
+        "/api/referrals/apply",
         "/api/retention-doctor",
         "/api/virality-check"
       ],
@@ -676,6 +683,7 @@
         "/api/mod-console",
         "/api/mod-console/automod",
         "/api/money",
+        "/api/referrals/apply",
         "/api/retention-doctor",
         "/api/virality-check"
       ],
@@ -764,6 +772,7 @@
         "/api/arcade/me",
         "/api/arcade/scores",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/retention/shark-drop",
         "/api/retention/shark-drop/claim"
       ],
@@ -793,6 +802,7 @@
         "/api/creator-profiles",
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/stories/by-profile/:param",
         "/api/stories/highlights"
       ],
@@ -867,6 +877,7 @@
         "/api/generate-runway-clip/:param",
         "/api/r2/object",
         "/api/r2/upload",
+        "/api/referrals/apply",
         "/api/songs",
         "/api/voices"
       ],
@@ -994,6 +1005,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -1218,6 +1230,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -1436,6 +1449,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -1654,6 +1668,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -1872,6 +1887,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -2090,6 +2106,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -2312,6 +2329,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -2534,6 +2552,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -2752,6 +2771,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -2970,6 +2990,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -3173,6 +3194,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -3391,6 +3413,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -3612,6 +3635,7 @@
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
         "/api/rate-my-mix/analyze",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-fillers/analyze",
         "/api/remove-fillers/analyze/:param",
@@ -3819,6 +3843,7 @@
         "/api/dev/add-credits",
         "/api/dj/library",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/sound-fit/:param"
       ],
@@ -3923,7 +3948,8 @@
         "/api/admin/status",
         "/api/brand-calculator/calculate",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Stop guessing what to charge. Get a fair rate range, per-post pricing, package deals, and negotiation tips — built from industry benchmarks for your exact audience.",
@@ -3953,6 +3979,7 @@
         "/api/invoices/:param",
         "/api/invoices/:param/pdf",
         "/api/outreach",
+        "/api/referrals/apply",
         "/api/sponsor-read",
         "/api/sponsors/deals",
         "/api/sponsors/match",
@@ -4042,6 +4069,7 @@
         "/api/invoices/:param",
         "/api/invoices/:param/pdf",
         "/api/outreach",
+        "/api/referrals/apply",
         "/api/sponsor-read",
         "/api/sponsors/deals",
         "/api/sponsors/match",
@@ -4127,6 +4155,7 @@
         "/api/invoices/:param",
         "/api/invoices/:param/pdf",
         "/api/outreach",
+        "/api/referrals/apply",
         "/api/sponsor-read",
         "/api/sponsors/deals",
         "/api/sponsors/match",
@@ -5198,6 +5227,7 @@
         "/api/carousel/export",
         "/api/credits/claim-trial",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [
@@ -5234,7 +5264,8 @@
         "/api/catalog-import/scan",
         "/api/catalog-import/uploads",
         "/api/credits/claim-trial",
-        "/api/r2/presign-upload"
+        "/api/r2/presign-upload",
+        "/api/referrals/apply"
       ],
       "prices": [
         {
@@ -5261,7 +5292,8 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/challenges/trending",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -5284,6 +5316,7 @@
         "/api/challenges/hall-of-fame",
         "/api/challenges/weekly",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares"
@@ -5415,7 +5448,8 @@
         "/api/artist-vaults/spotlight-order",
         "/api/creator-profiles",
         "/api/creator-profiles/me",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Pick your artist — lights, camera, and we'll match their look, sound, and brand across everything you create.",
@@ -5444,6 +5478,7 @@
         "/api/monetization-coach",
         "/api/money",
         "/api/money/:param",
+        "/api/referrals/apply",
         "/api/validate-idea"
       ],
       "prices": [
@@ -5492,6 +5527,7 @@
         "/api/monetization-coach",
         "/api/money",
         "/api/money/:param",
+        "/api/referrals/apply",
         "/api/validate-idea"
       ],
       "prices": [
@@ -5539,7 +5575,8 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/distribution/releases"
+        "/api/distribution/releases",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Browse creators by niche and audience, get an AI compatibility score before you reach out, and send collab requests — free.",
@@ -5586,7 +5623,8 @@
         "/api/community/sentiment",
         "/api/community/superfans",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [
         {
@@ -5635,7 +5673,8 @@
         "/api/community/sentiment",
         "/api/community/superfans",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [
         {
@@ -5707,6 +5746,7 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares"
@@ -5719,9 +5759,9 @@
     {
       "id": "contracts",
       "name": "Contracts",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/contracts",
-      "stage": "studio",
+      "stage": "money",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/contracts.tsx",
       "component": "Contracts",
@@ -5730,7 +5770,8 @@
         "/api/admin/status",
         "/api/contracts/analyze",
         "/api/credits/claim-trial",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -5739,10 +5780,10 @@
     },
     {
       "id": "copyright",
-      "name": "Copyright Assistant",
-      "nameSource": "App.tsx component name",
+      "name": "Copyright",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/copyright",
-      "stage": "account",
+      "stage": "money",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/copyright.tsx",
       "component": "CopyrightAssistant",
@@ -5753,7 +5794,8 @@
         "/api/copyright/draft",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/dmca/report"
+        "/api/dmca/report",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -6737,7 +6779,8 @@
         "/api/creator-tiers/me",
         "/api/creator-tiers/plans",
         "/api/credits/claim-trial",
-        "/api/public/stats"
+        "/api/public/stats",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -6758,7 +6801,8 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/domains",
-        "/api/domains/mine"
+        "/api/domains/mine",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -6779,7 +6823,8 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/credits/history",
-        "/api/payments/history"
+        "/api/payments/history",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -6824,6 +6869,7 @@
         "/api/credits/history",
         "/api/move-home",
         "/api/projects",
+        "/api/referrals/apply",
         "/api/retention/away-digest",
         "/api/retention/daily-drop",
         "/api/retention/delight-prefs",
@@ -6882,7 +6928,8 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/detect/media",
-        "/api/dev/add-credits"
+        "/api/dev/add-credits",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Upload an image, video, or audio file — or paste a link — and get a forensic AI assessment: verdict, confidence score, and the exact tells it found.",
@@ -6933,6 +6980,7 @@
         "/api/distribution/roster/invites/:param/respond",
         "/api/distribution/strategy",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/release-checklist",
         "/api/songs"
@@ -6999,6 +7047,7 @@
         "/api/distribution/roster/invites/:param/respond",
         "/api/distribution/strategy",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/release-checklist",
         "/api/songs"
@@ -7071,7 +7120,8 @@
         "/api/legacy/inbox",
         "/api/legacy/inbox/:param/respond",
         "/api/mod-console",
-        "/api/mod-console/automod"
+        "/api/mod-console/automod",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": []
@@ -7101,7 +7151,11 @@
         "/api/email-list/lists/:param/subscribers/:param/tags",
         "/api/email-list/lists/:param/tags",
         "/api/email-list/lists/:param/tags/:param",
-        "/api/email-list/newsletter"
+        "/api/email-list/newsletter",
+        "/api/keyword-automations/events",
+        "/api/keyword-automations/rules",
+        "/api/keyword-automations/rules/:param",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [
@@ -7178,6 +7232,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/events",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -7202,6 +7257,7 @@
         "/api/events/:param/rsvp",
         "/api/events/:param/stats",
         "/api/events/:param/unrsvp",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -7378,6 +7434,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares"
@@ -7556,6 +7613,7 @@
         "/api/live-streams/ingest-key/revoke",
         "/api/live-streams/status",
         "/api/r2/presign-upload",
+        "/api/referrals/apply",
         "/api/show-finder",
         "/api/show-finder/pitch",
         "/api/stage-rooms",
@@ -7707,6 +7765,7 @@
         "/api/live-streams/ingest-key/revoke",
         "/api/live-streams/status",
         "/api/r2/presign-upload",
+        "/api/referrals/apply",
         "/api/show-finder",
         "/api/show-finder/pitch",
         "/api/stage-rooms",
@@ -7792,6 +7851,7 @@
         "/api/live-streams/ingest-key/revoke",
         "/api/live-streams/status",
         "/api/r2/presign-upload",
+        "/api/referrals/apply",
         "/api/show-finder",
         "/api/show-finder/pitch",
         "/api/stage-rooms",
@@ -7877,6 +7937,7 @@
         "/api/live-streams/ingest-key/revoke",
         "/api/live-streams/status",
         "/api/r2/presign-upload",
+        "/api/referrals/apply",
         "/api/show-finder",
         "/api/show-finder/pitch",
         "/api/stage-rooms",
@@ -7947,7 +8008,8 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": []
@@ -7966,6 +8028,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/groups",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -8005,6 +8068,7 @@
         "/api/groups/:param/my-role",
         "/api/groups/:param/posts",
         "/api/groups/:param/posts/:param",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -8039,19 +8103,23 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/content-warning/preferences",
         "/api/credits/claim-trial",
         "/api/discovery/feed",
         "/api/discovery/feed/prefs",
         "/api/feed",
+        "/api/memberships/tiers",
         "/api/posts",
         "/api/posts/:param",
         "/api/posts/:param/analytics",
+        "/api/posts/:param/content-warning/reveal",
         "/api/posts/:param/poll/vote",
         "/api/posts/:param/replies",
         "/api/posts/:param/reply",
         "/api/posts/:param/repost",
         "/api/posts/assist",
         "/api/react",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/saves",
         "/api/saves/post/:param",
@@ -8094,6 +8162,7 @@
         "/api/hub/project",
         "/api/lyric-stories/generate",
         "/api/randomizer",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/script-writer",
@@ -8185,6 +8254,7 @@
         "/api/hub/project",
         "/api/lyric-stories/generate",
         "/api/randomizer",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/script-writer",
@@ -8276,6 +8346,7 @@
         "/api/hub/project",
         "/api/lyric-stories/generate",
         "/api/randomizer",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/script-writer",
@@ -8367,6 +8438,7 @@
         "/api/hub/project",
         "/api/lyric-stories/generate",
         "/api/randomizer",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/script-writer",
@@ -8458,6 +8530,7 @@
         "/api/hub/project",
         "/api/lyric-stories/generate",
         "/api/randomizer",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/script-writer",
@@ -8563,6 +8636,7 @@
         "/api/hub/project",
         "/api/media-import",
         "/api/media-import/:param",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -8585,7 +8659,8 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/interview-prep/feedback",
-        "/api/interview-prep/session"
+        "/api/interview-prep/session",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -8621,7 +8696,8 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/jewelry/order",
-        "/api/jewelry/orders"
+        "/api/jewelry/orders",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -8670,6 +8746,7 @@
         "/api/playlist-pitch/releases",
         "/api/playlist-pitch/tracker",
         "/api/playlist-pitch/tracker/:param",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/songs",
         "/api/sync-pitch/briefs",
@@ -8767,7 +8844,14 @@
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/library.tsx",
       "component": "Library",
-      "endpoints": [],
+      "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/credits/claim-trial",
+        "/api/referrals/apply",
+        "/api/wishlists",
+        "/api/wishlists/:param/:param"
+      ],
       "prices": [],
       "description": "Templates, presets, and fonts for creators.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"library.pageDescription\" (page's own string)",
@@ -8797,7 +8881,8 @@
         "/api/live-shopping/streams",
         "/api/live-shopping/streams/:param",
         "/api/live-shopping/streams/:param/alerts",
-        "/api/live-shopping/verify"
+        "/api/live-shopping/verify",
+        "/api/referrals/apply"
       ],
       "prices": [
         {
@@ -8827,6 +8912,9 @@
       "pageFile": "artifacts/bow-down-visuals/src/pages/live-watch.tsx",
       "component": "LiveWatch",
       "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/credits/claim-trial",
         "/api/live-guest/session",
         "/api/live-guest/session/backstage/messages",
         "/api/live-guest/session/heartbeat",
@@ -8840,10 +8928,12 @@
         "/api/live-streams/:param/guests/:param/promote",
         "/api/live-streams/:param/guests/:param/remove",
         "/api/live-streams/:param/heartbeat",
+        "/api/live-streams/:param/ticket",
         "/api/live-streams/live",
         "/api/live-streams/status",
         "/api/live/:param/summary",
         "/api/reach/destinations",
+        "/api/referrals/apply",
         "/api/social/accounts"
       ],
       "prices": [
@@ -8894,10 +8984,10 @@
     },
     {
       "id": "llc-guide",
-      "name": "Llc Guide",
-      "nameSource": "App.tsx component name",
+      "name": "LLC Guide",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/llc-guide",
-      "stage": "studio",
+      "stage": "money",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/llc-guide.tsx",
       "component": "LlcGuide",
@@ -8907,7 +8997,8 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/llc-guide/ask",
-        "/api/llc-guide/plan"
+        "/api/llc-guide/plan",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Start your music business right — step-by-step LLC formation guide for creators.",
@@ -8935,7 +9026,8 @@
         "/api/auth/webauthn/register-options",
         "/api/auth/webauthn/register-verify",
         "/api/bow",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Sign in to Bow Down Visuals.",
@@ -8958,7 +9050,8 @@
         "/api/dev/add-credits",
         "/api/memberships/checkout",
         "/api/memberships/join-trial",
-        "/api/memberships/public/:param"
+        "/api/memberships/public/:param",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "description": "Launch paid tiers for your biggest fans — exclusive content, early access, behind-the-scenes. Free to set up.",
@@ -8986,6 +9079,7 @@
         "/api/dm/attachments/upload",
         "/api/dm/conversations",
         "/api/dm/start",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -9014,7 +9108,8 @@
         "/api/move-home/drafts/store",
         "/api/move-home/steps/:param/approve",
         "/api/move-home/steps/:param/reopen",
-        "/api/move-home/steps/:param/skip"
+        "/api/move-home/steps/:param/skip",
+        "/api/referrals/apply"
       ],
       "prices": [
         {
@@ -9045,6 +9140,7 @@
         "/api/hub/project",
         "/api/movies/clip-detect",
         "/api/movies/concept",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -9065,6 +9161,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/store/checkout",
         "/api/store/item/:param/:param",
         "/api/store/purchases",
@@ -9108,6 +9205,7 @@
         "/api/projects",
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
+        "/api/referrals/apply",
         "/api/review-links",
         "/api/review-links/:param",
         "/api/review-links/mine",
@@ -9207,6 +9305,7 @@
         "/api/projects",
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
+        "/api/referrals/apply",
         "/api/review-links",
         "/api/review-links/:param",
         "/api/review-links/mine",
@@ -9306,6 +9405,7 @@
         "/api/projects",
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
+        "/api/referrals/apply",
         "/api/review-links",
         "/api/review-links/:param",
         "/api/review-links/mine",
@@ -9405,6 +9505,7 @@
         "/api/projects",
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
+        "/api/referrals/apply",
         "/api/review-links",
         "/api/review-links/:param",
         "/api/review-links/mine",
@@ -9516,6 +9617,7 @@
         "/api/product-reviews/:param/respond",
         "/api/product-reviews/:param/unflag",
         "/api/product-reviews/seller:param",
+        "/api/referrals/apply",
         "/api/shops",
         "/api/shops/:param",
         "/api/shops/:param/discounts",
@@ -9584,6 +9686,7 @@
         "/api/nfc-cards/orders",
         "/api/nfc-cards/profile/:param",
         "/api/nfc-cards/qr/:param.svg",
+        "/api/referrals/apply",
         "/api/referrals/me"
       ],
       "prices": [],
@@ -9612,7 +9715,8 @@
         "/api/credits/claim-trial",
         "/api/party/leaderboard",
         "/api/party/me",
-        "/api/party/rooms"
+        "/api/party/rooms",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -9662,6 +9766,7 @@
         "/api/credits/claim-trial",
         "/api/playlists",
         "/api/playlists/mine",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/store/token"
       ],
@@ -9680,13 +9785,16 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/content-warning/preferences",
         "/api/credits/claim-trial",
         "/api/posts/:param",
         "/api/posts/:param/analytics",
+        "/api/posts/:param/content-warning/reveal",
         "/api/posts/:param/poll/vote",
         "/api/posts/:param/replies",
         "/api/posts/:param/repost",
         "/api/react",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/saves",
         "/api/saves/post/:param"
@@ -9734,6 +9842,7 @@
         "/api/reach/streams/:param/raid-outgoing",
         "/api/reach/streams/:param/watch",
         "/api/reach/streams/:param/watch-progress",
+        "/api/referrals/apply",
         "/api/social/accounts"
       ],
       "prices": [],
@@ -9753,7 +9862,8 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -9785,6 +9895,7 @@
         "/api/press-kit/generate",
         "/api/press-kit/mine",
         "/api/press-release",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/wave8/media-kit/generate"
       ],
@@ -9871,7 +9982,8 @@
         "/api/credits/claim-trial",
         "/api/payments/express",
         "/api/payments/express/verify",
-        "/api/public/stats"
+        "/api/public/stats",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "guide": {
@@ -9924,6 +10036,7 @@
         "/api/promo-generator",
         "/api/promote/unlock-gates",
         "/api/promote/unlock-gates/:param",
+        "/api/referrals/apply",
         "/api/shares",
         "/api/social-kit"
       ],
@@ -9981,6 +10094,7 @@
         "/api/publish/tracks",
         "/api/publish/upload",
         "/api/publish/videos",
+        "/api/referrals/apply",
         "/api/shorts"
       ],
       "prices": [
@@ -10008,7 +10122,8 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/auth/qr-approve",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -10028,6 +10143,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/referrals/contest",
         "/api/referrals/leaderboard",
         "/api/referrals/me"
@@ -10103,6 +10219,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/review-links",
         "/api/review-links/:param",
         "/api/review-links/mine"
@@ -10124,13 +10241,16 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/content-warning/preferences",
         "/api/credits/claim-trial",
         "/api/posts/:param",
         "/api/posts/:param/analytics",
+        "/api/posts/:param/content-warning/reveal",
         "/api/posts/:param/poll/vote",
         "/api/posts/:param/replies",
         "/api/posts/:param/repost",
         "/api/react",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/saves",
         "/api/saves/mine",
@@ -10161,6 +10281,7 @@
         "/api/generate-community-post",
         "/api/hook-studio",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/scheduler/posts",
         "/api/scheduler/posts/:param",
@@ -10272,6 +10393,7 @@
         "/api/generate-community-post",
         "/api/hook-studio",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/scheduler/posts",
         "/api/scheduler/posts/:param",
@@ -10383,6 +10505,7 @@
         "/api/generate-community-post",
         "/api/hook-studio",
         "/api/hub/project",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/scheduler/posts",
         "/api/scheduler/posts/:param",
@@ -10490,6 +10613,7 @@
         "/api/discovery/search",
         "/api/playlists",
         "/api/playlists/mine",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares",
@@ -10512,6 +10636,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/referrals/apply",
         "/api/setlist/flow",
         "/api/songs"
       ],
@@ -10563,6 +10688,7 @@
         "/api/legacy/inbox/:param/respond",
         "/api/mod-console",
         "/api/mod-console/automod",
+        "/api/referrals/apply",
         "/api/retention/prefs",
         "/api/social-proof/me",
         "/api/social-proof/refresh",
@@ -10681,6 +10807,7 @@
         "/api/credits/claim-trial",
         "/api/media/video/:param/comments",
         "/api/media/video/:param/play",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/shorts",
         "/api/shorts/feed",
@@ -10706,6 +10833,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/referrals/apply",
         "/api/shoutouts/ai-message",
         "/api/shoutouts/creators",
         "/api/shoutouts/requests",
@@ -10756,6 +10884,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares"
@@ -10834,6 +10963,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/referrals/apply",
         "/api/sponsors/applications/:param",
         "/api/sponsors/deals/:param",
         "/api/sponsors/deals/:param/applications",
@@ -10876,6 +11006,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/sponsors/dashboard"
       ],
       "prices": [],
@@ -10897,6 +11028,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/referrals/apply",
         "/api/sponsors/deals"
       ],
       "prices": [
@@ -10924,6 +11056,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/store/checkout",
         "/api/store/item/:param/:param"
       ],
@@ -10973,12 +11106,16 @@
         "/api/product-reviews/:param/respond",
         "/api/product-reviews/:param/unflag",
         "/api/product-reviews/seller:param",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/rank",
         "/api/store/bundles",
         "/api/store/bundles/:param",
         "/api/store/checklist",
         "/api/store/item/:param/:param/bump",
+        "/api/store/item/:param/:param/license-settings",
+        "/api/store/item/:param/:param/licenses",
+        "/api/store/licenses/:param/:param",
         "/api/store/log-to-tracker",
         "/api/store/price",
         "/api/store/products",
@@ -11071,6 +11208,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/gift-cards",
+        "/api/referrals/apply",
         "/api/store/verify",
         "/api/storefront",
         "/api/storefront/verify"
@@ -11097,6 +11235,7 @@
         "/api/gift-cards/checkout",
         "/api/gift-cards/verify",
         "/api/product-reviews",
+        "/api/referrals/apply",
         "/api/storefront",
         "/api/storefront/checkout",
         "/api/storefront/claim",
@@ -11167,6 +11306,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/shops",
         "/api/shops/:param",
         "/api/shops/:param/products",
@@ -11212,6 +11352,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/teams",
         "/api/teams/:param",
         "/api/teams/:param/accept",
@@ -11309,6 +11450,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares",
@@ -11375,6 +11517,7 @@
         "/api/photo-enhance",
         "/api/photo-presets",
         "/api/projects",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
         "/api/showcase/publish",
@@ -11535,6 +11678,7 @@
         "/api/photo-enhance",
         "/api/photo-presets",
         "/api/projects",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
         "/api/showcase/publish",
@@ -11714,6 +11858,7 @@
         "/api/photo-enhance",
         "/api/photo-presets",
         "/api/projects",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
         "/api/showcase/publish",
@@ -11899,6 +12044,7 @@
         "/api/photo-enhance",
         "/api/photo-presets",
         "/api/projects",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
         "/api/showcase/publish",
@@ -12048,6 +12194,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/tips/dashboard",
         "/api/tips/goal",
         "/api/tips/settings"
@@ -12213,6 +12360,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/referrals/apply",
         "/api/tour/dates",
         "/api/tour/dates/:param",
         "/api/tour/optimize"
@@ -12237,6 +12385,7 @@
         "/api/credits/claim-trial",
         "/api/playlists",
         "/api/playlists/mine",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/store/token"
       ],
@@ -12257,7 +12406,10 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/content-warning/preferences",
         "/api/credits/claim-trial",
+        "/api/posts/:param/content-warning/reveal",
+        "/api/referrals/apply",
         "/api/trending/topics"
       ],
       "prices": [],
@@ -12277,7 +12429,8 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
-        "/api/credits/claim-trial"
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
       ],
       "prices": [],
       "nextSteps": [],
@@ -12300,6 +12453,7 @@
         "/api/discovery/vertical/:param",
         "/api/playlists",
         "/api/playlists/mine",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares",
@@ -12334,7 +12488,24 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
+        "/api/export-doctor/export",
+        "/api/export-doctor/export-all",
+        "/api/export-doctor/export-all-audio",
+        "/api/export-doctor/export-all-captions",
+        "/api/export-doctor/export-all-effects",
+        "/api/export-doctor/export-all-overlays",
+        "/api/export-doctor/export-audio",
+        "/api/export-doctor/export-audio-sync-short",
+        "/api/export-doctor/export-effects-range",
+        "/api/export-doctor/export-effects-transitions",
+        "/api/export-doctor/export-overlays-range",
+        "/api/export-doctor/repair-clip",
+        "/api/export-doctor/repair-normalize",
+        "/api/export-final-video",
+        "/api/export-multi-ratio",
+        "/api/export-quality",
+        "/api/export-quality/estimate",
+        "/api/export-video-job/:param",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -12350,6 +12521,7 @@
         "/api/lip-sync/health",
         "/api/lip-sync/job/:param",
         "/api/lip-sync/preview",
+        "/api/lip-sync/run-all",
         "/api/lip-sync/scene-test",
         "/api/lip-sync/scene-test/:param",
         "/api/lip-sync/status",
@@ -12369,11 +12541,13 @@
         "/api/pre-production/bible",
         "/api/pre-production/image",
         "/api/pre-production/storyboard",
+        "/api/prepare-export-files",
         "/api/pro-tools/auto-grade",
         "/api/projects",
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -12465,9 +12639,93 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Export Clip (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export All Clips (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-all",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export All Audio (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-all-audio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Captions (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-all-captions",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Effects (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-all-effects",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Overlays (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-all-overlays",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Audio (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-audio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Audio Sync (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-audio-sync-short",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Effects Range (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-effects-range",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Transitions (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-effects-transitions",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Export Overlays Range (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/export-overlays-range",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Repair Clip (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/repair-clip",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Repair: Normalize Clip (free)",
+          "vb": 0,
+          "endpoint": "/api/export-doctor/repair-normalize",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Export Final Video",
           "vb": 400,
           "endpoint": "/api/export-final-video",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Multi-Ratio Export (per ratio)",
+          "vb": 100,
+          "endpoint": "/api/export-multi-ratio",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12516,6 +12774,12 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Lip Sync — Run All (per scene)",
+          "vb": 300,
+          "endpoint": "/api/lip-sync/run-all",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12824,7 +13088,6 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -12864,6 +13127,7 @@
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -13210,7 +13474,9 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
+        "/api/export-final-video",
+        "/api/export-quality",
+        "/api/export-quality/estimate",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -13250,6 +13516,7 @@
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -13618,7 +13885,9 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
+        "/api/export-final-video",
+        "/api/export-quality",
+        "/api/export-quality/estimate",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -13658,6 +13927,7 @@
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -14031,7 +14301,9 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
+        "/api/export-final-video",
+        "/api/export-quality",
+        "/api/export-quality/estimate",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -14071,6 +14343,7 @@
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -14438,7 +14711,9 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
+        "/api/export-final-video",
+        "/api/export-quality",
+        "/api/export-quality/estimate",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -14478,6 +14753,7 @@
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -14846,7 +15122,9 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/free-chat",
+        "/api/export-final-video",
+        "/api/export-quality",
+        "/api/export-quality/estimate",
         "/api/freeze-frame",
         "/api/freeze-mask/job/:param",
         "/api/generate-artist-image",
@@ -14886,6 +15164,7 @@
         "/api/projects/:param",
         "/api/projects/:param/scene-clip",
         "/api/projects/:param/sync-clips",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-video-background",
         "/api/repurpose/analyze",
@@ -15286,6 +15565,7 @@
         "/api/credits/claim-trial",
         "/api/playlists",
         "/api/playlists/mine",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/store/token"
       ],
@@ -15308,6 +15588,7 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/referrals/apply",
         "/api/website-builder/edit",
         "/api/website-builder/generate",
         "/api/website-builder/projects",
@@ -15356,6 +15637,7 @@
         "/api/challenges/hall-of-fame",
         "/api/challenges/weekly",
         "/api/credits/claim-trial",
+        "/api/referrals/apply",
         "/api/referrals/me",
         "/api/retention/prefs",
         "/api/shares"
@@ -15386,6 +15668,7 @@
         "/api/live-streams/status",
         "/api/playlists/mine",
         "/api/projects",
+        "/api/referrals/apply",
         "/api/retention/leaderboard",
         "/api/retention/level-check",
         "/api/retention/level-check/celebrate",

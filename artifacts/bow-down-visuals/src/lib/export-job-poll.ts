@@ -13,6 +13,18 @@ export interface ExportJobPollResult {
   [key: string]: unknown;
 }
 
+import {
+  MAX_CONSECUTIVE_POLL_FAILURES,
+  PollFailureBudget,
+  isTransientPollHttpStatus,
+} from "./poll-tolerance";
+
+/* Re-exported for existing importers; the canonical definition lives in
+ * lib/poll-tolerance.ts, shared by every editor job poller. */
+export { MAX_CONSECUTIVE_POLL_FAILURES };
+
+class TransientPollError extends Error {}
+
 export interface ExportJobFailure extends Error {
   code?: string;
   exportStatus?: unknown;
@@ -64,23 +76,56 @@ export async function pollExportJob(opts: {
   const pollMs = opts.pollMs ?? 3000;
   const deadline = Date.now() + timeoutMs;
 
+  /* Stall hardening (Stack-200 item 187): the job is DURABLE server-side,
+     so a single transient poll failure — a network blip, a 30s per-poll
+     abort during a deploy swap, a 5xx from the proxy — must not kill the
+     client's view of a healthy render. Transient failures are tolerated
+     up to a consecutive budget inside the same overall deadline; a
+     non-transient HTTP error (4xx other than 429) still surfaces at
+     once, and exhausting the budget surfaces the failure plainly. */
+  const pollBudget = new PollFailureBudget();
+
   for (;;) {
     await new Promise((r) => setTimeout(r, pollMs));
-    const token = await getAccessToken();
-    const res = await fetch(`/api/export-video-job/${encodeURIComponent(jobId)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(30 * 1000),
-    });
-    if (!res.ok) {
-      throw new Error(`Export status check failed (HTTP ${res.status})`);
-    }
-    const job = (await res.json()) as {
+    let job: {
       status: string;
       stage?: string;
       progress?: number;
       result?: ExportJobPollResult;
       error?: { message?: string; code?: string; exportStatus?: unknown; stderrTail?: string[]; ffmpegExitCode?: number | null };
     };
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/export-video-job/${encodeURIComponent(jobId)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: AbortSignal.timeout(30 * 1000),
+      });
+      if (!res.ok) {
+        if (isTransientPollHttpStatus(res.status)) {
+          throw new TransientPollError(`Export status check failed (HTTP ${res.status})`);
+        }
+        throw new Error(`Export status check failed (HTTP ${res.status})`);
+      }
+      job = (await res.json()) as typeof job;
+      pollBudget.noteSuccess();
+    } catch (err) {
+      if (err instanceof Error && !(err instanceof TransientPollError) && err.message.startsWith("Export status check failed")) {
+        throw err;
+      }
+      if (!pollBudget.noteTransientFailure()) {
+        throw new Error(
+          "Export status checks kept failing — the export itself may still be rendering on the server. " +
+            "Please wait a bit before trying again.",
+        );
+      }
+      if (Date.now() > deadline) {
+        throw new Error(
+          "The export is taking longer than expected — it may still be rendering on the server. " +
+            "Please wait a bit before trying again.",
+        );
+      }
+      continue;
+    }
     if (job.stage && opts.onProgress) {
       opts.onProgress(job.stage, typeof job.progress === "number" ? job.progress : 0);
     }

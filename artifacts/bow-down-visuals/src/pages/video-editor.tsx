@@ -20,7 +20,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { VideoBanner } from "@/components/layout/video-banner";
-import { openThyChat } from "@/components/ThyCheatCodeChat";
+import { openThyChat } from "@/lib/open-thy-chat";
 import { useCollaboration, CollaboratorCursors } from "@/components/LiveCollaboration";
 import WittyLoader from "@/components/delight/witty-loader";
 import { Button } from "@/components/ui/button";
@@ -109,14 +109,20 @@ const CaptionTemplatesSection = lazy(() => import("@/components/editor/sections/
 const ProToolsSection = lazy(() => import("@/components/editor/sections/ProToolsSection").then((m) => ({ default: m.ProToolsSection })));
 const CanvasGeneratorSection = lazy(() => import("@/components/editor/sections/CanvasGeneratorSection").then((m) => ({ default: m.CanvasGeneratorSection })));
 const KeyframesSection = lazy(() => import("@/components/editor/sections/KeyframesSection").then((m) => ({ default: m.KeyframesSection })));
-import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
+/* Stack-200 item 186: the chroma preview canvas only renders while a
+   chroma key is active — lazy so its code stays out of the editor's
+   first-paint chunk. While it loads, the plain video shows (the same
+   frame the user saw before enabling the key). */
+const ChromaKeyPreview = lazy(() => import("@/components/editor/ChromaKeyPreview").then((m) => ({ default: m.ChromaKeyPreview })));
 import {
   buildProToolsCssFilter,
   buildProToolsTransform,
   buildProToolsClipPath,
 } from "@/lib/pro-tools-preview";
 import { TimelineDock } from "@/components/editor/TimelineDock";
-import TemplatePicker from "@/components/TemplatePicker";
+/* Stack-200 item 186: the template picker is an on-demand modal —
+   lazy so it stays out of the editor's first-paint chunk. */
+const TemplatePicker = lazy(() => import("@/components/TemplatePicker"));
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import type { HubAsset } from "@/lib/hub-project";
 const PromoClip = lazy(() => import("@/pages/promo-clip"));
@@ -4032,11 +4038,13 @@ export default function VideoEditor() {
       </SheetContent>
     </Sheet>
     {showTemplatePicker && (
-      <TemplatePicker
-        activeId={templateId}
-        onSelect={applyTemplate}
-        onClose={() => setShowTemplatePicker(false)}
-      />
+      <Suspense fallback={null}>
+        <TemplatePicker
+          activeId={templateId}
+          onSelect={applyTemplate}
+          onClose={() => setShowTemplatePicker(false)}
+        />
+      </Suspense>
     )}
     </>
   );
@@ -5437,10 +5445,12 @@ function MasterPreviewPlayer({
               video stays mounted (hidden) as the frame source. */}
           {chromaActive && displayProTools && (
             <div className="absolute inset-0" style={{ zIndex: 2 }}>
-              <ChromaKeyPreview
-                videoRef={liveVideoRef}
-                settings={displayProTools.chromaKey}
-              />
+              <Suspense fallback={null}>
+                <ChromaKeyPreview
+                  videoRef={liveVideoRef}
+                  settings={displayProTools.chromaKey}
+                />
+              </Suspense>
             </div>
           )}
           {/* Outgoing video + CSS transition overlay */}
