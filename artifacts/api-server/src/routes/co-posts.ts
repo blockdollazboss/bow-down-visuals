@@ -8,8 +8,12 @@ import {
   collabRequestsTable,
   creatorProfilesTable,
   notificationsTable,
+  contentWarningPreferencesTable,
+  CONTENT_WARNING_LABELS,
+  normalizeContentWarnings,
   type Attachment,
 } from "@workspace/db";
+import { contentCoverFor } from "../lib/content-warnings";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
@@ -98,6 +102,9 @@ const createCoPostSchema = z.object({
   /* When the co-post grows out of an accepted collab request, its id
      rides along as provenance — validated against the two parties. */
   collab_request_id: z.string().uuid().optional().nullable(),
+  /* Content warnings (Wave 4 #40): the initiating author's own labels
+     for the co-post — same author-only rule as every post. */
+  content_warnings: z.array(z.enum(CONTENT_WARNING_LABELS)).max(CONTENT_WARNING_LABELS.length).optional().default([]),
 });
 
 function assertLinkable(att: z.infer<typeof attachmentSchema>) {
@@ -159,10 +166,30 @@ type PostRow = typeof postsTable.$inferSelect;
 async function coPostDto(post: PostRow, co: CoPost, viewerUserId: string | null) {
   const profiles = await fetchProfilesById(co.sides.map((s) => s.profileId));
   const viewerSide = viewerUserId ? sideForUser(co, viewerUserId) : null;
+  /* Content warnings (Wave 4 #40): this DTO ships media_urls raw, so
+     the cover is applied here too — the same rule as enrichPosts. A
+     side of the co-post is a creator of it (the invited co-author must
+     see exactly what they're approving), so sides are never covered;
+     everyone else gets the covered DTO and the reveal door. */
+  const cwLabels = normalizeContentWarnings(post.contentWarnings ?? []);
+  let viewerHiddenLabels: ReturnType<typeof normalizeContentWarnings> = [];
+  if (viewerUserId && cwLabels.length > 0 && !viewerSide) {
+    const [pref] = await db.select().from(contentWarningPreferencesTable)
+      .where(eq(contentWarningPreferencesTable.userId, viewerUserId)).limit(1);
+    viewerHiddenLabels = normalizeContentWarnings(pref?.hiddenLabels ?? []);
+  }
+  const cwCover = contentCoverFor({
+    labels: cwLabels,
+    mediaCount: (post.mediaUrls ?? []).length,
+    isAuthor: !!viewerSide,
+    viewerHiddenLabels,
+  });
   return {
     id: post.id,
     body: post.body,
-    media_urls: post.mediaUrls ?? [],
+    media_urls: cwCover ? [] : (post.mediaUrls ?? []),
+    content_warnings: cwLabels,
+    content_cover: cwCover,
     audience: post.audience,
     created_at: post.createdAt,
     is_co_post: true,
@@ -271,6 +298,7 @@ router.post("/co-posts", publicApiLimiter, requireAuth, async (req: Request, res
         mediaUrls: (await mirrorAttachments(d.media_urls, req.userId!)) as unknown as Attachment[],
         kind: "post",
         audience: "public",
+        contentWarnings: normalizeContentWarnings(d.content_warnings),
       })
       .returning();
 
