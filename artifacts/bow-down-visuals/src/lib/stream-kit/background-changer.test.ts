@@ -401,10 +401,13 @@ describe("two engines — quality is the creator's only choice (Pro restored, Oc
     await flush();
     expect(changer.getEngineKind()).toBe("standard");
     expect(changer.getRefinementStep()).toBe(0);
-    // Every performance.now() call jumps 100ms, so each send→results
-    // round trip reads as ~100ms — far over the ladder's slow line.
+    // Every performance.now() call jumps 300ms, so each send→results
+    // round trip reads as ~300ms — far over the ladder's slow line
+    // (150ms since the Oct 25, 2026 motion fix recalibrated the
+    // ladders to round-trip reality; ~100ms no longer steps down,
+    // by design — a healthy phone lives there).
     let t = 0;
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 300));
     try {
       const seg = FakeSegmenter.instances[0];
       const mask = new FakeCanvas();
@@ -520,15 +523,24 @@ describe("premium quality + motion build (Oct 23, 2026)", () => {
     expect(src).toContain("this._canvasCapH = OUTPUT_HEIGHT_CAP");
   });
 
-  it("frame alignment: the engine snapshots at send time and the composite cuts the matte's OWN frame", () => {
-    // Snapshot synchronously inside process(), before the send.
+  it("motion fix (Oct 25, 2026): the engine still snapshots at send time, but the LIVE composite cuts the CURRENT frame with the latest matte", () => {
+    // Snapshot synchronously inside process(), before the send —
+    // unchanged: the snapshot still rides back on the matte for
+    // callers that want the aligned still (photo path).
     expect(src).toContain("this._frameCtx.drawImage(video, 0, 0)");
-    // The snapshot rides back on the matte.
     expect(src).toContain("matte.frame = frame");
-    // The composite's person/blur layers draw that frame — never
-    // the newer live video (the motion-ghost tear).
-    expect(src).toContain("matte.frame ?? this._video");
-    expect(src).toContain("p.drawImage(frameSource, 0, 0, W, H)");
+    // The Oct 23 snapshot doctrine is RETIRED for the live path
+    // (owner's phone verdict: the person only moved when a matte
+    // landed, and the stall fallback painted his room over the
+    // effect). The live composite now cuts the live video with
+    // the latest stored matte — the Meet/Zoom arrangement.
+    expect(src).not.toContain("matte.frame ?? this._video");
+    expect(src).not.toContain("frameSource");
+    expect(src).toContain("p.drawImage(this._video, 0, 0, W, H)");
+    // A landed matte is stored (post-processed once), and the
+    // loop composites it on every tick.
+    expect(src).toContain("this._storeLandedMatte(matte, epoch)");
+    expect(src).toContain("this._liveMatte = { epoch, width: mw, height: mh }");
   });
 
   it("the studio matte pipeline runs the motion-adaptive blend (the still-photo path keeps its own)", () => {
@@ -1016,10 +1028,12 @@ describe("Pro engine restored (Oct 23, 2026) — selection, fallback, degrade, p
     await flush();
     expect(changer.getEngineKind()).toBe("pro");
     expect(changer.getProStep()).toBe(0);
-    // Every performance.now() call jumps 100ms, so each worker
-    // round trip reads as ~100ms — far over the ladder's slow line.
+    // Every performance.now() call jumps 300ms, so each worker
+    // round trip reads as ~300ms — far over the ladder's slow line
+    // (200ms since the Oct 25, 2026 motion fix recalibrated the
+    // ladders to round-trip reality).
     let t = 0;
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 300));
     try {
       const stepFrame = async () => {
         rafCallbacks[rafCallbacks.length - 1]?.();
@@ -1060,7 +1074,7 @@ describe("Pro engine restored (Oct 23, 2026) — selection, fallback, degrade, p
     await flush();
     expect(changer.getEngineKind()).toBe("pro");
     let t = 0;
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 300)); // 300ms/trip: far over the recalibrated slow line (motion fix, Oct 25, 2026)
     try {
       const stepFrame = async () => {
         rafCallbacks[rafCallbacks.length - 1]?.();
@@ -1230,7 +1244,7 @@ describe("honest engine status (Stack-100 #3 Lane C — the fallback is VISIBLE)
     await flush();
     expect(changer.getEngineKind()).toBe("pro");
     let t = 0;
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 300)); // 300ms/trip: far over the recalibrated slow line (motion fix, Oct 25, 2026)
     try {
       const stepFrame = async () => {
         rafCallbacks[rafCallbacks.length - 1]?.();
@@ -1273,4 +1287,197 @@ describe("honest engine status (Stack-100 #3 Lane C — the fallback is VISIBLE)
     expect(studio).toContain("onEngineStatusDetail");
     expect(studio).toContain("getEngineStatusDetail()");
   });
+});
+
+describe("motion fix (Oct 25, 2026) — the person moves at camera rate, the background never snaps to the raw room", () => {
+  /* The owner's phone verdict on the Stack-300 build: "The green
+     screen is not fixed" — moving erased the background. Diagnosis
+     in .lane/DIAGNOSIS.md. These tests pin the new arrangement at
+     the pipeline level: compositing is decoupled from inference,
+     a stall holds the effect instead of painting the raw room,
+     and the light engine's sends pair strictly with their own
+     results. */
+
+  const drawCount = (changer: { canvas: unknown }) =>
+    (changer.canvas as FakeCanvas).ctx.calls.filter((c) => c === "drawImage").length;
+  const fillCount = (changer: { canvas: unknown }) =>
+    (changer.canvas as FakeCanvas).ctx.calls.filter((c) => c === "fillRect").length;
+
+  async function startStandard(mode: "green" | "blur" = "green", extra: Record<string, unknown> = {}) {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode, quality: "standard", ...extra });
+    const started = changer.start();
+    await flush();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    return changer;
+  }
+
+  async function startAuto() {
+    /* 'auto' with no Worker in this environment: Pro cannot even
+       spawn, so selection falls through to the light engine —
+       with 'auto' governance live (the ladder test's subject). */
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green" });
+    const started = changer.start();
+    await flush();
+    win.SelfieSegmentation = FakeSegmenter;
+    scripts[0].onload?.();
+    await started;
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("standard");
+    return changer;
+  }
+
+  it("composites on EVERY loop tick while an inference is still in flight — motion no longer waits for mattes", async () => {
+    const changer = await startStandard();
+    const seg = FakeSegmenter.instances[0];
+    const mask = new FakeCanvas();
+    mask.width = 256;
+    mask.height = 144;
+    // Tick 1: the first send goes out and pends.
+    rafCallbacks[rafCallbacks.length - 1]?.();
+    await flush();
+    expect(seg.sendCount).toBe(1);
+    // Its matte lands: stored, and composited immediately.
+    seg.resultsCb?.({ image: null, segmentationMask: mask });
+    await flush();
+    const afterMatte = drawCount(changer);
+    expect(afterMatte).toBeGreaterThan(0);
+    // Tick 2 launches the next send (which stays in flight — the
+    // slow-phone case). Ticks 2..4 must EACH paint a fresh frame:
+    // before the fix, the canvas only changed when a matte landed,
+    // so these counts froze between landings.
+    let last = afterMatte;
+    for (let i = 0; i < 3; i++) {
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await flush();
+      const nowCount = drawCount(changer);
+      expect(nowCount).toBeGreaterThan(last);
+      last = nowCount;
+    }
+    expect(seg.sendCount).toBe(2); // still just the one in flight — never queued
+    await changer.stop();
+  });
+
+  it("a matte stall holds the effect (the green stays painted) while the status honestly reports off — raw NEVER paints over a live backdrop", async () => {
+    const statuses: string[] = [];
+    const changer = await startStandard("green", { onEngineStatus: (k: string) => statuses.push(k) });
+    const seg = FakeSegmenter.instances[0];
+    const mask = new FakeCanvas();
+    mask.width = 256;
+    mask.height = 144;
+    // The clock mock goes in BEFORE the first matte lands, so the
+    // stall tracker's anchor lives on the same (mocked) clock:
+    // every performance.now() call jumps a full second.
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 1000));
+    try {
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await flush();
+      seg.resultsCb?.({ image: null, segmentationMask: mask });
+      await flush();
+      await flush();
+      expect(fillCount(changer)).toBeGreaterThan(0); // the green is up
+      // The next send never answers (a hung/slow engine on a loaded
+      // phone). A few ticks at +1s per clock call puts the matte
+      // gap far past the 2s stall line.
+      const fillsAtStallStart = fillCount(changer);
+      for (let i = 0; i < 4; i++) {
+        rafCallbacks[rafCallbacks.length - 1]?.();
+        await flush();
+      }
+      // The status channel told the truth about the silence…
+      expect(statuses).toContain("off");
+      // …but the canvas kept painting the EFFECT (green fillRect
+      // on every tick) instead of snapping to the raw room, which
+      // is what the old stall fallback did.
+      expect(fillCount(changer)).toBeGreaterThan(fillsAtStallStart);
+    } finally {
+      nowSpy.mockRestore();
+      await changer.stop();
+    }
+  }, 30000);
+
+  it("a healthy phone's round trips (~100ms) hold the sharpest refinement step — the ladder no longer marches every phone to the floor", async () => {
+    const changer = await startAuto();
+    expect(changer.getRefinementStep()).toBe(0);
+    const seg = FakeSegmenter.instances[0];
+    const mask = new FakeCanvas();
+    mask.width = 256;
+    mask.height = 144;
+    // Every performance.now() call jumps 100ms, so each round
+    // trip reads as ~100ms — a healthy phone. Before the Oct 25
+    // recalibration (slowMs 46) this walked the refinement to
+    // step 2 and beyond; the ladder now only rescues drowning.
+    let t = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => (t += 100));
+    try {
+      for (let i = 0; i < 80; i++) {
+        rafCallbacks[rafCallbacks.length - 1]?.();
+        await flush();
+        seg.resultsCb?.({ image: null, segmentationMask: mask });
+        await flush();
+      }
+      expect(changer.getRefinementStep()).toBe(0);
+      expect(changer.getEngineKind()).toBe("standard");
+    } finally {
+      nowSpy.mockRestore();
+      await changer.stop();
+    }
+  }, 30000);
+
+  it("a send slower than the cap is not abandoned or mispaired: no second send piles on, the late result proves life, and its stale matte is never painted", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    try {
+      const BackgroundChanger = await loadChanger();
+      const changer = new BackgroundChanger({ mode: "green", quality: "standard" });
+      const started = changer.start();
+      for (let i = 0; i < 10; i++) await vi.advanceTimersByTimeAsync(1);
+      win.SelfieSegmentation = FakeSegmenter;
+      scripts[0].onload?.();
+      await started;
+      for (let i = 0; i < 10; i++) await vi.advanceTimersByTimeAsync(1);
+      expect(changer.getEngineKind()).toBe("standard");
+      const seg = FakeSegmenter.instances[0];
+      const mask = new FakeCanvas();
+      mask.width = 256;
+      mask.height = 144;
+      // Send #1 goes out…
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(seg.sendCount).toBe(1);
+      // …and stays silent past the cap: the episode settles as a
+      // failed frame (the changer is free again)…
+      await vi.advanceTimersByTimeAsync(9_000);
+      // …but the next loop pass must NOT pile a second send onto
+      // the graph while the first is still outstanding — that is
+      // how masks used to get paired with the wrong snapshot.
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(seg.sendCount).toBe(1);
+      // The late result lands: proof of life (the drain resolves,
+      // the failure run resets) and its 9-second-old matte is
+      // discarded — never composited.
+      const drawsBefore = drawCount(changer);
+      seg.resultsCb?.({ image: null, segmentationMask: mask });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(drawCount(changer)).toBe(drawsBefore);
+      // Sends resume cleanly, and a prompt result composites.
+      rafCallbacks[rafCallbacks.length - 1]?.();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(seg.sendCount).toBe(2);
+      seg.resultsCb?.({ image: null, segmentationMask: mask });
+      await vi.advanceTimersByTimeAsync(1);
+      expect(drawCount(changer)).toBeGreaterThan(drawsBefore);
+      await changer.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 30000);
 });

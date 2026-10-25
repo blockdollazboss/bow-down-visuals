@@ -94,8 +94,23 @@ describe("FrameStallTracker", () => {
 });
 
 describe("BackgroundChanger stall wiring (source contract)", () => {
-  it("the loop paints the raw camera while stalled", () => {
-    expect(changerSource).toMatch(/if \(this\._frameStall\.stalled\) this\._compositeRaw\(\);/);
+  it("while stalled: raw ONLY before the first matte — with a matte the effect holds (motion fix, Oct 25, 2026)", () => {
+    /* The pre-matte stall case survives: no matte has landed for
+       the live engine yet, so the loop paints the live raw
+       picture instead of a blank/frozen frame. */
+    expect(changerSource).toMatch(/else if \(this\._frameStall\.stalled\) \{/);
+    /* The branch ABOVE it is the motion fix: once a matte exists,
+       every tick composites the LIVE frame with it — stall or
+       not — and the raw room never paints over a live backdrop
+       again (the old pin, `if (stalled) this._compositeRaw()`,
+       was the owner's "the green screen gets erased" defect). */
+    const liveBranch = changerSource.indexOf("if (this._liveMatte && this._liveMatte.epoch === this._engineEpoch)");
+    const stallBranch = changerSource.indexOf("else if (this._frameStall.stalled)");
+    expect(liveBranch).toBeGreaterThanOrEqual(0);
+    expect(stallBranch).toBeGreaterThan(liveBranch);
+    const liveBody = changerSource.slice(liveBranch, stallBranch);
+    expect(liveBody).toContain("this._compositeLive();");
+    expect(liveBody).not.toContain("_compositeRaw");
   });
 
   it("every frameless pass on the engine path notes a miss", () => {
