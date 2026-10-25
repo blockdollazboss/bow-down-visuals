@@ -600,7 +600,7 @@ export default function WorldPage() {
   /* The "nothing in reach" note: what an interact press with no
    * target says instead of staying silent (see the resolver). */
   const [interactNote, setInteractNote] = useState<string | null>(null);
-  const interactNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const interactNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /* The one interact resolver behind E, the controller's LB and
    * the touch strip: a courtesy showing nearer than any door is
    * performed; otherwise the door at its prompt opens. Photo mode
@@ -622,8 +622,8 @@ export default function WorldPage() {
      * which reads exactly like a dead world (owner's live report,
      * 2026-10-25: "haven't been able to do anything"). */
     setInteractNote("Nothing in reach — walk to a gold ring or a standing figure, then press E.");
-    if (interactNoteTimer.current) clearTimeout(interactNoteTimer.current);
-    interactNoteTimer.current = setTimeout(() => setInteractNote(null), 4000);
+    if (interactNoteTimerRef.current) clearTimeout(interactNoteTimerRef.current);
+    interactNoteTimerRef.current = setTimeout(() => setInteractNote(null), 4000);
   };
   /* My role for the binding table's gates, read at press time
      (the admin flag lands a few declarations below, so the refs

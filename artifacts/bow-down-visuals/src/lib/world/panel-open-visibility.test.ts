@@ -53,7 +53,7 @@ describe("an interact press with no target is answered, not silent", () => {
   });
 
   it("the note retires itself", () => {
-    expect(page).toContain("interactNoteTimer.current = setTimeout(() => setInteractNote(null), 4000);");
+    expect(page).toContain("interactNoteTimerRef.current = setTimeout(() => setInteractNote(null), 4000);");
   });
 
   it("the controls hint names the interact key", () => {
