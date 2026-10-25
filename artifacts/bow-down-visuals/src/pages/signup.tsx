@@ -39,7 +39,7 @@ export default function Signup() {
   // Theme-aware video: light theme gets the signup action video, dark gets the drone video
   const isLight = useIsLightTheme();
   usePageTitle(t("signup.pageTitle"), t("signup.pageDescription"));
-  const { signUp, signInWithProvider, getAccessToken, user, loading: authLoading } = useAuth();
+  const { signUp, signInWithProvider, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,27 +70,14 @@ export default function Signup() {
       setError(error);
       setLoading(false);
     } else {
-      /* Apply referral code if the user arrived via ?ref= */
-      try {
-        const refCode = localStorage.getItem("bdv_referral_code");
-        if (refCode) {
-          localStorage.removeItem("bdv_referral_code");
-          // Fire-and-forget: don't block signup success on referral
-          (async () => {
-            try {
-              const token = await getAccessToken();
-              await fetch("/api/referrals/apply", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ code: refCode }),
-              });
-            } catch { /* referral is best-effort */ }
-          })();
-        }
-      } catch { /* noop */ }
+      /* Referral code (?ref=): deliberately NOT applied here. With email
+       * confirmation on, signUp() returns no session, so an apply fired
+       * from this form goes out unauthenticated and is rejected — and
+       * consuming the stored code first made the loss permanent (Pass 0,
+       * Oct 24 2026: the referral never bound). The code stays in
+       * localStorage; AuthContext applies it the moment a real session
+       * exists (after the confirmation click + sign-in, or immediately
+       * for social signups). */
       /* Apply waitlist invite code if the user arrived via an invite link
        * (e.g. /invite/ABC123). Auto-enrolls them on the waitlist so the
        * inviter gets credited — attribution is idempotent server-side. */

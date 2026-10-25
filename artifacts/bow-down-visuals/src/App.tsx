@@ -435,7 +435,10 @@ function AuthedLayout({ children }: { children: ReactNode }) {
 function AppShell() {
   const [location] = useLocation();
   /* Capture referral code from ?ref= (e.g. /?ref=ABC123) — persisted for
-   * post-signup credit award. */
+   * post-signup credit award. Runs on every navigation, not just first
+   * mount: a ?ref= that arrives via in-app navigation (no remount)
+   * would otherwise be missed. AuthContext binds the stored code to the
+   * account once a session exists (after email confirmation). */
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -450,7 +453,7 @@ function AppShell() {
         localStorage.setItem("bdv_waitlist_invite", invite.toUpperCase());
       }
     } catch { /* noop */ }
-  }, []);
+  }, [location]);
   /* The video editor is a full-viewport studio surface — the marketing site
    * footer doesn't belong under it. Same for the client review page: it's a
    * focused, premium client surface, not a marketing page. */
