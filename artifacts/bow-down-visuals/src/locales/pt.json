@@ -12981,7 +12981,7 @@
     "deleteSlide": "Excluir este slide",
     "editSlide": "Slide {n} de {total}",
     "exportBtn": "Exportar {count} VB",
-    "exportDone": "{count} slides exportados — salvos em Thy Vision",
+    "exportDone": "{count} slides exportados — salvos em Meus Projetos",
     "exportFailed": "Falha na exportação",
     "exporting": "Exportando…",
     "fillHint": "Escreva pelo menos um slide para exportar",
@@ -14707,7 +14707,7 @@
     "heading": "Perdido no cofre?",
     "description": "Esta página saiu do mapa. Mas a coroa continua aqui — de volta ao estúdio.",
     "backToHome": "Voltar ao início",
-    "myProjects": "Thy Vision"
+    "myProjects": "Meus Projetos"
   },
   "nfcCardProfile": {
     "shareTitle": "Cartão de visita digital",

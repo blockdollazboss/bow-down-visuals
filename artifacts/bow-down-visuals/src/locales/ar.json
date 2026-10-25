@@ -10594,7 +10594,7 @@
     "heading": "ضائع في الخزنة؟",
     "description": "انحرفت هذه الصفحة عن الخريطة. لكن التاج ما زال هنا — لنعدك إلى الاستوديو.",
     "backToHome": "العودة إلى الرئيسية",
-    "myProjects": "Thy Vision"
+    "myProjects": "مشاريعي"
   },
   "nfcCardProfile": {
     "shareTitle": "بطاقة عمل رقمية",
@@ -13621,7 +13621,7 @@
     "fontDisplay": "عرض",
     "exportBtn": "تصدير {count} VB",
     "exporting": "جارٍ التصدير…",
-    "exportDone": "صُدّرت {count} شريحة — حُفظت في Thy Vision",
+    "exportDone": "صُدّرت {count} شريحة — حُفظت في مشاريعي",
     "exportFailed": "فشل التصدير",
     "scheduleBtn": "جدولة هذا الدوّار",
     "defaultCaption": "دوّار جديد — صُنع بـ Bow Down Visuals",

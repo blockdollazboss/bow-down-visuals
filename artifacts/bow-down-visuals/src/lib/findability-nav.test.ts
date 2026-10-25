@@ -210,6 +210,54 @@ describe("findability — the doors are hung in their home sections", () => {
        Pricing door stays visible during every search. */
     expect(sidebar).toContain('{ href: "/pricing", labelKey: "nav.pricing"');
   });
+
+  it("every section entry carries alias terms, and the footer pins its aliases too (Stack-200 lane 1 closure)", () => {
+    /* No sidebar entry may rely on its label alone: each SECTIONS entry
+       carries English searchTerms, so the required alias words (live,
+       stream, song, beat, brand, coach, pricing, projects) land in
+       every locale. Pricing lives in the footer — it stays visible
+       during every search AND carries its alias terms. */
+    const sectionsBlock = sidebar.slice(
+      sidebar.indexOf("const SECTIONS"),
+      sidebar.indexOf("const FOOTER_LINKS"),
+    );
+    const labelCount = (sectionsBlock.match(/labelKey:/g) ?? []).length;
+    const termCount = (sectionsBlock.match(/searchTerms:/g) ?? []).length;
+    expect(labelCount).toBeGreaterThan(0);
+    expect(termCount).toBe(labelCount);
+    const footerBlock = sidebar.slice(
+      sidebar.indexOf("const FOOTER_LINKS"),
+      sidebar.indexOf("function SidebarSection"),
+    );
+    for (const href of ["/pricing", "/features", "/credit-history", "/settings", "/admin"]) {
+      const at = footerBlock.indexOf(`href: "${href}"`);
+      expect(at, href).toBeGreaterThan(-1);
+      const entry = footerBlock.slice(at, footerBlock.indexOf("}", at));
+      expect(entry, `${href} footer aliases`).toContain("searchTerms:");
+    }
+    const pricingAt = footerBlock.indexOf('href: "/pricing"');
+    const pricingEntry = footerBlock.slice(pricingAt, footerBlock.indexOf("}", pricingAt));
+    expect(pricingEntry.toLowerCase()).toContain("pricing");
+    expect(pricingEntry.toLowerCase()).toContain("plans");
+  });
+
+  it("the retired Thy Vision name survives nowhere — the 404 door and the carousel toast use My Projects", () => {
+    /* Stack-200 lane 1 closure: nav.myProjects was renamed on the
+       Oct-18 pass, but two non-sidebar strings kept the poetic name —
+       notFound.myProjects (the 404 page's My Projects button) in 9 of
+       10 catalogs and carouselMaker.exportDone ("saved to Thy Vision")
+       in all 10. Both now carry each locale's real My Projects name. */
+    for (const loc of LOCALES) {
+      const cat = readJson(`../locales/${loc}.json`);
+      expect(cat.notFound.myProjects, `${loc}.notFound.myProjects`).toBe(cat.nav.myProjects);
+      expect(
+        cat.carouselMaker.exportDone,
+        `${loc}.carouselMaker.exportDone`,
+      ).toContain(cat.nav.myProjects);
+      expect(read(`../locales/${loc}.json`), `${loc} raw`).not.toContain("Thy Vision");
+    }
+    expect(readJson("../locales/en.json").notFound.myProjects).toBe("My Projects");
+  });
 });
 
 describe("findability — legacy routes redirect, wired pages live in the shell", () => {

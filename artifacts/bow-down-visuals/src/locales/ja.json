@@ -12978,7 +12978,7 @@
     "fontDisplay": "ディスプレイ",
     "exportBtn": "書き出し {count} VB",
     "exporting": "書き出し中…",
-    "exportDone": "{count}枚のスライドを書き出しました — Thy Visionに保存",
+    "exportDone": "{count}枚のスライドを書き出しました — マイプロジェクトに保存",
     "exportFailed": "書き出しに失敗しました",
     "scheduleBtn": "このカルーセルをスケジュール",
     "defaultCaption": "新しいカルーセル — Bow Down Visualsで作成",
@@ -14691,7 +14691,7 @@
     "heading": "宝物庫で迷子？",
     "description": "このページは地図から外れてしまいました。でも王冠はここにあります — スタジオに戻りましょう。",
     "backToHome": "ホームに戻る",
-    "myProjects": "Thy Vision"
+    "myProjects": "マイプロジェクト"
   },
   "milestones": {
     "loadFailed": "マイルストーンを読み込めませんでした。",

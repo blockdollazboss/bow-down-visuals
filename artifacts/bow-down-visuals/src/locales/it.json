@@ -12998,7 +12998,7 @@
     "deleteSlide": "Elimina questa diapositiva",
     "editSlide": "Diapositiva {n} di {total}",
     "exportBtn": "Esporta {count} VB",
-    "exportDone": "{count} diapositive esportate — salvate in Thy Vision",
+    "exportDone": "{count} diapositive esportate — salvate in I Miei Progetti",
     "exportFailed": "Esportazione fallita",
     "exporting": "Esporto…",
     "fillHint": "Scrivi almeno una diapositiva per esportare",
@@ -14506,7 +14506,7 @@
     "heading": "Perso nella cripta?",
     "description": "Questa pagina è uscita dalla mappa. Ma la corona è ancora qui — torniamo in studio.",
     "backToHome": "Torna alla home",
-    "myProjects": "Thy Vision"
+    "myProjects": "I Miei Progetti"
   },
   "nfcCardProfile": {
     "shareTitle": "Biglietto da visita digitale",

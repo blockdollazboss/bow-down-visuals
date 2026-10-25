@@ -335,13 +335,17 @@ const SECTIONS: NavSection[] = [
 ];
 
 const FOOTER_LINKS: NavLink[] = [
-  { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard },
+  /* Footer links stay visible during a sidebar search (never filtered
+     out), so their searchTerms document the alias words their real
+     names answer to — "pricing" above all (Stack-200 lane 1 closure):
+     the Pricing door is on screen for every search, by design. */
+  { href: "/pricing", labelKey: "nav.pricing", icon: CreditCard, searchTerms: "pricing plans price cost subscriptions" },
   /* The safety net: the /features registry names every feature by its
      real name (findability fix, 2026-10-18). */
-  { href: "/features", labelKey: "nav.allFeatures", icon: LayoutGrid },
-  { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap },
-  { href: "/settings", labelKey: "nav.settings", icon: Settings },
-  { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true },
+  { href: "/features", labelKey: "nav.allFeatures", icon: LayoutGrid, searchTerms: "features all features tools index every feature" },
+  { href: "/credit-history", labelKey: "nav.visualBucHistory", icon: Zap, searchTerms: "credits visual bucs history balance spent" },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings, searchTerms: "settings account profile preferences" },
+  { href: "/admin", labelKey: "nav.admin", icon: ShieldCheck, adminOnly: true, searchTerms: "admin panel moderation" },
 ];
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
