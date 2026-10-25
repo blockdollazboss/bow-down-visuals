@@ -18,7 +18,7 @@ import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } f
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
 import { sweepIfLarge } from "../lib/sweep-map";
 import { awardChatPoints } from "../lib/loyalty";
-import { handleKeywordComment } from "../lib/keyword-automations";
+import { queueKeywordComment } from "../lib/keyword-automations";
 import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
 import { evaluateAutomod } from "../lib/automod";
 
@@ -344,7 +344,7 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
     /* Keyword automations (Wave 4 #32): a chat message carrying the
        streamer's keyword fires their rule — fire-and-forget, same
        contract as the loyalty award above. */
-    void handleKeywordComment({
+    queueKeywordComment({
       ownerUserId: stream.user_id,
       commenterUserId: userId,
       body,

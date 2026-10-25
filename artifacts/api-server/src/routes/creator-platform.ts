@@ -114,7 +114,7 @@ import {
   type CreatorCommentSettings,
 } from "../lib/comment-controls";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
-import { handleKeywordComment } from "../lib/keyword-automations";
+import { queueKeywordComment } from "../lib/keyword-automations";
 import { emitNewFollowerWebhook } from "../lib/api-webhooks";
 import { resolvePaidPlan } from "../lib/profile-website";
 
@@ -1758,7 +1758,7 @@ router.post("/creator-profiles/:id/comments", requireAuth, async (req, res) => {
     /* Keyword automations (Wave 4 #32): a PUBLIC wall comment carrying
        the profile owner's keyword fires their rule — fire-and-forget. */
     if (decision.status === "public") {
-      void handleKeywordComment({
+      queueKeywordComment({
         ownerUserId: profile.userId,
         commenterUserId: req.userId!,
         body: parsed.data.body,
@@ -1875,7 +1875,7 @@ router.post("/media/:kind/:id/comments", requireAuth, async (req, res) => {
          carrying the owner's keyword fires their rule (shorts are
          videos on this rail) — fire-and-forget. */
       if (ownerProfileForSettings) {
-        void handleKeywordComment({
+        queueKeywordComment({
           ownerUserId: ownerProfileForSettings.userId,
           commenterUserId: req.userId!,
           body: parsed.data.body,

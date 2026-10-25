@@ -49,6 +49,8 @@ vi.mock("../email-campaign-sender", () => ({
 import {
   handleKeywordComment,
   handleDmEmailCapture,
+  queueKeywordComment,
+  queueDmEmailCapture,
   normalizeKeyword,
   keywordMatches,
   extractEmail,
@@ -433,5 +435,34 @@ describe("email capture", () => {
     const { conversationId } = await firedCapture();
     await handleDmEmailCapture({ senderUserId: CREATOR, conversationId, body: "creator@example.com" });
     expect(await allSubs()).toHaveLength(0);
+  });
+
+  it("queued hooks add zero footprint to the calling tick, then still fire", async () => {
+    const list = await makeList();
+    await makeRule({ captureEmail: true, listId: list.id });
+    queueKeywordComment({
+      ownerUserId: CREATOR,
+      commenterUserId: FAN,
+      body: "LINK please!",
+      surface: "post",
+      surfaceRefId: randomUUID(),
+    });
+    // The hook has returned but the engine has not run yet: no DM, no
+    // audit row, no pending capture in the request's own tick.
+    expect(await allMessages()).toHaveLength(0);
+    expect(await allEvents()).toHaveLength(0);
+    expect(await allCaptures()).toHaveLength(0);
+    await vi.waitFor(async () => {
+      expect(await allMessages()).toHaveLength(1);
+    });
+    const convs = await allConvs();
+    queueDmEmailCapture({
+      senderUserId: FAN,
+      conversationId: convs[0]!.id as string,
+      body: "fan@example.com",
+    });
+    await vi.waitFor(async () => {
+      expect(await allSubs()).toHaveLength(1);
+    });
   });
 });

@@ -264,6 +264,24 @@ export interface KeywordCommentTrigger {
   surfaceRefId: string;
 }
 
+/** The hook entry point for comment routes: the evaluation is
+ *  scheduled for the next loop tick, so the engine adds zero
+ *  footprint — not even its first rules read — to the request that
+ *  landed the comment. The comment is already a landed row by then;
+ *  nothing about the fire depends on the request still being open. */
+export function queueKeywordComment(trigger: KeywordCommentTrigger): void {
+  setImmediate(() => {
+    void handleKeywordComment(trigger);
+  });
+}
+
+/** Same contract for the DM-send hook (see handleDmEmailCapture). */
+export function queueDmEmailCapture(input: DmCaptureInput): void {
+  setImmediate(() => {
+    void handleDmEmailCapture(input);
+  });
+}
+
 /** Evaluate one landed comment against the content owner's enabled
  *  keyword rules and fire what matches. Fire-and-forget by contract:
  *  catches everything, logs, never throws into the comment path. */

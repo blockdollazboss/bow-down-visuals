@@ -35,7 +35,7 @@ import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-rec
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
-import { handleKeywordComment } from "../lib/keyword-automations";
+import { queueKeywordComment } from "../lib/keyword-automations";
 
 /* Mirror-on-save (2026-10-13 law): post attachments, story media and
    highlight covers are re-hosted into permanent storage at save time.
@@ -2183,7 +2183,7 @@ router.post("/posts/:id/reply", requireAuth, w8WriteLimiter, async (req: Request
        owner's keyword fires their rule — fire-and-forget, it can
        never fail the reply that landed. */
     if (pa) {
-      void handleKeywordComment({
+      queueKeywordComment({
         ownerUserId: pa.userId,
         commenterUserId: req.userId!,
         body: parsed.data.body,
