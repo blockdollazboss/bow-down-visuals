@@ -326,3 +326,34 @@ describe("defaultSocketUrl", () => {
     expect(defaultSocketUrl({ protocol: "http:", host: "localhost:8080" }, STREAM, "t")).toContain("ws://");
   });
 });
+
+describe("ticketed room (Wave 4 #31)", () => {
+  it("a 402 TICKET_REQUIRED history answer locks the room with its price — a ready state, not an error, and no messages", async () => {
+    const rig = makeRig();
+    rig.setFetch(async () => ({
+      status: 402,
+      json: { code: "TICKET_REQUIRED", error: "This show is ticketed — your ticket opens the chat.", ticket: { price_vb: 200, sold: 3, seats_left: null } },
+    }));
+    await rig.client.loadHistory();
+    expect(rig.client.ticketLocked).toBe(true);
+    expect(rig.client.ticketPriceVb).toBe(200);
+    expect(rig.client.loadState).toBe("ready");
+    expect(rig.client.messages).toEqual([]);
+  });
+
+  it("a 402 on send locks the room mid-session", async () => {
+    const rig = makeRig();
+    rig.setFetch(async (_path, init) => {
+      if (init?.method === "POST") {
+        return { status: 402, json: { code: "TICKET_REQUIRED", error: "This show is ticketed — your ticket opens the chat.", ticket: { price_vb: 200 } } };
+      }
+      return { status: 200, json: page([M1]) };
+    });
+    await rig.client.loadHistory();
+    expect(rig.client.ticketLocked).toBe(false);
+    const ok = await rig.client.send("hello");
+    expect(ok).toBe(false);
+    expect(rig.client.ticketLocked).toBe(true);
+    expect(rig.client.ticketPriceVb).toBe(200);
+  });
+});

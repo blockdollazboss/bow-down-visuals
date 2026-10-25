@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Radio, Users, AlertTriangle, RotateCcw } from "lucide-react";
+import { Radio, Users, AlertTriangle, RotateCcw, Ticket } from "lucide-react";
 
 /* ─── Live now rail — the discovery surface for native broadcasts ─────────
    Self-contained: fetches GET /api/live-streams/live on its own (polls
@@ -15,6 +15,10 @@ export interface LiveRailStream {
   viewer_count: number;
   started_at: string | null;
   creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
+  /** Ticketed live (#31): the door facts ride the rail DTO — a
+   *  ticketed card says its price up front, never as a surprise on
+   *  the watch page. Null on a free stream. */
+  ticket?: { price_vb: number; sold: number; seats_left: number | null } | null;
 }
 
 export default function LiveNowRail() {
@@ -85,8 +89,18 @@ export default function LiveNowRail() {
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> Live
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs text-white/50">
-                  <Users className="h-3.5 w-3.5" /> {s.viewer_count}
+                <span className="inline-flex items-center gap-2">
+                  {s.ticket && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-400/50 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-300"
+                      data-testid={`ticket-badge-${s.id}`}
+                    >
+                      <Ticket className="h-3 w-3" /> {s.ticket.price_vb.toLocaleString("en-US")} VB
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs text-white/50">
+                    <Users className="h-3.5 w-3.5" /> {s.viewer_count}
+                  </span>
                 </span>
               </div>
               <Link href={`/live/${s.id}`} className="mt-2 block truncate font-bold hover:text-[#e8c86a]" data-testid={`live-card-${s.id}`}>

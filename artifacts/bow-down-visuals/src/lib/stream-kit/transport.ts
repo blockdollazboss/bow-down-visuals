@@ -108,12 +108,24 @@ export const DESTINATION_PLATFORMS: DestinationPlatformInfo[] = [
   },
 ];
 
+/** The pay-per-view door a creator sets at Go Live (Wave 4 #31):
+ *  the ticket price in Visual Bucs and an optional seat cap. Absent
+ *  (or a zero price) means a free stream — the create call simply
+ *  doesn't carry the fields. */
+export interface StreamTicketSetup {
+  priceVb: number;
+  capacity?: number | null;
+}
+
 export interface StreamTransport {
   readonly state: TransportState;
   /** Subscribe to state changes; returns an unsubscribe function. */
   onStateChange: (cb: (state: TransportState) => void) => () => void;
   /** Take the processed stream live. Resolves once media is flowing. */
-  start: (stream: MediaStream, meta: { title: string; destinations?: StreamDestination[] }) => Promise<void>;
+  start: (
+    stream: MediaStream,
+    meta: { title: string; destinations?: StreamDestination[]; ticket?: StreamTicketSetup },
+  ) => Promise<void>;
   /** End the broadcast and release the session. Never throws. */
   stop: () => Promise<void>;
   /** Destinations the transport actually published to (v1: site only). */
@@ -155,6 +167,7 @@ export interface WhipDeps {
   createSession?: (
     title: string,
     destinations?: StreamDestination[],
+    ticket?: StreamTicketSetup,
   ) => Promise<{ streamId: string; whipUrl: string }>;
   /** Ends the site-side session. Injected in tests. */
   endSession?: (streamId: string) => Promise<void>;
@@ -254,8 +267,9 @@ export class WhipTransport implements StreamTransport {
   private async _createSession(
     title: string,
     destinations?: StreamDestination[],
+    ticket?: StreamTicketSetup,
   ): Promise<{ streamId: string; whipUrl: string }> {
-    if (this._deps.createSession) return this._deps.createSession(title, destinations);
+    if (this._deps.createSession) return this._deps.createSession(title, destinations, ticket);
     const doFetch = this._deps.fetchImpl ?? fetch;
     const token = await WhipTransport.api.getAccessToken();
     const res = await doFetch(`${WhipTransport.api.base}/api/live-streams`, {
@@ -264,7 +278,13 @@ export class WhipTransport implements StreamTransport {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ title, ...(destinations?.length ? { destinations } : {}) }),
+      body: JSON.stringify({
+        title,
+        ...(destinations?.length ? { destinations } : {}),
+        ...(ticket && ticket.priceVb > 0
+          ? { ticket_price_vb: ticket.priceVb, ...(ticket.capacity != null ? { ticket_capacity: ticket.capacity } : {}) }
+          : {}),
+      }),
     });
     const data = (await res.json().catch(() => null)) as {
       stream?: { id?: string; whip_url?: string };
@@ -292,7 +312,7 @@ export class WhipTransport implements StreamTransport {
 
   async start(
     stream: MediaStream,
-    meta: { title: string; destinations?: StreamDestination[] },
+    meta: { title: string; destinations?: StreamDestination[]; ticket?: StreamTicketSetup },
   ): Promise<void> {
     if (this.state === "connecting" || this.state === "live") {
       throw new TransportError("SESSION", "Already broadcasting.");
@@ -306,7 +326,7 @@ export class WhipTransport implements StreamTransport {
     this.activeDestinations = siteRequested.length ? siteRequested : [{ ...SITE_DESTINATION }];
     this.skippedDestinations = requested.filter((d) => d.platform !== "site");
     try {
-      const session = await this._createSession(meta.title, requested);
+      const session = await this._createSession(meta.title, requested, meta.ticket);
       this._streamId = session.streamId;
       this._whipUrl = session.whipUrl;
 
@@ -418,6 +438,7 @@ export interface OwnServerDeps {
   createSession?: (
     title: string,
     destinations?: StreamDestination[],
+    ticket?: StreamTicketSetup,
   ) => Promise<{ streamId: string }>;
   /** Ends the site-side session. Injected in tests. */
   endSession?: (streamId: string) => Promise<void>;
@@ -472,8 +493,9 @@ export class OwnServerTransport implements StreamTransport {
   private async _createSession(
     title: string,
     destinations?: StreamDestination[],
+    ticket?: StreamTicketSetup,
   ): Promise<{ streamId: string }> {
-    if (this._deps.createSession) return this._deps.createSession(title, destinations);
+    if (this._deps.createSession) return this._deps.createSession(title, destinations, ticket);
     const doFetch = this._deps.fetchImpl ?? fetch;
     const token = await OwnServerTransport.api.getAccessToken();
     const res = await doFetch(`${OwnServerTransport.api.base}/api/live-streams`, {
@@ -482,7 +504,13 @@ export class OwnServerTransport implements StreamTransport {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ title, ...(destinations?.length ? { destinations } : {}) }),
+      body: JSON.stringify({
+        title,
+        ...(destinations?.length ? { destinations } : {}),
+        ...(ticket && ticket.priceVb > 0
+          ? { ticket_price_vb: ticket.priceVb, ...(ticket.capacity != null ? { ticket_capacity: ticket.capacity } : {}) }
+          : {}),
+      }),
     });
     const data = (await res.json().catch(() => null)) as {
       stream?: { id?: string };
@@ -580,7 +608,7 @@ export class OwnServerTransport implements StreamTransport {
 
   async start(
     stream: MediaStream,
-    meta: { title: string; destinations?: StreamDestination[] },
+    meta: { title: string; destinations?: StreamDestination[]; ticket?: StreamTicketSetup },
   ): Promise<void> {
     if (this.state === "connecting" || this.state === "live") {
       throw new TransportError("SESSION", "Already broadcasting.");
@@ -594,7 +622,7 @@ export class OwnServerTransport implements StreamTransport {
     this._seq = 0;
     this._chain = Promise.resolve();
     try {
-      const session = await this._createSession(meta.title, requested);
+      const session = await this._createSession(meta.title, requested, meta.ticket);
       this._streamId = session.streamId;
 
       const MR =

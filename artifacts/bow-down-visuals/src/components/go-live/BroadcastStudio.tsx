@@ -97,6 +97,9 @@ interface LiveStreamOwnerDto {
 interface WatchDto {
   viewer_count: number;
   status: string;
+  /* Ticketed live (#31): the public door facts ride the watch DTO —
+     the studio's live poll reads the sold count from here. */
+  ticket?: { price_vb: number; sold: number; seats_left: number | null } | null;
   /* The server-written broadcast start (item 98) — adopted by the
      live poll below so the studio clock and every controller deck
      read the rail's truth, not a local reconstruction. */
@@ -166,6 +169,13 @@ export default function BroadcastStudio() {
 
   const [phase, setPhase] = useState<Phase>("off");
   const [title, setTitle] = useState("");
+  /* Ticketed live (Wave 4 #31): the pay-per-view door, set here at
+     Go Live setup and fixed for the show — the price and seat cap
+     ride the create call and can't change mid-stream. */
+  const [ticketed, setTicketed] = useState(false);
+  const [ticketPrice, setTicketPrice] = useState("");
+  const [ticketCapacity, setTicketCapacity] = useState("");
+  const [liveTicketsSold, setLiveTicketsSold] = useState(0);
   const [cameras, setCameras] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [mics, setMics] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [cameraId, setCameraId] = useState("");
@@ -430,6 +440,7 @@ export default function BroadcastStudio() {
         if (res.ok) {
           const d = (await res.json()) as { stream: WatchDto };
           setViewerCount(d.stream.viewer_count);
+          if (d.stream.ticket) setLiveTicketsSold(d.stream.ticket.sold);
           /* Item 98: adopt the server-written start (goLiveStartedAt)
              as the clock's source the moment the rail reports it —
              the local Date.now() taken in goLive() is only the
@@ -629,6 +640,26 @@ export default function BroadcastStudio() {
       toast({ title: "Give your stream a title", description: "Viewers find you by it in the Live rail.", variant: "destructive" });
       return;
     }
+    /* The ticket door, validated here so a bad price never starts a
+       broadcast the server would refuse (it enforces the same floor). */
+    let ticket: { priceVb: number; capacity?: number | null } | undefined;
+    if (ticketed) {
+      const price = Number(ticketPrice);
+      if (!Number.isInteger(price) || price < 100) {
+        toast({
+          title: "Set a ticket price of 100 VB or more",
+          description: "Tickets start at 100 Visual Bucs. You keep 95% of every ticket — the house takes 5%.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const cap = ticketCapacity.trim() === "" ? null : Number(ticketCapacity);
+      if (cap !== null && (!Number.isInteger(cap) || cap < 1)) {
+        toast({ title: "Seat limit needs a whole number", description: "Leave it blank for no limit.", variant: "destructive" });
+        return;
+      }
+      ticket = { priceVb: price, capacity: cap };
+    }
     const stream = assembleStream();
     if (!stream) return;
     setRecordNote(null);
@@ -642,7 +673,7 @@ export default function BroadcastStudio() {
       if (s === "failed" && phaseRef.current === "connecting") setPhase("preview");
     });
     try {
-      await transport.start(stream, { title: title.trim(), destinations: [{ ...SITE_DESTINATION }] });
+      await transport.start(stream, { title: title.trim(), destinations: [{ ...SITE_DESTINATION }], ...(ticket ? { ticket } : {}) });
       const id = transport.streamId;
       setLiveId(id ?? null);
       setLiveSince(Date.now());
@@ -1453,6 +1484,72 @@ export default function BroadcastStudio() {
             Watching: <Link href={watchPath} className="font-bold text-amber-400 underline underline-offset-2">{watchPath}</Link> — share it anywhere; viewers watch right here on the site.
           </p>
         )}
+
+        {/* Tickets — the pay-per-view door (Wave 4 #31). Set before
+            Go Live; the price and cap are fixed for the whole show.
+            You keep 95% of every ticket; the house takes 5%. */}
+        <div className={`mt-4 rounded-xl border p-3.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider opacity-60">Tickets</p>
+              <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                {ticketed
+                  ? "Viewers buy a ticket in Visual Bucs to enter this show — chat, tips, and the replay included. You keep 95% of every ticket."
+                  : "This show is free for everyone. Turn on tickets to sell entry instead."}
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={ticketed}
+                disabled={isLivePhase}
+                onClick={() => setTicketed(!ticketed)}
+                className={`relative h-6 w-10 rounded-full transition-colors ${ticketed ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
+                data-testid="switch-ticketed"
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${ticketed ? "left-[18px]" : "left-0.5"}`} />
+              </button>
+              Sell tickets
+            </label>
+          </div>
+          {ticketed && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <label className="min-w-[160px] flex-1">
+                <span className="text-xs font-bold uppercase tracking-wider opacity-60">Ticket price (Visual Bucs)</span>
+                <input
+                  value={ticketPrice}
+                  onChange={(e) => setTicketPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="500"
+                  inputMode="numeric"
+                  disabled={isLivePhase}
+                  className={`${inputCls} mt-1.5`}
+                  data-testid="input-ticket-price"
+                />
+              </label>
+              <label className="min-w-[160px] flex-1">
+                <span className="text-xs font-bold uppercase tracking-wider opacity-60">Seat limit (optional)</span>
+                <input
+                  value={ticketCapacity}
+                  onChange={(e) => setTicketCapacity(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="No limit"
+                  inputMode="numeric"
+                  disabled={isLivePhase}
+                  className={`${inputCls} mt-1.5`}
+                  data-testid="input-ticket-capacity"
+                />
+              </label>
+            </div>
+          )}
+          {ticketed && isLivePhase && (
+            <p className={`mt-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              The door is set for this show — price and seats can't change while you're live.{" "}
+              <span className="font-bold text-amber-400" data-testid="text-tickets-sold">
+                {liveTicketsSold} ticket{liveTicketsSold === 1 ? "" : "s"} sold
+              </span>
+            </p>
+          )}
+        </div>
 
         {/* Destinations — v1 broadcasts to the profile; fan-out is coming
             and is labeled as such, with each platform's real recording

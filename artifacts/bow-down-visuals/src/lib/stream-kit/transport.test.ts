@@ -543,3 +543,76 @@ describe("pickIngestMimeType + factory", () => {
     expect(createStreamTransport("cloudflare")).toBeInstanceOf(WhipTransport);
   });
 });
+
+/* ── Ticketed go-live (Wave 4 #31) ─────────────────────────────────────
+   The ticket setup set in the studio rides start() into session
+   creation on BOTH transports, and the default create call carries
+   the door fields only when a price is actually set. */
+describe("ticketed go-live (Wave 4 #31)", () => {
+  it("WhipTransport passes the ticket setup to session creation", async () => {
+    const fetchImpl = vi.fn(async () => sdpResponse(201, "v=0 answer-sdp", "/session/abc"));
+    let seenTicket: unknown = "unset";
+    const transport = new WhipTransport({
+      fetchImpl: fetchImpl as never,
+      peerConnectionImpl: FakePeerConnection as never,
+      createSession: async (_title: string, _destinations?: unknown, ticket?: unknown) => {
+        seenTicket = ticket;
+        return { streamId: "stream-1", whipUrl: WHIP_URL };
+      },
+      endSession: async () => undefined,
+      iceGatherTimeoutMs: 10,
+    });
+    await transport.start(fakeStream(), { title: "Paid", ticket: { priceVb: 500, capacity: 25 } });
+    expect(seenTicket).toEqual({ priceVb: 500, capacity: 25 });
+    await transport.stop();
+  });
+
+  it("OwnServerTransport passes the ticket setup to session creation", async () => {
+    let seenTicket: unknown = "unset";
+    const t = new OwnServerTransport({
+      mediaRecorderImpl: FakeRecorder as never,
+      isTypeSupported: (m: string) => m.includes("webm"),
+      createSession: async (_title: string, _destinations?: unknown, ticket?: unknown) => {
+        seenTicket = ticket;
+        return { streamId: "stream-own-1" };
+      },
+      endSession: async () => undefined,
+      postChunk: async () => undefined,
+    });
+    await t.start(ownFakeStream(), { title: "Paid", ticket: { priceVb: 300 } });
+    expect(seenTicket).toEqual({ priceVb: 300 });
+    await t.stop();
+  });
+
+  it("the default create call carries the door fields only when a price is set", async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchImpl = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/api/live-streams") && init?.method === "POST") {
+        bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ stream: { id: "stream-own-9" } }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    const make = () =>
+      new OwnServerTransport({
+        fetchImpl: fetchImpl as never,
+        mediaRecorderImpl: FakeRecorder as never,
+        isTypeSupported: (m: string) => m.includes("webm"),
+        postChunk: async () => undefined,
+        endSession: async () => undefined,
+      });
+    const paid = make();
+    await paid.start(ownFakeStream(), { title: "Paid", ticket: { priceVb: 500, capacity: 25 } });
+    expect(bodies[0]).toMatchObject({ title: "Paid", ticket_price_vb: 500, ticket_capacity: 25 });
+    await paid.stop();
+
+    const free = make();
+    await free.start(ownFakeStream(), { title: "Free" });
+    expect(bodies[1]).not.toHaveProperty("ticket_price_vb");
+    expect(bodies[1]).not.toHaveProperty("ticket_capacity");
+    await free.stop();
+  });
+});
