@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { db, teamSeatsTable, permissionsForRole, TEAM_SEAT_ROLES } from "@workspace/db";
 import { eq, and, desc, isNull } from "drizzle-orm";
-import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
+import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured } from "../lib/email";
 
 const router = Router();
 
@@ -138,10 +138,10 @@ router.post("/team-seats/invite", requireAuth, async (req, res) => {
     if (isEmailConfigured()) {
       const inviterName = displayName || req.userEmail || "Your collaborator";
       const html = emailShell(
-        "You've been invited to a team 👑",
-        `<p style="margin:0 0 12px;"><strong style="color:#d4af37;">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
-<p style="margin:0 0 16px;color:#ccc;font-size:14px;">Accept the invite to start collaborating — sign in with <strong>${escapeHtml(normalized)}</strong>.</p>
-<a href="${escapeHtml(inviteLink)}" style="display:inline-block;background:#d4af37;color:#0a0a0a;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">Accept invite</a>`
+        "You've been invited to a team",
+        `<p style="margin:0 0 12px;"><strong style="color:#a67c1a;">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+<p style="margin:0 0 16px;font-size:14px;">Accept the invite to start collaborating — sign in with <strong>${escapeHtml(normalized)}</strong>.</p>
+${emailButton(escapeHtml(inviteLink), "Accept invite")}`
       );
       const result = await sendEmail({
         to: normalized,

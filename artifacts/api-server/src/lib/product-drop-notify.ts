@@ -4,7 +4,7 @@ import {
   db as defaultDb,
   type ProductDropDelivery,
 } from "@workspace/db";
-import { sendEmail, emailShell, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
 import { logger } from "./logger";
 import { isUndefinedTable } from "./pg-errors";
 
@@ -321,14 +321,14 @@ export function buildProductDropEmail(
   const title = escapeHtml(drop.title);
   const creator = escapeHtml(drop.creatorName);
   const greeting = capture.name?.trim()
-    ? `<p style="color:#ccc;">Hi ${escapeHtml(capture.name.trim())},</p>`
+    ? `<p>Hi ${escapeHtml(capture.name.trim())},</p>`
     : "";
   const html = emailShell(
     `${title} just dropped`,
     `${greeting}
-<p style="color:#eee;">You joined the drop list, and the wait is over — <strong>${title}</strong> by ${creator} is live now.</p>
-<p style="margin:20px 0;"><a href="${escapeHtml(productUrl)}" style="background:#d4af37;color:#0a0a0a;font-weight:800;padding:12px 22px;border-radius:10px;text-decoration:none;">Get it now</a></p>
-<p style="color:#888;font-size:13px;">You got this email because you joined the drop list for this product on Bow Down Visuals. One email per drop, as promised — no spam, ever.</p>`,
+<p>You joined the drop list, and the wait is over — <strong>${title}</strong> by ${creator} is live now.</p>
+${emailButton(escapeHtml(productUrl), "Get it now")}
+<p style="color:#8a7c5c;font-size:13px;">You got this email because you joined the drop list for this product on Bow Down Visuals. One email per drop, as promised — no spam, ever.</p>`,
   );
   const text = [
     `${drop.title} by ${drop.creatorName} just dropped and is live now.`,

@@ -44,7 +44,7 @@ import { getRecruiterBadgeForUser } from "./referrals";
 import { getPublicSocialProof } from "../lib/social-proof";
 import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
-import { sendEmail, emailShell, escapeHtml, isEmailConfigured } from "../lib/email";
+import { sendEmail, emailShell, emailDetailBox, escapeHtml, isEmailConfigured } from "../lib/email";
 import { mirrorExternalMediaUrl, isExternalHttpUrl, isPermanentMediaValue } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -2094,15 +2094,14 @@ router.post("/dmca/report", async (req, res) => {
       const admins = adminEmails();
       if (admins.length > 0) {
         const html = emailShell(
-          "🚨 DMCA takedown report — review required",
+          "DMCA takedown report — review required",
           `<p style="margin:0 0 12px;">A new takedown report needs operator review:</p>
-<div style="background:#0a0a0a;border:1px solid #d4af37;border-radius:8px;padding:16px;margin:0 0 16px;font-size:14px;">
-<div><strong>Reporter:</strong> ${escapeHtml(d.reporter_name)}${d.reporter_org ? ` (${escapeHtml(d.reporter_org)})` : ""}</div>
+${emailDetailBox(`<div style="font-size:14px;line-height:1.7;"><div><strong>Reporter:</strong> ${escapeHtml(d.reporter_name)}${d.reporter_org ? ` (${escapeHtml(d.reporter_org)})` : ""}</div>
 <div><strong>Email:</strong> ${escapeHtml(d.reporter_email)}</div>
 <div><strong>Infringing URLs:</strong> ${d.infringing_urls.length}</div>
-<div><strong>Report ID:</strong> ${escapeHtml(report.id)}</div>
-</div>
-<p style="margin:0;color:#888;font-size:13px;">Review it in the admin panel under DMCA reports (status: new).</p>`
+<div><strong>Report ID:</strong> ${escapeHtml(report.id)}</div></div>`)}
+<p style="margin:0;color:#8a7c5c;font-size:13px;">Review it in the admin panel under DMCA reports (status: new).</p>`,
+          { signoff: false },
         );
         // Fire-and-forget: the report is already recorded.
         void sendEmail({ to: admins, subject: `DMCA report ${report.id} — review required`, html });

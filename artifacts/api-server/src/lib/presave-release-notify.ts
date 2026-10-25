@@ -4,7 +4,7 @@ import {
   db as defaultDb,
   type PresaveReleaseDelivery,
 } from "@workspace/db";
-import { sendEmail, emailShell, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
 import { logger } from "./logger";
 
 /* ── Release-day presave fan notifications (wave 3 #15; migration 0186) ──
@@ -295,22 +295,22 @@ export function buildPresaveReleaseEmail(
   const title = escapeHtml(release.title);
   const artist = escapeHtml(release.artistName);
   const greeting = follow.name?.trim()
-    ? `<p style="color:#ccc;">Hi ${escapeHtml(follow.name.trim())},</p>`
+    ? `<p>Hi ${escapeHtml(follow.name.trim())},</p>`
     : "";
   const links = Object.entries(release.platformLinks ?? {})
     .filter(([, url]) => typeof url === "string" && /^https?:\/\//i.test(url))
     .map(
       ([platform, url]) =>
-        `<p style="margin:8px 0;"><a href="${escapeHtml(url)}" style="color:#d4af37;">Listen on ${escapeHtml(platform.replace(/_/g, " "))}</a></p>`,
+        `<p style="margin:8px 0;"><a href="${escapeHtml(url)}" style="color:#a67c1a;">Listen on ${escapeHtml(platform.replace(/_/g, " "))}</a></p>`,
     )
     .join("");
   const html = emailShell(
     `${title} is out now`,
     `${greeting}
-<p style="color:#eee;">You pre-saved it, and the wait is over — <strong>${title}</strong> by ${artist} just dropped.</p>
-<p style="margin:20px 0;"><a href="${escapeHtml(listenUrl)}" style="background:#d4af37;color:#0a0a0a;font-weight:800;padding:12px 22px;border-radius:10px;text-decoration:none;">Listen now</a></p>
+<p>You pre-saved it, and the wait is over — <strong>${title}</strong> by ${artist} just dropped.</p>
+${emailButton(escapeHtml(listenUrl), "Listen now")}
 ${links}
-<p style="color:#888;font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
+<p style="color:#8a7c5c;font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
   );
   const text = [
     `${release.title} by ${release.artistName} is out now.`,
