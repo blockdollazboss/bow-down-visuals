@@ -8,6 +8,7 @@ import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
 import { dropCountdown, formatDropLocal, pad2 } from "@/lib/product-drop";
 import type { ProductDropDTO } from "@/lib/storefront-api";
+import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert } from "@/lib/storefront-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import CourseOutline from "@/components/courses/CourseOutline";
 
@@ -59,6 +60,8 @@ interface ProductData {
     inventory: number;
     soldOut: boolean;
     unlimited: boolean;
+    /* Back-in-stock alerts (#37): fans waiting for a restock. */
+    stockAlertWaiting?: number;
     mediaUrls: string[];
     /** One tick-to-add add-on, or null when none is on offer. */
     bump?: BumpOfferData | null;
@@ -254,6 +257,119 @@ function DropSection({ productId, title, creatorName, drop }: {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Back-in-stock alert (#37) ───────────────────────────────────────
+   The sold-out product's second chance. A signed-in fan taps once and
+   waits; when the stock returns, the alert fires exactly once — a ping
+   in their notifications (and an email too, when they're on the
+   creator's list) — and the wait is consumed. Guests see the sign-in
+   door: the store is public to browse, but the tap needs an account. */
+function RestockAlert({ productId, title, creatorName, waitingCount }: {
+  productId: string;
+  title: string;
+  creatorName: string;
+  waitingCount: number;
+}) {
+  const { user, getAccessToken } = useAuth();
+  const [, navigate] = useLocation();
+  const [state, setState] = useState<"loading" | "idle" | "subscribed">("loading");
+  const [busy, setBusy] = useState(false);
+  const [count, setCount] = useState(waitingCount);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setState("idle");
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          if (alive) setState("idle");
+          return;
+        }
+        const s = await getStockAlert(token, productId);
+        if (!alive) return;
+        setState(s.subscribed ? "subscribed" : "idle");
+        setCount(s.waitingCount);
+      } catch {
+        if (alive) setState("idle");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, productId]);
+
+  async function toggle() {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+      if (state === "subscribed") {
+        await unsubscribeStockAlert(token, productId);
+        setState("idle");
+        setCount((c) => Math.max(0, c - 1));
+      } else {
+        const r = await subscribeStockAlert(token, productId);
+        setState("subscribed");
+        setCount(r.waitingCount);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't set that alert — try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4" data-testid="restock-alert">
+      {count > 0 && (
+        <p className="text-center text-sm text-amber-100/60">
+          {count} {count === 1 ? "fan is" : "fans are"} waiting for this one to come back.
+        </p>
+      )}
+      {state === "subscribed" ? (
+        <div className="mt-3 rounded-xl border border-emerald-400/40 bg-emerald-400/10 p-4 text-center">
+          <div className="inline-flex items-center gap-2 font-bold text-emerald-200">
+            <CheckCircle2 className="h-5 w-5" /> You&apos;re on the list.
+          </div>
+          <p className="mt-1 text-xs text-emerald-100/70">
+            The moment “{title}” is back, you&apos;ll get a ping here — and an email too if you&apos;re on {creatorName}&apos;s list. One alert, then you&apos;re off the list.
+          </p>
+          <button
+            onClick={toggle}
+            disabled={busy}
+            className="mt-2 text-xs font-bold text-emerald-100/60 underline underline-offset-2 transition hover:text-emerald-100 disabled:opacity-60"
+          >
+            {busy ? "Cancelling…" : "Cancel the alert"}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={toggle}
+          disabled={busy || state === "loading"}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+        >
+          {busy || state === "loading" ? <Loader2 className="h-5 w-5 animate-spin" /> : <BellRing className="h-5 w-5" />}
+          {user ? "Tell me when it's back" : "Sign in to be told when it's back"}
+        </button>
+      )}
+      {error && <p className="mt-3 text-center text-sm font-bold text-red-300">{error}</p>}
     </div>
   );
 }
@@ -614,9 +730,17 @@ export default function StorefrontProduct() {
               </div>
 
               {isDropUpcoming ? null : data.product.soldOut ? (
-                <div className="mt-6 rounded-full border border-amber-500/30 px-6 py-4 text-center text-lg font-bold text-amber-200/70">
-                  Sold out — the creator's restocking
-                </div>
+                <>
+                  <div className="mt-6 rounded-full border border-amber-500/30 px-6 py-4 text-center text-lg font-bold text-amber-200/70">
+                    Sold out — the creator's restocking
+                  </div>
+                  <RestockAlert
+                    productId={data.product.id}
+                    title={data.product.title}
+                    creatorName={data.product.links.creatorName}
+                    waitingCount={data.product.stockAlertWaiting ?? 0}
+                  />
+                </>
               ) : isFree ? (
                 <div className="mt-6">
                   {claimed ? (
