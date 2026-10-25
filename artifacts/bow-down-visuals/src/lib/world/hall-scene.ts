@@ -9079,6 +9079,15 @@ export class KingsHallScene {
   private bindControls(): void {
     const canvas = this.canvas;
     this.on(window, "keydown", ((e: KeyboardEvent) => {
+      /* Typing keeps its letters: the page's verb handler has
+       * always skipped fields, but this movement set did not —
+       * WASD inside the say box walked the figure while its owner
+       * typed. Mirror the page's guard exactly. */
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
+        this.keys.delete(e.code);
+        return;
+      }
       this.keys.add(e.code);
     }) as EventListener);
     this.on(window, "keyup", ((e: KeyboardEvent) => {
