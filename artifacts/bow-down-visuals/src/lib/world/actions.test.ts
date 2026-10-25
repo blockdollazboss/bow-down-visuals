@@ -20,9 +20,12 @@ import {
 } from "./actions";
 
 describe("the action set", () => {
-  it("is the owner's seven, with dance and sit as the toggles", () => {
-    expect(WORLD_ACTIONS.map((a) => a.id)).toEqual(["bow", "wave", "cheer", "clap", "spin", "dance", "sit"]);
-    expect(WORLD_ACTIONS.filter((a) => a.kind === "toggle").map((a) => a.id)).toEqual(["dance", "sit"]);
+  it("is the owner's seven plus the social seven, with dance, sit and kneel as the toggles", () => {
+    expect(WORLD_ACTIONS.map((a) => a.id)).toEqual([
+      "bow", "wave", "cheer", "clap", "spin", "dance", "sit",
+      "point", "beckon", "salute", "laugh", "shrug", "highfive", "kneel",
+    ]);
+    expect(WORLD_ACTIONS.filter((a) => a.kind === "toggle").map((a) => a.id)).toEqual(["dance", "sit", "kneel"]);
     for (const a of WORLD_ACTIONS) {
       expect(ACTION_BY_ID.get(a.id)).toBe(a);
       expect(isWorldActionId(a.id)).toBe(true);
@@ -34,6 +37,7 @@ describe("the action set", () => {
   it("only toggles clear on a walk", () => {
     expect(actionClearedByMove("dance")).toBe(true);
     expect(actionClearedByMove("sit")).toBe(true);
+    expect(actionClearedByMove("kneel")).toBe(true);
     expect(actionClearedByMove("bow")).toBe(false);
     expect(actionClearedByMove(null)).toBe(false);
   });
@@ -104,5 +108,40 @@ describe("toggle poses", () => {
 
   it("neutral is the resting pose", () => {
     expect(NEUTRAL_POSE).toEqual({ tiltX: 0, tiltZ: 0, spinY: 0, y: 0 });
+  });
+});
+
+describe("the social set", () => {
+  it("kneel settles deeper than sit, bowed, and holds", () => {
+    const settled = actionPoseAt("kneel", 5000)!;
+    expect(settled.y).toBeCloseTo(-0.78, 2);
+    expect(settled.y).toBeLessThan(actionPoseAt("sit", 5000)!.y);
+    expect(settled.tiltX).toBeLessThan(-0.15);
+    expect(actionPoseAt("kneel", 600_000)).not.toBeNull();
+  });
+
+  it("a salute stands TALL — the one pose that leans back", () => {
+    const held = actionPoseAt("salute", 600)!;
+    expect(held.tiltX).toBeGreaterThan(0.05);
+    expect(held.tiltZ).toBe(0);
+    expect(held.y).toBeGreaterThan(0.01);
+  });
+
+  it("a high-five leaves the ground higher than a cheer", () => {
+    const five = actionPoseAt("highfive", 450)!;
+    expect(five.y).toBeGreaterThan(0.2);
+    expect(five.tiltX).toBeLessThan(-0.1);
+  });
+
+  it("a beckon rocks forward repeatedly, never backward", () => {
+    let peaks = 0;
+    let prev = 0;
+    for (let ms = 100; ms < 1500; ms += 40) {
+      const { tiltX } = actionPoseAt("beckon", ms)!;
+      expect(tiltX).toBeLessThanOrEqual(0.001);
+      if (prev > -0.2 && tiltX <= -0.2) peaks += 1;
+      prev = tiltX;
+    }
+    expect(peaks).toBeGreaterThanOrEqual(2);
   });
 });

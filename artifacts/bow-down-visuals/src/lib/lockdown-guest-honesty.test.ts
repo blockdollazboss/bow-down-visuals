@@ -121,8 +121,18 @@ describe("World — guest voice chip + gamepad help scoping", () => {
       '{!isGuest && "A steps voice (off · proximity · lobby · deafen), "}',
     );
     expect(pad).toContain("Y switches view");
-    expect(pad).toContain("LB opens the door you&rsquo;re standing at");
-    expect(pad).toContain("D-pad and face buttons perform the actions below.");
+    expect(pad).toContain("LB works the prompt you&rsquo;re standing at");
+    expect(pad).toContain("Start frames a photo.");
+    /* The action-performing claims are member-scoped too (the
+       world-actions expansion): a guest's pad performs nothing,
+       so the line never advertises performing to one. The D-pad
+       clause and the page/claim verbs live inside the member
+       fragment; the movement/view/photo verbs stay for all. */
+    expect(pad).toContain("D-pad and face buttons perform the");
+    expect(pad).toContain("Back switches the action page, R3 claims the moment");
+    expect(pad.indexOf("D-pad and face buttons perform the")).toBeGreaterThan(
+      pad.indexOf("{!isGuest && <>"),
+    );
     /* The voice step is advertised exactly once in the page — inside
        that member-only conditional. */
     expect(worldSource.split("A steps voice").length - 1).toBe(1);

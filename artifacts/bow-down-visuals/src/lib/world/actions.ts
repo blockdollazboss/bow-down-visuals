@@ -21,7 +21,9 @@
  * y is a plain vertical offset in metres; spinY is extra yaw.
  */
 
-export type WorldActionId = "bow" | "wave" | "cheer" | "clap" | "dance" | "spin" | "sit";
+export type WorldActionId =
+  | "bow" | "wave" | "cheer" | "clap" | "dance" | "spin" | "sit"
+  | "point" | "beckon" | "salute" | "laugh" | "shrug" | "highfive" | "kneel";
 export type WorldActionKind = "once" | "toggle";
 
 export interface WorldActionDef {
@@ -40,6 +42,18 @@ export const WORLD_ACTIONS: WorldActionDef[] = [
   { id: "spin", label: "Spin", kind: "once", durationMs: 950 },
   { id: "dance", label: "Dance", kind: "toggle", durationMs: 0 },
   { id: "sit", label: "Sit", kind: "toggle", durationMs: 0 },
+  /* The social set (Stack-100 #3 follow-on, .lane/ACTIONS-DESIGN
+   * §2.1): the same honest standee math, aimed at other people —
+   * pointing things out, calling someone over, returning the
+   * guards' salute, laughing, shrugging, trading a high-five, and
+   * kneeling (the toggle of respect, next to sit). */
+  { id: "point", label: "Point", kind: "once", durationMs: 1400 },
+  { id: "beckon", label: "Beckon", kind: "once", durationMs: 1600 },
+  { id: "salute", label: "Salute", kind: "once", durationMs: 1300 },
+  { id: "laugh", label: "Laugh", kind: "once", durationMs: 1400 },
+  { id: "shrug", label: "Shrug", kind: "once", durationMs: 1300 },
+  { id: "highfive", label: "High-five", kind: "once", durationMs: 900 },
+  { id: "kneel", label: "Kneel", kind: "toggle", durationMs: 0 },
 ];
 
 export const ACTION_BY_ID: ReadonlyMap<WorldActionId, WorldActionDef> = new Map(
@@ -139,6 +153,56 @@ export function actionPoseAt(id: WorldActionId, elapsedMs: number): ActionPose |
       // Lowers to seat height over a beat and stays there.
       const settle = easeOutCubic(clamp01(elapsed / 280));
       return { tiltX: -0.05 * settle, tiltZ: 0, spinY: 0, y: -0.52 * settle };
+    }
+    case "point": {
+      // Two quick forward nods — "there, that one." The lean does
+      // the pointing a standee can honestly do.
+      const pulse = Math.abs(Math.sin(Math.PI * 2 * p));
+      return { tiltX: -0.2 * pulse, tiltZ: 0, spinY: 0, y: 0.012 * pulse };
+    }
+    case "beckon": {
+      // Come-here leans: three swells of a forward rock inside a
+      // swelling envelope, the way you'd wave someone over.
+      const env = Math.pow(Math.sin(Math.PI * clamp01(p * 1.04)), 0.7);
+      const rock = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 2.6 - Math.PI / 2);
+      return { tiltX: -0.28 * rock * env, tiltZ: 0, spinY: 0, y: 0.015 * env };
+    }
+    case "salute": {
+      // A snap to attention: rise a touch, stand tall, hold a
+      // breath, release. No sway — a salute is crisp.
+      const env =
+        p < 0.15 ? easeOutCubic(p / 0.15) : p < 0.72 ? 1 : 1 - easeInOutCubic((p - 0.72) / 0.28);
+      return { tiltX: 0.07 * env, tiltZ: 0, spinY: 0, y: 0.02 * env };
+    }
+    case "laugh": {
+      // Fast small bounces with a side shake, decaying the way a
+      // laugh runs out.
+      const env = Math.pow(Math.sin(Math.PI * clamp01(p * 1.03)), 0.5);
+      const shake = Math.sin(t * Math.PI * 2 * 4.6);
+      return {
+        tiltX: -0.05 * env,
+        tiltZ: 0.1 * shake * env,
+        spinY: 0,
+        y: 0.03 * Math.abs(shake) * env,
+      };
+    }
+    case "shrug": {
+      // Shoulders up and a slow tilt each way: the universal
+      // "dunno" — a rise, a rock, a settle.
+      const lift = Math.sin(Math.PI * p);
+      return { tiltX: 0, tiltZ: 0.09 * Math.sin(Math.PI * 2 * p) * lift, spinY: 0, y: 0.045 * lift };
+    }
+    case "highfive": {
+      // One big hop with a lean in at the peak — meeting a hand
+      // that (on a standee) is the whole body's reach.
+      const arc = Math.sin(Math.PI * p);
+      return { tiltX: -0.15 * arc, tiltZ: 0, spinY: 0, y: 0.24 * arc };
+    }
+    case "kneel": {
+      // Deeper than sit and bowed with it — knelt respect, held
+      // until toggled off or the wearer walks.
+      const settle = easeOutCubic(clamp01(elapsed / 320));
+      return { tiltX: -0.22 * settle, tiltZ: 0, spinY: 0, y: -0.78 * settle };
     }
     default:
       return null;
