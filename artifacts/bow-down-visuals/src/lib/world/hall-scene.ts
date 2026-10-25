@@ -8378,19 +8378,29 @@ export class KingsHallScene {
       img.crossOrigin = "anonymous";
       img.onload = () => {
         if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+        /* The portrait stands the moment it loads — the mouth
+         * locator (heavy ML pipeline) refines it later, in place,
+         * exactly as on the guard path: gating the figure on the
+         * locator left presences standing as fallbacks for whole
+         * sessions whenever its fetches stalled. */
+        try {
+          const built = buildPortraitFigure(img, null);
+          rig.defaultFigure = false;
+          rig.guardVariant = null;
+          this.swapFigure(rig, built.body, built.portrait, wantId);
+          // Living loop: the ref's loopUrl — resolved server-side
+          // from the character's own vault row, keyed by its
+          // identity end to end (never by name).
+          this.attachLoopFeed(rig, loopForCharacterRef(want));
+        } catch {
+          /* canvas unavailable — the standing figure keeps standing */
+          return;
+        }
         void locatePortraitMouth(img).then((mouth) => {
+          if (!mouth) return;
           if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
-          try {
-            const built = buildPortraitFigure(img, mouth);
-            rig.defaultFigure = false;
-            rig.guardVariant = null;
-            this.swapFigure(rig, built.body, built.portrait, wantId);
-            // Living loop: the ref's loopUrl — resolved server-side
-            // from the character's own vault row, keyed by its
-            // identity end to end (never by name).
-            this.attachLoopFeed(rig, loopForCharacterRef(want));
-          } catch {
-            /* canvas unavailable — the standing figure keeps standing */
+          if (rig.portrait && rig.characterId === wantId) {
+            rig.portrait.mouth = mouth;
           }
         });
       };
@@ -8433,16 +8443,24 @@ export class KingsHallScene {
         const img = new Image();
         img.onload = () => {
           if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
+          /* Same decoupling as the still-portrait path: the figure
+           * stands on the snapshot now; the mouth attaches in
+           * place when the locator settles. */
+          try {
+            const built = buildPortraitFigure(img, null);
+            rig.defaultFigure = false;
+            rig.guardVariant = null;
+            this.swapFigure(rig, built.body, built.portrait, wantId);
+            this.attachLoopFeed(rig, loopForCharacterRef(want));
+          } catch {
+            /* canvas unavailable — the standing figure keeps standing */
+            return;
+          }
           void locatePortraitMouth(img).then((mouth) => {
+            if (!mouth) return;
             if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
-            try {
-              const built = buildPortraitFigure(img, mouth);
-              rig.defaultFigure = false;
-              rig.guardVariant = null;
-              this.swapFigure(rig, built.body, built.portrait, wantId);
-              this.attachLoopFeed(rig, loopForCharacterRef(want));
-            } catch {
-              /* canvas unavailable — the standing figure keeps standing */
+            if (rig.portrait && rig.characterId === wantId) {
+              rig.portrait.mouth = mouth;
             }
           });
         };
@@ -8500,25 +8518,49 @@ export class KingsHallScene {
    *  guard trades up from the capsule. A missing or unreadable slot
    *  leaves the capsule standing for that guard — the fallback,
    *  never a broken figure. */
+  /** Every rig that might wear a guard figure: the room's peers
+   *  plus my own. */
+  private guardRigs(): AvatarRig[] {
+    const rigs = [...this.avatars.values()];
+    if (this.selfRig) rigs.push(this.selfRig);
+    return rigs;
+  }
+
+  /** Stand every rig waiting on `variant`'s art up into its guard
+   *  figure (the art just landed). */
+  private standWaitingGuards(variant: GuardVariant): void {
+    for (const rig of this.guardRigs()) {
+      if (rig.guardWanted === variant && rig.guardVariant !== variant) {
+        this.swapToGuardOrCapsule(rig, variant);
+      }
+    }
+  }
+
   private loadGuardArt(): void {
     (Object.keys(this.guardArt) as GuardVariant[]).forEach((variant) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
+        if (this.disposed) return;
+        /* The figure stands the moment its ART lands. The mouth is
+         * a refinement (lips), located by a heavy ML pipeline whose
+         * bundle/wasm/model fetches can stall for a very long time
+         * on a real connection — gating the swap on it left every
+         * presence standing as the fallback capsule for whole
+         * sessions (owner's live report, 2026-10-25: a gold capsule
+         * in a settled session, long after the art itself had
+         * loaded). The mouth attaches IN PLACE when it resolves:
+         * the portrait draw reads portrait.mouth live every frame,
+         * so the lips simply start working — no rebuild, no wait. */
+        this.guardArt[variant] = { status: "ready", image: img, mouth: null };
+        this.standWaitingGuards(variant);
         void locatePortraitMouth(img).then((mouth) => {
-          if (this.disposed) return;
-          this.guardArt[variant] = { status: "ready", image: img, mouth };
-          for (const rig of this.avatars.values()) {
-            if (rig.guardWanted === variant && rig.guardVariant !== variant) {
-              this.swapToGuardOrCapsule(rig, variant);
+          if (this.disposed || !mouth) return;
+          this.guardArt[variant].mouth = mouth;
+          for (const rig of this.guardRigs()) {
+            if (rig.guardVariant === variant && rig.portrait) {
+              rig.portrait.mouth = mouth;
             }
-          }
-          if (
-            this.selfRig &&
-            this.selfRig.guardWanted === variant &&
-            this.selfRig.guardVariant !== variant
-          ) {
-            this.swapToGuardOrCapsule(this.selfRig, variant);
           }
         });
       };
