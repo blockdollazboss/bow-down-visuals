@@ -123,6 +123,12 @@ export const storeProductsTable = pgTable("store_products", {
      checkout attribution reads these at sale time (schema/affiliates.ts). */
   affiliateEnabled:      boolean("affiliate_enabled").notNull().default(false),
   affiliateCommissionBps: integer("affiliate_commission_bps"),
+  /* Co-seller revenue splits (Wave 4 #36, migration 0235): the sellers
+     who share this product's net and their shares — a jsonb list of
+     { userId, sharePct } summing to exactly 100, owner included (the
+     publishing-splits sum-to-100 machine; schema/sale-splits.ts).
+     Null = no co-sellers: the product sells exactly as before. */
+  splits:         jsonb("splits").$type<import("./sale-splits").ProductSplit[] | null>(),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
