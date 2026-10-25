@@ -106,6 +106,7 @@ import {
   IDLE_GAMEPAD_EDGES,
   type GamepadEdges,
 } from "./gamepad";
+import { DEFAULT_ACTION_PAGE, type ActionPageId } from "./bindings";
 import {
   figureWidthForHeight,
   defaultFigureCanvasSize,
@@ -1573,6 +1574,23 @@ export class KingsHallScene {
   /** A controller's station-interact press (LB — the page opens
    *  the door whose prompt is showing, the E key's twin). */
   onPadInteract: (() => void) | null = null;
+  /** A controller's Back press (the page cycles the action page;
+   *  the pad's seven action slots perform the new page's set). */
+  onPadPageCycle: (() => void) | null = null;
+  /** A controller's Start press (the page toggles photo mode). */
+  onPadPhotoMode: (() => void) | null = null;
+  /** A controller's R3 press (the page claims the live moment —
+   *  an open drop or the King's gift — through its own handlers). */
+  onPadMomentClaim: (() => void) | null = null;
+  /** The action page the pad's slots currently perform. The page
+   *  owns the state (its deck shows the same page) and pushes it
+   *  here, the setQualityPreference pattern. */
+  private padActionPage: ActionPageId = DEFAULT_ACTION_PAGE;
+
+  /** The page's action-page state, pushed for the pad poll. */
+  setPadActionPage(page: ActionPageId): void {
+    this.padActionPage = page;
+  }
   /** My own performed action changed on its own — a one-shot
    *  finished, or walking ended a held toggle — so the page's
    *  action bar stays truthful without polling. */
@@ -9650,7 +9668,7 @@ export class KingsHallScene {
      * tickXrMove. */
     const pads = typeof navigator !== "undefined" ? navigator.getGamepads?.() : null;
     const pad = pads ? firstGamepad([...pads]) : null;
-    const polled = pollGamepad(pad, this.padEdges);
+    const polled = pollGamepad(pad, this.padEdges, this.padActionPage);
     this.padEdges = polled.edges;
     if (pad) {
       const intent = polled.intent;
@@ -9664,6 +9682,9 @@ export class KingsHallScene {
       if (intent.toggleView) this.onPadToggleView?.();
       if (intent.action) this.onPadAction?.(intent.action);
       if (intent.interact) this.onPadInteract?.();
+      if (intent.pageCycle) this.onPadPageCycle?.();
+      if (intent.photoMode) this.onPadPhotoMode?.();
+      if (intent.momentClaim) this.onPadMomentClaim?.();
     }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {
