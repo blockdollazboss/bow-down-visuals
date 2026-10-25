@@ -176,7 +176,7 @@ router.get("/theme-packs/kit/manifests", async (_req, res) => {
 
 /* ── Downloads ─────────────────────────────────────────────────────── */
 router.post("/theme-packs/kit/:packId/download", requireAuth, async (req, res) => {
-  const packId = req.params.packId!;
+  const packId = String(req.params.packId);
   const body = (req.body ?? {}) as {
     kind?: string; mode?: string;
     assets?: { iconSvgs?: Record<string, string>; folderSvg?: string; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string };
@@ -243,7 +243,7 @@ async function streamBundle(
 
 /* ── Customizations (capstone storage) ─────────────────────────────── */
 router.get("/theme-packs/customizations/:packId", requireAuth, async (req, res) => {
-  const packId = req.params.packId!;
+  const packId = String(req.params.packId);
   try {
     const { rows } = await db.execute(
       sql`SELECT component, device, settings FROM theme_pack_customizations
@@ -261,7 +261,7 @@ router.get("/theme-packs/customizations/:packId", requireAuth, async (req, res) 
 });
 
 router.put("/theme-packs/customizations/:packId", requireAuth, async (req, res) => {
-  const packId = req.params.packId!;
+  const packId = String(req.params.packId);
   if (!THEME_PACK_KNOWN_IDS.has(packId) && !packId.startsWith("creator:")) {
     res.status(400).json({ error: "PACK_UNKNOWN" });
     return;
@@ -325,7 +325,7 @@ router.post("/theme-packs/creator-packs", requireAuth, async (req, res) => {
 });
 
 router.post("/theme-packs/creator-packs/:id/publish", requireAuth, async (req, res) => {
-  const id = req.params.id!;
+  const id = String(req.params.id);
   try {
     const { rows } = await db.execute(
       sql`UPDATE creator_theme_packs SET published = true, updated_at = now()
@@ -363,7 +363,7 @@ router.get("/theme-packs/creator-packs", async (req, res) => {
 });
 
 router.post("/theme-packs/creator-packs/:id/purchase", requireAuth, async (req, res) => {
-  const id = req.params.id!;
+  const id = String(req.params.id);
   const packId = `creator:${id}`;
   const userId = req.userId!;
   try {
@@ -434,7 +434,7 @@ router.post("/theme-packs/creator-packs/:id/purchase", requireAuth, async (req, 
 /* ── GET THIS LOOK — public resolution ─────────────────────────────── */
 router.get("/theme-packs/look/:code", async (req, res) => {
   try {
-    const b64 = req.params.code!.replace(/-/g, "+").replace(/_/g, "/");
+    const b64 = String(req.params.code).replace(/-/g, "+").replace(/_/g, "/");
     const parsed = JSON.parse(Buffer.from(b64, "base64").toString("utf8")) as {
       packId?: unknown; mix?: unknown; creatorPackId?: unknown;
     };
