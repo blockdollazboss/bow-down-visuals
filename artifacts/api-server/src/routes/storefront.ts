@@ -1153,6 +1153,18 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
       return;
     }
     const d = parsed.data;
+    /* .partial() keeps the base schema's field defaults, so the parsed
+       object "has" inventory / isActive / description / mediaUrls even
+       when the seller never sent them — and the sets below would
+       silently reset every unsent field (a price-only edit flipped
+       inventory to unlimited and wiped the media list). A PATCH
+       touches what was sent: drop every parsed key the raw body
+       didn't carry. (Found by the #37 lane: its restock trigger fired
+       on price edits because the edit itself moved the stock.) */
+    const rawBody = (req.body ?? {}) as Record<string, unknown>;
+    for (const key of Object.keys(d) as Array<keyof typeof d>) {
+      if (!(key in rawBody)) delete d[key];
+    }
     const sets: ReturnType<typeof sql>[] = [];
     if (d.title !== undefined) sets.push(sql`title = ${d.title}`);
     if (d.description !== undefined) sets.push(sql`description = ${d.description}`);

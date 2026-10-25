@@ -1,10 +1,19 @@
+import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import {
   db as defaultDb,
 } from "@workspace/db";
 import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
 import { logger } from "./logger";
-import { isUndefinedTable } from "./pg-errors";
+import { isUndefinedTable, pgErrorText } from "./pg-errors";
+
+/** Missing-table detection for the pre-migration window: the strict
+    42P01 check plus the message shape some engines (the verification
+    harness among them) surface instead — the same belt-and-braces
+    the drop tables use (routes/storefront.ts isMissingDropTables). */
+function isMissingStockAlertsTable(err: unknown): boolean {
+  return isUndefinedTable(err) || /relation .* does not exist|undefined_table/i.test(pgErrorText(err));
+}
 
 /* ── Back-in-stock alerts (Wave 4 #37, migration 0236) ──────────────────
    "Tell me when it's back." A signed-in fan taps once on a sold-out
@@ -123,13 +132,19 @@ export function createDrizzleStockAlertStore(db: Db = defaultDb): StockAlertStor
     },
 
     async subscribe(userId, productId) {
+      /* The claim id is generated here, not by the DB default: the
+         insert counts as landed only when RETURNING hands back THIS
+         id — some engines surface the pre-existing row on a conflict
+         instead of no row (the product-drop claim discipline). */
+      const claimId = randomUUID();
       const landed = await db.execute(sql`
-        INSERT INTO stock_alerts (user_id, product_id, status)
-        VALUES (${userId}, ${productId}, 'waiting')
+        INSERT INTO stock_alerts (id, user_id, product_id, status)
+        VALUES (${claimId}, ${userId}, ${productId}, 'waiting')
         ON CONFLICT (user_id, product_id) DO NOTHING
         RETURNING id
       `);
-      if (landed.rows.length > 0) return "created";
+      const landedRow = landed.rows[0] as Record<string, unknown> | undefined;
+      if (landedRow && String(landedRow["id"]) === claimId) return "created";
       const existing = await db.execute(sql`
         SELECT status FROM stock_alerts
         WHERE user_id = ${userId} AND product_id = ${productId}
@@ -278,7 +293,7 @@ export async function subscribeStockAlert(
     const outcome = await d.store.subscribe(input.userId, input.productId);
     return { ok: true, alreadyWaiting: outcome === "already" };
   } catch (err) {
-    if (isUndefinedTable(err)) return { ok: false, reason: "unavailable" };
+    if (isMissingStockAlertsTable(err)) return { ok: false, reason: "unavailable" };
     throw err;
   }
 }
@@ -292,7 +307,7 @@ export async function unsubscribeStockAlert(
     const removed = await d.store.unsubscribe(input.userId, input.productId);
     return { ok: removed };
   } catch (err) {
-    if (isUndefinedTable(err)) return { ok: false };
+    if (isMissingStockAlertsTable(err)) return { ok: false };
     throw err;
   }
 }
@@ -306,7 +321,7 @@ export async function isWaitingOnStockAlert(
   try {
     return (await d.store.getSubscriptionStatus(input.userId, input.productId)) === "waiting";
   } catch (err) {
-    if (isUndefinedTable(err)) return false;
+    if (isMissingStockAlertsTable(err)) return false;
     throw err;
   }
 }
@@ -320,7 +335,7 @@ export async function countWaitingStockAlerts(
   try {
     return await d.store.countWaiting(productId);
   } catch (err) {
-    if (isUndefinedTable(err)) return 0;
+    if (isMissingStockAlertsTable(err)) return 0;
     throw err;
   }
 }
@@ -334,7 +349,7 @@ export async function countWaitingStockAlertsForProducts(
   try {
     return await d.store.countWaitingForProducts(productIds);
   } catch (err) {
-    if (isUndefinedTable(err)) return new Map();
+    if (isMissingStockAlertsTable(err)) return new Map();
     throw err;
   }
 }
@@ -392,7 +407,7 @@ export async function fireRestockAlerts(
   try {
     product = await d.store.getProduct(productId);
   } catch (err) {
-    if (!isUndefinedTable(err)) {
+    if (!isMissingStockAlertsTable(err)) {
       logger.error({ err, productId }, "[stock-alerts] product read failed — no alerts fired");
     }
     return result;
@@ -403,7 +418,7 @@ export async function fireRestockAlerts(
   try {
     claimed = await d.store.claimWaiting(productId, d.now);
   } catch (err) {
-    if (!isUndefinedTable(err)) {
+    if (!isMissingStockAlertsTable(err)) {
       logger.error({ err, productId }, "[stock-alerts] claim failed — no alerts fired");
     }
     return result;
