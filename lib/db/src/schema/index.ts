@@ -112,6 +112,7 @@ export * from "./community";
 export * from "./keyword-automations";
 export * from "./digital-sales";
 export * from "./storefront";
+export * from "./stock-alerts";
 export * from "./affiliates";
 export * from "./gift-cards";
 export * from "./referral-contest";
