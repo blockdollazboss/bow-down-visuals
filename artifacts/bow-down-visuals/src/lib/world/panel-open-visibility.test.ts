@@ -41,3 +41,22 @@ describe("opening a station panel brings it to the walker", () => {
     expect(page.slice(at, at + 400)).toContain("}, [panelTarget]);");
   });
 });
+
+describe("an interact press with no target is answered, not silent", () => {
+  it("the resolver speaks when nothing is in reach", () => {
+    expect(page).toContain("Nothing in reach — walk to a gold ring or a standing figure, then press E.");
+  });
+
+  it("the note renders where the prompts live and yields to any real prompt", () => {
+    expect(page).toContain('data-testid="world-interact-note"');
+    expect(page).toContain("interactNote && !nearStation && !nearCourtesy && !panelTarget && !photoMode");
+  });
+
+  it("the note retires itself", () => {
+    expect(page).toContain("interactNoteTimer.current = setTimeout(() => setInteractNote(null), 4000);");
+  });
+
+  it("the controls hint names the interact key", () => {
+    expect(page).toContain("E opens what");
+  });
+});

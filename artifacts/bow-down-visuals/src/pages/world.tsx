@@ -597,6 +597,10 @@ export default function WorldPage() {
   const courtesyWins =
     !!nearCourtesy &&
     (stationDistRef.current === null || nearCourtesy.distance <= stationDistRef.current);
+  /* The "nothing in reach" note: what an interact press with no
+   * target says instead of staying silent (see the resolver). */
+  const [interactNote, setInteractNote] = useState<string | null>(null);
+  const interactNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /* The one interact resolver behind E, the controller's LB and
    * the touch strip: a courtesy showing nearer than any door is
    * performed; otherwise the door at its prompt opens. Photo mode
@@ -608,7 +612,18 @@ export default function WorldPage() {
       performAction(nearCourtesy.action);
       return;
     }
-    openStationRef.current();
+    if (nearStation) {
+      openStationRef.current();
+      return;
+    }
+    /* Nothing in reach: say so, plainly. Until this note existed
+     * the press was a silent no-op — and at the plaza spawn EVERY
+     * first press lands here (the nearest offer stands 7+ m out),
+     * which reads exactly like a dead world (owner's live report,
+     * 2026-10-25: "haven't been able to do anything"). */
+    setInteractNote("Nothing in reach — walk to a gold ring or a standing figure, then press E.");
+    if (interactNoteTimer.current) clearTimeout(interactNoteTimer.current);
+    interactNoteTimer.current = setTimeout(() => setInteractNote(null), 4000);
   };
   /* My role for the binding table's gates, read at press time
      (the admin flag lands a few declarations below, so the refs
@@ -3239,8 +3254,27 @@ export default function WorldPage() {
         {/* Controls hint */}
         {status === "inside" && !photoMode && (
           <p className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
-            WASD to walk · drag or click to look · Shift to hurry
+            WASD to walk · drag or click to look · Shift to hurry · E opens what&rsquo;s in reach
           </p>
+        )}
+
+        {/* The nothing-in-reach note: an interact press with no
+            target used to be a silent no-op. Rendered where the
+            prompts live; hides itself the moment a real prompt
+            exists, and the resolver retires it after 4 s. */}
+        {status === "inside" && interactNote && !nearStation && !nearCourtesy && !panelTarget && !photoMode && (
+          <div
+            className="absolute bottom-24 left-1/2 z-10 w-[min(92vw,440px)] -translate-x-1/2 sm:bottom-20"
+            data-testid="world-interact-note"
+          >
+            <div
+              className={`rounded-2xl border px-4 py-3 text-center text-sm shadow-xl backdrop-blur-sm ${
+                isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#5b4a1e]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"
+              }`}
+            >
+              {interactNote}
+            </div>
+          </div>
         )}
 
         {/* The walk-up prompt: the door you're standing at. The gold
