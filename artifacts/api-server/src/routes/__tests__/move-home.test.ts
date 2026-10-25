@@ -116,6 +116,7 @@ CREATE TABLE creator_profiles (
   social_links jsonb NOT NULL DEFAULT '{}',
   top_creators jsonb NOT NULL DEFAULT '[]',
   tip_jar_enabled boolean NOT NULL DEFAULT true,
+  meta_pixel_id text, tiktok_pixel_id text, google_tag_id text,
   ai_design jsonb,
   is_public boolean NOT NULL DEFAULT true,
   is_verified boolean NOT NULL DEFAULT false,
