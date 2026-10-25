@@ -26,6 +26,11 @@ import {
   type ShopifyImportResultDTO, type ShopifyExportKind,
 } from "@/lib/storefront-api";
 import { formatDropLocal } from "@/lib/product-drop";
+import SplitsEditor from "@/components/splits/SplitsEditor";
+import {
+  draftsFromPresented, splitsPayload, validateSplitsDraft,
+  type SplitCoSellerDraft, type SplitsDraftError,
+} from "@/lib/splits-editor";
 import PromoteButton from "@/components/storefront/PromoteButton";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import { AltTextField } from "@/components/accessibility/AltTextField";
@@ -470,6 +475,120 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
   );
 }
 
+/* ── #36: co-seller splits cell + row editor ────────────────────────────
+   The visual half of the splits machine (API lib/sale-splits): the
+   cell lives in the product row beside the affiliate cell; the editor
+   expands under the row, the same dock as the bump editor. Shares are
+   the sellers' own numbers — the editor's math (lib/splits-editor)
+   derives the owner's share so the list always totals 100, and saving
+   rides the same PATCH /storefront/products/:id as the rest of the
+   row. The server re-validates the whole list on save. */
+export function splitsErrorText(reason: SplitsDraftError): string {
+  switch (reason) {
+    case "owner-crowded-out":
+      return "Your co-sellers' shares add up to 100% or more — leave a share for yourself.";
+    case "too-many-sellers":
+      return "A product can list at most 20 sellers.";
+    case "duplicate-seller":
+      return "That creator is already splitting this product.";
+    case "self-listed":
+      return "That's you — your share is set automatically.";
+    default:
+      return "Every co-seller share must be more than 0% and no more than 100%, with at most two decimal places.";
+  }
+}
+
+function SplitsCell({ p, open, onToggle }: { p: StoreProductDTO; open: boolean; onToggle: () => void }) {
+  const splits = p.splits ?? null;
+  const summary = splits && splits.length > 1
+    ? splits.map((s) => `${Number.isInteger(s.sharePct) ? s.sharePct : s.sharePct.toFixed(2)}%`).join(" / ")
+    : null;
+  return (
+    <div className="mt-2 min-w-[150px]">
+      {summary ? (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+            Split {summary}
+          </span>
+          <button onClick={onToggle} className="text-[10px] font-bold text-white/40 underline hover:text-white">
+            {open ? "Close" : "Edit"}
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={onToggle}
+          className="rounded-full border border-white/15 px-2.5 py-1 text-[10px] font-black uppercase text-white/60 hover:border-amber-400/40 hover:text-amber-300"
+        >
+          Split the net
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SplitsRowEditor({ p, ownerUserId, getAccessToken, onDone, onCancel }: {
+  p: StoreProductDTO;
+  ownerUserId: string;
+  getAccessToken: () => Promise<string | null>;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const getToken = useToken();
+  const [drafts, setDrafts] = useState<SplitCoSellerDraft[]>(() => draftsFromPresented(p.splits, ownerUserId));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const ownerName = p.splits?.find((s) => s.userId === ownerUserId)?.name ?? null;
+
+  const save = async () => {
+    const check = validateSplitsDraft(ownerUserId, drafts);
+    if (!check.ok) { setMsg(splitsErrorText(check.reason)); return; }
+    setBusy(true);
+    setMsg("");
+    try {
+      const token = await getToken();
+      /* Empty drafts → null payload → the split clears back to solo. */
+      await updateProduct(token, p.id, { splits: splitsPayload(ownerUserId, drafts) });
+      onDone();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Couldn't save the split.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-xs font-bold text-white">Co-seller split for “{p.title}”</p>
+      <p className="mt-0.5 text-[11px] text-white/45">
+        Who shares this product&apos;s net with you, and their shares. Your share is whatever&apos;s left — the list always totals 100%.
+      </p>
+      <div className="mt-3 max-w-xl">
+        <SplitsEditor
+          ownerUserId={ownerUserId}
+          ownerName={ownerName}
+          drafts={drafts}
+          onChange={setDrafts}
+          getAccessToken={getAccessToken}
+          disabled={busy}
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={busy}
+          className="rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-4 py-2 text-xs font-black text-black hover:brightness-110 disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "Save split"}
+        </button>
+        <button onClick={onCancel} disabled={busy} className="rounded-full border border-white/15 px-4 py-2 text-xs text-white/60">
+          Cancel
+        </button>
+        {msg && <p className="text-xs font-semibold text-red-300">{msg}</p>}
+      </div>
+    </div>
+  );
+}
+
 /* ── Timed drop controls (#25) ───────────────────────────────────────────
    Docked in the product's own row (PROMOTE): the creator picks the drop
    moment in THEIR local time (datetime-local), the browser converts it
@@ -615,6 +734,8 @@ function DropControls({ product, getToken, onChanged }: {
 function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void }) {
   const isLight = useIsLightTheme();
   const getToken = useToken();
+  const { user, getAccessToken } = useAuth();
+  const ownerUserId = user?.id ?? "";
   const { gateStars: stars } = useUserMode();
   const [products, setProducts] = useState<StoreProductDTO[] | null>(null);
   /* Product-list load failures are NOT "your shelves are empty" — they
@@ -683,6 +804,12 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
       if (!Number.isFinite(pct) || pct <= 0 || pct > 100) { setErr("Set the commission you'll pay affiliates — a % of your cut, between 0 and 100."); return; }
       affiliateBps = Math.round(pct * 100);
     }
+    /* #36: co-seller splits — the sellers' own percentages, validated
+       by the same contract the server enforces (lib/splits-editor);
+       the payload is owner-first with the derived owner share, or
+       null when the product is solo. */
+    const splitCheck = validateSplitsDraft(ownerUserId, splitDrafts);
+    if (!splitCheck.ok) { setErr(splitsErrorText(splitCheck.reason)); return; }
     setBusy(true);
     try {
       const token = await getToken();
@@ -711,6 +838,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         isActive: true,
         affiliateEnabled: form.affiliatesEnabled,
         affiliateCommissionBps: affiliateBps,
+        splits: splitsPayload(ownerUserId, splitDrafts),
       };
       if (form.kind === "gift_card" && (!input.giftCardDenominationsCents || input.giftCardDenominationsCents.length === 0)) {
         setErr("Gift cards need amounts — list the dollar amounts fans can pick, like 25, 50, 100.");
@@ -720,6 +848,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
       await createProduct(token, input);
       setShowForm(false);
       setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", mediaAlt: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "", denominations: "25, 50, 100" });
+      setSplitDrafts([]);
       await load();
       onChanged();
     } catch (e) {
@@ -754,6 +883,10 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
      re-prices everything at checkout — this editor only sets the
      attachment. */
   const [bumpEditId, setBumpEditId] = useState<string | null>(null);
+  /* #36: co-seller splits — the create form's drafts + which product
+     row's split editor is open. */
+  const [splitDrafts, setSplitDrafts] = useState<SplitCoSellerDraft[]>([]);
+  const [splitsEditId, setSplitsEditId] = useState<string | null>(null);
   const [bumpTargetId, setBumpTargetId] = useState("");
   const [bumpPercentOff, setBumpPercentOff] = useState("0");
   const [bumpBusy, setBumpBusy] = useState(false);
@@ -936,6 +1069,18 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             )}
           </div>
 
+          {/* #36: Co-seller splits — docked in the product form under
+              the affiliate block; the shares ride the create payload. */}
+          <div className="mt-4">
+            <SplitsEditor
+              ownerUserId={ownerUserId}
+              drafts={splitDrafts}
+              onChange={setSplitDrafts}
+              getAccessToken={getAccessToken}
+              disabled={busy}
+            />
+          </div>
+
           <div className="mt-4 flex gap-2">
             <button
               onClick={submit} disabled={busy}
@@ -1050,6 +1195,11 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                   </td>
                   <td className="px-4 py-3">
                     <AffiliateCell p={p} getToken={getToken} onChanged={load} />
+                    <SplitsCell
+                      p={p}
+                      open={splitsEditId === p.id}
+                      onToggle={() => setSplitsEditId(splitsEditId === p.id ? null : p.id)}
+                    />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-start justify-end gap-2">
@@ -1106,6 +1256,19 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                       </div>
                       {bumpErr && <p className="mt-2 flex items-center gap-2 text-xs text-red-400"><AlertCircle className="h-4 w-4" />{bumpErr}</p>}
                       {bumpMsg && <p className="mt-2 flex items-center gap-2 text-xs text-green-300"><CheckCircle2 className="h-4 w-4" />{bumpMsg}</p>}
+                    </td>
+                  </tr>
+                )}
+                {splitsEditId === p.id && (
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                    <td colSpan={7} className="px-4 py-4">
+                      <SplitsRowEditor
+                        p={p}
+                        ownerUserId={ownerUserId}
+                        getAccessToken={getAccessToken}
+                        onDone={() => { setSplitsEditId(null); load(); onChanged(); }}
+                        onCancel={() => setSplitsEditId(null)}
+                      />
                     </td>
                   </tr>
                 )}
