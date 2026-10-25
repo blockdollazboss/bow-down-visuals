@@ -14,6 +14,11 @@ import { centsToDisplay, dollarsToCents } from "@/lib/shops";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import { useTranslation } from "react-i18next";
 import { AltTextField } from "@/components/accessibility/AltTextField";
+import SplitsEditor, { splitsErrorI18nKey } from "@/components/splits/SplitsEditor";
+import {
+  draftsFromPresented, splitsPayload, validateSplitsDraft,
+  type SplitCoSellerDraft,
+} from "@/lib/splits-editor";
 
 /* ─── My Shop — the customer storefront builder ──────────────────────────
    Your own shop on the Bow Down Visuals platform. Shop/product CRUD is
@@ -54,6 +59,11 @@ interface Product {
      cut). Buyer reads carry them as the published offer. */
   affiliate_enabled?: boolean;
   affiliate_commission_bps?: number | null;
+  /* Co-seller revenue splits (Wave 4 #36): the normalized list the
+     shop rail presents — [{ userId, sharePct }] including my own
+     entry; null/absent = solo product. Names aren't presented on
+     shop reads, so the editor resolves them only for fresh picks. */
+  splits?: { userId: string; sharePct: number }[] | null;
   /* Order-bump setting (feature #13): the raw add-on attachment, so
      the editor can show and change it even while the add-on is
      paused. Buyer reads carry the resolved offer instead. */
@@ -120,6 +130,9 @@ export default function MyShop() {
      (of MY cut — never added to the buyer's price). */
   const [pAffiliates, setPAffiliates] = useState(false);
   const [pAffiliatePct, setPAffiliatePct] = useState("");
+  /* #36 co-seller splits: the editor's co-seller drafts (my own share
+     is derived by lib/splits-editor, never a row here). */
+  const [pSplitDrafts, setPSplitDrafts] = useState<SplitCoSellerDraft[]>([]);
   const [pImageAlt, setPImageAlt] = useState("");
   const [pSaving, setPSaving] = useState(false);
   const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
@@ -301,6 +314,7 @@ export default function MyShop() {
     setEditingProduct(null);
     setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setPImageAlt(""); setImageStyleHint("");
     setPAffiliates(false); setPAffiliatePct("");
+    setPSplitDrafts([]);
     setShowProductForm(true);
   }
 
@@ -312,6 +326,7 @@ export default function MyShop() {
     setPImageUrl(p.image_url ?? "");
     setPAffiliates(p.affiliate_enabled === true);
     setPAffiliatePct(p.affiliate_commission_bps != null ? String(p.affiliate_commission_bps / 100) : "");
+    setPSplitDrafts(draftsFromPresented(p.splits, user?.id ?? ""));
     setPImageAlt(p.image_alt_text ?? "");
     setImageStyleHint("");
     setBumpTargetId(p.bumpConfig?.bumpProductId ?? "");
@@ -400,6 +415,19 @@ export default function MyShop() {
       }
       affiliateBps = Math.round(pct * 100);
     }
+    /* #36: co-seller splits — validated by the same contract the
+       server enforces (lib/splits-editor). The splits key rides the
+       save ONLY when it sets or clears a split: an explicit null is
+       a write on the server (it clears), and pre-migration any
+       splits write answers 503 — a solo product's ordinary save
+       must never carry the key. */
+    const splitCheck = validateSplitsDraft(user?.id ?? "", pSplitDrafts);
+    if (!splitCheck.ok) {
+      setError(t(splitsErrorI18nKey(splitCheck.reason)));
+      return;
+    }
+    const splitPayload = splitsPayload(user?.id ?? "", pSplitDrafts);
+    const splitsTouched = splitPayload !== null || ((editingProduct?.splits?.length ?? 0) > 0);
     setPSaving(true);
     setError(null);
     try {
@@ -410,6 +438,7 @@ export default function MyShop() {
         image_url: pImageUrl.trim(),
         affiliate_enabled: pAffiliates,
         affiliate_commission_bps: affiliateBps,
+        ...(splitsTouched ? { splits: splitPayload } : {}),
         image_alt_text: pImageAlt.trim(),
       };
       const url = editingProduct
@@ -798,6 +827,18 @@ export default function MyShop() {
                             <span className="text-sm text-white/60">% of your cut</span>
                           </div>
                         )}
+                      </div>
+                      {/* #36: Co-seller splits — the shared editor, docked
+                          in the product form under the affiliate block;
+                          the shares ride the product save. */}
+                      <div className="mt-4">
+                        <SplitsEditor
+                          ownerUserId={user?.id ?? ""}
+                          drafts={pSplitDrafts}
+                          onChange={setPSplitDrafts}
+                          getAccessToken={getAccessToken}
+                          disabled={pSaving}
+                        />
                       </div>
                       {editingProduct && (
                         <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-4">
