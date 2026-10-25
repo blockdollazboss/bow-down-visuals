@@ -26,6 +26,7 @@ import { mediaUrl } from "../media-cdn";
 import {
   FIXTURE_BODIES,
   WORLD_FIXTURES,
+  bodyTexturesLanded,
   fixtureFallbackFor,
   fixtureNormalization,
   fixtureRotY,
@@ -213,16 +214,40 @@ export function buildWorldFixtures(opts?: {
    * failure the same asset on the site origin (the public/ copy ships
    * with the app whether or not the bucket carries the body yet). */
   const loader = new GLTFLoader();
+  /* A parse that "succeeds" without its textures is a failure: the
+   * body materials carry no baseColorFactor, so a texture-less parse
+   * stands a flat-white statue on the post (the owner's Oct 25
+   * walk). Validate before accepting a source, so the fallback
+   * chain — and ultimately the stand-in — wins over a white body. */
   const loadBody = async (path: string) => {
+    const attempt = async (url: string) => {
+      const gltf = await loader.loadAsync(url);
+      const declared =
+        (gltf as { parser?: { json?: { textures?: unknown[] } } }).parser?.json?.textures
+          ?.length ?? 0;
+      const materials: THREE.Material[] = [];
+      gltf.scene.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          const m = mesh.material;
+          if (Array.isArray(m)) materials.push(...m);
+          else if (m) materials.push(m);
+        }
+      });
+      if (!bodyTexturesLanded(declared, materials)) {
+        throw new Error(`textures did not land for ${url}`);
+      }
+      return gltf;
+    };
     const cdn = mediaUrl(path);
     if (cdn !== path) {
       try {
-        return await loader.loadAsync(cdn);
+        return await attempt(cdn);
       } catch {
         /* fall through to the origin copy */
       }
     }
-    return loader.loadAsync(path);
+    return attempt(path);
   };
   for (const bodyDef of Object.values(FIXTURE_BODIES)) {
     loadBody(bodyDef.glbPath)

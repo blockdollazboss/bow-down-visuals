@@ -203,3 +203,36 @@ export function fixtureSway(id: string, nowMs: number): { rotY: number; rotZ: nu
     rotZ: Math.sin(t * 0.31 + phase * 1.7) * 0.004,
   };
 }
+
+/** The texture slots a parsed body material can carry. */
+export interface BodyMaterialLike {
+  map?: unknown;
+  metallicRoughnessMap?: unknown;
+  normalMap?: unknown;
+  emissiveMap?: unknown;
+  aoMap?: unknown;
+}
+
+/**
+ * Did the body's textures actually LAND? The fixture GLBs declare
+ * their textures in the file; a loader path that drops them (the
+ * EXT_texture_webp-only exports did exactly this in the owner's
+ * Chrome — the body material has no baseColorFactor to fall back
+ * on) still parses "successfully" and swaps in a flat-white statue.
+ * A body whose file declares textures but whose parsed materials
+ * carry none has NOT loaded in any sense that matters: the caller
+ * treats it as a load failure, so the next source is tried and the
+ * fallback keeps the post rather than a white clay figure standing
+ * in for a guard. A body that declares no textures is honest as-is.
+ */
+export function bodyTexturesLanded(
+  declaredTextures: number,
+  materials: readonly unknown[],
+): boolean {
+  if (declaredTextures <= 0) return true;
+  return materials.some((m) => {
+    if (!m || typeof m !== "object") return false;
+    const s = m as BodyMaterialLike;
+    return !!(s.map || s.metallicRoughnessMap || s.normalMap || s.emissiveMap || s.aoMap);
+  });
+}
