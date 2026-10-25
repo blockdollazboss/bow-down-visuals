@@ -156,6 +156,7 @@ describe("audienceVisible — the read-time predicate", () => {
     viewerProfileId: "viewer-profile",
     followedProfileIds: new Set(),
     circleAuthorUserIds: new Set(),
+    memberGates: new Map(),
     ...over,
   });
   it("public is public; the author always sees their own", () => {
