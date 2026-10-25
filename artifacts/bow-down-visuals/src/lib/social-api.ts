@@ -1,3 +1,8 @@
+import {
+  markRevealedThisSession,
+  type ContentWarningLabel,
+} from "./content-warnings";
+
 /* ─── Worker 8 — Social API client (stories / posts / reactions / saves) ────
    Link-graph rule (standing): every surface links somewhere real.
      @mentions        → /artist/:slug        (Worker 4's profile page)
@@ -115,6 +120,17 @@ export interface MemberPostLock {
   message: string;
 }
 
+/** The cover a labelled post wears for a viewer who hasn't revealed
+ *  it (Wave 4 #40): the warning NAMED, the media counted — and no media
+ *  URL anywhere in the payload. "covered" = tap to reveal this item;
+ *  "hidden" = the viewer's own preference always hides this label. */
+export interface ContentCover {
+  labels: ContentWarningLabel[];
+  mode: "covered" | "hidden";
+  media_count: number;
+  message: string;
+}
+
 export interface FeedPost {
   id: string;
   profile_id: string;
@@ -133,6 +149,12 @@ export interface FeedPost {
   min_tier_id?: string | null;
   min_tier?: { id: string; name: string } | null;
   member_lock?: MemberPostLock | null;
+  /* Content warnings (Wave 4 #40): the author's own labels for this
+     post (metadata — always present), and, when the server covered
+     the media for this viewer, the cover. media_urls is EMPTY while
+     content_cover stands; the reveal door returns the real list. */
+  content_warnings?: ContentWarningLabel[];
+  content_cover?: ContentCover | null;
   like_count: number;
   repost_count: number;
   reply_count: number;
@@ -290,6 +312,46 @@ export async function apiJson<T>(
     throw new Error((body as { message?: string }).message || `Request failed (${res.status})`);
   }
   return (await res.json()) as T;
+}
+
+/* ── Content warnings (Wave 4 #40) ───────────────────────────────────
+   The reveal is per item: one POST per post, the returned media is
+   remembered for the rest of the session (lib/content-warnings) and
+   nowhere else — no global "show everything", nothing persisted. */
+export async function revealPostContent(
+  getAccessToken: () => Promise<string | null>,
+  postId: string,
+): Promise<LooseAttachment[]> {
+  const data = await apiJson<{ media_urls: LooseAttachment[] }>(
+    getAccessToken,
+    `/api/posts/${postId}/content-warning/reveal`,
+    { method: "POST" },
+  );
+  markRevealedThisSession(postId, data.media_urls as unknown[]);
+  return data.media_urls;
+}
+
+export async function getContentWarningPreferences(
+  getAccessToken: () => Promise<string | null>,
+): Promise<ContentWarningLabel[]> {
+  const data = await apiJson<{ hidden_labels: ContentWarningLabel[] }>(
+    getAccessToken,
+    "/api/content-warning/preferences",
+    { method: "GET" },
+  );
+  return data.hidden_labels ?? [];
+}
+
+export async function setContentWarningPreferences(
+  getAccessToken: () => Promise<string | null>,
+  hiddenLabels: ContentWarningLabel[],
+): Promise<ContentWarningLabel[]> {
+  const data = await apiJson<{ hidden_labels: ContentWarningLabel[] }>(
+    getAccessToken,
+    "/api/content-warning/preferences",
+    { method: "PUT", body: JSON.stringify({ hidden_labels: hiddenLabels }) },
+  );
+  return data.hidden_labels ?? [];
 }
 
 /* Stories viewed state lives client-side (localStorage) — the server only

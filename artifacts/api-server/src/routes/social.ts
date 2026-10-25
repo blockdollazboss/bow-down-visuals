@@ -27,6 +27,9 @@ import {
   messagesTable,
   fanTiersTable,
   fanMembersTable,
+  contentWarningPreferencesTable,
+  CONTENT_WARNING_LABELS,
+  normalizeContentWarnings,
   type Attachment,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
@@ -104,6 +107,7 @@ import {
   type MemberPostLock,
 } from "../lib/close-friends";
 import { orderFanTiers } from "../lib/fan-tier-gate";
+import { contentCoverFor } from "../lib/content-warnings";
 import { affinityScore, forYouScore, whyReason } from "../lib/for-you";
 import { deriveCoPostState, isCoPostVisibleInFeed } from "../lib/co-posts";
 import { loadCoPostsGuarded, coAuthorSummaries, fetchProfilesById } from "../lib/co-posts-db";
@@ -1495,6 +1499,11 @@ const createPostSchema = z.object({
      null = any member. Validated against the author's own tiers in
      the handler; stored only for the members audience. */
   min_tier_id: z.string().uuid().optional().nullable(),
+  /* Content warnings (Wave 4 #40): the AUTHOR's own labels for this
+     post, any subset of the fixed set. Only the create route (and the
+     author-only PATCH below) ever writes them — nobody can label
+     another creator's post. */
+  content_warnings: z.array(z.enum(CONTENT_WARNING_LABELS)).max(CONTENT_WARNING_LABELS.length).optional().default([]),
   poll: z.array(z.string().trim().min(1).max(80)).min(2).max(4).optional(),
 });
 
@@ -1653,6 +1662,18 @@ async function enrichPosts(
     }
   }
 
+  /* Content warnings (Wave 4 #40): the viewer's own always-hide
+     labels, loaded once per batch and only when the batch actually
+     carries a labelled post — unlabelled batches never touch the
+     preferences table. The decision itself is lib/content-warnings'
+     contentCoverFor, applied per post in the map below. */
+  let viewerHiddenLabels: ReturnType<typeof normalizeContentWarnings> = [];
+  if (viewerUserId && rows.some((p) => ((p.contentWarnings ?? []) as string[]).length > 0)) {
+    const [pref] = await db.select().from(contentWarningPreferencesTable)
+      .where(eq(contentWarningPreferencesTable.userId, viewerUserId)).limit(1);
+    viewerHiddenLabels = normalizeContentWarnings(pref?.hiddenLabels ?? []);
+  }
+
   /* Stored media values may be storage refs (mirrored at save) — mint
      fresh URLs for attachments + author avatars on every read. Quoted
      posts arrive already refreshed via the recursive call above. */
@@ -1688,6 +1709,13 @@ async function enrichPosts(
           min_tier_id: p.minTierId ?? null,
           min_tier: minTierByPost.get(p.id) ?? null,
           member_lock: lock,
+          /* The lock dominates (Wave 4 #40 composition): the labels
+             still ride the teaser — they are metadata, and a member
+             deciding whether to join deserves to know the post is
+             labelled too — but there is no cover to lift and no reveal
+             behind a lock the viewer hasn't opened. */
+          content_warnings: normalizeContentWarnings(p.contentWarnings ?? []),
+          content_cover: null,
           like_count: p.likeCount,
           repost_count: p.repostCount,
           reply_count: p.replyCount,
@@ -1711,11 +1739,24 @@ async function enrichPosts(
          a raw spread — media, timestamps and counts silently broke when
          they did (post.media_urls / created_at / *_count all read
          snake_case on the client). */
+      /* Content warnings (Wave 4 #40): a labelled post's media is
+         covered for everyone but its author — media_urls leaves EMPTY
+         and content_cover names the warning, so the raw URL reaches no
+         client that hasn't explicitly revealed this one item. The
+         quoted post inside a quote was judged by the recursive call
+         above under its own labels, never this post's. */
+      const cwLabels = normalizeContentWarnings(p.contentWarnings ?? []);
+      const cwCover = contentCoverFor({
+        labels: cwLabels,
+        mediaCount: (p.mediaUrls ?? []).length,
+        isAuthor: !!viewerUserId && pmap.get(p.profileId)?.userId === viewerUserId,
+        viewerHiddenLabels,
+      });
       return {
         id: p.id,
         profile_id: p.profileId,
         body: p.body,
-        media_urls: await refreshSupabaseStorageUrlsDeep(p.mediaUrls ?? []),
+        media_urls: cwCover ? [] : await refreshSupabaseStorageUrlsDeep(p.mediaUrls ?? []),
         kind: p.kind,
         reply_to: p.replyTo,
         quote_of: p.quoteOf,
@@ -1726,6 +1767,8 @@ async function enrichPosts(
         min_tier_id: p.minTierId ?? null,
         min_tier: minTierByPost.get(p.id) ?? null,
         member_lock: null,
+        content_warnings: cwLabels,
+        content_cover: cwCover,
         like_count: p.likeCount,
         repost_count: p.repostCount,
         reply_count: p.replyCount,
@@ -2104,6 +2147,7 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
       scheduledFor,
       audience: d.audience,
       minTierId,
+      contentWarnings: normalizeContentWarnings(d.content_warnings),
     }).returning();
 
     if (d.poll && d.poll.length >= 2 && !scheduledFor) {
@@ -2296,6 +2340,124 @@ router.get("/posts/:id", async (req: Request, res: Response) => {
     return res.json({ post: enriched });
   } catch {
     return res.status(500).json({ error: "post_failed" });
+  }
+});
+
+/* ── Content warnings (Wave 4 #40) ───────────────────────────────────
+   The creator-applied label: set at publish (createPostSchema) or
+   changed afterwards by the AUTHOR ALONE (the PATCH below). Reads
+   cover a labelled post's media at the DTO layer (enrichPosts); the
+   reveal endpoint is the one door back, per item, and it follows the
+   exact visibility law of the single-post read above. */
+
+const contentWarningBodySchema = z.object({
+  content_warnings: z.array(z.enum(CONTENT_WARNING_LABELS)).max(CONTENT_WARNING_LABELS.length),
+});
+
+router.patch("/posts/:id/content-warning", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
+  try {
+    const me = await myProfile(req.userId!);
+    if (!me) return res.status(403).json({ error: "no_profile" });
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const parsed = contentWarningBodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    /* Author-only, by construction of the lookup: a post that isn't
+       the caller's simply isn't found — nobody else can add a label to
+       (or strip one from) another creator's post. */
+    const [post] = await db.select().from(postsTable)
+      .where(and(eq(postsTable.id, id), eq(postsTable.profileId, me.id))).limit(1);
+    if (!post) return res.status(404).json({ error: "not_found", message: "Only the author can change a post's content warning." });
+    const [updated] = await db.update(postsTable)
+      .set({ contentWarnings: normalizeContentWarnings(parsed.data.content_warnings) })
+      .where(eq(postsTable.id, id)).returning();
+    const [enriched] = await enrichPosts([updated], req.userId!);
+    return res.json({ post: enriched });
+  } catch {
+    return res.status(500).json({ error: "content_warning_failed" });
+  }
+});
+
+router.post("/posts/:id/content-warning/reveal", async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params["id"]);
+    if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [post] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+    if (!post) return res.status(404).json({ error: "not_found" });
+    const labels = normalizeContentWarnings(post.contentWarnings ?? []);
+    if (labels.length === 0) {
+      return res.status(400).json({ error: "no_content_warning", message: "This post carries no content warning — there is nothing to reveal." });
+    }
+    await optionalAuth(req);
+    const viewer = (req as Request & { userId?: string }).userId ?? null;
+    /* The reveal inherits the single-post read's visibility law: a
+       scoped post is a 404 to outsiders (its media doubly so); a
+       members post names its door instead — a members-only sensitive
+       post stays locked AND covered for a non-member. */
+    if (!(await postVisibleTo(post, viewer))) {
+      if (!post.removedAt && post.audience === "members") {
+        return res.status(403).json({ error: "members_only", message: "This post is for members only — join the fan club to see it." });
+      }
+      return res.status(404).json({ error: "not_found" });
+    }
+    /* The viewer's own stricter preference binds the reveal too: they
+       chose to always hide this label, and the door stays shut until
+       THEY change their own setting. Nobody else's preference — and
+       no request flag — can loosen a label. */
+    if (viewer) {
+      const [pref] = await db.select().from(contentWarningPreferencesTable)
+        .where(eq(contentWarningPreferencesTable.userId, viewer)).limit(1);
+      const hidden = normalizeContentWarnings(pref?.hiddenLabels ?? []);
+      const clash = labels.filter((l) => hidden.includes(l));
+      if (clash.length > 0) {
+        return res.status(403).json({
+          error: "hidden_by_preference",
+          labels: clash,
+          message: "You've chosen to always hide posts with this label — change it in Settings → Content warnings if you want to see it.",
+        });
+      }
+    }
+    return res.json({
+      post_id: post.id,
+      content_warnings: labels,
+      media_urls: await refreshSupabaseStorageUrlsDeep(post.mediaUrls ?? []),
+    });
+  } catch {
+    return res.status(500).json({ error: "reveal_failed" });
+  }
+});
+
+/* The viewer's own content-warning preference: which labels THEY
+   always hide entirely in their own feeds. Read/write own row only;
+   stricter-only by construction (see schema/content-warnings.ts). */
+router.get("/content-warning/preferences", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const [pref] = await db.select().from(contentWarningPreferencesTable)
+      .where(eq(contentWarningPreferencesTable.userId, req.userId!)).limit(1);
+    return res.json({ hidden_labels: normalizeContentWarnings(pref?.hiddenLabels ?? []) });
+  } catch {
+    return res.status(500).json({ error: "preferences_failed" });
+  }
+});
+
+const contentWarningPrefsBodySchema = z.object({
+  hidden_labels: z.array(z.enum(CONTENT_WARNING_LABELS)).max(CONTENT_WARNING_LABELS.length),
+});
+
+router.put("/content-warning/preferences", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const parsed = contentWarningPrefsBodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
+    const hiddenLabels = normalizeContentWarnings(parsed.data.hidden_labels);
+    await db.insert(contentWarningPreferencesTable)
+      .values({ userId: req.userId!, hiddenLabels })
+      .onConflictDoUpdate({
+        target: contentWarningPreferencesTable.userId,
+        set: { hiddenLabels, updatedAt: new Date() },
+      });
+    return res.json({ hidden_labels: hiddenLabels });
+  } catch {
+    return res.status(500).json({ error: "preferences_failed" });
   }
 });
 
@@ -2555,6 +2717,9 @@ router.post("/posts/:id/repost", requireAuth, w8WriteLimiter, async (req: Reques
 const quoteSchema = z.object({
   body: z.string().trim().min(1).max(500),
   media_urls: z.array(attachmentSchema).max(10).optional().default([]),
+  /* Content warnings (Wave 4 #40): the quoting author's own labels for
+     their quote post's media — same author-only rule as create. */
+  content_warnings: z.array(z.enum(CONTENT_WARNING_LABELS)).max(CONTENT_WARNING_LABELS.length).optional().default([]),
 });
 
 router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
@@ -2580,6 +2745,7 @@ router.post("/posts/:id/quote", requireAuth, w8WriteLimiter, async (req: Request
       mediaUrls: sanitizeAttachmentAlts(await mirrorAttachments(parsed.data.media_urls, req.userId!)) as unknown as Attachment[],
       kind: "quote",
       quoteOf: id,
+      contentWarnings: normalizeContentWarnings(parsed.data.content_warnings),
     }).returning();
     const [oa] = await db.select().from(creatorProfilesTable).where(eq(creatorProfilesTable.id, orig.profileId)).limit(1);
     if (oa && oa.userId !== req.userId) {

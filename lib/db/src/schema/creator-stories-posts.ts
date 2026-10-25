@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
 import { fanTiersTable } from "./fan-memberships";
+import type { ContentWarningLabel } from "./content-warnings";
 
 /**
  * Creator Streaming Platform — stories / posts / reactions (migration 0091).
@@ -99,6 +100,14 @@ export const postsTable = pgTable("posts", {
    *  Deleting the tier SETs this NULL (the post falls back to
    *  any-member — still members-only, never public). */
   minTierId:   uuid("min_tier_id").references(() => fanTiersTable.id, { onDelete: "set null" }),
+  /** Creator-applied content warnings (Wave 4 #40, migration 0238):
+   *  any subset of CONTENT_WARNING_LABELS (schema/content-warnings.ts),
+   *  chosen by the AUTHOR at publish time and changeable afterwards by
+   *  the author alone — nobody else can label another creator's post.
+   *  Enforced at READ time in the post DTO (routes/social enrichPosts):
+   *  a labelled post's media stays on the server, covered, until the
+   *  viewer taps to reveal that one item. Empty array = no label. */
+  contentWarnings: jsonb("content_warnings").$type<ContentWarningLabel[]>().notNull().default([]),
   likeCount:   integer("like_count").notNull().default(0),
   repostCount: integer("repost_count").notNull().default(0),
   replyCount:  integer("reply_count").notNull().default(0),
@@ -115,6 +124,7 @@ export const postsTable = pgTable("posts", {
   removalNote:   text("removal_note"),
 }, (t) => [
   check("posts_kind_check", sql`${t.kind} IN ('post','thread_reply','quote','repost')`),
+  check("posts_content_warnings_check", sql`jsonb_typeof(${t.contentWarnings}) = 'array'`),
   check("posts_removal_reason_check", sql`${t.removalReason} IS NULL OR ${t.removalReason} IN ('spam','harassment','hate_speech','violence','sexual_content','copyright','impersonation','other')`),
 ]);
 
