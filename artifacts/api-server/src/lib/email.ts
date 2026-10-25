@@ -135,26 +135,128 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
   }
 }
 
-/** Minimal gold/black branded shell shared by transactional emails. */
-export function emailShell(title: string, bodyHtml: string): string {
+/**
+ * ── Bow Down Visuals email design system (redesigned Oct 24, 2026) ──────────
+ *
+ * One branded shell for every transactional email: table-based layout +
+ * inline styles only (Gmail / Apple Mail / Outlook), the full illustrated
+ * logo lockup WHOLE at the top (EMAIL_LOGO_URL — never cropped, never the
+ * app icon, never an emoji), a black-marble header band, a golden-marble
+ * ivory card for the message, gold pill buttons, the King's sign-off, and
+ * the brand line in the footer.
+ *
+ * Client-proofing choice: the band carries its own near-black background
+ * and the card carries its own ivory background, so the design renders
+ * identically on light and dark client canvases — no reliance on client
+ * dark-mode behaviour. Body copy uses the on-card tokens below (dark ink
+ * + antique gold on ivory), which stay premium and legible even if a
+ * client strips backgrounds and forces everything onto white.
+ */
+
+/** Palette tokens shared by the shell and call-site email bodies. */
+export const EMAIL_COLORS = {
+  /** Deep warm black of the outer canvas. */
+  canvas: "#12100b",
+  /** Black-marble header band. */
+  band: "#0c0a07",
+  bandBorder: "#2b2416",
+  /** Golden-marble ivory of the body card. */
+  card: "#faf7f0",
+  cardBorder: "#e2d3a7",
+  /** Inset detail box (receipts, amounts, codes) on the card. */
+  box: "#f3ecdb",
+  boxBorder: "#d9c68d",
+  /** Main text on the card. */
+  ink: "#221c0e",
+  /** Secondary text on the card. */
+  body: "#4a4230",
+  /** Muted small print on the card. */
+  muted: "#8a7c5c",
+  /** Antique gold — accents, links and strong text ON the ivory card. */
+  goldDeep: "#a67c1a",
+  /** Bright gold — on the dark band/canvas, and the button fill. */
+  gold: "#d4af37",
+  goldDim: "#9a8c6a",
+} as const;
+
+const EMAIL_SERIF = "Georgia,'Times New Roman',Times,serif";
+const EMAIL_SANS =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+export interface EmailShellOpts {
+  /**
+   * Sign-off rendered under the body. Defaults to the King's sign-off —
+   * pass a string to override it, or `false` for internal mail (admin
+   * alerts) that should not speak in the King's voice.
+   */
+  signoff?: string | false;
+  /** Hidden inbox preview line shown by mail clients next to the subject. */
+  preheader?: string;
+}
+
+/**
+ * Bulletproof gold pill button (table-based so Outlook renders it too).
+ * Presentation only — `href` is used verbatim as the anchor target.
+ */
+export function emailButton(href: string, label: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 4px;"><tr><td align="center" bgcolor="${EMAIL_COLORS.gold}" style="border-radius:999px;background:${EMAIL_COLORS.gold};"><a href="${href}" style="display:inline-block;padding:13px 32px;font-family:${EMAIL_SANS};font-size:14px;font-weight:700;letter-spacing:0.4px;color:#171204;text-decoration:none;border-radius:999px;">${label}</a></td></tr></table>`;
+}
+
+/** Gold-bordered inset box for receipts / amounts / codes / report details. */
+export function emailDetailBox(innerHtml: string): string {
+  return `<div style="background:${EMAIL_COLORS.box};border:1px solid ${EMAIL_COLORS.boxBorder};border-radius:10px;padding:18px 20px;margin:0 0 18px;">${innerHtml}</div>`;
+}
+
+export function emailShell(
+  title: string,
+  bodyHtml: string,
+  opts: EmailShellOpts = {},
+): string {
+  const base = baseUrlForEmail();
+  const signoff =
+    opts.signoff === false
+      ? ""
+      : `<tr><td style="padding:2px 36px 30px;">
+<div style="border-top:1px solid ${EMAIL_COLORS.cardBorder};padding-top:18px;">
+<div style="font-family:${EMAIL_SERIF};font-style:italic;font-size:16px;color:${EMAIL_COLORS.goldDeep};">${opts.signoff ?? "— Thy Cheat Code"}</div>
+<div style="font-family:${EMAIL_SANS};font-size:12px;color:${EMAIL_COLORS.muted};margin-top:3px;">Your host at Bow Down Visuals</div>
+</div>
+</td></tr>`;
+  const preheader = opts.preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${EMAIL_COLORS.canvas};">${opts.preheader}</div>`
+    : "";
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:560px;margin:0 auto;padding:32px 24px;">
-<div style="text-align:center;margin-bottom:24px;">
-<img src="${EMAIL_LOGO_URL}" alt="Bow Down Visuals — The Content Creator's Cheat Code" width="240" height="240" style="width:240px;height:240px;">
-<div style="color:#d4af37;font-weight:800;font-size:20px;letter-spacing:1px;margin-top:8px;">THY CHEAT CODE</div>
-<div style="color:#888;font-size:12px;letter-spacing:3px;">BOW DOWN VISUALS</div>
-</div>
-<div style="background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:28px;color:#eee;">
-<div style="color:#d4af37;font-size:18px;font-weight:700;margin-bottom:16px;">${title}</div>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>${title}</title></head>
+<body style="margin:0;padding:0;background:${EMAIL_COLORS.canvas};">
+${preheader}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${EMAIL_COLORS.canvas};">
+<tr><td align="center" style="padding:36px 16px 40px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+<tr><td align="center" bgcolor="${EMAIL_COLORS.band}" style="background:${EMAIL_COLORS.band};border:1px solid ${EMAIL_COLORS.bandBorder};border-bottom:none;border-radius:16px 16px 0 0;padding:30px 24px 22px;">
+<img src="${EMAIL_LOGO_URL}" width="232" alt="Bow Down Visuals — The Content Creator's Cheat Code" style="display:block;width:232px;max-width:72%;height:auto;border:0;">
+<div style="font-family:${EMAIL_SANS};color:${EMAIL_COLORS.gold};font-weight:800;font-size:15px;letter-spacing:4px;margin-top:14px;">THY CHEAT CODE</div>
+</td></tr>
+<tr><td bgcolor="${EMAIL_COLORS.gold}" style="background:${EMAIL_COLORS.gold};font-size:0;line-height:0;height:3px;">&nbsp;</td></tr>
+<tr><td bgcolor="#57441a" style="background:#57441a;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr>
+<tr><td bgcolor="${EMAIL_COLORS.card}" style="background:${EMAIL_COLORS.card};border:1px solid ${EMAIL_COLORS.cardBorder};border-top:none;border-radius:0 0 16px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:30px 36px 0;">
+<div style="font-family:${EMAIL_SERIF};font-size:27px;line-height:1.25;font-weight:700;color:${EMAIL_COLORS.ink};">${title}</div>
+</td></tr>
+<tr><td style="padding:14px 36px 6px;font-family:${EMAIL_SANS};font-size:15px;line-height:1.65;color:${EMAIL_COLORS.body};">
 ${bodyHtml}
-</div>
-<div style="text-align:center;color:#666;font-size:12px;margin-top:20px;">
-This email was sent by Bow Down Visuals.<br>
-<a href="https://bowdownvisuals.com" style="color:#d4af37;">bowdownvisuals.com</a>
-</div>
-</div>
+</td></tr>
+${signoff}
+</table>
+</td></tr>
+<tr><td align="center" style="padding:24px 24px 0;">
+<div style="font-family:${EMAIL_SANS};font-size:12px;font-weight:700;letter-spacing:3px;color:${EMAIL_COLORS.gold};">BOW DOWN VISUALS</div>
+<div style="font-family:${EMAIL_SERIF};font-style:italic;font-size:13px;color:${EMAIL_COLORS.goldDim};margin-top:5px;">The Content Creator's Cheat Code</div>
+<div style="font-family:${EMAIL_SANS};font-size:12px;color:#6f6450;margin-top:12px;line-height:1.6;">This email was sent by Bow Down Visuals.<br><a href="${base}" style="color:${EMAIL_COLORS.gold};text-decoration:none;">bowdownvisuals.com</a></div>
+</td></tr>
+</table>
+</td></tr>
+</table>
 </body></html>`;
 }
 
