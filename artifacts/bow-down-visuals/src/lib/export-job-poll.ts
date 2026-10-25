@@ -13,13 +13,15 @@ export interface ExportJobPollResult {
   [key: string]: unknown;
 }
 
-/** Consecutive transient poll failures tolerated before the poller
- *  surfaces a failure (Stack-200 item 187). At the default 3s poll
- *  cadence this rides out ~15s+ of proxy/deploy turbulence — and far
- *  longer when callers poll more slowly — without masking a real
- *  outage: the budget is consecutive, and the overall deadline still
- *  applies throughout. */
-export const MAX_CONSECUTIVE_POLL_FAILURES = 5;
+import {
+  MAX_CONSECUTIVE_POLL_FAILURES,
+  PollFailureBudget,
+  isTransientPollHttpStatus,
+} from "./poll-tolerance";
+
+/* Re-exported for existing importers; the canonical definition lives in
+ * lib/poll-tolerance.ts, shared by every editor job poller. */
+export { MAX_CONSECUTIVE_POLL_FAILURES };
 
 class TransientPollError extends Error {}
 
@@ -81,7 +83,7 @@ export async function pollExportJob(opts: {
      up to a consecutive budget inside the same overall deadline; a
      non-transient HTTP error (4xx other than 429) still surfaces at
      once, and exhausting the budget surfaces the failure plainly. */
-  let consecutivePollFailures = 0;
+  const pollBudget = new PollFailureBudget();
 
   for (;;) {
     await new Promise((r) => setTimeout(r, pollMs));
@@ -99,19 +101,18 @@ export async function pollExportJob(opts: {
         signal: AbortSignal.timeout(30 * 1000),
       });
       if (!res.ok) {
-        if (res.status >= 500 || res.status === 429) {
+        if (isTransientPollHttpStatus(res.status)) {
           throw new TransientPollError(`Export status check failed (HTTP ${res.status})`);
         }
         throw new Error(`Export status check failed (HTTP ${res.status})`);
       }
       job = (await res.json()) as typeof job;
-      consecutivePollFailures = 0;
+      pollBudget.noteSuccess();
     } catch (err) {
       if (err instanceof Error && !(err instanceof TransientPollError) && err.message.startsWith("Export status check failed")) {
         throw err;
       }
-      consecutivePollFailures += 1;
-      if (consecutivePollFailures > MAX_CONSECUTIVE_POLL_FAILURES) {
+      if (!pollBudget.noteTransientFailure()) {
         throw new Error(
           "Export status checks kept failing — the export itself may still be rendering on the server. " +
             "Please wait a bit before trying again.",

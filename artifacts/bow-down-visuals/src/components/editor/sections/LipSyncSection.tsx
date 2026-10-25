@@ -19,6 +19,7 @@ import {
   lipSyncProviderLabel,
   type LipSyncResultMeta,
 } from "@/lib/lip-sync-result-meta";
+import { PollFailureBudget, isTransientPollHttpStatus } from "@/lib/poll-tolerance";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1478,15 +1479,17 @@ export function LipSyncSection({
         failed:                       "failed",
       };
 
+      const pollBudget = new PollFailureBudget();
+
       for (let i = 0; i < MAX_POLLS; i++) {
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
 
-        const pollRes  = await fetch(`/api/lip-sync/scene-test/${jobId}`, {
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
-        if (!pollRes.ok) throw new Error(`Poll failed: HTTP ${pollRes.status}`);
-
-        const job = (await pollRes.json()) as {
+        /* Transient tolerance (Stack-200 item 187): the scene-test job is
+           durable server-side, so one network blip / abort / 5xx while
+           polling must not kill the run. Tolerate a bounded run of
+           consecutive transient failures inside the same MAX_POLLS cap;
+           a real 4xx answer still surfaces at once. */
+        let job: {
           status:     string;
           step?:      string;
           resultUrl?: string;
@@ -1502,6 +1505,27 @@ export function LipSyncSection({
             lastError:      string | null;
           };
         };
+        try {
+          const pollRes = await fetch(`/api/lip-sync/scene-test/${jobId}`, {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          });
+          if (!pollRes.ok) {
+            if (isTransientPollHttpStatus(pollRes.status) && pollBudget.noteTransientFailure()) {
+              continue;
+            }
+            throw new Error(`Poll failed: HTTP ${pollRes.status}`);
+          }
+          job = (await pollRes.json()) as typeof job;
+          pollBudget.noteSuccess();
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("Poll failed: HTTP")) throw err;
+          if (!pollBudget.noteTransientFailure()) {
+            throw new Error(
+              "Status checks kept failing — the scene test may still be rendering on the server. Please try again in a bit.",
+            );
+          }
+          continue;
+        }
 
         /* Update step label */
         const stepLabel = STEP_LABELS[job.step ?? ""] ?? job.step ?? "running…";
@@ -4095,21 +4119,17 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
      so we allow up to 8 minutes total before giving up.                    */
   const deadline = Date.now() + 480_000;
   let syncLabsJobNotified = false;
+  const pollBudget = new PollFailureBudget();
 
   while (Date.now() < deadline) {
     await new Promise<void>(r => setTimeout(r, 3_000));
 
-    const pollRes = await fetch(`/api/lip-sync/job/${jobId}`, {
-      headers: { Authorization: `Bearer ${token ?? ""}` },
-      signal:  AbortSignal.timeout(15_000),
-    });
-
-    if (!pollRes.ok) {
-      const body = await pollRes.text().catch(() => "");
-      throw new Error(`Job polling failed: HTTP ${pollRes.status} — ${body.slice(0, 200)}`);
-    }
-
-    const job = await pollRes.json() as {
+    /* Transient tolerance (Stack-200 item 187): the lip-sync job is
+       durable server-side, so one network blip / 15s poll abort / 5xx
+       must not kill the client's view of a healthy job. Tolerate a
+       bounded run of consecutive transient failures inside the same
+       8-minute deadline; a real 4xx answer still surfaces at once. */
+    let job: {
       status:         string;
       url?:           string;
       provider?:      string;
@@ -4118,6 +4138,31 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       syncLabsJobId?: string;
       resultMeta?:    LipSyncResultMeta | null;
     };
+    try {
+      const pollRes = await fetch(`/api/lip-sync/job/${jobId}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        signal:  AbortSignal.timeout(15_000),
+      });
+
+      if (!pollRes.ok) {
+        if (isTransientPollHttpStatus(pollRes.status) && pollBudget.noteTransientFailure()) {
+          continue;
+        }
+        const body = await pollRes.text().catch(() => "");
+        throw new Error(`Job polling failed: HTTP ${pollRes.status} — ${body.slice(0, 200)}`);
+      }
+
+      job = await pollRes.json() as typeof job;
+      pollBudget.noteSuccess();
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("Job polling failed: HTTP")) throw err;
+      if (!pollBudget.noteTransientFailure()) {
+        throw new Error(
+          "Job status checks kept failing — the lip sync job may still be running on the server. Use 'Check Job Status' to follow up.",
+        );
+      }
+      continue;
+    }
 
     /* Notify caller the moment the Sync.so provider job ID becomes available */
     if (job.syncLabsJobId && !syncLabsJobNotified) {
