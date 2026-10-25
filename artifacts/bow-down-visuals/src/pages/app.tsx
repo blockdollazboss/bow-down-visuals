@@ -6,13 +6,14 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { APP_DOWNLOADS, formatDownloadSize } from "@/lib/app-downloads";
-import { markExtensionDownloaded } from "@/lib/extension-promo";
+import { markExtensionDownloaded, usePwaInstall } from "@/lib/extension-promo";
 import { markAndroidDownloaded, isAndroidDevice } from "@/lib/android-promo";
 import { markIOSInstalled, isIOSDevice } from "@/lib/ios-promo";
 import {
   Smartphone, Puzzle, Download as DownloadIcon, Check, ShieldCheck,
-  Share, Monitor, RefreshCw,
+  Share, Monitor, RefreshCw, ArrowDownToLine,
 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /* ─── Get the App — the app's public home (Stack-100 #3, lane app-page).
@@ -23,7 +24,18 @@ import { useTranslation } from "react-i18next";
    the artifacts' own metadata — never from copy. Modeled on how the
    reference app page operates (one page that IS the app's home) and
    styled with the same premium system as pages/download.tsx, which
-   stays as the members' download desk. ─── */
+   stays as the members' download desk.
+   Stack-29 app-install rebuild (Oct 25 2026, owner ruling): EVERY
+   card works the same — an Install action first and a Download
+   option second, side by side, no card second-class. Where the
+   platform hands us a real one-click install (the browser's own
+   beforeinstallprompt, captured app-wide by lib/extension-promo's
+   usePwaInstall), the Install button fires it; where a platform
+   genuinely has no one-click (iPhone — no prompt exists; the
+   extension before its Chrome Web Store listing), the Install slot
+   keeps the honest steps + note instead of faking a button, and
+   where no file exists (iPhone / desktop) the Download slot says
+   so plainly instead of inventing one. ─── */
 
 const APK_STEPS = [
   { title: "Download the APK", body: "Hit the gold Download button. It's the full Bow Down Visuals studio, packaged for Android." },
@@ -82,6 +94,30 @@ function StepsList({ steps }: { steps: { title: string; body: string }[] }) {
   );
 }
 
+/* One labeled action slot — every card carries the same two, in the
+   same order: Install first, Download second. The Download slot is
+   divided off so the two options read as a pair, never a hierarchy
+   of importance between cards. */
+function ActionSlot({ label, divider = false, children }: { label: string; divider?: boolean; children: React.ReactNode }) {
+  const isLight = useIsLightTheme();
+  return (
+    <div className={divider ? `border-t pt-5 ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}` : ""}>
+      <p className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{label}</p>
+      {children}
+    </div>
+  );
+}
+
+/* The honest Download-slot content for platforms with no file:
+   the slot stays, labeled like every other card's, and says plainly
+   that no file exists instead of inventing a dead button. */
+function NoFileNote({ text }: { text: string }) {
+  const isLight = useIsLightTheme();
+  return (
+    <p className={`rounded-xl border border-dashed p-4 text-xs leading-relaxed ${isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/15 text-white/50"}`}>{text}</p>
+  );
+}
+
 export default function AppPage() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
@@ -106,6 +142,72 @@ export default function AppPage() {
   const versionSize = (d: typeof APP_DOWNLOADS.android) =>
     t("appPage.versionSize", { version: d.version, size: formatDownloadSize(d.sizeBytes) });
 
+  const outlineBtn = `w-full text-base py-6 ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#2A1E07] hover:bg-[#C9A84C]/20" : "border-white/15 hover:bg-white/5"}`;
+
+  /* ── One-click install state, shared by the headline panel and the
+     Android / desktop cards so the whole page tells one truth. The
+     deferred prompt itself is captured app-wide at module level in
+     lib/extension-promo (usePwaInstall) — this page only renders it. */
+  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
+  const [acceptedInstall, setAcceptedInstall] = useState(false);
+  const installedNow = isInstalled || acceptedInstall;
+  const doInstall = async () => {
+    if (await promptInstall()) setAcceptedInstall(true);
+  };
+  const scrollToId = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+
+  /* The Install action for any surface whose one-click is the web-app
+     prompt: real prompt when the browser offers one, an honest
+     "Installed" state when the app is already on the device, and the
+     steps + browser-menu line when no prompt has fired (the browser
+     has not offered one — never a fake install). */
+  const renderInstallAction = (stepsId: string) => {
+    if (installedNow) {
+      return (
+        <Button disabled className={goldBtn}>
+          <Check className="h-5 w-5 mr-2" />{t("appPage.installed")}
+        </Button>
+      );
+    }
+    if (canInstall) {
+      return (
+        <Button className={goldBtn} onClick={doInstall}>
+          <ArrowDownToLine className="h-5 w-5 mr-2" />{t("appPage.installNow")}
+        </Button>
+      );
+    }
+    return (
+      <>
+        <Button className={goldBtn} onClick={() => scrollToId(stepsId)}>
+          <ArrowDownToLine className="h-5 w-5 mr-2" />{t("appPage.showMeHow")}
+        </Button>
+        <p className={`mt-3 text-center text-xs ${metaText}`}>{t("appPage.installMenuHint")}</p>
+      </>
+    );
+  };
+
+  /* The headline panel's action: same state machine, except iPhone —
+     where no prompt exists anywhere — gets the Share steps inline
+     right at the button instead of the menu hint, and Android without
+     a prompt routes to the Android card (its native path lives there). */
+  const headlineAction = onIOS && !installedNow ? (
+    <>
+      <Button
+        className={goldBtn}
+        onClick={() => {
+          markIOSInstalled();
+          scrollToId("ios-install-steps");
+        }}
+      >
+        <Share className="h-5 w-5 mr-2" />{t("appPage.showMeHow")}
+      </Button>
+      <p className={`mt-3 text-center text-xs ${metaText}`}>{t("appPage.iosInstallSteps")}</p>
+    </>
+  ) : (
+    renderInstallAction(onAndroid ? "android-card" : "desktop-install-steps")
+  );
+
   return (
     <div className="min-h-screen bg-black text-white">
       <JsonLd data={{
@@ -128,30 +230,48 @@ export default function AppPage() {
           </div>
         </LuxReveal>
 
+        {/* Headline one-click install — the browser's own installer,
+            device-aware; the per-platform cards below carry the same
+            Install + Download pair for every platform. */}
+        <LuxReveal>
+          <div className={`mb-10 rounded-3xl border p-8 text-center ${cardBase}`}>
+            <h2 className="text-2xl font-bold mb-2">{t("appPage.installTitle")}</h2>
+            <p className={`text-sm max-w-lg mx-auto ${subText}`}>{t("appPage.installBody")}</p>
+            <div className="mx-auto mt-6 max-w-md">{headlineAction}</div>
+          </div>
+        </LuxReveal>
+
         <div className="grid gap-6 md:grid-cols-2">
           {/* Android app card */}
           <LuxReveal>
-            <div className={`rounded-2xl border p-8 ${onAndroid ? cardHot : ""} ${cardBase}`}>
+            <div id="android-card" className={`rounded-2xl border p-8 ${onAndroid ? cardHot : ""} ${cardBase}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a84c]/40 bg-[#c9a84c]/10 mb-6">
                 <Smartphone className={`h-7 w-7 ${iconGold}`} />
               </div>
               <h2 className="text-2xl font-bold mb-2">{t("appPage.androidTitle")}</h2>
               <p className={`text-sm mb-6 ${subText}`}>{t("appPage.androidBody")}</p>
-              <ul className={`space-y-2 mb-8 text-sm ${liText}`}>
+              <ul className={`space-y-2 mb-6 text-sm ${liText}`}>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.androidPoint1")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.androidPoint2")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.androidPoint3")}</li>
               </ul>
-              <a href={APP_DOWNLOADS.android.url} download onClick={markAndroidDownloaded}>
-                <Button className={goldBtn}>
-                  <DownloadIcon className="h-5 w-5 mr-2" />{t("appPage.downloadApk")}</Button>
-              </a>
-              <p className={`mt-3 text-center text-xs ${metaText}`}>{versionSize(APP_DOWNLOADS.android)}</p>
-              <p className={`mt-1 text-center text-[11px] break-all ${metaText}`} title={APP_DOWNLOADS.android.sha256}>
-                {t("appPage.checksumLabel")}: {APP_DOWNLOADS.android.sha256.slice(0, 16)}…
-              </p>
+              <div className="space-y-5">
+                <ActionSlot label={t("appPage.installLabel")}>
+                  {renderInstallAction("apk-install-steps")}
+                </ActionSlot>
+                <ActionSlot label={t("appPage.downloadLabel")} divider>
+                  <a href={APP_DOWNLOADS.android.url} download onClick={markAndroidDownloaded}>
+                    <Button variant="outline" className={outlineBtn}>
+                      <DownloadIcon className="h-5 w-5 mr-2" />{t("appPage.downloadApk")}</Button>
+                  </a>
+                  <p className={`mt-3 text-center text-xs ${metaText}`}>{versionSize(APP_DOWNLOADS.android)}</p>
+                  <p className={`mt-1 text-center text-[11px] break-all ${metaText}`} title={APP_DOWNLOADS.android.sha256}>
+                    {t("appPage.checksumLabel")}: {APP_DOWNLOADS.android.sha256.slice(0, 16)}…
+                  </p>
+                </ActionSlot>
+              </div>
               {onAndroid && (
-                <p className={`mt-3 text-center text-xs ${hintText}`}>{t("appPage.androidHint")}</p>
+                <p className={`mt-4 text-center text-xs ${hintText}`}>{t("appPage.androidHint")}</p>
               )}
             </div>
           </LuxReveal>
@@ -164,20 +284,30 @@ export default function AppPage() {
               </div>
               <h2 className="text-2xl font-bold mb-2">{t("appPage.extensionTitle")}</h2>
               <p className={`text-sm mb-6 ${subText}`}>{t("appPage.extensionBody")}</p>
-              <ul className={`space-y-2 mb-8 text-sm ${liText}`}>
+              <ul className={`space-y-2 mb-6 text-sm ${liText}`}>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.extensionPoint1")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.extensionPoint2")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.extensionPoint3")}</li>
               </ul>
-              <a href={APP_DOWNLOADS.extension.url} download onClick={markExtensionDownloaded}>
-                <Button variant="outline" className={`w-full text-base py-6 ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#2A1E07] hover:bg-[#C9A84C]/20" : "border-white/15 hover:bg-white/5"}`}>
-                  <DownloadIcon className="h-5 w-5 mr-2" />{t("appPage.downloadExtension")}</Button>
-              </a>
-              <p className={`mt-3 text-center text-xs ${metaText}`}>{versionSize(APP_DOWNLOADS.extension)}</p>
-              <p className={`mt-1 text-center text-[11px] break-all ${metaText}`} title={APP_DOWNLOADS.extension.sha256}>
-                {t("appPage.checksumLabel")}: {APP_DOWNLOADS.extension.sha256.slice(0, 16)}…
-              </p>
-              <a href="/extension" className={`mt-3 block text-center text-xs ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white/70"}`}>{t("appPage.learnMore")}</a>
+              <div className="space-y-5">
+                <ActionSlot label={t("appPage.installLabel")}>
+                  <Button className={goldBtn} onClick={() => scrollToId("ext-install-steps")}>
+                    <Puzzle className="h-5 w-5 mr-2" />{t("appPage.showMeHow")}
+                  </Button>
+                  <p className={`mt-3 text-center text-xs ${metaText}`}>{t("appPage.extensionStoreNote")}</p>
+                </ActionSlot>
+                <ActionSlot label={t("appPage.downloadLabel")} divider>
+                  <a href={APP_DOWNLOADS.extension.url} download onClick={markExtensionDownloaded}>
+                    <Button variant="outline" className={outlineBtn}>
+                      <DownloadIcon className="h-5 w-5 mr-2" />{t("appPage.downloadExtension")}</Button>
+                  </a>
+                  <p className={`mt-3 text-center text-xs ${metaText}`}>{versionSize(APP_DOWNLOADS.extension)}</p>
+                  <p className={`mt-1 text-center text-[11px] break-all ${metaText}`} title={APP_DOWNLOADS.extension.sha256}>
+                    {t("appPage.checksumLabel")}: {APP_DOWNLOADS.extension.sha256.slice(0, 16)}…
+                  </p>
+                  <a href="/extension" className={`mt-3 block text-center text-xs ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white/70"}`}>{t("appPage.learnMore")}</a>
+                </ActionSlot>
+              </div>
             </div>
           </LuxReveal>
 
@@ -189,23 +319,30 @@ export default function AppPage() {
               </div>
               <h2 className="text-2xl font-bold mb-2">{t("appPage.iosTitle")}</h2>
               <p className={`text-sm mb-6 ${subText}`}>{t("appPage.iosBody")}</p>
-              <ul className={`space-y-2 mb-8 text-sm ${liText}`}>
+              <ul className={`space-y-2 mb-6 text-sm ${liText}`}>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.iosPoint1")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.iosPoint2")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.iosPoint3")}</li>
               </ul>
-              <Button
-                className={goldBtn}
-                onClick={() => {
-                  markIOSInstalled();
-                  document.getElementById("ios-install-steps")?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
-                <Share className="h-5 w-5 mr-2" />{t("appPage.showMeHow")}
-              </Button>
-              {onIOS && (
-                <p className={`mt-3 text-center text-xs ${hintText}`}>{t("appPage.iosHint")}</p>
-              )}
+              <div className="space-y-5">
+                <ActionSlot label={t("appPage.installLabel")}>
+                  <Button
+                    className={goldBtn}
+                    onClick={() => {
+                      markIOSInstalled();
+                      scrollToId("ios-install-steps");
+                    }}
+                  >
+                    <Share className="h-5 w-5 mr-2" />{t("appPage.showMeHow")}
+                  </Button>
+                  {onIOS && (
+                    <p className={`mt-3 text-center text-xs ${hintText}`}>{t("appPage.iosHint")}</p>
+                  )}
+                </ActionSlot>
+                <ActionSlot label={t("appPage.downloadLabel")} divider>
+                  <NoFileNote text={t("appPage.iosNoFile")} />
+                </ActionSlot>
+              </div>
             </div>
           </LuxReveal>
 
@@ -217,19 +354,19 @@ export default function AppPage() {
               </div>
               <h2 className="text-2xl font-bold mb-2">{t("appPage.desktopTitle")}</h2>
               <p className={`text-sm mb-6 ${subText}`}>{t("appPage.desktopBody")}</p>
-              <ul className={`space-y-2 mb-8 text-sm ${liText}`}>
+              <ul className={`space-y-2 mb-6 text-sm ${liText}`}>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.desktopPoint1")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.desktopPoint2")}</li>
                 <li className="flex items-center gap-2"><Check className={`h-4 w-4 ${iconGold}`} />{t("appPage.desktopPoint3")}</li>
               </ul>
-              <Button
-                className={goldBtn}
-                onClick={() => {
-                  document.getElementById("desktop-install-steps")?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
-                <Monitor className="h-5 w-5 mr-2" />{t("appPage.showMeHow")}
-              </Button>
+              <div className="space-y-5">
+                <ActionSlot label={t("appPage.installLabel")}>
+                  {renderInstallAction("desktop-install-steps")}
+                </ActionSlot>
+                <ActionSlot label={t("appPage.downloadLabel")} divider>
+                  <NoFileNote text={t("appPage.desktopNoFile")} />
+                </ActionSlot>
+              </div>
             </div>
           </LuxReveal>
         </div>
@@ -237,12 +374,12 @@ export default function AppPage() {
         {/* Install guides */}
         <h2 className="mt-16 text-xl font-bold text-center">{t("appPage.stepsTitle")}</h2>
         <div className={`mt-6 grid gap-8 md:grid-cols-2 rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
-          <div>
+          <div id="apk-install-steps">
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
               <ShieldCheck className={`h-5 w-5 ${iconGold}`} />{t("appPage.apkStepsTitle")}</h3>
             <StepsList steps={APK_STEPS} />
           </div>
-          <div>
+          <div id="ext-install-steps">
             <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
               <ShieldCheck className={`h-5 w-5 ${iconGold}`} />{t("appPage.extStepsTitle")}</h3>
             <StepsList steps={EXT_STEPS} />

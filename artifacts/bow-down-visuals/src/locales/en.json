@@ -3434,6 +3434,17 @@
     "updatesExtension": "Download the new zip from this page, unzip it, and hit Reload for Thy Cheat Code in chrome://extensions.",
     "updatesWebLabel": "iPhone, iPad & desktop web app",
     "updatesWeb": "Nothing to do — the web app updates itself every time you open it.",
+    "installLabel": "Install",
+    "downloadLabel": "Download",
+    "installTitle": "Install Bow Down Visuals",
+    "installBody": "One tap puts the whole studio on your device — its own icon, its own window, always up to date.",
+    "installNow": "Install the app",
+    "installed": "Installed on this device",
+    "installMenuHint": "No install button yet? Your browser keeps it in the address bar or the menu — your device's steps are below.",
+    "iosInstallSteps": "In Safari, tap Share, then “Add to Home Screen”, then Add — the app lands on your home screen.",
+    "extensionStoreNote": "Tap-to-install opens the day our Chrome Web Store listing goes live. Until then it installs by hand in about a minute — the steps are below.",
+    "iosNoFile": "There's no iPhone file to download — Apple installs web apps straight from Safari. The install above is the whole app.",
+    "desktopNoFile": "There's no .exe or .dmg — be wary of anyone offering one. The install above is the real desktop app.",
     "faqTitle": "Questions"
   },
   "email-list": {

@@ -134,11 +134,22 @@ export function usePwaInstall() {
     isInstalled,
     promptInstall: async () => {
       if (!deferredPwaPrompt) return false;
-      await deferredPwaPrompt.prompt();
-      const { outcome } = await deferredPwaPrompt.userChoice;
+      /* Consume the event up front: a deferred prompt can only ever be
+         prompted once, and other surfaces (the floating install card)
+         hold their own copy of it — if one of them got there first,
+         prompt() on this copy rejects. Clear + notify either way, and
+         report "not installed" instead of leaking an unhandled
+         rejection. */
+      const evt = deferredPwaPrompt;
       deferredPwaPrompt = null;
       pwaListeners.forEach((fn) => fn());
-      return outcome === "accepted";
+      try {
+        await evt.prompt();
+        const { outcome } = await evt.userChoice;
+        return outcome === "accepted";
+      } catch {
+        return false;
+      }
     },
   };
 }

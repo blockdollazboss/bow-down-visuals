@@ -3227,6 +3227,17 @@
     "updatesExtension": "このページから新しいzipをダウンロードして解凍し、chrome://extensionsでThy Cheat Codeの再読み込みを押してください。",
     "updatesWebLabel": "iPhone・iPad・デスクトップのウェブアプリ",
     "updatesWeb": "何もする必要はありません — ウェブアプリは開くたびに自動で更新されます。",
+    "installLabel": "インストール",
+    "downloadLabel": "ダウンロード",
+    "installTitle": "Bow Down Visuals をインストール",
+    "installBody": "ワンタップでスタジオ全体があなたのデバイスへ — 専用アイコン、専用ウィンドウ、いつでも最新。",
+    "installNow": "アプリをインストール",
+    "installed": "このデバイスにインストール済み",
+    "installMenuHint": "インストールボタンがまだ見当たりませんか？ブラウザのアドレスバーかメニューにあります — お使いのデバイス向けの手順は下にあります。",
+    "iosInstallSteps": "Safariで「共有」をタップし、次に「ホーム画面に追加」、そして「追加」をタップ — アプリがホーム画面に届きます。",
+    "extensionStoreNote": "ワンタップインストールは、Chrome ウェブストアの掲載が公開される日に開きます。それまでは手動でさっとインストールできます — 手順は下にあります。",
+    "iosNoFile": "iPhone向けのダウンロードファイルはありません — AppleはウェブアプリをSafariから直接インストールします。上のインストールがアプリのすべてです。",
+    "desktopNoFile": ".exeや.dmgは存在しません — 提供してくる相手にはご注意ください。上のインストールが本物のデスクトップアプリです。",
     "faqTitle": "よくある質問"
   },
   "email-list": {
