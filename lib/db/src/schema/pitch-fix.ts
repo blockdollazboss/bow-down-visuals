@@ -21,9 +21,22 @@ import { sql } from "drizzle-orm";
  *  pitch:    reviewing → approved → building → shipped
  *  fix/feedback: received → confirmed → fixing → fixed
  *
- * NO PRICES, NO REWARDS: this schema deliberately has no price, credit,
- * or reward column and no rail reads it — the reward question was never
- * ruled by the owner and stays uninvented (board item 196).
+ * NO PRICES: this section sells nothing and charges nothing.
+ *
+ * REWARDS (owner ruling, Oct 25, 18:12 EDT — the adopted recommendation
+ * in ~/workspace/pitch-fix-reward-recommendation.md): a SHIPPED pitch
+ * earns its pitcher 500 VB; a FIXED fix/feedback report earns its first
+ * reporter 100 VB, or 250 VB when its severity is blocks_me. Paid ONLY
+ * on the team-set Shipped/Fixed transition, exactly once per item, out
+ * of ONE shared 1,000 VB/week pool (separate from lib/quest-pool's
+ * 300/wk envelope); over-cap rewards QUEUE into the next week, never
+ * lost. reward_status tracks the money state on the item itself:
+ *   none       — not (or no longer) at a terminal status
+ *   queued     — terminal reached; waiting for pool room / processing
+ *   paid       — granted + strict-ledgered (terminal money state)
+ *   ineligible — a duplicate of an earlier item (first voice only)
+ * duplicate_of_id points a duplicate at the first submission it copies.
+ * Visual Bucs only — never cash.
  */
 
 export const PITCH_FIX_KINDS = ["pitch", "fix", "feedback"] as const;
@@ -62,6 +75,17 @@ export type FixBoardStatus = (typeof FIX_BOARD_STATUSES)[number];
 export const PITCH_FIX_MODERATION_STATUSES = ["pending", "approved", "rejected"] as const;
 export type PitchFixModerationStatus = (typeof PITCH_FIX_MODERATION_STATUSES)[number];
 
+export const PITCH_FIX_REWARD_STATUSES = ["none", "queued", "paid", "ineligible"] as const;
+export type PitchFixRewardStatus = (typeof PITCH_FIX_REWARD_STATUSES)[number];
+
+/** The ruled reward amounts (Visual Bucs only). */
+export const PITCH_REWARD_VB = 500;
+export const FIX_REWARD_VB = 100;
+export const FIX_CRITICAL_REWARD_VB = 250;
+/** The shared weekly pool cap — a SEPARATE envelope from the quest
+ *  pool's 300 VB/week; the two never draw from each other. */
+export const PITCH_FIX_WEEKLY_POOL_VB = 1000;
+
 export const pitchFixSubmissionsTable = pgTable("pitch_fix_submissions", {
   id:               uuid("id").primaryKey().defaultRandom(),
   kind:             text("kind").notNull(),
@@ -86,6 +110,12 @@ export const pitchFixSubmissionsTable = pgTable("pitch_fix_submissions", {
   /** Set when the team moves a pitch to shipped / a fix to fixed —
    *  drives the RECENTLY SHIPPED strip ordering. */
   shippedAt:        timestamp("shipped_at", { withTimezone: true }),
+  /** Reward rail (owner ruling Oct 25, 18:12 EDT) — see header. */
+  rewardStatus:     text("reward_status").notNull().default("none"),
+  rewardAmount:     integer("reward_amount"),
+  rewardQueuedAt:   timestamp("reward_queued_at", { withTimezone: true }),
+  rewardPaidAt:     timestamp("reward_paid_at", { withTimezone: true }),
+  duplicateOfId:    uuid("duplicate_of_id"),
   createdAt:        timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:        timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
@@ -97,7 +127,9 @@ export const pitchFixSubmissionsTable = pgTable("pitch_fix_submissions", {
   check("pitch_fix_submissions_rating_check", sql`${t.rating} IS NULL OR (${t.rating} >= 1 AND ${t.rating} <= 5)`),
   check("pitch_fix_submissions_status_check", sql`${t.status} IN ('reviewing', 'approved', 'building', 'shipped', 'received', 'confirmed', 'fixing', 'fixed')`),
   check("pitch_fix_submissions_moderation_check", sql`${t.moderationStatus} IN ('pending', 'approved', 'rejected')`),
+  check("pitch_fix_submissions_reward_status_check", sql`${t.rewardStatus} IN ('none', 'queued', 'paid', 'ineligible')`),
   index("pitch_fix_submissions_board_idx").on(t.moderationStatus, t.kind, t.status, t.createdAt),
+  index("pitch_fix_submissions_reward_idx").on(t.rewardStatus, t.rewardQueuedAt),
   index("pitch_fix_submissions_submitter_idx").on(t.submitterUserId, t.createdAt),
 ]);
 

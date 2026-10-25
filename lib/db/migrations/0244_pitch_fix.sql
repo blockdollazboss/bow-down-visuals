@@ -19,9 +19,21 @@
 -- hard cap reads — a prompt may show at most once per 7 days per
 -- account, counted from the SHOWING (submit or dismiss alike).
 --
--- NO PRICES AND NO REWARDS: no price, credit, or reward column exists
--- anywhere in this migration — the shipped-idea reward question was
--- never ruled and stays uninvented.
+-- NO PRICES: this section sells nothing and charges nothing.
+--
+-- REWARDS (owner ruling, Oct 25, 18:12 EDT; the adopted recommendation
+-- in pitch-fix-reward-recommendation.md): shipped pitch = 500 VB to
+-- the pitcher; fixed fix/feedback report = 100 VB to the first
+-- reporter (250 VB when severity is blocks_me). Paid ONLY on the
+-- team-set Shipped/Fixed transition, exactly once per item, from ONE
+-- shared 1,000 VB/week pool (separate from the quest pool's 300/wk).
+-- Over-cap rewards queue into the next week — queued, never lost.
+-- reward_status: none / queued / paid / ineligible (a duplicate of an
+-- earlier item, pointed at by duplicate_of_id — first voice only).
+-- Visual Bucs only, never cash. Grants land through the referral
+-- pattern: claim -> addCreditsAtomic -> strict credit_usage ledger row
+-- keyed pitch-fix-reward:<submission_id>; failure claws back and
+-- releases the claim to queued so a later run retries it.
 --
 -- Idempotent: safe to re-run as a no-op. No BEGIN/COMMIT, no CONCURRENTLY.
 
@@ -44,6 +56,11 @@ CREATE TABLE IF NOT EXISTS pitch_fix_submissions (
   moderated_by_user_id uuid,
   moderated_at timestamptz,
   shipped_at timestamptz,
+  reward_status text NOT NULL DEFAULT 'none',
+  reward_amount integer,
+  reward_queued_at timestamptz,
+  reward_paid_at timestamptz,
+  duplicate_of_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT pitch_fix_submissions_kind_check CHECK (kind IN ('pitch', 'fix', 'feedback')),
@@ -53,13 +70,30 @@ CREATE TABLE IF NOT EXISTS pitch_fix_submissions (
   CONSTRAINT pitch_fix_submissions_severity_check CHECK (severity IS NULL OR severity IN ('blocks_me', 'annoying', 'small')),
   CONSTRAINT pitch_fix_submissions_rating_check CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5)),
   CONSTRAINT pitch_fix_submissions_status_check CHECK (status IN ('reviewing', 'approved', 'building', 'shipped', 'received', 'confirmed', 'fixing', 'fixed')),
-  CONSTRAINT pitch_fix_submissions_moderation_check CHECK (moderation_status IN ('pending', 'approved', 'rejected'))
+  CONSTRAINT pitch_fix_submissions_moderation_check CHECK (moderation_status IN ('pending', 'approved', 'rejected')),
+  CONSTRAINT pitch_fix_submissions_reward_status_check CHECK (reward_status IN ('none', 'queued', 'paid', 'ineligible'))
 );
 
 CREATE INDEX IF NOT EXISTS pitch_fix_submissions_board_idx
   ON pitch_fix_submissions (moderation_status, kind, status, created_at);
 CREATE INDEX IF NOT EXISTS pitch_fix_submissions_submitter_idx
   ON pitch_fix_submissions (submitter_user_id, created_at);
+CREATE INDEX IF NOT EXISTS pitch_fix_submissions_reward_idx
+  ON pitch_fix_submissions (reward_status, reward_queued_at);
+
+-- Re-runs on a database where the first 0244 shape already landed add
+-- the reward columns idempotently (no-op where they already exist).
+ALTER TABLE pitch_fix_submissions ADD COLUMN IF NOT EXISTS reward_status text NOT NULL DEFAULT 'none';
+ALTER TABLE pitch_fix_submissions ADD COLUMN IF NOT EXISTS reward_amount integer;
+ALTER TABLE pitch_fix_submissions ADD COLUMN IF NOT EXISTS reward_queued_at timestamptz;
+ALTER TABLE pitch_fix_submissions ADD COLUMN IF NOT EXISTS reward_paid_at timestamptz;
+ALTER TABLE pitch_fix_submissions ADD COLUMN IF NOT EXISTS duplicate_of_id uuid;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pitch_fix_submissions_reward_status_check') THEN
+    ALTER TABLE pitch_fix_submissions ADD CONSTRAINT pitch_fix_submissions_reward_status_check CHECK (reward_status IN ('none', 'queued', 'paid', 'ineligible'));
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS pitch_fix_votes (
   submission_id uuid NOT NULL,
