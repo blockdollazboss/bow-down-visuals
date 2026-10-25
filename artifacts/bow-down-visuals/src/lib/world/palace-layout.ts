@@ -1326,6 +1326,47 @@ export function resolvePalaceMove(
   return { x: from.x, z: from.z, room: from.room, entered: null };
 }
 
+/** A doorway crossing that actually fired (a presence transfer). */
+export interface CrossingRecord {
+  from: string;
+  to: string;
+  atMs: number;
+  x: number;
+  z: number;
+}
+
+/** How long after a crossing a reversal at the same doorway is a
+ *  flap, not a journey (ms). */
+export const ROOM_FLAP_WINDOW_MS = 3000;
+/** How close to the crossing point a reversal must be to count as
+ *  standing on the edge (m) — a reversal farther away is a genuine
+ *  walk back through the door and fires at once. */
+export const ROOM_FLAP_RADIUS_M = 1.5;
+
+/**
+ * Room-boundary flap guard. The portal plane is a knife edge: a
+ * walker standing in a doorway apron (pacing the arch looking at
+ * the guards, say) crosses the plane again and again, and every
+ * crossing used to fire a presence transfer plus a "You walked
+ * into…" feed line — the owner's Oct 25 walk spammed eight. A
+ * crossing straight BACK to the room just left, within the window
+ * and near the crossing point, is the edge flapping, not a room
+ * change: the caller holds the current room and stays silent. An
+ * honest walk-through is untouched — the first crossing always
+ * fires, and a reversal once the window lapses (or from deeper in
+ * the room) fires as the real crossing it is.
+ */
+export function crossingIsFlap(
+  last: CrossingRecord | null,
+  next: { room: string; x: number; z: number },
+  nowMs: number,
+): boolean {
+  if (!last) return false;
+  if (next.room !== last.from) return false;
+  if (nowMs - last.atMs > ROOM_FLAP_WINDOW_MS) return false;
+  return Math.hypot(next.x - last.x, next.z - last.z) <= ROOM_FLAP_RADIUS_M;
+}
+
 /* ── Third-person camera collision (item 44) ──────────────────────
  * The follow camera's world spot is clamped to the room's
  * camClamp (the walls), but a clamp box knows nothing of props:
