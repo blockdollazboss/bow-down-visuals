@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
+import { fanTiersTable } from "./fan-memberships";
 
 /**
  * Creator Streaming Platform — stories / posts / reactions (migration 0091).
@@ -85,8 +86,19 @@ export const postsTable = pgTable("posts", {
   groupId:     uuid("group_id"),
   /** NULL = published now; future = hidden until then (feed filters by time — no cron). 4+ stars. */
   scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
-  /** 'public' | 'followers' — audience targeting (4+ stars). */
+  /** 'public' | 'followers' | 'close_friends' | 'members' — audience
+   *  targeting (4+ stars). 'members' (Wave 4 #33, migration 0233) gates
+   *  the post to the author's fan club, enforced at READ time on every
+   *  surface like the other scoped audiences. */
   audience:    text("audience").notNull().default("public"),
+  /** Members-only posts (migration 0233): the minimum fan tier on the
+   *  AUTHOR's own ladder (fan_tiers) that opens the post — "this tier
+   *  and up", the fan-tier-gate ladder semantics. NULL = any member of
+   *  the author, whatever their tier. Meaningless unless
+   *  audience = 'members' (the create route stores NULL otherwise).
+   *  Deleting the tier SETs this NULL (the post falls back to
+   *  any-member — still members-only, never public). */
+  minTierId:   uuid("min_tier_id").references(() => fanTiersTable.id, { onDelete: "set null" }),
   likeCount:   integer("like_count").notNull().default(0),
   repostCount: integer("repost_count").notNull().default(0),
   replyCount:  integer("reply_count").notNull().default(0),
