@@ -75,6 +75,51 @@ import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../../lib/affiliates";
 import { detectWishlistPriceDrop } from "../../lib/wishlists";
 import { ALT_TEXT_MAX_CHARS, sanitizeAltText } from "../../lib/alt-text";
+import {
+  cleanCommercePixels,
+  sanitizeCommercePixels,
+  NO_PIXELS,
+  type CommercePixels,
+} from "../../lib/commerce-pixels";
+
+/* Commerce tracking pixels (wave-4 #41, migration 0240): the shop
+   owner's own Meta/TikTok/Google IDs on the shops row — same probe
+   discipline as the alt-text/splits columns. Reads present sanitized
+   pixels only when the columns exist; a pixel WRITE before the
+   migration lands answers 503 instead of silently dropping an
+   ad-tracking setting. No IDs set = nothing ever fires (the release
+   rail's consent rule, mirrored — never wider). */
+let shopPixelColsKnown: boolean | null = null;
+async function shopsHavePixels(): Promise<boolean> {
+  if (shopPixelColsKnown !== null) return shopPixelColsKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'shops' AND column_name = 'meta_pixel_id'
+      LIMIT 1
+    `);
+    shopPixelColsKnown = r.rows.length > 0;
+  } catch {
+    shopPixelColsKnown = false;
+  }
+  return shopPixelColsKnown;
+}
+
+/** The shop's pixels for a public/checkout surface: sanitized (bent
+ *  stored shapes present as "not configured"), all-null when the
+ *  columns haven't landed or the shop is gone. */
+async function pixelsForShop(shopId: string): Promise<CommercePixels> {
+  if (!(await shopsHavePixels())) return { ...NO_PIXELS };
+  try {
+    const r = await db.execute(sql`
+      SELECT meta_pixel_id, tiktok_pixel_id, google_tag_id
+      FROM shops WHERE id = ${shopId} LIMIT 1
+    `);
+    return sanitizeCommercePixels(r.rows[0] as Parameters<typeof sanitizeCommercePixels>[0]);
+  } catch {
+    return { ...NO_PIXELS };
+  }
+}
 
 /* #29: shop_products.image_alt_text (accessibility description of the
    product shot) lands via a held migration — numbering is assigned at
@@ -272,6 +317,12 @@ const updateShopSchema = z.object({
   banner_color: z.string().regex(HEX_COLOR, "Must be a hex color like #0a0a0a.").optional(),
   accent_color: z.string().regex(HEX_COLOR, "Must be a hex color like #d4af37.").optional(),
   banner_image_url: z.string().trim().max(2000).optional(),
+  /* Commerce tracking pixels (wave-4 #41): the owner's own ad-platform
+     IDs. "" clears; invalid shapes are refused on save (never stored
+     bent), mirroring the release rail's cleanPixelId rule. */
+  meta_pixel_id: z.string().max(64).optional(),
+  tiktok_pixel_id: z.string().max(64).optional(),
+  google_tag_id: z.string().max(64).optional(),
 });
 
 const createProductSchema = z.object({
@@ -351,6 +402,13 @@ interface ShopRow {
   banner_image_url: string | null;
   custom_domain: string | null;
   domain_verified: boolean;
+  /* Commerce pixels (wave-4 #41, migration 0240) — optional: selects
+     include the columns only once the migration lands. Owner DTOs
+     carry them (settings), public payloads get the sanitized
+     `pixels` object instead of the raw columns. */
+  meta_pixel_id?: string | null;
+  tiktok_pixel_id?: string | null;
+  google_tag_id?: string | null;
   domain_verification_token: string | null;
   created_at: string;
   updated_at: string;
@@ -397,7 +455,7 @@ async function getOwnedShop(shopId: string, userId: string): Promise<ShopRow | n
   const result = await db.execute(sql`
     SELECT id, user_id, name, handle, tagline, description,
            banner_color, accent_color, banner_image_url,
-           custom_domain, domain_verified, domain_verification_token,
+           custom_domain, domain_verified, domain_verification_token${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``},
            created_at, updated_at
     FROM shops
     WHERE id = ${shopId} AND user_id = ${userId}
@@ -648,7 +706,7 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
   const result = await db.execute(sql`
     SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
            s.banner_color, s.accent_color, s.banner_image_url,
-           s.custom_domain, s.domain_verified,
+           s.custom_domain, s.domain_verified${await shopsHavePixels() ? sql`, s.meta_pixel_id, s.tiktok_pixel_id, s.google_tag_id` : sql``},
            s.created_at, s.updated_at
     FROM shops s
     WHERE s.user_id = ${userId}
@@ -670,6 +728,7 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
     shops: await Promise.all(
       (result.rows as unknown as Array<{ id: string; banner_image_url: string | null }>).map(async (s) => ({
         ...(await presentShopRow(s)),
+        pixels: sanitizeCommercePixels(s as Parameters<typeof sanitizeCommercePixels>[0]),
         product_count: byShop.get(s.id) ?? 0,
       })),
     ),
@@ -724,6 +783,31 @@ router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  /* Commerce pixels (wave-4 #41): validate the whole pixel save BEFORE
+     any mutation — a refused ID changes nothing at all. A pixel write
+     on a pre-migration install answers an honest 503; the rest of the
+     shop update keeps working there when no pixel fields are sent. */
+  const pixelTouched =
+    d.meta_pixel_id !== undefined || d.tiktok_pixel_id !== undefined || d.google_tag_id !== undefined;
+  let nextPixels: CommercePixels | null = null;
+  if (pixelTouched) {
+    if (!(await shopsHavePixels())) {
+      res.status(503).json({
+        error: "commerce_pixels_not_ready",
+        message: "Tracking pixels aren't switched on for this install yet — nothing was saved.",
+      });
+      return;
+    }
+    const cleaned = cleanCommercePixels(
+      { metaPixelId: d.meta_pixel_id, tiktokPixelId: d.tiktok_pixel_id, googleTagId: d.google_tag_id },
+      sanitizeCommercePixels(shop),
+    );
+    if (!cleaned.ok) {
+      res.status(400).json({ error: cleaned.error });
+      return;
+    }
+    nextPixels = cleaned.value;
+  }
   const bannerImageUrl = d.banner_image_url
     ? ((await mirrorExternalMediaUrl(d.banner_image_url, { kind: "image", ownerKey: req.userId! })) ?? d.banner_image_url)
     : null;
@@ -734,11 +818,15 @@ router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
       description = COALESCE(${d.description ?? null}, description),
       banner_color = COALESCE(${d.banner_color ?? null}, banner_color),
       accent_color = COALESCE(${d.accent_color ?? null}, accent_color),
-      banner_image_url = COALESCE(${bannerImageUrl}, banner_image_url),
+      banner_image_url = COALESCE(${bannerImageUrl}, banner_image_url)${nextPixels ? sql`,
+      meta_pixel_id = ${nextPixels.metaPixelId},
+      tiktok_pixel_id = ${nextPixels.tiktokPixelId},
+      google_tag_id = ${nextPixels.googleTagId}` : sql``},
       updated_at = NOW()
     WHERE id = ${shop.id}
   `);
-  res.json({ shop: await getOwnedShop(shop.id, req.userId!) });
+  const updated = await getOwnedShop(shop.id, req.userId!);
+  res.json({ shop: updated ? { ...updated, pixels: sanitizeCommercePixels(updated) } : updated });
 });
 
 /* ── DELETE /api/shops/:id — delete my shop (free) ───────────────────────── */
@@ -759,7 +847,7 @@ router.get("/shops/handle/:handle", async (req, res) => {
   const handle = normalizeHandle(req.params.handle);
   const shopResult = await db.execute(sql`
     SELECT id, name, handle, tagline, description,
-           banner_color, accent_color, banner_image_url, created_at
+           banner_color, accent_color, banner_image_url, created_at${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``}
     FROM shops
     WHERE handle = ${handle}
     LIMIT 1
@@ -801,8 +889,15 @@ router.get("/shops/handle/:handle", async (req, res) => {
       if (t) bumpTargets.set(t.id, t);
     }
   }
+  /* Commerce pixels (wave-4 #41): the public payload carries ONLY the
+     sanitized pixels object — the raw columns never leave. No IDs
+     configured → all null → the shop page fires nothing. */
+  const { meta_pixel_id: _mp, tiktok_pixel_id: _tp, google_tag_id: _gt, ...publicShopRow } = shop as typeof shop & {
+    meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
+  };
   res.json({
-    shop: await presentShopRow(shop),
+    shop: await presentShopRow(publicShopRow as typeof shop),
+    pixels: sanitizeCommercePixels(shop as Parameters<typeof sanitizeCommercePixels>[0]),
     products: await Promise.all(
       productRows.map(async (p) => {
         const { pinned_ugc_ad_id, ...pub } = p;
@@ -1701,7 +1796,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
   const shopResult = await db.execute(sql`
     SELECT id, user_id, name, handle, tagline, description,
            banner_color, accent_color, banner_image_url,
-           custom_domain, domain_verified, created_at
+           custom_domain, domain_verified, created_at${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``}
     FROM shops
     WHERE handle = ${slug}
     LIMIT 1
@@ -1711,7 +1806,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     const byProfileResult = await db.execute(sql`
       SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
              s.banner_color, s.accent_color, s.banner_image_url,
-             s.custom_domain, s.domain_verified, s.created_at
+             s.custom_domain, s.domain_verified, s.created_at${await shopsHavePixels() ? sql`, s.meta_pixel_id, s.tiktok_pixel_id, s.google_tag_id` : sql``}
       FROM shops s
       JOIN creator_profiles cp ON cp.user_id = s.user_id
       WHERE cp.slug = ${slug}
@@ -1737,7 +1832,9 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     ORDER BY created_at ASC
     LIMIT 200
   `);
-  const { user_id, ...publicShop } = shop;
+  const { user_id, meta_pixel_id: _rawMp, tiktok_pixel_id: _rawTp, google_tag_id: _rawGt, ...publicShop } = shop as typeof shop & {
+    meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
+  };
   /* Fire-and-forget analytics — never blocks the page. */
   recordView(shop.id, user_id, req.ip);
   const rawProducts = productsResult.rows as unknown as Array<
@@ -1771,6 +1868,9 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
   });
   res.json(await refreshSupabaseStorageUrlsDeep({
     shop: publicShop,
+    /* Commerce pixels (wave-4 #41): sanitized object only — raw
+       columns were stripped above. All null = the page fires nothing. */
+    pixels: sanitizeCommercePixels(shop as Parameters<typeof sanitizeCommercePixels>[0]),
     products: buyerProducts,
     platformFeePct: PLATFORM_FEE_PCT,
   }));
@@ -2336,11 +2436,16 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
     res.status(404).json({ error: "Order not found for that checkout session." });
     return;
   }
+  /* Commerce pixels (wave-4 #41): the seller shop's sanitized pixels
+     ride the verify payload so the shop page can fire its Purchase
+     event at this checkout-success path — and only here, only when
+     the seller configured IDs. */
+  const shopPixels = await pixelsForShop(String(rows[0]?.shop_id ?? ""));
   if (marketSaleIsPaid(rows)) {
     const receipt = marketSaleReceipt(rows);
     /* The receipt itself carries status/paid — spreading it last is
        the whole shape; no duplicate literals. */
-    res.json({ duplicate: true, sessionId, order: receipt, ...receipt });
+    res.json({ duplicate: true, sessionId, order: receipt, pixels: shopPixels, ...receipt });
     return;
   }
   let session;
@@ -2356,7 +2461,7 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
   }
   if (session.payment_status !== "paid") {
     const receipt = marketSaleReceipt(rows);
-    res.json({ sessionId, order: receipt, ...receipt });
+    res.json({ sessionId, order: receipt, pixels: shopPixels, ...receipt });
     return;
   }
   /* A gift-card group was charged only its amount DUE (gross minus
@@ -2380,7 +2485,7 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
   const { flipped, rows: after } = await markMarketSalePaid(sessionId);
   const receipt = marketSaleReceipt(after);
   logger.info({ sessionId, flipped }, "[storefronts] checkout verified — sale recorded");
-  res.json({ duplicate: flipped === 0, sessionId, order: receipt, ...receipt });
+  res.json({ duplicate: flipped === 0, sessionId, order: receipt, pixels: shopPixels, ...receipt });
 });
 
 /* ── GET /api/storefronts/checkout/status?sessionId= — DB truth, read-only ─
@@ -2399,7 +2504,7 @@ router.get("/storefronts/checkout/status", publicApiLimiter, async (req, res) =>
     return;
   }
   const receipt = marketSaleReceipt(rows);
-  res.json({ sessionId, ...receipt, order: receipt });
+  res.json({ sessionId, ...receipt, order: receipt, pixels: await pixelsForShop(String(rows[0]?.shop_id ?? "")) });
 });
 
 /* ════════════════════════════════════════════════════════════════════════
