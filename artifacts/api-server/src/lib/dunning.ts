@@ -204,7 +204,11 @@ export function episodeStartFromDunningRef(ref: string): Date | null {
  *  regardless of due-ness — the automation runner's eventAt + delay
  *  gates decide what fires on a given sweep, exactly like the other
  *  kinds. Members not in past_due produce nothing: the chase stops
- *  the moment the row says the payment reality changed. */
+ *  the moment the row says the payment reality changed. That includes
+ *  a PAUSED member (wave-4 #39): pause is the willing fan's rest, not
+ *  a failed payment — a paused row is never past_due (pause requires
+ *  an active seat, and resuming a paused seat never writes past_due),
+ *  so a resting fan is never chased. The two rescues stay separate. */
 export function dunningTriggersForMember(
   m: DunningMemberLike,
   email: string,

@@ -40,7 +40,7 @@ interface ForumGateKnock {
   channel: { id: string; name: string; description: string };
   required_tier: { id: string; name: string } | null;
   join_url: string | null;
-  viewer_status: "not_member" | "below_tier" | "lapsed";
+  viewer_status: "not_member" | "below_tier" | "lapsed" | "paused";
   message: string;
   history_note: string;
 }
@@ -643,7 +643,7 @@ export default function GroupDetail() {
                       <p className="mx-auto mt-2 max-w-md text-xs text-white/40">{knock.history_note}</p>
                       {knock.join_url ? (
                         <Link href={knock.join_url} className={`${goldButton} mt-4 inline-block`}>
-                          {knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
+                          {knock.viewer_status === "paused" ? "Resume your membership" : knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
                         </Link>
                       ) : (
                         <p className="mt-4 text-sm text-white/50">Ask the group owner how to join their fan club.</p>

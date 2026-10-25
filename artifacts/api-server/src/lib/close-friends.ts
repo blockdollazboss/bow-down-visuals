@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, closeFriendsTable } from "@workspace/db";
 import {
+  effectiveFanMemberStatus,
   evaluateTierGate,
   fanMembershipAdmits,
   fanTierRank,
@@ -101,9 +102,15 @@ export function evaluateMemberPost(
   /* Any member of the author, whatever their tier. */
   let best: { rank: number; tier: FanTierLike } | null = null;
   let heldAny = false;
+  let heldPaused = false;
   for (const m of gate.members) {
     heldAny = true;
-    if (!fanMembershipAdmits(m, now)) continue;
+    if (!fanMembershipAdmits(m, now)) {
+      /* A resting member (#39) is told they're paused, not that their
+         membership "ended" — it hasn't. */
+      if (effectiveFanMemberStatus(m, now) === "paused") heldPaused = true;
+      continue;
+    }
     const rank = fanTierRank(gate.tiers, m.tier_id);
     if (rank < 0) continue; // a tier outside this author's ladder (defensive; rows are creator-scoped)
     if (!best || rank > best.rank) best = { rank, tier: gate.tiers[rank]! };
@@ -115,7 +122,7 @@ export function evaluateMemberPost(
   return {
     gated: true,
     hasAccess: false,
-    viewerStatus: heldAny ? "lapsed" : "not_member",
+    viewerStatus: heldPaused ? "paused" : heldAny ? "lapsed" : "not_member",
     requiredTier: null,
     viewerTier,
   };
@@ -134,7 +141,7 @@ export interface MemberPostLock {
   creator_user_id: string;
   /** The existing membership join door for the author's fan club. */
   join_url: string;
-  viewer_status: "not_member" | "below_tier" | "lapsed";
+  viewer_status: "not_member" | "below_tier" | "lapsed" | "paused";
   viewer_tier: { id: string; name: string } | null;
   message: string;
 }
@@ -148,7 +155,9 @@ export function buildMemberPostLock(opts: {
   const name = opts.authorDisplayName ?? "this creator";
   const tierName = evaluation.requiredTier?.name;
   let message: string;
-  if (evaluation.viewerStatus === "lapsed") {
+  if (evaluation.viewerStatus === "paused") {
+    message = "Your membership is paused right now, so this post is asleep for you too. Resume your membership and you're straight back in.";
+  } else if (evaluation.viewerStatus === "lapsed") {
     message = tierName
       ? `Your membership has ended, so this post is closed for now. Rejoin at the ${tierName} tier or above and you're straight back in.`
       : "Your membership has ended, so this post is closed for now. Rejoin the fan club and you're straight back in.";

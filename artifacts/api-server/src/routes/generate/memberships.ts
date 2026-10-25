@@ -28,6 +28,14 @@ import {
   pastDueSince,
   recoveryForMember,
 } from "../../lib/dunning";
+import {
+  isValidPauseMonths,
+  pauseElapsedMs,
+  pauseResumeDate,
+  pausedEffectiveStatus,
+  PAUSE_MAX_MONTHS,
+  PAUSE_MIN_MONTHS,
+} from "../../lib/membership-pause";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
@@ -55,6 +63,16 @@ const router = Router();
    checkout; verify reactivates), the creator works it from
    GET /memberships/recovery, and once grace runs out unpaid the seat
    reads expired at exactly the date the fan was told.
+   Pause (#39): a willing-but-broke fan rests 1–3 months instead of
+   cancelling (lib/membership-pause) — POST /memberships/mine/:id/pause
+   from an active seat (the tier must offer it: fan_tiers.pause_enabled),
+   access sleeps at every gate while the stored status is "paused",
+   the paid-period clock freezes (resume shifts current_period_end by
+   the time rested — the billing skip on this period rail), and
+   POST /memberships/mine/:id/resume is the one-tap way back. Pause
+   and dunning never entangle: a past_due seat cannot pause (409 —
+   its rescue is the card-update door) and a paused seat is never
+   past_due, so the recovery chase never touches it.
    Pricing: free to set up. The site's 10% platform fee comes out of the
    creator's cut. Only the AI perk suggester costs credits (1 credit,
    charge-before-generate, refund on provider failure). */
@@ -77,6 +95,8 @@ const tierCreateSchema = z.object({
   /* Creator toggles (0132): 7-day free trial + annual discount %. */
   trialEnabled: z.boolean().optional().default(false),
   annualDiscountPct: z.number().int().min(0).max(90).optional().default(0),
+  /* Creator toggle (0239, #39): offer members Pause (1–3 months). */
+  pauseEnabled: z.boolean().optional().default(true),
 });
 
 const tierUpdateSchema = z.object({
@@ -87,6 +107,7 @@ const tierUpdateSchema = z.object({
   is_active: z.enum(["true", "false"]).optional(),
   trialEnabled: z.boolean().optional(),
   annualDiscountPct: z.number().int().min(0).max(90).optional(),
+  pauseEnabled: z.boolean().optional(),
 });
 
 const memberAddSchema = z.object({
@@ -114,6 +135,12 @@ const verifySchema = z.object({
 
 const joinTrialSchema = z.object({
   tierId: z.string().uuid("tierId must be a UUID."),
+});
+
+/* Membership pause (#39): the fan picks 1–3 months. The resume date
+   derived from it is stated in the confirm and in the response. */
+const pauseSchema = z.object({
+  months: z.number().int().min(PAUSE_MIN_MONTHS).max(PAUSE_MAX_MONTHS),
 });
 
 const perkSuggestSchema = z.object({
@@ -183,6 +210,10 @@ type MemberLike = {
   fan_user_id: string | null;
   trial_ends_at: Date | null;
   current_period_end: Date | null;
+  /* Membership pause (0239): optional so partial-row callers stay
+     safe — a paused row without its window reads as resting. */
+  paused_at?: Date | null;
+  paused_until?: Date | null;
   /* Dunning grace reads these (lib/dunning): updated_at is the row's
      last status change — for a past_due row, when the failure episode
      began. Optional so read-only callers with partial rows stay safe:
@@ -199,6 +230,21 @@ type MemberLike = {
     own page stated in advance. Stored rows are never silently
     rewritten — this is computed at read time so every surface agrees. */
 export function effectiveMemberStatus(m: MemberLike, now: Date = new Date()): string {
+  /* Paused (#39): the shared pause mirror (lib/membership-pause)
+     decides — resting until the stated resume date, then active on
+     the pause-shifted period, then expired like any unpaid period. */
+  const paused = pausedEffectiveStatus(
+    {
+      status: m.status,
+      fan_user_id: m.fan_user_id,
+      trial_ends_at: m.trial_ends_at,
+      current_period_end: m.current_period_end,
+      paused_at: m.paused_at ?? null,
+      paused_until: m.paused_until ?? null,
+    },
+    now,
+  );
+  if (paused !== null) return paused;
   if (m.status === "trialing" && m.trial_ends_at && new Date(m.trial_ends_at) <= now) {
     return "expired";
   }
@@ -239,6 +285,9 @@ function toTierJson(t: typeof fanTiersTable.$inferSelect) {
     perks: t.perks ?? [],
     isActive: t.is_active === "true",
     trialEnabled: t.trial_enabled,
+    /* Pause offer (#39): fans may rest 1–3 months unless the creator
+       turned it off for this tier. */
+    pauseEnabled: t.pause_enabled,
     annualDiscountPct: t.annual_discount_pct,
     annualPriceCents: annualPriceCents(t.price_cents, t.annual_discount_pct),
     annualPriceDollars: centsToDollars(annualPriceCents(t.price_cents, t.annual_discount_pct)),
@@ -246,8 +295,19 @@ function toTierJson(t: typeof fanTiersTable.$inferSelect) {
   };
 }
 
-function toMemberJson(m: typeof fanMembersTable.$inferSelect, tierName?: string) {
+function toMemberJson(
+  m: typeof fanMembersTable.$inferSelect,
+  tierName?: string,
+  opts?: { tierPauseEnabled?: boolean },
+) {
   const graceEnds = dunningGraceEndsAt(m);
+  /* Pause (#39): while resting, state the resume date plainly and the
+     period end the fan comes back to if they resume on that date
+     (stored end + the full planned pause — the billing skip). */
+  const pauseMs =
+    m.status === "paused" && m.paused_at && m.paused_until
+      ? pauseElapsedMs(m, new Date(m.paused_until))
+      : 0;
   return {
     id: m.id,
     tierId: m.tier_id,
@@ -272,6 +332,17 @@ function toMemberJson(m: typeof fanMembersTable.$inferSelect, tierName?: string)
     pastDueSince: m.status === "past_due" ? (pastDueSince(m)?.toISOString() ?? null) : null,
     accessEndsAt: graceEnds ? graceEnds.toISOString() : null,
     pastDueDaysLeft: m.status === "past_due" ? dunningDaysLeft(m) : null,
+    /* Pause (#39; only meaningful while paused, null otherwise):
+       when the rest began, the resume date stated before the fan
+       confirmed, the period end after a resume on that date, and
+       whether this tier offers pause at all (creator toggle). */
+    pausedAt: m.paused_at ?? null,
+    pauseResumesAt: m.status === "paused" ? (m.paused_until ?? null) : null,
+    pauseNewPeriodEnd:
+      m.status === "paused" && m.current_period_end
+        ? new Date(new Date(m.current_period_end).getTime() + pauseMs)
+        : null,
+    pauseOffered: opts?.tierPauseEnabled ?? null,
   };
 }
 
@@ -295,7 +366,7 @@ router.post("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res
     });
     return;
   }
-  const { name, priceDollars, description, perks, trialEnabled, annualDiscountPct } = parsed.data;
+  const { name, priceDollars, description, perks, trialEnabled, annualDiscountPct, pauseEnabled } = parsed.data;
   const [tier] = await db
     .insert(fanTiersTable)
     .values({
@@ -306,6 +377,7 @@ router.post("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res
       perks,
       trial_enabled: trialEnabled,
       annual_discount_pct: annualDiscountPct,
+      pause_enabled: pauseEnabled,
     })
     .returning();
   res.status(201).json({ tier: toTierJson(tier!) });
@@ -321,7 +393,7 @@ router.put("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (req, 
     });
     return;
   }
-  const { name, priceDollars, description, perks, is_active, trialEnabled, annualDiscountPct } = parsed.data;
+  const { name, priceDollars, description, perks, is_active, trialEnabled, annualDiscountPct, pauseEnabled } = parsed.data;
   const updates: Partial<typeof fanTiersTable.$inferInsert> = { updated_at: new Date() };
   if (name !== undefined) updates.name = name;
   if (priceDollars !== undefined) updates.price_cents = dollarsToCents(priceDollars);
@@ -330,6 +402,7 @@ router.put("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (req, 
   if (is_active !== undefined) updates.is_active = is_active;
   if (trialEnabled !== undefined) updates.trial_enabled = trialEnabled;
   if (annualDiscountPct !== undefined) updates.annual_discount_pct = annualDiscountPct;
+  if (pauseEnabled !== undefined) updates.pause_enabled = pauseEnabled;
   const [tier] = await db
     .update(fanTiersTable)
     .set(updates)
@@ -389,6 +462,7 @@ router.get("/memberships/dashboard", publicApiLimiter, requireAuth, async (req, 
 
   res.json({
     activeMembers: active.length,
+    pausedMembers: members.filter((m) => effectiveMemberStatus(m) === "paused").length,
     pastDueMembers: members.filter((m) => effectiveMemberStatus(m) === "past_due").length,
     trialingMembers: members.filter((m) => effectiveMemberStatus(m) === "trialing").length,
     expiredMembers: members.filter((m) => effectiveMemberStatus(m) === "expired").length,
@@ -653,6 +727,9 @@ router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, 
       current_period_start: now,
       current_period_end: membershipPeriodEnd(billingPeriod, now),
       trial_ends_at: null,
+      /* A fresh paid/free period ends any rest (#39). */
+      paused_at: null,
+      paused_until: null,
       is_gift: isGift,
       gifted_by_user_id: isGift ? req.userId! : null,
       updated_at: now,
@@ -854,6 +931,10 @@ router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, re
       current_period_start: now,
       current_period_end: membershipPeriodEnd(billingPeriod, now),
       trial_ends_at: null,
+      /* A verified payment ends any rest (#39) — the seat is active
+         on a fresh period, not on pause-shifted time. */
+      paused_at: null,
+      paused_until: null,
       stripe_session_id: sessionId,
       external_ref: sessionId,
       is_gift: isGift,
@@ -974,9 +1055,13 @@ router.get("/memberships/mine", publicApiLimiter, requireAuth, async (req, res) 
     .limit(200);
   const tierIds = [...new Set(members.map((m) => m.tier_id))];
   const tierNames = new Map<string, string>();
+  const tierPauseOffered = new Map<string, boolean>();
   for (const id of tierIds) {
     const t = await findTierById(id);
-    if (t) tierNames.set(id, t.name);
+    if (t) {
+      tierNames.set(id, t.name);
+      tierPauseOffered.set(id, t.pause_enabled);
+    }
   }
   const giftsSent = await db
     .select()
@@ -1004,7 +1089,11 @@ router.get("/memberships/mine", publicApiLimiter, requireAuth, async (req, res) 
     createdAt: g.created_at,
   });
   res.json({
-    memberships: members.map((m) => toMemberJson(m, tierNames.get(m.tier_id) ?? "Unknown tier")),
+    memberships: members.map((m) =>
+      toMemberJson(m, tierNames.get(m.tier_id) ?? "Unknown tier", {
+        tierPauseEnabled: tierPauseOffered.get(m.tier_id) ?? false,
+      }),
+    ),
     giftsSent: giftsSent.map(giftJson),
     giftsReceived: giftsReceived.map(giftJson),
   });
@@ -1043,11 +1132,150 @@ router.post("/memberships/mine/:memberId/cancel", publicApiLimiter, requireAuth,
   }
   const [updated] = await db
     .update(fanMembersTable)
-    .set({ status: "canceled", canceled_at: new Date(), updated_at: new Date() })
+    .set({ status: "canceled", canceled_at: new Date(), paused_at: null, paused_until: null, updated_at: new Date() })
     .where(eq(fanMembersTable.id, member.id))
     .returning();
   const tier = await findTierById(member.tier_id);
-  res.json({ membership: toMemberJson(updated!, tier?.name) });
+  res.json({
+    membership: toMemberJson(updated!, tier?.name, { tierPauseEnabled: tier?.pause_enabled ?? false }),
+  });
+});
+
+/* ── Membership pause (#39) ─────────────────────────────────────────────
+   Fan-scoped exactly like cancel/update-payment: the row must belong
+   to the caller as the fan, so anyone else's seat reads 404. */
+
+/** Load the caller's own member row (fan-scoped like cancel: anyone
+ *  else's seat is indistinguishable from a missing one). */
+async function findOwnMember(memberId: string, fanUserId: string) {
+  const rows = await db
+    .select()
+    .from(fanMembersTable)
+    .where(and(eq(fanMembersTable.id, memberId), eq(fanMembersTable.fan_user_id, fanUserId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/* POST /api/memberships/mine/:memberId/pause { months: 1–3 } — the fan
+   rests instead of cancelling. Only an effective-ACTIVE seat can pause:
+   a past_due seat's rescue is dunning's card-update door (409 here, so
+   the two never entangle), a trialing seat has nothing to rest from,
+   and an ended seat has nothing to pause. The tier must offer pause
+   (creator toggle, 403 when off). The response states the resume date
+   plainly — the same date the fan saw in the confirm before tapping —
+   because pauseResumeDate(now, months) is computed once here and the
+   stored paused_until IS that value. Access sleeps from this write:
+   every gate admits only effective trialing/active, and the stored
+   status is now "paused". No charge moves and no period time burns:
+   the period end shifts on resume by the time rested. */
+router.post("/memberships/mine/:memberId/pause", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = pauseSchema.safeParse(req.body ?? {});
+  if (!parsed.success || !isValidPauseMonths(parsed.data.months)) {
+    res.status(400).json({
+      error: "INVALID_PAUSE_MONTHS",
+      message: `Pause runs ${PAUSE_MIN_MONTHS}–${PAUSE_MAX_MONTHS} months — pick 1, 2 or 3.`,
+    });
+    return;
+  }
+  const member = await findOwnMember(param(req.params.memberId), req.userId!);
+  if (!member) {
+    res.status(404).json({ error: "Membership not found." });
+    return;
+  }
+  const effective = effectiveMemberStatus(member);
+  if (member.status === "paused" || effective === "paused") {
+    res.status(409).json({ error: "ALREADY_PAUSED", message: "This membership is already paused." });
+    return;
+  }
+  if (effective !== "active") {
+    res.status(409).json({
+      error: "NOT_PAUSABLE",
+      message:
+        effective === "past_due"
+          ? "This membership has a failed payment to fix first — pause is for memberships in good standing. Update your card and you're back, no pause needed."
+          : "Only an active membership can pause.",
+    });
+    return;
+  }
+  const tier = await findTierById(member.tier_id);
+  if (!tier) {
+    res.status(404).json({ error: "The tier for this membership no longer exists." });
+    return;
+  }
+  if (!tier.pause_enabled) {
+    res.status(403).json({
+      error: "PAUSE_NOT_OFFERED",
+      message: "This creator doesn't offer pausing on this tier — cancelling is the way to end it for now.",
+    });
+    return;
+  }
+  const now = new Date();
+  const resumesAt = pauseResumeDate(now, parsed.data.months);
+  const [updated] = await db
+    .update(fanMembersTable)
+    .set({ status: "paused", paused_at: now, paused_until: resumesAt, updated_at: now })
+    .where(eq(fanMembersTable.id, member.id))
+    .returning();
+  logger.info(
+    { memberId: member.id, months: parsed.data.months, resumesAt: resumesAt.toISOString() },
+    "[memberships] membership paused",
+  );
+  res.json({
+    membership: toMemberJson(updated!, tier.name, { tierPauseEnabled: tier.pause_enabled }),
+    months: parsed.data.months,
+    resumesAt: resumesAt.toISOString(),
+  });
+});
+
+/* POST /api/memberships/mine/:memberId/resume — one tap back. The
+   paid-period clock unfreezes: current_period_end shifts forward by
+   exactly the time rested (capped at the stated resume date, matching
+   the read-time auto-resume math in lib/membership-pause), so no paid
+   time burned while resting and no renewal fell due during the rest.
+   A seat whose stated resume date already passed reads active at read
+   time; resuming it here performs the same shift as a write and
+   answers 200, so the fan's tap always lands on the truth. A seat
+   whose shifted period has ALSO run out reads expired — resume
+   answers 409 and the honest door is a fresh join/renewal. */
+router.post("/memberships/mine/:memberId/resume", publicApiLimiter, requireAuth, async (req, res) => {
+  const member = await findOwnMember(param(req.params.memberId), req.userId!);
+  if (!member) {
+    res.status(404).json({ error: "Membership not found." });
+    return;
+  }
+  if (member.status !== "paused") {
+    res.status(409).json({ error: "NOT_PAUSED", message: "This membership isn't paused." });
+    return;
+  }
+  const now = new Date();
+  const effective = effectiveMemberStatus(member, now);
+  if (effective === "expired") {
+    res.status(409).json({
+      error: "PAUSE_PERIOD_ENDED",
+      message: "Your pause is over, but the paid period it was resting on has ended too — rejoin the tier to start a fresh period.",
+    });
+    return;
+  }
+  const tier = await findTierById(member.tier_id);
+  const shiftMs = pauseElapsedMs(member, now);
+  const [updated] = await db
+    .update(fanMembersTable)
+    .set({
+      status: "active",
+      current_period_end: member.current_period_end
+        ? new Date(new Date(member.current_period_end).getTime() + shiftMs)
+        : member.current_period_end,
+      paused_at: null,
+      paused_until: null,
+      canceled_at: null,
+      updated_at: now,
+    })
+    .where(eq(fanMembersTable.id, member.id))
+    .returning();
+  logger.info({ memberId: member.id, shiftMs }, "[memberships] membership resumed");
+  res.json({
+    membership: toMemberJson(updated!, tier?.name, { tierPauseEnabled: tier?.pause_enabled ?? false }),
+  });
 });
 
 /* POST /api/memberships/mine/:memberId/update-payment — the fan's
