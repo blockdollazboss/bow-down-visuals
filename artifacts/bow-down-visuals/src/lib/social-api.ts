@@ -101,6 +101,20 @@ export interface CoAuthorSide {
   is_verified: boolean;
 }
 
+/** The locked teaser for a members-only post (Wave 4 #33): what the
+ *  server hands a viewer who doesn't hold the membership — the post
+ *  exists, it's members-only, here's the door. The post's body and
+ *  media are NOT in the payload; they never left the server. */
+export interface MemberPostLock {
+  required_tier: { id: string; name: string } | null;
+  creator_user_id: string;
+  /** The fan-club join door: /memberships?creator=<creatorUserId>. */
+  join_url: string;
+  viewer_status: "not_member" | "below_tier" | "lapsed";
+  viewer_tier: { id: string; name: string } | null;
+  message: string;
+}
+
 export interface FeedPost {
   id: string;
   profile_id: string;
@@ -113,6 +127,12 @@ export interface FeedPost {
   group_id: string | null;
   scheduled_for: string | null;
   audience: string;
+  /* Members-only posts (Wave 4 #33): the floor tier on the author's
+     own ladder (null = any member), and — when the server locked
+     this post for the viewer — the teaser payload. */
+  min_tier_id?: string | null;
+  min_tier?: { id: string; name: string } | null;
+  member_lock?: MemberPostLock | null;
   like_count: number;
   repost_count: number;
   reply_count: number;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert } from "lucide-react";
+import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert, Lock, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { apiFetch, apiJson, profileHref, type FeedPost, type PollData } from "@/lib/social-api";
@@ -198,6 +198,11 @@ export function PostCard({
      readable to them, and every engagement surface (attachments,
      poll, quote embed, actions, composers, replies) is suppressed. */
   const removed = !!post.moderation_removed;
+  /* Members-only teaser (Wave 4 #33): the server locked this post for
+     the viewer — body/media never arrived, only member_lock did. The
+     card renders the lock panel and nothing else content-bearing: no
+     words, no attachments, no poll, no quote embed, no actions. */
+  const locked = !!post.member_lock;
 
   return (
     <article id={`post-${post.id}`} className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-4">
@@ -245,6 +250,11 @@ export function PostCard({
             {post.audience === "close_friends" && (
               <span className="shrink-0 rounded-full border border-[#d4af37]/50 px-2 py-0.5 text-[10px] text-[#e8c86a]">close friends</span>
             )}
+            {post.audience === "members" && (
+              <span className="shrink-0 rounded-full border border-[#d4af37]/50 px-2 py-0.5 text-[10px] text-[#e8c86a]">
+                members{post.min_tier ? ` · ${post.min_tier.name}+` : ""}
+              </span>
+            )}
           </div>
 
           {post.why && (
@@ -260,12 +270,29 @@ export function PostCard({
               </p>
             </div>
           )}
-          {post.body && <RichText body={post.body} className="mt-1.5 text-[15px] leading-relaxed text-neutral-100" />}
+          {locked && post.member_lock && (
+            <div className="mt-2 rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/5 px-3 py-3" data-testid="post-member-lock">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-[#e8c86a]">
+                <Lock className="h-4 w-4 shrink-0" /> Members only
+                {post.member_lock.required_tier && (
+                  <span className="font-normal text-neutral-300">· {post.member_lock.required_tier.name} and up</span>
+                )}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-neutral-300">{post.member_lock.message}</p>
+              <Link
+                href={post.member_lock.join_url}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black hover:bg-[#e8c86a]"
+              >
+                <Crown className="h-3.5 w-3.5" /> Join the fan club
+              </Link>
+            </div>
+          )}
+          {!locked && post.body && <RichText body={post.body} className="mt-1.5 text-[15px] leading-relaxed text-neutral-100" />}
 
-          {!removed && <AttachmentView attachments={post.media_urls ?? []} />}
+          {!removed && !locked && <AttachmentView attachments={post.media_urls ?? []} />}
 
           {/* poll */}
-          {!removed && poll && (
+          {!removed && !locked && poll && (
             <div className="mt-3 space-y-2">
               {poll.options.map((o) => {
                 const pct = pollTotal > 0 ? Math.round((o.vote_count / pollTotal) * 100) : 0;
@@ -292,14 +319,14 @@ export function PostCard({
           )}
 
           {/* quoted post */}
-          {!removed && post.quoted && (
+          {!removed && !locked && post.quoted && (
             <div className="mt-3">
               <PostCard post={post.quoted} depth={depth + 1} />
             </div>
           )}
 
-          {/* action row — a removed post takes no engagement */}
-          {!removed && (
+          {/* action row — a removed or locked post takes no engagement */}
+          {!removed && !locked && (
           <div className="mt-3 flex items-center justify-between border-t border-[#1f1f1f] pt-2.5">
             <div className="flex items-center gap-1 sm:gap-2">
               {/* reactions — like stays the default, tap the count for the full set */}
@@ -373,13 +400,13 @@ export function PostCard({
           {shareMsg && <p className="mt-1 break-all text-xs text-[#d4af37]">{shareMsg}</p>}
 
           {/* earning hint — guide them to the money */}
-          {!removed && showAnalytics && earningHint && (
+          {!removed && !locked && showAnalytics && earningHint && (
             <div className={`mt-2 rounded-xl border border-[#d4af37]/40 p-3 ${isLight ? "bg-gradient-to-r from-[#F4E7C3] to-[#FCF7EA]" : "bg-gradient-to-r from-[#1a1408] to-transparent"}`}>
               <p className={`text-xs leading-relaxed ${isLight ? "text-[#7A5A12]" : "text-[#f5e08c]"}`}>💰 {earningHint}</p>
             </div>
           )}
 
-          {!removed && showReply && (
+          {!removed && !locked && showReply && (
             <div className="mt-2">
               <Composer
                 replyTo={post.id}
@@ -394,7 +421,7 @@ export function PostCard({
               <p className="mt-1 text-[11px] text-neutral-500">Replies post as a thread under this post.</p>
             </div>
           )}
-          {!removed && showQuote && (
+          {!removed && !locked && showQuote && (
             <div className="mt-2">
               <Composer
                 quoteOf={{ id: post.id, body: post.body, authorName: post.author?.display_name ?? "Creator" }}
@@ -404,12 +431,12 @@ export function PostCard({
             </div>
           )}
 
-          {!removed && post.reply_count > 0 && depth === 0 && (
+          {!removed && !locked && post.reply_count > 0 && depth === 0 && (
             <button onClick={loadReplies} className="mt-2 text-xs font-semibold text-[#d4af37] hover:underline">
               {showReplies ? "Hide replies" : `View ${post.reply_count} ${post.reply_count === 1 ? "reply" : "replies"}`}
             </button>
           )}
-          {!removed && showReplies && (
+          {!removed && !locked && showReplies && (
             <div className="mt-2 space-y-2 border-l-2 border-[#d4af37]/30 pl-3">
               {replies.map((r) => (
                 <PostCard key={r.id} post={r} depth={depth + 1} onDeleted={(id) => setReplies((x) => x.filter((p) => p.id !== id))} />
