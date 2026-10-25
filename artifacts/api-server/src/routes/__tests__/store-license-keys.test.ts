@@ -41,6 +41,13 @@ vi.mock("../../middlewares/require-auth", () => ({
   },
 }));
 
+/* The real public limiter counts this suite's loopback requests and
+   starts answering 429 mid-file (the download-token suite mocks it for
+   the same reason) — rate limiting has its own suites. */
+vi.mock("../../lib/rate-limit", () => ({
+  publicApiLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   return { ...actual, get db() { return h.db; } };
@@ -104,6 +111,7 @@ import { sql } from "drizzle-orm";
 const DDL = `
 CREATE TABLE creator_profiles (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text NOT NULL, display_name text NOT NULL,
+  vertical text NOT NULL DEFAULT 'music',
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE profile_tracks (

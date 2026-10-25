@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
-import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2 } from "lucide-react";
+import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -38,6 +38,9 @@ interface BumpOfferData {
 
 interface ItemData {
   bump?: BumpOfferData | null;
+  /* License keys (Wave 4 #35): present when this purchase carries a
+     per-buyer key + download cap — stated up front, before paying. */
+  license?: { keysIssued: boolean; maxDownloads: number | null } | null;
   item: {
     kind: string;
     id: string;
@@ -276,6 +279,16 @@ export default function StoreBuy() {
                   <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   Real-money purchase, secured by Stripe. This is not Visual Bucs (AI credits).
                 </p>
+                {data.license?.keysIssued && (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-100/50">
+                    <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Includes your own license key —{" "}
+                    {data.license.maxDownloads === null
+                      ? "unlimited downloads"
+                      : `${data.license.maxDownloads} download${data.license.maxDownloads === 1 ? "" : "s"} included`}
+                    , delivered with your receipt and saved in your library.
+                  </p>
+                )}
               </div>
 
               {data.bundle && (
