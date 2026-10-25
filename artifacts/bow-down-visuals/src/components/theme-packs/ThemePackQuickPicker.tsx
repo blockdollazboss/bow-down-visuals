@@ -11,6 +11,7 @@ import {
   isThemePackUnlocked,
 } from "@/lib/theme-packs";
 import { useAuth } from "@/contexts/AuthContext";
+import { stampPackSoundsForApply } from "@/lib/theme-kit";
 
 /* ─── Theme packs at the theme toggle (Stack-200 FIX 14) ──────────────
    The packs used to live ONLY at the bottom of Settings. This picker
@@ -88,10 +89,15 @@ export function ThemePackQuickPicker() {
                     disabled={!unlocked}
                     onClick={() => {
                       applyThemePack(pack.id);
-                      try {
-                        localStorage.setItem("bdv-sound-set", "library:signature-house");
-                        window.dispatchEvent(new CustomEvent("bdv-pack-sounds-applied", { detail: { packId: pack.id } }));
-                      } catch { /* apply still landed */ }
+                      /* Same sound stamp as the desk's apply: local seam
+                         + the pack's roles into the account's
+                         sound_prefs (join #12 binding). The button is
+                         disabled for locked packs; the stamper re-checks
+                         the entitlement it is handed. */
+                      void stampPackSoundsForApply(pack.id, {
+                        unlocked,
+                        getAccessToken,
+                      });
                       setOpen(false);
                     }}
                     className="flex w-full items-center gap-2 rounded-xl border border-border px-2.5 py-2 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-70"

@@ -31,7 +31,11 @@ import {
 } from "@/lib/theme-packs";
 import { WALLPAPER_PRESETS, type WallpaperPreset } from "@/lib/wallpapers";
 import { CreatorPacksSection, ThemeKitPanel } from "@/components/theme-packs/ThemeKitPanel";
-import { decodeLook, type PackCustomization } from "@/lib/theme-kit";
+import {
+  decodeLook,
+  stampPackSoundsForApply,
+  type PackCustomization,
+} from "@/lib/theme-kit";
 
 /* ─── Theme Packs desk (Settings → Appearance) ──────────────────────────
    One tap on a pack reskins the whole site — page ground, panels,
@@ -697,14 +701,17 @@ export function ThemePacksDesk() {
               applyThemePack(p.id, { mode: m });
               /* Sound sync (owner ruling, Oct 25 17:39): applying a pack
                  applies its sounds too — the pack's sounds ARE the site
-                 sound library's signature set by role. Stamp the library
-                 set as the active sound choice; the signature lane's
-                 per-account sound prefs own playback and read this seam
-                 at join. No per-pack sound files exist. */
-              try {
-                localStorage.setItem("bdv-sound-set", "library:signature-house");
-                window.dispatchEvent(new CustomEvent("bdv-pack-sounds-applied", { detail: { packId: p.id } }));
-              } catch { /* private mode — apply still landed */ }
+                 sound library's signature set by role. The stamper keeps
+                 the local seam AND writes the pack's roles into the
+                 account's sound_prefs (binding landed at Stack-200 join
+                 #12, once migration 0242 existed on this branch). The
+                 Apply button renders only for unlocked packs, so this
+                 handler is entitlement-gated; the stamper re-checks.
+                 No per-pack sound files exist. */
+              void stampPackSoundsForApply(p.id, {
+                unlocked: true,
+                getAccessToken,
+              });
             }}
             ownedIds={ownedIds}
             elite={elite}

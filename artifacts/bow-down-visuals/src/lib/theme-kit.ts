@@ -30,6 +30,12 @@ import {
   type ThemePack,
   type ThemePackMode,
 } from "@/lib/theme-packs";
+import { SIGNATURE_SOUND_ASSETS } from "./signature-sound-manifest";
+import {
+  signatureSounds,
+  type SoundKind,
+  type SoundPrefs,
+} from "./signature-sounds";
 
 /* ─── The 12 components ─────────────────────────────────────────────── */
 
@@ -69,9 +75,14 @@ export const SOUND_LIBRARY_ROLES = [
 ] as const;
 export type SoundRole = (typeof SOUND_LIBRARY_ROLES)[number];
 
-/** Library path for a role — the one reference every pack uses. */
+/** Library path for a role — the one reference every pack uses.
+    Resolved THROUGH the signature-sound-manifest (the single source
+    of truth for sound filenames): this module never spells a sound
+    filename itself, so a set swap stays a files-only change in the
+    manifest — the signature lane's guard (join #7) requires exactly
+    that, and the role→kind map lives in the binding section below. */
 export function soundLibraryPath(role: SoundRole): string {
-  return `/sounds/signature-${role}.wav`;
+  return SIGNATURE_SOUND_ASSETS[SOUND_ROLE_ENGINE_KIND[role]];
 }
 
 /** Which library roles each sound component plays. Ringtone and
@@ -82,6 +93,174 @@ export const COMPONENT_SOUND_ROLES: Record<string, SoundRole[]> = {
   "notification-sounds": ["notification", "message"],
   "sound-scheme": [...SOUND_LIBRARY_ROLES],
 };
+
+/* ─── Sound-pref binding (Stack-200 join #12 — the seam this lane left) ──
+   On this lane's base, the signature lane's per-account sound_prefs
+   (migration 0242, GET/PATCH /api/sound-prefs) did not exist yet, so
+   pack-apply could only stamp the local seam (localStorage
+   "bdv-sound-set" + the "bdv-pack-sounds-applied" event). With both
+   lanes joined, the binding lands here: applying an ENTITLED pack
+   writes the pack's sound roles into the account's sound_prefs.
+
+   sound_prefs stores SWITCHES, not a set identity, so the stamp is:
+   master on + the switch governing each of the pack's sound-scheme
+   roles on — the v7 house set, BY ROLE, becomes the account's active
+   sound choice. Roles resolve through the signature-sound-manifest
+   (the single source of truth the engine plays from); no per-pack
+   sound files or forks exist. The prefs the server returns are pushed
+   into the live engine so playback follows the stamp immediately.
+
+   An UNENTITLED pack gets NO stamp at all — not even the local seam.
+   A signed-out apply keeps the local seam only (house/included packs
+   are free for guests); the account stamp lands on the first signed-in
+   apply. Fire-and-forget safe: a failed stamp never breaks an apply. */
+
+/** Pack sound role → the engine kind that plays it. The manifest's
+    "sting" kind is the scheme's "royal-sting" role — the same file,
+    proven by the stamp tests against SIGNATURE_SOUND_ASSETS. */
+export const SOUND_ROLE_ENGINE_KIND: Record<SoundRole, SoundKind> = {
+  notification: "notification",
+  message: "message",
+  success: "success",
+  error: "error",
+  "royal-sting": "sting",
+  ringtone: "ringtone",
+};
+
+/** Pack sound role → the sound_prefs switch that governs it. The
+    success_stings switch governs BOTH success and the royal sting,
+    per the owner's Settings control spec (migration 0242). */
+export const SOUND_ROLE_PREF_SWITCH: Record<SoundRole, keyof SoundPrefs> = {
+  notification: "notifications_enabled",
+  message: "messages_enabled",
+  success: "success_stings_enabled",
+  error: "errors_enabled",
+  "royal-sting": "success_stings_enabled",
+  ringtone: "ringtone_enabled",
+};
+
+/** The PATCH body a pack apply stamps: master on, plus the governing
+    switch of every role in the pack's sound scheme on. Built FROM the
+    role map — never a hand-kept literal list — so a role change in the
+    scheme moves the stamp with it. Every pack carries the same house
+    set by law, so the stamp is pack-independent by construction. */
+export function soundPrefsPatchForPackSounds(): Partial<SoundPrefs> {
+  const patch: Partial<SoundPrefs> = { master_enabled: true };
+  for (const role of COMPONENT_SOUND_ROLES["sound-scheme"] ?? []) {
+    patch[SOUND_ROLE_PREF_SWITCH[role]] = true;
+  }
+  return patch;
+}
+
+export const SOUND_SET_STAMP_KEY = "bdv-sound-set";
+export const SOUND_SET_STAMP_VALUE = "library:signature-house";
+export const PACK_SOUNDS_APPLIED_EVENT = "bdv-pack-sounds-applied";
+
+export interface SoundPrefsFetchResponse {
+  ok: boolean;
+  json(): Promise<unknown>;
+}
+
+export type SoundPrefsFetch = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string },
+) => Promise<SoundPrefsFetchResponse>;
+
+export interface PackSoundStampDeps {
+  /** Entitlement is the gate: false → no stamp of any kind. Both apply
+      surfaces (desk Apply, toggle quick-picker) already gate on it;
+      the stamper re-checks so no future caller can stamp a locked pack. */
+  unlocked: boolean;
+  getAccessToken: () => Promise<string | null>;
+  fetchImpl?: SoundPrefsFetch;
+  storageSet?: (key: string, value: string) => void;
+  dispatchApplied?: (packId: string) => void;
+}
+
+export interface PackSoundStampResult {
+  localStamped: boolean;
+  accountStamped: boolean;
+}
+
+function defaultStorageSet(key: string, value: string): void {
+  if (typeof localStorage !== "undefined") localStorage.setItem(key, value);
+}
+
+function defaultDispatchApplied(packId: string): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(PACK_SOUNDS_APPLIED_EVENT, { detail: { packId } }),
+    );
+  }
+}
+
+function defaultFetchImpl(
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string },
+): Promise<SoundPrefsFetchResponse> {
+  return fetch(url, init);
+}
+
+/** Stamp a pack apply into the sound system: the local seam (the
+    active-set choice + the applied event) AND, for a signed-in member,
+    the pack's sound roles into their per-account sound_prefs via
+    PATCH /api/sound-prefs, with the saved prefs pushed into the live
+    engine. Returns what actually landed; never throws. */
+export async function stampPackSoundsForApply(
+  packId: string,
+  deps: PackSoundStampDeps,
+): Promise<PackSoundStampResult> {
+  if (!deps.unlocked) return { localStamped: false, accountStamped: false };
+  let localStamped = false;
+  try {
+    (deps.storageSet ?? defaultStorageSet)(SOUND_SET_STAMP_KEY, SOUND_SET_STAMP_VALUE);
+    (deps.dispatchApplied ?? defaultDispatchApplied)(packId);
+    localStamped = true;
+  } catch {
+    /* private mode / no DOM — the account stamp still runs */
+  }
+  let accountStamped = false;
+  try {
+    const token = await deps.getAccessToken().catch(() => null);
+    if (token) {
+      const doFetch = deps.fetchImpl ?? defaultFetchImpl;
+      const res = await doFetch("/api/sound-prefs", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(soundPrefsPatchForPackSounds()),
+      });
+      if (res.ok) {
+        accountStamped = true;
+        const saved = (await res.json().catch(() => null)) as
+          | Partial<SoundPrefs>
+          | null;
+        if (saved) {
+          signatureSounds.setPrefs({
+            master_enabled: saved.master_enabled ?? true,
+            notifications_enabled: saved.notifications_enabled ?? true,
+            messages_enabled: saved.messages_enabled ?? true,
+            success_stings_enabled: saved.success_stings_enabled ?? true,
+            errors_enabled: saved.errors_enabled ?? true,
+            ringtone_enabled: saved.ringtone_enabled ?? true,
+          });
+        }
+      }
+    }
+  } catch {
+    /* sounds never break an apply — the local seam already landed */
+  }
+  return { localStamped, accountStamped };
+}
+
+/** The manifest asset a pack sound role plays — through the manifest,
+    never a pack-local path. (soundLibraryPath above stays the bundle
+    reference; this is the engine-truth cross-check the tests pin.) */
+export function soundManifestAssetForRole(role: SoundRole): string {
+  return SIGNATURE_SOUND_ASSETS[SOUND_ROLE_ENGINE_KIND[role]];
+}
 
 /* ─── Approved background library (existing art — never invented) ───── */
 

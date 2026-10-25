@@ -42,6 +42,7 @@ import {
   renderWidgetSvg,
   sanitizeCustomization,
   soundLibraryPath,
+  soundManifestAssetForRole,
 } from "@/lib/theme-kit";
 
 describe("kit manifest — 12 components × every pack × light+dark", () => {
@@ -114,7 +115,11 @@ describe("sound sync — the library is the single source, by role", () => {
     expect(COMPONENT_SOUND_ROLES["sound-scheme"]).toHaveLength(6);
     for (const roles of Object.values(COMPONENT_SOUND_ROLES)) {
       for (const role of roles) {
-        expect(soundLibraryPath(role)).toBe(`/sounds/signature-${role}.wav`);
+        // The path IS the signature manifest's asset for the role —
+        // asserted without spelling a sound filename here (the
+        // signature lane's guard keeps filenames manifest-only).
+        expect(soundLibraryPath(role)).toBe(soundManifestAssetForRole(role));
+        expect(soundLibraryPath(role)).toMatch(/^\/sounds\/.+\.wav$/);
       }
     }
   });
