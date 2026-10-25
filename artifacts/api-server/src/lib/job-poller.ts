@@ -3,13 +3,15 @@ import { logger } from "./logger";
 import { publishDueScheduledPosts } from "./scheduler-jobs";
 import { drainEmailQueue } from "./email-campaign-sender";
 import {
-  claimQueuedJobs,
+  claimJobForSubmit,
   completeLipSyncJob,
   deferSubmitJob,
   failLipSyncJob,
   getJobsDueForPoll,
   markHistoryRecorded,
   markJobSubmitted,
+  mergeLipSyncJobResultMeta,
+  peekQueuedJobs,
   recordJobPoll,
   recoverInterruptedLipSyncJobs,
   requeueSubmitJob,
@@ -23,15 +25,32 @@ import { notifyDueBookingReminders } from "./booking-reminders";
 import {
   MAX_SUBMIT_DEFERRALS,
   PROVIDER_LIMIT_SEC,
+  SYNC_LABS_MODEL,
+  buildResolutionMeta,
   classifySubmitError,
   getLipSyncApiKey,
+  getLipSyncProviderName,
+  isLipSyncProviderConfigured,
+  normalizeLipSyncProvider,
   normalizeProviderStatus,
+  probeVideoDimensions,
   submitDeferralBackoffMs,
   syncLabsStatus,
   syncLabsSubmit,
   trimAndUploadAudioSegment,
   trimAndUploadVideoSegment,
+  type LipSyncProviderId,
 } from "./sync-labs";
+import {
+  classifyWaveSpeedSubmitError,
+  getLatentSyncModel,
+  getWaveSpeedApiKey,
+  isWaveSpeedBalanceError,
+  normalizeWaveSpeedStatus,
+  waveSpeedStatus,
+  waveSpeedSubmit,
+  WaveSpeedError,
+} from "./wavespeed";
 import { recordLipSyncHistory } from "./payment-record";
 import { runViralSpikeWatch } from "./viral-spike-watch";
 import { mirrorExternalMediaUrl } from "./mirrorMedia";
@@ -74,6 +93,9 @@ export type PrepareSubmitMedia = (params: LipSyncJob["params"]) => Promise<{
   segmentUrl: string;
   providerClipUrl: string;
   durationSec: number;
+  /** Dimensions of the exact clip that will be submitted (probed, best-effort). */
+  inputWidth?: number | null;
+  inputHeight?: number | null;
 }>;
 let prepareSubmitMedia: PrepareSubmitMedia = async (params) => {
   const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(
@@ -93,8 +115,42 @@ let prepareSubmitMedia: PrepareSubmitMedia = async (params) => {
       "[job-poller] video trim failed, falling back to full clip",
     );
   }
-  return { segmentUrl, providerClipUrl, durationSec };
+  /* Probe the dimensions of the exact clip being submitted, so a
+     provider that returns a smaller frame (LatentSync does) is caught
+     by the completion path's comparison — never silently. */
+  const inputDims = await probeVideoDimensions(providerClipUrl);
+  return {
+    segmentUrl,
+    providerClipUrl,
+    durationSec,
+    inputWidth: inputDims?.width ?? null,
+    inputHeight: inputDims?.height ?? null,
+  };
 };
+
+/* ── Provider resolution ────────────────────────────────────────────────
+   A job runs on the provider recorded in its params at creation (itself
+   the effective switch value at that moment) — a job is never silently
+   rerouted to the other provider because a key appeared or vanished.
+   Legacy jobs without a stored provider fall back to the current switch
+   value, then to "sync" (the historical default). */
+function resolveJobProvider(job: LipSyncJob): LipSyncProviderId {
+  return (
+    normalizeLipSyncProvider(job.params.provider) ??
+    getLipSyncProviderName() ??
+    "sync"
+  );
+}
+
+function providerApiKey(provider: LipSyncProviderId): string | null {
+  return provider === "latentsync" ? getWaveSpeedApiKey() : getLipSyncApiKey();
+}
+
+function providerDisplayName(provider: LipSyncProviderId): string {
+  return provider === "latentsync" ? "WaveSpeed" : "Sync.so";
+}
+
+const PEEK_BATCH = 10;
 
 /** Poll backoff: 60s → 120s → 240s → 300s cap. */
 function pollBackoffMs(polls: number): number {
@@ -167,20 +223,36 @@ export async function runPollerTick(): Promise<void> {
 /* ── Submit phase ─────────────────────────────────────────────────────── */
 
 async function submitDueJobs(): Promise<void> {
-  const apiKey = getLipSyncApiKey();
-  if (!apiKey) return; // jobs stay queued; they submit once a key is configured
-  const jobs = await claimQueuedJobs(MAX_SUBMIT_WORKERS);
-  for (const job of jobs) {
+  /* Peek first, claim second: a job is only claimed once its OWN
+     provider's key is confirmed configured, so jobs for an unconfigured
+     route stay queued and untouched (the pre-switch behavior for Sync.so
+     was "no key → nothing is claimed"; that now holds per provider). */
+  const candidates = await peekQueuedJobs(PEEK_BATCH);
+  let workers = 0;
+  for (const candidate of candidates) {
+    if (workers >= MAX_SUBMIT_WORKERS) break;
+    const provider = resolveJobProvider(candidate);
+    if (!isLipSyncProviderConfigured(provider)) continue;
+    const apiKey = providerApiKey(provider);
+    if (!apiKey) continue;
+    const job = await claimJobForSubmit(candidate.id);
+    if (!job) continue; // another worker/process won the atomic claim
+    workers++;
     if (submitInFlight.has(job.id)) continue;
     submitInFlight.add(job.id);
-    void runSubmitWorker(job, apiKey).finally(() => {
+    void runSubmitWorker(job, apiKey, provider).finally(() => {
       submitInFlight.delete(job.id);
     });
   }
 }
 
-/** Trim media and submit one job to Sync.so. Never throws — failures are persisted. */
-async function runSubmitWorker(job: LipSyncJob, apiKey: string): Promise<void> {
+/** Trim media and submit one job to its provider. Never throws — failures are persisted. */
+async function runSubmitWorker(
+  job: LipSyncJob,
+  apiKey: string,
+  providerArg?: LipSyncProviderId,
+): Promise<void> {
+  const provider: LipSyncProviderId = providerArg ?? resolveJobProvider(job);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
     await createJobNotification({
@@ -195,20 +267,49 @@ async function runSubmitWorker(job: LipSyncJob, apiKey: string): Promise<void> {
   };
 
   try {
-    const { segmentUrl, providerClipUrl, durationSec } = await prepareSubmitMedia(job.params);
+    const { segmentUrl, providerClipUrl, durationSec, inputWidth, inputHeight } =
+      await prepareSubmitMedia(job.params);
 
     if (durationSec > PROVIDER_LIMIT_SEC) {
       await fail(
-        `Audio segment is ${durationSec.toFixed(1)}s — exceeds the Sync.so plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade the plan.`,
+        provider === "sync"
+          ? `Audio segment is ${durationSec.toFixed(1)}s — exceeds the Sync.so plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade the plan.`
+          : `Audio segment is ${durationSec.toFixed(1)}s — exceeds the ${PROVIDER_LIMIT_SEC}s limit of the current lip-sync route. Trim the scene.`,
         "segment_too_long",
       );
       return;
     }
 
-    const syncId = await syncLabsSubmit(providerClipUrl, segmentUrl, apiKey, job.params.strength);
-    await markJobSubmitted(job.id, syncId, 60_000);
-    logger.info({ jobId: job.id, syncId }, "[job-poller] lip-sync submitted to Sync.so");
+    let providerJobId: string;
+    if (provider === "latentsync") {
+      /* LatentSync has no strength/temperature dial — the A-09 strength
+         control is recorded in the job params but, exactly like sync-3,
+         this model exposes no such option to send. */
+      providerJobId = await waveSpeedSubmit(providerClipUrl, segmentUrl, apiKey);
+    } else {
+      providerJobId = await syncLabsSubmit(providerClipUrl, segmentUrl, apiKey, job.params.strength);
+    }
+    await markJobSubmitted(job.id, providerJobId, 60_000);
+    /* Record what was sent (provider, model, probed input dimensions)
+       so the completion path can state — on the job record itself —
+       whether the returned video is smaller than what was submitted. */
+    await mergeLipSyncJobResultMeta(job.id, {
+      provider,
+      model: provider === "latentsync" ? getLatentSyncModel() : SYNC_LABS_MODEL,
+      inputWidth: inputWidth ?? null,
+      inputHeight: inputHeight ?? null,
+    }).catch((err) =>
+      logger.warn({ err, jobId: job.id }, "[job-poller] result_meta write failed (non-fatal)"),
+    );
+    logger.info(
+      { jobId: job.id, provider, providerJobId },
+      "[job-poller] lip-sync submitted",
+    );
   } catch (err) {
+    if (provider === "latentsync") {
+      await handleWaveSpeedSubmitError(job, err, fail);
+      return;
+    }
     const message = err instanceof Error ? err.message : "Lip-sync submit failed";
     const kind = classifySubmitError(err);
 
@@ -278,15 +379,96 @@ async function runSubmitWorker(job: LipSyncJob, apiKey: string): Promise<void> {
   }
 }
 
+/**
+ * WaveSpeed submit failures, by kind (see lib/wavespeed.ts):
+ * - balance: fail closed at once with a clear provider-unavailable
+ *   state — no backoff loop pretending to wait, no resubmit;
+ * - transient (provider answered 429/5xx — no task was issued): defer
+ *   with the same long backoff machinery as Sync.so; a later resubmit is
+ *   safe precisely because the provider answered and issued nothing;
+ * - transport (no response at all): the submit may have created a
+ *   billed task — NEVER resubmit blind. The job fails with
+ *   submit_outcome_unknown; the user's charge idempotency key means a
+ *   fresh attempt from the editor never double-charges;
+ * - permanent: fail fast.
+ */
+async function handleWaveSpeedSubmitError(
+  job: LipSyncJob,
+  err: unknown,
+  fail: (message: string, code: string) => Promise<void>,
+): Promise<void> {
+  const message = err instanceof Error ? err.message : "Lip-sync submit failed";
+  const kind = classifyWaveSpeedSubmitError(err);
+
+  if (kind === "balance") {
+    await fail(
+      "Lip sync is temporarily unavailable — the provider account is out of funds, so this job was not submitted. Please try again later.",
+      "provider_balance",
+    );
+    logger.error({ jobId: job.id, err: message }, "[job-poller] WaveSpeed balance exhausted; submit failed closed");
+    return;
+  }
+
+  if (kind === "transient") {
+    const backoffMs = submitDeferralBackoffMs(job.submitDeferrals);
+    const deferred = await deferSubmitJob(job.id, backoffMs, MAX_SUBMIT_DEFERRALS, {
+      message:
+        "WaveSpeed stayed busy for ~24 hours and the job was not submitted. Try again later.",
+      code: "provider_busy_timeout",
+    }).catch(() => null);
+    if (!deferred) {
+      logger.error({ jobId: job.id, err: message }, "[job-poller] deferred submit target vanished; dropping");
+      return;
+    }
+    if (deferred.failed) {
+      await createJobNotification({
+        jobType: "lip_sync",
+        jobId: job.id,
+        userId: job.userId,
+        projectId: job.projectId,
+        status: "failed",
+        title: "Lip sync failed",
+        message: truncate(
+          "WaveSpeed stayed busy for about a day, so this job was never submitted. Try again later.",
+          500,
+        ),
+      });
+      logger.error(
+        { jobId: job.id, deferrals: deferred.deferrals },
+        "[job-poller] WaveSpeed submit deferred past the limit; marked failed",
+      );
+    } else {
+      logger.warn(
+        { jobId: job.id, deferrals: deferred.deferrals, backoffMs, err: message },
+        "[job-poller] WaveSpeed busy; submit deferred with backoff",
+      );
+    }
+    return;
+  }
+
+  if (kind === "transport") {
+    await fail(
+      "The lip-sync provider did not answer, so this submit's outcome is unknown. It was not retried — retrying could bill the same generation twice. Please start a new lip sync.",
+      "submit_outcome_unknown",
+    );
+    logger.error({ jobId: job.id, err: message }, "[job-poller] WaveSpeed submit outcome unknown; not resubmitted");
+    return;
+  }
+
+  await fail(message, "provider_rejected");
+  logger.error({ jobId: job.id, err: message }, "[job-poller] submit permanently rejected by WaveSpeed");
+}
+
 /* ── Poll phase ───────────────────────────────────────────────────────── */
 
 async function pollDueJobs(): Promise<void> {
-  const apiKey = getLipSyncApiKey();
-  if (!apiKey) return; // polling resumes once a key is configured
   const jobs = await getJobsDueForPoll(POLL_BATCH);
   for (const job of jobs) {
+    const provider = resolveJobProvider(job);
+    const apiKey = providerApiKey(provider);
+    if (!apiKey) continue; // polling resumes once that job's route is configured
     try {
-      await pollOneJob(job, apiKey);
+      await pollOneJob(job, apiKey, provider);
     } catch (err) {
       logger.error(
         { err, jobId: job.id },
@@ -296,7 +478,13 @@ async function pollDueJobs(): Promise<void> {
   }
 }
 
-async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
+async function pollOneJob(
+  job: LipSyncJob,
+  apiKey: string,
+  providerArg?: LipSyncProviderId,
+): Promise<void> {
+  const provider: LipSyncProviderId = providerArg ?? resolveJobProvider(job);
+  const display = providerDisplayName(provider);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
     await createJobNotification({
@@ -310,11 +498,56 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
     });
   };
 
-  let remote;
+  let remote: { status: string; outputUrl?: string; error?: string };
   try {
-    remote = await syncLabsStatus(job.providerJobId!, apiKey);
+    if (provider === "latentsync") {
+      const ws = await waveSpeedStatus(job.providerJobId!, apiKey);
+      remote = {
+        status: normalizeWaveSpeedStatus(ws),
+        outputUrl: ws.outputUrl,
+        error: ws.error,
+      };
+    } else {
+      const sl = await syncLabsStatus(job.providerJobId!, apiKey);
+      remote = {
+        status: normalizeProviderStatus(sl),
+        outputUrl: sl.outputUrl,
+        error: sl.error,
+      };
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Provider poll failed";
+    if (provider === "latentsync") {
+      if (isWaveSpeedBalanceError(err)) {
+        /* Out of funds mid-flight: fail closed with the clear state
+           instead of burning the poll-error budget on a dead account. */
+        await fail(
+          "Lip sync is temporarily unavailable — the provider account is out of funds, so this job could not be checked to completion.",
+          "provider_balance",
+        );
+        return;
+      }
+      if (
+        err instanceof WaveSpeedError &&
+        (err.status === 429 || (err.status !== null && err.status >= 500))
+      ) {
+        /* Provider answered and is just busy — not a transport failure. */
+        await recordJobPoll(job.id, { ok: true, nextPollInMs: pollBackoffMs(job.polls) });
+        logger.warn({ jobId: job.id, err: message }, "[job-poller] WaveSpeed busy on status check; backing off");
+        return;
+      }
+      const errors = job.consecutivePollErrors + 1;
+      if (errors >= MAX_POLL_ERRORS) {
+        await fail(
+          `WaveSpeed could not be reached after ${errors} attempts. Last error: ${message}`,
+          "provider_unreachable",
+        );
+      } else {
+        await recordJobPoll(job.id, { ok: false, error: message, nextPollInMs: pollBackoffMs(job.polls) });
+        logger.warn({ jobId: job.id, errors, err: message }, "[job-poller] WaveSpeed poll transport failure");
+      }
+      return;
+    }
     if (classifySubmitError(err) === "transient") {
       /* A 429/5xx on the status check means we REACHED Sync.so and it's just
          busy — not a transport failure. Don't count it toward the
@@ -336,11 +569,11 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
     return;
   }
 
-  const status = normalizeProviderStatus(remote);
+  const status = remote.status;
 
   if (status === "completed") {
     if (!remote.outputUrl) {
-      await fail("Sync.so reported completion but returned no video URL.", "provider_no_output");
+      await fail(`${display} reported completion but returned no video URL.`, "provider_no_output");
       return;
     }
     /* Mirror-on-save (2026-10-13 law): the provider's output URL is a CDN
@@ -351,7 +584,24 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
       (job.userId
         ? await mirrorExternalMediaUrl(remote.outputUrl, { kind: "video", ownerKey: job.userId })
         : null) ?? remote.outputUrl;
-    await completeLipSyncJob(job.id, storedVideoUrl);
+    /* Resolution honesty: compare the provider's output dimensions
+       against the input dimensions recorded at submit. LatentSync is
+       known to downscale (672x1344 → 432x880 in the clean test) — the
+       fact lands on the job record and in the completion note, never
+       silently. A failed probe records nulls (unknown), not a guess. */
+    const outputDims = await probeVideoDimensions(remote.outputUrl);
+    const metaIn = job.resultMeta;
+    const inputDims =
+      metaIn &&
+      typeof metaIn["inputWidth"] === "number" &&
+      typeof metaIn["inputHeight"] === "number"
+        ? {
+            width: metaIn["inputWidth"] as number,
+            height: metaIn["inputHeight"] as number,
+          }
+        : null;
+    const resMeta = buildResolutionMeta(inputDims, outputDims);
+    await completeLipSyncJob(job.id, storedVideoUrl, { ...resMeta, provider });
     /* Attach the finished video to the originating project — exactly once
        via the history_recorded gate, so a recovered job never double-attaches. */
     const first = await markHistoryRecorded(job.id).catch(() => false);
@@ -365,6 +615,10 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
       }).catch((err) => logger.warn({ err, jobId: job.id }, "[job-poller] recordLipSyncHistory failed (non-fatal)"));
     }
     const durationSec = job.params.sceneEndSec - job.params.sceneStartSec;
+    const resolutionNote =
+      resMeta.resolutionReduced === true
+        ? ` Note: the finished video is ${resMeta.outputWidth}×${resMeta.outputHeight} — smaller than the ${resMeta.inputWidth}×${resMeta.inputHeight} clip that was sent.`
+        : "";
     await createJobNotification({
       jobType: "lip_sync",
       jobId: job.id,
@@ -372,7 +626,7 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
       projectId: job.projectId,
       status: "completed",
       title: "Lip sync ready",
-      message: `Your lip-synced scene is ready${durationSec > 0 ? ` (${durationSec.toFixed(1)}s)` : ""}.`,
+      message: `Your lip-synced scene is ready${durationSec > 0 ? ` (${durationSec.toFixed(1)}s)` : ""}.${resolutionNote}`,
       videoUrl: storedVideoUrl,
     });
     logger.info({ jobId: job.id }, "[job-poller] lip-sync completed");
@@ -381,9 +635,9 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
 
   if (status === "failed") {
     /* Provider-reported FAILED is terminal for that generation — no silent
-       re-submits (each one would spend the user's Sync.so budget). */
+       re-submits (each one would spend the user's provider budget). */
     await fail(
-      `Sync.so reported the generation failed: ${remote.error ?? "unknown error"}`,
+      `${display} reported the generation failed: ${remote.error ?? "unknown error"}`,
       "provider_failed",
     );
     return;
