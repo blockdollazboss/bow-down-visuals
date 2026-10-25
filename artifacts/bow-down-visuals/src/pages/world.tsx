@@ -6,10 +6,21 @@ import {
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
-  Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen,
+  Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen, Camera,
+  Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash,
 } from "lucide-react";
 import {
-  WORLD_ACTIONS,
+  ACTION_PAGES,
+  DEFAULT_ACTION_PAGE,
+  actionForKey,
+  actionPageById,
+  nextActionPage,
+  verbRoleOk,
+  type ActionPageId,
+  type WorldRole,
+} from "@/lib/world/bindings";
+import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
+import {
   ACTION_BY_ID,
   type WorldActionId,
   type WorldActionDef,
@@ -279,6 +290,13 @@ const ACTION_ICONS: Record<WorldActionId, typeof Hand> = {
   dance: Music2,
   spin: RefreshCw,
   sit: Armchair,
+  point: Pointer,
+  beckon: HandHelping,
+  salute: Flag,
+  laugh: Drama,
+  shrug: PersonStanding,
+  highfive: Handshake,
+  kneel: ArrowBigDownDash,
 };
 
 /** One button on the action bar. A held toggle (Dance, Sit) wears
@@ -485,6 +503,17 @@ export default function WorldPage() {
      a walk that ended the dance — through onSelfAction). */
   const [myAction, setMyAction] = useState<WorldActionId | null>(null);
   const myActionRef = useRef<WorldActionId | null>(null);
+  /* The action page the deck shows and the controller performs
+     (bindings.ts — one table the deck, the number keys and the
+     pad's seven slots all read). Perform is the shipped set;
+     Social is the second seven. */
+  const [actionPage, setActionPage] = useState<ActionPageId>(DEFAULT_ACTION_PAGE);
+  /* Photo mode: every piece of page chrome steps aside so the
+     world itself is the frame. Movement, look and the toggle
+     itself stay live; performances pause while it's up. */
+  const [photoMode, setPhotoMode] = useState(false);
+  const photoModeRef = useRef(false);
+  photoModeRef.current = photoMode;
   /* Perform an avatar action: pressing the toggle I'm already
      holding ends it; anything else starts (or replaces) the
      performance. The client relays it to the room; the scene
@@ -496,6 +525,8 @@ export default function WorldPage() {
        itself renders the sign-in pitch for guests, so this guard
        is the backstop, not the message. */
     if (!memberControlsVisible(isGuest)) return;
+    /* Photo mode is for framing: no performances while it's up. */
+    if (photoModeRef.current) return;
     const client = clientRef.current;
     const scene = sceneRef.current;
     if (!client || !scene) return;
@@ -534,6 +565,82 @@ export default function WorldPage() {
   openStationRef.current = () => {
     if (!panelTarget && nearStation) {
       setPanelTarget({ kind: "station", station: nearStation });
+    }
+  };
+  /* The courtesies (the world-actions expansion): the fixture
+     post I'm standing at — the King at his dais, a guard at
+     theirs — polled in the same tick as the stations, off the
+     same pose. A courtesy is a performance, not a panel: bow to
+     the King, salute the guard. */
+  const [nearCourtesy, setNearCourtesy] = useState<FixtureCourtesy | null>(null);
+  const nearCourtesyIdRef = useRef<string | null>(null);
+  /* The showing station's distance, kept beside the courtesy's
+     own so the interact resolver can let the NEARER of the two
+     win — one prompt, one meaning for E / LB / the strip tap. */
+  const stationDistRef = useRef<number | null>(null);
+  const courtesyWins =
+    !!nearCourtesy &&
+    (stationDistRef.current === null || nearCourtesy.distance <= stationDistRef.current);
+  /* The one interact resolver behind E, the controller's LB and
+   * the touch strip: a courtesy showing nearer than any door is
+   * performed; otherwise the door at its prompt opens. Photo mode
+   * and an open panel both stand it down. */
+  const interactRef = useRef<() => void>(() => {});
+  interactRef.current = () => {
+    if (panelTarget || photoModeRef.current) return;
+    if (courtesyWins && nearCourtesy) {
+      performAction(nearCourtesy.action);
+      return;
+    }
+    openStationRef.current();
+  };
+  /* My role for the binding table's gates, read at press time
+     (the admin flag lands a few declarations below, so the refs
+     read it through this mirror). Admins hold the member set on
+     every input family — and no punishment verb ever rides a
+     controller, for any role, by design: those stay on their own
+     confirmed deck controls. */
+  const isAdminRef = useRef(false);
+  const myRole = (): WorldRole => (isAdminRef.current ? "admin" : isGuest ? "guest" : "member");
+  /* Back on the pad / Q on the keys / the deck tab: cycle the
+     action page. Member act — a guest's press does nothing. */
+  const cycleActionPageRef = useRef<() => void>(() => {});
+  cycleActionPageRef.current = () => {
+    if (!verbRoleOk("pageCycle", myRole()) || photoModeRef.current) return;
+    setActionPage((page) => nextActionPage(page));
+  };
+  /* Start on the pad / P on the keys / the deck's camera button:
+   * photo mode. Every role may frame a shot. Entering it closes
+   * every open panel — the chrome steps aside whole. */
+  const togglePhotoModeRef = useRef<() => void>(() => {});
+  togglePhotoModeRef.current = () => {
+    if (!verbRoleOk("photoMode", myRole())) return;
+    if (!photoModeRef.current) {
+      setPanelTarget(null);
+      setCharPanelOpen(false);
+      setScreenPanelOpen(false);
+      setHostPanelOpen(false);
+    }
+    setPhotoMode((on) => !on);
+  };
+  /* R3 on the pad / C on the keys / the strip's Claim: the live
+   * moment, claimed through the deck buttons' own handlers — an
+   * open drop first (it stands in this room, now), else the
+   * King's unclaimed gift. Nothing claimable → nothing happens.
+   * Members only: for a guest both claims are closed doors the
+   * server would refuse anyway. */
+  const claimMomentRef = useRef<() => void>(() => {});
+  claimMomentRef.current = () => {
+    if (!verbRoleOk("momentClaim", myRole()) || photoModeRef.current) return;
+    if (drop && dropClaimView(drop, isGuest, dropBook) === "open") {
+      setDropNote(null);
+      setDropBook((book) => dropBookClaimSent(book, drop));
+      clientRef.current?.claimDrop();
+      return;
+    }
+    if (inHall && kingMoment && isKingMomentLive(kingMoment, Date.now()) && !kingMoment.claimed) {
+      setKingNote(null);
+      clientRef.current?.claimKingGift();
     }
   };
   /* The editor step-through's deep link: when the Visual Vibes
@@ -606,6 +713,7 @@ export default function WorldPage() {
   const [lockNote, setLockNote] = useState<string | null>(null);
   const [lockBusy, setLockBusy] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  isAdminRef.current = isAdmin;
   const [myPeerId, setMyPeerId] = useState<string | null>(null);
   /* Fullscreen + controller presence (view states only — the render
      loop and the session never depend on either). */
@@ -1058,6 +1166,12 @@ export default function WorldPage() {
     sceneRef.current?.setQualityPreference(qualityPref);
   }, [qualityPref]);
 
+  /* The pad's slots perform the deck's page: push the page state
+     into the scene, the quality-preference pattern. */
+  useEffect(() => {
+    sceneRef.current?.setPadActionPage(actionPage);
+  }, [actionPage]);
+
   const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
 
   /* Fullscreen: the standard API on the room container. The
@@ -1276,23 +1390,48 @@ export default function WorldPage() {
     return () => clearInterval(id);
   }, [roomId]);
 
-  /* Walk-up keys: E opens the door you're standing at. Typing (the
-     say box, any field) keeps its letters; an open panel keeps the
-     key for itself. The opener + its guard live in openStationRef —
-     the controller's LB lands on exactly the same door. */
+  /* The world keys (bindings.ts — the keyboard family of the one
+     table): E works the prompt you're standing at (the door, or
+     the courtesy nearer than it), 1–7 perform the ACTIVE PAGE's
+     actions in slot order (the controller's slots, key for key),
+     Q cycles the page, C claims the live moment, P frames a
+     photo. Typing (the say box, any field) keeps its letters; an
+     open panel keeps the keys for itself — the E key's shipped
+     guards, now covering the whole family. Every verb resolves
+     through the same refs the controller lands on, so a key and a
+     button can never mean two things. */
   useEffect(() => {
     if (status !== "inside") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "e" && e.key !== "E") return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-      if (panelTarget || !nearStation) return;
-      e.preventDefault();
-      openStationRef.current();
+      if (e.code === "KeyE") {
+        if (panelTarget) return;
+        e.preventDefault();
+        interactRef.current();
+        return;
+      }
+      const action = actionForKey(actionPage, e.code);
+      if (action) {
+        if (panelTarget) return;
+        e.preventDefault();
+        performActionRef.current(action);
+        return;
+      }
+      if (e.code === "KeyQ") {
+        e.preventDefault();
+        cycleActionPageRef.current();
+      } else if (e.code === "KeyC") {
+        e.preventDefault();
+        claimMomentRef.current();
+      } else if (e.code === "KeyP") {
+        e.preventDefault();
+        togglePhotoModeRef.current();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [status, nearStation, panelTarget]);
+  }, [status, panelTarget, actionPage]);
 
   /* The screen remote's data: my live stream (the existing status
      endpoint — the same one the Go Live studio reads) and the video
@@ -1593,10 +1732,24 @@ export default function WorldPage() {
       scene.onPadAction = (action) => {
         if (!cancelled) performActionRef.current(action);
       };
-      /* LB at a door: the station interact — the E key's twin,
-         guarded by the same opener (prompt showing, no panel). */
+      /* LB at a prompt: the one interact resolver — the E key's
+         twin. A courtesy standing nearer than the door is
+         performed; otherwise the door opens (prompt showing, no
+         panel — the resolver carries the guards). */
       scene.onPadInteract = () => {
-        if (!cancelled) openStationRef.current();
+        if (!cancelled) interactRef.current();
+      };
+      /* Back cycles the action page (the pad's slots and the deck
+         follow the same state); Start toggles photo mode; R3
+         claims the live moment through the deck's own handlers. */
+      scene.onPadPageCycle = () => {
+        if (!cancelled) cycleActionPageRef.current();
+      };
+      scene.onPadPhotoMode = () => {
+        if (!cancelled) togglePhotoModeRef.current();
+      };
+      scene.onPadMomentClaim = () => {
+        if (!cancelled) claimMomentRef.current();
       };
       /* My figure's action ended on its own (a finished one-shot,
          a walk that stopped the dance) — the bar follows. */
@@ -2092,13 +2245,37 @@ export default function WorldPage() {
             nearStationIdRef.current = null;
             if (!cancelled) setNearStation(null);
           }
+          if (nearCourtesyIdRef.current !== null) {
+            nearCourtesyIdRef.current = null;
+            if (!cancelled) setNearCourtesy(null);
+          }
+          stationDistRef.current = null;
         } else {
           const pose = scene.localPose();
           const st = nearestStation(client.room.id, pose.x, pose.z);
           const id = st?.id ?? null;
+          stationDistRef.current = st ? Math.hypot(st.x - pose.x, st.z - pose.z) : null;
           if (id !== nearStationIdRef.current) {
             nearStationIdRef.current = id;
             if (!cancelled) setNearStation(st);
+          }
+          /* The courtesies ride the same tick: the fixture post at
+             this spot, if one stands in range. */
+          const courtesy = nearestCourtesy(client.room.id, pose.x, pose.z);
+          const courtesyId = courtesy?.fixture.id ?? null;
+          if (courtesyId !== nearCourtesyIdRef.current) {
+            nearCourtesyIdRef.current = courtesyId;
+            if (!cancelled) setNearCourtesy(courtesy);
+          } else if (courtesy && !cancelled) {
+            /* Same post, new distance — the resolver's nearer-wins
+               call stays honest as the walker drifts. Setting the
+               same-id object each tick re-renders the prompt only
+               when the distance actually moved. */
+            setNearCourtesy((prev) =>
+              prev && courtesy && Math.abs(prev.distance - courtesy.distance) < 0.05
+                ? prev
+                : courtesy,
+            );
           }
         }
         if (client.jukebox !== jukeboxAnchorRef.current.state) {
@@ -2288,7 +2465,10 @@ export default function WorldPage() {
       className={`flex min-h-screen flex-col ${isLight ? "bg-[#f3ead3] text-[#2a1e07]" : "bg-black text-white"}`}
       {...(isLight ? {} : { "data-dark-lock": true })}
     >
-      {/* ── Chrome ── */}
+      {/* ── Chrome ── (photo mode steps ALL of it aside — the
+          header, the moment bars and the footer below; only the
+          world and one small chip stay) */}
+      {!photoMode && (
       <header className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         <Link href="/go-live" className={`inline-flex items-center gap-1.5 text-sm transition ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/50 hover:text-white"}`}>
           <ArrowLeft className="h-4 w-4" /> Go Live
@@ -2369,6 +2549,7 @@ export default function WorldPage() {
             station's page in a new tab without leaving the room. */}
         <SwitchToWebsite isLight={isLight} />
       </header>
+      )}
 
       {/* The Objective Strip (THE-GAME §5(a)): pinned in the chrome
           across every room — your current quest, your streak's next
@@ -2422,7 +2603,7 @@ export default function WorldPage() {
           carries its own off switch (the header toggle is the
           same switch, always in reach). Muted on this device, the
           banner never rises — the room log still keeps the line. */}
-      {status === "inside" && announce && !announceMuted && (
+      {status === "inside" && announce && !announceMuted && !photoMode && (
         <div
           className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
             isLight
@@ -2467,7 +2648,7 @@ export default function WorldPage() {
           verifies all of it), guests witness and get the honest
           sign-in line. The card is the hall's: walk out of the
           hall and it goes with the room's state. */}
-      {status === "inside" && inHall && isKingMomentLive(kingMoment, Date.now()) && kingMoment && (
+      {status === "inside" && inHall && isKingMomentLive(kingMoment, Date.now()) && kingMoment && !photoMode && (
         <div
           className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
             isLight
@@ -2519,7 +2700,7 @@ export default function WorldPage() {
           witness and get the honest sign-in line — no claim
           affordance. The card goes with the room's state: walk
           out and it's gone. */}
-      {status === "inside" && drop && dropView && (
+      {status === "inside" && drop && dropView && !photoMode && (
         <div
           className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${
             isLight
@@ -2582,7 +2763,7 @@ export default function WorldPage() {
           witnessed by the whole room. Guests get the honest line:
           tipping is members' business. Your own stage never shows
           the bar — you can't tip yourself. */}
-      {status === "inside" && stageHolder && !iHoldStage && (
+      {status === "inside" && stageHolder && !iHoldStage && !photoMode && (
         <div
           className={`relative z-20 flex flex-wrap items-center gap-2 border-b px-4 py-2 ${
             isLight
@@ -3016,7 +3197,7 @@ export default function WorldPage() {
             in this room — a quest completed, a level rose — stated
             once, in the palace's voice, then gone. Wins are public;
             the line carries no balance and no progress detail. */}
-        {status === "inside" && momentLine && (
+        {status === "inside" && momentLine && !photoMode && (
           <div
             className="pointer-events-none absolute left-1/2 top-16 z-10 -translate-x-1/2"
             data-testid="world-moment-banner"
@@ -3029,7 +3210,7 @@ export default function WorldPage() {
         )}
 
         {/* Controls hint */}
-        {status === "inside" && (
+        {status === "inside" && !photoMode && (
           <p className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
             WASD to walk · drag or click to look · Shift to hurry
           </p>
@@ -3041,7 +3222,7 @@ export default function WorldPage() {
             stands. E (or a controller's LB) opens it too; the
             panel's own close is the way
             back to the room. */}
-        {status === "inside" && nearStation && !panelTarget && (
+        {status === "inside" && nearStation && !panelTarget && !photoMode && !courtesyWins && (
           <div
             className="absolute bottom-24 left-1/2 z-10 w-[min(92vw,440px)] -translate-x-1/2 sm:bottom-20"
             data-testid="world-station-prompt"
@@ -3088,10 +3269,80 @@ export default function WorldPage() {
           </div>
         )}
 
+        {/* The courtesy prompt: a standing figure is close and
+            the post nearer than any door — the King at his dais,
+            a guard at theirs. One tap (or E, or LB) performs it:
+            a bow for the King, a salute for the guard. Members
+            only — a guest sees the figures, never the offer. */}
+        {status === "inside" && nearCourtesy && courtesyWins && !panelTarget && !photoMode && !isGuest && (
+          <div
+            className="absolute bottom-24 left-1/2 z-10 w-[min(92vw,440px)] -translate-x-1/2 sm:bottom-20"
+            data-testid="world-courtesy-prompt"
+          >
+            <div
+              className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-sm ${
+                isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95" : "border-[#d4af37]/50 bg-black/80"
+              }`}
+            >
+              <Crown className="h-5 w-5 shrink-0 text-[#d4af37]" />
+              <div className="min-w-0 flex-1">
+                <p className={`truncate text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  {nearCourtesy.label}
+                </p>
+                <p className={`truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                  {nearCourtesy.fixture.body === "king"
+                    ? "His Majesty holds the dais — courtesy is owed."
+                    : "The King's guard holds this post."}
+                </p>
+              </div>
+              <button
+                type="button"
+                data-testid="world-courtesy-perform"
+                onClick={() => performAction(nearCourtesy.action)}
+                className="shrink-0 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+              >
+                {ACTION_BY_ID.get(nearCourtesy.action)?.label ?? "Perform"}
+              </button>
+              <kbd
+                className={`hidden shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-black md:block ${
+                  isLight ? "border-[#7A5A12]/40 text-[#7A5A12]" : "border-white/25 text-white/60"
+                }`}
+              >
+                E
+              </kbd>
+              {padConnected && (
+                <kbd
+                  className={`hidden shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-black md:block ${
+                    isLight ? "border-[#7A5A12]/40 text-[#7A5A12]" : "border-white/25 text-white/60"
+                  }`}
+                >
+                  LB
+                </kbd>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Photo mode's one chip: the frame is the world itself.
+            It names the two ways back honestly — and nothing else
+            is on the glass while it stands. */}
+        {status === "inside" && photoMode && (
+          <div
+            className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2"
+            data-testid="world-photo-chip"
+            role="status"
+          >
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/55 px-4 py-1.5 text-xs font-bold text-white/85 backdrop-blur-sm">
+              <Camera className="h-3.5 w-3.5 text-[#e8c86a]" />
+              Photo mode — {padConnected ? "press Start" : "press P"} to bring the controls back
+            </span>
+          </div>
+        )}
+
         {/* The Music Hall, muted by the browser: autoplay is the
             browser's call — when it says no, the room says so and
             one tap lets it be heard. Never silent pretending. */}
-        {status === "inside" && roomId === MUSIC_HALL_ID && jukebox?.current && !jukeboxAudible && (
+        {status === "inside" && roomId === MUSIC_HALL_ID && jukebox?.current && !jukeboxAudible && !photoMode && (
           <button
             type="button"
             data-testid="world-jukebox-hear"
@@ -3572,6 +3823,7 @@ export default function WorldPage() {
           reserved strip keeps the right-aligned controls (and the
           trailing headset status line) from ever running under it
           and truncating mid-word (owner's screenshot, 2026-10-16). */}
+      {!photoMode && (
       <footer className={`relative z-20 border-t py-3 pl-4 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
@@ -3583,12 +3835,16 @@ export default function WorldPage() {
         {padConnected && status === "inside" && (
           <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
             <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB opens the door you&rsquo;re standing at, D-pad and face buttons perform the actions below.
+            Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, Back switches the action page, R3 claims the moment</>}, Start frames a photo.
           </p>
         )}
         {/* The action bar: what your figure can DO, seen by the
-            whole room. One-shots play out and settle; Dance and Sit
-            hold until pressed again — or until you walk off. */}
+            whole room — TWO pages of seven (bindings.ts). Perform
+            is the shipped set; Social is the second seven. The
+            deck, the number keys and the controller's slots all
+            show the same page — Back on a pad, Q on the keys, or
+            these tabs turn it. One-shots play out and settle;
+            toggles hold until pressed again — or until you walk. */}
         {status === "inside" && !isGuest && (
           <div
             className="mb-2 flex flex-wrap items-center gap-1.5"
@@ -3596,20 +3852,108 @@ export default function WorldPage() {
             role="group"
             aria-label="Avatar actions — everyone in the room sees these"
           >
-            {WORLD_ACTIONS.map((def) => (
-              <ActionButton
-                key={def.id}
-                def={def}
-                active={myAction === def.id}
-                isLight={isLight}
-                onPerform={performAction}
-              />
-            ))}
+            <span
+              className="inline-flex overflow-hidden rounded-full border border-[#d4af37]/40"
+              role="group"
+              aria-label="Action page"
+            >
+              {ACTION_PAGES.map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  data-testid={`world-action-page-${page.id}`}
+                  aria-pressed={actionPage === page.id}
+                  onClick={() => setActionPage(page.id)}
+                  className={`px-3 py-1.5 text-xs font-black transition ${
+                    actionPage === page.id
+                      ? "bg-[#d4af37] text-black"
+                      : isLight
+                        ? "text-[#7A5A12] hover:bg-[#d4af37]/15"
+                        : "text-[#e8c86a] hover:bg-[#d4af37]/10"
+                  }`}
+                >
+                  {page.label}
+                </button>
+              ))}
+            </span>
+            {actionPageById(actionPage).slots.map((id) => {
+              const def = ACTION_BY_ID.get(id);
+              if (!def) return null;
+              return (
+                <ActionButton
+                  key={def.id}
+                  def={def}
+                  active={myAction === def.id}
+                  isLight={isLight}
+                  onPerform={performAction}
+                />
+              );
+            })}
             {myAction && ACTION_BY_ID.get(myAction)?.kind === "toggle" && (
               <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
                 {ACTION_BY_ID.get(myAction)?.label} is on — tap it again, or just walk, to stop.
+                {actionPageById(actionPage).slots.includes(myAction)
+                  ? ""
+                  : ` It's on the ${ACTION_PAGES.find((p) => p.slots.includes(myAction as WorldActionId))?.label ?? "other"} page.`}
               </span>
             )}
+          </div>
+        )}
+        {/* The world strip (touch): the contextual verbs, as
+            targets big enough for a thumb — Interact wears the
+            showing prompt's own words, Claim stands only while a
+            moment can actually be claimed, Photo frames the
+            shot. Pad and keys carry the same three verbs. */}
+        {status === "inside" && (
+          <div
+            className="mb-2 flex flex-wrap items-center gap-1.5"
+            data-testid="world-strip"
+            role="group"
+            aria-label="World actions"
+          >
+            {!isGuest && (courtesyWins && nearCourtesy ? (
+              <button
+                type="button"
+                data-testid="world-strip-interact"
+                onClick={() => interactRef.current()}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+              >
+                <Crown className="h-4 w-4" /> {nearCourtesy.label}
+              </button>
+            ) : nearStation && !panelTarget ? (
+              <button
+                type="button"
+                data-testid="world-strip-interact"
+                onClick={() => interactRef.current()}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+              >
+                <DoorOpen className="h-4 w-4" /> Open {nearStation.name}
+              </button>
+            ) : null)}
+            {!isGuest &&
+              ((drop && dropView === "open") ||
+                (inHall && kingMoment && isKingMomentLive(kingMoment, Date.now()) && !kingMoment.claimed)) && (
+                <button
+                  type="button"
+                  data-testid="world-strip-claim"
+                  onClick={() => claimMomentRef.current()}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                >
+                  <Gem className="h-4 w-4" /> Claim the moment
+                </button>
+              )}
+            <button
+              type="button"
+              data-testid="world-strip-photo"
+              onClick={() => togglePhotoModeRef.current()}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105 ${
+                isLight
+                  ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                  : "border-white/15 text-white/80 hover:text-white"
+              }`}
+            >
+              <Camera className="h-4 w-4" /> Photo
+            </button>
           </div>
         )}
         {/* Guests get no action bar (access law, owner default 3):
@@ -3914,6 +4258,7 @@ export default function WorldPage() {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

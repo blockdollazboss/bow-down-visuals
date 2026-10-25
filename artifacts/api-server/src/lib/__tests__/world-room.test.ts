@@ -956,6 +956,35 @@ describe("action snapshots", () => {
     expect(deltaWelcome.peers.map((p) => p.action)).toContain("dance");
     expect(room.peerFor(b)?.action).toBeNull();
   });
+
+  it("the social set rides the same mirror: salute snapshots as a one-shot, kneel holds as a toggle", () => {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    frame(b, room, { type: "action", action: "salute" }, 1_000);
+    frame(a, room, { type: "action", action: "kneel" }, 1_600);
+    const c = fakeSocket();
+    room.attach(c, member("Carol"));
+    const carolWelcome = c.sent.find((m) => m.type === "welcome") as unknown as {
+      peers: Array<{ action: string | null }>;
+    };
+    expect(carolWelcome.peers.map((p) => p.action)).toContain("salute");
+    expect(carolWelcome.peers.map((p) => p.action)).toContain("kneel");
+    // Past every one-shot window, the salute is over; the kneel holds.
+    frame(a, room, { type: "say", text: "later" }, 6_000);
+    const d = fakeSocket();
+    room.attach(d, member("Delta"));
+    const deltaWelcome = d.sent.find((m) => m.type === "welcome") as unknown as {
+      peers: Array<{ action: string | null }>;
+    };
+    expect(deltaWelcome.peers.map((p) => p.action)).not.toContain("salute");
+    expect(deltaWelcome.peers.map((p) => p.action)).toContain("kneel");
+    // An id the mirror doesn't know is still ignored, never relayed.
+    frame(b, room, { type: "action", action: "backflip" }, 6_500);
+    expect(room.peerFor(b)?.action).toBeNull();
+  });
 });
 
 describe("tints", () => {
