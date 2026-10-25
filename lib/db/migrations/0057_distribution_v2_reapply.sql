@@ -8,6 +8,34 @@
 --
 -- 0034's body is fully idempotent (IF NOT EXISTS throughout), so re-applying
 -- it here is a safe no-op on databases where it already ran.
+--
+-- Deploy repair (2026-10-25): distribution_releases is created by
+-- 0011_distribution_releases.sql, which sits at/below the migrate-boot
+-- BASELINE (55) — the boot runner skips <= 0055 on existing databases,
+-- assuming they were applied manually pre-runner. On a database where
+-- 0011 never ran, the ALTER below FATALs ("relation distribution_releases
+-- does not exist") and stalls the whole boot chain — the same gap that
+-- killed the bc755447 deploy at 0207 (collab_requests). Where this file
+-- has already applied, the runner skips it by filename, so this edit
+-- never re-runs; IF NOT EXISTS makes the guard a no-op where the table
+-- already exists. Definition copied exactly from 0011.
+CREATE TABLE IF NOT EXISTS distribution_releases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  title TEXT NOT NULL,
+  artist_name TEXT NOT NULL,
+  release_date TEXT,
+  platforms JSONB NOT NULL DEFAULT '[]'::jsonb,
+  audio_url TEXT,
+  artwork_url TEXT,
+  metadata JSONB,
+  strategy JSONB,
+  status TEXT NOT NULL DEFAULT 'draft',
+  credits_charged INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS distribution_releases_user_idx ON distribution_releases (user_id);
 
 ALTER TABLE distribution_releases
   ADD COLUMN IF NOT EXISTS release_type text NOT NULL DEFAULT 'single',
