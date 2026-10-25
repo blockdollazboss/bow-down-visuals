@@ -47,6 +47,9 @@ import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 /* Back-in-stock alerts (Wave 4 #37): an import that restocks a sold-out
    listing is a restock like any other — the waiting fans fire off it. */
 import { maybeFireRestockAlerts } from "../lib/stock-alerts";
+/* Wishlists (Wave 4 #38): an import that cuts a listing's price is a
+   price write like any other — saved fans get their one drop alert. */
+import { detectWishlistPriceDrop } from "../lib/wishlists";
 
 const router = Router();
 
@@ -487,6 +490,16 @@ router.post("/storefront/shopify-import/commit", requireAuth, publicApiLimiter, 
               is_active = ${l.isActive}, updated_at = now()
           WHERE id = ${knownId} AND profile_id = ${profile.id}
         `);
+        /* Wave 4 #38: a re-import that overwrites a listing's price is
+           a price edit — a drop alerts fans who wishlisted it, once
+           per drop (lib/wishlists owns the law and never throws). */
+        await detectWishlistPriceDrop({
+          itemKind: "store_product",
+          itemId: knownId,
+          newPriceCents: l.priceCents,
+          title: l.title,
+          link: `/storefront/product/${knownId}`,
+        });
         row.action = "update";
         row.productId = knownId;
         /* Back-in-stock (#37): an import that brings a sold-out listing

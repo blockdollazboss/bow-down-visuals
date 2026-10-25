@@ -73,6 +73,7 @@ import {
 } from "../../lib/gift-cards";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { validateAffiliateCodeForProduct, recordAffiliateSaleSafely } from "../../lib/affiliates";
+import { detectWishlistPriceDrop } from "../../lib/wishlists";
 import { ALT_TEXT_MAX_CHARS, sanitizeAltText } from "../../lib/alt-text";
 
 /* #29: shop_products.image_alt_text (accessibility description of the
@@ -990,6 +991,18 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
   if (!updatedRow) {
     res.json({ product: updatedRow });
     return;
+  }
+  if (d.price_cents !== undefined) {
+    /* Wave 4 #38: a price write is the drop moment — fans who saved
+       this product get one alert per drop (lib/wishlists owns the
+       price law and never throws into the seller's request). */
+    await detectWishlistPriceDrop({
+      itemKind: "shop_product",
+      itemId: String(updatedRow.id),
+      newPriceCents: Number(updatedRow.price_cents),
+      title: String(updatedRow.name ?? ""),
+      link: `/shop/${shop.handle}`,
+    });
   }
   const pinnedAds = await pinnedAdVideosById([updatedRow]);
   res.json({

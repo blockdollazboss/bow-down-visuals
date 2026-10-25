@@ -115,6 +115,7 @@ import {
   SaleSplitError,
   type ProductSplit,
 } from "../lib/sale-splits";
+import { detectWishlistPriceDrop } from "../lib/wishlists";
 /* Post-purchase upsell (Stack-100 #3, Wave 3): the SAME seller
    attachment as the bump, offered once after the purchase completes
    and charged in one click off the saved payment method through its
@@ -1371,6 +1372,18 @@ router.patch("/storefront/products/:id", requireAuth, publicApiLimiter, async (r
         prev: prevStock,
         next: { inventory: Number(p.inventory), isActive: Boolean(p.is_active) },
       }).catch((err) => logger.error({ err, id }, "[storefront] restock alert fan-out failed"));
+    }
+    if (p && (d.priceCents !== undefined || d.giftCardDenominationsCents !== undefined)) {
+      /* Wave 4 #38: a price write is the drop moment — fans who saved
+         this product get one alert per drop (lib/wishlists owns the
+         price law and never throws into the seller's request). */
+      await detectWishlistPriceDrop({
+        itemKind: "store_product",
+        itemId: id,
+        newPriceCents: Number(p.price_cents),
+        title: String(p.title ?? ""),
+        link: `/storefront/product/${id}`,
+      });
     }
     res.json({ product: p ? await presentProduct(p) : { id } });
   } catch (err) {

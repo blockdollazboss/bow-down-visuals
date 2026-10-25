@@ -12910,12 +12910,32 @@
     "tabTemplates": "Templates",
     "tabPresets": "Presets",
     "tabFonts": "Fonts",
+    "tabWishlist": "Wishlist",
     "recentlyUsed": "Recently used",
     "use": "Use",
     "useFont": "Copy font",
     "copied": "Copied!",
     "browse": "Browse Library",
     "noResults": "Nothing found — try another search."
+  },
+  "wishlist": {
+    "save": "Save to wishlist",
+    "saved": "Saved to your wishlist",
+    "saveShort": "Save for later",
+    "savedShort": "Saved",
+    "loadError": "Your wishlist couldn't load — check your connection and try again.",
+    "emptyTitle": "Nothing saved yet",
+    "emptyBody": "Tap the heart on any product in a creator's store or shop to save it here. If its price drops, we'll tell you.",
+    "kindStore": "Store",
+    "kindShop": "Shop",
+    "goneTitle": "A saved product",
+    "savedAt": "Saved at",
+    "now": "Now",
+    "gone": "No longer listed",
+    "droppedBy": "Down {{amount}} since you saved it",
+    "unavailable": "Not on sale right now — we'll keep it here in case it returns.",
+    "view": "View product",
+    "remove": "Remove from wishlist"
   },
   "motionGraphics": {
     "cat": {

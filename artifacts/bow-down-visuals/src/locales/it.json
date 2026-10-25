@@ -9160,13 +9160,13 @@
           "credits": "1,000 Visual Bucs",
           "price": "$9"
         },
-        "150": {
-          "credits": "15,000 Visual Bucs",
-          "price": "$99"
-        },
         "50": {
           "credits": "5,000 Visual Bucs",
           "price": "$39"
+        },
+        "150": {
+          "credits": "15,000 Visual Bucs",
+          "price": "$99"
         },
         "500": {
           "credits": "50,000 Visual Bucs",
@@ -10773,7 +10773,8 @@
     "useFont": "Copia font",
     "copied": "Copiato!",
     "browse": "Sfoglia la libreria",
-    "noResults": "Niente trovato — prova un'altra ricerca."
+    "noResults": "Niente trovato — prova un'altra ricerca.",
+    "tabWishlist": "Lista dei desideri"
   },
   "retention": {
     "streak_title": "Serie di creazione",
@@ -14871,5 +14872,24 @@
     "handoffTitle": "Passo successivo",
     "handoffMaster": "Invia alla scheda Master →",
     "handoffDistribute": "Distribuiscilo →"
+  },
+  "wishlist": {
+    "save": "Salva nella lista dei desideri",
+    "saved": "Salvato nella tua lista dei desideri",
+    "saveShort": "Salva per dopo",
+    "savedShort": "Salvato",
+    "loadError": "Impossibile caricare la tua lista dei desideri — controlla la connessione e riprova.",
+    "emptyTitle": "Ancora niente di salvato",
+    "emptyBody": "Tocca il cuore su un prodotto nello store o nello shop di un creator per salvarlo qui. Se il prezzo scende, ti avvisiamo.",
+    "kindStore": "Store",
+    "kindShop": "Shop",
+    "goneTitle": "Un prodotto salvato",
+    "savedAt": "Salvato a",
+    "now": "Ora",
+    "gone": "Non più in vendita",
+    "droppedBy": "Sceso di {{amount}} da quando l'hai salvato",
+    "unavailable": "Non in vendita al momento — lo teniamo qui in caso torni.",
+    "view": "Vedi prodotto",
+    "remove": "Rimuovi dalla lista dei desideri"
   }
 }

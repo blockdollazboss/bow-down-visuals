@@ -45,6 +45,8 @@ CREATE TABLE store_products (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), prof
 CREATE TABLE store_orders (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), buyer_user_id uuid, profile_id uuid NOT NULL, product_id uuid, product_title text NOT NULL DEFAULT '', product_kind text NOT NULL DEFAULT 'digital', quantity integer NOT NULL DEFAULT 1, amount_cents integer NOT NULL, discount_code text, platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0, stripe_session_id text, status text NOT NULL DEFAULT 'completed', fulfillment_note text, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE email_lists (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, name text NOT NULL, handle text NOT NULL);
 CREATE TABLE email_subscribers (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), list_id uuid NOT NULL, email text NOT NULL, name text, source text NOT NULL DEFAULT 'landing', unsubscribed_at timestamptz, subscribed_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE notifications (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, kind text NOT NULL, title text NOT NULL, body text NOT NULL DEFAULT '', link text NOT NULL DEFAULT '', is_read boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE wishlists (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, item_kind text NOT NULL, item_id uuid NOT NULL, price_at_add_cents integer NOT NULL, lowest_cents integer NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
 `;
 
 const OWNER = randomUUID(), STRANGER = randomUUID(), NOPROFILE = randomUUID();
@@ -244,6 +246,37 @@ describe("import commit + idempotent re-import", () => {
     expect(teeS.id).toBe(teeSId);
     expect(teeS.price_cents).toBe(2499);
     expect(teeS.inventory).toBe(9);
+  });
+});
+
+describe("wishlist price-drop alerts on re-import (Wave 4 #38)", () => {
+  it("a re-import that cuts a wishlisted listing's price alerts the fan once and resets the floor", async () => {
+    await post(OWNER, "/storefront/shopify-import/commit", { csv: SHOPIFY_CSV });
+    const products = await myProducts(OWNER_PROFILE);
+    const teeS = products.find((p) => p.title === "Golden Mic Tee — S");
+    const FAN = randomUUID();
+    await testState.db.execute(sql`
+      INSERT INTO wishlists (user_id, item_kind, item_id, price_at_add_cents, lowest_cents)
+      VALUES (${FAN}, 'store_product', ${teeS.id}, 2999, 2999)
+    `);
+    const repricedCsv = SHOPIFY_CSV.replace('TEE-S,shopify,12,deny,29.99', 'TEE-S,shopify,9,deny,24.99');
+    await post(OWNER, "/storefront/shopify-import/commit", { csv: repricedCsv });
+
+    const notes = await testState.db.execute(sql`
+      SELECT body, link FROM notifications WHERE user_id = ${FAN} AND kind = 'wishlist_price_drop'
+    `);
+    expect(notes.rows).toHaveLength(1);
+    expect(String((notes.rows[0] as any).body)).toContain("$24.99");
+    expect(String((notes.rows[0] as any).link)).toBe(`/storefront/product/${teeS.id}`);
+    const wl = await testState.db.execute(sql`SELECT lowest_cents FROM wishlists WHERE user_id = ${FAN}`);
+    expect(Number((wl.rows[0] as any).lowest_cents)).toBe(2499);
+
+    /* The same file again is the same price — not a new drop. */
+    await post(OWNER, "/storefront/shopify-import/commit", { csv: repricedCsv });
+    const notes2 = await testState.db.execute(sql`
+      SELECT id FROM notifications WHERE user_id = ${FAN} AND kind = 'wishlist_price_drop'
+    `);
+    expect(notes2.rows).toHaveLength(1);
   });
 });
 

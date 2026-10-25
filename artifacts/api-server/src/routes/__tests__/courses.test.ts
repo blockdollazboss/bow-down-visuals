@@ -241,6 +241,23 @@ CREATE TABLE course_lesson_progress (
   CHECK (status IN ('started','in_progress','completed'))
 );
 CREATE UNIQUE INDEX course_lesson_progress_user_lesson_unique ON course_lesson_progress (user_id, lesson_id);
+CREATE TABLE notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL, kind text NOT NULL, title text NOT NULL,
+  body text NOT NULL DEFAULT '', link text NOT NULL DEFAULT '',
+  is_read boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE wishlists (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  item_kind text NOT NULL,
+  item_id uuid NOT NULL,
+  price_at_add_cents integer NOT NULL,
+  lowest_cents integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 `;
 
 let server: any; let baseUrl: string;
@@ -629,5 +646,41 @@ describe("courses — buyer progress", () => {
     const ownerMine = await call(owner, "GET", "/api/courses/mine");
     expect(ownerMine.json.courses).toHaveLength(1);
     expect(ownerMine.json.courses[0].access).toBe("owner");
+  });
+});
+
+/* ── wishlist price-drop alerts (Wave 4 #38) ──────────────────────── */
+
+describe("courses — wishlist price-drop alerts", () => {
+  it("a price cut in the course builder alerts a fan who wishlisted the course, once per drop; a rise stays silent", async () => {
+    const { productId } = await makeCourse(); // $49.00, published
+    await testState.db.execute(sql`
+      INSERT INTO wishlists (user_id, item_kind, item_id, price_at_add_cents, lowest_cents)
+      VALUES (${buyer}, 'store_product', ${productId}, 4900, 4900)
+    `);
+    const alertsFor = async () => {
+      const r = await testState.db.execute(sql`
+        SELECT body, link FROM notifications
+        WHERE user_id = ${buyer} AND kind = 'wishlist_price_drop'
+      `);
+      return r.rows as Array<Record<string, unknown>>;
+    };
+
+    const cut = await call(owner, "PATCH", `/api/courses/${productId}`, { priceCents: 3900 });
+    expect(cut.status).toBe(200);
+    const alerts = await alertsFor();
+    expect(alerts).toHaveLength(1);
+    expect(String(alerts[0]!["body"])).toContain("$39.00");
+    expect(String(alerts[0]!["link"])).toBe(`/storefront/product/${productId}`);
+
+    /* Rise: silent, floor stays at the alerted price. */
+    await call(owner, "PATCH", `/api/courses/${productId}`, { priceCents: 4200 });
+    expect(await alertsFor()).toHaveLength(1);
+
+    /* A further drop below the reset floor alerts again. */
+    await call(owner, "PATCH", `/api/courses/${productId}`, { priceCents: 3500 });
+    const after = await alertsFor();
+    expect(after).toHaveLength(2);
+    expect(String(after[1]!["body"])).toContain("$35.00");
   });
 });

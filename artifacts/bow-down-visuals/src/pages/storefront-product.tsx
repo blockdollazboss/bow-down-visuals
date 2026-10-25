@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
+import WishlistButton from "@/components/wishlist/WishlistButton";
 import { dropCountdown, formatDropLocal, pad2 } from "@/lib/product-drop";
 import type { ProductDropDTO } from "@/lib/storefront-api";
 import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert } from "@/lib/storefront-api";
@@ -654,7 +655,12 @@ export default function StorefrontProduct() {
               <div className="text-xs uppercase tracking-[0.25em] text-amber-400/80">
                 {PRODUCT_KIND_LABELS[data.product.kind] ?? data.product.kind}
               </div>
-              <h1 className="mt-2 text-3xl font-bold text-amber-200">{data.product.title}</h1>
+              <div className="mt-2 flex items-start justify-between gap-3">
+                <h1 className="text-3xl font-bold text-amber-200">{data.product.title}</h1>
+                {/* Wave 4 #38: save-for-later — a price drop on this
+                    product notifies the fan once per drop. */}
+                <WishlistButton itemKind="store_product" itemId={data.product.id} className="mt-1 shrink-0" />
+              </div>
               <p className="mt-1 text-amber-100/70">
                 by{" "}
                 <Link href={data.product.links.creatorUrl} className="text-amber-300 underline-offset-2 hover:underline">

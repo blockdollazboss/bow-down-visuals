@@ -37,6 +37,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { resolveOptionalSession } from "../lib/optional-auth";
 import { logger } from "../lib/logger";
+import { detectWishlistPriceDrop } from "../lib/wishlists";
 import {
   CourseError,
   isCourseNotLiveError,
@@ -173,6 +174,18 @@ router.patch("/courses/:productId", requireAuth, publicApiLimiter, async (req: R
   }
   try {
     const product = await updateCourse(actor(req), productId, parsed.data);
+    if (parsed.data.priceCents !== undefined) {
+      /* Wave 4 #38: a course IS a store product — a price edit here is
+         a wishlist drop moment exactly like the storefront PATCH
+         (lib/wishlists owns the price law and never throws). */
+      await detectWishlistPriceDrop({
+        itemKind: "store_product",
+        itemId: product.id,
+        newPriceCents: product.priceCents,
+        title: product.title,
+        link: `/storefront/product/${product.id}`,
+      });
+    }
     res.json({ product });
   } catch (err) {
     handleError(res, err, "course edit");
