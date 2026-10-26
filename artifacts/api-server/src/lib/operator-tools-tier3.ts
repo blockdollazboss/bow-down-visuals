@@ -50,6 +50,13 @@ import {
   runGenerateStreamPack,
 } from "../routes/generate/stream-pack";
 import { GEN45_CREDIT_COST } from "../routes/generate/clip-pricing";
+import { BIO_COST } from "../routes/generate/bio-pricing";
+import {
+  SFX_CREDIT_COST,
+  SFX_CATEGORY_KEYS,
+  isSfxCategoryKey,
+  clampSfxDuration,
+} from "../routes/generate/sfx-pricing";
 import {
   UGC_STYLES,
   UGC_PERSONA_CREDIT_COST,
@@ -336,6 +343,124 @@ const bioHandler: Handler = async (ctx) => {
     target: typeof result.body?.slug === "string" ? result.body.slug : pageId,
     priceCharged: PUBLISH_COST,
     replyText: `Published — your bio page is live at ${result.body?.url ?? "your bio page"}. 🦈`,
+  };
+};
+
+/* ── Bio generate (payfix lane: the PASS-4 gap) ────────────────────────
+   The Bio Generator rail's shared core (generateBiosForUser) is the
+   SAME function the page and the public API call: one BIO_COST charge
+   through lib/credits, full refund on any generation failure, and the
+   confirmation's idempotency key passes through so a confirmed action
+   charges exactly once at the rail too. Loaded dynamically (the
+   operator-tools.ts convention for route-module rails) so registry
+   load never drags the route in. */
+
+function strList(v: unknown): string[] {
+  if (Array.isArray(v)) {
+    return v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim());
+  }
+  if (typeof v === "string" && v.trim()) {
+    return v.split(/,|\band\b/i).map((x) => x.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+const bioGenerateValidator: Validator = async ({ args }) => {
+  const niche = str(args["niche"]);
+  if (!niche || niche.length < 2) {
+    return {
+      ok: false,
+      askText:
+        "What's your niche — what do you create? A few words (hip-hop artist, fitness coach, gamer) and I'll set the bios up. 🦈",
+    };
+  }
+  const personality = strList(args["personality"]);
+  if (personality.length === 0) {
+    return {
+      ok: false,
+      askText:
+        "What personality should the bios carry — funny, bold, luxury, raw? Give me one or a few traits in your words. 🦈",
+    };
+  }
+  const normalized: Record<string, unknown> = { niche, personality };
+  const achievements = strList(args["achievements"]);
+  if (achievements.length > 0) normalized["achievements"] = achievements;
+  const cta = str(args["cta"]);
+  if (cta) normalized["cta"] = cta;
+  const handle = str(args["handle"]);
+  if (handle) normalized["handle"] = handle;
+  return { ok: true, args: normalized };
+};
+
+const bioGenerateHandler: Handler = async (ctx) => {
+  const { generateBiosForUser } = await import("../routes/generate/bio-generator");
+  const data = {
+    niche: str(ctx.args["niche"]) ?? "",
+    personality: strList(ctx.args["personality"]),
+    achievements: strList(ctx.args["achievements"]),
+    cta: str(ctx.args["cta"]),
+    handle: str(ctx.args["handle"]),
+  };
+  /* Throws on failure — the core has already refunded in full, and
+     the executor audits the failure honestly (no charge claimed). */
+  const result = await generateBiosForUser(ctx.userId, data, {
+    action: "Bio Generator",
+    idempotencyKey: ctx.idempotencyKey ?? null,
+  });
+  const lines = result.bios.map((b) => `${b.platform}: ${b.bio}`).join("\n");
+  return {
+    summary: `Generated bios for ${data.niche}`,
+    target: data.niche,
+    priceCharged: BIO_COST,
+    idempotencyKey: ctx.idempotencyKey ?? null,
+    replyText: `Done — your bios are made. 🦈\n${lines}`,
+  };
+};
+
+/* ── SFX generate (payfix lane: the PASS-4 gap) ───────────────────────
+   Runs the SFX page's own extracted handler through rail-core
+   (runGenerateSfx): same SFX_CREDIT_COST charge-before-provider,
+   same refund-on-failure, same history/library record. */
+
+const sfxValidator: Validator = async ({ args }) => {
+  const prompt = str(args["prompt"]);
+  if (!prompt || prompt.length < 3) {
+    return {
+      ok: false,
+      askText:
+        "What sound should I make — rain on a tent, a cinematic boom, a notification pop? Describe it in your words and I'll set it up. 🦈",
+    };
+  }
+  const normalized: Record<string, unknown> = { prompt };
+  const category = str(args["category"]);
+  if (category !== undefined && !isSfxCategoryKey(category)) {
+    return {
+      ok: false,
+      askText: `That category isn't one of the SFX categories — pick one of: ${SFX_CATEGORY_KEYS.join(", ")}, or just describe the sound and I'll use the everyday (foley) style. 🦈`,
+    };
+  }
+  if (category) normalized["category"] = category;
+  const duration = num(args["durationSeconds"]);
+  if (duration !== undefined) normalized["durationSeconds"] = clampSfxDuration(duration);
+  return { ok: true, args: normalized };
+};
+
+const sfxHandler: Handler = async (ctx) => {
+  const { runGenerateSfx } = await import("../routes/generate/sfx");
+  const body: Record<string, unknown> = { prompt: str(ctx.args["prompt"]) ?? "" };
+  const category = str(ctx.args["category"]);
+  if (category) body["category"] = category;
+  const duration = num(ctx.args["durationSeconds"]);
+  if (duration !== undefined) body["durationSeconds"] = clampSfxDuration(duration);
+  const result = await runGenerateSfx(await railDeps(ctx), body);
+  if (result.status !== 200) {
+    throw railFailure(result, "Sound generation failed.");
+  }
+  return {
+    summary: `Made a sound effect (${body["prompt"]})`,
+    target: typeof result.body?.storagePath === "string" ? result.body.storagePath : null,
+    priceCharged: SFX_CREDIT_COST,
+    replyText: `Done — your sound effect is made and saved in your SFX library: ${result.body?.url ?? "open the SFX page to hear it"}. 🦈`,
   };
 };
 
@@ -660,6 +785,8 @@ export const TIER3_HANDLERS: Record<string, Handler> = {
   "generate.song.long": songHandler(creditCostForLength(300_000)),
   "generate.video": videoHandler,
   "bio.publish": bioHandler,
+  "bio.generate": bioGenerateHandler,
+  "sfx.generate": sfxHandler,
   "brandkit.generate": brandKitHandler,
   "headshot.generate": headshotHandler,
   "streampack.asset": streamPackHandler,
@@ -673,6 +800,8 @@ export const TIER3_VALIDATORS: Record<string, Validator> = {
   "generate.song.long": songValidator(creditCostForLength(300_000)),
   "generate.video": videoValidator,
   "bio.publish": bioValidator,
+  "bio.generate": bioGenerateValidator,
+  "sfx.generate": sfxValidator,
   "brandkit.generate": brandKitValidator,
   "headshot.generate": headshotValidator,
   "streampack.asset": streamPackValidator,

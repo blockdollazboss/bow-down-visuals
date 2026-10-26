@@ -20,6 +20,8 @@
 import { GEN45_CREDIT_COST } from "../routes/generate/clip-pricing";
 import { creditCostForLength } from "../routes/generate/music-audio";
 import { PUBLISH_COST } from "../routes/bio-pages";
+import { BIO_COST } from "../routes/generate/bio-pricing";
+import { SFX_CREDIT_COST } from "../routes/generate/sfx-pricing";
 import { BRAND_KIT_COST } from "../routes/generate/brand-kit";
 import { HEADSHOT_CREDITS } from "../routes/generate/headshot-studio";
 import { STREAM_PACK_CREDIT_COST } from "../routes/generate/stream-pack";
@@ -173,6 +175,22 @@ export const OPERATOR_TOOL_DEFS: readonly OperatorToolDef[] = [
     blurb:
       "the member asks you to make a video. Include {\"prompt\":\"what the video shows, in the member's words\"} in the marker. If they didn't say what the video should show, ask instead of marking",
     priceVb: GEN45_CREDIT_COST,
+  },
+  {
+    id: "bio.generate",
+    tier: 3,
+    name: "Generate my Bios",
+    blurb:
+      "the member asks you to generate or write their social media bios (Instagram, TikTok, Twitter/X, YouTube). Include {\"niche\":\"their niche, in their words\",\"personality\":[\"trait\",\"trait\"]} in the marker, plus \"achievements\" (array), \"cta\", or \"handle\" only if they gave them. If they gave no niche or no personality traits, ask instead of marking",
+    priceVb: BIO_COST,
+  },
+  {
+    id: "sfx.generate",
+    tier: 3,
+    name: "Make a Sound Effect",
+    blurb:
+      "the member asks you to make a sound effect / SFX. Include {\"prompt\":\"the sound, in the member's words\"} in the marker, plus \"durationSeconds\" (1-10) or \"category\" (impacts, whooshes, risers, ui, ambient, foley) only if they named them. If they didn't describe the sound, ask instead of marking",
+    priceVb: SFX_CREDIT_COST,
   },
   {
     id: "bio.publish",
