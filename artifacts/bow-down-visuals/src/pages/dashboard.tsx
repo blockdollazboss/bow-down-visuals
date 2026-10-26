@@ -23,6 +23,7 @@ import QuestsWidget from "@/components/QuestsWidget";
 import FomoFeed from "@/components/FomoFeed";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import { MoveHomeCard } from "@/components/MoveHomeCard";
+import { First100FansCard } from "@/components/First100FansCard";
 import { DailyDropSlate } from "@/components/DailyDropSlate";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import CommandCenter from "@/components/CommandCenter";
@@ -536,6 +537,9 @@ export default function Dashboard() {
 
         {/* ── MOVE HOME (concierge onboarding; hides when complete) ── */}
         <MoveHomeCard />
+
+        {/* ── FIRST 100 FANS (#155 guided path; hides when snoozed/complete) ── */}
+        <First100FansCard />
 
         {/* ── THY DAILY DROP ── */}
         <DailyDropCard />
