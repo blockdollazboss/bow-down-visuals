@@ -10,15 +10,15 @@ import {
 } from "@/lib/theme-packs";
 import {
   APPROVED_ART_SOURCES,
-  ICON_NAMES,
+  DESIGNED_ICON_NAMES,
   KIT_COMPONENTS,
   KIT_DEVICES,
   buildChromeThemeManifest,
   buildShareCardSvg,
+  designedAppIconPath,
+  designedIconPath,
   encodeLook,
   kitManifest,
-  renderFolderIconSvg,
-  renderIconSvg,
   renderWidgetSvg,
   sanitizeCustomization,
   type KitDevice,
@@ -104,11 +104,10 @@ export function ThemeKitPanel({
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("signin");
-      const iconSvgs: Record<string, string> = {};
-      for (const name of ICON_NAMES) {
-        iconSvgs[`${name}-light`] = renderIconSvg(pack, "light", name);
-        iconSvgs[`${name}-dark`] = renderIconSvg(pack, "dark", name);
-      }
+      // Art is NOT sent by the client: the server ships the pack's
+      // approved designed art (icons, app icon, per-device
+      // wallpapers) from the library itself. Only the text builders
+      // this module owns ride along.
       const res = await fetch(`/api/theme-packs/kit/${pack.id}/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -116,8 +115,6 @@ export function ThemeKitPanel({
           kind,
           mode,
           assets: {
-            iconSvgs,
-            folderSvg: renderFolderIconSvg(pack, mode),
             widgetSvg: renderWidgetSvg(pack, mode),
             chromeManifest: JSON.stringify(buildChromeThemeManifest(pack, mode), null, 2),
             shareCardSvg: buildShareCardSvg(pack, mode),
@@ -216,6 +213,29 @@ export function ThemeKitPanel({
         Applying the pack applies them. iPhone/iPad icons use Apple's Shortcuts route —
         guided setup included, no fake system theme.
       </p>
+      {/* The designed art itself — these are the exact files the kit
+          downloads ship (app icon first: the real logo lockup, whole). */}
+      <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={`${pack.name} designed icons (${mode})`}>
+        <img
+          src={designedAppIconPath(pack.id, mode)}
+          alt={`${pack.name} app icon — the Bow Down Visuals logo lockup on the pack tile (${mode})`}
+          className="h-9 w-9 rounded-[9px] border border-primary/50 object-cover"
+          loading="lazy"
+        />
+        {DESIGNED_ICON_NAMES.slice(0, 11).map((name) => (
+          <img
+            key={name}
+            src={designedIconPath(pack.id, name, mode)}
+            alt={`${pack.name} ${name} icon (${mode})`}
+            title={name}
+            className="h-9 w-9 rounded-[9px] border border-border/60 object-cover"
+            loading="lazy"
+          />
+        ))}
+        <span className="text-[10px] text-muted-foreground">
+          + all {DESIGNED_ICON_NAMES.length} designed icons, light + dark, in the kit
+        </span>
+      </div>
 
       {unlocked ? (
         <>

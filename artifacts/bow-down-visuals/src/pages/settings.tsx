@@ -252,6 +252,17 @@ export default function Settings() {
               <p className="text-white/55 mt-2 text-sm max-w-xl">{t("settings.subtitle")}</p>
             </div>
           </div>
+          {/* Section jump nav — consumer surfaces (theme packs) sit deep
+              in this stack; nobody should have to scroll past developer
+              cards to find them (QC-200 G3 findability). */}
+          <nav aria-label="Settings sections" className="mt-4 flex flex-wrap gap-1.5">
+            <a
+              href="#theme-packs"
+              className="inline-flex items-center rounded-full border border-[#d4a017]/40 bg-[#d4a017]/10 px-3 py-1 text-xs font-semibold text-[#fbbf24] transition hover:bg-[#d4a017]/20"
+            >
+              {t("settings.jumpThemePacks", { defaultValue: "Theme packs & device kits ↓" })}
+            </a>
+          </nav>
         </div>
 
         <ConnectedAccounts />

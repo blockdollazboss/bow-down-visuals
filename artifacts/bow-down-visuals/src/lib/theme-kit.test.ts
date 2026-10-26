@@ -1,12 +1,16 @@
 /**
- * theme-kit.test.ts — Stack-200 UPGRADES #39 (whole-device theme kits).
+ * theme-kit.test.ts — Stack-200 UPGRADES #39 (whole-device theme kits),
+ * QC-200 G3 update (designed-art kits).
  *
  * Pins:
  *  1. The 12-component manifest: EVERY pack × ALL 12 components ×
- *     light+dark, branded by default with the whole-logo paths.
- *  2. Top-50 icons: exactly 50 per pack, rendered SVGs unique within
- *     a pack AND different across packs for the same icon (unique
- *     glyphs per pack character — frame + motif differ, not recolors).
+ *     light+dark, branded by default with the whole-logo paths, the
+ *     pack app icon per mode, and per-mode art declarations (a
+ *     both-modes claim never names only one mode's art).
+ *  2. Designed icons: exactly the approved 50 names; every pack ×
+ *     icon × mode file EXISTS on disk and its sha256 matches
+ *     kit-assets-manifest.json (kit-vs-manifest evidence); the old
+ *     code-drawn SVG glyph set is gone from the module.
  *  3. Sound sync: components resolve BY ROLE to the site sound
  *     library paths — one source, no per-pack sound files anywhere.
  *  4. Customization: the sanitizer accepts every component × device
@@ -19,31 +23,39 @@
  *     from the pack; the Windows theme text points sounds at the
  *     library manifest names.
  *  7. Server mirror: the API kit builder knows the same five packs,
- *     the same sound roles, and contains no per-pack wav data.
+ *     the same sound roles, the same designed icon names, and
+ *     contains no per-pack wav data.
  */
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { THEME_PACKS, themePackById } from "@/lib/theme-packs";
 import {
   APPROVED_ART_SOURCES,
   COMPONENT_SOUND_ROLES,
-  ICON_NAMES,
+  DESIGNED_ICON_NAMES,
   KIT_COMPONENTS,
+  KIT_WALLPAPER_DEVICES,
   LOGO_BY_MODE,
   allKitManifests,
   buildChromeThemeManifest,
   buildShareCardSvg,
   buildWindowsThemeText,
   decodeLook,
+  designedAppIconPath,
+  designedIconPath,
+  deviceWallpaperPath,
   encodeLook,
   kitManifest,
-  renderFolderIconSvg,
-  renderIconSvg,
   renderWidgetSvg,
   sanitizeCustomization,
   soundLibraryPath,
   soundManifestAssetForRole,
 } from "@/lib/theme-kit";
+
+const PUBLIC_DIR = new URL("../../public/", import.meta.url);
+const publicFile = (sitePath: string): URL => new URL(sitePath.replace(/^\//, ""), PUBLIC_DIR);
+const sha256 = (buf: Buffer): string => createHash("sha256").update(buf).digest("hex");
 
 describe("kit manifest — 12 components × every pack × light+dark", () => {
   it("covers all five packs with all twelve components in both modes", () => {
@@ -58,14 +70,47 @@ describe("kit manifest — 12 components × every pack × light+dark", () => {
     }
   });
 
-  it("wallpaper components source the pack's approved ground + whole logo", () => {
+  it("wallpaper components declare BOTH modes' approved grounds (never dark-only)", () => {
     for (const pack of THEME_PACKS) {
       const m = kitManifest(pack);
       for (const id of ["home-wallpapers", "lock-wallpapers"] as const) {
         const c = m.components.find((x) => x.component === id)!;
-        expect(c.artSource).toBe(pack.deviceArt.dark);
-        expect(c.logoPath).toBe(LOGO_BY_MODE.dark);
+        expect(c.artByMode, `${pack.id}/${id}`).toEqual({
+          light: pack.deviceArt.light,
+          dark: pack.deviceArt.dark,
+        });
       }
+      // Lock honesty: the shared-ground slot says so, by name.
+      const lock = m.components.find((x) => x.component === "lock-wallpapers")!;
+      expect(lock.note).toContain("no distinct lock scene");
+      // The logo itself stays per-mode at the manifest level.
+      expect(m.logo).toEqual(LOGO_BY_MODE);
+    }
+  });
+
+  it("every pack declares its app icon per mode — the real logo lockup composites", () => {
+    for (const pack of THEME_PACKS) {
+      const m = kitManifest(pack);
+      expect(m.appIcon).toEqual({
+        light: `/theme-packs/app-icons/${pack.id}-light.webp`,
+        dark: `/theme-packs/app-icons/${pack.id}-dark.webp`,
+      });
+      expect(designedAppIconPath(pack.id, "light")).toBe(m.appIcon.light);
+      expect(designedAppIconPath(pack.id, "dark")).toBe(m.appIcon.dark);
+    }
+  });
+
+  it("icon-set + folder components point at the designed files, per mode", () => {
+    for (const pack of THEME_PACKS) {
+      const m = kitManifest(pack);
+      const icons = m.components.find((x) => x.component === "icon-set")!;
+      expect(icons.artByMode?.light).toBe(designedIconPath(pack.id, DESIGNED_ICON_NAMES[0]!, "light"));
+      expect(icons.artByMode?.dark).toBe(designedIconPath(pack.id, DESIGNED_ICON_NAMES[0]!, "dark"));
+      const folders = m.components.find((x) => x.component === "folder-icons")!;
+      expect(folders.artByMode).toEqual({
+        light: designedIconPath(pack.id, "files", "light"),
+        dark: designedIconPath(pack.id, "files", "dark"),
+      });
     }
   });
 
@@ -76,31 +121,79 @@ describe("kit manifest — 12 components × every pack × light+dark", () => {
   });
 });
 
-describe("top-50 icon sets — unique glyphs per pack, light+dark", () => {
-  it("has exactly 50 icons", () => {
-    expect(ICON_NAMES).toHaveLength(50);
-    expect(new Set(ICON_NAMES).size).toBe(50);
+describe("designed icon set — the approved art, on disk, per pack × mode", () => {
+  it("has exactly the approved 50 icon names", () => {
+    expect(DESIGNED_ICON_NAMES).toHaveLength(50);
+    expect(new Set(DESIGNED_ICON_NAMES).size).toBe(50);
+    expect(DESIGNED_ICON_NAMES).toContain("phone");
+    expect(DESIGNED_ICON_NAMES).toContain("video-call");
+    // The old kit-only semantic names are NOT the designed set.
+    expect(DESIGNED_ICON_NAMES).not.toContain("store");
+    expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
-  it("renders 50 unique SVGs per pack per mode, and the same icon differs across packs", () => {
-    for (const mode of ["light", "dark"] as const) {
-      const perPack = new Map<string, string[]>();
-      for (const pack of THEME_PACKS) {
-        const svgs = ICON_NAMES.map((n) => renderIconSvg(pack, mode, n));
-        expect(new Set(svgs).size, `${pack.id}/${mode}`).toBe(50);
-        perPack.set(pack.id, svgs);
+  it("kit-vs-manifest: all 500 designed files + 10 app icons exist with the pinned hashes", () => {
+    const assets = JSON.parse(
+      readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
+    ) as {
+      icons: Array<{ pack: string; icon: string; mode: string; path: string; sourceAsset: string; sha256: string }>;
+      deviceWallpapers: Array<{ pack: string; mode: string; device: string; width: number; height: number; path: string; sha256: string }>;
+    };
+    // 500 icons + 10 app icons ride the same entries list.
+    expect(assets.icons).toHaveLength(510);
+    const seen = new Set<string>();
+    for (const e of assets.icons) {
+      seen.add(`${e.pack}|${e.icon}|${e.mode}`);
+      const url = publicFile(e.path);
+      expect(existsSync(url), e.path).toBe(true);
+      expect(sha256(readFileSync(url)), e.path).toBe(e.sha256);
+      expect(e.sourceAsset, e.path).toMatch(/\.webp$/);
+    }
+    for (const pack of THEME_PACKS) {
+      for (const mode of ["light", "dark"] as const) {
+        expect(seen.has(`${pack.id}|app-icon|${mode}`), `${pack.id} app ${mode}`).toBe(true);
+        for (const icon of DESIGNED_ICON_NAMES) {
+          expect(seen.has(`${pack.id}|${icon}|${mode}`), `${pack.id}/${icon}/${mode}`).toBe(true);
+          expect(designedIconPath(pack.id, icon, mode)).toBe(`/theme-packs/icons/${pack.id}/${icon}-${mode}.webp`);
+        }
       }
-      for (const name of ICON_NAMES) {
-        const across = THEME_PACKS.map((p) => renderIconSvg(p, mode, name));
-        expect(new Set(across).size, `${name}/${mode} must differ per pack`).toBe(THEME_PACKS.length);
+    }
+    // Per-device wallpapers: every pack × mode × device, pinned sizes.
+    expect(assets.deviceWallpapers).toHaveLength(30);
+    for (const w of assets.deviceWallpapers) {
+      const url = publicFile(w.path);
+      expect(existsSync(url), w.path).toBe(true);
+      expect(sha256(readFileSync(url)), w.path).toBe(w.sha256);
+      const size = KIT_WALLPAPER_DEVICES.find((d) => d.id === w.device)!;
+      expect([w.width, w.height]).toEqual([size.width, size.height]);
+      expect(deviceWallpaperPath(w.pack, w.mode as "light" | "dark", w.device as never)).toBe(w.path);
+    }
+  });
+
+  it("the same icon is a DIFFERENT designed file in every pack (no shared set)", () => {
+    const assets = JSON.parse(
+      readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
+    ) as { icons: Array<{ pack: string; icon: string; mode: string; sha256: string }> };
+    for (const icon of DESIGNED_ICON_NAMES) {
+      for (const mode of ["light", "dark"] as const) {
+        const hashes = THEME_PACKS.map(
+          (p) => assets.icons.find((e) => e.pack === p.id && e.icon === icon && e.mode === mode)!.sha256,
+        );
+        expect(new Set(hashes).size, `${icon}/${mode}`).toBe(THEME_PACKS.length);
       }
     }
   });
 
-  it("folder icons and widget art render per pack × mode", () => {
+  it("no code-drawn glyph renderer survives in the kit module", () => {
+    const src = readFileSync(new URL("./theme-kit.ts", import.meta.url), "utf8");
+    expect(src).not.toContain("renderIconSvg");
+    expect(src).not.toContain("ICON_MARKS");
+    expect(src).not.toContain("renderFolderIconSvg");
+  });
+
+  it("widget art still renders per pack × mode", () => {
     for (const pack of THEME_PACKS) {
       for (const mode of ["light", "dark"] as const) {
-        expect(renderFolderIconSvg(pack, mode)).toContain(`data-folder="${pack.id}-${mode}"`);
         expect(renderWidgetSvg(pack, mode)).toContain(`data-widget="${pack.id}-${mode}"`);
         expect(renderWidgetSvg(pack, mode)).toContain("Cinzel");
       }
@@ -226,6 +319,14 @@ describe("server mirror parity", () => {
     for (const role of ["notification", "message", "success", "error", "royal-sting", "ringtone"]) {
       expect(serverBuild).toContain(`"${role}"`);
     }
+  });
+
+  it("server ships the SAME designed icon names from the library — no client-supplied icons", () => {
+    for (const name of DESIGNED_ICON_NAMES) expect(serverBuild).toContain(`"${name}"`);
+    expect(serverBuild).toContain("/theme-packs/icons/");
+    expect(serverBuild).toContain("/theme-packs/app-icons/");
+    expect(serverBuild).toContain("/wallpapers/theme-packs/devices/");
+    expect(serverBuild).not.toContain("iconSvgs");
   });
 
   it("never forks per-pack wavs — sounds resolve via the library path helper", () => {
