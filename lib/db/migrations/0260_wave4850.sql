@@ -49,22 +49,6 @@ CREATE INDEX IF NOT EXISTS evergreen_proposals_user_status_idx
 CREATE INDEX IF NOT EXISTS evergreen_proposals_source_idx
   ON evergreen_proposals (source_post_id);
 
-CREATE TABLE IF NOT EXISTS supporter_board_settings (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id uuid NOT NULL UNIQUE,
-  enabled boolean NOT NULL DEFAULT true,
-  perks_text text NOT NULL DEFAULT '',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS supporter_board_opt_outs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id uuid NOT NULL,
-  supporter_user_id uuid NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE UNIQUE INDEX IF NOT EXISTS supporter_board_opt_outs_pair_uidx
-  ON supporter_board_opt_outs (profile_id, supporter_user_id);
-CREATE INDEX IF NOT EXISTS supporter_board_opt_outs_profile_idx
-  ON supporter_board_opt_outs (profile_id);
+-- #49 supporter_board_* tables: NOT created here. At the join this lane's
+-- #49 rider was deduped against the dedicated rem-top-supporter build;
+-- the canonical tables (creator_user_id shape) are created by 0261.

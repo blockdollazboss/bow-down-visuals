@@ -102,41 +102,9 @@ export const evergreenProposalsTable = pgTable(
 
 export type EvergreenProposalRow = typeof evergreenProposalsTable.$inferSelect;
 
-/* ── #49 Top-supporter recognition ───────────────────────────────────────
-   Per-creator board settings: whether the board shows on the profile
-   and the creator's OWN perk words, stated on the board in plain
-   words (the N6 Front Row Boards delta). Perks are free text the
-   creator writes — the house invents no perks and no prices here. */
-export const supporterBoardSettingsTable = pgTable(
-  "supporter_board_settings",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    profile_id: uuid("profile_id").notNull().unique(),
-    enabled: boolean("enabled").notNull().default(true),
-    perks_text: text("perks_text").notNull().default(""),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [uniqueIndex("supporter_board_settings_profile_uidx").on(t.profile_id)],
-);
-
-export type SupporterBoardSettingsRow = typeof supporterBoardSettingsTable.$inferSelect;
-
-/* A fan's opt-out from ONE creator's public supporter board. The fan's
-   support still counts in the creator's private Fan Graph — opting
-   out only removes the fan's name from the PUBLIC board and badge. */
-export const supporterBoardOptOutsTable = pgTable(
-  "supporter_board_opt_outs",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    profile_id: uuid("profile_id").notNull(),
-    supporter_user_id: uuid("supporter_user_id").notNull(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    uniqueIndex("supporter_board_opt_outs_pair_uidx").on(t.profile_id, t.supporter_user_id),
-    index("supporter_board_opt_outs_profile_idx").on(t.profile_id),
-  ],
-);
-
-export type SupporterBoardOptOutRow = typeof supporterBoardOptOutsTable.$inferSelect;
+/* ── #49 Top-supporter recognition: DEDUPED AT JOIN (stack200/join-next) ──
+   rem-wave4850 carried a lib-only #49 rider with its own supporter_board_*
+   schema (profile_id shape). The dedicated rem-top-supporter lane shipped
+   the full #49 build (schema in ./supporter-board.ts, creator_user_id
+   shape; migration 0261). The duplicate block that stood here was removed
+   at the join so the names export exactly once, from ./supporter-board. */
