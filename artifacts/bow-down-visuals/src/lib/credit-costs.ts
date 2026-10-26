@@ -117,8 +117,11 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/motion-track/apply": { cost: 350, feature: "Motion Track Burn-in" },
   "/api/upscale": { cost: 300, feature: "Upscale" },
   "/api/upscale/image": { cost: 300, feature: "Upscale Image" },
-  // PLACEHOLDER prices — the user must approve real prices before these go live.
+  // Official price — AI Upscale is 1,500 VB (owner ruling A-05,
+  // 2026-10-24); mirrors GENERATIVE_UPSCALE_CREDIT_COST in the server
+  // route (routes/generate/upscale-generative.ts). NOT a placeholder.
   "/api/ai-upscale": { cost: 1500, feature: "Generative AI Upscale" },
+  // PLACEHOLDER prices — the user must approve real prices before these go live.
   "/api/avatar-presenter": { cost: 1200, feature: "Avatar Presenter" },
   "/api/singing-voice": { cost: 800, feature: "Singing-Voice Conversion (price TBD)" },
   "/api/watermark-removal": { cost: 200, feature: "Remove Watermark" },
