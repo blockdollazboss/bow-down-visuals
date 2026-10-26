@@ -48,6 +48,12 @@ import {
      after the session verifies as paid. Displayed = charged.
    - `external_url` stays as the creator's own off-platform link — a
      secondary option, never the default buy path.
+   - Q150: a purchase tied to a stream is only possible while that
+     stream's status is 'live'. Checkout refuses a non-live stream
+     before any Stripe session exists (zero charge); verify refuses —
+     and auto-refunds — a paid session whose stream is no longer live,
+     so no paid sale is ever recorded against an ended stream. The
+     manual sales + purchase-alert rails enforce the same refusal.
    - POST /live-shopping/sales and /streams/:id/alerts still record TEST
      sales/alerts for overlay demos; those rows keep status 'test' and
      the dashboard labels them separately from paid sales forever.
@@ -73,6 +79,19 @@ const router = Router();
 
 export const AI_DESCRIPTION_CREDIT_COST =
   Number(process.env["LIVE_SHOPPING_AI_DESC_CREDITS"]) || 100;
+
+/* Q150 — a stream that is not live cannot sell. Only status 'live'
+   accepts purchases; 'scheduled' (not started) and 'ended' (finished)
+   streams refuse every purchase entry point at the server rail with
+   409 STREAM_NOT_LIVE — the same refusal shape as live-tips /
+   live-tickets / live-chat. Purchases with no stream_id are catalog
+   purchases, not tied to a stream, and are unaffected. */
+export function isLiveStreamStatus(status: unknown): boolean {
+  return status === "live";
+}
+
+export const STREAM_NOT_LIVE_ERROR =
+  "This stream has ended — purchases are closed. Live shopping is only available while the stream is live.";
 
 export const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(120),
@@ -390,6 +409,10 @@ router.post(
       res.status(404).json({ error: "Stream not found." });
       return;
     }
+    if (!isLiveStreamStatus(stream[0]!.status)) {
+      res.status(409).json({ error: STREAM_NOT_LIVE_ERROR, code: "STREAM_NOT_LIVE" });
+      return;
+    }
     const parsed = alertSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       res.status(400).json({
@@ -499,7 +522,7 @@ router.post(
     }
     if (parsed.data.stream_id) {
       const stream = await db
-        .select({ id: liveShopStreamsTable.id })
+        .select({ id: liveShopStreamsTable.id, status: liveShopStreamsTable.status })
         .from(liveShopStreamsTable)
         .where(
           and(
@@ -510,6 +533,10 @@ router.post(
         .limit(1);
       if (stream.length === 0) {
         res.status(400).json({ error: "Stream not found." });
+        return;
+      }
+      if (!isLiveStreamStatus(stream[0]!.status)) {
+        res.status(409).json({ error: STREAM_NOT_LIVE_ERROR, code: "STREAM_NOT_LIVE" });
         return;
       }
     }
@@ -572,7 +599,7 @@ router.post(
     }
     if (parsed.data.stream_id) {
       const stream = await db
-        .select({ id: liveShopStreamsTable.id })
+        .select({ id: liveShopStreamsTable.id, status: liveShopStreamsTable.status })
         .from(liveShopStreamsTable)
         .where(
           and(
@@ -583,6 +610,11 @@ router.post(
         .limit(1);
       if (stream.length === 0) {
         res.status(400).json({ error: "Stream not found." });
+        return;
+      }
+      /* Q150: refuse BEFORE any Stripe session exists — zero charge. */
+      if (!isLiveStreamStatus(stream[0]!.status)) {
+        res.status(409).json({ error: STREAM_NOT_LIVE_ERROR, code: "STREAM_NOT_LIVE" });
         return;
       }
     }
@@ -714,6 +746,41 @@ router.post(
           refunded,
         });
         return;
+      }
+      /* Q150: the stream may have ended (or been removed) between
+         checkout and verify. A sale tied to a stream that is not live
+         must never be recorded: refuse and refund the paid session in
+         full (same auto-refund discipline as the deleted-product path
+         above), so the buyer is charged nothing. A sale already
+         recorded while the stream was live stays a duplicate no-op —
+         this check only guards UNRECORDED sessions. */
+      if (!existing[0] && meta["stream_id"]) {
+        const streamRows = await db
+          .select({ id: liveShopStreamsTable.id, status: liveShopStreamsTable.status })
+          .from(liveShopStreamsTable)
+          .where(
+            and(
+              eq(liveShopStreamsTable.id, meta["stream_id"]),
+              eq(liveShopStreamsTable.user_id, meta["seller_user_id"]!),
+            ),
+          )
+          .limit(1);
+        const streamRow = streamRows[0];
+        if (!streamRow || !isLiveStreamStatus(streamRow.status)) {
+          const refunded = await refundCheckoutSessionPayment(session);
+          logger.error(
+            { sessionId, streamId: meta["stream_id"], streamStatus: streamRow?.status ?? null, refunded },
+            "[live-shopping] verify: stream not live at verify — sale refused",
+          );
+          res.status(409).json({
+            error: !streamRow
+              ? "The stream for this purchase no longer exists — your payment has been refunded in full."
+              : STREAM_NOT_LIVE_ERROR,
+            code: "STREAM_NOT_LIVE",
+            refunded,
+          });
+          return;
+        }
       }
       const quantity = Math.max(1, Number(meta["quantity"] ?? "1") || 1);
       /* Verify + record against the CHECKOUT-LOCKED amounts (Lane V3
