@@ -103,6 +103,7 @@ export * from "./creator-platform";
 export * from "./royal-court";
 export * from "./profile-hosting";
 export * from "./creator-subscriptions";
+export * from "./membership-gifts";
 export * from "./creator-payouts";
 export * from "./custom-domains";
 export * from "./creator-social";
