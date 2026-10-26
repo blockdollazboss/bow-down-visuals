@@ -387,7 +387,7 @@ export default function CreatorPricing() {
           {[
             ["Can I really earn on Free?", "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — your own domain, unlimited products, pro analytics and more AI promotion boosts."],
             ["Do paid tiers lower my platform fee?", "No — the platform fee is a flat 5% on every tier, Free included. Paid tiers pay for themselves with their features, not a lower fee."],
-            ["What if I cancel?", "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty, manage it yourself from the billing portal."],
+            ["What if I cancel?", "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty — cancel or undo it any time, manage it yourself right here in Settings → Billing."],
             ["Is this Visual Bucs?", "No. Tiers are real USD subscriptions via Stripe (test mode). Visual Bucs are the separate AI-credit system — the two never mix."],
           ].map(([q, a]) => (
             <div key={q} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
