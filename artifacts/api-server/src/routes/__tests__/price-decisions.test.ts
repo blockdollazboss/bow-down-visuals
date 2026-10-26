@@ -34,7 +34,22 @@ describe("A-05 — AI Upscale price is official", () => {
       fileURLToPath(new URL("../generate/upscale-generative.ts", import.meta.url)),
       "utf8",
     );
-    expect(src).not.toMatch(/PLACEHOLDER/);
+    // Case-INSENSITIVE on purpose (Q182): the old /PLACEHOLDER/ pin was
+    // uppercase-only, so the camelCase `pricePlaceholder: true` in the
+    // status response sailed straight past it while the price was
+    // already official. No placeholder mechanism may remain for upscale.
+    expect(src).not.toMatch(/placeholder/i);
+    expect(src).not.toContain("pricePlaceholder");
     expect(src).toMatch(/owner-approved 2026-10-24/);
+  });
+
+  it("the provider client carries no 'pricing not approved' framing either", () => {
+    const src = readFileSync(
+      fileURLToPath(new URL("../../lib/generative-upscale-client.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(src).not.toMatch(/no approved pricing/i);
+    expect(src).not.toMatch(/approval of provider \+ pricing/i);
+    expect(src).toMatch(/1,500 VB price is already official/);
   });
 });
