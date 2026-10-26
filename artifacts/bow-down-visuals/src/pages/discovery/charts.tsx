@@ -386,6 +386,8 @@ export default function Charts() {
           completes. Renders nothing until a battle has been won. */}
       <div className="mb-5">
         <LiveBattleCrownStrip />
+      </div>
+
       {/* Charts Radio (Stack-200 #156) — the house station docked at
           the top of the charts it spins. Press-to-play only: the
           station never starts with sound on load. */}

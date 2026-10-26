@@ -161,7 +161,7 @@ export type BattleViewerAction = "accept" | "decline" | "cancel" | "start" | "fi
  *  closes a live one whose window has ended. Fans and guests act
  *  through vote eligibility below, never through this list. */
 export function battleViewerActions(
-  battle: Pick<LiveBattle, "status" | "viewer_side">,
+  battle: Pick<LiveBattle, "status" | "viewer_side" | "ends_at">,
   now: Date = new Date(),
 ): BattleViewerAction[] {
   const side = battle.viewer_side;
@@ -189,7 +189,7 @@ export interface VoteEligibility {
  *  signed-in fans only, never the battlers, only while the battle
  *  is live inside its window. The server re-checks every word. */
 export function voteEligibility(
-  battle: Pick<LiveBattle, "status" | "viewer_side" | "starts_at" | "ends_at">,
+  battle: Pick<LiveBattle, "status" | "viewer_side" | "starts_at" | "ends_at" | "round_seconds">,
   opts: { signedIn: boolean; now?: Date },
 ): VoteEligibility {
   if (battle.status !== "live") {
