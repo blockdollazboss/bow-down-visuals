@@ -26,11 +26,11 @@ import {
 /* ─── Pricing — payfix pricing-truth ──────────────────────────────────────
    This page and /creator-pricing render the SAME plans from the ONE
    shared source (@/lib/pricing-plans): Free $0 / Pro $12/mo / Elite
-   $29/mo, flat 5% platform fee on every tier. The old fake 6-plan ladder
-   ($19–$799 rank-named plans that sent every button to the beta list
-   under a "Billing is not live yet" note) is gone — plan checkout is
-   purchasable in test mode and lives on /creator-pricing, which is
-   where these cards send buyers. Credit packs below check out here. */
+   $29/mo, flat 5% platform fee on every tier. The old fake 6-plan
+   rank-named ladder (every button sent to the beta list under a
+   billing-not-live note) is gone — plan checkout is purchasable in
+   test mode and lives on /creator-pricing, which is where these cards
+   send buyers. Credit packs below check out here. */
 
 /* ─── credit pack card ─── */
 

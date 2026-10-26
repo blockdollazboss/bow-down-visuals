@@ -1,7 +1,7 @@
 /* ── Pricing truth — ONE shared source for every pricing surface ─────────
-   Payfix lane (pricing-truth): /pricing used to sell a fake 6-plan ladder
-   ($19/$49/$99/$199/$399/$799, rank names as plans, "Billing is not live
-   yet") while /creator-pricing sold the real plans. That ladder is dead.
+   Payfix lane (pricing-truth): /pricing used to sell a fake 6-plan
+   rank-named ladder at invented prices under a billing-not-live note,
+   while /creator-pricing sold the real plans. That ladder is dead.
 
    This module mirrors the server's single source of truth —
    api-server/src/lib/platform-fees.ts TIER_PLANS (Free $0 / Pro $12/mo /

@@ -1,9 +1,9 @@
 /**
  * pricing-truth.test.ts — payfix lane 3 (pricing-truth).
  *
- * /pricing used to sell a FAKE 6-plan ladder ($19/$49/$99/$199/$399/$799,
- * rank names as plans, every button joining the beta list under
- * "Billing is not live yet") while /creator-pricing sold the real plans
+ * /pricing used to sell a FAKE 6-plan rank-named ladder at invented
+ * prices, every button joining the beta list under a billing-not-live
+ * note, while /creator-pricing sold the real plans
  * (Free $0 / Pro $12 / Elite $29, checkout live in test mode). These pins
  * hold the fix: ONE shared FE source (@/lib/pricing-plans) consumed by
  * BOTH pages, re-derived against the server's own sources of truth
