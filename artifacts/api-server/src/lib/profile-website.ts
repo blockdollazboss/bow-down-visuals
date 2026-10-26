@@ -592,11 +592,17 @@ export function designLayout(
 
   /* 3 — lane emphasis (rearrange only). */
   if (signals.vertical === "gaming") {
-    if (signals.streamScheduleCount > 0) moveAfter("schedule", "spotlight", "streamers lead with the schedule");
+    if (signals.streamScheduleCount > 0) {
+      add("schedule", "Stream Schedule", "spotlight", "you stream on a schedule — it belongs under The Stage");
+      moveAfter("schedule", "spotlight", "streamers lead with the schedule");
+    }
     moveBefore("videos", "tracks", "your clips carry the page");
   } else if (signals.vertical === "podcast") {
     moveBefore("tracks", "videos", "episodes are the show");
-    if (signals.seriesCount > 0) moveAfter("series", "tracks", "your series follows the episodes");
+    if (signals.seriesCount > 0) {
+      add("series", "Series & Seasons", "tracks", "your series follows the episodes");
+      moveAfter("series", "tracks", "your series follows the episodes");
+    }
   } else if (signals.vertical === "film" || signals.vertical === "tv") {
     moveBefore("series", "tracks", "films and seasons lead");
   } else if (signals.vertical === "influencer") {
@@ -605,7 +611,10 @@ export function designLayout(
       moveAfter("mediakit", "hero", "brands read the media kit first");
     }
   } else if (signals.vertical === "education") {
-    if (signals.seriesCount > 0) moveAfter("series", "hero", "courses lead a teaching page");
+    if (signals.seriesCount > 0) {
+      add("series", "Courses", "hero", "courses lead a teaching page");
+      moveAfter("series", "hero", "courses lead a teaching page");
+    }
   }
 
   /* 4 — subtract provably-empty section blocks the creator never placed. */
