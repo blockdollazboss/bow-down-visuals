@@ -19,6 +19,7 @@ import LightningSetup from "@/components/artist/lightning-setup";
 import ConfettiBurst from "@/components/artist/confetti-burst";
 import RoyalCourtPicker from "@/components/artist/RoyalCourtPicker";
 import ProfileLayoutEditor from "@/components/artist/ProfileLayoutEditor";
+import ProfileTemplateStudio from "@/components/artist/ProfileTemplateStudio";
 import { GetPaidChecklist } from "@/components/artist/get-paid-checklist";
 import { HeroSection, ProfileSections } from "@/components/artist/profile-sections";
 import { useToast } from "@/hooks/use-toast";
@@ -995,6 +996,8 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
       </div>
 
       <RoyalCourtPicker />
+
+      <ProfileTemplateStudio />
 
       <ProfileLayoutEditor />
 
