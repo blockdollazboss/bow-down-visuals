@@ -288,6 +288,11 @@ export function canTransitionGearStatus(
   return ORDER_TRANSITIONS[from].includes(to);
 }
 
+/** Terminal orders (delivered / canceled) never move again. */
+export function gearOrderIsTerminal(status: StudioGearOrderStatus): boolean {
+  return status === "delivered" || status === "canceled";
+}
+
 export function formatGearMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }

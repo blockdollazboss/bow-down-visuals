@@ -17,6 +17,7 @@ import {
   initialGearOrderState,
   canTransitionProof,
   canTransitionGearStatus,
+  gearOrderIsTerminal,
   gearOrderStatusFor,
   productionAllowed,
   type GearProductId,
@@ -48,8 +49,23 @@ import {
      POST /admin/studio-gear/orders/:id/status  team relays partner
                                          fulfillment → shipped/delivered/
                                          canceled (state-machine guarded)
+     GET  /admin/studio-gear/orders      team's relay queue (with the
+                                         shipping contact the buyer view
+                                         never exposes)
      GET  /studio-gear/orders            my orders
      GET  /studio-gear/catalog           the ruled catalog (public) */
+
+/* Terminal orders never move again: a canceled order must not be paid
+   back to life at checkout or revived by a proof action. */
+function refuseIfTerminal(order: GearOrderRow, res: import("express").Response): boolean {
+  if (gearOrderIsTerminal(order.status as StudioGearOrderStatus)) {
+    res.status(400).json({
+      error: `This order is ${order.status} — a finished order cannot move again.`,
+    });
+    return true;
+  }
+  return false;
+}
 
 const router = Router();
 
@@ -239,6 +255,7 @@ router.post("/studio-gear/checkout", publicApiLimiter, requireAuth, async (req, 
     res.status(404).json({ error: "Order not found." });
     return;
   }
+  if (refuseIfTerminal(order, res)) return;
   if (order.paid) {
     res.status(400).json({ error: "This order is already paid." });
     return;
@@ -318,6 +335,7 @@ router.post(
       res.status(404).json({ error: "Order not found." });
       return;
     }
+    if (refuseIfTerminal(order, res)) return;
     if (!canTransitionProof(order.proof_status, "sent")) {
       res.status(400).json({
         error: `A proof cannot be sent while this order's proof is "${order.proof_status}".`,
@@ -345,6 +363,7 @@ router.post("/studio-gear/orders/:id/proof/approve", requireAuth, async (req, re
     res.status(404).json({ error: "Order not found." });
     return;
   }
+  if (refuseIfTerminal(order, res)) return;
   if (!canTransitionProof(order.proof_status, "approved")) {
     res.status(400).json({
       error:
@@ -385,6 +404,7 @@ router.post(
       res.status(404).json({ error: "Order not found." });
       return;
     }
+    if (refuseIfTerminal(order, res)) return;
     if (!canTransitionProof(order.proof_status, "revision_requested")) {
       res.status(400).json({
         error: `There is no sent proof to revise (proof is "${order.proof_status}").`,
@@ -403,6 +423,42 @@ router.post(
       proofStatus: "revision_requested",
       status: nextStatus,
       message: "Sent back — a revised proof will follow. Production has not started.",
+    });
+  },
+);
+
+/* ── GET /admin/studio-gear/orders — the team's relay queue ────────────
+   The proof send + fulfillment endpoints are relays: the team acts on
+   what the partner reports. This is the queue they work from — it is
+   the ONLY gear surface that exposes the buyer's shipping contact
+   (the partner ships direct, so the team needs it to hand the order
+   over). Admin-gated, fail-closed like every admin gear route. */
+router.get(
+  "/admin/studio-gear/orders",
+  requireAuth,
+  requireAdmin,
+  async (_req, res) => {
+    const result = await db.execute(sql`
+      SELECT id, items, total_cents, status, proof_status, proof_url,
+             proof_note, paid, test_mode, created_at,
+             name, email, address, city, state, zip
+      FROM studio_gear_orders
+      ORDER BY created_at DESC
+      LIMIT 200
+    `);
+    type AdminRow = GearOrderRow & {
+      name: string; email: string; address: string;
+      city: string; state: string; zip: string;
+    };
+    res.json({
+      testMode: STUDIO_GEAR_TEST_MODE,
+      orders: (result.rows as unknown as AdminRow[]).map((r) => ({
+        ...presentOrder(r),
+        buyer: {
+          name: r.name, email: r.email, address: r.address,
+          city: r.city, state: r.state, zip: r.zip,
+        },
+      })),
     });
   },
 );

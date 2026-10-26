@@ -637,7 +637,7 @@ export default function StudioGearShop() {
                   </div>
 
                   {/* Proof review — the gate: approve or send it back. */}
-                  {o.proofStatus === "sent" && (
+                  {o.proofStatus === "sent" && o.status !== "canceled" && (
                     <div className="mt-4 rounded-xl border border-primary/25 bg-primary/[0.06] p-4">
                       <p className="text-sm font-bold">Your design proof is ready</p>
                       <p className="mt-1 text-xs text-white/50">
@@ -675,12 +675,22 @@ export default function StudioGearShop() {
                       </div>
                     </div>
                   )}
-                  {o.proofStatus === "pending" && (
+                  {o.status === "canceled" && (
+                    <p className="mt-3 text-xs text-white/45">
+                      This order was canceled — it will not go to production. Questions? Reach out to support and reference the order number above.
+                    </p>
+                  )}
+                  {o.status === "delivered" && (
+                    <p className="mt-3 text-xs text-white/45">
+                      Delivered — enjoy your gear. Defect or misprint? The partner replaces it; lights carry a 12-month electronics warranty, partner-backed.
+                    </p>
+                  )}
+                  {o.proofStatus === "pending" && o.status !== "canceled" && (
                     <p className="mt-3 text-xs text-white/45">
                       Your proof is being prepared from your artwork and notes — production has not started.
                     </p>
                   )}
-                  {o.proofStatus === "revision_requested" && (
+                  {o.proofStatus === "revision_requested" && o.status !== "canceled" && (
                     <p className="mt-3 text-xs text-white/45">
                       Revision requested — a new proof will follow. Production has not started.
                     </p>

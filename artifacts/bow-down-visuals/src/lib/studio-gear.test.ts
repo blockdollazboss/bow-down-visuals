@@ -14,6 +14,7 @@ import {
   initialGearOrderState,
   canTransitionProof,
   canTransitionGearStatus,
+  gearOrderIsTerminal,
   formatGearMoney,
 } from "./studio-gear";
 
@@ -132,6 +133,9 @@ describe("fulfillment state machine (mirror)", () => {
     expect(canTransitionGearStatus("in_production", "delivered")).toBe(false);
     expect(canTransitionGearStatus("received", "canceled")).toBe(true);
     expect(canTransitionGearStatus("delivered", "canceled")).toBe(false);
+    expect(gearOrderIsTerminal("canceled")).toBe(true);
+    expect(gearOrderIsTerminal("delivered")).toBe(true);
+    expect(gearOrderIsTerminal("shipped")).toBe(false);
   });
 });
 

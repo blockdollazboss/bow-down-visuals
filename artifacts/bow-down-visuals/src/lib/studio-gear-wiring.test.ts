@@ -48,6 +48,13 @@ describe("studio gear docks in the Branding Shop", () => {
     expect(gear).toContain("artworkUrl");
   });
 
+  it("terminal orders read honestly — no proof actions on a canceled order", () => {
+    expect(gear).toContain('o.status === "canceled"');
+    expect(gear).toContain('o.proofStatus === "sent" && o.status !== "canceled"');
+    expect(gear).toContain("This order was canceled");
+    expect(gear).toContain('o.status === "delivered"');
+  });
+
   it("orders ride the gear rail and the proof gate is buyer-driven", () => {
     expect(gear).toContain('"/api/studio-gear/orders"');
     expect(gear).toContain('"/api/studio-gear/checkout"');

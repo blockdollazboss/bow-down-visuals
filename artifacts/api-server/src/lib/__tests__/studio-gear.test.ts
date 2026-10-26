@@ -23,6 +23,7 @@ import {
   initialGearOrderState,
   canTransitionProof,
   canTransitionGearStatus,
+  gearOrderIsTerminal,
   productionAllowed,
 } from "../studio-gear";
 
@@ -169,6 +170,22 @@ describe("route contract (source pins)", () => {
     expect(route).toContain('"/admin/studio-gear/orders/:id/status"');
     expect(route).toContain("canTransitionGearStatus");
     expect(route).toContain("production requires payment and a settled proof");
+  });
+
+  it("terminal orders cannot be revived by checkout or proof actions", () => {
+    expect(gearOrderIsTerminal("canceled")).toBe(true);
+    expect(gearOrderIsTerminal("delivered")).toBe(true);
+    expect(gearOrderIsTerminal("in_production")).toBe(false);
+    expect(gearOrderIsTerminal("proof_sent")).toBe(false);
+    expect(route).toContain("refuseIfTerminal");
+    expect(route).toContain("a finished order cannot move again");
+    /* checkout + proof send + approve + revision = 4 guarded handlers */
+    expect(route.match(/refuseIfTerminal\(order, res\)/g)?.length).toBe(4);
+  });
+
+  it("the team's relay queue is admin-gated and the only contact surface", () => {
+    expect(route).toContain('"/admin/studio-gear/orders"');
+    expect(route).toContain("buyer:");
   });
 
   it("checkout verifies the stored total against the catalog before marking paid", () => {

@@ -284,3 +284,10 @@ export function canTransitionGearStatus(
 ): boolean {
   return ORDER_TRANSITIONS[from].includes(to);
 }
+
+/** Terminal orders (delivered / canceled) never move again — checkout and
+    the proof endpoints must refuse them outright, or a canceled order
+    could be paid back to life. */
+export function gearOrderIsTerminal(status: StudioGearOrderStatus): boolean {
+  return status === "delivered" || status === "canceled";
+}
