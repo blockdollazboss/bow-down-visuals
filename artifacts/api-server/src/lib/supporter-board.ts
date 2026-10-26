@@ -41,6 +41,10 @@ export interface SupporterFanFact {
   spentVb: number;
   purchaseCount: number;
   lastActivityAt: string | null;
+  /** Earliest support in the aggregated window, when the aggregator
+   *  knows it (period aggregation does). Falls back to lastActivityAt
+   *  for Fan Graph facts, which carry no first-activity stamp. */
+  firstActivityAt?: string | null;
 }
 
 export interface SupporterTicketFact {
@@ -181,8 +185,9 @@ export function buildSupporterBoard(input: BuildSupporterBoardInput): SupporterB
     if (fan.avatarUrl && !acc.avatarUrl) acc.avatarUrl = fan.avatarUrl;
     acc.lastSupportAt = later(acc.lastSupportAt, fan.lastActivityAt);
     // The Fan Graph carries no first-activity stamp; last activity is
-    // the tie-break floor for graph-only fans, refined by tickets.
-    acc.firstSupportAt = earlier(acc.firstSupportAt, fan.lastActivityAt);
+    // the tie-break floor for graph-only fans, refined by tickets and
+    // by period aggregation's firstActivityAt when present.
+    acc.firstSupportAt = earlier(acc.firstSupportAt, fan.firstActivityAt ?? fan.lastActivityAt);
   }
 
   for (const t of input.tickets) {
@@ -258,11 +263,150 @@ export const SUPPORTER_BOARD_NOT_READY = {
   message: "Supporter recognition is almost ready — the final setup step hasn't landed yet, so nothing was saved.",
 } as const;
 
+/* ─── Periods (Wave-4 #49 spec delta) ──────────────────────────────────
+   The board is period-based: "this month" by default, "all time" on
+   request. A period is a half-open UTC window [start, end) — an event
+   at exactly the first instant of the month counts; an event at
+   exactly the first instant of the NEXT month does not. The basis
+   string is generated from the window so a surface can never label an
+   all-time board "this month" or the reverse. */
+
+export type SupporterPeriod = "month" | "all";
+export const SUPPORTER_PERIODS: readonly SupporterPeriod[] = ["month", "all"];
+
+export interface SupporterPeriodWindow {
+  period: SupporterPeriod;
+  /** Inclusive start (ISO), or null for all time. */
+  startAt: string | null;
+  /** Exclusive end (ISO). For "month" this is the next month's start. */
+  endAt: string;
+  /** Short label for tabs/headings: "This month" / "All time". */
+  label: string;
+  /** The honest basis line printed on the board. */
+  basis: string;
+}
+
+export function supporterPeriodWindow(period: SupporterPeriod, now: Date = new Date()): SupporterPeriodWindow {
+  if (period === "all") {
+    return {
+      period,
+      startAt: null,
+      endAt: now.toISOString(),
+      label: "All time",
+      basis: "Top supporters by tips + purchases, all time",
+    };
+  }
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return {
+    period,
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
+    label: "This month",
+    basis: "Top supporters by tips + purchases this month",
+  };
+}
+
+export function isWithinSupporterPeriod(at: string | Date, window: SupporterPeriodWindow): boolean {
+  const t = new Date(at).getTime();
+  if (Number.isNaN(t)) return false;
+  if (window.startAt && t < new Date(window.startAt).getTime()) return false;
+  if (window.period === "month" && t >= new Date(window.endAt).getTime()) return false;
+  return true;
+}
+
+/** One real ledger row, projected by the route loader: a completed
+ *  purchase, a landed tip, a paid membership join, a live-shop sale.
+ *  The loader applies the Fan Graph's own filters (completed / paid /
+ *  credited only) BEFORE a row becomes an event — this aggregator
+ *  never sees a refunded, test, or uncredited row. */
+export interface SupporterSupportEvent {
+  userId: string;
+  spentUsdCents?: number;
+  spentVb?: number;
+  /** Completed purchases this row represents (usually 1; membership
+   *  joins count as their paid join, not a store purchase — loaders
+   *  pass 0 for those and the money still counts). */
+  purchaseCount?: number;
+  at: string | Date;
+}
+
+/** Aggregate ledger events inside a period window into the fan facts
+ *  buildSupporterBoard ranks. Events outside the window are dropped —
+ *  the boundary is half-open, matching supporterPeriodWindow. Display
+ *  cards are NOT resolved here; the loader merges profile cards into
+ *  the facts' display fields via buildSupporterBoard's profileCards. */
+export function aggregateSupporterEvents(
+  events: SupporterSupportEvent[],
+  window: SupporterPeriodWindow,
+): SupporterFanFact[] {
+  const byUser = new Map<string, SupporterFanFact>();
+  for (const ev of events) {
+    if (!ev.userId) continue;
+    const atDate = new Date(ev.at);
+    if (!isWithinSupporterPeriod(atDate, window)) continue;
+    const at = atDate.toISOString();
+    let fact = byUser.get(ev.userId);
+    if (!fact) {
+      fact = {
+        fanId: `u:${ev.userId}`,
+        userId: ev.userId,
+        displayName: null,
+        profileSlug: null,
+        avatarUrl: null,
+        spentUsdCents: 0,
+        spentVb: 0,
+        purchaseCount: 0,
+        lastActivityAt: at,
+        firstActivityAt: at,
+      };
+      byUser.set(ev.userId, fact);
+    }
+    fact.spentUsdCents += Math.max(0, Math.floor(ev.spentUsdCents || 0));
+    fact.spentVb += Math.max(0, Math.floor(ev.spentVb || 0));
+    fact.purchaseCount += Math.max(0, Math.floor(ev.purchaseCount || 0));
+    fact.lastActivityAt = later(fact.lastActivityAt, at);
+    fact.firstActivityAt = earlier(fact.firstActivityAt ?? null, at);
+  }
+  return [...byUser.values()];
+}
+
+/** Keep only the tickets inside the period window (attendance is a
+ *  period fact too — last month's show does not seat this month). */
+export function filterTicketsForPeriod(
+  tickets: SupporterTicketFact[],
+  window: SupporterPeriodWindow,
+): SupporterTicketFact[] {
+  return tickets.filter((t) => isWithinSupporterPeriod(t.attendedAt, window));
+}
+
+/** Creator settings with the house defaults applied: the board is ON
+ *  until its creator turns it off, and perks are empty until the
+ *  creator writes them. A missing row (or a missing table, pre-
+ *  migration) resolves to exactly this. */
+export interface SupporterBoardSettings {
+  enabled: boolean;
+  perksText: string;
+}
+export function resolveSupporterBoardSettings(
+  row: { enabled?: boolean | null; perksText?: string | null } | null | undefined,
+): SupporterBoardSettings {
+  return {
+    enabled: row?.enabled !== false,
+    perksText: sanitizePerksText(row?.perksText ?? ""),
+  };
+}
+
 /** The exact honesty copy every supporter-board surface must carry. */
 export const SUPPORTER_BOARD_COPY = {
   rankedFromRealSupport:
-    "Ranked from real support only — purchases, Visual Bucs tips, and ticketed live shows. Follows alone never rank.",
+    "Ranked from real support only — purchases, Visual Bucs tips, paid memberships, and ticketed live shows. Follows alone never rank.",
   x100Explainer: "Totals meet on the house scale: 100 Visual Bucs counts the same as $1 of purchases.",
   optOut: "You can leave this board any time — your name and badge come off the public board, and your support still counts for the creator privately.",
   perksHeading: "What top supporters get — in the creator's own words",
+  emptyMonth:
+    "No qualifying support yet this month. Tips, purchases, paid memberships and ticketed shows land here as they happen — nothing is back-filled or invented.",
+  emptyAll:
+    "No qualifying support yet. Tips, purchases, paid memberships and ticketed shows land here as they happen — nothing is back-filled or invented.",
+  boardOff: "This creator has turned their supporter board off for now.",
 } as const;
