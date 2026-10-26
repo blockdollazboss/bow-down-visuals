@@ -41,7 +41,7 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   other: "Something else",
 };
 
-export type ReportTargetType = "post" | "comment" | "profile";
+export type ReportTargetType = "post" | "comment" | "profile" | "fan_art";
 
 export interface FiledReport {
   id: string;

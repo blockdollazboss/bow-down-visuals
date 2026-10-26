@@ -12,6 +12,11 @@ import { z } from "zod/v4";
  * DMCA bench). Before this table, NO member report path existed at
  * all — no store, no endpoint, no UI.
  *
+ * "fan_art" joined the vocabulary with the Fan Art Wall (Stack-200
+ * #157, provisional migration 9999 widens the DB check): a report on
+ * a fan-art piece resolves to the piece's ARTIST as target owner —
+ * the same rail, the same admin bench, no second moderation system.
+ *
  * A report never acts on its target: filing one only queues it. The
  * workflow vocabulary mirrors dmca_reports (0088) exactly.
  *
@@ -23,7 +28,7 @@ import { z } from "zod/v4";
  * later deleted.
  */
 
-export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile"] as const;
+export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile", "fan_art"] as const;
 export type ContentReportTargetType = (typeof CONTENT_REPORT_TARGET_TYPES)[number];
 
 /** The fixed reason vocabulary — free text belongs in `note`. The
@@ -61,7 +66,7 @@ export const contentReportsTable = pgTable("content_reports", {
   status:            text("status").notNull().default("new"),
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
-  check("content_reports_target_type_check", sql`${t.targetType} IN ('post', 'comment', 'profile')`),
+  check("content_reports_target_type_check", sql`${t.targetType} IN ('post', 'comment', 'profile', 'fan_art')`),
   check("content_reports_reason_check", sql`${t.reason} IN ('spam', 'harassment', 'hate_speech', 'violence', 'sexual_content', 'copyright', 'scam', 'other')`),
   check("content_reports_status_check", sql`${t.status} IN ('new', 'reviewing', 'actioned', 'dismissed')`),
   index("content_reports_status_idx").on(t.status, t.createdAt),

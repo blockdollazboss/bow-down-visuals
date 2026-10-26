@@ -29,6 +29,7 @@ const TARGET_NOUN: Record<ReportTargetType, string> = {
   post: "post",
   comment: "comment",
   profile: "profile",
+  fan_art: "fan art piece",
 };
 
 export function ReportButton({

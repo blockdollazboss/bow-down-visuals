@@ -21,6 +21,7 @@ import RoyalCourtPicker from "@/components/artist/RoyalCourtPicker";
 import SupporterBoardControls from "@/components/artist/SupporterBoardControls";
 import ProfileLayoutEditor from "@/components/artist/ProfileLayoutEditor";
 import ProfileTemplateStudio from "@/components/artist/ProfileTemplateStudio";
+import FanArtReviewDesk from "@/components/artist/FanArtReviewDesk";
 import { GetPaidChecklist } from "@/components/artist/get-paid-checklist";
 import { HeroSection, ProfileSections } from "@/components/artist/profile-sections";
 import { useToast } from "@/hooks/use-toast";
@@ -1017,6 +1018,8 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
       <SupporterBoardControls />
 
       <ProfileLayoutEditor />
+
+      <FanArtReviewDesk />
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h3 className="mb-1 text-sm font-bold uppercase tracking-widest text-white/50">Media kit — for the influencer lane</h3>

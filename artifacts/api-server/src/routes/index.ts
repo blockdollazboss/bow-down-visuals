@@ -368,6 +368,7 @@ import commentControlsRouter from "./comment-controls";
 import royalCourtRouter from "./royal-court";
 import supporterBoardRouter from "./supporter-board";
 import profileWebsiteRouter from "./profile-website";
+import fanArtRouter from "./fan-art";
 import profileHostingRouter from "./profile-hosting";
 import worldRouter from "./world";
 import worldEventsRouter from "./world-events";
@@ -744,6 +745,7 @@ router.use(podcastFeedRouter);              // /api/podcast-feed/* — hosted pe
 router.use(royalCourtRouter);               // /api/creator-profiles/:slug/court, /me/court (The Front Row)
 router.use(supporterBoardRouter);           // /api/supporter-board/* (Wave-4 #49 + N6: top-supporter recognition on creator profiles)
 router.use(profileWebsiteRouter);           // /api/creator-profiles layout/theme/store/spotlight, /api/collections/* (Stack 3)
+router.use(fanArtRouter);                   // /api/creator-profiles/:slug/fan-art, /me/fan-art, /api/fan-art/mine (Fan Art Wall, #157)
 router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 Hosting plan)
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
 router.use(worldEventsRouter);                // /api/world/events (World Events — the palace calendar, 0145)
