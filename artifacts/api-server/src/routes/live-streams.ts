@@ -36,6 +36,7 @@ import {
 } from "../lib/cloudflare-stream";
 import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
 import { closeBackstage } from "../lib/live-backstage";
+import { expireQueuedRequests } from "../lib/song-requests";
 import { stopAllRelays } from "../lib/multistream";
 import { attemptFanOut } from "../lib/fanout";
 import { fanOutGoLiveAlerts } from "../lib/live-alerts";
@@ -537,6 +538,13 @@ async function endStreamRow(row: LiveStream, finalViewerCount: number): Promise<
      sessions themselves stay on record but every guest call checks
      the stream's status, so the passes are dead from this moment. */
   closeBackstage(row.id, "The stream has ended.");
+  /* Song Requests (N18): a stream ending closes its request queue —
+     every still-queued request expires and its tip is refunded in
+     full on the house rails (lib/song-requests). Best-effort: a queue
+     failure (incl. the table not yet migrated) never blocks the end. */
+  await expireQueuedRequests(row.id).catch((err) =>
+    logger.warn({ err, streamId: row.id }, "live-streams end: song-request queue close-out failed (stream still ends)"),
+  );
   const now = new Date();
   const updated = await db
     .update(liveStreamsTable)
@@ -581,6 +589,9 @@ async function sweepStaleLive(): Promise<void> {
   for (const s of stale) {
     clearViewers(s.id);
     await closeOutDestinations(s.id).catch(() => undefined);
+    /* N18: the bulk stale-end bypasses endStreamRow, so close the
+       request queue (and refund unplayed tips) here too. */
+    await expireQueuedRequests(s.id).catch(() => undefined);
   }
 }
 
