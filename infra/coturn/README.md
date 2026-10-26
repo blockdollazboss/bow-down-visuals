@@ -39,15 +39,25 @@ How the app uses it (code: `artifacts/api-server/src/lib/video-calls.ts`):
 
 ## Install state (honest, as of the build lane's last check)
 
-`setup.sh` + `turnserver.conf.template` were copied to the VM
-(`/tmp/coturn/`) and VM access itself is proven (SSH as `ubuntu`,
-passwordless sudo, Ubuntu 24.04, coturn not yet installed). The
-install launch itself did **not** complete from the build VM: SSH
-through this VM's transparent proxy began timing out at banner
-exchange after the first sessions (sshd throttling from half-open
-proxied attempts is the suspected cause), so the service, host
-firewall, and STUN self-test are **not yet verified**. Exact step
-for whoever has a working SSH path (owner terminal or a later lane):
+**INSTALLED on the VM — Oct 26, 2026.** When the SSH path through
+this VM's transparent proxy recovered, `setup.sh` ran to completion
+on `141.148.45.254`:
+
+- coturn installed; systemd service `coturn` **active**
+- static-auth-secret generated on the box into
+  `/etc/bowdown-turn-secret` (root-only; never printed or copied off
+  except by the owner for the Render env, step 2 below)
+- host iptables: UDP 3478, TCP 3478, UDP 49152–65535 ACCEPTed before
+  the chain's final REJECT, persisted to `/etc/iptables/rules.v4`
+- setup self-test **passed**: coturn listening on 3478; loopback STUN
+  binding request answered (success 0x0101)
+
+Still open (owner steps below): external reachability of 3478 —
+verified Oct 26 that port 22 answers externally while 3478 does not,
+so the **OCI security-list ingress (step 1)** is the remaining gate
+for public STUN/TURN, and the **Render env (step 2)** is what turns
+the relay on for members. (The `setup.sh` re-run command below stays
+valid: the script is idempotent.)
 
 ```
 scp setup.sh turnserver.conf.template ubuntu@141.148.45.254:/tmp/coturn/
