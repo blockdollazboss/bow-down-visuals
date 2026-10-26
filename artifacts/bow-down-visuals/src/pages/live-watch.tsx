@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { FollowButton, useFollowStates } from "@/components/discovery/FollowButton";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
+import LiveBattlesPanel from "@/components/live/LiveBattlesPanel";
 import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import StreamSummaryCard from "@/components/live/StreamSummaryCard";
 import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
@@ -539,6 +540,10 @@ export default function LiveWatch() {
             creator's rules + the refund deal up front, the catalog,
             the tipped request form, and the live queue. */}
         <SongRequestPanel streamId={stream.id} isLive={!!isLive} />
+        {/* Live Battles (#154) docked on the watch surface: the battle
+            riding THIS stream, its recorded-vote tally and the crown.
+            Renders the crown strip alone when no battle rides here. */}
+        <LiveBattlesPanel streamId={stream.id} />
           </div>
           <LiveChatPanel streamId={stream.id} className="h-[440px] shrink-0 lg:h-auto lg:w-[340px]" />
         </div>

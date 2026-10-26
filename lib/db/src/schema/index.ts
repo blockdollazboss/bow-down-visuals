@@ -68,6 +68,7 @@ export * from "./song-requests";
 export * from "./live-chat";
 export * from "./live-guests";
 export * from "./live-alive";
+export * from "./live-battles";
 export * from "./scheduled-posts";
 export * from "./merch";
 export * from "./playlist-pitch";
