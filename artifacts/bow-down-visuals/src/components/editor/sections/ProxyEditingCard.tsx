@@ -38,8 +38,8 @@ export function ProxyEditingCard({ scenes, projectId }: { scenes: SceneData[]; p
 
   const load = useCallback(async () => {
     try {
-      const res = await confirmedFetch(`/api/proxy-editing?project_id=${encodeURIComponent(projectId)}`);
-      if (!res.ok) return;
+      const res = await confirmedFetch(`/api/proxy-editing?project_id=${encodeURIComponent(projectId)}`, { skipConfirm: true });
+      if (!res || !res.ok) return;
       const data = (await res.json()) as { enabled: boolean; proxies: ProxyApiRow[] };
       setEnabled(data.enabled);
       setRows(data.proxies ?? []);
@@ -69,6 +69,7 @@ export function ProxyEditingCard({ scenes, projectId }: { scenes: SceneData[]; p
         video.src = url;
       });
       const res = await confirmedFetch("/api/proxy-editing/request", {
+        skipConfirm: true,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -77,6 +78,7 @@ export function ProxyEditingCard({ scenes, projectId }: { scenes: SceneData[]; p
           duration_sec: meta.durationSec || null,
         }),
       });
+      if (!res) { setNote("Could not request a proxy. You are still editing from the original."); return; }
       const data = (await res.json().catch(() => ({}))) as { outcome?: string; message?: string; error?: string };
       if (data.outcome === "not_heavy") setNote(data.message ?? "This clip is light enough to edit from the original — no proxy needed.");
       else if (!res.ok) setNote(data.message ?? "Proxy editing is off for this account.");
@@ -93,6 +95,7 @@ export function ProxyEditingCard({ scenes, projectId }: { scenes: SceneData[]; p
     setEnabled(next);
     try {
       await confirmedFetch("/api/proxy-editing/prefs", {
+        skipConfirm: true,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: next }),
