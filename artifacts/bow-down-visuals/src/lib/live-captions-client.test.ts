@@ -159,6 +159,28 @@ describe("LiveCaptionsViewerClient", () => {
     client.stop();
   });
 
+  it("refreshTrack begins delivery when the streamer opens the track mid-stream", async () => {
+    let trackOn = false;
+    const { deps, sockets } = makeDeps({
+      fetchJson: async (path) => {
+        if (path === "/api/live-captions/languages") return { status: 200, json: { languages: [{ code: "en", label: "English (original)" }] } };
+        if (path.endsWith("/captions/settings")) {
+          return { status: 200, json: { captions: { enabled: trackOn, sourceLanguage: "en" }, streamStatus: "live" } };
+        }
+        return { status: 200, json: { captionsEnabled: trackOn, captions: [], latestSeq: 0 } };
+      },
+    });
+    const client = new LiveCaptionsViewerClient(STREAM, "en", deps, () => {});
+    await client.start();
+    expect(client.trackEnabled).toBe(false);
+    expect(sockets).toHaveLength(0);
+    trackOn = true;
+    await client.refreshTrack();
+    expect(client.trackEnabled).toBe(true);
+    expect(sockets).toHaveLength(1);
+    client.stop();
+  });
+
   it("a 402 poll read flips the ticket lock honestly", async () => {
     const { deps } = makeDeps({
       fetchJson: async (path) => {

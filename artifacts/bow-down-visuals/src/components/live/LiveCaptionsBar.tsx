@@ -54,7 +54,11 @@ export default function LiveCaptionsBar({ streamId }: { streamId: string }) {
     );
     clientRef.current = client;
     void client.start();
+    /* Slow track beat: if the streamer opens (or closes) captions
+       mid-stream, this viewer's bar follows without a toggle. */
+    const beat = setInterval(() => void client.refreshTrack(), 15_000);
     return () => {
+      clearInterval(beat);
       client.stop();
       if (clientRef.current === client) clientRef.current = null;
     };

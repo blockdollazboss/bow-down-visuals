@@ -196,12 +196,36 @@ export class LiveCaptionsViewerClient {
     this._started = true;
     await Promise.all([this.loadLanguages(), this.loadSettings()]);
     if (this._stopped) return;
-    if (this.trackEnabled) {
-      await this.connectSocket();
-      this.syncPolling();
-      void this.catchUp();
-    }
+    if (this.trackEnabled) await this.beginDelivery();
     this.onChange();
+  }
+
+  /** Delivery entry: socket first, poll as the standing fallback. */
+  private async beginDelivery(): Promise<void> {
+    await this.connectSocket();
+    this.syncPolling();
+    void this.catchUp();
+  }
+
+  /** Re-read the track state (the component polls this on a slow
+   *  beat): a streamer who opens captions mid-stream reaches
+   *  viewers who already turned captions on — delivery begins the
+   *  moment the track exists, no viewer toggle dance required. */
+  async refreshTrack(): Promise<void> {
+    if (this._stopped || !this._started) return;
+    const was = this.trackEnabled;
+    await this.loadSettings();
+    if (this._stopped) return;
+    if (this.trackEnabled && was !== true && !this._socket) {
+      await this.beginDelivery();
+    }
+    if (!this.trackEnabled && was === true) {
+      // Track closed mid-stream: stand delivery down; the bar
+      // states it honestly instead of holding a dead room open.
+      this.closeSocket();
+      this.stopPolling();
+      this.onChange();
+    }
   }
 
   stop(): void {
