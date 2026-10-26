@@ -21,7 +21,7 @@ step "fe-typecheck"
 echo "exit=$? (log .verify/fe-tc.log)" >> $R
 
 step "scoped-api-tests"
-(cd artifacts/api-server && ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/__tests__/community-grants.test.ts src/lib/__tests__/community-grants-settle.test.ts) > .verify/scoped-api.log 2>&1
+(cd artifacts/api-server && ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/__tests__/community-grants.test.ts src/lib/__tests__/community-grants-settle.test.ts src/routes/__tests__/community-grants-routes.test.ts) > .verify/scoped-api.log 2>&1
 echo "exit=$? (log .verify/scoped-api.log)" >> $R
 grep -E "Test Files|Tests " .verify/scoped-api.log >> $R || true
 
