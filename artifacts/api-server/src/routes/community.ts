@@ -36,6 +36,7 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { queueDmEmailCapture } from "../lib/keyword-automations";
+import { severVideoCallsForConversation } from "./video-calls";
 import {
   refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl,
   uploadMediaToSupabaseStorage, isStorageRef,
@@ -2028,6 +2029,11 @@ router.post("/dm/:id/block", requireAuth, async (req, res) => {
     const { conv, error } = await getConversation(param(req, "id"), userId);
     if (error || !conv) { res.status(error ?? 404).json({ error: "Conversation not found." }); return; }
     await db.update(conversationsTable).set({ status: "blocked" }).where(eq(conversationsTable.id, conv.id));
+    /* Video calls (Phase 1): a block SEVERS any ringing/live call on
+       this conversation — privacy is inherited exactly, so the call
+       dies the moment the block lands. Best-effort: the block itself
+       already landed (sever failures are logged inside the hook). */
+    await severVideoCallsForConversation(conv.id);
     res.json({ ok: true });
   } catch (err) {
     console.error("[community] POST /dm/:id/block failed", err);

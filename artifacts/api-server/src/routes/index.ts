@@ -369,6 +369,7 @@ import discoveryRouter from "./discovery";
 import shortsRouter from "./shorts";
 import challengeEngineRouter from "./challenge-engine";
 import creatorCommunityRouter from "./community";
+import videoCallsRouter from "./video-calls";
 import domainsRouter from "./domains";
 import storeRouter from "./store";
 import storefrontRouter from "./storefront";
@@ -729,6 +730,7 @@ router.use("/discovery", discoveryRouter);  // /api/discovery/*
 router.use(challengeEngineRouter);          // /api/challenges/* engine 2.0: prizes, votes, winners, lifecycle
 router.use(shortsRouter);                   // /api/shorts/*, /api/sounds/*, /api/hashtag/*
 router.use(creatorCommunityRouter);   // /api/groups/*, /api/events/*, /api/dm/*, /api/explore
+router.use(videoCallsRouter);         // /api/dm/:id/call, /api/dm/:id/calls, /api/dm/calls/:callId/*, /api/dm/call-config (Video Calls Phase 1, Stack-200; provisional migration 9999)
 router.use(domainsRouter);                  // /api/domains/*
 router.use(storeRouter);                    // /api/store/* (digital sales checkout)
 router.use(storefrontRouter);               // /api/storefront/* (products, orders, discounts)
