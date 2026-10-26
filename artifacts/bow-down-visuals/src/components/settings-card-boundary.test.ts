@@ -138,6 +138,51 @@ describe("SettingsCardBoundary — one bad card never takes the others down", ()
   });
 });
 
+describe("SettingsCardBoundary — fallback exists in BOTH themes", () => {
+  it("light theme renders the ivory fallback, dark the solid dark slab", () => {
+    const light = makeBoundary(
+      "sounds",
+      createElement("p", null, "X"),
+      true,
+    );
+    failWith(light, new Error("boom"));
+    const lightHtml = renderToStaticMarkup(light.render() as ReactElement);
+    expect(lightHtml).toContain("from-[#FCF7EA]");
+    expect(lightHtml).toContain("text-[#6B5B36]");
+
+    const dark = makeBoundary("sounds", createElement("p", null, "X"), false);
+    failWith(dark, new Error("boom"));
+    const darkHtml = renderToStaticMarkup(dark.render() as ReactElement);
+    expect(darkHtml).toContain("from-[#14100a]");
+    expect(darkHtml).not.toContain("from-[#FCF7EA]");
+  });
+
+  it("two failed cards each show their OWN error; a third stays healthy", () => {
+    const a = makeBoundary("sounds", createElement("p", null, "SOUNDS"));
+    failWith(a, new Error("sounds blew up"));
+    const b = makeBoundary("discord-webhook", createElement("p", null, "DISCORD"));
+    failWith(b, new Error("discord blew up"));
+    const c = makeBoundary(
+      "theme-packs",
+      createElement("p", null, "THEME DESK CARD"),
+    );
+    const html = renderToStaticMarkup(
+      createElement(
+        "div",
+        null,
+        a.render() as ReactElement,
+        b.render() as ReactElement,
+        c.render() as ReactElement,
+      ),
+    );
+    expect(html).toContain('data-testid="settings-card-error-sounds"');
+    expect(html).toContain('data-testid="settings-card-error-discord-webhook"');
+    expect(html).toContain("THEME DESK CARD");
+    expect(html).not.toContain("SOUNDS");
+    expect(html).not.toContain("DISCORD");
+  });
+});
+
 describe("SettingsCardBoundary — retry remounts just the failed card", () => {
   it("handleRetry clears the error and bumps the remount attempt", () => {
     const boundary = makeBoundary(
