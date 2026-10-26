@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { SampleClearanceShipCheck } from "@/components/sample-clearance/SampleClearancePanel";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
@@ -130,6 +131,7 @@ interface Release {
   territoriesMode: "worldwide" | "include" | "exclude";
   territories: string[];
   tracks: ReleaseTrack[];
+  songId: string | null;
   audioUrl: string | null;
   artworkUrl: string | null;
   status: "draft" | "packaged";
@@ -2366,6 +2368,11 @@ function ReleaseDetail(props: {
           </div>
         </Section>
       )}
+
+      {/* Sample Clearance Lane (Stack-200 N2): plain-words sample risk
+          flags for the release's track, with the acknowledgement the
+          submit gate asks for — docked beside the checklist. */}
+      <SampleClearanceShipCheck releaseId={release.id} songId={release.songId ?? null} authFetch={authFetch} isLight={isLight} />
 
       {/* ── platform tracker ── */}
       <Section

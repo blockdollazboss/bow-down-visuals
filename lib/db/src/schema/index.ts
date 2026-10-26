@@ -126,6 +126,7 @@ export * from "./sound-prefs";
 export * from "./month-wrapped";
 export * from "./pitch-fix";
 export * from "./video-calls";
+export * from "./sample-clearance";
 export * from "./feed-preferences";
 export * from "./thy-books";
 export * from "./reach";

@@ -32,6 +32,8 @@ import {
   type SmartlinkRoutedDestination,
 } from "../../lib/smartlink-routing";
 import { fanOutToFollowers } from "../../lib/notify-fanout";
+import { drizzleSampleClearanceStore, preShipCheck } from "../../lib/sample-clearance";
+import { isMissingSchemaError } from "../../lib/pg-errors";
 import { APP_PUBLIC_URL, presaveUrl } from "../../lib/presave-url";
 
 const router = Router();
@@ -1351,6 +1353,38 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
         checklist,
       });
       return;
+    }
+
+    /* Sample Clearance Lane (Stack-200 N2): declared samples on the
+       release's track carry plain-words risk flags. A flagged
+       declaration the creator has NOT explicitly acknowledged stops
+       the ship here — before any charge — with the flags stated.
+       Acknowledging (one tap, recorded on the declaration) or fixing
+       the declaration lets the same submit through; unflagged and
+       acknowledged declarations never stop a ship. If the clearance
+       table isn't live yet, the check degrades open — it never
+       invents a block. */
+    if (existing.song_id) {
+      try {
+        const clearance = await preShipCheck(drizzleSampleClearanceStore, [existing.song_id]);
+        if (!clearance.ok) {
+          res.status(409).json({
+            error: "sample_clearance_ack_required",
+            message:
+              "This track has declared samples with open risk flags. Read the flags on the track's Samples panel and acknowledge them — or clear the samples — before this release ships.",
+            flags: clearance.blocking.map((d) => ({
+              declarationId: d.id,
+              sourceDescription: d.sourceDescription,
+              headline: d.flag.headline,
+              reason: d.flag.reason,
+            })),
+          });
+          return;
+        }
+      } catch (err) {
+        if (!isMissingSchemaError(err)) throw err;
+        logger.warn("[distribution] sample-clearance pre-ship check unavailable (schema not live) — shipping without it");
+      }
     }
 
     const releaseType = (["single", "ep", "album"] as const).includes(existing.release_type as ReleaseType)
