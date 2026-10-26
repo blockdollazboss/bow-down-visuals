@@ -13,6 +13,7 @@ import {
   validateGearSelection,
   initialGearOrderState,
   canTransitionProof,
+  canTransitionGearStatus,
   formatGearMoney,
 } from "./studio-gear";
 
@@ -120,6 +121,17 @@ describe("proof gate", () => {
     expect(gearOrderStatusFor(true, "not_required")).toBe("in_production");
     expect(gearOrderStatusFor(false, "approved")).toBe("received");
     expect(gearOrderStatusFor(false, "not_required")).toBe("received");
+  });
+});
+
+describe("fulfillment state machine (mirror)", () => {
+  it("ships only from production, delivers only after shipping, terminal states never move", () => {
+    expect(canTransitionGearStatus("in_production", "shipped")).toBe(true);
+    expect(canTransitionGearStatus("shipped", "delivered")).toBe(true);
+    expect(canTransitionGearStatus("proof_pending", "shipped")).toBe(false);
+    expect(canTransitionGearStatus("in_production", "delivered")).toBe(false);
+    expect(canTransitionGearStatus("received", "canceled")).toBe(true);
+    expect(canTransitionGearStatus("delivered", "canceled")).toBe(false);
   });
 });
 

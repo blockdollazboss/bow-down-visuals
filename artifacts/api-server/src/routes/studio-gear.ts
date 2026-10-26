@@ -16,10 +16,12 @@ import {
   validateGearSelection,
   initialGearOrderState,
   canTransitionProof,
+  canTransitionGearStatus,
   gearOrderStatusFor,
   productionAllowed,
   type GearProductId,
   type GearVariant,
+  type StudioGearOrderStatus,
   type StudioGearProofStatus,
 } from "../lib/studio-gear";
 
@@ -43,6 +45,9 @@ import {
                                          in_production once paid
      POST /studio-gear/orders/:id/proof/request-revision  buyer sends it
                                          back with a note → proof_pending
+     POST /admin/studio-gear/orders/:id/status  team relays partner
+                                         fulfillment → shipped/delivered/
+                                         canceled (state-machine guarded)
      GET  /studio-gear/orders            my orders
      GET  /studio-gear/catalog           the ruled catalog (public) */
 
@@ -399,6 +404,59 @@ router.post(
       status: nextStatus,
       message: "Sent back — a revised proof will follow. Production has not started.",
     });
+  },
+);
+
+/* ── POST /admin/studio-gear/orders/:id/status — partner fulfillment ───
+   The tail of the lifecycle, relayed by the team when the partner
+   reports it: in_production → shipped → delivered, or a cancel from any
+   non-terminal state. The transition map is the guard — an order can
+   never be marked shipped before production (paid + proof settled),
+   and terminal orders never move. Admin-gated like the proof send. */
+const FULFILLMENT_STATUSES = ["shipped", "delivered", "canceled"] as const;
+
+router.post(
+  "/admin/studio-gear/orders/:id/status",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const { status } = (req.body ?? {}) as { status?: string };
+    if (!status || !(FULFILLMENT_STATUSES as readonly string[]).includes(status)) {
+      res.status(400).json({
+        error: `status must be one of: ${FULFILLMENT_STATUSES.join(", ")}.`,
+      });
+      return;
+    }
+    const order = await selectOrder(req.params.id as string);
+    if (!order) {
+      res.status(404).json({ error: "Order not found." });
+      return;
+    }
+    const next = status as StudioGearOrderStatus;
+    if (!canTransitionGearStatus(order.status as StudioGearOrderStatus, next)) {
+      res.status(400).json({
+        error: `This order cannot move from "${order.status}" to "${next}".`,
+      });
+      return;
+    }
+    /* Defense in depth: shipping additionally requires the production
+       gate itself — paid AND proof settled — never just the label. */
+    if (
+      next === "shipped" &&
+      (!order.paid || !productionAllowed(order.proof_status))
+    ) {
+      res.status(400).json({
+        error: "This order cannot ship — production requires payment and a settled proof.",
+      });
+      return;
+    }
+    await db.execute(sql`
+      UPDATE studio_gear_orders
+      SET status = ${next}, updated_at = now()
+      WHERE id = ${order.id}
+    `);
+    logger.info({ orderId: order.id, status: next }, "[studio-gear] fulfillment status updated");
+    res.json({ orderId: order.id, status: next });
   },
 );
 

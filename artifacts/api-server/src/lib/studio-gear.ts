@@ -222,7 +222,7 @@ export function initialGearOrderState(items: GearSelection[]): {
 }
 
 /* Proof state machine. Production is reachable ONLY from proofStatus
-   "approved" (custom) or "not_required" (house) — see orderStatusAfterProof
+   "approved" (custom) or "not_required" (house) — see gearOrderStatusFor
    and the checkout handler in routes/studio-gear.ts. */
 const PROOF_TRANSITIONS: Record<StudioGearProofStatus, StudioGearProofStatus[]> = {
   not_required: [],
@@ -263,20 +263,24 @@ export function gearOrderStatusFor(
   }
 }
 
-/** The order status that follows a proof decision. */
-export function orderStatusAfterProof(
-  proofStatus: StudioGearProofStatus,
-): StudioGearOrderStatus {
-  switch (proofStatus) {
-    case "approved":
-      return "in_production";
-    case "sent":
-      return "proof_sent";
-    case "revision_requested":
-      return "proof_pending";
-    case "pending":
-      return "proof_pending";
-    case "not_required":
-      return "received";
-  }
+/* Fulfillment state machine — the partner-side tail of the lifecycle,
+   driven only by the admin fulfillment endpoint. An order can ship ONLY
+   from in_production (which itself requires paid + proof settled), can
+   be delivered only after shipping, and can be canceled from any
+   non-terminal state. Terminal states never move again. */
+const ORDER_TRANSITIONS: Record<StudioGearOrderStatus, StudioGearOrderStatus[]> = {
+  received: ["canceled"],
+  proof_pending: ["canceled"],
+  proof_sent: ["canceled"],
+  in_production: ["shipped", "canceled"],
+  shipped: ["delivered"],
+  delivered: [],
+  canceled: [],
+};
+
+export function canTransitionGearStatus(
+  from: StudioGearOrderStatus,
+  to: StudioGearOrderStatus,
+): boolean {
+  return ORDER_TRANSITIONS[from].includes(to);
 }

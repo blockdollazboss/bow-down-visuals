@@ -268,6 +268,26 @@ export function canTransitionProof(
   return allowed[from].includes(to);
 }
 
+/* Fulfillment state machine — mirror of the server rail: an order can
+   ship ONLY from in_production (paid + proof settled), can be delivered
+   only after shipping, and can be canceled from any non-terminal state. */
+const ORDER_TRANSITIONS: Record<StudioGearOrderStatus, StudioGearOrderStatus[]> = {
+  received: ["canceled"],
+  proof_pending: ["canceled"],
+  proof_sent: ["canceled"],
+  in_production: ["shipped", "canceled"],
+  shipped: ["delivered"],
+  delivered: [],
+  canceled: [],
+};
+
+export function canTransitionGearStatus(
+  from: StudioGearOrderStatus,
+  to: StudioGearOrderStatus,
+): boolean {
+  return ORDER_TRANSITIONS[from].includes(to);
+}
+
 export function formatGearMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }

@@ -22,6 +22,7 @@ import {
   validateGearSelection,
   initialGearOrderState,
   canTransitionProof,
+  canTransitionGearStatus,
   productionAllowed,
 } from "../studio-gear";
 
@@ -115,6 +116,26 @@ describe("validation + totals", () => {
   });
 });
 
+describe("fulfillment state machine", () => {
+  it("ships only from production, delivers only after shipping", () => {
+    expect(canTransitionGearStatus("in_production", "shipped")).toBe(true);
+    expect(canTransitionGearStatus("shipped", "delivered")).toBe(true);
+    expect(canTransitionGearStatus("received", "shipped")).toBe(false);
+    expect(canTransitionGearStatus("proof_pending", "shipped")).toBe(false);
+    expect(canTransitionGearStatus("proof_sent", "shipped")).toBe(false);
+    expect(canTransitionGearStatus("in_production", "delivered")).toBe(false);
+  });
+
+  it("cancels from any non-terminal state; terminal states never move", () => {
+    expect(canTransitionGearStatus("received", "canceled")).toBe(true);
+    expect(canTransitionGearStatus("in_production", "canceled")).toBe(true);
+    expect(canTransitionGearStatus("shipped", "canceled")).toBe(false);
+    expect(canTransitionGearStatus("delivered", "canceled")).toBe(false);
+    expect(canTransitionGearStatus("canceled", "shipped")).toBe(false);
+    expect(canTransitionGearStatus("delivered", "shipped")).toBe(false);
+  });
+});
+
 describe("route contract (source pins)", () => {
   const route = readFileSync(new URL("../../routes/studio-gear.ts", import.meta.url), "utf8");
 
@@ -142,6 +163,12 @@ describe("route contract (source pins)", () => {
     expect(route).toContain('"/admin/studio-gear/orders/:id/proof/send"');
     expect(route).toContain("requireAdmin");
     expect(route).toContain("design proof is built from it");
+  });
+
+  it("partner fulfillment is admin-gated and state-machine guarded", () => {
+    expect(route).toContain('"/admin/studio-gear/orders/:id/status"');
+    expect(route).toContain("canTransitionGearStatus");
+    expect(route).toContain("production requires payment and a settled proof");
   });
 
   it("checkout verifies the stored total against the catalog before marking paid", () => {
