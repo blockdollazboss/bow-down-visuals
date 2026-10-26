@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Send, Check, X, Ban, Plus, Store, HeartHandshake, Paperclip, Link2, Search, Music2, Clapperboard, Image as ImageIcon, File as FileIcon } from "lucide-react";
+import { Send, Check, X, Ban, Plus, Store, HeartHandshake, Paperclip, Link2, Search, Music2, Clapperboard, Image as ImageIcon, File as FileIcon, Video, PhoneMissed, PhoneOutgoing } from "lucide-react";
+import { VideoCallDock } from "@/components/messages/VideoCallDock";
+import {
+  mergeThreadItems, callHistoryLabel, isMissedForViewer,
+  type CallHistoryEntry,
+} from "@/lib/video-call";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, Loading, ErrorBox, profileLink, timeAgo,
@@ -36,6 +41,36 @@ interface Conv {
 interface Msg {
   id: string; senderUserId: string; body: string; created_at: string;
   attachment_url?: string | null; attachment_type?: string | null; attachment_name?: string | null;
+}
+
+/* One call-ledger entry rendered in-thread (video calls Phase 1):
+   a centered honest line — what happened, when, and a Call back door
+   on the ones the viewer missed. Calls are ledger rows, never fake
+   message rows; this is just their thread rendering. */
+function CallHistoryRow({ call, viewerId, onCallBack }: {
+  call: CallHistoryEntry; viewerId: string | null; onCallBack: () => void;
+}) {
+  const missed = viewerId ? isMissedForViewer(call, viewerId) : false;
+  const mine = call.callerUserId === viewerId;
+  return (
+    <div className="flex justify-center" data-testid="dm-call-history-row" data-call-status={call.status}>
+      <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs ${
+        missed ? "border-red-400/40 bg-red-400/10 text-red-200"
+          : "border-white/10 bg-white/5 text-white/60"}`}>
+        {missed ? <PhoneMissed className="h-3.5 w-3.5" />
+          : mine ? <PhoneOutgoing className="h-3.5 w-3.5" />
+          : <Video className="h-3.5 w-3.5" />}
+        <span className="font-semibold">{viewerId ? callHistoryLabel(call, viewerId) : "Video call"}</span>
+        <span className="text-white/35">{timeAgo(call.createdAt)}</span>
+        {missed && (
+          <button type="button" onClick={onCallBack} data-testid="dm-call-back"
+            className="font-bold text-[#e8c86a] hover:underline">
+            Call back
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /* A message body with an active thread search's matches lit up in
@@ -105,6 +140,11 @@ export default function Messages() {
   const [tab, setTab] = useState<"inbox" | "requests">("inbox");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  /* In-thread call history (video calls Phase 1): ledger entries for
+     the open thread, interleaved with its messages by time. A failed
+     history read degrades to no entries — chat never depends on it. */
+  const [calls, setCalls] = useState<CallHistoryEntry[]>([]);
+  const callStarterRef = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<string>("inbox");
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -168,10 +208,22 @@ export default function Messages() {
     } finally { setLoading(false); }
   }
 
+  async function loadCalls(id: string, reqId?: number) {
+    try {
+      const d = (await api.get(`/api/dm/${id}/calls`)) as { calls: CallHistoryEntry[] };
+      if (reqId !== undefined && reqId !== threadReqRef.current) return;
+      setCalls(Array.isArray(d.calls) ? d.calls : []);
+    } catch {
+      if (reqId !== undefined && reqId !== threadReqRef.current) return;
+      setCalls([]);
+    }
+  }
+
   async function loadThread(id: string) {
     const reqId = ++threadReqRef.current;
-    setMsgs([]); setStatus("inbox"); setThreadError(null);
+    setMsgs([]); setCalls([]); setStatus("inbox"); setThreadError(null);
     setThreadLoading(true);
+    void loadCalls(id, reqId);
     try {
       const d = (await api.get(`/api/dm/${id}/messages`)) as { messages: Msg[]; status: string };
       if (reqId !== threadReqRef.current) return;
@@ -324,6 +376,9 @@ export default function Messages() {
   const list = tab === "inbox" ? inbox : requests;
   const visibleList = list.filter((c) => dmConversationHit(c, convQuery));
   const visibleMsgs = msgs.filter((m) => dmMessageHit(m, threadQuery));
+  /* Calls interleave with messages by time — except while searching,
+     where the scope stays the messages the search actually covers. */
+  const threadItems = mergeThreadItems(visibleMsgs, threadQuery.trim() ? [] : calls);
   const active = [...inbox, ...requests].find((c) => c.id === activeId) ?? null;
   const other = active?.other;
   const canChat = active && (status === "inbox" || (status === "request" && active.requested_by_me));
@@ -376,6 +431,24 @@ export default function Messages() {
         {notice && (
           <div className="mb-4 rounded-lg border border-[#e8c86a]/30 bg-[#e8c86a]/10 px-4 py-2 text-sm text-[#e8c86a]">{notice}</div>
         )}
+
+        {/* Video calls (Phase 1) dock here — inside Messages, never a
+            standalone page. Always mounted on this page so the
+            signaling socket is live and a ring lands wherever on the
+            page you are; its call bar binds to the open thread. */}
+        <div className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-[#0d0a02]">
+          <VideoCallDock
+            api={api}
+            getAccessToken={getAccessToken}
+            currentUserId={user?.id ?? null}
+            activeConversationId={activeId}
+            activeStatus={status}
+            otherName={other?.profile?.displayName ?? "Creator"}
+            onOpenConversation={(id) => setActiveId(id)}
+            onCallsChanged={() => { if (activeId) void loadCalls(activeId); }}
+            registerStarter={(fn) => { callStarterRef.current = fn; }}
+          />
+        </div>
 
         <div className="grid gap-4 md:grid-cols-[320px_1fr]">
           <div className="space-y-3">
@@ -491,7 +564,14 @@ export default function Messages() {
                     <ErrorBox message={threadError} onRetry={() => activeId && loadThread(activeId)} />
                   ) : threadQuery.trim() && visibleMsgs.length === 0 ? (
                     <p className="py-8 text-center text-sm text-white/40">Nothing in this thread matches that search.</p>
-                  ) : visibleMsgs.map((m) => {
+                  ) : threadItems.map((item) => {
+                    if (item.kind === "call") {
+                      return (
+                        <CallHistoryRow key={`call-${item.call.id}`} call={item.call} viewerId={user?.id ?? null}
+                          onCallBack={() => callStarterRef.current?.()} />
+                      );
+                    }
+                    const m = item.message;
                     const mine = m.senderUserId === user?.id;
                     const att = dmAttachmentOf(m);
                     return (
