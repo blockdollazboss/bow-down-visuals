@@ -271,6 +271,7 @@ import socialRouter from "./social";
 import socialProofRouter from "./social-proof";
 import productReviewsRouter from "./product-reviews";
 import wishlistsRouter from "./wishlists";
+import productOffersRouter from "./product-offers";
 import analyticsRouter from "./analytics";
 import discordRouter from "./discord";
 import discordBotRouter from "./discord-bot";
@@ -640,6 +641,7 @@ router.use(socialRouter);
 router.use(socialProofRouter);              // /api/social-proof/* (C5 live social-proof sync)
 router.use(productReviewsRouter);           // /api/product-reviews* (Stack-100 #3 #14 verified-purchase product reviews)
 router.use(wishlistsRouter);                // /api/wishlists* (Wave 4 #38 wishlists + price-drop alerts)
+router.use(productOffersRouter);            // /api/product-offers* (Wave 4 #43 make-an-offer)
 router.use(analyticsRouter);
 router.use(discordRouter);
 router.use(discordBotRouter);
