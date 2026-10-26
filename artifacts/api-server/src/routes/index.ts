@@ -260,6 +260,7 @@ import retentionDoctorRouter from "./retention-doctor";
 import retentionRouter from "./retention";
 import soundPrefsRouter from "./sound-prefs";
 import pitchFixRouter from "./pitch-fix";
+import loopExchangeRouter from "./loop-exchange";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
@@ -627,6 +628,7 @@ router.use(retentionDoctorRouter);
 router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
+router.use(loopExchangeRouter);          // /api/loop-exchange/* (Loop Exchange, Stack-200 #168)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);
