@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { AlertTriangle, ArrowLeft, ArrowUpRight, Download, Loader2, MousePointer2, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { SettingsCardBoundary } from "@/components/SettingsCardBoundary";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { ThemePacksDesk } from "@/components/theme-packs/ThemePacksDesk";
 import { SocialProofSettings } from "@/components/SocialProofSettings";
@@ -254,41 +255,81 @@ export default function Settings() {
           </div>
         </div>
 
-        <ConnectedAccounts />
+        {/* QC-200 G4: every card sits behind its own error boundary —
+            one card's render throw degrades that card alone (honest
+            error + retry) and can never take down the cards below it,
+            the theme desk included. */}
+        <SettingsCardBoundary name="connected-accounts">
+          <ConnectedAccounts />
+        </SettingsCardBoundary>
 
-        <SocialProofSettings />
+        <SettingsCardBoundary name="social-proof">
+          <SocialProofSettings />
+        </SettingsCardBoundary>
 
-        <PasskeyManager />
+        <SettingsCardBoundary name="passkeys">
+          <PasskeyManager />
+        </SettingsCardBoundary>
 
-        <RetentionPrefsSettings />
+        <SettingsCardBoundary name="retention-prefs">
+          <RetentionPrefsSettings />
+        </SettingsCardBoundary>
 
-        <SoundPrefsSettings />
+        <SettingsCardBoundary name="sounds">
+          <SoundPrefsSettings />
+        </SettingsCardBoundary>
 
-        <FeedbackPromptSettings />
+        <SettingsCardBoundary name="feedback-prompts">
+          <FeedbackPromptSettings />
+        </SettingsCardBoundary>
 
-        <ContentWarningSettings />
+        <SettingsCardBoundary name="content-warnings">
+          <ContentWarningSettings />
+        </SettingsCardBoundary>
 
-        <DiscordWebhookSettings />
+        <SettingsCardBoundary name="discord-webhook">
+          <DiscordWebhookSettings />
+        </SettingsCardBoundary>
 
-        <DeveloperApiSettings />
+        <SettingsCardBoundary name="developer-api">
+          <DeveloperApiSettings />
+        </SettingsCardBoundary>
 
-        <TeamSeats />
+        <SettingsCardBoundary name="team-seats">
+          <TeamSeats />
+        </SettingsCardBoundary>
 
-        <ThemePacksDesk />
+        <SettingsCardBoundary name="theme-packs">
+          <ThemePacksDesk />
+        </SettingsCardBoundary>
 
-        <CursorCard />
+        <SettingsCardBoundary name="cursor">
+          <CursorCard />
+        </SettingsCardBoundary>
 
-        <LegacySettings />
+        <SettingsCardBoundary name="legacy">
+          <LegacySettings />
+        </SettingsCardBoundary>
 
-        <LegacyContactSettings />
+        <SettingsCardBoundary name="legacy-contact">
+          <LegacyContactSettings />
+        </SettingsCardBoundary>
 
-        <PermanenceSettings />
+        <SettingsCardBoundary name="permanence">
+          <PermanenceSettings />
+        </SettingsCardBoundary>
 
-        <CatalogExportPanel />
+        <SettingsCardBoundary name="catalog-export">
+          <CatalogExportPanel />
+        </SettingsCardBoundary>
 
-        <ModConsolePanel />
+        <SettingsCardBoundary name="mod-console">
+          <ModConsolePanel />
+        </SettingsCardBoundary>
 
-        <DangerZone />
+        <SettingsCardBoundary name="danger-zone">
+          <DangerZone />
+        </SettingsCardBoundary>
       </div>
     </div>
   );
