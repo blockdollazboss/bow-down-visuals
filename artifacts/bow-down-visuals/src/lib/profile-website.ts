@@ -258,6 +258,9 @@ export interface ProfileLayoutDto {
   isDefault: boolean;
   blockTypes: ProfileBlockTypeDef[];
   maxBlocks: number;
+  /** The template last approved onto the live page, when the server
+      sends it (older builds omit it). */
+  templateId?: string | null;
 }
 
 /** The owner's picked block order (Oct 16) — The Stage → The Front Row →
@@ -369,6 +372,137 @@ export function addableBlockTypes(
     Front Row · …") — what the owner sees is what the page renders. */
 export function layoutSummary(blocks: ProfileBlockDto[]): string {
   return blocks.filter((b) => b.visible).map((b) => b.title || b.type).join(" · ");
+}
+
+/* ── Profile templates + bounded AI designer (Stack-200) ──────────────────
+   Mirrors routes/profile-website.ts #3b:
+   GET    /creator-profiles/me/template            (shelf + live + draft)
+   PUT    /creator-profiles/me/template/draft      (pick → draft only)
+   PUT    /creator-profiles/me/template/draft/layout (edit the draft)
+   POST   /creator-profiles/me/template/ai-design  (bounded ops → draft)
+   POST   /creator-profiles/me/template/approve    (the ONLY door to live)
+   DELETE /creator-profiles/me/template/draft      (discard)
+   A template is a composition over the same block registry — never
+   freeform code. The designer may only rearrange / add / subtract
+   categories, and its work lands as a draft the creator approves. */
+
+export interface ProfileTemplateDefDto {
+  id: string;
+  name: string;
+  tagline: string;
+  bestFor: string[];
+  colorway: string;
+  headingFont: string;
+  bodyFont: string;
+  /** The composition instantiated for THIS creator (their own section
+      titles/visibility carried across the switch). */
+  layout: ProfileBlockDto[];
+}
+
+export interface ProfileTemplateDraftDto {
+  templateId: string;
+  layout: ProfileBlockDto[];
+  colorway: string;
+  headingFont: string;
+  bodyFont: string;
+  source: "template" | "ai" | "manual";
+  ops: string[];
+  updatedAt: string;
+}
+
+export interface ProfileTemplateStateDto {
+  liveTemplateId: string | null;
+  layout: ProfileBlockDto[];
+  isDefault: boolean;
+  draft: ProfileTemplateDraftDto | null;
+  recommendedTemplateId: string;
+  templates: ProfileTemplateDefDto[];
+}
+
+/** Shelf order: the creator's recommended fit first, the flagship Stage
+    right behind it, the rest in shelf order. Smart by default — the
+    shelf reads what the system knows (their lane) without applying
+    anything unasked. */
+export function templateShelfOrder(
+  templates: ProfileTemplateDefDto[],
+  recommendedId: string,
+): ProfileTemplateDefDto[] {
+  const rank = (t: ProfileTemplateDefDto) =>
+    t.id === recommendedId ? 0 : t.id === "stage" ? 1 : 2;
+  return [...templates].sort((a, b) => rank(a) - rank(b));
+}
+
+/** What approving this draft would change on the live page, in plain
+    words: categories added, categories removed, and whether the order
+    moves. The approval read-back — the creator sees exactly what
+    "Approve" does before it does it. */
+export function draftChanges(
+  live: ProfileBlockDto[],
+  draft: ProfileBlockDto[],
+): { added: string[]; removed: string[]; reordered: boolean } {
+  const liveTypes = live.map((b) => b.type);
+  const draftTypes = draft.map((b) => b.type);
+  const added = draft.filter((b) => !liveTypes.includes(b.type)).map((b) => b.title || b.type);
+  const removed = live.filter((b) => !draftTypes.includes(b.type)).map((b) => b.title || b.type);
+  const sharedLive = liveTypes.filter((t) => draftTypes.includes(t));
+  const sharedDraft = draftTypes.filter((t) => liveTypes.includes(t));
+  const reordered = sharedLive.some((t, i) => sharedDraft[i] !== t);
+  return { added, removed, reordered };
+}
+
+/** One-line draft summary for the studio header ("Draft: Booth — 9
+    blocks · Royal Noir · Cinzel / Space Grotesk"). */
+export function draftSummary(
+  draft: ProfileTemplateDraftDto,
+  templates: ProfileTemplateDefDto[],
+  colorwayName: (id: string) => string | undefined,
+): string {
+  const name = templates.find((t) => t.id === draft.templateId)?.name ?? draft.templateId;
+  const visible = draft.layout.filter((b) => b.visible).length;
+  return `${name} — ${visible} blocks · ${colorwayName(draft.colorway) ?? draft.colorway} · ${draft.headingFont} / ${draft.bodyFont}`;
+}
+
+export async function fetchMyTemplateState(): Promise<ProfileTemplateStateDto> {
+  const res = await fetch("/api/creator-profiles/me/template");
+  return json<ProfileTemplateStateDto>(res);
+}
+
+export async function pickTemplateDraft(templateId: string): Promise<ProfileTemplateStateDto> {
+  const res = await fetch("/api/creator-profiles/me/template/draft", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ templateId }),
+  });
+  return json<ProfileTemplateStateDto>(res);
+}
+
+export async function saveDraftLayout(args: {
+  layout: ProfileBlockDto[];
+  colorway?: string;
+  headingFont?: string;
+  bodyFont?: string;
+}): Promise<ProfileTemplateStateDto> {
+  const res = await fetch("/api/creator-profiles/me/template/draft/layout", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  return json<ProfileTemplateStateDto>(res);
+}
+
+export async function runAiDesigner(): Promise<ProfileTemplateStateDto> {
+  const res = await fetch("/api/creator-profiles/me/template/ai-design", { method: "POST" });
+  return json<ProfileTemplateStateDto>(res);
+}
+
+export async function approveTemplateDraft(): Promise<ProfileTemplateStateDto> {
+  const res = await fetch("/api/creator-profiles/me/template/approve", { method: "POST" });
+  return json<ProfileTemplateStateDto>(res);
+}
+
+export async function discardTemplateDraft(): Promise<ProfileTemplateStateDto> {
+  const res = await fetch("/api/creator-profiles/me/template/draft", { method: "DELETE" });
+  return json<ProfileTemplateStateDto>(res);
 }
 
 /* ── Theme settings ──────────────────────────────────────────────────────
