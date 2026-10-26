@@ -552,13 +552,7 @@ export default function GoLive() {
         </Link>
       </div>
       <div id="golive-panel" role="tabpanel" aria-labelledby={`golive-tab-${tab}`} tabIndex={0}>
-<<<<<<< HEAD
-        {tab === "broadcast" ? <><BroadcastStudio /><SongRequestDesk /><GuestPanel /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
-||||||| ecc63098
-        {tab === "broadcast" ? <><BroadcastStudio /><GuestPanel /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
-=======
-        {tab === "broadcast" ? <><BroadcastStudio /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
->>>>>>> stack200/rem-live-battles
+        {tab === "broadcast" ? <><BroadcastStudio /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
       </div>
       <div className="mt-6"><StageRooms /></div>
     </div>
