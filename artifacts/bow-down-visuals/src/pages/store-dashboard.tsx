@@ -41,6 +41,7 @@ import PromoteButton from "@/components/storefront/PromoteButton";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import { AltTextField } from "@/components/accessibility/AltTextField";
 import CourseBuilderPanel from "@/components/courses/CourseBuilderPanel";
+import SellerOffersInbox from "@/components/offers/SellerOffersInbox";
 import {
   allSectionsFailed, initialSectionStates, markSectionLoading, sectionsToRefetch, settleSection,
   type SectionStates,
@@ -1964,6 +1965,10 @@ export default function StoreDashboard() {
           </Link>
         )}
       </div>
+
+      {/* Wave 4 #43: buyer offers on storefront products land here —
+          accept / decline / counter; renders only when offers exist. */}
+      <SellerOffersInbox itemKind="store_product" className="mb-6" />
 
       {noProfile ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-8 text-center">

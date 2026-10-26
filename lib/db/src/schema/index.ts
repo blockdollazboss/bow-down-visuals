@@ -167,3 +167,4 @@ export * from "./wishlists";
 export * from "./studio-gear";
 
 export * from "./feature-verse";
+export * from "./product-offers";

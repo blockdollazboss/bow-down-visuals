@@ -21,6 +21,7 @@ import { sql } from "drizzle-orm";
 import { recordAffiliateSaleSafely } from "./affiliates";
 import { recordShopEventSplitsSafely } from "./sale-splits";
 import { findReservation, redeemReservation } from "./gift-cards";
+import { consumeOfferByClaimRef, releaseOfferClaimByRef } from "./product-offers";
 import { logger } from "./logger";
 
 export interface MarketSaleRow {
@@ -186,6 +187,13 @@ export async function markMarketSalePaid(
     } catch (err) {
       logger.error({ err, sessionId }, "[market-sale] gift-card settlement check failed (sale stands)");
     }
+    /* Make-an-offer (Wave 4 #43): if this checkout claimed an accepted
+       offer (claimed_ref = the checkout group id), the recorded sale
+       consumes it — exactly once, because only the call that flipped
+       rows runs this, and the consume itself is status-guarded. The
+       lib never throws into the flip. */
+    const offerGroupId = rows[0]?.checkout_group_id ? String(rows[0].checkout_group_id) : null;
+    if (offerGroupId) await consumeOfferByClaimRef(offerGroupId);
   }
   return { flipped: updated.rows.length, rows };
 }
@@ -193,11 +201,16 @@ export async function markMarketSalePaid(
 /** An abandoned/expired session: its lines stay pending_sale forever
  *  (never a sale) but are labelled honestly as expired. */
 export async function markMarketSaleExpired(sessionId: string): Promise<void> {
+  const rows = await fetchMarketSaleBySession(sessionId).catch(() => [] as MarketSaleRow[]);
   await db.execute(sql`
     UPDATE shop_events
     SET payment_status = 'expired'
     WHERE stripe_session_id = ${sessionId} AND event_type = 'pending_sale'
   `);
+  /* An expired checkout frees any offer claim it held (#43) — the
+     accepted offer itself stays live until its own expiry. */
+  const groupId = rows[0]?.checkout_group_id ? String(rows[0].checkout_group_id) : null;
+  if (groupId) await releaseOfferClaimByRef(groupId);
 }
 
 export interface MarketSaleReceipt {

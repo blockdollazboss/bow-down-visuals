@@ -16,6 +16,7 @@ import CommercePixelsSettings, {
 } from "@/components/CommercePixelsSettings";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
+import SellerOffersInbox from "@/components/offers/SellerOffersInbox";
 import { useTranslation } from "react-i18next";
 import { AltTextField } from "@/components/accessibility/AltTextField";
 import SplitsEditor, { splitsErrorI18nKey } from "@/components/splits/SplitsEditor";
@@ -588,6 +589,10 @@ export default function MyShop() {
             {t("myShop.salesBannerCta", { defaultValue: "View sales" })} <ArrowLeft className="h-4 w-4 rotate-180" />
           </span>
         </Link>
+
+        {/* Wave 4 #43: buyer offers on shop products land here —
+            accept / decline / counter; renders only when offers exist. */}
+        <SellerOffersInbox itemKind="shop_product" className="mt-6" />
 
         {error && (
           <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
