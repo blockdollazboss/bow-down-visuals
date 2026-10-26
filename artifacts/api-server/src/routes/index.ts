@@ -142,6 +142,7 @@ import fanSegmentsRouter from "./generate/fan-segments";
 import liveShoppingRouter from "./live-shopping";
 import liveStreamsRouter from "./live-streams";
 import liveChatRouter from "./live-chat";
+import liveCaptionsRouter from "./live-captions";
 import keywordAutomationsRouter from "./keyword-automations";
 import liveGuestsRouter from "./live-guests";
 import pushRouter from "./push";
@@ -515,6 +516,7 @@ router.use(keywordAutomationsRouter);          // /api/keyword-automations/* (Wa
 router.use(liveShoppingRouter);
 router.use(liveStreamsRouter);              // /api/live-streams/* (Go Live broadcasts)
 router.use(liveChatRouter);                 // /api/live/:id/chat (stream chat + moderation)
+router.use(liveCaptionsRouter);             // /api/live/:id/captions/* + /api/live-captions/languages (Stack-200 #160 — live captions, per-viewer translation)
 router.use(liveGuestsRouter);               // /api/live-streams/:id/guest-invites + /api/live-guest/* (guest invites + backstage)
 router.use(pushRouter);                      // /api/push/* (web-push subscriptions)
 router.use(liveTipsRouter);                  // /api/live/:id/tips (stream tips + paid pins)
