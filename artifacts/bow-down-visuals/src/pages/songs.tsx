@@ -12,6 +12,7 @@ import { RemixChain } from "@/components/songs/RemixChain";
 import AlbumsSection from "./songs/albums-section";
 import DjSetPrep, { DjChips, type DjAnalysis } from "./songs/dj-set-prep";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
+import { SampleClearancePanel } from "@/components/sample-clearance/SampleClearancePanel";
 import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
 
 interface SongRecord {
@@ -493,6 +494,9 @@ export default function SongsPage() {
                   </button>
                 )}
               </div>
+              {/* Sample Clearance Lane (Stack-200 N2): declare samples on
+                  this track, plain-words risk flags, cleared-loop offers. */}
+              <SampleClearancePanel songId={s.id} getAccessToken={getAccessToken} isLight={isLight} />
               <div className="mt-2 flex items-center gap-2">
                 {remixTarget === s.id ? (
                   <>
