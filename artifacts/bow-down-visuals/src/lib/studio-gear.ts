@@ -235,6 +235,24 @@ export function initialGearOrderState(items: GearSelection[]): {
     : { status: "received", proofStatus: "not_required" };
 }
 
+/** The order status implied by payment + proof state. Production
+    requires BOTH: paid AND an approved / not-required proof. */
+export function gearOrderStatusFor(
+  paid: boolean,
+  proofStatus: StudioGearProofStatus,
+): StudioGearOrderStatus {
+  switch (proofStatus) {
+    case "pending":
+    case "revision_requested":
+      return "proof_pending";
+    case "sent":
+      return "proof_sent";
+    case "approved":
+    case "not_required":
+      return paid ? "in_production" : "received";
+  }
+}
+
 /** Proof state machine: which proof transitions a buyer may make. */
 export function canTransitionProof(
   from: StudioGearProofStatus,

@@ -245,6 +245,24 @@ export function productionAllowed(proofStatus: StudioGearProofStatus): boolean {
   return proofStatus === "not_required" || proofStatus === "approved";
 }
 
+/** The order status implied by payment + proof state. Production
+    requires BOTH: paid AND productionAllowed(proofStatus). */
+export function gearOrderStatusFor(
+  paid: boolean,
+  proofStatus: StudioGearProofStatus,
+): StudioGearOrderStatus {
+  switch (proofStatus) {
+    case "pending":
+    case "revision_requested":
+      return "proof_pending";
+    case "sent":
+      return "proof_sent";
+    case "approved":
+    case "not_required":
+      return paid ? "in_production" : "received";
+  }
+}
+
 /** The order status that follows a proof decision. */
 export function orderStatusAfterProof(
   proofStatus: StudioGearProofStatus,
