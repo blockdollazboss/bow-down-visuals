@@ -269,6 +269,7 @@ import setlistRouter from "./generate/setlist";
 import promoGeneratorRouter from "./generate/promo-generator";
 import socialRouter from "./social";
 import socialProofRouter from "./social-proof";
+import resultsWallRouter from "./results-wall";
 import productReviewsRouter from "./product-reviews";
 import wishlistsRouter from "./wishlists";
 import analyticsRouter from "./analytics";
@@ -638,6 +639,7 @@ router.use(setlistRouter);
 router.use(promoGeneratorRouter);
 router.use(socialRouter);
 router.use(socialProofRouter);              // /api/social-proof/* (C5 live social-proof sync)
+router.use(resultsWallRouter);              // /api/results-wall/* (Stack-200 #177 public results wall — verified, opt-in)
 router.use(productReviewsRouter);           // /api/product-reviews* (Stack-100 #3 #14 verified-purchase product reviews)
 router.use(wishlistsRouter);                // /api/wishlists* (Wave 4 #38 wishlists + price-drop alerts)
 router.use(analyticsRouter);
