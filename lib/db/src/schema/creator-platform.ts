@@ -20,6 +20,12 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   slug:            text("slug").notNull().unique(),
   displayName:     text("display_name").notNull(),
   bio:             text("bio").notNull().default(""),
+  /** Declared city (migration 9999-local-scenes, Stack-200 N10): free
+      text the creator typed themselves in profile setup ("New York",
+      "New York, NY"). The ONLY location source Local Scenes reads —
+      null/blank means the creator declared no city and appears on no
+      scene page. Never geocoded, inferred, or backfilled. */
+  declaredCity:    text("declared_city"),
   avatarUrl:       text("avatar_url"),
   bannerUrl:       text("banner_url"),
   themeId:         text("theme_id").notNull().default("gold-lux"),

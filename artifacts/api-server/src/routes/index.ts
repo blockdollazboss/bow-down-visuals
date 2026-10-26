@@ -366,6 +366,7 @@ import dailyQuestsRouter from "./daily-quests";
 import publishRouter from "./publish";
 import mirrorMediaRouter from "./mirror-media";
 import discoveryRouter from "./discovery";
+import scenesRouter from "./scenes";
 import shortsRouter from "./shorts";
 import challengeEngineRouter from "./challenge-engine";
 import creatorCommunityRouter from "./community";
@@ -722,6 +723,7 @@ router.use(dailyQuestsRouter);                // /api/retention/quests/daily (Da
 router.use("/publish", publishRouter);      // /api/publish/*
 router.use(mirrorMediaRouter);              // /api/mirror-media (client-side mirror-on-save)
 router.use("/discovery", discoveryRouter);  // /api/discovery/*
+router.use("/discovery", scenesRouter);     // /api/discovery/scenes* (Local Scenes, Stack-200 N10 — declared-city pages inside the discovery family)
 /* challengeEngineRouter is the ONE canonical mount for /api/challenges/*
    (Wave 3 #12 removed the duplicate mount that lived inside shorts.ts).
    It mounts before shortsRouter; shorts serves no challenge routes —
