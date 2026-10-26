@@ -37,10 +37,29 @@ How the app uses it (code: `artifacts/api-server/src/lib/video-calls.ts`):
   config render, service enable, host-firewall rules, STUN
   self-test.
 
+## Install state (honest, as of the build lane's last check)
+
+`setup.sh` + `turnserver.conf.template` were copied to the VM
+(`/tmp/coturn/`) and VM access itself is proven (SSH as `ubuntu`,
+passwordless sudo, Ubuntu 24.04, coturn not yet installed). The
+install launch itself did **not** complete from the build VM: SSH
+through this VM's transparent proxy began timing out at banner
+exchange after the first sessions (sshd throttling from half-open
+proxied attempts is the suspected cause), so the service, host
+firewall, and STUN self-test are **not yet verified**. Exact step
+for whoever has a working SSH path (owner terminal or a later lane):
+
+```
+scp setup.sh turnserver.conf.template ubuntu@141.148.45.254:/tmp/coturn/
+ssh ubuntu@141.148.45.254 'sudo bash /tmp/coturn/setup.sh'
+```
+
+The script is idempotent and prints its own self-test result.
+WireGuard is untouched by it either way.
+
 ## Remaining owner steps
 
-`setup.sh` (run from this repo against the VM by the build lane)
-covers everything on the box itself. Two steps can only be done by
+Once `setup.sh` has run on the box, two steps can only be done by
 the owner — they live in the owner's cloud console, and one carries
 the secret:
 

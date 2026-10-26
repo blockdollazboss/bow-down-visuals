@@ -67,11 +67,16 @@ door.
 
 ## TURN relay status
 
-coturn bundle lives in `infra/coturn/`. The VM-side install is done
-by `setup.sh`; two owner steps remain (OCI console ingress rules +
-Render env carrying the secret) — exact click-paths in
-`infra/coturn/README.md`. Without them, calls still work STUN-only
-for direct-reachable pairs; the ICE config never fakes a relay.
+coturn bundle lives in `infra/coturn/`. VM access is proven and the
+installer + template were copied to the VM (`/tmp/coturn/`), but the
+install launch did not complete from the build VM — SSH through the
+transparent proxy degraded to banner-exchange timeouts (see
+`infra/coturn/README.md` "Install state" for the exact one-command
+step for a working SSH path). After the install, two owner steps
+remain (OCI console ingress rules + Render env carrying the secret)
+— exact click-paths in `infra/coturn/README.md`. Without them, calls
+still work STUN-only for direct-reachable pairs; the ICE config
+never fakes a relay.
 
 ## Both themes
 
