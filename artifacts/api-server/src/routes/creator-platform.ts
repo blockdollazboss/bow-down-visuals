@@ -114,6 +114,7 @@ import {
   type CreatorCommentSettings,
 } from "../lib/comment-controls";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { queueKeywordComment } from "../lib/keyword-automations";
 import { emitNewFollowerWebhook } from "../lib/api-webhooks";
 import { resolvePaidPlan } from "../lib/profile-website";
@@ -1523,6 +1524,10 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
     // follow back (and the user follows Thy if anything missed it).
     // Idempotent, never throws.
     await ensureKingsWelcome(userId);
+    // Referral guards rung 3: a NEW creator profile fires the pending
+    // referral welcome (1,000 VB, exactly once, ledger key
+    // `referral-welcome:<userId>`). Never throws.
+    await maybeGrantPendingReferralWelcome(userId, { profileConfirmed: true });
     res.status(201).json({ profile: { ...(await refreshSupabaseStorageUrlsDeep(toPublicProfile(created))), ...(await profileExtras(created)), referral_code: await referralCodeForUser(created.userId) }, created: true });
   } catch (err) {
     req.log.error({ err }, "creator-profiles POST error");
