@@ -82,6 +82,8 @@ function makeCampaign(patch: Partial<EmailCampaign> = {}): EmailCampaign {
 
 function baseDeps(over: EmailSenderDeps = {}): Required<EmailSenderDeps> {
   return {
+    listQueuedCampaigns: async () => [],
+    countStoredRecipients: async () => 0,
     claimQueuedCampaigns: async () => [],
     claimDueDeliveries: async () => [],
     loadList: async () => makeList(),

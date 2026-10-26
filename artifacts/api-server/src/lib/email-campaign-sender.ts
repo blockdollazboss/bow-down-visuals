@@ -40,11 +40,22 @@
  * on its existing tick — no new infrastructure, restart-safe because
  * all state lives in Postgres rows.
  *
- * Caveat for the staging gate: legacy welcome rows the OLD subscribe
- * code inserted as list-wide campaign rows (recipientCount: 1, no
- * recipient stored) are indistinguishable from real campaigns. Clear
- * any stale `queued` campaign rows on staging before this sender's
- * first drain, or they will send to the whole list.
+ * Stale-queue gate (AUTOMATED — this replaces the former manual
+ * staging step, which was documented only in this header): legacy
+ * welcome rows the OLD subscribe code inserted as list-wide campaign
+ * rows (recipientCount: 1, no recipient stored) are otherwise
+ * indistinguishable from real campaigns, and draining one would send
+ * a one-person welcome to the whole list. The drain now enforces the
+ * gate in code on every pass — no manual clearing step remains:
+ * isStaleQueuedCampaign() identifies a stale row by exactly that
+ * legacy signature (recipientCount: 1 AND no recipient stored — zero
+ * delivery rows and zero send-log rows for the campaign), a pre-claim
+ * sweep clears each stale queued row to `failed`, and the post-claim
+ * check refuses to send any stale row a claim returns. Every clear
+ * is stamped on the campaign row and logged, in the same style as
+ * the no-provider fail-closed stamp below. Fresh queued campaigns
+ * (recipientCount: 0 at queue time) and re-queued campaigns whose
+ * recipients ARE stored as delivery rows are never gated.
  */
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, isNull, lte } from "drizzle-orm";
@@ -53,6 +64,7 @@ import {
   emailListsTable,
   emailSubscribersTable,
   emailCampaignsTable,
+  emailCampaignDeliveriesTable,
   emailSequenceDeliveriesTable,
   emailCampaignSendsTable,
   type EmailList,
@@ -74,6 +86,13 @@ import { logger } from "./logger";
        SchedulerDeps pattern in scheduler-jobs.ts) ─────────────────────── */
 
 export interface EmailSenderDeps {
+  /** Peek queued campaigns in the claim scope WITHOUT claiming them
+      (the stale-queue gate screens these before any claim). */
+  listQueuedCampaigns?: (limit: number) => Promise<EmailCampaign[]>;
+  /** How many recipients are STORED for a campaign: delivery rows
+      (tracked dispatch) + send-log rows (this sender). The legacy
+      welcome rows stored none — see isStaleQueuedCampaign. */
+  countStoredRecipients?: (campaignId: string) => Promise<number>;
   /** Claim queued campaigns: queued → sending, atomically per row. */
   claimQueuedCampaigns?: (limit: number) => Promise<EmailCampaign[]>;
   /** Claim due sequence deliveries: queued → sending, atomically per row. */
@@ -114,6 +133,11 @@ export interface EmailSenderDeps {
 
 const CAMPAIGN_BATCH = 5;
 const DELIVERY_BATCH = 25;
+/** How many queued rows the stale-queue gate screens per drain pass.
+    Larger than CAMPAIGN_BATCH so a legacy backlog clears faster than
+    the claim could ever reach it; the poller ticks every ~30s, so
+    anything beyond one sweep drains within a few passes. */
+const STALE_GATE_BATCH = 25;
 
 /** Welcome-sequence step timing (hours after the previous step):
     step 1 on signup, step 2 +24h, step 3 +72h after step 2. */
@@ -124,6 +148,34 @@ export const WELCOME_STEP_DELAYS_HOURS: Record<number, number> = {
 };
 
 /* ─── Pure helpers (unit-tested directly) ──────────────────────────────── */
+
+/**
+ * The stale-queue gate predicate — the automated form of the manual
+ * staging step this header used to prescribe. A campaign row is a
+ * STALE legacy welcome row iff BOTH halves of the legacy signature
+ * hold (see header):
+ *   - recipientCount === 1 — the OLD subscribe code inserted its
+ *     welcome rows with exactly that stamp. Real campaigns are
+ *     inserted with the schema default (0) and only ever gain a
+ *     recipientCount when a sender settles them, and
+ *   - storedRecipientCount === 0 — "no recipient stored": the legacy
+ *     insert recorded no subscriber anywhere (no delivery row, no
+ *     send-log row), so the one intended recipient is unknowable and
+ *     the row must never be widened to a whole-list send.
+ * The second half is load-bearing: a legitimate campaign that the
+ * tracked dispatch settled with exactly one delivery and that the
+ * creator later re-queued carries recipientCount 1 WITH its recipient
+ * stored as a delivery row — it is fresh work, never gated.
+ * Callers apply this only to rows in the drain's claim scope (queued,
+ * or just claimed from queued, with the kind/segment/automation
+ * filters the claim and peek queries already enforce).
+ */
+export function isStaleQueuedCampaign(
+  campaign: Pick<EmailCampaign, "recipientCount">,
+  storedRecipientCount: number,
+): boolean {
+  return campaign.recipientCount === 1 && storedRecipientCount === 0;
+}
 
 /** One-click unsubscribe URL for a subscriber (public, token-gated). */
 export function unsubscribeUrlFor(baseUrl: string, token: string): string {
@@ -217,6 +269,35 @@ export function withWelcomeGreeting(
 function defaultDeps(): Required<EmailSenderDeps> {
   const db = defaultDb;
   return {
+    listQueuedCampaigns: async (limit) =>
+      db
+        .select()
+        .from(emailCampaignsTable)
+        .where(
+          and(
+            eq(emailCampaignsTable.status, "queued"),
+            /* Same claim scope as claimQueuedCampaigns below — the
+               gate screens exactly the pool the drain can claim. */
+            isNull(emailCampaignsTable.segmentId),
+            isNull(emailCampaignsTable.automationId),
+            eq(emailCampaignsTable.kind, "campaign"),
+          ),
+        )
+        .orderBy(asc(emailCampaignsTable.createdAt))
+        .limit(limit),
+    countStoredRecipients: async (campaignId) => {
+      const [deliveries, sends] = await Promise.all([
+        db
+          .select({ id: emailCampaignDeliveriesTable.id })
+          .from(emailCampaignDeliveriesTable)
+          .where(eq(emailCampaignDeliveriesTable.campaignId, campaignId)),
+        db
+          .select({ id: emailCampaignSendsTable.id })
+          .from(emailCampaignSendsTable)
+          .where(eq(emailCampaignSendsTable.campaignId, campaignId)),
+      ]);
+      return deliveries.length + sends.length;
+    },
     claimQueuedCampaigns: async (limit) => {
       const queued = await db
         .select({ id: emailCampaignsTable.id })
@@ -482,18 +563,77 @@ async function sendOneDelivery(
 }
 
 /**
- * One drain pass: queued campaigns first, then due welcome deliveries.
- * Called by the job poller tick; safe to call any time (claims are
- * conditional updates, so overlapping passes can't double-send).
+ * The stale-queue gate's clear stamp: if the campaign is a stale
+ * legacy welcome row (isStaleQueuedCampaign), stamp it `failed` with
+ * the count reset — the same ledger-visible style as sendOneCampaign's
+ * honest stamps — log it, and report true so the caller never sends
+ * it. Fresh rows are untouched and report false.
+ */
+async function clearStaleCampaign(
+  d: Required<EmailSenderDeps>,
+  campaign: EmailCampaign,
+): Promise<boolean> {
+  const stored = await d.countStoredRecipients(campaign.id);
+  if (!isStaleQueuedCampaign(campaign, stored)) return false;
+  await d.updateCampaign(campaign.id, { status: "failed", recipientCount: 0 });
+  logger.warn(
+    { campaignId: campaign.id, listId: campaign.listId, recipientCount: campaign.recipientCount },
+    "[email-sender] stale queued campaign cleared by queue gate (legacy welcome row: recipientCount 1, no recipient stored) — not sent",
+  );
+  return true;
+}
+
+/**
+ * One drain pass: the stale-queue gate first, then queued campaigns,
+ * then due welcome deliveries. Called by the job poller tick; safe to
+ * call any time (claims are conditional updates, so overlapping
+ * passes can't double-send).
  */
 export async function drainEmailQueue(
   deps: EmailSenderDeps = {},
-): Promise<{ campaigns: SendOutcome; deliveries: number }> {
+): Promise<{ campaigns: SendOutcome; deliveries: number; staleCleared: number }> {
   const d = resolveDeps(deps);
-  const campaigns = await d.claimQueuedCampaigns(CAMPAIGN_BATCH);
+  /* ── Stale-queue gate (before the claim): screen the queued pool
+     and clear every stale legacy welcome row, so it can neither be
+     claimed nor sent this pass or any later one. FAIL-CLOSED: if the
+     gate itself cannot run, campaign claiming is skipped for this
+     pass rather than draining an unscreened pool — deliveries (each
+     addressed to one stored subscriber) still drain. */
+  let staleCleared = 0;
+  let gateFailed = false;
+  try {
+    const queued = await d.listQueuedCampaigns(STALE_GATE_BATCH);
+    for (const row of queued) {
+      try {
+        if (await clearStaleCampaign(d, row)) staleCleared += 1;
+      } catch (err) {
+        gateFailed = true;
+        logger.warn({ err, campaignId: row.id }, "[email-sender] stale-queue gate could not screen a queued campaign; campaign drain held this pass");
+      }
+    }
+  } catch (err) {
+    gateFailed = true;
+    logger.error({ err }, "[email-sender] stale-queue gate failed; campaign drain held this pass (fail-closed)");
+  }
+  const campaigns = gateFailed ? [] : await d.claimQueuedCampaigns(CAMPAIGN_BATCH);
   let deliveredTotal = 0;
   let attemptedTotal = 0;
   for (const campaign of campaigns) {
+    /* Post-claim check: the gate predicate re-applied to every claimed
+       row, so no claim implementation can hand the sender a stale row
+       the sweep missed (e.g. one queued beyond the sweep batch). A
+       row whose screening throws is held fail-closed the same way —
+       stamped failed, never sent. */
+    try {
+      if (await clearStaleCampaign(d, campaign)) {
+        staleCleared += 1;
+        continue;
+      }
+    } catch (err) {
+      logger.error({ err, campaignId: campaign.id }, "[email-sender] stale-queue gate could not screen a claimed campaign; holding it unsent (fail-closed)");
+      await d.updateCampaign(campaign.id, { status: "failed" }).catch(() => undefined);
+      continue;
+    }
     const outcome = await sendOneCampaign(d, campaign);
     deliveredTotal += outcome.delivered;
     attemptedTotal += outcome.attempted;
@@ -509,15 +649,16 @@ export async function drainEmailQueue(
         .catch(() => undefined);
     }
   }
-  if (campaigns.length || deliveries.length) {
+  if (campaigns.length || deliveries.length || staleCleared) {
     logger.info(
-      { campaigns: campaigns.length, deliveries: deliveries.length },
+      { campaigns: campaigns.length, deliveries: deliveries.length, staleCleared },
       "[email-sender] drain pass complete",
     );
   }
   return {
     campaigns: { delivered: deliveredTotal, attempted: attemptedTotal },
     deliveries: deliveries.length,
+    staleCleared,
   };
 }
 
