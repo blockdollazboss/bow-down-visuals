@@ -68,6 +68,47 @@ function OfficialBadge() {
   );
 }
 
+/* ─── Feature Verse badge (Stack-200 N7) — this creator has listed
+   their OWN feature price and is buyable. Renders NOTHING when they
+   have no active listing: no listing = not buyable, stated by absence.
+   The buy flow itself docks on the Collabs page's Feature Verse tab. */
+function FeatureVerseBadge({ userId }: { userId: string }) {
+  const isLight = useIsLightTheme();
+  const [listing, setListing] = useState<{ priceVb: number; title: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/feature-verse/listings/by-creator/${encodeURIComponent(userId)}`);
+        if (!res.ok) return;
+        const d = (await res.json()) as { listing: { price_vb?: number; priceVb?: number; title: string } | null };
+        const l = d.listing;
+        if (!cancelled && l) setListing({ priceVb: l.priceVb ?? l.price_vb ?? 0, title: l.title });
+      } catch {
+        /* badge just stays hidden — no listing, not buyable */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
+  if (!listing || !listing.priceVb) return null;
+  return (
+    <div className="flex justify-center px-4 pb-4">
+      <Link
+        href="/collabs?tab=featureverse"
+        className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold transition ${
+          isLight
+            ? "border-[#7A5A12]/45 bg-[#C9A84C]/15 text-[#7A5A12] hover:bg-[#C9A84C]/25"
+            : "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
+        }`}
+        title="Splits written and signed before anyone records — the fee is held in escrow and releases on delivery."
+        data-testid="profile-feature-verse-badge"
+      >
+        Book a feature verse · {listing.priceVb.toLocaleString("en-US")} VB
+      </Link>
+    </div>
+  );
+}
+
 /* ─── Live now badge — the creator is broadcasting natively on the site
    (GET /api/live-streams/profile/:slug). Links straight to the watch page. */
 function LiveNowBadge({ slug }: { slug: string }) {
@@ -336,6 +377,7 @@ export default function ArtistPublic() {
               <>
                 {profile.is_official && <OfficialBadge />}
                 {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
+                {profile.user_id && <FeatureVerseBadge userId={profile.user_id} />}
                 {/* C5: verified social proof from connected accounts
                     (renders nothing when no figure is live). */}
                 <SocialProofStrip figures={profile.social_proof} />

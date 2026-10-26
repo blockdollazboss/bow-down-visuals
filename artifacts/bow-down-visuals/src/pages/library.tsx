@@ -2,7 +2,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
-  Library as LibraryIcon, Search, Sparkles, Type, Wand2, Heart,
+  Library as LibraryIcon, Search, Sparkles, Type, Wand2, Heart, Mic2,
   ArrowRight, Clock, X, Check, Copy, ChevronRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchWishlist } from "@/lib/wishlists";
 import { libraryTabFromParams, type LibraryTab } from "@/lib/library-tab";
 import WishlistPanel from "@/components/wishlist/WishlistPanel";
+import { FeatureVersePanel } from "@/components/collabs/FeatureVersePanel";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
    The connective tissue between tools: templates, presets, and fonts.
@@ -74,6 +75,7 @@ export default function Library() {
      wishlist; the panel keeps it honest as items are removed. */
   const { user, getAccessToken } = useAuth();
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [featureOrderCount, setFeatureOrderCount] = useState(0);
   useEffect(() => {
     if (!user) {
       setWishlistCount(0);
@@ -154,6 +156,7 @@ export default function Library() {
     { key: "presets", label: t("library.tabPresets", { defaultValue: "Presets" }), icon: Wand2, count: LIBRARY_PRESETS.length },
     { key: "fonts", label: t("library.tabFonts", { defaultValue: "Fonts" }), icon: Type, count: LIBRARY_FONTS.length },
     { key: "wishlist", label: t("library.tabWishlist", { defaultValue: "Wishlist" }), icon: Heart, count: wishlistCount },
+    { key: "features", label: t("library.tabFeatures", { defaultValue: "Feature Orders" }), icon: Mic2, count: featureOrderCount },
   ];
 
   return (
@@ -284,6 +287,13 @@ export default function Library() {
         {/* ═══ WISHLIST (Wave 4 #38) ═══ */}
         {tab === "wishlist" && (
           <WishlistPanel onCountChange={setWishlistCount} />
+        )}
+
+        {/* ═══ FEATURE ORDERS (Stack-200 N7) — the buyer's/seller's
+            Feature Verse orders dock here; the market + listing live
+            on the Collabs page's Feature Verse tab. ═══ */}
+        {tab === "features" && (
+          <FeatureVersePanel variant="orders" onOrdersLoaded={setFeatureOrderCount} />
         )}
       </div>
     </div>
