@@ -9761,7 +9761,7 @@
     "statViews": "스토어프런트 조회수",
     "statSales": "판매",
     "statGross": "총매출",
-    "statYouKeep": "내 몫 (90%)",
+    "statYouKeep": "내 몫 (95%)",
     "views30Days": "조회수 — 최근 30일",
     "dayViews": "{{day}}: 조회 {{views}}회",
     "recentSales": "최근 판매",

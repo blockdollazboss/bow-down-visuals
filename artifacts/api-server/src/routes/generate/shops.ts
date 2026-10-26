@@ -735,10 +735,14 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
   });
 });
 
-/* ── POST /api/shops — create a shop (Pro tier or higher) ─────────────────
-   Storefronts are a platform feature: opening a shop requires a paid plan.
+/* ── POST /api/shops — create a shop (ALL plans, incl. Free) ──────────────
+   Owner ruling (Oct 26, payments gate): /creator-pricing promises Free
+   includes "sell at 5%", and the store fee is FLAT 5% for every plan —
+   so shop creation is NOT tier-gated. Free creators create a shop and
+   sell; the 5% platform fee is the only take. (Custom domains below
+   stay Pro-gated: that is a domain feature, not the right to sell.)
    Everything after creation (products, AI, analytics) follows its own rules. */
-router.post("/shops", publicApiLimiter, requireAuth, requireProTier, async (req, res) => {
+router.post("/shops", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = createShopSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
