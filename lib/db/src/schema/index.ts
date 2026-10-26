@@ -123,6 +123,7 @@ export * from "./wave9";
 export * from "./wave9a";
 export * from "./retention";
 export * from "./sound-prefs";
+export * from "./month-wrapped";
 export * from "./pitch-fix";
 export * from "./video-calls";
 export * from "./feed-preferences";

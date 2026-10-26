@@ -259,6 +259,7 @@ import competitorTrackerRouter from "./generate/competitor-tracker";
 import retentionDoctorRouter from "./retention-doctor";
 import retentionRouter from "./retention";
 import soundPrefsRouter from "./sound-prefs";
+import monthWrappedRouter from "./month-wrapped";
 import pitchFixRouter from "./pitch-fix";
 import studioGearRouter from "./studio-gear";
 import retentionDelightRouter from "./retention-delight";
@@ -628,6 +629,7 @@ router.use(competitorTrackerRouter);
 router.use(retentionDoctorRouter);
 router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
+router.use(monthWrappedRouter);          // /api/month-wrapped (Your Month, Wrapped, idea #170)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/studio-gear/* (Branding Shop studio-gear line, test mode)
 router.use(retentionDelightRouter);

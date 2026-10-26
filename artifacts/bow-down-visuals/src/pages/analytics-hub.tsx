@@ -16,6 +16,7 @@ import { ClaimsPanel, RetentionPanel } from "@/components/trust/TrustPanels";
 import ChannelAuditPanel from "@/components/analytics-hub/ChannelAuditPanel";
 import ViralityCheckPanel from "@/components/analytics-hub/ViralityCheckPanel";
 import FanDecoderSection from "@/components/analytics-hub/FanDecoderSection";
+import { MonthWrappedCard } from "@/components/MonthWrappedCard";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1414,6 +1415,10 @@ export default function AnalyticsHub() {
 
         {hubTab === "dashboard" && (
         <>
+
+        {/* Your Month, Wrapped (#170): one real-numbers recap per month,
+            docked here — renders nothing when opted out / no profile. */}
+        <MonthWrappedCard />
 
         {csvNote && (
           <div
