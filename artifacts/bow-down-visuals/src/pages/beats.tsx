@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
+import LoopExchangePanel from "@/components/loop-exchange/LoopExchangePanel";
 import { useHubProject } from "@/lib/hub-project";
 import {
   initialSectionStates, markSectionLoading, settleSection,
@@ -421,6 +422,13 @@ export default function Beats() {
                 that fit your song by key + tempo + tags. */}
             <div className="mb-6">
               <SoundFitPanel />
+            </div>
+            {/* Loop Exchange, docked in the catalog: loops/hooks posted
+                for others to build on, split terms agreed up front on
+                the existing splits rail — the poster is paid on every
+                downstream sale (CREATE -> MONEY). */}
+            <div className="mb-6">
+              <LoopExchangePanel />
             </div>
             {/* Filters */}
             <div className={`flex flex-wrap items-center gap-2 mb-6 p-4 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>

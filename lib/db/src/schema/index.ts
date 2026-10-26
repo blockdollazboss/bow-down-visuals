@@ -170,6 +170,7 @@ export * from "./publishing-splits";
 export * from "./open-verse";
 export * from "./song-credits";
 export * from "./sale-splits";
+export * from "./loop-exchange";
 export * from "./api-webhooks";
 export * from "./wishlists";
 export * from "./studio-gear";

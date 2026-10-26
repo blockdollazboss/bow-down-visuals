@@ -274,6 +274,7 @@ import communityGrantsRouter from "./community-grants";
 import priorityDmsRouter from "./priority-dms";
 import proxyEditingRouter from "./proxy-editing";
 import remixKingRouter from "./remix-king";
+import loopExchangeRouter from "./loop-exchange";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
@@ -663,6 +664,7 @@ router.use(communityGrantsRouter);       // /api/community-grants/* + /api/admin
 router.use(priorityDmsRouter);           // /api/priority-dms/* (Paid Priority DMs, Wave-4 #44 — gated OFF by PRIORITY_DM_ENABLED until the owner rules)
 router.use(proxyEditingRouter);          // /api/proxy-editing/* (proxy editing, board 184)
 router.use(remixKingRouter);             // /api/remix-king/* + /api/admin/remix-king/* (Remix the King, #152)
+router.use(loopExchangeRouter);          // /api/loop-exchange/* (Loop Exchange, Stack-200 #168)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);
