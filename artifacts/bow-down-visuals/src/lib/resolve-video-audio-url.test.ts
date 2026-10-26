@@ -10,6 +10,8 @@ function baseVideoAudio(source: MS["videoAudio"]["source"]): MS["videoAudio"] {
     startSec: 0,
     fadeIn: 0,
     fadeOut: 0,
+    volume: 100,
+    muted: false,
     loopAudio: false,
     matchVideoLength: true,
     syncMode: "keep-as-is",
