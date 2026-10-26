@@ -196,6 +196,7 @@ export interface SongRequestDto {
   status: SongRequestStatus;
   /** 1-based place among the still-queued requests; null once decided. */
   position: number | null;
+  fanUserId: string;
   fan: { displayName: string; avatarUrl: string | null; slug: string | null };
   refunded: boolean;
   createdAt: string;
@@ -227,6 +228,7 @@ async function toDto(row: SongRequest, position: number | null): Promise<SongReq
     amountVb: row.amount_vb,
     status: row.status as SongRequestStatus,
     position,
+    fanUserId: row.fan_user_id,
     fan: await fanCard(row.fan_user_id),
     refunded: !!row.refunded_at,
     createdAt: new Date(row.created_at).toISOString(),
