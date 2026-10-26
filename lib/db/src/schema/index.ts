@@ -116,6 +116,7 @@ export * from "./storefront";
 export * from "./stock-alerts";
 export * from "./affiliates";
 export * from "./gift-cards";
+export * from "./gift-products";
 export * from "./referral-contest";
 export * from "./referrals";
 export * from "./wave8";
