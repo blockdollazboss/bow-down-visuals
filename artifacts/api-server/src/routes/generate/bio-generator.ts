@@ -3,6 +3,11 @@ import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
+import { BIO_COST } from "./bio-pricing";
+
+/* Re-exported so existing importers (public API) keep one source:
+   the constant itself lives in ./bio-pricing (pure, route-free). */
+export { BIO_COST };
 
 const router = Router();
 
@@ -11,11 +16,6 @@ const router = Router();
    YouTube from a niche, personality traits, and achievements — each platform
    bio respects that platform's character limit.
    50 Visual Bucs. */
-
-/* 100 VB — the published operator price (owner ruling 2026-10-24: the
-   operator list said 100 while this rail's default charged 50; the rail
-   aligns to the published price). Env override unchanged. */
-export const BIO_COST = Number(process.env["BIO_GENERATOR_CREDITS"]) || 100;
 
 /** Character limits enforced per platform (generous-safe margins). */
 export const PLATFORM_LIMITS = {

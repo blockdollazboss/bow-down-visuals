@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { publicApiLimiter } from "../../lib/rate-limit";
@@ -14,6 +14,11 @@ import {
   OutOfCreditsError,
   LedgerWriteError,
 } from "../../lib/credits";
+import {
+  invokeRailHandler,
+  type RailCoreDeps,
+  type RailCoreResult,
+} from "../../lib/rail-core";
 import {
   SFX_CREDIT_COST,
   SFX_CATEGORY_KEYS,
@@ -53,12 +58,12 @@ const generateSfxSchema = z.object({
 /* POST /api/generate-sfx { prompt, durationSeconds, category } →
    200 { url, storagePath, durationSeconds, category, creditsUsed, creditsRemaining, genHistoryId }
    Paid: 1 credit per SFX. Auth required; credits are charged BEFORE the
-   provider call and refunded if generation or storage fails. */
-router.post(
-  "/generate-sfx",
-  publicApiLimiter,
-  requireAuth,
-  async (req, res) => {
+   provider call and refunded if generation or storage fails.
+   Extracted verbatim as a named handler (payfix operator-hands lane)
+   so the operator's sfx.generate tool runs this EXACT code through
+   lib/rail-core — the page and the chat share one rail, one charge,
+   one refund path. */
+export const generateSfxHandler = async (req: Request, res: Response) => {
     const parsed = generateSfxSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       res.status(400).json({
@@ -211,8 +216,19 @@ router.post(
       logger.error({ err }, "[sfx] unexpected error");
       res.status(500).json({ error: "Sound generation failed — try again." });
     }
-  },
-);
+};
+
+router.post("/generate-sfx", publicApiLimiter, requireAuth, generateSfxHandler);
+
+/* Operator core (Phase 2, payfix operator-hands lane): the Tier 3
+   sfx.generate tool runs this exact handler in-process (lib/rail-core)
+   — same SFX_CREDIT_COST charge and refund-on-failure the page gets. */
+export async function runGenerateSfx(
+  deps: RailCoreDeps,
+  body: unknown,
+): Promise<RailCoreResult> {
+  return invokeRailHandler(generateSfxHandler as never, deps, { body });
+}
 
 /* GET /api/sfx/library — the user's saved SFX, newest first.
    Reads generation history filtered to the "Generate SFX" type so the
