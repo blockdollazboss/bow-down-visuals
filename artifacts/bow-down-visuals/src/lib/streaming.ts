@@ -1,4 +1,7 @@
 import { mediaUrl } from "@/lib/media-cdn";
+import type { StemDescriptor } from "@/lib/stems-player";
+
+export type { StemDescriptor };
 
 /* ─── Creator Streaming Platform — shared types + API client ───
    Worker 2 (streaming player). Mirrors Worker 1's DB/API contract:
@@ -34,6 +37,9 @@ export interface StreamTrack {
       (its audio_url arrives withheld) — render the shelf card, not a player. */
   locked?: boolean;
   locked_series_id?: string | null;
+  /** N14 Stems Player: the stems this track carries (keys + labels ONLY,
+      never URLs). null/absent = no stems = no stem controls anywhere. */
+  stems?: StemDescriptor[] | null;
 }
 
 export interface StreamVideo {

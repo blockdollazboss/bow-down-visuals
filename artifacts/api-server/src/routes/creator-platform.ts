@@ -20,6 +20,7 @@ import {
   liveStreamsTable,
   referralCodesTable,
   digitalSalesTable,
+  trackStemsTable,
 } from "@workspace/db";
 import { liveChatHub } from "./live-chat";
 import { eq, and, desc, sql, count, inArray, gt } from "drizzle-orm";
@@ -46,7 +47,16 @@ import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
 import { sendEmail, emailShell, emailDetailBox, escapeHtml, isEmailConfigured } from "../lib/email";
 import { mirrorExternalMediaUrl, isExternalHttpUrl, isPermanentMediaValue } from "../lib/mirrorMedia";
-import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import {
+  stemDescriptors,
+  stemRefsFromJob,
+  normalizeTrackStemRefs,
+  isSendablePlaybackUrl,
+  isMissingTrackStemsSchema,
+  type StemDescriptor,
+} from "../lib/stems-player";
+import { getStemJob } from "./generate/stem-splitter";
 
 /* Mirror-on-save (2026-10-13 law): profile avatar/banner are re-hosted
    into permanent storage at save time. The media-designated blobs
@@ -515,12 +525,17 @@ type VideoRow = typeof profileVideosTable.$inferSelect;
    freshness is preserved by the routes' refreshSupabaseStorageUrlsDeep
    wrap, which rewrites storage refs in these snake_case fields on read. */
 
-function enrichTrack(row: TrackRow, profileSlug: string, ownerUserId?: string | null, isPinned = false) {
+function enrichTrack(row: TrackRow, profileSlug: string, ownerUserId?: string | null, isPinned = false, stems: StemDescriptor[] | null = null) {
   return {
     id: row.id,
     profile_id: row.profileId,
     title: row.title,
     audio_url: row.audioUrl,
+    /* N14 Stems Player: keys + labels ONLY (never refs, never URLs) —
+       null when the track carries no stems, so the player renders no
+       stem controls at all (honest absence). Playable stem URLs are
+       minted only by GET /media/track/:id/stems/playback. */
+    stems,
     artwork_url: row.artworkUrl,
     genre: row.genre,
     tags: row.tags ?? [],
@@ -2174,6 +2189,26 @@ function artistRef(profile: typeof creatorProfilesTable.$inferSelect) {
   };
 }
 
+/* ── N14 Stems Player ──────────────────────────────────────────────────────
+   A track carries stems exactly when a track_stems row holds Stem
+   Splitter refs for it (lib/stems-player.ts). Reads degrade to "no
+   stems" until provisional migration 9999 lands; writes answer an
+   honest 503 in that window. Playback delivery mints fresh signed
+   URLs from the stored refs — the same pattern as the master
+   audio_url — and there is deliberately NO download/export route. */
+
+/** The stored stem refs for one track, or null (no row / pre-migration). */
+async function loadTrackStemRefs(trackId: string): Promise<unknown> {
+  try {
+    const [row] = await db.select().from(trackStemsTable)
+      .where(eq(trackStemsTable.trackId, trackId)).limit(1);
+    return row?.stems ?? null;
+  } catch (err) {
+    if (isMissingTrackStemsSchema(err)) return null;
+    throw err;
+  }
+}
+
 /** GET /api/media/track/:id — public audio detail + artist. Paid Series:
     an episode of a priced series answers 403 for anyone but its owner, a
     completed buyer, or callers asking for the marked preview episode. */
@@ -2194,10 +2229,124 @@ router.get("/media/track/:id", optionalAuth, async (req, res) => {
     );
     const lock = lockMap.get(seriesItemKey("track", track.id));
     if (lock) { res.status(403).json(seriesLockPayload(lock)); return; }
-    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug, profile.userId, isProfilePin(profile, "track", track.id)), artist: artistRef(profile) }));
+    const stems = stemDescriptors(await loadTrackStemRefs(track.id));
+    res.json(await refreshSupabaseStorageUrlsDeep({ track: enrichTrack(track, profile.slug, profile.userId, isProfilePin(profile, "track", track.id), stems), artist: artistRef(profile) }));
   } catch (err) {
     req.log.error({ err }, "media/track detail error");
     res.status(500).json({ error: "Couldn't load that audio. Try again." });
+  }
+});
+
+/**
+ * GET /api/media/track/:id/stems/playback — PLAYBACK ONLY stem delivery.
+ *
+ * Returns one freshly-minted signed URL per stem the track actually
+ * carries (partial sets stay partial), in the splitter's canonical
+ * order. A track without stems answers 200 with an empty list — the
+ * player renders no stem controls. Paid Series locks apply exactly
+ * as on the track detail: a locked episode's stems never play for a
+ * non-buyer. Headers say no-store and there is no download affordance
+ * of any kind on this route (no Content-Disposition, no export).
+ */
+router.get("/media/track/:id/stems/playback", optionalAuth, async (req, res) => {
+  try {
+    const track = await getMedia("track", String(req.params["id"]));
+    if (!track || !("audioUrl" in track) || !track.isPublished) {
+      res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
+      return;
+    }
+    const profile = await getProfileById(track.profileId);
+    if (!profile || !profile.isPublic) {
+      res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
+      return;
+    }
+    const lockMap = await lockedSeriesByItem(
+      [{ kind: "track", id: track.id }], await seriesViewerFor(req),
+    );
+    const lock = lockMap.get(seriesItemKey("track", track.id));
+    if (lock) { res.status(403).json(seriesLockPayload(lock)); return; }
+    const stems = normalizeTrackStemRefs(await loadTrackStemRefs(track.id));
+    const playable: Array<StemDescriptor & { url: string }> = [];
+    for (const stem of stems) {
+      const url = await refreshSupabaseStorageUrl(stem.ref);
+      /* Signing failed → the refresher returned the raw ref. Never
+         send a raw ref (or any non-http value) to a client. */
+      if (isSendablePlaybackUrl(url)) playable.push({ key: stem.key, label: stem.label, url });
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ track_id: track.id, stems: playable });
+  } catch (err) {
+    req.log.error({ err }, "media/track stems playback error");
+    res.status(500).json({ error: "Couldn't load that audio's stems. Try again." });
+  }
+});
+
+/**
+ * PUT /api/media/track/:id/stems — creator wiring (owner only).
+ *
+ * Body { jobId } attaches a COMPLETED Stem Splitter job's refs to the
+ * caller's own track — the splitter's output IS the carrier; no new
+ * upload pipeline exists here. Body { clear: true } removes them.
+ * Only the job owner's refs can be attached, only to their own track.
+ * The response carries keys + labels only — never refs, never URLs.
+ * Pre-migration the write answers an honest 503.
+ */
+const trackStemsBodySchema = z.object({
+  jobId: z.string().min(1).optional(),
+  clear: z.boolean().optional(),
+});
+
+router.put("/media/track/:id/stems", requireAuth, async (req, res) => {
+  const parsed = trackStemsBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success || (!parsed.data.jobId && parsed.data.clear !== true)) {
+    res.status(400).json({ error: "Send { jobId } to attach a finished stem split, or { clear: true } to remove a track's stems." });
+    return;
+  }
+  try {
+    const track = await getMedia("track", String(req.params["id"]));
+    if (!track || !("audioUrl" in track)) {
+      res.status(404).json({ error: "That audio isn't here. Dead link, chief." });
+      return;
+    }
+    const profile = await getProfileById(track.profileId);
+    if (!profile || profile.userId !== req.userId) {
+      res.status(403).json({ error: "Only the track's creator can set its stems." });
+      return;
+    }
+    if (parsed.data.clear === true) {
+      await db.delete(trackStemsTable).where(eq(trackStemsTable.trackId, track.id));
+      res.json({ track_id: track.id, stems: null });
+      return;
+    }
+    const job = getStemJob(parsed.data.jobId!);
+    if (!job || job.userId !== req.userId) {
+      res.status(404).json({ error: "Stem split not found." });
+      return;
+    }
+    if (job.status !== "done") {
+      res.status(409).json({ error: "That stem split hasn't finished yet." });
+      return;
+    }
+    const refs = stemRefsFromJob(job);
+    if (!refs) {
+      res.status(409).json({ error: "That stem split finished without stems to attach." });
+      return;
+    }
+    const existing = await loadTrackStemRefs(track.id);
+    if (existing !== null && normalizeTrackStemRefs(existing).length > 0) {
+      await db.update(trackStemsTable).set({ stems: refs, updatedAt: new Date() })
+        .where(eq(trackStemsTable.trackId, track.id));
+    } else {
+      await db.insert(trackStemsTable).values({ trackId: track.id, stems: refs });
+    }
+    res.json({ track_id: track.id, stems: stemDescriptors(refs) });
+  } catch (err) {
+    if (isMissingTrackStemsSchema(err)) {
+      res.status(503).json({ error: "Stem playback isn't ready on this database yet — try again after the next deploy." });
+      return;
+    }
+    req.log.error({ err }, "media/track stems attach error");
+    res.status(500).json({ error: "Couldn't save that track's stems. Try again." });
   }
 });
 

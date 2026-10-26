@@ -5,6 +5,7 @@ import {
   Heart, Share2, X, Trash2, Music2, ChevronUp,
 } from "lucide-react";
 import { useStreamingPlayer, type QueueItem } from "@/contexts/StreamingPlayerContext";
+import { StemPlayerControls } from "@/components/player/StemPlayerControls";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   copyText, formatCount, formatDuration, getMyReferralCode, shareUrl,
@@ -190,7 +191,12 @@ export function StreamingPlayerBar() {
     }
     const apply = () => {
       const mobile = window.innerWidth < 768;
-      document.body.style.paddingBottom = mobile ? (expanded ? "172px" : "60px") : "84px";
+      /* Stem strip (N14) adds its height only while a stemmed track
+         is playing — it isn't in the DOM otherwise. */
+      const stemExtra = p.stems && p.stems.length > 0 ? 64 : 0;
+      document.body.style.paddingBottom = mobile
+        ? (expanded ? `${172 + stemExtra}px` : "60px")
+        : `${84 + stemExtra}px`;
     };
     apply();
     window.addEventListener("resize", apply);
@@ -198,7 +204,8 @@ export function StreamingPlayerBar() {
       window.removeEventListener("resize", apply);
       document.body.style.paddingBottom = "";
     };
-  }, [current, expanded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, expanded, p.stems]);
 
   useEffect(() => { setLiked(false); }, [current?.id, current?.kind]);
 
@@ -302,6 +309,9 @@ export function StreamingPlayerBar() {
               </button>
               <button onClick={p.next} className="text-white/70" aria-label="Next"><SkipForward className="h-7 w-7" /></button>
             </div>
+            <div className="mt-3">
+              <StemPlayerControls compact />
+            </div>
             {copied && <p className="text-center text-xs text-[#e8c86a] mt-2">Link copied — spread the cheat code 🔗</p>}
           </div>
         )}
@@ -309,6 +319,11 @@ export function StreamingPlayerBar() {
 
       {/* Desktop full bar */}
       <div className="hidden md:block fixed bottom-0 inset-x-0 z-[60] bg-[#0d0b08]/95 backdrop-blur border-t border-[#e8c86a]/25">
+        {p.stems && p.stems.length > 0 && (
+          <div className="px-5 pt-2">
+            <StemPlayerControls compact />
+          </div>
+        )}
         <SeekBar value={p.currentTime} max={p.duration} onSeek={p.seek} />
         <div className="flex items-center gap-4 px-5 py-2.5">
           <Link href={trackPath} className="flex items-center gap-3 min-w-0 w-64 group">
