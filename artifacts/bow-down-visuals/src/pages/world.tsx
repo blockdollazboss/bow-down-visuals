@@ -132,7 +132,6 @@ import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/statio
 import {
   COURTYARD_ID,
   GAME_ROOMS_ID,
-  HALL_ROOM_ID,
   HEIGHTS_ID,
   MUSIC_HALL_ID,
   isCreatorRoomId,
