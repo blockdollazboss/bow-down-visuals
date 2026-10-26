@@ -17,6 +17,7 @@ import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
 import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
 import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
+import SupporterBoardSection from "@/components/artist/SupporterBoardSection";
 import {
   fetchPublicLayout,
   grandStageFallbackBlocks,
@@ -385,6 +386,10 @@ export default function ArtistPublic() {
             )}
           </div>
         ))}
+        {/* Top Supporters (Wave-4 #49 + N6): the recognition board
+            docks on every public profile under the creator's layout —
+            hidden only when the creator turned it off. */}
+        <SupporterBoardSection slug={slug} />
         {/* Tutorials shelf (V1): the creator's how-tos live on the
             profile too — it renders nothing until they have one. */}
         <ProfileTutorialsSection slug={slug} />

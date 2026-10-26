@@ -18,6 +18,7 @@ import AiPageDesigner from "@/components/artist/ai-page-designer";
 import LightningSetup from "@/components/artist/lightning-setup";
 import ConfettiBurst from "@/components/artist/confetti-burst";
 import RoyalCourtPicker from "@/components/artist/RoyalCourtPicker";
+import SupporterBoardControls from "@/components/artist/SupporterBoardControls";
 import ProfileLayoutEditor from "@/components/artist/ProfileLayoutEditor";
 import ProfileTemplateStudio from "@/components/artist/ProfileTemplateStudio";
 import { GetPaidChecklist } from "@/components/artist/get-paid-checklist";
@@ -1013,6 +1014,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
       <RoyalCourtPicker />
 
       <ProfileTemplateStudio />
+      <SupporterBoardControls />
 
       <ProfileLayoutEditor />
 
