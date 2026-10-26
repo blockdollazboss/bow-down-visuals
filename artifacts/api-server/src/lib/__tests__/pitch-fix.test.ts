@@ -119,7 +119,7 @@ function memoryStore(): PitchFixStore {
 }
 
 async function approvedPitch(store: PitchFixStore, title = "Duet mode") {
-  const row = await submitPitch(store, { userId: USER_A, submitterName: "Maya", title, body: "What it is", why: "Why", category: "create" });
+  const row = await submitPitch(store, { userId: USER_A, submitterName: "Test Creator", title, body: "What it is", why: "Why", category: "create" });
   await moderateSubmission(store, ADMIN, row.id, "approved");
   return row;
 }

@@ -72,10 +72,15 @@ export function ThyCheatCodeHost() {
     window.dispatchEvent(new CustomEvent("thy-tour:start"));
   };
 
-  /* ── Collapsed: slim floating chip (overlays hero, no flow space) ── */
+  /* ── Collapsed: slim chip, IN FLOW above the page content ──
+     It used to be absolutely positioned over the top of <main>, which
+     put it right on top of the page's H1 (seen on /pitch-fix, Oct 25) —
+     worse, pages whose H1 lives inside the hero band lost their title
+     under it entirely. In flow it takes its own strip of space, so a
+     heading can never slide underneath it on any page. */
   if (dismissed) {
     return (
-      <div className="absolute top-6 left-8 md:top-8 md:left-10 z-[30]">
+      <div className="px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]">
         <button
           onClick={expand}
           className={`inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 py-1.5 pl-2 pr-4 text-sm transition hover:border-[#C9A84C]/70 ${

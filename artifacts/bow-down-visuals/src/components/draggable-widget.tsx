@@ -21,6 +21,8 @@ interface DraggableWidgetProps {
   /** Initial position as fractions of viewport (0–1). */
   defaultAnchor?: { x: number; y: number };
   zIndex?: number;
+  /** Keep snap positions clear of form cards (see lib/floating-safe-zone). */
+  keepOffFormCards?: boolean;
 }
 
 export function DraggableWidget({
@@ -30,6 +32,7 @@ export function DraggableWidget({
   style,
   defaultAnchor = { x: 0.94, y: 0.06 },
   zIndex = 9990,
+  keepOffFormCards = false,
 }: DraggableWidgetProps) {
   /* The anchor is the widget's home until the user drags it — it must be
      passed to the hook as the default position. Without this, widgets with
@@ -44,7 +47,7 @@ export function DraggableWidget({
       : { x: 0, y: 0 };
 
   const { position, isDragging, initialized, elRef, dragHandlers, wasDragged } =
-    useDraggable(id, anchorPos);
+    useDraggable(id, anchorPos, { keepOffFormCards });
 
   const pos = initialized ? position : anchorPos;
 

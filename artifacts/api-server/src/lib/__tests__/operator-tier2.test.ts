@@ -370,25 +370,25 @@ describe("storyboard.save — storyboard panel (routes/storyboards cores)", () =
 
 describe("settings.legacy-contact — legacy contact (routes/trust saveLegacyContact)", () => {
   it("saves the caller's contact; the email never becomes an audit target", async () => {
-    const out = await run("settings.legacy-contact", { name: "Maya Reef", email: "maya@example.com", note: "my sister" });
+    const out = await run("settings.legacy-contact", { name: "Test Contact", email: "test@example.com", note: "my sister" });
     expect(out.status).toBe("done");
-    expect(out.replyText).toContain("Maya Reef");
-    expect(out.replyText).toContain("maya@example.com");
+    expect(out.replyText).toContain("Test Contact");
+    expect(out.replyText).toContain("test@example.com");
     const saved = rows("legacyContacts");
     expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ user_id: MEMBER, contact_name: "Maya Reef", contact_email: "maya@example.com", note: "my sister" });
+    expect(saved[0]).toMatchObject({ user_id: MEMBER, contact_name: "Test Contact", contact_email: "test@example.com", note: "my sister" });
     const audit = lastAudit();
     expect(audit).toMatchObject({ toolId: "settings.legacy-contact", result: "done", summary: "Set legacy contact" });
     expect(audit.target).toBeNull();
   });
 
   it("a second save updates the caller's one row in place", async () => {
-    await run("settings.legacy-contact", { name: "Maya Reef", email: "maya@example.com" });
-    const out = await run("settings.legacy-contact", { name: "Maya Reef", email: "maya@new.example.com" });
+    await run("settings.legacy-contact", { name: "Test Contact", email: "test@example.com" });
+    const out = await run("settings.legacy-contact", { name: "Test Contact", email: "test@new.example.com" });
     expect(out.status).toBe("done");
     const saved = rows("legacyContacts");
     expect(saved).toHaveLength(1);
-    expect(saved[0].contact_email).toBe("maya@new.example.com");
+    expect(saved[0].contact_email).toBe("test@new.example.com");
     expect(lastAudit().summary).toBe("Updated legacy contact");
   });
 
@@ -402,7 +402,7 @@ describe("settings.legacy-contact — legacy contact (routes/trust saveLegacyCon
   });
 
   it("an invalid email fails the rail's validation — nothing saved", async () => {
-    const out = await run("settings.legacy-contact", { name: "Maya Reef", email: "not-an-email" });
+    const out = await run("settings.legacy-contact", { name: "Test Contact", email: "not-an-email" });
     expect(out.status).toBe("failed");
     expect(rows("legacyContacts")).toHaveLength(0);
     expect(lastAudit().result).toBe("failed");

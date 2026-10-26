@@ -275,7 +275,7 @@ export function MysteryCrate() {
   return (
     <>
       {/* Floating button — draggable */}
-      <DraggableWidget id="mystery-crate-button" defaultAnchor={{ x: 0.06, y: 0.92 }} zIndex={40}>
+      <DraggableWidget id="mystery-crate-button" defaultAnchor={{ x: 0.06, y: 0.92 }} zIndex={40} keepOffFormCards>
         <button
           onClick={() => setOpen(true)}
           aria-label="Open mystery crate"

@@ -52,7 +52,7 @@ describe("feeBreakdown", () => {
 
 describe("buildAlertText", () => {
   it("builds the overlay alert headline", () => {
-    expect(buildAlertText("Maya", 2, 4998)).toBe("Maya bought 2× — $49.98");
+    expect(buildAlertText("Testfan", 2, 4998)).toBe("Testfan bought 2× — $49.98");
   });
 
   it("falls back to 'A viewer' for blank names", () => {
