@@ -138,11 +138,14 @@ describe("mic readout truth wiring", () => {
 });
 
 describe("Cheat Code chip sits inside the panel", () => {
-  it("collapsed chip offsets match the panel origin plus a small inset", () => {
-    // Panel: mx-4 my-4 (16px) / md:mx-6 md:my-6 (24px). Chip:
-    // left-8 (32) top-6 (24) / md:left-10 (40) md:top-8 (32) —
-    // a 16×8 inset inside the border at both breakpoints.
-    expect(host).toContain("absolute top-6 left-8 md:top-8 md:left-10 z-[30]");
+  it("collapsed chip is in flow above the content, never an overlay on the heading", () => {
+    // Oct 25 owner screenshot (/pitch-fix): the old absolutely-positioned
+    // chip (top-6 left-8 / md:top-8 md:left-10 over <main>) sat on top of
+    // the page H1. The chip now renders in the same in-flow wrapper as
+    // the expanded coach card, so it takes its own strip above the page
+    // content and a heading can never slide underneath it.
+    expect(host).toContain("px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]");
+    expect(host).not.toContain("absolute top-6 left-8 md:top-8 md:left-10 z-[30]");
     expect(host).not.toContain("top-2 left-4 sm:left-6 lg:left-8");
   });
 });

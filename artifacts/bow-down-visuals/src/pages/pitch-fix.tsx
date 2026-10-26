@@ -208,7 +208,7 @@ export default function PitchFixPage() {
 
       {/* ── Two doors ─────────────────────────────────────────── */}
       <section className="mt-8 grid gap-5 lg:grid-cols-2">
-        <form onSubmit={submitPitch} className={`${cardCls} p-6`} data-testid="pitch-door">
+        <form onSubmit={submitPitch} className={`form-card ${cardCls} p-6`} data-testid="pitch-door">
           <h2 className={`flex items-center gap-2 font-serif text-2xl font-bold ${headCls}`}><Lightbulb className="h-5 w-5 text-[#d4a017]" />{t("pitchFix.pitchDoor.title")}</h2>
           <p className={`mt-1 ${subCls}`}>{t("pitchFix.pitchDoor.sub")}</p>
           <div className="mt-4">
@@ -241,7 +241,7 @@ export default function PitchFixPage() {
           {pNote && <p role="status" className={`mt-2 text-sm font-bold ${pNote.ok ? "text-emerald-500" : "text-red-400"}`}>{pNote.text}</p>}
         </form>
 
-        <form onSubmit={submitFix} className={`${cardCls} p-6`} data-testid="fix-door">
+        <form onSubmit={submitFix} className={`form-card ${cardCls} p-6`} data-testid="fix-door">
           <h2 className={`flex items-center gap-2 font-serif text-2xl font-bold ${headCls}`}><Wrench className="h-5 w-5 text-[#d4a017]" />{t("pitchFix.fixDoor.title")}</h2>
           <p className={`mt-1 ${subCls}`}>{t("pitchFix.fixDoor.sub")}</p>
           <div className="mt-4">

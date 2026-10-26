@@ -28,7 +28,7 @@ export function feeBreakdown(totalCents: number): string {
   return `5% of ${formatPrice(totalCents)} = ${formatPrice(platformFeeCents(totalCents))}`;
 }
 
-/** Overlay alert headline, e.g. "Maya bought 2× — $49.98". */
+/** Overlay alert headline, e.g. "Testfan bought 2× — $49.98". */
 export function buildAlertText(buyerName: string, quantity: number, totalCents: number): string {
   const buyer = buyerName.trim() || "A viewer";
   return `${buyer} bought ${quantity}× — ${formatPrice(totalCents)}`;

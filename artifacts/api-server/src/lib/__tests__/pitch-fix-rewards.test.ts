@@ -126,7 +126,7 @@ function fakeDeps(fail: { grant?: boolean; ledger?: boolean } = {}) {
 }
 
 async function shippedPitch(store: PitchFixStore, userId = USER_A, title = "Duet mode") {
-  const row = await submitPitch(store, { userId, submitterName: "Maya", title, body: "b", category: "create" });
+  const row = await submitPitch(store, { userId, submitterName: "Test Creator", title, body: "b", category: "create" });
   await moderateSubmission(store, ADMIN, row.id, "approved");
   await setSubmissionStatus(store, row.id, "shipped", T_SHIP);
   return row;

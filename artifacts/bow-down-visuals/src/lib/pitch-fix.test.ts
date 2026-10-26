@@ -8,7 +8,7 @@ import { sortPitches, type PitchFixSubmission } from "./pitch-fix";
 
 function pitch(id: string, upvoteCount: number, createdAt: string): PitchFixSubmission {
   return {
-    id, kind: "pitch", source: "door", submitterUserId: "u", submitterName: "Maya",
+    id, kind: "pitch", source: "door", submitterUserId: "u", submitterName: "Test Creator",
     title: id, body: "", why: null, category: "create", page: null, severity: null,
     rating: null, status: "reviewing", moderationStatus: "approved", upvoteCount,
     rewardStatus: "none", rewardAmount: null, rewardQueuedAt: null, rewardPaidAt: null, duplicateOfId: null,

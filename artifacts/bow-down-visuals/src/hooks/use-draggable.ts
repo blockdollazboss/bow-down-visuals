@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { collectFormCardRects, pickSafeSnapPoint } from "@/lib/floating-safe-zone";
 
 /**
  * useDraggable — drag any floating widget and snap it to a grid position.
@@ -40,9 +41,31 @@ function getSnapPoints(): SnapPosition[] {
   return points;
 }
 
-function nearestSnap(x: number, y: number): SnapPosition {
+/**
+ * Nearest grid snap point that keeps the widget off form cards
+ * (lib/floating-safe-zone): the Mystery Crate cube parked on the
+ * Report-a-fix card's submit corner in the Oct 25 screenshot because
+ * its bottom-right snap point landed on the card. Only floating widgets
+ * that opt in via keepOffFormCards consult the form-card rects.
+ */
+function nearestSnap(
+  x: number,
+  y: number,
+  opts?: { keepOffFormCards?: boolean; el?: HTMLElement | null },
+): SnapPosition {
   const points = getSnapPoints();
-  let best = points[0] ?? { x, y };
+  if (points.length === 0) return { x, y };
+  if (opts?.keepOffFormCards) {
+    const rects = collectFormCardRects();
+    if (rects.length > 0) {
+      const size = {
+        width: opts.el?.offsetWidth || 72,
+        height: opts.el?.offsetHeight || 72,
+      };
+      return pickSafeSnapPoint(points, { x, y }, size, rects);
+    }
+  }
+  let best = points[0];
   let bestDist = Infinity;
   for (const p of points) {
     const d = (p.x - x) ** 2 + (p.y - y) ** 2;
@@ -74,7 +97,17 @@ function savePosition(id: string, pos: SnapPosition) {
   }
 }
 
-export function useDraggable(id: string, defaultPos?: SnapPosition) {
+export interface UseDraggableOptions {
+  /** Keep this widget's snap points clear of form cards (floating-safe-zone). */
+  keepOffFormCards?: boolean;
+}
+
+export function useDraggable(
+  id: string,
+  defaultPos?: SnapPosition,
+  options?: UseDraggableOptions,
+) {
+  const keepOffFormCards = options?.keepOffFormCards === true;
   const [position, setPosition] = useState<SnapPosition>(() => ({
     x: 0,
     y: 0,
@@ -90,13 +123,30 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
   /* Cleanup for the window-level drag listeners (see onPointerDown). */
   const dragCleanupRef = useRef<(() => void) | null>(null);
 
-  /* Initialize position: saved → default (snapped to grid) → (0,0). */
+  /* Initialize position: saved → default (snapped to grid) → (0,0).
+     With keepOffFormCards, even a saved/default spot is re-snapped when
+     it would park the widget on a form card — positions saved before the
+     safe zone existed don't get to keep covering a submit row. */
   useEffect(() => {
     const saved = loadPosition(id);
     if (saved) {
-      setPosition(saved);
+      if (keepOffFormCards) {
+        const safe = nearestSnap(saved.x, saved.y, {
+          keepOffFormCards,
+          el: elRef.current,
+        });
+        setPosition(safe);
+        if (safe.x !== saved.x || safe.y !== saved.y) savePosition(id, safe);
+      } else {
+        setPosition(saved);
+      }
     } else if (defaultPos) {
-      setPosition(nearestSnap(defaultPos.x, defaultPos.y));
+      setPosition(
+        nearestSnap(defaultPos.x, defaultPos.y, {
+          keepOffFormCards,
+          el: elRef.current,
+        }),
+      );
     }
     setInitialized(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,11 +156,14 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
   useEffect(() => {
     if (!initialized) return;
     const onResize = () => {
-      setPosition((p) => nearestSnap(p.x, p.y));
+      setPosition((p) =>
+        nearestSnap(p.x, p.y, { keepOffFormCards, el: elRef.current }),
+      );
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [initialized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialized, keepOffFormCards]);
 
   /* Drop any in-flight drag listeners on unmount (or a stale drag). */
   useEffect(() => {
@@ -198,7 +251,10 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
         setIsDragging(false);
         if (moved.current) {
           setPosition((p) => {
-            const snapped = nearestSnap(p.x, p.y);
+            const snapped = nearestSnap(p.x, p.y, {
+              keepOffFormCards,
+              el: elRef.current,
+            });
             savePosition(id, snapped);
             return snapped;
           });
@@ -217,7 +273,8 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
       window.addEventListener("pointerup", handleUp);
       window.addEventListener("pointercancel", handleUp);
     },
-    [id]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, keepOffFormCards]
   );
 
   /**
