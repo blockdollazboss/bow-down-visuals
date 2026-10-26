@@ -23,6 +23,8 @@ import {
   type CoverArtResult,
 } from "@/lib/cover-art";
 import { AttributionToggle } from "@/components/AttributionToggle";
+import { CreatorFontPicker } from "@/components/CreatorFontPicker";
+import { creatorFontFamily } from "@/lib/creator-fonts";
 
 /* ─── AI Cover Art Generator ────────────────────────────────────────────────
    Professional album/single/EP cover art. GPT-6 art-directs the concept +
@@ -48,6 +50,9 @@ export default function CoverArt() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [tier, setTier] = useState<"standard" | "premium">("standard");
   const [generating, setGenerating] = useState(false);
+  /* Creator font library (Stack-200 fonts lane): the cover TITLE font,
+     previewed live over the finished cover (download stays clean art). */
+  const [titleFont, setTitleFont] = useState<string>("Cinzel");
   /* Virality: opt-in "Made with Bow Down Visuals" corner credit (paid export → opt-in). */
   const [attribution, setAttribution] = useState(false);
   const [result, setResult] = useState<CoverArtResult | null>(null);
@@ -259,6 +264,12 @@ export default function CoverArt() {
                 className="mt-1.5 w-full rounded-xl border border-white/[0.1] bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"
               />
             </div>
+            <CreatorFontPicker
+              label={t("cover-art.titleFont", { defaultValue: "Cover title font" })}
+              value={titleFont}
+              previewText={songTitle || artistName || undefined}
+              onChange={(font) => setTitleFont(font.family)}
+            />
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.mood_genre")}<span className="normal-case text-white/25">{t("cover-art.optional")}</span>
               </label>
@@ -375,9 +386,20 @@ export default function CoverArt() {
             )}
             {result && (
               <div>
-                <div className="overflow-hidden rounded-xl border border-white/[0.1]">
+                <div className="relative overflow-hidden rounded-xl border border-white/[0.1]">
                   <img src={result.url} alt={`${songTitle} cover art`} className="w-full" />
+                  {/* Title preview in the picked creator font — preview only;
+                      the downloaded file is the clean artwork. */}
+                  {songTitle && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-3 pt-10 text-center">
+                      <p className="text-2xl leading-tight text-white" style={{ fontFamily: creatorFontFamily(titleFont) }}>{songTitle}</p>
+                      {artistName && <p className="text-xs text-white/70" style={{ fontFamily: creatorFontFamily(titleFont) }}>{artistName}</p>}
+                    </div>
+                  )}
                 </div>
+                {songTitle && (
+                  <p className="mt-1.5 text-[11px] text-white/35">{t("cover-art.titleFontPreviewNote", { defaultValue: "Title preview in {{font}} — the download is the clean artwork.", font: titleFont })}</p>
+                )}
                 <div className="mt-3 flex gap-2">
                   <a
                     href={result.url}

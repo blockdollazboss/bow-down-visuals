@@ -17,6 +17,7 @@ import {
   type BrandKitFont,
 } from "@/lib/brand-kit";
 import { fetchAssetLibrary, libraryAssetsOfKind, type LibraryAsset } from "@/lib/asset-library";
+import { CreatorFontPicker } from "@/components/CreatorFontPicker";
 
 /* ─── Brand Kit panel — the creator's ONE brand record ─────────────────────
    Docked as the first tab of the Branding hub. Generation (200 Visual
@@ -465,6 +466,35 @@ export function BrandKitPanel() {
                 <Plus className="h-3.5 w-3.5" /> {t("brandingKit.brand.addFont", { defaultValue: "Add a font pairing" })}
               </button>
             )}
+          </div>
+          {/* Creator font library (Stack-200 fonts lane): picking a font
+              fills the LEAD pairing (the one every surface reads first)
+              and saves through the same free PUT as the inputs above. */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <CreatorFontPicker
+              label={t("brandingKit.brand.libraryHeading", { defaultValue: "Library — lead heading font" })}
+              value={fonts[0]?.heading}
+              previewText={brandName || undefined}
+              onChange={(font) =>
+                setFonts((prev) =>
+                  prev.length > 0
+                    ? prev.map((f, i) => (i === 0 ? { ...f, heading: font.family } : f))
+                    : [{ heading: font.family, body: "", usage: "" }],
+                )
+              }
+            />
+            <CreatorFontPicker
+              label={t("brandingKit.brand.libraryBody", { defaultValue: "Library — lead body font" })}
+              value={fonts[0]?.body}
+              previewText={brandName || undefined}
+              onChange={(font) =>
+                setFonts((prev) =>
+                  prev.length > 0
+                    ? prev.map((f, i) => (i === 0 ? { ...f, body: font.family } : f))
+                    : [{ heading: "", body: font.family, usage: "" }],
+                )
+              }
+            />
           </div>
           {kit.logoPrompt && (
             <p className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs leading-relaxed text-white/45">

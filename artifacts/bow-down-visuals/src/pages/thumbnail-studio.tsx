@@ -38,6 +38,7 @@ import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { CostBadge } from "@/components/CostBadge";
+import { CreatorFontPicker } from "@/components/CreatorFontPicker";
 
 interface GeneratedImage {
   url: string;
@@ -421,6 +422,10 @@ export function ThumbnailMakerModule() {
   const [stylePreset, setStylePreset] = useState<string>("bold-text-pop");
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
   const [overlayText, setOverlayText] = useState("");
+  /* Creator font library (Stack-200 fonts lane): headline font, picked
+     from the shared library and named in the generation prompt so the
+     headline is art-directed in that face. */
+  const [headlineFont, setHeadlineFont] = useState<string>("Anton");
   const [facePhoto, setFacePhoto] = useState<File | null>(null);
   const [facePreview, setFacePreview] = useState<string | null>(null);
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -586,6 +591,7 @@ export function ThumbnailMakerModule() {
       form.append("stylePreset", stylePreset);
       form.append("aspectRatio", aspectRatio);
       if (overlayText.trim()) form.append("overlayText", overlayText.trim());
+      if (overlayText.trim() && headlineFont) form.append("overlayFont", headlineFont);
       if (facePhoto) form.append("facePhoto", facePhoto);
       /* Virality: opt-in attribution credit (FormData → "true"/"false" string; server coerces). */
       form.append("attribution", attribution ? "true" : "false");
@@ -807,6 +813,12 @@ export function ThumbnailMakerModule() {
                 maxLength={80}
               />
               <p className={isLight ? "text-xs text-black/25" : "text-xs text-white/25"}>{t("thumbnailMaker.headlineHint")}</p>
+              <CreatorFontPicker
+                label={t("thumbnailMaker.headlineFont", { defaultValue: "Headline font" })}
+                value={headlineFont}
+                previewText={overlayText || undefined}
+                onChange={(font) => setHeadlineFont(font.family)}
+              />
             </div>
             <div className="space-y-2">
               <Label className={isLight ? "text-sm font-semibold text-black/70 uppercase tracking-wider" : "text-sm font-semibold text-white/70 uppercase tracking-wider"}>
