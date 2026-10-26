@@ -278,6 +278,7 @@ import jobNotificationsRouter from "./job-notifications";
 import distributionRouter from "./generate/distribution";
 import distributionLegacyRouter from "./distribution-legacy";
 import schedulerRouter from "./scheduler";
+import evergreenRouter from "./evergreen";
 import merchRouter from "./generate/merch";
 import jewelryRouter from "./generate/jewelry";
 import playlistPitchRouter from "./generate/playlist-pitch";
@@ -647,6 +648,7 @@ router.use(jobNotificationsRouter);
 router.use(distributionRouter);
 router.use(distributionLegacyRouter);        // Stack 11: /api/distribution/{landing-content, spotify, splits/statements, lyrics-package, change-requests, permanence, roster} + /api/promote/unlock-gates
 router.use(schedulerRouter);
+router.use(evergreenRouter); // /api/evergreen/* (Wave-4 #48: evergreen recycling proposals in the Scheduler — never auto-posts)
 router.use(merchRouter);
 router.use(jewelryRouter);
 router.use(playlistPitchRouter);

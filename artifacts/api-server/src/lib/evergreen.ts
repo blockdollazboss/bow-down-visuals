@@ -216,7 +216,10 @@ export function buildEvergreenProposals(
   };
   const proposals: EvergreenProposalDraft[] = [];
   if (!settings.enabled) return { proposals, skipped };
-  let staggerDays = 0;
+  /* Stagger: each proposal searches from a day after the previous
+     proposal's slot, so a batch never piles onto one slot even when
+     the creator's windows only open once a week. */
+  let searchAfter = now;
   for (const input of inputs) {
     const reason = evergreenSkipReason(input, settings, now);
     if (reason) {
@@ -224,8 +227,7 @@ export function buildEvergreenProposals(
       continue;
     }
     const cycle = input.cyclesUsed + 1;
-    const after = new Date(now.getTime() + staggerDays * 86_400_000);
-    const slot = nextEvergreenSlot(settings.windows, after);
+    const slot = nextEvergreenSlot(settings.windows, searchAfter);
     if (!slot) continue;
     proposals.push({
       sourcePostId: input.postId,
@@ -233,7 +235,7 @@ export function buildEvergreenProposals(
       proposedSlot: slot,
       spacingDays: spacingDaysForCycle(settings.baseSpacingDays, cycle),
     });
-    staggerDays += 1;
+    searchAfter = new Date(slot.getTime() + 86_400_000);
   }
   return { proposals, skipped };
 }
