@@ -1,24 +1,24 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "185bbcb52bda668828beee0be0141272cbfa709b",
+  "baseCommit": "6ef01253a283c4cb0aebd1804c6bf1de45e76107",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-25",
+  "generatedAt": "2026-10-26",
   "counts": {
-    "routesInApp": 235,
-    "pageFiles": 181,
-    "features": 244,
+    "routesInApp": 236,
+    "pageFiles": 182,
+    "features": 245,
     "excludedRoutes": 71,
     "excludedPageFiles": 35,
     "pricedActions": 228,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 234,
+    "withDescriptions": 235,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -5657,6 +5657,30 @@
       "nextSteps": [],
       "description": "Your AI community manager — moderation queue, smart reply drafts, sentiment dashboard, and superfan radar.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/community.tsx usePageTitle meta description"
+    },
+    {
+      "id": "community-grants",
+      "name": "Community Grants",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
+      "path": "/community-grants",
+      "stage": "social",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/community-grants.tsx",
+      "component": "CommunityGrantsPage",
+      "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/community-grants",
+        "/api/community-grants/:param/projects",
+        "/api/community-grants/:param/report-back",
+        "/api/community-grants/:param/vote",
+        "/api/credits/claim-trial",
+        "/api/referrals/apply"
+      ],
+      "prices": [],
+      "description": "Every month, one pool of Visual Bucs funds one creator project — and the community picks it. Creators put their projects forward in their own words, members vote, and the funded project reports back to the community that funded it.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"communityGrants.subtitle\" (page's own string)",
+      "nextSteps": []
     },
     {
       "id": "tab-comment-replies",
