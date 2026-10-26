@@ -9216,7 +9216,7 @@
     "betaNotice": {
       "cta": "早期アクセスのベータリストに参加 →",
       "label": "ベータのお知らせ：",
-      "text": "Bow Down Visualsは現在ベータ版です。支払いはまだ開始されていません。"
+      "text": "Bow Down Visualsは現在ベータ版です。チェックアウトはテストモードで利用できます — 実際の請求は発生しません。"
     },
     "bottomCta": {
       "joinBeta": "ベータに参加",
@@ -9259,7 +9259,7 @@
     },
     "faq": {
       "a1": "Visual Bucsは、曲の作成、動画プランの生成、プロモクリップの作成、ミュージックビデオクリップの制作など、AI生成を実行するたびに使用されます。各アクションは月間Visual Bucs残高から引かれます。",
-      "a2": "まだです。Bow Down Visualsは現在ベータ版で、支払いは近日開始予定です。今すぐベータリストに参加して創設レートを固定し、課金開始時に早期アクセスを得ましょう。",
+      "a2": "チェックアウトはテストモードで利用できます：ProまたはEliteに登録し、Visual Bucパックを購入できますが、実際の請求は発生しません。実際の支払いはローンチ時に開始されます。",
       "a3": "はい。ベータユーザーはスターターVisual Bucs残高で一部のツールをテストできます。登録してクリエイターツールを探索し、フィードバックをお寄せください。フルアクセスは有料ローンチとともに開放されます。",
       "a4": "はい — ミュージックビデオクリップの生成はプレミアムアクションで、標準のテキスト生成より多くのVisual Bucsを使用します。クリップごとの正確なコストはローンチ時に確定します。",
       "a5": "はい。課金が開始されたら、アカウント設定からいつでもアップグレード、ダウングレード、キャンセルができます。契約なし。解約手数料なし。",
@@ -9289,96 +9289,6 @@
       "bestFor": "おすすめ：{{bestFor}}",
       "perMonth": "/月",
       "wantedStarsAria": "ウォンテッドスター6つ中{{stars}}つ"
-    },
-    "plans": {
-      "comingSoonNote": "課金はまだ開始されていません。すべてのプランボタンはベータリストへの参加です。",
-      "crimeBoss": {
-        "badge": "限定",
-        "bestFor": "大量に作るクリエイター",
-        "credits": "月150,000 Visual Bucs",
-        "cta": "Crime Bossになる",
-        "features": {
-          "f1": "Shot Callerのすべて",
-          "f2": "優先生成キュー",
-          "f3": "対応環境で4K出力",
-          "f4": "新しいAIモデルへの早期アクセス",
-          "f5": "高度なクロスプラットフォーム分析",
-          "f6": "Crime Boss限定テンプレート＆スタイル"
-        },
-        "name": "Crime Boss"
-      },
-      "gangster": {
-        "bestFor": "本気のフルタイムクリエイター",
-        "credits": "月25,000 Visual Bucs",
-        "cta": "Gangsterになる",
-        "features": {
-          "f1": "Hustlerのすべて",
-          "f2": "リップシンク",
-          "f3": "マスタリング＋ステム分離",
-          "f4": "高度なエフェクト＆トランジション",
-          "f5": "アップスケーリング＆透かし除去",
-          "f6": "クリエイティブバリエーションの一括生成"
-        },
-        "name": "Gangster"
-      },
-      "hustler": {
-        "badge": "最も人気",
-        "bestFor": "活発なソロクリエイター",
-        "credits": "月10,000 Visual Bucs",
-        "cta": "Hustlerにランクアップ",
-        "features": {
-          "f1": "Street Punkのすべて",
-          "f2": "動画クリップ生成",
-          "f3": "Visual Vibesフルアクセス",
-          "f4": "Creator Vault＋Photo Shoot",
-          "f5": "Artist Voice Lock",
-          "f6": "キャラクター動画リファレンス"
-        },
-        "name": "Hustler"
-      },
-      "kingpin": {
-        "badge": "トップティア",
-        "bestFor": "レーベル、エージェンシー＆パワーユーザー",
-        "credits": "月400,000 Visual Bucs",
-        "cta": "Kingpinの王冠を手に入れる",
-        "features": {
-          "f1": "Crime Bossのすべて",
-          "f2": "対応環境で8K納品",
-          "f3": "カスタムスタイルトレーニング",
-          "f4": "ホワイトラベルのクライアント納品物",
-          "f5": "APIアクセス＆自動化",
-          "f6": "専任アカウントマネージャー"
-        },
-        "name": "Kingpin"
-      },
-      "shotCaller": {
-        "bestFor": "チーム＆クリエイターブランド",
-        "credits": "月60,000 Visual Bucs",
-        "cta": "Shot Callerになる",
-        "features": {
-          "f1": "Gangsterのすべて",
-          "f2": "チームワークスペース＆メンバーロール",
-          "f3": "共有ボールト＆ブランドライブラリ",
-          "f4": "レビュー＆承認ワークフロー",
-          "f5": "ソーシャルスケジューリング＆公開",
-          "f6": "アセットの一括作成"
-        },
-        "name": "Shot Caller"
-      },
-      "streetPunk": {
-        "bestFor": "新規クリエイター",
-        "credits": "月2,500 Visual Bucs",
-        "cta": "Street Punkになる",
-        "features": {
-          "f1": "Music Maker",
-          "f2": "ミュージックビデオのプラン＆トリートメント",
-          "f3": "プロモクリップのプランニング",
-          "f4": "Hook Studio＋バイラリティチェック",
-          "f5": "Thumbnail Maker＆Logo Maker",
-          "f6": "Thy Cheat Codeのガイド付きセットアップ"
-        },
-        "name": "Street Punk"
-      }
     },
     "wantedMeter": {
       "ariaLabel": "ランクをプレビュー",

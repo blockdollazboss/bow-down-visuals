@@ -9235,7 +9235,7 @@
     "betaNotice": {
       "cta": "Entre na lista beta para acesso antecipado →",
       "label": "Aviso Beta:",
-      "text": "O Bow Down Visuals está em beta no momento. Os pagamentos ainda não estão ativos."
+      "text": "O Bow Down Visuals está atualmente em beta. O checkout está aberto em modo de teste — nenhum dinheiro real é cobrado."
     },
     "bottomCta": {
       "joinBeta": "Entrar no Beta",
@@ -9278,7 +9278,7 @@
     },
     "faq": {
       "a1": "Os Visual Bucs são usados cada vez que você executa uma geração de IA — fazer uma música, gerar um plano de vídeo, criar clipes promocionais ou produzir clipes de videoclipe. Cada ação desconta do seu saldo mensal de Visual Bucs.",
-      "a2": "Ainda não. O Bow Down Visuals está em beta no momento. Os pagamentos chegam em breve. Entre na lista beta agora para garantir seu preço de fundador e ter acesso antecipado quando a cobrança for ativada.",
+      "a2": "O checkout está aberto em modo de teste: você pode assinar o Pro ou o Elite e comprar pacotes de Visual Bucs hoje, sem cobrança real. Os pagamentos reais começam no lançamento.",
       "a3": "Sim. Usuários beta podem testar ferramentas selecionadas com um saldo inicial de Visual Bucs. Cadastre-se, explore as ferramentas de criador e envie seu feedback. O acesso completo abre com o lançamento pago.",
       "a4": "Sim — a geração de clipes de videoclipe é uma ação premium e usa mais Visual Bucs do que a geração de texto padrão. O custo exato por clipe será confirmado no lançamento.",
       "a5": "Sim. Quando a cobrança estiver ativa, você poderá fazer upgrade, downgrade ou cancelar a qualquer momento nas configurações da sua conta. Sem contratos. Sem taxas de cancelamento.",
@@ -9308,96 +9308,6 @@
       "bestFor": "Ideal para: {{bestFor}}",
       "perMonth": "/mês",
       "wantedStarsAria": "{{stars}} de 6 estrelas procuradas"
-    },
-    "plans": {
-      "comingSoonNote": "A cobrança ainda não está ativa. Todos os botões dos planos entram na lista beta.",
-      "crimeBoss": {
-        "badge": "Exclusivo",
-        "bestFor": "Criadores de alto volume",
-        "credits": "150.000 Visual Bucs por mês",
-        "cta": "Torne-se um Chefão do Crime",
-        "features": {
-          "f1": "Tudo do Manda-Chuva",
-          "f2": "Fila de geração prioritária",
-          "f3": "Saída em 4K onde houver suporte",
-          "f4": "Acesso antecipado a novos modelos de IA",
-          "f5": "Análises avançadas multiplataforma",
-          "f6": "Modelos e estilos exclusivos do Chefão do Crime"
-        },
-        "name": "Chefão do Crime"
-      },
-      "gangster": {
-        "bestFor": "Criadores sérios em tempo integral",
-        "credits": "25.000 Visual Bucs por mês",
-        "cta": "Torne-se um Gângster",
-        "features": {
-          "f1": "Tudo do Vivente",
-          "f2": "Lip Sync",
-          "f3": "Masterização + separação de stems",
-          "f4": "Efeitos e transições avançados",
-          "f5": "Upscaling e limpeza de marca d'água",
-          "f6": "Variações criativas em lote"
-        },
-        "name": "Gângster"
-      },
-      "hustler": {
-        "badge": "Mais Popular",
-        "bestFor": "Criadores solo ativos",
-        "credits": "10.000 Visual Bucs por mês",
-        "cta": "Suba para Vivente",
-        "features": {
-          "f1": "Tudo do Punk de Rua",
-          "f2": "Geração de clipes de vídeo",
-          "f3": "Acesso completo ao Visual Vibes",
-          "f4": "Cofre do Criador + Sessão de Fotos",
-          "f5": "Trava de Voz do Artista",
-          "f6": "Referências de vídeo de personagem"
-        },
-        "name": "Vivente"
-      },
-      "kingpin": {
-        "badge": "Nível Máximo",
-        "bestFor": "Gravadoras, agências e usuários avançados",
-        "credits": "400.000 Visual Bucs por mês",
-        "cta": "Reivindique a Coroa de Rei do Crime",
-        "features": {
-          "f1": "Tudo do Chefão do Crime",
-          "f2": "Entrega em 8K onde houver suporte",
-          "f3": "Treinamento de estilo personalizado",
-          "f4": "Entregas white-label para clientes",
-          "f5": "Acesso à API e automação",
-          "f6": "Gerente de conta dedicado"
-        },
-        "name": "Rei do Crime"
-      },
-      "shotCaller": {
-        "bestFor": "Equipes e marcas de criadores",
-        "credits": "60.000 Visual Bucs por mês",
-        "cta": "Torne-se um Manda-Chuva",
-        "features": {
-          "f1": "Tudo do Gângster",
-          "f2": "Espaço de trabalho em equipe e funções de membros",
-          "f3": "Cofres compartilhados e bibliotecas de marca",
-          "f4": "Fluxo de revisão e aprovação",
-          "f5": "Agendamento e publicação em redes sociais",
-          "f6": "Criação de ativos em massa"
-        },
-        "name": "Manda-Chuva"
-      },
-      "streetPunk": {
-        "bestFor": "Criadores novos",
-        "credits": "2.500 Visual Bucs por mês",
-        "cta": "Torne-se um Punk de Rua",
-        "features": {
-          "f1": "Criador de Músicas",
-          "f2": "Planos e roteiros de videoclipes",
-          "f3": "Planejamento de clipes promocionais",
-          "f4": "Estúdio de Ganchos + cheque de viralidade",
-          "f5": "Criador de Miniaturas e Criador de Logos",
-          "f6": "Configuração guiada pelo Thy Cheat Code"
-        },
-        "name": "Punk de Rua"
-      }
     },
     "wantedMeter": {
       "ariaLabel": "Pré-visualizar nível",
