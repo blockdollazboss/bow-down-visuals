@@ -3,9 +3,12 @@ import {
   FIXTURE_BODIES,
   KING_FIXTURE_HEIGHT,
   WORLD_FIXTURES,
+  attemptLoadPlan,
   bodyTexturesLanded,
   fixtureFallbackFor,
+  fixtureLoadPlan,
   fixtureNormalization,
+  fixtureRetryDelayMs,
   fixtureRotY,
   fixtureSway,
   fixtureSwayPhase,
@@ -159,5 +162,77 @@ describe("bodyTexturesLanded — a white statue is a failed load", () => {
   it("declared textures with NO landed map fail — the white-statue parse", () => {
     expect(bodyTexturesLanded(2, [{}, {}])).toBe(false);
     expect(bodyTexturesLanded(1, [])).toBe(false);
+  });
+});
+
+describe("fixtureLoadPlan — a body load is a bounded retry, not one shot", () => {
+  const cdn = "https://cdn.example/world/king-gen.glb";
+  const origin = "/world/king-gen.glb";
+
+  it("alternates CDN and origin for four attempts, CDN first", () => {
+    expect(fixtureLoadPlan(cdn, origin)).toEqual([cdn, origin, cdn, origin]);
+  });
+
+  it("with no CDN (mediaUrl returned the path itself) it retries the origin", () => {
+    expect(fixtureLoadPlan(origin, origin)).toEqual([origin, origin, origin]);
+  });
+
+  it("backoff is immediate first, then grows, and is capped", () => {
+    expect(fixtureRetryDelayMs(0)).toBe(0);
+    expect(fixtureRetryDelayMs(1)).toBeGreaterThan(0);
+    expect(fixtureRetryDelayMs(2)).toBeGreaterThan(fixtureRetryDelayMs(1));
+    expect(fixtureRetryDelayMs(3)).toBeGreaterThan(fixtureRetryDelayMs(2));
+    expect(fixtureRetryDelayMs(99)).toBe(fixtureRetryDelayMs(3));
+  });
+});
+
+describe("attemptLoadPlan — the retry walk itself", () => {
+  const noSleep = async () => {};
+
+  it("returns the first success and stops walking", async () => {
+    const seen: string[] = [];
+    const out = await attemptLoadPlan(["a", "b", "c"], async (url) => {
+      seen.push(url);
+      return `ok:${url}`;
+    }, noSleep);
+    expect(out).toBe("ok:a");
+    expect(seen).toEqual(["a"]);
+  });
+
+  it("a transient failure on the first sources does not strand the load", async () => {
+    const seen: string[] = [];
+    const out = await attemptLoadPlan(["cdn", "origin", "cdn", "origin"], async (url) => {
+      seen.push(url);
+      if (seen.length < 3) throw new Error(`shed: ${url}`);
+      return "body";
+    }, noSleep);
+    expect(out).toBe("body");
+    expect(seen).toEqual(["cdn", "origin", "cdn"]);
+  });
+
+  it("sleeps the scheduled backoff before each retry, never before attempt one", async () => {
+    const slept: number[] = [];
+    await expect(
+      attemptLoadPlan(
+        ["a", "b", "c", "d"],
+        async () => {
+          throw new Error("down");
+        },
+        async (ms) => {
+          slept.push(ms);
+        },
+      ),
+    ).rejects.toThrow("down");
+    expect(slept).toEqual([fixtureRetryDelayMs(1), fixtureRetryDelayMs(2), fixtureRetryDelayMs(3)]);
+  });
+
+  it("rejects with the LAST attempt's error after the plan runs out", async () => {
+    let n = 0;
+    await expect(
+      attemptLoadPlan(["a", "b"], async () => {
+        n += 1;
+        throw new Error(`fail-${n}`);
+      }, noSleep),
+    ).rejects.toThrow("fail-2");
   });
 });

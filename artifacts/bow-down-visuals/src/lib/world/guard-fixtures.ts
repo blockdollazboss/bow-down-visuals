@@ -236,3 +236,52 @@ export function bodyTexturesLanded(
     return !!(s.map || s.metallicRoughnessMap || s.normalMap || s.emissiveMap || s.aoMap);
   });
 }
+
+/**
+ * The ordered sources a fixture body load walks, and the pause
+ * before each attempt. Until Oct 26 the load was ONE CDN attempt
+ * plus ONE origin attempt, fired last in the World-entry request
+ * burst: a single transient failure — a rate-limiter shed on the
+ * origin leg, a crash-severed transfer — rejected the load, and
+ * with no retry anywhere the stand-in held the post for the whole
+ * session. The plan alternates CDN ↔ origin for four attempts
+ * with growing backoff, so the burst peak that shed attempt one
+ * has passed by the later attempts; when the CDN is disabled
+ * (mediaUrl returns the origin path itself) the plan is three
+ * origin attempts. The LAST error is the one reported.
+ */
+export function fixtureLoadPlan(cdnUrl: string, originPath: string): string[] {
+  if (cdnUrl === originPath) return [originPath, originPath, originPath];
+  return [cdnUrl, originPath, cdnUrl, originPath];
+}
+
+/** Backoff before attempt `attemptIndex` (0-based); attempt 0 is immediate. */
+export function fixtureRetryDelayMs(attemptIndex: number): number {
+  const schedule = [0, 400, 1500, 3500];
+  return schedule[Math.min(Math.max(attemptIndex, 0), schedule.length - 1)];
+}
+
+/**
+ * Walk a load plan: try each source in order (with the retry
+ * backoff between attempts) and return the first success. Every
+ * attempt is the caller's full attempt — fetch AND validation —
+ * so a texture-less parse retries exactly like a network failure.
+ * Rejects with the final attempt's error after the plan runs out.
+ */
+export async function attemptLoadPlan<T>(
+  plan: readonly string[],
+  attempt: (url: string) => Promise<T>,
+  sleep: (ms: number) => Promise<void>,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < plan.length; i += 1) {
+    const delay = fixtureRetryDelayMs(i);
+    if (delay > 0) await sleep(delay);
+    try {
+      return await attempt(plan[i]);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
