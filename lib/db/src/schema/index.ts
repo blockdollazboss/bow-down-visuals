@@ -153,5 +153,6 @@ export * from "./api-keys";
 export * from "./theme-packs";
 export * from "./publishing-splits";
 export * from "./sale-splits";
+export * from "./loop-exchange";
 export * from "./api-webhooks";
 export * from "./wishlists";
