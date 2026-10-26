@@ -49,6 +49,13 @@
                                  GET /api/loading-screen/offer serve
                                  (dollar-priced advertising placements;
                                  the only dollar prices in the base)
+     route-file endpoints ...... ROUTE_FILE_FEATURE_LINKS — whole server
+                                 route files harvested directly (their
+                                 router.* registrations), so an endpoint
+                                 family whose calling surface sits past
+                                 the page scan's one hop is never invisible
+                                 to the operator (ExportDoctor B-08: the
+                                 export-doctor route file).
      duration-tiered prices .... src/routes/generate/music-audio.ts
                                  SONG_PRICE_TIERS — the table the charging
                                  function creditCostForLength derives from.
@@ -552,6 +559,27 @@ function extractServerCostConstants() {
   return found;
 }
 
+/** Every route one server route file registers: its router.get /
+    post / put / patch / delete path literals, comments stripped (so
+    doc examples never register as routes), route parameters
+    normalized to :param like the page scan's literals. Returns the
+    sorted, de-duplicated route paths (WITHOUT the /api prefix — the
+    caller owns the mount). A file that registers nothing parses to
+    an empty list and the harvest pass throws on it: a route file
+    that silently changed shape must fail generation, not emit an
+    emptied family. */
+function extractRouteFileEndpoints(rawSrc) {
+  const src = stripComments(rawSrc);
+  const out = new Set();
+  const re = /\brouter\.(?:get|post|put|patch|delete)\(\s*"([^"]+)"/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const p = m[1].replace(/\/+$/, "");
+    if (p.length > 1) out.add(normParams(p));
+  }
+  return [...out].sort();
+}
+
 /** data/seo-pages.ts: per-slug SEO pages carry a designed name + prose
     metaDescription for their exact path (/tools/*, /for/*, /genres/*). */
 function extractSeoPages() {
@@ -1036,70 +1064,23 @@ const FEATURE_PRICE_LINKS = [
   },
   /* Stack-200 editor lane (Lane D item A-03 remainder): the rest of
      the editor's own rails the one-hop scan cannot reach — the
-     multi-ratio export (called from a section two hops down), the
+     multi-ratio export (called from a section two hops down) and the
      lip-sync run-all orchestration (called from the Music Studio's
-     LipSyncStudio, also two hops), and the Export Doctor's thirteen
-     free rails (its section is likewise nested). Without these links
-     the operator could not truthfully describe how the editor exports
-     in other ratios, runs lip sync across scenes, or repairs clips. */
+     LipSyncStudio, also two hops). Without these links the operator
+     could not truthfully describe how the editor exports in other
+     ratios or runs lip sync across scenes. The Export Doctor's free
+     rails are NOT listed here any more: they are harvested from the
+     doctor's own route file by ROUTE_FILE_FEATURE_LINKS below
+     (ExportDoctor B-08, generator half) — the hand list this table
+     used to carry named only thirteen of the file's eighteen routes
+     and silently omitted the diagnostic steps (test-url, download,
+     check-clip-urls, download-all, export-audio-sync-diagnostic). */
   {
     endpoint: "/api/export-multi-ratio",
     attachToFeatureIds: ["video-editor"],
   },
   {
     endpoint: "/api/lip-sync/run-all",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-audio",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-audio",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-captions",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-effects",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-overlays",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-overlays-range",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-effects-range",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-effects-transitions",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-audio-sync-short",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/repair-normalize",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/repair-clip",
     attachToFeatureIds: ["video-editor"],
   },
 ];
@@ -1119,6 +1100,45 @@ const FEATURE_ENDPOINT_LINKS = [
   },
   {
     endpoint: "/api/export-video-job/:param",
+    attachToFeatureIds: ["video-editor"],
+  },
+];
+
+/** Whole-route-file harvest (ExportDoctor B-08, generator half).
+    CLASSIFICATION only — which server route file belongs to which
+    feature entry, and which path family inside that file is the
+    feature's. The endpoints themselves are EXTRACTED from the file's
+    own router.* registrations at generation time (see
+    extractRouteFileEndpoints), never hand-listed, so the family can
+    never silently thin the way the hand-kept FEATURE_PRICE_LINKS
+    list did (thirteen of eighteen export-doctor routes; the five
+    diagnostic steps — test-url, download, check-clip-urls,
+    download-all, export-audio-sync-diagnostic — were absent from the
+    knowledge base while their export siblings were present).
+
+    The doctor's surface is docked in the video editor's Export tab
+    (components/editor/sections/ExportDoctor.tsx, two hops past the
+    page scan), so the whole family attaches to the video-editor
+    entry — the in-workflow home the A-03 links already used.
+
+    Price honesty: an endpoint the CREDIT_COSTS registry prices
+    (every export-doctor rail is registered free, 0 VB) attaches
+    with its registry price, exactly like FEATURE_PRICE_LINKS; an
+    endpoint with NO registry row is an unpriced sub-step (the
+    FEATURE_ENDPOINT_LINKS precedent) and attaches endpoint-only —
+    the generator never invents a price for it. Generation THROWS
+    when the file stops serving the family, when a route in the
+    file falls outside the declared family prefix, when the router
+    is no longer mounted prefix-free in routes/index.ts (so
+    /api + route path stops being the served path), or when the
+    registry names a family endpoint the file no longer serves —
+    drift fails loudly instead of emitting stale knowledge. */
+const ROUTE_FILE_FEATURE_LINKS = [
+  {
+    routeFile: "routes/generate/export-doctor.ts",
+    routeImport: "./generate/export-doctor",
+    routerVar: "exportDoctorRouter",
+    pathPrefix: "/export-doctor/",
     attachToFeatureIds: ["video-editor"],
   },
 ];
@@ -1956,6 +1976,73 @@ function main() {
     }
   }
 
+  /* Route-file harvest pass (ExportDoctor B-08, generator half — see
+     ROUTE_FILE_FEATURE_LINKS): every endpoint a reviewed server route
+     file registers attaches to its feature entries, extracted from
+     the file itself rather than hand-listed. Registry-priced routes
+     attach with their registry price; unpriced sub-steps attach
+     endpoint-only. Every verification failure throws — the family
+     must never go invisible or stale silently again. */
+  let routeFileEndpointCount = 0;
+  const routesIndexSrc = read(path.join(API_SRC, "routes", "index.ts"));
+  for (const link of ROUTE_FILE_FEATURE_LINKS) {
+    const fileLabel = `artifacts/api-server/src/${link.routeFile}`;
+    /* The served path is /api + route path ONLY while routes/index.ts
+       mounts this router with no prefix of its own — verify the exact
+       import + prefix-free use, like the takeover pass verifies its
+       doors, instead of assuming the mount. */
+    if (
+      !routesIndexSrc.includes(`from "${link.routeImport}"`) ||
+      !routesIndexSrc.includes(`router.use(${link.routerVar});`)
+    ) {
+      throw new Error(`route-file harvest: routes/index.ts no longer mounts ${link.routerVar} (from "${link.routeImport}") prefix-free — ${fileLabel} paths can no longer be prefixed with /api blindly`);
+    }
+    const harvested = extractRouteFileEndpoints(read(path.join(API_SRC, link.routeFile)));
+    if (harvested.length === 0) {
+      throw new Error(`route-file harvest: ${fileLabel} registered no routes — its shape changed; review the harvest instead of emitting an empty family`);
+    }
+    for (const p of harvested) {
+      if (!p.startsWith(link.pathPrefix)) {
+        throw new Error(`route-file harvest: ${fileLabel} registers ${p}, outside the declared family prefix ${link.pathPrefix} — review ROUTE_FILE_FEATURE_LINKS before this route joins the family`);
+      }
+    }
+    const family = harvested.map((p) => `/api${p}`);
+    /* Reverse check: the registry must never name a family endpoint
+       the route file no longer serves (a stale free-price entry for
+       a dead diagnostic step is still stale knowledge). */
+    for (const key of creditCosts.keys()) {
+      if (key.startsWith(`/api${link.pathPrefix}`) && !family.includes(key)) {
+        throw new Error(`route-file harvest: CREDIT_COSTS names ${key} but ${fileLabel} no longer serves it — remove the stale registry entry or restore the route`);
+      }
+    }
+    routeFileEndpointCount += family.length;
+    for (const id of link.attachToFeatureIds) {
+      const entry = features.find((f) => f.id === id);
+      if (!entry) {
+        throw new Error(`route-file harvest: attach target feature "${id}" for ${fileLabel} is not in the knowledge base`);
+      }
+      /* Copy-on-write, like the price passes — sibling entries share
+         their host page's endpoint / price arrays by reference. */
+      entry.endpoints = [...entry.endpoints];
+      entry.prices = [...entry.prices];
+      for (const ep of family) {
+        if (!entry.endpoints.includes(ep)) entry.endpoints.push(ep);
+        const registry = creditCosts.get(ep);
+        if (registry && !entry.prices.some((p) => p.endpoint === ep)) {
+          entry.prices.push({
+            feature: registry.feature,
+            vb: registry.cost,
+            endpoint: ep,
+            source: CREDIT_COSTS_SOURCE,
+          });
+        }
+      }
+      entry.endpoints.sort((a, b) => a.localeCompare(b));
+      entry.prices.sort((a, b) => a.endpoint.localeCompare(b.endpoint));
+    }
+    console.log(`route-file harvest: ${fileLabel} — ${family.length} endpoints → ${link.attachToFeatureIds.join(", ")}`);
+  }
+
   /* Docked surfaces (see DOCKED_FEATURES): first-class entries for
      the tab / panel / mode features the route table cannot discover.
      Host, name, and description resolve exactly like route entries —
@@ -2097,6 +2184,7 @@ function main() {
       excludedRoutes: excluded.filter((e) => e.kind === "route").length,
       excludedPageFiles: excluded.filter((e) => e.kind === "pageFile").length,
       pricedActions: creditCosts.size,
+      routeFileEndpoints: routeFileEndpointCount,
       guides: guides.length,
       desks: desks.length,
       takeoverOffers: takeoverOffers.length,
