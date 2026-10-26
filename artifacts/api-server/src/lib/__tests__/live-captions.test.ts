@@ -54,15 +54,15 @@ describe("languages — from the translator rail, never invented", () => {
   });
 });
 
-describe("pricing — gated off pending the owner's call", () => {
+describe("pricing — owner ruled: house feature, creator pays nothing", () => {
   it("charges nothing and carries the rail rate as reference only", () => {
     expect(LIVE_CAPTIONS_PRICING.charged).toBe(false);
-    expect(LIVE_CAPTIONS_PRICING.status).toBe("pending_owner_decision");
+    expect(LIVE_CAPTIONS_PRICING.status).toBe("house_feature_no_charge");
     expect(LIVE_CAPTIONS_PRICING.translatorRailCreditsPerMinutePerLanguage).toBe(
       VIDEO_TRANSLATOR_CREDITS_PER_MINUTE,
     );
     expect(VIDEO_TRANSLATOR_CREDITS_PER_MINUTE).toBe(500); // the ruled A-04 rail rate
-    expect(LIVE_CAPTIONS_PRICING.note).toMatch(/owner's call/i);
+    expect(LIVE_CAPTIONS_PRICING.note).toMatch(/creator pays nothing/i);
   });
 });
 

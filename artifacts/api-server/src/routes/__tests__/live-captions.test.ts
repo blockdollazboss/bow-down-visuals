@@ -192,7 +192,7 @@ describe("GET /live-captions/languages", () => {
     expect(codes).toContain("ja");
     expect(codes).not.toContain("sv"); // not on the rail — never invented
     expect(r.json.pricing.charged).toBe(false);
-    expect(r.json.pricing.status).toBe("pending_owner_decision");
+    expect(r.json.pricing.status).toBe("house_feature_no_charge");
     expect(r.json.pricing.translatorRailCreditsPerMinutePerLanguage).toBe(500);
   });
 });

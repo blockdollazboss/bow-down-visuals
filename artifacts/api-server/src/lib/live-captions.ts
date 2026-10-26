@@ -19,15 +19,17 @@
  * original; viewers picking the source language get the original
  * text, untranslated).
  *
- * PRICING — OWNER CALL, GATED OFF. The translator rail's ruled price
- * (500 VB per minute per language) prices a FILE job with a known
- * duration. A live stream has no known duration and the translation
- * cost scales per VIEWER language, so whether live captions charge
- * the streamer, the viewer, or nobody is a pricing decision nobody
- * has ruled. Until the owner rules, live captions charge NOTHING:
- * LIVE_CAPTIONS_PRICING.charged stays false and no credit path in
- * this feature touches the ledger. The rail rate is carried here
- * only as the reference figure for that decision.
+ * PRICING — OWNER RULED (Oct 25, 18:33 EDT, idea-batch-4 / board
+ * item 160 + the superseded item 29): captions-on is a HOUSE FEATURE
+ * of going live — THE CREATOR PAYS NOTHING EXTRA to enable it, and
+ * no viewer is charged either. The translator rail's per-minute
+ * economics are the house's engineering problem, never a surprise
+ * charge passed to the creator mid-stream; if a cost cap ever forces
+ * a limit, it is stated BEFORE the stream, in plain words (no such
+ * cap exists today). LIVE_CAPTIONS_PRICING.charged stays false and
+ * no credit path in this feature touches the ledger. The rail rate
+ * (500 VB/min/language, the ruled file-translation price) is carried
+ * here only as the reference figure for the house's own costing.
  *
  * State is in-memory (single API instance, same as live presence
  * and chat pacing): caption segments are ephemeral live data — they
@@ -65,16 +67,18 @@ export function viewerLanguageLabel(code: string): string {
 /* ── Pricing (gated off — see the header) ────────────────────────────── */
 
 export const LIVE_CAPTIONS_PRICING = {
-  /** Hard gate: false until the owner rules a live-captions price. */
+  /** Owner ruled: captions are a house feature of going live —
+   *  the creator pays nothing extra, and viewers pay nothing. */
   charged: false,
-  status: "pending_owner_decision",
-  /** The translator rail's ruled rate, for reference only. */
+  status: "house_feature_no_charge",
+  /** The translator rail's ruled rate, for the house's costing only. */
   translatorRailCreditsPerMinutePerLanguage: VIDEO_TRANSLATOR_CREDITS_PER_MINUTE,
   note:
-    "Live caption translation is not charged yet. The translator rail's ruled price " +
+    "Live captions are a house feature of going live — the creator pays nothing extra " +
+    "to turn them on, and viewers are never charged. The translator rail's ruled price " +
     `(${VIDEO_TRANSLATOR_CREDITS_PER_MINUTE} Visual Bucs per minute per language) prices file ` +
-    "translation with a known duration; what live per-viewer caption translation costs, " +
-    "and who pays it, is the owner's call.",
+    "translation; live per-viewer caption translation is the house's cost to engineer, " +
+    "never a charge passed to the creator mid-stream.",
 } as const;
 
 /* ── Caption segments ────────────────────────────────────────────────── */

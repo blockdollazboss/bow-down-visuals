@@ -47,7 +47,9 @@ import {
    and a segment is translated only into languages with a viewer
    actually waiting for them (plus on-demand poll reads, cached).
 
-   PRICING: gated OFF (see lib/live-captions) — nothing here charges.
+   PRICING: owner ruled — captions are a house feature of going
+   live, the creator pays nothing extra (see lib/live-captions);
+   nothing here charges anyone.
    ──────────────────────────────────────────────────────────────────── */
 
 const router = Router();
