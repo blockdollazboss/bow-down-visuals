@@ -150,7 +150,7 @@ describe("remix the king — published splits", () => {
     expect(() => validateSplits([
       { role: "king", payeeName: "K", payeeUserId: null, sharePct: 60 },
       { role: "house", payeeName: "H", payeeUserId: null, sharePct: 40 },
-    ])).toThrow(/winner/);
+    ])).toThrow(/winning/);
     expect(() => validateSplits([
       { role: "winner", payeeName: "W", payeeUserId: null, sharePct: 50 },
       { role: "winner", payeeName: "W2", payeeUserId: null, sharePct: 50 },
