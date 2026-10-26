@@ -34,6 +34,12 @@ export const referralsTable = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     referrerUserId: uuid("referrer_user_id").notNull(),
     refereeUserId: uuid("referee_user_id").notNull().unique(),
+    /* Anti-farm (referral guards rung 2): the referee's canonical
+       mailbox at apply time (lib/canonical-email: +tag stripped, gmail
+       dots folded). One welcome grant per canonical mailbox, however
+       many accounts alias it. Null on pre-rung rows and whenever the
+       auth email was unusable — nulls never match each other. */
+    refereeCanonicalEmail: text("referee_canonical_email"),
     referrerCreditsAwarded: integer("referrer_credits_awarded").notNull().default(0),
     refereeCreditsAwarded: integer("referee_credits_awarded").notNull().default(10),
     revenueSharePct: integer("revenue_share_pct").notNull().default(25),
@@ -44,6 +50,7 @@ export const referralsTable = pgTable(
   (t) => [
     index("referrals_referrer_idx").on(t.referrerUserId),
     index("referrals_referee_idx").on(t.refereeUserId),
+    index("referrals_referee_canonical_email_idx").on(t.refereeCanonicalEmail),
   ],
 );
 

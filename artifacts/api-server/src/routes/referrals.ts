@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { canonicalEmail } from "../lib/canonical-email";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -287,6 +288,24 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       return;
     }
 
+    /* Referral guards rung 2 — one welcome per canonical mailbox.
+       Plus-address and gmail-dot aliases deliver to the SAME inbox, so
+       a second account opened on an alias of a mailbox that already
+       claimed a referral welcome is the same person farming the grant.
+       The referral itself still records (the referrer's revenue share
+       only ever pays on real purchases), but the welcome is withheld.
+       An unusable auth email canonicalizes to null and never matches —
+       the guard fails open rather than blocking a legit signup. */
+    const refereeCanonicalEmail = canonicalEmail(req.userEmail);
+    let duplicateMailbox = false;
+    if (refereeCanonicalEmail) {
+      const { data: sameMailbox } = await supabase
+        .from("referrals")
+        .select("id")
+        .eq("referee_canonical_email", refereeCanonicalEmail);
+      duplicateMailbox = Array.isArray(sameMailbox) && sameMailbox.length > 0;
+    }
+
     // Record the referral with a 90-day revenue-share window.
     // Referee gets 10 welcome credits now; referrer earns 25% of future
     // purchases — no upfront referrer payout.
@@ -297,8 +316,9 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
     const { error: insertError } = await supabase.from("referrals").insert({
       referrer_user_id: codeRow.user_id,
       referee_user_id: userId,
+      referee_canonical_email: refereeCanonicalEmail,
       referrer_credits_awarded: 0,
-      referee_credits_awarded: REFEREE_WELCOME_CREDITS,
+      referee_credits_awarded: duplicateMailbox ? 0 : REFEREE_WELCOME_CREDITS,
       revenue_share_pct: REVENUE_SHARE_PCT,
       share_expires_at: shareExpiresAt,
       total_referrer_earned: 0,
@@ -316,23 +336,26 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
        If either leg fails after the referrals row landed, release the
        claim (delete the row) and claw back any credits that moved, so the
        referee can retry cleanly instead of being stuck "already referred"
-       with nothing granted. */
-    let welcomeGranted = false;
-    try {
-      await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
-      welcomeGranted = true;
-      await recordCreditUsageStrict({
-        userId,
-        action: "Referral Welcome Grant",
-        creditsUsed: -REFEREE_WELCOME_CREDITS,
-        idempotencyKey: `referral-welcome:${userId}`,
-      });
-    } catch (grantErr) {
-      if (welcomeGranted) {
-        await addCreditsToProfile(userId, -REFEREE_WELCOME_CREDITS).catch(() => {});
+       with nothing granted. Skipped entirely for a duplicate mailbox:
+       that mailbox already collected its one welcome. */
+    if (!duplicateMailbox) {
+      let welcomeGranted = false;
+      try {
+        await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
+        welcomeGranted = true;
+        await recordCreditUsageStrict({
+          userId,
+          action: "Referral Welcome Grant",
+          creditsUsed: -REFEREE_WELCOME_CREDITS,
+          idempotencyKey: `referral-welcome:${userId}`,
+        });
+      } catch (grantErr) {
+        if (welcomeGranted) {
+          await addCreditsToProfile(userId, -REFEREE_WELCOME_CREDITS).catch(() => {});
+        }
+        await supabase.from("referrals").delete().eq("referee_user_id", userId);
+        throw grantErr;
       }
-      await supabase.from("referrals").delete().eq("referee_user_id", userId);
-      throw grantErr;
     }
 
     // Promoter Program: check for newly unlocked star milestones (idempotent).
@@ -340,7 +363,8 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
 
     res.json({
       ok: true,
-      refereeReward: REFEREE_WELCOME_CREDITS,
+      refereeReward: duplicateMailbox ? 0 : REFEREE_WELCOME_CREDITS,
+      welcomeWithheld: duplicateMailbox ? "duplicate_mailbox" : null,
       revenueSharePct: REVENUE_SHARE_PCT,
       shareWindowDays: SHARE_WINDOW_DAYS,
       milestonesAwarded: newMilestones.map((t) => ({
