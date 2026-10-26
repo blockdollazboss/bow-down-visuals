@@ -24,6 +24,7 @@ import { logger } from "../../lib/logger";
 import { recordCreation } from "../../lib/retention";
 import { stampVideoFileWithDisclosure } from "../../lib/disclosure-metadata";
 import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../../lib/provenance";
+import { drizzleProxyStore, resolveExportSources } from "../../lib/proxy-editing";
 import {
   createExportJob,
   getExportJob,
@@ -3293,6 +3294,26 @@ async function startExportJob(
   res: { status: (code: number) => { json: (body: unknown) => void } },
   body: ExportRequestBody,
 ): Promise<void> {
+  /* ── Proxy relink (board 184): EXPORT ALWAYS RENDERS FROM ORIGINALS.
+   * If any clip URL is a known proxy for this user, swap it back to its
+   * original before the job is persisted — the persisted body is what
+   * the render reads, so no downstream path can ever render a proxy.
+   * A relink lookup failure must never lose the user's originals list:
+   * on error we proceed with the URLs as sent (they are the editor's
+   * timeline URLs, which are originals unless a proxy was substituted). */
+  try {
+    const relinked = await resolveExportSources(drizzleProxyStore, req.userId!, body.clipUrls);
+    if (relinked.relinked > 0) {
+      body = { ...body, clipUrls: relinked.urls };
+      logger.info({ userId: req.userId, relinked: relinked.relinked }, "[export] proxy URLs relinked to originals");
+    }
+    if (Array.isArray(body.timelineOrder) && body.timelineOrder.length > 0) {
+      const tl = await resolveExportSources(drizzleProxyStore, req.userId!, body.timelineOrder);
+      if (tl.relinked > 0) body = { ...body, timelineOrder: tl.urls };
+    }
+  } catch (err) {
+    logger.warn({ err, userId: req.userId }, "[export] proxy relink check failed — proceeding with sent URLs");
+  }
   const job = await createExportJob(req.userId!, body.projectId.trim(), body);
   res.status(202).json({ jobId: job.id, status: job.state });
 
