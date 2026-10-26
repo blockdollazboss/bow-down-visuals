@@ -96,3 +96,36 @@ describe("wiring — the scene rides this seam, never a fork", () => {
     expect(sceneSrc).toContain("this.moveRig(fwd, strafe, dt, WALK_SPEED, yawFromLook)");
   });
 });
+
+describe("wiring — the page's Sprint hold", () => {
+  const worldPageSrc = readFileSync(
+    new URL("../../pages/world.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("the strip renders a Sprint hold for every walker inside (guests included, like Photo)", () => {
+    expect(worldPageSrc).toContain('data-testid="world-strip-sprint"');
+    /* It stands in the world strip, which is gated on being
+     * inside only — never behind the member-only action bar. */
+    const stripIdx = worldPageSrc.indexOf('data-testid="world-strip"');
+    const sprintIdx = worldPageSrc.indexOf('data-testid="world-strip-sprint"');
+    const guestPitchIdx = worldPageSrc.indexOf('data-testid="world-guest-action-pitch"');
+    expect(stripIdx).toBeGreaterThan(-1);
+    expect(sprintIdx).toBeGreaterThan(stripIdx);
+    expect(sprintIdx).toBeLessThan(guestPitchIdx);
+  });
+
+  it("the hold pushes through sprint.ts's transition into the scene, and reports itself pressed", () => {
+    expect(worldPageSrc).toContain("touchSprintAfter");
+    expect(worldPageSrc).toContain('applyTouchSprint("press")');
+    expect(worldPageSrc).toContain('applyTouchSprint("release")');
+    expect(worldPageSrc).toContain("sceneRef.current?.setTouchSprint(next)");
+    expect(worldPageSrc).toContain("aria-pressed={touchSprint}");
+    /* Held wears the house solid-gold active state (the action
+     * bar's toggle state); at rest it wears the strip's bordered
+     * pill in BOTH themes. */
+    expect(worldPageSrc).toContain('"border-[#d4af37] bg-[#d4af37] text-black"');
+    expect(worldPageSrc).toContain("border-[#7A5A12]/30 text-[#6B5B36]");
+    expect(worldPageSrc).toContain("border-white/15 text-white/80");
+  });
+});
