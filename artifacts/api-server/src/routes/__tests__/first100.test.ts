@@ -74,6 +74,7 @@ CREATE TABLE creator_profiles (
   slug text NOT NULL UNIQUE,
   display_name text NOT NULL,
   bio text NOT NULL DEFAULT '',
+  declared_city text,
   avatar_url text, banner_url text,
   theme_id text NOT NULL DEFAULT 'gold-lux',
   vertical text NOT NULL DEFAULT 'music',

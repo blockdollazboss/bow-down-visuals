@@ -352,7 +352,7 @@ describe("#2 layout model", () => {
      * the Trophy Shelf and Social Links. */
     expect(json.layout.map((b: any) => b.type)).toEqual([
       "hero", "spotlight", "court", "tracks", "videos", "store", "memberships",
-      "bio", "achievements", "links",
+      "bio", "gallery", "achievements", "links",
     ]);
     expect(json.layout.find((b: any) => b.type === "spotlight").title).toBe("The Stage");
     expect(json.layout.find((b: any) => b.type === "court").title).toBe("The Front Row");
@@ -386,7 +386,7 @@ describe("#2 layout model", () => {
     expect(json.layout.map((b: any) => b.type)).toEqual([
       "hero", "spotlight", "court", "tracks", "videos", "store", "memberships",
       "merch", "events", "bio", "shoutwall", "topcreators",
-      "achievements", "links",
+      "gallery", "achievements", "links",
     ]);
   });
 
