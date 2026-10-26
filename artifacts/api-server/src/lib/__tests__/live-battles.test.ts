@@ -405,7 +405,7 @@ describe("winner determination", () => {
     expect(done.opponentVotes).toBe(2);
     expect(done.spectacleAnnouncedAt).not.toBeNull();
     expect(s.spoken).toHaveLength(1);
-    expect(s.spoken[0]!.text).toContain("1–2");
+    expect(s.spoken[0]!.text).toContain("2–1"); // winner-first, as spoken
     const crown = await s.svc.getCrown();
     expect(crown?.winner?.userId).toBe(OP);
     // idempotent — no second stamp, no second spectacle
