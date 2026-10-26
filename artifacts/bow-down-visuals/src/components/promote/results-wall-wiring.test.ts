@@ -70,9 +70,10 @@ describe("results wall endpoints — reads + switches + scan, nothing else", () 
 
   it("the example card is badged as an example in the component", () => {
     expect(panel).toContain("EXAMPLE_WALL_EVENTS");
-    expect(panel).toContain('data-testid="results-wall-example-card"');
+    // EventCard picks the testid by its `example` flag (ternary in source).
+    expect(panel).toContain('"results-wall-example-card"');
+    expect(panel).toContain('"results-wall-card"');
     expect(panel).toContain("exampleBadge");
-    expect(panel).toContain("results-wall-card");
   });
 
   it("renders both themes via the house light-theme hook", () => {
