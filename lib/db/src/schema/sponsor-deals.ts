@@ -32,6 +32,13 @@ export const sponsorDealsTable = pgTable("sponsor_deals", {
   acceptedApplicationId:  uuid("accepted_application_id"),
   acceptedUserId:         text("accepted_user_id"),
   paidAt:                timestamp("paid_at", { withTimezone: true }),
+  /* Direct profile sponsorship (payfix sponsor-purchase lane, provisional
+     migration 9999): the creator this deal was bought for from their
+     /artist/:slug profile. NULL = a marketplace deal (brand posted it to
+     the open board). A direct deal is born with acceptedUserId set to the
+     same creator and an accepted application row, so the existing escrow
+     lifecycle (fund → start → complete → release) applies unchanged. */
+  targetCreatorUserId:    text("target_creator_user_id"),
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
