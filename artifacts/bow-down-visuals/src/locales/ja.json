@@ -15087,5 +15087,16 @@
       "queued": "{{amount}} VB 待機中",
       "ineligible": "報酬なし — 重複"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — 請求は {{usd}} USD（概算レート。決済は USD）",
+      "chargedInUsd": "請求は {{usd}} USD",
+      "approxNote": "価格は USD で請求されます。換算額は概算で、静的なレート表を使い、目安としてのみ表示されます。実際に支払うのは USD の金額です。",
+      "settingsTitle": "価格表示の通貨",
+      "settingsDesc": "実際の金額をあなたの言語の通貨で表示します。請求は常に USD です。",
+      "autoOption": "自動 — 言語に合わせる",
+      "usdOnlyOption": "米ドルのみ (USD)",
+      "vbNote": "Visual Bucs は換算されません — Visual Bucs の金額はどこでも同じです。",
+      "ratesNote": "レートは概算の静的なスナップショットであり、ライブの為替レートではありません。"
   }
 }

@@ -15115,5 +15115,16 @@
       "queued": "{{amount}} VB na fila",
       "ineligible": "Sem recompensa — duplicado"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — cobrado {{usd}} USD (taxa aproximada; liquidado em USD)",
+      "chargedInUsd": "Cobrado {{usd}} USD",
+      "approxNote": "Os preços são cobrados em USD. Os valores convertidos são aproximados, usam uma tabela de taxas estática e aparecem apenas como referência: o valor em USD é o que você paga.",
+      "settingsTitle": "Moeda de exibição de preços",
+      "settingsDesc": "Veja preços em dinheiro real na moeda do seu idioma. A cobrança é sempre em USD.",
+      "autoOption": "Automática: seguir meu idioma",
+      "usdOnlyOption": "Apenas dólares americanos (USD)",
+      "vbNote": "Visual Bucs nunca são convertidos: os valores em Visual Bucs são os mesmos em todo lugar.",
+      "ratesNote": "As taxas são um retrato estático aproximado, não taxas de câmbio ao vivo."
   }
 }

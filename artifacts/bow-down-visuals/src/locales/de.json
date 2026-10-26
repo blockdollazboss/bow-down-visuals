@@ -15092,5 +15092,16 @@
       "queued": "{{amount}} VB in Warteschlange",
       "ineligible": "Keine Belohnung — Duplikat"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — berechnet werden {{usd}} USD (ungefährer Kurs; Abrechnung in USD)",
+      "chargedInUsd": "Berechnet werden {{usd}} USD",
+      "approxNote": "Preise werden in USD berechnet. Umgerechnete Beträge sind ungefähre Werte aus einer statischen Kurstabelle und dienen nur zur Orientierung: Der USD-Betrag ist der Betrag, den du zahlst.",
+      "settingsTitle": "Währung der Preisanzeige",
+      "settingsDesc": "Sieh dir Echtgeldpreise in der Währung deiner Sprache an. Berechnet wird immer in USD.",
+      "autoOption": "Automatisch — meiner Sprache folgen",
+      "usdOnlyOption": "Nur US-Dollar (USD)",
+      "vbNote": "Visual Bucs werden nie umgerechnet — Beträge in Visual Bucs sind überall gleich.",
+      "ratesNote": "Die Kurse sind eine ungefähre statische Momentaufnahme, keine Live-Wechselkurse."
   }
 }

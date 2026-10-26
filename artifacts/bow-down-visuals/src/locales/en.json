@@ -15071,5 +15071,16 @@
       "queued": "{{amount}} VB queued",
       "ineligible": "No reward — duplicate"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — charged {{usd}} USD (approximate rate; settled in USD)",
+      "chargedInUsd": "Charged {{usd}} USD",
+      "approxNote": "Prices are charged in USD. Converted amounts are approximate, use a static rate snapshot, and are shown for guidance only — the USD amount is what you pay.",
+      "settingsTitle": "Price display currency",
+      "settingsDesc": "See real-money prices in your language's currency. Charging always stays in USD.",
+      "autoOption": "Automatic — follow my language",
+      "usdOnlyOption": "US dollars only (USD)",
+      "vbNote": "Visual Bucs are never converted — Visual Bucs amounts are the same everywhere.",
+      "ratesNote": "Rates are an approximate static snapshot, not live exchange rates."
   }
 }

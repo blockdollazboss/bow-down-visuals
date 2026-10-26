@@ -15092,5 +15092,16 @@
       "queued": "{{amount}} VB 대기 중",
       "ineligible": "보상 없음 — 중복"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — 청구는 {{usd}} USD (대략적인 환율; 결제는 USD)",
+      "chargedInUsd": "청구는 {{usd}} USD",
+      "approxNote": "가격은 USD로 청구됩니다. 환산 금액은 대략적인 값으로 고정 환율표를 사용하며 참고용으로만 표시됩니다. 실제로 지불하는 금액은 USD 금액입니다.",
+      "settingsTitle": "가격 표시 통화",
+      "settingsDesc": "실제 금액 가격을 내 언어의 통화로 확인하세요. 청구는 항상 USD로 이루어집니다.",
+      "autoOption": "자동 — 내 언어 따라가기",
+      "usdOnlyOption": "미국 달러만 (USD)",
+      "vbNote": "Visual Bucs는 절대 환산되지 않습니다 — Visual Bucs 금액은 어디에서나 같습니다.",
+      "ratesNote": "환율은 대략적인 고정 스냅샷이며 실시간 환율이 아닙니다."
   }
 }
