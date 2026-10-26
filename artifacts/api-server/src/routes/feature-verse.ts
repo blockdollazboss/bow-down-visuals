@@ -10,7 +10,7 @@ import {
   featureVerseEscrowLedgerTable,
   type FeatureVerseSplit,
 } from "@workspace/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { isUniqueViolation, pgErrorText } from "../lib/pg-errors";
 
@@ -400,20 +400,25 @@ router.get("/feature-verse/orders", requireAuth, async (req, res) => {
     return;
   }
   try {
+    /* 'all' = both sides of MY orders only — the filter is in the
+       query itself, never everyone's rows fetched and trimmed. */
     const where =
       scope === "bought"
         ? eq(featureVerseOrdersTable.buyerUserId, req.userId!)
         : scope === "sold"
           ? eq(featureVerseOrdersTable.creatorUserId, req.userId!)
-          : undefined;
-    const base = db.select().from(featureVerseOrdersTable);
-    const rows = await (where ? base.where(where) : base)
+          : or(
+              eq(featureVerseOrdersTable.buyerUserId, req.userId!),
+              eq(featureVerseOrdersTable.creatorUserId, req.userId!),
+            );
+    const rows = await db
+      .select()
+      .from(featureVerseOrdersTable)
+      .where(where)
       .orderBy(desc(featureVerseOrdersTable.createdAt))
       .limit(100);
-    /* 'all' = both sides of my orders only — never everyone's. */
-    const mine = scope === "all" ? rows.filter((r) => r.buyerUserId === req.userId || r.creatorUserId === req.userId) : rows;
     const settled: OrderRow[] = [];
-    for (const r of mine) settled.push(await settleExpiry(r));
+    for (const r of rows) settled.push(await settleExpiry(r));
     res.json({ orders: settled.map((r) => orderDTO(r, req.userId!)) });
   } catch (err) {
     fail(res, err, "[feature-verse] orders list failed");
