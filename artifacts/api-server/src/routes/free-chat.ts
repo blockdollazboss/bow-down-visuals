@@ -4,7 +4,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { buildChatSystemPrompt } from "../lib/ai-chat-assistant";
 import { resolveOptionalSession } from "../lib/optional-auth";
-import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
+import { buildReplyDoors, processOperatorIntentTurn, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
 import {
   OPERATOR_KB,
   findFeatures,
@@ -211,6 +211,24 @@ router.post("/free-chat", publicApiLimiter, async (req, res) => {
     });
     if (preTurn) {
       res.json({ reply: preTurn.replyText, action: preTurn.action, ...doorPayload });
+      return;
+    }
+
+    /* Deterministic intent (payfix operator-hands): a clear charged
+       request or the capability question is handled in code BEFORE the
+       model — this is what keeps the operator's hands alive on the
+       knowledge-base fallback path, which cannot emit a marker. */
+    const intentTurn = await processOperatorIntentTurn({
+      userId: req.userId,
+      userEmail: req.userEmail,
+      channel: "chat_text",
+      message: message.trim(),
+    }).catch((err) => {
+      logger.error({ err }, "[chat] operator intent turn failed — falling through to the model");
+      return null;
+    });
+    if (intentTurn) {
+      res.json({ reply: intentTurn.replyText, action: intentTurn.action, ...doorPayload });
       return;
     }
 

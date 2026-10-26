@@ -12,7 +12,7 @@ import {
   getChatCreditCost,
 } from "../lib/ai-chat-assistant";
 import { findInventedPrice, PRICE_FALLBACK_REPLY } from "../lib/operator-knowledge";
-import { buildReplyDoors, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
+import { buildReplyDoors, processOperatorIntentTurn, processOperatorPreTurn, processOperatorReply } from "../lib/operator-chat";
 import { resolveOptionalSession } from "../lib/optional-auth";
 
 const router = Router();
@@ -87,6 +87,25 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
   });
   if (preTurn) {
     res.json({ reply: preTurn.replyText, model: null, creditCost: chatCreditCost, action: preTurn.action, ...doorPayload });
+    return;
+  }
+
+  /* Deterministic intent (payfix operator-hands): a clear charged
+     request or the capability question is handled in code BEFORE the
+     model and before any per-message chat charge — the proposal turn
+     charges nothing; the action's own rail charge on "yes" is the
+     only charge. Same shared protocol as /api/free-chat. */
+  const intentTurn = await processOperatorIntentTurn({
+    userId: req.userId,
+    userEmail: req.userEmail,
+    channel: "chat_text",
+    message: message.trim(),
+  }).catch((err) => {
+    logger.error({ err }, "[chat] operator intent turn failed — falling through to the model");
+    return null;
+  });
+  if (intentTurn) {
+    res.json({ reply: intentTurn.replyText, model: null, creditCost: chatCreditCost, action: intentTurn.action, ...doorPayload });
     return;
   }
 
