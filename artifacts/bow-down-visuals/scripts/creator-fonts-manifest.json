@@ -1,0 +1,1077 @@
+{
+ "fonts": [
+  {
+   "family": "Cinzel",
+   "slug": "cinzel",
+   "apiName": "Cinzel",
+   "weights": "400;700;900",
+   "category": "House",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "cinzel-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "cinzel-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "cinzel-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Manrope",
+   "slug": "manrope",
+   "apiName": "Manrope",
+   "weights": "400;600;800",
+   "category": "House",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "manrope-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "manrope-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "manrope-800.woff2",
+     "weight": "800"
+    }
+   ]
+  },
+  {
+   "family": "Playfair Display",
+   "slug": "playfairdisplay",
+   "apiName": "Playfair+Display",
+   "weights": "400;700;900",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "playfairdisplay-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "playfairdisplay-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "playfairdisplay-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Cormorant Garamond",
+   "slug": "cormorantgaramond",
+   "apiName": "Cormorant+Garamond",
+   "weights": "400;600;700",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "cormorantgaramond-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "cormorantgaramond-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "cormorantgaramond-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Marcellus",
+   "slug": "marcellus",
+   "apiName": "Marcellus",
+   "weights": "400",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "marcellus-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Bodoni Moda",
+   "slug": "bodonimoda",
+   "apiName": "Bodoni+Moda",
+   "weights": "400;700;900",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "bodonimoda-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "bodonimoda-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "bodonimoda-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Cinzel Decorative",
+   "slug": "cinzeldecorative",
+   "apiName": "Cinzel+Decorative",
+   "weights": "400;700;900",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "cinzeldecorative-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "cinzeldecorative-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "cinzeldecorative-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Fraunces",
+   "slug": "fraunces",
+   "apiName": "Fraunces",
+   "weights": "400;700;900",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "fraunces-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "fraunces-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "fraunces-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Libre Baskerville",
+   "slug": "librebaskerville",
+   "apiName": "Libre+Baskerville",
+   "weights": "400;700",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "librebaskerville-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "librebaskerville-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "EB Garamond",
+   "slug": "ebgaramond",
+   "apiName": "EB+Garamond",
+   "weights": "400;600;700",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "ebgaramond-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "ebgaramond-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "ebgaramond-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Lora",
+   "slug": "lora",
+   "apiName": "Lora",
+   "weights": "400;600;700",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "lora-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "lora-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "lora-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "DM Serif Display",
+   "slug": "dmserifdisplay",
+   "apiName": "DM+Serif+Display",
+   "weights": "400",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "dmserifdisplay-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Abril Fatface",
+   "slug": "abrilfatface",
+   "apiName": "Abril+Fatface",
+   "weights": "400",
+   "category": "Royal Serifs",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "abrilfatface-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Inter",
+   "slug": "inter",
+   "apiName": "Inter",
+   "weights": "400;600;800",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "inter-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "inter-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "inter-800.woff2",
+     "weight": "800"
+    }
+   ]
+  },
+  {
+   "family": "Montserrat",
+   "slug": "montserrat",
+   "apiName": "Montserrat",
+   "weights": "400;700;900",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "montserrat-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "montserrat-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "montserrat-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Poppins",
+   "slug": "poppins",
+   "apiName": "Poppins",
+   "weights": "400;700;800",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "poppins-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "poppins-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "poppins-800.woff2",
+     "weight": "800"
+    }
+   ]
+  },
+  {
+   "family": "Space Grotesk",
+   "slug": "spacegrotesk",
+   "apiName": "Space+Grotesk",
+   "weights": "400;600;700",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "spacegrotesk-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "spacegrotesk-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "spacegrotesk-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "DM Sans",
+   "slug": "dmsans",
+   "apiName": "DM+Sans",
+   "weights": "400;700",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "dmsans-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "dmsans-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Work Sans",
+   "slug": "worksans",
+   "apiName": "Work+Sans",
+   "weights": "400;600;800",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "worksans-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "worksans-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "worksans-800.woff2",
+     "weight": "800"
+    }
+   ]
+  },
+  {
+   "family": "Outfit",
+   "slug": "outfit",
+   "apiName": "Outfit",
+   "weights": "400;700;900",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "outfit-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "outfit-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "outfit-900.woff2",
+     "weight": "900"
+    }
+   ]
+  },
+  {
+   "family": "Sora",
+   "slug": "sora",
+   "apiName": "Sora",
+   "weights": "400;700",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "sora-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "sora-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Plus Jakarta Sans",
+   "slug": "plusjakartasans",
+   "apiName": "Plus+Jakarta+Sans",
+   "weights": "400;700;800",
+   "category": "Strong Sans",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "plusjakartasans-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "plusjakartasans-700.woff2",
+     "weight": "700"
+    },
+    {
+     "file": "plusjakartasans-800.woff2",
+     "weight": "800"
+    }
+   ]
+  },
+  {
+   "family": "Bebas Neue",
+   "slug": "bebasneue",
+   "apiName": "Bebas+Neue",
+   "weights": "400",
+   "category": "Condensed Poster",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "bebasneue-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Oswald",
+   "slug": "oswald",
+   "apiName": "Oswald",
+   "weights": "400;600;700",
+   "category": "Condensed Poster",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "oswald-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "oswald-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "oswald-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Barlow Condensed",
+   "slug": "barlowcondensed",
+   "apiName": "Barlow+Condensed",
+   "weights": "600;700",
+   "category": "Condensed Poster",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "barlowcondensed-600.woff2",
+     "weight": "600"
+    },
+    {
+     "file": "barlowcondensed-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Fjalla One",
+   "slug": "fjallaone",
+   "apiName": "Fjalla+One",
+   "weights": "400",
+   "category": "Condensed Poster",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "fjallaone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Archivo Narrow",
+   "slug": "archivonarrow",
+   "apiName": "Archivo+Narrow",
+   "weights": "400;700",
+   "category": "Condensed Poster",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "archivonarrow-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "archivonarrow-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Staatliches",
+   "slug": "staatliches",
+   "apiName": "Staatliches",
+   "weights": "400",
+   "category": "Condensed Poster",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "staatliches-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Anton",
+   "slug": "anton",
+   "apiName": "Anton",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "anton-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Archivo Black",
+   "slug": "archivoblack",
+   "apiName": "Archivo+Black",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "archivoblack-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Alfa Slab One",
+   "slug": "alfaslabone",
+   "apiName": "Alfa+Slab+One",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "alfaslabone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Titan One",
+   "slug": "titanone",
+   "apiName": "Titan+One",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "titanone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Bungee",
+   "slug": "bungee",
+   "apiName": "Bungee",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "bungee-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Righteous",
+   "slug": "righteous",
+   "apiName": "Righteous",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "righteous-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Luckiest Guy",
+   "slug": "luckiestguy",
+   "apiName": "Luckiest+Guy",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "Apache-2.0",
+   "files": [
+    {
+     "file": "luckiestguy-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Rubik Mono One",
+   "slug": "rubikmonoone",
+   "apiName": "Rubik+Mono+One",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "rubikmonoone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Monoton",
+   "slug": "monoton",
+   "apiName": "Monoton",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "monoton-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Fascinate Inline",
+   "slug": "fascinateinline",
+   "apiName": "Fascinate+Inline",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "fascinateinline-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Wallpoet",
+   "slug": "wallpoet",
+   "apiName": "Wallpoet",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "wallpoet-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Black Ops One",
+   "slug": "blackopsone",
+   "apiName": "Black+Ops+One",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "blackopsone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Creepster",
+   "slug": "creepster",
+   "apiName": "Creepster",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "creepster-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Bowlby One",
+   "slug": "bowlbyone",
+   "apiName": "Bowlby+One",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "bowlbyone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Russo One",
+   "slug": "russoone",
+   "apiName": "Russo+One",
+   "weights": "400",
+   "category": "Bold Display",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "russoone-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Permanent Marker",
+   "slug": "permanentmarker",
+   "apiName": "Permanent+Marker",
+   "weights": "400",
+   "category": "Handwritten",
+   "license": "Apache-2.0",
+   "files": [
+    {
+     "file": "permanentmarker-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Caveat",
+   "slug": "caveat",
+   "apiName": "Caveat",
+   "weights": "400;700",
+   "category": "Handwritten",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "caveat-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "caveat-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Shadows Into Light",
+   "slug": "shadowsintolight",
+   "apiName": "Shadows+Into+Light",
+   "weights": "400",
+   "category": "Handwritten",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "shadowsintolight-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Gochi Hand",
+   "slug": "gochihand",
+   "apiName": "Gochi+Hand",
+   "weights": "400",
+   "category": "Handwritten",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "gochihand-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Rock Salt",
+   "slug": "rocksalt",
+   "apiName": "Rock+Salt",
+   "weights": "400",
+   "category": "Handwritten",
+   "license": "Apache-2.0",
+   "files": [
+    {
+     "file": "rocksalt-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Kalam",
+   "slug": "kalam",
+   "apiName": "Kalam",
+   "weights": "400;700",
+   "category": "Handwritten",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "kalam-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "kalam-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Patrick Hand",
+   "slug": "patrickhand",
+   "apiName": "Patrick+Hand",
+   "weights": "400",
+   "category": "Handwritten",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "patrickhand-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Architects Daughter",
+   "slug": "architectsdaughter",
+   "apiName": "Architects+Daughter",
+   "weights": "400",
+   "category": "Handwritten",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "architectsdaughter-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Satisfy",
+   "slug": "satisfy",
+   "apiName": "Satisfy",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "Apache-2.0",
+   "files": [
+    {
+     "file": "satisfy-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Great Vibes",
+   "slug": "greatvibes",
+   "apiName": "Great+Vibes",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "greatvibes-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Dancing Script",
+   "slug": "dancingscript",
+   "apiName": "Dancing+Script",
+   "weights": "400;700",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "dancingscript-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "dancingscript-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "Pacifico",
+   "slug": "pacifico",
+   "apiName": "Pacifico",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "pacifico-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Lobster",
+   "slug": "lobster",
+   "apiName": "Lobster",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "lobster-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Allura",
+   "slug": "allura",
+   "apiName": "Allura",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "allura-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Sacramento",
+   "slug": "sacramento",
+   "apiName": "Sacramento",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "sacramento-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Alex Brush",
+   "slug": "alexbrush",
+   "apiName": "Alex+Brush",
+   "weights": "400",
+   "category": "Scripts",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "alexbrush-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Press Start 2P",
+   "slug": "pressstart2p",
+   "apiName": "Press+Start+2P",
+   "weights": "400",
+   "category": "Pixel",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "pressstart2p-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Silkscreen",
+   "slug": "silkscreen",
+   "apiName": "Silkscreen",
+   "weights": "400;700",
+   "category": "Pixel",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "silkscreen-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "silkscreen-700.woff2",
+     "weight": "700"
+    }
+   ]
+  },
+  {
+   "family": "VT323",
+   "slug": "vt323",
+   "apiName": "VT323",
+   "weights": "400",
+   "category": "Pixel",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "vt323-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "DotGothic16",
+   "slug": "dotgothic16",
+   "apiName": "DotGothic16",
+   "weights": "400",
+   "category": "Pixel",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "dotgothic16-400.woff2",
+     "weight": "400"
+    }
+   ]
+  },
+  {
+   "family": "Pixelify Sans",
+   "slug": "pixelifysans",
+   "apiName": "Pixelify+Sans",
+   "weights": "400;700",
+   "category": "Pixel",
+   "license": "OFL-1.1",
+   "files": [
+    {
+     "file": "pixelifysans-400.woff2",
+     "weight": "400"
+    },
+    {
+     "file": "pixelifysans-700.woff2",
+     "weight": "700"
+    }
+   ]
+  }
+ ],
+ "dropped": []
+}
