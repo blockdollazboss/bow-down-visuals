@@ -13,6 +13,7 @@ import LiveChatPanel from "@/components/live/LiveChatPanel";
 import ChannelModerators from "@/components/live/ChannelModerators";
 import StreamAlertOverlay from "@/components/live/StreamAlertOverlay";
 import StreamWidgetsPanel from "@/components/live/StreamWidgetsPanel";
+import LiveCaptionsStudioPanel from "@/components/live/LiveCaptionsStudioPanel";
 import StreamDeck from "@/components/live/StreamDeck";
 import {
   ControllerStageClient,
@@ -1682,6 +1683,9 @@ export default function BroadcastStudio() {
         </div>
         <div className="mb-4">
           <StreamWidgetsPanel streamId={liveId} />
+        </div>
+        <div className="mb-4">
+          <LiveCaptionsStudioPanel streamId={liveId} />
         </div>
         {liveId ? (
           <LiveChatPanel streamId={liveId} className="h-[420px]" />
