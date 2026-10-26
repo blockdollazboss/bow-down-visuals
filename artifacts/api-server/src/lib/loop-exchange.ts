@@ -343,7 +343,9 @@ export const defaultRecordLoopSaleDeps: RecordLoopSaleDeps = {
     return rows.map((r) => ({ saleId: r.saleId, recipientUserId: r.recipientUserId, amountVb: r.amountVb }));
   },
   insertLedgerRow: async (row) => {
-    await db.insert(loopExchangeSplitLedgerTable).values(row);
+    /* share_pct is a numeric column — drizzle takes it as a string,
+       exactly like the loops insert's posterSharePct. */
+    await db.insert(loopExchangeSplitLedgerTable).values({ ...row, sharePct: String(row.sharePct) });
   },
   creditExists: async (creditKey) => {
     const [row] = await db.select({ id: creditUsageTable.id }).from(creditUsageTable)
