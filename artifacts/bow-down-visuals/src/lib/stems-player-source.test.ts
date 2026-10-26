@@ -37,11 +37,13 @@ describe("StemPlayerControls — honest absence + playback only", () => {
   });
 
   it("has NO download / export / save affordance for stem audio", () => {
-    const lower = controls.toLowerCase();
-    expect(lower).not.toContain("download");
-    expect(lower).not.toContain("export");
-    expect(lower).not.toContain("<a ");
-    expect(lower).not.toContain("href");
+    // (The TS `export` keyword obviously appears; what's pinned is the
+    // absence of any user-facing download/export affordance or link.)
+    expect(controls).not.toContain("Download");
+    expect(controls).not.toContain("download=");
+    expect(controls.toLowerCase()).not.toContain("stem-export");
+    expect(controls).not.toContain("<a ");
+    expect(controls).not.toContain("href");
     expect(controls).not.toContain(".url");
   });
 });

@@ -21,19 +21,19 @@ step "FE typecheck"
 res "fe-typecheck" $?
 
 step "scoped lane tests (API)"
-(cd artifacts/api-server && "$ROOT/node_modules/.bin/vitest" run --config vitest.config.ts src/lib/__tests__/stems-player.test.ts src/routes/__tests__/stems-player.test.ts) >> "$R" 2>&1
+(cd artifacts/api-server && ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/__tests__/stems-player.test.ts src/routes/__tests__/stems-player.test.ts) >> "$R" 2>&1
 res "scoped-api-tests" $?
 
 step "scoped lane tests (FE)"
-(cd artifacts/bow-down-visuals && "$ROOT/node_modules/.bin/vitest" run --config vitest.config.ts src/lib/stems-player.test.ts src/lib/stems-player-source.test.ts) >> "$R" 2>&1
+(cd artifacts/bow-down-visuals && ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/stems-player.test.ts src/lib/stems-player-source.test.ts) >> "$R" 2>&1
 res "scoped-fe-tests" $?
 
 step "full API suite"
-(cd artifacts/api-server && "$ROOT/node_modules/.bin/vitest" run --config vitest.config.ts) >> "$R" 2>&1
+(cd artifacts/api-server && ./node_modules/.bin/vitest run --config vitest.config.ts) >> "$R" 2>&1
 res "full-api-suite" $?
 
 step "full FE suite"
-(cd artifacts/bow-down-visuals && "$ROOT/node_modules/.bin/vitest" run --config vitest.config.ts) >> "$R" 2>&1
+(cd artifacts/bow-down-visuals && ./node_modules/.bin/vitest run --config vitest.config.ts) >> "$R" 2>&1
 res "full-fe-suite" $?
 
 echo "ALLDONE" >> "$R"

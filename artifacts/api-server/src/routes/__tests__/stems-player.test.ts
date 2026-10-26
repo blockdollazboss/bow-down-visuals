@@ -53,6 +53,12 @@ vi.mock("../referrals", () => ({ getRecruiterBadgeForUser: async () => null }));
 vi.mock("../generate/milestones", () => ({ computeAchievements: () => [] }));
 vi.mock("../generate/stem-splitter", () => ({
   getStemJob: (id: string) => h.state.jobs.get(id),
+  // lib/stems-player reads the key set + labels from the splitter module.
+  ALL_STEM_KEYS: ["vocals", "drums", "bass", "other", "guitar", "piano"],
+  ALL_STEM_LABELS: {
+    vocals: "Vocals", drums: "Drums", bass: "Bass",
+    other: "Melody / Other", guitar: "Guitar", piano: "Piano",
+  },
 }));
 vi.mock("../../lib/email", () => ({
   sendEmail: async () => undefined,
