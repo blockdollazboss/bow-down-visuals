@@ -47,6 +47,7 @@ import GamersHub from "@/pages/gamers";
 import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
 import BroadcastStudio from "@/components/go-live/BroadcastStudio";
 import GuestPanel from "@/components/go-live/GuestPanel";
+import LiveBattlesPanel from "@/components/live/LiveBattlesPanel";
 import DestinationKeysPanel from "@/components/reach/DestinationKeysPanel";
 import IngestKeyPanel from "@/components/reach/IngestKeyPanel";
 import LoyaltySettingsPanel from "@/components/reach/LoyaltySettingsPanel";
@@ -550,7 +551,7 @@ export default function GoLive() {
         </Link>
       </div>
       <div id="golive-panel" role="tabpanel" aria-labelledby={`golive-tab-${tab}`} tabIndex={0}>
-        {tab === "broadcast" ? <><BroadcastStudio /><GuestPanel /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+        {tab === "broadcast" ? <><BroadcastStudio /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
       </div>
       <div className="mt-6"><StageRooms /></div>
     </div>

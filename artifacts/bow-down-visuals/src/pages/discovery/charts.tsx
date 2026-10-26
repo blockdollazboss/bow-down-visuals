@@ -15,6 +15,7 @@ import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib
 import { usePageTitle } from "@/hooks/use-page-title";
 import { brandScoutStats, BRAND_OUTREACH_DOORS, type BrandCreatorLite } from "@/lib/charts-brands";
 import { UGC_PAYMENT_NOTE } from "@/lib/ugc-ads";
+import { LiveBattleCrownStrip } from "@/components/live/LiveBattlesPanel";
 import SpotlightModal from "@/components/SpotlightModal";
 import LoadingScreenModal from "@/components/LoadingScreenModal";
 
@@ -322,6 +323,13 @@ export default function Charts() {
                 ? "Real audiences, real creators. Find your next partner before everyone else does."
                 : "Top creators, top audio, top videos — ranked by what's actually popping."}
         </p>
+      </div>
+
+      {/* Live Battle crown slot (#154): the most recent completed
+          battle's winner holds the crown here until the next battle
+          completes. Renders nothing until a battle has been won. */}
+      <div className="mb-5">
+        <LiveBattleCrownStrip />
       </div>
 
       {/* Tabs — flex-wrap: the four pills total ~510px; centered without
