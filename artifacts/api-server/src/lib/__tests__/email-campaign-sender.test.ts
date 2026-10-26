@@ -19,6 +19,10 @@ import {
   buildEmailHtml,
   listUnsubscribeHeaders,
   unsubscribeUrlFor,
+  campaignQueuedAt,
+  isStaleQueuedCampaign,
+  STALE_CAMPAIGN_MAX_AGE_MS,
+  STALE_CAMPAIGN_STATUS,
   type EmailSenderDeps,
 } from "../email-campaign-sender";
 import type {
@@ -270,6 +274,105 @@ describe("campaign sending", () => {
     const out = await drainEmailQueue(deps);
     expect(out.campaigns).toEqual({ delivered: 0, attempted: 0 });
     expect(updates).toEqual([{ status: "sent", sentAt: ANCHOR, recipientCount: 0 }]);
+  });
+});
+
+describe("stale-queue gate (QC-200 G6)", () => {
+  const HOUR = 3_600_000;
+
+  it("anchors on queued_at when stamped, else falls back to created_at", () => {
+    const stamped = new Date(ANCHOR.getTime() - 1 * HOUR);
+    const created = new Date(ANCHOR.getTime() - 72 * HOUR);
+    expect(campaignQueuedAt({ queuedAt: stamped, createdAt: created })).toEqual(stamped);
+    expect(campaignQueuedAt({ queuedAt: null, createdAt: created })).toEqual(created);
+    expect(campaignQueuedAt({ queuedAt: null, createdAt: null })).toBeNull();
+  });
+
+  it("boundary: exactly 24h old is fresh, 24h + 1ms is stale, no stamp is stale", () => {
+    const at24 = { queuedAt: new Date(ANCHOR.getTime() - STALE_CAMPAIGN_MAX_AGE_MS), createdAt: null };
+    const past24 = { queuedAt: new Date(ANCHOR.getTime() - STALE_CAMPAIGN_MAX_AGE_MS - 1), createdAt: null };
+    expect(isStaleQueuedCampaign(at24, ANCHOR)).toBe(false);
+    expect(isStaleQueuedCampaign(past24, ANCHOR)).toBe(true);
+    expect(isStaleQueuedCampaign({ queuedAt: null, createdAt: null }, ANCHOR)).toBe(true);
+  });
+
+  it("a stale queued campaign is HELD — never sent, never stamped failed", async () => {
+    const updates: Array<Partial<EmailCampaign>> = [];
+    const send = vi.fn(async () => ({ sent: true, id: "x" }));
+    const deps = baseDeps({
+      claimQueuedCampaigns: async () => [
+        makeCampaign({ queuedAt: new Date(ANCHOR.getTime() - 48 * HOUR) }),
+      ],
+      updateCampaign: async (_id, patch) => {
+        updates.push(patch);
+      },
+      send,
+    });
+    const out = await drainEmailQueue(deps);
+    expect(send).not.toHaveBeenCalled();
+    expect(updates).toEqual([{ status: STALE_CAMPAIGN_STATUS }]);
+    expect(updates).not.toContainEqual({ status: "failed" });
+    expect(out.campaigns).toEqual({ delivered: 0, attempted: 0 });
+  });
+
+  it("a pre-gate row (no queued_at stamp) is held on created_at age alone", async () => {
+    const updates: Array<Partial<EmailCampaign>> = [];
+    const send = vi.fn(async () => ({ sent: true, id: "x" }));
+    const deps = baseDeps({
+      claimQueuedCampaigns: async () => [
+        makeCampaign({ queuedAt: null, createdAt: new Date(ANCHOR.getTime() - 30 * 24 * HOUR) }),
+      ],
+      updateCampaign: async (_id, patch) => {
+        updates.push(patch);
+      },
+      send,
+    });
+    await drainEmailQueue(deps);
+    expect(send).not.toHaveBeenCalled();
+    expect(updates).toEqual([{ status: "held_stale" }]);
+  });
+
+  it("the gate fires BEFORE the provider gate: stale + no provider = held, not failed", async () => {
+    const updates: Array<Partial<EmailCampaign>> = [];
+    const deps = baseDeps({
+      claimQueuedCampaigns: async () => [
+        makeCampaign({ queuedAt: new Date(ANCHOR.getTime() - 72 * HOUR) }),
+      ],
+      updateCampaign: async (_id, patch) => {
+        updates.push(patch);
+      },
+      isConfigured: () => false,
+    });
+    await drainEmailQueue(deps);
+    expect(updates).toEqual([{ status: "held_stale" }]);
+  });
+
+  it("a fresh re-queue sends even when the row itself is old (queued_at wins)", async () => {
+    const updates: Array<Partial<EmailCampaign>> = [];
+    const deps = baseDeps({
+      claimQueuedCampaigns: async () => [
+        makeCampaign({
+          createdAt: new Date(ANCHOR.getTime() - 90 * 24 * HOUR),
+          queuedAt: new Date(ANCHOR.getTime() - 5 * 60_000),
+        }),
+      ],
+      updateCampaign: async (_id, patch) => {
+        updates.push(patch);
+      },
+    });
+    const out = await drainEmailQueue(deps);
+    expect(out.campaigns).toEqual({ delivered: 1, attempted: 1 });
+    expect(updates).toEqual([{ status: "sent", sentAt: ANCHOR, recipientCount: 1 }]);
+  });
+
+  it("the queue doors stamp queued_at; the send door releases held_stale (source)", () => {
+    const routeSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "routes", "generate", "email-list.ts"),
+      "utf8",
+    );
+    expect(routeSrc).toContain('queuedAt: parsed.data.status === "queued" ? new Date() : null');
+    expect(routeSrc).toContain('set({ status: "queued", queuedAt: new Date() })');
+    expect(routeSrc).toContain('campaign.status !== "held_stale"');
   });
 });
 
