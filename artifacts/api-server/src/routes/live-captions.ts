@@ -401,7 +401,7 @@ router.get("/live/:id/captions", publicApiLimiter, async (req: Request, res: Res
    the socket: segments arrive by POST, one validated write path. */
 export function registerLiveCaptionsWs(
   gateway: LiveWsGateway,
-  deps: { verifyToken?: typeof verifyAccessToken; translator?: CaptionTranslator } = {},
+  deps: { verifyToken?: typeof verifyAccessToken; translator?: () => CaptionTranslator } = {},
 ): void {
   const verifyToken = deps.verifyToken ?? verifyAccessToken;
   const translator = deps.translator ?? (() => activeTranslator);
