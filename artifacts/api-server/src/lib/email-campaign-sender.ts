@@ -40,11 +40,18 @@
  * on its existing tick — no new infrastructure, restart-safe because
  * all state lives in Postgres rows.
  *
- * Caveat for the staging gate: legacy welcome rows the OLD subscribe
- * code inserted as list-wide campaign rows (recipientCount: 1, no
- * recipient stored) are indistinguishable from real campaigns. Clear
- * any stale `queued` campaign rows on staging before this sender's
- * first drain, or they will send to the whole list.
+ * Stale-queue gate (QC-200 G6 — this used to be a manual pre-drain
+ * chore documented only in this header; it is CODE now): a claimed
+ * campaign whose queue stamp is older than STALE_CAMPAIGN_MAX_AGE_MS
+ * is never sent by the drain. It is moved to `held_stale` (visible in
+ * the campaign list, sends nothing) until a person deliberately
+ * re-queues it — the queue/send doors re-stamp `queued_at`, which is
+ * what releases the hold. The stamp anchor is `queued_at` (provisional
+ * migration 9999_g6_schema_drift_repair); pre-gate rows have no stamp
+ * and fall back to `created_at`, so legacy rows the OLD subscribe code
+ * inserted as list-wide campaign rows (recipientCount: 1, no recipient
+ * stored) are held on the first drain instead of sending to the whole
+ * list the moment a Resend key appears.
  */
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, isNull, lte } from "drizzle-orm";
@@ -114,6 +121,43 @@ export interface EmailSenderDeps {
 
 const CAMPAIGN_BATCH = 5;
 const DELIVERY_BATCH = 25;
+
+/* ─── Stale-queue gate (QC-200 G6) ─────────────────────────────────────── */
+
+/** Campaign status stamped when the stale-queue gate holds a row. */
+export const STALE_CAMPAIGN_STATUS = "held_stale";
+
+/**
+ * How long a queued campaign stays drain-eligible. The poller drains
+ * within minutes of a queue action, so 24h is generous for any real
+ * send — anything still queued past it was queued in another era
+ * (pre-key, pre-deploy, or a forgotten legacy row) and must be
+ * re-queued deliberately before it can send.
+ */
+export const STALE_CAMPAIGN_MAX_AGE_MS = 24 * 3_600_000;
+
+/**
+ * The moment a campaign entered the queue, as best the row can say:
+ * `queued_at` once the gate shipped (every queue door stamps it), else
+ * `created_at` for pre-gate rows. Null when the row carries neither
+ * (treated as stale — unknown provenance never sends).
+ */
+export function campaignQueuedAt(campaign: Pick<EmailCampaign, "queuedAt" | "createdAt">): Date | null {
+  const raw = campaign.queuedAt ?? campaign.createdAt ?? null;
+  if (!raw) return null;
+  const d = raw instanceof Date ? raw : new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** True when a claimed campaign must be HELD instead of sent. */
+export function isStaleQueuedCampaign(
+  campaign: Pick<EmailCampaign, "queuedAt" | "createdAt">,
+  now: Date,
+): boolean {
+  const queuedAt = campaignQueuedAt(campaign);
+  if (!queuedAt) return true;
+  return now.getTime() - queuedAt.getTime() > STALE_CAMPAIGN_MAX_AGE_MS;
+}
 
 /** Welcome-sequence step timing (hours after the previous step):
     step 1 on signup, step 2 +24h, step 3 +72h after step 2. */
@@ -404,6 +448,18 @@ async function sendOneCampaign(
   d: Required<EmailSenderDeps>,
   campaign: EmailCampaign,
 ): Promise<SendOutcome> {
+  /* Stale-queue gate (QC-200 G6): checked BEFORE the provider gate —
+     a stale row is held, never sent and never stamped failed, no
+     matter what is configured. A deliberate re-queue (which re-stamps
+     queued_at) is the only way past this. */
+  if (isStaleQueuedCampaign(campaign, d.now())) {
+    await d.updateCampaign(campaign.id, { status: STALE_CAMPAIGN_STATUS });
+    logger.warn(
+      { campaignId: campaign.id, queuedAt: campaignQueuedAt(campaign)?.toISOString() ?? null },
+      "[email-sender] campaign HELD by stale-queue gate — re-queue it deliberately to send",
+    );
+    return { delivered: 0, attempted: 0, held: true };
+  }
   if (!d.isConfigured()) {
     await d.updateCampaign(campaign.id, { status: "failed" });
     logger.warn({ campaignId: campaign.id }, "[email-sender] campaign failed: no provider configured");
