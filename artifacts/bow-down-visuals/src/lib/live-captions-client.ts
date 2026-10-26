@@ -418,6 +418,24 @@ export function captionsSocketUrl(
   return token ? `${base}&token=${encodeURIComponent(token)}` : base;
 }
 
+/** The rail's language catalog (viewer picks + source picks),
+ *  straight from the server — never hardcoded here. */
+export async function getCaptionLanguages(
+  fetchJson: FetchJson,
+): Promise<CaptionLanguagesPayload | null> {
+  try {
+    const { status, json } = await fetchJson(`/api/live-captions/languages`);
+    if (status !== 200 || !json) return null;
+    return {
+      languages: Array.isArray(json.languages) ? json.languages : [],
+      sourceLanguages: Array.isArray(json.sourceLanguages) ? json.sourceLanguages : [],
+      pricing: json.pricing ?? { charged: false, status: "house_feature_no_charge", note: "" },
+    };
+  } catch {
+    return null;
+  }
+}
+
 /* ── Streamer side ──────────────────────────────────────────────────── */
 
 export async function getCaptionTrack(

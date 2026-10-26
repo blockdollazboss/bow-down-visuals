@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { FollowButton, useFollowStates } from "@/components/discovery/FollowButton";
 import LiveChatPanel from "@/components/live/LiveChatPanel";
+import LiveCaptionsBar from "@/components/live/LiveCaptionsBar";
 import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import StreamSummaryCard from "@/components/live/StreamSummaryCard";
 import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
@@ -465,12 +466,15 @@ export default function LiveWatch() {
                     setMuted(false);
                     if (videoRef.current) videoRef.current.muted = false;
                   }}
-                  className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-xs font-black text-black transition hover:scale-105"
+                  className="absolute bottom-14 right-3 inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-xs font-black text-black transition hover:scale-105"
                   data-testid="btn-unmute"
                 >
                   <Volume2 className="h-4 w-4" /> Tap for sound
                 </button>
               )}
+              {/* Live captions (#160): docked in the player — each
+                  viewer turns them on and picks their own language. */}
+              <LiveCaptionsBar streamId={stream.id} />
             </>
           ) : stream.vod_url ? (
             <video src={stream.vod_url} controls playsInline className="h-full w-full object-contain" data-testid="vod-player" />
