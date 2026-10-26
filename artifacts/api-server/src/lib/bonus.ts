@@ -40,48 +40,23 @@ export const WHEEL_SEGMENTS: WheelSegment[] = [
   { credits: 20000, weight: 0.1, label: "JACKPOT", isJackpot: true },
 ];
 
-let bonusColumnsEnsured = false;
-
-/**
- * Best-effort: adds bonus/streak columns to the Supabase `profiles` table if
- * missing. NOTE — this ALTER runs against DATABASE_URL (Render Postgres in
- * production), which is a DIFFERENT database from the Supabase project that
- * serves the `profiles` table. It only takes effect in setups where
- * DATABASE_URL *is* the Supabase Postgres. The authoritative fix is the
- * Supabase-side migration: supabase/migrations/0054_bonus_columns.sql
- * (run once in the Supabase SQL Editor). Failures here are logged, not
- * thrown, so a wrong-DB ALTER can never take down the bonus endpoints —
- * the subsequent Supabase query will surface the real error instead.
- */
-export async function ensureBonusColumns(): Promise<void> {
-  if (bonusColumnsEnsured) return;
-  try {
-    await db.execute(sql.raw(`
-    ALTER TABLE profiles
-      ADD COLUMN IF NOT EXISTS bonus_credits INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS bonus_credits_expires_at TIMESTAMPTZ NULL,
-      ADD COLUMN IF NOT EXISTS daily_streak INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS last_daily_claim DATE NULL,
-      ADD COLUMN IF NOT EXISTS last_wheel_spin TIMESTAMPTZ NULL,
-      ADD COLUMN IF NOT EXISTS streak_freezes INTEGER NOT NULL DEFAULT 0;
-    CREATE TABLE IF NOT EXISTS wheel_spins (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL,
-      spun_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      prize_credits INTEGER NOT NULL,
-      was_jackpot BOOLEAN NOT NULL DEFAULT FALSE
-    );
-    CREATE INDEX IF NOT EXISTS idx_wheel_spins_user ON wheel_spins(user_id);
-  `));
-    bonusColumnsEnsured = true;
-  } catch (err) {
-    logger.warn(
-      { err },
-      "ensureBonusColumns: runtime ALTER failed — expected when DATABASE_URL is not the Supabase DB; " +
-        "run supabase/migrations/0054_bonus_columns.sql in the Supabase SQL Editor instead",
-    );
-  }
-}
+/* Schema ownership — there is NO runtime self-heal here anymore.
+   The former ensureBonusColumns() ran `ALTER TABLE profiles …` through
+   the Drizzle `db` (DATABASE_URL = Render Postgres), but `profiles` is a
+   Supabase table — Render Postgres has no `profiles` relation (see
+   credits.ts / export-jobs.ts), so the ALTER threw
+   `relation "profiles" does not exist` (42P01) on the first bonus call
+   of every process, and because the legitimate Render-side
+   `wheel_spins` CREATE shared the same batch, it never landed either.
+   Removed per the referrals.ts Stack-8 doctrine: tables are defined
+   ONCE and the boot migration runner owns creation. Owners now:
+   - bonus/streak columns on Supabase `profiles`:
+     supabase/migrations/0054_bonus_columns.sql + 0056_streak_freezes.sql
+     (run once in the Supabase SQL Editor). If they are missing, the
+     Supabase reads/writes below throw the real error — nothing here
+     masks it.
+   - `wheel_spins` (Render Postgres, written by spinWheel below):
+     lib/db/migrations/9999_schema_drift_fixes.sql. */
 
 export interface BonusProfile {
   bonusCredits: number;
@@ -94,7 +69,6 @@ export interface BonusProfile {
 }
 
 export async function getBonusProfile(userId: string): Promise<BonusProfile> {
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("profiles")
@@ -115,7 +89,6 @@ export async function getBonusProfile(userId: string): Promise<BonusProfile> {
 /** Adds bonus credits, extending expiry to 48h from now. */
 export async function addBonusCredits(userId: string, amount: number): Promise<void> {
   if (amount <= 0) return;
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const expiresAt = new Date(Date.now() + BONUS_EXPIRY_HOURS * 3600 * 1000).toISOString();
 
@@ -206,7 +179,6 @@ export interface DailyClaimResult {
 }
 
 export async function claimDailyBonus(userId: string): Promise<DailyClaimResult> {
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const today = utcToday();
 
@@ -422,7 +394,6 @@ export function pickWheelSegment(random: number = Math.random()): WheelSegment {
 }
 
 export async function spinWheel(userId: string): Promise<WheelSpinResult> {
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
 
   const { data: profile, error } = await admin
