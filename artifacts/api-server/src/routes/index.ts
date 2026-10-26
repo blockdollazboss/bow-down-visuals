@@ -374,6 +374,7 @@ import storeRouter from "./store";
 import storefrontRouter from "./storefront";
 import shopifyBridgeRouter from "./shopify-bridge";
 import giftCardsRouter from "./gift-cards";
+import giftProductRouter from "./gift-product";
 import creatorTiersRouter from "./creator-tiers";
 import aiPageDesignerRouter from "./ai-page-designer";
 import publicStatsRouter from "./public-stats";
@@ -734,6 +735,7 @@ router.use(storeRouter);                    // /api/store/* (digital sales check
 router.use(storefrontRouter);               // /api/storefront/* (products, orders, discounts)
 router.use(shopifyBridgeRouter);            // /api/storefront/shopify-import/*, /api/storefront/shopify-export/* (CSV bridge)
 router.use(giftCardsRouter);                // /api/gift-cards/* (stored-value gift cards: buy/verify/balance/mine/sold/refund)
+router.use(giftProductRouter);              // /api/product-gifts/* (Wave-4 #45: buy a store product as a gift — purchase/mine/claim/resend)
 router.use(creatorTiersRouter);             // /api/creator-tiers/*
 router.use("/ai-page-designer", aiPageDesignerRouter); // /api/ai-page-designer/*
 router.use(publicStatsRouter);                      // /api/public/stats (cached social-proof stats)

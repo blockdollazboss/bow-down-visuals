@@ -122,7 +122,7 @@ export function canResend(
   if (effectiveStatus(gift, now) !== "awaiting_claim") {
     return { ok: false, reason: "This gift hasn't been delivered yet — resend opens once it lands." };
   }
-  const last = gift.last_resent_at ?? gift.delivered_at;
+  const last = gift.last_resent_at;
   if (last && now.getTime() - new Date(last).getTime() < RESEND_COOLDOWN_MS) {
     return { ok: false, reason: "That gift was just re-sent — give it an hour before nudging again." };
   }
@@ -275,20 +275,35 @@ export async function sweepDueGifts(recipientUserId: string, recipientEmail: str
 export async function listGiftsForRecipient(userId: string, userEmail: string | null): Promise<GiftRow[]> {
   const email = (userEmail ?? "").trim().toLowerCase();
   const r = await exec(sql`
-    SELECT * FROM product_gifts
-    WHERE recipient_user_id = ${userId}
-       OR (${email} <> '' AND LOWER(recipient_email) = ${email})
-    ORDER BY created_at DESC LIMIT 100
+    SELECT pg.*, cp.display_name AS store_name, cp.slug AS artist_slug
+    FROM product_gifts pg
+    JOIN creator_profiles cp ON cp.id = pg.profile_id
+    WHERE pg.recipient_user_id = ${userId}
+       OR (${email} <> '' AND LOWER(pg.recipient_email) = ${email})
+    ORDER BY pg.created_at DESC LIMIT 100
   `);
   return r.rows as unknown as GiftRow[];
 }
 
 export async function listGiftsSentByBuyer(userId: string): Promise<GiftRow[]> {
   const r = await exec(sql`
-    SELECT * FROM product_gifts WHERE buyer_user_id = ${userId}
-    ORDER BY created_at DESC LIMIT 100
+    SELECT pg.*, cp.display_name AS store_name, cp.slug AS artist_slug
+    FROM product_gifts pg
+    JOIN creator_profiles cp ON cp.id = pg.profile_id
+    WHERE pg.buyer_user_id = ${userId}
+    ORDER BY pg.created_at DESC LIMIT 100
   `);
   return r.rows as unknown as GiftRow[];
+}
+
+/** Stamp the delivery notification as sent (immediate-delivery path:
+ *  the sweep stamps its own flips; a gift bought for immediate
+ *  delivery is stamped by the route after it notifies). */
+export async function stampDelivered(giftId: string): Promise<void> {
+  await exec(sql`
+    UPDATE product_gifts SET delivered_at = now(), updated_at = now()
+    WHERE id = ${giftId} AND delivered_at IS NULL AND status = 'awaiting_claim'
+  `);
 }
 
 /**
@@ -356,7 +371,7 @@ export function presentGift(gift: GiftRow, opts?: { storeName?: string | null; p
     productId: gift.product_id ? String(gift.product_id) : null,
     productTitle: String(gift.product_title),
     productKind: String(gift.product_kind),
-    storeName: opts?.storeName ?? null,
+    storeName: opts?.storeName ?? (gift.store_name ? String(gift.store_name) : null),
     productUrl: opts?.productUrl ?? (gift.product_id ? `/storefront/product/${gift.product_id}` : null),
     giftMessage: gift.gift_message ? String(gift.gift_message) : null,
     quantity: Number(gift.quantity),

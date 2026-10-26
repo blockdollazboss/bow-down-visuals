@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchWishlist } from "@/lib/wishlists";
 import { libraryTabFromParams, type LibraryTab } from "@/lib/library-tab";
 import WishlistPanel from "@/components/wishlist/WishlistPanel";
+import GiftsForYou from "@/components/storefront/GiftsForYou";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
    The connective tissue between tools: templates, presets, and fonts.
@@ -175,6 +176,12 @@ export default function Library() {
             {t("library.sub", { defaultValue: "Templates, presets, and fonts that plug straight into your tools. Pick one, hit Use, keep creating." })}
           </p>
         </div>
+
+        {/* ── Gifts (Wave-4 #45): claim gifts sent to you / re-send
+            gifts you sent, inside the Library — renders nothing when
+            the user has no gifts, and fails silently on its own so it
+            can never take the Library down. ── */}
+        <GiftsForYou />
 
         {/* ── Search ── */}
         <div className="relative max-w-xl mx-auto mb-6">

@@ -13,6 +13,7 @@ import type { ProductDropDTO } from "@/lib/storefront-api";
 import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert } from "@/lib/storefront-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import CourseOutline from "@/components/courses/CourseOutline";
+import GiftThisProductPanel from "@/components/storefront/GiftThisProductPanel";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
    The landing page for one store product (downloads, merch, digital
@@ -989,6 +990,19 @@ export default function StorefrontProduct() {
                     {buying ? "Opening secure checkout…" : user ? "Buy it now" : "Sign in to buy"}
                   </button>
                 </>
+              )}
+
+              {/* Wave-4 #45: gift this product — docks right under the
+                  buy box, same panel, no standalone page. Hidden by
+                  the component itself for gift cards / services / free
+                  products, which the server refuses to gift. */}
+              {!isGiftCard && !isFree && (
+                <GiftThisProductPanel
+                  productId={data.product.id}
+                  productKind={data.product.kind}
+                  priceCents={data.product.priceCents}
+                  quantity={quantity}
+                />
               )}
 
               <div className="mt-5 flex items-center justify-center gap-2 text-xs text-amber-100/50">
