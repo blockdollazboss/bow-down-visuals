@@ -168,3 +168,4 @@ export * from "./studio-gear";
 
 export * from "./feature-verse";
 export * from "./product-offers";
+export * from "./priority-dms";

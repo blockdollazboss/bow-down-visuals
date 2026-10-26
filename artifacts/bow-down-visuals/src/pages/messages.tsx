@@ -16,6 +16,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
 import { MessageDraftSync, messageDraftPath } from "@/lib/message-drafts";
+import { PriorityDmSettingsCard, PriorityDmLane, PriorityDmComposer } from "@/components/PriorityDmPanel";
 import {
   DM_ATTACHMENT_UPLOAD_PATH, type PageDmAttachment,
   dmAttachmentOf, dmAttachmentRenderKind, dmWorkLabel, dmPreviewLine,
@@ -137,7 +138,7 @@ export default function Messages() {
   const { user, getAccessToken } = useAuth();
   const [inbox, setInbox] = useState<Conv[]>([]);
   const [requests, setRequests] = useState<Conv[]>([]);
-  const [tab, setTab] = useState<"inbox" | "requests">("inbox");
+  const [tab, setTab] = useState<"inbox" | "requests" | "priority">("inbox");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   /* In-thread call history (video calls Phase 1): ledger entries for
@@ -373,7 +374,7 @@ export default function Messages() {
     catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't block."); }
   }
 
-  const list = tab === "inbox" ? inbox : requests;
+  const list = tab === "inbox" ? inbox : tab === "requests" ? requests : [];
   const visibleList = list.filter((c) => dmConversationHit(c, convQuery));
   const visibleMsgs = msgs.filter((m) => dmMessageHit(m, threadQuery));
   /* Calls interleave with messages by time — except while searching,
@@ -461,7 +462,13 @@ export default function Messages() {
                 className={`rounded-full px-4 py-1.5 text-sm font-semibold ${tab === "requests" ? "bg-[#e8c86a] text-black" : "border border-white/20 text-white/70"}`}>
                 Requests {requests.length > 0 && `(${requests.length})`}
               </button>
+              <button type="button" onClick={() => setTab("priority")}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold ${tab === "priority" ? "bg-[#e8c86a] text-black" : "border border-white/20 text-white/70"}`}
+                data-testid="dm-tab-priority">
+                Priority
+              </button>
             </div>
+            <PriorityDmSettingsCard api={api} onNotice={setNotice} />
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
               <input value={convQuery} onChange={(e) => setConvQuery(e.target.value)}
@@ -476,6 +483,9 @@ export default function Messages() {
               )}
             </div>
             <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              {tab === "priority" ? (
+                <PriorityDmLane api={api} onOpenConversation={(cid) => { void loadConvs(); setTab("inbox"); setActiveId(cid); }} />
+              ) : (<>
               {visibleList.map(convRow)}
               {list.length === 0 && (
                 <p className="py-8 text-center text-sm text-white/40">
@@ -485,6 +495,7 @@ export default function Messages() {
               {list.length > 0 && visibleList.length === 0 && (
                 <p className="py-8 text-center text-sm text-white/40">No conversation matches that search.</p>
               )}
+              </>)}
             </div>
           </div>
 
@@ -597,6 +608,11 @@ export default function Messages() {
 
                 {canChat ? (
                   <div className="space-y-2 border-t border-white/10 p-4">
+                    {other && (
+                      <PriorityDmComposer api={api} creatorUserId={other.user_id} body={draft}
+                        onNotice={setNotice}
+                        onSent={() => { draftSyncRef.current?.sent(); setDraft(""); if (activeId) { void loadThread(activeId); void loadConvs(); } }} />
+                    )}
                     {uploading && (
                       <p className="text-xs text-white/50" data-testid="dm-attachment-uploading">Uploading your work…</p>
                     )}

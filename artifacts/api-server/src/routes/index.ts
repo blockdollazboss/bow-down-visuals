@@ -269,6 +269,7 @@ import studioGearRouter from "./studio-gear";
 import openVerseRouter from "./open-verse";
 import sampleClearanceRouter from "./sample-clearance";
 import communityGrantsRouter from "./community-grants";
+import priorityDmsRouter from "./priority-dms";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
@@ -648,6 +649,7 @@ router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/stud
 router.use(openVerseRouter);             // /api/open-verse/* (Open Verse #176 — splits rail reuse, creator-gated pick, exactly-once ledger)
 router.use(sampleClearanceRouter);       // /api/sample-clearance/* (Sample Clearance Lane, Stack-200 N2)
 router.use(communityGrantsRouter);       // /api/community-grants/* + /api/admin/community-grants/* (Community Grants, N15)
+router.use(priorityDmsRouter);           // /api/priority-dms/* (Paid Priority DMs, Wave-4 #44 — gated OFF by PRIORITY_DM_ENABLED until the owner rules)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);
