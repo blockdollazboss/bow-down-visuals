@@ -72,6 +72,8 @@ interface GenerateRequest {
   stylePreset?: string;
   aspectRatio?: "16:9" | "9:16";
   overlayText?: string;
+  /** Creator font library family name for the headline (art direction). */
+  overlayFont?: string;
 }
 
 /**
@@ -101,6 +103,9 @@ function buildVariationPrompt(
     base.overlayText
       ? `On-image headline text (spell it EXACTLY, large and readable even at small sizes): "${base.overlayText.slice(0, 80)}".`
       : `No text on the image unless it dramatically improves click-through — keep any text to 3 words max, huge and readable.`,
+    ...(base.overlayText && base.overlayFont
+      ? [`Headline typeface: set the headline in a "${base.overlayFont.slice(0, 60)}" style of lettering.`]
+      : []),
     `Rules: no watermarks, no logos, no blurry faces, no distorted hands, no misspelled words, ` +
       `sharp focus on the subject, professional color grade.`,
   ];
@@ -127,6 +132,7 @@ const thumbnailGeneratorSchema = z.object({
   stylePreset: z.string().max(100).optional(),
   aspectRatio: z.enum(["16:9", "9:16"]).optional(),
   overlayText: z.string().max(200).optional(),
+  overlayFont: z.string().max(60).optional(),
   /** Virality: opt-in "Made with Bow Down Visuals" corner credit burned post-generation (paid export → opt-in). */
   attribution: attributionOptIn(),
 });
@@ -144,7 +150,7 @@ router.post(
       });
       return;
     }
-    const { prompt, stylePreset, aspectRatio, overlayText, attribution } = parsed.data;
+    const { prompt, stylePreset, aspectRatio, overlayText, overlayFont, attribution } = parsed.data;
 
     if (prompt.trim().length < 3) {
       res.status(400).json({ error: "A text prompt (3+ characters) is required." });
@@ -187,7 +193,7 @@ router.post(
     try {
       for (let i = 0; i < 4; i++) {
         const imagePrompt = buildVariationPrompt(
-          { prompt: prompt.trim(), stylePreset, aspectRatio: ratio, overlayText },
+          { prompt: prompt.trim(), stylePreset, aspectRatio: ratio, overlayText, overlayFont },
           i,
         );
 

@@ -70,9 +70,11 @@
         }
       })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..800;1,400..700&display=swap" rel="stylesheet">
+    <!-- House pairing (Stack-200 fonts lane): Cinzel (display) + Manrope
+         (body/UI) are SELF-HOSTED via @font-face in src/index.css
+         (public/fonts/creator/) — no global Google Fonts stylesheet.
+         UI_FONTS_CSS_URL in src/lib/load-fonts.ts keeps the same pairing
+         as a documented CDN fallback string. -->
     <!-- NOTE: the 8-bit pixel fonts (Press Start 2P, Silkscreen, VT323,
          DotGothic16, Pixelify Sans) are self-hosted via @font-face in
          index.css (public/fonts) — no CDN dependency. -->
@@ -80,8 +82,8 @@
          Library font catalog (19 families) are NO longer global stylesheets.
          They load on demand via src/lib/load-fonts.ts in the surfaces that
          render them (CaptionsSection / video-editor / Library page), with
-         the exact same css2 URLs and display=swap. Only the UI fonts above
-         (Inter + Playfair Display) stay global. The caption families are
+         the exact same css2 URLs and display=swap. The house fonts above
+         (Cinzel + Manrope, self-hosted) stay global. The caption families are
          still bundled as TTFs in the Docker image so export burn-in matches
          the preview exactly. -->
     <script type="application/ld+json">

@@ -24,6 +24,7 @@ import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { AssetHandoffs } from "@/components/hub/AssetHandoffs";
 import { CaptionStyler } from "@/components/wave8/CaptionStyler";
+import { CreatorFontPicker } from "@/components/CreatorFontPicker";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
 import type { SceneData } from "@/lib/scene-parser";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -276,6 +277,11 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
   const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const [hookOverride, setHookOverride] = useState("");
   const [projSpecialInstructions, setProjSpecialInstructions] = useState("");
+  /* Creator font library (Stack-200 fonts lane): the on-screen text /
+     titles font for the promo plan, picked from the shared library and
+     named in the generation instructions for both modes. */
+  const [promoFont, setPromoFont] = useState<string>("Anton");
+  const fontInstruction = promoFont ? `On-screen text and titles: set them in the "${promoFont}" typeface.` : "";
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [clipsOpen, setClipsOpen] = useState(true);
 
@@ -412,7 +418,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
           platform,
           promoGoal:     promoType,
           songHook:      hookOverride || (lyrics ? lyrics.slice(0, 500) : ""),
-          instructions:  projSpecialInstructions,
+          instructions:  [projSpecialInstructions, fontInstruction].filter(Boolean).join("\n"),
           promoType,
           lyrics:        lyrics ?? "",
           hasRunwayClips: clips.length > 0,
@@ -455,7 +461,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
           platform:    values.platform,
           promoGoal:   values.promoGoal,
           songHook:    values.songHook,
-          instructions: values.specialInstructions,
+          instructions: [values.specialInstructions, fontInstruction].filter(Boolean).join("\n"),
           artistVault: loadedVault,
         },
         token,
@@ -882,6 +888,12 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                         style={{ minHeight: "70px" }}
                       />
                     </div>
+                    <CreatorFontPicker
+                      label={t("promo-clip.advanced.textFont", { defaultValue: "On-screen text font" })}
+                      value={promoFont}
+                      previewText={selectedProject?.song_title || undefined}
+                      onChange={(font) => setPromoFont(font.family)}
+                    />
                   </div>
                 )}
               </div>
@@ -1028,6 +1040,14 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                     {errors.songHook && <p className="text-red-400 text-xs">{t("promo-clip.form.hookRequired")}</p>}
                   </div>
                 </div>
+
+                {/* Creator font library: on-screen text / titles font for the plan */}
+                <CreatorFontPicker
+                  label={t("promo-clip.advanced.textFont", { defaultValue: "On-screen text font" })}
+                  value={promoFont}
+                  previewText={watched.songTitle || watched.songHook || undefined}
+                  onChange={(font) => setPromoFont(font.family)}
+                />
 
                 {/* Advanced — special instructions = manual prompt editing (4) */}
                 <div className="border border-white/[0.06] rounded-xl overflow-hidden" data-min-stars="4">

@@ -26,6 +26,8 @@ import { LayoutTemplate } from "lucide-react";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
 import { CAPTION_FONTS, FONT_VIBES, getCaptionFont } from "@/lib/fonts";
 import { ensureCaptionFonts } from "@/lib/load-fonts";
+import { CreatorFontPicker } from "@/components/CreatorFontPicker";
+import { creatorFontFamily, getCreatorFont } from "@/lib/creator-fonts";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 import { detectBeatGrid, snapToNearestBeat, type BeatGrid } from "@/lib/beat-grid";
 
@@ -1813,12 +1815,38 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                 </select>
                 {(() => {
                   const f = getCaptionFont(c.fontFamily);
-                  return f ? (
-                    <p className="mt-1.5 text-lg leading-none text-white/90" style={{ fontFamily: `"${f.family}", sans-serif` }}>
+                  if (f) {
+                    return (
+                      <p className="mt-1.5 text-lg leading-none text-white/90" style={{ fontFamily: `"${f.family}", sans-serif` }}>
+                        Bow down visuals
+                      </p>
+                    );
+                  }
+                  /* Creator-library pick that is not a bundled caption face:
+                     preview it live from the self-hosted library. */
+                  const cf = getCreatorFont(c.fontFamily);
+                  return cf ? (
+                    <p className="mt-1.5 text-lg leading-none text-white/90" style={{ fontFamily: creatorFontFamily(cf.id) }}>
                       Bow down visuals
                     </p>
                   ) : null;
                 })()}
+                {/* Creator font library (Stack-200 fonts lane): the shared
+                    picker docks here — the video editor's text/titles font
+                    door. A library family that matches a bundled caption
+                    face selects that face (same id the export burns in);
+                    any other library family is stored by its creator id
+                    and previews live above. */}
+                <div className="mt-3">
+                  <CreatorFontPicker
+                    label="Creator font library"
+                    value={getCaptionFont(c.fontFamily)?.family ?? c.fontFamily}
+                    onChange={(font) => {
+                      const bundled = CAPTION_FONTS.find((f) => f.family === font.family);
+                      setCaption("fontFamily", bundled ? bundled.id : font.id);
+                    }}
+                  />
+                </div>
               </Field>
               <Field label="Position">
                 <Segmented
