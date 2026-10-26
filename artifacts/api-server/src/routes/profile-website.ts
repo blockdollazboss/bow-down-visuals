@@ -25,10 +25,19 @@ import {
   MAX_PROFILE_BLOCKS,
   PROFILE_COLORWAYS,
   PROFILE_FONT_IDS,
+  PROFILE_TEMPLATES,
+  LIVE_TEMPLATE_KEY,
   colorwayById,
+  templateById,
+  recommendedTemplateId,
+  draftFromTemplate,
+  readDraft,
+  designLayout,
+  designerSignalsOf,
   validateLayout,
   effectiveLayout,
   type ProfileBlockDto,
+  type ProfileTemplateDraft,
 } from "../lib/profile-website";
 
 /* ── "The profile IS the website" — data/engine routes (Stack 3) ─────────
@@ -85,11 +94,15 @@ export interface LayoutResponseDto {
   isDefault: boolean;
   blockTypes: typeof PROFILE_BLOCK_TYPES;
   maxBlocks: number;
+  /** The template the creator last approved onto the live page, or
+      null when no template was ever applied (the layout stands on its
+      own — a hand-built arrangement or the Grand Stage default). */
+  templateId: string | null;
 }
 
 function layoutResponse(profile: ProfileRow): LayoutResponseDto {
   const { blocks, isDefault } = effectiveLayout(profile);
-  return { layout: blocks, isDefault, blockTypes: PROFILE_BLOCK_TYPES, maxBlocks: MAX_PROFILE_BLOCKS };
+  return { layout: blocks, isDefault, blockTypes: PROFILE_BLOCK_TYPES, maxBlocks: MAX_PROFILE_BLOCKS, templateId: liveTemplateIdOf(profile) };
 }
 
 router.get("/creator-profiles/me/layout", publicApiLimiter, requireAuth, async (req, res) => {
@@ -259,6 +272,274 @@ router.put("/creator-profiles/me/theme-settings", publicApiLimiter, requireAuth,
   } catch (err) {
     req.log.error({ err }, "theme-settings PUT error");
     res.status(500).json({ error: "Couldn't save your theme settings. Try again." });
+  }
+});
+
+/* ═══ #3b — Profile templates + bounded AI designer (Stack-200) ═════════
+   The shelf, the draft, and the ONE door to live. Choosing a template or
+   running the designer writes theme_config.profileTemplateDraft ONLY —
+   the public page keeps rendering the saved layout/theme until the
+   creator approves the draft. Approve resolves the draft's colorway +
+   fonts server-side (the theme-settings rule) and writes the layout. */
+
+export interface ProfileTemplateStateDto {
+  liveTemplateId: string | null;
+  layout: ProfileBlockDto[];
+  isDefault: boolean;
+  draft: ProfileTemplateDraft | null;
+  recommendedTemplateId: string;
+  templates: Array<{
+    id: string; name: string; tagline: string; bestFor: string[];
+    colorway: string; headingFont: string; bodyFont: string;
+    layout: ProfileBlockDto[];
+  }>;
+}
+
+function liveTemplateIdOf(profile: ProfileRow): string | null {
+  const cfg = (profile.themeConfig ?? {}) as Record<string, unknown>;
+  const id = cfg[LIVE_TEMPLATE_KEY];
+  return typeof id === "string" && templateById(id) ? id : null;
+}
+
+function templateStateResponse(profile: ProfileRow): ProfileTemplateStateDto {
+  const { blocks, isDefault } = effectiveLayout(profile);
+  const cfg = (profile.themeConfig ?? {}) as Record<string, unknown>;
+  const sections = Array.isArray(profile.sections) ? profile.sections : [];
+  return {
+    liveTemplateId: liveTemplateIdOf(profile),
+    layout: blocks,
+    isDefault,
+    draft: readDraft(cfg),
+    recommendedTemplateId: recommendedTemplateId(profile.vertical),
+    templates: PROFILE_TEMPLATES.map((t) => ({
+      id: t.id,
+      name: t.name,
+      tagline: t.tagline,
+      bestFor: t.bestFor,
+      colorway: t.colorway,
+      headingFont: t.headingFont,
+      bodyFont: t.bodyFont,
+      layout: draftFromTemplate(t, sections).layout,
+    })),
+  };
+}
+
+async function saveDraft(profile: ProfileRow, draft: ProfileTemplateDraft): Promise<ProfileRow> {
+  const cfg = { ...((profile.themeConfig ?? {}) as Record<string, unknown>), profileTemplateDraft: draft };
+  await db.update(creatorProfilesTable)
+    .set({ themeConfig: cfg, updatedAt: new Date() })
+    .where(eq(creatorProfilesTable.id, profile.id));
+  return { ...profile, themeConfig: cfg };
+}
+
+router.get("/creator-profiles/me/template", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const own = await getOwnProfile(req.userId!);
+    if (!own) {
+      res.status(404).json(NO_PROFILE);
+      return;
+    }
+    res.json(templateStateResponse(own));
+  } catch (err) {
+    req.log.error({ err }, "profile template GET error");
+    res.status(500).json({ error: "Couldn't load your profile templates. Try again." });
+  }
+});
+
+const draftPickSchema = z.object({ templateId: z.string().max(60) });
+
+router.put("/creator-profiles/me/template/draft", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const own = await getOwnProfile(req.userId!);
+    if (!own) {
+      res.status(404).json(NO_PROFILE);
+      return;
+    }
+    const parsed = draftPickSchema.safeParse(req.body ?? {});
+    const template = parsed.success ? templateById(parsed.data.templateId) : null;
+    if (!template) {
+      res.status(400).json({
+        error: "UNKNOWN_TEMPLATE",
+        message: "That template isn't on the shelf. Pick one of the designed templates.",
+      });
+      return;
+    }
+    const sections = Array.isArray(own.sections) ? own.sections : [];
+    const saved = await saveDraft(own, draftFromTemplate(template, sections));
+    res.json({ saved: true, ...templateStateResponse(saved) });
+  } catch (err) {
+    req.log.error({ err }, "profile template draft PUT error");
+    res.status(500).json({ error: "Couldn't start that template draft. Try again." });
+  }
+});
+
+const draftLayoutSchema = z.object({
+  layout: z.unknown(),
+  colorway: z.string().max(60).nullish(),
+  headingFont: z.string().max(60).nullish(),
+  bodyFont: z.string().max(60).nullish(),
+});
+
+router.put("/creator-profiles/me/template/draft/layout", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const own = await getOwnProfile(req.userId!);
+    if (!own) {
+      res.status(404).json(NO_PROFILE);
+      return;
+    }
+    const cfg = (own.themeConfig ?? {}) as Record<string, unknown>;
+    const draft = readDraft(cfg);
+    if (!draft) {
+      res.status(400).json({
+        error: "NO_DRAFT",
+        message: "Pick a template first — the designer works on a draft, never on your live page.",
+      });
+      return;
+    }
+    const parsed = draftLayoutSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "INVALID_DRAFT", message: "That draft edit didn't parse. Try again." });
+      return;
+    }
+    const v = validateLayout(parsed.data.layout);
+    if (!v.ok) {
+      res.status(400).json({ error: v.error, message: v.message });
+      return;
+    }
+    const colorway = parsed.data.colorway ?? undefined;
+    const headingFont = parsed.data.headingFont ?? undefined;
+    const bodyFont = parsed.data.bodyFont ?? undefined;
+    if (colorway !== undefined && !colorwayById(colorway)) {
+      res.status(400).json({ error: "UNKNOWN_COLORWAY", message: "That colorway isn't one of the designed looks." });
+      return;
+    }
+    for (const [field, value] of [["headingFont", headingFont], ["bodyFont", bodyFont]] as const) {
+      if (value !== undefined && !(PROFILE_FONT_IDS as readonly string[]).includes(value)) {
+        res.status(400).json({ error: "UNKNOWN_FONT", message: `That ${field === "headingFont" ? "heading" : "body"} font isn't one of the designed fonts.` });
+        return;
+      }
+    }
+    const next: ProfileTemplateDraft = {
+      ...draft,
+      layout: v.blocks,
+      colorway: colorway ?? draft.colorway,
+      headingFont: headingFont ?? draft.headingFont,
+      bodyFont: bodyFont ?? draft.bodyFont,
+      source: "manual",
+      updatedAt: new Date().toISOString(),
+    };
+    const saved = await saveDraft(own, next);
+    res.json({ saved: true, ...templateStateResponse(saved) });
+  } catch (err) {
+    req.log.error({ err }, "profile template draft layout PUT error");
+    res.status(500).json({ error: "Couldn't save your draft. Try again." });
+  }
+});
+
+router.post("/creator-profiles/me/template/ai-design", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const own = await getOwnProfile(req.userId!);
+    if (!own) {
+      res.status(404).json(NO_PROFILE);
+      return;
+    }
+    const cfg = (own.themeConfig ?? {}) as Record<string, unknown>;
+    const sections = Array.isArray(own.sections) ? own.sections : [];
+    /* The designer starts from the working draft when one exists, else
+       from the live template's composition (the live pick, or Stage —
+       the flagship default). It may ONLY rearrange / add / subtract
+       categories; the result lands as a draft for approval. */
+    const existing = readDraft(cfg);
+    const baseTemplate = existing
+      ? templateById(existing.templateId)!
+      : (templateById(liveTemplateIdOf(own)) ?? templateById("stage")!);
+    const baseLayout = existing ? existing.layout : draftFromTemplate(baseTemplate, sections).layout;
+    const { layout, ops } = designLayout(baseLayout, designerSignalsOf(own));
+    const draft: ProfileTemplateDraft = {
+      templateId: baseTemplate.id,
+      layout,
+      colorway: existing?.colorway ?? baseTemplate.colorway,
+      headingFont: existing?.headingFont ?? baseTemplate.headingFont,
+      bodyFont: existing?.bodyFont ?? baseTemplate.bodyFont,
+      source: "ai",
+      ops,
+      updatedAt: new Date().toISOString(),
+    };
+    const saved = await saveDraft(own, draft);
+    res.json({ saved: true, ...templateStateResponse(saved) });
+  } catch (err) {
+    req.log.error({ err }, "profile template ai-design error");
+    res.status(500).json({ error: "The designer couldn't finish. Try again." });
+  }
+});
+
+router.post("/creator-profiles/me/template/approve", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const own = await getOwnProfile(req.userId!);
+    if (!own) {
+      res.status(404).json(NO_PROFILE);
+      return;
+    }
+    const cfg = { ...((own.themeConfig ?? {}) as Record<string, unknown>) };
+    const draft = readDraft(cfg);
+    if (!draft) {
+      res.status(400).json({
+        error: "NO_DRAFT",
+        message: "There's no draft to approve — pick a template or run the designer first.",
+      });
+      return;
+    }
+    const colorwayDef = colorwayById(draft.colorway);
+    if (!colorwayDef) {
+      res.status(400).json({ error: "UNKNOWN_COLORWAY", message: "That draft's colorway isn't one of the designed looks." });
+      return;
+    }
+    /* Apply: the draft's layout becomes the live layout; its colorway +
+       fonts resolve into theme_config exactly like a theme-settings
+       save; the draft is consumed. This is the ONLY template door to
+       the live page — the creator's approval click. */
+    const fonts = { ...((cfg["fonts"] ?? {}) as Record<string, unknown>), heading: draft.headingFont, body: draft.bodyFont };
+    const nextConfig: Record<string, unknown> = {
+      ...cfg,
+      fonts,
+      themeId: colorwayDef.id,
+      colors: { ...colorwayDef.colors },
+      [LIVE_TEMPLATE_KEY]: draft.templateId,
+    };
+    delete nextConfig["profileTemplateDraft"];
+    await db.update(creatorProfilesTable)
+      .set({
+        layoutBlocks: draft.layout as unknown as Array<Record<string, unknown>>,
+        themeConfig: nextConfig,
+        themeId: colorwayDef.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(creatorProfilesTable.id, own.id));
+    const saved = await getOwnProfile(req.userId!);
+    res.json({ saved: true, ...(saved ? templateStateResponse(saved) : templateStateResponse({ ...own, themeConfig: nextConfig, layoutBlocks: draft.layout as unknown as Array<Record<string, unknown>> })) });
+  } catch (err) {
+    req.log.error({ err }, "profile template approve error");
+    res.status(500).json({ error: "Couldn't publish your template. Try again." });
+  }
+});
+
+router.delete("/creator-profiles/me/template/draft", publicApiLimiter, requireAuth, async (req, res) => {
+  try {
+    const own = await getOwnProfile(req.userId!);
+    if (!own) {
+      res.status(404).json(NO_PROFILE);
+      return;
+    }
+    const cfg = { ...((own.themeConfig ?? {}) as Record<string, unknown>) };
+    delete cfg["profileTemplateDraft"];
+    await db.update(creatorProfilesTable)
+      .set({ themeConfig: cfg, updatedAt: new Date() })
+      .where(eq(creatorProfilesTable.id, own.id));
+    const saved = await getOwnProfile(req.userId!);
+    res.json({ saved: true, ...(saved ? templateStateResponse(saved) : templateStateResponse({ ...own, themeConfig: cfg })) });
+  } catch (err) {
+    req.log.error({ err }, "profile template draft DELETE error");
+    res.status(500).json({ error: "Couldn't discard your draft. Try again." });
   }
 });
 
