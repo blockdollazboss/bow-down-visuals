@@ -75,7 +75,7 @@ router.get("/supporter-board/by-slug/:slug", publicApiLimiter, optionalAuth, asy
   }
   const period: SupporterPeriod = parsedPeriod.data ?? "month";
   try {
-    const creator = await publicCreatorBySlug(req.params.slug);
+    const creator = await publicCreatorBySlug(String(req.params.slug ?? ""));
     if (!creator) {
       res.status(404).json({ error: "Creator not found." });
       return;
@@ -163,7 +163,7 @@ router.put("/supporter-board/me/settings", requireAuth, async (req, res) => {
 
 async function setOptOut(req: Request, res: Response, optedOut: boolean) {
   try {
-    const creator = await publicCreatorBySlug(req.params.slug);
+    const creator = await publicCreatorBySlug(String(req.params.slug ?? ""));
     if (!creator) {
       res.status(404).json({ error: "Creator not found." });
       return;
