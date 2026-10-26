@@ -10,6 +10,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildBillingState, type SubscriptionBillingRow } from "../lib/billing-state";
 import {
   TIER_PLANS,
   TIER_FEE_BPS,
@@ -31,6 +32,9 @@ import {
 
    GET  /creator-tiers/plans      tier catalog (public) — the money story
    GET  /creator-tiers/me         caller's tier + fee rate (auth)
+   GET  /creator-tiers/billing    Settings → Billing state (auth)
+   POST /creator-tiers/cancel     cancel at period end — the FAQ promise (auth)
+   POST /creator-tiers/resume     undo a pending cancel before period end (auth)
    POST /creator-tiers/checkout   Stripe subscription checkout (auth)
    POST /creator-tiers/portal     Stripe billing portal — manage/cancel (auth)
    GET  /creator-tiers/earnings   gross/fee/net widgets + payout balance (auth)
@@ -120,18 +124,28 @@ router.get("/creator-tiers/plans", publicApiLimiter, (_req, res) => {
   });
 });
 
+/* ── The caller's full subscription row — the Billing source of truth ── */
+async function loadBillingRow(profileId: string): Promise<SubscriptionBillingRow | null> {
+  const [r] = await db
+    .select({
+      tier: creatorSubscriptionsTable.tier,
+      status: creatorSubscriptionsTable.status,
+      currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd,
+      cancelAtPeriodEnd: creatorSubscriptionsTable.cancelAtPeriodEnd,
+      stripeSubscriptionId: creatorSubscriptionsTable.stripeSubscriptionId,
+      stripeCustomerId: creatorSubscriptionsTable.stripeCustomerId,
+    })
+    .from(creatorSubscriptionsTable)
+    .where(eq(creatorSubscriptionsTable.profileId, profileId))
+    .limit(1);
+  return r ?? null;
+}
+
 /* ── GET /creator-tiers/me ── auth ── */
 router.get("/creator-tiers/me", requireAuth, async (req, res) => {
   const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
-  let row: { status: string; currentPeriodEnd: Date | null } | null = null;
-  if (profileId) {
-    const [r] = await db
-      .select({ status: creatorSubscriptionsTable.status, currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd })
-      .from(creatorSubscriptionsTable)
-      .where(eq(creatorSubscriptionsTable.profileId, profileId))
-      .limit(1);
-    row = r ?? null;
-  }
+  const row = profileId ? await loadBillingRow(profileId) : null;
+  const billing = buildBillingState(row, tier);
   res.json({
     tier,
     status: row?.status ?? "active",
@@ -139,8 +153,126 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
     feePct: bpsToPct(TIER_FEE_BPS[tier]),
     aiBoostsPerMonth: TIER_AI_BOOSTS[tier],
     currentPeriodEnd: row?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? null,
+    billingStatus: billing.status,
     profileId,
   });
+});
+
+/* ── GET /creator-tiers/billing ── auth: Settings → Billing ──
+   Reads the SAME creator_subscriptions row the webhook sync maintains
+   and the tier gate reads — one source, no drift. Free users (no row,
+   or a row with no Stripe subscription) get an honest free state. */
+router.get("/creator-tiers/billing", requireAuth, async (req, res) => {
+  const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
+  const row = profileId ? await loadBillingRow(profileId) : null;
+  res.json({ billing: buildBillingState(row, tier), profileId });
+});
+
+/* ── POST /creator-tiers/cancel ── auth: cancel at period end ──
+   The FAQ promise, implemented literally: Stripe
+   cancel_at_period_end = true keeps the paid tier until the end of the
+   current billing period; only then does the subscription end and the
+   webhook sync glide the tier back to Free. The local row is updated
+   in the same request so Settings shows "canceling" immediately; the
+   later customer.subscription.updated webhook writes the same values.
+   An API cancel (not just a portal redirect) is the primary control
+   because the promise must be testable and visible IN the site, and
+   the site never sends the customer away to manage their plan. The
+   Stripe Customer Portal session below stays available as a secondary
+   "manage payment method" door for paid subscribers. */
+router.post("/creator-tiers/cancel", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
+  if (!profileId) {
+    res.status(404).json({ error: "No creator profile yet — nothing to cancel." });
+    return;
+  }
+  const row = await loadBillingRow(profileId);
+  if (!row?.stripeSubscriptionId) {
+    res.status(404).json({ error: "No paid subscription to cancel. You're on Free." });
+    return;
+  }
+  const before = buildBillingState(row, tier);
+  if (before.status === "canceling") {
+    res.status(409).json({ error: "This subscription is already set to cancel at the end of the billing period.", billing: before });
+    return;
+  }
+  if (before.status !== "active" && before.status !== "trialing") {
+    res.status(409).json({ error: `A ${before.status} subscription can't be canceled.`, billing: before });
+    return;
+  }
+  let stripe: Stripe;
+  try {
+    stripe = getTestStripe();
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+    return;
+  }
+  try {
+    const sub = await stripe.subscriptions.update(row.stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    });
+    const itemEnd = sub.items?.data?.[0]?.current_period_end;
+    const endsAt =
+      typeof sub.cancel_at === "number"
+        ? new Date(sub.cancel_at * 1000)
+        : typeof itemEnd === "number"
+          ? new Date(itemEnd * 1000)
+          : row.currentPeriodEnd;
+    await db
+      .update(creatorSubscriptionsTable)
+      .set({ cancelAtPeriodEnd: endsAt, updatedAt: new Date() })
+      .where(eq(creatorSubscriptionsTable.profileId, profileId));
+    const billing = buildBillingState({ ...row, cancelAtPeriodEnd: endsAt }, tier);
+    logger.info({ userId: req.userId, subId: row.stripeSubscriptionId, endsAt }, "creator tier cancel-at-period-end set");
+    res.json({ ok: true, billing });
+  } catch (err) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg }, "creator-tiers cancel: Stripe update failed");
+    res.status(502).json({ error: `Stripe couldn't cancel your subscription: ${msg}` });
+  }
+});
+
+/* ── POST /creator-tiers/resume ── auth: undo a pending cancel ── */
+router.post("/creator-tiers/resume", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
+  if (!profileId) {
+    res.status(404).json({ error: "No creator profile yet — nothing to resume." });
+    return;
+  }
+  const row = await loadBillingRow(profileId);
+  if (!row?.stripeSubscriptionId) {
+    res.status(404).json({ error: "No paid subscription to resume. You're on Free." });
+    return;
+  }
+  const before = buildBillingState(row, tier);
+  if (before.status !== "canceling") {
+    res.status(409).json({ error: "This subscription isn't set to cancel — nothing to resume.", billing: before });
+    return;
+  }
+  let stripe: Stripe;
+  try {
+    stripe = getTestStripe();
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+    return;
+  }
+  try {
+    await stripe.subscriptions.update(row.stripeSubscriptionId, {
+      cancel_at_period_end: false,
+    });
+    await db
+      .update(creatorSubscriptionsTable)
+      .set({ cancelAtPeriodEnd: null, updatedAt: new Date() })
+      .where(eq(creatorSubscriptionsTable.profileId, profileId));
+    const billing = buildBillingState({ ...row, cancelAtPeriodEnd: null }, tier);
+    logger.info({ userId: req.userId, subId: row.stripeSubscriptionId }, "creator tier cancel undone (resumed)");
+    res.json({ ok: true, billing });
+  } catch (err) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg }, "creator-tiers resume: Stripe update failed");
+    res.status(502).json({ error: `Stripe couldn't resume your subscription: ${msg}` });
+  }
 });
 
 /* ── ensure a creator profile exists (checkout needs a profile_id FK target) ── */
