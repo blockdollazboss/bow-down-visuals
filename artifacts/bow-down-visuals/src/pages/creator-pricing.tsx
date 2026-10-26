@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import { loginPathWithNext } from "@/lib/auth-next";
+import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
    The tier upgrade page. Sells the MONEY MATH, not vibes: every tier
@@ -276,6 +277,11 @@ export default function CreatorPricing() {
                   </>
                 )}
               </div>
+              {/* Wave-4 #46: display-only local-currency rendering of the
+                  tier price — the charge stays the USD figure above. */}
+              {p.priceUsdPerMonth != null && p.priceUsdPerMonth > 0 && (
+                <LocalCurrencyPrice usd={p.priceUsdPerMonth} className="text-xs mt-1" />
+              )}
               <div className={`mt-1 text-sm font-bold ${isLight ? "text-[#7A5A12]" : "text-amber-300"}`}>{p.feePct} platform fee on every sale</div>
               <ul className="mt-5 flex-1 space-y-2.5 text-sm">
                 {p.features.map((f) => (
@@ -320,6 +326,7 @@ export default function CreatorPricing() {
         {error && (
           <div className="mt-4 rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-sm text-red-200">{error}</div>
         )}
+        <CurrencyHonestyNote className="mt-4 text-center" />
 
         {/* earned rank — stars come from work, never from a tier */}
         <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>

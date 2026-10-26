@@ -13,6 +13,7 @@ import type { ProductDropDTO } from "@/lib/storefront-api";
 import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert } from "@/lib/storefront-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import CourseOutline from "@/components/courses/CourseOutline";
+import { LocalCurrencyPrice } from "@/components/LocalCurrencyPrice";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
    The landing page for one store product (downloads, merch, digital
@@ -710,6 +711,11 @@ export default function StorefrontProduct() {
                     )}
                   </span>
                 </div>
+                {/* Wave-4 #46: display-only local-currency rendering of the
+                    USD price above — checkout still charges USD. */}
+                {!isFree && (
+                  <LocalCurrencyPrice cents={data.product.priceCents} className="text-xs mt-2 text-right" />
+                )}
                 {isFree ? (
                   <p className="mt-3 flex items-start gap-1.5 border-t border-amber-500/10 pt-3 text-xs text-amber-100/60">
                     <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
