@@ -7,6 +7,8 @@ import { shareDrop } from "@/lib/share-drop";
 import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
 import WishlistButton from "@/components/wishlist/WishlistButton";
+import ProductOfferPanel from "@/components/offers/ProductOfferPanel";
+import type { ProductOffer } from "@/lib/product-offers";
 import { dropCountdown, formatDropLocal, pad2 } from "@/lib/product-drop";
 import { fireCommercePageView, type CommercePixels } from "@/lib/commerce-pixels";
 import type { ProductDropDTO } from "@/lib/storefront-api";
@@ -615,6 +617,28 @@ export default function StorefrontProduct() {
     }
   }
 
+  /* Make-an-offer (#43): the accepted offer buys through THIS same
+     checkout — the server prices the session from the offer row. */
+  async function buyWithOffer(offer: ProductOffer) {
+    if (!data) return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    const token = await getAccessToken();
+    const res = await fetch("/api/storefront/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ productId: data.product.id, offerId: offer.id }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { url?: string | null; error?: string; message?: string };
+    if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
+    window.location.href = body.url;
+  }
+
   const panel = isLight
     ? "bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]"
     : "bg-gradient-to-b from-[#171204] to-[#0d0a04]";
@@ -741,6 +765,20 @@ export default function StorefrontProduct() {
                   </>
                 )}
               </div>
+
+              {/* Wave 4 #43: make-an-offer, docked under the price —
+                  free products are claimed and gift cards buy for
+                  someone else, so neither negotiates. */}
+              {!isFree && !isGiftCard && (
+                <ProductOfferPanel
+                  itemKind="store_product"
+                  itemId={data.product.id}
+                  listPriceCents={data.product.priceCents}
+                  soldOut={!!data.product.soldOut}
+                  onCheckoutOffer={buyWithOffer}
+                  className="mt-6"
+                />
+              )}
 
               {isDropUpcoming ? null : data.product.soldOut ? (
                 <>

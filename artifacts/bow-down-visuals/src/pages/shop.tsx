@@ -13,6 +13,8 @@ import {
 import { usePageTitle } from "@/hooks/use-page-title";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
 import WishlistButton from "@/components/wishlist/WishlistButton";
+import ProductOfferPanel from "@/components/offers/ProductOfferPanel";
+import type { ProductOffer } from "@/lib/product-offers";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   fireCommercePageView,
@@ -334,6 +336,28 @@ export default function ShopStorefront() {
     }
   }
 
+  /* Make-an-offer (#43): the accepted offer buys through this same
+     shops checkout as a single-item order — the server prices it from
+     the offer row, never from the client. */
+  async function buyWithOffer(offer: ProductOffer) {
+    if (!shop) return;
+    const res = await fetch("/api/storefronts/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        shopId: shop.id,
+        productId: offer.item_id,
+        offerId: offer.id,
+        ...(buyerEmail.trim() ? { buyerEmail: buyerEmail.trim() } : {}),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
+    const url = typeof data.url === "string" ? data.url : typeof data.checkoutUrl === "string" ? data.checkoutUrl : null;
+    if (!url) throw new Error(t("shop.errorOrderFailed"));
+    window.location.href = url;
+  }
+
   const accent = shop?.accent_color ?? "#d4af37";
 
   return (
@@ -492,6 +516,16 @@ export default function ShopStorefront() {
               <div className="mt-4">
                 <WishlistButton itemKind="shop_product" itemId={selected.id} variant="labeled" />
               </div>
+              {/* Wave 4 #43: make-an-offer, docked in the product
+                  detail — accepted offers check out at the agreed
+                  price through the shops checkout above. */}
+              <ProductOfferPanel
+                itemKind="shop_product"
+                itemId={selected.id}
+                listPriceCents={selected.price_cents}
+                onCheckoutOffer={buyWithOffer}
+                className="mt-4"
+              />
               {selected.description && (
                 <p className="mt-3 text-sm text-white/60 whitespace-pre-line">{selected.description}</p>
               )}
