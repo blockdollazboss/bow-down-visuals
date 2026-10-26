@@ -14,7 +14,7 @@ import { fetchSceneDirectory, type SceneCityEntry } from "@/lib/scenes";
    An empty directory says exactly that. */
 
 export default function ScenesDirectory() {
-  usePageTitle("Local Scenes — Bow Down Visuals");
+  usePageTitle("Local Scenes", "Every city with a real scene — the creators who declared it, their real shows, and the city's own chart.");
   const isLight = useIsLightTheme();
   const [cities, setCities] = useState<SceneCityEntry[] | null>(null);
   const [failed, setFailed] = useState(false);

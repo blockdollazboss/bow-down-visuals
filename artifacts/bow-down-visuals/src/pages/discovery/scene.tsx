@@ -34,7 +34,7 @@ export default function SceneCityPage() {
   const [scene, setScene] = useState<ScenePage | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "noscene">("loading");
 
-  usePageTitle(scene ? `${scene.city.name} Scene — Bow Down Visuals` : "Local Scenes — Bow Down Visuals");
+  usePageTitle("Local Scenes", "One city's scene page: the creators who declared the city, its real upcoming shows, and the city's own chart.");
 
   useEffect(() => {
     let cancelled = false;
