@@ -4,6 +4,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
 import { getSupabaseAdmin, addCreditsAtomic } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { sweepTtlIfLarge, capMapSize } from "../lib/sweep-map";
 
 const router = Router();
 
@@ -20,9 +21,19 @@ function currentPeriod(): string {
 const buckets = new Map<string, { tokens: number; last: number }>();
 const MAX_TOKENS = 5;
 const REFILL_PER_MS = 1 / 2000; // 1 token per 2s
+/* OOM fix (2026-10-25): one bucket per user who ever bowed was kept
+ * forever. A bucket idle for a full refill window is back at
+ * MAX_TOKENS — indistinguishable from a fresh one — so deleting it
+ * changes nothing observable. Sweep idle buckets once the map is
+ * large; hard cap as backstop. */
+const BUCKET_IDLE_MS = MAX_TOKENS / REFILL_PER_MS; // 10s to full
+const BUCKETS_SWEEP_THRESHOLD = 1000;
+const BUCKETS_MAX_ENTRIES = 10_000;
 
 function bowRateLimited(userId: string): boolean {
   const now = Date.now();
+  sweepTtlIfLarge(buckets, BUCKETS_SWEEP_THRESHOLD, BUCKET_IDLE_MS, (b) => b.last, now);
+  capMapSize(buckets, BUCKETS_MAX_ENTRIES, (b) => b.last);
   const b = buckets.get(userId) ?? { tokens: MAX_TOKENS, last: now };
   b.tokens = Math.min(MAX_TOKENS, b.tokens + (now - b.last) * REFILL_PER_MS);
   b.last = now;

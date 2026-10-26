@@ -29,6 +29,7 @@ import {
 import { isR2Configured, r2ObjectSize } from "./r2-client";
 import { siteOrigin } from "./og-preview";
 import { logger } from "./logger";
+import { sweepTtlIfLarge, capMapSize } from "./sweep-map";
 
 /* ── Show settings (theme_config.podcastFeed) ────────────────────────── */
 
@@ -325,6 +326,11 @@ export async function probeLengthViaRange(url: string): Promise<number | null> {
 
 const enclosureCache = new Map<string, { at: number; value: Enclosure | null }>();
 const ENCLOSURE_CACHE_TTL_MS = 10 * 60_000;
+/* OOM fix (2026-10-25): the TTL was read-checked only — one entry
+ * per track ever rendered into a feed lived forever. Sweep expired
+ * entries once the cache is large; hard cap as backstop. */
+const ENCLOSURE_CACHE_SWEEP_THRESHOLD = 1000;
+const ENCLOSURE_CACHE_MAX_ENTRIES = 5000;
 
 export function clearEnclosureCache(): void {
   enclosureCache.clear();
@@ -394,6 +400,8 @@ export async function resolveEnclosure(
   }
 
   enclosureCache.set(cacheKey, { at: Date.now(), value });
+  sweepTtlIfLarge(enclosureCache, ENCLOSURE_CACHE_SWEEP_THRESHOLD, ENCLOSURE_CACHE_TTL_MS, (e) => e.at);
+  capMapSize(enclosureCache, ENCLOSURE_CACHE_MAX_ENTRIES, (e) => e.at);
   return value;
 }
 

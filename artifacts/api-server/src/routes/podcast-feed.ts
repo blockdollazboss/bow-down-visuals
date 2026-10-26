@@ -23,6 +23,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { sweepTtlIfLarge, capMapSize } from "../lib/sweep-map";
 import { siteOrigin, absoluteMediaUrl } from "../lib/og-preview";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
@@ -92,6 +93,11 @@ async function absoluteRefreshed(raw: string | null | undefined): Promise<string
 
 const ownerEmailCache = new Map<string, { at: number; email: string | null }>();
 const OWNER_EMAIL_TTL_MS = 15 * 60_000;
+/* OOM fix (2026-10-25): the TTL was read-checked only and nothing
+ * ever deleted — one entry per feed owner for the process lifetime.
+ * Sweep expired entries once large; hard cap as backstop. */
+const OWNER_EMAIL_SWEEP_THRESHOLD = 1000;
+const OWNER_EMAIL_MAX_ENTRIES = 5000;
 
 async function ownerEmailFor(userId: string): Promise<string | null> {
   const hit = ownerEmailCache.get(userId);
@@ -104,6 +110,8 @@ async function ownerEmailFor(userId: string): Promise<string | null> {
     logger.warn({ err, userId }, "podcast-feed: owner email lookup failed");
   }
   ownerEmailCache.set(userId, { at: Date.now(), email });
+  sweepTtlIfLarge(ownerEmailCache, OWNER_EMAIL_SWEEP_THRESHOLD, OWNER_EMAIL_TTL_MS, (e) => e.at);
+  capMapSize(ownerEmailCache, OWNER_EMAIL_MAX_ENTRIES, (e) => e.at);
   return email;
 }
 

@@ -1,7 +1,7 @@
 /** Flag S-4 (Lane F perf audit): TTL sweep for process-local timestamp maps. */
 import { describe, it, expect } from "vitest";
 import { cacheControlForFile, spaFallbackStatus } from "../cache-policy";
-import { sweepIfLarge, sweepStaleEntries } from "../sweep-map";
+import { sweepIfLarge, sweepStaleEntries, sweepTtlEntries, sweepTtlIfLarge, capMapSize } from "../sweep-map";
 
 describe("sweepStaleEntries", () => {
   it("deletes only entries older than the TTL", () => {
@@ -18,6 +18,56 @@ describe("sweepStaleEntries", () => {
     const now = 1_000_000;
     const map = new Map<string, number>([["stale", now - 3_600_000]]);
     expect(sweepIfLarge(map, 5000, 60_000, now)).toBe(0);
+    expect(map.size).toBe(1);
+  });
+});
+
+describe("sweepTtlEntries / sweepTtlIfLarge (OOM fix 2026-10-25)", () => {
+  it("deletes { at } cache entries older than the TTL only", () => {
+    const now = 1_000_000;
+    const map = new Map<string, { at: number; v: string }>([
+      ["fresh", { at: now - 1_000, v: "a" }],
+      ["stale", { at: now - 61_000, v: "b" }],
+    ]);
+    expect(sweepTtlEntries(map, 60_000, (e) => e.at, now)).toBe(1);
+    expect([...map.keys()]).toEqual(["fresh"]);
+  });
+  it("ages hit-window arrays by their newest hit", () => {
+    const now = 1_000_000;
+    const map = new Map<string, number[]>([
+      ["active", [now - 50_000, now - 1_000]],
+      ["quiet", [now - 120_000, now - 90_000]],
+    ]);
+    const newest = (hits: number[]) => (hits.length ? hits[hits.length - 1]! : 0);
+    expect(sweepTtlEntries(map, 60_000, newest, now)).toBe(1);
+    expect([...map.keys()]).toEqual(["active"]);
+  });
+  it("sweepTtlIfLarge is a no-op under the threshold", () => {
+    const now = 1_000_000;
+    const map = new Map<string, { at: number }>([["stale", { at: now - 3_600_000 }]]);
+    expect(sweepTtlIfLarge(map, 5000, 60_000, (e) => e.at, now)).toBe(0);
+    expect(map.size).toBe(1);
+  });
+});
+
+describe("capMapSize (OOM fix 2026-10-25)", () => {
+  it("evicts least-recently-touched entries down to the cap", () => {
+    const map = new Map<string, { at: number }>([
+      ["oldest", { at: 100 }],
+      ["middle", { at: 200 }],
+      ["newest", { at: 300 }],
+    ]);
+    expect(capMapSize(map, 2, (e) => e.at)).toBe(1);
+    expect([...map.keys()]).toEqual(["middle", "newest"]);
+  });
+  it("falls back to insertion order without a timestamp accessor", () => {
+    const map = new Map<string, number>([["a", 1], ["b", 2], ["c", 3]]);
+    expect(capMapSize(map, 1)).toBe(2);
+    expect([...map.keys()]).toEqual(["c"]);
+  });
+  it("is a no-op at or under the cap", () => {
+    const map = new Map<string, number>([["a", 1]]);
+    expect(capMapSize(map, 5)).toBe(0);
     expect(map.size).toBe(1);
   });
 });

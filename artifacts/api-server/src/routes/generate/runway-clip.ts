@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
@@ -88,7 +89,11 @@ export interface PendingFormatDelivery {
   reframeTarget: "1:1" | "4:5" | null;
   notice: string | null;
 }
-const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string; formatDelivery?: PendingFormatDelivery }>();
+/* OOM fix (2026-10-25): entries were deleted only on the poll paths,
+ * so a task the client abandoned lived forever. The house job-map TTL
+ * (2h — the lip-sync precedent) bounds it; provider tasks settle in
+ * minutes, so a 2h-old pending entry is an abandoned one. */
+const pendingTasks = attachJobMapTtl(new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string; formatDelivery?: PendingFormatDelivery }>());
 
 /**
  * Tracks successfully charged tasks so generated-clips.ts can issue a refund

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
@@ -32,7 +33,9 @@ export const INTRO_OUTRO_BUCKET = "generated-clips";
  * Tracks submitted Seedance intro/outro tasks — credits charged on SUCCEEDED only.
  * Key: Runway taskId  Value: { userId, credits }
  */
-const pendingIntroTasks = new Map<string, { userId: string; credits: number }>();
+/* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
+ * by the house job-map TTL (2h), like the other pending-task maps. */
+const pendingIntroTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number }>());
 /** Test hook — clears the in-memory task map. */
 export function __clearPendingIntroTasks() {
   pendingIntroTasks.clear();

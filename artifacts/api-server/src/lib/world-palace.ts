@@ -85,6 +85,16 @@ export const HERALD_MIN_INTERVAL_MS = 10_000;
  *  total linger is the stale window plus at most one sweep tick. */
 export const WORLD_PRESENCE_SWEEP_MS = 15_000;
 
+/** How long a materialized creator room may stand empty before the
+ *  palace demolishes it (OOM fix, 2026-10-25). Creator rooms were
+ *  materialized on first touch and kept for the life of the process
+ *  — one full WorldRoom (peer maps, jukebox/stage/drop state,
+ *  closures) per creator slug ever visited. Demolition is safe: the
+ *  room re-materializes on the next enter/read via noteCreatorRoom,
+ *  exactly as it did the first time. Fixed palace rooms (hall,
+ *  plaza, halls) are not creator rooms and are never demolished. */
+export const CREATOR_ROOM_IDLE_MS = 30 * 60_000;
+
 export interface PalaceRoomDef extends WorldRoomOptions {
   roomId: string;
   name: string;
@@ -446,6 +456,9 @@ export class WorldPalace {
    *  `rooms` under their `creator:<slug>` ids; this index is how
    *  the directory names them. */
   private creatorRooms = new Map<string, { room: WorldRoom; displayName: string }>();
+  /** When each creator room was first seen empty by the sweep —
+   *  the idle clock behind CREATOR_ROOM_IDLE_MS demolition. */
+  private creatorRoomEmptySince = new Map<string, number>();
   /** Slugs with a creator-room resolution already in flight — a
    *  burst of room.enter frames for one unmaterialized room
    *  resolves the profile once, not once per frame. */
@@ -648,11 +661,39 @@ export class WorldPalace {
   }
 
   /** One sweep of every room: reap each room's frame-silent
-   *  peers. Returns the palace-wide reap count. */
+   *  peers. Returns the palace-wide reap count. Also demolishes
+   *  creator rooms that have stood empty past CREATOR_ROOM_IDLE_MS
+   *  (see the constant) — the peer reap runs first, so a room whose
+   *  last ghost just expired starts its idle clock on this sweep. */
   sweepStalePeers(now = Date.now()): number {
     let n = 0;
     for (const room of this.rooms.values()) n += room.sweepStalePeers(now);
+    this.demolishIdleCreatorRooms(now);
     return n;
+  }
+
+  /** Drop creator rooms nobody has stood in for the idle window.
+   *  Occupied rooms clear their clock; a demolished room is removed
+   *  from both indexes and the directory is re-broadcast. */
+  private demolishIdleCreatorRooms(now: number): void {
+    let demolished = false;
+    for (const [slug, entry] of [...this.creatorRooms]) {
+      if (entry.room.size() > 0) {
+        this.creatorRoomEmptySince.delete(slug);
+        continue;
+      }
+      const since = this.creatorRoomEmptySince.get(slug);
+      if (since === undefined) {
+        this.creatorRoomEmptySince.set(slug, now);
+        continue;
+      }
+      if (now - since < CREATOR_ROOM_IDLE_MS) continue;
+      this.rooms.delete(creatorRoomIdForSlug(slug));
+      this.creatorRooms.delete(slug);
+      this.creatorRoomEmptySince.delete(slug);
+      demolished = true;
+    }
+    if (demolished) this.broadcastDirectory();
   }
 
   /** Disconnect/error: despawn from whichever room holds the socket. */
