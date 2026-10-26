@@ -6,8 +6,9 @@ R=.verify/RESULTS.md
 step() { echo "## $1" >> "$R"; }
 done_step() { echo "exit=$1" >> "$R"; }
 export NODE_OPTIONS=--max-old-space-size=2048
+step "build-libs"
+( ./node_modules/.bin/tsc --build . ) >> .verify/build.log 2>&1; done_step $?
 step "api-typecheck"
-( cd lib/db && ../../node_modules/.bin/tsc -b . ) >> .verify/api-tc.log 2>&1
 ( cd artifacts/api-server && ../../node_modules/.bin/tsc --noEmit -p tsconfig.json ) >> .verify/api-tc.log 2>&1; done_step $?
 step "fe-typecheck"
 ( cd artifacts/bow-down-visuals && ../../node_modules/.bin/tsc --noEmit -p tsconfig.json ) >> .verify/fe-tc.log 2>&1; done_step $?
