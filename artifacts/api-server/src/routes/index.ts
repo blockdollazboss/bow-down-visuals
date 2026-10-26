@@ -374,6 +374,7 @@ import worldCourtSeasonRouter from "./world-court-season";
 import worldContestsRouter from "./world-contests";
 import worldTutorialRouter from "./world-tutorial";
 import moveHomeRouter from "./move-home";
+import first100Router from "./first100";
 import catalogImportRouter from "./catalog-import";
 import tutorialsRouter from "./tutorials";
 import coursesRouter from "./courses";
@@ -748,6 +749,7 @@ router.use(worldCourtSeasonRouter);           // /api/world/court-season (Court 
 router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
 router.use(moveHomeRouter);                   // /api/move-home (Move Home concierge onboarding, 0193)
+router.use(first100Router);                   // /api/first100 (First 100 Fans guided path, #155)
 router.use(catalogImportRouter);              // /api/catalog-import (Back-Catalog Migration Assistant, 0200)
 router.use(tutorialsRouter);                  // /api/tutorials (Tutorials V1 — Academy how-tos + fan progress, 0201)
 router.use(coursesRouter);                    // /api/courses (Creator Courses — storefront kind='course', curriculum + drip + progress; tables pending migration)
