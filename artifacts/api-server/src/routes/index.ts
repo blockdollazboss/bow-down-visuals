@@ -351,6 +351,7 @@ import creatorPlatformRouter from "./creator-platform";
 import podcastFeedRouter from "./podcast-feed";
 import commentControlsRouter from "./comment-controls";
 import royalCourtRouter from "./royal-court";
+import supporterBoardRouter from "./supporter-board";
 import profileWebsiteRouter from "./profile-website";
 import profileHostingRouter from "./profile-hosting";
 import worldRouter from "./world";
@@ -707,6 +708,7 @@ router.use(commentControlsRouter);          // /api/creator-profiles/me/comment-
 router.use(creatorPlatformRouter);          // /api/creator-profiles/*, follows, likes, plays, DMCA
 router.use(podcastFeedRouter);              // /api/podcast-feed/* — hosted per-show RSS for Apple/Spotify (Lane F10)
 router.use(royalCourtRouter);               // /api/creator-profiles/:slug/court, /me/court (The Front Row)
+router.use(supporterBoardRouter);           // /api/supporter-board/* (Wave-4 #49 + N6: top-supporter recognition on creator profiles)
 router.use(profileWebsiteRouter);           // /api/creator-profiles layout/theme/store/spotlight, /api/collections/* (Stack 3)
 router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 Hosting plan)
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
