@@ -1,0 +1,15 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/__tests__/scenes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 757[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/scenes-lib.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 92[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 16:05:11
+[2m   Duration [22m 16.89s[2m (transform 51%, import 42%, tests 6%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 7.70s[39m[2m · 51% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

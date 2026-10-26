@@ -1,0 +1,1104 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/generate/__tests__/email-automations.test.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 2165[2mms[22m[39m
+   [32m✓[39m provisioning + API [2m(4)[22m
+     [33m[2m✓[22m[39m provisions the four starters disabled, with defaults, exactly once[33m 406[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list-opens-honesty.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 2776[2mms[22m[39m
+   [32m✓[39m subscribers stats honesty (tracked era) [2m(2)[22m
+     [33m[2m✓[22m[39m reports the measured rate once a real open is recorded[33m 308[2mms[22m[39m
+   [32m✓[39m segments [2m(7)[22m
+     [33m[2m✓[22m[39m derives presave / member / buyer auto tags from house rows[33m 326[2mms[22m[39m
+[17:49:09.246] [33mWARN[39m (38369): [36m[wishlists] price-drop detection failed[39m
+    [35mitemKind[39m: "shop_product"
+    [35mitemId[39m: "a4bb8bc7-06ff-4c89-94bb-589b175a500a"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, user_id, lowest_cents\n      FROM wishlists\n      WHERE item_kind = $1 AND item_id = $2::uuid\n        AND lowest_cents > $3\n    \nparams: shop_product,a4bb8bc7-06ff-4c89-94bb-589b175a500a,3499: relation \"wishlists\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, user_id, lowest_cents\n      FROM wishlists\n      WHERE item_kind = 'shop_product' AND item_id = 'a4bb8bc7-06ff-4c89-94bb-589b175a500a'::uuid\n        AND lowest_cents > '3499'\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, user_id, lowest_cents
+                FROM wishlists
+                WHERE item_kind = $1 AND item_id = $2::uuid
+                  AND lowest_cents > $3
+              
+          params: shop_product,a4bb8bc7-06ff-4c89-94bb-589b175a500a,3499
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at detectWishlistPriceDrop (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/wishlists.ts:247:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:1094:5
+          caused by: Error: relation "wishlists" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, user_id, lowest_cents
+                FROM wishlists
+                WHERE item_kind = 'shop_product' AND item_id = 'a4bb8bc7-06ff-4c89-94bb-589b175a500a'::uuid
+                  AND lowest_cents > '3499'
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, user_id, lowest_cents\n      FROM wishlists\n      WHERE item_kind = $1 AND item_id = $2::uuid\n        AND lowest_cents > $3\n    ",
+      "params": [
+        "shop_product",
+        "a4bb8bc7-06ff-4c89-94bb-589b175a500a",
+        3499
+      ]
+    }
+[17:49:10.405] [33mWARN[39m (38369): [36m[storefronts] view record failed[39m
+    [35mshopId[39m: "8c381346-8ba7-444a-aea9-958a81d7b5c9"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n        SELECT id FROM shop_events\n        WHERE shop_id = $1 AND event_type = 'view' AND ip_hash = $2\n          AND created_at > NOW() - INTERVAL '1 hour'\n        LIMIT 1\n      \nparams: 8c381346-8ba7-444a-aea9-958a81d7b5c9,e222e1d34ab05f0eb363b833ab5e4d87: relation \"shop_events\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n        SELECT id FROM shop_events\n        WHERE shop_id = '8c381346-8ba7-444a-aea9-958a81d7b5c9' AND event_type = 'view' AND ip_hash = 'e222e1d34ab05f0eb363b833ab5e4d87'\n          AND created_at > NOW() - INTERVAL '1 hour'\n        LIMIT 1\n      ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                  SELECT id FROM shop_events
+                  WHERE shop_id = $1 AND event_type = 'view' AND ip_hash = $2
+                    AND created_at > NOW() - INTERVAL '1 hour'
+                  LIMIT 1
+                
+          params: 8c381346-8ba7-444a-aea9-958a81d7b5c9,e222e1d34ab05f0eb363b833ab5e4d87
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at runNextTicks (node:internal/process/task_queues:65:5)
+              at processImmediate (node:internal/timers:541:9)
+              at recordView (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:1708:22)
+          caused by: Error: relation "shop_events" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                  SELECT id FROM shop_events
+                  WHERE shop_id = '8c381346-8ba7-444a-aea9-958a81d7b5c9' AND event_type = 'view' AND ip_hash = 'e222e1d34ab05f0eb363b833ab5e4d87'
+                    AND created_at > NOW() - INTERVAL '1 hour'
+                  LIMIT 1
+                ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n        SELECT id FROM shop_events\n        WHERE shop_id = $1 AND event_type = 'view' AND ip_hash = $2\n          AND created_at > NOW() - INTERVAL '1 hour'\n        LIMIT 1\n      ",
+      "params": [
+        "8c381346-8ba7-444a-aea9-958a81d7b5c9",
+        "e222e1d34ab05f0eb363b833ab5e4d87"
+      ]
+    }
+[17:49:11.576] [31mERROR[39m (38369): [36m[shops] shop-description generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider down",
+      "stack":
+          Error: provider down
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/shops.test.ts:585:64)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:1400:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:49:11.707] [31mERROR[39m (38369): [36m[shops] product-description generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "boom",
+      "stack":
+          Error: boom
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/shops.test.ts:619:64)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:1479:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:49:11.888] [31mERROR[39m (38369): [36m[shops] product-image generation failed — Visual Buc refunded[39m
+    err: "image provider down"
+[17:49:11.994] [31mERROR[39m (38369): [36m[shops] product-image generation failed — Visual Buc refunded[39m
+    err: "bucket still missing"
+ [32m✓[39m src/routes/generate/__tests__/shops.test.ts [2m([22m[2m45 tests[22m[2m)[22m[33m 6128[2mms[22m[39m
+   [32m✓[39m pricing constants [2m(2)[22m
+     [33m[2m✓[22m[39m AI descriptions cost 1 credit[33m 379[2mms[22m[39m
+   [32m✓[39m POST /api/shops [2m(7)[22m
+     [33m[2m✓[22m[39m creates a shop for free (no credit charge)[33m 556[2mms[22m[39m
+     [33m[2m✓[22m[39m rejects duplicate handles with 409[33m 323[2mms[22m[39m
+   [32m✓[39m DELETE /api/shops/:id [2m(2)[22m
+     [33m[2m✓[22m[39m deletes the owner's shop and cascades products[33m 344[2mms[22m[39m
+   [32m✓[39m product CRUD [2m(3)[22m
+     [33m[2m✓[22m[39m adds, updates, and removes products for free[33m 328[2mms[22m[39m
+   [32m✓[39m product pause/unlist [2m(7)[22m
+     [33m[2m✓[22m[39m owner pause: product vanishes from buyer reads, stays in the owner list, buyer DTO leaks no status[33m 646[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/free-ai-rate-limit.test.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 1794[2mms[22m[39m
+   [32m✓[39m freeAiLimiter on the improve endpoints [2m(4)[22m
+     [33m[2m✓[22m[39m lets a user under the hourly limit through on /improve-style (200)[33m 340[2mms[22m[39m
+     [33m[2m✓[22m[39m 429s the same user once 30 free calls are used in the hour[33m 713[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/playlist-pitch-packet-deadlines.test.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 1271[2mms[22m[39m
+   [32m✓[39m GET /playlist-pitch/packet/:releaseId [2m(7)[22m
+     [33m[2m✓[22m[39m returns the packet for the owner's release, with real stats[33m 365[2mms[22m[39m
+[17:49:35.590] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "8dfa8e32-e98e-442c-bdb5-599971cd35a5"
+    [35mfanUserId[39m: "2ab08ff9-3fca-472a-b67e-d3ec9cccda5c"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[17:49:35.736] [32mINFO[39m (38568): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "20fc8eb5-9e25-4d02-983a-9b698cea4a43"
+    [35mamountCents[39m: 1000
+[17:49:35.843] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "f05f9cf0-3730-4b07-84f4-64d787566ed6"
+    [35mfanUserId[39m: "2ab08ff9-3fca-472a-b67e-d3ec9cccda5c"
+    [35mamountCents[39m: 9000
+    [35mbillingPeriod[39m: "annual"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[17:49:35.868] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "f2cbfbf0-b89c-42ef-8228-3f9044f46e0b"
+    [35mfanUserId[39m: "2ab08ff9-3fca-472a-b67e-d3ec9cccda5c"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[17:49:35.882] [32mINFO[39m (38568): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "9a2d32e6-81c2-43ba-a82f-a18c190a123e"
+    [35mamountCents[39m: 1000
+[17:49:35.897] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "e683996a-47eb-4e20-bc3e-ed7a447cb3bd"
+    [35mfanUserId[39m: "2ab08ff9-3fca-472a-b67e-d3ec9cccda5c"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[17:49:35.933] [31mERROR[39m (38568): [36m[memberships] verify: tier deleted after payment[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mrefunded[39m: true
+[17:49:35.975] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "b96cf35a-add7-443e-8040-6e24f2c1a49d"
+    [35mfanUserId[39m: "2ab08ff9-3fca-472a-b67e-d3ec9cccda5c"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[17:49:36.030] [31mERROR[39m (38568): [36m[memberships] verify: amount mismatch[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mamountCents[39m: 500
+    [35mexpectedCents[39m: 1000
+[17:49:36.201] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "7e16cb0f-06b3-41f7-b1c1-c6e02ab94967"
+    [35mfanUserId[39m: "2ab08ff9-3fca-472a-b67e-d3ec9cccda5c"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: false
+    [35msessionId[39m: "cs_test_1"
+[17:49:36.231] [32mINFO[39m (38568): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "ffdb4eb4-6a88-46c7-a76e-0b711605e1a3"
+    [35mamountCents[39m: 1000
+[17:49:36.275] [32mINFO[39m (38568): [36m[memberships] checkout session created[39m
+    [35mtierId[39m: "357c9f35-ef6f-4464-a0e5-e8bff8f0f8ec"
+    [35mfanUserId[39m: "b3c013d0-9889-4433-9adb-59aa1c4fb4fc"
+    [35mamountCents[39m: 1000
+    [35mbillingPeriod[39m: "monthly"
+    [35misGift[39m: true
+    [35msessionId[39m: "cs_test_1"
+[17:49:36.294] [32mINFO[39m (38568): [36m[memberships] membership activated[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mmemberId[39m: "d1875d38-4335-476b-a01c-a8b8b382e48d"
+    [35mamountCents[39m: 1000
+[17:49:36.439] [31mERROR[39m (38568): [36m[memberships] public tiers load failed[39m
+    [35mcreatorUserId[39m: "3495307e-278b-4bdf-8391-ecf8a5b8cbfc"
+    err: {
+      "type": "Error",
+      "message": "fake db failure reading fan_tiers",
+      "stack":
+          Error: fake db failure reading fan_tiers
+              at matchRows (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/memberships-payments.test.ts:46:11)
+              at Object.then (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/memberships-payments.test.ts:71:62)
+    }
+ [32m✓[39m src/routes/generate/__tests__/memberships-payments.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1235[2mms[22m[39m
+   [32m✓[39m POST /memberships/checkout + verify [2m(7)[22m
+     [33m[2m✓[22m[39m charges the displayed monthly price and activates only after paid verify[33m 494[2mms[22m[39m
+[17:49:51.988] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "81f8f3a9-a605-4fa3-bebd-43f7c8319022"
+    [35mcode[39m: "SAVE25"
+[17:49:52.648] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "916efc5d-1887-4e00-a09a-ee3704b4f083"
+    [35mcode[39m: "MINE10"
+[17:49:52.907] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "8858d15a-11cb-4902-a704-66a40a2885d7"
+    [35mcode[39m: "SAVE25"
+[17:49:53.388] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "f5e27662-a84b-4ad8-a3cd-bbe180519101"
+    [35mcode[39m: "SAVE25"
+[17:49:53.497] [32mINFO[39m (38635): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "f5e27662-a84b-4ad8-a3cd-bbe180519101"
+    [35mgroupId[39m: "cd78ae10-16af-418a-83e1-eebebe14a4d4"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 3000
+[17:49:53.876] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "51ead5ba-f6f7-45bf-a4e0-160a9cf391a1"
+    [35mshopId[39m: "c2fe280d-757a-4019-b106-b81ada4837d1"
+    [35mcode[39m: "THEIRS"
+[17:49:54.169] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "6023b562-b9b3-4ae5-b513-ee98f49f30a3"
+    [35mcode[39m: "OFF10"
+[17:49:54.471] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "b375b14b-d622-49e0-b4c7-550ffba84bb4"
+    [35mcode[39m: "SAVE25"
+[17:49:54.606] [32mINFO[39m (38635): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "b375b14b-d622-49e0-b4c7-550ffba84bb4"
+    [35mgroupId[39m: "1aff77cd-5821-436a-b142-b20d94a72436"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 1875
+[17:49:54.836] [31mERROR[39m (38635): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,1aff77cd-5821-436a-b142-b20d94a72436: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '1aff77cd-5821-436a-b142-b20d94a72436' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,1aff77cd-5821-436a-b142-b20d94a72436
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '1aff77cd-5821-436a-b142-b20d94a72436' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "1aff77cd-5821-436a-b142-b20d94a72436"
+      ]
+    }
+[17:49:54.847] [32mINFO[39m (38635): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 2
+[17:49:55.071] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "1d914cbf-e362-4214-ab24-98b93de07dea"
+    [35mcode[39m: "FREEBIE"
+[17:49:55.545] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "60306500-f406-4a07-8b33-2e942e30b55a"
+    [35mcode[39m: "ONCE"
+[17:49:55.752] [32mINFO[39m (38635): [36m[shops] discount code created[39m
+    [35muserId[39m: "d2531aaa-d0f0-4a93-a91e-21f3372d0091"
+    [35mshopId[39m: "683e3529-f48a-4e10-8d65-6c83ec79a58e"
+    [35mcode[39m: "UNUSED"
+[17:49:55.838] [32mINFO[39m (38635): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "683e3529-f48a-4e10-8d65-6c83ec79a58e"
+    [35mgroupId[39m: "b8644d3d-a003-4f15-afcd-f0b884e79558"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 2000
+ [32m✓[39m src/routes/generate/__tests__/shop-discounts.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 5258[2mms[22m[39m
+   [32m✓[39m shop discount codes — owner management [2m(2)[22m
+     [33m[2m✓[22m[39m creates, lists, patches and deletes a code; duplicate name 409s; bad percent 400s[33m 1743[2mms[22m[39m
+   [32m✓[39m shop discount codes — validate + checkout math [2m(4)[22m
+     [33m[2m✓[22m[39m validate answers for THIS shop only and never spends a use[33m 338[2mms[22m[39m
+     [33m[2m✓[22m[39m checkout applies the storefront's exact math: unit discount first, 5% fee on the discounted gross[33m 444[2mms[22m[39m
+     [33m[2m✓[22m[39m a code that exists only at another shop is BAD_CODE and writes no rows[33m 415[2mms[22m[39m
+   [32m✓[39m shop discount codes — redemption counting [2m(4)[22m
+     [33m[2m✓[22m[39m counts exactly one use at the paid flip — one checkout, however many lines; verify + webhook replays never re-count[33m 590[2mms[22m[39m
+     [33m[2m✓[22m[39m a free cart records its sale at checkout — and counts the presented code there[33m 481[2mms[22m[39m
+     [33m[2m✓[22m[39m max_uses is enforced once the counted use lands[33m 328[2mms[22m[39m
+[17:50:09.762] [32mINFO[39m (38745): [36m[pos] checkout session created (order pending)[39m
+    [35mshopId[39m: "5b29c0aa-7d33-426f-88de-5c335b3b12b8"
+    [35mgroupId[39m: "pos_a596cbf6-192a-4d1f-b5a2-7fcfc611c8ee"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[17:50:10.196] [32mINFO[39m (38745): [36m[pos] checkout session created (order pending)[39m
+    [35mshopId[39m: "8b9d026c-1d29-4280-bc97-7f4fc08df233"
+    [35mgroupId[39m: "pos_b197ebf1-abdf-4c2b-8e27-6c3dda45deee"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 2000
+[17:50:10.585] [31mERROR[39m (38745): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,pos_b197ebf1-abdf-4c2b-8e27-6c3dda45deee: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = 'pos_b197ebf1-abdf-4c2b-8e27-6c3dda45deee' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,pos_b197ebf1-abdf-4c2b-8e27-6c3dda45deee
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = 'pos_b197ebf1-abdf-4c2b-8e27-6c3dda45deee' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "pos_b197ebf1-abdf-4c2b-8e27-6c3dda45deee"
+      ]
+    }
+[17:50:10.646] [32mINFO[39m (38745): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 1
+[17:50:11.631] [31mERROR[39m (38745): [36m[pos] checkout session failed — pending order removed[39m
+    [35mshopId[39m: "9f1c1fd3-b771-4329-851e-2ac8b512f7b9"
+    [35mgroupId[39m: "pos_cee705f2-df1c-4312-a96f-9a7634a4ce52"
+    err: {
+      "type": "Error",
+      "message": "stripe is down",
+      "stack":
+          Error: stripe is down
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/pos-in-person.test.ts:87:37)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2703:46
+    }
+[17:50:12.492] [32mINFO[39m (38745): [36m[pos] cash sale recorded to money tracker[39m
+    [35mshopId[39m: "6873b837-f5e9-4be9-8059-e1b89c4f371c"
+    [35mgross[39m: 4500
+    [35mlines[39m: 2
+[17:50:12.833] [32mINFO[39m (38745): [36m[pos] cash sale recorded to money tracker[39m
+    [35mshopId[39m: "3f63321b-7889-4ddf-b7e4-95532906a51a"
+    [35mgross[39m: 1500
+    [35mlines[39m: 1
+ [32m✓[39m src/routes/generate/__tests__/pos-in-person.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 4652[2mms[22m[39m
+   [32m✓[39m POST /shops/:id/pos/checkout — QR / payment-link sale [2m(9)[22m
+     [33m[2m✓[22m[39m prices from server rows, records pending in shop_events, marks the in-person channel, returns the payment link[33m 1768[2mms[22m[39m
+     [33m[2m✓[22m[39m becomes a sale through the EXISTING verify flip once the session is paid — exactly once[33m 675[2mms[22m[39m
+     [33m[2m✓[22m[39m a free cart records as paid with no_payment_required and no session[33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m 400s an empty cart[33m 344[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/beats-license-templates.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1206[2mms[22m[39m
+   [32m✓[39m license template CRUD [2m(4)[22m
+     [33m[2m✓[22m[39m creates a template and lists it only for its producer[33m 432[2mms[22m[39m
+[17:50:33.540] [32mINFO[39m (38889): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "ac46c051-a89b-4a34-a41c-0e93d791cc86"
+    [35mgroupId[39m: "9d79113a-6f5f-4c34-9209-cbf49a5a5a97"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[17:50:34.307] [32mINFO[39m (38889): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "c0529354-a3aa-460d-ba2f-ae3ce46aacaf"
+    [35mgroupId[39m: "d85165cb-34c8-43f7-803c-dc69180c0ffb"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 2000
+[17:50:34.598] [31mERROR[39m (38889): [36m[storefronts] checkout session failed — pending order removed[39m
+    [35mshopId[39m: "bc2e7e64-4b42-40ff-aac0-3b48f8f14cc3"
+    [35mgroupId[39m: "3915ae77-96c5-40ae-be53-ea51a3432499"
+    err: {
+      "type": "Error",
+      "message": "stripe is down",
+      "stack":
+          Error: stripe is down
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/market-checkout.test.ts:78:37)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2352:46
+    }
+[17:50:36.267] [32mINFO[39m (38889): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "c89898dc-eed5-415a-b363-3b2f41eb3be1"
+    [35mgroupId[39m: "d1344f43-319c-4e33-b11f-cdb884c82b40"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[17:50:36.545] [32mINFO[39m (38889): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "d86f5ea0-5cfe-4eda-8bff-6f20d792fb6c"
+    [35mgroupId[39m: "30f5d231-d7b2-4d17-a212-c91f72b378c4"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[17:50:36.891] [31mERROR[39m (38889): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,30f5d231-d7b2-4d17-a212-c91f72b378c4: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '30f5d231-d7b2-4d17-a212-c91f72b378c4' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,30f5d231-d7b2-4d17-a212-c91f72b378c4
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '30f5d231-d7b2-4d17-a212-c91f72b378c4' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "30f5d231-d7b2-4d17-a212-c91f72b378c4"
+      ]
+    }
+[17:50:36.896] [32mINFO[39m (38889): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 2
+[17:50:37.103] [32mINFO[39m (38889): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "abb8ef1d-cb51-4cf4-9d3c-39c55142ce1e"
+    [35mgroupId[39m: "0d518aa6-212e-48f0-a283-7eb5930d4dca"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4500
+[17:50:37.177] [31mERROR[39m (38889): [36m[storefronts] verify: paid amount does not match the order[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mamountTotal[39m: 1
+    [35mexpected[39m: 4500
+ [32m✓[39m src/routes/generate/__tests__/market-checkout.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 5628[2mms[22m[39m
+   [32m✓[39m POST /storefronts/checkout — pending first, real session [2m(8)[22m
+     [33m[2m✓[22m[39m prices the cart from server rows (client amounts ignored), records pending, opens one session[33m 1881[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the legacy single-line shape working[33m 562[2mms[22m[39m
+     [33m[2m✓[22m[39m a paused product can never sell: 404, no rows, no session — paid and free alike[33m 366[2mms[22m[39m
+     [33m[2m✓[22m[39m a free cart completes as paid with no session and no charge[33m 840[2mms[22m[39m
+   [32m✓[39m verify + status — the paid flip, exactly once [2m(4)[22m
+     [33m[2m✓[22m[39m a paid session flips pending -> sale; replays and the webhook's flip never double-fulfil[33m 629[2mms[22m[39m
+[17:50:49.823] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:49.939] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.101] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.202] [32mINFO[39m (38970): [36m[tip-jar] tip intent recorded (no charge)[39m
+    [35mhandle[39m: "creator-a"
+    [35mamount[39m: 500
+[17:50:50.309] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.421] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "22222222-2222-4222-8222-222222222222"
+    [35mhandle[39m: "creator-b"
+[17:50:50.603] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.791] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.944] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.967] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+[17:50:50.993] [32mINFO[39m (38970): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "11111111-1111-4111-8111-111111111111"
+    [35mhandle[39m: "creator-a"
+ [32m✓[39m src/routes/generate/__tests__/funding-goals.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 1900[2mms[22m[39m
+   [32m✓[39m funding goal routes [2m(8)[22m
+     [33m[2m✓[22m[39m goal endpoints 404 before a tip page exists[33m 478[2mms[22m[39m
+[17:51:06.885] [31mERROR[39m (39044): [36m[sponsors] pitch writer failed — refunding[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.testState.openAiCreate (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/sponsors.test.ts:361:13)
+              at Object.create (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/sponsors.test.ts:49:66)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/sponsors.ts:292:59
+    }
+[17:51:07.254] [31mERROR[39m (39044): [36m[sponsors] deal matcher failed — refunding[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.testState.openAiCreate (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/sponsors.test.ts:429:13)
+              at Object.create (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/sponsors.test.ts:49:66)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/sponsors.ts:415:59
+    }
+ [32m✓[39m src/routes/generate/__tests__/sponsors.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 2957[2mms[22m[39m
+   [32m✓[39m GET /api/sponsors/deals [2m(2)[22m
+     [33m[2m✓[22m[39m returns only active deals and charges nothing[33m 540[2mms[22m[39m
+[17:51:23.957] [32mINFO[39m (39138): [36m[sponsors] escrow funded in SANDBOX mode[39m
+    [35mdealId[39m: "0162860c-0bed-483b-9f78-8aee01cd4ef8"
+    [35mamountCents[39m: 100000
+[17:51:24.031] [32mINFO[39m (39138): [36m[sponsors] escrow funded[39m
+    [35mdealId[39m: "0162860c-0bed-483b-9f78-8aee01cd4ef8"
+    [35msessionId[39m: "sandbox_b55823d0-dcbc-4cd2-8fa1-325dff2d150c"
+[17:51:24.867] [32mINFO[39m (39138): [36m[sponsors] escrow funded in SANDBOX mode[39m
+    [35mdealId[39m: "e499ca5e-7f8f-4219-8a75-54eeab0e0396"
+    [35mamountCents[39m: 100000
+[17:51:24.877] [32mINFO[39m (39138): [36m[sponsors] escrow funded[39m
+    [35mdealId[39m: "e499ca5e-7f8f-4219-8a75-54eeab0e0396"
+    [35msessionId[39m: "sandbox_3a43a908-fbfe-4074-b11b-a302e5cc037d"
+[17:51:24.978] [32mINFO[39m (39138): [36m[sponsors] escrow released — platform fee collected[39m
+    [35mdealId[39m: "e499ca5e-7f8f-4219-8a75-54eeab0e0396"
+    [35mgross[39m: 100000
+    [35mfeeCents[39m: 15000
+    [35mnetCents[39m: 85000
+[17:51:25.297] [32mINFO[39m (39138): [36m[sponsors] escrow funded in SANDBOX mode[39m
+    [35mdealId[39m: "7615de99-7dcc-4bc1-b7df-2f58f483f393"
+    [35mamountCents[39m: 100000
+[17:51:25.332] [32mINFO[39m (39138): [36m[sponsors] escrow funded[39m
+    [35mdealId[39m: "7615de99-7dcc-4bc1-b7df-2f58f483f393"
+    [35msessionId[39m: "sandbox_1389e7b3-9f3e-4166-aaaf-a965bc14f7cc"
+[17:51:25.501] [32mINFO[39m (39138): [36m[sponsors] escrow funded in SANDBOX mode[39m
+    [35mdealId[39m: "c757a9a2-af2d-405c-b6b8-eeb9e8b6880e"
+    [35mamountCents[39m: 100000
+[17:51:25.548] [32mINFO[39m (39138): [36m[sponsors] escrow funded[39m
+    [35mdealId[39m: "c757a9a2-af2d-405c-b6b8-eeb9e8b6880e"
+    [35msessionId[39m: "sandbox_08b6e0a7-3cb9-42ae-a411-4a08288bc5b9"
+[17:51:25.786] [32mINFO[39m (39138): [36m[sponsors] escrow funded in SANDBOX mode[39m
+    [35mdealId[39m: "bb15825f-2e63-419a-86bb-486f82ae4a94"
+    [35mamountCents[39m: 100000
+[17:51:25.838] [32mINFO[39m (39138): [36m[sponsors] escrow funded[39m
+    [35mdealId[39m: "bb15825f-2e63-419a-86bb-486f82ae4a94"
+    [35msessionId[39m: "sandbox_99d44e6a-b494-41ab-8dff-ccf4197fbf98"
+[17:51:25.976] [32mINFO[39m (39138): [36m[sponsors] escrow released — platform fee collected[39m
+    [35mdealId[39m: "bb15825f-2e63-419a-86bb-486f82ae4a94"
+    [35mgross[39m: 100000
+    [35mfeeCents[39m: 15000
+    [35mnetCents[39m: 85000
+ [32m✓[39m src/routes/generate/__tests__/sponsors-escrow.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 5633[2mms[22m[39m
+   [32m✓[39m platform fee math [2m(2)[22m
+     [33m[2m✓[22m[39m takes 15% by default[33m 419[2mms[22m[39m
+   [32m✓[39m deal detail [2m(3)[22m
+     [33m[2m✓[22m[39m returns the full deal with application count[33m 948[2mms[22m[39m
+   [32m✓[39m application review [2m(6)[22m
+     [33m[2m✓[22m[39m brand accepts with an agreed amount inside the budget[33m 303[2mms[22m[39m
+     [33m[2m✓[22m[39m non-brand cannot review applications[33m 309[2mms[22m[39m
+   [32m✓[39m escrow lifecycle (sandbox) [2m(8)[22m
+     [33m[2m✓[22m[39m full lifecycle: start → complete → release with 15% fee[33m 364[2mms[22m[39m
+   [32m✓[39m dashboard [2m(1)[22m
+     [33m[2m✓[22m[39m returns posted deals, applications, payouts and earnings[33m 618[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/contests.test.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 913[2mms[22m[39m
+   [32m✓[39m POST /api/contests/:id/announce (money flow) [2m(6)[22m
+     [33m[2m✓[22m[39m 404s when the contest does not exist[33m 331[2mms[22m[39m
+[17:51:47.672] [32mINFO[39m (39292): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "553310c1-4544-4985-b6f3-537d930ff458"
+    [35mgroupId[39m: "1cabafe0-6582-4b31-a59d-9ba0ddb464fa"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 10500
+[17:51:48.061] [32mINFO[39m (39292): [36m[affiliates] commission recorded (owed)[39m
+    [35msaleId[39m: "11eae591-efd6-41a7-ac9c-813666e6cf6a"
+    [35msurface[39m: "shop_product"
+    [35mproductId[39m: "b65e3fb7-38e1-48cb-b6b5-22539bce4fe1"
+    [35morderRef[39m: "1cabafe0-6582-4b31-a59d-9ba0ddb464fa"
+    [35mcommissionCents[39m: 950
+    [35mcommissionBps[39m: 1000
+[17:51:48.078] [31mERROR[39m (39292): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,1cabafe0-6582-4b31-a59d-9ba0ddb464fa: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '1cabafe0-6582-4b31-a59d-9ba0ddb464fa' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,1cabafe0-6582-4b31-a59d-9ba0ddb464fa
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '1cabafe0-6582-4b31-a59d-9ba0ddb464fa' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "1cabafe0-6582-4b31-a59d-9ba0ddb464fa"
+      ]
+    }
+[17:51:48.101] [32mINFO[39m (39292): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 2
+[17:51:48.409] [32mINFO[39m (39292): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "553310c1-4544-4985-b6f3-537d930ff458"
+    [35mgroupId[39m: "3ccf580d-c3e1-48cc-85aa-9614e1f0aaaa"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 10000
+[17:51:48.553] [31mERROR[39m (39292): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,3ccf580d-c3e1-48cc-85aa-9614e1f0aaaa: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '3ccf580d-c3e1-48cc-85aa-9614e1f0aaaa' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,3ccf580d-c3e1-48cc-85aa-9614e1f0aaaa
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '3ccf580d-c3e1-48cc-85aa-9614e1f0aaaa' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "3ccf580d-c3e1-48cc-85aa-9614e1f0aaaa"
+      ]
+    }
+[17:51:48.555] [32mINFO[39m (39292): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 1
+[17:51:49.048] [32mINFO[39m (39292): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "553310c1-4544-4985-b6f3-537d930ff458"
+    [35mgroupId[39m: "3b4790b5-3d7d-4d2b-a0ad-5e0d80ae3eb9"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 10000
+[17:51:49.149] [31mERROR[39m (39292): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,3b4790b5-3d7d-4d2b-a0ad-5e0d80ae3eb9: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '3b4790b5-3d7d-4d2b-a0ad-5e0d80ae3eb9' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,3b4790b5-3d7d-4d2b-a0ad-5e0d80ae3eb9
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = '3b4790b5-3d7d-4d2b-a0ad-5e0d80ae3eb9' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "3b4790b5-3d7d-4d2b-a0ad-5e0d80ae3eb9"
+      ]
+    }
+[17:51:49.151] [32mINFO[39m (39292): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 1
+ [32m✓[39m src/routes/generate/__tests__/affiliates-shops.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 4090[2mms[22m[39m
+   [32m✓[39m shop product affiliate settings [2m(1)[22m
+     [33m[2m✓[22m[39m create + PATCH carry the setting; enabling without a rate refuses[33m 1606[2mms[22m[39m
+   [32m✓[39m shops checkout attribution [2m(4)[22m
+     [33m[2m✓[22m[39m the paid flip records the commission exactly once — verify + webhook replays included[33m 1357[2mms[22m[39m
+     [33m[2m✓[22m[39m guest self-referral by email earns nothing[33m 422[2mms[22m[39m
+     [33m[2m✓[22m[39m a code for a product not in the cart refuses checkout; a bogus code too[33m 330[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list-fixes.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 1136[2mms[22m[39m
+   [32m✓[39m list create validation — real copy passes, junk still fails [2m(6)[22m
+     [33m[2m✓[22m[39m POST /lists stores the em-dash name + full offer verbatim (201)[33m 459[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/fan-graph.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1171[2mms[22m[39m
+   [32m✓[39m GET /api/email-list/fan-graph [2m(7)[22m
+     [33m[2m✓[22m[39m returns only the caller's own fans, with the caller's own facts[33m 496[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/beats-payments.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1184[2mms[22m[39m
+   [32m✓[39m beat license purchase flow [2m(6)[22m
+     [33m[2m✓[22m[39m charges the listed tier price, completes only on verified payment, grants the download[33m 541[2mms[22m[39m
+[17:52:36.456] [32mINFO[39m (39593): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "ede92fed-1d01-4d58-8558-3b70026acf7b"
+    [35mgroupId[39m: "f8d77281-e689-4df1-a6d9-21dee1a13091"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 2000
+[17:52:36.706] [32mINFO[39m (39593): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 1
+[17:52:37.370] [31mERROR[39m (39593): [36m[storefronts] checkout session failed — pending order removed[39m
+    [35mshopId[39m: "adc07c7f-d218-40e8-80c6-a0b195ede795"
+    [35mgroupId[39m: "0e380a26-c8c2-4a33-b9db-f93008f3a2e8"
+    err: {
+      "type": "Error",
+      "message": "stripe is down",
+      "stack":
+          Error: stripe is down
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/shops-gift-tender.test.ts:71:37)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2352:46
+    }
+ [32m✓[39m src/routes/generate/__tests__/shops-gift-tender.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 3251[2mms[22m[39m
+   [32m✓[39m shops gift-card tender [2m(4)[22m
+     [33m[2m✓[22m[39m full tender: sale records as gift_card with the fee on the full gross, no session, card keeps the remainder[33m 1758[2mms[22m[39m
+     [33m[2m✓[22m[39m partial tender: session charges only the due amount; the paid flip settles the hold exactly once[33m 845[2mms[22m[39m
+     [33m[2m✓[22m[39m a card issued by a different store refuses and writes no order[33m 329[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/lyric-video.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/public-subscribe-door.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 718[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/jewelry.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 1788[2mms[22m[39m
+   [32m✓[39m buildPendantSTL [2m(4)[22m
+     [33m[2m✓[22m[39m writes a valid binary STL (84-byte header + 50 bytes/facet)[33m 614[2mms[22m[39m
+     [33m[2m✓[22m[39m NFC pocket removes material (less volume than solid)[33m 423[2mms[22m[39m
+     [33m[2m✓[22m[39m weight math: 14k gold pendant is tens of grams[33m 375[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/stem-splitter.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 2460[2mms[22m[39m
+   [32m✓[39m runStemJob failure path [2m(2)[22m
+     [33m[2m✓[22m[39m marks the job failed and refunds the 4 credits when Demucs cannot start[33m 1650[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed Pro job refunds the same 400 — no tier surcharge, ever[33m 589[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/fan-segments.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 898[2mms[22m[39m
+   [32m✓[39m saved CRUD [2m(2)[22m
+     [33m[2m✓[22m[39m creates, lists with live count, patches, and deletes — owner-scoped[33m 368[2mms[22m[39m
+[17:53:30.359] [32mINFO[39m (39938): [36m[storefronts] checkout session created (order pending)[39m
+    [35mshopId[39m: "3a73e809-0574-4e42-a21a-f6ac51246346"
+    [35mgroupId[39m: "d7df2c69-94dc-44e4-a1df-1ecb55968b31"
+    [35msessionId[39m: "cs_test_1"
+    [35mgross[39m: 4000
+[17:53:30.573] [31mERROR[39m (39938): [36m[market-sale] gift-card settlement check failed (sale stands)[39m
+    [35msessionId[39m: "cs_test_1"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  \nparams: shops,d7df2c69-94dc-44e4-a1df-1ecb55968b31: relation \"gift_card_reservations\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n    SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = 'd7df2c69-94dc-44e4-a1df-1ecb55968b31' LIMIT 1\n  ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+              SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1
+            
+          params: shops,d7df2c69-94dc-44e4-a1df-1ecb55968b31
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at exec (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:162:12)
+              at findReservation (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/gift-cards.ts:387:13)
+              at markMarketSalePaid (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/lib/market-sale.ts:178:29)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/shops.ts:2485:36
+          caused by: Error: relation "gift_card_reservations" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+              SELECT * FROM gift_card_reservations WHERE rail = 'shops' AND ref = 'd7df2c69-94dc-44e4-a1df-1ecb55968b31' LIMIT 1
+            ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n    SELECT * FROM gift_card_reservations WHERE rail = $1 AND ref = $2 LIMIT 1\n  ",
+      "params": [
+        "shops",
+        "d7df2c69-94dc-44e4-a1df-1ecb55968b31"
+      ]
+    }
+[17:53:30.600] [32mINFO[39m (39938): [36m[storefronts] checkout verified — sale recorded[39m
+    [35msessionId[39m: "cs_test_1"
+    [35mflipped[39m: 1
+ [32m✓[39m src/routes/generate/__tests__/shop-merge-characterization.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 3343[2mms[22m[39m
+   [32m✓[39m storefronts surface over the shared shops tables [2m(4)[22m
+     [33m[2m✓[22m[39m GET /storefronts/slug/:slug serves shop + products, fee pct, no user_id leak[33m 1574[2mms[22m[39m
+     [33m[2m✓[22m[39m POST /storefronts/checkout records a PENDING order at the 5% platform fee, and only a paid verify lands the sale (0144)[33m 760[2mms[22m[39m
+     [33m[2m✓[22m[39m POST /storefronts/checkout 404s for an unknown product[33m 355[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/pro-tools-ffmpeg.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/interview-prep.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 136[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/video-studio-rail-alignment.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 488[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/voice-clone.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 731[2mms[22m[39m
+   [32m✓[39m POST /api/clone-voice — availability gate (no charge) [2m(2)[22m
+     [33m[2m✓[22m[39m 503s before charging when no provider key is set[33m 399[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/mastering.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 142[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/shoutouts-checkout.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 877[2mms[22m[39m
+   [32m✓[39m shoutout checkout (0142, DE-14) [2m(6)[22m
+     [33m[2m✓[22m[39m checkout starts a session for a priced request and stores its id[33m 378[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/caption-styler.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 324[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/filler-removal.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 29162[2mms[22m[39m
+   [32m✓[39m ffmpeg cut assembly (synthetic media, fake transcript) [2m(1)[22m
+     [33m[2m✓[22m[39m reassembles a video with filler segments removed[33m 28985[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 223[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/channel-audit.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 174[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/press-kit.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/stream-pack.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/beats.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 104[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/vocal-removal.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 284[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/royalties.test.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 305[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/branding-shop.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 185[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/cover-art.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 93[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/playlist-pitch.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/feed-formats.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/best-time.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 275[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/upscale.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 176[2mms[22m[39m
+[17:57:03.287] [31mERROR[39m (41508): [36m[release-checklist] generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.<anonymous> (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/release-checklist.test.ts:80:19)
+              at Object.Mock [as create] (file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/release-checklist.ts:98:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+ [32m✓[39m src/routes/generate/__tests__/release-checklist.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1327[2mms[22m[39m
+   [32m✓[39m POST /api/release-checklist [2m(11)[22m
+     [33m[2m✓[22m[39m rejects an empty body with 400[33m 406[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/video-templates.test.ts [2m([22m[2m129 tests[22m[2m)[22m[33m 460[2mms[22m[39m
+[17:57:15.537] [32mINFO[39m (41656): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[17:57:15.688] [32mINFO[39m (41656): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[17:57:15.901] [32mINFO[39m (41656): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[17:57:15.977] [32mINFO[39m (41656): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+[17:57:16.043] [32mINFO[39m (41656): [36m[tip-jar] tip page saved[39m
+    [35muserId[39m: "55555555-5555-4555-8555-555555555555"
+    [35mhandle[39m: "royal-voice"
+ [32m✓[39m src/routes/generate/__tests__/tip-jar-checkout.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1020[2mms[22m[39m
+   [32m✓[39m tip jar checkout (0142, DE-14) [2m(5)[22m
+     [33m[2m✓[22m[39m checkout records a durable tip row and returns the session URL[33m 486[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/clip-references.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+[17:57:20.033] [33mWARN[39m (41789): [36m[scene-effects] AI match polish unavailable — using library match[39m
+    err: {
+      "type": "Error",
+      "message": "OPENAI_API_KEY is not configured",
+      "stack":
+          Error: OPENAI_API_KEY is not configured
+              at getOpenAI (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/scene-effects.test.ts:30:36)
+              at aiPolish (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/scene-effects.ts:103:20)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/scene-effects.ts:196:49
+              at Layer.handleRequest (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+              at next (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:157:13)
+              at requireAuth (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/scene-effects.test.ts:24:5)
+              at Layer.handleRequest (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+              at next (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:157:13)
+              at file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/express-rate-limit@8.7.0_express@5.2.1/node_modules/express-rate-limit/dist/index.mjs:1018:7
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:57:20.085] [33mWARN[39m (41789): [36m[scene-effects] AI match polish unavailable — using library match[39m
+    err: {
+      "type": "Error",
+      "message": "OPENAI_API_KEY is not configured",
+      "stack":
+          Error: OPENAI_API_KEY is not configured
+              at getOpenAI (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/scene-effects.test.ts:30:36)
+              at aiPolish (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/scene-effects.ts:103:20)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/scene-effects.ts:196:49
+              at Layer.handleRequest (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+              at next (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:157:13)
+              at requireAuth (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/scene-effects.test.ts:24:5)
+              at Layer.handleRequest (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+              at next (/home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:157:13)
+              at file:///home/hatch/workspace/bdv-wt-rem-scenes/node_modules/.pnpm/express-rate-limit@8.7.0_express@5.2.1/node_modules/express-rate-limit/dist/index.mjs:1018:7
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+ [32m✓[39m src/routes/generate/__tests__/scene-effects.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 720[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/media-importer.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 190[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/sample-pack.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 288[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/stem-midi-export.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1582[2mms[22m[39m
+   [32m✓[39m GET /api/stems/:jobId/midi/:stem [2m(5)[22m
+     [33m[2m✓[22m[39m returns a real MIDI file for the owner's melodic stem — and charges nothing[33m 803[2mms[22m[39m
+     [33m[2m✓[22m[39m answers an honest 422 — no file — when the stem has no melody (silent drums)[33m 562[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/tour-planner.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 196[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/watermark-removal.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 125[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/director-look.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 593[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/gpt-image-native.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 673[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/content-calendar.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 670[2mms[22m[39m
+ [32m✓[39m src/middlewares/__tests__/require-auth-plan.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/podcast.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 224[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/video-translator.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 144[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/title-studio.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 381[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/runway-clip-effects.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1379[2mms[22m[39m
+   [32m✓[39m POST /generate-runway-clip with Viral Effects [2m(5)[22m
+     [33m[2m✓[22m[39m weaves the picked effect's construction into the submitted prompt[33m 1072[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/community.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/brand-calculator.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 167[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/llc-guide.test.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 306[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/thumbnail-test.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 174[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/cinematic-fx.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/academy.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/pro-tools-ai-charge.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 347[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/sponsorship-outreach.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/milestones.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/shoutouts.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 206[2mms[22m[39m
+[18:01:11.800] [31mERROR[39m (43350): [36m[copyright] draft failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.create (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/copyright-refund.test.ts:57:38)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/copyright.ts:173:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[18:01:12.113] [31mERROR[39m (43350): [36m[copyright] ask failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.create (/home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/__tests__/copyright-refund.test.ts:57:38)
+              at /home/hatch/workspace/bdv-wt-rem-scenes/artifacts/api-server/src/routes/generate/copyright.ts:236:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+ [32m✓[39m src/routes/generate/__tests__/copyright-refund.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 924[2mms[22m[39m
+   [32m✓[39m copyright refund-on-failure leg (D5) [2m(3)[22m
+     [33m[2m✓[22m[39m draft: provider failure refunds the full 100 VB and says so[33m 624[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/merch.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/setlist.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 104[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/invoice.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 145[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/collabs.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/script-writer.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/memberships.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 186[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/copyright.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/sound-finder.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/intro-outro.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/voiceover.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/sponsor-read.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 121[2mms[22m[39m
+ [32m✓[39m src/middlewares/__tests__/require-auth-starter-ledger.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 166[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/tip-jar.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/logo.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/gamers.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/sfx.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/pro-tools-ai.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/lane-export.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 135[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/beats-license-terms-pricing.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 92[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/guest-questions.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/sample-pack-verify.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 12643[2mms[22m[39m
+   [32m✓[39m synth recipes render real audio [2m(9)[22m
+     [33m[2m✓[22m[39m kick renders a valid WAV[33m 1383[2mms[22m[39m
+     [33m[2m✓[22m[39m snare renders a valid WAV[33m 1000[2mms[22m[39m
+     [33m[2m✓[22m[39m clap renders a valid WAV[33m 1266[2mms[22m[39m
+     [33m[2m✓[22m[39m hihat renders a valid WAV[33m 1062[2mms[22m[39m
+     [33m[2m✓[22m[39m openhat renders a valid WAV[33m 1242[2mms[22m[39m
+     [33m[2m✓[22m[39m perc renders a valid WAV[33m 1126[2mms[22m[39m
+     [33m[2m✓[22m[39m riser renders a valid WAV[33m 1893[2mms[22m[39m
+     [33m[2m✓[22m[39m impact renders a valid WAV[33m 1924[2mms[22m[39m
+     [33m[2m✓[22m[39m downlifter renders a valid WAV[33m 1730[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/ducking-filter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m97 passed[39m[22m[90m (97)[39m
+[2m      Tests [22m [1m[32m1657 passed[39m[22m[90m (1657)[39m
+[2m   Start at [22m 17:48:08
+[2m   Duration [22m 936.54s[2m (import 74%, tests 16%, transform 10%, setup 1%, worker 1%)[22m
+
+[2m     Import [22m [33m418 modules were evaluated 6075 times[39m[2m · 592.28s total, 74% of tracked time[22m
+[2m            [22m [2m~551.53s faster with [22m[33misolate: false[39m[2m — shared modules are evaluated once per worker instead of once per file[22m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#test-isolation[22m
+

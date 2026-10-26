@@ -216,9 +216,19 @@ const mediaKitSchema = z.record(z.string(), z.unknown());
    social posts — free-form entries the client types already define. */
 const extensionListSchema = z.array(z.record(z.string(), z.unknown())).max(200);
 
+/* Declared city (Local Scenes, Stack-200 N10): the creator's OWN words
+   for where they are — free text, blank clears it. Stored verbatim
+   (trimmed); scene matching normalizes in lib/scenes. Never inferred. */
+const declaredCitySchema = z.string().trim().max(80).optional().nullable();
+const normalizeDeclaredCity = (v: string | null | undefined): string | null => {
+  const t = (v ?? "").trim();
+  return t === "" ? null : t;
+};
+
 const upsertProfileSchema = z.object({
   slug: slugSchema,
   display_name: z.string().trim().min(1).max(80),
+  declared_city: declaredCitySchema,
   vertical: verticalSchema.optional().default("music"),
   stream_schedule: streamScheduleSchema.optional().default([]),
   media_kit: mediaKitSchema.optional().nullable(),
@@ -242,6 +252,7 @@ const upsertProfileSchema = z.object({
 
 const updateMeSchema = z.object({
   bio: z.string().max(2000).optional(),
+  declared_city: declaredCitySchema,
   vertical: verticalSchema.optional(),
   stream_schedule: streamScheduleSchema.optional(),
   media_kit: mediaKitSchema.optional().nullable(),
@@ -1135,6 +1146,8 @@ function toPublicProfile(p: typeof creatorProfilesTable.$inferSelect) {
     user_id: p.userId,
     slug: p.slug,
     display_name: p.displayName,
+    /* Local Scenes (N10): the creator's declared city, verbatim. */
+    declared_city: p.declaredCity ?? null,
     vertical: p.vertical,
     stream_schedule: p.streamSchedule,
     media_kit: p.mediaKit,
@@ -1490,6 +1503,12 @@ router.post("/creator-profiles", requireAuth, async (req, res) => {
       userId,
       slug: data.slug,
       displayName: data.display_name,
+      /* Only written when the client actually sent it — a create that
+         never touched the city field stays byte-identical to before
+         (and pre-migration databases never see the column). */
+      ...(data.declared_city !== undefined
+        ? { declaredCity: normalizeDeclaredCity(data.declared_city) }
+        : {}),
       vertical: data.vertical,
       streamSchedule: data.stream_schedule,
       mediaKit: await mirrorProfileMediaDeep(data.media_kit ?? null, userId),
@@ -1550,6 +1569,7 @@ router.put("/creator-profiles/me", requireAuth, async (req, res) => {
 
     const patch: Partial<typeof creatorProfilesTable.$inferInsert> = { updatedAt: new Date() };
     if (data.vertical !== undefined) patch.vertical = data.vertical;
+    if (data.declared_city !== undefined) patch.declaredCity = normalizeDeclaredCity(data.declared_city);
     if (data.stream_schedule !== undefined) patch.streamSchedule = data.stream_schedule;
     if (data.media_kit !== undefined) patch.mediaKit = await mirrorProfileMediaDeep(data.media_kit, userId);
     if (data.bio !== undefined) patch.bio = data.bio;

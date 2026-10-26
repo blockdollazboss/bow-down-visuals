@@ -347,6 +347,8 @@ describe("isPublicPath — representative positives from every public family", (
     ["D3 shops — a creator's shop", "/shop/king-shark"],
     ["D3 shops — one product", "/storefront/product/42"],
     ["§1.6 exception — charts", "/charts"],
+    ["§1.6 exception — scenes directory (N10)", "/scenes"],
+    ["§1.6 exception — one city scene (N10)", "/scenes/new-york"],
     ["§1.6 exception — shorts", "/shorts"],
     ["§1.6 exception — public press kit", "/press/king-shark"],
     ["D1 media — track", "/track/101"],
@@ -460,8 +462,8 @@ describe("the shipped allowlist itself", () => {
     expect(new Set(PUBLIC_ROUTES).size).toBe(PUBLIC_ROUTES.length);
   });
 
-  it("contains exactly the approved public set (46 patterns)", () => {
-    expect(PUBLIC_ROUTES).toHaveLength(46);
+  it("contains exactly the approved public set (48 patterns)", () => {
+    expect(PUBLIC_ROUTES).toHaveLength(48);
   });
 
   it("judges a path with a query string the same as the bare path", () => {

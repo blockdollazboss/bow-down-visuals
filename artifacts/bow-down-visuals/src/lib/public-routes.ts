@@ -51,6 +51,8 @@ export const PUBLIC_ROUTES: readonly string[] = [
   "/storefront/product/:id",
   // §1.6 exceptions to the D4 discovery lock.
   "/charts",
+  "/scenes",
+  "/scenes/:slug",
   "/shorts",
   "/press/:handle",
   // Creator media landings (D1).
@@ -211,6 +213,8 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/genres/country", disposition: "locked" },
   { path: "/genres/trap", disposition: "locked" },
   { path: "/charts", disposition: "public" },
+  { path: "/scenes", disposition: "public" },
+  { path: "/scenes/:slug", disposition: "public" },
   { path: "/search", disposition: "locked" },
   { path: "/browse", disposition: "locked" },
   { path: "/vertical/:vertical", disposition: "locked" },

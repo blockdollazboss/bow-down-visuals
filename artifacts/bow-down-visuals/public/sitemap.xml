@@ -12,6 +12,9 @@
        World are the two always-public surfaces) and was missing. -->
   <url><loc>https://bowdownvisuals.com/world</loc></url>
   <url><loc>https://bowdownvisuals.com/charts</loc></url>
+  <!-- Local Scenes directory (Stack-200 N10) — static + public like
+       /charts; the per-city pages are parameterized and stay unlisted. -->
+  <url><loc>https://bowdownvisuals.com/scenes</loc></url>
   <url><loc>https://bowdownvisuals.com/shorts</loc></url>
   <url><loc>https://bowdownvisuals.com/beats</loc></url>
   <url><loc>https://bowdownvisuals.com/shoutouts</loc></url>

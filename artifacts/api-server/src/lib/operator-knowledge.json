@@ -1,24 +1,24 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "185bbcb52bda668828beee0be0141272cbfa709b",
+  "baseCommit": "200857f7ac8431fd3e6df51dcfc5dc392876f44a",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-25",
+  "generatedAt": "2026-10-26",
   "counts": {
-    "routesInApp": 235,
-    "pageFiles": 181,
-    "features": 244,
+    "routesInApp": 237,
+    "pageFiles": 183,
+    "features": 246,
     "excludedRoutes": 71,
     "excludedPageFiles": 35,
     "pricedActions": 228,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 234,
+    "withDescriptions": 236,
     "withoutDescriptions": 10
   },
   "packs": [
@@ -5341,6 +5341,7 @@
         "/api/discovery/charts/creators",
         "/api/discovery/rising",
         "/api/discovery/rising-earners",
+        "/api/discovery/scenes",
         "/api/loading-screen/inquire",
         "/api/loading-screen/offer",
         "/api/playlists",
@@ -10287,6 +10288,40 @@
       "nextSteps": [],
       "description": "Your bookmarks — posts, creators, sounds, and videos.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/saved.tsx usePageTitle meta description"
+    },
+    {
+      "id": "scenes",
+      "name": "Scenes Directory",
+      "nameSource": "App.tsx component name",
+      "path": "/scenes",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/discovery/scenes.tsx",
+      "component": "ScenesDirectory",
+      "endpoints": [
+        "/api/discovery/scenes"
+      ],
+      "prices": [],
+      "nextSteps": [],
+      "description": "Every city with a real scene — the creators who declared it, their real shows, and the city's own chart.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/scenes.tsx usePageTitle meta description"
+    },
+    {
+      "id": "scenes--slug",
+      "name": "Scene City Page",
+      "nameSource": "App.tsx component name",
+      "path": "/scenes/:slug",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/discovery/scene.tsx",
+      "component": "SceneCityPage",
+      "endpoints": [
+        "/api/discovery/scenes"
+      ],
+      "prices": [],
+      "nextSteps": [],
+      "description": "One city's scene page: the creators who declared the city, its real upcoming shows, and the city's own chart.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/scene.tsx usePageTitle meta description"
     },
     {
       "id": "scheduler",

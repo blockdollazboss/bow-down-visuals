@@ -426,6 +426,10 @@ export interface CreatorProfile {
   user_id: string;
   slug: string;
   display_name: string;
+  /* Local Scenes (Stack-200 N10): the city the creator declared in
+     their own words ("New York, NY"). Null/absent = no city declared —
+     the creator appears on no scene page. */
+  declared_city?: string | null;
   bio: string;
   avatar_url: string | null;
   banner_url: string | null;

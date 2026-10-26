@@ -73,7 +73,7 @@ const VERTICAL_LABELS: Record<string, string> = {
 };
 
 const WINDOWS = ["today", "week", "all"] as const;
-type Window = (typeof WINDOWS)[number];
+export type Window = (typeof WINDOWS)[number];
 
 function windowInterval(w: Window, days?: number): string | null {
   if (days) return `${days} days`;
@@ -177,9 +177,22 @@ function verticalFilter(vertical: string | undefined, alias = "p"): ReturnType<t
   return sql`AND ${sql.raw(alias)}.vertical = ${vertical}`;
 }
 
-async function topTracks(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number) {
+/* Local Scenes (Stack-200 N10) scope: restrict a chart query to an
+   explicit set of creator profiles. This is how the scene chart REUSES
+   the main charts' counting instead of growing a second method that
+   could disagree with them — same play_events aggregate (windowed) and
+   same counter columns (all-time), just scoped to the city's creators.
+   undefined = unscoped (the main charts); [] = nobody, matches nothing. */
+function profileScope(ids: string[] | undefined, column: string): ReturnType<typeof sql> | null {
+  if (!ids) return null;
+  if (ids.length === 0) return sql`AND FALSE`;
+  return sql`AND ${sql.raw(column)} IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})`;
+}
+
+export async function topTracks(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number, onlyProfileIds?: string[]) {
   const vf = verticalFilter(vertical);
   const gf = genre ? sql`AND t.genre ILIKE ${genre}` : null;
+  const pf = profileScope(onlyProfileIds, "t.profile_id");
   /* days overrides window when present (the ChartsQuery contract) —
      topCreators already guards on !days; without the same guard an
      explicit ?days=30&window=all silently shipped all-time counters. */
@@ -190,7 +203,7 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
              ${PROFILE_COLS}
       FROM profile_tracks t
       JOIN creator_profiles p ON p.id = t.profile_id
-      WHERE t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
+      WHERE t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``} ${pf ?? sql``}
       ORDER BY t.play_count DESC
       LIMIT ${limit}`);
     return rows.rows as unknown as Array<Record<string, unknown>>;
@@ -206,16 +219,17 @@ async function topTracks(window: Window, vertical: string | undefined, genre: st
     JOIN creator_profiles p ON p.id = t.profile_id
     WHERE e.kind = 'track'
       AND e.played_at >= NOW() - ${sql.raw(`INTERVAL '${interval}'`)}
-      AND t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
+      AND t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``} ${pf ?? sql``}
     GROUP BY t.id, p.id
     ORDER BY window_plays DESC
     LIMIT ${limit}`);
   return rows.rows as unknown as Array<Record<string, unknown>>;
 }
 
-async function topVideos(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number) {
+export async function topVideos(window: Window, vertical: string | undefined, genre: string | undefined, limit: number, days?: number, onlyProfileIds?: string[]) {
   const vf = verticalFilter(vertical);
   const gf = genre ? sql`AND v.genre ILIKE ${genre}` : null;
+  const pf = profileScope(onlyProfileIds, "v.profile_id");
   /* Same days-override guard as topTracks / topCreators. */
   if (window === "all" && !days) {
     const rows = await db.execute(sql`
@@ -224,7 +238,7 @@ async function topVideos(window: Window, vertical: string | undefined, genre: st
              ${PROFILE_COLS}
       FROM profile_videos v
       JOIN creator_profiles p ON p.id = v.profile_id
-      WHERE v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
+      WHERE v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``} ${pf ?? sql``}
       ORDER BY v.view_count DESC
       LIMIT ${limit}`);
     return rows.rows as unknown as Array<Record<string, unknown>>;
@@ -240,7 +254,7 @@ async function topVideos(window: Window, vertical: string | undefined, genre: st
     JOIN creator_profiles p ON p.id = v.profile_id
     WHERE e.kind = 'video'
       AND e.played_at >= NOW() - ${sql.raw(`INTERVAL '${interval}'`)}
-      AND v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
+      AND v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``} ${pf ?? sql``}
     GROUP BY v.id, p.id
     ORDER BY window_plays DESC
     LIMIT ${limit}`);
