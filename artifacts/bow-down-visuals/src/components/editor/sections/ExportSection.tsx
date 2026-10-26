@@ -8,6 +8,7 @@ import { FinalVideoExport, isSelected as isExportSelected } from "@/components/F
 import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
 import { SubjectReframeCard } from "@/components/editor/SubjectReframeCard";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
+import { ProxyEditingCard } from "@/components/editor/sections/ProxyEditingCard";
 import { AutoClipSection } from "@/components/editor/sections/AutoClipSection";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -1120,6 +1121,11 @@ export function ExportSection({
         isSubscriber={isSubscriber}
         onExportComplete={(record) => setFinalVideoUrl(record.final_video_url ?? null)}
       />
+
+      {/* ── Proxy Editing (board 184): low-res proxies for smooth
+          editing of heavy originals, docked here in the Export tab.
+          Export always renders from the full-res originals. ── */}
+      <ProxyEditingCard scenes={scenes} projectId={projectId} />
 
       {/* ── Export for all platforms: one-click multi-ratio export ── */}
       <MultiRatioExportCard videoUrl={finalVideoUrl ?? handoffVideoUrl} topic={topic} />
