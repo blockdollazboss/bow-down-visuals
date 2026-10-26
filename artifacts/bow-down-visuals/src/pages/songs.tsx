@@ -15,6 +15,8 @@ import DjSetPrep, { DjChips, type DjAnalysis } from "./songs/dj-set-prep";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { SampleClearancePanel } from "@/components/sample-clearance/SampleClearancePanel";
 import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
+import { SongCredits } from "@/components/SongCredits";
+import type { PublicSongCredits } from "@/lib/song-credits";
 
 interface SongRecord {
   id: string;
@@ -24,6 +26,9 @@ interface SongRecord {
   parent_song_id: string | null;
   artist_vault_id: string | null;
   created_at: string;
+  /* Stack-200 N1: canonical credits attached by GET /api/songs — the
+     same list every other surface renders (lib/song-credits). */
+  credits?: PublicSongCredits | null;
 }
 
 interface VaultLite {
@@ -482,6 +487,10 @@ export default function SongsPage() {
                 </span>
               </div>
               <audio controls src={s.audio_url} className="w-full h-8" />
+              {/* Credits that follow the song (Stack-200 N1): rendered
+                  FROM the canonical credits the API attaches — never
+                  re-entered here. Tap a credit → that creator. */}
+              <SongCredits credits={s.credits} ownerHint compact />
               {/* DJ read: BPM · key · Camelot chips, or the free analysis. */}
               <div className="mt-2">
                 {djAnalysisById[s.id] ? (
