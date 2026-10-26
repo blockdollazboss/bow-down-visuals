@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
+import LoopExchangePanel from "@/components/loop-exchange/LoopExchangePanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── Viral Sound Finder ────────────────────────────────────────────────
@@ -272,6 +273,12 @@ export default function ViralSoundFinder() {
         {/* ── SOUND-FIT DISCOVERY (docked: sounds that fit your song) ── */}
         <div className="relative mt-10">
           <SoundFitPanel />
+        </div>
+
+        {/* ── LOOP EXCHANGE (docked: loops posted for others to build on,
+            split terms up front, poster paid on every downstream sale) ── */}
+        <div className="relative mt-10">
+          <LoopExchangePanel />
         </div>
 
         {/* ── BROWSE ─────────────────────────────────────────────────── */}
