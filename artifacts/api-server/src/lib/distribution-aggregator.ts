@@ -38,6 +38,8 @@
  * it never pretends a real platform accepted anything.
  */
 
+import { attachJobMapTtl } from "./job-map-sweeper";
+
 export type PlatformDeliveryStatus =
   | "queued"
   | "pending"
@@ -118,6 +120,16 @@ export class MockAggregatorAdapter implements AggregatorAdapter {
   readonly name = "mock";
   readonly live = false;
   private jobs = new Map<string, MockJob>();
+
+  constructor() {
+    /* OOM fix (2026-10-25): the mock adapter is the production
+     * default until Too Lost is connected, and it retained the full
+     * release payload of every submission forever. The house job-map
+     * TTL (2h) bounds it — statuses are a pure function of elapsed
+     * time and the route-level tracker owns the durable record, so
+     * expiring a sandbox job's payload loses nothing. */
+    attachJobMapTtl(this.jobs);
+  }
 
   async submitRelease(payload: AggregatorReleasePayload): Promise<AggregatorSubmission> {
     const aggregatorReleaseId = `mock_${payload.clientReleaseId}`;

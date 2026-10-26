@@ -17,6 +17,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
+import { sweepIfLarge, sweepTtlIfLarge } from "../lib/sweep-map";
 import { effectiveStatus } from "./live-chat";
 import {
   GUEST_ROOM_CAP,
@@ -89,10 +90,17 @@ const MINT_MAX_PER_WINDOW = 30;
 /** Backstage sockets (host + guests) — keyed rooms: `backstage:<id>`. */
 export const backstageHub = new RoomHub();
 
-/* ── pacing (in-memory; single instance, like the chat rail) ───────── */
+/* ── pacing (in-memory; single instance, like the chat rail) ─────────
+ * OOM fix (2026-10-25): these maps gained a key per host / guest
+ * session / invite ever touched and nothing deleted keys (the
+ * sibling maps in live-chat.ts and reach.ts already sweep — this
+ * file missed the same treatment). windowHit/postTooSoon now sweep
+ * opportunistically once a map is large: keys whose newest hit is
+ * older than the window are indistinguishable from absent keys. */
 const lastPostAt = new Map<string, number>();
 const joinAttempts = new Map<string, number[]>();
 const mintAttempts = new Map<string, number[]>();
+const PACING_SWEEP_THRESHOLD = 5000;
 export function __resetGuestPacing(): void {
   lastPostAt.clear();
   joinAttempts.clear();
@@ -102,16 +110,25 @@ function windowHit(map: Map<string, number[]>, key: string, windowMs: number, ma
   const hits = (map.get(key) ?? []).filter((t) => now - t < windowMs);
   if (hits.length >= max) {
     map.set(key, hits);
+    sweepPacingWindows(map, windowMs, now);
     return true;
   }
   hits.push(now);
   map.set(key, hits);
+  sweepPacingWindows(map, windowMs, now);
   return false;
+}
+/** Age of a hit-window entry = its newest hit (arrays stay
+ *  window-pruned and ascending in windowHit). */
+function sweepPacingWindows(map: Map<string, number[]>, windowMs: number, now: number): void {
+  sweepTtlIfLarge(map, PACING_SWEEP_THRESHOLD, windowMs, (hits) => (hits.length ? hits[hits.length - 1]! : 0), now);
 }
 function postTooSoon(key: string, now: number): boolean {
   const last = lastPostAt.get(key) ?? 0;
   if (now - last < POST_INTERVAL_MS) return true;
   lastPostAt.set(key, now);
+  // Same sweep the live-chat rail runs on its pacing map.
+  sweepIfLarge(lastPostAt, PACING_SWEEP_THRESHOLD, 60_000, now);
   return false;
 }
 

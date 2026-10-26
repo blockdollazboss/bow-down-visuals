@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { randomUUID } from "crypto";
 import RunwayML from "@runwayml/sdk";
 import { z } from "zod";
@@ -39,7 +40,9 @@ export const LOGO_BUCKET = "generated-clips";
  * Tracks submitted Runway logo tasks so credits are only charged on SUCCEEDED.
  * Key: Runway taskId  Value: { userId, credits }
  */
-const pendingLogoTasks = new Map<string, { userId: string; credits: number }>();
+/* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
+ * by the house job-map TTL (2h), like the other pending-task maps. */
+const pendingLogoTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number }>());
 /** Test hook — clears the in-memory task map. */
 export function __clearPendingLogoTasks() {
   pendingLogoTasks.clear();

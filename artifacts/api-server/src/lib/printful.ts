@@ -16,6 +16,8 @@
 
    Docs: https://developers.printful.com/docs/                                */
 
+import { attachJobMapTtl } from "./job-map-sweeper";
+
 export interface PrintfulOrderItem {
   /** Our catalog product key, e.g. "tshirt". */
   product: string;
@@ -236,6 +238,13 @@ const mockStore = new Map<
   string,
   { createdAt: number; status: FulfillmentStatus }
 >();
+
+/* OOM fix (2026-10-25): one record per sandbox order was kept
+ * forever. Mock orders reach their terminal status within ~15
+ * minutes; a 24h job-map TTL bounds the store without disturbing
+ * any same-day sandbox flow (an expired id reads as failed, like
+ * an unknown one). */
+attachJobMapTtl(mockStore, 24 * 60 * 60 * 1000);
 
 function mockId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;

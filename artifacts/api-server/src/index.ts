@@ -20,7 +20,7 @@ import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
 import { startProductDropSweeper } from "./lib/product-drop-notify";
 import { startEmailAutomationSweeper } from "./lib/email-automations";
 import { startJobPoller } from "./lib/job-poller";
-import { startMemoryWatchdog } from "./lib/memory-watchdog";
+import { startMemoryWatchdog, setMemoryCriticalHandler } from "./lib/memory-watchdog";
 import { startRtmpIngestServer } from "./lib/rtmp-ingest";
 
 const rawPort = process.env["PORT"] ?? "8080";
@@ -41,6 +41,22 @@ const server = app.listen(port, (err) => {
 
   // 2026-10-12 OOM fix: log process memory every 60s (was zero observability).
   startMemoryWatchdog();
+
+  // 2026-10-25 OOM fix: when the watchdog crosses its critical line
+  // (sustained heap/RSS at the container's edge), restart in a
+  // controlled way BEFORE the OOM kill lands mid-request: stop
+  // accepting connections, give in-flight work a bounded drain,
+  // then exit for the platform to restart the process. Orphaned
+  // jobs are re-driven by the boot-recovery passes below — the same
+  // machinery that already survives every deploy and crash.
+  setMemoryCriticalHandler(() => {
+    logger.error(
+      "memory watchdog: controlled restart — closing the HTTP server, then exiting",
+    );
+    const force = setTimeout(() => process.exit(1), 10_000);
+    force.unref?.();
+    server.close(() => process.exit(1));
+  });
 
   // RTMP ingest listener (Go Live stream keys): a raw-TCP door on its
   // own port (LIVE_RTMP_PORT, default 1935) beside the single HTTP

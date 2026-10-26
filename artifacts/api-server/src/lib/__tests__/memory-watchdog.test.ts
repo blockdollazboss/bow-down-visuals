@@ -122,10 +122,36 @@ describe("memory watchdog heap-ratio escalation", () => {
 });
 
 describe("memory watchdog heap snapshot", () => {
-  it("captures exactly once at >= 0.85, uploads it, and never re-captures", async () => {
-    heapUsedBytes = HEAP_LIMIT * 0.87;
+  it("does not capture on a single high tick — the climb must be sustained", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.93;
     const wd = await loadWatchdog();
 
+    wd.runMemoryWatchdogTick();
+    expect(wd.getInflightSnapshotCapture()).toBeNull();
+    expect(getHeapSnapshot).not.toHaveBeenCalled();
+
+    // A fall-back between high ticks resets the confirmation.
+    heapUsedBytes = HEAP_LIMIT * 0.5;
+    wd.runMemoryWatchdogTick();
+    heapUsedBytes = HEAP_LIMIT * 0.93;
+    wd.runMemoryWatchdogTick();
+    expect(getHeapSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("does not capture at the old 0.85 trigger line", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.87;
+    const wd = await loadWatchdog();
+    wd.runMemoryWatchdogTick();
+    wd.runMemoryWatchdogTick();
+    wd.runMemoryWatchdogTick();
+    expect(getHeapSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("captures exactly once on a sustained climb at >= 0.92, uploads it, and never re-captures", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.93;
+    const wd = await loadWatchdog();
+
+    wd.runMemoryWatchdogTick();
     wd.runMemoryWatchdogTick();
     const inflight = wd.getInflightSnapshotCapture();
     expect(inflight).not.toBeNull();
@@ -147,30 +173,96 @@ describe("memory watchdog heap snapshot", () => {
       true,
     );
 
-    // A second crossing does not re-capture.
+    // Further high ticks do not re-capture.
     wd.runMemoryWatchdogTick();
     await wd.getInflightSnapshotCapture();
     expect(getHeapSnapshot).toHaveBeenCalledTimes(1);
     expect(uploadFileStreamToSupabaseStorage).toHaveBeenCalledTimes(1);
   });
 
-  it("abandons the capture if the heap fell back below 0.80 before the stream opens, and stays armed", async () => {
+  it("abandons the capture if the heap fell back below 0.88 before the stream opens, and stays armed", async () => {
     let calls = 0;
     memoryUsageSpy.mockImplementation(() => {
       calls += 1;
-      // First sample (the tick) is high; every later sample has fallen back.
-      return { ...fakeMemoryUsage(), heapUsed: calls === 1 ? HEAP_LIMIT * 0.9 : HEAP_LIMIT * 0.5 };
+      // The two confirming ticks are high; the re-sample at capture
+      // open has fallen back.
+      return { ...fakeMemoryUsage(), heapUsed: calls <= 2 ? HEAP_LIMIT * 0.93 : HEAP_LIMIT * 0.5 };
     });
     const wd = await loadWatchdog();
+    wd.runMemoryWatchdogTick();
     wd.runMemoryWatchdogTick();
     await wd.getInflightSnapshotCapture();
     expect(getHeapSnapshot).not.toHaveBeenCalled();
 
     // Still armed: a later sustained climb captures.
     memoryUsageSpy.mockImplementation(fakeMemoryUsage);
-    heapUsedBytes = HEAP_LIMIT * 0.87;
+    heapUsedBytes = HEAP_LIMIT * 0.93;
     wd.runMemoryWatchdogTick();
     await wd.getInflightSnapshotCapture();
     expect(getHeapSnapshot).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("memory watchdog critical line", () => {
+  it("fires the registered handler after 2 consecutive ticks at >= 0.96 — once, and with no snapshot", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.97;
+    const wd = await loadWatchdog();
+    const handler = vi.fn();
+    wd.setMemoryCriticalHandler(handler);
+
+    wd.runMemoryWatchdogTick();
+    expect(handler).not.toHaveBeenCalled();
+    wd.runMemoryWatchdogTick();
+    expect(handler).toHaveBeenCalledTimes(1);
+    // One-shot: further critical ticks do not re-fire.
+    wd.runMemoryWatchdogTick();
+    expect(handler).toHaveBeenCalledTimes(1);
+    // The restart outranks the diagnosis: no snapshot was taken.
+    expect(getHeapSnapshot).not.toHaveBeenCalled();
+    const errorMsgs = vi
+      .mocked(logger.error)
+      .mock.calls.map((c) => String(c[1]));
+    expect(errorMsgs.some((m) => m.includes("CRITICAL"))).toBe(true);
+  });
+
+  it("does not fire on a single critical tick, and a fall-back resets the count", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.97;
+    const wd = await loadWatchdog();
+    const handler = vi.fn();
+    wd.setMemoryCriticalHandler(handler);
+
+    wd.runMemoryWatchdogTick();
+    heapUsedBytes = HEAP_LIMIT * 0.5;
+    wd.runMemoryWatchdogTick();
+    heapUsedBytes = HEAP_LIMIT * 0.97;
+    wd.runMemoryWatchdogTick();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("fires on sustained RSS at >= 98% of the container budget even with a calm heap", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.4;
+    rssBytes = 510 * MB; // >= 98% of the 512 MB budget
+    const wd = await loadWatchdog();
+    const handler = vi.fn();
+    wd.setMemoryCriticalHandler(handler);
+
+    wd.runMemoryWatchdogTick();
+    wd.runMemoryWatchdogTick();
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("exits the process when no handler is registered", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.97;
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation((() => undefined) as never);
+    try {
+      const wd = await loadWatchdog();
+      wd.runMemoryWatchdogTick();
+      wd.runMemoryWatchdogTick();
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    } finally {
+      exitSpy.mockRestore();
+    }
   });
 });

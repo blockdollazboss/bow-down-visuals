@@ -287,6 +287,26 @@ export function sumTipIntents(intents: TipIntent[]): { total: number; count: num
 /* Server-owned in-memory stores. Keyed by userId (settings) and id (intents). */
 const tipPages = new Map<string, TipPageSettings>();
 const tipPagesByHandle = new Map<string, string>(); // handle -> userId
+
+/* OOM fix (2026-10-25): tipPages is the store of record for tip-page
+ * settings, so it is never TTL-swept (evicting on age would delete a
+ * live page) — but it still needs a hard bound. Beyond the cap, the
+ * least-recently-updated pages are evicted, handle index included. */
+const TIP_PAGES_MAX_ENTRIES = 10_000;
+
+function evictTipPagesBeyondCap(): void {
+  if (tipPages.size <= TIP_PAGES_MAX_ENTRIES) return;
+  const byUpdated = [...tipPages.entries()].sort((a, b) =>
+    a[1].updatedAt.localeCompare(b[1].updatedAt),
+  );
+  for (const [userId, settings] of byUpdated) {
+    if (tipPages.size <= TIP_PAGES_MAX_ENTRIES) break;
+    tipPages.delete(userId);
+    if (tipPagesByHandle.get(settings.handle) === userId) {
+      tipPagesByHandle.delete(settings.handle);
+    }
+  }
+}
 const tipIntents = new Map<string, TipIntent>();
 
 /** Pending tip-jar intents for one creator (Stack 8 #5 earnings view).
@@ -457,6 +477,7 @@ router.post("/tips/settings", publicApiLimiter, requireAuth, async (req, res) =>
   };
   tipPages.set(req.userId!, settings);
   tipPagesByHandle.set(handle, req.userId!);
+  evictTipPagesBeyondCap();
   logger.info({ userId: req.userId, handle }, "[tip-jar] tip page saved");
   res.json({ settings, paymentsLive: false });
 });

@@ -48,6 +48,7 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { sweepTtlIfLarge, capMapSize } from "./sweep-map";
 
 /* ── The ladder ─────────────────────────────────────────────────────────── */
 
@@ -326,6 +327,13 @@ export async function countRankSources(userId: string): Promise<RankCounts> {
  * when the creator works, so a 60 s window keeps reads cheap without
  * ever showing a stale rank for long. */
 const RANK_CACHE_TTL_MS = 60_000;
+/* OOM fix (2026-10-25): the TTL was consulted on read only, so one
+ * entry per user ever rank-checked was retained for the life of the
+ * process — and this cache sits on the World-door / dashboard hot
+ * path. Expired entries are swept once the cache is large, and a
+ * hard cap backstops it (least-recently-cached evicted first). */
+const RANK_CACHE_SWEEP_THRESHOLD = 1000;
+const RANK_CACHE_MAX_ENTRIES = 5000;
 const rankCache = new Map<string, { at: number; rank: RankResult }>();
 
 export function clearCreatorRankCache(userId?: string): void {
@@ -339,6 +347,8 @@ export async function getCreatorRank(userId: string): Promise<RankResult> {
   const counts = await countRankSources(userId);
   const rank = rankFromCounts(counts);
   rankCache.set(userId, { at: Date.now(), rank });
+  sweepTtlIfLarge(rankCache, RANK_CACHE_SWEEP_THRESHOLD, RANK_CACHE_TTL_MS, (e) => e.at);
+  capMapSize(rankCache, RANK_CACHE_MAX_ENTRIES, (e) => e.at);
   return rank;
 }
 

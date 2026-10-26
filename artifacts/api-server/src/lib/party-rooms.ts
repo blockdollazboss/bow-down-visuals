@@ -38,6 +38,7 @@
  *     { type: "error", code, message } / { type: "room_full", cap } + close
  */
 import { RoomHub, WS_OPEN, type WsClientSocket } from "./live-ws";
+import { sweepTtlEntries, capMapSize } from "./sweep-map";
 import {
   PARTY_CATEGORIES,
   PARTY_QUESTIONS,
@@ -55,6 +56,12 @@ export const PARTY_DUEL_MAX_ROUNDS = 5;
 const MAX_FRAME_CHARS = 8192;
 const IDLE_ROOM_MS = 10 * 60_000;
 const EMPTY_ROOM_MS = 2 * 60_000;
+/* OOM fix (2026-10-25): recentByUser (below) kept one entry per
+ * party-game player forever. A "just seen" set only steers the next
+ * match's dealing, so a day-old entry no longer describes anything
+ * the selection needs — sweep it in the room sweep; cap as backstop. */
+const RECENT_BY_USER_TTL_MS = 24 * 60 * 60_000;
+const RECENT_BY_USER_MAX_ENTRIES = 5000;
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 6;
 
@@ -221,11 +228,12 @@ export function placementsFor(standings: Player[], game: PartyGame): Map<string,
 export class PartyRooms {
   private rooms = new Map<string, Room>();
   private socketRoom = new Map<WsClientSocket, Room>();
-  /** Each player's most recent match's question ids (in-memory,
-   *  process-lifetime — matching the rooms themselves). Selection
-   *  avoids re-dealing what a seated player JUST saw, so back-to-back
-   *  matches at the same table don't repeat themselves. */
-  private recentByUser = new Map<string, Set<string>>();
+  /** Each player's most recent match's question ids + when that
+   *  match ended (in-memory). Selection avoids re-dealing what a
+   *  seated player JUST saw, so back-to-back matches at the same
+   *  table don't repeat themselves. Entries are swept once stale —
+   *  see sweep(). */
+  private recentByUser = new Map<string, { ids: Set<string>; at: number }>();
   private peerCounter = 0;
   private readonly now: () => number;
   private readonly schedule: (fn: () => void, ms: number) => unknown;
@@ -416,6 +424,10 @@ export class PartyRooms {
       const limit = room.phase === "lobby" || room.phase === "podium" ? EMPTY_ROOM_MS : IDLE_ROOM_MS;
       if (emptyFor >= limit) this.destroyRoom(room);
     }
+    // The player recency sets outlive their rooms by design (the
+    // next match needs them) — but not forever (OOM fix, above).
+    sweepTtlEntries(this.recentByUser, RECENT_BY_USER_TTL_MS, (e) => e.at, now);
+    capMapSize(this.recentByUser, RECENT_BY_USER_MAX_ENTRIES, (e) => e.at);
   }
 
   /* ── Frames ────────────────────────────────────────────────────────── */
@@ -503,7 +515,7 @@ export class PartyRooms {
   private recentAvoidSet(room: Room): Set<string> {
     const avoid = new Set<string>();
     for (const p of room.players) {
-      for (const id of this.recentByUser.get(p.userId) ?? []) avoid.add(id);
+      for (const id of this.recentByUser.get(p.userId)?.ids ?? []) avoid.add(id);
     }
     return avoid;
   }
@@ -697,7 +709,7 @@ export class PartyRooms {
     // seen" — win, lose, or host-ended early, they saw those questions.
     if (room.usedIds.size > 0) {
       for (const p of room.players) {
-        this.recentByUser.set(p.userId, new Set(room.usedIds));
+        this.recentByUser.set(p.userId, { ids: new Set(room.usedIds), at: this.now() });
       }
     }
     room.phase = "podium";

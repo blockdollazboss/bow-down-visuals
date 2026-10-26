@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { z } from "zod";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
@@ -66,7 +67,9 @@ const ARTIST_BUCKET = "artist-references";
  * Tracks submitted image tasks so credits are only charged on SUCCEEDED.
  * Key: Runway taskId  Value: { userId, credits }
  */
-const pendingImageTasks = new Map<string, { userId: string; credits: number; prompt: string; artistVaultId?: string | null }>();
+/* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
+ * by the house job-map TTL (2h), like the other pending-task maps. */
+const pendingImageTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number; prompt: string; artistVaultId?: string | null }>());
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { attachJobMapTtl } from "../lib/job-map-sweeper";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
@@ -446,10 +447,12 @@ const REF_VIDEO_DURATION_SEC = 5;
 const REF_VIDEO_CREDITS =
   REF_VIDEO_DURATION_SEC * SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT; // 1500
 
-const refVideoTasks = new Map<
+/* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
+ * by the house job-map TTL (2h), like the other pending-task maps. */
+const refVideoTasks = attachJobMapTtl(new Map<
   string,
   { userId: string; vaultId: string; credits: number }
->();
+>());
 
 /** Submit a reference-video generation for a character. */
 router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
@@ -735,8 +738,9 @@ interface RefVideoLoopTask {
   error?: string;
 }
 
-/** In-memory; mirrors refVideoTasks (durable export-jobs upgrade tracked separately). */
-const refVideoLoopTasks = new Map<string, RefVideoLoopTask>();
+/** In-memory; mirrors refVideoTasks (durable export-jobs upgrade tracked separately).
+ *  OOM fix (2026-10-25): bounded by the house job-map TTL (2h). */
+const refVideoLoopTasks = attachJobMapTtl(new Map<string, RefVideoLoopTask>());
 
 async function runRefVideoLoop(taskId: string, videoUrl: string) {
   const task = refVideoLoopTasks.get(taskId);
