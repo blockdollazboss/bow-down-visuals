@@ -17,47 +17,16 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
    submitting are free. Nothing is picked or posted automatically —
    only the song's creator picks the winner. */
 
-export interface OpenVerseSplitTerm {
-  name: string;
-  role: "creator" | "winner";
-  sharePct: number;
-}
+import {
+  postStateLabel,
+  splitPreview,
+  type OpenVersePostDto,
+  type OpenVerseSplitTerm,
+  type OpenVerseSubmissionDto,
+} from "./open-verse-desk-helpers";
 
-export interface OpenVersePostDto {
-  id: string;
-  song_kind: "release" | "song";
-  song_id: string;
-  song_title: string;
-  brief: string;
-  slot_label: string;
-  split_terms: OpenVerseSplitTerm[];
-  winner_share_pct: number;
-  currency: string;
-  money_note: string;
-  terms_note: string;
-  status: "open" | "closed" | "winner_picked" | "cancelled";
-  state: string;
-  closes_at: string | null;
-  is_owner: boolean;
-  submission_count: number | null;
-  my_submission_id: string | null;
-  my_submission_status: string | null;
-  winner_submission_id: string | null;
-  is_winner: boolean;
-  viewer_actions: string[];
-}
-
-interface OpenVerseSubmissionDto {
-  id: string;
-  post_id: string;
-  submitter_name: string;
-  is_mine: boolean;
-  audio_url: string;
-  lyrics: string | null;
-  note: string | null;
-  status: string;
-  created_at: string | null;
-}
+export type { OpenVersePostDto, OpenVerseSplitTerm, OpenVerseSubmissionDto } from "./open-verse-desk-helpers";
+export { postStateLabel, splitPreview } from "./open-verse-desk-helpers";
 
 interface MySong {
   id: string;
@@ -69,22 +38,6 @@ const MONEY_NOTE =
   "Test mode — splits are percentages of this track's future Visual Bucs earnings. Visual Bucs only, never cash, and submitting a verse is free.";
 const TERMS_NOTE =
   "Split terms are set by the song's creator before any verse is submitted and never change after a winner is picked.";
-
-export function splitPreview(winnerSharePct: number): OpenVerseSplitTerm[] {
-  const winner = Number.isFinite(winnerSharePct) ? winnerSharePct : 0;
-  const creator = Math.round((100 - winner) * 100) / 100;
-  return [
-    { name: "Song creator", role: "creator", sharePct: creator },
-    { name: "Winning verse creator", role: "winner", sharePct: winner },
-  ];
-}
-
-export function postStateLabel(post: OpenVersePostDto): string {
-  if (post.status === "winner_picked") return "Winner picked — verse on the track";
-  if (post.status === "cancelled") return "Cancelled";
-  if (post.state === "closed_time" || post.status === "closed") return "Submissions closed — awaiting the creator's pick";
-  return "Taking verses now";
-}
 
 function SplitTermsBlock({ terms }: { terms: OpenVerseSplitTerm[] }) {
   return (

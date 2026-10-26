@@ -14,7 +14,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { postStateLabel, splitPreview, type OpenVersePostDto } from "@/components/songs/OpenVerseDesk";
+import { postStateLabel, splitPreview, type OpenVersePostDto } from "@/components/songs/open-verse-desk-helpers";
 
 const SRC = join(__dirname, "..");
 const read = (p: string) => readFileSync(join(SRC, p), "utf8");
