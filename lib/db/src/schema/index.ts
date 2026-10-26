@@ -55,6 +55,7 @@ export * from "./bio-pages";
 export * from "./jewelry";
 export * from "./spotlight";
 export * from "./loading-screen";
+export * from "./site-launch";
 export * from "./customer-shops";
 export * from "./beats";
 export * from "./invoices";

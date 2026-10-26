@@ -1,4 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Megaphone, MegaphoneOff } from "lucide-react";
+import { MicPromoBand } from "@/components/MicPromoBand";
+import {
+  parseMicBandPromos,
+  readMicBandVisible,
+  writeMicBandVisible,
+  type MicBandPromo,
+} from "@/lib/mic-band";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─────────────────── Homepage hero hanging microphone ─────────────────── */
 /* The studio set's ceiling-suspended condenser (owner, 2026-10-14:
@@ -80,12 +89,54 @@ import { useEffect, useRef } from "react";
    brighter highlights, and the cable is 3px with a gold thread
    down its center so the hang reads as a cable.
 
-   Pure decoration: pointer-events-none, aria-hidden. */
+   Pure decoration: pointer-events-none, aria-hidden — EXCEPT the
+   promo band below.
+
+   Promo band (owner, 2026-10-25): a broadcast-style flag wrapped
+   around the mic's head (MicPromoBand), rendered INSIDE the
+   pendulum below so it is attached to the mic and rides the mic's
+   own swing — it never animates separately; only its content
+   rotates, through the standing promotions served by
+   GET /api/mic-band/promos (launch / current jackpot / the two
+   takeover offers, all from their live sources — no promo
+   copy lives in this tree). It ships with a user-facing on/off:
+   the small megaphone toggle beside the mount (NOT inside the
+   pendulum, so the control itself stays steady and clickable),
+   persisted in localStorage (bdv:mic-band-visible). The band
+   exists in both hero treatments: black/gold in dark, ivory/bronze
+   in light (MicPromoBand reads the same theme). If the promos
+   endpoint fails or returns nothing promotable, the band simply
+   does not render — the mic is never left wearing invented copy. */
 
 const PIVOT_Y = 88; // section-local px — the banner's bottom edge
 
 export function HangingMic({ className = "" }: { className?: string }) {
   const swingRef = useRef<HTMLDivElement | null>(null);
+  const isLight = useIsLightTheme();
+  const [bandVisible, setBandVisible] = useState<boolean>(() => readMicBandVisible());
+  const [promos, setPromos] = useState<MicBandPromo[]>([]);
+
+  /* Standing promotions for the band — fetched once from the
+     aggregating endpoint; failures leave the mic bare. */
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/mic-band/promos")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled) setPromos(parseMicBandPromos(d));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleBand = () => {
+    setBandVisible((v) => {
+      writeMicBandVisible(!v);
+      return !v;
+    });
+  };
 
   useEffect(() => {
     const el = swingRef.current;
@@ -140,7 +191,7 @@ export function HangingMic({ className = "" }: { className?: string }) {
   }, []);
 
   return (
-    <div aria-hidden className={`pointer-events-none ${className}`}>
+    <div className={`pointer-events-none ${className}`}>
       {/* Anchor: corridor center on ≥lg (viewport center −60px,
           −65px at ≥1800px — see the header note); right-edge
           corridor below lg (10% in from the right edge — x351 at
@@ -153,6 +204,7 @@ export function HangingMic({ className = "" }: { className?: string }) {
             Fixed (never rotates with the pendulum). */}
         <div
           data-mic="mount"
+          aria-hidden="true"
           className="absolute -translate-x-1/2"
           style={{ top: PIVOT_Y - 12, left: 0 }}
         >
@@ -169,6 +221,28 @@ export function HangingMic({ className = "" }: { className?: string }) {
             <rect x="10.5" y="14.5" width="5" height="3.5" rx="1" fill="#241708" stroke="#C9A84C" strokeOpacity="0.5" strokeWidth="0.5" />
           </svg>
         </div>
+
+        {/* Promo-band on/off — the user-facing switch for the flag
+            on the mic head. It sits beside the mount, OUTSIDE the
+            pendulum, so the control never swings; it is the one
+            pointer-events-auto element in this layer. Offset right
+            of the anchor line so it never sits on the cable. */}
+        <button
+          type="button"
+          data-mic="promo-toggle"
+          onClick={toggleBand}
+          aria-pressed={bandVisible}
+          aria-label={bandVisible ? "Hide the microphone promo band" : "Show the microphone promo band"}
+          title={bandVisible ? "Mic promo band: on" : "Mic promo band: off"}
+          className={`pointer-events-auto absolute flex h-7 w-7 translate-x-[16px] items-center justify-center rounded-full border backdrop-blur-sm transition-colors ${
+            isLight
+              ? "border-[#C9A84C]/70 bg-[#FBF6E9]/85 text-[#7A5A12] hover:bg-[#FBF6E9]"
+              : "border-[#C9A84C]/50 bg-black/55 text-[#E8C86A] hover:bg-black/75"
+          }`}
+          style={{ top: PIVOT_Y + 4, left: 0 }}
+        >
+          {bandVisible ? <Megaphone className="h-3.5 w-3.5" /> : <MegaphoneOff className="h-3.5 w-3.5" />}
+        </button>
 
         {/* Pendulum: rotates about the anchor point at the banner's
             bottom edge (transform-origin 0 0 of a zero-width box
@@ -190,6 +264,7 @@ export function HangingMic({ className = "" }: { className?: string }) {
                 catching the stage light, not a scratch. */}
             <div
               data-mic="cable"
+              aria-hidden="true"
               className="w-[3px] flex-1"
               style={{
                 background:
@@ -203,13 +278,14 @@ export function HangingMic({ className = "" }: { className?: string }) {
             <div data-mic="head" className="relative">
               <div
                 data-mic="halo"
+                aria-hidden="true"
                 className="absolute left-1/2 top-1/2 h-[104px] w-[64px] -translate-x-1/2 -translate-y-1/2 blur-[6px] lg:h-[136px] lg:w-[88px]"
                 style={{
                   background:
                     "radial-gradient(ellipse at center, rgba(255,238,180,0.75) 0%, rgba(255,214,110,0.42) 45%, rgba(201,168,76,0.14) 65%, transparent 72%)",
                 }}
               />
-              <div className="relative" style={{ filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.5))" }}>
+              <div aria-hidden="true" className="relative" style={{ filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.5))" }}>
               <svg viewBox="0 0 46 96" className="block h-auto w-full" aria-hidden>
                 <defs>
                   <linearGradient id="mic-body" x1="0" y1="0" x2="1" y2="0">
@@ -262,6 +338,12 @@ export function HangingMic({ className = "" }: { className?: string }) {
                 <ellipse cx="23" cy="90.5" rx="6.5" ry="1.8" fill="#E8B33C" opacity="0.55" />
               </svg>
               </div>
+              {/* Promo band — INSIDE the pendulum and the head, so it
+                  is attached to the mic and swings with it. Content
+                  comes only from /api/mic-band/promos. */}
+              {bandVisible && promos.length > 0 && (
+                <MicPromoBand promos={promos} isLight={isLight} />
+              )}
             </div>
           </div>
         </div>
