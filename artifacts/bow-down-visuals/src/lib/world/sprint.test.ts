@@ -6,6 +6,7 @@
  * source tests at the bottom of this file.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   WALK_SPEED,
   RUN_SPEED,
@@ -71,3 +72,27 @@ describe("sprintFromInputs — the one merge every family feeds", () => {
   });
 });
 
+
+describe("wiring — the scene rides this seam, never a fork", () => {
+  const sceneSrc = readFileSync(new URL("./hall-scene.ts", import.meta.url), "utf8");
+
+  it("hall-scene imports the shared seam and defines no speed fork of its own", () => {
+    expect(sceneSrc).toContain('from "./sprint"');
+    expect(sceneSrc).toContain("WALK_SPEED");
+    expect(sceneSrc).not.toMatch(/const (WALK_SPEED|RUN_SPEED) =/);
+  });
+
+  it("the flat move resolves its pace through the merge + moveSpeed, touch included", () => {
+    expect(sceneSrc).toContain("sprintFromInputs");
+    expect(sceneSrc).toContain("touch: this.touchSprint");
+    expect(sceneSrc).toContain("moveSpeed(run)");
+    /* The touch hold is a scene input the page pushes, the
+     * setPadActionPage pattern — and a window blur lets it go. */
+    expect(sceneSrc).toContain("setTouchSprint(held: boolean)");
+    expect(sceneSrc).toContain("this.touchSprint = false");
+  });
+
+  it("XR keeps the plain walk pace (its own standing rule, unchanged)", () => {
+    expect(sceneSrc).toContain("this.moveRig(fwd, strafe, dt, WALK_SPEED, yawFromLook)");
+  });
+});

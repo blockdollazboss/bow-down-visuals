@@ -37,7 +37,8 @@
  * ships in the world chunk and nowhere else.
  *
  * Controls: WASD/arrows + drag-look (click for pointer-lock mouse
- * look) on desktop; left-thumb virtual stick + drag-look on touch;
+ * look) on desktop; left-thumb virtual stick + drag-look + the
+ * on-screen Sprint hold (sprint.ts) on touch;
  * WebXR immersive-vr with thumbstick walking when a headset offers it.
  * Heading convention (shared with the server): rotY 0 faces the
  * stage/screen (-Z). The local walker stays on the audience floor —
@@ -107,6 +108,7 @@ import {
   type GamepadEdges,
 } from "./gamepad";
 import { DEFAULT_ACTION_PAGE, type ActionPageId } from "./bindings";
+import { WALK_SPEED, moveSpeed, sprintFromInputs } from "./sprint";
 import {
   figureWidthForHeight,
   defaultFigureCanvasSize,
@@ -349,8 +351,9 @@ export interface HallScreenSource {
    (palace-layout.ts) — the same numbers the hall has always used,
    now one source for the whole palace. */
 const EYE_HEIGHT = 1.7;
-const WALK_SPEED = 3.4;
-const RUN_SPEED = 6;
+/* The walk/run paces live in sprint.ts — the ONE source every
+   input family (keyboard, gamepad, touch) resolves through
+   moveSpeed, so no family can fork its own speed (Q194). */
 /* Third-person camera: behind and above your figure, clamped inside
    the walls so the follow cam never leaves the room. */
 const THIRD_CAM_DISTANCE = 4.1;
@@ -1637,6 +1640,16 @@ export class KingsHallScene {
   /** The page's action-page state, pushed for the pad poll. */
   setPadActionPage(page: ActionPageId): void {
     this.padActionPage = page;
+  }
+  /** The touch Sprint hold (Q194): the page's on-screen Sprint
+   *  button pushes its held state here, the setPadActionPage
+   *  pattern — tickFlatMove merges it with Shift and the pad's
+   *  hurry buttons through sprintFromInputs, so a touch walker
+   *  runs at the same RUN_SPEED as every other family. */
+  private touchSprint = false;
+
+  setTouchSprint(held: boolean): void {
+    this.touchSprint = held;
   }
   /** My own performed action changed on its own — a one-shot
    *  finished, or walking ended a held toggle — so the page's
@@ -9115,7 +9128,12 @@ export class KingsHallScene {
     this.on(window, "keyup", ((e: KeyboardEvent) => {
       this.keys.delete(e.code);
     }) as EventListener);
-    this.on(window, "blur", (() => this.keys.clear()) as EventListener);
+    this.on(window, "blur", (() => {
+      this.keys.clear();
+      /* A focus loss mid-hold ends the touch sprint too — a
+       * sprint must never stick on (sprint.ts). */
+      this.touchSprint = false;
+    }) as EventListener);
 
     canvas.addEventListener("pointerdown", (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -9877,7 +9895,7 @@ export class KingsHallScene {
       strafe += this.stick.dx;
       fwd += -this.stick.dy;
     }
-    let run = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+    let padSprint = false;
     /* A paired controller (Bluetooth gamepads arrive as standard
      * gamepads) merges in — it never replaces keyboard/mouse/touch,
      * it adds to them: left stick walks, right stick looks with the
@@ -9896,7 +9914,7 @@ export class KingsHallScene {
       fwd += -intent.moveY;
       this.yaw -= intent.lookX * 2.2 * dt;
       this.pitch = clamp(this.pitch - intent.lookY * 2.2 * dt, -1.15, 1.15);
-      if (intent.sprint) run = true;
+      if (intent.sprint) padSprint = true;
       if (intent.toggleVoice) this.onPadToggleVoice?.();
       if (intent.voiceBack) this.onPadVoiceBack?.();
       if (intent.toggleView) this.onPadToggleView?.();
@@ -9911,7 +9929,17 @@ export class KingsHallScene {
       fwd /= len;
       strafe /= len;
     }
-    this.moveRig(fwd, strafe, dt, run ? RUN_SPEED : WALK_SPEED, this.yaw);
+    /* The one sprint merge (sprint.ts, Q194): Shift, the pad's
+     * hurry buttons and the touch Sprint hold are peers — any one
+     * held runs, and moveSpeed resolves that single state to the
+     * one shared run pace. Touch joins here; nothing about the
+     * non-sprint path changes. */
+    const run = sprintFromInputs({
+      keyboard: this.keys.has("ShiftLeft") || this.keys.has("ShiftRight"),
+      gamepad: padSprint,
+      touch: this.touchSprint,
+    });
+    this.moveRig(fwd, strafe, dt, moveSpeed(run), this.yaw);
   }
 
   private tickXrMove(dt: number): void {
