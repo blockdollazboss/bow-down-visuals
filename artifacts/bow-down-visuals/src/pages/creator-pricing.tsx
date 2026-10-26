@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import { loginPathWithNext } from "@/lib/auth-next";
+import { CREATOR_PLANS } from "@/lib/pricing-plans";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
    The tier upgrade page. Sells the MONEY MATH, not vibes: every tier
@@ -66,7 +67,24 @@ export default function CreatorPricing() {
   const upgrade = query.get("upgrade");
   const upgradeTier = query.get("tier");
 
-  const [plans, setPlans] = useState<Plan[]>([]);
+  // Plan names, prices and feature claims come from the ONE shared
+  // pricing source (@/lib/pricing-plans) — the same module /pricing
+  // renders — so the two pages cannot drift. The server fetch below only
+  // overlays live configuration (priceConfigured, fee, break-even math).
+  const sharedPlans: Plan[] = CREATOR_PLANS.map((sp) => ({
+    tier: sp.tier,
+    name: sp.name,
+    tagline: sp.tagline,
+    priceUsdPerMonth: sp.priceUsdPerMonth === 0 ? null : sp.priceUsdPerMonth,
+    priceConfigured: sp.tier === "free",
+    feeBps: sp.feeBps,
+    feePct: sp.feePct,
+    aiBoostsPerMonth: sp.aiBoostsPerMonth,
+    features: sp.features,
+    breakEvenSalesUsd: null,
+    savingsAt1kUsd: 0,
+  }));
+  const [plans, setPlans] = useState<Plan[]>(sharedPlans);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +96,19 @@ export default function CreatorPricing() {
         const res = await fetch("/api/creator-tiers/plans");
         if (res.ok) {
           const data = await res.json();
-          setPlans(data.plans ?? []);
+          const serverPlans: Plan[] = data.plans ?? [];
+          if (serverPlans.length > 0) {
+            // Overlay live config only — names/prices/features stay on
+            // the shared source above, never on a second copy.
+            setPlans((prev) =>
+              prev.map((sp) => {
+                const srv = serverPlans.find((x) => x.tier === sp.tier);
+                return srv
+                  ? { ...sp, priceConfigured: srv.priceConfigured, feeBps: srv.feeBps, feePct: srv.feePct, breakEvenSalesUsd: srv.breakEvenSalesUsd, savingsAt1kUsd: srv.savingsAt1kUsd }
+                  : sp;
+              }),
+            );
+          }
         }
       } catch { /* page shows fallback copy */ } finally { setLoading(false); }
     })();
