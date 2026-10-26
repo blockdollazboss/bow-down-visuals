@@ -95,6 +95,10 @@ const SITEMAP_PUBLIC_SET = [
      stay unlisted on purpose. */
   "/world",
   "/charts",
+  /* Stack-200 N10 deliberate revisit: the Local Scenes directory is
+     static + public (§1.6 discovery family, like /charts) and belongs
+     in the sitemap; per-city pages are parameterized and stay unlisted. */
+  "/scenes",
   "/shorts",
   "/beats",
   "/shoutouts",
