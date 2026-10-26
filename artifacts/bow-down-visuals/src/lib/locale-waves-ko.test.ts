@@ -92,9 +92,6 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "memberships.aiCost", "merch.pricePlaceholder", "royalties.insights.cost",
     "storefrontBuilder.step3Cost",
     // house rank names (kept in English in the existing ko catalog)
-    "pricing.plans.crimeBoss.name", "pricing.plans.gangster.name",
-    "pricing.plans.hustler.name", "pricing.plans.kingpin.name",
-    "pricing.plans.shotCaller.name", "pricing.plans.streetPunk.name",
     // punctuation / placeholder-only fragments
     "referrals.hero.p4", "referrals.tracker.earned", "referrals.contest.prizeFor",
     "liveShopping.crossLinkEnd", "tips.tipMeta", "brandDeals.resultsCount",
