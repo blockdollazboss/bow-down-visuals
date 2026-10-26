@@ -5,13 +5,14 @@ import { Link } from "wouter";
 import {
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
-  AlertTriangle, RotateCcw, Megaphone, Disc3,
+  AlertTriangle, RotateCcw, Megaphone, Disc3, Mic2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { NicheLabel, PlatformLabel, scoreColor, fillProposalTemplate, clampFollowers } from "@/lib/collabs";
 import { CoPostsPanel, type CoPostPartner } from "@/components/collabs/CoPostsPanel";
 import { CoReleasesPanel } from "@/components/collabs/CoReleasesPanel";
+import { FeatureVersePanel } from "@/components/collabs/FeatureVersePanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── Collab Finder ─────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ interface InboxRequest {
   toNiche?: string | null;
 }
 
-type Tab = "browse" | "profile" | "match" | "inbox" | "coposts" | "coreleases";
+type Tab = "browse" | "profile" | "match" | "inbox" | "coposts" | "coreleases" | "featureverse";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -101,7 +102,7 @@ export default function CollabFinder() {
   const [tab, setTab] = useState<Tab>(() => {
     try {
       const tabParam = new URLSearchParams(window.location.search).get("tab");
-      return tabParam === "coposts" ? "coposts" : tabParam === "coreleases" ? "coreleases" : "browse";
+      return tabParam === "coposts" ? "coposts" : tabParam === "coreleases" ? "coreleases" : tabParam === "featureverse" ? "featureverse" : "browse";
     } catch {
       return "browse";
     }
@@ -400,6 +401,7 @@ export default function CollabFinder() {
     { key: "inbox", label: pendingCount > 0 ? t("collabs.tabInboxWithCount", { count: pendingCount }) : t("collabs.tabInbox"), icon: Inbox },
     { key: "coposts", label: "Co-posts", icon: Megaphone },
     { key: "coreleases", label: "Co-releases", icon: Disc3 },
+    { key: "featureverse", label: "Feature Verse", icon: Mic2 },
   ];
 
   return (
@@ -727,6 +729,10 @@ export default function CollabFinder() {
 
         {user && tab === "coreleases" && (
           <CoReleasesPanel authed={authed} partners={coPostPartners} preselectUserId={coPostPreselect} />
+        )}
+
+        {user && tab === "featureverse" && (
+          <FeatureVersePanel authed={authed} variant="full" />
         )}
 
         {/* proposal modal */}

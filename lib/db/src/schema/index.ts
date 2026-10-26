@@ -161,3 +161,5 @@ export * from "./sale-splits";
 export * from "./api-webhooks";
 export * from "./wishlists";
 export * from "./studio-gear";
+
+export * from "./feature-verse";
