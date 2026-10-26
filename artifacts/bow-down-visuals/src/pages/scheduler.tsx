@@ -22,6 +22,7 @@ import CalendarAutofill from "@/components/wave8/CalendarAutofill";
 import TrendPredictor from "./trends";
 import TrendJackerSection from "@/components/scheduler/TrendJackerSection";
 import VaultDripSection from "@/components/scheduler/VaultDripSection";
+import EvergreenPanel from "@/components/scheduler/EvergreenPanel";
 import { Button } from "@/components/ui/button";
 import type { SocialAccountInfo } from "@/components/ConnectedAccounts";
 import {
@@ -71,7 +72,7 @@ import {
    - TikTok posts land in your TikTok drafts inbox — TikTok's API can't
      publish straight to your feed, so you finish the post in TikTok. */
 
-type Tab = "calendar" | "queue" | "drafts" | "posted" | "community" | "trends" | "trend-jacker" | "vault-drip";
+type Tab = "calendar" | "queue" | "drafts" | "posted" | "community" | "trends" | "trend-jacker" | "vault-drip" | "evergreen";
 
 interface PlatformOpt {
   key: SchedulerPlatformKey;
@@ -224,6 +225,7 @@ export default function Scheduler() {
       if (q.get("tab") === "trends") return "trends";
       if (q.get("tab") === "trend-jacker") return "trend-jacker";
       if (q.get("tab") === "vault-drip") return "vault-drip";
+      if (q.get("tab") === "evergreen") return "evergreen";
       if (q.get("niche") && !q.get("shared")) return "calendar";
     } catch { /* non-browser — ignore */ }
     return "calendar";
@@ -549,6 +551,7 @@ export default function Scheduler() {
               { key: "trends", label: t("scheduler.tabs.trends", { defaultValue: "Trends" }), icon: TrendingUp },
               { key: "trend-jacker", label: t("scheduler.tabs.trendJacker", { defaultValue: "Trend Jacker" }), icon: Zap },
               { key: "vault-drip", label: t("scheduler.tabs.vaultDrip", { defaultValue: "Vault Drip" }), icon: Droplets },
+              { key: "evergreen", label: t("scheduler.tabs.evergreen", { defaultValue: "Evergreen" }), icon: RefreshCw },
             ] as { key: Tab; label: string; icon: LucideIcon }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -639,6 +642,7 @@ export default function Scheduler() {
             {tab === "trends" && <TrendPredictor />}
             {tab === "trend-jacker" && <TrendJackerSection />}
             {tab === "vault-drip" && <VaultDripSection />}
+            {tab === "evergreen" && <EvergreenPanel />}
           </div>
         )}
 
