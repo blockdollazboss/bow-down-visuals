@@ -175,6 +175,28 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(route).not.toContain("Free by default (CHAT_CREDIT_COST=0)");
   });
 
+  // Q182 / ruling A-05: AI Upscale is officially 1,500 VB — the registry
+  // display, the upscale page's own constant, and the rail charge must
+  // all agree at 1,500, and the registry entry must NOT sit under the
+  // "PLACEHOLDER prices" group comment (the placeholder state A-05
+  // killed). The classic ffmpeg upscale stays 300 on both sides.
+  it("generative AI upscale: registry == page == GENERATIVE_UPSCALE_CREDIT_COST (1500, official)", () => {
+    const rail = deriveServerConstant("routes/generate/upscale-generative.ts", "GENERATIVE_UPSCALE_CREDIT_COST");
+    expect(rail).toBe(1500);
+    expect(CREDIT_COSTS["/api/ai-upscale"]?.cost).toBe(rail);
+    expect(CREDIT_COSTS["/api/upscale"]?.cost).toBe(300);
+
+    const page = readFileSync(new URL("../pages/upscale.tsx", import.meta.url), "utf8");
+    expect(page).toMatch(/const GENERATIVE_UPSCALE_CREDIT_COST = 1500;/);
+
+    const registrySrc = readFileSync(new URL("./credit-costs.ts", import.meta.url), "utf8");
+    const idx = registrySrc.indexOf('"/api/ai-upscale"');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    const before = registrySrc.slice(Math.max(0, idx - 320), idx);
+    expect(before).toContain("owner ruling A-05");
+    expect(before).not.toContain("PLACEHOLDER prices");
+  });
+
   for (const spec of FREE_RAILS) {
     it(`${spec.endpoint}: handler charges nothing and the registry displays 0`, () => {
       const src = readApi(spec.file);
