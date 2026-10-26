@@ -1,7 +1,8 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X, AlertTriangle, RotateCcw, Sparkles, Monitor } from "lucide-react";
+import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X, AlertTriangle, RotateCcw, Sparkles, Monitor, MapPin, ChevronRight } from "lucide-react";
+import { fetchSceneDirectory, type SceneCityEntry } from "@/lib/scenes";
 import { useMinStars } from "@/lib/creator-level";
 import { formatMoney } from "@/components/discovery/cards";
 import { formatCount } from "@/lib/streaming";
@@ -104,6 +105,60 @@ function WindowTabs({ value, onChange }: { value: WindowKey; onChange: (w: Windo
           {w.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/* ─── Local Scenes strip (Stack-200 N10) ──────────────────────────────────
+   The charts page's door into the scene pages. Fetches the real scene
+   directory; renders NOTHING while loading, on failure, or when no
+   creator has declared a city yet — the strip exists only when real
+   scenes do. */
+function ScenesStrip() {
+  const isLight = useIsLightTheme();
+  const [cities, setCities] = useState<SceneCityEntry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchSceneDirectory()
+      .then((rows) => {
+        if (!cancelled) setCities(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCities([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (cities.length === 0) return null;
+  return (
+    <div className="mb-8">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className={`flex items-center gap-2 text-sm font-black uppercase tracking-widest ${isLight ? "text-[#8a6d2f]" : "text-[#e8c86a]"}`}>
+          <MapPin className="h-4 w-4" /> Local Scenes
+        </h2>
+        <Link href="/scenes" className={`inline-flex items-center gap-0.5 text-xs font-bold ${isLight ? "text-[#8a6d2f]" : "text-[#e8c86a]"}`}>
+          All scenes <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {cities.map((city) => (
+          <Link
+            key={city.slug}
+            href={`/scenes/${city.slug}`}
+            className={`inline-flex min-h-[40px] items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-bold transition-all ${
+              isLight
+                ? "border-[#C9A84C]/50 bg-[#FCF7EA] text-[#2A1E07] hover:border-[#C9A84C]"
+                : "border-white/15 bg-white/5 text-white/70 hover:border-[#e8c86a]/40 hover:text-white"
+            }`}
+          >
+            {city.name}
+            <span className={isLight ? "text-[#8a6d2f]" : "text-[#e8c86a]"}>
+              {city.creator_count} {city.creator_count === 1 ? "creator" : "creators"}
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -356,6 +411,11 @@ export default function Charts() {
         <VerticalSwitcher value={vertical} onChange={setVertical} />
       </div>
       <p className="mb-6 text-center text-sm text-white/40">{verticalBlurb}</p>
+
+      {/* Local Scenes (Stack-200 N10) dock: cities appear ONLY when real
+          creators declared them — an empty directory renders nothing
+          here, never a padded strip of fake places. */}
+      <ScenesStrip />
 
       {tab === "charts" && (
         <div className="mb-8 flex flex-col items-center gap-3">

@@ -86,6 +86,8 @@ const Browse = lazyWithRetry(() => import("@/pages/discovery/browse"));
 const VerticalPage = lazyWithRetry(() => import("@/pages/discovery/vertical"));
 const Genres = lazyWithRetry(() => import("@/pages/discovery/genres"));
 const GenrePage = lazyWithRetry(() => import("@/pages/discovery/genre"));
+const ScenesDirectory = lazyWithRetry(() => import("@/pages/discovery/scenes"));
+const SceneCityPage = lazyWithRetry(() => import("@/pages/discovery/scene"));
 
 /* Social (Worker 8): home timeline, trending, saved. */
 const SocialHome = lazyWithRetry(() => import("@/pages/feed"));
@@ -548,6 +550,9 @@ function AppShell() {
           <Route path="/genres/trap"><GenreHubBySlug slug="trap" /></Route>
           {/* Discovery — public, no login: charts, search, browse, vertical + genre hubs */}
           <Route path="/charts"><Charts /></Route>
+          {/* Local Scenes (Stack-200 N10) — declared-city pages inside the discovery family */}
+          <Route path="/scenes"><ScenesDirectory /></Route>
+          <Route path="/scenes/:slug"><SceneCityPage /></Route>
           <Route path="/search"><DiscoverySearch /></Route>
           <Route path="/browse"><Browse /></Route>
           <Route path="/vertical/:vertical"><VerticalPage /></Route>
