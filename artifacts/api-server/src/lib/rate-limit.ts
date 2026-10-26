@@ -133,3 +133,27 @@ export const apiKeyGenerationLimiter = rateLimit({
   },
   message: { error: "rate_limited", message: "Too many generation requests for this key. Please wait a minute." },
 });
+
+/**
+ * Static World assets — the fixture bodies, guard mattes, idle
+ * loops and hall textures under /world/ — are inert files shipped
+ * in the app bundle and mirrored to the media CDN; the origin
+ * copies are the loader's FALLBACK when the CDN leg fails. They
+ * must never burn the global limiter's bucket: a World entry fires
+ * its whole texture program first and the fixture bodies load
+ * last, so a burst peak could shed the one asset class the palace
+ * figures depend on and strand them on their stand-ins for the
+ * whole session (World figures diagnosis, Oct 25-26 2026). No API
+ * surface lives under /world/ (every API route is /api/*), and the
+ * SPA page itself — /world, no asset extension — stays metered.
+ */
+const WORLD_STATIC_ASSET_EXT = /\.(?:glb|gltf|png|jpe?g|webp|mp4|webm)$/i;
+
+export function isWorldStaticAssetPath(path: string): boolean {
+  return path.startsWith("/world/") && WORLD_STATIC_ASSET_EXT.test(path);
+}
+
+/** express-rate-limit `skip` predicate for the global limiter. */
+export function skipWorldStaticAssets(req: { method: string; path: string }): boolean {
+  return (req.method === "GET" || req.method === "HEAD") && isWorldStaticAssetPath(req.path);
+}
