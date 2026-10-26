@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import OpenVerseDesk from "@/components/songs/OpenVerseDesk";
+import RemixKingSection from "@/components/remix-king/RemixKingSection";
 import ShareMenu from "@/components/ShareMenu";
 import { useHubProject } from "@/lib/hub-project";
 import {
@@ -357,6 +358,7 @@ export default function Contests() {
         {!user && (
           <div className="mt-8">
             <ContestHubWidget />
+            <RemixKingSection />
           </div>
         )}
 
@@ -378,6 +380,9 @@ export default function Contests() {
             <div className="mt-6">
               <OpenVerseDesk />
             </div>
+            {/* Remix the King (#152): the monthly house event docks here,
+                inside Contests — never a standalone page. */}
+            <RemixKingSection />
             <div className="mt-6 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t("contests.your_contests")}</h2>
               <button

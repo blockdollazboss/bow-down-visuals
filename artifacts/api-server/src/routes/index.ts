@@ -271,6 +271,7 @@ import sampleClearanceRouter from "./sample-clearance";
 import communityGrantsRouter from "./community-grants";
 import priorityDmsRouter from "./priority-dms";
 import proxyEditingRouter from "./proxy-editing";
+import remixKingRouter from "./remix-king";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
@@ -655,6 +656,7 @@ router.use(sampleClearanceRouter);       // /api/sample-clearance/* (Sample Clea
 router.use(communityGrantsRouter);       // /api/community-grants/* + /api/admin/community-grants/* (Community Grants, N15)
 router.use(priorityDmsRouter);           // /api/priority-dms/* (Paid Priority DMs, Wave-4 #44 — gated OFF by PRIORITY_DM_ENABLED until the owner rules)
 router.use(proxyEditingRouter);          // /api/proxy-editing/* (proxy editing, board 184)
+router.use(remixKingRouter);             // /api/remix-king/* + /api/admin/remix-king/* (Remix the King, #152)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);
