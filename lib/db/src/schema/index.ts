@@ -73,6 +73,7 @@ export * from "./label-pitch";
 export * from "./sync-pitch";
 export * from "./contests";
 export * from "./fan-shoutouts";
+export * from "./fan-art";
 export * from "./collab";
 export * from "./email-lists";
 export * from "./royalties";
