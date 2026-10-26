@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { formatBudgetRange, daysLeftLabel, clampScore } from "./sponsors";
+import { formatBudgetRange, daysLeftLabel, clampScore, sponsorSplitPreview } from "./sponsors";
+
+describe("sponsorSplitPreview (mirrors backend sponsorFeeSplit at the rail's 1500 bps)", () => {
+  it("splits $1,000 at 15% platform / 85% creator", () => {
+    expect(sponsorSplitPreview(100000, 1500)).toEqual({ feeCents: 15000, netCents: 85000 });
+  });
+  it("rounds the fee and always sums to gross on odd amounts", () => {
+    expect(sponsorSplitPreview(12345, 1500)).toEqual({ feeCents: 1852, netCents: 10493 });
+    for (const gross of [100, 199, 999, 1000000]) {
+      const { feeCents, netCents } = sponsorSplitPreview(gross, 1500);
+      expect(feeCents + netCents).toBe(gross);
+    }
+  });
+  it("honours whatever bps the server quote carries", () => {
+    expect(sponsorSplitPreview(100000, 1000)).toEqual({ feeCents: 10000, netCents: 90000 });
+  });
+});
 
 describe("formatBudgetRange", () => {
   it("formats a normal range", () => {

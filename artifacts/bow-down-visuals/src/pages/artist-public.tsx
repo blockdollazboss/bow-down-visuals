@@ -17,6 +17,7 @@ import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
 import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
 import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
+import SponsorCreatorSection from "@/components/artist/SponsorCreatorSection";
 import {
   fetchPublicLayout,
   grandStageFallbackBlocks,
@@ -346,6 +347,11 @@ export default function ArtistPublic() {
         {/* Tutorials shelf (V1): the creator's how-tos live on the
             profile too — it renders nothing until they have one. */}
         <ProfileTutorialsSection slug={slug} />
+        {/* Sponsor this creator (payfix sponsor-purchase lane): direct
+            sponsorship at the sponsor's own amount on the sponsor escrow
+            rail — price + 15%/85% split shown before paying, funded
+            on-site, and funded sponsors are recognised in the section. */}
+        <SponsorCreatorSection slug={slug} displayName={profile.display_name} />
         <ProfileActions profile={profile} />
         <div className="flex justify-center px-4 pb-4">
           <EmbedButton
