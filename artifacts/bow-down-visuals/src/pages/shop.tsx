@@ -16,6 +16,7 @@ import WishlistButton from "@/components/wishlist/WishlistButton";
 import ProductOfferPanel from "@/components/offers/ProductOfferPanel";
 import type { ProductOffer } from "@/lib/product-offers";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
+import { LocalCurrencyPrice } from "@/components/LocalCurrencyPrice";
 import {
   fireCommercePageView,
   fireCommercePurchase,
@@ -503,6 +504,9 @@ export default function ShopStorefront() {
                 </button>
               </div>
               <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents)}</div>
+              {/* Wave-4 #46: display-only local-currency rendering —
+                  checkout still charges the USD price above. */}
+              <LocalCurrencyPrice cents={selected.price_cents} className="text-xs mt-1" />
               {/* #36: a shared product says so — the sellers split
                   this sale's net between them. */}
               {selected.splits && selected.splits.length > 1 && (

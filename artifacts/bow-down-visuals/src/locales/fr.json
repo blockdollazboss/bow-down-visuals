@@ -15116,5 +15116,16 @@
       "queued": "{{amount}} VB en file",
       "ineligible": "Aucune récompense : doublon"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — facturé {{usd}} USD (taux approximatif ; réglé en USD)",
+      "chargedInUsd": "Facturé {{usd}} USD",
+      "approxNote": "Les prix sont facturés en USD. Les montants convertis sont approximatifs, utilisent un tableau de taux statique et sont affichés à titre indicatif : le montant en USD est celui que vous payez.",
+      "settingsTitle": "Devise d'affichage des prix",
+      "settingsDesc": "Affichez les prix en argent réel dans la devise de votre langue. La facturation reste toujours en USD.",
+      "autoOption": "Automatique : suivre ma langue",
+      "usdOnlyOption": "Dollars américains uniquement (USD)",
+      "vbNote": "Les Visual Bucs ne sont jamais convertis : les montants en Visual Bucs sont les mêmes partout.",
+      "ratesNote": "Les taux sont un instantané statique approximatif, pas des taux de change en direct."
   }
 }

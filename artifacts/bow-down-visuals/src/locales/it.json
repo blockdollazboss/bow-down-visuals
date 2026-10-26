@@ -15116,5 +15116,16 @@
       "queued": "{{amount}} VB in coda",
       "ineligible": "Nessuna ricompensa: duplicato"
     }
+  },
+  "currencyDisplay": {
+      "honesty": "≈ {{converted}} — addebitati {{usd}} USD (tasso approssimativo; regolamento in USD)",
+      "chargedInUsd": "Addebitati {{usd}} USD",
+      "approxNote": "I prezzi vengono addebitati in USD. Gli importi convertiti sono approssimativi, usano una tabella di tassi statica e sono mostrati solo come riferimento: l'importo in USD è quello che paghi.",
+      "settingsTitle": "Valuta di visualizzazione dei prezzi",
+      "settingsDesc": "Vedi i prezzi in denaro reale nella valuta della tua lingua. L'addebito resta sempre in USD.",
+      "autoOption": "Automatica: segui la mia lingua",
+      "usdOnlyOption": "Solo dollari USA (USD)",
+      "vbNote": "I Visual Bucs non vengono mai convertiti: gli importi in Visual Bucs sono gli stessi ovunque.",
+      "ratesNote": "I tassi sono un'istantanea statica approssimativa, non tassi di cambio in tempo reale."
   }
 }

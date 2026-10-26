@@ -16,6 +16,7 @@ import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 
 type Plan = {
   stars: number;
@@ -79,6 +80,16 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
       <div>
         <p className="text-lg font-black text-white leading-tight tracking-tight">{pack.credits}</p>
         <p className="text-2xl font-black text-primary mt-1 tracking-tight">{pack.price}</p>
+        {/* Wave-4 #46: display-only conversion of the pack's USD price —
+            the USD figure above stays the charge; the pack's VB amount
+            itself is never converted. priceUsd is parsed from the same
+            displayed price string so there is one source of truth. */}
+        {(() => {
+          const priceUsd = Number(String(pack.price).replace(/[^0-9.]/g, ""));
+          return Number.isFinite(priceUsd) && priceUsd > 0 ? (
+            <LocalCurrencyPrice usd={priceUsd} className="text-[11px] mt-1 leading-snug" />
+          ) : null;
+        })()}
       </div>
       {errorMsg && (
         <p className="text-[11px] text-red-400 leading-snug text-center px-1">{errorMsg}</p>
@@ -540,6 +551,9 @@ export default function Pricing() {
                     <span className={`text-4xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>${plan.price}</span>
                     <span className={isLight ? "text-[#8A7A56]" : "text-white/35"}>{plan.period}</span>
                   </div>
+                  {/* Wave-4 #46: display-only local-currency rendering —
+                      charged amount stays the USD figure above. */}
+                  <LocalCurrencyPrice usd={plan.price} className="text-xs mb-2 -mt-1" />
                   <div className="flex items-center gap-1.5">
                     <Zap className={`h-3 w-3 ${isLight ? "text-[#7A5A12]" : "text-primary"}`} />
                     <span className={`text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>{plan.credits}</span>
@@ -579,6 +593,8 @@ export default function Pricing() {
             })}
           </div>
 
+          <CurrencyHonestyNote className="text-center max-w-xl mx-auto mt-8" />
+
           {/* Coming soon note */}
           <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
@@ -606,6 +622,8 @@ export default function Pricing() {
               <CreditPackCard key={pack.packKey} pack={pack} />
             ))}
           </div>
+
+          <CurrencyHonestyNote className="text-center max-w-xl mx-auto mt-5" />
 
           <p className="text-center text-xs text-white/25 font-medium mt-5 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
