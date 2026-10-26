@@ -7,6 +7,7 @@ import { SocialProofSettings } from "@/components/SocialProofSettings";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { SoundPrefsSettings } from "@/components/SoundPrefsSettings";
+import { MonthWrappedSettings } from "@/components/MonthWrappedSettings";
 import { FeedbackPromptSettings } from "@/components/FeedbackPromptSettings";
 import { ContentWarningSettings } from "@/components/ContentWarningSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
@@ -263,6 +264,8 @@ export default function Settings() {
         <RetentionPrefsSettings />
 
         <SoundPrefsSettings />
+
+        <MonthWrappedSettings />
 
         <FeedbackPromptSettings />
 
