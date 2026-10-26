@@ -35,7 +35,7 @@ import { z } from "zod/v4";
    at post time and song_title is snapshotted.
 
    *** MIGRATION PROVISIONAL *** These tables are created by
-   lib/db/migrations/9999-open-verse.sql (coordinator renumbers at
+   lib/db/migrations/0248-open-verse.sql (coordinator renumbers at
    join). Until it lands, write routes probe-first and answer 503, and
    reads degrade to "no open verses yet" — nothing is faked. */
 

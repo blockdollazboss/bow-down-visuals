@@ -29,7 +29,7 @@ import { creatorProfilesTable } from "./creator-platform";
    - The unique (profile_id, kind, threshold) index makes re-scans
      idempotent: a milestone can be recorded exactly once, never duped.
 
-   Provisional migration: lib/db/migrations/9999-results-wall.sql
+   Provisional migration: lib/db/migrations/0269-results-wall.sql
    (number assigned at join). */
 
 export const RESULTS_WALL_KINDS = [

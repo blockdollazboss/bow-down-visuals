@@ -37,7 +37,7 @@ import { z } from "zod/v4";
    snapshot is a record, never a source surfaces render from.
 
    *** MIGRATION PROVISIONAL *** Created by
-   lib/db/migrations/9999-song-credits.sql — the number is provisional
+   lib/db/migrations/0250-song-credits.sql — the number is provisional
    (flagged for the integrator to renumber at join). Until it lands,
    write routes probe-first and answer 503, and reads degrade to the
    splits rails alone — nothing is faked. */

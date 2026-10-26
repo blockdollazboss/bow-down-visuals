@@ -11,7 +11,7 @@ import { storeProductsTable } from "./storefront";
  * gift-card machine (gift-cards.ts): that sells store credit; this
  * sells the product itself, held for the recipient until they claim it.
  *
- * ⚠️ PROVISIONAL MIGRATION: lib/db/migrations/9999-gift-product.sql —
+ * ⚠️ PROVISIONAL MIGRATION: lib/db/migrations/0259-gift-product.sql —
  * the number is provisional and MUST be renumbered by the integrator
  * at join time. Until it lands, every money path that touches these
  * tables fails closed (503) — never open.

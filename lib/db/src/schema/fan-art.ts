@@ -29,7 +29,7 @@ import { creatorProfilesTable } from "./creator-platform";
  * NO PRICES: submitting, approving, and displaying fan art is free —
  * no charge rail, no Visual Bucs, no real money anywhere in this lane.
  *
- * Migration: lib/db/migrations/9999-fan-art-wall.sql (PROVISIONAL
+ * Migration: lib/db/migrations/0267-fan-art-wall.sql (PROVISIONAL
  * number — renumber at join time).
  */
 export const FAN_ART_STATUSES = ["pending", "approved", "rejected", "revoked"] as const;

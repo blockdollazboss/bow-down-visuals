@@ -143,7 +143,7 @@ describe("Grand Stage fallback (layout read failed — the page still composes)"
     ]);
     expect(blocks.map((b) => b.type)).toEqual([
       "hero", "spotlight", "court", "tracks", "videos", "store", "memberships",
-      "bio", "achievements", "links",
+      "bio", "gallery", "achievements", "links",
     ]);
     expect(blocks.find((b) => b.type === "videos")!.title).toBe("Clips");
     expect(blocks.find((b) => b.type === "tracks")!.title).toBe("Music");

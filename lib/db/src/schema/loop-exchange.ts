@@ -36,7 +36,7 @@ import { z } from "zod/v4";
    idempotent replay: existing rows come back, nobody is paid twice.
 
    *** MIGRATION PROVISIONAL *** Tables are created by
-   lib/db/migrations/9999-loop-exchange.sql (provisional number; the
+   lib/db/migrations/0268-loop-exchange.sql (provisional number; the
    integrator renumbers at join). Until it lands, write routes
    probe-first and answer 503, and reads degrade to empty — nothing
    is faked. */

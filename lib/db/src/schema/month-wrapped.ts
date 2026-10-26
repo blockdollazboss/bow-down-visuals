@@ -1,7 +1,7 @@
 import { pgTable, uuid, boolean, timestamp } from "drizzle-orm/pg-core";
 
 /** "Your Month, Wrapped" opt-out (Stack-200, idea #170 — TRULY NEW).
- *  Provisional migration 9999-month-wrapped.sql.
+ *  Provisional migration 0247-month-wrapped.sql.
  *
  *  The monthly recap itself is NOT stored: it is computed on read from
  *  the real source tables (play_events, follows, digital_sales,

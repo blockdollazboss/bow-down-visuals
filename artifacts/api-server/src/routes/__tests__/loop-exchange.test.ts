@@ -98,7 +98,7 @@ function createLoopTestDb() {
   return drizzle(shim as never);
 }
 
-/* The migration's own DDL (9999-loop-exchange.sql) + the two tables the
+/* The migration's own DDL (0268-loop-exchange.sql) + the two tables the
    flow touches outside it: creator_profiles (poster/builder profile
    ids) and credit_usage (the keyed split-payment ledger). */
 const DDL = `

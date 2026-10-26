@@ -3,7 +3,7 @@
  *
  * Favorites are creator-font ids (see lib/creator-fonts.ts), kept in
  * localStorage so the picker is instant and works signed-out. The
- * provisional server table (lib/db/migrations/9999-fonts.sql —
+ * provisional server table (lib/db/migrations/0256-fonts.sql —
  * user_font_favorites) is the future sync target; until that migration
  * is numbered and applied, localStorage is the source of truth and
  * nothing here calls the API.

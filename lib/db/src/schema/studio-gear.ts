@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /* Studio-gear orders (Branding Shop studio-gear line, owner ruling Oct 25
-   2026; provisional migration 9999-studio-gear.sql).
+   2026; provisional migration 0245-studio-gear.sql).
    Made-to-order model: no inventory, a partner makes each piece and ships
    direct. Creator-custom pieces are proof-gated — production starts only
    after the creator approves the design proof (proof_status = 'approved');

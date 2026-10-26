@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 
 /**
  * Remix the King (Stack-200 audit #152, TRULY NEW) — migration
- * 9999-remix-king.sql (PROVISIONAL number — the integrator renumbers
+ * 0263-remix-king.sql (PROVISIONAL number — the integrator renumbers
  * at join; do not treat 9999 as final).
  *
  * A MONTHLY HOUSE EVENT: the King (Thy Cheat Code, the house artist)

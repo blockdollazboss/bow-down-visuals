@@ -12,7 +12,7 @@ import {
 
 /* ─── Wave-4 remainder #48–#49 storage (Stack-200 rem-wave4850) ──────────
    *** PROVISIONAL MIGRATION *** These tables are created by
-   lib/db/migrations/9999-wave4850.sql (provisional number — renumbered
+   lib/db/migrations/0260-wave4850.sql (provisional number — renumbered
    at join). Until it lands, every WRITE route for these features
    answers an honest 503 ("not ready") and every READ path treats a
    missing table as "feature has no stored state yet" — behaviour is

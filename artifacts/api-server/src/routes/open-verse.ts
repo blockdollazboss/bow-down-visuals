@@ -69,7 +69,7 @@ import { isUniqueViolation } from "../lib/pg-errors";
    Creator approval gates every step — nothing auto-picks or
    auto-posts a winner.
 
-   Until the provisional migration (9999-open-verse.sql) lands, writes
+   Until the provisional migration (0248-open-verse.sql) lands, writes
    answer 503 open_verse_not_ready BEFORE creating anything, and reads
    degrade to an honest empty list. */
 

@@ -30,7 +30,7 @@
  * no token and no conversation: 401 at REST, 4401 at the socket.
  *
  * Provisionals: the video_calls table lands via
- * lib/db/migrations/9999-video-calls.sql (provisional number, assigned
+ * lib/db/migrations/0246-video-calls.sql (provisional number, assigned
  * a real slot at join). Until that migration runs, every handler
  * degrades honestly: reads answer an empty history, a start answers
  * 503 calls_unavailable — the Messages page simply shows no call

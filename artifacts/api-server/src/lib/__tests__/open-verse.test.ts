@@ -264,7 +264,7 @@ describe("money law + route wiring", () => {
   it("migration + schema carry the exactly-once ledger uniques", () => {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const root = path.join(here, "../../../../..");
-    const sql = fs.readFileSync(path.join(root, "lib/db/migrations/9999-open-verse.sql"), "utf8");
+    const sql = fs.readFileSync(path.join(root, "lib/db/migrations/0248-open-verse.sql"), "utf8");
     expect(sql).toContain("open_verse_split_ledger");
     expect(sql).toMatch(/UNIQUE.*post_id|post_id.*UNIQUE/s);
     expect(sql).toContain("idempotency_key");

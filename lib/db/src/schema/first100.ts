@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 /**
  * First 100 Fans (Stack-200 List 2 #155, TRULY NEW) — per-creator
- * program state. Provisional migration: lib/db/migrations/9999-first100.sql
+ * program state. Provisional migration: lib/db/migrations/0265-first100.sql
  * (renumbered at join).
  *
  * WHAT THIS TABLE IS — and is not:

@@ -35,7 +35,7 @@
  *
  * Queries use raw SQL via db.execute(sql``) — the storefront/store
  * convention (pg-mem cannot run the drizzle query builder).
- * ⚠️ PROVISIONAL MIGRATION 9999-gift-product.sql: until it lands,
+ * ⚠️ PROVISIONAL MIGRATION 0259-gift-product.sql: until it lands,
  * every DB helper throws ProductGiftsUnavailable and routes answer
  * 503 — money fails closed.
  */
