@@ -15,6 +15,7 @@ import { UgcAdsPanel } from "@/components/hub/UgcAdsPanel";
 import { UnlockGatesPanel } from "@/components/promote/UnlockGatesPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
+import { ResultsWallPanel } from "@/components/promote/ResultsWallPanel";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
@@ -258,6 +259,14 @@ export default function Promote() {
       {/* Refer & Earn cross-surface — visible in both tabs, above the panels */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
         <ReferEarnCard />
+      </div>
+
+      {/* Results Wall (Stack-200 #177) — public, platform-verified creator
+          outcomes + the creator's opt-in controls, docked in the Promote
+          flow (never a standalone page). Visible in both tabs, like the
+          Refer & Earn handoff above it. */}
+      <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
+        <ResultsWallPanel />
       </div>
 
       <section className="mx-auto max-w-4xl px-5 md:px-8 pb-20">
