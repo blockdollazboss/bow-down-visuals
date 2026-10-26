@@ -899,7 +899,17 @@ router.post("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, as
      guarantees even with a real provider. */
   const [campaign] = await db
     .insert(emailCampaignsTable)
-    .values({ subject: parsed.data.subject, body: parsed.data.body, status: parsed.data.status, segmentId: parsed.data.segmentId ?? null, listId: id })
+    .values({
+      subject: parsed.data.subject,
+      body: parsed.data.body,
+      status: parsed.data.status,
+      /* Stale-queue gate anchor (QC-200 G6): a campaign born queued is
+         stamped NOW, so the drain can tell a fresh queue from a stale
+         pre-gate row (which falls back to created_at and is held). */
+      queuedAt: parsed.data.status === "queued" ? new Date() : null,
+      segmentId: parsed.data.segmentId ?? null,
+      listId: id,
+    })
     .returning();
   /* "queued" is a real send now: dispatch resolves the audience
      (whole list or segment — unsubscribed always excluded), sends
@@ -954,13 +964,17 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter
     });
     return;
   }
-  if (campaign.status !== "draft" && campaign.status !== "failed") {
+  /* held_stale is sendable from here ON PURPOSE: this door is the
+     deliberate re-queue that releases the stale-queue gate's hold
+     (QC-200 G6) — it re-stamps queued_at below, which is what makes
+     the row fresh again in the drain's eyes. */
+  if (campaign.status !== "draft" && campaign.status !== "failed" && campaign.status !== "held_stale") {
     res.status(409).json({ error: `Campaign is ${campaign.status} — it can't be sent again from here.`, code: "not_sendable" });
     return;
   }
   await db
     .update(emailCampaignsTable)
-    .set({ status: "queued" })
+    .set({ status: "queued", queuedAt: new Date() })
     .where(eq(emailCampaignsTable.id, campaignId));
   const dispatch = await dispatchCampaign(campaignId);
   const [fresh] = await db.select().from(emailCampaignsTable).where(eq(emailCampaignsTable.id, campaignId)).limit(1);
