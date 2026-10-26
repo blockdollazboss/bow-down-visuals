@@ -1,0 +1,13 @@
+src/routes/community-grants.ts(125,50): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/community-grants.ts(143,42): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/community-grants.ts(152,31): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/community-grants.ts(170,51): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/community-grants.ts(195,55): error TS2741: Property 'createdByUserId' is missing in type '{ monthKey: string; poolVb: number; submissionsOpenAt: string; submissionsCloseAt: string; votingOpenAt: string; votingCloseAt: string; }' but required in type 'NewRoundRow'.
+src/routes/community-grants.ts(216,51): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/community-grants.ts(225,66): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.

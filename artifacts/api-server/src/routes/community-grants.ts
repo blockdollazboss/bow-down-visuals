@@ -122,7 +122,7 @@ router.post("/community-grants/:id/projects", requireAuth, async (req: Request, 
   }
   try {
     const name = await resolveCreatorName(req.userId!);
-    const candidate = await submitProject(store, req.params["id"]!, req.userId!, name, parsed.data);
+    const candidate = await submitProject(store, String(req.params["id"]), req.userId!, name, parsed.data);
     res.status(201).json({ candidate });
   } catch (err) {
     fail(res, err, "submit project");
@@ -140,7 +140,7 @@ router.post("/community-grants/:id/vote", requireAuth, async (req: Request, res:
     return;
   }
   try {
-    const result = await castVote(store, req.params["id"]!, req.userId!, parsed.data.candidateId);
+    const result = await castVote(store, String(req.params["id"]), req.userId!, parsed.data.candidateId);
     res.json({ voted: true, ...result });
   } catch (err) {
     fail(res, err, "cast vote");
@@ -149,7 +149,7 @@ router.post("/community-grants/:id/vote", requireAuth, async (req: Request, res:
 
 router.delete("/community-grants/:id/vote", requireAuth, async (req: Request, res: Response) => {
   try {
-    await withdrawVote(store, req.params["id"]!, req.userId!);
+    await withdrawVote(store, String(req.params["id"]), req.userId!);
     res.json({ voted: false });
   } catch (err) {
     fail(res, err, "withdraw vote");
@@ -167,7 +167,7 @@ router.post("/community-grants/:id/report-back", requireAuth, async (req: Reques
     return;
   }
   try {
-    const candidate = await postReportBack(store, req.params["id"]!, req.userId!, parsed.data.body);
+    const candidate = await postReportBack(store, String(req.params["id"]), req.userId!, parsed.data.body);
     res.json({ candidate });
   } catch (err) {
     fail(res, err, "report back");
@@ -213,7 +213,7 @@ router.patch("/admin/community-grants/rounds/:id", requireAuth, requireAdmin, as
     return;
   }
   try {
-    const round = await updateRoundWindows(store, req.params["id"]!, parsed.data);
+    const round = await updateRoundWindows(store, String(req.params["id"]), parsed.data);
     res.json({ round });
   } catch (err) {
     fail(res, err, "update windows");
@@ -222,7 +222,7 @@ router.patch("/admin/community-grants/rounds/:id", requireAuth, requireAdmin, as
 
 router.post("/admin/community-grants/rounds/:id/settle", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const result = await settleRound(store, defaultGrantPayDeps, req.params["id"]!);
+    const result = await settleRound(store, defaultGrantPayDeps, String(req.params["id"]));
     res.json(result);
   } catch (err) {
     fail(res, err, "settle round");

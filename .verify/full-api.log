@@ -1,0 +1,318 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server[39m
+
+ [32m✓[39m src/routes/generate/__tests__/email-automations.test.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 3339[2mms[22m[39m
+   [32m✓[39m provisioning + API [2m(4)[22m
+     [33m[2m✓[22m[39m provisions the four starters disabled, with defaults, exactly once[33m 383[2mms[22m[39m
+     [33m[2m✓[22m[39m edits copy + delay, stamps enabled_at on switch-on, keeps it on switch-off[33m 311[2mms[22m[39m
+ [31m❯[39m src/lib/__tests__/operator-knowledge.test.ts [2m([22m[2m63 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 2286[2mms[22m[39m
+   [31m❯[39m operator knowledge — coverage (no silent gaps) [2m(4)[22m
+[31m     [31m×[31m every App.tsx route is a feature, an exclusion, or a redirect to one[39m[32m 212[2mms[22m[39m
+     [32m✓[39m every ROUTE_MATRIX path is covered[32m 127[2mms[22m[39m
+[31m     [31m×[31m every page file is routed into a feature or excluded with a reviewed reason[39m[32m 93[2mms[22m[39m
+     [32m✓[39m counts in the artifact match the artifact itself[32m 9[2mms[22m[39m
+   [32m✓[39m operator knowledge — description coverage (no silent thinning) [2m(6)[22m
+     [32m✓[39m the description-less set is exactly the reviewed allowlist[32m 118[2mms[22m[39m
+     [32m✓[39m description counts in the artifact match the artifact and hold the floor[32m 1[2mms[22m[39m
+     [32m✓[39m every description is provenance-carrying prose in the safe band[32m 38[2mms[22m[39m
+     [32m✓[39m no description quotes a money figure — prices live in the prices array only[32m 13[2mms[22m[39m
+     [32m✓[39m deepened descriptions pin to their designated sources[32m 8[2mms[22m[39m
+     [32m✓[39m a deepened feature's facts carry its description to the operator[32m 1[2mms[22m[39m
+   [32m✓[39m operator knowledge — sourced facts only [2m(4)[22m
+     [33m[2m✓[22m[39m every price names the registry as its source and is a whole VB figure[33m 358[2mms[22m[39m
+     [32m✓[39m registry vs server-constant cross-checks all agree[32m 5[2mms[22m[39m
+     [32m✓[39m every feature has a name, a real path, and a stage[32m 51[2mms[22m[39m
+     [32m✓[39m the feature index the operator reads covers the whole base[32m 41[2mms[22m[39m
+   [32m✓[39m operator knowledge — matching and grounding [2m(10)[22m
+     [32m✓[39m matches the song panel for a make-a-song question, guide attached[32m 63[2mms[22m[39m
+     [32m✓[39m matches brand deals first for a brand-deals question[32m 65[2mms[22m[39m
+     [32m✓[39m matches My Music first for music-collection locators[32m 134[2mms[22m[39m
+     [32m✓[39m matches My Clips first for video-collection locators[32m 37[2mms[22m[39m
+     [32m✓[39m collection intent never hijacks a creation or pricing question[32m 64[2mms[22m[39m
+     [32m✓[39m matches the bio publish price to the page that charges it[32m 49[2mms[22m[39m
+     [32m✓[39m a made-up feature matches nothing[32m 83[2mms[22m[39m
+     [32m✓[39m grounding for a priced feature carries its path and its code-sourced price[32m 16[2mms[22m[39m
+     [32m✓[39m an unpriced feature's facts contain no price line and no VB figure[32m 1[2mms[22m[39m
+     [32m✓[39m the song panel's facts carry the journey handoff to Branding Kit[32m 0[2mms[22m[39m
+   [32m✓[39m operator knowledge — the no-invention price guard [2m(3)[22m
+     [32m✓[39m passes figures the knowledge base vouches for[32m 5[2mms[22m[39m
+     [32m✓[39m catches figures that exist nowhere in the knowledge base[32m 1[2mms[22m[39m
+     [32m✓[39m vouches for the takeover offers' dollar prices — and only those dollars[32m 0[2mms[22m[39m
+   [32m✓[39m operator knowledge — song duration tiers (live defect, Oct 20) [2m(5)[22m
+     [32m✓[39m the tiers are the ratified 400 / 800 / 1,200 table, and the charging function derives from it[32m 7[2mms[22m[39m
+     [32m✓[39m every knowledge entry for the music-audio rail carries the full tier table[32m 5[2mms[22m[39m
+     [32m✓[39m the Make a Song entry itself carries the tiered song price[32m 5[2mms[22m[39m
+     [32m✓[39m grounding for a 3-minute song question carries the 800 VB tier[32m 15[2mms[22m[39m
+     [32m✓[39m the guard vouches the tier figures — and still catches an invented song price[32m 1[2mms[22m[39m
+   [32m✓[39m operator knowledge — takeover offers (wave 2 #2) [2m(3)[22m
+     [32m✓[39m both offers are first-class entries priced from the served constants[32m 33[2mms[22m[39m
+     [32m✓[39m the offer endpoints still serve the constants the entries came from[32m 4[2mms[22m[39m
+     [32m✓[39m the takeover questions match their offers first, with the door attached[32m 47[2mms[22m[39m
+   [32m✓[39m operator knowledge — Stack-20 surfaces [2m(7)[22m
+     [32m✓[39m smart reframe is a first-class entry at the code price, fallback stated[32m 36[2mms[22m[39m
+     [32m✓[39m video templates carry the 250 VB apply price and no longer read as free[32m 10[2mms[22m[39m
+     [32m✓[39m the template and reframe server constants cross-check against the registry[32m 1[2mms[22m[39m
+     [32m✓[39m rtmp ingest is described as not open yet, never as working[32m 4[2mms[22m[39m
+     [32m✓[39m the morning brief entry carries the digest fallback and no price[32m 0[2mms[22m[39m
+     [32m✓[39m email automations name every trigger and the off-by-default law[32m 0[2mms[22m[39m
+     [32m✓[39m the pitch packet is its own free entry, and the kit stays 200 VB[32m 0[2mms[22m[39m
+   [32m✓[39m operator knowledge — Stack-25 accuracy corrections [2m(8)[22m
+     [32m✓[39m jewelry STL export: the displayed registry price equals the server charge[32m 25[2mms[22m[39m
+     [32m✓[39m auto grade: the displayed registry price equals the server charge[32m 12[2mms[22m[39m
+     [32m✓[39m sample packs: the displayed registry base equals the smallest pack's server price[32m 8[2mms[22m[39m
+     [32m✓[39m /api/jewelry/estimate is free — its handler charges nothing and the registry says so[32m 27[2mms[22m[39m
+     [32m✓[39m /api/music/export is free — its handler charges nothing and the registry says so[32m 8[2mms[22m[39m
+     [32m✓[39m /api/music/preview-render is free — its handler charges nothing and the registry says so[32m 11[2mms[22m[39m
+     [32m✓[39m the pricing entry names the real purchasable tiers[32m 5[2mms[22m[39m
+     [32m✓[39m the templates hub no longer calls generation free[32m 0[2mms[22m[39m
+   [32m✓[39m operator knowledge — Stack-26 open-world corrections [2m(6)[22m
+     [32m✓[39m the World description is the page's own plaza meta — arrival is the plaza, not the hall[32m 8[2mms[22m[39m
+     [32m✓[39m visitors spawn on the King's Plaza — layout, spawn point and the server's front door agree[32m 19[2mms[22m[39m
+     [32m✓[39m the Kingdom Board stands in the hall and on the plaza — same board, open to guests[32m 7[2mms[22m[39m
+     [32m✓[39m per-room caps stay 30 present / 12 voice, re-derived from the room server[32m 8[2mms[22m[39m
+     [32m✓[39m guests are look-only in the room server — no say, no voice[32m 4[2mms[22m[39m
+     [32m✓[39m the six districts are built and open, and the base now names them as open[32m 22[2mms[22m[39m
+   [32m✓[39m operator knowledge — Stack-28 KB integration [2m(7)[22m
+     [32m✓[39m wallpapers & themes is a first-class entry at the registry prices, clean render as the override variant[32m 40[2mms[22m[39m
+     [32m✓[39m the screensaver constant cross-checks, and the clean constant is not naively cross-checked[32m 8[2mms[22m[39m
+     [32m✓[39m world locks are known: door vs person, 1 hour default, 7 days max, not a glitch[32m 8[2mms[22m[39m
+     [32m✓[39m no entry lists the stale /api/video-background-removal endpoint[32m 116[2mms[22m[39m
+     [32m✓[39m the video-editor entry names the full export rail set (A-03)[32m 5[2mms[22m[39m
+     [32m✓[39m social publish prices are attributed at 100 VB, and the templates hub carries the 250[32m 2[2mms[22m[39m
+     [32m✓[39m the create entry counts ten ways to start, not nine[32m 100[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/world-room.test.ts [2m([22m[2m68 tests[22m[2m)[22m[33m 416[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/payment-reversals.test.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 5174[2mms[22m[39m
+   [32m✓[39m credit packs — the VB rail [2m(12)[22m
+     [33m[2m✓[22m[39m a full refund claws back exactly the granted VB, with a ledger row and a completed audit row[33m 999[2mms[22m[39m
+   [32m✓[39m referral lifetime total — total_referrer_earned follows the clawback [2m(6)[22m
+     [33m[2m✓[22m[39m partial refunds decrement pro-rata; the completing refund decrements only the remainder[33m 312[2mms[22m[39m
+[17:24:03.036] [31mERROR[39m (29040): [36m[distribution] release announcement failed — release stays packaged[39m
+    [35mreleaseId[39m: "71011a6a-52cf-406d-891b-fa5d42e88183"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    \nparams: 58a574be-9169-49d5-93e2-5b65f8fb69de: relation \"creator_profiles\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, slug FROM creator_profiles WHERE user_id = '58a574be-9169-49d5-93e2-5b65f8fb69de' LIMIT 1\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1
+              
+          params: 58a574be-9169-49d5-93e2-5b65f8fb69de
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at announceRelease (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:1271:24)
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:1435:5
+          caused by: Error: relation "creator_profiles" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = '58a574be-9169-49d5-93e2-5b65f8fb69de' LIMIT 1
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    ",
+      "params": [
+        "58a574be-9169-49d5-93e2-5b65f8fb69de"
+      ]
+    }
+[17:24:03.382] [31mERROR[39m (29040): [36m[distribution] release announcement failed — release stays packaged[39m
+    [35mreleaseId[39m: "eebe5a85-db22-4989-9298-0de8f66daec8"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    \nparams: 58a574be-9169-49d5-93e2-5b65f8fb69de: relation \"creator_profiles\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, slug FROM creator_profiles WHERE user_id = '58a574be-9169-49d5-93e2-5b65f8fb69de' LIMIT 1\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1
+              
+          params: 58a574be-9169-49d5-93e2-5b65f8fb69de
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at announceRelease (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:1271:24)
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:1435:5
+          caused by: Error: relation "creator_profiles" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = '58a574be-9169-49d5-93e2-5b65f8fb69de' LIMIT 1
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    ",
+      "params": [
+        "58a574be-9169-49d5-93e2-5b65f8fb69de"
+      ]
+    }
+[17:24:03.477] [31mERROR[39m (29040): [36m[distribution] aggregator submission failed[39m
+    err: {
+      "type": "Error",
+      "message": "boom",
+      "stack":
+          Error: boom
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/__tests__/distribution.test.ts:558:70
+              at file:///home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/vitest@5.0.1_@types+node@25.9.8_vite@8.3.0_@types+node@25.9.8_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_yaml@2.9.1_/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20
+    }
+[17:24:03.732] [31mERROR[39m (29040): [36m[distribution] metadata generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.testState.openAiImpl (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/__tests__/distribution.test.ts:609:13)
+              at Object.create (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/__tests__/distribution.test.ts:69:54)
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:540:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:24:03.807] [31mERROR[39m (29040): [36m[distribution] metadata generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "Model returned no usable metadata",
+      "stack":
+          Error: Model returned no usable metadata
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:597:13
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:24:04.059] [31mERROR[39m (29040): [36m[distribution] strategy generation failed[39m
+    err: {
+      "type": "Error",
+      "message": "provider exploded",
+      "stack":
+          Error: provider exploded
+              at Object.testState.openAiImpl (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/__tests__/distribution.test.ts:670:13)
+              at Object.create (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/__tests__/distribution.test.ts:69:54)
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:638:59
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:24:08.586] [31mERROR[39m (29040): [36m[distribution] release announcement failed — release stays packaged[39m
+    [35mreleaseId[39m: "d22c9585-e99c-45be-8da8-bf8a4eef6576"
+    err: {
+      "type": "DrizzleQueryError",
+      "message": "Failed query: \n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    \nparams: 58a574be-9169-49d5-93e2-5b65f8fb69de: relation \"creator_profiles\" does not exist\n\n🐜 This seems to be an execution error, which means that your request syntax seems okay,\n    but the resulting statement cannot be executed → Probably not a pg-mem error.\n\n*️⃣ Failed SQL statement: \n      SELECT id, slug FROM creator_profiles WHERE user_id = '58a574be-9169-49d5-93e2-5b65f8fb69de' LIMIT 1\n    ;\n\n👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:\n\n",
+      "stack":
+          Error: Failed query: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1
+              
+          params: 58a574be-9169-49d5-93e2-5b65f8fb69de
+              at NodePgPreparedQuery.queryWithCache (file:///home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/session.js:41:15)
+              at announceRelease (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:1271:24)
+              at /home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/routes/generate/distribution.ts:1435:5
+          caused by: Error: relation "creator_profiles" does not exist
+          
+          🐜 This seems to be an execution error, which means that your request syntax seems okay,
+              but the resulting statement cannot be executed → Probably not a pg-mem error.
+          
+          *️⃣ Failed SQL statement: 
+                SELECT id, slug FROM creator_profiles WHERE user_id = '58a574be-9169-49d5-93e2-5b65f8fb69de' LIMIT 1
+              ;
+          
+          👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+          
+          
+              at chk (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7761:23)
+              at DbSchema.getObject (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:7783:16)
+              at getSelectable (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3156:69)
+              at buildRawSelectSubject (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3050:24)
+              at buildRawSelect (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3110:15)
+              at buildSelect (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3011:20)
+              at buildWithable (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:2992:20)
+              at new SelectExec (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:3195:67)
+              at StatementExec._getExecutor (/home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5794:24)
+              at /home/hatch/workspace/bdv-wt-rem-grants/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js:5886:195
+      "query": "\n      SELECT id, slug FROM creator_profiles WHERE user_id = $1 LIMIT 1\n    ",
+      "params": [
+        "58a574be-9169-49d5-93e2-5b65f8fb69de"
+      ]
+    }
+ [32m✓[39m src/routes/__tests__/distribution.test.ts [2m([22m[2m72 tests[22m[2m)[22m[33m 10486[2mms[22m[39m
+   [32m✓[39m pricing constants [2m(2)[22m
+     [33m[2m✓[22m[39m charges 1 credit per AI generation[33m 512[2mms[22m[39m
+   [32m✓[39m POST /api/distribution/releases [2m(3)[22m
+     [33m[2m✓[22m[39m creates a draft release (free — no credit charge)[33m 513[2mms[22m[39m
+   [32m✓[39m GET /api/distribution/releases [2m(2)[22m
+     [33m[2m✓[22m[39m returns only the caller's releases[33m 400[2mms[22m[39m
+   [32m✓[39m PATCH /api/distribution/releases/:id [2m(2)[22m
+     [33m[2m✓[22m[39m updates a draft[33m 339[2mms[22m[39m
+   [32m✓[39m DELETE /api/distribution/releases/:id [2m(2)[22m
+     [33m[2m✓[22m[39m deletes a draft[33m 398[2mms[22m[39m
+   [32m✓[39m POST /api/distribution/releases/:id/submit [2m(7)[22m
+     [33m[2m✓[22m[39m charges the single-tier fee, marks packaged, queues platform delivery[33m 378[2mms[22m[39m
+     [33m[2m✓[22m[39m charges the EP tier (20 credits) for EPs[33m 332[2mms[22m[39m
+   [32m✓[39m PUT /api/distribution/releases/:id/splits [2m(5)[22m
+     [33m[2m✓[22m[39m saves splits that total 100 and returns them on detail[33m 355[2mms[22m[39m
+   [32m✓[39m splits share links + invites [2m(2)[22m
+     [33m[2m✓[22m[39m mints an idempotent share slug and serves the agreement publicly[33m 593[2mms[22m[39m
+     [33m[2m✓[22m[39m records invites and fails clearly without an email provider[33m 333[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/world-palace.test.ts [2m([22m[2m49 tests[22m[2m)[22m[33m 543[2mms[22m[39m
+ [32m✓[39m src/routes/generate/__tests__/email-list-opens-honesty.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 1950[2mms[22m[39m
+   [32m✓[39m subscribers stats honesty (tracked era) [2m(2)[22m
+     [33m[2m✓[22m[39m reports opensTracked false + null rate before any tracked send[33m 331[2mms[22m[39m
+   [32m✓[39m segments [2m(7)[22m
+     [33m[2m✓[22m[39m derives presave / member / buyer auto tags from house rows[33m 336[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/store-bundles.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 3281[2mms[22m[39m
+[17:24:32.764] [33mWARN[39m (29303): [36mloyalty: award failed[39m
+    [35muserId[39m: "user-holder"
+    [35mprofileId[39m: "prof-creator"
+    [35mpoints[39m: 2
+    err: {
+      "type": "TypeError",
+      "message": "__vite_ssr_import_1__.db.insert(...).values(...).onConflictDoUpdate is not a function",
+      "stack":
+          TypeError: __vite_ssr_import_1__.db.insert(...).values(...).onConflictDoUpdate is not a function
+              at awardLoyaltyPoints (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/lib/loyalty.ts:65:8)
+              at awardChatPoints (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/lib/loyalty.ts:80:11)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+[17:24:32.772] [31mERROR[39m (29303): [36m[keyword-automations] trigger evaluation failed[39m
+    err: {
+      "type": "TypeError",
+      "message": "Cannot read properties of undefined (reading 'filter')",
+      "stack":
+          TypeError: Cannot read properties of undefined (reading 'filter')
+              at handleKeywordComment (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/lib/keyword-automations.ts:298:28)
+              at runNextTicks (node:internal/process/task_queues:65:5)
+              at processImmediate (node:internal/timers:541:9)
+    }
+[17:24:32.947] [33mWARN[39m (29303): [36mloyalty: award failed[39m
+    [35muserId[39m: "user-holder"
+    [35mprofileId[39m: "prof-creator"
+    [35mpoints[39m: 5
+    err: {
+      "type": "TypeError",
+      "message": "__vite_ssr_import_1__.db.insert(...).values(...).onConflictDoUpdate is not a function",
+      "stack":
+          TypeError: __vite_ssr_import_1__.db.insert(...).values(...).onConflictDoUpdate is not a function
+              at awardLoyaltyPoints (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/lib/loyalty.ts:65:8)
+              at awardTipPoints (/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server/src/lib/loyalty.ts:92:11)
+              at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    }
+ [32m✓[39m src/routes/__tests__/live-tickets.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 1841[2mms[22m[39m
+   [32m✓[39m the buy rail [2m(6)[22m
+     [33m[2m✓[22m[39m charges the buyer once and credits the creator the 95% net of the house fee split[33m 474[2mms[22m[39m
+   [32m✓[39m the room (chat + tips) [2m(3)[22m
+     [33m[2m✓[22m[39m the chat socket closes 4403 for a non-holder and admits a holder[33m 338[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/community-tier-gate.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1211[2mms[22m[39m
+   [32m✓[39m tier gate — setting the gate (channel settings, admin+) [2m(3)[22m
+     [33m[2m✓[22m[39m a channel can be created gated, and the gate must be the group owner's own active tier[33m 360[2mms[22m[39m

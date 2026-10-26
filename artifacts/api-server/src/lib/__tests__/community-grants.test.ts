@@ -55,7 +55,7 @@ describe("Community Grants — rounds", () => {
   it("windows out of order are refused", async () => {
     const store = new MemoryGrantStore();
     await expect(
-      openRound(store, "admin-1", roundInput({ votingCloseAt: "2026-11-12T00:00:00.000Z" })),
+      openRound(store, "admin-1", roundInput({ votingCloseAt: "2026-11-05T00:00:00.000Z" })),
     ).rejects.toMatchObject({ code: "validation" });
   });
 });

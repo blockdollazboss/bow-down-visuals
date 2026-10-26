@@ -351,7 +351,7 @@ const MONTH_KEY_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 export async function openRound(
   store: CommunityGrantStore,
   adminUserId: string,
-  input: NewRoundRow,
+  input: Omit<NewRoundRow, "createdByUserId">,
 ): Promise<RoundWire> {
   if (!MONTH_KEY_RE.test(input.monthKey)) {
     throw new CommunityGrantError("validation", "monthKey must be YYYY-MM.");
