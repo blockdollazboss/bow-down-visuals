@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMinStars } from "@/lib/creator-level";
 import { Waveform } from "@/components/player/Waveform";
 import { EmbedButton } from "@/components/player/EmbedButton";
+import { StemPlayerControls } from "@/components/player/StemPlayerControls";
 import { CommentThread } from "@/components/player/CommentThread";
 import {
   fetchTrack, fetchMoreFromArtist, formatCount, formatDuration, resolveMedia,
@@ -169,6 +170,15 @@ export default function StreamTrackPage() {
                 onSeek={(r) => { if (isCurrent && player.duration) player.seek(r * player.duration); }}
               />
             </div>
+
+            {/* N14 Stems Player: docked stem controls — they render
+                only while THIS track is playing and it carries stems
+                (the component itself is null otherwise). */}
+            {isCurrent && (
+              <div className="mt-5">
+                <StemPlayerControls />
+              </div>
+            )}
 
             <div className="mt-5">
               <MediaActions
