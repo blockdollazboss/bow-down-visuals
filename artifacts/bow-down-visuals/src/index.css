@@ -4,6 +4,55 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── House pairing — SELF-HOSTED (Stack-200 fonts lane) ───────────────────
+   Owner-approved pairing, Oct 25: Cinzel (display) + Manrope (body/UI).
+   Latin woff2 in public/fonts/creator/ (same files the creator font
+   library loads — one copy, shared). No Google Fonts CDN for the house
+   set. These faces are theme-independent: the SAME pairing renders in
+   the dark AND light themes; only colors change with the theme. */
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/creator/cinzel-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/creator/cinzel-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/creator/cinzel-900.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/creator/manrope-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/creator/manrope-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/creator/manrope-800.woff2") format("woff2");
+}
+
 /* ─── Self-hosted 8-bit pixel fonts — no Google Fonts CDN dependency ───────
    (ad/privacy blockers were eating the webfont request, leaving Courier New
    fallbacks everywhere). Latin subsets, woff2, in public/fonts. */
@@ -121,8 +170,14 @@ html, body {
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Playfair Display', Georgia, serif;
+  /* House pairing (Stack-200 fonts lane, owner-approved Oct 25):
+     Cinzel = display/royal voice, Manrope = body/UI voice, in BOTH
+     themes. font-serif follows the display voice for royal headlines;
+     per-pack character fonts (.pixel-display, .tcc-*) are preserved
+     below and are NOT touched by this pass. */
+  --font-sans: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-serif: 'Cinzel', Georgia, serif;
   --radius: 0.75rem;
 }
 
