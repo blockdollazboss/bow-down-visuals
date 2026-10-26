@@ -52,10 +52,10 @@ describe("first100 client math", () => {
   });
 
   it("celebration headlines exist for every milestone", () => {
-    for (const m of FIRST100_MILESTONES) {
-      expect(celebrationHeadline(m)).toContain(String(m === 1 ? 1 : m));
+    expect(celebrationHeadline(1)).toBe("Your first fan is here");
+    for (const m of [10, 25, 50, 100]) {
+      expect(celebrationHeadline(m)).toContain(String(m));
     }
-    expect(celebrationHeadline(100)).toContain("100");
   });
 });
 
