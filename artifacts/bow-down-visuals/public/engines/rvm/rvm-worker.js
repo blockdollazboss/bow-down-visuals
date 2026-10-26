@@ -19,8 +19,9 @@
  * Inference can now block only this thread; the page ships one
  * frame bitmap in and gets one alpha matte back, both transferred
  * (zero-copy). If this worker hangs or dies, the page-side client
- * (rvm-engine.ts) times it out and the studio falls back to the
- * light engine — a heavy-engine failure degrades, never freezes.
+ * (rvm-engine.ts) times it out and the studio runs the camera raw
+ * with the engine-down status shown — a heavy-engine failure is
+ * visible, never a freeze and never a silent substitute engine.
  *
  * Protocol (client: src/lib/stream-kit/rvm-engine.ts):
  *   in : { type: "init", ortBases: string[], modelUrls: string[],
@@ -63,10 +64,10 @@
  */
 
 var RVM_STEPS = [
-  { feedCap: 896, ratio: "auto" },
-  { feedCap: 896, ratio: 0.32 },
   { feedCap: 640, ratio: 0.5 },
-  { feedCap: 640, ratio: 0.34 },
+  { feedCap: 640, ratio: 0.42 },
+  { feedCap: 512, ratio: 0.5 },
+  { feedCap: 512, ratio: 0.4 },
 ];
 
 var ort = null;

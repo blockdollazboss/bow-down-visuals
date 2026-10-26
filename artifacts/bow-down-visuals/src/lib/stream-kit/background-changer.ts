@@ -11,22 +11,36 @@
  * publish transport (see ./transport.ts).
  *
  * TWO engines sit behind the shared MattingEngine contract
- * (rvm-engine.ts), and `quality` chooses between them:
+ * (rvm-engine.ts), and `quality` — the creator's explicit pick —
+ * chooses which ONE runs:
  *  - PRO — Robust Video Matting in a dedicated worker: a true
  *    video-matting model with hair-level alpha and recurrent
- *    temporal stability. The premium path: 'pro' pins it, 'auto'
- *    starts on it.
- *  - STANDARD — MediaPipe Selfie Segmentation, vendored
- *    same-origin (below): a hard, low-resolution mask whose edges
- *    are cleaned the light way (MATTE_REFINEMENT_STEPS — how
- *    finely the mask is read and how much edge post-processing
- *    matte-post.ts applies). It is the AUTOMATIC fallback when
- *    the Pro engine can't run or (in 'auto') can't keep up, and
- *    the pinned engine of 'standard' quality.
- * The creator never picks an engine by hand — only the quality
- * intent (Auto / Pro / Standard). If NO engine can run, the
- * camera still starts raw — an engine failure never holds the
- * camera hostage.
+ *    temporal stability. 'pro' pins it; 'auto' runs it too (the
+ *    perf ladder walks its internal steps — it never swaps
+ *    engines).
+ *  - TASKS — MediaPipe Selfie Segmenter (float16) on the
+ *    maintained MediaPipe Tasks Vision runtime, VIDEO mode, GPU
+ *    delegate (tasks-segmenter-engine.ts): a per-frame segmenter
+ *    whose edges are cleaned the light way (MATTE_REFINEMENT_STEPS
+ *    — how finely the mask is read and how much edge
+ *    post-processing matte-post.ts applies). The pinned engine
+ *    of 'tasks' quality.
+ * ONE-ENGINE BUILD (Oct 25, 2026 — the owner's verdict on the
+ * shipped two-engine build: "when I move it erases the green
+ * screen"; full diagnosis in greenscreen-matting-scope-
+ * 2026-10-25.md): the old 'auto' degrade — Pro handing the
+ * session to the 2023 legacy Selfie Segmentation build whenever
+ * its round trips crossed a line every phone crosses — is
+ * DELETED, and the legacy engine is out of the live path
+ * entirely (it remains only in the video editor's own background
+ * feature, which loads its own copy). No engine ever replaces
+ * another mid-session: an engine that can't start or can't keep
+ * working parks, and the camera runs raw with the status shown.
+ * The Pro/Tasks pair is a creator-facing A/B (the studio's
+ * quality pills), chosen by hand and named honestly by the
+ * status channel — never a silent runtime fallback. If NO
+ * engine can run, the camera still starts raw — an engine
+ * failure never holds the camera hostage.
  *
  * RVM RESTORED (Oct 23, 2026) — the heavy engine was REMOVED from
  * this path on Oct 18 after it froze the owner's tab when an
@@ -188,29 +202,12 @@ import { VoiceIsolator, VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIs
    worker (public/engines/rvm/rvm-worker.js); the still-photo
    matting path (photo-matting.ts) drives the same client. */
 import { RvmEngine, RvmEngineError, RVM_MAX_STEP, type EngineMatte, type MattingEngine } from "./rvm-engine";
+import { TasksSegmenterEngine, TasksSegmenterError, TASKS_MAX_STEP } from "./tasks-segmenter-engine";
 import { MattePostProcessor, despillRgba } from "./matte-post";
 import { PerfLadder } from "./perf-ladder";
 import { FrameStallTracker } from "./frame-stall";
 import { mediaUrl } from "../media-cdn";
 
-/* The segmentation engine is VENDORED (public/engines/
-   selfie-segmentation — @mediapipe/selfie_segmentation 0.1.1675465747)
-   and lazy-loaded only when the studio starts a camera: a creator's
-   broadcast must never depend on a third-party CDN being reachable from
-   their browser. (The previous pin named a version that does not exist
-   in the npm registry, so its CDN URL failed everywhere.) The first
-   base below is the site's own media bucket serving those vendored
-   files (its CORS policy covers the site's origins; the classic
-   script tag + locateFile fetches already run cross-origin against
-   the fallback). The CDN copy of the same build remains only as a
-   last-resort fallback. */
-export const SEGMENTATION_LOCAL_BASE = mediaUrl("engines/selfie-segmentation");
-/* The shipped same-origin copy (public/engines/selfie-segmentation) —
-   the fallback immediately after the R2 media bucket and before the
-   CDN, so a bucket outage never makes the load depend on a third party. */
-export const SEGMENTATION_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/selfie-segmentation`;
-export const SEGMENTATION_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747";
-const SEGMENTATION_BASES = [SEGMENTATION_LOCAL_BASE, SEGMENTATION_ORIGIN_BASE, SEGMENTATION_CDN_BASE] as const;
 const GREEN = "#00FF00";
 
 /**
@@ -247,45 +244,49 @@ export type BackgroundMode = "green" | "blur" | "image" | "none";
 
 /**
  * Background quality — which matting engine runs and how its
- * quality steps are governed (see the header note):
- *  - 'pro': the Pro engine (RVM in its worker), holding its
- *    sharpest internal step. The perf ladder may retune the
- *    step internally, but pro NEVER switches engines under the
- *    creator — if the Pro engine can't initialise, the Standard
- *    engine serves at the sharpest refinement instead of raw.
- *  - 'auto' (default): starts on the Pro engine; the ladders
- *    walk Pro steps on sustained slowness, degrade to the
- *    Standard engine at the Pro floor, then walk the Standard
- *    refinement steps, and finally step the output canvas down.
- *    Sustained speed walks everything back up.
- *  - 'standard': the light engine, pinned at its balanced
- *    refinement step — the behaviour that shipped while it was
- *    the only engine.
+ * quality steps are governed (see the header note). The creator
+ * picks the engine by hand; nothing ever switches engines under
+ * them:
+ *  - 'pro': the Pro engine (RVM in its worker). The perf ladder
+ *    may retune its internal step, but pro NEVER switches
+ *    engines — if the Pro engine can't initialise or parks, the
+ *    camera runs raw with the status shown.
+ *  - 'auto' (default): the Pro engine, with the ladder walking
+ *    its steps on sustained slowness and the output step-down
+ *    at the floor. Identical engine to 'pro'; only the ladder
+ *    starts more willing to move.
+ *  - 'tasks': the MediaPipe Tasks engine, with its own ladder
+ *    walking the matte-refinement steps (feed cap + edge
+ *    post-processing together) and the output step-down at its
+ *    floor.
  */
-export type BackgroundQuality = "auto" | "pro" | "standard";
+export type BackgroundQuality = "auto" | "pro" | "tasks";
 
 /** Which background engine is live ('off' = raw camera). */
-export type BackgroundEngineKind = "pro" | "standard" | "off";
+export type BackgroundEngineKind = "pro" | "tasks" | "off";
 
 /**
- * Why the Pro engine is not the live engine, when it was wanted:
- *  - 'pro-init-failed': the Pro engine could not start on this
- *    device (load failure, init timeout, unsupported browser).
- *  - 'pro-too-slow': Pro started, but sustained slowness at its
- *    lightest step handed the session to the light engine (the
- *    'auto' degrade — Pro is never degraded under 'pro' quality).
- *  - 'pro-stopped': Pro was live and its inferences failed until
- *    it parked for the session (the failure cap).
+ * Why the wanted engine is not the live engine, when it was
+ * wanted (one-engine build: the only way an engine exits now is
+ * failing to start or parking — there is no degrade):
+ *  - 'pro-init-failed' / 'tasks-init-failed': the engine could
+ *    not start on this device (load failure, init timeout,
+ *    unsupported browser).
+ *  - 'pro-stopped' / 'tasks-stopped': the engine was live and
+ *    its inferences failed until it parked for the session (the
+ *    failure cap).
  */
-export type EngineFallbackReason = "pro-init-failed" | "pro-too-slow" | "pro-stopped";
+export type EngineFallbackReason = "pro-init-failed" | "pro-stopped" | "tasks-init-failed" | "tasks-stopped";
 
 /**
  * The engine truth, as adopted — PROBE-BASED, never intent-based:
  * `kind` is the engine actually compositing right now, `fellBack`
- * says the configured quality wanted the Pro engine and something
- * else is serving, and `reason` says why Pro exited (null when
- * Pro is live, when the light engine was pinned on purpose, or
- * when no engine is live by choice / at all). Reported through
+ * says the engine the configured quality wanted exited and is not
+ * live, and `reason` says why it exited (null while the wanted
+ * engine is live, or when no engine is live by choice / at all).
+ * One-engine build: nothing is ever "serving" in the wanted
+ * engine's place — a fellBack detail always pairs with kind 'off'
+ * (camera raw, reason shown). Reported through
  * config.onEngineStatusDetail alongside every onEngineStatus kind
  * change, and readable any time via getEngineStatusDetail(). The
  * studio renders this verbatim — a fallback is VISIBLE, never a
@@ -299,19 +300,20 @@ export interface EngineStatusDetail {
 
 /**
  * Matte-refinement steps, sharpest first — the light way to cleaner
- * edges on the segmentation engine's mask. Each step sets how wide
- * the mask is read (a finer read keeps more edge detail) and how
- * the shared matte post-processing (matte-post.ts) is tuned: the
- * sharpest step reads finer, blends a little more history (less
- * flicker), chokes the fringe a little less hard, opens the levels
- * curve a touch (less hair eaten), and feathers twice for a soft
- * rim. The balanced step is byte-for-byte the behaviour that
- * shipped before refinement steps existed (480px read, the
- * MattePostProcessor defaults); the lightest step sheds read width
- * for the weakest devices. The perf ladder walks these steps while
- * the STANDARD engine is live in 'auto' quality; at the lightest
- * step the ladder's degrade verdict steps the output canvas down
- * (there is nowhere lighter to go).
+ * edges on the MediaPipe Tasks engine's mask. Each step sets how
+ * wide the mask is read (the Tasks engine's feed cap, in
+ * TASKS_STEPS — aligned with `maskCap` here by index: the feed
+ * IS the mask read) and how the shared matte post-processing
+ * (matte-post.ts) is tuned: the sharpest step reads finer, blends
+ * a little more history (less flicker), chokes the fringe a
+ * little less hard, opens the levels curve a touch (less hair
+ * eaten), and feathers twice for a soft rim. The balanced step is
+ * byte-for-byte the behaviour that shipped before refinement
+ * steps existed (480px read, the MattePostProcessor defaults);
+ * the lightest step sheds read width for the weakest devices.
+ * The perf ladder walks these steps while the TASKS engine is
+ * live; at the lightest step the ladder's degrade verdict steps
+ * the output canvas down (there is nowhere lighter to go).
  */
 export interface MatteRefinementStep {
   /** Width cap when reading the engine's mask (px). */
@@ -391,17 +393,6 @@ export const OUTPUT_HEIGHT_FLOOR = 720;
  */
 export const MAX_CONSECUTIVE_INFERENCE_FAILURES = 30;
 
-/**
- * Hard cap (ms) on one MediaPipe send episode (motion fix, Oct 25,
- * 2026 — see the header note). A send settles on its own result
- * whenever it lands; only a send still silent at this cap counts
- * as failed. The old 1000 ms skip-timeout abandoned sends that
- * were merely slow on a loaded phone, discarded their results
- * when they landed, and wrote the invented timeout value into
- * the perf ladder as if it were a measured round trip.
- */
-export const MEDIAPIPE_SEND_CAP_MS = 8_000;
-
 /** How long a freshly-live engine's effect takes to fade in over
  *  the raw picture (ms) when it arrives while the session is
  *  already running. */
@@ -421,61 +412,6 @@ export class BackgroundChangerError extends Error {
   }
 }
 
-/* The Window.SelfieSegmentation global is declared once, by the video
-   editor's BackgroundReplaceSection — this module consumes that same
-   declaration rather than redeclaring it. */
-type MediaPipeSegmenter = InstanceType<NonNullable<Window["SelfieSegmentation"]>>;
-type MediaPipeResults = { image: HTMLVideoElement; segmentationMask: HTMLCanvasElement };
-
-let segmenterScriptPromise: Promise<void> | null = null;
-/** The base the engine script actually loaded from — locateFile follows it. */
-let segmenterBase: string | null = null;
-
-function loadScriptFrom(base: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `${base}/selfie_segmentation.js`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => {
-      script.remove();
-      reject(new Error(`Segmentation script failed to load from ${base}`));
-    };
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * Lazily inject the MediaPipe Selfie Segmentation script (once): the
- * vendored same-origin copy first, the CDN build only if that fails.
- */
-function loadSegmenterScript(): Promise<void> {
-  if (window.SelfieSegmentation) return Promise.resolve();
-  if (segmenterScriptPromise) return segmenterScriptPromise;
-  segmenterScriptPromise = (async () => {
-    let lastErr: unknown = null;
-    for (const base of SEGMENTATION_BASES) {
-      try {
-        await loadScriptFrom(base);
-        segmenterBase = base;
-        return;
-      } catch (err) {
-        lastErr = err;
-      }
-    }
-    throw new BackgroundChangerError(
-      "CDN_LOAD_FAILED",
-      "Could not load the background-effects engine. Check your connection and try again.",
-      lastErr,
-    );
-  })();
-  // A failed load must not poison later attempts (e.g. after reconnecting).
-  segmenterScriptPromise.catch(() => {
-    segmenterScriptPromise = null;
-  });
-  return segmenterScriptPromise;
-}
-
 export interface BackgroundChangerConfig {
   mode?: BackgroundMode;
   /** Background engine quality (see BackgroundQuality). Default 'auto'. */
@@ -483,7 +419,7 @@ export interface BackgroundChangerConfig {
   /** Hard cap on engine initialisation (ms). Default ENGINE_INIT_TIMEOUT_MS. */
   engineInitTimeoutMs?: number;
   /** Fired whenever the live background engine changes
-   *  ('pro' | 'standard' | 'off') — the studio shows it as the
+   *  ('pro' | 'tasks' | 'off') — the studio shows it as the
    *  honest "Background engine: On / Off" status. */
   onEngineStatus?: (kind: BackgroundEngineKind) => void;
   /** Fired alongside onEngineStatus with the full engine truth
@@ -504,248 +440,6 @@ export interface BackgroundChangerConfig {
   height?: number;
   fps?: number;
   deviceId?: string | null;
-  modelSelection?: 0 | 1;
-}
-
-/**
- * The studio's Standard background engine: MediaPipe Selfie
- * Segmentation behind the MattingEngine contract. MediaPipe is push-based
- * (send → onResults), so process() pairs one send with its results
- * callback; a frame requested while another is in flight is skipped
- * (null), never queued. The mask arrives as a canvas whose ALPHA channel
- * carries the person mask (the same channel the composite has always
- * keyed on); the matte is read at a capped width set by the live
- * refinement step (MATTE_REFINEMENT_STEPS — a finer read is the light
- * engine's answer to rough edges). Flicker is calmed by the shared
- * matte post-processing (motion-adaptive temporal blend), not here.
- *
- * Each send also SNAPSHOTS the video frame it is given, and the
- * matte that comes back carries that snapshot (EngineMatte.frame):
- * the matte describes the sent instant. (The changer's LIVE path
- * no longer cuts that snapshot — it composites the live frame with
- * the latest matte; see the header's motion-fix note. The snapshot
- * remains for callers that want the aligned still.)
- *
- * Send discipline (motion fix, Oct 25, 2026): a send is ONE
- * episode that settles on its own result whenever the result
- * lands — pairing is tracked separately from the promise, so a
- * result can never be paired with a NEWER send's snapshot (the
- * old 1000 ms timeout allowed exactly that mispairing, and threw
- * the late mask away besides). Only a send still silent at
- * MEDIAPIPE_SEND_CAP_MS settles as failed — and even then its
- * late result, when it lands, is proof of life: it clears the
- * pairing and fires onProofOfLife so the changer resets the
- * failure run a slow-but-alive engine should never accumulate.
- */
-class MediaPipeEngine implements MattingEngine {
-  readonly kind = "standard" as const;
-  segmenter: MediaPipeSegmenter | null = null;
-  /** Duration (ms) of the most recent send→results round trip, or
-   *  null when no round trip has completed since the caller last
-   *  read it. The changer samples this into the perf ladder (auto
-   *  quality) and clears it back to null. */
-  lastMs: number | null = null;
-  /** Fired when a result lands for a send whose episode already
-   *  settled as failed at the cap: the engine is alive, merely
-   *  slow, and the failure run it was accumulating should reset.
-   *  Wired by the changer on adoption. */
-  onProofOfLife: (() => void) | null = null;
-  private _maskCap = MATTE_REFINEMENT_STEPS[1].maskCap;
-  private _sentAt = 0;
-  /* The in-flight send episode: the promise the changer is
-     waiting on, plus its cap timer. Null between episodes.
-     A "drain" episode is not a send: it is the wait for a
-     capped send's late result (see process()). */
-  private _episode: {
-    promise: Promise<EngineMatte | null>;
-    resolve: (m: EngineMatte | null) => void;
-    capTimer: ReturnType<typeof setTimeout> | null;
-    drain: boolean;
-  } | null = null;
-  /* True from send() until its result (or a send rejection) —
-     pairing lives here, NOT in the episode promise, so a result
-     always pairs with its own send's snapshot even after the
-     episode settled at the cap. No new send starts while this is
-     set: MediaPipe answers sends in order, and overlapping sends
-     are how masks get paired with the wrong frame. */
-  private _sendOutstanding = false;
-  private _work: HTMLCanvasElement;
-  private _workCtx: CanvasRenderingContext2D;
-  /* The send-time frame snapshot (reused across sends — a snapshot
-     is consumed by its own matte before the next send can
-     overwrite it, because sends never overlap: see
-     _sendOutstanding). */
-  private _frame: HTMLCanvasElement;
-  private _frameCtx: CanvasRenderingContext2D;
-  private _frameInFlight: HTMLCanvasElement | null = null;
-
-  constructor(private readonly _modelSelection: 0 | 1) {
-    this._work = document.createElement("canvas");
-    this._workCtx = this._work.getContext("2d", { willReadFrequently: true })!;
-    this._frame = document.createElement("canvas");
-    this._frameCtx = this._frame.getContext("2d")!;
-  }
-
-  async init(): Promise<void> {
-    await loadSegmenterScript();
-    if (!window.SelfieSegmentation) {
-      throw new BackgroundChangerError("CDN_LOAD_FAILED", "The background-effects engine failed to initialise.");
-    }
-    let segmenter: MediaPipeSegmenter;
-    try {
-      // Assets resolve against the base the script loaded from (the
-      // vendored copy normally; the CDN only when it served the script).
-      const base = segmenterBase ?? SEGMENTATION_LOCAL_BASE;
-      segmenter = new window.SelfieSegmentation({
-        locateFile: (file: string) => `${base}/${file}`,
-      });
-      segmenter.setOptions({ modelSelection: this._modelSelection });
-    } catch (err) {
-      throw new BackgroundChangerError("CDN_LOAD_FAILED", "The background-effects engine failed to initialise.", err);
-    }
-    segmenter.onResults((results) => {
-      if (!this._sendOutstanding) return; // a result with no send behind it — nothing to pair
-      this._sendOutstanding = false;
-      /* The TRUE round trip, measured to the result that actually
-         landed — never an invented timeout value. */
-      this.lastMs = performance.now() - this._sentAt;
-      const frame = this._frameInFlight;
-      this._frameInFlight = null;
-      const matte = this._extract((results as MediaPipeResults).segmentationMask);
-      if (matte && frame) matte.frame = frame;
-      const episode = this._episode;
-      if (episode && !episode.drain) {
-        this._episode = null;
-        if (episode.capTimer) clearTimeout(episode.capTimer);
-        episode.resolve(matte);
-      } else {
-        /* The episode already settled at the cap (or this result
-           answers a drain wait): the matte is spent — far too old
-           to cut a live frame with — but the proof of life is
-           not. It resets the failure run a slow-but-alive engine
-           should never accumulate. */
-        if (episode) {
-          this._episode = null;
-          episode.resolve(null);
-        }
-        this.onProofOfLife?.();
-      }
-    });
-    this.segmenter = segmenter;
-  }
-
-  /** Set the width cap used when reading the mask (refinement step). */
-  setMaskCap(px: number): void {
-    this._maskCap = Math.max(64, Math.floor(px) || 64);
-  }
-
-  process(video: HTMLVideoElement): Promise<EngineMatte | null> {
-    const segmenter = this.segmenter;
-    if (!segmenter) return Promise.resolve(null);
-    if (this._episode) return this._episode.promise; // one episode at a time — never queue, never overlap
-    if (this._sendOutstanding) {
-      /* A previous send blew the cap and its result is still
-         coming. Wait for THAT result rather than piling a second
-         send onto the graph: MediaPipe answers in order, and
-         overlapping sends are how a mask gets paired with the
-         wrong frame. The wait resolves null when the late result
-         lands (proof of life fires with it) — or at dispose().
-         No cap of its own: the capped send already counted its
-         failure, and a graph that never answers is stood down by
-         the dispose every mode/quality/stop path performs. */
-      let resolveDrain!: (m: EngineMatte | null) => void;
-      const promise = new Promise<EngineMatte | null>((res) => {
-        resolveDrain = res;
-      });
-      this._episode = { promise, resolve: resolveDrain, capTimer: null, drain: true };
-      return promise;
-    }
-    /* Snapshot the frame being sent, synchronously, before the
-       send: the returned matte describes THIS instant and rides
-       back on EngineMatte.frame for callers that want the
-       aligned still. */
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    if (vw && vh) {
-      if (this._frame.width !== vw || this._frame.height !== vh) {
-        this._frame.width = vw;
-        this._frame.height = vh;
-      }
-      this._frameCtx.drawImage(video, 0, 0);
-      this._frameInFlight = this._frame;
-    } else {
-      this._frameInFlight = null;
-    }
-    let resolveEpisode!: (m: EngineMatte | null) => void;
-    const promise = new Promise<EngineMatte | null>((res) => {
-      resolveEpisode = res;
-    });
-    const capTimer = setTimeout(() => {
-      /* Still silent at the cap: the episode settles as a failed
-         frame. The SEND stays outstanding — pairing is untouched,
-         no newer send starts, and when the result finally lands
-         it reports proof of life instead of being dropped (and
-         instead of poisoning the perf ladder with an invented
-         round-trip time: lastMs is written only by real results
-         and real rejections). */
-      if (this._episode?.resolve === resolveEpisode) this._episode = null;
-      resolveEpisode(null);
-    }, MEDIAPIPE_SEND_CAP_MS);
-    this._episode = { promise, resolve: resolveEpisode, capTimer, drain: false };
-    this._sendOutstanding = true;
-    this._sentAt = performance.now();
-    segmenter.send({ image: video }).catch(() => {
-      if (this._episode?.resolve === resolveEpisode) {
-        this._episode = null;
-        clearTimeout(capTimer);
-      }
-      this._sendOutstanding = false;
-      this._frameInFlight = null;
-      this.lastMs = performance.now() - this._sentAt;
-      resolveEpisode(null);
-    });
-    return promise;
-  }
-
-  private _extract(mask: HTMLCanvasElement): EngineMatte | null {
-    const srcW = mask?.width ?? 0;
-    const srcH = mask?.height ?? 0;
-    if (!srcW || !srcH) return null;
-    const w = Math.min(srcW, this._maskCap);
-    const h = Math.max(1, Math.round((srcH * w) / srcW));
-    if (this._work.width !== w || this._work.height !== h) {
-      this._work.width = w;
-      this._work.height = h;
-    }
-    const ctx = this._workCtx;
-    ctx.drawImage(mask, 0, 0, w, h);
-    const data = ctx.getImageData(0, 0, w, h).data;
-    const alpha = new Float32Array(w * h);
-    for (let i = 0, j = 3; i < alpha.length; i++, j += 4) alpha[i] = data[j] / 255;
-    return { alpha, width: w, height: h };
-  }
-
-  reset(): void {
-    /* MediaPipe carries no cross-frame state to drop. */
-  }
-
-  async dispose(): Promise<void> {
-    this._frameInFlight = null;
-    this._sendOutstanding = false;
-    if (this._episode) {
-      if (this._episode.capTimer) clearTimeout(this._episode.capTimer);
-      this._episode.resolve(null);
-      this._episode = null;
-    }
-    if (this.segmenter) {
-      try {
-        await this.segmenter.close();
-      } catch {
-        /* already closed */
-      }
-      this.segmenter = null;
-    }
-  }
 }
 
 export class BackgroundChanger {
@@ -764,7 +458,6 @@ export class BackgroundChanger {
   noiseStatus: (VoiceIsolatorStatus & { error?: unknown }) | null = null;
   stream: MediaStream | null = null;
   outputStream: MediaStream | null = null;
-  segmenter: MediaPipeSegmenter | null = null;
   private _engineError: BackgroundChangerError | null = null;
   /* The live background engine behind the shared MattingEngine
      contract (Pro or Standard); null = raw camera ("Off"). */
@@ -774,22 +467,23 @@ export class BackgroundChanger {
      by every landed matte and every engine swap. Past
      MAX_CONSECUTIVE_INFERENCE_FAILURES the engine parks. */
   private _consecutiveInferenceFailures = 0;
-  /* Engine kinds parked this session (see _parkEngine), per kind:
-     parking the Pro engine falls through to the Standard engine;
-     parking the Standard engine — the last resort — lands raw.
-     A parked kind is never revived implicitly — only a fresh
-     start() (a new session) clears the parks. */
-  private readonly _parkedKinds = new Set<"pro" | "standard">();
+  /* Engine kinds parked this session (see _parkEngine). There
+     is one candidate per quality now, so a park always lands
+     the camera raw — no other engine is dressed up as the
+     effect in its place. A parked kind is never revived
+     implicitly — only a fresh start() (a new session) clears
+     the parks. */
+  private readonly _parkedKinds = new Set<"pro" | "tasks">();
   /* The error a parked engine reports; re-asserted by _selectEngine
      so the honest unavailable note survives a trip through raw
      mode and back. */
   private _parkError: BackgroundChangerError | null = null;
-  /* Why the Pro engine last exited (init failure / auto degrade /
-     park), or null while Pro is live or was never wanted. Set by
-     the path that retires Pro, read by _reportStatusDetail when
-     the next engine is adopted — this is what makes a fallback
-     VISIBLE with its real reason instead of a silent "On". */
-  private _proExitReason: EngineFallbackReason | null = null;
+  /* Why the wanted engine last exited (init failure / park), or
+     null while it is live or was never wanted. Set by the path
+     that retires the engine, read by _reportStatusDetail when
+     the next state is reported — this is what makes an engine
+     exit VISIBLE with its real reason instead of a silent "On". */
+  private _exitReason: EngineFallbackReason | null = null;
   /* The last reported engine truth (see EngineStatusDetail). */
   private _statusDetail: EngineStatusDetail = { kind: "off", fellBack: false, reason: null };
   /* When the live engine arrived mid-session (the fade-in clock),
@@ -800,25 +494,24 @@ export class BackgroundChanger {
   private _engineEpoch = 0;
   private _busy = false;
   private readonly _frameStall = new FrameStallTracker(0);
-  /* Governs the matte-refinement steps in 'auto' quality while
-     the STANDARD engine is live: sustained slowness sheds edge
-     work, sustained speed restores it. Thresholds are ROUND-TRIP
-     numbers (motion fix, Oct 25, 2026): the ladder is fed
-     send→results times, and with compositing decoupled from
-     inference a ~150 ms matte update is perfectly usable — the
-     old desktop-tuned slowMs 46 marched every phone to the
-     floor. The ladder now rescues only sustained drowning. */
-  private readonly _perf = new PerfLadder({ maxStep: MATTE_MAX_STEP, slowMs: 150, fastMs: 45 });
+  /* Governs the matte-refinement steps while the TASKS engine
+     is live: sustained slowness sheds edge work (feed cap +
+     post-processing together), sustained speed restores it.
+     Thresholds are ROUND-TRIP numbers (motion fix, Oct 25,
+     2026): the ladder is fed send→results times, and with
+     compositing decoupled from inference a ~150 ms matte update
+     is perfectly usable — the old desktop-tuned slowMs 46
+     marched every phone to the floor. The ladder now rescues
+     only sustained drowning. */
+  private readonly _perfTasks = new PerfLadder({ maxStep: TASKS_MAX_STEP, slowMs: 150, fastMs: 45 });
   /* Governs the Pro engine's internal steps (RVM_STEPS) while it
      is live: active in 'auto' AND 'pro' — a step retune is not an
-     engine switch. At the Pro floor its 'degrade' verdict is acted
-     on in 'auto' only (degrade to the Standard engine). Same
-     round-trip calibration as the Standard ladder: an RVM frame
-     that lands every ~200 ms still drives a good live composite,
-     so only sustained slowness past that sheds steps. */
+     engine switch. At the Pro floor its 'degrade' verdict simply
+     holds the floor step (one-engine build: there is no second
+     engine to degrade TO). Same round-trip calibration: an RVM
+     frame that lands every ~200 ms still drives a good live
+     composite, so only sustained slowness past that sheds steps. */
   private readonly _perfPro = new PerfLadder({ maxStep: RVM_MAX_STEP, slowMs: 200, fastMs: 60 });
-  /* An auto-mode degrade to the Standard engine is in flight. */
-  private _degradingToStandard = false;
   /* The studio's matte pipeline runs the MOTION-ADAPTIVE blend
      (motionSnap): calm where the subject is still, instant where
      it moved — the still-photo path builds its own processor
@@ -886,7 +579,6 @@ export class BackgroundChanger {
       height: config.height ?? 1080,
       fps: config.fps ?? 30,
       deviceId: config.deviceId ?? null,
-      modelSelection: config.modelSelection ?? 1,
     };
 
     this.mode = this.config.mode;
@@ -979,7 +671,7 @@ export class BackgroundChanger {
     this._engineError = null;
     this._parkedKinds.clear();
     this._parkError = null;
-    this._proExitReason = null;
+    this._exitReason = null;
     this._consecutiveInferenceFailures = 0;
     /* A fresh session starts at the TOP output cap again — a
        previous session's governed step-down never follows the
@@ -1203,7 +895,7 @@ export class BackgroundChanger {
     return this._engineError;
   }
 
-  /** Which background engine is live: 'pro' | 'standard' | 'off'. */
+  /** Which background engine is live: 'pro' | 'tasks' | 'off'. */
   getEngineKind(): BackgroundEngineKind {
     return this._engineKind;
   }
@@ -1221,16 +913,18 @@ export class BackgroundChanger {
 
   /**
    * Compute, store, and report the engine truth for a kind change.
-   * A fallback exists only when the configured quality wanted the
-   * Pro engine ('auto' / 'pro'), something else is live, and a Pro
-   * exit reason is on record — a pinned 'standard' quality is a
-   * choice, never a fallback, and raw-by-choice (mode 'none')
-   * clears the record before reporting (see _teardownEngine).
+   * `fellBack` reads "the wanted engine exited": the configured
+   * quality's engine is not the live kind and its exit reason is
+   * on record. With one engine per quality there is no substitute
+   * serving in its place, so a fellBack detail always pairs with
+   * kind 'off' (camera raw) — and raw-by-choice (mode 'none')
+   * clears the record before reporting (see _teardownEngine), so
+   * a deliberate Original never reads as a fallback.
    */
   private _reportStatusDetail(kind: BackgroundEngineKind): void {
-    const wantedPro = this.config.quality !== "standard";
-    const fellBack = wantedPro && kind !== "pro" && this._proExitReason !== null;
-    this._statusDetail = { kind, fellBack, reason: fellBack ? this._proExitReason : null };
+    const wanted = this.config.quality === "tasks" ? "tasks" : "pro";
+    const fellBack = kind !== wanted && this._exitReason !== null;
+    this._statusDetail = { kind, fellBack, reason: fellBack ? this._exitReason : null };
     if (typeof this.config.onEngineStatusDetail === "function") {
       this.config.onEngineStatusDetail(this._statusDetail);
     }
@@ -1247,15 +941,25 @@ export class BackgroundChanger {
 
   /**
    * The matte-refinement step currently in force (index into
-   * MATTE_REFINEMENT_STEPS). 'pro' pins 0 (sharpest), 'standard'
-   * pins 1 (balanced), 'auto' reports wherever the perf ladder
-   * currently sits.
+   * MATTE_REFINEMENT_STEPS). Only the Tasks engine runs under
+   * refinement steps: for it this is wherever its perf ladder
+   * currently sits. The Pro engine reports 0 — it has its own
+   * internal steps (see getProStep).
    */
   getRefinementStep(): number {
     return this._refinementStep();
   }
 
-  /** The configured background quality ('auto' | 'pro' | 'standard'). */
+  /**
+   * The Tasks engine's ladder step currently in force (index
+   * into TASKS_STEPS / MATTE_REFINEMENT_STEPS). 0 when the Tasks
+   * engine has not run this session.
+   */
+  getTasksStep(): number {
+    return this._perfTasks.step;
+  }
+
+  /** The configured background quality ('auto' | 'pro' | 'tasks'). */
   getQuality(): BackgroundQuality {
     return this.config.quality;
   }
@@ -1263,15 +967,16 @@ export class BackgroundChanger {
   /**
    * Switch background quality live. Re-runs engine selection
    * against the new setting (the camera never stops): the new
-   * quality's engine takes over — Pro leads for 'auto'/'pro',
-   * the light engine is pinned for 'standard' — and each engine
-   * lands on the step its quality names. Like start(), an engine
-   * failure lands on the next candidate (or raw) and is reported
-   * through getEngineKind() / engineError / onEngineStatus, never
-   * thrown.
+   * quality's engine takes over — the Pro engine for
+   * 'auto'/'pro', the Tasks engine for 'tasks' — and each engine
+   * lands at the top of its own ladder. Like start(), an engine
+   * failure lands raw and is reported through getEngineKind() /
+   * engineError / onEngineStatus, never thrown. This is the
+   * creator's A/B switch: it moves only when the creator moves
+   * it.
    */
   async setQuality(quality: BackgroundQuality): Promise<void> {
-    if (!["auto", "pro", "standard"].includes(quality)) {
+    if (!["auto", "pro", "tasks"].includes(quality)) {
       throw new BackgroundChangerError("UNSUPPORTED", `Unknown background quality: ${quality}`);
     }
     this.config.quality = quality;
@@ -1303,7 +1008,6 @@ export class BackgroundChanger {
     this._engineKind = "off";
     this._engineFadeStart = null;
     this._busy = false;
-    this.segmenter = null;
     if (engine) {
       try {
         await engine.dispose();
@@ -1339,12 +1043,13 @@ export class BackgroundChanger {
     return run;
   }
 
-  /** The engine kinds the configured quality may run, best first.
-   *  'standard' runs the light engine only; 'auto' and 'pro' lead
-   *  with the Pro engine and keep the light engine as the
-   *  automatic fallback (see BackgroundQuality). */
-  private _engineCandidates(): Array<"pro" | "standard"> {
-    return this.config.quality === "standard" ? ["standard"] : ["pro", "standard"];
+  /** The engine kind the configured quality runs — exactly one
+   *  (one-engine build): 'tasks' runs the MediaPipe Tasks engine;
+   *  'auto' and 'pro' run the Pro engine (see BackgroundQuality).
+   *  A parked kind is filtered out by the caller, and then the
+   *  session stays raw — no substitute engine exists. */
+  private _engineCandidates(): Array<"pro" | "tasks"> {
+    return this.config.quality === "tasks" ? ["tasks"] : ["pro"];
   }
 
   private async _runEngineSelection(): Promise<void> {
@@ -1368,8 +1073,7 @@ export class BackgroundChanger {
     let firstError: unknown = null;
     for (const kind of candidates) {
       try {
-        const engine: MattingEngine =
-          kind === "pro" ? new RvmEngine() : new MediaPipeEngine(this.config.modelSelection);
+        const engine: MattingEngine = kind === "pro" ? new RvmEngine() : new TasksSegmenterEngine();
         await this._initEngine(engine);
         if (!this._running || this._isRawMode()) {
           /* The session stopped, or went raw, while the engine was
@@ -1382,10 +1086,11 @@ export class BackgroundChanger {
         await this._swapEngine(engine);
         return;
       } catch (err) {
-        /* The Pro engine's exit is recorded with its reason BEFORE
-           the fallback is adopted, so the adoption's status detail
-           can say "Pro couldn't start" instead of a silent "On". */
-        if (kind === "pro") this._proExitReason = "pro-init-failed";
+        /* The engine's exit is recorded with its reason BEFORE
+           the raw state is adopted, so the status detail can say
+           "Pro couldn't start" (camera plain, reason shown)
+           instead of a silent "On". */
+        this._exitReason = kind === "pro" ? "pro-init-failed" : "tasks-init-failed";
         firstError = firstError ?? err;
       }
     }
@@ -1436,26 +1141,24 @@ export class BackgroundChanger {
    * part 4): its inferences have failed
    * MAX_CONSECUTIVE_INFERENCE_FAILURES times in a row, so it is
    * stood down (disposed) rather than retried frame after frame.
-   * The park is PER KIND: parking the Pro engine runs selection
-   * again, which lands on the Standard engine — the failure reads
-   * as a fallback, not an outage. Only when the parked kind was
-   * the last candidate does the park present as engine-down (raw
-   * picture, honest note). Only a fresh start() — a new session —
-   * clears the parks.
+   * The park is PER KIND, and with one engine per quality there
+   * is nothing to fall through to: the park presents as
+   * engine-down (raw picture, honest note, the exit reason on the
+   * status detail) — never as another engine quietly serving in
+   * its place. Only a fresh start() — a new session — clears the
+   * parks.
    */
   private async _parkEngine(): Promise<void> {
     const engine = this._engine;
     if (!engine || this._parkedKinds.has(engine.kind)) return;
     this._parkedKinds.add(engine.kind);
-    if (engine.kind === "pro") this._proExitReason = "pro-stopped";
+    this._exitReason = engine.kind === "pro" ? "pro-stopped" : "tasks-stopped";
     this._parkError = new BackgroundChangerError(
       "SEGMENTATION_FAILED",
       "Background effects stopped working, so your camera is running plain.",
     );
-    /* Stand the parked engine down quietly (no status yet): when
-       a fallback engine takes over, ITS adoption reports the
-       status; the engine-down presentation is owed only when
-       nothing is left. */
+    /* Stand the parked engine down quietly (no status yet): the
+       engine-down adoption below reports the status. */
     this._engineEpoch++;
     this._engine = null;
     this._engineKind = "off";
@@ -1463,18 +1166,12 @@ export class BackgroundChanger {
     this._consecutiveInferenceFailures = 0;
     this._busy = false;
     this._frameStall.reset(performance.now());
-    this.segmenter = null;
     try {
       await engine.dispose();
     } catch {
       /* already disposed */
     }
-    const fallbackLeft = this._engineCandidates().some((kind) => !this._parkedKinds.has(kind));
-    if (fallbackLeft && this._running && !this._isRawMode()) {
-      await this._selectEngine();
-    } else {
-      await this._swapEngine(null, this._parkError);
-    }
+    await this._swapEngine(null, this._parkError);
   }
 
   /** One inference against the live engine produced nothing (a null
@@ -1512,11 +1209,10 @@ export class BackgroundChanger {
     this._consecutiveInferenceFailures = 0;
     this._busy = false;
     this._frameStall.reset(performance.now());
-    this.segmenter = null;
     this._engineError = null;
     /* Raw is a CHOICE here, not a fallback: the Pro exit record
        clears so the detail reports a plain 'off'. */
-    this._proExitReason = null;
+    this._exitReason = null;
     this._mattePost.reset();
     if (old) {
       try {
@@ -1533,8 +1229,9 @@ export class BackgroundChanger {
    *  Adoption applies the step policy the engine kind runs under:
    *  the Pro engine restarts its internal ladder at the sharpest
    *  step with the near-identity Pro matte-post tuning; the
-   *  Standard engine restarts its refinement ladder and lands on
-   *  the step its quality names. */
+   *  Tasks engine restarts its refinement ladder at the sharpest
+   *  step. Landing raw (next = null) reports the recorded exit
+   *  reason through the status detail. */
   private async _swapEngine(next: MattingEngine | null, cause?: unknown): Promise<void> {
     const old = this._engine;
     this._engineEpoch++;
@@ -1557,32 +1254,18 @@ export class BackgroundChanger {
         (next as RvmEngine).setStep(this._perfPro.step);
         this._mattePost.configure({ ...PRO_MATTE_POST });
       } else {
-        /* A fresh Standard engine starts at the refinement step
-           its quality names: the ladder restarts at the sharpest
-           step, and the pinned qualities ('pro' fallback /
-           'standard') land on theirs. */
-        this._perf.reset();
-        this._applyRefinement(next as MediaPipeEngine, this._refinementStep());
+        /* A fresh Tasks engine starts at the sharpest refinement
+           step: its ladder restarts and applies feed cap + matte
+           post-processing together (_applyTasksStep). */
+        this._perfTasks.reset();
+        this._applyTasksStep(next as TasksSegmenterEngine, this._perfTasks.step);
       }
     }
-    if (next instanceof MediaPipeEngine) {
-      /* A late result after a capped send proves this engine is
-         alive, merely slow (see MediaPipeEngine's send
-         discipline): reset the failure run it was accumulating —
-         slowness alone must never park a working engine. The
-         identity guard keeps a retired engine's late result from
-         clearing the LIVE engine's run. */
-      const adopted = next;
-      adopted.onProofOfLife = () => {
-        if (this._engine === adopted) this._consecutiveInferenceFailures = 0;
-      };
-    }
-    this.segmenter = next instanceof MediaPipeEngine ? next.segmenter : null;
     this._engineError = next
       ? null
       : cause instanceof BackgroundChangerError
         ? cause
-        : cause instanceof RvmEngineError
+        : cause instanceof RvmEngineError || cause instanceof TasksSegmenterError
           ? new BackgroundChangerError(
               cause.code === "INFERENCE_FAILED" ? "SEGMENTATION_FAILED" : "CDN_LOAD_FAILED",
               cause.message,
@@ -1596,28 +1279,28 @@ export class BackgroundChanger {
         /* already disposed */
       }
     }
-    /* Pro live again: any earlier exit record is history. */
-    if (next?.kind === "pro") this._proExitReason = null;
+    /* The wanted engine live again: any earlier exit record is
+       history. (An adopted engine is always the wanted one —
+       one candidate per quality.) */
+    if (next) this._exitReason = null;
     if (typeof this.config.onEngineStatus === "function") this.config.onEngineStatus(this._engineKind);
     this._reportStatusDetail(this._engineKind);
   }
 
-  /** The refinement step the configured quality names right now:
-   *  'pro' pins the sharpest, 'standard' pins the balanced step,
-   *  'auto' follows the perf ladder. */
+  /** The refinement step in force right now: the Tasks ladder's
+   *  position while the Tasks engine is live; 0 otherwise (the
+   *  Pro engine runs no refinement steps). */
   private _refinementStep(): number {
-    const quality = this.config.quality;
-    if (quality === "pro") return 0;
-    if (quality === "standard") return 1;
-    return this._perf.step;
+    return this._engine?.kind === "tasks" ? this._perfTasks.step : 0;
   }
 
-  /** Apply a refinement step to the live engine + matte pipeline:
-   *  the engine reads its mask at the step's width, and the matte
-   *  post-processing retunes to the step's edge settings. */
-  private _applyRefinement(engine: MediaPipeEngine, step: number): void {
+  /** Apply a refinement step to the Tasks engine + matte
+   *  pipeline: the engine's feed cap (TASKS_STEPS, aligned with
+   *  MATTE_REFINEMENT_STEPS by index) and the matte
+   *  post-processing's edge settings move together. */
+  private _applyTasksStep(engine: TasksSegmenterEngine, step: number): void {
     const def = MATTE_REFINEMENT_STEPS[Math.max(0, Math.min(MATTE_MAX_STEP, step))];
-    engine.setMaskCap(def.maskCap);
+    engine.setStep(step);
     this._mattePost.configure({
       emaWeight: def.emaWeight,
       choke: def.choke,
@@ -1628,13 +1311,15 @@ export class BackgroundChanger {
   }
 
   /** Feed the live engine's latest round-trip time to its perf
-   *  ladder and act on the decision. The Pro engine's ladder walks
-   *  RVM_STEPS in 'auto' AND 'pro' (a step retune is not an engine
-   *  switch; pro never degrades engines under the creator). In
-   *  'auto', the Pro ladder's 'degrade' verdict (sustained
-   *  slowness AT the lightest Pro step) hands the session to the
-   *  Standard engine, whose own ladder then governs — refinement
-   *  steps first, and at ITS floor the output step-down below. */
+   *  ladder and act on the decision. Each engine's ladder walks
+   *  ITS OWN steps only (a step retune is not an engine switch):
+   *  the Pro ladder walks RVM_STEPS in 'auto' AND 'pro', and at
+   *  its floor the 'degrade' verdict simply holds the floor step
+   *  — the one-engine build has no second engine to degrade to,
+   *  and a floor-step Pro matte still lands every round trip.
+   *  The Tasks ladder walks the refinement steps, and at ITS
+   *  floor the degrade verdict steps the output canvas down
+   *  (below). */
   private _governPerf(engine: MattingEngine): void {
     if (engine.kind === "pro") {
       const rvm = engine as RvmEngine;
@@ -1644,59 +1329,27 @@ export class BackgroundChanger {
       const action = this._perfPro.sample(ms);
       if (action === "step-down" || action === "step-up") {
         rvm.setStep(this._perfPro.step);
-      } else if (action === "degrade" && this.config.quality === "auto" && !this._degradingToStandard) {
-        this._degradingToStandard = true;
-        void this._degradeToStandard().finally(() => {
-          this._degradingToStandard = false;
-        });
       }
       return;
     }
-    this._governStandardPerf(engine as MediaPipeEngine);
+    this._governTasksPerf(engine as TasksSegmenterEngine);
   }
 
-  /** Auto-mode live degrade: the Pro engine is too slow for this
-   *  device at even its lightest step, so the Standard engine
-   *  takes over (and the status says so). A parked Standard engine
-   *  is never revived by a degrade — the Pro engine simply holds
-   *  its floor step. */
-  private async _degradeToStandard(): Promise<void> {
-    if (this._parkedKinds.has("standard")) return;
-    /* Recorded BEFORE the swap so the light engine's adoption
-       reports the fallback with its real reason: Pro ran, and
-       this device could not hold it. */
-    this._proExitReason = "pro-too-slow";
-    try {
-      const engine = new MediaPipeEngine(this.config.modelSelection);
-      await this._initEngine(engine);
-      if (!this._running || this._isRawMode()) {
-        await engine.dispose().catch(() => undefined);
-        if (this._isRawMode()) await this._teardownEngine();
-        return;
-      }
-      await this._swapEngine(engine);
-    } catch (err) {
-      await this._swapEngine(null, err);
-    }
-  }
-
-  /** The Standard engine's governance (see _governPerf): feed its
+  /** The Tasks engine's governance (see _governPerf): feed its
    *  latest round-trip time to the refinement ladder and act on
-   *  its decision. Auto quality only — the pinned qualities never
-   *  move. A step change retunes the refinement. The ladder's
-   *  'degrade' verdict (sustained slowness AT the lightest matte
-   *  step) steps the OUTPUT canvas down once — the lightest
-   *  engine is already running, but there is a smaller picture
-   *  the device may hold, and dropping to it beats dropping
-   *  frames. */
-  private _governStandardPerf(engine: MediaPipeEngine): void {
-    if (this.config.quality !== "auto") return;
+   *  its decision. A step change retunes the refinement (feed cap
+   *  + matte post-processing together). The ladder's 'degrade'
+   *  verdict (sustained slowness AT the lightest matte step)
+   *  steps the OUTPUT canvas down once — the engine is already
+   *  at its lightest, but there is a smaller picture the device
+   *  may hold, and dropping to it beats dropping frames. */
+  private _governTasksPerf(engine: TasksSegmenterEngine): void {
     const ms = engine.lastMs;
     if (ms === null) return;
     engine.lastMs = null;
-    const action = this._perf.sample(ms);
+    const action = this._perfTasks.sample(ms);
     if (action === "step-down" || action === "step-up") {
-      this._applyRefinement(engine, this._perf.step);
+      this._applyTasksStep(engine, this._perfTasks.step);
     } else if (action === "degrade") {
       this._stepDownOutput();
     }
