@@ -148,6 +148,7 @@ import keywordAutomationsRouter from "./keyword-automations";
 import liveGuestsRouter from "./live-guests";
 import pushRouter from "./push";
 import liveTipsRouter from "./live-tips";
+import songRequestsRouter from "./song-requests";
 import liveTicketsRouter from "./live-tickets";
 import liveModeratorsRouter from "./live-moderators";
 import liveWidgetsRouter from "./live-widgets";
@@ -528,6 +529,7 @@ router.use(liveChatRouter);                 // /api/live/:id/chat (stream chat +
 router.use(liveGuestsRouter);               // /api/live-streams/:id/guest-invites + /api/live-guest/* (guest invites + backstage)
 router.use(pushRouter);                      // /api/push/* (web-push subscriptions)
 router.use(liveTipsRouter);                  // /api/live/:id/tips (stream tips + paid pins)
+router.use(songRequestsRouter);              // /api/live/:id/song-requests + /api/song-request-rules (N18 tipped song-request queue)
 router.use(liveTicketsRouter);               // /api/live-streams/:id/ticket(s) (ticketed live — pay-per-view door)
 router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live/:id/chat/my-role
 router.use(liveWidgetsRouter);               // /api/live/:id/widgets + /api/live/:id/tip-goal

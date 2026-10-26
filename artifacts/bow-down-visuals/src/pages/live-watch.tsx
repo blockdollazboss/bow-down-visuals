@@ -10,6 +10,7 @@ import StreamSummaryCard from "@/components/live/StreamSummaryCard";
 import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
 import PartyTableSection from "@/components/artist/PartyTableSection";
+import { SongRequestPanel } from "@/components/live/SongRequests";
 import { publicOnStageGuests } from "@/lib/go-live/guest-api";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
@@ -534,6 +535,10 @@ export default function LiveWatch() {
         {creator && (
           <PartyTableSection slug={creator.slug} streamId={stream.id} className="mt-5" />
         )}
+        {/* Song Requests (N18) — docked into the watch surface: the
+            creator's rules + the refund deal up front, the catalog,
+            the tipped request form, and the live queue. */}
+        <SongRequestPanel streamId={stream.id} isLive={!!isLive} />
           </div>
           <LiveChatPanel streamId={stream.id} className="h-[440px] shrink-0 lg:h-auto lg:w-[340px]" />
         </div>

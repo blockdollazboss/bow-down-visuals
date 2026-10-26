@@ -63,6 +63,7 @@ export * from "./fan-segments";
 export * from "./press-kits";
 export * from "./live-shopping";
 export * from "./live-streams";
+export * from "./song-requests";
 export * from "./live-chat";
 export * from "./live-guests";
 export * from "./live-alive";
