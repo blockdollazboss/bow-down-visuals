@@ -210,15 +210,29 @@ interface ConnectStatus {
   onboarded: boolean;
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
+  /* Server-derived state machine + Stripe's own reasons (payfix
+     payout-build). Optional for back-compat: older responses derive
+     the state from the flags below. */
+  state?: "not_started" | "pending" | "action_needed" | "verified";
+  actionNeeded?: string[];
   pendingCents: number;
   minPayoutCents: number;
   testMode: boolean;
+}
+
+interface PayoutHistoryRow {
+  id: string;
+  amountCents: number;
+  status: string;
+  stripeTransferId: string | null;
+  createdAt: string;
 }
 
 function ConnectPayoutCard() {
   const getToken = useToken();
   const search = useSearch();
   const [status, setStatus] = useState<ConnectStatus | null>(null);
+  const [history, setHistory] = useState<PayoutHistoryRow[]>([]);
   const [noProfile, setNoProfile] = useState(false);
   const [busy, setBusy] = useState<"connect" | "payout" | "manage" | null>(null);
   const [err, setErr] = useState("");
@@ -234,6 +248,18 @@ function ConnectPayoutCard() {
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) throw new Error((data.error as string) || "Couldn't load payout status.");
     setStatus(data as unknown as ConnectStatus);
+    /* Payout history rides the same load: the card shows what was
+       actually paid out, not just what's pending. A history failure
+       never takes the card down — the list just stays as it was. */
+    try {
+      const hres = await fetch("/api/connect/payouts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (hres.ok) {
+        const hdata = (await hres.json().catch(() => ({}))) as { payouts?: PayoutHistoryRow[] };
+        setHistory(hdata.payouts ?? []);
+      }
+    } catch { /* history is additive — never fail the card over it */ }
   }, [getToken]);
 
   useEffect(() => { load().catch((e: Error) => setErr(e.message)); }, [load]);
@@ -281,8 +307,16 @@ function ConnectPayoutCard() {
       });
       const data = (await res.json().catch(() => ({}))) as {
         payout?: { amountCents: number }; error?: string; message?: string; note?: string;
+        actionNeeded?: string[];
       };
-      if (!res.ok) throw new Error(data.message || data.error || "Payout failed.");
+      if (!res.ok) {
+        /* A NOT_ONBOARDED refusal now carries Stripe's own reasons —
+           show the first one instead of a bare "isn't verified yet". */
+        const reason = data.actionNeeded?.[0];
+        throw new Error(
+          (data.message || data.error || "Payout failed.") + (reason ? ` ${reason}` : ""),
+        );
+      }
       setNote(
         `Cash out sent: $${((data.payout?.amountCents ?? 0) / 100).toFixed(2)}${data.note ? ` — ${data.note}` : ""}`,
       );
@@ -351,18 +385,48 @@ function ConnectPayoutCard() {
 
       {status?.connected && !status.payoutsEnabled && (
         <>
-          <h3 className="mt-2 text-xl font-black text-white">Almost there — finish your Stripe setup.</h3>
-          <p className="mt-1 text-sm leading-relaxed text-white/60">
-            Your bank connection started but isn't verified yet. Finish Stripe's quick verification to unlock payouts.
-          </p>
-          <button
-            onClick={() => goOnboard("/api/connect/refresh")}
-            disabled={busy === "connect"}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-60"
-          >
-            {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Finish setup →
-          </button>
+          {(status.state ?? "pending") === "action_needed" ? (
+            <>
+              <h3 className="mt-2 text-xl font-black text-white">Stripe needs a little more from you.</h3>
+              <p className="mt-1 text-sm leading-relaxed text-white/60">
+                Your setup is paused until Stripe gets the items below — finish them to unlock payouts.
+              </p>
+              {(status.actionNeeded ?? []).length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {(status.actionNeeded ?? []).map((reason) => (
+                    <li key={reason} className="flex items-start gap-2 text-xs font-bold text-amber-200">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className="mt-2 text-xl font-black text-white">Stripe is checking your details.</h3>
+              <p className="mt-1 text-sm leading-relaxed text-white/60">
+                You&apos;ve submitted everything — Stripe is verifying it now. This page updates itself the
+                moment Stripe flips you to verified; if anything else is needed, the exact reason shows here.
+                Still mid-form? Finish your setup instead.
+              </p>
+            </>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => goOnboard("/api/connect/refresh")}
+              disabled={busy === "connect"}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-5 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-60"
+            >
+              {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Finish setup →
+            </button>
+            <button
+              onClick={() => { load().catch((e: Error) => setErr(e.message)); }}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white/55 hover:text-white"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Check again
+            </button>
+          </div>
         </>
       )}
 
@@ -394,6 +458,31 @@ function ConnectPayoutCard() {
             </button>
           </div>
         </>
+      )}
+
+      {history.length > 0 && (
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <p className="text-[11px] font-black uppercase tracking-wider text-white/50">Payout history</p>
+          <ul className="mt-2 space-y-1.5">
+            {history.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-bold text-white">{dollars(p.amountCents)}</span>
+                <span className="flex-1 text-white/40">
+                  {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+                  p.status === "paid" || p.status === "pending"
+                    ? "border-green-400/40 text-green-300"
+                    : p.status === "failed"
+                      ? "border-red-400/40 text-red-300"
+                      : "border-white/20 text-white/55"
+                }`}>
+                  {p.status === "pending" ? "On its way" : p.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {err && (
