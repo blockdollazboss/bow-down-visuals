@@ -132,6 +132,7 @@ import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/statio
 import {
   COURTYARD_ID,
   GAME_ROOMS_ID,
+  HALL_ROOM_ID,
   HEIGHTS_ID,
   MUSIC_HALL_ID,
   isCreatorRoomId,
@@ -225,6 +226,7 @@ import {
   type VaultCharacter,
   type VaultAppearance,
 } from "@/lib/world/characters";
+import { ChartsRadioPanel } from "@/components/discovery/ChartsRadio";
 import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
 import { WorldNotificationsBell } from "@/components/world/WorldNotificationsBell";
@@ -3452,6 +3454,17 @@ export default function WorldPage() {
           </button>
         )}
       </div>
+
+        {/* Charts Radio (Stack-200 #156) — the house station docked in
+            the plaza (the King's Hall spawn). Its own press-to-play
+            panel: NOT the Music Hall jukebox (that box stays the
+            hall's alone) and never autoplay — sound starts only on
+            the walker's press. */}
+        {status === "inside" && roomId === HALL_ROOM_ID && !photoMode && (
+          <div className="absolute bottom-24 left-3 z-10 w-[min(92vw,380px)] sm:bottom-20" data-testid="world-plaza-radio">
+            <ChartsRadioPanel compact />
+          </div>
+        )}
 
       {/* In-hall character panel — the same picker as the door,
           opened from inside (the pick rides the same verified

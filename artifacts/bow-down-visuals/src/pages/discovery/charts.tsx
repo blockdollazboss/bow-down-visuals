@@ -15,6 +15,7 @@ import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib
 import { usePageTitle } from "@/hooks/use-page-title";
 import { brandScoutStats, BRAND_OUTREACH_DOORS, type BrandCreatorLite } from "@/lib/charts-brands";
 import { UGC_PAYMENT_NOTE } from "@/lib/ugc-ads";
+import { ChartsRadioPanel } from "@/components/discovery/ChartsRadio";
 import SpotlightModal from "@/components/SpotlightModal";
 import LoadingScreenModal from "@/components/LoadingScreenModal";
 
@@ -322,6 +323,13 @@ export default function Charts() {
                 ? "Real audiences, real creators. Find your next partner before everyone else does."
                 : "Top creators, top audio, top videos — ranked by what's actually popping."}
         </p>
+      </div>
+
+      {/* Charts Radio (Stack-200 #156) — the house station docked at
+          the top of the charts it spins. Press-to-play only: the
+          station never starts with sound on load. */}
+      <div className="mb-6">
+        <ChartsRadioPanel />
       </div>
 
       {/* Tabs — flex-wrap: the four pills total ~510px; centered without
