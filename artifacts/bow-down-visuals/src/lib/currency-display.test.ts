@@ -90,7 +90,8 @@ describe("Visual Bucs are NEVER converted", () => {
 
   it("the display module never imports a VB-to-fiat path", () => {
     const src = read("./currency-display.ts");
-    expect(src).not.toContain("visual-bucs");
+    expect(src).not.toMatch(/from\s+["']\.\/visual-bucs["']/);
+    expect(src).not.toContain("formatBucs(");
     expect(src).toContain("Visual Bucs are NEVER converted");
   });
 });

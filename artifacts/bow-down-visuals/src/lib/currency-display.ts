@@ -227,7 +227,11 @@ export function displayPrice(
 ): DisplayPrice {
   const locale = opts.locale ?? "en";
   const currency = resolveDisplayCurrency({ locale, preference: opts.preference ?? "auto" });
-  const usdText = formatUsd(usd, locale);
+  /* The charge is always rendered in its canonical $ form ("$29"), in
+     every locale — locale-formatting the dollar figure produces
+     "29 $US"-style strings that muddy the honesty line. Only the
+     CONVERTED figure is locale-formatted. */
+  const usdText = formatUsd(usd, "en");
   if (currency === "USD") {
     return { usdText, currency, isConverted: false, convertedText: null, honestyLine: null };
   }
