@@ -783,6 +783,39 @@ async function lookupReferralAward(sessionId: string): Promise<ReferralAward | n
   };
 }
 
+/* ── Purchase-history label truth (Pass 7 deviation, Oct 26) ──────────
+ * The buyer's Purchase History reads stripe_payments.status verbatim
+ * (GET /api/payments/history → credit-history.tsx). The clawback legs
+ * below move balances and ledger rows, but before this helper nothing
+ * ever re-marked that row: a fully refunded pack still displayed
+ * "completed". The label follows the SAME cumulative fraction the
+ * clawback uses, and it only ever moves forward — a replayed partial
+ * event can never downgrade a row already marked "refunded". */
+
+export function purchaseRowStatusForReversal(fullReversal: boolean): "refunded" | "partially_refunded" {
+  return fullReversal ? "refunded" : "partially_refunded";
+}
+
+async function markPurchaseRowRefunded(input: {
+  paymentIntentId: string | null;
+  fullReversal: boolean;
+}): Promise<void> {
+  if (!input.paymentIntentId) return;
+  const status = purchaseRowStatusForReversal(input.fullReversal);
+  if (input.fullReversal) {
+    await db.execute(sql`
+      UPDATE stripe_payments SET status = ${status}
+      WHERE stripe_payment_intent_id = ${input.paymentIntentId} AND status <> 'refunded'
+    `);
+  } else {
+    await db.execute(sql`
+      UPDATE stripe_payments SET status = ${status}
+      WHERE stripe_payment_intent_id = ${input.paymentIntentId}
+        AND status NOT IN ('refunded', 'partially_refunded')
+    `);
+  }
+}
+
 /* ── The engine ─────────────────────────────────────────────────────── */
 
 export async function processChargeReversal(input: {
@@ -967,6 +1000,21 @@ export async function processChargeReversal(input: {
           }
         }
       }
+    }
+
+    /* Purchase-history label: re-mark the stripe_payments row the
+       buyer sees, in the same run as the clawback. This runs on EVERY
+       credit-pack execution — including a retry whose credit delta is
+       already 0 — and the UPDATE is status-guarded, so replays flip
+       it exactly once and never downgrade it. A failure here throws
+       like any other leg: the row is marked 'failed' and Stripe's
+       retry lands the label together with any remaining claw work. */
+    if (ident.rail === "credit_pack") {
+      await markPurchaseRowRefunded({
+        paymentIntentId: charge.paymentIntentId,
+        fullReversal,
+      });
+      details["purchaseRowStatus"] = purchaseRowStatusForReversal(fullReversal);
     }
 
     if (fullReversal && ident.grantedCredits === 0) {

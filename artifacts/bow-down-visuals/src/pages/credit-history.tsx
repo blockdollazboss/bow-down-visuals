@@ -47,6 +47,23 @@ function describeUsage(u: Usage): { type: string; amount: string; tone: "charge"
   return { type: "Charge", amount: `−${n.toLocaleString("en-US")}`, tone: "charge" };
 }
 
+/**
+ * Purchase-row status label + badge tone. stripe_payments.status is the
+ * stored value ("completed" | "refunded" | "partially_refunded" — the
+ * reversal engine re-marks it on charge.refunded); the history table
+ * shows the human label, never the raw code, and a refunded row must
+ * not wear the green "completed" badge.
+ */
+export function purchaseStatusDisplay(status: string): { label: string; badgeClass: string } {
+  if (status === "refunded") {
+    return { label: "refunded", badgeClass: "bg-red-500/10 text-red-400 border-red-500/20" };
+  }
+  if (status === "partially_refunded") {
+    return { label: "partially refunded", badgeClass: "bg-amber-500/10 text-amber-400 border-amber-500/20" };
+  }
+  return { label: status, badgeClass: "bg-green-500/10 text-green-400 border-green-500/20" };
+}
+
 function fmt(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
@@ -253,8 +270,8 @@ export default function CreditHistory() {
                           </td>
                           <td className="px-4 py-3 text-white/50">{fmtMoney(p.amountTotal, p.currency)}</td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                              {p.status}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${purchaseStatusDisplay(p.status).badgeClass}`}>
+                              {purchaseStatusDisplay(p.status).label}
                             </span>
                           </td>
                         </tr>
