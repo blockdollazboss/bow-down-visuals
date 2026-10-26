@@ -11,6 +11,8 @@ import { presaveTracklistRows, type PresaveTracklistEntry } from "@/lib/presave-
 import { injectSmartlinkPixels, type SmartlinkPixels } from "@/lib/smartlink-pixels";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuth } from "@/contexts/AuthContext";
+import { SongCredits } from "@/components/SongCredits";
+import type { PublicSongCredits } from "@/lib/song-credits";
 
 /* ─── Public pre-save landing page (/presave/:slug) ─────────────────────────
    HyperFollow-level: no auth required — this page is meant to be shared
@@ -59,6 +61,9 @@ interface PresaveRelease {
     } | null;
   };
   accountPresave?: { platform: string; supported: boolean; itemKind?: string; actionLabel: string | null; accountSaveCount?: number; reason?: string };
+  /* Stack-200 N1: the song's canonical credits, attached by the presave
+     API — the same list the library and exports render. */
+  credits?: PublicSongCredits | null;
 }
 
 const PLATFORM_ORDER = [
@@ -460,6 +465,16 @@ export default function PresaveLanding() {
                 </div>
               );
             })()}
+
+            {/* ── Stack-200 N1: credits that follow the song — this share
+                surface renders the SAME canonical credits as the
+                library, profiles and exports. Tap a credit → the
+                creator's profile. ── */}
+            {data.credits && (
+              <div className="mx-auto mt-6 max-w-md text-left">
+                <SongCredits credits={data.credits} />
+              </div>
+            )}
 
             {/* ── Stack 11 #2: real account pre-save (headline action when
                 the platform API can actually save this release) ── */}
