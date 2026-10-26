@@ -59,12 +59,16 @@ export const PROFILE_BLOCK_TYPES: ProfileBlockTypeDef[] = [
   { type: "achievements", label: "Trophy Shelf", source: "page" },
   { type: "store", label: "Store", source: "page" },
   { type: "memberships", label: "Memberships", source: "page" },
+  /* Fan Art Wall (#157): fan-submitted art, per-piece creator
+     approval, artist credit on every displayed piece. Page-sourced —
+     the wall fetches its own data like the store/memberships blocks. */
+  { type: "gallery", label: "Gallery", source: "page" },
   { type: "links", label: "Social Links", source: "page" },
 ];
 
 export const PROFILE_BLOCK_TYPE_SET = new Set(PROFILE_BLOCK_TYPES.map((b) => b.type));
 
-/** Sane ceiling: the registry holds 19 types and each type may appear
+/** Sane ceiling: the registry holds 20 types and each type may appear
     at most once, so 24 leaves headroom without ever allowing bloat. */
 export const MAX_PROFILE_BLOCKS = 24;
 
@@ -189,6 +193,7 @@ const GRAND_STAGE_SEQUENCE: Array<[string, string]> = [
   ["memberships", "Memberships"],
 ];
 const PAGE_BLOCK_TAIL: Array<[string, string]> = [
+  ["gallery", "Gallery"],
   ["achievements", "Trophy Shelf"],
   ["links", "Social Links"],
 ];

@@ -321,6 +321,7 @@ export function grandStageFallbackBlocks(
     push(type, s?.title || title, s ? s.visible !== false : true);
   }
   for (const s of sections) push(s.type, s.title, s.visible !== false);
+  push("gallery", "Gallery", true);
   push("achievements", "Trophy Shelf", true);
   push("links", "Social Links", true);
   return out.filter((b) => b.visible);
