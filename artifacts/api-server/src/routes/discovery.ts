@@ -10,6 +10,14 @@ import {
   playEventsTable,
   notificationsTable,
 } from "@workspace/db";
+import {
+  RADIO_STATION,
+  buildRadioRotation,
+  drizzleChartsRadioPrefsStore,
+  getChartsRadioPrefs,
+  setChartsRadioPrefs,
+  type RadioTrackRow,
+} from "../lib/charts-radio";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
@@ -339,6 +347,67 @@ router.get("/charts/creators", publicApiLimiter, asyncHandler(async (req, res) =
   const q = parseChartsQuery(req, res);
   if (!q) return;
   res.json(await refreshSupabaseStorageUrlsDeep({ window: q.window, vertical: q.vertical ?? null, creators: await topCreators(q.window, q.vertical, clampLimit(q.limit), q.days) }));
+}));
+
+/* ─── Charts Radio (Stack-200 #156) ─────────────────────────────────────
+   GET /radio — the house station's live rotation, built per-request
+   from REAL data only: the This Week chart (topTracks "week", the
+   play_events-backed rail above) interleaved with the newest
+   published drops. No stored schedule, no invented songs or stats.
+   GET /radio/prefs + PATCH /radio/prefs (auth) — the listener's
+   tuned-in choice (charts_radio_prefs, provisional migration 9999).
+   The pref is a resume hint ONLY: playback never autoplays with
+   sound — every surface starts playback on an explicit press.
+   Listening is free: no Visual Bucs are charged, no cash rail. */
+
+async function newestRadioTracks(limit: number): Promise<RadioTrackRow[]> {
+  const rows = await db.execute(sql`
+    SELECT t.id, t.title, t.genre, t.artwork_url, t.audio_url,
+           t.play_count, t.duration_sec, t.created_at,
+           ${PROFILE_COLS}
+    FROM profile_tracks t
+    JOIN creator_profiles p ON p.id = t.profile_id
+    WHERE t.is_published AND p.is_public AND t.audio_url IS NOT NULL
+    ORDER BY t.created_at DESC
+    LIMIT ${limit}`);
+  return rows.rows as unknown as RadioTrackRow[];
+}
+
+router.get("/radio", publicApiLimiter, asyncHandler(async (req, res) => {
+  const limit = clampLimit(req.query.limit, 24, 50);
+  const [chart, newest] = await Promise.all([
+    topTracks("week", undefined, undefined, limit),
+    newestRadioTracks(limit),
+  ]);
+  const rotation = buildRadioRotation(
+    chart as unknown as RadioTrackRow[],
+    newest,
+    limit,
+  );
+  res.json(await refreshSupabaseStorageUrlsDeep({
+    station: {
+      name: RADIO_STATION.name,
+      tagline: RADIO_STATION.tagline,
+      sources: RADIO_STATION.sources,
+      on_air: rotation.length > 0,
+    },
+    rotation,
+  }));
+}));
+
+router.get("/radio/prefs", requireAuth, asyncHandler(async (req, res) => {
+  res.json(await getChartsRadioPrefs(drizzleChartsRadioPrefsStore, req.userId!));
+}));
+
+const RadioPrefsBody = z.object({ tuned_in: z.boolean() });
+
+router.patch("/radio/prefs", requireAuth, asyncHandler(async (req, res) => {
+  const parsed = RadioPrefsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "tuned_in (boolean) required." });
+    return;
+  }
+  res.json(await setChartsRadioPrefs(drizzleChartsRadioPrefsStore, req.userId!, parsed.data));
 }));
 
 /* ─── Rising ("Breaking") ─────────────────────────────────────────────────

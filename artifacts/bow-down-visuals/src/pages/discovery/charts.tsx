@@ -17,6 +17,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { brandScoutStats, BRAND_OUTREACH_DOORS, type BrandCreatorLite } from "@/lib/charts-brands";
 import { UGC_PAYMENT_NOTE } from "@/lib/ugc-ads";
 import { LiveBattleCrownStrip } from "@/components/live/LiveBattlesPanel";
+import { ChartsRadioPanel } from "@/components/discovery/ChartsRadio";
 import SpotlightModal from "@/components/SpotlightModal";
 import LoadingScreenModal from "@/components/LoadingScreenModal";
 
@@ -385,6 +386,11 @@ export default function Charts() {
           completes. Renders nothing until a battle has been won. */}
       <div className="mb-5">
         <LiveBattleCrownStrip />
+      {/* Charts Radio (Stack-200 #156) — the house station docked at
+          the top of the charts it spins. Press-to-play only: the
+          station never starts with sound on load. */}
+      <div className="mb-6">
+        <ChartsRadioPanel />
       </div>
 
       {/* Tabs — flex-wrap: the four pills total ~510px; centered without
