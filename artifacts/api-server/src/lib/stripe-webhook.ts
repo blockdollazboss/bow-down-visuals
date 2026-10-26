@@ -11,6 +11,7 @@ import {
 } from "./payment-record";
 import { awardReferralPayout } from "../routes/referrals";
 import { createGuardedStripeClient } from "./stripe-client";
+import type { ConnectAccountLike } from "./stripe-connect";
 
 export async function stripeWebhookHandler(req: Request, res: Response): Promise<void> {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
@@ -152,19 +153,17 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       await handleTierInvoiceFailed(inv);
       res.status(200).json({ received: true, kind: "creator_tier" });
       return;
-    } else if (event.type === "account.updated" || (event.type as string) === "v2.core.account.updated") {
+    } else if (event.type === "account.updated" || (event.type as string).startsWith("v2.core.account")) {
       /* Stripe Connect: keep the creator profile's onboarding flags in sync
-         with the Express account's capability state. v2 accounts emit
-         v2.core.account.updated; the sync helper reads the v2 shape. */
-      const acct = event.data.object as {
-        id: string;
-        configuration?: {
-          recipient?: {
-            capabilities?: { stripe_balance?: { stripe_transfers?: { status?: string } } };
-          };
-        };
-        requirements?: { entries?: unknown[] };
-      };
+         with the Express account's capability state. The classic endpoint
+         delivers v1-shaped account.updated payloads; v2 accounts emit
+         v2.core.account.updated (plus v2.core.account[requirements].updated
+         and friends, whose payloads may be thin — id only). The sync
+         helper is shape-tolerant: it parses either full shape and
+         re-fetches live when a payload carries no capability signal,
+         so a verified seller flips automatically whichever door the
+         event came through (payfix payout-build). */
+      const acct = event.data.object as unknown as ConnectAccountLike;
       const { syncConnectAccountStatus } = await import("./stripe-connect");
       await syncConnectAccountStatus(acct);
       res.status(200).json({ received: true, kind: "connect_account" });
