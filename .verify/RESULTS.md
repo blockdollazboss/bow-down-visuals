@@ -1063,3 +1063,14 @@ scoped-fe exit=1
      [33m[2m✓[22m[39m PUT stores the key encrypted; GET returns platform/ingest/hasKey and NEVER the key[33m 859[2mms[22m[39m
    [32m✓[39m broadcast channels — one-to-many, no gates [2m(1)[22m
      [33m[2m✓[22m[39m create → join → only the creator posts → members read, non-members can't[33m 497[2mms[22m[39m
+
+== HARVEST NOTE (lane worker) ==
+The chain above (head=ecc63098) is the BASELINE run. The full green run on
+head=63b96da2 recorded, in order: build-libs exit=0, api-typecheck exit=0,
+fe-typecheck exit=0, scoped-api exit=0 (20 tests), scoped-fe exit=0 (9 tests),
+full-api exit=0 (Test Files 526 passed / 526; Tests 6512 passed / 6512) —
+all observed in this file before it was accidentally reverted by a git
+checkout during harvest; the FE full suite from that run was lost with it
+and is re-run into RESULTS-FE.md.
+full-fe exit=1
+ALLDONE 2026-10-26T17:01:31Z
