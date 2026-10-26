@@ -24,7 +24,7 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
-import { isUniqueViolation, pgErrorText } from "../../lib/pg-errors";
+import { isUniqueViolation, isUndefinedTable, pgErrorText } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
@@ -44,6 +44,14 @@ import {
   marketSaleIsPaid,
   marketSaleReceipt,
 } from "../../lib/market-sale";
+/* Make-an-offer (Wave 4 #43): an accepted offer on a shop product can
+   price this checkout at its agreed amount — resolved and claimed in
+   lib/product-offers.ts, consumed by the shared paid flip in
+   lib/market-sale.ts (claimed_ref = the checkout group id). */
+import {
+  resolveAcceptedShopOfferForCheckout,
+  releaseOfferClaim,
+} from "../../lib/product-offers";
 import {
   recordShopEventSplitsSafely,
   validateProductSplits,
@@ -2004,6 +2012,12 @@ const checkoutSchema = z.object({
      add-on the buyer ticked. Each tick is re-resolved and re-priced
      server-side — the tick alone buys nothing. */
   includeBumps: z.array(z.string().uuid()).max(50).optional().default([]),
+  /* Make-an-offer (Wave 4 #43): the ACCEPTED offer pricing this cart.
+     The cart must be exactly that one product, quantity 1, with no
+     other price lever stacked (no discount / affiliate / gift-card /
+     bump) — the agreed price is re-resolved server-side from the
+     product_offers row, never from the client. */
+  offerId: z.string().uuid().optional(),
 });
 
 interface CheckoutLine {
@@ -2086,6 +2100,41 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     return;
   }
 
+  /* Make-an-offer (Wave 4 #43): an accepted offer prices a single-item
+     cart at its agreed amount. Combo levers refuse honestly; the
+     agreed price resolves here (unclaimed — the claim lands below,
+     once the checkout group id exists) and the claim ref is the
+     group id the paid flip consumes by. */
+  let offerAgreedCents: number | null = null;
+  if (parsed.data.offerId) {
+    if (
+      parsed.data.discountCode || parsed.data.affiliateCode || parsed.data.giftCardCode ||
+      (parsed.data.includeBumps ?? []).length > 0 || wanted.size !== 1 ||
+      [...wanted.values()][0] !== 1
+    ) {
+      res.status(400).json({ error: "OFFER_EXCLUSIVE", message: "An accepted offer buys one of its product at the agreed price — it can't be combined with a discount code, affiliate code, gift card, or add-on, or a bigger cart." });
+      return;
+    }
+    const soleProductId = [...wanted.keys()][0]!;
+    let resolvedOffer;
+    try {
+      resolvedOffer = await resolveAcceptedShopOfferForCheckout({
+        offerId: parsed.data.offerId, itemId: soleProductId, shopId,
+      });
+    } catch (err) {
+      if (isUndefinedTable(err)) {
+        res.status(503).json({ error: "PRODUCT_OFFERS_NOT_DEPLOYED", message: "Make-an-offer is not available yet — check out at the listed price." });
+        return;
+      }
+      throw err;
+    }
+    if (!resolvedOffer.ok) {
+      res.status(resolvedOffer.reason === "not_found" ? 404 : 409).json({ error: `OFFER_${resolvedOffer.reason.toUpperCase()}`, message: resolvedOffer.message });
+      return;
+    }
+    offerAgreedCents = resolvedOffer.agreedAmountCents;
+  }
+
   /* Server-side discount validation (0190), before any row is written:
      the code must exist for THIS shop and be usable. A code from
      another shop — even with the same name — never applies here. */
@@ -2127,7 +2176,11 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
        first (rounded), line gross from the discounted unit, then the
        ruled 5% fee out of the discounted gross. */
     const listUnitCents = Number(product.price_cents);
-    const unitCents = percentOff > 0 ? discountedUnitCents(listUnitCents, percentOff) : listUnitCents;
+    /* An accepted offer (#43) replaces the unit price outright — it
+       never stacks with the shop code (the combo refused above). */
+    const unitCents = offerAgreedCents != null
+      ? offerAgreedCents
+      : percentOff > 0 ? discountedUnitCents(listUnitCents, percentOff) : listUnitCents;
     const gross = unitCents * quantity;
     lines.push({
       productId, name: product.name, unitCents, listUnitCents, quantity,
@@ -2200,6 +2253,20 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   const listGross = allLines.reduce((s, l) => s + l.listUnitCents * l.quantity, 0);
   const fee = allLines.reduce((s, l) => s + l.fee, 0);
   const groupId = randomUUID();
+
+  /* Make-an-offer (#43): claim the accepted offer for THIS checkout
+     group before any row is written — a live claim by another
+     checkout refuses here, with nothing recorded and nothing
+     charged. The paid flip (lib/market-sale) consumes by group id. */
+  if (parsed.data.offerId && offerAgreedCents != null) {
+    const claim = await resolveAcceptedShopOfferForCheckout({
+      offerId: parsed.data.offerId, itemId: lines[0]!.productId, shopId, claimRef: groupId,
+    });
+    if (!claim.ok) {
+      res.status(409).json({ error: `OFFER_${claim.reason.toUpperCase()}`, message: claim.message });
+      return;
+    }
+  }
 
   /* ── Gift-card tender: hold the card against this checkout group.
      The card must belong to THIS shop's owner (their creator profile
@@ -2382,6 +2449,9 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
         checkout_group_id: groupId,
         sale_id: lines[0]!.saleId,
         discount_code: discountCode ?? "",
+        /* Make-an-offer (#43): traceability only — the paid flip
+           consumes by checkout_group_id, never by a trusted price. */
+        offer_id: parsed.data.offerId ?? "",
       },
       success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,
@@ -2392,6 +2462,8 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     /* The gift-card hold dies with the checkout — cents go back now,
        not at expiry. */
     if (giftReservationId) await releaseReservation(giftReservationId).catch(() => {});
+    /* The offer claim (#43) dies with it too. */
+    if (parsed.data.offerId) await releaseOfferClaim(parsed.data.offerId, groupId);
     logger.error({ err, shopId, groupId }, "[storefronts] checkout session failed — pending order removed");
     res.status(502).json({ error: "Could not start checkout. Nothing was charged — try again." });
     return;

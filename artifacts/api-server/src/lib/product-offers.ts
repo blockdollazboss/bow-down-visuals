@@ -542,6 +542,63 @@ export async function resolveAcceptedOfferForCheckout(
   return { ok: true, offer: row, agreedAmountCents: row.agreed_amount_cents };
 }
 
+/** Move a claim from its provisional ref (minted before the Stripe
+ *  session exists) to the session id, so the paid flip can find the
+ *  offer by the ref the sale carries. Returns false when the claim
+ *  was lost meanwhile (taken over after going stale, or consumed). */
+export async function restampOfferClaim(
+  offerId: string, fromRef: string, toRef: string, db: OfferDb = defaultDb,
+): Promise<boolean> {
+  try {
+    const r = await db.execute(sql`
+      UPDATE product_offers SET claimed_ref = ${toRef}, claimed_at = now(), updated_at = now()
+      WHERE id = ${offerId}::uuid AND claimed_ref = ${fromRef} AND status = 'accepted'
+      RETURNING id
+    `);
+    return r.rows.length > 0;
+  } catch (err) {
+    if (!isUndefinedTable(err)) logger.warn({ err, offerId }, "[product-offers] claim restamp failed");
+    return false;
+  }
+}
+
+/** Shop-surface variant: POST /api/storefronts/checkout is a PUBLIC
+ *  checkout (no buyer auth — the buyer is an email), so the offer is
+ *  bound by product + shop instead of by buyer. The offer id itself
+ *  is the capability: it is only ever shown to its buyer and seller
+ *  (both lists are auth-scoped), and the only privilege it carries is
+ *  the agreed price on that one product, consumed exactly once by
+ *  the paid flip. The claim ref is the checkout group id. */
+export async function resolveAcceptedShopOfferForCheckout(
+  input: { offerId: string; itemId: string; shopId: string; claimRef?: string },
+  db: OfferDb = defaultDb,
+): Promise<
+  | { ok: true; offer: ProductOfferRow; agreedAmountCents: number }
+  | { ok: false; reason: "not_found" | "not_accepted" | "expired" | "claimed"; message: string }
+> {
+  await expireStaleOffers(db).catch(() => 0);
+  const row = await getOfferRow(input.offerId, db);
+  if (!row || row.item_kind !== "shop_product" || row.item_id !== input.itemId || row.shop_id !== input.shopId) {
+    return { ok: false, reason: "not_found", message: "That offer could not be found for this product." };
+  }
+  if (row.status === "expired") return { ok: false, reason: "expired", message: "That offer has expired — make a fresh one." };
+  if (row.status !== "accepted" || row.agreed_amount_cents == null) {
+    return { ok: false, reason: "not_accepted", message: "That offer hasn't been accepted yet — the price is agreed only once the seller accepts (or the buyer accepts a counter)." };
+  }
+  if (!input.claimRef) return { ok: true, offer: row, agreedAmountCents: row.agreed_amount_cents };
+  const cutoff = new Date(Date.now() - PRODUCT_OFFER_CLAIM_MINUTES * 60_000).toISOString();
+  const claimed = await db.execute(sql`
+    UPDATE product_offers SET claimed_ref = ${input.claimRef}, claimed_at = now(), updated_at = now()
+    WHERE id = ${row.id}::uuid AND status = 'accepted'
+      AND (claimed_ref IS NULL OR claimed_at < ${cutoff} OR claimed_ref = ${input.claimRef})
+    RETURNING ${OFFER_COLUMNS}
+  `);
+  if (!claimed.rows.length) {
+    return { ok: false, reason: "claimed", message: "That offer is already in another checkout — finish that one, or wait a few minutes for it to free up." };
+  }
+  return { ok: true, offer: rowToOffer(claimed.rows[0] as Record<string, unknown>), agreedAmountCents: row.agreed_amount_cents };
+}
+
 /** Release a checkout claim (session creation failed). Never throws —
  *  a stuck claim self-heals at the 30-minute stale window. */
 export async function releaseOfferClaim(offerId: string, claimRef: string, db: OfferDb = defaultDb): Promise<void> {
@@ -552,6 +609,19 @@ export async function releaseOfferClaim(offerId: string, claimRef: string, db: O
     `);
   } catch (err) {
     if (!isUndefinedTable(err)) logger.warn({ err, offerId }, "[product-offers] claim release failed (self-heals in 30m)");
+  }
+}
+
+/** Release ANY claim held under a ref (an expired shops checkout
+ *  frees its offer without knowing the offer id). Never throws. */
+export async function releaseOfferClaimByRef(claimRef: string, db: OfferDb = defaultDb): Promise<void> {
+  try {
+    await db.execute(sql`
+      UPDATE product_offers SET claimed_ref = NULL, claimed_at = NULL, updated_at = now()
+      WHERE claimed_ref = ${claimRef} AND status = 'accepted'
+    `);
+  } catch (err) {
+    if (!isUndefinedTable(err)) logger.warn({ err, claimRef }, "[product-offers] claim release by ref failed (self-heals in 30m)");
   }
 }
 

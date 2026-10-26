@@ -153,6 +153,15 @@ import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { emitNewSaleWebhook } from "../lib/api-webhooks";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
+/* Make-an-offer (Wave 4 #43): an accepted offer's agreed price can
+   price this checkout — the resolution, claim and consumption live in
+   lib/product-offers.ts; this rail only charges what it resolves. */
+import {
+  resolveAcceptedOfferForCheckout,
+  releaseOfferClaim,
+  restampOfferClaim,
+  consumeOfferById,
+} from "../lib/product-offers";
 /* Back-in-stock alerts (Wave 4 #37): the fan's one-tap wait lives in
    lib/stock-alerts.ts — subscribe/claim/fire-once fan-out over the
    notifications rail (+ email only via the seller's list subscribers). */
@@ -1585,6 +1594,14 @@ const CheckoutSchema = z.object({
      is still charged on the full (discounted) gross: tender never
      reduces the fee base (lib/gift-cards.ts fee law). */
   giftCardCode: z.string().trim().min(1).max(40).optional(),
+  /* Make-an-offer (Wave 4 #43): the buyer's ACCEPTED offer on this
+     product. The agreed price is re-resolved server-side from the
+     product_offers row — the client presents the id, never a price.
+     An offer checkout is a single unit at the agreed price, with no
+     other price lever stacked on it (no discount code, bump tick,
+     affiliate code, gift-card tender, or booking slot): each of those
+     compositions is refused honestly below rather than mispriced. */
+  offerId: z.string().regex(UUID_RE, "offerId must be a UUID").optional(),
 });
 
 router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -1675,8 +1692,52 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       }
     }
 
+    /* Make-an-offer (Wave 4 #43): an accepted offer prices this
+       checkout at its agreed amount. Resolved from the offer row —
+       the buyer's own, accepted, for THIS product — and claimed for
+       this checkout below once the session exists (the claim ref is
+       the session id; verify consumes the offer when the order
+       records). Compositions the lane didn't build are refused, not
+       silently dropped. */
+    let offerClaim: { offerId: string; claimRef: string } | null = null;
+    let offerUnitCents: number | null = null;
+    if (parsed.data.offerId) {
+      if (
+        quantity !== 1 || parsed.data.discountCode || parsed.data.includeBump ||
+        parsed.data.affiliateCode || parsed.data.giftCardCode || parsed.data.bookingStartUtc ||
+        (p.kind === "service" && bookableInfo(p.service_details).bookable)
+      ) {
+        res.status(400).json({
+          error: "OFFER_EXCLUSIVE",
+          message: "An accepted offer buys one of this product at the agreed price — it can't be combined with a discount code, add-on, affiliate code, gift card, or booking slot.",
+        });
+        return;
+      }
+      const provisionalClaimRef = `sf-offer:${randomUUID()}`;
+      let resolvedOffer;
+      try {
+        resolvedOffer = await resolveAcceptedOfferForCheckout({
+          offerId: parsed.data.offerId, buyerUserId: req.userId!,
+          itemKind: "store_product", itemId: productId,
+          claimRef: provisionalClaimRef,
+        });
+      } catch (err) {
+        if (isUndefinedTable(err)) {
+          res.status(503).json({ error: "PRODUCT_OFFERS_NOT_DEPLOYED", message: "Make-an-offer is not available yet — check out at the listed price." });
+          return;
+        }
+        throw err;
+      }
+      if (!resolvedOffer.ok) {
+        res.status(resolvedOffer.reason === "not_found" ? 404 : 409).json({ error: `OFFER_${resolvedOffer.reason.toUpperCase()}`, message: resolvedOffer.message });
+        return;
+      }
+      offerClaim = { offerId: resolvedOffer.offer.id, claimRef: provisionalClaimRef };
+      offerUnitCents = resolvedOffer.agreedAmountCents;
+    }
+
     /* Server-side discount validation. */
-    let unitCents = Number(p.price_cents);
+    let unitCents = offerUnitCents ?? Number(p.price_cents);
     let discountCode: string | null = null;
     let percentOff = 0;
     if (parsed.data.discountCode) {
@@ -2181,6 +2242,10 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
         bump_amount_cents: String(bump?.grossCents ?? 0),
         gift_card_reservation_id: giftReservationId ?? "",
         gift_card_applied_cents: String(giftCardAppliedCents),
+        /* Make-an-offer (#43): verify consumes this offer once the
+           order records. The price itself rides the session total —
+           verify never trusts a metadata price. */
+        offer_id: offerClaim?.offerId ?? "",
       },
       }, { idempotencyKey });
     } catch (err) {
@@ -2202,9 +2267,19 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       /* Same no-session cleanup for the gift-card hold (feature #26):
          release it at once instead of waiting out its expiry. */
       if (giftReservationId) await releaseReservation(giftReservationId).catch(() => undefined);
+      /* Same for the offer claim (#43): no session, no claim. */
+      if (offerClaim) await releaseOfferClaim(offerClaim.offerId, offerClaim.claimRef);
       throw err;
     }
 
+    /* The session exists: restamp the offer claim from its provisional
+       ref to the session id, so verify's consumption finds it. */
+    if (offerClaim) {
+      const restamped = await restampOfferClaim(offerClaim.offerId, offerClaim.claimRef, session.id);
+      if (!restamped) {
+        logger.error({ offerId: offerClaim.offerId, sessionId: session.id }, "[storefront] offer claim restamp failed after session creation — offer may need manual consume");
+      }
+    }
 
     if (bookingHold) {
       await db.execute(sql`
@@ -2252,6 +2327,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
           }
         : {}),
       affiliate: affiliateCode ? { code: affiliateCode } : null,
+      offer: offerClaim ? { offerId: offerClaim.offerId, agreedCents: offerUnitCents, agreed: money(offerUnitCents ?? 0) } : null,
     });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
@@ -3049,6 +3125,15 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           };
         }
       }
+    }
+
+    /* Make-an-offer (#43): the order just recorded at the agreed
+       price — consume the offer exactly once (status-guarded in the
+       lib; a duplicate verify reaches here with duplicate=true and
+       never re-consumes). The order row is untouched by this: refund
+       and entitlement flows keep reading store_orders as always. */
+    if (!duplicate && meta["offer_id"]) {
+      await consumeOfferById(meta["offer_id"], sessionId);
     }
 
     /* Receipt lines: the main purchase and the add-on as separate
