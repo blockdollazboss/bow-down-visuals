@@ -5,7 +5,7 @@
  * refund outcome honestly.
  */
 import { describe, it, expect } from "vitest";
-import { upfrontRuleLines, requestStatusLabel, type RequestRulesDto, type SongRequestDto } from "./SongRequests";
+import { upfrontRuleLines, requestStatusLabel, type RequestRulesDto, type SongRequestDto } from "@/lib/song-requests";
 
 const bounds = { minVb: 100, maxVb: 1_000_000 };
 const baseRules: RequestRulesDto = { requestsOpen: true, catalogOnly: true, excludedSongIds: [], minTipVb: null };
