@@ -15,6 +15,7 @@ import PartyTableSection from "@/components/artist/PartyTableSection";
 import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
+import FanArtWallSection from "@/components/artist/FanArtWallSection";
 import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
 import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
 import {
@@ -251,6 +252,11 @@ export default function ArtistPublic() {
         return <RoyalCourtSection slug={slug} title={block.title} />;
       case "store":
         return <ProfileStoreSection slug={slug} title={block.title} />;
+      case "gallery":
+        /* Fan Art Wall (#157): fan-submitted art the creator approved
+           piece by piece, artist credit on every piece. The section
+           fetches its own (approved-only) data like the store block. */
+        return <FanArtWallSection slug={slug} title={block.title} creatorName={profile.display_name} />;
       case "memberships":
         return <ProfileMembershipsSection creatorUserId={profile.user_id} title={block.title} />;
       case "achievements":

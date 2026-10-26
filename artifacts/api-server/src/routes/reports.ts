@@ -2,7 +2,9 @@
  * reports.ts — member content reports (Stack-4 #3).
  *
  *   POST /api/reports   (auth) file a report on a post, a comment,
- *                       or a creator profile.
+ *                       a creator profile, or a fan-art piece
+ *                       (Stack-200 #157 — the Fan Art Wall rides this
+ *                       same rail; no second moderation system).
  *
  * The admin half of the loop — GET/PATCH /api/admin/reports — lives
  * in routes/admin.ts beside the DMCA bench it mirrors.
@@ -42,6 +44,7 @@ import {
   creatorProfilesTable,
   profileCommentsTable,
   mediaCommentsTable,
+  fanArtPiecesTable,
   CONTENT_REPORT_TARGET_TYPES,
   CONTENT_REPORT_REASONS,
   CONTENT_REPORT_OPEN_STATUSES,
@@ -125,6 +128,34 @@ async function resolveComment(targetId: string): Promise<ResolvedTarget | null> 
   return null;
 }
 
+/** Resolve a fan-art target (Stack-200 #157): the piece must exist;
+ *  its owner for report purposes is the ARTIST who made it (the same
+ *  person whose credit rides the piece), and the summary names the
+ *  piece and the wall it was submitted to. Any state can be reported
+ *  — a pending piece sits in the creator's queue, not public view,
+ *  but a report on it still queues for the admin bench like any
+ *  other target. */
+async function resolveFanArt(targetId: string): Promise<ResolvedTarget | null> {
+  const [piece] = await db
+    .select({
+      artistUserId: fanArtPiecesTable.artistUserId,
+      artistName: fanArtPiecesTable.artistName,
+      title: fanArtPiecesTable.title,
+      creatorProfileId: fanArtPiecesTable.creatorProfileId,
+    })
+    .from(fanArtPiecesTable)
+    .where(eq(fanArtPiecesTable.id, targetId));
+  if (!piece) return null;
+  const [creator] = await db
+    .select({ displayName: creatorProfilesTable.displayName })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.id, piece.creatorProfileId));
+  const summary = excerpt(
+    `Fan art "${piece.title}" by ${piece.artistName}${creator ? ` for ${creator.displayName}` : ""}`,
+  );
+  return { ownerUserId: piece.artistUserId, summary };
+}
+
 async function resolveProfile(targetId: string): Promise<ResolvedTarget | null> {
   const [profile] = await db
     .select({ userId: creatorProfilesTable.userId, displayName: creatorProfilesTable.displayName })
@@ -153,7 +184,7 @@ router.post("/reports", requireAuth, reportWriteLimiter, async (req: Request, re
   const parsed = CreateReportSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
-      error: `Invalid report. A target (post, comment, or profile), a reason (one of: ${CONTENT_REPORT_REASONS.join(", ")}), and an optional note of at most 500 characters are required.`,
+      error: `Invalid report. A target (post, comment, profile, or fan art piece), a reason (one of: ${CONTENT_REPORT_REASONS.join(", ")}), and an optional note of at most 500 characters are required.`,
     });
     return;
   }
@@ -166,10 +197,19 @@ router.post("/reports", requireAuth, reportWriteLimiter, async (req: Request, re
         ? await resolvePost(targetId)
         : targetType === "comment"
           ? await resolveComment(targetId)
-          : await resolveProfile(targetId);
+          : targetType === "fan_art"
+            ? await resolveFanArt(targetId)
+            : await resolveProfile(targetId);
     if (!resolved) {
       res.status(404).json({
-        error: targetType === "post" ? "Post not found." : targetType === "comment" ? "Comment not found." : "Profile not found.",
+        error:
+          targetType === "post"
+            ? "Post not found."
+            : targetType === "comment"
+              ? "Comment not found."
+              : targetType === "fan_art"
+                ? "Fan art piece not found."
+                : "Profile not found.",
       });
       return;
     }

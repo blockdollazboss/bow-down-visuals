@@ -32,3 +32,10 @@ CREATE INDEX IF NOT EXISTS fan_art_pieces_wall_idx
   ON fan_art_pieces (creator_profile_id, status, created_at);
 CREATE INDEX IF NOT EXISTS fan_art_pieces_artist_idx
   ON fan_art_pieces (artist_user_id, created_at);
+
+-- Report rail reuse: fan-art pieces become reportable through the
+-- EXISTING member content-reports rail (migration 0174) — widen its
+-- target-type check to admit 'fan_art'. No second report store.
+ALTER TABLE content_reports DROP CONSTRAINT IF EXISTS content_reports_target_type_check;
+ALTER TABLE content_reports ADD CONSTRAINT content_reports_target_type_check
+  CHECK (target_type IN ('post', 'comment', 'profile', 'fan_art'));
