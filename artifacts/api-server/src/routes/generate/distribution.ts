@@ -33,6 +33,8 @@ import {
 } from "../../lib/smartlink-routing";
 import { fanOutToFollowers } from "../../lib/notify-fanout";
 import { APP_PUBLIC_URL, presaveUrl } from "../../lib/presave-url";
+import { loadCanonicalCredits } from "../../lib/song-credits-db";
+import { publicCreditsDto } from "../../lib/song-credits";
 
 const router = Router();
 
@@ -1938,6 +1940,17 @@ router.get("/distribution/presave/:slug", async (req, res) => {
       const ac = await db.execute(sql`SELECT COUNT(*) AS c FROM presave_account_actions WHERE release_id = ${row.id} AND status = 'saved'`);
       accountSaveCount = Number((ac.rows[0] as { c: string | number }).c ?? 0);
     } catch { /* additive */ }
+    /* ── Credits that follow the song (Stack-200 N1): this page is the
+       release's public share surface, so it renders the song's
+       CANONICAL credits (lib/song-credits) — the same list the library,
+       profiles and exports read, including credits inherited from the
+       library song this release was built from. Additive + guarded:
+       any failure degrades to an honest empty credits list. */
+    let songCredits: ReturnType<typeof publicCreditsDto> | null = null;
+    try {
+      const canonical = await loadCanonicalCredits("release", row.id);
+      if (canonical) songCredits = publicCreditsDto(canonical);
+    } catch { /* credits are additive — the page still renders */ }
     res.json({
       presave: {
         title: row.title,
@@ -1957,6 +1970,10 @@ router.get("/distribution/presave/:slug", async (req, res) => {
         tracklist: buildPresaveTracklist(
           (row.tracks ?? []) as unknown as Array<Record<string, unknown>>,
         ),
+        /* ── Stack-200 N1: canonical song credits (null only if the
+           credits read itself failed — the FE renders the honest
+           empty state from has_credits=false, never invents names). */
+        credits: songCredits,
         followerCount,
         shareCount,
         /* ── Stack 11: persistent smartlink + account pre-save ── */

@@ -412,20 +412,61 @@ export function buildCanonicalCredits(input: {
   bundles: Array<{ anchor: SongAnchor; sources: CreditSources }>;
 }): CanonicalSongCredits {
   const credits: CanonicalCredit[] = [];
-  const seenKeys = new Set<string>();
-  const seenPersons = new Set<string>();
+  const byPerson = new Map<string, CanonicalCredit>();
   const inheritedFromAnchors: SongAnchor[] = [];
   let allWriters: PublishingWriter[] = [];
 
+  /* Supersession across the chain: the NEAREST bundle with a publishing
+     registration is the writer authority — a parent's registration
+     never overrides (or duplicates) the song's own. Likewise a credit
+     entry for the same person+role on a nearer bundle supersedes the
+     inherited one. Other rails merge per person, per source. */
+  const writerAuthorityIdx = input.bundles.findIndex((b) => b.sources.publishingWriters.length > 0);
+  const seenEntryKeys = new Set<string>();
+
   input.bundles.forEach((bundle, idx) => {
-    const merged = mergeCanonicalCredits(bundle.sources);
+    let sources = bundle.sources;
+    if (writerAuthorityIdx >= 0 && idx > writerAuthorityIdx && sources.publishingWriters.length > 0) {
+      sources = { ...sources, publishingWriters: [] };
+    }
+    const keptEntries = sources.entries.filter((e) => {
+      const k = `${e.role}:${e.creditProfileId ?? e.creditUserId ?? e.displayName.trim().toLowerCase()}`;
+      if (seenEntryKeys.has(k)) return false;
+      seenEntryKeys.add(k);
+      return true;
+    });
+    if (keptEntries.length !== sources.entries.length) sources = { ...sources, entries: keptEntries };
+
+    const merged = mergeCanonicalCredits(sources);
     if (idx > 0 && merged.length > 0) inheritedFromAnchors.push(bundle.anchor);
     for (const c of merged) {
       const personKey = c.profileId ?? c.userId ?? `name:${c.name.trim().toLowerCase()}`;
-      if (seenKeys.has(c.key) || seenPersons.has(personKey)) continue;
-      seenKeys.add(c.key);
-      seenPersons.add(personKey);
-      credits.push(c);
+      const existing = byPerson.get(personKey);
+      if (!existing) {
+        byPerson.set(personKey, c);
+        credits.push(c);
+        continue;
+      }
+      /* Same person on another anchor of the chain: ONE credit.
+         Roles/sources union; a share source already carried from a
+         nearer bundle is kept (never duplicated); profile links fill
+         in; a direct (non-inherited) presence clears the inherited
+         label for the person as a whole. */
+      for (const r of c.roles) {
+        if (!existing.roles.includes(r)) {
+          existing.roles.push(r);
+          existing.roleLabels.push(roleLabel(r));
+        }
+      }
+      for (const s of c.sources) if (!existing.sources.includes(s)) existing.sources.push(s);
+      for (const sh of c.shares) {
+        if (!existing.shares.some((x) => x.source === sh.source)) existing.shares.push(sh);
+      }
+      if (!existing.writerStatus) existing.writerStatus = c.writerStatus;
+      if (!existing.detail) existing.detail = c.detail;
+      if (!existing.profileSlug) existing.profileSlug = c.profileSlug;
+      if (!existing.profileId) existing.profileId = c.profileId;
+      if (c.inheritedFrom === null) existing.inheritedFrom = null;
     }
     if (idx === 0) allWriters = bundle.sources.publishingWriters;
     else if (allWriters.length === 0) allWriters = bundle.sources.publishingWriters;
@@ -441,6 +482,62 @@ export function buildCanonicalCredits(input: {
     writerSplitsError: check.error,
     version: input.version,
     inheritedFromAnchors,
+  };
+}
+
+/* ── Public DTO ──────────────────────────────────────────────────────────
+   What play/share/profile surfaces render. Profile ids + slugs are
+   public identifiers (profiles are public pages) and ride along so a
+   credit is TAPPABLE to the creator's profile; raw account (user) ids
+   never leave the server on a public surface. */
+
+export interface PublicSongCredits {
+  song_kind: SongCreditKind;
+  song_id: string;
+  song_title: string;
+  has_credits: boolean;
+  empty_message: string | null;
+  credits: Array<{
+    name: string;
+    profile_id: string | null;
+    profile_slug: string | null;
+    profile_path: string | null; // /artist/:slug when a slug is known
+    roles: string[];
+    role_labels: string[];
+    shares: Array<{ source: CreditShareSource; pct: number; frozen?: boolean }>;
+    writer_status: string | null;
+    detail: string | null;
+    sources: CanonicalCredit["sources"];
+    inherited: boolean;
+  }>;
+  writer_splits_valid: boolean | null;
+  version: number;
+  follows_song: string;
+}
+
+export function publicCreditsDto(credits: CanonicalSongCredits): PublicSongCredits {
+  return {
+    song_kind: credits.anchor.kind,
+    song_id: credits.anchor.id,
+    song_title: credits.songTitle,
+    has_credits: credits.hasCredits,
+    empty_message: credits.hasCredits ? null : SONG_CREDITS_COPY.empty,
+    credits: credits.credits.map((c) => ({
+      name: c.name,
+      profile_id: c.profileId,
+      profile_slug: c.profileSlug,
+      profile_path: c.profileSlug ? `/artist/${c.profileSlug}` : null,
+      roles: c.roles,
+      role_labels: c.roleLabels,
+      shares: c.shares,
+      writer_status: c.writerStatus,
+      detail: c.detail,
+      sources: c.sources,
+      inherited: c.inheritedFrom !== null,
+    })),
+    writer_splits_valid: credits.writerSplitsValid,
+    version: credits.version,
+    follows_song: SONG_CREDITS_COPY.followsSong,
   };
 }
 

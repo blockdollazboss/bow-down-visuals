@@ -120,6 +120,7 @@ import avatarPresenterRouter from "./generate/avatar-presenter";
 import singingVoiceRouter from "./generate/singing-voice";
 import moneyRouter from "./money";
 import publishingSplitsRouter from "./publishing-splits";
+import songCreditsRouter from "./song-credits";
 import coachTrackerRouter from "./coach-tracker";
 import earningsRouter from "./earnings";
 import affiliatesRouter from "./affiliates";
@@ -495,6 +496,7 @@ router.use(commentRepliesRouter);
 router.use(contentCalendarRouter);
 router.use(tipJarRouter);
 router.use(moneyRouter);router.use(publishingSplitsRouter); // /api/publishing-splits/* (songwriter registry, #22)
+router.use(songCreditsRouter); // /api/song-credits/* (Stack-200 N1: canonical credits that follow the song)
 router.use(moneyRouter);router.use(coachTrackerRouter);router.use(earningsRouter);router.use(affiliatesRouter);router.use(saleSplitsRouter);router.use(commandRouter);router.use(contentIdRouter);router.use(interviewPrepRouter);router.use(upscaleRouter);
 router.use(upscaleGenerativeRouter);router.use(avatarPresenterRouter);router.use(singingVoiceRouter);
 router.use(bgGenerateRouter);

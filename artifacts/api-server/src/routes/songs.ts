@@ -26,6 +26,8 @@ import {
 } from "../lib/objectStorage";
 import { swapSongVocalsToVoice } from "../lib/voice-swap";
 import { buildMelodyMidi, midiFilenameBase, NoMelodyError } from "../lib/midi-file";
+import { loadCanonicalCreditsForSongs } from "../lib/song-credits-db";
+import { publicCreditsDto } from "../lib/song-credits";
 
 const router = Router();
 
@@ -106,7 +108,25 @@ router.get("/songs", requireAuth, async (req, res) => {
       }
     }),
   );
-  res.json({ songs: withUrls });
+  /* ── Credits that follow the song (Stack-200 N1): the library is a
+     play surface, so every song carries its CANONICAL credits from the
+     one layer (lib/song-credits) — writers/producers/features/samples
+     recorded once, inherited from parent songs, rendered from here.
+     Guarded: a credits failure degrades to no credits field, never a
+     broken library (resilience law). */
+  try {
+    const creditsBySong = await loadCanonicalCreditsForSongs(
+      withUrls.map((s) => ({ id: s.id, title: s.title, user_id: s.user_id, parent_song_id: s.parent_song_id })),
+    );
+    res.json({
+      songs: withUrls.map((s) => {
+        const c = creditsBySong.get(s.id);
+        return c ? { ...s, credits: publicCreditsDto(c) } : s;
+      }),
+    });
+  } catch {
+    res.json({ songs: withUrls });
+  }
 });
 
 /* ── GET /api/songs/:id/midi ──────────────────────────────────────────────
