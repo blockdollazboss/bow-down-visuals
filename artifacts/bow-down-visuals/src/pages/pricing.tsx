@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Check, Zap, HelpCircle, ChevronDown, ArrowRight,
-  Sparkles, AlertCircle, CreditCard, Lock, Loader2, Star,
+  Sparkles, AlertCircle, CreditCard, Lock, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExpressPayButton } from "@/components/ExpressPayButton";
@@ -16,21 +16,21 @@ import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { mediaUrl } from "@/lib/media-cdn";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import {
+  CREATOR_PLANS,
+  CREDIT_PACKS,
+  PRICING_TEST_MODE_NOTE,
+  type CreditPack,
+} from "@/lib/pricing-plans";
 
-type Plan = {
-  stars: number;
-  name: string;
-  price: number;
-  period: string;
-  bestFor: string;
-  credits: string;
-  featured: boolean;
-  badge: string | null;
-  cta: string;
-  features: string[];
-};
-
-type CreditPack = { credits: string; price: string; packKey: string };
+/* ─── Pricing — payfix pricing-truth ──────────────────────────────────────
+   This page and /creator-pricing render the SAME plans from the ONE
+   shared source (@/lib/pricing-plans): Free $0 / Pro $12/mo / Elite
+   $29/mo, flat 5% platform fee on every tier. The old fake 6-plan ladder
+   ($19–$799 rank-named plans that sent every button to the beta list
+   under a "Billing is not live yet" note) is gone — plan checkout is
+   purchasable in test mode and lives on /creator-pricing, which is
+   where these cards send buyers. Credit packs below check out here. */
 
 /* ─── credit pack card ─── */
 
@@ -77,8 +77,8 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
         <CreditCard className="h-5 w-5 text-primary" />
       </div>
       <div>
-        <p className="text-lg font-black text-white leading-tight tracking-tight">{pack.credits}</p>
-        <p className="text-2xl font-black text-primary mt-1 tracking-tight">{pack.price}</p>
+        <p className="text-lg font-black text-white leading-tight tracking-tight">{pack.creditsLabel}</p>
+        <p className="text-2xl font-black text-primary mt-1 tracking-tight">{pack.priceLabel}</p>
       </div>
       {errorMsg && (
         <p className="text-[11px] text-red-400 leading-snug text-center px-1">{errorMsg}</p>
@@ -136,54 +136,33 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   );
 }
 
-/* ─── rank star meter ─── */
-
-function WantedMeter({ onSelect, plans }: { onSelect: (stars: number) => void; plans: Plan[] }) {
-  const { t } = useTranslation();
-  const [hovered, setHovered] = useState<number | null>(null);
-  const [selected, setSelected] = useState<number | null>(null);
-  return (
-    <div className="flex flex-col items-center gap-3 mt-8">
-      <div
-        className="flex items-center gap-2"
-        role="radiogroup"
-        aria-label={t("pricing.wantedMeter.ariaLabel")}
-        onMouseLeave={() => setHovered(null)}
-      >
-        {([1, 2, 3, 4, 5, 6] as const).map((s) => {
-          const lit = (hovered ?? 0) >= s;
-          const plan = plans[s - 1]!;
-          return (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={selected === s}
-              aria-label={t("pricing.wantedMeter.starOption", { count: s, name: plan.name, price: plan.price })}
-              onMouseEnter={() => setHovered(s)}
-              onFocus={() => setHovered(s)}
-              onClick={() => { setSelected(s); onSelect(s); }}
-              className="p-1 transition-transform hover:scale-125 active:scale-95"
-            >
-              <Star
-                className={`h-8 w-8 md:h-10 md:w-10 transition-all duration-150 ${
-                  lit
-                    ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]"
-                    : "fill-transparent text-white/20"
-                }`}
-              />
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-sm text-white/40 font-medium h-5">
-        {hovered
-          ? t("pricing.wantedMeter.hoverLabel", { count: hovered, name: plans[hovered - 1]!.name, price: plans[hovered - 1]!.price })
-          : t("pricing.wantedMeter.hint")}
-      </p>
-    </div>
-  );
-}
+/* Truthful FAQ — the same answers /creator-pricing gives. */
+const FAQ = [
+  {
+    q: "Can I really earn on Free?",
+    a: "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — your own domain, unlimited products, pro analytics and more AI promotion boosts.",
+  },
+  {
+    q: "Do paid tiers lower my platform fee?",
+    a: "No — the platform fee is a flat 5% on every tier, Free included. Paid tiers pay for themselves with their features, not a lower fee.",
+  },
+  {
+    q: "Are payments live yet?",
+    a: "Checkout is open in test mode: you can subscribe to Pro or Elite and buy Visual Buc packs today, and no real money is charged. Real payments turn on at launch.",
+  },
+  {
+    q: "What if I cancel?",
+    a: "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty, manage it yourself from the billing portal.",
+  },
+  {
+    q: "Is this Visual Bucs?",
+    a: "Plans are real USD subscriptions via Stripe (test mode). Visual Bucs are the separate AI-credit system — the packs below top them up, and the two never mix.",
+  },
+  {
+    q: "What are Visual Bucs?",
+    a: "Visual Bucs are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your Visual Bucs balance, and you see the cost before you create.",
+  },
+];
 
 /* ─── page ─── */
 
@@ -191,141 +170,6 @@ export default function Pricing() {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   usePageTitle(t("pricing.pageTitle"), t("pricing.pageDescription"));
-
-  /* ─── data (inside component so t() re-renders on language change) ─── */
-
-  const PLANS: Plan[] = [
-    {
-      stars: 1,
-      name: t("pricing.plans.streetPunk.name"),
-      price: 19,
-      period: t("pricing.planCard.perMonth"),
-      bestFor: t("pricing.plans.streetPunk.bestFor"),
-      credits: t("pricing.plans.streetPunk.credits"),
-      featured: false,
-      badge: null,
-      cta: t("pricing.plans.streetPunk.cta"),
-      features: [
-        t("pricing.plans.streetPunk.features.f1"),
-        t("pricing.plans.streetPunk.features.f2"),
-        t("pricing.plans.streetPunk.features.f3"),
-        t("pricing.plans.streetPunk.features.f4"),
-        t("pricing.plans.streetPunk.features.f5"),
-        t("pricing.plans.streetPunk.features.f6"),
-      ],
-    },
-    {
-      stars: 2,
-      name: t("pricing.plans.hustler.name"),
-      price: 49,
-      period: t("pricing.planCard.perMonth"),
-      bestFor: t("pricing.plans.hustler.bestFor"),
-      credits: t("pricing.plans.hustler.credits"),
-      featured: true,
-      badge: t("pricing.plans.hustler.badge"),
-      cta: t("pricing.plans.hustler.cta"),
-      features: [
-        t("pricing.plans.hustler.features.f1"),
-        t("pricing.plans.hustler.features.f2"),
-        t("pricing.plans.hustler.features.f3"),
-        t("pricing.plans.hustler.features.f4"),
-        t("pricing.plans.hustler.features.f5"),
-        t("pricing.plans.hustler.features.f6"),
-      ],
-    },
-    {
-      stars: 3,
-      name: t("pricing.plans.gangster.name"),
-      price: 99,
-      period: t("pricing.planCard.perMonth"),
-      bestFor: t("pricing.plans.gangster.bestFor"),
-      credits: t("pricing.plans.gangster.credits"),
-      featured: false,
-      badge: null,
-      cta: t("pricing.plans.gangster.cta"),
-      features: [
-        t("pricing.plans.gangster.features.f1"),
-        t("pricing.plans.gangster.features.f2"),
-        t("pricing.plans.gangster.features.f3"),
-        t("pricing.plans.gangster.features.f4"),
-        t("pricing.plans.gangster.features.f5"),
-        t("pricing.plans.gangster.features.f6"),
-      ],
-    },
-    {
-      stars: 4,
-      name: t("pricing.plans.shotCaller.name"),
-      price: 199,
-      period: t("pricing.planCard.perMonth"),
-      bestFor: t("pricing.plans.shotCaller.bestFor"),
-      credits: t("pricing.plans.shotCaller.credits"),
-      featured: false,
-      badge: null,
-      cta: t("pricing.plans.shotCaller.cta"),
-      features: [
-        t("pricing.plans.shotCaller.features.f1"),
-        t("pricing.plans.shotCaller.features.f2"),
-        t("pricing.plans.shotCaller.features.f3"),
-        t("pricing.plans.shotCaller.features.f4"),
-        t("pricing.plans.shotCaller.features.f5"),
-        t("pricing.plans.shotCaller.features.f6"),
-      ],
-    },
-    {
-      stars: 5,
-      name: t("pricing.plans.crimeBoss.name"),
-      price: 399,
-      period: t("pricing.planCard.perMonth"),
-      bestFor: t("pricing.plans.crimeBoss.bestFor"),
-      credits: t("pricing.plans.crimeBoss.credits"),
-      featured: false,
-      badge: t("pricing.plans.crimeBoss.badge"),
-      cta: t("pricing.plans.crimeBoss.cta"),
-      features: [
-        t("pricing.plans.crimeBoss.features.f1"),
-        t("pricing.plans.crimeBoss.features.f2"),
-        t("pricing.plans.crimeBoss.features.f3"),
-        t("pricing.plans.crimeBoss.features.f4"),
-        t("pricing.plans.crimeBoss.features.f5"),
-        t("pricing.plans.crimeBoss.features.f6"),
-      ],
-    },
-    {
-      stars: 6,
-      name: t("pricing.plans.kingpin.name"),
-      price: 799,
-      period: t("pricing.planCard.perMonth"),
-      bestFor: t("pricing.plans.kingpin.bestFor"),
-      credits: t("pricing.plans.kingpin.credits"),
-      featured: false,
-      badge: t("pricing.plans.kingpin.badge"),
-      cta: t("pricing.plans.kingpin.cta"),
-      features: [
-        t("pricing.plans.kingpin.features.f1"),
-        t("pricing.plans.kingpin.features.f2"),
-        t("pricing.plans.kingpin.features.f3"),
-        t("pricing.plans.kingpin.features.f4"),
-        t("pricing.plans.kingpin.features.f5"),
-        t("pricing.plans.kingpin.features.f6"),
-      ],
-    },
-  ];
-
-  const CREDIT_PACKS: CreditPack[] = [
-    { credits: t("pricing.creditPacks.packs.10.credits"),  price: t("pricing.creditPacks.packs.10.price"),  packKey: "10"  },
-    { credits: t("pricing.creditPacks.packs.50.credits"),  price: t("pricing.creditPacks.packs.50.price"),  packKey: "50"  },
-    { credits: t("pricing.creditPacks.packs.150.credits"), price: t("pricing.creditPacks.packs.150.price"), packKey: "150" },
-    { credits: t("pricing.creditPacks.packs.500.credits"), price: t("pricing.creditPacks.packs.500.price"), packKey: "500" },
-  ];
-
-  const FAQ = [
-    { q: t("pricing.faq.q1"), a: t("pricing.faq.a1") },
-    { q: t("pricing.faq.q2"), a: t("pricing.faq.a2") },
-    { q: t("pricing.faq.q3"), a: t("pricing.faq.a3") },
-    { q: t("pricing.faq.q4"), a: t("pricing.faq.a4") },
-    { q: t("pricing.faq.q5"), a: t("pricing.faq.a5") },
-    { q: t("pricing.faq.q6"), a: t("pricing.faq.a6") },
-  ];
 
   const PRICING_JSON_LD = {
     "@context": "https://schema.org",
@@ -337,13 +181,13 @@ export default function Pricing() {
     offers: {
       "@type": "OfferCatalog",
       name: t("pricing.jsonLd.offerCatalogName"),
-      itemListElement: PLANS.map((plan) => ({
+      itemListElement: CREATOR_PLANS.map((plan) => ({
         "@type": "Offer",
         name: plan.name,
-        price: String(plan.price),
+        price: String(plan.priceUsdPerMonth),
         priceCurrency: "USD",
-        description: plan.features.join(", "),
-        category: plan.bestFor,
+        description: plan.features.map((f) => f.label).join(", "),
+        category: plan.tagline,
       })),
     },
   };
@@ -351,14 +195,6 @@ export default function Pricing() {
   const PRICING_FAQ_JSON_LD = buildFaqJsonLd(FAQ.map((f) => ({ q: f.q, a: f.a })));
 
   const [showCancelled, setShowCancelled] = useState(false);
-  const [highlightedPlan, setHighlightedPlan] = useState<number | null>(null);
-  const planRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  function jumpToPlan(stars: number) {
-    setHighlightedPlan(stars);
-    planRefs.current[stars - 1]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    window.setTimeout(() => setHighlightedPlan(null), 2600);
-  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -406,17 +242,17 @@ export default function Pricing() {
           </div>
         )}
 
-        {/* ── BETA NOTICE BANNER ── */}
+        {/* ── TEST MODE NOTICE — true today: checkout works, no real money ── */}
         <div className="border-b border-primary/20 bg-primary/[0.06]">
           <div className="max-w-6xl mx-auto px-5 md:px-8 py-3 flex flex-col sm:flex-row items-center justify-center gap-2 text-center sm:text-left">
             <div className="flex items-center gap-2 shrink-0">
               <AlertCircle className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm font-bold text-primary">{t("pricing.betaNotice.label")}</span>
+              <span className="text-sm font-bold text-primary">Test mode:</span>
             </div>
             <span className="text-sm text-white/55">
-              {t("pricing.betaNotice.text")}{" "}
-              <Link href="/beta-access" className="text-primary font-semibold hover:underline">
-                {t("pricing.betaNotice.cta")}
+              {PRICING_TEST_MODE_NOTE}{" "}
+              <Link href="/creator-pricing" className="text-primary font-semibold hover:underline">
+                See the Creator Plans →
               </Link>
             </span>
           </div>
@@ -439,154 +275,112 @@ export default function Pricing() {
             />
           </div>
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
-            {t("pricing.hero.titleLine1")}<br />
+            Plans &amp;<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E3C566] via-primary to-[#F0D98C]">
-              {t("pricing.hero.titleLine2")}
+              Visual Bucs
             </span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
-            {t("pricing.hero.subtitle")}
+            Three creator plans — Free, Pro and Elite — every one at the same flat 5% platform fee.
+            Paid tiers add your own domain, unlimited products, pro analytics and AI promotion boosts.
           </p>
           <p className="text-white/35 text-sm max-w-xl mx-auto mt-3">
             {t("pricing.hero.disclaimer")}
           </p>
-          <WantedMeter onSelect={jumpToPlan} plans={PLANS} />
         </section>
 
-        {/* Phase 3: the two pricing products cross-link — Credit Packs here,
-            Creator Plans (subscription tiers) on /creator-pricing. */}
+        {/* The two pricing products cross-link — Creator Plans here AND on
+            /creator-pricing (same shared source), Credit Packs below. */}
         <div className="flex justify-center px-5 pb-4">
-          <PricingSwitcher active="credits" />
+          <PricingSwitcher active="plans" />
         </div>
 
         {/* ── LIVE SOCIAL PROOF ── */}
         <SocialProofBand variant="compact" className={isLight ? "border-y border-primary/20 bg-[#C9A84C]/[0.08]" : "border-y border-primary/10 bg-black/40"} />
 
-        {/* ── PLANS ── */}
+        {/* ── PLANS — the same CREATOR_PLANS /creator-pricing renders ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-32">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 gap-y-10 lux-stagger pt-8">
-            {PLANS.map((plan) => {
-              const isExclusive = plan.name === "Crime Boss" || plan.name === "Kingpin";
-              const isHighlighted = highlightedPlan === plan.stars;
+            {CREATOR_PLANS.map((plan) => {
+              const featured = plan.tier === "pro";
               return (
-              <div
-                key={plan.name}
-                ref={(el) => { planRefs.current[plan.stars - 1] = el; }}
-                className={`relative transition-all duration-300 ${
-                  isHighlighted
-                    ? "-translate-y-1"
-                    : plan.name === "Kingpin" || plan.name === "Crime Boss" || plan.featured
-                    ? "hover:-translate-y-1"
-                    : ""
-                }`}
-              >
-                {/* Badge — mounted on the wrapper, NOT inside the card:
-                    .lux-shine cards clip with overflow:hidden (sheen sweep),
-                    which sliced the badge's top half off at the card border. */}
-                {plan.badge && (
-                  <div className="absolute -top-4 left-0 right-0 z-20 flex justify-center pointer-events-none">
-                    <MarketingBadge variant={isExclusive ? "exclusive" : "popular"}>
-                      <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
-                    </MarketingBadge>
-                  </div>
-                )}
-              <div
-                className={`relative rounded-2xl border flex flex-col p-6 h-full ${
-                  isHighlighted
-                    ? isLight
-                      ? "border-amber-500 bg-amber-300/30 shadow-[0_0_60px_rgba(251,191,36,0.35)]"
-                      : "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)]"
-                    : plan.name === "Kingpin"
-                    ? isLight
-                      ? "lux-shine border-amber-500/60 bg-gradient-to-b from-[#FBF3D9] via-[#F6EBC6] to-[#EFDCAC] shadow-[0_24px_60px_-24px_rgba(168,135,31,0.45)]"
-                      : "lux-shine border-amber-400/50 bg-gradient-to-b from-[#1a1408] via-[#0d0b06] to-black shadow-[0_0_80px_rgba(251,191,36,0.2)]"
-                    : plan.name === "Crime Boss"
-                    ? isLight
-                      ? "border-purple-400/60 bg-gradient-to-b from-[#F2EEFB] via-[#E9E2F7] to-[#DCD0F0] shadow-[0_24px_60px_-24px_rgba(126,87,194,0.35)]"
-                      : "border-purple-400/40 bg-gradient-to-b from-[#14101d] via-[#0b0912] to-black shadow-[0_0_60px_rgba(192,132,252,0.15)]"
-                    : plan.featured
-                    ? isLight
-                      ? "lux-shine border-primary/50 bg-gradient-to-b from-[#FCF6E0] via-[#F9EFC9] to-[#F3E3B2] shadow-[0_24px_60px_-24px_rgba(168,135,31,0.4)]"
-                      : "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)]"
-                    : "lux-card"
-                }`}
-              >
-
-                {/* Plan header */}
-                <div className="mb-5 mt-1">
-                  {/* Wanted stars */}
-                  <div className="flex items-center gap-1 mb-3" aria-label={t("pricing.planCard.wantedStarsAria", { stars: plan.stars })}>
-                    {([1, 2, 3, 4, 5, 6] as const).map((s) => (
-                      <Star
-                        key={s}
-                        className={`h-4 w-4 ${
-                          s <= plan.stars
-                            ? isLight
-                              ? "fill-amber-500 text-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.55)]"
-                              : "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]"
-                            : isLight
-                              ? "fill-transparent text-[#B08D2E]/35"
-                              : "fill-transparent text-white/15"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <h2 className={`text-lg font-bold mb-0.5 ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>
-                    {plan.name}
-                  </h2>
-                  <p className={`text-xs font-medium mb-4 ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>{t("pricing.planCard.bestFor", { bestFor: plan.bestFor })}</p>
-
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className={`text-4xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>${plan.price}</span>
-                    <span className={isLight ? "text-[#8A7A56]" : "text-white/35"}>{plan.period}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Zap className={`h-3 w-3 ${isLight ? "text-[#7A5A12]" : "text-primary"}`} />
-                    <span className={`text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>{plan.credits}</span>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <Link href="/beta-access" className="mb-6">
-                  <Button
-                    className={`w-full font-bold h-10 gap-2 ${
-                      plan.featured
-                        ? "gold-glow"
-                        : isLight
-                          ? "border-[#8A6D1F]/50 text-[#4A3A10] hover:bg-[#C9A84C]/10 hover:text-[#4A3A10]"
-                          : ""
-                    }`}
-                    variant={plan.featured ? "luxury" : "outline"}
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {plan.cta}
-                    {plan.featured && <ArrowRight className="h-3.5 w-3.5" />}
-                  </Button>
-                </Link>
-
-                {/* Features */}
-                <div className="space-y-2.5 flex-1">
-                  {plan.features.map((f) => (
-                    <div key={f} className="flex items-start gap-2.5">
-                      <Check className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isLight ? "text-[#A8871F]" : "text-primary"}`} />
-                      <span className={`text-sm leading-snug ${isLight ? "text-[#4A3D24]" : "text-white/75"}`}>{f}</span>
+                <div key={plan.tier} className="relative transition-all duration-300 hover:-translate-y-1">
+                  {featured && (
+                    <div className="absolute -top-4 left-0 right-0 z-20 flex justify-center pointer-events-none">
+                      <MarketingBadge variant="popular">
+                        <Sparkles className="h-2.5 w-2.5" /> Most creators pick this
+                      </MarketingBadge>
                     </div>
-                  ))}
+                  )}
+                  <div
+                    className={`relative rounded-2xl border flex flex-col p-6 h-full ${
+                      featured
+                        ? isLight
+                          ? "lux-shine border-primary/50 bg-gradient-to-b from-[#FCF6E0] via-[#F9EFC9] to-[#F3E3B2] shadow-[0_24px_60px_-24px_rgba(168,135,31,0.4)]"
+                          : "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)]"
+                        : "lux-card"
+                    }`}
+                  >
+                    <div className="mb-5 mt-1">
+                      <h2 className={`text-lg font-bold mb-0.5 ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>
+                        {plan.name}
+                      </h2>
+                      <p className={`text-xs font-medium mb-4 ${isLight ? "text-[#8A7A56]" : "text-white/35"}`}>{plan.tagline}</p>
+
+                      <div className="flex items-baseline gap-1 mb-2">
+                        <span className={`text-4xl font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>${plan.priceUsdPerMonth}</span>
+                        <span className={isLight ? "text-[#8A7A56]" : "text-white/35"}>/month</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Zap className={`h-3 w-3 ${isLight ? "text-[#7A5A12]" : "text-primary"}`} />
+                        <span className={`text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-primary"}`}>
+                          {plan.feePct} platform fee on every sale
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* CTA — plan checkout lives on /creator-pricing (test mode) */}
+                    {plan.tier === "free" ? (
+                      <Link href="/dashboard" className="mb-6">
+                        <Button className="w-full font-bold h-10 gap-2" variant="outline">
+                          <Sparkles className="h-3.5 w-3.5" /> Start free
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link href="/creator-pricing" className="mb-6">
+                        <Button
+                          className={`w-full font-bold h-10 gap-2 ${featured ? "gold-glow" : ""}`}
+                          variant={featured ? "luxury" : "outline"}
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Go {plan.name} — ${plan.priceUsdPerMonth}/mo
+                          {featured && <ArrowRight className="h-3.5 w-3.5" />}
+                        </Button>
+                      </Link>
+                    )}
+
+                    {/* Features — identical claims to /creator-pricing */}
+                    <div className="space-y-2.5 flex-1">
+                      {plan.features.map((f) => (
+                        <div key={f.label} className="flex items-start gap-2.5">
+                          <Check className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${isLight ? "text-[#A8871F]" : "text-primary"}`} />
+                          <span className={`text-sm leading-snug ${isLight ? "text-[#4A3D24]" : "text-white/75"}`}>{f.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              </div>
               );
             })}
           </div>
 
-          {/* Coming soon note */}
           <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
-            {t("pricing.plans.comingSoonNote")}
+            {PRICING_TEST_MODE_NOTE} Prices approved 2026-10-07.
           </p>
         </section>
 
-        {/* ── TEST CREDIT PACKS ── */}
+        {/* ── VISUAL BUC PACKS ── */}
         <section id="credit-packs" className="scroll-mt-20 max-w-4xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-6">
             <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">{t("pricing.creditPacks.title")}</h2>
@@ -626,14 +420,14 @@ export default function Pricing() {
 
         {/* ── BOTTOM CTA ── */}
         <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 text-center border-t border-white/[0.05]">
-          <h2 className="text-3xl font-semibold text-white tracking-tight mb-4">{t("pricing.bottomCta.title")}</h2>
+          <h2 className="text-3xl font-semibold text-white tracking-tight mb-4">Pick your plan.</h2>
           <p className="text-white/45 text-lg mb-8">
-            {t("pricing.bottomCta.text")}
+            Start free, go Pro or Elite when the features pay for themselves — checkout is open in test mode.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/beta-access">
+            <Link href="/creator-pricing">
               <Button size="lg" className="gold-glow font-bold px-10 h-12 gap-2">
-                <Sparkles className="h-4 w-4" /> {t("pricing.bottomCta.joinBeta")}
+                <Sparkles className="h-4 w-4" /> See Creator Plans
               </Button>
             </Link>
             <Link href="/dashboard">
