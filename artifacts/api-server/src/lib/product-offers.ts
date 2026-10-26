@@ -65,14 +65,15 @@ export function validateOfferAmount(
   return { ok: true, amountCents };
 }
 
-/** A counter must narrow: strictly above the amount it answers and
- *  strictly below list. `floorCents` is the answered amount (the
- *  buyer's offer for a seller counter; the seller's counter for a
+/** A counter must narrow the gap: strictly above the countering
+ *  side's own last price (`floorCents`) and strictly below the other
+ *  side's standing price (`ceilingCents` — the list price for a
+ *  seller countering a buyer's offer; the seller's counter for a
  *  buyer's counter-counter). */
 export function validateCounterAmount(
   amountCents: unknown,
   floorCents: number,
-  listPriceCents: number,
+  ceilingCents: number,
 ): { ok: true; amountCents: number } | { ok: false; reason: string } {
   if (typeof amountCents !== "number" || !Number.isInteger(amountCents)) {
     return { ok: false, reason: "Name a whole-cent price for your counter." };
@@ -80,8 +81,8 @@ export function validateCounterAmount(
   if (amountCents <= floorCents) {
     return { ok: false, reason: `A counter has to move toward the other side — above ${formatUsd(floorCents)}.` };
   }
-  if (amountCents >= listPriceCents) {
-    return { ok: false, reason: "A counter has to stay below the list price — at list, it's just a purchase." };
+  if (amountCents >= ceilingCents) {
+    return { ok: false, reason: `A counter has to stay below ${formatUsd(ceilingCents)} — at that price, it's just a purchase.` };
   }
   return { ok: true, amountCents };
 }
@@ -381,9 +382,13 @@ export async function actOnOffer(
     `);
     if (r.rows.length) updated = rowToOffer(r.rows[0] as Record<string, unknown>);
   } else {
-    /* counter */
-    const floor = row.status === "countered" ? row.counter_amount_cents! : row.offer_amount_cents;
-    const valid = validateCounterAmount(input.amountCents, floor, row.list_price_cents);
+    /* counter: the floor is the countering side's OWN last price and
+       the ceiling is the other side's standing price — a seller
+       counters up from the buyer's offer toward list; a buyer
+       counters up from their own offer toward the seller's counter. */
+    const floor = row.offer_amount_cents;
+    const ceiling = actor === "seller" ? row.list_price_cents : row.counter_amount_cents!;
+    const valid = validateCounterAmount(input.amountCents, floor, ceiling);
     if (!valid.ok) return { ok: false, reason: "bad_amount", message: valid.reason };
     if (actor === "seller") {
       const r = await db.execute(sql`
