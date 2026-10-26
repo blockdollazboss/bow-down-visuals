@@ -1407,6 +1407,18 @@ export interface VideoAudioSync {
   fadeIn: number;
   /** Fade-out duration in seconds. 0 = no fade. Set by dragging the fade handle on the Studio timeline. */
   fadeOut: number;
+  /**
+   * Song-track volume 0–100 (edit plan — the track-level counterpart of
+   * ClipEdit.volume). Set from the timeline's audio right-click menu.
+   * Default 100.
+   */
+  volume: number;
+  /**
+   * Song-track mute (edit plan — the track-level counterpart of
+   * ClipEdit.muted). Set from the timeline's audio right-click menu.
+   * Default false.
+   */
+  muted: boolean;
   /** Loop audio if it is shorter than the total video duration. */
   loopAudio: boolean;
   /** Trim/loop the audio to match the video length. */
@@ -1989,6 +2001,8 @@ export function defaultMusicStudioSettings(): MusicStudioSettings {
       startSec: 0,
       fadeIn: 2,
       fadeOut: 2,
+      volume: 100,
+      muted: false,
       loopAudio: false,
       matchVideoLength: true,
       syncMode: "keep-as-is",
@@ -2127,6 +2141,12 @@ function normalizeFadeDuration(raw: unknown, fallback: number): number {
   return fallback;
 }
 
+/** Song-track volume: a finite number clamped to 0–100; anything else falls back. */
+function normalizeTrackVolume(raw: unknown, fallback: number): number {
+  if (typeof raw === "number" && isFinite(raw)) return Math.min(100, Math.max(0, raw));
+  return fallback;
+}
+
 function normalizeMusicMode(raw: unknown): MusicStudioSettings["mode"] {
   if (raw === "auto" || raw === "manual" || raw === "lipsync") return raw;
   return "auto";
@@ -2152,6 +2172,8 @@ export function normalizeMusicStudio(
       source: normalizeVideoAudioSource((storedVideoAudio as Partial<VideoAudioSync>).source),
       fadeIn: normalizeFadeDuration((storedVideoAudio as { fadeIn?: unknown }).fadeIn, base.videoAudio.fadeIn),
       fadeOut: normalizeFadeDuration((storedVideoAudio as { fadeOut?: unknown }).fadeOut, base.videoAudio.fadeOut),
+      volume: normalizeTrackVolume((storedVideoAudio as { volume?: unknown }).volume, base.videoAudio.volume),
+      muted: (storedVideoAudio as { muted?: unknown }).muted === true,
     },
     songCrop: {
       ...base.songCrop,

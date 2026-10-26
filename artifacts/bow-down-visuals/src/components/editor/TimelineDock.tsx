@@ -9,6 +9,8 @@
  *   - Drag-to-reorder clips (dnd-kit, flex-basis layout keeps them
  *     back-to-back — no gaps or overlaps are structurally possible).
  *   - Split tool at the playhead.
+ *   - Right-click context menus for the clips AND the audio (song) lane
+ *     (song split / volume / mute / fades / crop / sync mode / loop).
  *   - Drag-to-fade audio handles (replaces the old boolean fade toggle).
  *   - Drag-select export range, synced with ExportSection's exportRange.
  *   - Zoom.
@@ -36,13 +38,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings, computeManualTimings } from "@/lib/scene-timing";
-import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
+import type { EditorSettings, ExportRangeMode, AudioVideoSyncMode, ClipEdit, ProToolsSettings, VideoAudioSync } from "@/lib/editor-settings";
 import {
   defaultClipEdit, defaultColorCorrection, TRANSITIONS, EFFECTS, COLOR_GRADES, GRADE_PRESET_CORRECTIONS,
   TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT,
 } from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
 import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
+import { buildSongAudioContextItems } from "@/lib/audio-context-menu";
 import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
 import { Shuffle, ListOrdered } from "lucide-react";
 
@@ -464,6 +467,12 @@ export function TimelineDock({
     setSettings({ ...settings, timelineLoop: { enabled: false, startSec: 0, endSec: 0 } });
   }, [settings, setSettings]);
 
+  /* ── Crop-song toggle — the transport button's handler, shared with the
+        audio lane's right-click menu so both call the same code. ── */
+  const toggleCropSong = useCallback(() => {
+    setSettings({ ...settings, musicStudio: { ...settings.musicStudio, songCrop: { ...songCrop, enabled: !songCrop.enabled, endSec: songCrop.endSec > songCrop.startSec ? songCrop.endSec : (audioDuration ?? 0) } } });
+  }, [settings, setSettings, songCrop, audioDuration]);
+
   /* ── Drag-to-reorder (back-to-back only — flex layout structurally enforces no gaps) ── */
   function onDragEnd(event: DragEndEvent) {
     if (timelineLocked) return;
@@ -706,6 +715,26 @@ export function TimelineDock({
     setSettings({ ...settings, clips: { ...clipEdits, [sceneId]: { ...current, ...patch } } });
   }, [clipEdits, settings, setSettings, timelineLocked]);
 
+  /* ── Right-click context menu for the audio (song) lane — parity with
+        the clip menu above. Items are built by the pure builder in
+        lib/audio-context-menu.ts over the dock's existing setters. ── */
+  const [audioCtxMenu, setAudioCtxMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const openAudioCtxMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAudioCtxMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  /** Patch the song track's VideoAudioSync (same merge pattern as setSyncMode). */
+  const patchVideoAudio = useCallback((patch: Partial<VideoAudioSync>) => {
+    if (timelineLocked) return;
+    setSettings({
+      ...settings,
+      musicStudio: { ...settings.musicStudio, videoAudio: { ...va, ...patch } },
+    });
+  }, [settings, setSettings, va, timelineLocked]);
+
   /** Patch a clip's Pro Tools settings (speed / reverse / color grade). */
   const patchProTools = useCallback((sceneId: string, patch: Partial<ProToolsSettings>) => {
     const current = { ...defaultClipEdit(), ...(clipEdits[sceneId] ?? {}) };
@@ -820,6 +849,37 @@ export function TimelineDock({
       });
     }
   }, [replaceTargetId, onReplaceClipVideo, toast, timelineLocked]);
+
+  /* ── Build the right-click menu items for the audio (song) lane. Every
+     item performs a real action — nothing here is a dead button. ── */
+  function buildAudioCtxItems(): ContextMenuItem[] {
+    return buildSongAudioContextItems(
+      {
+        locked: timelineLocked,
+        canSplit,
+        volume: va.volume,
+        muted: va.muted,
+        fadeIn: va.fadeIn,
+        fadeOut: va.fadeOut,
+        cropEnabled: songCrop.enabled,
+        syncMode,
+        loopEnabled: loop.enabled,
+        loopHasRegion: loopValid,
+      },
+      SYNC_MODES.map((m) => ({ id: m.id, label: m.label })),
+      {
+        splitAtPlayhead: doSplit,
+        setVolume: (volume) => patchVideoAudio({ volume }),
+        setMuted: (muted) => patchVideoAudio({ muted }),
+        setFadeIn: (fadeIn) => patchVideoAudio({ fadeIn }),
+        setFadeOut: (fadeOut) => patchVideoAudio({ fadeOut }),
+        toggleCropSong,
+        setSyncMode,
+        toggleLoop,
+        clearLoopRegion,
+      },
+    );
+  }
 
   /* ── Build the right-click menu items for the clip at index `idx`. Every
      item performs a real action — nothing here is a dead button. ── */
@@ -1180,7 +1240,7 @@ export function TimelineDock({
         </button>
 
         <button type="button"
-          onClick={() => setSettings({ ...settings, musicStudio: { ...settings.musicStudio, songCrop: { ...songCrop, enabled: !songCrop.enabled, endSec: songCrop.endSec > songCrop.startSec ? songCrop.endSec : (audioDuration ?? 0) } } })}
+          onClick={toggleCropSong}
           disabled={!audioUrl}
           data-testid="timeline-dock-crop-toggle"
           title="Crop the song to a shorter window — the timeline re-baselines to the cropped section."
@@ -1315,7 +1375,7 @@ export function TimelineDock({
           {/* Waveform + fade handles + export range overlay — grows/shrinks with the dock height */}
           <div ref={timelineRef} className="relative cursor-crosshair rounded bg-black overflow-hidden border border-white/5"
             style={{ flexGrow: 36, flexShrink: 1, flexBasis: 0, minHeight: 24 }}
-            onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range · Shift+drag to set loop region">
+            onClick={handleTimelineClick} onPointerDown={startRangeCreate} onContextMenu={openAudioCtxMenu} title="Click to seek · drag to select export range · Shift+drag to set loop region · right-click for song options">
             {audioUrl ? (
               <RealWaveform audioUrl={audioUrl} progress={totalDur > 0 ? currentTime / totalDur : 0} />
             ) : (
@@ -1609,6 +1669,18 @@ export function TimelineDock({
           items={buildClipCtxItems(ctxMenu.sceneIdx)}
           onClose={() => setCtxMenu(null)}
           testId="timeline-clip-context-menu"
+          tone="dark"
+        />
+      )}
+
+      {/* ── Right-click context menu for the audio (song) lane ── */}
+      {audioCtxMenu && (
+        <ClipContextMenu
+          x={audioCtxMenu.x}
+          y={audioCtxMenu.y}
+          items={buildAudioCtxItems()}
+          onClose={() => setAudioCtxMenu(null)}
+          testId="timeline-audio-context-menu"
           tone="dark"
         />
       )}
