@@ -128,7 +128,7 @@ describe("Grand Stage fallback (layout read failed — the page still composes)"
     const blocks = grandStageFallbackBlocks([]);
     expect(blocks.map((b) => b.type)).toEqual([
       "hero", "spotlight", "court", "tracks", "videos", "store", "memberships",
-      "achievements", "links",
+      "gallery", "achievements", "links",
     ]);
     expect(blocks.find((b) => b.type === "court")!.title).toBe("The Front Row");
     expect(blocks.find((b) => b.type === "spotlight")!.title).toBe("The Stage");

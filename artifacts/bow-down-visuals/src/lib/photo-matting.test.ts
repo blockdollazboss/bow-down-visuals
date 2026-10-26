@@ -53,7 +53,7 @@ describe("rvm asset urls (the still-photo path's Pro engine)", () => {
   // so its vendored-first asset discipline is pinned with it.
   it("are vendored-first for both the runtime and the model", () => {
     expect(ortScriptUrls()[0]).toBe(`${ORT_LOCAL_BASE}/ort.all.min.js`);
-    expect(rvmModelUrls()[0]).toBe(`${RVM_LOCAL_BASE}/rvm_mobilenetv3_fp32.onnx`);
+    expect(rvmModelUrls()[0]).toBe(`${RVM_LOCAL_BASE}/rvm_mobilenetv3_fp16.onnx`);
   });
 
   it("fallback order is R2 bucket → shipped same-origin copy → third-party CDN (S27-18)", () => {
