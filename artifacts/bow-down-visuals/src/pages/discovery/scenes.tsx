@@ -59,7 +59,7 @@ export default function ScenesDirectory() {
           title="Couldn't load the scenes."
           blurb="Something went wrong on our end — this isn't an empty directory, it's a failed load."
         />
-      ) : cities.length === 0 ? (
+      ) : !cities || cities.length === 0 ? (
         <EmptyState
           icon={<MapPin className="h-6 w-6" />}
           title="No scenes yet."

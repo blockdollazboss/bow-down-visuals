@@ -1,0 +1,2 @@
+src/pages/discovery/scenes.tsx(62,11): error TS18047: 'cities' is possibly 'null'.
+src/pages/discovery/scenes.tsx(72,12): error TS18047: 'cities' is possibly 'null'.
