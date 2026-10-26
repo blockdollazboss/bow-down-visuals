@@ -155,3 +155,4 @@ export * from "./publishing-splits";
 export * from "./sale-splits";
 export * from "./api-webhooks";
 export * from "./wishlists";
+export * from "./studio-gear";
