@@ -262,6 +262,7 @@ import soundPrefsRouter from "./sound-prefs";
 import monthWrappedRouter from "./month-wrapped";
 import pitchFixRouter from "./pitch-fix";
 import studioGearRouter from "./studio-gear";
+import openVerseRouter from "./open-verse";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
 import contentPlansRouter from "./content-plans";
@@ -632,6 +633,7 @@ router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, 
 router.use(monthWrappedRouter);          // /api/month-wrapped (Your Month, Wrapped, idea #170)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/studio-gear/* (Branding Shop studio-gear line, test mode)
+router.use(openVerseRouter);             // /api/open-verse/* (Open Verse #176 — splits rail reuse, creator-gated pick, exactly-once ledger)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
 router.use(contentPlansRouter);

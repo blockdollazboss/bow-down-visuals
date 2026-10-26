@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { CoverSongModal, type CoverSource } from "@/components/song/CoverSongModal";
 import { CoverComparePlayer } from "@/components/song/CoverComparePlayer";
 import { RemixChain } from "@/components/songs/RemixChain";
+import OpenVerseDesk from "@/components/songs/OpenVerseDesk";
 import AlbumsSection from "./songs/albums-section";
 import DjSetPrep, { DjChips, type DjAnalysis } from "./songs/dj-set-prep";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
@@ -382,6 +383,13 @@ export default function SongsPage() {
       <p className="text-sm text-white/50 mb-6">
         {t("songs.intro")}
       </p>
+
+      {/* Open Verse (#176) docks on the song's own surface — a song here
+          can open a verse slot, and verses for other creators' songs are
+          submitted from the same desk. No standalone page. */}
+      <div className="mb-6">
+        <OpenVerseDesk />
+      </div>
 
       {/* Library tabs: songs | albums | DJ sets (Album/EP Builder and the
           DJ Set-Prep Pack dock here — no new sidebar items) */}

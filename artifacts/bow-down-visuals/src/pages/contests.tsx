@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
+import OpenVerseDesk from "@/components/songs/OpenVerseDesk";
 import ShareMenu from "@/components/ShareMenu";
 import { useHubProject } from "@/lib/hub-project";
 import {
@@ -370,6 +371,12 @@ export default function Contests() {
                 system: it lives above your own fan contests. */}
             <div className="mt-8">
               <ContestHubWidget />
+            </div>
+            {/* Open Verse (#176) — the contest-format desk docks here too
+                (PROMOTE side of the song's surfaces); the same desk lives
+                on /songs. Submissions and the winner pick happen in-desk. */}
+            <div className="mt-6">
+              <OpenVerseDesk />
             </div>
             <div className="mt-6 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t("contests.your_contests")}</h2>

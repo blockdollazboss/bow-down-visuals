@@ -154,6 +154,7 @@ export * from "./website-builder-projects";
 export * from "./api-keys";
 export * from "./theme-packs";
 export * from "./publishing-splits";
+export * from "./open-verse";
 export * from "./sale-splits";
 export * from "./api-webhooks";
 export * from "./wishlists";
