@@ -1,0 +1,16 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-rem-grants/artifacts/api-server[39m
+
+ [32m✓[39m src/lib/__tests__/community-grants.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/community-grants-settle.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 243[2mms[22m[39m
+ [32m✓[39m src/routes/__tests__/community-grants-routes.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m29 passed[39m[22m[90m (29)[39m
+[2m   Start at [22m 17:25:31
+[2m   Duration [22m 26.69s[2m (import 52%, transform 45%, tests 2%, setup 1%)[22m
+
+[2m  Transform [22m [33mtransforming modules took 10.53s[39m[2m · 45% of tracked time, re-done on every run[22m
+[2m            [22m [2mpersist transforms across runs with [22m[33mfsModuleCache: true[39m
+[2m            [22m [2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns[22m
+

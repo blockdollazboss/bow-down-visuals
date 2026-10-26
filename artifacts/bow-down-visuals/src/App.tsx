@@ -211,6 +211,7 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
 const PitchFixPage = lazyWithRetry(() => import("@/pages/pitch-fix"));
+const CommunityGrantsPage = lazyWithRetry(() => import("@/pages/community-grants"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const StoreBuy = lazyWithRetry(() => import("@/pages/store-buy"));
 const StorefrontProduct = lazyWithRetry(() => import("@/pages/storefront-product"));
@@ -745,6 +746,7 @@ function AppShell() {
                     Social/community flow — boards are public reads,
                     the doors require sign-in at the API. */}
                 <Route path="/pitch-fix"><PitchFixPage /></Route>
+                <Route path="/community-grants"><CommunityGrantsPage /></Route>
                 <Route path="/mastering"><Redirect to="/audio-studio?tab=master&mode=quick" /></Route>
                 <Route path="/mix-master"><QueryPreservingRedirect to="/audio-studio?tab=master" /></Route>
                 <Route path="/stems"><QueryPreservingRedirect to="/audio-studio?tab=stems" /></Route>

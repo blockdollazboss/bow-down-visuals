@@ -1,0 +1,2274 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90m/home/hatch/workspace/bdv-wt-rem-grants/artifacts/bow-down-visuals[39m
+
+ [32m✓[39m src/lib/world/world-client.test.ts [2m([22m[2m111 tests[22m[2m)[22m[33m 330[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/background-changer.test.ts [2m([22m[2m47 tests[22m[2m)[22m[33m 12475[2mms[22m[39m
+   [32m✓[39m two engines — quality is the creator's only choice (Pro restored, Oct 23, 2026) [2m(6)[22m
+     [33m[2m✓[22m[39m auto steps the (fallback) light engine's refinement DOWN when it runs slow — and stops at its floor[33m 3070[2mms[22m[39m
+   [32m✓[39m Pro engine restored (Oct 23, 2026) — selection, fallback, degrade, park [2m(6)[22m
+     [33m[2m✓[22m[39m auto walks the Pro steps down on sustained slowness, then degrades to the light engine[33m 2149[2mms[22m[39m
+     [33m[2m✓[22m[39m 'pro' quality walks its internal steps on slowness but NEVER degrades engines under the creator[33m 2619[2mms[22m[39m
+   [32m✓[39m honest engine status (Stack-100 #3 Lane C — the fallback is VISIBLE) [2m(7)[22m
+     [33m[2m✓[22m[39m auto degrade on sustained slowness: the swap reports 'pro-too-slow'[33m 1865[2mms[22m[39m
+   [32m✓[39m motion fix (Oct 25, 2026) — the person moves at camera rate, the background never snaps to the raw room [2m(4)[22m
+     [33m[2m✓[22m[39m a healthy phone's round trips (~100ms) hold the sharpest refinement step — the ladder no longer marches every phone to the floor[33m 1177[2mms[22m[39m
+ [31m❯[39m src/lib/locale-newest-surfaces.test.ts [2m([22m[2m125 tests[22m[2m | [22m[31m19 failed[39m[2m)[22m[33m 881[2mms[22m[39m
+   [31m❯[39m wave-3/4 newest surfaces — full parity in all 10 catalogs [2m(32)[22m
+[31m     [31m×[31m the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill (4500 keys)[39m[32m 17[2mms[22m[39m
+     [32m✓[39m en carries every newest-surface key[32m 5[2mms[22m[39m
+[31m     [31m×[31m es carries every newest-surface key[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m fr carries every newest-surface key[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m de carries every newest-surface key[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m it carries every newest-surface key[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m pt carries every newest-surface key[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m ar carries every newest-surface key[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m hi carries every newest-surface key[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m ja carries every newest-surface key[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m ko carries every newest-surface key[39m[32m 2[2mms[22m[39m
+     [32m✓[39m en values are non-empty (headlinePrefix word-order slot aside)[32m 2[2mms[22m[39m
+[31m     [31m×[31m es values are non-empty (headlinePrefix word-order slot aside)[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m fr values are non-empty (headlinePrefix word-order slot aside)[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m de values are non-empty (headlinePrefix word-order slot aside)[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m it values are non-empty (headlinePrefix word-order slot aside)[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m pt values are non-empty (headlinePrefix word-order slot aside)[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m ar values are non-empty (headlinePrefix word-order slot aside)[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m hi values are non-empty (headlinePrefix word-order slot aside)[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m ja values are non-empty (headlinePrefix word-order slot aside)[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m ko values are non-empty (headlinePrefix word-order slot aside)[39m[32m 2[2mms[22m[39m
+     [32m✓[39m en preserves the en placeholder shape on every key[32m 13[2mms[22m[39m
+     [32m✓[39m es preserves the en placeholder shape on every key[32m 37[2mms[22m[39m
+     [32m✓[39m fr preserves the en placeholder shape on every key[32m 12[2mms[22m[39m
+     [32m✓[39m de preserves the en placeholder shape on every key[32m 22[2mms[22m[39m
+     [32m✓[39m it preserves the en placeholder shape on every key[32m 17[2mms[22m[39m
+     [32m✓[39m pt preserves the en placeholder shape on every key[32m 22[2mms[22m[39m
+     [32m✓[39m ar preserves the en placeholder shape on every key[32m 72[2mms[22m[39m
+     [32m✓[39m hi preserves the en placeholder shape on every key[32m 50[2mms[22m[39m
+     [32m✓[39m ja preserves the en placeholder shape on every key[32m 38[2mms[22m[39m
+     [32m✓[39m ko preserves the en placeholder shape on every key[32m 58[2mms[22m[39m
+     [32m✓[39m playlistPitch exists in the five catalogs that once had none of it (full 121-key set, incl. packetPresaveLabel)[32m 93[2mms[22m[39m
+   [32m✓[39m playlistPitch — no untranslated English residue [2m(10)[22m
+     [32m✓[39m es playlistPitch values differ from en outside the allowlist[32m 1[2mms[22m[39m
+     [32m✓[39m fr playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m it playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ar playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko playlistPitch values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m the residue allowlist names only keys still identical to en (no stale entries)[32m 5[2mms[22m[39m
+   [32m✓[39m outreach — no untranslated English residue [2m(10)[22m
+     [32m✓[39m es outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m fr outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de outreach values differ from en outside the allowlist[32m 7[2mms[22m[39m
+     [32m✓[39m it outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt outreach values differ from en outside the allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m ar outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko outreach values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m the outreach residue allowlist names only keys still identical to en (no stale entries)[32m 7[2mms[22m[39m
+   [32m✓[39m press-kit — no untranslated English residue [2m(12)[22m
+     [32m✓[39m es press-kit values differ from en outside the allowlist[32m 7[2mms[22m[39m
+     [32m✓[39m fr press-kit values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de press-kit values differ from en outside the allowlist[32m 1[2mms[22m[39m
+     [32m✓[39m it press-kit values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt press-kit values differ from en outside the allowlist[32m 3[2mms[22m[39m
+     [32m✓[39m ar press-kit values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi press-kit values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja press-kit values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko press-kit values differ from en outside the allowlist[32m 3[2mms[22m[39m
+     [32m✓[39m the press-kit residue allowlist names only keys still identical to en (no stale entries)[32m 7[2mms[22m[39m
+     [32m✓[39m ar carries the full six-form CLDR sets for the three press-kit count families[32m 0[2mms[22m[39m
+     [32m✓[39m es/fr/it/pt carry the _many form for the three press-kit count families[32m 7[2mms[22m[39m
+   [32m✓[39m admin — full parity, no untranslated English residue, single-brace tokens intact [2m(20)[22m
+     [32m✓[39m the admin namespace is 207 leaves in en and every catalog carries all of them[32m 126[2mms[22m[39m
+     [32m✓[39m es preserves the single-brace placeholder shape on every admin key[32m 3[2mms[22m[39m
+     [32m✓[39m fr preserves the single-brace placeholder shape on every admin key[32m 6[2mms[22m[39m
+     [32m✓[39m de preserves the single-brace placeholder shape on every admin key[32m 1[2mms[22m[39m
+     [32m✓[39m it preserves the single-brace placeholder shape on every admin key[32m 1[2mms[22m[39m
+     [32m✓[39m pt preserves the single-brace placeholder shape on every admin key[32m 0[2mms[22m[39m
+     [32m✓[39m ar preserves the single-brace placeholder shape on every admin key[32m 0[2mms[22m[39m
+     [32m✓[39m hi preserves the single-brace placeholder shape on every admin key[32m 0[2mms[22m[39m
+     [32m✓[39m ja preserves the single-brace placeholder shape on every admin key[32m 0[2mms[22m[39m
+     [32m✓[39m ko preserves the single-brace placeholder shape on every admin key[32m 1[2mms[22m[39m
+     [32m✓[39m es admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m fr admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m it admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ar admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja admin values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko admin values differ from en outside the allowlist[32m 1[2mms[22m[39m
+     [32m✓[39m the admin residue allowlist names only keys still identical to en (no stale entries)[32m 1[2mms[22m[39m
+   [32m✓[39m analyticsHub — no untranslated English residue [2m(10)[22m
+     [32m✓[39m es analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m fr analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m it analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ar analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko analyticsHub values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m the analyticsHub allowlist names only keys still identical to en (no stale entries)[32m 21[2mms[22m[39m
+   [32m✓[39m contentIntelligence — no untranslated English residue [2m(11)[22m
+     [32m✓[39m the namespace derives the full 146-key set from en[32m 0[2mms[22m[39m
+     [32m✓[39m es contentIntelligence values differ from en outside the allowlist[32m 7[2mms[22m[39m
+     [32m✓[39m fr contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de contentIntelligence values differ from en outside the allowlist[32m 21[2mms[22m[39m
+     [32m✓[39m it contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ar contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko contentIntelligence values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m the residue allowlist names only keys still identical to en (no stale entries)[32m 24[2mms[22m[39m
+   [32m✓[39m hubSpine — no untranslated English residue [2m(10)[22m
+     [32m✓[39m es hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m fr hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m it hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt hubSpine values differ from en outside the allowlist[32m 4[2mms[22m[39m
+     [32m✓[39m ar hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko hubSpine values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m the hubSpine allowlist names only keys still identical to en (no stale entries)[32m 1[2mms[22m[39m
+   [32m✓[39m captionSuite — no untranslated English residue [2m(10)[22m
+     [32m✓[39m es captionSuite values differ from en outside the allowlist[32m 19[2mms[22m[39m
+     [32m✓[39m fr captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m de captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m it captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m pt captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ar captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m hi captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ja captionSuite values differ from en outside the allowlist[32m 0[2mms[22m[39m
+     [32m✓[39m ko captionSuite values differ from en outside the allowlist[32m 13[2mms[22m[39m
+     [32m✓[39m the captionSuite allowlist names only keys still identical to en (no stale entries)[32m 1[2mms[22m[39m
+ [32m✓[39m src/lib/world/business-desks.test.ts [2m([22m[2m62 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-de.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 284[2mms[22m[39m
+   [32m✓[39m de locale wave W1 (Stack-28) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 69[2mms[22m[39m
+   [32m✓[39m de locale wave W2 (Stack-28) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 23[2mms[22m[39m
+   [32m✓[39m de locale wave W3 (Stack-28) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 17[2mms[22m[39m
+   [32m✓[39m de locale wave W4 (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 17[2mms[22m[39m
+   [32m✓[39m de locale wave W5 (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 34[2mms[22m[39m
+   [32m✓[39m de W6 namespaces (Stack-28 appendix) [2m(1)[22m
+     [32m✓[39m every en key exists non-empty in de and no untranslated residue remains[32m 18[2mms[22m[39m
+   [31m❯[39m de W7 namespaces (Stack-28 appendix) [2m(1)[22m
+[31m     [31m×[31m every en key exists non-empty in de and no untranslated residue remains[39m[32m 76[2mms[22m[39m
+ [32m✓[39m src/lib/world/shop-stands.test.ts [2m([22m[2m64 tests[22m[2m)[22m[32m 92[2mms[22m[39m
+ [32m✓[39m src/lib/world/create-desks.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 140[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-it.test.ts [2m([22m[2m24 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 201[2mms[22m[39m
+   [32m✓[39m it-W1 (Stack-28 #75) — commerce namespaces fully Italian [2m(4)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 20[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 2[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+     [32m✓[39m carries pricing.wantedMeter plurals whole (_one/_other/_many)[32m 0[2mms[22m[39m
+   [32m✓[39m it-W2 (Stack-28 #84) — sponsors/retention/create-entry namespaces fully Italian [2m(4)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+     [32m✓[39m carries promo-clip plurals whole (_one/_other/_many)[32m 4[2mms[22m[39m
+   [32m✓[39m it-W3 (Stack-28 #93) — create video/image + audio namespaces fully Italian [2m(4)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 6[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 4[2mms[22m[39m
+     [32m✓[39m carries thumbnailTest.filesSkipped plurals whole (_one/_other/_many)[32m 0[2mms[22m[39m
+   [32m✓[39m it-W4 (Stack-28 appendix) — audio + tools namespaces fully Italian [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+   [32m✓[39m it W5 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+   [32m✓[39m it W6 namespaces (Stack-28 appendix) [2m(3)[22m
+     [32m✓[39m covers every en key in the wave namespaces[32m 0[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+   [31m❯[39m it W7 namespaces (Stack-28 appendix) [2m(3)[22m
+[31m     [31m×[31m covers every en key in the wave namespaces[39m[32m 84[2mms[22m[39m
+     [32m✓[39m preserves {{placeholders}} exactly[32m 0[2mms[22m[39m
+     [32m✓[39m leaves no REAL untranslated identicals[32m 0[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-fr.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 584[2mms[22m[39m
+   [32m✓[39m fr-W1 (Stack-28 #73) [2m(4)[22m
+     [32m✓[39m every en key in the wave namespaces is present in fr[32m 193[2mms[22m[39m
+     [32m✓[39m no identical-to-en values remain outside the legit allowlist[32m 20[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 0[2mms[22m[39m
+     [32m✓[39m placeholders match en exactly for every wave key[32m 15[2mms[22m[39m
+   [32m✓[39m fr-W2 (Stack-28 #82) [2m(4)[22m
+     [32m✓[39m every en key in the wave namespaces is present in fr[32m 48[2mms[22m[39m
+     [32m✓[39m no identical-to-en values remain outside the legit allowlist[32m 68[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 1[2mms[22m[39m
+     [32m✓[39m placeholders match en exactly for every wave key[32m 64[2mms[22m[39m
+   [32m✓[39m fr-W3 (Stack-28 #91) [2m(4)[22m
+     [32m✓[39m every en key in the wave namespaces is present in fr[32m 39[2mms[22m[39m
+     [32m✓[39m no identical-to-en values remain outside the legit allowlist[32m 34[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 0[2mms[22m[39m
+     [32m✓[39m placeholders match en exactly for every wave key[32m 17[2mms[22m[39m
+   [32m✓[39m fr W4 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in fr[32m 1[2mms[22m[39m
+     [32m✓[39m no fr value is identical to en outside the legit allowlist[32m 1[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 4[2mms[22m[39m
+   [32m✓[39m fr W5 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in fr[32m 1[2mms[22m[39m
+     [32m✓[39m no fr value is identical to en outside the legit allowlist[32m 4[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 4[2mms[22m[39m
+   [31m❯[39m fr W6 namespaces (Stack-28 appendix) [2m(3)[22m
+[31m     [31m×[31m every en key of the wave namespaces is present and non-empty in fr[39m[32m 14[2mms[22m[39m
+     [32m✓[39m no fr value is identical to en outside the legit allowlist[32m 5[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/world/palace-layout.test.ts [2m([22m[2m40 tests[22m[2m)[22m[33m 361[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-desk.test.ts [2m([22m[2m51 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-es.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 157[2mms[22m[39m
+   [32m✓[39m es W1 (Stack-28 #72) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 9[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 5[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 9[2mms[22m[39m
+   [32m✓[39m es W2 (Stack-28 #81) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 4[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 3[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 3[2mms[22m[39m
+   [32m✓[39m es W3 (Stack-28 #90) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 3[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 8[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 14[2mms[22m[39m
+   [32m✓[39m es W4 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 5[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 5[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 7[2mms[22m[39m
+   [32m✓[39m es W5 (Stack-28 appendix) — namespaces closed whole [2m(3)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in es[32m 2[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 4[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 5[2mms[22m[39m
+   [31m❯[39m es W6 namespaces (Stack-28 appendix) [2m(3)[22m
+[31m     [31m×[31m every en key of the wave namespaces is present and non-empty in es[39m[32m 33[2mms[22m[39m
+     [32m✓[39m no es value is identical to en outside the legit allowlist[32m 13[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 17[2mms[22m[39m
+ [32m✓[39m src/lib/world/objective-strip.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 151[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-pt.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 170[2mms[22m[39m
+   [32m✓[39m pt W1 (Stack-28 #78) — namespaces closed whole [2m(4)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 21[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 4[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 7[2mms[22m[39m
+     [32m✓[39m pt carries the _many plural forms for the pricing families (§4)[32m 0[2mms[22m[39m
+   [32m✓[39m pt W2 (Stack-28 #87) — namespaces closed whole [2m(4)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 2[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 4[2mms[22m[39m
+     [32m✓[39m pt carries the _many plural forms for the promo-clip families (§4)[32m 0[2mms[22m[39m
+   [32m✓[39m pt W3 (Stack-28 #96) — namespaces closed whole [2m(4)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 2[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 4[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 4[2mms[22m[39m
+     [32m✓[39m pt carries the _many plural form for the thumbnailTest family (§4)[32m 0[2mms[22m[39m
+   [31m❯[39m pt W4 (Stack-28 appendix) — namespaces closed whole [2m(9)[22m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 3[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 3[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 6[2mms[22m[39m
+[31m     [31m×[31m every en key of the wave namespaces is present and non-empty in pt[39m[32m 47[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 25[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 12[2mms[22m[39m
+     [32m✓[39m every en key of the wave namespaces is present and non-empty in pt[32m 1[2mms[22m[39m
+     [32m✓[39m no pt value is identical to en outside the legit allowlist[32m 6[2mms[22m[39m
+     [32m✓[39m the legit allowlist names only keys still identical to en (no stale entries)[32m 4[2mms[22m[39m
+ [32m✓[39m src/lib/world/treasury-panels.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/lib/world/shelf.test.ts [2m([22m[2m50 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m src/lib/world/charts-board.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/transport.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m src/lib/world/quality.test.ts [2m([22m[2m53 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/lib/locale-numeric-parity.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 686[2mms[22m[39m
+ [32m✓[39m src/lib/world/voice.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/lib/world/earnings-board.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m src/lib/world/release-desk.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-hi.test.ts [2m([22m[2m37 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1508[2mms[22m[39m
+   [31m❯[39m Stack-28 Hindi locale waves [2m(37)[22m
+     [32m✓[39m W1 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 87[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 82[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 6[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 48[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 44[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 36[2mms[22m[39m
+     [32m✓[39m W2 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 26[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 56[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 1[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 78[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 39[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 64[2mms[22m[39m
+     [32m✓[39m W3 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 27[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 33[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 0[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 55[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 20[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 25[2mms[22m[39m
+     [32m✓[39m W4 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 39[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 20[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 3[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 17[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 11[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 14[2mms[22m[39m
+     [32m✓[39m W5 [2m(6)[22m
+       [32m✓[39m is complete: every en leaf present and non-empty in hi[32m 47[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 26[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 2[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 82[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 65[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 31[2mms[22m[39m
+     [31m❯[39m W6 [2m(6)[22m
+[31m       [31m×[31m is complete: every en leaf present and non-empty in hi[39m[32m 129[2mms[22m[39m
+       [32m✓[39m has no REAL identicals left (identical ⇒ allowlisted LEGIT)[32m 66[2mms[22m[39m
+       [32m✓[39m allowlist has no stale entries (each is still identical to en)[32m 2[2mms[22m[39m
+       [32m✓[39m keeps {{placeholder}} parity with en[32m 48[2mms[22m[39m
+       [32m✓[39m carries whole CLDR plural families (hi: one/other)[32m 41[2mms[22m[39m
+       [32m✓[39m has no U+FFFD in this wave's namespaces[32m 67[2mms[22m[39m
+     [32m✓[39m whole-file U+FFFD keys are exactly the pinned remainder[32m 24[2mms[22m[39m
+ [32m✓[39m src/lib/resilience-s28.test.ts [2m([22m[2m50 tests[22m[2m)[22m[33m 401[2mms[22m[39m
+ [31m❯[39m src/lib/public-routes.test.ts [2m([22m[2m128 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 253[2mms[22m[39m
+   [31m❯[39m the census — App.tsx route table ↔ ROUTE_MATRIX [2m(11)[22m
+     [32m✓[39m extracts a real route table from App.tsx (extraction is not vacuous)[32m 3[2mms[22m[39m
+     [32m✓[39m extracts no duplicate route paths[32m 2[2mms[22m[39m
+     [32m✓[39m declares no duplicate paths in the matrix[32m 0[2mms[22m[39m
+[31m     [31m×[31m classifies every route App.tsx declares — an unclassified new route fails here[39m[32m 41[2mms[22m[39m
+     [32m✓[39m names no route App.tsx no longer declares — a stale entry fails here[32m 1[2mms[22m[39m
+[31m     [31m×[31m covers exactly the extracted table (count reconciliation)[39m[32m 7[2mms[22m[39m
+     [32m✓[39m marks every App.tsx redirect alias as a redirect with its exact target[32m 12[2mms[22m[39m
+     [32m✓[39m gives no non-redirect route a redirect target, and vice versa[32m 35[2mms[22m[39m
+     [32m✓[39m classifies each redirect by its resolved target (audit §1.5)[32m 7[2mms[22m[39m
+     [32m✓[39m agrees with the matcher: public entries are exactly the allowlist[32m 34[2mms[22m[39m
+     [32m✓[39m declares the catch-all 404 as locked (the gate runs before it for guests)[32m 1[2mms[22m[39m
+   [32m✓[39m resolveRouteRedirect — aliases resolve before the gate judges (fix 2026-10-18) [2m(8)[22m
+     [32m✓[39m resolves the two findability aliases to the targets App.tsx declares[32m 9[2mms[22m[39m
+     [32m✓[39m resolves every matrix alias to exactly its declared target[32m 12[2mms[22m[39m
+     [32m✓[39m returns the target exactly as written, query included[32m 0[2mms[22m[39m
+     [32m✓[39m resolves no non-alias path — public, locked, target, or nonsense[32m 4[2mms[22m[39m
+     [32m✓[39m mirrors the matcher's tolerances: query/hash ignored, one trailing slash[32m 0[2mms[22m[39m
+     [32m✓[39m resolves nothing malformed — default-deny, same as the matcher[32m 0[2mms[22m[39m
+     [32m✓[39m never makes an alias public — resolution is a hand-off, not an opening[32m 7[2mms[22m[39m
+     [32m✓[39m is single-hop: no alias targets another alias, so the gate terminates at the target[32m 8[2mms[22m[39m
+   [32m✓[39m isPublicPath — the critical distinctions [2m(10)[22m
+     [32m✓[39m keeps the tip jar public but the tips tool locked[32m 2[2mms[22m[39m
+     [32m✓[39m keeps the shops directory public but the builder locked[32m 0[2mms[22m[39m
+     [32m✓[39m keeps a creator's shop public but the store's act surfaces locked[32m 0[2mms[22m[39m
+     [32m✓[39m keeps the product shelf public at exactly one product deep[32m 0[2mms[22m[39m
+     [32m✓[39m keeps memberships browse public with no deeper public path[32m 0[2mms[22m[39m
+     [32m✓[39m keeps profiles public but the vault locked[32m 0[2mms[22m[39m
+     [32m✓[39m matches the root only at the root[32m 0[2mms[22m[39m
+     [32m✓[39m keeps challenge winners public at exactly the declared depth[32m 0[2mms[22m[39m
+     [32m✓[39m tolerates a single trailing slash (except on the root)[32m 0[2mms[22m[39m
+     [32m✓[39m rejects empty segments and param-less param routes[32m 0[2mms[22m[39m
+   [32m✓[39m isPublicPath — representative positives from every public family [2m(47)[22m
+     [32m✓[39m covers every entry on the shipped allowlist[32m 6[2mms[22m[39m
+     [32m✓[39m is public: law — home (/)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: law — the World (/world)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: ruling — creator profile storefront (/artist/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: necessity — login (/login)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: necessity — signup (/signup)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: necessity — reset password (/reset-password)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: necessity — QR login approve (/qr-login)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: legal — terms (/terms)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: legal — privacy (/privacy)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: legal — refund policy (/refund-policy)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: token link — client review (/review/abc123token)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: token link — sync one-sheet (/sync-one-sheet/abc123token)[32m 2[2mms[22m[39m
+     [32m✓[39m is public: checkout return — store success (/store/success)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D3 shops — directory (/storefronts)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D3 shops — a creator's shop (/shop/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D3 shops — one product (/storefront/product/42)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: §1.6 exception — charts (/charts)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: §1.6 exception — shorts (/shorts)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: §1.6 exception — public press kit (/press/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — track (/track/101)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — watch (/watch/101)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — playlist (/playlist/101)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — live (/live/101)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: guest door — invite backstage (0202) (/live/guest/some-token)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — premiere (/premiere/101)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — sound (/sound/101)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — hashtag (/hashtag/goldchain)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — album (/albums/gold-album)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — plan (/plan/pro-plan)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — photo preset (/photo-preset/glow)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D1 media — collection (/collection/favourites)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — presave (/presave/new-single)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — unlock (/unlock/new-single)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — splits (/splits/new-single)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — join (/join/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — link in bio (/bio/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — NFC card profile (/c/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — tip jar (/tips/king-shark)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D2 funnel — the app's download home (/app)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — beats (/beats)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — shoutouts (/shoutouts)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — memberships (/memberships)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — contests (/contests)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — winners (/winners)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — challenge (/challenge/spring-jam)[32m 0[2mms[22m[39m
+     [32m✓[39m is public: D5 marketplace — challenge winners (/challenge/spring-jam/winners)[32m 0[2mms[22m[39m
+   [32m✓[39m isPublicPath — negatives from the locked families [2m(49)[22m
+     [32m✓[39m is locked: money hub — earnings (/earnings)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — brand deals (/brand-deals)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — distribute (/distribute)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — press kit tool (/press-kit)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — email list (/email-list)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — collabs (/collabs)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — team (/team)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — my shop (/my-shop)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — promote (/promote)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — analytics hub (/analytics-hub)[32m 2[2mms[22m[39m
+     [32m✓[39m is locked: money hub — branding kit (/branding-kit)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: money hub — coach (/coach)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — explore (/explore)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — search (/search)[32m 6[2mms[22m[39m
+     [32m✓[39m is locked: discovery — browse (/browse)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — community (/community)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — groups (/groups)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — one group (/groups/some-group)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — events (/events)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — one event (/events/42)[32m 26[2mms[22m[39m
+     [32m✓[39m is locked: discovery — vertical (/vertical/music)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — genres index (/genres)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: discovery — one genre (/genre/hip-hop)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — pricing (/pricing)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — creator pricing (/creator-pricing)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — tools index (/tools)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — one tool page (/tools/ai-song-maker)[32m 4[2mms[22m[39m
+     [32m✓[39m is locked: SEO — for index (/for)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — for youtubers (/for/youtubers)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — genre hub (/genres/hip-hop)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — showcase (/showcase)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — one showcase item (/showcase/some-item)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — features (/features)[32m 2[2mms[22m[39m
+     [32m✓[39m is locked: SEO — templates (/templates)[32m 1[2mms[22m[39m
+     [32m✓[39m is locked: SEO — beta access (/beta-access)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — invite (/invite/ABC123)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — contact (/contact)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — download (/download)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: SEO — extension (/extension)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — dashboard (/dashboard)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — settings (/settings)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — admin (/admin)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — create (/create)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — hooks studio (/hooks)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — referrals (/referrals)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — trending (/trending)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — cursor lab (/cursor-lab)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: app — jewelry shop page (/jewelry-shop)[32m 0[2mms[22m[39m
+     [32m✓[39m is locked: unknown — nonsense path (/definitely-not-a-route)[32m 0[2mms[22m[39m
+   [32m✓[39m the shipped allowlist itself [2m(3)[22m
+     [32m✓[39m has no duplicate patterns[32m 0[2mms[22m[39m
+     [32m✓[39m contains exactly the approved public set (46 patterns)[32m 3[2mms[22m[39m
+     [32m✓[39m judges a path with a query string the same as the bare path[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/world/creator-heights.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 102[2mms[22m[39m
+ [32m✓[39m src/lib/world/boardwalk.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m src/lib/theme-packs.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 174[2mms[22m[39m
+ [32m✓[39m src/lib/world/scheduler-desk.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-ko.test.ts [2m([22m[2m30 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 165[2mms[22m[39m
+   [31m❯[39m Stack-28 ko locale waves [2m(30)[22m
+     [32m✓[39m ko-W1 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 27[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 32[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 3[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 3[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 5[2mms[22m[39m
+     [32m✓[39m ko-W2 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 4[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 1[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 1[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 2[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 2[2mms[22m[39m
+     [32m✓[39m ko-W3 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 3[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 3[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 0[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 1[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 4[2mms[22m[39m
+     [32m✓[39m ko-W4 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 1[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 3[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 1[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 1[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 0[2mms[22m[39m
+     [32m✓[39m ko-W5 [2m(5)[22m
+       [32m✓[39m wave namespaces are complete and non-empty in ko[32m 1[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 1[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 3[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 7[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 1[2mms[22m[39m
+     [31m❯[39m ko-W6 [2m(5)[22m
+[31m       [31m×[31m wave namespaces are complete and non-empty in ko[39m[32m 17[2mms[22m[39m
+       [32m✓[39m no REAL identical-to-en values remain outside the legit allowlist[32m 1[2mms[22m[39m
+       [32m✓[39m allowlist entries are exactly the remaining identicals (no rot)[32m 1[2mms[22m[39m
+       [32m✓[39m placeholder parity with en for every wave key[32m 2[2mms[22m[39m
+       [32m✓[39m no U+FFFD in any wave value[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/chat-voice.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-ar.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 672[2mms[22m[39m
+   [32m✓[39m ar-W1 (Stack-28 #70) commerce namespaces fully translated [2m(1)[22m
+     [32m✓[39m every en key present, non-empty, placeholders intact, no untranslated residue[32m 270[2mms[22m[39m
+   [32m✓[39m ar-W2 (Stack-28 #79) retention/invite + video namespaces fully translated [2m(1)[22m
+     [32m✓[39m every en key present, non-empty, placeholders intact, no untranslated residue[32m 97[2mms[22m[39m
+   [32m✓[39m ar-W3 (Stack-28 #88) studio-tool namespaces fully translated [2m(1)[22m
+     [32m✓[39m every en key present, non-empty, placeholders intact, no untranslated residue[32m 63[2mms[22m[39m
+   [32m✓[39m ar-W4 (Stack-28 #97) audio + scheduler/projects namespaces fully translated [2m(1)[22m
+     [32m✓[39m every en key present, non-empty, placeholders intact, no untranslated residue[32m 84[2mms[22m[39m
+   [32m✓[39m ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces fully translated [2m(2)[22m
+     [32m✓[39m wave is closed[32m 100[2mms[22m[39m
+     [32m✓[39m carries mediaDetector.filesSkipped plurals whole (ar six forms)[32m 1[2mms[22m[39m
+   [31m❯[39m ar-W6 (Stack-28 appendix) milestones/lufs/presave/stabilize/create + promote/coach/release namespaces fully translated [2m(1)[22m
+[31m     [31m×[31m wave is closed[39m[32m 43[2mms[22m[39m
+ [32m✓[39m src/lib/findability-nav.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 544[2mms[22m[39m
+ [32m✓[39m src/lib/world/characters.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/lib/world/ateliers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m src/lib/world/pbr-materials.test.ts [2m([22m[2m37 tests[22m[2m)[22m[33m 964[2mms[22m[39m
+ [32m✓[39m src/lib/world/social-wave2.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/lib/world/palace-grounds.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 118[2mms[22m[39m
+ [31m❯[39m src/lib/locale-waves-ja.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 165[2mms[22m[39m
+   [31m❯[39m ja locale waves (Stack-28) [2m(18)[22m
+     [32m✓[39m W1: all en keys present in ja except legit/CLDR allowlist[32m 30[2mms[22m[39m
+     [32m✓[39m W1: no REAL identical-to-en values remain[32m 8[2mms[22m[39m
+     [32m✓[39m W1: placeholder parity and no U+FFFD on wave keys[32m 6[2mms[22m[39m
+     [32m✓[39m W2: all en keys present in ja except legit/CLDR allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m W2: no REAL identical-to-en values remain[32m 2[2mms[22m[39m
+     [32m✓[39m W2: placeholder parity and no U+FFFD on wave keys[32m 7[2mms[22m[39m
+     [32m✓[39m W3: all en keys present in ja except legit/CLDR allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m W3: no REAL identical-to-en values remain[32m 4[2mms[22m[39m
+     [32m✓[39m W3: placeholder parity and no U+FFFD on wave keys[32m 9[2mms[22m[39m
+     [32m✓[39m W4: all en keys present in ja except legit/CLDR allowlist[32m 1[2mms[22m[39m
+     [32m✓[39m W4: no REAL identical-to-en values remain[32m 6[2mms[22m[39m
+     [32m✓[39m W4: placeholder parity and no U+FFFD on wave keys[32m 4[2mms[22m[39m
+     [32m✓[39m W5: all en keys present in ja except legit/CLDR allowlist[32m 2[2mms[22m[39m
+     [32m✓[39m W5: no REAL identical-to-en values remain[32m 4[2mms[22m[39m
+     [32m✓[39m W5: placeholder parity and no U+FFFD on wave keys[32m 10[2mms[22m[39m
+[31m     [31m×[31m W6: all en keys present in ja except legit/CLDR allowlist[39m[32m 24[2mms[22m[39m
+     [32m✓[39m W6: no REAL identical-to-en values remain[32m 5[2mms[22m[39m
+     [32m✓[39m W6: placeholder parity and no U+FFFD on wave keys[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/world/perf-census.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 145[2mms[22m[39m
+ [32m✓[39m src/lib/world/live-desk-wave2.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 194[2mms[22m[39m
+ [32m✓[39m src/lib/world/money-desks-2.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m src/lib/world/tail-desks.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/lib/message-drafts.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m src/lib/world/games-lobby.test.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+ [32m✓[39m src/lib/sibling-dashboards.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/lib/live-chat-client.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 168[2mms[22m[39m
+ [32m✓[39m src/components/guest-gate.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/lib/profile-website.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m src/lib/stream-controller.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/lib/world/plaza-life.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 342[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/rvm-engine.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+ [32m✓[39m src/lib/world/listening-gardens.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m src/lib/world/live-desk.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m src/lib/world/stations.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m src/lib/command-center.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/office-hours.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/king-emoji.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 185[2mms[22m[39m
+ [32m✓[39m src/lib/world/voice-toggle.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/world/character-voice.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [31m❯[39m src/lib/world/money-desks.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/hub-projects.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/lib/world/create-desks-components.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/world/creation-row.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/lib/world/listening-party.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/daily-drop-catalog.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/world/stage-grounds.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/lib/world/groups-desk.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/lib/world/sky-env.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/lib/timeline-lock.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/lib/world/hook-desk.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m src/lib/world/feel-rewalk.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/lib/honesty-copy-prices.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 174[2mms[22m[39m
+ [32m✓[39m src/lib/world/palace-calendar.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/lib/world/district-gates.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/lib/world/storyboard-planner.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [31m❯[39m src/lib/world/parity-rewalk.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/credit-costs-rail-truth.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/lib/world/audio-desk-tabs.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/lib/world/plaza-solids.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/signature-sounds.test.ts [2m([22m[2m27 tests[22m[2m)[22m[33m 2287[2mms[22m[39m
+   [32m✓[39m the manifest — the only place a sound file is named [2m(3)[22m
+     [33m[2m✓[22m[39m no other source file names a signature-sound asset (files-only swap)[33m 2241[2mms[22m[39m
+ [32m✓[39m src/lib/dm-attachments.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [31m❯[39m src/lib/world/creator-rooms.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/create-finishers.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [31m❯[39m src/lib/theme-kit.test.ts [2m([22m[2m0 test[22m[2m)[22m
+[90mstdout[2m | src/lib/i18n-plural-forms.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m src/lib/i18n-plural-forms.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1089[2mms[22m[39m
+   [32m✓[39m plural-suffixed catalog shape [2m(3)[22m
+     [33m[2m✓[22m[39m each of the 12 keys exists in all six CLDR suffixed forms, base key gone[33m 574[2mms[22m[39m
+ [31m❯[39m src/lib/motion-pro.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/a11y-sweep.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/lib/scene-look.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m src/lib/world/visibility.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/lib/scheduler-handoff.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 155[2mms[22m[39m
+ [32m✓[39m src/lib/world/station-panel.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+[90mstdout[2m | src/lib/i18n-plural-categories.test.ts
+[22m[39m🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ [32m✓[39m src/lib/i18n-plural-categories.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32m✓[39m src/components/enter-world-button.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/lib/scheduler.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/lib/world/palace-exterior.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 153[2mms[22m[39m
+ [32m✓[39m src/lib/merged-live-chat.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [31m❯[39m src/lib/world/creator-room-dressing.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/stream-kit/matte-post.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/transcript-edit.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/avatar-runtime.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/lib/world/jewelry-bench.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/lib/world/gamepad.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/lib/world/audio-ab.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/avatar-face-engine.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/lib/earnings-data.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 255[2mms[22m[39m
+ [32m✓[39m src/lib/world/monument-board.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m src/lib/world/contests.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m src/lib/photo-design-export.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [31m❯[39m src/lib/stream-kit/avatar-drive.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/editor/music/still-to-lipsync.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/lib/theme-remap-stack28.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [31m❯[39m src/lib/arrangement.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/route-integrity.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 2627[2mms[22m[39m
+   [32m✓[39m route integrity — no literal internal link points at a non-route [2m(3)[22m
+     [33m[2m✓[22m[39m every literal internal link in app source resolves to a route or a public asset[33m 2616[2mms[22m[39m
+ [32m✓[39m src/lib/lockdown-guest-honesty.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [31m❯[39m src/lib/dashboard-sections.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/short-publish.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/money-desks-2-components.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/press-kit.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/reports.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/figure-loop.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/lib/world/ugc-station.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [31m❯[39m src/lib/party-client.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/brand-kit.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m src/lib/chat-speak.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m src/lib/studio-light-honesty.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/lib/world/movement.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [31m❯[39m src/components/mobile-touch-targets.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/dmca-report.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [31m❯[39m src/lib/ugc-ads.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/world/audio-benches.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/photo-canvas.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/my-shop-management-wiring.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/lib/world/drop-spectacle.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 130[2mms[22m[39m
+ [32m✓[39m src/components/editor/editor-mode-gating.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [31m❯[39m src/lib/world/panel-payload.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/stream-kit/stage.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/portrait-card.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/seo-share-invariants.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m src/lib/royal-court.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [31m❯[39m src/lib/master-player-size.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/stream-kit/avatar-vault.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/theme-remap-golds.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/world/admin-locks.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/lib/world/daylight-motes.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 621[2mms[22m[39m
+   [32m✓[39m daylight motes — the district volumes (item 4 retry) [2m(4)[22m
+     [33m[2m✓[22m[39m district fields are deterministic, distinct per district, and never leave their air[33m 577[2mms[22m[39m
+ [31m❯[39m src/lib/promo-card-history.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/guard-fixtures.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/lib/scene-references.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/pages/fe-datapaths-pages.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/world/creator-profile-create.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/hub-song.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/frame-stall.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/tour.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [31m❯[39m src/lib/world/party-invite-doors.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/wallpapers/wallpapers-desk.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/components/editor/sections/export-doctor-honesty.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [31m❯[39m src/lib/theme-kit-sound-stamp.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/artist-profiles-media.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/pages/pitch-fix-wiring.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/lib/world/room-bar.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/components/SceneStudio/CameraMovePlanner.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [31m❯[39m src/lib/stem-fx-chain.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/theme-packs/theme-packs-desk.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/lib/editor-mobile-sheet.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/lib/splits-editor.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m src/lib/earnings-statement.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [31m❯[39m src/lib/studio-context-menu.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/__tests__/tutorial.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/components/chat-voice-wiring.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/prerender-sitemap-lockdown.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m src/lib/fcpxml-export.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [31m❯[39m src/lib/broken-doors.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/announce.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/lib/scene-timing.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/money-desks-components.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/lib/world/actions.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/lib/stream-pack.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [31m❯[39m src/lib/wallpapers.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/tutorials.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m src/lib/co-releases.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/lib/world/studio-board.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/lib/active-artist.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [31m❯[39m src/lib/stream-kit/avatar-rigs.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/commerce-pixels.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [31m❯[39m src/lib/stream-kit/scenes.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/__tests__/export-job-poll.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 149[2mms[22m[39m
+ [32m✓[39m src/lib/world/voice-ice.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [31m❯[39m src/lib/world/kingdom-party-tables.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/asset-library.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [31m❯[39m src/lib/timeline-lanes.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/presence-rewalk.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [31m❯[39m src/lib/world/creator-room-tier.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/site-mode/site-mode-gate-lockdown.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/smartlink-pixels.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/locale-source-auto.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 630[2mms[22m[39m
+ [32m✓[39m src/components/wallpapers/wallpapers-prices.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/components/trust/TrustPanels.claims.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/catalog-import-honesty.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/lib/sfx.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/resolve-video-audio-url.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [31m❯[39m src/components/guest-gate-alias-behavior.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/onboarding.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/lib/go-live/studio-bridge.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/world/hall-looks.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/world/groups-desk-components.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/components/chat-speak-wiring.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/world/lips.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/stream-recorder.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/king-moment.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [31m❯[39m src/lib/world/party-table-home.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/identity-set-wiring.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/website-builder-gallery.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/go-live/guest-mesh.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [31m❯[39m src/lib/handoff-sweep.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/publishing-splits.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/pages/group-detail-forum.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/lib/scene-chaining.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/world/bindings.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [31m❯[39m src/lib/earned-rank.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/song-library.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+ [32m✓[39m src/lib/carousel-disclosure.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/lib/co-posts.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m src/lib/scheduler-calendar-depth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [31m❯[39m src/lib/profile-memberships-guest.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/stream-kit/avatar-stage.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/subject-reframe.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/components/chat-doors-wiring.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/setlist.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 263[2mms[22m[39m
+ [32m✓[39m src/lib/world/website-switch.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/world/water-levels.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/audio-mixer.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [31m❯[39m src/lib/profile-website-guards.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/subject-reframe-wiring.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/project-handoff.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/data/video-template-gallery-price.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 364[2mms[22m[39m
+   [32m✓[39m video template gallery price == rail charge [2m(4)[22m
+     [33m[2m✓[22m[39m applyPrice exists in all 10 catalogs with the count + brand intact[33m 338[2mms[22m[39m
+ [32m✓[39m src/lib/royalties-load.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/lib/chat-doors.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/comment-replies.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/lib/smartlink-routing.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/components/editor/editor-honesty.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [31m❯[39m src/components/site-mode/site-mode-theme.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/court-season.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+ [32m✓[39m src/components/settings-cards-not-ready.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 516[2mms[22m[39m
+   [32m✓[39m SocialProofSettings — 503 renders the localized notReady line [2m(3)[22m
+     [33m[2m✓[22m[39m the notReady key exists in every locale[33m 482[2mms[22m[39m
+ [31m❯[39m src/lib/artist-profiles-song-pin.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/media-serving.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/feedback-prompt.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/world/figure.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/lib/midi-roll.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 114[2mms[22m[39m
+ [31m❯[39m src/lib/scheduler-handoff-wiring.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/arcade-games.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/explore-data.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/kings-set.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/lib/world/night-life.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m src/lib/world/boot-lifecycle.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/components/publish/publish-protocol.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/shorts-data.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/pages/songs/dj-set-prep.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/lib/asset-handoff.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/courses.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/components/GenerateArtistImageModal.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/post-assist.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m src/lib/charts-brands.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/world/figure-mouth-decouple.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/lib/reach-watch.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [31m❯[39m src/lib/prompt-improve.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/alt-text-attachments.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/pages/group-detail-tier-gate.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/photo-matting.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/title-studio.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/lib/shops.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 262[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/compare-slider.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [31m❯[39m src/lib/world/notifications.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/__tests__/lrc.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/pages/memberships-pause.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/lyric-video.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/components/editor/music/lipsync-coming-soon.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 120[2mms[22m[39m
+ [32m✓[39m src/lib/link-in-bio-builder.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/components/final-video-export-pro-finish.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/pricing-reconcile.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 292[2mms[22m[39m
+ [32m✓[39m src/components/scene-costars-wiring.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/components/reach/IngestKeyPanel.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [31m❯[39m src/lib/editor-library.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/step-dust.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/components/trust/legacy-contact.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/world/capsule-color.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/lib/track-context-menu.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/lib/platform-fee-truth.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [31m❯[39m src/lib/asset-context-menu.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/components/layout/floating-admin-panel.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/components/artist/social-proof-strip.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/components/scene-look-rails-wiring.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [31m❯[39m src/data/video-templates.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/level-watch.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/lib/color-pro.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/world/stage-tip.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/components/trust/catalog-export-builder.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/beat-license-terms.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/pages/community-grants-wiring.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/contexts/referral-attribution.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/components/scene-effects-wiring.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/locale-email-opens.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 312[2mms[22m[39m
+ [32m✓[39m src/lib/scheduler-release-chip.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/world/jukebox-sync.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/editor-priority-s200.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/data/llc-state-fees.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/components/fan-graph-visibility.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/perf-ladder.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/locale-subject-reframe.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/hooks/use-sidebar-collapsed.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [31m❯[39m src/lib/photo-context-menu.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/locale-email-explainer.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 243[2mms[22m[39m
+ [32m✓[39m src/lib/text-edit.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [31m❯[39m src/lib/go-live/guest-feeds.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/panel-open-visibility.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/lib/spotlight.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/collabs.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/live-alerts-client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/scene-effects.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [31m❯[39m src/lib/desks.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31m❯[39m src/lib/__tests__/editor-opening-hook.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/data/features.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m src/world-3d-proof/showdown-slots.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/lip-sync-result-meta.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/components/discovery/notifications-read-state.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/app-downloads.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/scheduler-provenance.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/branding-shop.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/world/prop-variation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m src/pages/library-tab-param.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/presave-tracklist.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/lib/world/courtesies.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/pages/group-detail-datapaths.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/components/scene-end-frame-wiring.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/lib/product-reviews.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/pages/video-studio.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [31m❯[39m src/lib/editor-settings-speed-curve.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/world/nameplate.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/product-drop.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/components/discovery/cards.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/content-calendar.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m src/lib/sound-fit.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/stream-kit/widget-data.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [32m✓[39m src/lib/academy-courses.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/lib/content-removal.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/components/discovery/notifications-bell.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/lib/my-projects-tabs.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/world/fullscreen.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [31m❯[39m src/lib/voiceover.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/coach-next-action.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/lib/video-translator.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/world/boot-screen-gate.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m src/lib/world/perf-instancing.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [31m❯[39m src/lib/__tests__/poll-tolerance.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/feed-formats.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/world/view-mode.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/distribution.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/pages/live-shopping-datapaths.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/components/wallpapers/wallpapers-logo.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/server-strings-locale.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/pages/credit-history-datapaths.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/content-warnings.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/clip-context-menu-tone.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/email-list-honesty.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/repurpose.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/contests.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/components/active-overlay-face-protect.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/scene-end-frame.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m src/lib/world/room-trim.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/destination-keys.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/podcast.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/components/presave-tracklist-wiring.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/cheat-code-jackpot.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/lib/cover-art.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/live-shopping.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/load-fonts.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/lib/cooldown.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/make-song-price-display.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 490[2mms[22m[39m
+   [32m✓[39m make-song price: footnote == button == rail (400 VB) [2m(3)[22m
+     [33m[2m✓[22m[39m every catalog's footnote states 400, never 100[33m 456[2mms[22m[39m
+ [32m✓[39m src/lib/tap-targets.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/lib/corner-budget.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/randomizer-price-copy.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+ [32m✓[39m src/lib/pitch-fix.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/lib/world/indoor-dressing.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/sponsors.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/lib/push-client.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/comment-controls.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/lib/world/world-typing-guard.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/templates-guest-copy.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/thumbnail-test.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/lib/lazy-marketing-routes.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 246[2mms[22m[39m
+ [32m✓[39m src/lib/hero-defer.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/lib/email-list-edit-details.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 56[2mms[22m[39m
+ [32m✓[39m src/lib/coach-tracker.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/sample-pack.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/lib/storefront-product.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/lib/shorts-navigation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/clip-maker.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/profile-shop-link.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/components/editor/music/stem-waveform.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [31m❯[39m src/lib/ducking.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/chunk-split.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/locale-split.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/lib/table-scroll-wrappers.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [31m❯[39m src/lib/stream-kit/guest-source.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [32m✓[39m src/lib/quests-anchor.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/witty-loader-poster.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/viewport-zoom.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/editor-text-size.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/components/ui/button.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/community-grants.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/lib/wanted-meter-aria.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 58 [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/data/video-templates.test.ts[2m [ src/data/video-templates.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/7a31fe0c9d3c5fa755ff2f2ea6095c75d2370e81'[39m
+[36m [2m❯[22m src/data/video-templates.test.ts:[2m11:1[22m[39m
+    [90m  9|[39m  */
+    [90m 10|[39m import { describe, it, expect } from "vitest";
+    [90m 11|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 12|[39m   VIDEO_TEMPLATE_METAS,
+    [90m 13|[39m   VIDEO_TEMPLATE_CATEGORIES,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/guest-gate-alias-behavior.test.ts[2m [ src/components/guest-gate-alias-behavior.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/66e0e2449af6fa8ed34d9de63492db143770ae65'[39m
+[36m [2m❯[22m src/lib/guest-gate-verdict.ts:[2m23:1[22m[39m
+    [90m 21|[39m  */
+    [90m 22|[39m import { isPublicPath, resolveRouteRedirect } from "./public-routes";
+    [90m 23|[39m import { loginPathWithNext } from "./auth-next";
+    [90m   |[39m [31m^[39m
+    [90m 24|[39m
+    [90m 25|[39m export type GateVerdict =
+[90m [2m❯[22m src/components/guest-gate-alias-behavior.test.ts:[2m26:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/mobile-touch-targets.test.ts[2m [ src/components/mobile-touch-targets.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/4896390e2be1951460224cde722ccb585d57ceab'[39m
+[36m [2m❯[22m src/components/mobile-touch-targets.test.ts:[2m17:1[22m[39m
+    [90m 15|[39m import { readFileSync } from "node:fs";
+    [90m 16|[39m import { describe, expect, it } from "vitest";
+    [90m 17|[39m import { ENTER_WORLD_CLASSNAME } from "@/lib/world-entry";
+    [90m   |[39m [31m^[39m
+    [90m 18|[39m
+    [90m 19|[39m const read = (rel: string) => readFileSync(new URL(rel, import.meta.ur…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/alt-text-attachments.test.ts[2m [ src/lib/alt-text-attachments.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/6a286f7543f94323184263aea2dba88cf2e78c53'[39m
+[36m [2m❯[22m src/lib/alt-text-attachments.test.ts:[2m12:1[22m[39m
+    [90m 10|[39m import { describe, expect, it } from "vitest";
+    [90m 11|[39m import { asAttachment, type LooseAttachment } from "./social-api";
+    [90m 12|[39m import { buildShortPostBody } from "./short-publish";
+    [90m   |[39m [31m^[39m
+    [90m 13|[39m
+    [90m 14|[39m describe("asAttachment — alt preservation (#29)", () => {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/arcade-games.test.ts[2m [ src/lib/arcade-games.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/032acbb89ff30e3519ef4f59aed493ca908da9d1'[39m
+[36m [2m❯[22m src/lib/arcade-games.test.ts:[2m11:1[22m[39m
+    [90m  9|[39m  */
+    [90m 10|[39m import { describe, it, expect } from "vitest";
+    [90m 11|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 12|[39m   RUNNER,
+    [90m 13|[39m   SKEET,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/arrangement.test.ts[2m [ src/lib/arrangement.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/ab3baa1bc64bb3881f2d0f854c8639b68a5bd0d2'[39m
+[36m [2m❯[22m src/lib/arrangement.test.ts:[2m4:1[22m[39m
+    [90m  2|[39m  * comp resolution, export expansion, MIDI note ops, persistence shape…
+    [90m  3|[39m import { describe, it, expect } from "vitest";
+    [90m  4|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  5|[39m   automationValueAt,
+    [90m  6|[39m   upsertPoint,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/artist-profiles-media.test.ts[2m [ src/lib/artist-profiles-media.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/2dc46fa5c3740044b16bbb61d7c6cfc0939ad574'[39m
+[36m [2m❯[22m src/lib/artist-profiles-media.test.ts:[2m19:1[22m[39m
+    [90m 17|[39m  */
+    [90m 18|[39m import { describe, it, expect, vi, afterEach } from "vitest";
+    [90m 19|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 20|[39m   fetchPublicProfile,
+    [90m 21|[39m   normalizePublicProfile,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/artist-profiles-song-pin.test.ts[2m [ src/lib/artist-profiles-song-pin.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/2dc46fa5c3740044b16bbb61d7c6cfc0939ad574'[39m
+[36m [2m❯[22m src/lib/artist-profiles-song-pin.test.ts:[2m14:1[22m[39m
+    [90m 12|[39m  */
+    [90m 13|[39m import { describe, it, expect } from "vitest";
+    [90m 14|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 15|[39m   normalizePublicProfile,
+    [90m 16|[39m   type CreatorProfile,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/asset-context-menu.test.ts[2m [ src/lib/asset-context-menu.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/acbb850d928f06a36b5c34987305d57593223808'[39m
+[36m [2m❯[22m src/lib/asset-context-menu.ts:[2m12:1[22m[39m
+    [90m 10|[39m import type { ContextMenuItem } from "../components/editor/ClipContext…
+    [90m 11|[39m import type { HubAsset } from "./hub-project";
+    [90m 12|[39m import { nextStepsFor } from "./hub-workflows";
+    [90m   |[39m [31m^[39m
+    [90m 13|[39m import { intentsForKind } from "./asset-handoff";
+    [90m 14|[39m
+[90m [2m❯[22m src/lib/asset-context-menu.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/broken-doors.test.ts[2m [ src/lib/broken-doors.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/66e0e2449af6fa8ed34d9de63492db143770ae65'[39m
+[36m [2m❯[22m src/lib/broken-doors.test.ts:[2m17:1[22m[39m
+    [90m 15|[39m
+    [90m 16|[39m import { initialBeatMakerTab } from "./beat-maker-tab";
+    [90m 17|[39m import { loginPathWithNext, postLoginPath } from "./auth-next";
+    [90m   |[39m [31m^[39m
+    [90m 18|[39m
+    [90m 19|[39m const read = (rel: string) => readFileSync(new URL(rel, import.meta.ur…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/dashboard-sections.test.ts[2m [ src/lib/dashboard-sections.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/492f9a164bbb7f8fc3d156e44f6a96bd73cd4698'[39m
+[36m [2m❯[22m src/lib/dashboard-sections.test.ts:[2m3:1[22m[39m
+    [90m  1|[39m import { readFileSync } from "node:fs";
+    [90m  2|[39m import { describe, expect, it } from "vitest";
+    [90m  3|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  4|[39m   DASHBOARD_SECTION_KEYS,
+    [90m  5|[39m   allDashboardSectionsFailed,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/desks.test.ts[2m [ src/lib/desks.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/7821687cbe27b84fb5578c1a559e9299ffbb84cf'[39m
+[36m [2m❯[22m src/lib/desks.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, expect, it } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   DESKS, DESK_KEYS, SUITE_NAME, allModules, deskByKey, deskByRoute, mo…
+    [90m  4|[39m } from "./desks";
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/ducking.test.ts[2m [ src/lib/ducking.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/0041012981d10c74743a92679d2b58b7f5daef6d'[39m
+[36m [2m❯[22m src/lib/ducking.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import { duckingParamsFromSimple, buildDuckAudioPayload, buildExportDu…
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m
+    [90m  4|[39m describe("ducking simple-terms mapping (mirrors server ducking-filter.…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/earned-rank.test.ts[2m [ src/lib/earned-rank.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/a76bc1691e1ea7f2cfbf1d6b4cf47ba51dc9a9cc'[39m
+[36m [2m❯[22m src/lib/earned-rank.test.ts:[2m19:1[22m[39m
+    [90m 17|[39m import { readFileSync } from "node:fs";
+    [90m 18|[39m import { describe, expect, it } from "vitest";
+    [90m 19|[39m import { gateStarsFor } from "@/lib/creator-rank";
+    [90m   |[39m [31m^[39m
+    [90m 20|[39m
+    [90m 21|[39m const read = (rel: string) =>
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/editor-library.test.ts[2m [ src/lib/editor-library.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/5d124714cdc1b73e80d81b782290e33adbf88ad9'[39m
+[36m [2m❯[22m src/lib/editor-library.ts:[2m12:1[22m[39m
+    [90m 10|[39m
+    [90m 11|[39m import type { LibraryAsset } from "./asset-library";
+    [90m 12|[39m import { defaultStemEffects, type AudioStem } from "./editor-settings";
+    [90m   |[39m [31m^[39m
+    [90m 13|[39m import type { SceneData } from "./scene-parser";
+    [90m 14|[39m
+[90m [2m❯[22m src/lib/editor-library.test.ts:[2m3:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/editor-settings-speed-curve.test.ts[2m [ src/lib/editor-settings-speed-curve.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/5d124714cdc1b73e80d81b782290e33adbf88ad9'[39m
+[36m [2m❯[22m src/lib/editor-settings-speed-curve.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   defaultEditorSettings, defaultClipEdit, defaultProTools,
+    [90m  4|[39m   getClipEdit, normalizeEditorSettings, proToolsActive,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/handoff-sweep.test.ts[2m [ src/lib/handoff-sweep.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/66e0e2449af6fa8ed34d9de63492db143770ae65'[39m
+[36m [2m❯[22m src/lib/handoff-sweep.test.ts:[2m27:1[22m[39m
+    [90m 25|[39m import { readFileSync } from "node:fs";
+    [90m 26|[39m import { describe, expect, it } from "vitest";
+    [90m 27|[39m import { DEFAULT_POST_LOGIN_PATH, postLoginPath, safeNextPath } from "…
+    [90m   |[39m [31m^[39m
+    [90m 28|[39m
+    [90m 29|[39m const read = (rel: string) => readFileSync(new URL(rel, import.meta.ur…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/master-player-size.test.ts[2m [ src/lib/master-player-size.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/5d124714cdc1b73e80d81b782290e33adbf88ad9'[39m
+[36m [2m❯[22m src/lib/master-player-size.ts:[2m19:1[22m[39m
+    [90m 17|[39m  * itself: fit always wins over the minimum size.
+    [90m 18|[39m  */
+    [90m 19|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 20|[39m   MASTER_PLAYER_MAX_WIDTH,
+    [90m 21|[39m   MASTER_PLAYER_MIN_WIDTH,
+[90m [2m❯[22m src/lib/master-player-size.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/motion-pro.test.ts[2m [ src/lib/motion-pro.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/5d124714cdc1b73e80d81b782290e33adbf88ad9'[39m
+[36m [2m❯[22m src/lib/motion-pro.ts:[2m22:1[22m[39m
+    [90m 20|[39m
+    [90m 21|[39m import type { Keyframe, SpeedCurvePoint, SpeedSegment } from "@/lib/ed…
+    [90m 22|[39m import { keyframeAt, type KeyframeTransform } from "@/lib/editor-setti…
+    [90m   |[39m [31m^[39m
+    [90m 23|[39m
+    [90m 24|[39m const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math…
+[90m [2m❯[22m src/lib/motion-pro.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/party-client.test.ts[2m [ src/lib/party-client.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/ff92e5db80ba7bd9da4bbfd0d6e4d9e844116c8f'[39m
+[36m [2m❯[22m src/lib/party-client.test.ts:[2m18:1[22m[39m
+    [90m 16|[39m  */
+    [90m 17|[39m import { describe, it, expect } from "vitest";
+    [90m 18|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 19|[39m   PartyClient,
+    [90m 20|[39m   partyOverlay,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/photo-canvas.test.ts[2m [ src/lib/photo-canvas.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/6cd6a77d51bca25808c7133048f904773aab1dbe'[39m
+[36m [2m❯[22m src/lib/photo-canvas.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   createPhotoCanvasDoc, makeImageLayer, makeTextLayer, makeShapeLayer,
+    [90m  4|[39m   addLayer, removeLayer, duplicateLayer, reorderLayer, updateLayer, la…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/photo-context-menu.test.ts[2m [ src/lib/photo-context-menu.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/6cd6a77d51bca25808c7133048f904773aab1dbe'[39m
+[36m [2m❯[22m src/lib/photo-context-menu.ts:[2m11:1[22m[39m
+    [90m  9|[39m  */
+    [90m 10|[39m import type { ContextMenuItem } from "../components/editor/ClipContext…
+    [90m 11|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 12|[39m   duplicateLayer,
+    [90m 13|[39m   removeLayer,
+[90m [2m❯[22m src/lib/photo-context-menu.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/profile-memberships-guest.test.ts[2m [ src/lib/profile-memberships-guest.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/2dc46fa5c3740044b16bbb61d7c6cfc0939ad574'[39m
+[36m [2m❯[22m src/lib/profile-memberships-guest.test.ts:[2m36:1[22m[39m
+    [90m 34|[39m import { readFileSync } from "node:fs";
+    [90m 35|[39m import { describe, it, expect } from "vitest";
+    [90m 36|[39m import { emptyProfile, normalizePublicProfile } from "./artist-profile…
+    [90m   |[39m [31m^[39m
+    [90m 37|[39m
+    [90m 38|[39m const page = readFileSync(new URL("../pages/artist-public.tsx", import…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/profile-website-guards.test.ts[2m [ src/lib/profile-website-guards.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/b49641b02154cff57b56d057c9bda1c655b34d49'[39m
+[36m [2m❯[22m src/lib/profile-website-guards.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import { normalizeFanCollection, normalizeStoreCatalog } from "./profi…
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m
+    [90m  4|[39m /* DTO guard batch #2 — partial collection/catalog payloads must land
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/promo-card-history.test.ts[2m [ src/lib/promo-card-history.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/7e949a38952d713a1771d3b2dea5b5c1539041ea'[39m
+[36m [2m❯[22m src/lib/promo-card-history.ts:[2m1:1[22m[39m
+    [90m  1|[39m import { buildSchedulerHref } from "./scheduler-handoff";
+    [90m   |[39m [31m^[39m
+    [90m  2|[39m
+    [90m  3|[39m /* ─── Promo-card history seam (STACK-20 R2 #17) ─────────────────────…
+[90m [2m❯[22m src/lib/promo-card-history.test.ts:[2m3:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/prompt-improve.test.ts[2m [ src/lib/prompt-improve.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/62c295594bd20ab6e0145d85c2f7e35ca4a59407'[39m
+[36m [2m❯[22m src/lib/prompt-improve.ts:[2m4:1[22m[39m
+    [90m  2|[39m import type { ArtistVault } from "@/components/ArtistVaultSelector";
+    [90m  3|[39m import type { FetchImpl } from "@/hooks/use-confirmed-api";
+    [90m  4|[39m import { composeSceneSeedPrompt } from "@/lib/scene-look";
+    [90m   |[39m [31m^[39m
+    [90m  5|[39m
+    [90m  6|[39m /** Payload shape the `/api/improve-prompt` endpoint expects for Creat…
+[90m [2m❯[22m src/lib/prompt-improve.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/scheduler-handoff-wiring.test.ts[2m [ src/lib/scheduler-handoff-wiring.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/7e949a38952d713a1771d3b2dea5b5c1539041ea'[39m
+[36m [2m❯[22m src/lib/scheduler-handoff-wiring.test.ts:[2m21:1[22m[39m
+    [90m 19|[39m import { readFileSync } from "node:fs";
+    [90m 20|[39m import { describe, expect, it } from "vitest";
+    [90m 21|[39m import { buildSchedulerHref } from "./scheduler-handoff";
+    [90m   |[39m [31m^[39m
+    [90m 22|[39m
+    [90m 23|[39m const read = (rel: string) => readFileSync(new URL(rel, import.meta.ur…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stem-fx-chain.test.ts[2m [ src/lib/stem-fx-chain.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/158f6ccb13321a72022d34fd58f3a44000dd46df'[39m
+[36m [2m❯[22m src/lib/stem-fx-chain.test.ts:[2m6:1[22m[39m
+    [90m  4|[39m  * built from. Chain order in these arrays IS render order. */
+    [90m  5|[39m import { describe, it, expect } from "vitest";
+    [90m  6|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  7|[39m   addEqBand,
+    [90m  8|[39m   addFxStep,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/studio-context-menu.test.ts[2m [ src/lib/studio-context-menu.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/c73baa97594a022ce2d9cf081528105b19b47cc0'[39m
+[36m [2m❯[22m src/lib/studio-context-menu.test.ts:[2m3:1[22m[39m
+    [90m  1|[39m import { describe, it, expect, vi, beforeAll } from "vitest";
+    [90m  2|[39m import { buildSceneContextItems, buildSourceContextItems } from "./stu…
+    [90m  3|[39m import { Stage } from "./stream-kit/stage";
+    [90m   |[39m [31m^[39m
+    [90m  4|[39m import type { ContextMenuItem } from "../components/editor/ClipContext…
+    [90m  5|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/theme-kit-sound-stamp.test.ts[2m [ src/lib/theme-kit-sound-stamp.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/08573523b69de81a56d8f0820c7344919e242797'[39m
+[36m [2m❯[22m src/lib/theme-kit-sound-stamp.test.ts:[2m14:1[22m[39m
+    [90m 12|[39m  */
+    [90m 13|[39m import { afterEach, describe, expect, it, vi } from "vitest";
+    [90m 14|[39m import { SIGNATURE_SOUND_ASSETS } from "@/lib/signature-sound-manifest…
+    [90m   |[39m [31m^[39m
+    [90m 15|[39m import {
+    [90m 16|[39m   DEFAULT_SOUND_PREFS,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/theme-kit.test.ts[2m [ src/lib/theme-kit.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/08573523b69de81a56d8f0820c7344919e242797'[39m
+[36m [2m❯[22m src/lib/theme-kit.ts:[2m33:1[22m[39m
+    [90m 31|[39m   type ThemePackMode,
+    [90m 32|[39m } from "@/lib/theme-packs";
+    [90m 33|[39m import { SIGNATURE_SOUND_ASSETS } from "./signature-sound-manifest";
+    [90m   |[39m [31m^[39m
+    [90m 34|[39m import {
+    [90m 35|[39m   signatureSounds,
+[90m [2m❯[22m src/lib/theme-kit.test.ts:[2m27:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/timeline-lanes.test.ts[2m [ src/lib/timeline-lanes.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/ca47618817aa2d4f51f0265607865db806f1cce6'[39m
+[36m [2m❯[22m src/lib/timeline-lanes.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   migrateLegacyToLanes, sanitizeLanes, lanesToOverlayItems, lanesToCap…
+    [90m  4|[39m   moveLaneItem, trimLaneItem, splitLaneItem, deleteLaneItem, laneHasOv…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/ugc-ads.test.ts[2m [ src/lib/ugc-ads.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/91c625aad591c49822a50f90bb2ded182449bc9a'[39m
+[36m [2m❯[22m src/lib/ugc-ads.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   normalizeUgcAd,
+    [90m  4|[39m   normalizeUgcAds,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/voiceover.test.ts[2m [ src/lib/voiceover.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/c8a141086c49be56c951a2d20c3a14cb4909e13a'[39m
+[36m [2m❯[22m src/lib/voiceover.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, expect, it } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   estimateVoiceoverCost,
+    [90m  4|[39m   formatDuration,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/wallpapers.test.ts[2m [ src/lib/wallpapers.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/2dc46fa5c3740044b16bbb61d7c6cfc0939ad574'[39m
+[36m [2m❯[22m src/lib/wallpapers.ts:[2m9:1[22m[39m
+    [90m  7|[39m    these pixels, and both suites pin the literals. Copy with care. */
+    [90m  8|[39m
+    [90m  9|[39m import { presetById, type ThemeConfig, type ThemePreset } from "@/lib/…
+    [90m   |[39m [31m^[39m
+    [90m 10|[39m
+    [90m 11|[39m export type WallpaperKind = "phone" | "tablet" | "desktop";
+[90m [2m❯[22m src/lib/wallpapers.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/site-mode/site-mode-theme.test.ts[2m [ src/components/site-mode/site-mode-theme.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/2dc46fa5c3740044b16bbb61d7c6cfc0939ad574'[39m
+[36m [2m❯[22m src/components/site-mode/site-mode-theme.test.ts:[2m21:1[22m[39m
+    [90m 19|[39m import { readFileSync } from "node:fs";
+    [90m 20|[39m import { describe, expect, it } from "vitest";
+    [90m 21|[39m import { PROFILE_LIGHT_PANEL, themeVars, type ThemeConfig } from "@/li…
+    [90m   |[39m [31m^[39m
+    [90m 22|[39m
+    [90m 23|[39m const read = (rel: string) => readFileSync(new URL(rel, import.meta.ur…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/go-live/guest-feeds.test.ts[2m [ src/lib/go-live/guest-feeds.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/0c2bfb564ddb47e917d32c8358c9cf8f38ee7af1'[39m
+[36m [2m❯[22m src/lib/go-live/guest-feeds.test.ts:[2m6:1[22m[39m
+    [90m  4|[39m  */
+    [90m  5|[39m import { describe, it, expect } from "vitest";
+    [90m  6|[39m import { GuestFeeds } from "./guest-feeds";
+    [90m   |[39m [31m^[39m
+    [90m  7|[39m
+    [90m  8|[39m function makeFeeds() {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/avatar-drive.test.ts[2m [ src/lib/stream-kit/avatar-drive.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/bdba60d23ac8e0bfde50799f63017dba423a2c33'[39m
+[36m [2m❯[22m src/lib/stream-kit/avatar-drive.test.ts:[2m8:1[22m[39m
+    [90m  6|[39m  */
+    [90m  7|[39m import { describe, it, expect } from "vitest";
+    [90m  8|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  9|[39m   NEUTRAL_DRIVE,
+    [90m 10|[39m   BlinkScheduler,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/avatar-rigs.test.ts[2m [ src/lib/stream-kit/avatar-rigs.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/6614c503db45c0dee7f2b1e63eee1923d32ffc9d'[39m
+[36m [2m❯[22m src/lib/stream-kit/avatar-rigs.test.ts:[2m9:1[22m[39m
+    [90m  7|[39m  */
+    [90m  8|[39m import { describe, it, expect } from "vitest";
+    [90m  9|[39m import { AVATAR_CHARACTERS, drawAvatar, drawUploadedAvatar, isAvatarCh…
+    [90m   |[39m [31m^[39m
+    [90m 10|[39m import { NEUTRAL_DRIVE, type DriveValues } from "./avatar-drive";
+    [90m 11|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/avatar-stage.test.ts[2m [ src/lib/stream-kit/avatar-stage.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/c73baa97594a022ce2d9cf081528105b19b47cc0'[39m
+[36m [2m❯[22m src/lib/stream-kit/avatar-stage.test.ts:[2m11:1[22m[39m
+    [90m  9|[39m  */
+    [90m 10|[39m import { describe, it, expect } from "vitest";
+    [90m 11|[39m import { SourcePool, drawScene } from "./stage";
+    [90m   |[39m [31m^[39m
+    [90m 12|[39m import { createScene, createSource, duplicateScene } from "./scenes";
+    [90m 13|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/avatar-vault.test.ts[2m [ src/lib/stream-kit/avatar-vault.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/b260e42a84e642425fc5b96474c7c6fd7293cd93'[39m
+[36m [2m❯[22m src/lib/stream-kit/avatar-vault.test.ts:[2m10:1[22m[39m
+    [90m  8|[39m } from "./avatar-vault";
+    [90m  9|[39m import { fetchVaultCharacters } from "../world/characters";
+    [90m 10|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 11|[39m   createScene,
+    [90m 12|[39m   createSource,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/guest-source.test.ts[2m [ src/lib/stream-kit/guest-source.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/b260e42a84e642425fc5b96474c7c6fd7293cd93'[39m
+[36m [2m❯[22m src/lib/stream-kit/guest-source.test.ts:[2m6:1[22m[39m
+    [90m  4|[39m  */
+    [90m  5|[39m import { describe, it, expect } from "vitest";
+    [90m  6|[39m import { createSource, duplicateSource, SOURCE_TYPE_LABELS } from "./s…
+    [90m   |[39m [31m^[39m
+    [90m  7|[39m
+    [90m  8|[39m describe("guest scene source", () => {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/scenes.test.ts[2m [ src/lib/stream-kit/scenes.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/b260e42a84e642425fc5b96474c7c6fd7293cd93'[39m
+[36m [2m❯[22m src/lib/stream-kit/scenes.test.ts:[2m7:1[22m[39m
+    [90m  5|[39m  */
+    [90m  6|[39m import { describe, it, expect } from "vitest";
+    [90m  7|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  8|[39m   createSource,
+    [90m  9|[39m   createScene,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/stream-kit/stage.test.ts[2m [ src/lib/stream-kit/stage.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/b260e42a84e642425fc5b96474c7c6fd7293cd93'[39m
+[36m [2m❯[22m src/lib/stream-kit/stage.ts:[2m12:1[22m[39m
+    [90m 10|[39m  */
+    [90m 11|[39m
+    [90m 12|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 13|[39m   type Scene,
+    [90m 14|[39m   type SceneSource,
+[90m [2m❯[22m src/lib/stream-kit/stage.test.ts:[2m9:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/audio-benches.test.ts[2m [ src/lib/world/audio-benches.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/209bb2e56c8f3cb8561b42f0609dea4abcd1e019'[39m
+[36m [2m❯[22m src/lib/world/audio-benches.test.ts:[2m12:1[22m[39m
+    [90m 10|[39m  */
+    [90m 11|[39m import { describe, it, expect } from "vitest";
+    [90m 12|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 13|[39m   AUDIO_BENCHES,
+    [90m 14|[39m   audioBenchOf,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/creator-room-dressing.test.ts[2m [ src/lib/world/creator-room-dressing.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/a93c968ad09ed64d00f76ba348aa72c3ca8ba9a7'[39m
+[36m [2m❯[22m src/lib/world/creator-room-dressing.test.ts:[2m36:1[22m[39m
+    [90m 34|[39m   roomDressingStyleWords,
+    [90m 35|[39m } from "./creator-room-dressing";
+    [90m 36|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 37|[39m   parseCreatorRoomDetail,
+    [90m 38|[39m   parseCreatorRoomDressing,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/creator-room-tier.test.ts[2m [ src/lib/world/creator-room-tier.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/a93c968ad09ed64d00f76ba348aa72c3ca8ba9a7'[39m
+[36m [2m❯[22m src/lib/world/creator-room-tier.test.ts:[2m23:1[22m[39m
+    [90m 21|[39m   creatorRoomEvolutionLine,
+    [90m 22|[39m } from "./creator-room-tier";
+    [90m 23|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 24|[39m   parseCreatorRoomEvolution,
+    [90m 25|[39m   parseCreatorRoomDetail,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/creator-rooms.test.ts[2m [ src/lib/world/creator-rooms.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/a93c968ad09ed64d00f76ba348aa72c3ca8ba9a7'[39m
+[36m [2m❯[22m src/lib/world/creator-rooms.test.ts:[2m39:1[22m[39m
+    [90m 37|[39m   STATION_BY_ID,
+    [90m 38|[39m } from "./stations";
+    [90m 39|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 40|[39m   creatorTrackPlayInput,
+    [90m 41|[39m   creatorVideoPlayInput,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/kingdom-party-tables.test.ts[2m [ src/lib/world/kingdom-party-tables.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/792d00f9006bee658a08873fbc49f903d6cfd054'[39m
+[36m [2m❯[22m src/lib/world/kingdom-party-tables.test.ts:[2m30:1[22m[39m
+    [90m 28|[39m import { readFileSync } from "node:fs";
+    [90m 29|[39m import { describe, it, expect } from "vitest";
+    [90m 30|[39m import { partyInvitePath, parsePartyInvite } from "./games-lobby";
+    [90m   |[39m [31m^[39m
+    [90m 31|[39m
+    [90m 32|[39m const blocks = readFileSync(
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/money-desks.test.ts[2m [ src/lib/world/money-desks.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/fb32ca3678b074fb3a95203a9d931832c47b0348'[39m
+[36m [2m❯[22m src/lib/world/money-desks.test.ts:[2m22:1[22m[39m
+    [90m 20|[39m import { describe, it, expect } from "vitest";
+    [90m 21|[39m import { readFileSync } from "node:fs";
+    [90m 22|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 23|[39m   CREDIT_PACKS,
+    [90m 24|[39m   PACKS_TEST_MODE_NOTE,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/notifications.test.ts[2m [ src/lib/world/notifications.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/a18b617d02b2314f6562b2623b597a67a3a1509e'[39m
+[36m [2m❯[22m src/lib/world/notifications.ts:[2m16:1[22m[39m
+    [90m 14|[39m    bell never pretends a page lives in the palace when it doesn't. */
+    [90m 15|[39m
+    [90m 16|[39m import { stashPendingGroupSlug } from "./groups-desk";
+    [90m   |[39m [31m^[39m
+    [90m 17|[39m
+    [90m 18|[39m export const NOTIFICATIONS_PATH = "/api/discovery/notifications?limit=…
+[90m [2m❯[22m src/lib/world/notifications.test.ts:[2m2:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/panel-payload.test.ts[2m [ src/lib/world/panel-payload.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/33b6846fc579503afd68e698e94a43f2d957637e'[39m
+[36m [2m❯[22m src/lib/world/panel-payload.test.ts:[2m17:1[22m[39m
+    [90m 15|[39m import { describe, it, expect } from "vitest";
+    [90m 16|[39m import { readFileSync } from "node:fs";
+    [90m 17|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 18|[39m   captionPackPayload,
+    [90m 19|[39m   hookTemplatePayload,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/parity-rewalk.test.ts[2m [ src/lib/world/parity-rewalk.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/0bcda061c8e45bcabdfba2e3f9be2cf83c543b89'[39m
+[36m [2m❯[22m src/lib/world/parity-rewalk.test.ts:[2m17:1[22m[39m
+    [90m 15|[39m import { describe, it, expect } from "vitest";
+    [90m 16|[39m import { readFileSync, readdirSync } from "node:fs";
+    [90m 17|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 18|[39m   dailyDropStationForKind,
+    [90m 19|[39m   normalizeDailyDropCatalog,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/party-invite-doors.test.ts[2m [ src/lib/world/party-invite-doors.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/792d00f9006bee658a08873fbc49f903d6cfd054'[39m
+[36m [2m❯[22m src/lib/world/party-invite-doors.test.ts:[2m33:1[22m[39m
+    [90m 31|[39m import { readFileSync } from "node:fs";
+    [90m 32|[39m import { describe, it, expect } from "vitest";
+    [90m 33|[39m import { parsePartyInvite, partyInviteUrl } from "./games-lobby";
+    [90m   |[39m [31m^[39m
+    [90m 34|[39m
+    [90m 35|[39m const blocks = readFileSync(
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/world/party-table-home.test.ts[2m [ src/lib/world/party-table-home.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/792d00f9006bee658a08873fbc49f903d6cfd054'[39m
+[36m [2m❯[22m src/lib/world/party-table-home.test.ts:[2m30:1[22m[39m
+    [90m 28|[39m import { readFileSync } from "node:fs";
+    [90m 29|[39m import { describe, it, expect } from "vitest";
+    [90m 30|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m 31|[39m   partyRoomsForStream,
+    [90m 32|[39m   partyTableSeatState,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[55/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/__tests__/editor-opening-hook.test.ts[2m [ src/lib/__tests__/editor-opening-hook.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/5d124714cdc1b73e80d81b782290e33adbf88ad9'[39m
+[36m [2m❯[22m src/lib/__tests__/editor-opening-hook.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   normalizeEditorSettings,
+    [90m  4|[39m   withOpeningHook,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[56/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/__tests__/lrc.test.ts[2m [ src/lib/__tests__/lrc.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/315ef3fa34cb41001a6c4c957b5fdea038b12885'[39m
+[36m [2m❯[22m src/lib/__tests__/lrc.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   formatLrcTime,
+    [90m  4|[39m   parseLrcTag,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[57/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/__tests__/poll-tolerance.test.ts[2m [ src/lib/__tests__/poll-tolerance.test.ts ][22m
+[31m[1mError[22m: ENOENT: no such file or directory, open '/tmp/h06OemSAj2RYfYzOiH2nk/ssr/f82849ba6af06e9a5bbe15f77a49a2901cf59823'[39m
+[36m [2m❯[22m src/lib/__tests__/poll-tolerance.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m import { describe, it, expect } from "vitest";
+    [90m  2|[39m import {
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m   MAX_CONSECUTIVE_POLL_FAILURES,
+    [90m  4|[39m   PollFailureBudget,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[58/88]⎯[22m[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 30 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mthe required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill (4500 keys)
+[31m[1mAssertionError[22m: expected 4501 to be 4500 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 4500[39m
+[31m+ 4501[39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m307:29[22m[39m
+    [90m305|[39m        marking; the rating renders as a bare number + star glyph, no
+    [90m306|[39m        copy key) in all ten catalogs = 4500. */
+    [90m307|[39m     expect(REQUIRED.length).toBe(4500);
+    [90m   |[39m                             [31m^[39m
+    [90m308|[39m   });
+    [90m309|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[59/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mes carries every newest-surface key
+[31m[1mAssertionError[22m: es is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[60/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mfr carries every newest-surface key
+[31m[1mAssertionError[22m: fr is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[61/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mde carries every newest-surface key
+[31m[1mAssertionError[22m: de is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[62/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mit carries every newest-surface key
+[31m[1mAssertionError[22m: it is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[63/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mpt carries every newest-surface key
+[31m[1mAssertionError[22m: pt is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[64/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mar carries every newest-surface key
+[31m[1mAssertionError[22m: ar is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[65/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mhi carries every newest-surface key
+[31m[1mAssertionError[22m: hi is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[66/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mja carries every newest-surface key
+[31m[1mAssertionError[22m: ja is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[67/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mko carries every newest-surface key
+[31m[1mAssertionError[22m: ko is missing: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m313:81[22m[39m
+    [90m311|[39m     const cat = CATALOGS[locale]!;
+    [90m312|[39m     const missing = REQUIRED.filter((k) => !(k in cat));
+    [90m313|[39m     expect(missing, `${locale} is missing: ${missing.slice(0, 10).join…
+    [90m   |[39m                                                                                 [31m^[39m
+    [90m314|[39m   });
+    [90m315|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[68/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mes values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: es has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[69/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mfr values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: fr has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[70/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mde values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: de has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[71/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mit values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: it has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[72/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mpt values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: pt has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[73/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mar values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: ar has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[74/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mhi values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: hi has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[75/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mja values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: ja has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[76/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-newest-surfaces.test.ts[2m > [22mwave-3/4 newest surfaces — full parity in all 10 catalogs[2m > [22mko values are non-empty (headlinePrefix word-order slot aside)
+[31m[1mAssertionError[22m: ko has empty values: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-newest-surfaces.test.ts:[2m323:83[22m[39m
+    [90m321|[39m       return typeof v !== "string" || (v.trim() === "" && !MAY_BE_EMPT…
+    [90m322|[39m     });
+    [90m323|[39m     expect(empty, `${locale} has empty values: ${empty.slice(0, 10).jo…
+    [90m   |[39m                                                                                   [31m^[39m
+    [90m324|[39m   });
+    [90m325|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[77/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-ar.test.ts[2m > [22mar-W6 (Stack-28 appendix) milestones/lufs/presave/stabilize/create + promote/coach/release namespaces fully translated[2m > [22mwave is closed
+[31m[1mAssertionError[22m: ar missing nav.communityGrants: expected undefined to be defined[39m
+[36m [2m❯[22m checkWave src/lib/locale-waves-ar.test.ts:[2m50:36[22m[39m
+    [90m 48|[39m   for (const k of keys) {
+    [90m 49|[39m     const arv = AR[k];
+    [90m 50|[39m     expect(arv, `ar missing ${k}`).toBeDefined();
+    [90m   |[39m                                    [31m^[39m
+    [90m 51|[39m     if (typeof EN[k] === "string" && EN[k] === "") continue; // en its…
+    [90m 52|[39m     const ars = typeof arv === "string" ? arv : JSON.stringify(arv);
+[90m [2m❯[22m src/lib/locale-waves-ar.test.ts:[2m468:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[78/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-de.test.ts[2m > [22mde W7 namespaces (Stack-28 appendix)[2m > [22mevery en key exists non-empty in de and no untranslated residue remains
+[31m[1mAssertionError[22m: missing/empty de keys: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m checkWave src/lib/locale-waves-de.test.ts:[2m39:80[22m[39m
+    [90m 37|[39m     else if (JSON.stringify(v) === JSON.stringify(EN[k]) && !allowlist…
+    [90m 38|[39m   }
+    [90m 39|[39m   expect(missing, `missing/empty de keys: ${missing.slice(0, 20).join(…
+    [90m   |[39m                                                                                [31m^[39m
+    [90m 40|[39m   expect(identical, `untranslated (identical to en, not allowlisted): …
+    [90m 41|[39m }
+[90m [2m❯[22m src/lib/locale-waves-de.test.ts:[2m1257:87[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[79/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-es.test.ts[2m > [22mes W6 namespaces (Stack-28 appendix)[2m > [22mevery en key of the wave namespaces is present and non-empty in es
+[31m[1mAssertionError[22m: es W6 missing/empty: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-es.test.ts:[2m806:72[22m[39m
+    [90m804|[39m   it("every en key of the wave namespaces is present and non-empty in …
+    [90m805|[39m     const bad = keys.filter((k) => !(k in ES) || !nonEmpty(ES[k]));
+    [90m806|[39m     expect(bad, `es W6 missing/empty: ${bad.slice(0, 10).join(", ")}`)…
+    [90m   |[39m                                                                        [31m^[39m
+    [90m807|[39m   });
+    [90m808|[39m   it("no es value is identical to en outside the legit allowlist", () …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[80/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-fr.test.ts[2m > [22mfr W6 namespaces (Stack-28 appendix)[2m > [22mevery en key of the wave namespaces is present and non-empty in fr
+[31m[1mAssertionError[22m: fr W6 missing/empty: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-fr.test.ts:[2m967:72[22m[39m
+    [90m965|[39m   it("every en key of the wave namespaces is present and non-empty in …
+    [90m966|[39m     const bad = keys.filter((k) => !(k in FR) || FR[k] === "" || FR[k]…
+    [90m967|[39m     expect(bad, `fr W6 missing/empty: ${bad.slice(0, 10).join(", ")}`)…
+    [90m   |[39m                                                                        [31m^[39m
+    [90m968|[39m   });
+    [90m969|[39m   it("no fr value is identical to en outside the legit allowlist", () …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[81/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-hi.test.ts[2m > [22mStack-28 Hindi locale waves[2m > [22mW6[2m > [22mis complete: every en leaf present and non-empty in hi
+[31m[1mAssertionError[22m: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-hi.test.ts:[2m97:25[22m[39m
+    [90m 95|[39m           else if (Array.isArray(v) && (!Array.isArray(hv) || hv.lengt…
+    [90m 96|[39m         }
+    [90m 97|[39m         expect(missing).toEqual([]);
+    [90m   |[39m                         [31m^[39m
+    [90m 98|[39m       });
+    [90m 99|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[82/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-it.test.ts[2m > [22mit W7 namespaces (Stack-28 appendix)[2m > [22mcovers every en key in the wave namespaces
+[31m[1mAssertionError[22m: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-it.test.ts:[2m963:23[22m[39m
+    [90m961|[39m   const r = checkWave(W7_NAMESPACES, [...W7_LEGIT]);
+    [90m962|[39m   it("covers every en key in the wave namespaces", () => {
+    [90m963|[39m     expect(r.missing).toEqual([]);
+    [90m   |[39m                       [31m^[39m
+    [90m964|[39m     expect(r.empty).toEqual([]);
+    [90m965|[39m   });
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[83/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-ja.test.ts[2m > [22mja locale waves (Stack-28)[2m > [22mW6: all en keys present in ja except legit/CLDR allowlist
+[31m[1mAssertionError[22m: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-ja.test.ts:[2m75:23[22m[39m
+    [90m 73|[39m     it(`${wave}: all en keys present in ja except legit/CLDR allowlist…
+    [90m 74|[39m       const missing = keys.filter((k) => !(k in JA) && !def.legitMissi…
+    [90m 75|[39m       expect(missing).toEqual([]);
+    [90m   |[39m                       [31m^[39m
+    [90m 76|[39m     });
+    [90m 77|[39m     it(`${wave}: no REAL identical-to-en values remain`, () => {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[84/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-ko.test.ts[2m > [22mStack-28 ko locale waves[2m > [22mko-W6[2m > [22mwave namespaces are complete and non-empty in ko
+[31m[1mAssertionError[22m: expected [ 'nav.communityGrants (absent)' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants (absent)",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-ko.test.ts:[2m226:25[22m[39m
+    [90m224|[39m           if (typeof v !== "string" || !v.trim()) missing.push(`${k} (…
+    [90m225|[39m         }
+    [90m226|[39m         expect(missing).toEqual([]);
+    [90m   |[39m                         [31m^[39m
+    [90m227|[39m       });
+    [90m228|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[85/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/locale-waves-pt.test.ts[2m > [22mpt W4 (Stack-28 appendix) — namespaces closed whole[2m > [22mevery en key of the wave namespaces is present and non-empty in pt
+[31m[1mAssertionError[22m: pt W6 missing/empty: nav.communityGrants: expected [ 'nav.communityGrants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "nav.communityGrants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/locale-waves-pt.test.ts:[2m47:77[22m[39m
+    [90m 45|[39m   it("every en key of the wave namespaces is present and non-empty in …
+    [90m 46|[39m     const bad = keys.filter((k) => !(k in PT) || !nonEmpty(PT[k]));
+    [90m 47|[39m     expect(bad, `pt ${wave} missing/empty: ${bad.slice(0, 10).join(", …
+    [90m   |[39m                                                                             [31m^[39m
+    [90m 48|[39m   });
+    [90m 49|[39m   it("no pt value is identical to en outside the legit allowlist", () …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[86/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/public-routes.test.ts[2m > [22mthe census — App.tsx route table ↔ ROUTE_MATRIX[2m > [22mclassifies every route App.tsx declares — an unclassified new route fails here
+[31m[1mAssertionError[22m: expected [ '/community-grants' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "/community-grants",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/lib/public-routes.test.ts:[2m102:21[22m[39m
+    [90m100|[39m       .map((route) => route.path)
+    [90m101|[39m       .filter((path) => !matrixByPath.has(path));
+    [90m102|[39m     expect(missing).toEqual([]);
+    [90m   |[39m                     [31m^[39m
+    [90m103|[39m   });
+    [90m104|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[87/88]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/public-routes.test.ts[2m > [22mthe census — App.tsx route table ↔ ROUTE_MATRIX[2m > [22mcovers exactly the extracted table (count reconciliation)
+[31m[1mAssertionError[22m: expected 235 to be 236 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 236[39m
+[31m+ 235[39m
+
+[36m [2m❯[22m src/lib/public-routes.test.ts:[2m114:33[22m[39m
+    [90m112|[39m
+    [90m113|[39m   it("covers exactly the extracted table (count reconciliation)", () =…
+    [90m114|[39m     expect(ROUTE_MATRIX.length).toBe(extracted.length);
+    [90m   |[39m                                 [31m^[39m
+    [90m115|[39m   });
+    [90m116|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[88/88]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m69 failed[39m[22m[2m | [22m[1m[32m342 passed[39m[22m[90m (411)[39m
+[2m      Tests [22m [1m[31m30 failed[39m[22m[2m | [22m[1m[32m4751 passed[39m[22m[90m (4781)[39m
+[2m   Start at [22m 18:39:53
+[2m   Duration [22m 313.41s[2m (tests 45%, import 27%, transform 22%, worker 6%)[22m
+
+[2m    Isolate [22m [33m411 workers spawned[39m[2m · ~475ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~194.67s faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+

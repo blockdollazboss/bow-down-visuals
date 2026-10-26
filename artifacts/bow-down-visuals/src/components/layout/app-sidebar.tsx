@@ -63,6 +63,7 @@ import {
   Loader2,
   Scissors,
   Lightbulb,
+  HandCoins,
   PenLine,
   Captions,
   Disc3,
@@ -297,6 +298,9 @@ const SECTIONS: NavSection[] = [
          filed in Social beside Community Manager — real feature name,
          per the findability law. */
       { href: "/pitch-fix", labelKey: "nav.pitchFix", icon: Lightbulb, badge: "NEW", searchTerms: "pitch fix ideas suggestions report bug feedback board" },
+      /* Community Grants (N15): the monthly community-voted VB grant —
+         filed in Social beside Contests and Pitch & Fix, its family. */
+      { href: "/community-grants", labelKey: "nav.communityGrants", icon: HandCoins, badge: "NEW", searchTerms: "community grants grant pool vote project funding visual bucs" },
       { href: "/events", labelKey: "nav.events", icon: CalendarDays, searchTerms: "events shows calendar" },
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle, searchTerms: "messages chat dm inbox" },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound, searchTerms: "collabs collaborations features partners" },
