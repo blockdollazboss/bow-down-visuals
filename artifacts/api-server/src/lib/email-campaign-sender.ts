@@ -411,6 +411,8 @@ export async function queueWelcomeSequence(
 interface SendOutcome {
   delivered: number;
   attempted: number;
+  /** True when the stale-queue gate held the campaign (nothing sent). */
+  held?: boolean;
 }
 
 async function sendToRecipient(
