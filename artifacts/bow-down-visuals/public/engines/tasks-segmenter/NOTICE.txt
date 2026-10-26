@@ -1,0 +1,21 @@
+MediaPipe Selfie Segmenter — Tasks Image Segmenter model
+=========================================================
+
+File    : selfie_segmenter.tflite (249,537 bytes)
+          The float16 "general" Selfie Segmenter model for the
+          MediaPipe Tasks Image Segmenter (input 256x256, two
+          classes: person / background), vendored for the
+          studio's MediaPipe Tasks background engine
+          (src/lib/stream-kit/tasks-segmenter-engine.ts).
+Runtime : @mediapipe/tasks-vision 1.1.1 — the vendored bundle +
+          WASM fileset in ../face-landmarker (shared with the
+          Face Landmarker engine; see its NOTICE.txt).
+Project : MediaPipe — Google LLC
+License : Apache License, Version 2.0 (model card: MediaPipe
+          Selfie Segmentation, Hou et al., May 6, 2021)
+Source  : https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite
+
+The model runs entirely client-side (inference in the visitor's
+browser via the Tasks Vision runtime, GPU delegate first); it is
+lazy-loaded only when the stream studio starts a camera with
+the MediaPipe Tasks background engine selected.

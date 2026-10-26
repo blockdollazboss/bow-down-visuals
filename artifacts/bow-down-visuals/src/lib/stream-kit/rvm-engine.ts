@@ -3,9 +3,9 @@
  * (RVM, MobileNetV3) via ONNX Runtime Web — running in a dedicated
  * Web Worker (public/engines/rvm/rvm-worker.js), never in the page.
  *
- * Why it exists: the Standard engine (MediaPipe Selfie
- * Segmentation) emits a hard, low-resolution mask — rough hair
- * edges and visible flicker. RVM is a true video-matting model: it
+ * Why it exists: a per-frame segmenter (the MediaPipe Tasks
+ * engine, tasks-segmenter-engine.ts) emits a hard, low-resolution
+ * mask — rough hair edges and visible flicker. RVM is a true video-matting model: it
  * outputs a soft alpha matte with hair-level detail, and its
  * recurrent state is carried across frames, which is where its
  * temporal stability comes from (no per-frame mask flicker).
@@ -29,8 +29,9 @@
  * (transferred, zero-copy) and receives one alpha matte back
  * (transferred). Inference can block only the worker thread, and
  * a worker that stops answering is timed out and killed — a
- * heavy-engine failure degrades to the light engine, never a
- * frozen tab.
+ * heavy-engine failure lands the camera raw with a visible
+ * engine-down status (one-engine build, Oct 25, 2026), never a
+ * frozen tab and never a silent substitute engine.
  *
  * Everything is VENDORED (public/engines/onnxruntime +
  * public/engines/rvm) and lazy-loaded only when a camera starts —
@@ -54,7 +55,7 @@ export const RVM_LOCAL_BASE = mediaUrl("engines/rvm");
 export const RVM_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/rvm`;
 export const RVM_CDN_BASE =
   "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0";
-export const RVM_MODEL_FILE = "rvm_mobilenetv3_fp32.onnx";
+export const RVM_MODEL_FILE = "rvm_mobilenetv3_fp16.onnx";
 
 /** The vendored-first bases for the ORT runtime (the worker loads
  *  `ort.all.min.js` from the first that answers). */
@@ -92,8 +93,9 @@ export function rvmWorkerUrl(): string {
  * declared wedged (ms). Far above a slow phone's worst honest
  * inference at the top step, far below "frozen forever": on
  * timeout the frame fails, the worker is killed, and the caller's
- * failure governance takes over (the studio falls back to the
- * light engine) instead of the pipeline wedging silently.
+ * failure governance takes over (the engine parks and the camera
+ * runs raw with the status shown) instead of the pipeline
+ * wedging silently.
  */
 export const RVM_FRAME_TIMEOUT_MS = 5_000;
 
@@ -112,9 +114,9 @@ export interface EngineMatte {
   frame?: HTMLCanvasElement;
 }
 
-/** The contract every matting engine implements (Pro + Standard). */
+/** The contract every matting engine implements (Pro + Tasks). */
 export interface MattingEngine {
-  readonly kind: "pro" | "standard";
+  readonly kind: "pro" | "tasks";
   /** Load + initialise. Throws on failure (caller runs the ladder). */
   init(): Promise<void>;
   /** Produce the matte for the video's current frame, or null when
@@ -141,16 +143,23 @@ export class RvmEngineError extends Error {
 /* ------------------------------------------------------------- step table */
 
 /** Internal quality steps, best first. The PerfLadder walks these
- *  before the caller degrades engines. `feedCap` bounds the width
- *  fed to the model; `ratio` is RVM's downsample_ratio (the model's
- *  low-res branch works at feed * ratio — ~480px wide at step 0).
+ *  when the engine needs relief — they are the ONLY quality steps
+ *  the live path has: since the one-engine build (Oct 25, 2026)
+ *  the ladder never hands the session to another engine, it walks
+ *  within RVM or holds the floor step. `feedCap` bounds the width
+ *  fed to the model; `ratio` is RVM's downsample_ratio (the
+ *  model's low-res branch works at feed * ratio). The table is
+ *  tuned around RVM's designed operating point — a 512–640px
+ *  feed with the internal branch at ~205–320px — instead of the
+ *  old 896px fp32 heroics the ladder spent every phone session
+ *  retreating from (see greenscreen-matting-scope-2026-10-25.md).
  *  The worker (public/engines/rvm/rvm-worker.js) carries a mirror
  *  of this table; rvm-engine.test.ts pins the two together. */
 export const RVM_STEPS: ReadonlyArray<{ feedCap: number; ratio: number | "auto" }> = [
-  { feedCap: 896, ratio: "auto" },
-  { feedCap: 896, ratio: 0.32 },
   { feedCap: 640, ratio: 0.5 },
-  { feedCap: 640, ratio: 0.34 },
+  { feedCap: 640, ratio: 0.42 },
+  { feedCap: 512, ratio: 0.5 },
+  { feedCap: 512, ratio: 0.4 },
 ];
 export const RVM_MAX_STEP = RVM_STEPS.length - 1;
 

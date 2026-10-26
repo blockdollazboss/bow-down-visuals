@@ -516,7 +516,7 @@ export default function BroadcastStudio() {
             setEngineDown(kind === "off" && !(c && c.mode === "none" && !c.engineError));
             /* Raw-first: when the engine lands after a backdrop was
                already picked, load the chosen backdrop now. */
-            if (kind === "standard" && mode === "image" && c && !c.hasBackdrop()) {
+            if (kind !== "off" && mode === "image" && c && !c.hasBackdrop()) {
               void c.setImage(BACKDROP_URIS[backdropId] ?? null).catch(() => undefined);
             }
           },
@@ -1773,7 +1773,7 @@ export default function BroadcastStudio() {
             [
               ["auto", "Auto"],
               ["pro", "Pro"],
-              ["standard", "Standard"],
+              ["tasks", "MediaPipe"],
             ] as Array<[BackgroundQuality, string]>
           ).map(([q, label]) => (
             <button
@@ -1793,21 +1793,24 @@ export default function BroadcastStudio() {
           ))}
         </div>
         <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          Auto picks the sharpest cutout your device can hold and steps down on its own if it can&rsquo;t. Pro holds the
-          sharpest cutout. Standard is the lighter cutout for slower devices.
+          Auto runs the Pro cutout and steps its quality down on its own if your device can&rsquo;t hold it — it never
+          swaps engines behind your back. Pro holds the sharpest cutout. MediaPipe is the lighter per-frame cutout:
+          easier on slower devices, less steady when you move. The engine only changes when you change it here.
         </p>
         {phase !== "off" && (
           <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="engine-status">
-            Background engine: {engineKind === "pro" ? "Pro" : engineKind === "standard" ? "Standard" : "Off"}
+            Background engine: {engineKind === "pro" ? "Pro" : engineKind === "tasks" ? "MediaPipe Tasks" : "Off"}
           </p>
         )}
-        {phase !== "off" && engineDetail?.fellBack && engineKind === "standard" && (
+        {phase !== "off" && engineDetail?.fellBack && (
           <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#8a6d1f]" : "text-amber-200/80"}`} data-testid="engine-fallback-note">
-            {engineDetail.reason === "pro-too-slow"
-              ? "Pro engine was too slow on this device — using Standard."
-              : engineDetail.reason === "pro-stopped"
-                ? "Pro engine stopped on this device — using Standard."
-                : "Pro engine couldn't start on this device — using Standard."}
+            {engineDetail.reason === "pro-stopped"
+              ? "Pro engine stopped on this device — camera is running plain. Try MediaPipe, or reopen the studio."
+              : engineDetail.reason === "tasks-stopped"
+                ? "MediaPipe engine stopped on this device — camera is running plain. Try Pro, or reopen the studio."
+                : engineDetail.reason === "tasks-init-failed"
+                  ? "MediaPipe engine couldn't start on this device — camera is running plain."
+                  : "Pro engine couldn't start on this device — camera is running plain."}
           </p>
         )}
         <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">
