@@ -14,6 +14,7 @@ import {
   AI_DESCRIPTION_CREDIT_COST,
   alertSchema,
   formatPrice,
+  isLiveStreamStatus,
   productSchema,
   productUpdateSchema,
   saleSchema,
@@ -60,6 +61,17 @@ describe("formatPrice", () => {
     expect(formatPrice(2499)).toBe("$24.99");
     expect(formatPrice(100)).toBe("$1.00");
     expect(formatPrice(0)).toBe("$0.00");
+  });
+});
+
+describe("isLiveStreamStatus (Q150)", () => {
+  it("only 'live' streams can sell", () => {
+    expect(isLiveStreamStatus("live")).toBe(true);
+    expect(isLiveStreamStatus("ended")).toBe(false);
+    expect(isLiveStreamStatus("scheduled")).toBe(false);
+    expect(isLiveStreamStatus(undefined)).toBe(false);
+    expect(isLiveStreamStatus(null)).toBe(false);
+    expect(isLiveStreamStatus("")).toBe(false);
   });
 });
 

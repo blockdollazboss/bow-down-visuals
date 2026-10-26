@@ -199,6 +199,23 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
+function seedStream(overrides: Record<string, any> = {}): Record<string, any> {
+  const stream = {
+    id: randomUUID(),
+    user_id: SELLER,
+    title: "Friday merch drop",
+    status: "live",
+    pinned_product_id: null,
+    started_at: new Date(),
+    ended_at: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+    ...overrides,
+  };
+  h.stores.get("live_shop_streams")!.push(stream);
+  return stream;
+}
+
 function seedProduct(overrides: Record<string, any> = {}): Record<string, any> {
   const product = {
     id: randomUUID(),
@@ -341,6 +358,156 @@ describe("live-shopping native checkout", () => {
     };
     expect((await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" })).status).toBe(400);
     expect(h.stores.get("live_shop_sales")).toHaveLength(0);
+  });
+
+  it("Q150: checkout against a live stream succeeds exactly as before (5% fee)", async () => {
+    const product = seedProduct();
+    const stream = seedStream({ status: "live" });
+    const co = await call("POST", "/live-shopping/checkout", {
+      product_id: product.id,
+      stream_id: stream.id,
+      quantity: 1,
+    });
+    expect(co.status).toBe(200);
+    expect(h.checkoutCalls).toHaveLength(1);
+    expect(h.checkoutCalls[0]!.metadata.stream_id).toBe(stream.id);
+
+    h.session = {
+      id: "cs_test_ls_1",
+      payment_status: "paid",
+      amount_total: 4999,
+      metadata: { ...h.checkoutCalls[0]!.metadata },
+    };
+    const v = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
+    expect(v.status).toBe(200);
+    expect(v.data.sale.status).toBe("paid");
+    expect(v.data.sale.platformFeeCents).toBe(250); // 5% of 4999, half-up
+    const row = h.stores.get("live_shop_sales")![0]!;
+    expect(row.stream_id).toBe(stream.id);
+    /* A verified in-stream purchase fires the overlay alert. */
+    expect(h.stores.get("live_shop_alerts")).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(0);
+  });
+
+  it("Q150: checkout against an ended stream is refused before any charge", async () => {
+    const product = seedProduct();
+    const stream = seedStream({ status: "ended", ended_at: new Date() });
+    const co = await call("POST", "/live-shopping/checkout", {
+      product_id: product.id,
+      stream_id: stream.id,
+      quantity: 1,
+    });
+    expect(co.status).toBe(409);
+    expect(co.data.code).toBe("STREAM_NOT_LIVE");
+    expect(co.data.error).toContain("ended");
+    /* Zero charge: no Stripe session was ever created, no sale row. */
+    expect(h.checkoutCalls).toHaveLength(0);
+    expect(h.stores.get("live_shop_sales")).toHaveLength(0);
+  });
+
+  it("Q150: checkout against a scheduled (not yet live) stream is refused too", async () => {
+    const product = seedProduct();
+    const stream = seedStream({ status: "scheduled", started_at: null });
+    const co = await call("POST", "/live-shopping/checkout", {
+      product_id: product.id,
+      stream_id: stream.id,
+    });
+    expect(co.status).toBe(409);
+    expect(co.data.code).toBe("STREAM_NOT_LIVE");
+    expect(h.checkoutCalls).toHaveLength(0);
+    expect(h.stores.get("live_shop_sales")).toHaveLength(0);
+  });
+
+  it("Q150: verify refuses + refunds when the stream ended after checkout", async () => {
+    const product = seedProduct();
+    const stream = seedStream({ status: "live" });
+    const co = await call("POST", "/live-shopping/checkout", {
+      product_id: product.id,
+      stream_id: stream.id,
+      quantity: 1,
+    });
+    expect(co.status).toBe(200);
+    /* The stream ends while the buyer is on the Stripe page. */
+    h.stores.get("live_shop_streams")![0]!.status = "ended";
+    h.stores.get("live_shop_streams")![0]!.ended_at = new Date();
+
+    h.session = {
+      id: "cs_test_ls_1",
+      payment_status: "paid",
+      amount_total: 4999,
+      metadata: { ...h.checkoutCalls[0]!.metadata },
+    };
+    const v = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
+    expect(v.status).toBe(409);
+    expect(v.data.code).toBe("STREAM_NOT_LIVE");
+    expect(v.data.refunded).toBe(true);
+    expect(h.refundCalls).toHaveLength(1);
+    /* Zero ledger movement: no paid sale, no overlay alert. */
+    expect(h.stores.get("live_shop_sales")).toHaveLength(0);
+    expect(h.stores.get("live_shop_alerts")).toHaveLength(0);
+  });
+
+  it("Q150: a sale recorded while live stays a duplicate no-op after the stream ends", async () => {
+    const product = seedProduct();
+    const stream = seedStream({ status: "live" });
+    await call("POST", "/live-shopping/checkout", {
+      product_id: product.id,
+      stream_id: stream.id,
+      quantity: 1,
+    });
+    h.session = {
+      id: "cs_test_ls_1",
+      payment_status: "paid",
+      amount_total: 4999,
+      metadata: { ...h.checkoutCalls[0]!.metadata },
+    };
+    const v = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
+    expect(v.status).toBe(200);
+    expect(h.stores.get("live_shop_sales")).toHaveLength(1);
+
+    h.stores.get("live_shop_streams")![0]!.status = "ended";
+    const v2 = await call("POST", "/live-shopping/verify", { sessionId: "cs_test_ls_1" });
+    expect(v2.status).toBe(200);
+    expect(v2.data.duplicate).toBe(true);
+    expect(h.stores.get("live_shop_sales")).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(0);
+  });
+
+  it("Q150: manual test sales and purchase alerts refuse non-live streams, allow live ones", async () => {
+    const product = seedProduct();
+    const ended = seedStream({ status: "ended", ended_at: new Date() });
+    const live = seedStream({ status: "live" });
+    h.userId = SELLER;
+
+    const badSale = await call("POST", "/live-shopping/sales", {
+      product_id: product.id,
+      stream_id: ended.id,
+      quantity: 1,
+    });
+    expect(badSale.status).toBe(409);
+    expect(badSale.data.code).toBe("STREAM_NOT_LIVE");
+    expect(h.stores.get("live_shop_sales")).toHaveLength(0);
+
+    const goodSale = await call("POST", "/live-shopping/sales", {
+      product_id: product.id,
+      stream_id: live.id,
+      quantity: 1,
+    });
+    expect(goodSale.status).toBe(201);
+    expect(h.stores.get("live_shop_sales")).toHaveLength(1);
+
+    const badAlert = await call("POST", `/live-shopping/streams/${ended.id}/alerts`, {
+      product_id: product.id,
+    });
+    expect(badAlert.status).toBe(409);
+    expect(badAlert.data.code).toBe("STREAM_NOT_LIVE");
+    expect(h.stores.get("live_shop_alerts")).toHaveLength(0);
+
+    const goodAlert = await call("POST", `/live-shopping/streams/${live.id}/alerts`, {
+      product_id: product.id,
+    });
+    expect(goodAlert.status).toBe(201);
+    expect(h.stores.get("live_shop_alerts")).toHaveLength(1);
   });
 
   it("dashboard separates paid sales from manually recorded test sales", async () => {
