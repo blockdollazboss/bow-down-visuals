@@ -150,6 +150,7 @@ import liveTicketsRouter from "./live-tickets";
 import liveModeratorsRouter from "./live-moderators";
 import liveWidgetsRouter from "./live-widgets";
 import liveSummaryRouter from "./live-summary";
+import liveBattlesRouter from "./live-battles";
 import reachRouter from "./reach";
 import trustRouter from "./trust";
 import membershipsRouter from "./generate/memberships";
@@ -522,6 +523,7 @@ router.use(liveTicketsRouter);               // /api/live-streams/:id/ticket(s) 
 router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live/:id/chat/my-role
 router.use(liveWidgetsRouter);               // /api/live/:id/widgets + /api/live/:id/tip-goal
 router.use(liveSummaryRouter);               // /api/live/:id/summary (post-stream, owner)
+router.use(liveBattlesRouter);               // /api/live-battles/* (Stack-200 #154 — two-creator live battles, recorded-vote tally, crown)
 router.use(reachRouter);                     // /api/reach/* (Stack 9: fan-out, premieres, raids, drops, loyalty, close-friends, broadcast)
 router.use(trustRouter);                     // Stack 10: /api/content-id/fingerprints|scan|claims, /api/legacy/*, /api/catalog-export, /api/mod-console, /api/earnings/statements, /api/stage-rooms, group roles/onboarding, retention analytics
 router.use(membershipsRouter);
