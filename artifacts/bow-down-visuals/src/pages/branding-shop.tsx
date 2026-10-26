@@ -6,13 +6,14 @@ import {
   Shirt, Loader2, Sparkles, ShoppingCart, Trash2, Plus, Minus,
   CheckCircle2, Package, Palette, Tag, Truck, X, ChevronRight,
   Smartphone, ShoppingBag, RefreshCw, CreditCard, ExternalLink, BadgeCheck,
-  Nfc, Gem, Store, AlertTriangle, Download, Info, Pencil, Upload,
+  Nfc, Gem, Store, AlertTriangle, Download, Info, Pencil, Upload, Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import MerchDropPlanner from "@/components/wave8/MerchDropPlanner";
+import StudioGearShop from "@/components/branding/StudioGearShop";
 import { ProductPhotoStudio } from "@/components/photo/ProductPhotoStudio";
 import {
   BRANDING_PRODUCTS,
@@ -147,7 +148,11 @@ export default function BrandingShop() {
       return q.get("subtab") === "merch" || q.get("tab") === "merch" ? "merch" : "shop";
     } catch { return "shop"; }
   });
-  const [shopCat, setShopCat] = useState<"merch" | "smart" | "jewelry">("merch");
+  const [shopCat, setShopCat] = useState<"merch" | "smart" | "jewelry" | "gear">(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("subtab") === "gear" ? "gear" : "merch";
+    } catch { return "merch"; }
+  });
 
   /* Translated display strings for the color swatches and order statuses. */
   const COLORS: Array<{ key: ColorKey; label: string; swatch: string }> = COLOR_DEFS.map((c) => ({
@@ -606,7 +611,8 @@ export default function BrandingShop() {
                   { key: "merch", label: t("brandingShop.departments.merch"), icon: Shirt },
                   { key: "smart", label: t("brandingShop.departments.smart"), icon: Nfc },
                   { key: "jewelry", label: t("brandingShop.departments.jewelry"), icon: Gem },
-                ] as Array<{ key: "merch" | "smart" | "jewelry"; label: string; icon: LucideIcon }>
+                  { key: "gear", label: t("brandingShop.departments.gear", { defaultValue: "Studio Gear" }), icon: Wrench },
+                ] as Array<{ key: "merch" | "smart" | "jewelry" | "gear"; label: string; icon: LucideIcon }>
               ).map((c) => {
                 const Icon = c.icon;
                 return (
@@ -689,6 +695,8 @@ export default function BrandingShop() {
                 </div>
               </div>
             )}
+
+            {shopCat === "gear" && <StudioGearShop />}
 
             {shopCat === "merch" && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
