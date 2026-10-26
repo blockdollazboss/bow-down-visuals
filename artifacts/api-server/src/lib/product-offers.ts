@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { db as defaultDb } from "@workspace/db";
 import { formatUsd } from "./platform-fees";
 import { logger } from "./logger";
-import { isUndefinedTable } from "./pg-errors";
+import { isMissingSchemaError } from "./pg-errors";
 
 /* ── Make-an-offer (Wave 4 #43, migration 9999-wave4346 PROVISIONAL) ────
    The negotiation rail behind schema/product-offers.ts. This lib owns
@@ -562,7 +562,7 @@ export async function restampOfferClaim(
     `);
     return r.rows.length > 0;
   } catch (err) {
-    if (!isUndefinedTable(err)) logger.warn({ err, offerId }, "[product-offers] claim restamp failed");
+    if (!isMissingSchemaError(err)) logger.warn({ err, offerId }, "[product-offers] claim restamp failed");
     return false;
   }
 }
@@ -613,7 +613,7 @@ export async function releaseOfferClaim(offerId: string, claimRef: string, db: O
       WHERE id = ${offerId}::uuid AND claimed_ref = ${claimRef} AND status = 'accepted'
     `);
   } catch (err) {
-    if (!isUndefinedTable(err)) logger.warn({ err, offerId }, "[product-offers] claim release failed (self-heals in 30m)");
+    if (!isMissingSchemaError(err)) logger.warn({ err, offerId }, "[product-offers] claim release failed (self-heals in 30m)");
   }
 }
 
@@ -626,7 +626,7 @@ export async function releaseOfferClaimByRef(claimRef: string, db: OfferDb = def
       WHERE claimed_ref = ${claimRef} AND status = 'accepted'
     `);
   } catch (err) {
-    if (!isUndefinedTable(err)) logger.warn({ err, claimRef }, "[product-offers] claim release by ref failed (self-heals in 30m)");
+    if (!isMissingSchemaError(err)) logger.warn({ err, claimRef }, "[product-offers] claim release by ref failed (self-heals in 30m)");
   }
 }
 
@@ -643,7 +643,7 @@ export async function consumeOfferByClaimRef(claimRef: string, db: OfferDb = def
     `);
     return r.rows.length > 0;
   } catch (err) {
-    if (!isUndefinedTable(err)) logger.error({ err, claimRef }, "[product-offers] consume by claim failed — reconcile");
+    if (!isMissingSchemaError(err)) logger.error({ err, claimRef }, "[product-offers] consume by claim failed — reconcile");
     return false;
   }
 }
@@ -659,7 +659,7 @@ export async function consumeOfferById(offerId: string, consumedRef: string, db:
     `);
     return r.rows.length > 0;
   } catch (err) {
-    if (!isUndefinedTable(err)) logger.error({ err, offerId }, "[product-offers] consume failed — reconcile");
+    if (!isMissingSchemaError(err)) logger.error({ err, offerId }, "[product-offers] consume failed — reconcile");
     return false;
   }
 }
