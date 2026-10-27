@@ -47,6 +47,62 @@ function RecruiterBadge({ badge }: { badge: NonNullable<CreatorProfile["recruite
   );
 }
 
+/* ─── The Crowns badge (N8) — the yearly house awards this creator
+   currently wears (GET /api/crowns/worn/:userId). The crown is a pure
+   read over the frozen awards: it appears when the year's deciding
+   lands and comes off by itself at expiry (Jan 1 of year+2). Renders
+   nothing when the creator wears no crown — same self-hiding shape
+   as the live badge. */
+interface WornCrown {
+  category: string;
+  categoryTitle: string;
+  metricLabel: string;
+  metricValue: number;
+  expiresAt: string;
+}
+function CrownsBadge({ userId }: { userId: string }) {
+  const isLight = useIsLightTheme();
+  const [crowns, setCrowns] = useState<WornCrown[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/crowns/worn/${encodeURIComponent(userId)}`);
+        if (!res.ok) return;
+        const d = (await res.json()) as { crowns: WornCrown[] };
+        if (!cancelled) setCrowns(d.crowns);
+      } catch {
+        /* badge just stays hidden — the profile itself already loaded */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+  if (!crowns || crowns.length === 0) return null;
+  return (
+    <div className="flex flex-wrap justify-center gap-2 px-4 pb-4" data-testid="profile-crowns-badge">
+      {crowns.map((c) => {
+        const winYear = new Date(c.expiresAt).getUTCFullYear() - 2;
+        return (
+          <span
+            key={c.category}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold ${
+              isLight
+                ? "border-[#7A5A12]/45 bg-[#C9A84C]/15 text-[#7A5A12]"
+                : "border-amber-400/40 bg-amber-400/10 text-amber-300"
+            }`}
+            title={`${c.metricValue.toLocaleString("en-US")} ${c.metricLabel} — The Crowns of ${winYear}, worn for the year`}
+          >
+            <Crown className="h-3.5 w-3.5" />
+            {c.categoryTitle} · {winYear}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ─── Official badge — house/company accounts (migration 0125). Today this
    is Thy Cheat Code: the site's host and everybody's first friend. ── */
 function OfficialBadge() {
@@ -336,6 +392,9 @@ export default function ArtistPublic() {
               <>
                 {profile.is_official && <OfficialBadge />}
                 {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
+                {/* N8: The Crowns the creator currently wears (renders
+                    nothing when they wear none). */}
+                <CrownsBadge userId={profile.user_id} />
                 {/* C5: verified social proof from connected accounts
                     (renders nothing when no figure is live). */}
                 <SocialProofStrip figures={profile.social_proof} />

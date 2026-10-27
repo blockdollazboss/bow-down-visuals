@@ -81,6 +81,10 @@ import {
   CourtSeasonScheduler,
   COURT_SEASON_TICK_MS,
 } from "../lib/world-court-season";
+import {
+  CrownsScheduler,
+  CROWNS_TICK_MS,
+} from "../lib/the-crowns";
 import { gateCourtSeasonHerald } from "../lib/operator-duties";
 import { createStageTipper } from "../lib/world-stage-tips";
 import { isTicketed } from "../lib/live-tickets";
@@ -2003,6 +2007,31 @@ export function startCourtSeasonScheduler(palace: WorldPalace): { stop: () => vo
   };
   run();
   const timer = setInterval(run, COURT_SEASON_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Start The Crowns scheduler (N8, lib/the-crowns): every
+ * CROWNS_TICK_MS it decides the oldest ended year that has no
+ * frozen row yet — the year's published categories freeze into
+ * house_crown_years (provisional migration 9999-the-crowns) and
+ * the court is heralded through the announce channel, exactly
+ * once per year (the year's primary key is the idempotency).
+ * Called once from index.ts after the WS mount — tests drive the
+ * scheduler class directly, so no interval runs under vitest.
+ * The first tick runs immediately: a restart after a year's turn
+ * decides it on boot.
+ */
+export function startCrownsScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new CrownsScheduler({ palace });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[crowns] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, CROWNS_TICK_MS);
   timer.unref?.();
   return { stop: () => clearInterval(timer) };
 }

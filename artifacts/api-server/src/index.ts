@@ -4,7 +4,7 @@ import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveBackstageWs } from "./routes/live-guests";
 import { registerLiveControlWs } from "./routes/live-control";
-import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler } from "./routes/world";
+import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler, startCrownsScheduler } from "./routes/world";
 import { startOperatorDuties } from "./lib/operator-duties";
 import { registerWorldContestAnnouncer } from "./lib/world-contests";
 import { registerPartyWs } from "./routes/party";
@@ -135,6 +135,11 @@ startKingMomentScheduler(worldPalace);
    freeze into the marks wall's record and the court is heralded —
    once per season, by the settlement row's primary key. */
 startCourtSeasonScheduler(worldPalace);
+/* The Crowns (N8): at each year's turn the year's published
+   categories freeze into the awards record and the court is
+   heralded — once per year, by the year row's primary key.
+   Winners wear their crowns on their profiles for the year. */
+startCrownsScheduler(worldPalace);
 /* The operator's automatic duties (Phase 2, Lane G): host reminders
    before booked events + the trouble-flag watch, on one tick; the
    winner heralds hang off the contest decision and the court
