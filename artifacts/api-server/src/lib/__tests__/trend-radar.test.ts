@@ -58,6 +58,9 @@ describe("trend-radar scoring", () => {
   it("headline is honest about an empty radar", () => {
     expect(radarHeadline([])).toContain("No verified signals");
     expect(radarHeadline(buildRadarFeed([base]))).toContain("surging");
+  });
+});
+
 /**
  * trend-radar.test.ts — UPGRADE #178 (Trend Radar, on Trends).
  *

@@ -377,11 +377,15 @@ describe("operator knowledge — song duration tiers (live defect, Oct 20)", () 
     }));
   }
 
-  it("the tiers are the ratified 400 / 800 / 1,200 table, and the charging function derives from it", () => {
+  it("the tiers are the ratified 400 / 800 / 1,200 / 2,400 table, and the charging function derives from it", () => {
+    /* The 4th tier (≤10 min at 2,400) is the owner's Oct 27 delegated
+       price ruling for songs over 5 minutes, implemented in
+       SONG_PRICE_TIERS by the rulings wave. */
     expect(deriveSongTiers()).toEqual([
       { upToSeconds: 60, vb: 400 },
       { upToSeconds: 180, vb: 800 },
       { upToSeconds: 300, vb: 1200 },
+      { upToSeconds: 600, vb: 2400 },
     ]);
     const src = read(path.join(API_SRC, "routes", "generate", "music-audio.ts"));
     const fnStart = src.indexOf("export function creditCostForLength");
@@ -951,7 +955,8 @@ describe("operator knowledge — Stack-28 KB integration", () => {
 
   /* A6-K1: the Wallpapers & Themes desk is a first-class docked entry.
      Its two registry prices ride the entry (branded render 0 / free,
-     screensaver loop render 400); the clean (unbranded) render's 400
+     screensaver loop render 300 — the living-wallpaper price from the
+     owner's Oct 27 delegated rulings); the clean (unbranded) render's 400
      is NOT a registry price for the endpoint — it is the override
      variant, carried on the render price and sourced from the server
      constant the rail charges. */
@@ -973,23 +978,24 @@ describe("operator knowledge — Stack-28 KB integration", () => {
     expect(render.variants![0]!.source).toContain("routes/wallpapers.ts");
     const saver = f.prices.find((p) => p.endpoint === "/api/wallpapers/screensaver-render")!;
     expect(saver).toBeTruthy();
-    expect(saver.vb).toBe(400);
+    expect(saver.vb).toBe(300);
     // The facts the operator reads carry BOTH render prices, labelled:
     const facts = formatFeatureFacts(f);
     expect(facts).toContain("Wallpaper Render (branded — free) — free");
     expect(facts).toContain("Wallpaper Render (clean — unbranded) — 400 Visual Bucs");
-    expect(facts).toContain("Screensaver Loop Render — 400 Visual Bucs");
+    expect(facts).toContain("Screensaver Loop Render — 300 Visual Bucs");
     // And the desk is the first match for its own name:
     expect(findFeatures("wallpapers")[0]?.id).toBe("wallpapers-desk");
   });
 
-  /* The screensaver constant cross-check is the SAFE pair (400 == 400).
+  /* The screensaver constant cross-check is the SAFE pair (300 == 300,
+     the Oct 27 living-wallpaper ruling on both sides).
      CLEAN_RENDER_COST must never be cross-checked against the render
      endpoint's 0-cost branded registry entry — that disagreement is
      the variant's whole point, recorded on the entry above. */
   it("the screensaver constant cross-checks, and the clean constant is not naively cross-checked", () => {
     const saver = OPERATOR_KB.crossChecks.find((c: any) => c.constant === "SCREENSAVER_RENDER_COST");
-    expect(saver).toMatchObject({ endpoint: "/api/wallpapers/screensaver-render", serverValue: 400, registryValue: 400, agree: true });
+    expect(saver).toMatchObject({ endpoint: "/api/wallpapers/screensaver-render", serverValue: 300, registryValue: 300, agree: true });
     expect(OPERATOR_KB.crossChecks.some((c: any) => c.constant === "CLEAN_RENDER_COST")).toBe(false);
   });
 

@@ -83,6 +83,10 @@ const sb = vi.hoisted(() => ({
       "id", "referrer_user_id", "referee_user_id", "referrer_credits_awarded",
       "referee_credits_awarded", "revenue_share_pct", "share_expires_at",
       "total_referrer_earned", "created_at",
+      /* Join #2: the referral lanes extended the schema — canonical
+         email (0275) + welcome_status (0276). The D7 guard exists to
+         force exactly this sync. */
+      "referee_canonical_email", "welcome_status",
     ],
   } as Record<string, string[]>,
 }));

@@ -95,6 +95,22 @@ const END = "https://cdn.test/end.jpg";
 
 beforeAll(async () => {
   process.env["RUNWAYML_API_SECRET"] = "test-secret";
+  /* The Veo path fetches the first/end frames server-side to inline them
+     as base64. REF/END live on the fake cdn.test host, so answer image
+     fetches for that host with a minimal JPEG stub; everything else
+     (including this file's own submit() calls, which use realFetch
+     directly) passes through untouched. Without this the re-pinned Veo
+     test depended on live network/DNS for a fake host. */
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const url = typeof input === "string" ? input : (input?.url ?? "");
+    if (typeof url === "string" && url.startsWith("https://cdn.test/")) {
+      return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    }
+    return realFetch(input, init);
+  }) as typeof fetch;
   const app = express();
   app.use(express.json());
   app.use((req: any, _res: any, next: any) => {
@@ -106,7 +122,10 @@ beforeAll(async () => {
   await new Promise<void>((r) => server.on("listening", r));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
-afterAll(async () => { await new Promise<void>((r) => server.close(() => r())); });
+afterAll(async () => {
+  globalThis.fetch = realFetch;
+  await new Promise<void>((r) => server.close(() => r()));
+});
 beforeEach(() => {
   h.imageCalls = []; h.textCalls = []; h.veoCalls = []; h.lockedPack = null;
 });
@@ -252,6 +271,12 @@ describe("veo3_1 — pricing approved at the ruled 1,200 VB (owner, Oct 27)", ()
     expect(json.creditCost).toBe(1200);
     expect(json.endFrameUsed).toBe(true);
     expect(h.veoCalls).toHaveLength(1);
+    // The end frame actually reached the provider call, inlined as base64
+    // alongside the first frame — not just reported in the response.
+    expect(typeof h.veoCalls[0].imageBase64).toBe("string");
+    expect(h.veoCalls[0].imageBase64.length).toBeGreaterThan(0);
+    expect(typeof h.veoCalls[0].lastFrameBase64).toBe("string");
+    expect(h.veoCalls[0].lastFrameBase64.length).toBeGreaterThan(0);
     expect(h.imageCalls).toHaveLength(0);
     expect(h.textCalls).toHaveLength(0);
   });

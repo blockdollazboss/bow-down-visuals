@@ -181,6 +181,9 @@ CREATE TABLE songs (
   mashup_style text,
   duration_sec text,
   lyrics text, genre text, isrc text, cover_art_url text,
+  karaoke_enabled boolean NOT NULL DEFAULT false,
+  karaoke_share_enabled boolean NOT NULL DEFAULT false,
+  timed_lyrics text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE catalog_import_items (

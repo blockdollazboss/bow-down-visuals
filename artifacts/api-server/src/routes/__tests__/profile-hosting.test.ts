@@ -61,6 +61,12 @@ vi.mock("../../lib/rate-limit", () => ({
 
 vi.mock("stripe", () => {
   class FakeStripe {
+    /* Join #2: the composed checkout resolves a Stripe customer first
+       (lib/creator-stripe-customer) — the fake carries that surface. */
+    customers = {
+      create: async () => ({ id: "cus_test_hosting" }),
+      retrieve: async (id: string) => ({ id }),
+    };
     checkout = {
       sessions: {
         create: async (params: any) => {
@@ -114,6 +120,18 @@ vi.mock("@workspace/db", async (importOriginal) => {
   const fakeDb: any = {
     select: (_fields?: unknown) => ({
       from: (table: unknown) => ({ where: (cond: unknown) => chain(table, cond) }),
+    }),
+    /* Customer-id persistence (creator-stripe-customer): the mapping
+       write is a no-op here; the follow-up select still reads empty,
+       so the helper returns the just-created id, as designed. */
+    insert: (_table: unknown) => ({
+      values: (_v: unknown) => ({
+        onConflictDoNothing: async () => [],
+        returning: async () => [],
+      }),
+    }),
+    update: (_table: unknown) => ({
+      set: (_v: unknown) => ({ where: async () => [] }),
     }),
     execute: async () => ({ rows: [] }),
   };

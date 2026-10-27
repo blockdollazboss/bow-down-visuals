@@ -29,10 +29,18 @@ const MIGRATIONS_DIR = path.join(__dirname, "..", "..", "..", "..", "..", "lib",
 const RUNNER = path.join(__dirname, "..", "..", "..", "..", "..", "lib", "db", "migrate-boot.mjs");
 
 function repairSql(): string {
+  /* The G6 repair file is identified by BOTH of its signatures: the
+     contest_entries re-guard AND the email_campaigns queued_at ALTER
+     (0277 after the Join #2 renumber). The CREATE alone also matches
+     0024 itself and the orphan drift file — neither is the G6 repair. */
   const file = fs
     .readdirSync(MIGRATIONS_DIR)
-    .find((f) => /^\d{4}_.*\.sql$/.test(f) && fs.readFileSync(path.join(MIGRATIONS_DIR, f), "utf8").includes("CREATE TABLE IF NOT EXISTS contest_entries"));
-  expect(file, "a numbered migration must carry the contest repair (0277/0278 after the Join #2 renumber)").toBeTruthy();
+    .find((f) => {
+      if (!/^\d{4}_.*\.sql$/.test(f)) return false;
+      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, f), "utf8");
+      return sql.includes("CREATE TABLE IF NOT EXISTS contest_entries") && /ALTER TABLE email_campaigns\s+ADD COLUMN IF NOT EXISTS queued_at/i.test(sql);
+    });
+  expect(file, "a numbered migration must carry the G6 contest repair (0277 after the Join #2 renumber)").toBeTruthy();
   return fs.readFileSync(path.join(MIGRATIONS_DIR, file!), "utf8");
 }
 

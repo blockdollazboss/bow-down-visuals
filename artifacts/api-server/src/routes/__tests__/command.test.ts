@@ -59,6 +59,11 @@ import commandRouter from "../command";
 import { __resetTipJarStores } from "../generate/tip-jar";
 import { createTestDb } from "../../lib/__tests__/test-db";
 
+/* Join #2 fixture note: digital_sales is in TABLES because the
+   earnings store rail now reads through the seller ledger
+   (lib/seller-earnings.ts), which sums digital_sales alongside
+   store_orders and shop_events. Empty is an honest zero. (No SQL
+   comments inside the DDL strings: pg-mem's lexer rejects them.) */
 const TABLES = `
 CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text, total_plays integer NOT NULL DEFAULT 0, follower_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
@@ -69,6 +74,7 @@ CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, creato
 CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0, creator_credited_at timestamptz);
+CREATE TABLE digital_sales (id uuid PRIMARY KEY, buyer_user_id uuid NOT NULL, profile_id uuid NOT NULL, item_kind text NOT NULL, item_id uuid NOT NULL, stripe_session_id text, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, play_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, view_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now(), thumbnail_alt_text text);
 CREATE TABLE conversations (id uuid PRIMARY KEY, participant_a uuid NOT NULL, participant_b uuid NOT NULL);
