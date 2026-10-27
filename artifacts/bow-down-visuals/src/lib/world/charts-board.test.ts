@@ -16,27 +16,42 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  BRAND_OUTREACH_AUDIENCE_SIZES,
+  BRAND_OUTREACH_COST_VB,
+  BRAND_OUTREACH_DEAL_TYPES,
+  BRAND_OUTREACH_PLATFORMS,
+  CHART_VERTICALS,
   CHART_WINDOWS,
+  brandOutreachErrorMessage,
+  buildBrandOutreachPayload,
+  buildUgcBriefPayload,
   chartLikeIdsParam,
   chartLikeKey,
   chartRepostIdsParam,
   chartTrackPlayInput,
   chartVideoPlayInput,
-  chartsCreatorsPath,
-  chartsMediaPath,
+  chartVerticalLabel,
   chartWindowNoun,
+  chartsBrandsPath,
+  chartsCreatorsPath,
+  chartsEarnersPath,
+  chartsMediaPath,
+  chartsRisingPath,
   followRequest,
   followStateFromResponse,
   followUrl,
   jukeboxTrackId,
   likeStateFromToggle,
+  normalizeBrandOutreachResult,
   normalizeChartCreators,
   normalizeChartTracks,
   normalizeChartVideos,
   normalizeFollowStates,
   normalizeLikeStates,
   normalizeRepostStates,
+  normalizeUgcBriefResult,
   repostStateFromToggle,
+  ugcBriefErrorMessage,
 } from "./charts-board";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
@@ -550,5 +565,190 @@ describe("Ring 2 (2.15) — the listening-extras tail: repost, embed, queue", ()
   it("the Shelf source: the queue can be emptied in one tap, through the controller's own clear", () => {
     expect(shelfPlayerSrc).toContain('data-testid="world-shelf-queue-clear"');
     expect(shelfPlayerSrc).toContain("player.clearQueue");
+  });
+});
+
+describe("P3 — the vertical switcher seam", () => {
+  it("offers the no-filter state first, then the canonical verticals under their labels", () => {
+    expect(CHART_VERTICALS.map((v) => v.key)).toEqual([
+      "all",
+      "music",
+      "video",
+      "gaming",
+      "podcast",
+      "film",
+      "tv",
+      "influencer",
+      "education",
+      "other",
+    ]);
+    expect(CHART_VERTICALS[0]!.label).toBe("All verticals");
+    expect(CHART_VERTICALS[1]!.label).toBe("Music");
+    expect(chartVerticalLabel("all")).toBe("All verticals");
+    expect(chartVerticalLabel("gaming")).toBe("Gaming");
+  });
+
+  it("the unfiltered paths stay byte-identical — 'all' rides no param", () => {
+    expect(chartsMediaPath("week")).toBe("/api/discovery/charts?window=week&limit=10");
+    expect(chartsMediaPath("week", "all")).toBe("/api/discovery/charts?window=week&limit=10");
+    expect(chartsCreatorsPath("week", "all")).toBe(
+      "/api/discovery/charts/creators?window=week&limit=10",
+    );
+    expect(chartsRisingPath()).toBe("/api/discovery/rising?limit=12");
+    expect(chartsEarnersPath()).toBe("/api/discovery/rising-earners?limit=12");
+    expect(chartsBrandsPath()).toBe("/api/discovery/brands?limit=12");
+  });
+
+  it("a chosen vertical rides every board read — switching re-queries the server's filtered read", () => {
+    expect(chartsMediaPath("today", "music")).toBe(
+      "/api/discovery/charts?window=today&limit=10&vertical=music",
+    );
+    expect(chartsCreatorsPath("all", "podcast")).toBe(
+      "/api/discovery/charts/creators?window=all&limit=10&vertical=podcast",
+    );
+    expect(chartsRisingPath("gaming")).toBe("/api/discovery/rising?limit=12&vertical=gaming");
+    expect(chartsEarnersPath("film")).toBe("/api/discovery/rising-earners?limit=12&vertical=film");
+    expect(chartsBrandsPath("influencer")).toBe("/api/discovery/brands?limit=12&vertical=influencer");
+  });
+});
+
+describe("P3 — the brand outreach seam (the site's own rail, in-world)", () => {
+  const goodInput = {
+    brand: "Goldline Headphones",
+    dealTypeKey: "sponsored-post",
+    creatorName: "Thy Cheat Code",
+    niche: "Hip-hop production",
+    audienceSize: "10k-50k",
+    platforms: ["TikTok", "Instagram"],
+    contentStyle: "Studio sessions",
+  };
+
+  it("the price is the credit registry's pin for the rail — 100 VB", () => {
+    expect(BRAND_OUTREACH_COST_VB).toBe(100);
+  });
+
+  it("the vocabularies mirror the route's own (audience enum, deal labels, platform presets)", () => {
+    expect(BRAND_OUTREACH_AUDIENCE_SIZES.map((a) => a.key)).toEqual([
+      "under-1k",
+      "1k-10k",
+      "10k-50k",
+      "50k-250k",
+      "250k-plus",
+    ]);
+    expect(BRAND_OUTREACH_AUDIENCE_SIZES[2]!.label).toBe("10K – 50K followers");
+    expect(BRAND_OUTREACH_DEAL_TYPES.map((d) => d.label)).toEqual([
+      "Sponsored Post",
+      "Affiliate",
+      "Ambassadorship",
+      "Product Gifting",
+      "Usage Licensing",
+    ]);
+    expect([...BRAND_OUTREACH_PLATFORMS]).toEqual(["TikTok", "Instagram", "YouTube", "Twitch", "X"]);
+  });
+
+  it("shapes the exact body the page sends — the deal type rides as its label", () => {
+    expect(buildBrandOutreachPayload(goodInput)).toEqual({
+      brand: "Goldline Headphones",
+      dealType: "Sponsored Post",
+      creatorName: "Thy Cheat Code",
+      niche: "Hip-hop production",
+      audienceSize: "10k-50k",
+      platforms: ["TikTok", "Instagram"],
+      contentStyle: "Studio sessions",
+    });
+    /* No deal type chosen → the field rides empty, as the page sends. */
+    expect(buildBrandOutreachPayload({ ...goodInput, dealTypeKey: "" })?.["dealType"]).toBe("");
+    /* Platforms dedupe and trim; blanks drop out. */
+    expect(
+      buildBrandOutreachPayload({ ...goodInput, platforms: [" TikTok ", "TikTok", "", "X"] })?.[
+        "platforms"
+      ],
+    ).toEqual(["TikTok", "X"]);
+  });
+
+  it("refuses an un-sendable form instead of paying for a 400", () => {
+    expect(buildBrandOutreachPayload({ ...goodInput, brand: "  " })).toBeNull();
+    expect(buildBrandOutreachPayload({ ...goodInput, creatorName: "" })).toBeNull();
+    expect(buildBrandOutreachPayload({ ...goodInput, niche: "" })).toBeNull();
+    expect(buildBrandOutreachPayload({ ...goodInput, audienceSize: "millions" })).toBeNull();
+    expect(buildBrandOutreachPayload({ ...goodInput, platforms: [] })).toBeNull();
+    expect(buildBrandOutreachPayload({ ...goodInput, platforms: [" ", ""] })).toBeNull();
+  });
+
+  it("reads a draft answer; a payload without a draft reads as none", () => {
+    expect(
+      normalizeBrandOutreachResult({
+        outreach: { subject: "Partnership: Goldline", message: "Hi team…" },
+        tips: ["Lead with your numbers", 42, ""],
+        creditsUsed: 100,
+        creditsRemaining: 2300,
+      }),
+    ).toEqual({
+      subject: "Partnership: Goldline",
+      message: "Hi team…",
+      tips: ["Lead with your numbers"],
+      creditsUsed: 100,
+      creditsRemaining: 2300,
+    });
+    expect(normalizeBrandOutreachResult({ outreach: { subject: "", message: "x" } })).toBeNull();
+    expect(normalizeBrandOutreachResult({ error: "out_of_credits" })).toBeNull();
+    expect(normalizeBrandOutreachResult(null)).toBeNull();
+  });
+
+  it("error words: the rail's own message first, honest fallbacks after", () => {
+    expect(
+      brandOutreachErrorMessage(
+        { error: "out_of_credits", message: "Not enough credits. Top up to draft a pitch." },
+        402,
+      ),
+    ).toBe("Not enough credits. Top up to draft a pitch.");
+    expect(
+      brandOutreachErrorMessage({ error: "generation_failed", message: "The draft fizzled." }, 502),
+    ).toBe("The draft fizzled.");
+    expect(brandOutreachErrorMessage(null, 402)).toContain("out of Visual Bucs");
+    expect(brandOutreachErrorMessage(null, 500)).toContain("try again");
+  });
+});
+
+describe("P3 — the UGC brief seam (the Promote board's own rail)", () => {
+  const goodBrief = {
+    productName: "Goldline Headphones",
+    productUrl: "https://goldline.example.com",
+    details: "Show the unboxing, then a beat made wearing them.",
+    style: "unboxing",
+    deadline: "2026-11-15",
+  };
+
+  it("shapes the brief the route accepts — optionals ride only when given", () => {
+    expect(buildUgcBriefPayload(goodBrief)).toEqual({
+      productName: "Goldline Headphones",
+      details: "Show the unboxing, then a beat made wearing them.",
+      style: "unboxing",
+      productUrl: "https://goldline.example.com",
+      deadline: "2026-11-15",
+    });
+    expect(buildUgcBriefPayload({ ...goodBrief, productUrl: "", deadline: "" })).toEqual({
+      productName: "Goldline Headphones",
+      details: "Show the unboxing, then a beat made wearing them.",
+      style: "unboxing",
+    });
+  });
+
+  it("refuses what the route would refuse", () => {
+    expect(buildUgcBriefPayload({ ...goodBrief, productName: " " })).toBeNull();
+    /* The route demands at least ten characters of "what you want". */
+    expect(buildUgcBriefPayload({ ...goodBrief, details: "short" })).toBeNull();
+    expect(buildUgcBriefPayload({ ...goodBrief, style: "documentary" })).toBeNull();
+    expect(buildUgcBriefPayload({ ...goodBrief, productUrl: "goldline.example.com" })).toBeNull();
+  });
+
+  it("reads a posted brief; errors speak the rail's words first", () => {
+    expect(
+      normalizeUgcBriefResult({ brief: { id: "b1", productName: "Goldline", status: "open" } }),
+    ).toEqual({ id: "b1", productName: "Goldline", status: "open" });
+    expect(normalizeUgcBriefResult({ brief: { productName: "No id" } })).toBeNull();
+    expect(normalizeUgcBriefResult({ error: "details is required" })).toBeNull();
+    expect(ugcBriefErrorMessage({ error: "details is required" }, 400)).toBe("details is required");
+    expect(ugcBriefErrorMessage(null, 500)).toContain("couldn't post");
   });
 });
