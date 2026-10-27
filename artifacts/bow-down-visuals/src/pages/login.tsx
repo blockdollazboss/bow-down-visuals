@@ -19,6 +19,13 @@ import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
 import { mediaUrl } from "@/lib/media-cdn";
 import { postLoginPath } from "@/lib/auth-next";
+import {
+  RESEND_COOLDOWN_MS,
+  cooldownSecondsLeft,
+  isResendThrottleError,
+  isUnconfirmedSignInError,
+  resendConfirmationEmail,
+} from "@/lib/resend-confirmation";
 import { safeNextPath } from "@/lib/auth-next";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
@@ -41,6 +48,28 @@ export default function Login() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+
+  /* Resend confirmation email (payfix Fix 3): sign-in failing as
+   * "Email not confirmed" used to strand users — the only recovery
+   * was re-submitting /signup. `unconfirmedEmail` is set by that exact
+   * failure; `resendOpen` is the always-discoverable path from the
+   * login form. The send is gated by a sending flag + a cooldown so
+   * one click fires exactly one Supabase resend. */
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendSending, setResendSending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState(0);
+  const [cooldownNow, setCooldownNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!resendCooldownUntil) return;
+    setCooldownNow(Date.now());
+    const id = window.setInterval(() => setCooldownNow(Date.now()), 500);
+    return () => window.clearInterval(id);
+  }, [resendCooldownUntil]);
+  const resendCooldownLeft = cooldownSecondsLeft(resendCooldownUntil, cooldownNow);
+  const showResend = !resetMode && (unconfirmedEmail !== null || resendOpen);
 
   /* Session-expiry notice: the self-healing session guard lands here with
    * ?session=expired after clearing a dead session. Show a friendly banner
@@ -79,12 +108,48 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof schema>) {
     setLoading(true);
     setError(null);
+    setResendSent(false);
+    setResendError(null);
     const { error } = await signIn(values.email, values.password);
     if (error) {
       setError(error);
+      /* Surface the resend control exactly when the failure is an
+       * unconfirmed email; any other failure clears a stale surface. */
+      setUnconfirmedEmail(isUnconfirmedSignInError(error) ? values.email : null);
       setLoading(false);
     } else {
       setLocation(postLoginPath(window.location.search));
+    }
+  }
+
+  /* One click = one resend. The sending flag blocks re-entry while the
+   * call is in flight; after an attempt reaches the server (success OR
+   * a Supabase throttle refusal) the cooldown disables the button, so
+   * the endpoint can never be hammered from this control. */
+  async function onResendConfirmation() {
+    if (resendSending || resendCooldownLeft > 0) return;
+    const email = (unconfirmedEmail ?? form.getValues("email")).trim();
+    if (!email) {
+      setResendError(t("auth.resendNeedsEmail", { defaultValue: "Enter your email above first, then resend." }));
+      return;
+    }
+    setResendSending(true);
+    setResendError(null);
+    try {
+      const { error } = await resendConfirmationEmail(getSupabase(), email, window.location.origin);
+      if (error) {
+        setResendError(error);
+        if (isResendThrottleError(error)) {
+          setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
+        }
+      } else {
+        setResendSent(true);
+        setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
+      }
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
+    } finally {
+      setResendSending(false);
     }
   }
 
@@ -210,6 +275,45 @@ export default function Login() {
               {error || form.formState.errors.email?.message || form.formState.errors.password?.message}
             </p>
           )}
+          {showResend && (
+            <div
+              data-testid="resend-confirmation-panel"
+              className={`mb-2 rounded-xl border px-4 py-3 text-center backdrop-blur-xl ${
+                isLight
+                  ? "border-[#c9a84c]/50 bg-[#FDFBF5]/90"
+                  : "border-[#c9a84c]/40 bg-[#171208]/70"
+              }`}
+            >
+              <p className={`text-xs font-medium ${isLight ? "text-[#6b5320]" : "text-[#e8c86a]"}`}>
+                {unconfirmedEmail
+                  ? t("auth.resendUnconfirmedTitle", { defaultValue: "Your email isn't confirmed yet." })
+                  : t("auth.resendPrompt", { defaultValue: "Didn't get the confirmation email?" })}
+              </p>
+              {resendSent && (
+                <p data-testid="resend-confirmation-sent" className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/70"}`}>
+                  {t("auth.resendSent", { defaultValue: "Confirmation email sent — check your inbox and tap the link to finish signing up." })}
+                </p>
+              )}
+              {resendError && <p className="mt-1 text-xs text-destructive">{resendError}</p>}
+              <Button
+                data-testid="btn-resend-confirmation"
+                type="button"
+                onClick={onResendConfirmation}
+                disabled={resendSending || resendCooldownLeft > 0}
+                className="mt-2 h-9 px-4 text-xs font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 disabled:opacity-60"
+              >
+                {resendSending ? (
+                  <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> {t("auth.resendSending", { defaultValue: "Sending…" })}</>
+                ) : resendCooldownLeft > 0 ? (
+                  t("auth.resendCooldown", { seconds: resendCooldownLeft, defaultValue: "Resend again in {{seconds}}s" })
+                ) : resendSent ? (
+                  t("auth.resendAgain", { defaultValue: "Resend again" })
+                ) : (
+                  t("auth.resendConfirmation", { defaultValue: "Resend confirmation email" })
+                )}
+              </Button>
+            </div>
+          )}
           {resetMode ? (
             resetSent ? (
               <div className="flex items-center justify-center gap-3 text-sm">
@@ -288,6 +392,15 @@ export default function Login() {
                   className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium py-2 -my-1"
                 >
                   {t("auth.forgotPassword")}
+                </button>
+                <span aria-hidden className="text-white/20">·</span>
+                <button
+                  type="button"
+                  data-testid="link-resend-confirmation"
+                  onClick={() => setResendOpen(true)}
+                  className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium py-2 -my-1"
+                >
+                  {t("auth.resendConfirmation", { defaultValue: "Resend confirmation email" })}
                 </button>
                 <span aria-hidden className="text-white/20">·</span>
                 <span>
