@@ -21,6 +21,8 @@ import {
   brandingCartTotalCents, brandingDesignComplete, brandingOrderPayload,
   brandingOrderStatusLabel, brandingShippingComplete, checkoutCompletedInWorld,
   detailedMarketCart, hostedCheckoutUrl, isQuoteOnly, marketCartCount, membershipDollars,
+  clubStartingLabel, membershipCheckoutPayload, membershipPendingKey, membershipVerifyState,
+  parseClubDirectory, parseMembershipPending, parseRecipientUserId,
   marketCartTotalCents, marketOrderFromPayload, marketPendingKey, parseCreatorUserId,
   setBrandingCartQty, setCartLineQty,
   tierAnnualSavingLabel, tierOffersTrial, tierPriceLabel,
@@ -35,8 +37,8 @@ import {
   recentShopPending, recentShopSales, removeProduct, savedProductDto, savedShopDto,
   shopCreateProblem, shopSettingsFormFromShop, shopSettingsProblem,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
-  type BrandingOrderDto, type BrandingShipping, type HubShopDto,
-  type MarketOrder, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
+  type BrandingOrderDto, type BrandingShipping, type ClubDirectoryRow, type HubShopDto,
+  type MarketOrder, type MembershipPendingCheckout, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
   type ProductFormState, type PublicProductDto,
   type PublicShopDto, type ShopAnalytics, type ShopCreateFormState,
   type ShopSettingsFormState,
@@ -2622,6 +2624,19 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [mine, setMine] = useState<MyMembershipDto[] | null>(null);
+  /* Depth (parity P3): the browsable club directory, the gift
+     recipient, and the checkout-return verify — the stand used
+     to take a pasted join ID only, gift nothing, and trust that
+     a paid join landed because the tab closed. */
+  const [directory, setDirectory] = useState<ClubDirectoryRow[] | null>(null);
+  const [directoryFailed, setDirectoryFailed] = useState(false);
+  const [recipientInput, setRecipientInput] = useState("");
+  const [pendingCheckout, setPendingCheckout] = useState<MembershipPendingCheckout | null>(null);
+  const [joinNote, setJoinNote] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  const recipientId = parseRecipientUserId(recipientInput);
+  const recipientInvalid = recipientInput.trim() !== "" && recipientId === null;
 
   const loadMine = async () => {
     if (isGuest) return;
@@ -2632,11 +2647,88 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       setMine(Array.isArray(data.memberships) ? data.memberships : []);
     } catch { /* the fan section is additive — a quiet stand is fine */ }
   };
+
+  const loadDirectory = async () => {
+    try {
+      const res = await fetch("/api/memberships/directory");
+      if (!res.ok) throw new Error("directory");
+      const parsed = parseClubDirectory(await res.json());
+      if (!parsed) throw new Error("directory");
+      setDirectory(parsed);
+      setDirectoryFailed(false);
+    } catch {
+      setDirectoryFailed(true);
+    }
+  };
+  useEffect(() => {
+    void loadDirectory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* The return verify — POST /api/memberships/verify is the ONLY
+     path from a paid hosted checkout to an active membership,
+     and the checkout response handed this stand the sessionId,
+     so the stand confirms the landing itself: on mount, when the
+     palace tab takes focus again, and whenever the walker taps
+     the check button. Three honest outcomes (membershipVerifyState):
+     confirmed clears the stash and names the crown; pending keeps
+     it and says finish paying first; dead drops it and claims
+     nothing. */
+  const verifyPending = async (pending: MembershipPendingCheckout) => {
+    if (isGuest) return;
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/memberships/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ sessionId: pending.sessionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const state = membershipVerifyState(res.status, data);
+      if (state === "confirmed") {
+        try { localStorage.removeItem(membershipPendingKey()); } catch { /* the state below still clears */ }
+        setPendingCheckout(null);
+        setJoinNote(
+          pending.isGift
+            ? `Gift confirmed — “${pending.tierName}” is theirs. The payment landed and their crown is active.`
+            : `You're in — “${pending.tierName}” is active. The payment landed and your crown is on.`,
+        );
+        setMsg(null);
+        void loadMine();
+      } else if (state === "pending") {
+        setJoinNote(`That “${pending.tierName}” payment hasn't completed yet — finish it in the checkout tab, then check again here.`);
+      } else {
+        try { localStorage.removeItem(membershipPendingKey()); } catch { /* the state below still clears */ }
+        setPendingCheckout(null);
+        setJoinNote("That checkout session is closed, so there's nothing to confirm — your crowns below tell the truth, and any crown still on offer can be joined again.");
+      }
+    } catch {
+      /* A failed CHECK claims nothing and keeps the stash — the
+         seat is untouched and the walker can check again. */
+      setJoinNote("Couldn't check that payment just now — nothing was changed; try the check again in a moment.");
+    } finally {
+      setVerifying(false);
+    }
+  };
   useEffect(() => {
     void loadMine();
     // Coming back from the hosted checkout tab: your memberships
-    // refresh in-world when the palace tab takes focus again.
-    const onFocus = () => void loadMine();
+    // refresh in-world when the palace tab takes focus again —
+    // and a checkout this stand opened gets VERIFIED, not just
+    // refreshed past.
+    const stashed = parseMembershipPending(localStorage.getItem(membershipPendingKey()));
+    if (stashed) {
+      setPendingCheckout(stashed);
+      void verifyPending(stashed);
+    }
+    const onFocus = () => {
+      void loadMine();
+      const s = parseMembershipPending(localStorage.getItem(membershipPendingKey()));
+      if (s) {
+        setPendingCheckout(s);
+        void verifyPending(s);
+      }
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2679,6 +2771,10 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       setMsg("Joining a fan club rides your account — sign in on the website (the footer below) and come back through this door; the crowns will be waiting.");
       return;
     }
+    if (mode === "checkout" && recipientInvalid) {
+      setMsg("That gift recipient doesn't parse — paste their user ID or their join link, or clear the gift field to join for yourself.");
+      return;
+    }
     setBusy(tier.id + mode);
     setMsg(null);
     try {
@@ -2694,22 +2790,37 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         void loadMine();
         return;
       }
+      const gifting = recipientId !== null;
       const res = await fetch("/api/memberships/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ tierId: tier.id, billingPeriod: period }),
+        body: JSON.stringify(membershipCheckoutPayload(tier.id, period, recipientId)),
       });
       const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
       if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start checkout.");
       if (checkoutCompletedInWorld(data)) {
-        setMsg("You're in — your membership is active, right here at the stand.");
+        /* A free crown activates in-world at once — for a gift,
+           the seat is THEIRS, in the memberships page's own words. */
+        setMsg(gifting ? "Gift sent — they're a member now." : "You're in — your membership is active, right here at the stand.");
         void loadMine();
         return;
       }
       const url = hostedCheckoutUrl(data);
       if (url) {
+        /* Stash the session before the tab opens: the verify on
+           return confirms THIS payment (gift or self-join) rather
+           than trusting that closing the tab meant it landed. */
+        const sessionId = (data as { sessionId?: unknown }).sessionId;
+        if (typeof sessionId === "string" && sessionId) {
+          const pending: MembershipPendingCheckout = { sessionId, tierName: tier.name, isGift: gifting };
+          try { localStorage.setItem(membershipPendingKey(), JSON.stringify(pending)); } catch { /* no stash — the stand still says where the truth lives */ }
+          setPendingCheckout(pending);
+          setJoinNote(null);
+        }
         openCheckoutTab(url);
-        setMsg("Checkout opened in a new tab — finish paying there. Your membership activates when the payment confirms, and this stand refreshes your crowns when you're back.");
+        setMsg(gifting
+          ? "Gift checkout opened in a new tab — finish paying there. This stand confirms the gift itself when the payment lands."
+          : "Checkout opened in a new tab — finish paying there. This stand confirms your membership itself when the payment lands.");
         return;
       }
       throw new Error("Couldn't start checkout.");
@@ -2756,12 +2867,81 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         </div>
       )}
 
+      {!isGuest && (pendingCheckout || joinNote) && (
+        <div
+          data-testid="world-crowns-join-confirmation"
+          className={`space-y-2 rounded-2xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#fdf6dd]" : "border-[#d4af37]/30 bg-[#d4af37]/[0.07]"}`}
+        >
+          <p className={`flex items-start gap-2 text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+            <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />
+            <span>
+              {joinNote ??
+                (pendingCheckout
+                  ? `Waiting on the “${pendingCheckout.tierName}” payment — finish it in the checkout tab, then check here and this stand confirms ${pendingCheckout.isGift ? "the gift" : "your crown"} itself.`
+                  : "")}
+            </span>
+          </p>
+          {pendingCheckout && (
+            <button
+              type="button"
+              data-testid="world-crowns-verify"
+              onClick={() => void verifyPending(pendingCheckout)}
+              disabled={verifying}
+              className={chipBtn(isLight)}
+            >
+              {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Check my payment
+            </button>
+          )}
+        </div>
+      )}
+
       <NativeCard isLight={isLight} title="Join a fan club">
         <p className={`text-xs ${muted(isLight)}`}>
-          Every creator&rsquo;s club has a join ID — it&rsquo;s the tail of the link they share
-          (<span className="font-mono">/memberships?creator=…</span>). Paste the ID or the whole link and their crowns appear here.
+          Browse every club with crowns on offer — tap one and its tiers appear below. A creator&rsquo;s join ID
+          (the tail of <span className="font-mono">/memberships?creator=…</span>) still works too.
         </p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        {directoryFailed ? (
+          <p className={`mt-2 flex flex-wrap items-center gap-2 text-xs ${muted(isLight)}`}>
+            <span>The club list couldn&rsquo;t be brought in — the join ID below still works.</span>
+            <button type="button" onClick={() => void loadDirectory()} className={chipBtn(isLight)}>
+              <RefreshCw className="h-3 w-3" /> Try the list again
+            </button>
+          </p>
+        ) : directory === null ? (
+          <NativeLoadingState isLight={isLight} message="Gathering the clubs…" />
+        ) : directory.length === 0 ? (
+          <p className={`mt-2 text-xs ${muted(isLight)}`}>No clubs have crowns on offer yet — when one opens, it lists here.</p>
+        ) : (
+          <div className="mt-2 space-y-1.5" data-testid="world-crowns-directory">
+            {directory.map((row) => (
+              <button
+                key={row.creatorUserId}
+                type="button"
+                data-testid="world-crowns-directory-row"
+                onClick={() => void loadClub(row.creatorUserId)}
+                className={`flex w-full flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:scale-[1.01] ${creatorId === row.creatorUserId
+                  ? "border-[#d4af37] bg-[#d4af37]/10"
+                  : isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+              >
+                {row.avatarUrl ? (
+                  <img src={row.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" />
+                )}
+                <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  {row.displayName ?? "A creator's club"}
+                </span>
+                {row.slug && <span className={`text-xs ${muted(isLight)}`}>@{row.slug}</span>}
+                <span className={`ml-auto text-xs ${muted(isLight)}`}>
+                  {row.tierCount} crown{row.tierCount === 1 ? "" : "s"} · {clubStartingLabel(row)}
+                  {row.hasTrial ? " · free trial" : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="mt-3 flex flex-wrap gap-2">
           <input
             value={creatorInput}
             onChange={(e) => setCreatorInput(e.target.value)}
@@ -2804,6 +2984,24 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                   ))}
                 </span>
               </div>
+              {!isGuest && (
+                <div className="flex flex-wrap items-center gap-2" data-testid="world-crowns-gift">
+                  <Gift className="h-4 w-4 shrink-0 text-[#d4af37]" />
+                  <input
+                    value={recipientInput}
+                    onChange={(e) => setRecipientInput(e.target.value)}
+                    placeholder="Gift it — recipient's user ID or join link (optional)"
+                    className={`${inputCls(isLight)} min-w-0 flex-1`}
+                    aria-label="Gift recipient"
+                  />
+                  {recipientId && (
+                    <span className="text-xs font-semibold text-emerald-300">Gift mode — the buttons below buy the crown for them; you pay.</span>
+                  )}
+                  {recipientInvalid && (
+                    <span className="text-xs font-semibold text-red-300">That doesn&rsquo;t parse as a user ID or join link yet.</span>
+                  )}
+                </div>
+              )}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {active.map((tier) => (
                   <NativeCard key={tier.id} isLight={isLight}>
@@ -2826,7 +3024,11 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                     )}
                     <div className="mt-3 space-y-1.5">
                       {/* Paid joins ride the ONE marked transfer: the
-                          hosted checkout page, in a new tab (§3.9). */}
+                          hosted checkout page, in a new tab (§3.9).
+                          With a gift recipient named, the same
+                          buttons buy the crown FOR them — the trial
+                          hides, exactly as on the memberships page
+                          (a trial is a seat you take yourself). */}
                       <button
                         type="button"
                         data-testid="world-crowns-join"
@@ -2834,10 +3036,12 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                         disabled={busy === tier.id + "checkout"}
                         className={`${goldBtn(busy === tier.id + "checkout")} w-full`}
                       >
-                        {busy === tier.id + "checkout" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
-                        {tier.priceCents <= 0 ? "Join — free" : CHECKOUT_TRANSFER_LABEL}
+                        {busy === tier.id + "checkout" ? <Loader2 className="h-4 w-4 animate-spin" /> : recipientId ? <Gift className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+                        {tier.priceCents <= 0
+                          ? recipientId ? "Gift this tier — free" : "Join — free"
+                          : recipientId ? `Gift this tier · ${CHECKOUT_TRANSFER_LABEL}` : CHECKOUT_TRANSFER_LABEL}
                       </button>
-                      {tierOffersTrial(tier) && (
+                      {tierOffersTrial(tier) && !recipientId && (
                         <button
                           type="button"
                           data-testid="world-crowns-trial"
