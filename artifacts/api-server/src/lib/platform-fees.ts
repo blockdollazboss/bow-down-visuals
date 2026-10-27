@@ -232,6 +232,7 @@ export const TIER_PLANS: TierPlanDef[] = [
       { label: "Priority placement in discovery", detailsUrl: "/creator-pricing#feature-discovery" },
       { label: "Dedicated support badge + priority support", detailsUrl: "/creator-pricing#feature-support" },
       { label: "100 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
+      { label: "Profile Hosting included — the $9/mo Hosting plan is free while you're Elite", detailsUrl: "/creator-pricing#feature-site" },
     ],
   },
 ];
@@ -266,12 +267,15 @@ export function monthlySavingsUsd(tier: Exclude<CreatorTier, "free">, salesUsdPe
    the creator's website, hosted by us. Sold via Stripe subscription,
    TEST mode only, exactly like the tiers.
 
-   PRICE LAW: never invent a price. The tiers above carry owner-approved
-   prices in code; the Hosting plan does NOT — its price is a named
-   server config value (HOSTING_PRICE_USD_PER_MONTH, with the Stripe
-   TEST price id in STRIPE_PRICE_HOSTING). Until the owner sets them,
-   the price reads null and the plan is honestly NOT available for
-   purchase — checkout refuses rather than faking a number. */
+   ★ PRICE RULED BY OWNER (by delegation) 2026-10-27: $9/mo standalone,
+   and INCLUDED with Creator Elite ($29/mo) while subscribed — an Elite
+   member is hosting-entitled with no second charge (the entitlement
+   resolution lives in lib/profile-website.ts). The price now lives in
+   code next to the tier prices (HOSTING_PRICE_USD_PER_MONTH below);
+   HOSTING_PRICE_USD_PER_MONTH env remains a live override. Checkout
+   charges through the Stripe TEST price id in STRIPE_PRICE_HOSTING —
+   until that id is configured the plan displays its ruled price but
+   checkout honestly refuses rather than faking a charge. */
 
 export interface HostingPlanDef {
   name: string;
@@ -281,6 +285,12 @@ export interface HostingPlanDef {
   features: TierFeature[];
 }
 
+/** Standalone Hosting price, USD/month. ★ RULED 2026-10-27. */
+export const HOSTING_PRICE_USD_PER_MONTH = 9;
+
+/** The tier that includes Hosting at no extra charge. ★ RULED 2026-10-27. */
+export const HOSTING_INCLUDED_WITH_TIER: CreatorTier = "elite";
+
 export const HOSTING_PLAN: HostingPlanDef = {
   name: "Hosting",
   tagline: "Your page is your website — on your own domain, with clean branding, hosted by us.",
@@ -289,20 +299,23 @@ export const HOSTING_PLAN: HostingPlanDef = {
     { label: "Your own custom domain on your profile page", detailsUrl: "/creator-pricing#feature-site" },
     { label: "Clean branding — no “Powered by” mark on your page", detailsUrl: "/creator-pricing#feature-site" },
     { label: "Your profile page, hosted — fast, secure, always up", detailsUrl: "/creator-pricing#feature-site" },
+    { label: "Included with Creator Elite — Elite members get Hosting free while subscribed", detailsUrl: "/creator-pricing#feature-site" },
   ],
 };
 
-/** The configured monthly Hosting price in USD, or null when the owner
-    hasn't set one. Read live from env so a config change needs no deploy
-    of code — only the value the owner chose. */
-export function hostingPriceUsdPerMonth(): number | null {
+/** The monthly Hosting price in USD: the owner's ruled $9/mo, with a
+    live env override (HOSTING_PRICE_USD_PER_MONTH) if one is set to a
+    sane value. Always a real number now — the price is ruled, not
+    pending. */
+export function hostingPriceUsdPerMonth(): number {
   const v = Number(process.env["HOSTING_PRICE_USD_PER_MONTH"]);
   if (Number.isFinite(v) && v > 0 && v <= 10_000) return Math.round(v * 100) / 100;
-  return null;
+  return HOSTING_PRICE_USD_PER_MONTH;
 }
 
-/** True only when BOTH the price and its Stripe TEST price id exist —
-    the plan can then be sold at exactly the displayed price. */
+/** True when checkout can actually charge the displayed price — the
+    Stripe TEST price id (STRIPE_PRICE_HOSTING) exists. The price itself
+    is ruled in code, so this now gates only the charge rail. */
 export function hostingPriceConfigured(): boolean {
-  return hostingPriceUsdPerMonth() !== null && !!process.env[HOSTING_PLAN.priceIdEnv];
+  return !!process.env[HOSTING_PLAN.priceIdEnv];
 }
