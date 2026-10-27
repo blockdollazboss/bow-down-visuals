@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { saveLogoToBrandKit } from "@/lib/brand-kit";
+import { RasterVectorExportNote } from "@/components/VectorExport";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import ShareMenu from "@/components/ShareMenu";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
@@ -392,6 +393,9 @@ export function LogoMakerTool() {
               >
                 <RefreshCw className="h-4 w-4" /> {t("logoMaker.newLogo")}
               </button>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <RasterVectorExportNote kindLabel="logo" />
             </div>
             <div className="flex">
               <SaveLogoToKitButton url={outputUrl} />
