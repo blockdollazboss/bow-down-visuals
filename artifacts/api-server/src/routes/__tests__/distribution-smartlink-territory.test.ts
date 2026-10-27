@@ -465,6 +465,63 @@ describe("smartlink landing territory/language resolution", () => {
   });
 });
 
+/* ─── fallback geo header (x-vercel-ip-country) ─────────────────────────
+   requestCountry reads cf-ipcountry first and falls back to the
+   x-vercel-ip-country header the stack also provides. The fallback
+   feeds the SAME territory resolution + click rail — a fan whose
+   request arrives without the Cloudflare header must still land on
+   their territory destination, and an unconfigured territory must
+   still fall back to the default links, never a dead end. */
+
+describe("fallback geo header (x-vercel-ip-country)", () => {
+  it("a JP fan arriving via the fallback header only gets the JP territory destination", async () => {
+    const id = await seedSmartlink("route-fb1");
+    await saveRouting(id);
+    const pub = await req("GET", "/distribution/presave/route-fb1", undefined, {
+      "x-vercel-ip-country": "jp",
+      "accept-language": "en",
+    });
+    expect(pub.status).toBe(200);
+    expect(pub.json.presave.routing.routedDestination).toEqual({ url: JP_URL, rule: "territory", country: "JP" });
+    expect(pub.json.presave.platformLinks).toEqual(DEFAULT_LINKS);
+  });
+
+  it("cf-ipcountry wins over the fallback header when both are present", async () => {
+    const id = await seedSmartlink("route-fb2");
+    await saveRouting(id);
+    const pub = await req("GET", "/distribution/presave/route-fb2", undefined, {
+      "cf-ipcountry": "DE",
+      "x-vercel-ip-country": "JP",
+      "accept-language": "en",
+    });
+    expect(pub.json.presave.routing.routedDestination).toEqual({ url: DE_URL, rule: "territory", country: "DE" });
+  });
+
+  it("an unconfigured territory via the fallback header falls back to the default links (never a dead end)", async () => {
+    const id = await seedSmartlink("route-fb3");
+    await saveRouting(id);
+    const pub = await req("GET", "/distribution/presave/route-fb3", undefined, {
+      "x-vercel-ip-country": "BR",
+      "accept-language": "en",
+    });
+    expect(pub.status).toBe(200);
+    expect(pub.json.presave.routing.routedDestination).toBeNull();
+    expect(pub.json.presave.platformLinks).toEqual(DEFAULT_LINKS);
+  });
+
+  it("a routed click arriving via the fallback header records the territory rule + country", async () => {
+    const id = await seedSmartlink("route-fb4");
+    await saveRouting(id);
+    const res = await req("POST", "/distribution/presave/route-fb4/click",
+      { kind: "routed", channel: "tiktok" },
+      { "x-vercel-ip-country": "DE", "accept-language": "en" });
+    expect(res.status).toBe(200);
+    const rows = await clickRows(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "click", link_key: "routed:territory", link_title: "Territory route (DE)", country: "DE", channel: "tiktok" });
+  });
+});
+
 /* ─── routed click analytics ──────────────────────────────────────────── */
 
 describe("routed click recording", () => {
