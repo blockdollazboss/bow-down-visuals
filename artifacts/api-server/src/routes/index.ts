@@ -259,6 +259,7 @@ import competitorTrackerRouter from "./generate/competitor-tracker";
 import retentionDoctorRouter from "./retention-doctor";
 import retentionRouter from "./retention";
 import soundPrefsRouter from "./sound-prefs";
+import viralSpikeRouter from "./viral-spike";
 import pitchFixRouter from "./pitch-fix";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
@@ -626,6 +627,7 @@ router.use(competitorTrackerRouter);
 router.use(retentionDoctorRouter);
 router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
+router.use(viralSpikeRouter);            // /api/viral-spike-prefs + /api/viral-spike-kits (viral-spike response kit, orphan wave)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
