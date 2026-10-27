@@ -412,7 +412,7 @@ export async function resolveHostingEntitlement(
       let currentPeriodEnd: Date | null = null;
       try {
         const [sub] = await db
-          .select({ status: creatorSubscriptionsTable.status, currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd })
+          .select({ status: creatorSubscriptionsTable.status, currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd, tier: creatorSubscriptionsTable.tier })
           .from(creatorSubscriptionsTable)
           .where(eq(creatorSubscriptionsTable.profileId, profileId))
           .limit(1);
