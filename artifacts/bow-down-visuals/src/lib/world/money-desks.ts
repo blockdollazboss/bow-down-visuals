@@ -319,6 +319,182 @@ export function tierNetCents(priceCents: number, platformFeePct: number): number
   return Math.round((priceCents * (100 - platformFeePct)) / 100);
 }
 
+/* ─── 63b · The roster + the perk suggester (parity P3) ──────────
+   The creator desk's depth, on the same memberships rails the 2D
+   page's Members section runs: GET /api/memberships/members (the
+   roster the dashboard only counted), PATCH /members/:id for the
+   status verbs, DELETE /members/:id to remove a seat, POST
+   /members for manual adds (imported subscribers — the rail
+   labels them honestly: no payment was taken here), and POST
+   /api/memberships/ai-perks for tier suggestions. Roster state
+   changes ONLY from server-confirmed answers, like the tiers. */
+
+export interface RosterMemberDto {
+  id: string;
+  tierId: string;
+  tierName: string | null;
+  fanLabel: string;
+  fanUserId: string | null;
+  /** The EFFECTIVE status (the rail computes it at read time —
+   *  an unconverted trial past its end already reads expired). */
+  status: string;
+  priceDollars: number;
+  billingPeriod: string;
+  joinedAt: string | null;
+  isGift: boolean;
+}
+
+/** GET /api/memberships/members, parsed tolerantly: rows without
+ *  an id or a fan label drop out; a payload without a members
+ *  array is no roster at all (null). */
+export function parseRosterMembers(payload: unknown): RosterMemberDto[] | null {
+  if (!payload || typeof payload !== "object") return null;
+  const rows = (payload as { members?: unknown }).members;
+  if (!Array.isArray(rows)) return null;
+  const out: RosterMemberDto[] = [];
+  for (const raw of rows as Array<Record<string, unknown>>) {
+    if (!raw || typeof raw !== "object") continue;
+    if (typeof raw["id"] !== "string" || typeof raw["fanLabel"] !== "string") continue;
+    out.push({
+      id: raw["id"],
+      tierId: typeof raw["tierId"] === "string" ? raw["tierId"] : "",
+      tierName: typeof raw["tierName"] === "string" ? raw["tierName"] : null,
+      fanLabel: raw["fanLabel"],
+      fanUserId: typeof raw["fanUserId"] === "string" ? raw["fanUserId"] : null,
+      status: typeof raw["status"] === "string" ? raw["status"] : "active",
+      priceDollars: typeof raw["priceDollars"] === "number" && Number.isFinite(raw["priceDollars"]) ? raw["priceDollars"] : 0,
+      billingPeriod: typeof raw["billingPeriod"] === "string" ? raw["billingPeriod"] : "monthly",
+      joinedAt: typeof raw["joinedAt"] === "string" ? raw["joinedAt"] : null,
+      isGift: raw["isGift"] === true,
+    });
+  }
+  return out;
+}
+
+/** The status verbs the rail's PATCH schema accepts
+ *  (memberStatusSchema) — the roster's select offers exactly
+ *  these, no more. "paused"/"refunded" are computed/settled
+ *  states the rail never takes as a PATCH body. */
+export const MEMBER_STATUS_OPTIONS = ["trialing", "active", "past_due", "canceled", "expired"] as const;
+export type MemberStatusOption = (typeof MEMBER_STATUS_OPTIONS)[number];
+
+export function memberStatusPayload(status: MemberStatusOption): { status: MemberStatusOption } {
+  return { status };
+}
+
+/** The PATCH answer ({ member: { id, status } }) — the row's
+ *  new status as the server wrote it, null when the answer
+ *  doesn't honestly carry one. */
+export function savedMemberStatus(payload: unknown): { id: string; status: string } | null {
+  if (!payload || typeof payload !== "object") return null;
+  const m = (payload as { member?: unknown }).member;
+  if (!m || typeof m !== "object") return null;
+  const row = m as Record<string, unknown>;
+  if (typeof row["id"] !== "string" || typeof row["status"] !== "string") return null;
+  return { id: row["id"], status: row["status"] };
+}
+
+/** Apply a confirmed status write — the roster row's STORED
+ *  status changes (its effective read follows the rail's own
+ *  math on the next load; the chip shows the write the server
+ *  confirmed, exactly as the 2D list does). */
+export function applyMemberStatus(
+  list: RosterMemberDto[],
+  saved: { id: string; status: string },
+): RosterMemberDto[] {
+  return list.map((m) => (m.id === saved.id ? { ...m, status: saved.status } : m));
+}
+
+/** Remove a member — called ONLY after the server confirmed
+ *  the delete. */
+export function removeMemberRow(list: RosterMemberDto[], id: string): RosterMemberDto[] {
+  return list.filter((m) => m.id !== id);
+}
+
+/* The manual add's own limits (memberAddSchema): a real tier of
+ *  the caller's, a label of 1–120 chars. The body rides the
+ *  page's exact shape — status defaults to active on the rail. */
+export const MEMBER_LABEL_MAX = 120;
+export function memberAddProblem(tierId: string, fanLabel: string): string | null {
+  if (!tierId) return "Pick the tier this member belongs to first.";
+  if (!fanLabel.trim()) return "Give the member a label — their name or email, as you track them.";
+  if (fanLabel.trim().length > MEMBER_LABEL_MAX) return `The label tops out at ${MEMBER_LABEL_MAX} characters.`;
+  return null;
+}
+export function buildMemberAddPayload(
+  tierId: string,
+  fanLabel: string,
+): { tierId: string; fanLabel: string } | null {
+  if (memberAddProblem(tierId, fanLabel)) return null;
+  return { tierId, fanLabel: fanLabel.trim() };
+}
+
+/* The perk suggester's price, in Visual Bucs — read off the
+ *  server's own constant (routes/generate/memberships.ts:
+ *  MEMBERSHIPS_AI_CREDITS = env MEMBERSHIPS_AI_CREDIT_COST || 100)
+ *  and shown before every run, like every stand AI helper. */
+export const MEMBERSHIP_AI_PERKS_COST_VB = 100;
+
+export const AUDIENCE_SIZES = ["starting", "growing", "established"] as const;
+export type AudienceSize = (typeof AUDIENCE_SIZES)[number];
+
+/** POST /api/memberships/ai-perks — the memberships page's exact
+ *  body (its suggester always asks for 3 tiers). */
+export function buildPerkSuggestPayload(input: {
+  niche: string;
+  audienceSize: AudienceSize;
+}): { niche: string; audienceSize: AudienceSize; tierCount: 3 } {
+  return { niche: input.niche.trim(), audienceSize: input.audienceSize, tierCount: 3 };
+}
+
+export interface SuggestedTierDto {
+  name: string;
+  priceDollars: number;
+  perks: string[];
+}
+
+/** The suggester's answer ({ tiers: [...] }), narrowed the way
+ *  the page narrows it: a tier without a name or any perk is not
+ *  a suggestion; an answer with no usable tier at all is null
+ *  (the desk reports failure instead of filling the form with a
+ *  guess). */
+export function parsePerkSuggestions(payload: unknown): SuggestedTierDto[] | null {
+  if (!payload || typeof payload !== "object") return null;
+  const rows = (payload as { tiers?: unknown }).tiers;
+  if (!Array.isArray(rows)) return null;
+  const out: SuggestedTierDto[] = [];
+  for (const raw of rows as Array<Record<string, unknown>>) {
+    if (!raw || typeof raw !== "object") continue;
+    const name = typeof raw["name"] === "string" ? raw["name"].trim() : "";
+    const perks = Array.isArray(raw["perks"])
+      ? (raw["perks"] as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      : [];
+    if (!name || perks.length === 0) continue;
+    out.push({
+      name,
+      priceDollars:
+        typeof raw["priceDollars"] === "number" && Number.isFinite(raw["priceDollars"]) ? raw["priceDollars"] : 0,
+      perks,
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+/** Apply a suggestion to the tier form — the memberships page's
+ *  applySuggestion, verbatim in spirit: the suggestion's name,
+ *  price and perks land in the form and the description clears;
+ *  the trial/annual toggles are the creator's own and stay as
+ *  they were. Nothing saves until the creator taps save. */
+export function tierFormFromSuggestion(form: TierFormState, s: SuggestedTierDto): TierFormState {
+  return {
+    ...form,
+    name: s.name,
+    price: String(s.priceDollars),
+    description: "",
+    perks: [...s.perks],
+  };
+}
+
 /* ─── 64 · The Creator Room store — real cart + checkout ─────────── */
 
 export interface RoomStoreItem {

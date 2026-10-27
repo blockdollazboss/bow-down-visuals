@@ -47,6 +47,19 @@ import {
   tierFormFromDto,
   tierFormProblem,
   tierNetCents,
+  MEMBER_STATUS_OPTIONS,
+  MEMBERSHIP_AI_PERKS_COST_VB,
+  applyMemberStatus,
+  buildMemberAddPayload,
+  buildPerkSuggestPayload,
+  memberAddProblem,
+  memberStatusPayload,
+  parsePerkSuggestions,
+  parseRosterMembers,
+  removeMemberRow,
+  savedMemberStatus,
+  tierFormFromSuggestion,
+  type RosterMemberDto,
   type RoomStoreItem,
 } from "./money-desks";
 import type { MembershipTierDto } from "./shop-stands";
@@ -284,5 +297,103 @@ describe("64 · the Creator Room store", () => {
   it("the room cart IS the shop cart when the creator runs that shop", () => {
     expect(roomCartKey("Gold-Shop", "some-slug")).toBe("bdv-cart-gold-shop");
     expect(roomCartKey(null, "some-slug")).toBe("bdv-cart-room-some-slug");
+  });
+});
+
+describe("63b · the roster + the perk suggester (parity P3)", () => {
+  const MEMBER: RosterMemberDto = {
+    id: "m1",
+    tierId: "t1",
+    tierName: "Gold",
+    fanLabel: "Fan One",
+    fanUserId: null,
+    status: "active",
+    priceDollars: 10,
+    billingPeriod: "monthly",
+    joinedAt: "2026-09-01T00:00:00.000Z",
+    isGift: false,
+  };
+
+  it("the roster parse keeps honest rows and drops the malformed", () => {
+    expect(parseRosterMembers({ members: [MEMBER, { fanLabel: "no id" }, null] })).toEqual([MEMBER]);
+    expect(parseRosterMembers({ members: "nope" })).toBeNull();
+    expect(parseRosterMembers(null)).toBeNull();
+    expect(parseRosterMembers({})).toBeNull();
+  });
+
+  it("the status verbs are exactly the rail's PATCH schema — no computed states", () => {
+    expect(MEMBER_STATUS_OPTIONS).toEqual(["trialing", "active", "past_due", "canceled", "expired"]);
+    expect(memberStatusPayload("canceled")).toEqual({ status: "canceled" });
+  });
+
+  it("roster writes land only from server-confirmed answers", () => {
+    expect(savedMemberStatus({ member: { id: "m1", status: "canceled" } })).toEqual({
+      id: "m1",
+      status: "canceled",
+    });
+    expect(savedMemberStatus({ member: { id: "m1" } })).toBeNull();
+    expect(savedMemberStatus({})).toBeNull();
+    const next = applyMemberStatus([MEMBER, { ...MEMBER, id: "m2" }], { id: "m1", status: "past_due" });
+    expect(next.map((m) => m.status)).toEqual(["past_due", "active"]);
+    expect(removeMemberRow([MEMBER, { ...MEMBER, id: "m2" }], "m1").map((m) => m.id)).toEqual(["m2"]);
+  });
+
+  it("the manual add gates on the rail's own limits and trims the label", () => {
+    expect(memberAddProblem("", "Fan")).toMatch(/Pick the tier/);
+    expect(memberAddProblem("t1", "   ")).toMatch(/Give the member a label/);
+    expect(memberAddProblem("t1", "x".repeat(121))).toMatch(/120 characters/);
+    expect(memberAddProblem("t1", "Fan")).toBeNull();
+    expect(buildMemberAddPayload("t1", "  Fan One  ")).toEqual({ tierId: "t1", fanLabel: "Fan One" });
+    expect(buildMemberAddPayload("", "Fan")).toBeNull();
+  });
+
+  it("the suggester's price is the server's own constant — 100 VB, shown up front", () => {
+    expect(MEMBERSHIP_AI_PERKS_COST_VB).toBe(100);
+  });
+
+  it("the suggest body is the memberships page's exact shape", () => {
+    expect(buildPerkSuggestPayload({ niche: "  drill beats ", audienceSize: "growing" })).toEqual({
+      niche: "drill beats",
+      audienceSize: "growing",
+      tierCount: 3,
+    });
+  });
+
+  it("suggestions narrow honestly — a tier with no name or no perks is not one", () => {
+    const got = parsePerkSuggestions({
+      tiers: [
+        { name: "Inner Circle", priceDollars: 25, perks: ["Early drops", "Monthly call"] },
+        { name: "", priceDollars: 5, perks: ["x"] },
+        { name: "Empty", priceDollars: 5, perks: [] },
+        { name: "Stringy", priceDollars: "9", perks: ["ok", 42, ""] },
+      ],
+    });
+    expect(got).toEqual([
+      { name: "Inner Circle", priceDollars: 25, perks: ["Early drops", "Monthly call"] },
+      { name: "Stringy", priceDollars: 0, perks: ["ok"] },
+    ]);
+    expect(parsePerkSuggestions({ tiers: [] })).toBeNull();
+    expect(parsePerkSuggestions({ tiers: "nope" })).toBeNull();
+    expect(parsePerkSuggestions(null)).toBeNull();
+  });
+
+  it("applying a suggestion fills the form like the page — description clears, toggles stay", () => {
+    const form = {
+      ...emptyTierForm(),
+      description: "old copy",
+      trialEnabled: true,
+      annualDiscountPct: "15",
+    };
+    const filled = tierFormFromSuggestion(form, {
+      name: "Inner Circle",
+      priceDollars: 25,
+      perks: ["Early drops"],
+    });
+    expect(filled.name).toBe("Inner Circle");
+    expect(filled.price).toBe("25");
+    expect(filled.perks).toEqual(["Early drops"]);
+    expect(filled.description).toBe("");
+    expect(filled.trialEnabled).toBe(true);
+    expect(filled.annualDiscountPct).toBe("15");
   });
 });
