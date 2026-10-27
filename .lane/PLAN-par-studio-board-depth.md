@@ -45,3 +45,18 @@ empty states. Projects tab keeps Continue; other tabs are display rows
 Env note: node_modules are symlinked from bdv-wt-joinnext (pnpm off PATH
 on this box) — gitignored, no repo change. @workspace/* resolves to the
 join tree's lib dists (superset of base) for typecheck only.
+
+## CLOSE-OUT (Oct 27)
+- Head 2ed36437f + tests/close-out commits on stack200/par-studio-board-depth.
+- Rungs: 0 plan 98eb48ef · 1 tab shaping 722869ee · 2 widget shaping
+  2ee8915e8 · 3 component 2ed36437f · 4 tests c505fd4e6.
+- Verification: studio-board.test.ts 27/27 (11 pre-existing + 16 new) ·
+  World slice src/lib/world 115 files / 2,048 tests ALL PASS · FE
+  typecheck (root tsc, tsconfig --noEmit) exit 0 on the final tree.
+- Migrations: NONE (no schema changes — all rails already exist).
+- Named leftovers: drafts/clips/history rows are display-only in-world
+  (draft recovery + clip verbs stay at their website desks — the tab
+  copy says so; no fake actions were built). The digest widget hides
+  when its rail fails rather than guessing; the weekly-contest line
+  distinguishes "no contest" from "couldn't be read". Join #2 owes
+  nothing from this lane beyond the merge itself.
