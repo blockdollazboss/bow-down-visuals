@@ -265,6 +265,19 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                 {s.note}
               </p>
             ))}
+          {/* Truthful unified presence (Round-2 #12): the count is the
+              server's real heartbeat-measured Bow Down viewers. External
+              platforms are never counted here — their presence is
+              unknown until a real platform feed exists, so no total
+              ever mixes a measured number with an invented one. */}
+          {client.presence && !ended && (
+            <p className="mt-1 text-[11px] leading-snug text-white/40" data-testid="chat-presence">
+              {client.presence.totalKnown} watching on Bow Down
+              {client.presence.perSource.some((p) => p.viewers === null)
+                ? " · Twitch/YouTube viewers aren't counted here yet"
+                : ""}
+            </p>
+          )}
         </div>
       )}
 
