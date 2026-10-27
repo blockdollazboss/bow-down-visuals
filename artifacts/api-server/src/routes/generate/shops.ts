@@ -18,6 +18,7 @@
  * handle the drizzle query builder's rowMode:'array'.
  */
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
@@ -60,6 +61,7 @@ import {
   SaleSplitError,
   type ProductSplit,
 } from "../../lib/sale-splits";
+import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer } from "../../lib/shop-delivery";
 import {
   readBumpConfig,
   validateBumpTarget,
@@ -169,6 +171,29 @@ async function shopProductsHasSplits(): Promise<boolean> {
     shopSplitsColKnown = false;
   }
   return shopSplitsColKnown;
+}
+
+/* Digital delivery (payfix lane 4, provisional migration
+   9999-shop-delivery): product_type / deliverable_url / deliverable_name
+   land via the provisional migration — same probe discipline as the
+   splits column (row-length form: COUNT over information_schema throws
+   in the pg-mem harness). Reads/writes include the columns only when
+   they exist; a delivery WRITE before the migration lands answers 503
+   instead of silently dropping what the buyer will receive. */
+let shopDeliveryColsKnown: boolean | null = null;
+async function shopProductsHasDelivery(): Promise<boolean> {
+  if (shopDeliveryColsKnown !== null) return shopDeliveryColsKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'shop_products' AND column_name = 'product_type'
+      LIMIT 1
+    `);
+    shopDeliveryColsKnown = r.rows.length > 0;
+  } catch {
+    shopDeliveryColsKnown = false;
+  }
+  return shopDeliveryColsKnown;
 }
 
 /** Co-seller splits (#36) on product writes: validate the whole list
@@ -353,6 +378,13 @@ const createProductSchema = z.object({
   /* #29: accessibility description of the product shot — creator-written
      or AI-suggested, editable before it ships. */
   image_alt_text: z.string().max(ALT_TEXT_MAX_CHARS).optional().default(""),
+  /* Digital delivery (payfix lane 4): a 'digital' product MUST carry a
+     deliverable (the handler enforces it) — uploaded via the shop
+     deliverable upload or a seller-hosted URL. 'physical' (default)
+     delivers nothing digitally. */
+  product_type: z.enum(["digital", "physical"]).optional().default("physical"),
+  deliverable_url: z.string().trim().max(2000).optional().default(""),
+  deliverable_name: z.string().trim().max(200).optional().default(""),
 });
 
 const updateProductSchema = z.object({
@@ -368,6 +400,12 @@ const updateProductSchema = z.object({
   /* Creator Product Affiliates (#16) — see createProductSchema. */
   affiliate_enabled: z.boolean().optional(),
   affiliate_commission_bps: z.number().int().min(1).max(10_000).nullable().optional(),
+  /* Digital delivery (payfix lane 4) — see createProductSchema.
+     Absent = keep; product_type 'digital' requires a deliverable on
+     the resulting row (handler checks the merged state). */
+  product_type: z.enum(["digital", "physical"]).optional(),
+  deliverable_url: z.string().trim().max(2000).optional(),
+  deliverable_name: z.string().trim().max(200).optional(),
   /* Co-seller revenue splits (#36) — see createProductSchema.
      Absent = keep; null = clear the co-sellers. */
   splits: z
@@ -435,6 +473,12 @@ interface ProductRow {
       pre-migration rows/selects. Buyer DTOs DO carry it — it is the
       public alt text their surfaces render. */
   image_alt_text?: string | null;
+  /** Digital delivery (payfix lane 4); absent on pre-migration selects.
+      deliverable_url is OWNER-shaped only — public selects never
+      include it. */
+  product_type?: string | null;
+  deliverable_url?: string | null;
+  deliverable_name?: string | null;
   /** 'active' | 'paused' (migration 0176) — owner DTOs only; buyer
       reads select explicit columns and never carry it. */
   status: string;
@@ -743,10 +787,35 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
   });
 });
 
-/* ── POST /api/shops — create a shop (Pro tier or higher) ─────────────────
-   Storefronts are a platform feature: opening a shop requires a paid plan.
+/* ── GET /api/shops/my-purchases — the buyer's library (auth) ─────────────
+   Every digital delivery that is MINE: paid shop purchases with their
+   order id, product, and download/access link. This is the library
+   entry the launch run found missing — a paid buyer must be able to
+   find what they bought again, not just at the moment of checkout.
+   Matched by account id or checkout email (lib/shop-delivery). */
+router.get("/shops/my-purchases", requireAuth, async (req, res) => {
+  const deliveries = await fetchDeliveriesForBuyer(req.userId!, req.userEmail ?? null);
+  res.json({
+    purchases: deliveries.map((d) => ({
+      orderId: d.order_id,
+      saleId: d.sale_event_id,
+      productId: d.product_id,
+      productName: d.product_name,
+      downloadUrl: d.deliverable_url,
+      fileName: d.deliverable_name,
+      deliveredAt: d.created_at,
+    })),
+  });
+});
+
+/* ── POST /api/shops — create a shop (ALL plans, incl. Free) ──────────────
+   Owner ruling (Oct 26, payments gate): /creator-pricing promises Free
+   includes "sell at 5%", and the store fee is FLAT 5% for every plan —
+   so shop creation is NOT tier-gated. Free creators create a shop and
+   sell; the 5% platform fee is the only take. (Custom domains below
+   stay Pro-gated: that is a domain feature, not the right to sell.)
    Everything after creation (products, AI, analytics) follows its own rules. */
-router.post("/shops", publicApiLimiter, requireAuth, requireProTier, async (req, res) => {
+router.post("/shops", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = createShopSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -872,7 +941,7 @@ router.get("/shops/handle/:handle", async (req, res) => {
      selected only to resolve the pin; it is stripped from the payload
      and replaced by the resolved `pinned_ad` video. */
   const productsResult = await db.execute(sql`
-    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}
+    SELECT id, name, price_cents, description, image_url${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, created_at, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}${await shopProductsHasDelivery() ? sql`, product_type` : sql``}
     FROM shop_products
     WHERE shop_id = ${shop.id} AND status = 'active'
     ORDER BY created_at ASC
@@ -940,7 +1009,7 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
     return;
   }
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}${await shopProductsHasDelivery() ? sql`, product_type, deliverable_url, deliverable_name` : sql``}, created_at, updated_at
     FROM shop_products
     WHERE shop_id = ${shop.id}
     ORDER BY created_at ASC
@@ -993,6 +1062,31 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
     res.status(splitsWrite.errorStatus).json({ error: splitsWrite.error, message: splitsWrite.message });
     return;
   }
+  /* Digital delivery (payfix lane 4): a digital product without a
+     deliverable would repeat the launch blocker (buyer pays, receives
+     nothing) — refuse the listing until a file/URL is attached. A
+     delivery write before the migration lands answers 503, never a
+     silent drop. */
+  const hasDelivery = await shopProductsHasDelivery();
+  const productType = parsed.data.product_type ?? "physical";
+  const deliverableUrl = (parsed.data.deliverable_url ?? "").trim();
+  const deliverableName = (parsed.data.deliverable_name ?? "").trim() || null;
+  if (productType === "digital" || deliverableUrl) {
+    if (!hasDelivery) {
+      res.status(503).json({
+        error: "DELIVERY_NOT_READY",
+        message: "Digital delivery isn't switched on for this install yet — the product was not saved. Nothing was charged.",
+      });
+      return;
+    }
+    if (productType === "digital" && !deliverableUrl) {
+      res.status(400).json({
+        error: "DELIVERABLE_REQUIRED",
+        message: "A digital product needs its file: upload the deliverable (or paste its URL) so buyers actually receive it after paying.",
+      });
+      return;
+    }
+  }
   const id = randomUUID();
   const storedImageUrl = parsed.data.image_url
     ? ((await mirrorExternalMediaUrl(parsed.data.image_url, { kind: "image", ownerKey: req.userId! })) ?? parsed.data.image_url)
@@ -1000,14 +1094,14 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
   const hasAlt = await shopProductsHasImageAlt();
   const imageAltText = sanitizeAltText(parsed.data.image_alt_text) || null;
   await db.execute(sql`
-    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps${hasAlt ? sql`, image_alt_text` : sql``}${splitsWrite ? sql`, splits` : sql``})
+    INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, description, image_url, image_path, affiliate_enabled, affiliate_commission_bps${hasAlt ? sql`, image_alt_text` : sql``}${splitsWrite ? sql`, splits` : sql``}${hasDelivery ? sql`, product_type, deliverable_url, deliverable_name` : sql``})
     VALUES (${id}, ${shop.id}, ${req.userId!},
             ${parsed.data.name.trim()}, ${parsed.data.price_cents},
             ${parsed.data.description}, ${storedImageUrl}, ${isStorageRef(storedImageUrl ?? "") ? storedImageUrl : null},
-            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null}${hasAlt ? sql`, ${imageAltText}` : sql``}${splitsWrite ? sql`, ${splitsWrite.json}::jsonb` : sql``})
+            ${parsed.data.affiliate_enabled}, ${parsed.data.affiliate_commission_bps ?? null}${hasAlt ? sql`, ${imageAltText}` : sql``}${splitsWrite ? sql`, ${splitsWrite.json}::jsonb` : sql``}${hasDelivery ? sql`, ${productType}, ${deliverableUrl || null}, ${deliverableName}` : sql``})
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}${await shopProductsHasDelivery() ? sql`, product_type, deliverable_url, deliverable_name` : sql``}, created_at, updated_at
     FROM shop_products WHERE id = ${id} LIMIT 1
   `);
   const createdRow = (result.rows as unknown as ProductRow[])[0];
@@ -1037,8 +1131,9 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     });
     return;
   }
+  const patchHasDelivery = await shopProductsHasDelivery();
   const existing = await db.execute(sql`
-    SELECT id, affiliate_commission_bps FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id} LIMIT 1
+    SELECT id, affiliate_commission_bps${patchHasDelivery ? sql`, product_type, deliverable_url` : sql``} FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id} LIMIT 1
   `);
   if ((existing.rows as unknown[]).length === 0) {
     res.status(404).json({ error: "Product not found." });
@@ -1064,6 +1159,33 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
     res.status(splitsWrite.errorStatus).json({ error: splitsWrite.error, message: splitsWrite.message });
     return;
   }
+  /* Digital delivery (payfix lane 4): validate the MERGED row — a
+     patch that flips a product to digital (or clears its file) must
+     never leave a digital listing with nothing to deliver. Absent
+     field = keep (the alt-text CASE discipline below); to retire a
+     file, flip the product back to physical. */
+  const deliveryTouched = d.product_type !== undefined || d.deliverable_url !== undefined || d.deliverable_name !== undefined;
+  if (deliveryTouched && !patchHasDelivery) {
+    res.status(503).json({
+      error: "DELIVERY_NOT_READY",
+      message: "Digital delivery isn't switched on for this install yet — the product was not changed. Nothing was charged.",
+    });
+    return;
+  }
+  const existingRow = existing.rows[0] as Record<string, unknown> | undefined;
+  const mergedType = d.product_type ?? (existingRow?.["product_type"] ? String(existingRow["product_type"]) : "physical");
+  const deliverableUrlWrite = d.deliverable_url === undefined ? null : (d.deliverable_url.trim() || null);
+  const deliverableNameWrite = d.deliverable_name === undefined ? null : (d.deliverable_name.trim() || null);
+  const mergedUrl = d.deliverable_url === undefined
+    ? (existingRow?.["deliverable_url"] ? String(existingRow["deliverable_url"]) : null)
+    : deliverableUrlWrite;
+  if (mergedType === "digital" && !mergedUrl) {
+    res.status(400).json({
+      error: "DELIVERABLE_REQUIRED",
+      message: "A digital product needs its file: upload the deliverable (or paste its URL) so buyers actually receive it after paying.",
+    });
+    return;
+  }
   const storedImageUrl = d.image_url
     ? ((await mirrorExternalMediaUrl(d.image_url, { kind: "image", ownerKey: req.userId! })) ?? d.image_url)
     : null;
@@ -1081,13 +1203,16 @@ router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, as
       image_alt_text = CASE WHEN ${imageAltText} IS NULL THEN image_alt_text ELSE ${imageAltText} END,` : sql``}
       status = COALESCE(${d.status ?? null}, status),
       affiliate_enabled = COALESCE(${d.affiliate_enabled ?? null}, affiliate_enabled),
-      affiliate_commission_bps = COALESCE(${d.affiliate_commission_bps ?? null}, affiliate_commission_bps),${splitsWrite ? sql`
+      affiliate_commission_bps = COALESCE(${d.affiliate_commission_bps ?? null}, affiliate_commission_bps),${patchHasDelivery ? sql`
+      product_type = COALESCE(${d.product_type ?? null}, product_type),
+      deliverable_url = CASE WHEN ${deliverableUrlWrite} IS NULL THEN deliverable_url ELSE ${deliverableUrlWrite} END,
+      deliverable_name = CASE WHEN ${deliverableNameWrite} IS NULL THEN deliverable_name ELSE ${deliverableNameWrite} END,` : sql``}${splitsWrite ? sql`
       splits = ${splitsWrite.json}::jsonb,` : sql``}
       updated_at = NOW()
     WHERE id = ${param(req.params.productId)}
   `);
   const result = await db.execute(sql`
-    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}, created_at, updated_at
+    SELECT id, shop_id, user_id, name, price_cents, description, image_url, image_path${await shopProductsHasImageAlt() ? sql`, image_alt_text` : sql``}, status, pinned_ugc_ad_id, affiliate_enabled, affiliate_commission_bps${await shopProductsHasSplits() ? sql`, splits` : sql``}${await shopProductsHasDelivery() ? sql`, product_type, deliverable_url, deliverable_name` : sql``}, created_at, updated_at
     FROM shop_products WHERE id = ${param(req.params.productId)} LIMIT 1
   `);
   const updatedRow = (result.rows as unknown as ProductRow[])[0];
@@ -1131,6 +1256,98 @@ router.delete("/shops/:id/products/:productId", requireAuth, async (req, res) =>
     DELETE FROM shop_products WHERE id = ${param(req.params.productId)} AND shop_id = ${shop.id}
   `);
   res.json({ deleted: true });
+});
+
+/* ── POST /api/shops/:id/deliverables/upload — attach a digital file ─────
+   The seller's deliverable for a digital product: file in, stored
+   object URL out (R2 when configured, else the shop-products Supabase
+   bucket — the product-image storage pattern). The returned URL is
+   what the product form saves as deliverable_url; it is never shown
+   to buyers except through their own paid delivery row.
+   Multipart (field "file") is the real path — the app's JSON body cap
+   is 256kb, so base64-in-JSON could never carry a real deliverable;
+   the JSON base64 shape stays for small programmatic uploads/tests. */
+const deliverableUploadSchema = z.object({
+  fileName: z.string().trim().min(1).max(200),
+  contentType: z.string().trim().max(120).optional().default("application/octet-stream"),
+  dataBase64: z.string().min(1),
+});
+const DELIVERABLE_MAX_BYTES = 25 * 1024 * 1024;
+const deliverableMultipart = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: DELIVERABLE_MAX_BYTES },
+});
+
+router.post("/shops/:id/deliverables/upload", publicApiLimiter, requireAuth, (req, res, next) => {
+  deliverableMultipart.single("file")(req, res, (err: unknown) => {
+    if (err) {
+      const tooBig = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE";
+      res.status(tooBig ? 413 : 400).json({
+        error: tooBig
+          ? "That file is over the 25 MB delivery limit — attach a smaller file, or paste a hosted URL for it instead."
+          : "That file couldn't be read — try uploading it again.",
+      });
+      return;
+    }
+    next();
+  });
+}, async (req, res) => {
+  const shop = await getOwnedShop(param(req.params.id), req.userId!);
+  if (!shop) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+  let buf: Buffer;
+  let rawName: string;
+  let contentType: string;
+  const file = (req as { file?: { buffer: Buffer; originalname: string; mimetype: string } }).file;
+  if (file) {
+    buf = file.buffer;
+    rawName = file.originalname || "deliverable";
+    contentType = file.mimetype || "application/octet-stream";
+  } else {
+    const parsed = deliverableUploadSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid upload.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
+      return;
+    }
+    try {
+      buf = Buffer.from(parsed.data.dataBase64, "base64");
+    } catch {
+      res.status(400).json({ error: "That file couldn't be read — try uploading it again." });
+      return;
+    }
+    rawName = parsed.data.fileName;
+    contentType = parsed.data.contentType || "application/octet-stream";
+  }
+  if (buf.length === 0) {
+    res.status(400).json({ error: "That file is empty — pick a file with content to deliver." });
+    return;
+  }
+  if (buf.length > DELIVERABLE_MAX_BYTES) {
+    res.status(413).json({ error: "That file is over the 25 MB delivery limit — attach a smaller file, or paste a hosted URL for it instead." });
+    return;
+  }
+  const safeName = rawName.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "deliverable";
+  const filePath = `${req.userId!}/deliverables/${randomUUID()}-${safeName}`;
+  try {
+    let publicUrl: string;
+    if (isR2Configured()) {
+      publicUrl = await r2Upload(`${SHOP_PRODUCTS_BUCKET}/${filePath}`, buf, contentType);
+    } else {
+      const { ensureShopProductsBucket } = await import("../../lib/objectStorage");
+      await ensureShopProductsBucket();
+      const { error: upErr } = await getSupabaseAdmin().storage
+        .from(SHOP_PRODUCTS_BUCKET)
+        .upload(filePath, buf, { contentType, upsert: false });
+      if (upErr) throw upErr;
+      publicUrl = getSupabaseAdmin().storage.from(SHOP_PRODUCTS_BUCKET).getPublicUrl(filePath).data.publicUrl;
+    }
+    res.status(201).json({ url: publicUrl, name: rawName, sizeBytes: buf.length });
+  } catch (err) {
+    logger.error({ err, shopId: shop.id }, "[shops] deliverable upload failed");
+    res.status(502).json({ error: "The file upload failed — nothing was saved. Try again, or paste a hosted URL for the file instead." });
+  }
 });
 
 /* ── PUT /api/shops/:id/products/:productId/bump — order-bump attachment ──
@@ -2376,8 +2593,17 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
         logger.error({ shopId, groupId, giftReservationId }, "[storefronts] gift-card redeem failed after free-path sale record — needs reconciliation");
       }
     }
+    /* Digital delivery (payfix lane 4): this path records the sale
+       directly, so it delivers directly too — the same exactly-once
+       shop_deliveries rows the hosted-checkout paid flip writes. */
+    await deliverPaidShopLinesSafely(allLines.map((l) => ({
+      saleEventId: l.saleId, shopId, productId: l.productId,
+      buyerEmail: buyerEmail || null, orderId: groupId,
+    })));
+    const freeDeliveries = await fetchDeliveriesForSaleEvents(allLines.map((l) => l.saleId));
     res.status(201).json({
       saleId: lines[0]!.saleId, saleIds: allLines.map((l) => l.saleId), groupId,
+      orderId: groupId, deliveries: freeDeliveries,
       status: "paid", paid: true, free: !paidByGiftCard, paidWithGiftCard: paidByGiftCard,
       paymentStatus: paidByGiftCard ? "gift_card" : "no_payment_required",
       productName: lines[0]!.name, quantity: allLines.reduce((s, l) => s + l.quantity, 0),
@@ -2516,8 +2742,12 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
   if (marketSaleIsPaid(rows)) {
     const receipt = marketSaleReceipt(rows);
     /* The receipt itself carries status/paid — spreading it last is
-       the whole shape; no duplicate literals. */
-    res.json({ duplicate: true, sessionId, order: receipt, pixels: shopPixels, ...receipt });
+       the whole shape; no duplicate literals. Digital delivery rides
+       along: the buyer's order id + download/access rows for THIS
+       order (lib/shop-delivery), so the confirmation shows what they
+       received, not just what they paid. */
+    const deliveries = await fetchDeliveriesForSaleEvents(rows.map((r) => String(r.id)));
+    res.json({ duplicate: true, sessionId, order: receipt, orderId: rows[0]?.checkout_group_id ?? null, deliveries, pixels: shopPixels, ...receipt });
     return;
   }
   let session;
@@ -2557,7 +2787,8 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
   const { flipped, rows: after } = await markMarketSalePaid(sessionId);
   const receipt = marketSaleReceipt(after);
   logger.info({ sessionId, flipped }, "[storefronts] checkout verified — sale recorded");
-  res.json({ duplicate: flipped === 0, sessionId, order: receipt, pixels: shopPixels, ...receipt });
+  const deliveries = await fetchDeliveriesForSaleEvents(after.map((r) => String(r.id)));
+  res.json({ duplicate: flipped === 0, sessionId, order: receipt, orderId: after[0]?.checkout_group_id ?? null, deliveries, pixels: shopPixels, ...receipt });
 });
 
 /* ── GET /api/storefronts/checkout/status?sessionId= — DB truth, read-only ─
@@ -2576,7 +2807,8 @@ router.get("/storefronts/checkout/status", publicApiLimiter, async (req, res) =>
     return;
   }
   const receipt = marketSaleReceipt(rows);
-  res.json({ sessionId, ...receipt, order: receipt, pixels: await pixelsForShop(String(rows[0]?.shop_id ?? "")) });
+  const deliveries = receipt.paid ? await fetchDeliveriesForSaleEvents(rows.map((r) => String(r.id))) : [];
+  res.json({ sessionId, ...receipt, order: receipt, orderId: rows[0]?.checkout_group_id ?? null, deliveries, pixels: await pixelsForShop(String(rows[0]?.shop_id ?? "")) });
 });
 
 /* ════════════════════════════════════════════════════════════════════════

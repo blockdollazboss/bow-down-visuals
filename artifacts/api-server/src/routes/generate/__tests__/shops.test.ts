@@ -301,11 +301,11 @@ describe("POST /api/shops", () => {
     expect(status).toBe(400);
   });
 
-  it("rejects shop creation for free plans with 403", async () => {
+  it("allows shop creation for free plans (Free includes selling at flat 5%)", async () => {
     testState.userPlan = "free";
-    const { status, json } = await req("POST", "/shops", { name: "Nope", handle: "nope-shop" });
-    expect(status).toBe(403);
-    expect(json.error).toBe("PRO_TIER_REQUIRED");
+    const { status, json } = await req("POST", "/shops", { name: "Free Seller", handle: "free-seller" });
+    expect(status).toBe(201);
+    expect(json.shop.handle).toBe("free-seller");
     testState.userPlan = "pro";
   });
 

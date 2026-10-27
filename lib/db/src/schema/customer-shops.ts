@@ -64,6 +64,17 @@ export const shopProductsTable = pgTable("shop_products", {
    *  held migration in that lane's .lane/MIGRATION-NEEDED.md — the shops
    *  routes probe for it and degrade gracefully until it lands. */
   image_alt_text: text("image_alt_text"),
+  /** Digital delivery (payfix lane 4, provisional migration
+      9999-shop-delivery): 'physical' (default — nothing to deliver
+      digitally) or 'digital'. A digital product MUST carry a
+      deliverable: deliverable_url is where the file lives (uploaded
+      via the shop deliverable upload, or a seller-hosted URL) and
+      deliverable_name is the buyer-facing file label. The URL is
+      NEVER exposed on public product payloads — it reaches a buyer
+      only through their own paid delivery row (shop_deliveries). */
+  product_type: text("product_type").notNull().default("physical").$type<ShopProductType>(),
+  deliverable_url: text("deliverable_url"),
+  deliverable_name: text("deliverable_name"),
   /** Listing state (migration 0176): 'active' | 'paused'. Mirrors the
       status vocabulary of creator_subscriptions / fan_memberships /
       sponsor_deals (text, NOT NULL, default 'active') — every product
@@ -230,6 +241,49 @@ export const selectShopEventSchema = createSelectSchema(shopEventsTable);
 
 /** Shop product listing state (migration 0176). */
 export type ShopProductStatus = "active" | "paused";
+
+/** Digital delivery product kind (payfix lane 4). */
+export type ShopProductType = "digital" | "physical";
+
+/* ── Shop deliveries (payfix lane 4, provisional migration
+   9999-shop-delivery) ───────────────────────────────────────────────────
+   The buyer's proof of delivery for a digital product: one row per
+   PAID sale line (shop_events row), written exactly once by the paid
+   flip (lib/shop-delivery) — the UNIQUE sale_event_id is the
+   exactly-once guard, so webhook replays / verify races can never
+   deliver twice. A row exists ONLY for paid sales: declined, pending
+   and expired checkouts never create one. order_id is the visible
+   order identifier the buyer sees (the checkout group). The
+   deliverable URL is snapshotted at delivery time so a seller editing
+   the product later never rewrites what an earlier buyer received. */
+export const shopDeliveriesTable = pgTable("shop_deliveries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** The shop_events sale row this delivery fulfils — UNIQUE. */
+  sale_event_id: uuid("sale_event_id").notNull().unique(),
+  shop_id: uuid("shop_id").notNull(),
+  product_id: uuid("product_id"),
+  /** Buyer's account when the buyer email matches one (resolved at
+      delivery time); the row is keyed by buyer_email regardless, so
+      a guest buyer who later signs up with that email sees it. */
+  buyer_user_id: uuid("buyer_user_id"),
+  buyer_email: text("buyer_email"),
+  /** Visible order id (the checkout group id). */
+  order_id: text("order_id").notNull(),
+  product_name: text("product_name"),
+  deliverable_url: text("deliverable_url").notNull(),
+  deliverable_name: text("deliverable_name"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("shop_deliveries_buyer_email_idx").on(t.buyer_email),
+  index("shop_deliveries_buyer_user_idx").on(t.buyer_user_id),
+]);
+
+export const insertShopDeliverySchema = createInsertSchema(shopDeliveriesTable).omit({
+  id: true,
+  created_at: true,
+});
+export const selectShopDeliverySchema = createSelectSchema(shopDeliveriesTable);
+export type ShopDelivery = typeof shopDeliveriesTable.$inferSelect;
 
 export type Shop = typeof shopsTable.$inferSelect;
 export type ShopProduct = typeof shopProductsTable.$inferSelect;

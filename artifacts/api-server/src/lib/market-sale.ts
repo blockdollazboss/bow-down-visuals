@@ -19,6 +19,7 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { recordAffiliateSaleSafely } from "./affiliates";
+import { deliverPaidShopLinesSafely } from "./shop-delivery";
 import { recordShopEventSplitsSafely } from "./sale-splits";
 import { findReservation, redeemReservation } from "./gift-cards";
 import { consumeOfferByClaimRef, releaseOfferClaimByRef } from "./product-offers";
@@ -162,6 +163,21 @@ export async function markMarketSalePaid(
       if (!flippedIds.has(String(row.id)) || !row.product_id) continue;
       await recordShopEventSplitsSafely(String(row.id));
     }
+    /* Digital delivery (payfix lane 4) — the buyer actually receives
+       what they paid for: one shop_deliveries row per flipped digital
+       line, exactly once (UNIQUE sale_event_id), only ever from this
+       paid flip. Physical lines and file-less listings no-op inside. */
+    await deliverPaidShopLinesSafely(
+      rows
+        .filter((row) => flippedIds.has(String(row.id)))
+        .map((row) => ({
+          saleEventId: String(row.id),
+          shopId: String(row.shop_id),
+          productId: row.product_id ? String(row.product_id) : null,
+          buyerEmail: row.buyer_email,
+          orderId: row.checkout_group_id ? String(row.checkout_group_id) : sessionId,
+        })),
+    );
   }
   /* Gift-card settlement (Stack-100 #3 #26): if this checkout held a
      gift-card reservation (rail 'shops', ref = checkout group), the
