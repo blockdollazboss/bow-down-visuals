@@ -63,8 +63,8 @@ let baseUrl: string;
 
 const DDL = `
   CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL);
-  CREATE TABLE digital_sales (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed');
-  CREATE TABLE store_orders (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed');
+  CREATE TABLE digital_sales (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0, stripe_session_id text, status text NOT NULL DEFAULT 'completed');
+  CREATE TABLE store_orders (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), profile_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0, stripe_session_id text, status text NOT NULL DEFAULT 'completed');
   CREATE TABLE creator_payouts (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id uuid NOT NULL, amount_cents integer NOT NULL CHECK (amount_cents > 0),
@@ -90,7 +90,23 @@ const DDL = `
     amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0,
     settled_payout_id uuid, settled_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now()
-  , affiliate_code text, bump_for_product_id uuid);
+  , affiliate_code text, bump_for_product_id uuid, stripe_session_id text);
+  CREATE TABLE beat_licenses (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    producer_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0,
+    commission_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment',
+    stripe_session_id text
+  );
+  CREATE TABLE pending_payout_ledger (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_user_id uuid NOT NULL, seller_profile_id uuid,
+    source_kind text NOT NULL, source_id uuid NOT NULL, entry_type text NOT NULL,
+    gross_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0,
+    net_cents integer NOT NULL DEFAULT 0, stripe_session_id text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  CREATE UNIQUE INDEX pending_payout_ledger_source_entry_ux
+    ON pending_payout_ledger (source_kind, source_id, entry_type);
 `;
 
 async function seed() {
@@ -144,7 +160,7 @@ afterAll(() => {
 });
 
 beforeEach(async () => {
-  for (const t of ["creator_profiles", "digital_sales", "store_orders", "creator_payouts", "sponsor_payouts", "fan_members", "shop_events"]) {
+  for (const t of ["creator_profiles", "digital_sales", "store_orders", "creator_payouts", "sponsor_payouts", "fan_members", "shop_events", "beat_licenses", "pending_payout_ledger"]) {
     await h.db.execute(`DELETE FROM ${t}`);
   }
   await seed();

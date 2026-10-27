@@ -205,6 +205,7 @@ describe("loadEarnings", () => {
       partial: false,
       sources: {
         storeSales: { status: "ok", totalCents: 0, count: 0, breakdown: { profileStoreCents: 0, profileStoreOrders: 0, shopSalesCents: 0, shopSales: 0 } },
+        beats: { status: "ok", totalCents: 0, count: 0, grossCents: 0, commissionCents: 0 },
         memberships: { status: "ok", totalCents: 0, count: 0 },
         brandDeals: { status: "ok", totalCents: 0, count: 0 },
         tips: { status: "ok", streamTipsVb: 0, streamTipCount: 0, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "pending_payment" },
