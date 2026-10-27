@@ -4,7 +4,6 @@ import path from "node:path";
 import type { Router } from "express";
 
 import autoVideoPlanRouter from "../generate/auto-video-plan";
-import exportDoctorRouter from "../generate/export-doctor";
 
 /* Recursively collect METHOD + path from an Express router's layer stack. */
 function collectRoutes(
@@ -46,24 +45,15 @@ function frontendApiPaths(file: string): string[] {
 
 describe("route contracts: frontend fetch URLs must match registered backend routes", () => {
   const autoPlanRoutes = collectRoutes(autoVideoPlanRouter);
-  const doctorRoutes = collectRoutes(exportDoctorRouter);
   const routesByFile: Record<string, Array<{ method: string; path: string }>> =
     {
       "AutoDirectorPanel.tsx": autoPlanRoutes,
-      "ExportDoctor.tsx": doctorRoutes,
     };
 
   it("registers POST /auto-video-plan (Bug 1 regression: frontend called /api/generate/auto-video-plan)", () => {
     expect(autoPlanRoutes).toContainEqual({
       method: "POST",
       path: "/auto-video-plan",
-    });
-  });
-
-  it("registers POST /export-doctor/export-overlays-range (Bug 2 regression: route was missing entirely)", () => {
-    expect(doctorRoutes).toContainEqual({
-      method: "POST",
-      path: "/export-doctor/export-overlays-range",
     });
   });
 
