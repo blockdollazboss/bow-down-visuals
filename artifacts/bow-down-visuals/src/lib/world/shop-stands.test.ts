@@ -922,3 +922,24 @@ describe("the seller's whole picture — GET /api/earnings at the stand (Parity 
     ]);
   });
 });
+
+describe("source pins — the seller's whole picture at the stand (Parity P3)", () => {
+  it("the manager reads GET /api/earnings and narrows it with the stand parser", () => {
+    expect(standsSrc).toContain('fetch("/api/earnings"');
+    expect(standsSrc).toContain("parseSellerEarnings(");
+    expect(standsSrc).toContain("sellerEarningsRows(");
+  });
+
+  it("the earnings strip renders ONLY inside the owner-gated StandManager — exactly once in the file", () => {
+    const managerAt = standsSrc.indexOf("function StandManager(");
+    const stripAt = standsSrc.indexOf('data-testid="world-shop-earnings"');
+    expect(managerAt).toBeGreaterThan(-1);
+    expect(stripAt).toBeGreaterThan(managerAt);
+    expect(standsSrc.split('data-testid="world-shop-earnings"').length - 1).toBe(1);
+  });
+
+  it("a failed earnings read is a failure line with a retry — never a silent zero", () => {
+    expect(standsSrc).toContain('data-testid="world-shop-earnings-retry"');
+    expect(standsSrc).toContain("setEarnings(null)");
+  });
+});
