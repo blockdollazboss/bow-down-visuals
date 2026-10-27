@@ -10,6 +10,13 @@
      stickers → public/emoji/{dark,light}/king-<name>.webp  (256px WebP)
      GIFs     → public/gifs/{dark,light}/<name>.gif        (160px, 12fps)
 
+   Both sets are ALSO on the R2 media bucket at the same paths, and both
+   URL resolvers route through mediaUrl() so the art serves off the CDN
+   like every other heavy site media. (S27-16: the stickers were the
+   last origin-pinned holdout — kingEmojiUrl bypassed mediaUrl while
+   kingGifUrl used it. The public/ copies remain as the shipped
+   fallback set and the upload source.)
+
    The King Wave GIF slot is honestly empty — it was never generated,
    so there is no wave code anywhere in this manifest.
 
@@ -69,7 +76,7 @@ export function kingGifDef(code: string): KingGifDef | null {
 /** Public URL for a sticker in the given theme; null for unknown codes. */
 export function kingEmojiUrl(code: string, theme: KingArtTheme): string | null {
   const def = EMOJI_BY_CODE.get(code);
-  return def ? `/emoji/${theme}/${def.file}` : null;
+  return def ? mediaUrl(`/emoji/${theme}/${def.file}`) : null;
 }
 
 /** Public URL for a GIF in the given theme; null for unknown codes. */

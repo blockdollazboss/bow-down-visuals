@@ -96,8 +96,12 @@ describe("reaction art mapping (server keys unchanged)", () => {
     expect([...REACTION_KEYS].sort()).toEqual(Object.keys(expected).sort());
     for (const key of REACTION_KEYS) {
       expect(REACTION_ART[key].code).toBe(expected[key]);
-      expect(reactionArtUrl(key, "dark")).toBe(`/emoji/dark/${expected[key]}.webp`);
-      expect(reactionArtUrl(key, "light")).toBe(`/emoji/light/${expected[key]}.webp`);
+      expect(reactionArtUrl(key, "dark")).toBe(
+        `https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/emoji/dark/${expected[key]}.webp`,
+      );
+      expect(reactionArtUrl(key, "light")).toBe(
+        `https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/emoji/light/${expected[key]}.webp`,
+      );
     }
   });
 
@@ -238,7 +242,9 @@ describe("GIF insert rides the image-attachment path", () => {
   it("URL resolvers refuse unknown codes", () => {
     expect(kingEmojiUrl("king-wave", "dark")).toBeNull();
     expect(kingGifUrl("gif-king-wave", "light")).toBeNull();
-    expect(kingEmojiUrl("king-laugh", "light")).toBe("/emoji/light/king-laugh.webp");
+    expect(kingEmojiUrl("king-laugh", "light")).toBe(
+      "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/emoji/light/king-laugh.webp",
+    );
     expect(kingGifUrl("gif-king-laugh", "dark")).toBe("https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/gifs/dark/king-laugh.gif");
   });
 });
