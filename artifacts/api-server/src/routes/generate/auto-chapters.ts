@@ -40,12 +40,12 @@ function formatTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-interface TimedLine {
+export interface TimedLine {
   start: number;
   text: string;
 }
 
-async function transcribeAudioUrl(audioUrl: string): Promise<TimedLine[]> {
+export async function transcribeAudioUrl(audioUrl: string): Promise<TimedLine[]> {
   const workDir = await mkdtemp(join(tmpdir(), "auto-chapters-"));
   const audioPath = join(workDir, "audio.mp3");
   try {
@@ -91,17 +91,17 @@ function parseTimestampedLines(transcript: string): TimedLine[] {
   return out;
 }
 
-interface Chapter {
+export interface AutoChapter {
   title: string;
   startSec: number;
   endSec: number;
 }
 
-function sanitizeTimedChapters(
+export function sanitizeTimedChapters(
   raw: Array<{ title?: unknown; startSec?: unknown }>,
   maxChapters: number,
   fallbackEnd: number,
-): Chapter[] {
+): AutoChapter[] {
   const seen = new Set<number>();
   const cleaned: Array<{ title: string; startSec: number }> = [];
   for (const c of raw) {
@@ -125,12 +125,12 @@ function sanitizeTimedChapters(
   }));
 }
 
-async function detectTimedChapters(
+export async function detectTimedChapters(
   lines: TimedLine[],
   maxChapters: number,
   videoTitle: string,
   fallbackEnd: number,
-): Promise<Chapter[]> {
+): Promise<AutoChapter[]> {
   const timed = lines
     .filter((l) => l.start >= 0 && l.text.length > 0)
     .slice(0, 400)
@@ -170,7 +170,7 @@ async function detectUntimedChapters(
   maxChapters: number,
   videoTitle: string,
   totalDurationSec: number,
-): Promise<Chapter[]> {
+): Promise<AutoChapter[]> {
   const trimmed = transcript.slice(0, 20000);
 
   const prompt =
@@ -235,6 +235,33 @@ async function detectUntimedChapters(
   }));
 }
 
+
+/* ─── Summary (N5 delta) ───
+   A short watch-page summary from the same transcript the chapters came
+   from. 2-3 sentences, plain words, only what the transcript supports. */
+export async function generateSummaryFromTranscript(
+  transcriptText: string,
+  videoTitle: string,
+): Promise<string> {
+  const trimmed = transcriptText.slice(0, 12000);
+  if (!trimmed.trim()) return "";
+  const completion = await getOpenAI().chat.completions.create({
+    model: getTextModel(),
+    messages: [{
+      role: "user",
+      content:
+        `Write a 2-3 sentence summary of this video for its watch page.` +
+        (videoTitle ? `\nVideo title: "${videoTitle}"` : "") +
+        `\nRules: plain words; only say what the transcript supports; no hype, no calls to action.` +
+        `\n\nTranscript:\n${trimmed}` +
+        `\n\nReturn ONLY the summary text.`,
+    }],
+    temperature: 0.4,
+  }, { signal: AbortSignal.timeout(60_000) });
+  const text = completion.choices?.[0]?.message?.content ?? "";
+  return text.trim().slice(0, 600);
+}
+
 router.post("/auto-chapters", requireAuth, async (req, res) => {
   const parsed = autoChaptersSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -270,7 +297,7 @@ router.post("/auto-chapters", requireAuth, async (req, res) => {
   try {
     const { transcript, audioUrl, maxChapters, totalDurationSec, videoTitle } = parsed.data;
 
-    let chapters: Chapter[];
+    let chapters: AutoChapter[];
 
     if (audioUrl) {
       req.log.info("[auto-chapters] transcribing audio");

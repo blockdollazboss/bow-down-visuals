@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { LuxReveal } from "@/components/LuxReveal";
@@ -9,6 +9,8 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowLeft, ArrowRight, Heart, Eye, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ShareMenu from "@/components/ShareMenu";
+import { WatchChapters } from "@/components/player-upgrades/WatchChapters";
+import { ShowcaseVideoTools } from "@/components/player-upgrades/ShowcaseVideoTools";
 import type { ShowcaseItem } from "./index";
 
 /* ─── Public showcase item page ───
@@ -31,6 +33,14 @@ export default function ShowcaseItemPage() {
   const [retryNonce, setRetryNonce] = useState(0);
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  function seekTo(sec: number) {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = sec;
+    void v.play().catch(() => {});
+  }
 
   useEffect(() => {
     if (!slug) return;
@@ -145,7 +155,7 @@ export default function ShowcaseItemPage() {
           {/* Media */}
           <div className={`rounded-2xl overflow-hidden border mb-8 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF6E9]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {item.media_type === "video" ? (
-              <video src={item.media_url} controls poster={item.thumbnail_url ?? undefined} className="w-full max-h-[70vh]" playsInline />
+              <video ref={videoRef} src={item.media_url} controls poster={item.thumbnail_url ?? undefined} className="w-full max-h-[70vh]" playsInline />
             ) : item.media_type === "song" ? (
               <div className="p-10 text-center bg-gradient-to-b from-[#c9a84c]/10 to-transparent">
                 <p className="text-5xl mb-6">🎵</p>
@@ -155,6 +165,12 @@ export default function ShowcaseItemPage() {
               <img src={item.media_url} alt={item.title} className="w-full" />
             )}
           </div>
+
+          {/* Auto Chapters (N5): approved sets only; renders nothing otherwise. */}
+          {item.media_type === "video" && <WatchChapters slug={item.slug} onSeek={seekTo} />}
+
+          {/* Creator tools (#174 + N5 owner side): renders only for the owner. */}
+          {item.media_type === "video" && <ShowcaseVideoTools itemId={item.id} />}
 
           {/* Meta + social proof */}
           <div className="flex flex-wrap items-start justify-between gap-6 mb-8">

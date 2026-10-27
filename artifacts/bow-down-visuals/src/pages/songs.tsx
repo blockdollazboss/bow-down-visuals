@@ -14,6 +14,7 @@ import AlbumsSection from "./songs/albums-section";
 import DjSetPrep, { DjChips, type DjAnalysis } from "./songs/dj-set-prep";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { SampleClearancePanel } from "@/components/sample-clearance/SampleClearancePanel";
+import { KaraokePanel } from "@/components/player-upgrades/KaraokePanel";
 import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
 import { SongCredits } from "@/components/SongCredits";
 import type { PublicSongCredits } from "@/lib/song-credits";
@@ -491,6 +492,8 @@ export default function SongsPage() {
                   FROM the canonical credits the API attaches — never
                   re-entered here. Tap a credit → that creator. */}
               <SongCredits credits={s.credits} ownerHint compact />
+              {/* Karaoke Mode (N9): in-player sing-along on this song. */}
+              <KaraokePanel songId={s.id} audioUrl={s.audio_url} title={s.title} isLight={isLight} />
               {/* DJ read: BPM · key · Camelot chips, or the free analysis. */}
               <div className="mt-2">
                 {djAnalysisById[s.id] ? (

@@ -8,6 +8,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ArrowRight, Heart, Eye, Play, Music, Image as ImageIcon, AlertTriangle, RotateCcw } from "lucide-react";
+import { DuelCover } from "@/components/player-upgrades/DuelCover";
 
 /* ─── Public creator showcase ───
    Opt-in gallery of community creations. No login required to browse;
@@ -36,8 +37,10 @@ const TYPE_FILTERS = [
 
 function MediaThumb({ item }: { item: ShowcaseItem }) {
   if (item.media_type === "video") {
+    /* #174: a running duel takes over the thumb (served cover + counted
+       click); DuelCover falls back to the normal thumb when no duel runs. */
     return (
-      <div className="relative aspect-video bg-black/60 overflow-hidden">
+      <DuelCover slug={item.slug}>
         {item.thumbnail_url ? (
           <img src={item.thumbnail_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
         ) : (
@@ -48,7 +51,7 @@ function MediaThumb({ item }: { item: ShowcaseItem }) {
             <Play className="h-5 w-5 text-white" />
           </span>
         </span>
-      </div>
+      </DuelCover>
     );
   }
   if (item.media_type === "song") {

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 /* ── Songs library ─────────────────────────────────────────────────────────
@@ -32,6 +32,12 @@ export const songsTable = pgTable("songs", {
       the distribute flow reads/writes it here instead of re-collecting
       it per release. All nullable — older songs simply don't know yet. */
   lyrics: text("lyrics"),
+  /** N9 Karaoke Mode (upgrade-deltas wave): creator switches for the
+      interactive in-player sing-along. timed_lyrics is artist-supplied LRC
+      ([mm:ss] lines) whose text must match `lyrics` when both are present. */
+  karaoke_enabled: boolean("karaoke_enabled").notNull().default(false),
+  karaoke_share_enabled: boolean("karaoke_share_enabled").notNull().default(false),
+  timed_lyrics: text("timed_lyrics"),
   genre: text("genre"),
   isrc: text("isrc"),
   cover_art_url: text("cover_art_url"),
