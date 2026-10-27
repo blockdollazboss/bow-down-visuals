@@ -61,9 +61,7 @@ export default function GroupPublic() {
 
   usePageTitle(
     dto ? dto.group.displayName : "Group Profile",
-    dto?.group.bio
-      ? dto.group.bio.split("\n")[0]
-      : "A duo / group creator page on Bow Down Visuals — music, videos and a shared store under one name.",
+    "A duo / group creator page on Bow Down Visuals — the members credited, their published split terms, and one shared store under the group name.",
   );
 
   const shell = isLight ? "bg-[#FAF7F0] text-[#241C0A]" : "bg-black text-white";
