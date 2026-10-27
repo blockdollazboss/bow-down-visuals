@@ -79,3 +79,31 @@ describe("booking-note codec", () => {
     )).toBe(false); // back-to-back is not an overlap
   });
 });
+
+describe("booking-note codec — Office Hours fields (#167)", () => {
+  const OH: BookingRecord = {
+    ...REC,
+    md: "messages_call",
+    vb: 750,
+    ck: "office-hours:order-123",
+  };
+
+  it("round-trips the office-hours fields", () => {
+    expect(decodeBookingNote(encodeBookingNote(OH))).toEqual(OH);
+  });
+
+  it("rejects records with malformed office-hours fields", () => {
+    const bad1 = { ...REC, md: "carrier_pigeon" };
+    const bad2 = { ...REC, vb: -5 };
+    const bad3 = { ...REC, vb: "750" };
+    const bad4 = { ...REC, ck: "" };
+    for (const bad of [bad1, bad2, bad3, bad4]) {
+      const payload = Buffer.from(JSON.stringify(bad), "utf8").toString("base64url");
+      expect(decodeBookingNote(`x ⟦bk1:${payload}⟧`)).toBeNull();
+    }
+  });
+
+  it("dollar bookings without the new fields still decode (backward compatible)", () => {
+    expect(decodeBookingNote(encodeBookingNote(REC))).toEqual(REC);
+  });
+});

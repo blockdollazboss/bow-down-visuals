@@ -47,6 +47,22 @@ export interface BookingRecord {
    *  carries it. Absent on every record written before reminders
    *  existed and on any booking not yet due. */
   rm?: string;
+  /** Session medium (Office Hours, #167): 'messages_call' marks a
+   *  booking whose session is held as a video call inside Messages —
+   *  the booking surface deep-links both parties into their DM thread,
+   *  where the call rails live. Absent = an ordinary in-person / link
+   *  service booking, exactly as before. */
+  md?: "messages_call";
+  /** Visual Bucs price charged for this booking (Office Hours, #167).
+   *  Present ONLY on VB-paid bookings: the dollar columns on the order
+   *  stay 0 for these rows — the two economies are never mixed. Absent
+   *  = paid in dollars through Stripe, as before. */
+  vb?: number;
+  /** The VB charge's idempotency key (Office Hours, #167), recorded so
+   *  a cancellation can void it — a refunded charge whose key still
+   *  stands would suppress the buyer's next legitimate charge as a
+   *  "replay". Not a secret; it names the booking intent. */
+  ck?: string;
 }
 
 const TRAILER_RE = /⟦bk1:([A-Za-z0-9_-]+)⟧\s*$/;
@@ -67,6 +83,9 @@ function isValidRecord(x: unknown): x is BookingRecord {
     r["rf"] !== "refunded" && r["rf"] !== "refund_failed" && r["rf"] !== "not_required"
   ) return false;
   if (r["rm"] !== undefined && (typeof r["rm"] !== "string" || Number.isNaN(Date.parse(r["rm"])))) return false;
+  if (r["md"] !== undefined && r["md"] !== "messages_call") return false;
+  if (r["vb"] !== undefined && (typeof r["vb"] !== "number" || !Number.isFinite(r["vb"] as number) || (r["vb"] as number) <= 0)) return false;
+  if (r["ck"] !== undefined && (typeof r["ck"] !== "string" || (r["ck"] as string).length === 0)) return false;
   return true;
 }
 
