@@ -34,6 +34,14 @@
  *     checkouts never fold into sales); shop deletion is the same
  *     two-step discipline as product deletion; custom domains stay
  *     website-side and the stand says so.
+ * (h) The seller's whole picture (Parity P3, par-seller-stand):
+ *     GET /api/earnings parses under the rail's own honesty
+ *     contract — an errored source keeps NULL totals (never a
+ *     fake 0) and marks the picture partial; stream tips stay in
+ *     Visual Bucs, never folded into the USD headline; tip-jar
+ *     intents ride as pending, not earnings; a payload without an
+ *     honest headline is no picture at all. Display-only — the
+ *     stand computes no money number of its own.
  *
  * Source pins (contract style): the stands wire the exact server
  * endpoints §3.3 names, the checkout opens its hosted page in a
@@ -111,6 +119,8 @@ import {
   recentShopPending,
   maxDailyViews,
   SHOP_SALES_SHOWN,
+  parseSellerEarnings,
+  sellerEarningsRows,
   type BrandingCartLine,
   type MembershipTierDto,
   type MineShopDto,
@@ -889,5 +899,133 @@ describe("source pins — stand settings + sales wiring (Stack-4 wave-2 #6)", ()
        own rails; the old website-only line is retired. */
     expect(standsSrc).toContain("<DomainsDesk");
     expect(standsSrc).not.toContain("Custom domains live on your shop&rsquo;s page on the website");
+  });
+});
+
+describe("the seller's whole picture — GET /api/earnings at the stand (Parity P3)", () => {
+  const PICTURE = {
+    userId: "u1",
+    currency: "USD",
+    totalCents: 123456,
+    totalTipsVb: 700,
+    partial: false,
+    sources: {
+      storeSales: { status: "ok", totalCents: 100000, count: 42, breakdown: { profileStoreCents: 60000 } },
+      memberships: { status: "ok", totalCents: 20000, count: 9 },
+      brandDeals: { status: "ok", totalCents: 3456, count: 2 },
+      tips: { status: "ok", streamTipsVb: 700, streamTipCount: 5, tipJarPendingCents: 1500, tipJarPendingCount: 3, tipJarStatus: "pending_payment" },
+    },
+  };
+
+  it("parses the rail's payload whole — headline, sources, tips apart", () => {
+    expect(parseSellerEarnings(PICTURE)).toEqual({
+      totalCents: 123456,
+      totalTipsVb: 700,
+      partial: false,
+      storeSales: { status: "ok", totalCents: 100000, count: 42 },
+      memberships: { status: "ok", totalCents: 20000, count: 9 },
+      brandDeals: { status: "ok", totalCents: 3456, count: 2 },
+      streamTipsVb: 700,
+      streamTipCount: 5,
+      tipJarPendingCents: 1500,
+      tipJarPendingCount: 3,
+    });
+  });
+
+  it("the USD headline is the endpoint's own — VB is never folded into it", () => {
+    const parsed = parseSellerEarnings(PICTURE);
+    expect(parsed?.totalCents).toBe(123456);
+    expect(parsed?.totalTipsVb).toBe(700);
+  });
+
+  it("a real zero is a picture, not a failure — an empty seller reads 0s honestly", () => {
+    const zero = {
+      totalCents: 0,
+      totalTipsVb: 0,
+      partial: false,
+      sources: {
+        storeSales: { status: "ok", totalCents: 0, count: 0 },
+        memberships: { status: "ok", totalCents: 0, count: 0 },
+        brandDeals: { status: "ok", totalCents: 0, count: 0 },
+        tips: { status: "ok", streamTipsVb: 0, streamTipCount: 0, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "pending_payment" },
+      },
+    };
+    expect(parseSellerEarnings(zero)?.totalCents).toBe(0);
+    expect(parseSellerEarnings(zero)?.partial).toBe(false);
+  });
+
+  it("an errored source keeps NULL totals — never a fake 0 — and marks the picture partial", () => {
+    const broken = {
+      ...PICTURE,
+      totalCents: 103456,
+      partial: true,
+      sources: {
+        ...PICTURE.sources,
+        memberships: { status: "error", totalCents: null, count: null },
+      },
+    };
+    const parsed = parseSellerEarnings(broken);
+    expect(parsed?.memberships).toEqual({ status: "error", totalCents: null, count: null });
+    expect(parsed?.partial).toBe(true);
+    /* The partial flag is derived from the rows too — a stripped flag can't hide a dead source. */
+    expect(parseSellerEarnings({ ...broken, partial: false })?.partial).toBe(true);
+  });
+
+  it("an errored tips source reads nulls, not zeros, and marks partial", () => {
+    const broken = {
+      ...PICTURE,
+      totalTipsVb: null,
+      sources: {
+        ...PICTURE.sources,
+        tips: { status: "error", streamTipsVb: null, streamTipCount: null, tipJarPendingCents: null, tipJarPendingCount: null, tipJarStatus: "pending_payment" },
+      },
+    };
+    const parsed = parseSellerEarnings(broken);
+    expect(parsed?.streamTipsVb).toBeNull();
+    expect(parsed?.tipJarPendingCount).toBeNull();
+    expect(parsed?.partial).toBe(true);
+  });
+
+  it("a payload without an honest headline is no picture at all", () => {
+    expect(parseSellerEarnings(null)).toBeNull();
+    expect(parseSellerEarnings("earnings")).toBeNull();
+    expect(parseSellerEarnings({})).toBeNull();
+    expect(parseSellerEarnings({ totalCents: "123456", sources: PICTURE.sources })).toBeNull();
+    expect(parseSellerEarnings({ totalCents: 1 })).toBeNull();
+    expect(parseSellerEarnings({ totalCents: 1, sources: { storeSales: PICTURE.sources.storeSales } })).toBeNull();
+    expect(
+      parseSellerEarnings({ totalCents: 1, sources: { ...PICTURE.sources, brandDeals: { status: "ok", totalCents: null, count: null } } }),
+    ).toBeNull();
+    expect(parseSellerEarnings({ totalCents: 1, sources: { ...PICTURE.sources, tips: null } })).toBeNull();
+  });
+
+  it("the display rows are the stand's three money sources, in order, numbers untouched", () => {
+    const parsed = parseSellerEarnings(PICTURE);
+    expect(parsed && sellerEarningsRows(parsed)).toEqual([
+      { key: "store", label: "Store sales", noun: "sales", source: { status: "ok", totalCents: 100000, count: 42 } },
+      { key: "memberships", label: "Memberships", noun: "members", source: { status: "ok", totalCents: 20000, count: 9 } },
+      { key: "deals", label: "Brand deals", noun: "deals", source: { status: "ok", totalCents: 3456, count: 2 } },
+    ]);
+  });
+});
+
+describe("source pins — the seller's whole picture at the stand (Parity P3)", () => {
+  it("the manager reads GET /api/earnings and narrows it with the stand parser", () => {
+    expect(standsSrc).toContain('fetch("/api/earnings"');
+    expect(standsSrc).toContain("parseSellerEarnings(");
+    expect(standsSrc).toContain("sellerEarningsRows(");
+  });
+
+  it("the earnings strip renders ONLY inside the owner-gated StandManager — exactly once in the file", () => {
+    const managerAt = standsSrc.indexOf("function StandManager(");
+    const stripAt = standsSrc.indexOf('data-testid="world-shop-earnings"');
+    expect(managerAt).toBeGreaterThan(-1);
+    expect(stripAt).toBeGreaterThan(managerAt);
+    expect(standsSrc.split('data-testid="world-shop-earnings"').length - 1).toBe(1);
+  });
+
+  it("a failed earnings read is a failure line with a retry — never a silent zero", () => {
+    expect(standsSrc).toContain('data-testid="world-shop-earnings-retry"');
+    expect(standsSrc).toContain("setEarnings(null)");
   });
 });

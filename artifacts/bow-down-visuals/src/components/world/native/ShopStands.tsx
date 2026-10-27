@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   BadgeCheck, BarChart3, Check, Crown, Gem, Gift, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
-  Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Users, X,
+  Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Users, Wallet, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -33,14 +33,15 @@ import {
   buildProductPayload, buildShopCreatePayload, buildShopDescriptionPayload,
   buildShopSettingsPayload, emptyProductForm, emptyShopCreateForm,
   isOwnStand, maxDailyViews, parseAiDescription, parseAiImageUrl,
-  parseMineShops, parseShopAnalytics, productFormFromDto, productFormProblem,
+  parseMineShops, parseSellerEarnings, parseShopAnalytics, productFormFromDto, productFormProblem,
   recentShopPending, recentShopSales, removeProduct, savedProductDto, savedShopDto,
+  sellerEarningsRows,
   shopCreateProblem, shopSettingsFormFromShop, shopSettingsProblem,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
   type BrandingOrderDto, type BrandingShipping, type ClubDirectoryRow, type HubShopDto,
   type MarketOrder, type MembershipPendingCheckout, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
   type ProductFormState, type PublicProductDto,
-  type PublicShopDto, type ShopAnalytics, type ShopCreateFormState,
+  type PublicShopDto, type SellerEarnings, type ShopAnalytics, type ShopCreateFormState,
   type ShopSettingsFormState,
 } from "@/lib/world/shop-stands";
 import type { CartLine } from "@/lib/shops";
@@ -772,6 +773,12 @@ function StandManager({
   const [analytics, setAnalytics] = useState<ShopAnalytics | null | undefined>(undefined);
   const [analyticsBusy, setAnalyticsBusy] = useState(false);
 
+  /* The seller's whole picture (Parity P3): undefined = not asked
+     yet, null = asked and the picture wouldn't open (an honest
+     failure line with a retry, never fake zeros). */
+  const [earnings, setEarnings] = useState<SellerEarnings | null | undefined>(undefined);
+  const [earningsBusy, setEarningsBusy] = useState(false);
+
   const set = (patch: Partial<ProductFormState>) => setForm((f) => ({ ...f, ...patch }));
 
   const openNew = () => {
@@ -1049,6 +1056,34 @@ function StandManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section]);
 
+  /* The seller's whole picture — GET /api/earnings, read when the
+     desk opens. Display-only: the numbers are the endpoint's own
+     (store sales + memberships + brand deals in cents, stream tips
+     in Visual Bucs kept apart by the rail's contract). A failed
+     read is a failure line with a retry, never zeros. At Join #2
+     the endpoint's aggregation upgrades onto payfix's shared
+     lib/seller-earnings.ts — this read doesn't change. */
+  const loadEarnings = async () => {
+    if (earningsBusy) return;
+    setEarningsBusy(true);
+    try {
+      const res = await fetch("/api/earnings", { headers: await authHeaders() });
+      const data = (await res.json().catch(() => ({}))) as unknown;
+      if (!res.ok) throw new Error("earnings");
+      const parsed = parseSellerEarnings(data);
+      if (!parsed) throw new Error("earnings");
+      setEarnings(parsed);
+    } catch {
+      setEarnings(null);
+    } finally {
+      setEarningsBusy(false);
+    }
+  };
+  useEffect(() => {
+    void loadEarnings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <NativeCard isLight={isLight} title="Your stand — manage it here">
       <div className="space-y-2">
@@ -1056,6 +1091,89 @@ function StandManager({
           This is your stand — the same products and prices as your shop on the website, run from right here.
           Every change saves on the real rails the moment it lands.
         </p>
+
+        {/* The seller's whole picture (Parity P3) — every rail they
+            sell on, read off GET /api/earnings: this stand's sales
+            are one line of it. Display-only; the numbers are the
+            endpoint's own, and tips stay in Visual Bucs, apart. */}
+        <div
+          data-testid="world-shop-earnings"
+          className={`space-y-1.5 rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+        >
+          {earnings === undefined || earningsBusy ? (
+            <p className={`flex items-center gap-2 text-xs ${muted(isLight)}`}>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening your earnings picture…
+            </p>
+          ) : earnings === null ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold text-red-400">
+                Your earnings picture wouldn&rsquo;t open — nothing about your money changed.
+              </p>
+              <button
+                type="button"
+                data-testid="world-shop-earnings-retry"
+                onClick={() => { setEarnings(undefined); void loadEarnings(); }}
+                className={chipBtn(isLight)}
+              >
+                <RefreshCw className="h-3 w-3" /> Try again
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <Wallet className="h-4 w-4 shrink-0 text-[#d4af37]" />
+                <span className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  You&rsquo;ve earned {centsToDisplay(earnings.totalCents)} across everything you sell
+                </span>
+                {earnings.partial && (
+                  <span className={`text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                    One part of the picture couldn&rsquo;t be read just now — the total counts what loaded.
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {sellerEarningsRows(earnings).map((row) => (
+                  <span
+                    key={row.key}
+                    data-testid="world-shop-earnings-source"
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/10 text-white/70"}`}
+                  >
+                    {row.label}
+                    {row.source.status === "error" || row.source.totalCents === null || row.source.count === null ? (
+                      <span className={isLight ? "text-[#92600a]" : "text-amber-300"}>couldn&rsquo;t be read</span>
+                    ) : (
+                      <span className={isLight ? "text-[#2a1e07]" : "text-white"}>
+                        {centsToDisplay(row.source.totalCents)} · {row.source.count}{" "}
+                        {row.source.count === 1 ? row.noun.replace(/s$/, "") : row.noun}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+              {earnings.streamTipsVb !== null && (earnings.streamTipsVb > 0 || (earnings.streamTipCount ?? 0) > 0) && (
+                <p className={`text-[11px] ${muted(isLight)}`}>
+                  Stream tips: <span className="font-bold text-[#d4af37]">{earnings.streamTipsVb.toLocaleString()} VB</span>
+                  {earnings.streamTipCount !== null && earnings.streamTipCount > 0
+                    ? ` from ${earnings.streamTipCount} ${earnings.streamTipCount === 1 ? "tip" : "tips"}`
+                    : ""}{" "}
+                  — Visual Bucs, kept apart from the money above.
+                </p>
+              )}
+              {earnings.tipJarPendingCount !== null && earnings.tipJarPendingCount > 0 && (
+                <p className={`text-[11px] ${muted(isLight)}`}>
+                  {earnings.tipJarPendingCount} tip-jar {earnings.tipJarPendingCount === 1 ? "gift" : "gifts"}
+                  {earnings.tipJarPendingCents !== null ? ` worth ${centsToDisplay(earnings.tipJarPendingCents)}` : ""} awaiting
+                  payment — not earnings until they&rsquo;re paid.
+                </p>
+              )}
+              <p className={`text-[11px] ${muted(isLight)}`}>
+                The same picture as your Earnings page, on the same rails — store sales here include this stand. Money pays
+                out through the website&rsquo;s payout path.
+              </p>
+            </>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Your stand's benches">
           <button type="button" role="tab" aria-selected={section === "products"} data-testid="world-shop-manage-tab-products" onClick={() => setSection("products")} className={standTabBtn(isLight, section === "products")}>
             <ShoppingBag className="h-3 w-3" /> Products

@@ -1108,3 +1108,129 @@ export function recentShopPending(a: ShopAnalytics): ShopPendingSaleRow[] {
 export function maxDailyViews(a: ShopAnalytics): number {
   return Math.max(1, ...a.dailyViews.map((d) => d.views));
 }
+
+/* ── The seller's whole picture — GET /api/earnings at the stand ──
+   Parity P3 (par-seller-stand): the stand's own sales bench reads
+   only THIS shop's ledger (the analytics rail above). The seller's
+   cross-rail picture — everything they earn on the site, not just
+   at this stand — rides GET /api/earnings (routes/earnings.ts, the
+   unified-earnings read): store sales + memberships + brand deals
+   in cents, stream tips in Visual Bucs KEPT APART by the rail's own
+   contract (VB is never folded into the USD total), tip-jar intents
+   reported as pending, never as earnings. Display-only: no number
+   is computed here — the parser only narrows what the endpoint
+   already computed, and every figure the stand shows is the
+   endpoint's own.
+
+   JOIN-TIME UPGRADE PATH: at base this endpoint aggregates inline
+   in routes/earnings.ts. Payfix's store-dashboards lane banked the
+   shared aggregation lib/seller-earnings.ts (stack200/
+   payfix-store-dashboards @ 1e137700 — readPendingPayoutForSeller
+   is its payout contract); when Join #2 lands that lane, this
+   endpoint's aggregation moves onto the lib and the stand's
+   numbers upgrade with it. The stand's read does not change —
+   only the server's arithmetic source does. If the joined
+   endpoint grows a pending-payout field, this parser is where it
+   gets narrowed.
+
+   Honesty contract (the rail's own, kept): a source whose query
+   failed reads status "error" with NULL totals — never a fake 0 —
+   and the payload carries partial: true. A payload that doesn't
+   honestly carry the headline total + sources is not an earnings
+   picture at all: parse returns null and the stand says the
+   picture wouldn't open, with a retry. */
+
+export interface SellerEarningsSource {
+  status: "ok" | "error";
+  /** Null when the source errored — an errored source is never a 0. */
+  totalCents: number | null;
+  count: number | null;
+}
+
+export interface SellerEarnings {
+  /** The USD headline: the endpoint's own sum of the sources that loaded. */
+  totalCents: number;
+  /** Stream tips in Visual Bucs — a different unit, shown apart, never added to totalCents. */
+  totalTipsVb: number | null;
+  /** True when any source failed to load (the rail's flag, or an errored source in the rows). */
+  partial: boolean;
+  storeSales: SellerEarningsSource;
+  memberships: SellerEarningsSource;
+  brandDeals: SellerEarningsSource;
+  streamTipsVb: number | null;
+  streamTipCount: number | null;
+  /** Tip-jar intents: pending_payment by design — awaiting payment, NOT earnings. */
+  tipJarPendingCents: number | null;
+  tipJarPendingCount: number | null;
+}
+
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** Narrow one per-source row. Returns null when the row doesn't
+ *  match the rail's contract at all (the whole picture is then
+ *  refused — a half-shaped earnings payload is not shown). */
+function parseEarningsSource(v: unknown): SellerEarningsSource | null {
+  if (!v || typeof v !== "object") return null;
+  const row = v as Record<string, unknown>;
+  if (row["status"] === "error") return { status: "error", totalCents: null, count: null };
+  if (row["status"] !== "ok") return null;
+  const totalCents = numOrNull(row["totalCents"]);
+  const count = numOrNull(row["count"]);
+  if (totalCents === null || count === null) return null;
+  return { status: "ok", totalCents, count };
+}
+
+export function parseSellerEarnings(payload: unknown): SellerEarnings | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (typeof p["totalCents"] !== "number" || !Number.isFinite(p["totalCents"])) return null;
+  const sources = p["sources"];
+  if (!sources || typeof sources !== "object") return null;
+  const s = sources as Record<string, unknown>;
+  const storeSales = parseEarningsSource(s["storeSales"]);
+  const memberships = parseEarningsSource(s["memberships"]);
+  const brandDeals = parseEarningsSource(s["brandDeals"]);
+  if (!storeSales || !memberships || !brandDeals) return null;
+  const tips = s["tips"];
+  if (!tips || typeof tips !== "object") return null;
+  const t = tips as Record<string, unknown>;
+  const tipsErrored = t["status"] === "error";
+  return {
+    totalCents: p["totalCents"],
+    totalTipsVb: numOrNull(p["totalTipsVb"]),
+    partial:
+      p["partial"] === true ||
+      storeSales.status === "error" ||
+      memberships.status === "error" ||
+      brandDeals.status === "error" ||
+      tipsErrored,
+    storeSales,
+    memberships,
+    brandDeals,
+    streamTipsVb: numOrNull(t["streamTipsVb"]),
+    streamTipCount: numOrNull(t["streamTipCount"]),
+    tipJarPendingCents: numOrNull(t["tipJarPendingCents"]),
+    tipJarPendingCount: numOrNull(t["tipJarPendingCount"]),
+  };
+}
+
+/** The three money sources as display rows, in the stand's order —
+ *  label and count-noun are the stand's words; the numbers are the
+ *  endpoint's. An errored source rides with null numbers and the
+ *  row renders as "couldn't be read", never as $0. */
+export interface SellerEarningsRow {
+  key: "store" | "memberships" | "deals";
+  label: string;
+  noun: string;
+  source: SellerEarningsSource;
+}
+
+export function sellerEarningsRows(e: SellerEarnings): SellerEarningsRow[] {
+  return [
+    { key: "store", label: "Store sales", noun: "sales", source: e.storeSales },
+    { key: "memberships", label: "Memberships", noun: "members", source: e.memberships },
+    { key: "deals", label: "Brand deals", noun: "deals", source: e.brandDeals },
+  ];
+}
