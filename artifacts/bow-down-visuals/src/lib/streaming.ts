@@ -57,6 +57,10 @@ export interface StreamVideo {
   season_number?: number | null;
   episode_number?: number | null;
   series_title?: string | null;
+  /* Duet Rails (#173): the creator's per-video duet switch + the
+     King's featured-pick stamp, when the API provides them. */
+  duets_enabled?: boolean;
+  king_featured_at?: string | null;
   /** Linked sound (server resolves sound_track_id). */
   sound?: {
     id: string;

@@ -3,7 +3,7 @@ import { Link, useSearch } from "wouter";
 import {
   Heart, MessageCircle, Share2, Plus, Check, Music2, Volume2, VolumeX,
   Play, Scissors, Columns2, BarChart3, Trophy, HandCoins,
-  ShoppingBag, X, Loader2, Send, ChevronDown, Sparkles, AlertTriangle, RotateCcw,
+  ShoppingBag, X, Loader2, Send, ChevronDown, Sparkles, AlertTriangle, RotateCcw, Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -30,7 +30,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
    3 stars: sound tools (use-this-sound, trending sounds). 4 stars: analytics.
 */
 
-interface CreatorRef { id: string; slug: string; display_name: string; avatar_url: string | null }
+interface CreatorRef { id: string; slug: string; display_name: string; avatar_url: string | null; is_official?: boolean }
 interface SoundRef { id: string; title: string | null; url: string | null; use_count: number }
 interface ChallengeChip { slug: string; title: string; hashtag: string }
 
@@ -40,6 +40,10 @@ export interface ShortItem {
   duration_sec: number; view_count: number; like_count: number;
   repost_count: number; comment_count: number; download_price_cents: number;
   duet_with: string | null; stitch_with: string | null; sound: SoundRef | null;
+  /* Duet Rails (#173): the creator's per-video duet switch (false =
+     no duet door is offered; the API refuses at POST too) and the
+     King's featured-pick stamp (N3 — a house pick, labeled as such). */
+  duets_enabled: boolean; king_featured_at: string | null;
   score: number; creator: CreatorRef;
   duet_parent: { id: string; title: string | null; creator_slug: string | null } | null;
   stitch_parent: { id: string; title: string | null; creator_slug: string | null } | null;
@@ -95,6 +99,9 @@ export default function ShortsFeed() {
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
   const [refCode, setRefCode] = useState<string>("");
+  /* #173: my own profile id — the duet switch renders on MY shorts
+     (the switch is held by the original creator, per video). */
+  const [myProfileId, setMyProfileId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -106,6 +113,23 @@ export default function ShortsFeed() {
     const token = await getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, [getAccessToken]);
+
+  useEffect(() => {
+    if (!user) { setMyProfileId(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const res = await fetch("/api/creator-profiles/me", { headers: { Authorization: `Bearer ${token}` } });
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          if (data?.id) setMyProfileId(String(data.id));
+        }
+      } catch { /* owner controls simply stay hidden */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user, getAccessToken]);
 
   /* referral code for share links (?ref=CODE) */
   useEffect(() => {
@@ -273,7 +297,10 @@ export default function ShortsFeed() {
           <h1 className="text-xl font-black tracking-tight text-white">⚡ Shorts</h1>
           <p className="text-xs text-white/50">your For You page, but you own it</p>
         </div>
-        <ShortsMenu />
+        <div className="flex items-center gap-2">
+          <KingDuetPanel />
+          <ShortsMenu />
+        </div>
       </div>
 
       {/* feed */}
@@ -290,6 +317,7 @@ export default function ShortsFeed() {
             onUpdate={(patch) => setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, ...patch } : p)))}
             authHeaders={authHeaders}
             isAuthed={!!user}
+            isOwn={!!myProfileId && item.profile_id === myProfileId}
             refCode={refCode}
           />
         ))}
@@ -312,7 +340,7 @@ export default function ShortsFeed() {
 /* ─── ShortCard — one full-screen short, fully linked ─────────────────────── */
 
 function ShortCard({
-  idx, item, muted, setMuted, refCb, videoRefCb, onUpdate, authHeaders, isAuthed, refCode,
+  idx, item, muted, setMuted, refCb, videoRefCb, onUpdate, authHeaders, isAuthed, isOwn, refCode,
 }: {
   idx: number;
   item: ShortItem;
@@ -323,6 +351,7 @@ function ShortCard({
   onUpdate: (patch: Partial<ShortItem>) => void;
   authHeaders: () => Promise<Record<string, string>>;
   isAuthed: boolean;
+  isOwn: boolean;
   refCode: string;
 }) {
   const { toast } = useToast();
@@ -418,7 +447,18 @@ function ShortCard({
     }
   }
 
-  const isOwn = false; // owner check would need my profile ids; follow button hides on failure server-side
+  /* #173: the duet switch — only the owning creator sees it, right on
+     the video (never buried in settings). Optimistic flip, rolled
+     back on failure; the API enforces the same state at POST. */
+  async function toggleDuets() {
+    const next = !item.duets_enabled;
+    onUpdate({ duets_enabled: next });
+    const res = await authedFetch(`/api/videos/${item.id}/duet-settings`, "PATCH", { duets_enabled: next }).catch(() => null);
+    if (!res || !res.ok) {
+      onUpdate({ duets_enabled: !next });
+      toast({ title: "The switch didn't flip", description: "Try again." });
+    }
+  }
 
   return (
     <div ref={refCb} data-idx={idx} className="relative h-full w-full snap-start snap-always overflow-hidden bg-black">
@@ -503,12 +543,17 @@ function ShortCard({
             <span className="text-xs font-semibold text-primary">${(item.download_price_cents / 100).toFixed(2)}</span>
           </Link>
         )}
-        {/* 2 stars: duet / stitch controls */}
+        {/* 2 stars: duet / stitch controls. #173: a video whose
+            creator switched duets OFF offers no duet door at all —
+            and the API refuses the POST as well, so there is no
+            back door. Stitch is a separate kind and stays. */}
         <div data-min-stars="2" className="flex flex-col items-center gap-4">
-          <Link href={duetEditorHref(item.id)} className="flex flex-col items-center gap-1" title="Duet this short">
-            <span className="rounded-full bg-black/60 p-3"><Columns2 className="h-6 w-6 text-white" /></span>
-            <span className="text-xs font-semibold text-white">Duet</span>
-          </Link>
+          {item.duets_enabled && (
+            <Link href={duetEditorHref(item.id)} className="flex flex-col items-center gap-1" title="Duet this short">
+              <span className="rounded-full bg-black/60 p-3"><Columns2 className="h-6 w-6 text-white" /></span>
+              <span className="text-xs font-semibold text-white">Duet</span>
+            </Link>
+          )}
           <Link href={stitchEditorHref(item.id)} className="flex flex-col items-center gap-1" title="Stitch this short">
             <span className="rounded-full bg-black/60 p-3"><Scissors className="h-6 w-6 text-white" /></span>
             <span className="text-xs font-semibold text-white">Stitch</span>
@@ -565,6 +610,33 @@ function ShortCard({
         <p className="mb-1 text-sm font-semibold text-white">{item.title}</p>
         {item.description && (
           <p className="mb-2 line-clamp-2 text-sm text-white/75"><CaptionText text={item.description} /></p>
+        )}
+
+        {/* N3: the King's featured pick — labeled a HOUSE pick, and
+            the fan who made the duet is the credited name on it. */}
+        {item.king_featured_at && (
+          <div className="mb-2 flex flex-wrap gap-2 text-xs">
+            <span className="flex items-center gap-1 rounded-full border border-primary/50 bg-primary/15 px-2.5 py-1 font-bold text-primary">
+              <Crown className="h-3.5 w-3.5" />
+              King&apos;s pick — house pick by Thy Cheat Code · duet by @{item.creator.display_name}
+            </span>
+          </div>
+        )}
+
+        {/* #173: the owner's duet switch, on the video itself */}
+        {isOwn && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-semibold text-white/70">Duets on this video</span>
+            <button type="button" onClick={toggleDuets} aria-pressed={item.duets_enabled}
+              data-testid="duet-switch"
+              className={cn("rounded-full px-3 py-1 font-bold",
+                item.duets_enabled ? "bg-primary text-black" : "border border-white/30 text-white/60")}>
+              {item.duets_enabled ? "On — anyone can duet" : "Off"}
+            </button>
+            {!item.duets_enabled && (
+              <span className="text-white/40">No duet door is offered, and duet posts are refused.</span>
+            )}
+          </div>
         )}
 
         {/* duet/stitch parent lineage */}
@@ -645,7 +717,7 @@ function ShortCard({
 /* ─── LinkageList — duet/stitch children, each linking back into the feed ── */
 
 function LinkageList({ videoId, kind }: { videoId: string; kind: "duet" | "stitch" }) {
-  const [kids, setKids] = useState<{ id: string; title: string; thumbnail_url: string | null; creator: { slug: string; display_name: string } | null }[]>([]);
+  const [kids, setKids] = useState<{ id: string; title: string; thumbnail_url: string | null; king_featured_at?: string | null; creator: { slug: string; display_name: string } | null }[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
@@ -668,6 +740,11 @@ function LinkageList({ videoId, kind }: { videoId: string; kind: "duet" | "stitc
             {k.thumbnail_url ? <img src={k.thumbnail_url} alt={k.title} className="h-full w-full object-cover" /> : null}
           </div>
           <p className="mt-1 truncate text-[11px] text-white/70">{k.title}</p>
+          {k.king_featured_at && (
+            <p className="flex items-center gap-0.5 text-[10px] font-bold text-primary">
+              <Crown className="h-3 w-3" /> King&apos;s pick
+            </p>
+          )}
         </Link>
       ))}
     </div>
@@ -760,6 +837,141 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── KingDuetPanel — Duet the King (N3 on the #173 rails) ──────────────────
+   The launch event lives in the Shorts home, on the SAME rails: the
+   King's open clips are ordinary shorts whose duet switch is on —
+   the Duet button rides the exact duetEditorHref every other short
+   uses, and the POST behind it is the same /videos/:id/duet. The
+   featured pick is stated honestly as what it is: a HOUSE pick by
+   Thy Cheat Code, with the fan who made the duet credited on it. */
+
+interface KingClip {
+  id: string; title: string; video_url: string; thumbnail_url: string | null;
+  view_count: number; like_count: number; duet_count: number; duets_enabled: boolean;
+  creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
+}
+interface KingPick {
+  id: string; title: string; video_url: string; thumbnail_url: string | null;
+  king_featured_at: string | null; pick_kind: string;
+  creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
+  duet_parent: { id: string; title: string | null; creator_slug: string | null; creator_name: string | null } | null;
+}
+
+function KingDuetPanel() {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [clips, setClips] = useState<KingClip[]>([]);
+  const [featured, setFeatured] = useState<KingPick[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    setFailed(false);
+    (async () => {
+      try {
+        const data = await apiGet("/api/shorts/king-duet");
+        if (cancelled) return;
+        setClips(Array.isArray(data?.open_clips) ? data.open_clips : []);
+        setFeatured(Array.isArray(data?.featured) ? data.featured : []);
+      } catch {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open ]);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)} title="Duet the King"
+        data-testid="king-duet-open"
+        className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-black text-black hover:brightness-110">
+        <Crown className="h-4 w-4" /> Duet the King
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-40 flex justify-end bg-black/70" onClick={() => setOpen(false)}>
+          <div className="flex h-full w-96 max-w-[88vw] flex-col border-l border-primary/30 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-2 font-black text-white">
+                <Crown className="h-5 w-5 text-primary" /> Duet the King
+              </p>
+              <button onClick={() => setOpen(false)} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="mb-4 text-xs leading-relaxed text-white/50">
+              Thy Cheat Code posts a clip and opens it for duets — same rails as every duet here.
+              The featured duet below is the King&apos;s own <b className="text-primary">house pick</b>,
+              and the fan who made it is credited right on the pick.
+            </p>
+            <div className="flex-1 space-y-5 overflow-y-auto">
+              {loading && <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />}
+              {!loading && failed && (
+                <p className="py-8 text-center text-sm text-red-300" data-testid="king-duet-error">
+                  The King&apos;s rail couldn&apos;t load — close and reopen to retry.
+                </p>
+              )}
+              {!loading && !failed && (
+                <>
+                  <div>
+                    <p className="mb-2 text-xs font-black uppercase tracking-wider text-primary">Open now — duet the King&apos;s clip</p>
+                    {clips.length ? clips.map((c) => (
+                      <div key={c.id} className="mb-2 rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="flex gap-3">
+                          <Link href={`/shorts?start=${c.id}`} className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                            {c.thumbnail_url ? <img src={c.thumbnail_url} alt={c.title} className="h-full w-full object-cover" /> : null}
+                          </Link>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-bold text-white">{c.title}</p>
+                            <p className="text-xs text-white/50">
+                              by @{c.creator?.display_name ?? "Thy Cheat Code"} · {fmt(c.duet_count)} duet{c.duet_count === 1 ? "" : "s"} so far
+                            </p>
+                            <Link href={duetEditorHref(c.id)}
+                              className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-[11px] font-black text-black hover:brightness-110">
+                              <Columns2 className="h-3.5 w-3.5" /> Duet this clip
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="py-4 text-sm text-white/40">The King hasn&apos;t opened a clip yet — watch this space.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs font-black uppercase tracking-wider text-primary">The King&apos;s featured pick</p>
+                    {featured.length ? featured.map((f) => (
+                      <div key={f.id} className="mb-2 rounded-xl border border-primary/40 bg-primary/10 p-3">
+                        <div className="flex gap-3">
+                          <Link href={`/shorts?start=${f.id}`} className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                            {f.thumbnail_url ? <img src={f.thumbnail_url} alt={f.title} className="h-full w-full object-cover" /> : null}
+                          </Link>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-bold text-white">{f.title}</p>
+                            <p className="text-xs text-white/70">
+                              duet by <Link href={`/artist/${f.creator?.slug ?? ""}`} className="font-bold text-primary hover:underline">@{f.creator?.display_name ?? "a fan"}</Link>
+                              {f.duet_parent ? <> of the King&apos;s “{f.duet_parent.title ?? "clip"}”</> : null}
+                            </p>
+                            <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-black text-black">
+                              <Crown className="h-3 w-3" /> HOUSE PICK — THY CHEAT CODE
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="py-4 text-sm text-white/40">No pick yet — the best duet of the King&apos;s clip takes this spot.</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

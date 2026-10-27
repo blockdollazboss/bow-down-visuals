@@ -21,6 +21,7 @@ export function MediaLinkBar({
   artistName,
   soundId,
   soundTitle,
+  duetsEnabled,
 }: {
   kind: MediaKind;
   id: string;
@@ -28,6 +29,11 @@ export function MediaLinkBar({
   artistName?: string;
   soundId?: string | null;
   soundTitle?: string | null;
+  /* Duet Rails (#173): the original creator's per-video switch.
+     false = NO duet door is offered here (the API refuses the duet
+     POST too). Undefined = the surface didn't say — treated as the
+     switch's default (open), matching the API's own default. */
+  duetsEnabled?: boolean;
 }) {
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
 
@@ -73,15 +79,19 @@ export function MediaLinkBar({
         icon: <Music2 className="h-4 w-4" />,
       });
     }
-    items.push({
-      href: `/video-editor?tab=repurpose&duet=video:${id}`,
-      label: "Duet / Stitch",
-      title: "Duet or stitch this video",
-      icon: <Scissors className="h-4 w-4" />,
-    });
+    if (duetsEnabled !== false) {
+      items.push({
+        href: `/video-editor?tab=repurpose&duet=video:${id}`,
+        label: "Duet / Stitch",
+        title: "Duet or stitch this video",
+        icon: <Scissors className="h-4 w-4" />,
+      });
+    }
   }
 
-  if (items.length === 0) return null;
+  /* A duets-off video still gets its honest "duets off" note even
+     when it has no other links to show. */
+  if (items.length === 0 && !(kind === "video" && duetsEnabled === false)) return null;
 
   return (
     <nav aria-label="Creator links" className="flex flex-wrap gap-2">
@@ -96,7 +106,13 @@ export function MediaLinkBar({
           </span>
         </Link>
       ))}
-      {kind === "video" && (
+      {kind === "video" && duetsEnabled === false && (
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-white/30 px-1 py-1.5"
+          data-testid="duets-off-note">
+          <Scissors className="h-3.5 w-3.5" /> duets off — the creator turned them off for this video
+        </span>
+      )}
+      {kind === "video" && duetsEnabled !== false && (
         <span className="inline-flex items-center gap-1.5 text-[11px] text-white/30 px-1 py-1.5">
           <Clapperboard className="h-3.5 w-3.5" /> made for remixing
         </span>

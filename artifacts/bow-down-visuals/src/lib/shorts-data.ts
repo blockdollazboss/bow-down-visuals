@@ -77,6 +77,10 @@ export function normalizeShortItem(raw: unknown): ShortItem | null {
     download_price_cents: num(raw.download_price_cents),
     duet_with: str(raw.duet_with),
     stitch_with: str(raw.stitch_with),
+    /* #173: only an explicit false closes the duet door — a payload
+       predating the switch reads as its default (open). */
+    duets_enabled: raw.duets_enabled !== false,
+    king_featured_at: str(raw.king_featured_at),
     sound,
     score: num(raw.score),
     creator: {
@@ -84,6 +88,7 @@ export function normalizeShortItem(raw: unknown): ShortItem | null {
       slug: creatorSlug,
       display_name: creatorName,
       avatar_url: creator ? str(creator.avatar_url) : null,
+      is_official: creator ? creator.is_official === true : false,
     },
     duet_parent: parent(raw.duet_parent),
     stitch_parent: parent(raw.stitch_parent),
