@@ -1685,6 +1685,14 @@ export default function WorldPage() {
     let volumeTick: ReturnType<typeof setInterval> | null = null;
     let lipTick: ReturnType<typeof setInterval> | null = null;
     let stationTick: ReturnType<typeof setInterval> | null = null;
+    /* The client's wind-down signal (visibilitychange), registered
+       by the boot once the client exists; the cleanup removes it. */
+    let worldVisibilityHandler: (() => void) | null = null;
+    const removeWorldVisibility = () => {
+      if (!worldVisibilityHandler) return;
+      document.removeEventListener("visibilitychange", worldVisibilityHandler);
+      worldVisibilityHandler = null;
+    };
 
     (async () => {
       /* Boot failures BEFORE the socket exists (the scene chunk fails
@@ -1730,6 +1738,17 @@ export default function WorldPage() {
         openSocket: (url) => new WebSocket(url) as unknown as import("@/lib/world/world-client").WorldSocketLike,
       });
       clientRef.current = client;
+      /* Wind-down keepalive: the page owns the DOM signal, the
+         client owns the cadence. A hidden tab's timers are
+         throttled by the browser, so the client slows its ping to
+         the background cadence and stops judging the path by the
+         foreground liveness window; on return it re-proves the
+         path with an immediate ping (see WorldClient.setWoundDown).
+         Reported once at boot too — a tab opened in the background
+         starts wound down. */
+      worldVisibilityHandler = () => client.setWoundDown(document.hidden);
+      document.addEventListener("visibilitychange", worldVisibilityHandler);
+      worldVisibilityHandler();
       /* The screen loader is defined below (it needs the scene);
          broadcasts reach it through this indirection. */
       const screenApi: { reload: () => Promise<void> } = { reload: async () => undefined };
@@ -2250,6 +2269,7 @@ export default function WorldPage() {
          cancelled here, so entry behavior is unchanged. */
       if (cancelled) {
         client.disconnect();
+        removeWorldVisibility();
         return;
       }
       screenPoll = setInterval(loadScreen, 45_000);
@@ -2383,6 +2403,7 @@ export default function WorldPage() {
 
     return () => {
       cancelled = true;
+      removeWorldVisibility();
       if (peerSync) clearInterval(peerSync);
       if (screenPoll) clearInterval(screenPoll);
       if (volumeTick) clearInterval(volumeTick);
