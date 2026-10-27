@@ -11,14 +11,21 @@ import {
   type CreditPack,
 } from "@/lib/world/money-desks";
 import { CHECKOUT_TRANSFER_LABEL } from "@/lib/world/shop-stands";
+import { EmbeddedPaymentForm, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── PacksDesk — Buy Visual Bucs in the Treasury (Stack-100 #61) ──
    The packs desk: the four real credit packs, priced exactly as
    the pricing page prices them (lib/world/money-desks CREDIT_PACKS
    — pinned against the server's PACK_MAP and the page's own
-   displayed prices). Buying rides the page's own rail:
-   POST /api/create-checkout-session { pack } answers the hosted
-   Stripe checkout URL, which opens in a NEW TAB (the stands' one
+   displayed prices). JOIN2 MONEY MOMENT: the desk now consumes the
+   embedded checkout form (orphan embedded-checkout lane) — with a
+   publishable key present, Buy opens the on-page PaymentElement
+   form right in this desk via POST /api/embedded-checkout/
+   credit-pack/intent and confirms through its /verify twin, so the
+   walker never leaves the palace at all. The hosted rail remains
+   the fallback when no key is configured: POST
+   /api/create-checkout-session { pack } answers the hosted Stripe
+   checkout URL, which opens in a NEW TAB (the stands' one
    sanctioned transfer, §3.9) — the palace tab, the room and the
    walker's place in it never move, and the balance refreshes when
    they come back (the panel re-reads the profile on focus, like
@@ -43,8 +50,32 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const [embedded, setEmbedded] = useState<{ packKey: string; clientSecret: string; label: string } | null>(null);
 
   const balance = typeof profile?.credits === "number" ? profile.credits : null;
+
+  /* Embedded confirm: the PaymentIntent succeeded in the form — the
+     /verify twin grants the Bucs server-side (the webhook is the
+     second door to the same exactly-once grant). */
+  const confirmEmbedded = async (paymentIntentId: string) => {
+    try {
+      const res = await fetch("/api/embedded-checkout/credit-pack/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ paymentIntentId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok || !data.success) {
+        setFailed(typeof data.error === "string" ? data.error : "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.");
+        return;
+      }
+      setEmbedded(null);
+      setNote(`+${(typeof data.added === "number" ? data.added : 0).toLocaleString("en-US")} Visual Bucs added — paid right here in the palace.`);
+      refreshProfile();
+    } catch {
+      setFailed("Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.");
+    }
+  };
 
   const buy = async (pack: CreditPack) => {
     if (busyKey) return;
@@ -52,6 +83,23 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
     setNote(null);
     setFailed(null);
     try {
+      /* JOIN2: embedded first (never leave the site) — the intent
+         answers a clientSecret and the desk mounts the shared form.
+         Any intent failure falls through to the hosted rail below. */
+      if (hasStripePublishableKey()) {
+        try {
+          const ires = await fetch("/api/embedded-checkout/credit-pack/intent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+            body: JSON.stringify(packCheckoutPayload(pack)),
+          });
+          const idata = (await ires.json().catch(() => ({}))) as Record<string, unknown>;
+          if (ires.ok && typeof idata.clientSecret === "string") {
+            setEmbedded({ packKey: pack.key, clientSecret: idata.clientSecret, label: `${pack.creditsLabel} — ${pack.priceLabel}` });
+            return;
+          }
+        } catch { /* fall through to the hosted rail */ }
+      }
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
@@ -122,6 +170,26 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
             </div>
           ))}
         </div>
+        {embedded && (
+          <div className="mt-4" data-testid="world-packs-embedded">
+            <p className={`mb-2 text-center text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+              Finish your {embedded.label} — right here in the palace:
+            </p>
+            <EmbeddedPaymentForm
+              clientSecret={embedded.clientSecret}
+              submitLabel={embedded.label}
+              onConfirmed={confirmEmbedded}
+              onError={(msg) => setFailed(msg)}
+            />
+            <button
+              type="button"
+              onClick={() => setEmbedded(null)}
+              className={`mt-2 w-full text-center text-xs ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
+            >
+              Cancel — no charge
+            </button>
+          </div>
+        )}
         {note && <p className={`mt-3 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
         {failed && <p className="mt-3 text-xs font-semibold text-red-400">{failed}</p>}
       </NativeCard>

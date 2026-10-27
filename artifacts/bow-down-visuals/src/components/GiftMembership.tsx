@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Gift, Loader2, BadgeCheck, Search } from "lucide-react";
-import { loadStripe } from "@stripe/stripe-js/pure";
-import type { StripeEmbeddedCheckout } from "@stripe/stripe-js";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useAuth } from "@/contexts/AuthContext";
 import { loginPathWithNext } from "@/lib/auth-next";
 
@@ -51,7 +50,6 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [sent, setSent] = useState<GiftRow[]>([]);
   const [received, setReceived] = useState<GiftRow[]>([]);
-  const checkoutRef = useRef<HTMLDivElement>(null);
   const verifyRan = useRef(false);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -106,29 +104,6 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
       }
     })();
   }, [user, authHeaders, loadMine]);
-
-  /* Mount the embedded checkout on this page when a session exists. */
-  useEffect(() => {
-    if (!clientSecret || !checkoutRef.current) return;
-    let embedded: StripeEmbeddedCheckout | null = null;
-    let cancelled = false;
-    (async () => {
-      const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
-      if (!publishableKey) {
-        setError("Payments aren't configured on this device yet — the publishable key is missing.");
-        return;
-      }
-      const stripe = await loadStripe(publishableKey);
-      if (!stripe || cancelled) return;
-      embedded = await stripe.initEmbeddedCheckout({ clientSecret });
-      if (cancelled) { embedded.destroy(); return; }
-      embedded.mount(checkoutRef.current!);
-    })();
-    return () => {
-      cancelled = true;
-      embedded?.destroy();
-    };
-  }, [clientSecret]);
 
   async function previewRecipient() {
     if (!lookup.trim()) return;
@@ -261,8 +236,18 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
             <div className="mt-4 rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-sm text-red-200">{error}</div>
           )}
           {clientSecret && (
-            <div className="mt-5 rounded-2xl bg-white p-2">
-              <div ref={checkoutRef} />
+            <div className="mt-5">
+              {/* JOIN2: the gift money moment mounts the SHARED embedded
+                  session checkout (orphan embedded-checkout lane's
+                  component) instead of a hand-rolled initEmbeddedCheckout
+                  — one mount implementation for every session rail. */}
+              {hasStripePublishableKey() ? (
+                <EmbeddedSessionCheckout clientSecret={clientSecret} />
+              ) : (
+                <div className="rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-sm text-red-200">
+                  Payments aren&rsquo;t configured on this device yet — the publishable key is missing.
+                </div>
+              )}
             </div>
           )}
 

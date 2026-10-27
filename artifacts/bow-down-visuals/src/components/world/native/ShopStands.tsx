@@ -10,6 +10,7 @@ import { NativeCard } from "./NativeCard";
 import { DomainsDesk } from "./DomainsDesk";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay, cartKey } from "@/lib/shops";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import {
   BRANDING_COLORS, BRANDING_DESIGN_COST, BRANDING_PRODUCTS, BRANDING_STYLES,
   MAX_DESIGN_PRODUCTS, formatMoney, productByKey,
@@ -85,6 +86,11 @@ import {
    the server returns in a NEW TAB. The palace tab, the room and
    your place in it never move. The checkout action carries the
    uniform label for that moment: CHECKOUT_TRANSFER_LABEL.
+   JOIN2 UPDATE: the Marketplace stand's money moment is embedded
+   first (uiMode: "embedded" → the shared EmbeddedSessionCheckout
+   mounts in the stand; the server rail landed with this join) —
+   the new-tab transfer remains only as the no-publishable-key
+   fallback, here and at the Treasury desks.
    Prices are the real server charges end to end — payload prices
    (Marketplace, Crowns) and the shared client catalog (Branding)
    are displayed and charged from the same source.
@@ -207,6 +213,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
      a note + a refresh door, never this block. */
   const [paidOrder, setPaidOrder] = useState<MarketOrder | null>(null);
   const [pendingNote, setPendingNote] = useState<string | null>(null);
+  /* JOIN2 money moment: the embedded session's clientSecret, when the
+     checkout answered one — the shared EmbeddedSessionCheckout mounts
+     in this stand so the buyer pays without leaving the palace. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   const [refreshingOrder, setRefreshingOrder] = useState(false);
 
   useEffect(() => {
@@ -346,6 +356,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
     setPlacing(true);
     setOrderError(null);
     setPendingNote(null);
+    setEmbeddedSecret(null);
     try {
       const res = await fetch("/api/storefronts/checkout", {
         method: "POST",
@@ -354,6 +365,12 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           shopId: shop.id,
           items: detailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
+          /* JOIN2: ask for the embedded presentation when this device
+             can mount it (publishable key configured) — the server
+             answers a clientSecret instead of a hosted URL and the
+             buyer pays right here. Otherwise the hosted rail below
+             remains the fallback. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -362,6 +379,14 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         const order = marketOrderFromPayload(data);
         if (order?.paid) setPaidOrder(order);
         setCart([]);
+        return;
+      }
+      if (typeof data.clientSecret === "string" && data.clientSecret) {
+        if (typeof data.sessionId === "string" && openHandle) {
+          try { localStorage.setItem(marketPendingKey(openHandle), data.sessionId); } catch { /* storage blocked — refresh on reopen just won't find it */ }
+        }
+        setEmbeddedSecret(data.clientSecret);
+        setPendingNote("Your order is saved as pending — finish paying right here in this stand. It confirms here the moment the payment lands; nothing about your place in the palace moves.");
         return;
       }
       const url = hostedCheckoutUrl(data);
@@ -493,6 +518,14 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 <p className={`text-[11px] ${muted(isLight)}`}>
                   Sellers keep {100 - feePct}% — the {feePct}% platform fee comes out of the seller&rsquo;s cut, never on top of your price.
                 </p>
+              </div>
+            )}
+            {embeddedSecret && !paidOrder && (
+              <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-shop-embedded-checkout">
+                <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+                <button type="button" onClick={() => setEmbeddedSecret(null)} className={`${chipBtn(isLight)}`}>
+                  Close — the order stays pending and your cart is untouched
+                </button>
               </div>
             )}
             {pendingNote && !paidOrder && (

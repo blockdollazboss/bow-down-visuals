@@ -13,6 +13,7 @@ import {
   type SitePlan,
   type SitePlanMe,
 } from "@/lib/world/money-desks-2";
+import { EmbeddedPaymentForm, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── PlansDesk — your site plan (Free / Pro / Elite), purchasable
    from the Get Paid Room (Stack-100 #69). The creator-pricing page
@@ -21,9 +22,15 @@ import {
    boosts all ride the rail's own DTO (verified in code: Pro
    $12/mo, Elite $29/mo in platform-fees TIER_PLANS), never a local
    price table — and the caller's standing comes from
-   GET /api/creator-tiers/me. Buying rides POST
-   /api/creator-tiers/checkout { tier, returnTo: "/world" } and
-   managing rides POST /api/creator-tiers/portal; both answer a
+   GET /api/creator-tiers/me. JOIN2 MONEY MOMENT: the desk consumes
+   the embedded checkout form (orphan embedded-checkout lane) for
+   buying — with a publishable key present, Buy opens the on-page
+   PaymentElement form in this desk via POST
+   /api/embedded-checkout/subscription/intent and confirms through
+   its /verify twin (the creator-pricing page's own embedded flow).
+   The hosted rail remains the fallback when no key is configured:
+   POST /api/creator-tiers/checkout { tier, returnTo: "/world" },
+   and managing rides POST /api/creator-tiers/portal; both answer a
    hosted Stripe page, which opens in a NEW TAB (the sanctioned
    exit — the pricing page leaves for the same hosted pages), and
    the desk re-reads /me on focus so a landed upgrade shows. The
@@ -43,6 +50,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
   const [portalBusy, setPortalBusy] = useState(false);
   const [openedNote, setOpenedNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [embedded, setEmbedded] = useState<{ tier: string; clientSecret: string; subscriptionId: string; label: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -72,12 +80,63 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
     return () => window.removeEventListener("focus", onFocus);
   }, [load]);
 
+  /* Embedded confirm: the first payment succeeded in the form — the
+     /verify twin settles the subscription server-side; the desk then
+     re-reads /me so the new standing shows here. */
+  const confirmEmbedded = async (paymentIntentId: string) => {
+    if (!embedded) return;
+    try {
+      const res = await fetch("/api/embedded-checkout/subscription/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ paymentIntentId, subscriptionId: embedded.subscriptionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Your payment went through — we're still confirming your plan. It updates here in a moment.");
+        return;
+      }
+      const tierName = embedded.tier;
+      setEmbedded(null);
+      setOpenedNote(`You're on ${tierName === "elite" ? "Elite" : "Pro"} now — paid right here in the palace. Your plan standing refreshes below.`);
+      void load();
+    } catch {
+      setError("Your payment went through — we're still confirming your plan. It updates here in a moment.");
+    }
+  };
+
   const checkout = async (plan: SitePlan) => {
     if (busyTier) return;
     setBusyTier(plan.tier);
     setError(null);
     setOpenedNote(null);
     try {
+      /* JOIN2: embedded first (never leave the site) — the intent
+         answers a clientSecret + subscriptionId and the desk mounts
+         the shared form. Any intent failure falls through to the
+         rail below — including the intent's 409 for an already-
+         subscribed member, whose tier CHANGE belongs to the
+         upgrade-path checkout (it applies in place and answers
+         { changed: true }, handled under the hosted call). */
+      if (hasStripePublishableKey()) {
+        try {
+          const ires = await fetch("/api/embedded-checkout/subscription/intent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+            body: JSON.stringify({ tier: plan.tier }),
+          });
+          const idata = (await ires.json().catch(() => ({}))) as Record<string, unknown>;
+          if (ires.ok && typeof idata.clientSecret === "string" && typeof idata.subscriptionId === "string") {
+            setEmbedded({
+              tier: plan.tier,
+              clientSecret: idata.clientSecret,
+              subscriptionId: idata.subscriptionId,
+              label: typeof idata.label === "string" ? idata.label : plan.name,
+            });
+            return;
+          }
+        } catch { /* fall through to the hosted rail */ }
+      }
       const res = await fetch("/api/creator-tiers/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
@@ -85,6 +144,13 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) throw new Error(apiErrorLine(data, "Checkout didn't start. Try again in a minute."));
+      if (data.changed === true) {
+        /* In-place tier change (payfix upgrade-path): same
+           subscription, prorated — no payment page exists. */
+        setOpenedNote(`${plan.name} is your plan now — the change applied in place, prorated on your existing subscription.`);
+        void load();
+        return;
+      }
       const url = planHostedUrl(data);
       if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
       window.open(url, "_blank", "noopener,noreferrer");
@@ -184,6 +250,26 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                 );
               })}
             </div>
+            {embedded && (
+              <div className="mx-auto w-full max-w-md" data-testid="world-plans-embedded">
+                <p className={`mb-2 text-center text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  Finish your {embedded.tier === "elite" ? "Elite" : "Pro"} upgrade — right here in the palace:
+                </p>
+                <EmbeddedPaymentForm
+                  clientSecret={embedded.clientSecret}
+                  submitLabel={embedded.label}
+                  onConfirmed={confirmEmbedded}
+                  onError={(msg) => setError(msg)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setEmbedded(null)}
+                  className={`mt-2 w-full text-center text-xs ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
+                >
+                  Cancel — no charge
+                </button>
+              </div>
+            )}
             {note && <p className={`text-[11px] ${muted}`}>{note}</p>}
             {openedNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{openedNote}</p>}
             {error && <p className="text-xs font-semibold text-red-400">{error}</p>}

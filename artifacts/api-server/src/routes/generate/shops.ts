@@ -67,6 +67,7 @@ import {
   type ProductSplit,
 } from "../../lib/sale-splits";
 import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer } from "../../lib/shop-delivery";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import {
   readBumpConfig,
   validateBumpTarget,
@@ -2216,6 +2217,11 @@ const checkoutSchema = z.object({
     quantity: z.number().int().min(1).max(99).default(1),
   })).min(1).max(50).optional(),
   buyerEmail: z.string().trim().email().max(254).optional().default(""),
+  /* Embedded checkout (JOIN2 money moment, mirroring /store/checkout):
+     "embedded" creates the SAME session in embedded_page ui_mode and
+     answers a clientSecret for the on-page mount (the World ShopStands
+     desk) instead of a hosted URL. Absent = hosted (fallback rail). */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
   /* Optional shop discount code (0190) — validated server-side against
      THIS shop's codes, exactly like the storefront rail validates
      against the seller's profile. */
@@ -2644,7 +2650,8 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   /* 2) Open the hosted session for the cart total. Failure = honest
         error and the pending rows are removed (tip-jar's orphan rule):
         no session, no charge possible, no order pretending to exist. */
-  let session: { id: string; url: string | null };
+  let session: { id: string; url: string | null; client_secret?: string | null };
+  const embeddedRequested = parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   try {
     const base = checkoutBaseUrl(req);
     session = await stripe.checkout.sessions.create({
@@ -2688,10 +2695,24 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
            consumes by checkout_group_id, never by a trusted price. */
         offer_id: parsed.data.offerId ?? "",
       },
-      success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,
+      /* Embedded ui_mode (JOIN2): same session, same metadata, same
+         idempotency key — only the presentation differs. An embedded
+         session takes return_url (back to the World, where the stand's
+         own verify-on-return rail settles the order) instead of
+         success/cancel URLs. EMBEDDED_CHECKOUT=off forces hosted. */
+      ...(embeddedRequested
+        ? {
+            ui_mode: "embedded_page" as const,
+            return_url: `${base}/world?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
+          }
+        : {
+            success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${base}/shop/${shop.handle}?checkout=cancelled`,
+          }),
     }, { idempotencyKey: `market-sale:${groupId}` });
-    if (!session.url) throw new Error("Checkout session did not return a URL");
+    if (embeddedRequested ? !session.client_secret : !session.url) {
+      throw new Error(embeddedRequested ? "Checkout session did not return a client secret" : "Checkout session did not return a URL");
+    }
   } catch (err) {
     await db.execute(sql`DELETE FROM shop_events WHERE checkout_group_id = ${groupId} AND event_type = 'pending_sale'`).catch(() => {});
     /* The gift-card hold dies with the checkout — cents go back now,
@@ -2714,10 +2735,13 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     status: "pending_payment", paid: false, paymentStatus: "pending",
     sessionId: session.id,
     url: session.url, checkoutUrl: session.url,
+    clientSecret: embeddedRequested ? (session.client_secret ?? null) : null,
     productName: lines[0]!.name, quantity: allLines.reduce((s, l) => s + l.quantity, 0),
     lines: lineReceipts, ...totals,
     testMode: isCheckoutTestMode(),
-    note: "Your order is saved as pending — payment happens at the hosted checkout. It only counts as a sale once the payment confirms.",
+    note: embeddedRequested
+      ? "Your order is saved as pending — payment happens right here in the embedded checkout. It only counts as a sale once the payment confirms."
+      : "Your order is saved as pending — payment happens at the hosted checkout. It only counts as a sale once the payment confirms.",
   });
 });
 
