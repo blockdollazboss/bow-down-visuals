@@ -22,6 +22,7 @@ import { startEmailAutomationSweeper } from "./lib/email-automations";
 import { startJobPoller } from "./lib/job-poller";
 import { startMemoryWatchdog } from "./lib/memory-watchdog";
 import { startRtmpIngestServer } from "./lib/rtmp-ingest";
+import { startDiscordBotRuntime } from "./lib/discord-bot-runtime";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -48,6 +49,16 @@ const server = app.listen(port, (err) => {
   // the host has to actually route the port). Publishes land on the
   // own-server live engine via the hooks routes/live-streams wired.
   startRtmpIngestServer();
+
+  // Discord Live Companion Bot, in-process (owner ruling 2026-10-27:
+  // the bot runs the Discord autonomously, for free, inside this
+  // already-paid service). Fully inert unless DISCORD_BOT_ENABLED=1
+  // with DISCORD_BOT_TOKEN set and DISCORD_BOT_SHARED_SECRET >= 16
+  // chars; a failed Discord login is caught inside and never blocks
+  // or crashes the server.
+  startDiscordBotRuntime().catch((discordBotErr) =>
+    logger.error({ discordBotErr }, "Discord bot runtime start failed"),
+  );
 
   // Guarantee the Cheat Code Jackpot tables exist (idempotent). This is a
   // safety net in case the pre-boot `drizzle-kit push` ever fails silently.
