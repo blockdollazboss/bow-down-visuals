@@ -386,6 +386,16 @@ export function MotionTrackCard({
           <div
             className="relative rounded-xl overflow-hidden border border-white/10 bg-black cursor-crosshair select-none"
             onClick={placeBox}
+            tabIndex={0}
+            role="group"
+            aria-label={`${t("videoEditor.motionTrack.step1")} — ${t("videoEditor.motionTrack.pickHint")} (${Math.round(boxX * 100)}%, ${Math.round(boxY * 100)}%)`}
+            onKeyDown={(e) => {
+              const step = e.shiftKey ? 0.1 : 0.02;
+              if (e.key === "ArrowLeft") { e.preventDefault(); setBoxX(Math.min(0.98, Math.max(0.02, boxX - step))); }
+              else if (e.key === "ArrowRight") { e.preventDefault(); setBoxX(Math.min(0.98, Math.max(0.02, boxX + step))); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); setBoxY(Math.min(0.98, Math.max(0.02, boxY - step))); }
+              else if (e.key === "ArrowDown") { e.preventDefault(); setBoxY(Math.min(0.98, Math.max(0.02, boxY + step))); }
+            }}
             data-testid="motion-track-picker"
           >
             <video

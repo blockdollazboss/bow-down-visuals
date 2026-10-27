@@ -173,11 +173,26 @@ export function TimelineSection({
                 </div>
                 <div
                   className="relative h-2 rounded-full bg-white/10 cursor-pointer group"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label="Seek the master player"
+                  aria-valuemin={0}
+                  aria-valuemax={Math.round(totalDuration)}
+                  aria-valuenow={Math.round(currentTime)}
+                  aria-valuetext={`${fmtSecs(currentTime)} of ${fmtSecs(totalDuration)}`}
                   onClick={(e) => {
                     if (!onSeek || totalDuration <= 0) return;
                     const rect = e.currentTarget.getBoundingClientRect();
                     const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
                     onSeek(frac * totalDuration);
+                  }}
+                  onKeyDown={(e) => {
+                    if (!onSeek || totalDuration <= 0) return;
+                    const step = e.shiftKey ? 10 : 1;
+                    if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); onSeek(Math.min(totalDuration, currentTime + step)); }
+                    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); onSeek(Math.max(0, currentTime - step)); }
+                    else if (e.key === "Home") { e.preventDefault(); onSeek(0); }
+                    else if (e.key === "End") { e.preventDefault(); onSeek(totalDuration); }
                   }}
                   title="Click to seek the master player"
                 >

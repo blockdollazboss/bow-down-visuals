@@ -148,10 +148,27 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
           </div>
           <div
             className="relative h-10 rounded bg-white/5 border border-white/10 cursor-pointer"
+            role="button"
+            tabIndex={0}
+            aria-label="Keyframe track — activate to add a keyframe at the playhead time"
               onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const f = (e.clientX - rect.left) / rect.width;
               const t = Math.min(clipDuration, Math.max(0, f * clipDuration));
+              const base = keyframeAt(keyframes, t);
+              const kf: Keyframe = {
+                id: newKeyframeId(),
+                time: Math.round(t * 100) / 100,
+                x: base.x, y: base.y, scale: base.scale,
+                rotation: base.rotation, opacity: base.opacity,
+              };
+              patchKeyframes([...keyframes, kf]);
+              setSelectedId(kf.id);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              const t = Math.min(clipDuration, Math.max(0, currentTime));
               const base = keyframeAt(keyframes, t);
               const kf: Keyframe = {
                 id: newKeyframeId(),
