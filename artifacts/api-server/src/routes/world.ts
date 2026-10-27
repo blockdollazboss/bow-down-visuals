@@ -2019,7 +2019,7 @@ export function startCourtSeasonScheduler(palace: WorldPalace): { stop: () => vo
  * Start The Crowns scheduler (N8, lib/the-crowns): every
  * CROWNS_TICK_MS it decides the oldest ended year that has no
  * frozen row yet — the year's published categories freeze into
- * house_crown_years (provisional migration 9999-the-crowns) and
+ * house_crown_years (provisional migration 0283_the_crowns) and
  * the court is heralded through the announce channel, exactly
  * once per year (the year's primary key is the idempotency).
  * Called once from index.ts after the WS mount — tests drive the

@@ -65,7 +65,7 @@ export const shopProductsTable = pgTable("shop_products", {
    *  routes probe for it and degrade gracefully until it lands. */
   image_alt_text: text("image_alt_text"),
   /** Digital delivery (payfix lane 4, provisional migration
-      9999-shop-delivery): 'physical' (default — nothing to deliver
+      0271_shop_delivery): 'physical' (default — nothing to deliver
       digitally) or 'digital'. A digital product MUST carry a
       deliverable: deliverable_url is where the file lives (uploaded
       via the shop deliverable upload, or a seller-hosted URL) and
@@ -246,7 +246,7 @@ export type ShopProductStatus = "active" | "paused";
 export type ShopProductType = "digital" | "physical";
 
 /* ── Shop deliveries (payfix lane 4, provisional migration
-   9999-shop-delivery) ───────────────────────────────────────────────────
+   0271_shop_delivery) ───────────────────────────────────────────────────
    The buyer's proof of delivery for a digital product: one row per
    PAID sale line (shop_events row), written exactly once by the paid
    flip (lib/shop-delivery) — the UNIQUE sale_event_id is the

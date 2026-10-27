@@ -87,7 +87,7 @@ import { validateProductSplits, SaleSplitError } from "../lib/sale-splits";
    part of a deal split — the rails take their fee first, exactly as
    with co-releases and sale-splits. No prices are introduced.
 
-   Until the provisional migration (9999-plain-deals.sql) lands,
+   Until the provisional migration (0289_plain_deals.sql) lands,
    writes answer 503 plain_deal_not_ready BEFORE creating anything,
    and reads degrade to empty. */
 

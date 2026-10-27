@@ -1,6 +1,6 @@
 /* ─── Creator live prefs (UPGRADE deltas #172 / #166) ──────────────────
    Per-creator automation switches for the live surfaces, stored in
-   creator_live_prefs (provisional migration 9999-live-stage-upgrades).
+   creator_live_prefs (provisional migration 0294_live_stage_upgrades).
    The sound_prefs pattern: one row per account, snake_case wire, and
    NO row = the all-on defaults below.
 

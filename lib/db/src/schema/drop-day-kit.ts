@@ -24,7 +24,7 @@ import { sql } from "drizzle-orm";
  * approved the kit) → landed (release moment passed; read-side flip,
  * the presave sweeper owns the actual fan-out).
  *
- * Migration: provisional 9999-drop-day-kit.sql (renumbered at join).
+ * Migration: provisional 0284_drop_day_kit.sql (renumbered at join).
  */
 export const dropDayKitsTable = pgTable(
   "drop_day_kits",

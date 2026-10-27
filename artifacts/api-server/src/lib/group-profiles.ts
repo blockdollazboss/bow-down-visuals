@@ -25,7 +25,7 @@
  *  - the profile is a draft until published; unpublished = no public
  *    page, no public store listing.
  *
- * Pre-migration posture (9999-group-profiles not yet applied): reads
+ * Pre-migration posture (0292_group_profiles not yet applied): reads
  * degrade to "no group profile" and writes answer 503 — the team and
  * storefront surfaces behave exactly as they did before N20.
  */

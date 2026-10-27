@@ -1,6 +1,6 @@
 /**
  * the-crowns.ts — The Crowns over REST (N8, provisional
- * migration 9999-the-crowns):
+ * migration 0283_the_crowns):
  *
  *   GET /api/crowns               the awards read: the published
  *                                 categories, the year in progress

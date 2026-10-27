@@ -140,7 +140,7 @@ export const storeProductsTable = pgTable("store_products", {
      Null = no co-sellers: the product sells exactly as before. */
   splits:         jsonb("splits").$type<import("./sale-splits").ProductSplit[] | null>(),
   /* Duo/Group Profiles (Stack-200 UPGRADE N20, provisional migration
-     9999-group-profiles): non-null = this product is sold under a
+     0292_group_profiles): non-null = this product is sold under a
      group's shared store (schema/group-profiles.ts). Its splits were
      stamped from the group's written split terms at creation, so the
      sale-splits rail divides it like any co-seller product. The

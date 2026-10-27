@@ -124,7 +124,7 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
   automationId: uuid("automation_id"),
   /* When the row last entered the `queued` state (stamped by every
      route that queues a campaign; provisional migration
-     9999_g6_schema_drift_repair). The campaign drain's stale-queue
+     0277_g6_schema_drift_repair). The campaign drain's stale-queue
      gate (QC-200 G6, lib/email-campaign-sender.ts) anchors on this:
      rows with no stamp predate the gate and rows whose stamp is older
      than the gate window are HELD (status "held_stale") instead of

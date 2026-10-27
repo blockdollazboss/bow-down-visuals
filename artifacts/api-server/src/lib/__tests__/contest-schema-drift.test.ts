@@ -31,8 +31,8 @@ const RUNNER = path.join(__dirname, "..", "..", "..", "..", "..", "lib", "db", "
 function repairSql(): string {
   const file = fs
     .readdirSync(MIGRATIONS_DIR)
-    .find((f) => /^9999_.*\.sql$/.test(f) && fs.readFileSync(path.join(MIGRATIONS_DIR, f), "utf8").includes("contest_entries"));
-  expect(file, "a provisional 9999 migration must carry the contest repair").toBeTruthy();
+    .find((f) => /^\d{4}_.*\.sql$/.test(f) && fs.readFileSync(path.join(MIGRATIONS_DIR, f), "utf8").includes("CREATE TABLE IF NOT EXISTS contest_entries"));
+  expect(file, "a numbered migration must carry the contest repair (0277/0278 after the Join #2 renumber)").toBeTruthy();
   return fs.readFileSync(path.join(MIGRATIONS_DIR, file!), "utf8");
 }
 

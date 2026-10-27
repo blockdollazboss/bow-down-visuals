@@ -179,7 +179,7 @@ async function shopProductsHasSplits(): Promise<boolean> {
 }
 
 /* Digital delivery (payfix lane 4, provisional migration
-   9999-shop-delivery): product_type / deliverable_url / deliverable_name
+   0271_shop_delivery): product_type / deliverable_url / deliverable_name
    land via the provisional migration — same probe discipline as the
    splits column (row-length form: COUNT over information_schema throws
    in the pg-mem harness). Reads/writes include the columns only when

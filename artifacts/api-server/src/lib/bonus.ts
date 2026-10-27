@@ -56,7 +56,7 @@ export const WHEEL_SEGMENTS: WheelSegment[] = [
      Supabase reads/writes below throw the real error — nothing here
      masks it.
    - `wheel_spins` (Render Postgres, written by spinWheel below):
-     lib/db/migrations/9999_schema_drift_fixes.sql. */
+     lib/db/migrations/0278_schema_drift_fixes.sql. */
 
 export interface BonusProfile {
   bonusCredits: number;

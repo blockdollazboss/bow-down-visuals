@@ -5,7 +5,7 @@ import { formatUsd } from "./platform-fees";
 import { logger } from "./logger";
 import { isMissingSchemaError } from "./pg-errors";
 
-/* ── Make-an-offer (Wave 4 #43, migration 9999-wave4346 PROVISIONAL) ────
+/* ── Make-an-offer (Wave 4 #43, migration 0257_wave4346) ────
    The negotiation rail behind schema/product-offers.ts. This lib owns
    the state machine and the money law; the routes own HTTP shape; the
    two EXISTING checkouts own charging:

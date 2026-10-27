@@ -174,7 +174,7 @@ export const profileVideosTable = pgTable("profile_videos", {
    *  false = the duet door offers nothing and POST /videos/:id/duet
    *  (and POST /shorts with duet_with) refuse with 403. Stitches are
    *  a separate kind and are NOT governed by this switch. Column
-   *  lands via the held 9999-duet-rails migration (renumbered at
+   *  lands via the held 0295_duet_rails migration (renumbered at
    *  join); pre-migration rows read as enabled (the DB default). */
   duetsEnabled:      boolean("duets_enabled").notNull().default(true),
   /** Duet the King (N3, absorbed into #173): set when the house

@@ -1,6 +1,6 @@
 /**
  * shop-delivery.ts — digital delivery for marketplace shop sales
- * (payfix lane 4, provisional migration 9999-shop-delivery).
+ * (payfix lane 4, provisional migration 0271_shop_delivery).
  *
  * The launch blocker this closes: a buyer paid $5 for a digital
  * download and received NOTHING — no download, no library entry, no

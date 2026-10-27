@@ -24,7 +24,7 @@ import { sql } from "drizzle-orm";
  * Package status: draft (assembled/reviewing) → active (published
  * at least once). Per-version status lives inside `versions`.
  *
- * Migration: provisional 9999-global-drop.sql (renumbered at join).
+ * Migration: provisional 0285_global_drop.sql (renumbered at join).
  */
 export const globalDropPackagesTable = pgTable(
   "global_drop_packages",

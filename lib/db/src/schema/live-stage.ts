@@ -4,7 +4,7 @@ import { liveStreamsTable } from "./live-streams";
 import { liveChatMessagesTable } from "./live-chat";
 
 /* Live-stage upgrades (dedupe-audit deltas #172 / #166 / #153) —
-   provisional migration 9999-live-stage-upgrades.sql (number assigned
+   provisional migration 0294_live_stage_upgrades.sql (number assigned
    at stack join).
 
    creator_live_prefs — per-creator automation switches for the live

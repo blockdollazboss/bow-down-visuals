@@ -34,7 +34,7 @@
  *
  * THE DECIDING: the scheduler (30 s tick, the court-season
  * shape) freezes the year's awards into house_crown_years
- * (provisional migration 9999-the-crowns) and heralds the court
+ * (provisional migration 0283_the_crowns) and heralds the court
  * through the palace announce channel, aimed at the Royal Court
  * Chamber — where the Crowns are held in the World; the same
  * frozen record serves the site read (routes/the-crowns).

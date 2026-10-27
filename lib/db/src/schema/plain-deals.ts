@@ -21,7 +21,7 @@ import { pgTable, uuid, text, timestamp, numeric, index, uniqueIndex, jsonb } fr
    state. Statuses mirror PLAIN_DEAL_SIDE_STATUSES in the lib machine.
 
    Tables land via the PROVISIONAL migration
-   lib/db/migrations/9999-plain-deals.sql; until it is applied, write
+   lib/db/migrations/0289_plain_deals.sql; until it is applied, write
    routes answer 503 plain_deal_not_ready and reads degrade to empty
    (the lib's isMissingPlainDealTable guard). */
 

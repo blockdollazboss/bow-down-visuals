@@ -1,6 +1,6 @@
 /* ─── Community Grants (Stack-200 N15) ────────────────────────────────
    A MONTHLY Visual Bucs pool funds ONE creator project, chosen by
-   COMMUNITY VOTE. Migration 9999-community-grants (PROVISIONAL number).
+   COMMUNITY VOTE. Migration 0255_community_grants.
 
    NOT the jackpot (admin-run code event), NOT the quest pool
    (lib/quest-pool's ≤300 VB/week envelope — never drawn from here),

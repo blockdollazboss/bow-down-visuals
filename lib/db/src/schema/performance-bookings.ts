@@ -26,7 +26,7 @@ import { z } from "zod/v4";
  * without a lawyer. Money is REAL dollars via Stripe — never Visual
  * Bucs (the two economies are never mixed).
  *
- * Provisional migration: lib/db/migrations/9999_performance_bookings.sql
+ * Provisional migration: lib/db/migrations/0290_performance_bookings.sql
  * (renumbered at the stack join, like every lane migration). */
 
 export interface PerformanceBookingTerms {

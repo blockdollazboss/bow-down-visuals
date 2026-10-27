@@ -25,7 +25,7 @@ import { sql } from "drizzle-orm";
  * evaluation) — the proposal shows exactly what fired it, never a
  * synthesized metric.
  *
- * Migration: provisional 9999-second-life.sql (renumbered at join).
+ * Migration: provisional 0286_second_life.sql (renumbered at join).
  */
 export const secondLifePrefsTable = pgTable("second_life_prefs", {
   userId: uuid("user_id").primaryKey(),

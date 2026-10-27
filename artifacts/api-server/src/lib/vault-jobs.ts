@@ -11,7 +11,7 @@ import { logger } from "./logger";
  * creator's original media → package one ZIP → upload) takes minutes,
  * so the route returns 202 with a jobId and the client polls
  * GET /api/account/vault/:jobId. Job records live in the `vault_jobs`
- * table (provisional migration 9999-vault-jobs.sql):
+ * table (provisional migration 0293_vault_jobs.sql):
  * - stage/progress are persisted as the packager advances,
  * - jobs left queued/active by a dead process are re-queued on boot
  *   (see recoverInterruptedVaultJobs) — a Vault now survives deploys,

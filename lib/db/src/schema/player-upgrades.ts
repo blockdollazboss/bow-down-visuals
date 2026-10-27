@@ -6,7 +6,7 @@ import { songsTable } from "./songs";
 
 /* ── Player-surface upgrades (Stack-200 upgrade-deltas wave, lane upg-player) ──
    #174 Thumbnail Duels · N5 Auto Chapters · N9 Karaoke Mode.
-   Provisional migration: lib/db/migrations/9999-upg-player.sql */
+   Provisional migration: lib/db/migrations/0282_upg_player.sql */
 
 /* ── N5: Auto Chapters for a published (showcase) video ──────────────────────
    Chapters + summary generated from the video's own transcript, stored as a

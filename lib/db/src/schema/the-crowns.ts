@@ -1,7 +1,7 @@
 import { pgTable, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 
 /**
- * The Crowns (provisional migration 9999-the-crowns) — N8, the
+ * The Crowns (provisional migration 0283_the_crowns) — N8, the
  * yearly house awards, an UPGRADE of the World court seasons
  * (lib/world-court-season), the Winners' Circle
  * (lib/world-contests) and the Challenges Hall of Fame.

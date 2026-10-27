@@ -3,7 +3,7 @@ import { groupsTable } from "./community";
 
 /**
  * Per-group activity digest (Stack-200 orphan wave, provisional
- * migration 9999-group-digest — renumbered at join).
+ * migration 0279_group_digest — renumbered at join).
  *
  * group_digest_prefs — one row per account: the user-facing on/off +
  * frequency for the periodic per-group activity digest (owner law:
