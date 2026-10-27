@@ -166,6 +166,11 @@ export const beatLicensesTable = pgTable("beat_licenses", {
   /* Checkout session that pays for this license — the idempotency key:
      one session can complete at most one license row. */
   stripe_session_id: text("stripe_session_id"),
+  /** N11 one-tap leases: when the buyer tapped "Agree & pay" on the
+      plain-words checkout — the durable record that they accepted the
+      terms_snapshot exactly as rendered in plain words. NULL for
+      purchases that never passed through the plain-words tap. */
+  terms_accepted_at: timestamp("terms_accepted_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   uniqueIndex("beat_licenses_stripe_session_ux").on(t.stripe_session_id),
