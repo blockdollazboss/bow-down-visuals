@@ -17,6 +17,7 @@ import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
 import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
 import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
+import BookArtistSection from "@/components/artist/BookArtistSection";
 import {
   fetchPublicLayout,
   grandStageFallbackBlocks,
@@ -346,6 +347,11 @@ export default function ArtistPublic() {
         {/* Tutorials shelf (V1): the creator's how-tos live on the
             profile too — it renders nothing until they have one. */}
         <ProfileTutorialsSection slug={slug} />
+        {/* Book the Artist (#158): the promoter-facing booking door —
+            offer form + the escrow walk for both sides, docked on the
+            profile beside the store (MONEY step), never a standalone
+            page. */}
+        <BookArtistSection profile={profile} />
         <ProfileActions profile={profile} />
         <div className="flex justify-center px-4 pb-4">
           <EmbedButton
