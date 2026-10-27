@@ -11,8 +11,8 @@ import {
  *
  * Board item (Lane D board-editor.md, "Mode gating"): in Simple mode the
  * Music mode switch was hidden (Manual DAW + Lip Sync unreachable, and a
- * destructive effect rewrote the stored music mode to "auto"), and
- * ExportDoctor was Pro-mode only — features vanished silently instead of
+ * destructive effect rewrote the stored music mode to "auto") — features
+ * vanished silently instead of
  * reading as gates. The rule now: a gated feature is VISIBLE and locked
  * with its reason, and the unlocking mode actually unlocks it.
  */
@@ -122,11 +122,6 @@ describe("editor rails — gated sections render locked, never filtered away", (
 });
 
 describe("export tab — every setting-carrying Simple gate is a visible locked card", () => {
-  it("ExportDoctor: real component in Advanced, labelled gate card in Simple", () => {
-    expect(exportSection).toContain("<ExportDoctor");
-    expect(exportSection).toContain('testId="export-doctor-gate"');
-    expect(exportSection).toContain("Export Doctor is an Advanced-mode tool");
-  });
   it("Audio Options, Caption Export and Export Range gates name the still-applied setting", () => {
     expect(exportSection).toContain('testId="export-audio-options-gate"');
     expect(exportSection).toContain('testId="export-caption-export-gate"');

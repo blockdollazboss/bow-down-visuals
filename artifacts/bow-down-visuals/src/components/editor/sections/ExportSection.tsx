@@ -7,7 +7,6 @@ import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
 import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
 import { SubjectReframeCard } from "@/components/editor/SubjectReframeCard";
-import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
 import { AutoClipSection } from "@/components/editor/sections/AutoClipSection";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -1198,48 +1197,6 @@ export function ExportSection({
         getAccessToken={getAccessToken}
       />
 
-      {/* ── Export Doctor (single-clip diagnostics) — Advanced-mode tool.
-          In Simple it renders as a labelled locked gate (Lane 6 board
-          item), never a silently missing feature. ── */}
-      {isSimple && (
-        <ModeGateCard
-          title="Export Doctor"
-          subtitle="Single-clip export diagnostics"
-          icon={<Eye className="h-4 w-4" />}
-          testId="export-doctor-gate"
-        >
-          Export Doctor is an Advanced-mode tool — switch the editor to Advanced in the top bar
-          to run single-clip export diagnostics. Nothing here changes your export: every setting
-          above works exactly the same in Simple mode.
-        </ModeGateCard>
-      )}
-      {!isSimple && (
-      <ExportDoctor
-        scenes={scenes}
-        projectId={projectId}
-        masterAudioUrl={masterAudioUrl ?? null}
-        captions={settings.captions}
-        effects={settings.effects}
-        overlays={settings.overlays}
-        overlayIntensity={settings.overlayIntensity}
-        watermarkText={settings.watermarkText}
-        watermarkType={settings.watermarkType}
-        watermarkPosition={settings.watermarkPosition}
-        watermarkSize={settings.watermarkSize}
-        watermarkIncludeInExport={settings.watermarkIncludeInExport}
-        masterCurrentTimeSec={masterCurrentTimeSec}
-        projectDurationSec={projectDurationSec}
-        appliedTransitions={(settings.aiEdit?.appliedTransitions ?? []).map((t) => ({
-          sceneIndex: t.sceneIndex,
-          type: t.transitionType,
-        }))}
-        syncMode={settings.musicStudio.videoAudio.syncMode}
-        clipEdits={settings.clips}
-        selectedLipSyncSceneId={settings.lipSync.selectedSceneId}
-        audioStartSec={settings.musicStudio.videoAudio.startSec ?? 0}
-        audioDurationSec={settings.musicStudio.videoAudio.duration}
-      />
-      )}
     </div>
   );
 }

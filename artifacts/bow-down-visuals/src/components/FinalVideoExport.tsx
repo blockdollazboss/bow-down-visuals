@@ -175,7 +175,7 @@ interface FinalVideoExportProps {
   songCrop?: { enabled: boolean; startSec: number; endSec: number } | null;
   /** Global Auto AI effects (settings.effects) — mirrors the master player's live
    *  CSS preview. Burned into the real export via the shared cssToFfmpegChain
-   *  translation (same one Export Doctor uses). */
+   *  translation. */
   effects?: string[] | null;
   /** Active overlay effect names (settings.overlays) — Light Leaks, Animated Waveform,
    *  Logo / Watermark, etc. Burned into the export via FFmpeg filter injection. */

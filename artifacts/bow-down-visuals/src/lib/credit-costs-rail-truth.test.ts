@@ -93,34 +93,6 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(tierCredits("unknown-type")).toBe(rail.single);
   });
 
-  // Stack-28 item 2 (A2-05): all 13 Export Doctor endpoints were quoted
-  // 100–400 VB in the registry (and therefore in the spend confirmation),
-  // but routes/generate/export-doctor.ts contains ZERO credit logic —
-  // the rails charge nothing. Registry now records 0/free for all 13.
-  const EXPORT_DOCTOR_ENDPOINTS = [
-    "/api/export-doctor/export",
-    "/api/export-doctor/export-all",
-    "/api/export-doctor/export-audio",
-    "/api/export-doctor/export-all-audio",
-    "/api/export-doctor/export-all-captions",
-    "/api/export-doctor/export-all-effects",
-    "/api/export-doctor/export-all-overlays",
-    "/api/export-doctor/export-overlays-range",
-    "/api/export-doctor/export-effects-range",
-    "/api/export-doctor/export-effects-transitions",
-    "/api/export-doctor/export-audio-sync-short",
-    "/api/export-doctor/repair-normalize",
-    "/api/export-doctor/repair-clip",
-  ] as const;
-
-  it("export-doctor rail charges nothing anywhere and registry displays 0 for all 13", () => {
-    const src = readApi("routes/generate/export-doctor.ts");
-    expect(src).not.toMatch(/chargeCredits\s*\(|deductCredits\s*\(/);
-    for (const ep of EXPORT_DOCTOR_ENDPOINTS) {
-      expect(CREDIT_COSTS[ep]?.cost, ep).toBe(0);
-    }
-  });
-
   // Stack-28 item 3 (A2-04): the pre-x100 stale family. Eight actions
   // displayed 1–2 VB and had NO registry entry; displays now read the
   // rail truth and the registry records each charge, pinned here by
