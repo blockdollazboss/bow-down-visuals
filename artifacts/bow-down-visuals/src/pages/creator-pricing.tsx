@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
 import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import GiftMembership from "@/components/GiftMembership";
 import { loginPathWithNext } from "@/lib/auth-next";
 import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 import { CREATOR_PLANS } from "@/lib/pricing-plans";
@@ -366,6 +367,10 @@ export default function CreatorPricing() {
         )}
         <CurrencyHonestyNote className="mt-4 text-center" />
 
+        {/* gift a membership — docks here on the upgrade path: embedded
+            checkout on this page, one-time payment, no auto-renew */}
+        <GiftMembership isLight={isLight} />
+
         {/* earned rank — stars come from work, never from a tier */}
         <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="text-2xl font-black">Stars are earned — never sold</h2>
@@ -433,6 +438,7 @@ export default function CreatorPricing() {
             ["Can I really earn on Free?", "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — your own domain, unlimited products, pro analytics and more AI promotion boosts."],
             ["Do paid tiers lower my platform fee?", "No — the platform fee is a flat 5% on every tier, Free included. Paid tiers pay for themselves with their features, not a lower fee."],
             ["What if I cancel?", "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty — cancel or undo it any time, manage it yourself right here in Settings → Billing."],
+            ["Can I gift a membership?", "Yes — use the gift desk on this page. A gift is a one-time payment (not a subscription): it does not auto-renew and no card is charged again. The recipient holds the tier for the gifted period, then glides back to Free unless they subscribe on their own. If they already have a gift running, yours queues up behind it so no paid time is lost."],
             ["Is this Visual Bucs?", "No. Tiers are real USD subscriptions via Stripe (test mode). Visual Bucs are the separate AI-credit system — the two never mix."],
           ].map(([q, a]) => (
             <div key={q} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>

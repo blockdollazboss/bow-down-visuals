@@ -98,6 +98,46 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         res.status(200).json({ received: true, kind: "marketplace_shop_purchase" });
         return;
       }
+      if (s.metadata?.kind === "membership_gift") {
+        /* Gift membership (payfix lane 9): a one-time payment granting
+           the recipient a Pro/Elite window. Fulfillment claims on
+           UNIQUE(stripe_session_id) inside lib/membership-gifts, so a
+           webhook replay — or the buyer's verify landing first — grants
+           exactly once and notifies the recipient exactly once. A
+           fulfillment failure 500s so Stripe retries (the claim is
+           retry-safe); it must NOT fall through to the credit logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "membership_gift", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { fulfillGiftMembership, isGiftTier } = await import("./membership-gifts");
+          const meta = s.metadata ?? {};
+          const tier = meta["tier"];
+          const months = Number(meta["months"] ?? 0);
+          if (!isGiftTier(tier) || !meta["sender_user_id"] || !meta["recipient_user_id"] || !meta["recipient_profile_id"] || !Number.isInteger(months) || months < 1 || months > 12) {
+            logger.error({ sessionId: s.id }, "Stripe webhook: membership_gift session missing gift metadata");
+            res.status(200).json({ received: true, kind: "membership_gift", warning: "Invalid gift metadata" });
+            return;
+          }
+          const { duplicate } = await fulfillGiftMembership({
+            sessionId: s.id,
+            paymentIntentId: typeof s.payment_intent === "string" ? s.payment_intent : null,
+            amountCents: s.amount_total,
+            currency: s.currency,
+            senderUserId: meta["sender_user_id"],
+            recipientUserId: meta["recipient_user_id"],
+            recipientProfileId: meta["recipient_profile_id"],
+            tier,
+            months,
+          });
+          res.status(200).json({ received: true, kind: "membership_gift", duplicate });
+        } catch (giftErr) {
+          logger.error({ err: giftErr, sessionId: s.id }, "Stripe webhook: membership gift fulfillment failed");
+          res.status(500).json({ error: "Membership gift fulfillment failed, retry later" });
+        }
+        return;
+      }
       if (s.metadata?.kind === "creator_tier") {
         const { handleTierCheckoutCompleted } = await import("./creator-tier-sync");
         await handleTierCheckoutCompleted(s);

@@ -58,7 +58,23 @@ export async function resolveCreatorTier(
     if (sub && ACTIVE_STATUSES.has(sub.status) && (CREATOR_TIERS as readonly string[]).includes(sub.tier)) {
       subTier = sub.tier as CreatorTier;
     }
-    const tier: CreatorTier = meetsTier(subTier, legacy) ? subTier : legacy;
+    /* Gift leg (payfix gift-membership): an active membership_gifts
+       window covering now counts alongside the subscription — the
+       effective tier is the higher of the two, so a gift never
+       downgrades a paying member, and when the window ends this leg
+       simply stops counting (glide back to the subscription state /
+       Free, no cron, no writes). Fail-soft in its own try: a missing
+       table (pre-migration) or a gift read error must never take the
+       subscription leg down with it. */
+    let giftTier: CreatorTier = "free";
+    try {
+      const { giftTierForProfile } = await import("../lib/membership-gifts");
+      giftTier = (await giftTierForProfile(profile.id)) ?? "free";
+    } catch (giftErr) {
+      logger.warn({ err: giftErr, userId }, "resolveCreatorTier: gift lookup failed, ignoring gift leg");
+    }
+    const paidTier: CreatorTier = meetsTier(subTier, giftTier) ? subTier : giftTier;
+    const tier: CreatorTier = meetsTier(paidTier, legacy) ? paidTier : legacy;
     return { tier, profileId: profile.id };
   } catch (err) {
     logger.warn({ err, userId }, "resolveCreatorTier: DB lookup failed, falling back to free");
