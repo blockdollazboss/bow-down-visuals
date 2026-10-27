@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "185bbcb52bda668828beee0be0141272cbfa709b",
+  "baseCommit": "172f16540f45a3127b5c39fdd32d5783f80f9681",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-25",
+  "generatedAt": "2026-10-27",
   "counts": {
     "routesInApp": 235,
     "pageFiles": 181,
@@ -1067,6 +1067,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -1292,6 +1296,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -1511,6 +1519,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -1730,6 +1742,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -1949,6 +1965,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -2168,6 +2188,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -2391,6 +2415,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -2614,6 +2642,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -2833,6 +2865,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -3052,6 +3088,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -3256,6 +3296,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -3475,6 +3519,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -3697,6 +3745,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
@@ -6359,6 +6411,10 @@
             {
               "upToSeconds": 300,
               "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
             }
           ],
           "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
