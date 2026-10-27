@@ -25,9 +25,9 @@ const execFileAsync = promisify(execFile);
    reverse-reverb tail, distortion) -> MP3/WAV download.
    100 Visual Bucs per tag (PRODUCER_TAG_CREDITS override). */
 
-const PRODUCER_TAG_COST = Number(process.env["PRODUCER_TAG_CREDITS"]) || 100;
+export const PRODUCER_TAG_COST = Number(process.env["PRODUCER_TAG_CREDITS"]) || 100;
 
-const OPENAI_VOICES = [
+export const OPENAI_VOICES = [
   { id: "alloy", label: "Alloy", blurb: "Neutral and balanced" },
   { id: "echo", label: "Echo", blurb: "Warm and resonant" },
   { id: "fable", label: "Fable", blurb: "Expressive storyteller" },
@@ -38,7 +38,8 @@ const OPENAI_VOICES = [
 
 const voiceIds = OPENAI_VOICES.map((v) => v.id) as unknown as [string, ...string[]];
 
-const PRESETS = ["dark", "hype", "chipmunk", "radio", "epic"] as const;
+export const PRESETS = ["dark", "hype", "chipmunk", "radio", "epic"] as const;
+export type ProducerTagPreset = (typeof PRESETS)[number];
 
 const producerTagSchema = z.object({
   text: z
@@ -198,7 +199,7 @@ async function applyEpic(inputPath: string, workDir: string, format: "mp3" | "wa
 
 /* ── Vault voice lookup ─────────────────────────────────────────────── */
 
-async function findVaultVoice(userId: string, vaultId?: string) {
+export async function findVaultVoice(userId: string, vaultId?: string) {
   const conditions = [
     eq(artistVaultsTable.user_id, userId),
     isNull(artistVaultsTable.deleted_at),
@@ -212,6 +213,37 @@ async function findVaultVoice(userId: string, vaultId?: string) {
     .orderBy(desc(artistVaultsTable.created_at))
     .limit(1);
   return vault ?? null;
+}
+
+/* ── Shared render core (legacy POST + #159 draft lifecycle) ────────── */
+
+/**
+ * Render a spoken tag to a file inside workDir: TTS (OpenAI voice, or the
+ * cloned vault voice when vaultVoice is set) -> the preset FX chain.
+ * Returns the output path. Callers own charging, storage and cleanup.
+ */
+export async function renderSpokenTagFile(opts: {
+  text: string;
+  voice: string;
+  vaultVoice: { voiceId: string } | null;
+  preset: ProducerTagPreset;
+  format: "mp3" | "wav";
+  workDir: string;
+}): Promise<string> {
+  const rawPath = join(opts.workDir, "raw.mp3");
+  if (opts.vaultVoice) {
+    await elevenLabsTts(opts.text, opts.vaultVoice.voiceId, rawPath);
+  } else {
+    await openAiTts(opts.text, opts.voice, rawPath);
+  }
+  const ext = opts.format === "wav" ? "wav" : "mp3";
+  const outputPath = join(opts.workDir, `tag.${ext}`);
+  if (opts.preset === "epic") {
+    await applyEpic(rawPath, opts.workDir, opts.format, outputPath);
+  } else {
+    await encodeOutput(rawPath, presetFilter(opts.preset), opts.format, outputPath);
+  }
+  return outputPath;
 }
 
 /* ── Routes ─────────────────────────────────────────────────────────── */
@@ -305,22 +337,16 @@ router.post("/producer-tag", requireAuth, async (req, res) => {
   try {
     req.log.info({ preset, voice: useVaultVoice ? "vault" : voice, format }, "[producer-tag] generating");
 
-    // 1) TTS the raw tag
-    const rawPath = join(workDir, "raw.mp3");
-    if (vaultVoice) {
-      await elevenLabsTts(text, vaultVoice.voiceId, rawPath);
-    } else {
-      await openAiTts(text, voice, rawPath);
-    }
-
-    // 2) Effects chain
+    // 1) TTS + 2) effects chain (shared render core)
     const ext = format === "wav" ? "wav" : "mp3";
-    const outputPath = join(workDir, `tag.${ext}`);
-    if (preset === "epic") {
-      await applyEpic(rawPath, workDir, format, outputPath);
-    } else {
-      await encodeOutput(rawPath, presetFilter(preset), format, outputPath);
-    }
+    const outputPath = await renderSpokenTagFile({
+      text,
+      voice,
+      vaultVoice,
+      preset,
+      format,
+      workDir,
+    });
 
     // 3) Store + serve
     const buffer = await readFile(outputPath);

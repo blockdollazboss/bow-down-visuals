@@ -23,6 +23,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
 import { recordCreation } from "../../lib/retention";
 import { stampVideoFileWithDisclosure } from "../../lib/disclosure-metadata";
+import { getActiveProducerTag } from "./producer-tag-lifecycle";
+import { probeDurationSeconds } from "./podcast";
 import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../../lib/provenance";
 import { drizzleProxyStore, resolveExportSources } from "../../lib/proxy-editing";
 import {
@@ -417,6 +419,44 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
   if (!res.ok) throw new Error(`Download failed (HTTP ${res.status}): ${url.slice(0, 100)}`);
   const ws = createWriteStream(dest);
   await pipeline(res.body as Parameters<typeof pipeline>[0], ws);
+}
+
+/**
+ * #159: mix the creator's producer tag over the opening seconds of a
+ * finished export — the program audio ducks to 0.35 under the tag, the
+ * video stream is copied untouched, the tag is trimmed to at most 4 s
+ * with a short fade-out. Returns false on any failure (the caller ships
+ * the unstamped file — stamping never fails an export).
+ */
+export async function stampProducerTagIntoVideo(
+  videoPath: string,
+  tagPath: string,
+  outPath: string,
+  tagSeconds: number,
+): Promise<boolean> {
+  const tagDur = Math.min(Math.max(tagSeconds, 0.5), 4);
+  const fadeStart = Math.max(0, tagDur - 0.8).toFixed(2);
+  const filter =
+    `[1:a]atrim=0:${tagDur.toFixed(2)},asetpts=PTS-STARTPTS,afade=t=out:st=${fadeStart}:d=0.8,volume=0.9[tag];` +
+    `[0:a]volume='if(lt(t,${tagDur.toFixed(2)}),0.35,1)':eval=frame[main];` +
+    `[main][tag]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.95[aout]`;
+  try {
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y", "-i", videoPath, "-i", tagPath,
+        "-filter_complex", filter,
+        "-map", "0:v", "-map", "[aout]",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-movflags", "+faststart",
+        outPath,
+      ],
+      { timeout: 300_000 },
+    );
+    return existsSync(outPath) && statSync(outPath).size > 1024;
+  } catch {
+    return false;
+  }
 }
 
 interface VideoInfo {
@@ -2844,6 +2884,54 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
     }
 
+    /* ── 7c: Producer-tag stamp (#159 Your Own Tag) ──────────────────────
+       When the creator has an ACTIVE approved tag and their stamp
+       toggle is on, the tag is mixed over the opening seconds of the
+       verified file (see stampProducerTagIntoVideo). Same fail-open
+       contract as 7b: a failed stamp NEVER fails the export — the
+       unstamped file ships and the result reports the state honestly. */
+    let producerTagState: "stamped" | "off" | "none" | "no_audio" | "stamp_failed" = "none";
+    try {
+      const activeTag = await getActiveProducerTag(ctx.userId);
+      if (activeTag) {
+        if (!activeTag.stampEnabled) {
+          producerTagState = "off";
+        } else if (!outInfo.hasAudio) {
+          producerTagState = "no_audio";
+        } else {
+          const tagPath = path.join(tmpDir, `bdv-export-${exportId}-tag.${activeTag.format === "wav" ? "wav" : "mp3"}`);
+          tmpFiles.push(tagPath);
+          const tagUrl = activeTag.storageRef
+            ? await refreshSupabaseStorageUrl(activeTag.storageRef)
+            : activeTag.audioUrl;
+          if (!tagUrl) throw new Error("Active tag has no playable URL");
+          await downloadToFile(tagUrl, tagPath);
+          const tagSeconds = await probeDurationSeconds(tagPath);
+          const taggedPath = path.join(tmpDir, `bdv-export-${exportId}-tagged.${outExt}`);
+          tmpFiles.push(taggedPath);
+          const stampedTag = await stampProducerTagIntoVideo(
+            finalPath,
+            tagPath,
+            taggedPath,
+            tagSeconds > 0 ? tagSeconds : 2,
+          );
+          if (stampedTag) {
+            finalPath = taggedPath;
+            producerTagState = "stamped";
+          } else {
+            producerTagState = "stamp_failed";
+            ctx.log.warn({ exportId }, "[export] producer-tag stamp failed; shipping unstamped");
+          }
+        }
+      }
+    } catch (tagErr) {
+      producerTagState = "stamp_failed";
+      ctx.log.warn(
+        { exportId, err: tagErr instanceof Error ? tagErr.message : String(tagErr) },
+        "[export] producer-tag stamp errored; shipping unstamped",
+      );
+    }
+
     /* Fail fast on size: Supabase's plan-level per-file ceiling (50 MB on the
      * free tier) rejects oversized uploads with a cryptic 413. The bitrate
      * budget above should keep us under it — this is the backstop with a
@@ -2894,6 +2982,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
           audio_source: audioSource,
           aspect_ratio: aspectRatio,
           ai_disclosure: aiDisclosureState,
+          producer_tag: producerTagState,
         };
 
         /* Update output_data in place. Previously this did a delete-then-insert, which could
@@ -2937,6 +3026,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       duration: outInfo.duration,
       testMode: !!testMode,
       aiDisclosure: aiDisclosureState,
+      producerTag: producerTagState,
       /* A-01 settlement ground truth: true when a watermark image was
          actually burned into this render. The background worker settles
          the charge from THIS, never from the request-side prediction. */

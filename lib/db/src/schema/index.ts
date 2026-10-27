@@ -95,6 +95,7 @@ export * from "./voice-clones";
 export * from "./review-links";
 export * from "./product-reviews";
 export * from "./hum-recordings";
+export * from "./producer-tags";
 export * from "./inspo-vibe-presets";
 export * from "./user-luts";
 export * from "./money-entries";

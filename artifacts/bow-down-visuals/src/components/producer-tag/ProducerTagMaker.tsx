@@ -15,6 +15,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { YourOwnTag } from "./YourOwnTag";
 
 /* ─── Producer Tag Maker ────────────────────────────────────────────────
    Signature tag studio for producers ("Prod. by Cheat Code", "It's the
@@ -462,6 +463,11 @@ export function ProducerTagMaker() {
             </div>
           )
         )}
+      </div>
+
+      {/* ── Your Own Tag (#159): the signature-tag lifecycle ── */}
+      <div className="lg:col-span-2">
+        <YourOwnTag text={text} voice={voice} preset={preset} format={format} />
       </div>
 
       {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}

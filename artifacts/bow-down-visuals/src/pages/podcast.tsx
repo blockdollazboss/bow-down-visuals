@@ -8,6 +8,7 @@ import {
   Users, User, Music, Video, PenLine, Lightbulb, MessagesSquare, Drama,
 } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import { PodcastMultiplyPanel } from "@/components/audio-studio/PodcastMultiplyPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -889,6 +890,17 @@ export default function PodcastStudio() {
                       </button>
                     </div>
                   </div>
+
+                  {/* #163: one tap turns this episode into a publish kit. */}
+                  {(result.audioPlayUrl ?? result.audioUrl) && (
+                    <PodcastMultiplyPanel
+                      episodeAudioUrl={result.audioPlayUrl ?? result.audioUrl ?? ""}
+                      title={result.title ?? "Podcast episode"}
+                      description={description}
+                      transcript={result.scriptUsed}
+                      chapters={result.chapters}
+                    />
+                  )}
 
                   <p className="text-xs text-white/35">
                     {t("podcast.result.creditsNote", { used: (result.creditsUsed ?? 0) * 100, remaining: result.creditsRemaining ?? 0 })}
