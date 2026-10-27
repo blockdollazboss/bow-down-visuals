@@ -22,7 +22,7 @@ import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../lib/provenance
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-const SCREENSAVER_RENDER_COST = Number(process.env["WALLPAPER_SCREENSAVER_CREDITS"]) || 400;
+const SCREENSAVER_RENDER_COST = Number(process.env["WALLPAPER_SCREENSAVER_CREDITS"]) || 300;
 // Branded-by-default (owner law, Oct 22): branded renders are free; a clean
 // (unbranded) render is the exception and is charged. This 400 is MAPPED
 // from the site's clean-export rail (/api/export-final-video: branded
@@ -465,7 +465,9 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
   void creditsAfter;
 
   // Branded by default, same as the wallpaper render — but the charge
-  // stays 400 flat regardless (this is a video render; no clean charge).
+  // stays 300 flat regardless (this is a video render; no clean charge).
+  // 300 is the owner-ruled living-wallpaper price (Oct 27, 2026,
+  // ruled by delegation: "do the prices as you recommend").
   const branded = parsed.data.branded ?? true;
 
   const workDir = await mkdtemp(join(tmpdir(), "screensaver-"));

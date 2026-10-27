@@ -2,14 +2,15 @@
  * Wallpapers / Screensavers — route pins over HTTP (express + mocked rails):
  *  - presets endpoint returns exactly the 15 presets with exact pixels;
  *  - render rejects unknown preset (400) and non-http source (400), free success;
- *  - screensaver rejects phone preset (400) and 402s when broke, charges 400;
+ *  - screensaver rejects phone preset (400) and 402s when broke, charges 300;
  *  - pack-download rejects empty urls (400) and streams a zip on success;
  *  - pure preset invariants (positive ints, phone portrait, desktop landscape)
  *    and ffmpeg arg builders.
  *  - branded-by-default (amendment, Oct 22): branded absent/true takes no
  *    charge path and applies logo + brandName drawtext overlays; clean
  *    (branded:false) charges 400, 402s when broke, refunds on failure;
- *    screensaver applies the same overlays at its flat 400 charge.
+ *    screensaver applies the same overlays at its flat 300 charge
+ *    (the owner-ruled living-wallpaper price, Oct 27, 2026).
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
@@ -206,7 +207,7 @@ describe("wallpaper presets (pure)", () => {
     expect(ss).toContain("libx264");
     expect(ss).toContain("yuv420p");
     expect(ss[ss.indexOf("-t") + 1]).toBe("60");
-    expect(SCREENSAVER_RENDER_COST).toBe(400);
+    expect(SCREENSAVER_RENDER_COST).toBe(300);
     expect(sanitizePackName("My Pack!")).toBe("My_Pack");
     expect(sanitizePackName(undefined)).toBe("wallpaper-pack");
   });
@@ -374,24 +375,24 @@ describe("wallpapers routes (HTTP)", () => {
     expect(h.ffmpegCalls).toHaveLength(0);
   });
 
-  it("screensaver-render succeeds: charges 400, loops, no audio", async () => {
+  it("screensaver-render succeeds: charges 300, loops, no audio", async () => {
     const { status, json } = await call("POST", "/wallpapers/screensaver-render", {
       videoUrl: "https://files.example/v.mp4",
       presetKey: "desktop-fhd",
       seconds: 30,
     });
     expect(status).toBe(200);
-    expect(json).toMatchObject({ presetKey: "desktop-fhd", width: 1920, height: 1080, seconds: 30, creditCost: 400 });
+    expect(json).toMatchObject({ presetKey: "desktop-fhd", width: 1920, height: 1080, seconds: 30, creditCost: 300 });
     expect(vi.mocked(chargeCredits)).toHaveBeenCalledWith(
       "user-1",
-      400,
+      300,
       expect.objectContaining({ action: "Screensaver Loop Render" }),
     );
     const args = h.ffmpegCalls[0]!;
     expect(args).toContain("-stream_loop");
     expect(args).toContain("-an");
     expect(vi.mocked(saveGeneration)).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "screensaver", creditsSpent: 400 }),
+      expect.objectContaining({ type: "screensaver", creditsSpent: 300 }),
     );
   });
 
@@ -404,7 +405,7 @@ describe("wallpapers routes (HTTP)", () => {
     expect(status).toBe(502);
     expect(vi.mocked(refundCredits)).toHaveBeenCalledWith(
       "user-1",
-      400,
+      300,
       expect.objectContaining({ action: expect.stringContaining("Refund") }),
     );
   });
@@ -518,7 +519,7 @@ describe("wallpapers routes (HTTP)", () => {
     );
   });
 
-  it("screensaver branded with logo + brandName overlays both, charge stays flat 400", async () => {
+  it("screensaver branded with logo + brandName overlays both, charge stays flat 300", async () => {
     const { status, json } = await call("POST", "/wallpapers/screensaver-render", {
       videoUrl: "https://files.example/v.mp4",
       presetKey: "desktop-fhd",
@@ -526,11 +527,11 @@ describe("wallpapers routes (HTTP)", () => {
       brandName: "My Brand",
     });
     expect(status).toBe(200);
-    expect(json).toMatchObject({ branded: true, creditCost: 400 });
+    expect(json).toMatchObject({ branded: true, creditCost: 300 });
     expect(vi.mocked(chargeCredits)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(chargeCredits)).toHaveBeenCalledWith(
       "user-1",
-      400,
+      300,
       expect.objectContaining({ action: "Screensaver Loop Render" }),
     );
     const joined = h.ffmpegCalls[0]!.join(" ");
@@ -547,7 +548,7 @@ describe("wallpapers routes (HTTP)", () => {
       brandName: "My Brand",
     });
     expect(status).toBe(200);
-    expect(json).toMatchObject({ branded: false, creditCost: 400 });
+    expect(json).toMatchObject({ branded: false, creditCost: 300 });
     expect(vi.mocked(chargeCredits)).toHaveBeenCalledTimes(1);
     const joined = h.ffmpegCalls[0]!.join(" ");
     expect(joined).not.toContain("drawtext");
@@ -656,13 +657,13 @@ describe("desk price derivations land on the server constants (Stack-28 item 15)
     const deskSrc = fe("components/wallpapers/WallpapersDesk.tsx");
 
     // Registry entries the FE derivations read:
-    expect(registry).toContain('"/api/wallpapers/screensaver-render": { cost: 400');
+    expect(registry).toContain('"/api/wallpapers/screensaver-render": { cost: 300');
     expect(registry).toContain('"/api/generate-runway-clip": { cost: 400');
     expect(registry).toContain('"/api/export-final-video": { cost: 400');
     expect(registry).toContain('"/api/wallpapers/render": { cost: 0');
 
     // Those registry figures equal this suite's imported rail constants:
-    expect(SCREENSAVER_RENDER_COST).toBe(400);
+    expect(SCREENSAVER_RENDER_COST).toBe(300);
     expect(CLEAN_RENDER_COST).toBe(400);
 
     // The price module derives (never hardcodes) each desk figure:

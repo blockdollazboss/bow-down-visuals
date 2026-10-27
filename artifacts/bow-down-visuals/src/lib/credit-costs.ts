@@ -137,11 +137,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // overrideCost 400 at the call site, mirroring CLEAN_RENDER_COST in
   // api-server routes/wallpapers.ts (mapped from the export-final-video
   // clean-export rail, pending owner confirmation). The screensaver loop
-  // mirrors SCREENSAVER_RENDER_COST in the same route (also 400, mapped
-  // from the export-final-video rail, pending owner confirmation).
+  // mirrors SCREENSAVER_RENDER_COST in the same route — the living
+  // wallpaper, priced 300 by the owner's Oct 27, 2026 ruling (ruled by
+  // delegation: "do the prices as you recommend").
   // pack-download charges nothing, so it stays off this registry.
   "/api/wallpapers/render": { cost: 0, feature: "Wallpaper Render (branded — free)" },
-  "/api/wallpapers/screensaver-render": { cost: 400, feature: "Screensaver Loop Render" },
+  "/api/wallpapers/screensaver-render": { cost: 300, feature: "Screensaver Loop Render" },
   // Single-shot thumbnail: the rail (routes/generate/thumbnail.ts)
   // charges TEXT_CREDIT_COST 100 + IMAGE_CREDIT_COST 200 = 300 when the
   // image lands, and its 402 pre-check requires the full 300 up front.
