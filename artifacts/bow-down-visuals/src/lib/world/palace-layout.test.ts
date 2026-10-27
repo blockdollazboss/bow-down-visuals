@@ -39,6 +39,7 @@ import {
   GAME_ROOMS_ID,
   CREATE_WING_ID,
   COURTYARD_ID,
+  BOARDWALK_ID,
   HEIGHTS_ID,
   TREASURY_ID,
   ROYAL_COURT_ID,
@@ -140,6 +141,34 @@ describe("crossings", () => {
   it("clamping lands inside the named room", () => {
     const p = clampToRoom(GAME_ROOMS_ID, 0, 0);
     expect(roomAt(p.x, p.z, HALL_ROOM_ID)).toBe(GAME_ROOMS_ID);
+  });
+
+  /* Spawn integrity (#88): every authored spawn stands in its own
+   * room's footprint — the clamp a spawn passes through must be a
+   * no-op there, or arrivals materialize somewhere the plan never
+   * named (the plaza spawn clamped 5.8 m off its medallion, the
+   * Boardwalk spawn off its entry strip, when the clamp read the
+   * walk rect alone and ignored the rooms' grounds). */
+  it("every room's authored spawn clamps to itself", () => {
+    for (const room of Object.values(PALACE_LAYOUT)) {
+      expect(clampToRoom(room.id, room.spawn.x, room.spawn.z), room.id).toEqual(room.spawn);
+    }
+  });
+
+  it("a point already standing in a room's grounds clamps to itself", () => {
+    // The plaza promenade (grounds, south of the walk rect) and
+    // the Boardwalk entry strip (grounds, north of its deck).
+    expect(clampToRoom(COURTYARD_ID, 0, 31.5)).toEqual({ x: 0, z: 31.5 });
+    expect(clampToRoom(BOARDWALK_ID, 0, 36.2)).toEqual({ x: 0, z: 36.2 });
+  });
+
+  it("an outside point clamps to the NEAREST footprint point, grounds included", () => {
+    // South of the plaza: the nearest standing ground is the
+    // promenade grounds' south edge (z 33.6), not the walk rect's
+    // far edge (z 25.7) the old clamp produced.
+    expect(clampToRoom(COURTYARD_ID, 0, 40)).toEqual({ x: 0, z: 33.6 });
+    // A room with no grounds keeps the walk-rect clamp exactly.
+    expect(clampToRoom(GAME_ROOMS_ID, 0, 0)).toEqual({ x: -14.35, z: 3.85 });
   });
 });
 
