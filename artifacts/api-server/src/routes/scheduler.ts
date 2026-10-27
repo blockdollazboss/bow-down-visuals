@@ -58,7 +58,7 @@ async function presentPost(p: ScheduledPost) {
 export const SCHEDULER_POST_CREDITS = Number(process.env["SCHEDULER_POST_CREDITS"]) || 100;
 export const SCHEDULER_BEST_TIME_CREDITS = Number(process.env["SCHEDULER_BEST_TIME_CREDITS"]) || 100;
 
-const PLATFORMS = ["instagram", "tiktok", "facebook"] as const;
+const PLATFORMS = ["instagram", "tiktok", "facebook", "x"] as const;
 export type SchedulerPlatformKey = (typeof PLATFORMS)[number];
 
 const MEDIA_TYPES = ["video", "image"] as const;
@@ -68,7 +68,7 @@ export const scheduledPostSchema = z.object({
   mediaType: z.enum(MEDIA_TYPES).default("video"),
   caption: z.string().max(5000).default(""),
   hashtags: z.string().max(500).default(""),
-  platforms: z.array(z.enum(PLATFORMS)).min(1, "Pick at least one platform.").max(3),
+  platforms: z.array(z.enum(PLATFORMS)).min(1, "Pick at least one platform.").max(4),
   /* platform → social_accounts.id (which connected account posts it) */
   accountIds: z.partialRecord(z.enum(PLATFORMS), z.string().uuid()).default({}),
   /* ISO datetime. Omitted (or in the past) → saved as a free draft. */
@@ -88,7 +88,7 @@ export const scheduledPostSchema = z.object({
 export const updateScheduledPostSchema = z.object({
   caption: z.string().max(5000).optional(),
   hashtags: z.string().max(500).optional(),
-  platforms: z.array(z.enum(PLATFORMS)).min(1).max(3).optional(),
+  platforms: z.array(z.enum(PLATFORMS)).min(1).max(4).optional(),
   accountIds: z.partialRecord(z.enum(PLATFORMS), z.string().uuid()).optional(),
   scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
   mediaUrl: z.string().min(1).max(2000).optional(),
@@ -102,7 +102,7 @@ export const updateScheduledPostSchema = z.object({
 
 const bestTimeSchema = z.object({
   niche: z.string().min(1, "Tell us your niche.").max(120),
-  platforms: z.array(z.enum(PLATFORMS)).min(1, "Pick at least one platform.").max(3),
+  platforms: z.array(z.enum(PLATFORMS)).min(1, "Pick at least one platform.").max(4),
   postsPerWeek: z.number().int().min(1).max(14).default(3),
   timezone: z.string().max(60).default("America/New_York"),
 });
@@ -590,7 +590,7 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
             "You are a social media posting-time strategist. Suggest the best upcoming posting slots for a creator. " +
             "Base times on widely-known platform engagement patterns (weekday lunch hours and evenings, weekend late mornings) " +
             "adjusted for the creator's timezone and niche. Be honest: these are pattern-based suggestions, not guarantees. " +
-            "Respond ONLY with JSON: { \"slots\": [ { \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM\" (24h), \"platform\": \"instagram|tiktok|facebook\", \"reason\": \"short why\" } ], \"note\": \"one-line guidance\" }. " +
+            "Respond ONLY with JSON: { \"slots\": [ { \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM\" (24h), \"platform\": \"instagram|tiktok|facebook|x\", \"reason\": \"short why\" } ], \"note\": \"one-line guidance\" }. " +
             "Dates must be within the next 14 days. Suggest exactly the number of posts requested, spread across days.",
         },
         {

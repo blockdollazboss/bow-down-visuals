@@ -109,12 +109,14 @@ function makeDeps(overrides: Partial<SchedulerDeps> = {}) {
       accessToken: "tok",
       igUserId: platform === "instagram" ? "ig-user-1" : null,
       pageId: platform === "facebook" ? "page-1" : null,
+      username: platform === "x" ? "creator" : null,
     }),
     downloadVideo: async () => Buffer.from("fake-video-bytes"),
     publishers: {
       instagram: async () => ({ mediaId: "ig-1", permalink: "https://ig/p/1" }),
       tiktok: async () => ({ publishId: "tt-1" }),
       facebook: async () => ({ videoId: "fb-1", permalink: "https://fb/v/1" }),
+      x: async () => ({ tweetId: "tweet-1", permalink: "https://x.com/creator/status/tweet-1" }),
       ...(publisherOverrides ?? {}),
     },
     ...rest,
@@ -525,5 +527,70 @@ describe("scheduledPostSchema", () => {
 describe("scheduler pricing constants", () => {
   it("scheduling costs 100 Visual Bucs per post, regardless of platform count", () => {
     expect(SCHEDULER_POST_CREDITS).toBe(100);
+  });
+});
+
+describe("scheduler-jobs — X (Twitter) platform (Wave-4 #42)", () => {
+  it("accepts x as a schedulable platform, up to all four platforms at once", () => {
+    const base = {
+      mediaUrl: "https://cdn.example.com/clip.mp4",
+      caption: "hi",
+      accountIds: {},
+    };
+    expect(scheduledPostSchema.safeParse({ ...base, platforms: ["x"] }).success).toBe(true);
+    expect(
+      scheduledPostSchema.safeParse({ ...base, platforms: ["instagram", "tiktok", "facebook", "x"] }).success,
+    ).toBe(true);
+  });
+
+  it("fires an X post: caption+hashtags as the tweet text, media bytes uploaded, permalink recorded", async () => {
+    const seen: Array<{ text: string; mediaCategory?: string; username?: string }> = [];
+    const { deps, updates, setClaimed } = makeDeps({
+      publishers: {
+        x: async (input) => {
+          seen.push({ text: input.text, mediaCategory: input.mediaCategory, username: input.username });
+          return { tweetId: "tweet-9", permalink: "https://x.com/creator/status/tweet-9" };
+        },
+      },
+    });
+    setClaimed([
+      makePost({
+        platforms: ["x"] as SchedulerPlatform[],
+        account_ids: { x: "acct-x" },
+      }),
+    ]);
+    const n = await publishDueScheduledPosts(deps);
+    expect(n).toBe(1);
+    expect(seen).toEqual([{ text: "Bow down\n#sharkking", mediaCategory: "tweet_video", username: "creator" }]);
+    const terminal = updates.find((u) => u.patch.status === "posted");
+    expect(terminal).toBeDefined();
+    const results = (terminal!.patch.results ?? []) as Array<{ platform: string; status: string; mediaId?: string; permalink?: string | null }>;
+    expect(results).toEqual([
+      { platform: "x", status: "posted", mediaId: "tweet-9", permalink: "https://x.com/creator/status/tweet-9" },
+    ]);
+  });
+
+  it("settles an over-280 caption as a PERMANENT X failure — no retry, other platforms still post, no refund on partial success", async () => {
+    const { deps, updates, refunds, setClaimed } = makeDeps();
+    setClaimed([
+      makePost({
+        caption: "a".repeat(281),
+        hashtags: "",
+        platforms: ["instagram", "x"] as SchedulerPlatform[],
+        account_ids: { instagram: "acct-ig", x: "acct-x" },
+      }),
+    ]);
+    await publishDueScheduledPosts(deps);
+    /* No retry scheduling for the X failure: the post settles terminally. */
+    expect(updates.some((u) => u.patch.status === "scheduled")).toBe(false);
+    const terminal = updates.find((u) => u.patch.status === "posted");
+    expect(terminal).toBeDefined();
+    const results = (terminal!.patch.results ?? []) as Array<{ platform: string; status: string; permanent?: boolean; error?: string }>;
+    const xResult = results.find((r) => r.platform === "x");
+    expect(xResult?.status).toBe("failed");
+    expect(xResult?.permanent).toBe(true);
+    expect(xResult?.error).toMatch(/280/);
+    expect(results.find((r) => r.platform === "instagram")?.status).toBe("posted");
+    expect(refunds).toHaveLength(0); // partial success — the post delivered
   });
 });

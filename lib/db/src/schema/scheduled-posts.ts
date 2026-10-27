@@ -43,7 +43,7 @@ export type ScheduledPostStatus =
   | "failed"
   | "canceled";
 
-export type SchedulerPlatform = "instagram" | "tiktok" | "facebook";
+export type SchedulerPlatform = "instagram" | "tiktok" | "facebook" | "x";
 
 export type SchedulerMediaType = "video" | "image";
 
