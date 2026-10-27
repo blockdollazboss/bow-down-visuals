@@ -2,7 +2,11 @@
  * palace-calendar.ts — the Palace Calendar (UPGRADE-PROGRAM 3.9):
  * the Kingdom Board's one view over every happening in the World —
  * stage shows, listening parties, drops, contests and office hours —
- * grouped by palace day, with the week just past behind it.
+ * grouped by palace day, with the week just past behind it. One line
+ * is not an events-rail row: the weekly quest reset, the quest
+ * week's own turn, shaped from the retention rails' Monday week
+ * (the quest week section below) so the board names the reset the
+ * Treasury's slate turns on.
  *
  * The palace day is the UTC day (the day-turn the King's daily
  * moment and the Daily Quest Trio turn on), so an event's group is
@@ -124,6 +128,63 @@ export function calendarDayLabel(dayKey: string, nowMs: number): string {
   return Number.isNaN(ms) ? dayKey : DAY_LABEL_FMT.format(new Date(ms));
 }
 
+/* ── The quest week (the reset row) ───────────────────────────────
+   The weekly quests — and the shared pool every free-credit game
+   reward draws from (api-server lib/quest-pool) — run on a
+   Monday-anchored UTC week: the retention rails' own week
+   (lib/retention's currentWeekStart, questPoolWeekStart server-
+   side). The reset is a rhythm, not a booking: no world_events row
+   carries it, so the board derives it here with the SAME Monday
+   math the server pool uses — the board's reset line and the
+   pool's envelope always name the same Monday. */
+
+export const QUEST_RESET_KIND = "quest_reset";
+
+/** The quest-reset row's id — synthetic (it is the week's shape,
+ *  not a slate row), stable across renders. */
+export const QUEST_RESET_EVENT_ID = "quest-reset";
+
+const WEEK_MS = 7 * 24 * 3600_000;
+
+/** Monday 00:00 UTC of the quest week containing `nowMs` — the
+ *  mirror of the server pool's questPoolWeekStart, which returns
+ *  the same Monday as a YYYY-MM-DD key. */
+export function questWeekStartMs(nowMs: number): number {
+  const d = new Date(nowMs);
+  const dayMs = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const dow = (new Date(dayMs).getUTCDay() + 6) % 7; // Monday = 0
+  return dayMs - dow * 24 * 3600_000;
+}
+
+/** The next quest reset: the coming Monday at 00:00 UTC. Always
+ *  strictly after `nowMs` — at the reset instant itself the week
+ *  that just opened is the standing one, and the next turn is a
+ *  full week out. */
+export function nextQuestResetMs(nowMs: number): number {
+  return questWeekStartMs(nowMs) + WEEK_MS;
+}
+
+/** The reset shaped as a calendar row: it stands at the coming
+ *  Monday's day-turn and spans the week it opens (its endsAt is
+ *  the reset after), so the grouping places it like any other
+ *  happening. Room and host are empty — it happens at the Treasury,
+ *  everywhere, at the day-turn; the walk below names the desk. */
+export function questResetCalendarEvent(nowMs: number): CalendarEvent {
+  const start = nextQuestResetMs(nowMs);
+  return {
+    id: QUEST_RESET_EVENT_ID,
+    kind: QUEST_RESET_KIND,
+    title: "Weekly quests reset",
+    roomId: "",
+    hostName: "",
+    startsAt: new Date(start).toISOString(),
+    endsAt: new Date(start + WEEK_MS).toISOString(),
+    status: "scheduled",
+    theme: null,
+    note: null,
+  };
+}
+
 /* ── Grouping ───────────────────────────────────────────────────── */
 
 export interface CalendarDayGroup {
@@ -162,8 +223,18 @@ export function groupPalaceCalendar(
     let dayKey = palaceDayKey(Date.parse(e.startsAt));
     if (dayKey < todayKey) dayKey = todayKey;
     if (dayKey > lastKey) {
-      laterCount += 1;
-      continue;
+      /* The quest reset is the week's own boundary, not a booking:
+         on a Monday it stands a full week out — one day past the
+         window — and the board still shows it (it is the next
+         turn of the board's own week), rather than folding it
+         into the later-bookings count. Anything further out, or
+         any other kind, counts as later as ever. */
+      const isResetTurn =
+        e.kind === QUEST_RESET_KIND && dayKey <= dayKeyPlus(todayKey, CALENDAR_DAY_WINDOW);
+      if (!isResetTurn) {
+        laterCount += 1;
+        continue;
+      }
     }
     const list = byDay.get(dayKey);
     if (list) list.push(e);
@@ -205,7 +276,8 @@ export function groupPalaceCalendar(
  *    the page walks the member there (creator rooms ride the
  *    doorway transfer; the page resolves the id).
  *  - "station": the happening's desk — a contest is entered at
- *    the Winners' Circle station, where its panel stands.
+ *    the Winners' Circle station, where its panel stands; the
+ *    quest reset opens the slate at the Quest Board.
  *  - "none": a kind this client doesn't know — the row reads
  *    look-only rather than wearing a button that goes nowhere. */
 export type CalendarEventAction =
@@ -222,6 +294,10 @@ export function calendarEventAction(e: CalendarEvent): CalendarEventAction {
       return e.roomId ? { type: "room", roomId: e.roomId } : { type: "none" };
     case "contest":
       return { type: "station", stationId: "winners-circle" };
+    case QUEST_RESET_KIND:
+      /* The reset's desk is the Quest Board at the Treasury —
+         where the weekly slate it opens is claimed. */
+      return { type: "station", stationId: "quest-board" };
     default:
       return { type: "none" };
   }

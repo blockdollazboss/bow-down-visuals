@@ -12,12 +12,17 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   CALENDAR_RECENT_CAP,
+  QUEST_RESET_EVENT_ID,
+  QUEST_RESET_KIND,
   calendarDayLabel,
   calendarEvent,
   calendarEventAction,
   groupPalaceCalendar,
+  nextQuestResetMs,
   normalizeCalendarEvents,
   palaceDayKey,
+  questResetCalendarEvent,
+  questWeekStartMs,
   type CalendarEvent,
 } from "./palace-calendar";
 
@@ -156,6 +161,86 @@ describe("the look back", () => {
     const cal = groupPalaceCalendar([], many, NOW);
     expect(cal.recent).toHaveLength(CALENDAR_RECENT_CAP);
     expect(cal.recent[0]!.id).toBe("m0");
+  });
+});
+
+describe("the quest reset row (3.9 — the quest week's own turn)", () => {
+  /* The server pool's week (api-server lib/quest-pool):
+     questPoolWeekStart names the Monday as a YYYY-MM-DD key. The
+     board's mirror must name the same Mondays. NOW is Monday
+     Oct 19 2026, 15:00 UTC — the week that opened that morning. */
+  it("anchors the quest week on Monday 00:00 UTC, the pool's own week", () => {
+    expect(palaceDayKey(questWeekStartMs(NOW))).toBe("2026-10-19");
+    /* Wednesday of the same week, and its Sunday, share the anchor. */
+    expect(palaceDayKey(questWeekStartMs(Date.UTC(2026, 9, 21, 9, 0)))).toBe("2026-10-19");
+    expect(palaceDayKey(questWeekStartMs(Date.UTC(2026, 9, 25, 23, 30)))).toBe("2026-10-19");
+    /* The Sunday BEFORE belongs to the week that opened Oct 12. */
+    expect(palaceDayKey(questWeekStartMs(Date.UTC(2026, 9, 18, 12, 0)))).toBe("2026-10-12");
+    /* The anchor is midnight UTC exactly, not a local midnight. */
+    expect(questWeekStartMs(NOW)).toBe(Date.UTC(2026, 9, 19, 0, 0, 0));
+  });
+
+  it("the next reset is the coming Monday at the day-turn, always ahead", () => {
+    /* From Monday afternoon: next Monday, Oct 26, 00:00 UTC. */
+    expect(nextQuestResetMs(NOW)).toBe(Date.UTC(2026, 9, 26, 0, 0, 0));
+    /* From Sunday night: the same Monday, hours away. */
+    expect(nextQuestResetMs(Date.UTC(2026, 9, 25, 23, 0))).toBe(Date.UTC(2026, 9, 26, 0, 0, 0));
+    /* At the reset instant itself, the next turn is a full week
+       out — the week that just opened is the standing one. */
+    expect(nextQuestResetMs(Date.UTC(2026, 9, 19, 0, 0, 0))).toBe(Date.UTC(2026, 9, 26, 0, 0, 0));
+  });
+
+  it("shapes the reset as a calendar row spanning the week it opens", () => {
+    const row = questResetCalendarEvent(NOW);
+    expect(row.id).toBe(QUEST_RESET_EVENT_ID);
+    expect(row.kind).toBe(QUEST_RESET_KIND);
+    expect(row.title).toBe("Weekly quests reset");
+    expect(row.status).toBe("scheduled");
+    expect(row.startsAt).toBe(iso(Date.UTC(2026, 9, 26, 0, 0, 0)));
+    expect(row.endsAt).toBe(iso(Date.UTC(2026, 10, 2, 0, 0, 0)));
+    /* No room, no host, nothing invented — it turns everywhere. */
+    expect(row.roomId).toBe("");
+    expect(row.hostName).toBe("");
+  });
+
+  it("stands in its Monday group even on a Monday, a week out", () => {
+    /* NOW is a Monday: the reset is today + 7, one day past the
+       board's window — it still stands (the week's own boundary),
+       and it is NOT folded into the later-bookings count. */
+    const cal = groupPalaceCalendar([questResetCalendarEvent(NOW)], [], NOW);
+    expect(cal.days.map((d) => d.dayKey)).toEqual(["2026-10-26"]);
+    expect(cal.days[0]!.events.map((e) => e.id)).toEqual([QUEST_RESET_EVENT_ID]);
+    expect(cal.laterCount).toBe(0);
+  });
+
+  it("mid-week it groups with its Monday like any happening", () => {
+    const wed = Date.UTC(2026, 9, 21, 10, 0, 0);
+    const party = ev({
+      id: "party",
+      kind: "listening_party",
+      roomId: "world:music-hall",
+      startsAt: iso(Date.UTC(2026, 9, 26, 20, 0)),
+      endsAt: iso(Date.UTC(2026, 9, 26, 21, 0)),
+    });
+    const cal = groupPalaceCalendar([party, questResetCalendarEvent(wed)], [], wed);
+    const monday = cal.days.find((d) => d.dayKey === "2026-10-26");
+    /* The reset opens the day (00:00) ahead of the evening party. */
+    expect(monday?.events.map((e) => e.id)).toEqual([QUEST_RESET_EVENT_ID, "party"]);
+    expect(cal.laterCount).toBe(0);
+  });
+
+  it("a far booking still counts as later — only the reset turn is exempt", () => {
+    const far = ev({ id: "far", startsAt: iso(NOW + 10 * DAY), endsAt: iso(NOW + 10 * DAY + HOUR) });
+    const cal = groupPalaceCalendar([far, questResetCalendarEvent(NOW)], [], NOW);
+    expect(cal.laterCount).toBe(1);
+    expect(cal.days.map((d) => d.dayKey)).toEqual(["2026-10-26"]);
+  });
+
+  it("the reset row walks to the Quest Board at the Treasury", () => {
+    expect(calendarEventAction(questResetCalendarEvent(NOW))).toEqual({
+      type: "station",
+      stationId: "quest-board",
+    });
   });
 });
 
