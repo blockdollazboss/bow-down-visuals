@@ -37,7 +37,8 @@ import {
    branded renders are free and carry the creator's logo + name; turning
    branding off makes image renders clean at the site's clean-export
    price (400 Visual Bucs), stated on the switch before any spend.
-   Screensaver loop renders are 400 Visual Bucs branded or clean.
+   Screensaver loop renders (the living wallpaper) are 300 Visual Bucs
+   branded or clean — the owner's Oct 27, 2026 ruled desk price.
 
    LOGO RULE (owner law): a logo is composited ONLY as the complete,
    intact artwork — never cropped, never sliced into parts, never

@@ -70,9 +70,9 @@ describe("Stack-28 item 15 — desk prices are derived and pinned to the rails",
     expect(pricesSrc).toContain("WALLPAPER_CLEAN_RENDER_COST * 2");
   });
 
-  it("screensaver render cost == registry == server SCREENSAVER_RENDER_COST (400)", () => {
+  it("screensaver render cost == registry == server SCREENSAVER_RENDER_COST (300 — the ruled living-wallpaper price)", () => {
     const rail = deriveServerConstant("routes/wallpapers.ts", "SCREENSAVER_RENDER_COST");
-    expect(rail).toBe(400);
+    expect(rail).toBe(300);
     expect(getCreditCost("/api/wallpapers/screensaver-render")?.cost).toBe(rail);
     expect(WALLPAPER_SCREENSAVER_RENDER_COST).toBe(rail);
   });

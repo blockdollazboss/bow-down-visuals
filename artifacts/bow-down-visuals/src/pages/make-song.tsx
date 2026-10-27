@@ -29,6 +29,11 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationResult } from "@/components/GenerationResult";
 import { CostBadge } from "@/components/CostBadge";
+import {
+  MAKE_SONG_AUDIO_COST,
+  MAKE_SONG_FULL_JOURNEY_COST,
+  MAKE_SONG_PACKAGE_COST,
+} from "@/lib/make-song-prices";
 import { HumToSong } from "@/components/HumToSong";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -468,6 +473,24 @@ export function MakeSongModule() {
         <>
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
+          {/* F2 — the full journey price, up front (owner ruling,
+              Oct 27, 2026): making a finished song here is two
+              charges, and both are stated before the first one. The
+              figures derive from lib/make-song-prices (registry =
+              rails); make-song-prices.test.ts pins them. */}
+          <div
+            data-testid="make-song-full-journey-note"
+            className="mb-6 rounded-xl border border-primary/25 bg-primary/[0.05] px-4 py-3 text-sm leading-relaxed text-white/60"
+          >
+            <span className="font-bold text-white">
+              The full journey: {MAKE_SONG_FULL_JOURNEY_COST} Visual Bucs.
+            </span>{" "}
+            The song package is {MAKE_SONG_PACKAGE_COST} Visual Bucs, and
+            turning it into real audio is a second step at{" "}
+            {MAKE_SONG_AUDIO_COST} Visual Bucs (up to 1 minute — longer
+            audio is priced by length). Both charges are stated before
+            they happen.
+          </div>
           {/* Producer Tag Maker — secondary entry (lives in Beat Maker, no sidebar sprawl) */}
           <Link
             href="/audio-studio?tab=aiaudio&sub=beats&aitab=tag"
