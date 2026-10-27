@@ -83,6 +83,7 @@ const PLATFORM_OPTS: PlatformOpt[] = [
   { key: "instagram", icon: Camera },
   { key: "tiktok", icon: Music2 },
   { key: "facebook", icon: ThumbsUp },
+  { key: "x", icon: AtSign },
 ];
 
 const NICHE_PRESETS = ["music", "gaming", "comedy", "fitness", "beauty", "tech", "education", "lifestyle"];
@@ -297,7 +298,7 @@ export default function Scheduler() {
         ? releaseParam
         : undefined;
       const rawPlatforms = (params.get("platform") ?? "").split(",").map((p) => p.trim().toLowerCase());
-      const valid: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook"]
+      const valid: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook", "x"]
         .filter((p) => rawPlatforms.includes(p)) as SchedulerPlatformKey[];
       openComposer(undefined, undefined, undefined, caption, media, valid.length > 0 ? valid : undefined, mediaType, releaseId);
       // Consume the params so a refresh doesn't reopen the composer.
@@ -2156,6 +2157,12 @@ function ComposerModal(props: {
   }
 
   const showTikTokNote = platforms.includes("tiktok");
+  /* X is text-first with a hard 280-character cap — the worker settles
+     an over-long X copy as a permanent failure (other platforms still
+     post). Warn here, before scheduling, using the same full text the
+     worker sends (caption + hashtags). */
+  const xTextLength = [...[caption.trim(), hashtags.trim()].filter(Boolean).join("\n")].length;
+  const showXLengthNote = platforms.includes("x") && xTextLength > 280;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm" onClick={props.onClose}>
@@ -2353,6 +2360,12 @@ function ComposerModal(props: {
             <p className="mt-2 flex items-start gap-1.5 text-[12px] text-white/45">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
               {t("scheduler.composer.imageTiktokNote", { defaultValue: "TikTok needs a video — this image post will publish to Instagram and Facebook only." })}
+            </p>
+          )}
+          {showXLengthNote && (
+            <p className="mt-2 flex items-start gap-1.5 text-[12px] text-white/45">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
+              {t("scheduler.composer.xLengthNote", { count: xTextLength, defaultValue: `X posts cap at 280 characters — this one is ${xTextLength}. It will still schedule, but the X copy will fail with that reason while the other platforms post. Shorten the caption to include X.` })}
             </p>
           )}
         </div>

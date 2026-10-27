@@ -98,6 +98,20 @@ import {
   TikTokApiError,
   type TikTokOAuthConfig,
 } from "../lib/social-tiktok";
+import {
+  buildXAuthUrl,
+  generateCodeVerifier,
+  codeChallengeS256,
+  exchangeCodeForXTokens,
+  refreshXTokens,
+  fetchXUserInfo,
+  publishToX,
+  downloadMediaBytes,
+  TWEET_MAX_CHARS,
+  XApiError,
+  type XOAuthConfig,
+  type XMediaCategory,
+} from "../lib/social-x";
 import { logger } from "../lib/logger";
 import {
   audienceVisible,
@@ -174,13 +188,21 @@ function facebookConfig(): FacebookOAuthConfig {
    in-flight logins, which is acceptable — the user just reconnects.)
    Shared by the Instagram and TikTok callbacks; the platform is checked on
    consume so a state minted for one platform can't be replayed on the other. */
-interface PendingLogin { userId: string; platform: "instagram" | "tiktok" | "facebook"; expiresAt: number }
+type LoginPlatform = "instagram" | "tiktok" | "facebook" | "x";
+interface PendingLogin {
+  userId: string;
+  platform: LoginPlatform;
+  expiresAt: number;
+  /* X OAuth2 requires PKCE: the verifier minted with the auth URL is
+     kept server-side, bound to the state, and sent at code exchange. */
+  codeVerifier?: string;
+}
 const pendingLogins = new Map<string, PendingLogin>();
 const STATE_TTL_MS = 10 * 60 * 1000;
 
-function createLoginState(userId: string, platform: "instagram" | "tiktok" | "facebook"): string {
+function createLoginState(userId: string, platform: LoginPlatform, codeVerifier?: string): string {
   const state = randomBytes(24).toString("hex");
-  pendingLogins.set(state, { userId, platform, expiresAt: Date.now() + STATE_TTL_MS });
+  pendingLogins.set(state, { userId, platform, expiresAt: Date.now() + STATE_TTL_MS, codeVerifier });
   if (pendingLogins.size > 1000) {
     const now = Date.now();
     for (const [k, v] of pendingLogins) if (v.expiresAt < now) pendingLogins.delete(k);
@@ -188,11 +210,15 @@ function createLoginState(userId: string, platform: "instagram" | "tiktok" | "fa
   return state;
 }
 
-function consumeLoginState(state: string, platform: "instagram" | "tiktok" | "facebook"): string | null {
+function consumeLoginEntry(state: string, platform: LoginPlatform): PendingLogin | null {
   const entry = pendingLogins.get(state);
   pendingLogins.delete(state);
   if (!entry || entry.expiresAt < Date.now() || entry.platform !== platform) return null;
-  return entry.userId;
+  return entry;
+}
+
+function consumeLoginState(state: string, platform: LoginPlatform): string | null {
+  return consumeLoginEntry(state, platform)?.userId ?? null;
 }
 
 function maskUsername(username: string | null): string | null {
@@ -404,11 +430,12 @@ router.get("/social/accounts", requireAuth, async (req: Request, res: Response) 
   }
   res.json({
     accounts: rows.map((r) => {
-      /* TikTok access tokens live ~24h but refresh silently server-side, so a
-         TikTok row with a stored refresh token is never "expired" for UI
-         purposes — the publish route refreshes it on demand. */
+      /* TikTok (~24h) and X (~2h) access tokens refresh silently server-side,
+         so a row for either with a stored refresh token is never "expired"
+         for UI purposes — the publish route refreshes it on demand. */
       const tokenExpired = r.token_expires_at ? r.token_expires_at.getTime() < Date.now() : false;
-      const expired = r.platform === "tiktok" && r.refresh_token_encrypted ? false : tokenExpired;
+      const expired =
+        (r.platform === "tiktok" || r.platform === "x") && r.refresh_token_encrypted ? false : tokenExpired;
       return {
         id: r.id,
         platform: r.platform,
@@ -972,6 +999,358 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
     }
     logger.error({ err, userId: req.userId }, "[social] TikTok publish failed");
     res.status(500).json({ error: "publish_failed", message: "Couldn't send the video to TikTok. Your Visual Bucs were refunded." });
+  }
+});
+
+/* ── X (Twitter) ───────────────────────────────────────────────────────────
+   GET  /api/social/x/auth-url   (authed)  — X OAuth2 + PKCE authorize URL
+   GET  /api/social/x/callback   (public)  — OAuth code exchange
+   POST /api/social/x/publish    (authed)  — post a tweet (text + optional media)
+
+   Honestly gated: without X_CLIENT_ID / X_CLIENT_SECRET (the owner's X
+   developer app) every route answers the same not_configured state as the
+   other platforms — nothing fakes a connection or a post. */
+
+function xConfig(): XOAuthConfig {
+  const clientId = (process.env.X_CLIENT_ID || "").trim();
+  const clientSecret = (process.env.X_CLIENT_SECRET || "").trim();
+  const redirectUri =
+    (process.env.X_REDIRECT_URI || "").trim() ||
+    "https://bowdownvisuals.com/api/social/x/callback";
+  if (!clientId || !clientSecret) {
+    throw new XApiError(
+      "X auto-post isn't configured yet. The site owner needs to set X_CLIENT_ID and X_CLIENT_SECRET.",
+    );
+  }
+  return { clientId, clientSecret, redirectUri };
+}
+
+/* Credits charged per X post — env-overridable without a deploy. Same
+   100 Visual Bucs as the other publish rails (registry-pinned). */
+const X_POST_CREDITS = Number(process.env["X_POST_CREDITS"]) || 100;
+
+router.get("/social/x/auth-url", requireAuth, (_req: Request, res: Response) => {
+  try {
+    const cfg = xConfig();
+    if (!isSocialTokenKeyConfigured()) {
+      res.status(503).json({
+        error: "not_configured",
+        message: "X auto-post isn't configured yet (missing token encryption key).",
+      });
+      return;
+    }
+    /* PKCE: verifier stays server-side bound to the state; only its
+       S256 challenge travels in the authorize URL. */
+    const codeVerifier = generateCodeVerifier();
+    const state = createLoginState(_req.userId!, "x", codeVerifier);
+    res.json({ authUrl: buildXAuthUrl(cfg, state, codeChallengeS256(codeVerifier)) });
+  } catch (err) {
+    const message = err instanceof XApiError ? err.userMessage : "X auto-post isn't configured yet.";
+    res.status(503).json({ error: "not_configured", message });
+  }
+});
+
+router.get("/social/x/callback", async (req: Request, res: Response) => {
+  let siteOrigin = "https://bowdownvisuals.com";
+  try {
+    siteOrigin = new URL(
+      process.env["X_REDIRECT_URI"] ?? "https://bowdownvisuals.com/api/social/x/callback",
+    ).origin;
+  } catch { /* keep default */ }
+  const fail = (reason: string) =>
+    res.redirect(`${siteOrigin}/settings?social=x_error&reason=${encodeURIComponent(reason)}`);
+
+  const { code, state } = req.query as { code?: string; state?: string };
+  if (typeof code !== "string" || typeof state !== "string") return fail("x_missing_params");
+  const entry = consumeLoginEntry(state, "x");
+  if (!entry?.userId || !entry.codeVerifier) return fail("x_bad_state");
+  const userId = entry.userId;
+
+  try {
+    const cfg = xConfig();
+    const tokens = await exchangeCodeForXTokens(cfg, code, entry.codeVerifier);
+    const info = await fetchXUserInfo(tokens.accessToken);
+    const encryptedAccess = encryptToken(tokens.accessToken); // fail closed
+    const encryptedRefresh = encryptToken(tokens.refreshToken);
+    const expiresAt = new Date(Date.now() + tokens.expiresInSec * 1000);
+
+    await db
+      .insert(socialAccountsTable)
+      .values({
+        user_id: userId,
+        platform: "x",
+        provider_user_id: info.userId,
+        username: info.username || null,
+        access_token_encrypted: encryptedAccess,
+        refresh_token_encrypted: encryptedRefresh,
+        token_expires_at: expiresAt,
+      })
+      .onConflictDoUpdate({
+        target: [socialAccountsTable.user_id, socialAccountsTable.platform, socialAccountsTable.provider_user_id],
+        set: {
+          username: info.username || null,
+          access_token_encrypted: encryptedAccess,
+          refresh_token_encrypted: encryptedRefresh,
+          token_expires_at: expiresAt,
+          updated_at: new Date(),
+        },
+      });
+
+    logger.info({ userId }, "[social] X account connected");
+    res.redirect(`${siteOrigin}/settings?social=x_connected`);
+  } catch (err) {
+    const message = err instanceof XApiError ? err.userMessage : "X connection failed. Try again.";
+    logger.warn({ err: message }, "[social] X OAuth callback failed");
+    fail("x_oauth_failed");
+  }
+});
+
+/* ── 5b. Post to X (100 credits, idempotent) ──────────────────────────────
+   Text-first: the tweet body is `text` (1–280 chars, enforced here AND in
+   the client lib — never truncated server-side). An optional videoUrl /
+   imageUrl is downloaded and uploaded through X's chunked media upload,
+   then attached to the tweet. Idempotency + charge/refund mirror the
+   TikTok/Facebook rails exactly. */
+const xPublishSchema = z.object({
+  accountId: z.string().uuid(),
+  text: z
+    .string()
+    .min(1, "Write something to post to X.")
+    .max(TWEET_MAX_CHARS, `X posts cap at ${TWEET_MAX_CHARS} characters.`),
+  /* https URL, or a supabase:// storage ref from a completed export —
+     storage refs are resolved to a fresh signed URL server-side. */
+  videoUrl: z.string().min(1).max(2000).optional(),
+  imageUrl: z.string().min(1).max(2000).optional(),
+  /* Client-generated per publish intent; required so every publish is
+     protected — an unkeyed request can never be deduplicated. */
+  idempotencyKey: z.string().min(8, "idempotencyKey is required.").max(128),
+});
+
+/* Hard server-side download cap, same as the TikTok rail. */
+const X_MAX_BYTES = 128 * 1024 * 1024;
+
+function xMediaKindFor(url: string, kind: "video" | "image"): { mediaType: string; mediaCategory: XMediaCategory } {
+  const path = url.split("?")[0]!.toLowerCase();
+  if (kind === "video") return { mediaType: "video/mp4", mediaCategory: "tweet_video" };
+  if (path.endsWith(".gif")) return { mediaType: "image/gif", mediaCategory: "tweet_gif" };
+  if (path.endsWith(".png")) return { mediaType: "image/png", mediaCategory: "tweet_image" };
+  if (path.endsWith(".webp")) return { mediaType: "image/webp", mediaCategory: "tweet_image" };
+  return { mediaType: "image/jpeg", mediaCategory: "tweet_image" };
+}
+
+router.post("/social/x/publish", requireAuth, async (req: Request, res: Response) => {
+  const parsed = xPublishSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid publish request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { accountId, text, idempotencyKey } = parsed.data;
+  const mediaKind: "video" | "image" | null = parsed.data.videoUrl ? "video" : parsed.data.imageUrl ? "image" : null;
+  let mediaUrl: string | null = parsed.data.videoUrl ?? parsed.data.imageUrl ?? null;
+
+  if (mediaUrl) {
+    if (isStorageRef(mediaUrl)) {
+      mediaUrl = await refreshSupabaseStorageUrl(mediaUrl);
+    }
+    if (!/^https:\/\//.test(mediaUrl)) {
+      res.status(400).json({
+        error: "Invalid publish request.",
+        details: [{ field: "mediaUrl", message: "Couldn't resolve a public https URL for this media." }],
+      });
+      return;
+    }
+  }
+
+  /* Credit pre-check BEFORE claiming the attempt (chat/hook-studio pattern). */
+  const balance = req.userCredits ?? 0;
+  if (balance < X_POST_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: `Posting to X costs ${X_POST_CREDITS.toLocaleString("en-US")} Visual Bucs — top up to publish.`,
+    });
+    return;
+  }
+
+  /* Idempotency claim — before any charging or X call. */
+  const attemptStore = createDrizzleAttemptStore();
+  const claim = await claimPublishAttempt(attemptStore, {
+    userId: req.userId!,
+    platform: "x",
+    idempotencyKey,
+    accountId,
+  });
+  if (claim.outcome === "replay") {
+    const r = claim.result;
+    res.json({ tweetId: r.mediaId, permalink: r.permalink, creditsUsed: r.creditsUsed, creditsRemaining: r.creditsRemaining, deduped: true });
+    return;
+  }
+  if (claim.outcome === "in_progress") {
+    res.status(409).json({
+      error: "publish_in_progress",
+      message: "This post is already publishing. Give it a minute, then check your X profile.",
+    });
+    return;
+  }
+  const attemptId = claim.attemptId;
+
+  let creditsRemaining: number;
+  if (claim.creditsAlreadyDeducted) {
+    logger.info({ userId: req.userId }, "[social] reclaimed stale X publish attempt, skipping duplicate charge");
+    creditsRemaining = await readCreditBalance(req.userId!);
+  } else {
+    try {
+      /* Strict ledger + idempotency (P0-23), same as the TikTok/Facebook rails. */
+      creditsRemaining = await chargeCredits(
+        req.userId!,
+        X_POST_CREDITS,
+        { action: "social_x_post" },
+        { idempotencyKey: `x-post:${attemptId}`, personalOnly: true, rollbackOnLedgerFailure: false },
+      );
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: `Posting to X costs ${X_POST_CREDITS.toLocaleString("en-US")} Visual Bucs — top up to publish.`,
+        });
+        return;
+      }
+      if (err instanceof LedgerWriteError) {
+        logger.error({ userId: req.userId, attemptId }, "[social] ledger write failed for X charge — proceeding with publish, reconciliation needed");
+        creditsRemaining = await readCreditBalance(req.userId!);
+      } else {
+        throw err;
+      }
+    }
+    try {
+      await attemptStore.markCreditsDeducted(attemptId);
+    } catch (markErr) {
+      logger.error({ userId: req.userId, err: markErr }, "[social] FAILED to mark X publish attempt as charged");
+    }
+  }
+
+  const failAttempt = async (message: string) => {
+    try {
+      await attemptStore.failAttempt(attemptId, message);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record X publish attempt failure");
+    }
+  };
+
+  const refund = async () => {
+    try {
+      await addCreditsToProfile(req.userId!, X_POST_CREDITS);
+      logger.info({ userId: req.userId }, "[social] refunded X post credits after X failure");
+    } catch (refundErr) {
+      logger.error({ userId: req.userId, err: refundErr }, "[social] FAILED to refund X post credits");
+    }
+  };
+
+  try {
+    const rows = await db
+      .select()
+      .from(socialAccountsTable)
+      .where(
+        and(
+          eq(socialAccountsTable.id, accountId),
+          eq(socialAccountsTable.user_id, req.userId!),
+          eq(socialAccountsTable.platform, "x"),
+        ),
+      );
+    const account = rows[0];
+    if (!account?.access_token_encrypted) {
+      await failAttempt("account_not_found");
+      await refund();
+      res.status(404).json({ error: "account_not_found", message: "That X account isn't connected anymore." });
+      return;
+    }
+    let accessToken = decryptToken(account.access_token_encrypted); // fail closed
+
+    /* X user tokens live ~2h and the refresh token ROTATES — refresh when
+       expired and persist both new values (same as the TikTok rail). */
+    if (account.token_expires_at && account.token_expires_at.getTime() < Date.now() + 60_000) {
+      if (!account.refresh_token_encrypted) {
+        await failAttempt("token_expired");
+        await refund();
+        res.status(409).json({
+          error: "token_expired",
+          message: "Your X connection expired. Reconnect it in Settings → Connected Accounts.",
+        });
+        return;
+      }
+      try {
+        const refreshed = await refreshXTokens(xConfig(), decryptToken(account.refresh_token_encrypted));
+        accessToken = refreshed.accessToken;
+        await db
+          .update(socialAccountsTable)
+          .set({
+            access_token_encrypted: encryptToken(refreshed.accessToken),
+            refresh_token_encrypted: encryptToken(refreshed.refreshToken),
+            token_expires_at: new Date(Date.now() + refreshed.expiresInSec * 1000),
+            updated_at: new Date(),
+          })
+          .where(eq(socialAccountsTable.id, accountId));
+      } catch (refreshErr) {
+        logger.warn({ err: refreshErr }, "[social] X token refresh failed");
+        await failAttempt("token_expired");
+        await refund();
+        const msg =
+          refreshErr instanceof XApiError
+            ? refreshErr.userMessage
+            : "Your X connection expired. Reconnect it in Settings → Connected Accounts.";
+        res.status(409).json({ error: "token_expired", message: msg });
+        return;
+      }
+    }
+
+    let mediaBytes: Buffer | undefined;
+    let mediaType: string | undefined;
+    let mediaCategory: XMediaCategory | undefined;
+    if (mediaUrl && mediaKind) {
+      const kind = xMediaKindFor(mediaUrl, mediaKind);
+      mediaType = kind.mediaType;
+      mediaCategory = kind.mediaCategory;
+      mediaBytes = await downloadMediaBytes(mediaUrl, X_MAX_BYTES);
+    }
+
+    const { tweetId, permalink } = await publishToX({
+      accessToken,
+      text,
+      mediaBytes,
+      mediaType,
+      mediaCategory,
+      username: account.username ?? "",
+    });
+
+    const result: PublishAttemptResult = {
+      mediaId: tweetId,
+      permalink,
+      creditsUsed: X_POST_CREDITS,
+      creditsRemaining,
+    };
+    try {
+      await attemptStore.completeAttempt(attemptId, result);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record X publish attempt success");
+    }
+    recordCreditUsage({
+      userId: req.userId!,
+      action: "X Auto-Post",
+      creditsUsed: X_POST_CREDITS,
+    }).catch(() => {});
+    res.json({ tweetId, permalink, creditsUsed: X_POST_CREDITS, creditsRemaining });
+  } catch (err) {
+    const message = err instanceof XApiError ? err.userMessage : "Couldn't publish to X.";
+    await failAttempt(message);
+    await refund();
+    if (err instanceof XApiError) {
+      res.status(502).json({ error: "x_error", message: err.userMessage });
+      return;
+    }
+    logger.error({ err, userId: req.userId }, "[social] X publish failed");
+    res.status(500).json({ error: "publish_failed", message: "Couldn't publish to X. Your Visual Bucs were refunded." });
   }
 });
 

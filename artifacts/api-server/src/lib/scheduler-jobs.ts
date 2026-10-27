@@ -28,6 +28,15 @@ import {
   TikTokApiError,
   type TikTokOAuthConfig,
 } from "./social-tiktok";
+import {
+  publishToX,
+  refreshXTokens,
+  tweetCharCount,
+  TWEET_MAX_CHARS,
+  XApiError,
+  type XOAuthConfig,
+  type XMediaCategory,
+} from "./social-x";
 import { refreshSupabaseStorageUrl, isStorageRef } from "./objectStorage";
 import { refundCredits } from "./credits";
 import { captionWithDisclosure, disclosureChannelFor } from "./publish-provenance";
@@ -86,6 +95,18 @@ function tiktokConfig(): TikTokOAuthConfig {
   return { clientKey, clientSecret, redirectUri };
 }
 
+function xConfig(): XOAuthConfig {
+  const clientId = (process.env.X_CLIENT_ID || "").trim();
+  const clientSecret = (process.env.X_CLIENT_SECRET || "").trim();
+  const redirectUri =
+    (process.env.X_REDIRECT_URI || "").trim() ||
+    "https://bowdownvisuals.com/api/social/x/callback";
+  if (!clientId || !clientSecret) {
+    throw new XApiError("X isn't configured on this server yet (X_CLIENT_ID/SECRET).");
+  }
+  return { clientId, clientSecret, redirectUri };
+}
+
 /* ── Dependency injection seams (tests stub these; production uses the
       real provider helpers). Mirrors the __testHooks pattern in job-poller. */
 
@@ -118,12 +139,21 @@ export interface SchedulerPublishers {
     imageUrl: string;
     caption: string;
   }) => Promise<{ photoId: string; permalink: string }>;
+  x: (input: {
+    accessToken: string;
+    text: string;
+    mediaBytes?: Buffer;
+    mediaType?: string;
+    mediaCategory?: XMediaCategory;
+    username?: string;
+  }) => Promise<{ tweetId: string; permalink: string }>;
 }
 
 export interface LoadedAccount {
   accessToken: string;
   igUserId: string | null;
   pageId: string | null;
+  username: string | null;
 }export interface SchedulerDeps {
   db?: typeof defaultDb;
   attemptStore?: AttemptStore;
@@ -146,6 +176,7 @@ const defaultPublishers: SchedulerPublishers = {
   tiktok: async (input) => uploadDraftToTikTok(input),
   facebook: (input) => publishVideoToPage(input),
   facebookPhoto: (input) => publishPhotoToPage(input),
+  x: (input) => publishToX(input),
 };
 
 function resolveDeps(deps: SchedulerDeps = {}): Required<
@@ -284,11 +315,48 @@ async function loadPlatformAccount(
       .where(eq(socialAccountsTable.id, accountId));
   }
 
+  /* X user tokens live ~2h and the refresh token ROTATES — same
+     refresh-and-persist pattern as TikTok above. */
+  if (
+    platform === "x" &&
+    account.token_expires_at &&
+    account.token_expires_at.getTime() < Date.now() + 60_000
+  ) {
+    if (!account.refresh_token_encrypted) {
+      throw new Error("The X connection expired. Reconnect it in Settings → Connected Accounts.");
+    }
+    const refreshed = await refreshXTokens(
+      xConfig(),
+      decryptToken(account.refresh_token_encrypted),
+    );
+    accessToken = refreshed.accessToken;
+    await db
+      .update(socialAccountsTable)
+      .set({
+        access_token_encrypted: encryptToken(refreshed.accessToken),
+        refresh_token_encrypted: encryptToken(refreshed.refreshToken),
+        token_expires_at: new Date(Date.now() + refreshed.expiresInSec * 1000),
+        updated_at: new Date(),
+      })
+      .where(eq(socialAccountsTable.id, accountId));
+  }
+
   return {
     accessToken,
     igUserId: account.ig_user_id ?? null,
     pageId: account.page_id ?? null,
+    username: account.username ?? null,
   };
+}
+
+/** Media kind X should declare for a scheduled post's media URL. */
+function xMediaFor(mediaUrl: string, isImage: boolean): { mediaType: string; mediaCategory: XMediaCategory } {
+  const path = mediaUrl.split("?")[0]!.toLowerCase();
+  if (!isImage) return { mediaType: "video/mp4", mediaCategory: "tweet_video" };
+  if (path.endsWith(".gif")) return { mediaType: "image/gif", mediaCategory: "tweet_gif" };
+  if (path.endsWith(".png")) return { mediaType: "image/png", mediaCategory: "tweet_image" };
+  if (path.endsWith(".webp")) return { mediaType: "image/webp", mediaCategory: "tweet_image" };
+  return { mediaType: "image/jpeg", mediaCategory: "tweet_image" };
 }
 
 /** Publish one platform for a claimed post. Returns the per-platform result. */
@@ -410,6 +478,38 @@ async function firePlatform(
       return withDisclosure({ platform, status: "posted", mediaId: publishId, permalink: null });
     }
 
+    if (platform === "x") {
+      /* X is text-first with a hard 280-character cap. A scheduled
+         caption over the cap can NEVER post — retrying changes nothing,
+         so it settles as a permanent failure on this attempt (the other
+         platforms still deliver) instead of being silently truncated. */
+      const count = tweetCharCount(caption);
+      if (count > TWEET_MAX_CHARS) {
+        throw new PermanentPlatformError(
+          `X posts cap at ${TWEET_MAX_CHARS} characters — this caption is ${count}. Shorten it to post to X.`,
+        );
+      }
+      const kind = xMediaFor(mediaUrl, isImage);
+      /* The shared byte-download seam (TikTok's helper) fetches the
+         media; X uploads it through its chunked media upload. */
+      const mediaBytes = await r.downloadVideo(mediaUrl);
+      const { tweetId, permalink } = await r.publishers.x({
+        accessToken: account.accessToken,
+        text: caption,
+        mediaBytes,
+        mediaType: kind.mediaType,
+        mediaCategory: kind.mediaCategory,
+        username: account.username ?? "",
+      });
+      await r.attemptStore.completeAttempt(attemptId, {
+        mediaId: tweetId,
+        permalink,
+        creditsUsed: 1,
+        creditsRemaining: 0,
+      });
+      return withDisclosure({ platform, status: "posted", mediaId: tweetId, permalink });
+    }
+
     /* facebook */
     if (!account.pageId) throw new Error("The Facebook connection is missing its Page id.");
     if (isImage) {
@@ -442,7 +542,7 @@ async function firePlatform(
     return withDisclosure({ platform, status: "posted", mediaId: videoId, permalink });
   } catch (err) {
     const message =
-      err instanceof MetaApiError || err instanceof TikTokApiError
+      err instanceof MetaApiError || err instanceof TikTokApiError || err instanceof XApiError
         ? err.userMessage
         : err instanceof Error
           ? err.message

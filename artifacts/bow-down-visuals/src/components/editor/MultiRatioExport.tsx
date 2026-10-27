@@ -15,6 +15,7 @@ import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
+import { XPostModal } from "@/components/XPostModal";
 
 /* ─── Multi-ratio export + audio extract ───────────────────────────────
    "Export for all platforms" — one click renders 16:9, 9:16, 1:1 and 4:5
@@ -26,7 +27,7 @@ import { FacebookPostModal } from "@/components/FacebookPostModal";
 
 /* ── Ratio config (dims mirror the backend presets) ─────────────────── */
 
-type SharePlatform = "tiktok" | "instagram" | "facebook" | "youtube";
+type SharePlatform = "tiktok" | "instagram" | "facebook" | "youtube" | "x";
 
 interface RatioConfig {
   key: string;
@@ -37,7 +38,7 @@ interface RatioConfig {
   blurb: string;
   /** Hook Studio caption platform. */
   captionPlatform: "tiktok" | "instagram" | "youtube" | "twitter";
-  /** Scheduler platforms (scheduler supports instagram/tiktok/facebook). */
+  /** Scheduler platforms (scheduler supports instagram/tiktok/facebook/x). */
   schedulePlatforms: string[];
   share: SharePlatform[];
 }
@@ -46,26 +47,26 @@ const RATIO_CONFIGS: RatioConfig[] = [
   {
     key: "16:9", width: 1280, height: 720, label: "Landscape",
     platformLabel: "YouTube", blurb: "YouTube, TV, widescreen players",
-    captionPlatform: "youtube", schedulePlatforms: ["facebook"],
-    share: ["youtube"],
+    captionPlatform: "youtube", schedulePlatforms: ["facebook", "x"],
+    share: ["youtube", "x"],
   },
   {
     key: "9:16", width: 720, height: 1280, label: "Vertical",
     platformLabel: "TikTok · Reels · Shorts", blurb: "TikTok, Reels, YouTube Shorts",
-    captionPlatform: "tiktok", schedulePlatforms: ["tiktok", "instagram"],
-    share: ["tiktok", "instagram"],
+    captionPlatform: "tiktok", schedulePlatforms: ["tiktok", "instagram", "x"],
+    share: ["tiktok", "instagram", "x"],
   },
   {
     key: "1:1", width: 1080, height: 1080, label: "Square",
     platformLabel: "Instagram feed", blurb: "Instagram / Facebook feed posts",
-    captionPlatform: "instagram", schedulePlatforms: ["instagram", "facebook"],
-    share: ["instagram", "facebook"],
+    captionPlatform: "instagram", schedulePlatforms: ["instagram", "facebook", "x"],
+    share: ["instagram", "facebook", "x"],
   },
   {
     key: "4:5", width: 1080, height: 1350, label: "Portrait",
     platformLabel: "Portrait feed", blurb: "Instagram / Facebook portrait feed",
-    captionPlatform: "instagram", schedulePlatforms: ["instagram", "facebook"],
-    share: ["instagram", "facebook"],
+    captionPlatform: "instagram", schedulePlatforms: ["instagram", "facebook", "x"],
+    share: ["instagram", "facebook", "x"],
   },
 ];
 
@@ -556,7 +557,7 @@ export function MultiRatioExportCard({
                                 className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold text-white/80 hover:text-white hover:border-primary/40 transition-colors"
                               >
                                 <Share2 className="h-3.5 w-3.5" />
-                                {sp === "tiktok" ? "TikTok" : sp === "instagram" ? "Reels" : "Facebook"}
+                                {sp === "tiktok" ? "TikTok" : sp === "instagram" ? "Reels" : sp === "x" ? "X" : "Facebook"}
                               </button>
                             ),
                           )}
@@ -611,6 +612,14 @@ export function MultiRatioExportCard({
       )}
       {shareModal?.platform === "instagram" && (
         <InstagramPostModal
+          open
+          onClose={() => setShareModal(null)}
+          videoUrl={shareModal.url}
+          accounts={socialAccounts}
+        />
+      )}
+      {shareModal?.platform === "x" && (
+        <XPostModal
           open
           onClose={() => setShareModal(null)}
           videoUrl={shareModal.url}

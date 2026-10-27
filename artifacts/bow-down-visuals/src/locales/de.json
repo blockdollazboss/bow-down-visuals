@@ -5602,6 +5602,10 @@
     "socialTiktokErrorDesc": "Die Verbindung wurde nicht abgeschlossen. Erneut versuchen und stellen Sie sicher, dass Sie die Upload-Berechtigung genehmigt haben.",
     "socialTiktokErrorTitle": "TikTok-Verbindung fehlgeschlagen",
     "socialTiktokTitle": "TikTok verbunden",
+    "socialXDesc": "Dein Konto ist bereit — poste Exporte direkt auf X.",
+    "socialXErrorDesc": "Die Verbindung wurde nicht abgeschlossen. Versuche es erneut und genehmige die Posting-Berechtigung.",
+    "socialXErrorTitle": "X-Verbindung fehlgeschlagen",
+    "socialXTitle": "X verbunden",
     "subtitle": "Ihr Konto und Verbindungen",
     "teamAuthGapNote": "Teamplätze werden aktiviert, wenn die eingeladene Person sich mit der eingeladenen E-Mail anmeldet und den Link akzeptiert. Die App kann aus einer Einladung noch keine Anmeldung für jemanden erstellen — die Person braucht bereits eine Anmeldemöglichkeit (E-Mail oder Google-Anmeldung), daher erfolgt die Zuordnung über die E-Mail-Adresse.",
     "teamCancel": "Einladung abbrechen",
@@ -9998,6 +10002,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "Seiten-Video"
+      },
+      "x": {
+        "label": "X",
+        "sub": "Post + Medien · 280 Zeichen"
       }
     },
     "niches": {
@@ -12601,6 +12609,7 @@
     "connectPostDesc": "Gehe zu Einstellungen → Verbundene Konten und poste dann mit einem Tipp.",
     "connectTtDesc": "Gehe zu Einstellungen → Verbundene Konten und sende dann mit einem Tipp an die Entwürfe.",
     "connectTtTitle": "Verbinde zuerst TikTok",
+    "connectXTitle": "Verbinde zuerst X",
     "copyCaption": "Bildunterschrift kopieren",
     "copyCaptionText": "Habe das gerade mit @bowdownvisuals erstellt 🔥 bowdownvisuals.com",
     "debugSources": "Exportquellen debuggen",
@@ -12688,6 +12697,7 @@
     "postToFacebook": "Auf Facebook posten",
     "postToInstagram": "Auf Instagram posten",
     "postToTikTok": "Auf TikTok posten",
+    "postToX": "Auf X posten",
     "prepareBtn": "Nur Exportdateien vorbereiten",
     "preparedLabel": "Exportdateien vorbereitet:",
     "prepareFailedNote": "Einige Clips sind fehlgeschlagen — korrigiere die Fehler oben und bereite erneut vor, bevor du exportierst.",

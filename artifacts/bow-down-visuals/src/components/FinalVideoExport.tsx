@@ -22,6 +22,8 @@ import ConfettiBurst from "@/components/artist/confetti-burst";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
+import { XPostModal } from "@/components/XPostModal";
+import { XIcon } from "@/components/ui/x-icon";
 import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import ShareMenu from "@/components/ShareMenu";
@@ -391,6 +393,7 @@ export function FinalVideoExport({
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showFacebookPostModal, setShowFacebookPostModal] = useState(false);
+  const [showXPostModal, setShowXPostModal] = useState(false);
   const [showTikTokModal, setShowTikTokModal] = useState(false);
   const [showDiscordModal, setShowDiscordModal] = useState(false);
   const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
@@ -1264,6 +1267,26 @@ export function FinalVideoExport({
                 </button>
                 <button
                   type="button"
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const x = fresh.find((a) => a.platform === "x" && !a.expired);
+                    if (!x) {
+                      toast({
+                        title: t("videoExport.connectXTitle"),
+                        description: t("videoExport.connectPostDesc"),
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowXPostModal(true);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-white/25 bg-white/[0.06] text-white hover:bg-white/[0.12] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <XIcon className="h-3.5 w-3.5" />
+                  {t("videoExport.postToX")}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowDiscordModal(true)}
                   className="flex-1 px-3 py-1.5 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/[0.08] text-[#8b9bff] hover:bg-[#5865F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                 >
@@ -1309,6 +1332,15 @@ export function FinalVideoExport({
             onClose={() => setShowFacebookPostModal(false)}
             videoUrl={exportUrl}
             accounts={socialAccounts.filter((a) => a.platform === "facebook")}
+          />
+        )}
+
+        {showXPostModal && exportUrl && (
+          <XPostModal
+            open={showXPostModal}
+            onClose={() => setShowXPostModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts}
           />
         )}
 

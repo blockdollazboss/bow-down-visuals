@@ -343,6 +343,7 @@ describe("full surface (#57) — calendar, reschedule, connect", () => {
       "/api/social/instagram/auth-url",
       "/api/social/tiktok/auth-url",
       "/api/social/facebook/auth-url",
+      "/api/social/x/auth-url",
     ]);
     expect(parseSocialAuthUrl({ authUrl: "https://oauth.example/start" })).toBe("https://oauth.example/start");
     expect(parseSocialAuthUrl({})).toBeNull();

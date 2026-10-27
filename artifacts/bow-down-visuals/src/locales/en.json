@@ -5861,6 +5861,10 @@
     "socialTiktokErrorDesc": "The connection didn't complete. Try again, and make sure you approved the upload permission.",
     "socialTiktokErrorTitle": "TikTok connection failed",
     "socialTiktokTitle": "TikTok connected",
+    "socialXDesc": "Your account is ready — post exports straight to X.",
+    "socialXErrorDesc": "The connection didn't complete. Try again, and make sure you approved the posting permission.",
+    "socialXErrorTitle": "X connection failed",
+    "socialXTitle": "X connected",
     "subtitle": "Your account and connections",
     "teamAuthGapNote": "Team seats activate when the invited person signs in with the invited email and accepts the link. The app can't yet create a sign-in for someone from an invite — they must already have a way to log in (email or Google sign-in), so matching happens by email address.",
     "teamCancel": "Cancel invite",
@@ -10503,6 +10507,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "Page video"
+      },
+      "x": {
+        "label": "X",
+        "sub": "Post + media · 280 chars"
       }
     },
     "niches": {
@@ -14648,6 +14656,7 @@
     "connectPostDesc": "Head to Settings → Connected Accounts, then post in one tap.",
     "connectTtDesc": "Head to Settings → Connected Accounts, then send to drafts in one tap.",
     "connectTtTitle": "Connect TikTok first",
+    "connectXTitle": "Connect X first",
     "copyCaption": "Copy Caption",
     "copyCaptionText": "Just made this with @bowdownvisuals 🔥 bowdownvisuals.com",
     "debugSources": "Debug Export Sources",
@@ -14735,6 +14744,7 @@
     "postToFacebook": "Post to Facebook",
     "postToInstagram": "Post to Instagram",
     "postToTikTok": "Post to TikTok",
+    "postToX": "Post to X",
     "prepareBtn": "Prepare Export Files Only",
     "preparedLabel": "Export files prepared:",
     "prepareFailedNote": "Some clips failed — fix the errors above and re-prepare before exporting.",

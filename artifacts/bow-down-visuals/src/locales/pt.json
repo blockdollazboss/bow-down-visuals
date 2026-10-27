@@ -5614,6 +5614,10 @@
     "socialTiktokErrorDesc": "A conexão não foi concluída. Tente novamente e confirme que você aprovou a permissão de upload.",
     "socialTiktokErrorTitle": "Falha na conexão do TikTok",
     "socialTiktokTitle": "TikTok conectado",
+    "socialXDesc": "Sua conta está pronta — publique exportações direto no X.",
+    "socialXErrorDesc": "A conexão não foi concluída. Tente de novo e aprove a permissão de publicação.",
+    "socialXErrorTitle": "A conexão com o X falhou",
+    "socialXTitle": "X conectado",
     "subtitle": "Sua conta e conexões",
     "teamAuthGapNote": "As vagas da equipe são ativadas quando a pessoa convidada entra com o e-mail do convite e aceita o link. O app ainda não consegue criar um login para alguém a partir de um convite — a pessoa já precisa ter uma forma de entrar (e-mail ou login com o Google), então a correspondência é feita pelo endereço de e-mail.",
     "teamCancel": "Cancelar convite",
@@ -9426,6 +9430,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "Vídeo da Página"
+      },
+      "x": {
+        "label": "X",
+        "sub": "Post + mídia · 280 caracteres"
       }
     },
     "niches": {
@@ -11699,6 +11707,7 @@
     "connectPostDesc": "Vá para Configurações → Contas conectadas e publique com um toque.",
     "connectTtDesc": "Vá para Configurações → Contas conectadas e envie para rascunhos com um toque.",
     "connectTtTitle": "Conecte o TikTok primeiro",
+    "connectXTitle": "Conecte o X primeiro",
     "copyCaption": "Copiar legenda",
     "copyCaptionText": "Acabei de criar isso com @bowdownvisuals 🔥 bowdownvisuals.com",
     "debugSources": "Depurar fontes de exportação",
@@ -11786,6 +11795,7 @@
     "postToFacebook": "Postar no Facebook",
     "postToInstagram": "Postar no Instagram",
     "postToTikTok": "Postar no TikTok",
+    "postToX": "Publicar no X",
     "prepareBtn": "Preparar apenas os arquivos de exportação",
     "preparedLabel": "Arquivos de exportação preparados:",
     "prepareFailedNote": "Alguns clipes falharam — corrija os erros acima e prepare novamente antes de exportar.",

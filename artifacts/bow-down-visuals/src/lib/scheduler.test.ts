@@ -143,10 +143,15 @@ describe("postingAccountStates", () => {
     ...over,
   });
 
-  it("reports all three platforms in order, none connected by default", () => {
+  it("reports all four platforms in order, none connected by default", () => {
     const states = postingAccountStates([]);
-    expect(states.map((s) => s.platform)).toEqual(["instagram", "tiktok", "facebook"]);
+    expect(states.map((s) => s.platform)).toEqual(["instagram", "tiktok", "facebook", "x"]);
     expect(states.every((s) => s.state === "none" && s.accountLabel === null)).toBe(true);
+  });
+
+  it("marks a usable X account connected at the end of the strip", () => {
+    const states = postingAccountStates([acct({ platform: "x" })]);
+    expect(states[3]).toEqual({ platform: "x", state: "connected", accountLabel: "tr•••" });
   });
 
   it("marks a usable account connected, labeled by its masked username", () => {

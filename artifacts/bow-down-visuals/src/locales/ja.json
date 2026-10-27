@@ -5602,6 +5602,10 @@
     "socialTiktokErrorDesc": "連携が完了しませんでした。もう一度お試しのうえ、アップロード権限を承認してください。",
     "socialTiktokErrorTitle": "TikTok連携に失敗しました",
     "socialTiktokTitle": "TikTok連携済み",
+    "socialXDesc": "アカウントの準備ができました — エクスポートをXに直接投稿できます。",
+    "socialXErrorDesc": "接続が完了しませんでした。もう一度お試しください。投稿の許可を承認したかご確認ください。",
+    "socialXErrorTitle": "Xへの接続に失敗しました",
+    "socialXTitle": "Xが接続されました",
     "subtitle": "アカウントと連携",
     "teamAuthGapNote": "チーム席は、招待された人が招待先のメールアドレスでサインインし、リンクを受け入れたときに有効になります。アプリはまだ招待から誰かのサインインを作成できません——その人がすでにログイン手段（メールまたはGoogleサインイン）を持っている必要があるため、照合はメールアドレスで行われます。",
     "teamCancel": "招待をキャンセル",
@@ -9403,6 +9407,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "ページ動画"
+      },
+      "x": {
+        "label": "X",
+        "sub": "投稿＋メディア・280文字"
       }
     },
     "niches": {
@@ -11676,6 +11684,7 @@
     "connectPostDesc": "設定 → 接続済みアカウントへ進み、ワンタップで投稿できます。",
     "connectTtDesc": "設定 → 接続済みアカウントへ進み、ワンタップで下書きへ送れます。",
     "connectTtTitle": "まずTikTokを接続してください",
+    "connectXTitle": "まずXを接続してください",
     "copyCaption": "キャプションをコピー",
     "copyCaptionText": "@bowdownvisuals でこれを作りました 🔥 bowdownvisuals.com",
     "debugSources": "エクスポートソースをデバッグ",
@@ -11763,6 +11772,7 @@
     "postToFacebook": "Facebookに投稿",
     "postToInstagram": "Instagramに投稿",
     "postToTikTok": "TikTokに投稿",
+    "postToX": "Xに投稿",
     "prepareBtn": "エクスポートファイルだけを準備",
     "preparedLabel": "エクスポートファイルの準備：",
     "prepareFailedNote": "一部のクリップが失敗しました — 上のエラーを修正し、エクスポート前に再準備してください。",
