@@ -246,3 +246,47 @@ export const coReleaseSidesTable = pgTable(
 
 export type CoReleaseRow = typeof coReleasesTable.$inferSelect;
 export type CoReleaseSideRow = typeof coReleaseSidesTable.$inferSelect;
+
+/* ── Collab Match — house-suggested pairings (#175, dedupe-audit UPGRADE) ──
+   The house (not a creator) initiates pairings by niche + audience size.
+   One row per unordered pair, created by the deterministic scorer in
+   api-server lib/collab-match.ts. Contact is brokered ONLY here: neither
+   side sees a path to the other until BOTH have marked `interested`;
+   at that moment the broker writes a normal collab_requests row (house
+   intro message) and the existing inbox flow takes over. A `passed`
+   mark from either side closes the pair forever — the scorer never
+   re-suggests a pair that has a row, so a pass can never be nagged. */
+export const COLLAB_SUGGESTION_SIDE_STATUSES = ["pending", "interested", "passed"] as const;
+export type CollabSuggestionSideStatus = (typeof COLLAB_SUGGESTION_SIDE_STATUSES)[number];
+export const COLLAB_SUGGESTION_STATUSES = ["open", "connected", "closed"] as const;
+export type CollabSuggestionStatus = (typeof COLLAB_SUGGESTION_STATUSES)[number];
+
+export const collabSuggestionsTable = pgTable(
+  "collab_suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /* Canonical pair: user_a_id < user_b_id (string order) so the pair
+       can only ever exist once. */
+    user_a_id: uuid("user_a_id").notNull(),
+    user_b_id: uuid("user_b_id").notNull(),
+    /* Deterministic house score 0-100 (niche + size + platform + interests). */
+    score: integer("score").notNull(),
+    /* Short human reasons the house paired them (from the scorer). */
+    reasons: jsonb("reasons").$type<string[]>().notNull().default([]),
+    a_status: text("a_status").notNull().default("pending"), // COLLAB_SUGGESTION_SIDE_STATUSES
+    b_status: text("b_status").notNull().default("pending"),
+    status: text("status").notNull().default("open"), // COLLAB_SUGGESTION_STATUSES
+    /* The brokered intro collab_requests row, set exactly once when both
+       sides opt in. */
+    intro_request_id: uuid("intro_request_id"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("collab_suggestions_pair_uidx").on(t.user_a_id, t.user_b_id),
+    index("collab_suggestions_a_idx").on(t.user_a_id, t.status),
+    index("collab_suggestions_b_idx").on(t.user_b_id, t.status),
+  ],
+);
+
+export type CollabSuggestion = typeof collabSuggestionsTable.$inferSelect;

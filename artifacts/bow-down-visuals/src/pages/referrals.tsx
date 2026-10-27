@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp, Star, Crown, Lock, Trophy, Timer, Megaphone, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { QRCodeModal } from "@/components/QRCode";
+import { FanLinksPanel } from "@/components/referrals/FanLinksPanel";
 import { useTranslation } from "react-i18next";
 
 /* ─── Promoter HQ — the referral program as a job ──────────────────────────
@@ -836,6 +837,10 @@ export default function Referrals() {
             </p>
           </>
         )}
+
+        {/* Fan Links (N17) — per-fan share links with proven attribution,
+            docked in the share/attribution home; never a standalone page. */}
+        {user && <FanLinksPanel />}
       </div>
     </div>
   );
