@@ -89,7 +89,7 @@ import {
   reflectorShouldRender,
 } from "./visibility";
 import { capsuleBodyHex } from "./capsule-color";
-import { HALL_SCREEN, hallLookFor, lookFadeProgress, type HallLook, type HallTheme } from "./hall-looks";
+import { HALL_SCREEN, areaWashFor, hallLookFor, lookFadeProgress, type HallLook, type HallTheme } from "./hall-looks";
 import { mediaUrl } from "../media-cdn";
 import {
   coverTransform,
@@ -1752,6 +1752,12 @@ export class KingsHallScene {
    * area by aimSun() — see buildLights. */
   private sunLight: THREE.DirectionalLight | null = null;
   private sunTarget: THREE.Object3D | null = null;
+  /* The look's flat wash (ambient + hemisphere from buildLights),
+   * re-tuned per area by aimSun via hall-looks' areaWashFor (#90:
+   * the full indoor wash over the bright day paving washed the
+   * plaza out; outdoors in daylight it runs trimmed). */
+  private washAmbient: THREE.AmbientLight | null = null;
+  private washHemisphere: THREE.HemisphereLight | null = null;
 
   constructor(private canvas: HTMLCanvasElement, theme: HallTheme = "dark") {
     this.qualityPref = loadQualityPreference();
@@ -3171,8 +3177,12 @@ export class KingsHallScene {
   }
 
   private buildLights(group: THREE.Group, look: HallLook): void {
-    group.add(new THREE.AmbientLight(look.ambient.color, look.ambient.intensity));
-    group.add(new THREE.HemisphereLight(look.hemisphere.sky, look.hemisphere.ground, look.hemisphere.intensity));
+    const ambient = new THREE.AmbientLight(look.ambient.color, look.ambient.intensity);
+    const hemisphere = new THREE.HemisphereLight(look.hemisphere.sky, look.hemisphere.ground, look.hemisphere.intensity);
+    group.add(ambient);
+    group.add(hemisphere);
+    this.washAmbient = ambient;
+    this.washHemisphere = hemisphere;
     for (const x of [-6, 0, 6]) {
       const spot = new THREE.SpotLight(look.stageSpot.color, look.stageSpot.intensity, 30, 0.55, 0.65, 1.6);
       spot.position.set(x, 6.3, -10.5);
@@ -3248,13 +3258,20 @@ export class KingsHallScene {
     const inRow = this.currentRoom === CREATION_ROW_ID;
     const inAteliers = this.currentRoom === ATELIERS_ID;
     const inBoardwalk = this.currentRoom === BOARDWALK_ID;
+    /* #90: the flat wash follows the area too — outdoors in the
+     * light look it runs trimmed (areaWashFor), everywhere else
+     * it is the look's own. Applied here because aimSun runs on
+     * every room change and every look change. */
+    const wash = areaWashFor(look, outdoors);
+    if (this.washAmbient) this.washAmbient.intensity = wash.ambientIntensity;
+    if (this.washHemisphere) this.washHemisphere.intensity = wash.hemisphereIntensity;
     if (outdoors && look.sun.present) {
       // Day on the plaza: sun high in the southern sky, so the
       // palace facade and the monument throw real shadows.
       sun.position.set(16, 25, 47);
       tgt.position.set(inBoardwalk ? 7.6 : inAteliers ? 41 : inRow ? 41 : inGardens ? -26 : inDistrict ? -14 : 0, 0, inBoardwalk ? 49 : inAteliers ? 40.5 : inRow ? 14.5 : inGardens ? 47 : 20);
       sun.color.set(look.sun.color);
-      sun.intensity = look.sun.intensity;
+      sun.intensity = wash.sunIntensity ?? look.sun.intensity;
       const fit = inDistrict || inGardens || inRow || inAteliers || inBoardwalk ? 44 : 36;
       cam.left = -fit; cam.right = fit; cam.top = fit; cam.bottom = -fit;
       cam.near = 1; cam.far = 120;

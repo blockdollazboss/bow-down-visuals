@@ -187,6 +187,44 @@ export function hallLookFor(theme: HallTheme): HallLook {
   return HALL_LOOKS[theme];
 }
 
+/* ── The plaza daylight trim (#90) ───────────────────────────────
+ * Indoors, the light look's wash is the Golden Hour Palace as
+ * designed. OUTDOORS it washed the plaza out: the day paving's
+ * albedo is high (paving-light mean luminance 0.78 sRGB ≈ 0.59
+ * linear) and the look stacks sun 3.1 + ambient 0.6 + hemisphere
+ * 0.85 + environment 0.55 at exposure 1.16 through ACES — broad
+ * midday surfaces ran past the tonemap's shoulder and the
+ * paving's texture/modeling clipped to flat cream. The flat wash
+ * (ambient + hemisphere = 1.45, directionless) is the contrast
+ * killer: it lifts lit and shadowed faces alike.
+ *
+ * The trim is AREA-scoped, exactly like the per-area fog the
+ * scene already applies (applyAreaAtmosphere): standing outdoors
+ * in the light look, the flat wash drops (0.6 → 0.38 ambient,
+ * 0.85 → 0.62 hemisphere) and the sun eases (3.1 → 2.5), so
+ * modelling comes back and the paving keeps its texture. The
+ * hall keeps the look's exact values; the dark look is
+ * untouched in every area (its outdoor rig is moonlight, tuned
+ * separately on Oct 24). */
+export interface AreaWash {
+  ambientIntensity: number;
+  hemisphereIntensity: number;
+  /** The directional's intensity for this area, or null where
+   *  the scene's own branch (indoor aim, moonlight) governs. */
+  sunIntensity: number | null;
+}
+
+export function areaWashFor(look: HallLook, outdoors: boolean): AreaWash {
+  if (!outdoors || look.theme !== "light") {
+    return {
+      ambientIntensity: look.ambient.intensity,
+      hemisphereIntensity: look.hemisphere.intensity,
+      sunIntensity: null,
+    };
+  }
+  return { ambientIntensity: 0.38, hemisphereIntensity: 0.62, sunIntensity: 2.5 };
+}
+
 /* ── Day/night crossfade (Stack-100 #2 light round) ──────────────
  * A theme switch rebuilds the look group in one frame: geometry
  * swaps instantly (it must — the two looks are different builds),
