@@ -1,43 +1,21 @@
-import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Crown } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCreatorTier, type CreatorTierName } from "@/hooks/use-creator-tier";
 
 /* ─── TierBadge — Worker 12 ────────────────────────────────────────────────
    Shows the creator's current tier + fee rate. ALWAYS links to the upgrade
    page (link-graph: dashboard badge → upgrade). Mount in seller dashboards,
    shop settings headers, anywhere the fee rate matters.                    */
 
-interface Me {
-  tier: "free" | "pro" | "elite";
-  feePct: string;
-  feeBps: number;
-}
-
-const TIER_STYLES: Record<Me["tier"], string> = {
+const TIER_STYLES: Record<CreatorTierName, string> = {
   free: "border-white/20 bg-white/5 text-white/70",
   pro: "border-amber-400/50 bg-amber-400/10 text-amber-200",
   elite: "border-amber-300 bg-gradient-to-r from-amber-300/25 to-yellow-500/25 text-amber-100",
 };
 
 export default function TierBadge({ showFee = true }: { showFee?: boolean }) {
-  const { user, getAccessToken } = useAuth();
-  const [me, setMe] = useState<Me | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        const res = await fetch("/api/creator-tiers/me", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) setMe(await res.json());
-      } catch {
-        /* badge degrades to Free rather than crashing */
-      }
-    })();
-  }, [user, getAccessToken]);
+  // Same source of truth as the sidebar: useCreatorTier → /creator-tiers/me.
+  const me = useCreatorTier();
 
   const tier = me?.tier ?? "free";
   const label = tier === "free" ? "Free" : tier === "pro" ? "Pro" : "Elite";

@@ -9,6 +9,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
+import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import { loginPathWithNext } from "@/lib/auth-next";
 
@@ -104,6 +105,12 @@ export default function CreatorPricing() {
         body: JSON.stringify({ tier: paidTier, returnTo }),
       });
       const data = await res.json();
+      if (res.ok && data.changed) {
+        // Tier change applied in place (same subscription, prorated) —
+        // no checkout redirect; land on the success banner.
+        window.location.href = `/creator-pricing?upgrade=success&tier=${paidTier}&returnTo=${encodeURIComponent(returnTo)}`;
+        return;
+      }
       if (res.ok && data.url) {
         window.location.href = data.url;
         return;
@@ -169,6 +176,7 @@ export default function CreatorPricing() {
             your own domain, unlimited products, pro analytics and AI promotion boosts.
           </p>
           <div className="mt-4 flex justify-center"><TierBadge /></div>
+          <SubscriptionHistory />
         </div>
 
         {/* Phase 3: cross-link to the other pricing product (credit packs). */}

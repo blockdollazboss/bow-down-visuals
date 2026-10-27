@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSidebarDock } from "@/hooks/use-sidebar-dock";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useCreatorTier } from "@/hooks/use-creator-tier";
 import { useExtensionPromoVisible } from "@/lib/extension-promo";
 import {
   Sidebar,
@@ -426,6 +427,12 @@ export function AppSidebar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [location] = useLocation();
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
+  /* Tier label = the SAME source as the /creator-pricing TierBadge
+     (useCreatorTier → GET /creator-tiers/me → creator_subscriptions).
+     The legacy profiles.plan column is only the fallback while the
+     fetch is in flight — after a purchase the two disagreed (badge
+     PRO, sidebar "free plan", Pass 1 Oct 26). */
+  const creatorTier = useCreatorTier();
   const { setOpen } = useSidebar();
   const [isAdmin, setIsAdmin] = useState(false);
   const [addingCredits, setAddingCredits] = useState(false);
@@ -646,7 +653,11 @@ export function AppSidebar() {
                   className="flex items-center gap-1.5 mt-0.5 group/rank"
                 >
                   <span className="text-[10px] text-primary font-black tracking-wider group-hover/rank:underline">
-                    ★ {profile.plan === "beta" || !profile.plan ? "BETA TESTER" : `${profile.plan} plan`}
+                    ★ {creatorTier && creatorTier.tier !== "free"
+                      ? `${creatorTier.tier} plan`
+                      : profile.plan === "beta" || !profile.plan
+                        ? "BETA TESTER"
+                        : `${profile.plan} plan`}
                   </span>
                   <span className="text-[9px] text-muted-foreground group-hover/rank:text-primary transition-colors">
                     Rank up →
