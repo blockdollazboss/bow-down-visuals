@@ -262,6 +262,7 @@ import soundPrefsRouter from "./sound-prefs";
 import secondLifeRouter from "./second-life";
 import trendRadarRouter from "./trend-radar";
 import dropDayKitsRouter from "./drop-day-kits";
+import globalDropRouter from "./global-drop";
 import pitchFixRouter from "./pitch-fix";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
@@ -631,7 +632,8 @@ router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
 router.use(secondLifeRouter);            // /api/second-life/* (Second Life revival queue + watch switch, UPGRADE #161)
 router.use(trendRadarRouter);            // /api/trend-radar (real-signal trend feed, UPGRADE #178)
-router.use(dropDayKitsRouter);           // /api/drop-day-kits (one-tap release kit assembly, UPGRADE #169)
+router.use(dropDayKitsRouter);
+router.use(globalDropRouter);           // /api/drop-day-kits (one-tap release kit assembly, UPGRADE #169)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)

@@ -109,6 +109,7 @@ export * from "./creator-social";
 export * from "./viral-spike-watch";
 export * from "./second-life";
 export * from "./drop-day-kit";
+export * from "./global-drop";
 export * from "./creator-stories-posts";
 export * from "./creator-shorts";
 export * from "./community";
