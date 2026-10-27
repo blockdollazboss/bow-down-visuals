@@ -964,11 +964,15 @@ router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter
     });
     return;
   }
-  /* held_stale is sendable from here ON PURPOSE: this door is the
-     deliberate re-queue that releases the stale-queue gate's hold
-     (QC-200 G6) — it re-stamps queued_at below, which is what makes
-     the row fresh again in the drain's eyes. */
-  if (campaign.status !== "draft" && campaign.status !== "failed" && campaign.status !== "held_stale") {
+  /* JOIN2 DECISION (Resend gate): the orphan signature gate is the
+     single stale-queue definition — legacy welcome rows
+     (recipientCount 1 + no stored recipient) are cleared to `failed`
+     by the sender's sweep and can never be re-armed from here. G6's
+     age-based held_stale hold was superseded at the join and no row
+     can ever carry that status on this tree, so it is not a sendable
+     state here. queuedAt is still stamped below — it stays as
+     queue-time metadata (lib/db schema + migration), nothing more. */
+  if (campaign.status !== "draft" && campaign.status !== "failed") {
     res.status(409).json({ error: `Campaign is ${campaign.status} — it can't be sent again from here.`, code: "not_sendable" });
     return;
   }
