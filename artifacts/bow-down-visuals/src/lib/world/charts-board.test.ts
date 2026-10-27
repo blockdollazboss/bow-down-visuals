@@ -56,6 +56,7 @@ import {
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const boardSrc = read("../../components/world/native/boards/ChartsBoard.tsx");
+const outreachPanelSrc = read("../../components/world/native/boards/BrandOutreachPanel.tsx");
 const stationPanelSrc = read("../../components/world/StationPanel.tsx");
 const shelfPlayerSrc = read("../../components/world/native/ShelfPlayer.tsx");
 
@@ -388,25 +389,44 @@ describe("the ChartsBoard surface (source pins)", () => {
        the URLs it builds are the plan's endpoints, window included. */
     expect(chartsMediaPath("week")).toBe("/api/discovery/charts?window=week&limit=10");
     expect(chartsCreatorsPath("week")).toBe("/api/discovery/charts/creators?window=week&limit=10");
-    expect(boardSrc).toContain("chartsMediaPath(window)");
-    expect(boardSrc).toContain("chartsCreatorsPath(window)");
-    expect(boardSrc).toContain("/api/discovery/rising?limit=12");
-    expect(boardSrc).toContain("/api/discovery/rising-earners?limit=12");
-    expect(boardSrc).toContain("/api/discovery/brands?limit=12");
+    expect(boardSrc).toContain("chartsMediaPath(window, vertical)");
+    expect(boardSrc).toContain("chartsCreatorsPath(window, vertical)");
+    /* The fixed-span reads ride their builders too — the exact
+       strings are pinned at the seam (P3 describe below). */
+    expect(boardSrc).toContain("chartsRisingPath(vertical)");
+    expect(boardSrc).toContain("chartsEarnersPath(vertical)");
+    expect(boardSrc).toContain("chartsBrandsPath(vertical)");
     expect(boardSrc).toContain("/api/discovery/following?ids=");
   });
 
-  it("the For Brands tab scouts in-world; outreach doors lead to the website, money note attached", () => {
+  it("the For Brands tab scouts in-world; outreach now happens in-world too (P3)", () => {
     expect(boardSrc).toContain('{ key: "brands", label: "For Brands" }');
-    expect(boardSrc).toContain("world-charts-brands-door");
-    expect(boardSrc).toContain('href="/brand-deals"');
-    expect(boardSrc).toContain('href="/promote"');
-    // The honesty law rides along: the same plain no-money statement
-    // the briefs board carries, imported from the one seam.
-    expect(boardSrc).toContain("UGC_PAYMENT_NOTE");
-    expect(boardSrc).toContain('from "@/lib/ugc-ads"');
-    // Outreach is a member act: the doors never render for guests.
+    /* The old doors are gone — the board mounts the outreach panel
+       for members once the scout rows loaded. */
+    expect(boardSrc).not.toContain("world-charts-brands-door");
+    expect(boardSrc).not.toContain("Scouting only here");
+    expect(boardSrc).toContain("<BrandOutreachPanel isLight={isLight} />");
     expect(boardSrc).toContain('tab === "brands" && !isGuest');
+    /* The panel rides the site's own two rails and no other write. */
+    expect(outreachPanelSrc).toContain('fetch("/api/brand-deals/outreach"');
+    expect(outreachPanelSrc).toContain('fetch("/api/ugc-briefs"');
+    expect(outreachPanelSrc).toContain("buildBrandOutreachPayload");
+    expect(outreachPanelSrc).toContain("buildUgcBriefPayload");
+    /* The price is stated on the button before the tap — the
+       registry pin, never a surprise charge. */
+    expect(outreachPanelSrc).toContain("BRAND_OUTREACH_COST_VB");
+    expect(outreachPanelSrc).toContain("Draft my pitch");
+    /* The honesty law rides along: the same plain no-money
+       statement the briefs board carries, imported from the one
+       seam — and exactly one quiet website footer, never more. */
+    expect(outreachPanelSrc).toContain("UGC_PAYMENT_NOTE");
+    expect(outreachPanelSrc).toContain('from "@/lib/ugc-ads"');
+    expect(outreachPanelSrc).toContain('data-testid="world-charts-brands-website"');
+    expect(outreachPanelSrc).toContain('href="/brand-deals"');
+    expect(outreachPanelSrc).not.toContain('href="/promote"');
+    /* Nothing auto-opens: the panel holds no navigation effect. */
+    expect(outreachPanelSrc).not.toContain("window.open");
+    expect(outreachPanelSrc).not.toContain("setLocation");
   });
 
   it("plays ONLY through the host's jukebox prop, with the catalog id form", () => {
@@ -460,8 +480,8 @@ describe("Ring 4 parity — the window switcher (Today / This week / All time)",
     expect(boardSrc).toContain("setWindow(w.key)");
     /* the load effect re-runs on window change, and media rows
        cache per window — a window's rows are its own server read */
-    expect(boardSrc).toContain("[tab, tick, window]");
-    expect(boardSrc).toContain("mediaByWindow");
+    expect(boardSrc).toContain("[tab, tick, window, vertical]");
+    expect(boardSrc).toContain("mediaByKey");
     /* titles come off the window, not a hardcoded "this week" */
     expect(boardSrc).toContain("chartWindowNoun(window)");
     expect(boardSrc).not.toContain("Top tracks — this week");
@@ -750,5 +770,60 @@ describe("P3 — the UGC brief seam (the Promote board's own rail)", () => {
     expect(normalizeUgcBriefResult({ error: "details is required" })).toBeNull();
     expect(ugcBriefErrorMessage({ error: "details is required" }, 400)).toBe("details is required");
     expect(ugcBriefErrorMessage(null, 500)).toContain("couldn't post");
+  });
+});
+
+describe("P3 — the board source: the vertical switcher stands on every tab", () => {
+  it("a vertical state drives the switcher, the fetches, the caches, the titles", () => {
+    expect(boardSrc).toContain("useState<ChartVertical>");
+    expect(boardSrc).toContain("CHART_VERTICALS.map");
+    expect(boardSrc).toContain("world-charts-vertical-${v.key}");
+    expect(boardSrc).toContain("setVertical(v.key)");
+    /* every read carries the vertical, and the load effect
+       re-runs when it moves — switching re-queries */
+    expect(boardSrc).toContain("[tab, tick, window, vertical]");
+    /* a chosen vertical names itself in the board title */
+    expect(boardSrc).toContain("chartVerticalLabel(vertical)");
+    /* unlike the window switcher it is NOT gated to windowed tabs:
+       the fixed-span reads filter by vertical too */
+    const switcherAt = boardSrc.indexOf('aria-label="Chart vertical"');
+    const windowGateAt = boardSrc.indexOf("{windowedTab && (");
+    expect(switcherAt).toBeGreaterThan(-1);
+    expect(windowGateAt).toBeGreaterThan(-1);
+    expect(switcherAt).toBeGreaterThan(windowGateAt);
+    expect(boardSrc.slice(windowGateAt, switcherAt)).not.toContain("Chart vertical");
+  });
+
+  it("the outreach panel is a native form in both themes — fields, chips, honest states", () => {
+    for (const testid of [
+      "world-charts-brand-outreach",
+      "world-charts-outreach-form",
+      "world-outreach-brand",
+      "world-outreach-deal-type",
+      "world-outreach-creator-name",
+      "world-outreach-niche",
+      "world-outreach-audience",
+      "world-outreach-style",
+      "world-outreach-submit",
+      "world-charts-brief-form",
+      "world-brief-product",
+      "world-brief-details",
+      "world-brief-style",
+      "world-brief-url",
+      "world-brief-deadline",
+      "world-brief-submit",
+    ]) {
+      expect(outreachPanelSrc).toContain(`data-testid="${testid}"`);
+    }
+    expect(outreachPanelSrc).toContain("world-outreach-platform-${p}");
+    /* both themes ride the isLight split on the field styling */
+    expect(outreachPanelSrc).toContain("isLight");
+    expect(outreachPanelSrc).toContain("border-[#C9A84C]/40 bg-white/60");
+    expect(outreachPanelSrc).toContain("border-white/10 bg-white/5");
+    /* the draft answer renders in-world with a copy, the brief
+       confirms in-world — neither doors out */
+    expect(outreachPanelSrc).toContain('data-testid="world-outreach-result"');
+    expect(outreachPanelSrc).toContain('data-testid="world-outreach-copy"');
+    expect(outreachPanelSrc).toContain('data-testid="world-brief-posted"');
   });
 });
