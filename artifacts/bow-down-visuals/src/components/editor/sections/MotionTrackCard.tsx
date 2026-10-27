@@ -302,7 +302,7 @@ export function MotionTrackCard({
     } catch { /* share section stays hidden */ }
   }
 
-  async function handleShare(platform: "instagram" | "facebook" | "tiktok", accountId: string) {
+  async function handleShare(platform: "instagram" | "facebook" | "tiktok" | "x", accountId: string) {
     if (!resultUrl && !resultRef) return;
     setSharing(platform);
     try {
@@ -312,7 +312,10 @@ export function MotionTrackCard({
         body: JSON.stringify({
           accountId,
           videoUrl: resultRef ?? resultUrl,
-          caption: t("videoEditor.motionTrack.shareCaption"),
+          /* The X rail takes `text` (280 cap) instead of `caption`. */
+          ...(platform === "x"
+            ? { text: t("videoEditor.motionTrack.shareCaption").slice(0, 280) }
+            : { caption: t("videoEditor.motionTrack.shareCaption") }),
           idempotencyKey: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
         }),
       });
@@ -363,7 +366,7 @@ export function MotionTrackCard({
         height: `${boxH * 100}%`,
       };
 
-  const shareTargets = (["instagram", "tiktok", "facebook"] as const)
+  const shareTargets = (["instagram", "tiktok", "facebook", "x"] as const)
     .map((platform) => ({
       platform,
       account: accounts.find((a) => a.platform === platform && !a.expired),

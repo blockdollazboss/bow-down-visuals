@@ -1,7 +1,7 @@
 /* Pure helpers for the Content Scheduler page — kept here so they're
    unit-testable without rendering the page. */
 
-export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook";
+export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook" | "x";
 
 /** Provenance snapshot stamped on a scheduled post at schedule time
  *  (wave-3 provenance-in-publish) — mirrors ScheduledPostProvenance in
@@ -157,7 +157,7 @@ export interface PostingAccountState {
   accountLabel: string | null;
 }
 
-const POSTING_PLATFORMS: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook"];
+const POSTING_PLATFORMS: SchedulerPlatformKey[] = ["instagram", "tiktok", "facebook", "x"];
 
 export function postingAccountStates(accounts: PostingAccountLike[]): PostingAccountState[] {
   return POSTING_PLATFORMS.map((platform) => {

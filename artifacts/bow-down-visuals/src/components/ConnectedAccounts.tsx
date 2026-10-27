@@ -4,13 +4,14 @@ import { Loader2, Link2Off, AlertTriangle, BadgeCheck, RotateCcw } from "lucide-
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
+import { XIcon } from "@/components/ui/x-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { getCreditCost } from "@/lib/credit-costs";
 
-/* Connected social accounts for auto-posting (Instagram Reels + TikTok drafts + Facebook Pages).
-   Lives on the Settings page. OAuth runs as a full-page redirect because both
+/* Connected social accounts for auto-posting (Instagram Reels + TikTok drafts + Facebook Pages + X).
+   Lives on the Settings page. OAuth runs as a full-page redirect because the
    providers require it — the API callback lands back on /settings. */
 
 export interface SocialAccountInfo {
@@ -105,7 +106,7 @@ export function useSocialAccounts() {
 }
 
 interface PlatformConfig {
-  platform: "instagram" | "tiktok" | "facebook";
+  platform: "instagram" | "tiktok" | "facebook" | "x";
   name: string;
   authPath: string;
   connectBlurb: string;
@@ -141,6 +142,15 @@ const PLATFORMS: PlatformConfig[] = [
     readyBlurb: `Ready to post to Facebook Pages as Reels · ${getCreditCost("/api/social/facebook/publish")?.cost ?? 100} Visual Bucs per post`,
     Icon: FacebookIcon,
     iconBadgeClass: "bg-[#1877F2]",
+  },
+  {
+    platform: "x",
+    name: "X",
+    authPath: "/api/social/x/auth-url",
+    connectBlurb: "Connect your X account — post text, videos, and images straight to your timeline.",
+    readyBlurb: `Ready to post to X · ${getCreditCost("/api/social/x/publish")?.cost ?? 100} Visual Bucs per post`,
+    Icon: XIcon,
+    iconBadgeClass: "bg-black border border-white/20",
   },
 ];
 
@@ -202,7 +212,7 @@ export function ConnectedAccounts() {
       <div>
         <h2 className="text-lg font-bold text-white">Connected Accounts</h2>
         <p className="text-sm text-white/40 mt-1">
-          Post your exports straight to Instagram Reels, TikTok drafts, and Facebook Pages — {socialPostCost} Visual Bucs per post.
+          Post your exports straight to Instagram Reels, TikTok drafts, Facebook Pages, and X — {socialPostCost} Visual Bucs per post.
         </p>
       </div>
 

@@ -5576,6 +5576,10 @@
     "socialTiktokErrorDesc": "La connessione non è stata completata. Riprova e assicurati di aver approvato il permesso di caricamento.",
     "socialTiktokErrorTitle": "Connessione TikTok non riuscita",
     "socialTiktokTitle": "TikTok collegato",
+    "socialXDesc": "Il tuo account è pronto: pubblica gli export direttamente su X.",
+    "socialXErrorDesc": "La connessione non è stata completata. Riprova e assicurati di approvare l'autorizzazione alla pubblicazione.",
+    "socialXErrorTitle": "Connessione a X non riuscita",
+    "socialXTitle": "X collegato",
     "subtitle": "Il tuo account e le tue connessioni",
     "teamAuthGapNote": "I posti del team si attivano quando la persona invitata accede con l'email dell'invito e accetta il link. L'app non può ancora creare un accesso per qualcuno partendo da un invito — deve già avere un modo per accedere (email o accesso con Google), quindi l'abbinamento avviene tramite indirizzo email.",
     "teamCancel": "Annulla invito",
@@ -9445,6 +9449,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "Video della pagina"
+      },
+      "x": {
+        "label": "X",
+        "sub": "Post + media · 280 caratteri"
       }
     },
     "niches": {
@@ -11710,6 +11718,7 @@
     "connectPostDesc": "Vai su Impostazioni → Account collegati, poi pubblica con un tocco.",
     "connectTtDesc": "Vai su Impostazioni → Account collegati, poi invialo alle bozze con un tocco.",
     "connectTtTitle": "Collega prima TikTok",
+    "connectXTitle": "Collega prima X",
     "copyCaption": "Copia didascalia",
     "copyCaptionText": "L'ho appena creato con @bowdownvisuals 🔥 bowdownvisuals.com",
     "debugSources": "Debug delle sorgenti di esportazione",
@@ -11794,6 +11803,7 @@
     "postToFacebook": "Pubblica su Facebook",
     "postToInstagram": "Pubblica su Instagram",
     "postToTikTok": "Pubblica su TikTok",
+    "postToX": "Pubblica su X",
     "prepareBtn": "Prepara solo i file di esportazione",
     "preparedLabel": "File di esportazione preparati:",
     "prepareFailedNote": "Alcune clip non sono riuscite — correggi gli errori sopra e prepara di nuovo prima di esportare.",

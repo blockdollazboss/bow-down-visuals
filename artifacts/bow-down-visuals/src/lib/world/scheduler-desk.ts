@@ -31,16 +31,17 @@
 export const SCHEDULER_POST_COST_VISUAL_BUCS = 100;
 export const SCHEDULER_BEST_TIME_COST_VISUAL_BUCS = 100;
 
-export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook";
+export type SchedulerPlatformKey = "instagram" | "tiktok" | "facebook" | "x";
 
 export const SCHEDULER_PLATFORMS: ReadonlyArray<{ key: SchedulerPlatformKey; label: string }> = [
   { key: "instagram", label: "Instagram" },
   { key: "tiktok", label: "TikTok" },
   { key: "facebook", label: "Facebook" },
+  { key: "x", label: "X" },
 ];
 
 export function isSchedulerPlatform(v: unknown): v is SchedulerPlatformKey {
-  return v === "instagram" || v === "tiktok" || v === "facebook";
+  return v === "instagram" || v === "tiktok" || v === "facebook" || v === "x";
 }
 
 /* ─── Connected accounts (GET /api/social/accounts) ───────────────── */
@@ -478,6 +479,12 @@ export const SOCIAL_CONNECT_PLATFORMS: ReadonlyArray<SocialConnectPlatform> = [
     label: "Facebook",
     authPath: "/api/social/facebook/auth-url",
     blurb: "Connect your Facebook Pages — exports post as Reels.",
+  },
+  {
+    key: "x",
+    label: "X",
+    authPath: "/api/social/x/auth-url",
+    blurb: "Connect your X account — scheduled posts go to your timeline (280 characters).",
   },
 ];
 

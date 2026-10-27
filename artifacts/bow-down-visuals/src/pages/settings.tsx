@@ -21,7 +21,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* Account settings. The social OAuth callbacks redirect here with
    ?social=instagram_connected / ?social=tiktok_connected / ?social=facebook_connected
-   (or ?social=error&reason=...). */
+   / ?social=x_connected (or ?social=error&reason=...). */
 
 const REASON_MESSAGE_KEYS: Record<string, string> = {
   oauth_failed: "settings.reasonOauthFailed",
@@ -44,6 +44,10 @@ const SOCIAL_MESSAGE_KEYS: Record<string, { titleKey: string; descKey: string; d
     titleKey: "settings.socialFacebookTitle",
     descKey: "settings.socialFacebookDesc",
   },
+  x_connected: {
+    titleKey: "settings.socialXTitle",
+    descKey: "settings.socialXDesc",
+  },
   error: {
     titleKey: "settings.socialErrorTitle",
     descKey: "settings.socialErrorDesc",
@@ -52,6 +56,11 @@ const SOCIAL_MESSAGE_KEYS: Record<string, { titleKey: string; descKey: string; d
   tiktok_error: {
     titleKey: "settings.socialTiktokErrorTitle",
     descKey: "settings.socialTiktokErrorDesc",
+    destructive: true,
+  },
+  x_error: {
+    titleKey: "settings.socialXErrorTitle",
+    descKey: "settings.socialXErrorDesc",
     destructive: true,
   },
 };

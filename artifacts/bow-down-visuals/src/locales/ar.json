@@ -5612,6 +5612,10 @@
     "socialTiktokErrorDesc": "لم يكتمل الاتصال. حاول مجدداً، وتأكد من الموافقة على إذن الرفع.",
     "socialTiktokErrorTitle": "فشل اتصال TikTok",
     "socialTiktokTitle": "تم اتصال TikTok",
+    "socialXDesc": "حسابك جاهز — انشر التصديرات مباشرة على X.",
+    "socialXErrorDesc": "لم يكتمل الاتصال. حاول مرة أخرى وتأكد من الموافقة على إذن النشر.",
+    "socialXErrorTitle": "فشل الاتصال بـ X",
+    "socialXTitle": "تم ربط X",
     "subtitle": "حسابك واتصالاتك",
     "teamAuthGapNote": "تُفعَّل مقاعد الفريق عندما يسجّل الشخص المدعو الدخول بالبريد الإلكتروني الوارد في الدعوة ويقبل الرابط. لا يستطيع التطبيق بعد إنشاء تسجيل دخول لشخص ما انطلاقاً من دعوة — يجب أن تكون لديه أصلاً وسيلة لتسجيل الدخول (البريد الإلكتروني أو تسجيل الدخول عبر Google)، لذا تتم المطابقة عبر عنوان البريد الإلكتروني.",
     "teamCancel": "إلغاء الدعوة",
@@ -10087,6 +10091,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "فيديو الصفحة"
+      },
+      "x": {
+        "label": "X",
+        "sub": "منشور + وسائط · 280 حرفًا"
       }
     },
     "niches": {
@@ -12663,6 +12671,7 @@
     "connectPostDesc": "اذهب إلى الإعدادات ← الحسابات المرتبطة، ثم انشر بنقرة واحدة.",
     "connectTtDesc": "اذهب إلى الإعدادات ← الحسابات المرتبطة، ثم أرسله إلى المسودات بنقرة واحدة.",
     "connectTtTitle": "اربط TikTok أولاً",
+    "connectXTitle": "اربط X أولاً",
     "copyCaption": "نسخ التعليق",
     "copyCaptionText": "صنعت هذا للتو مع @bowdownvisuals 🔥 bowdownvisuals.com",
     "debugSources": "تصحيح مصادر التصدير",
@@ -12747,6 +12756,7 @@
     "postToFacebook": "النشر على Facebook",
     "postToInstagram": "النشر على Instagram",
     "postToTikTok": "النشر على TikTok",
+    "postToX": "النشر على X",
     "prepareBtn": "إعداد ملفات التصدير فقط",
     "preparedLabel": "ملفات التصدير معدّة:",
     "prepareFailedNote": "فشلت بعض المقاطع — أصلح الأخطاء أعلاه وأعد الإعداد قبل التصدير.",

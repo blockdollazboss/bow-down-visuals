@@ -5734,6 +5734,10 @@
     "socialTiktokErrorDesc": "La connexion n'a pas abouti. Réessaie, et assure-toi d'avoir approuvé la permission d'upload.",
     "socialTiktokErrorTitle": "Connexion TikTok échouée",
     "socialTiktokTitle": "TikTok connecté",
+    "socialXDesc": "Votre compte est prêt — publiez vos exports directement sur X.",
+    "socialXErrorDesc": "La connexion ne s'est pas terminée. Réessayez et assurez-vous d'avoir approuvé l'autorisation de publication.",
+    "socialXErrorTitle": "Échec de la connexion à X",
+    "socialXTitle": "X connecté",
     "subtitle": "Ton compte et tes connexions",
     "teamAuthGapNote": "Les places d'équipe s'activent quand la personne invitée se connecte avec l'e-mail de l'invitation et accepte le lien. L'appli ne peut pas encore créer une connexion pour quelqu'un à partir d'une invitation : elle doit déjà avoir un moyen de se connecter (e-mail ou connexion Google), donc la correspondance se fait par adresse e-mail.",
     "teamCancel": "Annuler l'invitation",
@@ -10310,6 +10314,10 @@
       "facebook": {
         "label": "Facebook",
         "sub": "Vidéo de la Page"
+      },
+      "x": {
+        "label": "X",
+        "sub": "Post + média · 280 caractères"
       }
     },
     "niches": {
@@ -13776,6 +13784,7 @@
     "connectPostDesc": "Allez dans Paramètres → Comptes connectés, puis publiez en un toucher.",
     "connectTtDesc": "Allez dans Paramètres → Comptes connectés, puis envoyez-le aux brouillons en un toucher.",
     "connectTtTitle": "Connectez d'abord TikTok",
+    "connectXTitle": "Connectez X d'abord",
     "copyCaption": "Copier la légende",
     "copyCaptionText": "Je viens de créer ça avec @bowdownvisuals 🔥 bowdownvisuals.com",
     "debugSources": "Déboguer les sources d'export",
@@ -13860,6 +13869,7 @@
     "postToFacebook": "Publier sur Facebook",
     "postToInstagram": "Publier sur Instagram",
     "postToTikTok": "Publier sur TikTok",
+    "postToX": "Publier sur X",
     "prepareBtn": "Préparer uniquement les fichiers d'export",
     "preparedLabel": "Fichiers d'export préparés :",
     "prepareFailedNote": "Certains clips ont échoué — corrigez les erreurs ci-dessus et préparez à nouveau avant d'exporter.",
