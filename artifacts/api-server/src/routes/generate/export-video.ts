@@ -36,9 +36,11 @@ import {
   reserveCreditsForJob,
   releaseJobReservation,
   clearJobChargeFlag,
+  cancelExportJob,
   recoverInterruptedJobs,
   enqueueExport,
   describeJobProgress,
+  type ExportJob,
   type ExportJobError,
   type ExportStatusRef,
 } from "../../lib/export-jobs";
@@ -3054,6 +3056,60 @@ export function predictExportWatermarked(
   return isSubscriber ? body.addWatermark === true : true;
 }
 
+/** Charge/reserve visibility for one export job (payfix lane 6, rung 3). */
+export interface ExportChargeInfo {
+  branded: boolean;
+  cost: number;
+  reservedAmount: number;
+  chargedAmount: number;
+  chargeState: "free" | "will-reserve" | "reserved" | "settled" | "released" | "none";
+}
+
+/**
+ * Derive a job's honest charge picture from its row — no extra storage:
+ * the price tier comes from the persisted request params (quality flag),
+ * branded-ness from the same prediction the rail gated/reserved on (the
+ * finished render's ACTUAL watermark state wins once the job is done),
+ * and the money state from the credits_charged flag, which stands from
+ * reserve-at-start until settle (done) or release (failed/cancelled
+ * clear it). Returned on POST 202 and on every GET poll so the client
+ * can show the A-07 hold while the render runs (Pass-3 defect c).
+ */
+export function buildExportChargeInfo(
+  job: Pick<ExportJob, "state" | "creditsCharged" | "params" | "result">,
+  userPlan: string | null | undefined,
+): ExportChargeInfo {
+  const body = (job.params ?? {}) as ExportRequestBody;
+  const railCost = body.quality?.enabled === true ? QUALITY_EXPORT_COST : EXPORT_CREDIT_COST;
+  const renderedWm = job.state === "done" ? (job.result as { watermarked?: unknown } | null)?.watermarked : undefined;
+  const renderedBranded = typeof renderedWm === "boolean" ? renderedWm : null;
+  const branded = renderedBranded ?? predictExportWatermarked(body, userPlan);
+  if (branded) {
+    return { branded: true, cost: 0, reservedAmount: 0, chargedAmount: 0, chargeState: "free" };
+  }
+  switch (job.state) {
+    case "queued":
+    case "active":
+      return job.creditsCharged
+        ? { branded: false, cost: railCost, reservedAmount: railCost, chargedAmount: 0, chargeState: "reserved" }
+        : { branded: false, cost: railCost, reservedAmount: 0, chargedAmount: 0, chargeState: "will-reserve" };
+    case "done":
+      return job.creditsCharged
+        ? { branded: false, cost: railCost, reservedAmount: 0, chargedAmount: railCost, chargeState: "settled" }
+        : { branded: false, cost: railCost, reservedAmount: 0, chargedAmount: 0, chargeState: "none" };
+    case "cancelled":
+      /* The flag still standing means the release is in flight (the
+         cancel endpoint / worker releases it exactly once); once it
+         clears, the hold is released and nothing was charged. */
+      return job.creditsCharged
+        ? { branded: false, cost: railCost, reservedAmount: railCost, chargedAmount: 0, chargeState: "reserved" }
+        : { branded: false, cost: railCost, reservedAmount: 0, chargedAmount: 0, chargeState: "released" };
+    case "failed":
+    default:
+      return { branded: false, cost: railCost, reservedAmount: 0, chargedAmount: 0, chargeState: "released" };
+  }
+}
+
 /** Run one export job in the background, mirroring render stages onto the job. */
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
 export async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
@@ -3144,6 +3200,29 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
         }
       }
       throw renderErr;
+    }
+
+    /* ── Cancel check (payfix lane 6): the user cancelled while the
+       render ran. Discard the result, release any standing reservation
+       exactly once (claim-gated inside releaseJobReservation — the
+       cancel endpoint releases through the same gate, so the two can
+       never both refund), and NEVER settle or complete a cancelled
+       job. Cooperative: the in-flight render step finishes, but its
+       output goes nowhere and no money moves for it. */
+    const jobAfterRender = await getExportJob(jobId).catch(() => undefined);
+    if (jobAfterRender?.state === "cancelled") {
+      if (reservationStands && exportChargedCost > 0) {
+        const heldCost = exportChargedCost;
+        const heldAction = exportChargedAction;
+        exportChargedCost = 0;
+        try {
+          await releaseJobReservation(jobId, ctx.userId, heldCost, `${heldAction} — Refund (export cancelled)`);
+        } catch (releaseErr) {
+          ctx.log.error({ err: releaseErr, jobId }, "[export] CRITICAL: reservation release failed after cancel — manual reconciliation required");
+        }
+      }
+      ctx.log.info({ jobId }, "[export] job cancelled by user — result discarded, no charge settled");
+      return;
     }
 
     /* ── Settle on success — the render's ACTUAL output decides (A-01) ──
@@ -3315,7 +3394,9 @@ async function startExportJob(
     logger.warn({ err, userId: req.userId }, "[export] proxy relink check failed — proceeding with sent URLs");
   }
   const job = await createExportJob(req.userId!, body.projectId.trim(), body);
-  res.status(202).json({ jobId: job.id, status: job.state });
+  /* Charge info rides the 202 (payfix lane 6): branded = 0/free, clean =
+     400 with the reserve state the client should expect at job start. */
+  res.status(202).json({ jobId: job.id, status: job.state, charge: buildExportChargeInfo(job, req.userPlan) });
 
   const ctx: ExportJobContext = {
     body,
@@ -3491,8 +3572,69 @@ router.get("/export-video-job/:jobId", requireAuth, async (req, res) => {
     status: job.state,
     stage,
     progress,
+    /* Reserve visibility on every poll (payfix lane 6, defect c). */
+    charge: buildExportChargeInfo(job, req.userPlan),
     ...(job.state === "done" ? { result: freshResult } : {}),
     ...(job.state === "failed" ? { error: job.error } : {}),
+  });
+});
+
+/* ── POST /api/export-video-job/:jobId/cancel ────────────────────────
+ * Mid-job cancel (payfix lane 6). Marks the durable row cancelled
+ * (atomic, queued/active only — a job that already finished keeps its
+ * terminal state and its charge). The worker cooperates: it cannot
+ * claim a cancelled queued job, completeJob/failJob cannot overwrite
+ * the cancelled state, and the settle path re-reads the row and
+ * discards the result instead of charging. Any standing A-07
+ * reservation is released here in full through the claim-gated
+ * releaseJobReservation, so endpoint + worker together refund
+ * EXACTLY ONCE. Idempotent: cancelling a terminal job just reports it. */
+router.post("/export-video-job/:jobId/cancel", requireAuth, async (req, res) => {
+  const rawId = req.params.jobId;
+  const jobId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
+  const job = await getExportJob(jobId).catch(() => undefined);
+  if (!job || job.userId !== req.userId) {
+    res.status(404).json({ error: "Export job not found" });
+    return;
+  }
+  if (job.state === "done" || job.state === "failed" || job.state === "cancelled") {
+    res.json({ jobId: job.id, status: job.state, charge: buildExportChargeInfo(job, req.userPlan) });
+    return;
+  }
+  const cancelled = await cancelExportJob(jobId).catch(() => undefined);
+  if (!cancelled) {
+    // Raced to a terminal state between the read and the update.
+    const fresh = await getExportJob(jobId).catch(() => undefined);
+    res.json({
+      jobId,
+      status: fresh?.state ?? job.state,
+      charge: buildExportChargeInfo(fresh ?? job, req.userPlan),
+    });
+    return;
+  }
+  /* Release the standing reservation in full — a cancelled job never
+     keeps the user's money. Claim-gated: if the worker reaches its own
+     cancel release first (or after), only one refund ever lands. The
+     cost is the rail price for this job's tier; branded jobs never
+     reserved, and their flag never stands, so this is a no-op for them. */
+  if (cancelled.creditsCharged) {
+    const info = buildExportChargeInfo(cancelled, req.userPlan);
+    if (!info.branded && info.cost > 0) {
+      const action = cancelled.params && (cancelled.params as ExportRequestBody).quality?.enabled === true
+        ? "Quality-Controlled Export"
+        : "Final Video Export";
+      try {
+        await releaseJobReservation(jobId, req.userId!, info.cost, `${action} — Refund (export cancelled)`);
+      } catch (releaseErr) {
+        req.log?.error({ err: releaseErr, jobId }, "[export] CRITICAL: reservation release failed on cancel — manual reconciliation required");
+      }
+    }
+  }
+  const fresh = await getExportJob(jobId).catch(() => undefined);
+  res.json({
+    jobId,
+    status: "cancelled",
+    charge: buildExportChargeInfo(fresh ?? cancelled, req.userPlan),
   });
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
@@ -31,7 +31,8 @@ import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, 
 import { proToolsActive } from "@/lib/editor-settings";
 import { computeManualTimings, computeSceneTimings } from "@/lib/scene-timing";
 import { buildFcpxml, fcpxmlFileName, type FcpxmlClipInput, type FcpxmlTimelineInput } from "@/lib/fcpxml-export";
-import { pollExportJob } from "@/lib/export-job-poll";
+import { pollExportJob, cancelExportJob, isExportCancelledError } from "@/lib/export-job-poll";
+import { exportPriceFor, type ExportChargeInfo } from "@/lib/export-pricing";
 
 interface ExportRecord {
   final_video_url: string;
@@ -360,6 +361,16 @@ export function FinalVideoExport({
   const [errorStderr, setErrorStderr]   = useState<string[] | null>(null);
   const [errorExitCode, setErrorExitCode] = useState<number | null>(null);
   const [confirmed, setConfirmed]       = useState(false);
+  /* ── Payfix lane 6 (rung 2): dialog gating + reserve visibility ──
+     awaitingConfirm = the spend dialog is open; NOTHING has started,
+     no job exists and nothing is charged in this state. exportCharge
+     mirrors the server's charge/reserve info for the running job. */
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  const [exportCharge, setExportCharge] = useState<ExportChargeInfo | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const activeJobIdRef = useRef<string | null>(null);
+  const cancelControllerRef = useRef<AbortController | null>(null);
+  const lastChargeKeyRef = useRef<string>("");
   /* AI disclosure in the exported file's metadata (lane F7) — on by default. */
   const [aiDisclosure, setAiDisclosure] = useState(true);
   const [progressStep, setProgressStep] = useState<string>("");
@@ -671,12 +682,30 @@ export function FinalVideoExport({
     codec: "h264" | "prores" | "dnxhr";
     watermark: boolean;
   }
-  async function runExportRequest(prepareIdToUse: string | null, qualityOpts?: QualityExportOpts) {
+  async function runExportRequest(
+    prepareIdToUse: string | null,
+    qualityOpts?: QualityExportOpts,
+    onConfirmedStart?: () => void,
+  ) {
     const token = await getAccessToken();
     const timelineOrder = scenes.map((s) => s.id);
     const endpoint = qualityOpts ? "/api/export-quality" : "/api/export-final-video";
 
+    /* Price THIS request through the shared mirror (rung 1): branded
+       (watermark on) = 0 VB, so the spend dialog can never price a
+       branded export at the 400 VB clean price (Pass-3 defect a);
+       clean = 400 VB (A-02). overrideCost makes the dialog quote the
+       rail's actual price; a 0 price skips the dialog entirely. */
+    const price = exportPriceFor({
+      addWatermark: qualityOpts ? qualityOpts.watermark : addWatermark,
+      branding: branding ?? null,
+      isSubscriber,
+      quality: !!qualityOpts,
+    });
+
     const res = await confirmedFetch(endpoint, {
+      overrideCost: price.cost,
+      overrideFeature: price.feature,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -729,7 +758,11 @@ export function FinalVideoExport({
       }),
       signal: AbortSignal.timeout(60 * 1000),
     });
-    if (!res) return null; // user cancelled the credit confirmation
+    if (!res) return null; // user cancelled the credit confirmation — no job, no charge
+    /* The dialog truly gates (rung 2): only NOW — confirmation given —
+       may the caller flip to the exporting/stitching UI. Before this
+       point nothing has started and nothing may look started. */
+    onConfirmedStart?.();
 
     if (!res.ok) {
       const body = await parseJsonResponse<{
@@ -758,6 +791,7 @@ export function FinalVideoExport({
     // a 502 on real exports). Poll the job until it finishes.
     interface ExportPayload {
       jobId?: string;
+      charge?: ExportChargeInfo;
       url: string;
       clipCount: number;
       audioIncluded: boolean;
@@ -805,6 +839,12 @@ export function FinalVideoExport({
     if (!accepted.jobId) {
       throw new Error(t("videoExport.errNoJobId"));
     }
+    /* Job accepted: the reserve lands at job start (A-07) — show the
+       server's charge info and refresh the profile so the hold is
+       visible in the balance, not just in this panel (defect c). */
+    activeJobIdRef.current = accepted.jobId;
+    if (accepted.charge) setExportCharge(accepted.charge);
+    refreshProfile();
     setProgressStep(t("videoExport.progressQueued"));
     const data = await pollExportJob({
       jobId: accepted.jobId,
@@ -813,7 +853,16 @@ export function FinalVideoExport({
       // the server's per-step budget is 10x media duration, so a flat
       // 20-minute client cap timed out on legal long renders.
       durationSec: estimateDurationSec,
+      signal: cancelControllerRef.current?.signal,
       onProgress: (stage, progress) => setProgressStep(`${stage} · ${progress}%`),
+      onCharge: (charge) => {
+        setExportCharge(charge);
+        const key = `${charge.chargeState}:${charge.reservedAmount}:${charge.chargedAmount}`;
+        if (key !== lastChargeKeyRef.current) {
+          lastChargeKeyRef.current = key;
+          refreshProfile();
+        }
+      },
     });
     return finishExport(data as unknown as ExportPayload);
   }
@@ -840,24 +889,38 @@ export function FinalVideoExport({
       return;
     }
 
-    setStatus("exporting");
+    /* Dialog gating (rung 2, Pass-3 defect b): do NOT enter the
+       exporting/stitching state yet. The spend confirmation inside
+       runExportRequest → confirmedFetch comes first; only its
+       onConfirmedStart callback may flip the UI to exporting. Until
+       then the panel stays idle with an honest "waiting for
+       confirmation" note — nothing has started, no job exists,
+       nothing is charged. */
     setErrorMsg(null);
-    setProgressStep(t("videoExport.progressVerifying"));
+    setExportCharge(null);
+    lastChargeKeyRef.current = "";
+    setProgressStep("");
+    setAwaitingConfirm(true);
+    cancelControllerRef.current = new AbortController();
 
     const renderLabel = qualityOpts
       ? ` · ${qualityOpts.resolution} · ${qualityOpts.fps}fps · ${qualityOpts.container.toUpperCase()}`
       : ` · ${aspectRatio} · ${resolution}`;
 
-    try {
+    const startAfterConfirm = () => {
+      setAwaitingConfirm(false);
+      setStatus("exporting");
       setProgressStep(
         t(selectedScenes.length > 1 ? "videoExport.progressStitchingOther" : "videoExport.progressStitchingOne", { count: selectedScenes.length }) +
         renderLabel +
         (hasAudio ? t("videoExport.progressMixing") : t("videoExport.progressNoAudio")),
       );
+    };
 
+    try {
       let result;
       try {
-        result = await runExportRequest(prepareId, qualityOpts);
+        result = await runExportRequest(prepareId, qualityOpts, startAfterConfirm);
       } catch (err: unknown) {
         const code = (err as { code?: string }).code;
         if (code === "PREPARE_STALE") {
@@ -876,16 +939,28 @@ export function FinalVideoExport({
             renderLabel +
             (hasAudio ? t("videoExport.progressMixing") : t("videoExport.progressNoAudio")),
           );
-          result = await runExportRequest(freshPrepareId, qualityOpts);
+          result = await runExportRequest(freshPrepareId, qualityOpts, startAfterConfirm);
           setIsAutoRecovering(false);
         } else {
           throw err;
         }
       }
-      if (!result) return; // user cancelled the credit confirmation
+      if (!result) {
+        /* Pre-confirm Cancel (rung 2): the dialog was dismissed before
+           anything started. Reset fully to idle — the old code returned
+           here with status stuck on "exporting/Stitching" forever.
+           No job was created and nothing was charged. */
+        setAwaitingConfirm(false);
+        setStatus("idle");
+        setProgressStep("");
+        setConfirmed(false);
+        activeJobIdRef.current = null;
+        return;
+      }
 
       const { data, timelineOrder } = result;
 
+      activeJobIdRef.current = null;
       setExportUrl(data.url);
       setStatus("completed");
       /* Feedback Pop-Ups (UPGRADES 180): a finished export is a
@@ -917,6 +992,24 @@ export function FinalVideoExport({
       });
     } catch (err: unknown) {
       setIsAutoRecovering(false);
+      setAwaitingConfirm(false);
+      if (isExportCancelledError(err)) {
+        /* Mid-job Cancel (rung 2): not a failure. The server releases
+           the reservation exactly once and never settles a cancelled
+           job; here we simply reset to idle and refresh the balance
+           so the released hold is visible. */
+        setStatus("idle");
+        setProgressStep("");
+        setIsCancelling(false);
+        setConfirmed(false);
+        activeJobIdRef.current = null;
+        refreshProfile();
+        toast({
+          title: t("videoExport.cancelledTitle", { defaultValue: "Export cancelled" }),
+          description: t("videoExport.cancelledDesc", { defaultValue: "Nothing was charged — any reserved Visual Bucs were released." }),
+        });
+        return;
+      }
       const msg = err instanceof Error ? err.message : t("videoExport.exportFailedLower");
       if (msg === "out_of_credits") {
         setStatus("idle");
@@ -931,6 +1024,26 @@ export function FinalVideoExport({
       setErrorExitCode((err as { ffmpegExitCode?: number }).ffmpegExitCode ?? null);
       setProgressStep("");
       toast({ title: t("videoExport.exportFailedLower"), description: msg.slice(0, 120), variant: "destructive" });
+    }
+  }
+
+  /** Mid-job Cancel (rung 2/3): tell the server to cancel, then abort
+   *  the local poll — the poll's cancelled rejection resets the panel
+   *  to idle in handleExport's catch. Server-side the worker releases
+   *  any standing reservation exactly once and never settles. */
+  async function handleCancelExport() {
+    const jobId = activeJobIdRef.current;
+    setIsCancelling(true);
+    try {
+      if (jobId) {
+        const out = await cancelExportJob({ jobId, getAccessToken });
+        if (out.charge) setExportCharge(out.charge);
+      }
+    } catch {
+      /* The abort below still stops the local poll; the server-side
+         job state is re-read on the next poll/visit. */
+    } finally {
+      cancelControllerRef.current?.abort();
     }
   }
 
@@ -1217,6 +1330,50 @@ export function FinalVideoExport({
               <p className="text-xs text-white/40 mt-1">{progressStep || t("videoExport.processing")}</p>
               <p className="text-[11px] text-white/25 mt-2">{t("videoExport.keepPageOpen")}</p>
             </div>
+            {/* Reserve visibility (rung 2, defect c): the A-07 hold is
+                shown while the render runs — branded exports state
+                plainly that nothing is held or charged. */}
+            {exportCharge && (
+              <div className="w-full max-w-sm rounded-xl border border-primary/20 bg-primary/[0.04] px-3 py-2.5" data-testid="export-charge-panel">
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  {exportCharge.branded
+                    ? t("videoExport.chargeBrandedFree", { defaultValue: "Branded export — free (0 Visual Bucs). Nothing is reserved or charged." })
+                    : exportCharge.reservedAmount > 0
+                      ? t("videoExport.chargeReserved", {
+                          defaultValue: "{{amount}} Visual Bucs reserved while this renders — the hold becomes the charge only when the finished export is delivered clean.",
+                          amount: exportCharge.reservedAmount,
+                        })
+                      : t("videoExport.chargeWillReserve", {
+                          defaultValue: "{{amount}} Visual Bucs will be reserved when the render starts, and released in full if the export fails or is cancelled.",
+                          amount: exportCharge.cost,
+                        })}
+                </p>
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelExport}
+              disabled={isCancelling}
+              className="gap-2 border-red-500/30 bg-red-500/5 text-red-300 hover:bg-red-500/10 text-xs"
+              data-testid="btn-cancel-export"
+            >
+              {isCancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+              {isCancelling
+                ? t("videoExport.cancellingBtn", { defaultValue: "Cancelling…" })
+                : t("videoExport.cancelBtn", { defaultValue: "Cancel export" })}
+            </Button>
+          </div>
+        )}
+
+        {/* ── Waiting for the spend confirmation (rung 2): the dialog
+             gates the export — nothing has started yet. ── */}
+        {awaitingConfirm && status !== "exporting" && (
+          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="export-awaiting-confirm">
+            <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+            <p className="text-xs text-white/50 leading-relaxed">
+              {t("videoExport.awaitingConfirm", { defaultValue: "Waiting for your confirmation — the export has not started and nothing has been charged yet." })}
+            </p>
           </div>
         )}
 

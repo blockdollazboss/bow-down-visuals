@@ -18,6 +18,9 @@ import {
   PollFailureBudget,
   isTransientPollHttpStatus,
 } from "./poll-tolerance";
+import type { ExportChargeInfo } from "./export-pricing";
+
+export type { ExportChargeInfo };
 
 /* Re-exported for existing importers; the canonical definition lives in
  * lib/poll-tolerance.ts, shared by every editor job poller. */
@@ -30,6 +33,51 @@ export interface ExportJobFailure extends Error {
   exportStatus?: unknown;
   stderrTail?: string[];
   ffmpegExitCode?: number | null;
+}
+
+/**
+ * The user cancelled the export (mid-job Cancel control, rung 2/3).
+ * Carries code "cancelled" so callers reset to idle instead of showing
+ * a failure — a cancelled job is not an error, and its reservation is
+ * released server-side exactly once.
+ */
+export class ExportJobCancelledError extends Error {
+  code = "cancelled" as const;
+  constructor(message = "Export cancelled") {
+    super(message);
+    this.name = "ExportJobCancelledError";
+  }
+}
+
+export function isExportCancelledError(err: unknown): boolean {
+  return (
+    err instanceof ExportJobCancelledError ||
+    (typeof err === "object" && err !== null && (err as { code?: unknown }).code === "cancelled")
+  );
+}
+
+/**
+ * Ask the server to cancel a running export job
+ * (POST /api/export-video-job/:jobId/cancel). The server marks the job
+ * cancelled; the worker cooperatively stops, releases any standing
+ * reservation exactly once, and never settles a cancelled job.
+ * Resolves with the job's final status + charge info; a job that
+ * already finished resolves with its terminal status (no refund).
+ */
+export async function cancelExportJob(opts: {
+  jobId: string;
+  getAccessToken: () => Promise<string | null>;
+}): Promise<{ status: string; charge?: ExportChargeInfo }> {
+  const token = await opts.getAccessToken();
+  const res = await fetch(`/api/export-video-job/${encodeURIComponent(opts.jobId)}/cancel`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal: AbortSignal.timeout(15 * 1000),
+  });
+  if (!res.ok) {
+    throw new Error(`Cancel export failed (HTTP ${res.status})`);
+  }
+  return (await res.json()) as { status: string; charge?: ExportChargeInfo };
 }
 
 /**
@@ -70,6 +118,12 @@ export async function pollExportJob(opts: {
   /** Delay between polls; default 3s. */
   pollMs?: number;
   onProgress?: (stage: string, progress: number) => void;
+  /** Charge/reserve visibility (rung 2/3): fired with the job's charge
+   *  info whenever the server includes it on a poll response. */
+  onCharge?: (charge: ExportChargeInfo) => void;
+  /** Mid-job cancel: aborting rejects the poll with
+   *  ExportJobCancelledError so the UI can reset to idle at once. */
+  signal?: AbortSignal;
 }): Promise<ExportJobPollResult> {
   const { jobId, getAccessToken } = opts;
   const timeoutMs = opts.timeoutMs ?? exportPollDeadlineMs(opts.durationSec);
@@ -86,11 +140,14 @@ export async function pollExportJob(opts: {
   const pollBudget = new PollFailureBudget();
 
   for (;;) {
+    if (opts.signal?.aborted) throw new ExportJobCancelledError();
     await new Promise((r) => setTimeout(r, pollMs));
+    if (opts.signal?.aborted) throw new ExportJobCancelledError();
     let job: {
       status: string;
       stage?: string;
       progress?: number;
+      charge?: ExportChargeInfo;
       result?: ExportJobPollResult;
       error?: { message?: string; code?: string; exportStatus?: unknown; stderrTail?: string[]; ffmpegExitCode?: number | null };
     };
@@ -125,6 +182,12 @@ export async function pollExportJob(opts: {
         );
       }
       continue;
+    }
+    if (job.charge && opts.onCharge) {
+      opts.onCharge(job.charge);
+    }
+    if (job.status === "cancelled") {
+      throw new ExportJobCancelledError();
     }
     if (job.stage && opts.onProgress) {
       opts.onProgress(job.stage, typeof job.progress === "number" ? job.progress : 0);
