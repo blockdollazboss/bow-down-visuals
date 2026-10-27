@@ -5711,6 +5711,29 @@
       "saveFailed": "Não foi possível salvar essa configuração",
       "loadError": "Não foi possível carregar sua configuração de feedback.",
       "retry": "Tentar de novo"
+    },
+    "groupDigest": {
+      "title": "Resumos de grupos",
+      "subtitle": "Um resumo do que aconteceu em cada um dos seus grupos — novas publicações, atividade do fórum e novos membros — no seu sino de notificações.",
+      "master": {
+        "title": "Resumos de grupos",
+        "desc": "Quando ativado, cada grupo do qual você faz parte envia um resumo por período com o que você perdeu. Desative e nenhum resumo será criado para você."
+      },
+      "frequency": {
+        "title": "Frequência",
+        "desc": "Diário cobre o último dia, semanal cobre a última semana. Um grupo parado não envia nada — sem atividade, sem resumo.",
+        "daily": "Diário",
+        "weekly": "Semanal"
+      },
+      "email": {
+        "title": "Enviar também por e-mail",
+        "desc": "Desativado por padrão. Quando ativado, cada resumo também é enviado para o e-mail da sua conta. O resumo no sino chega de qualquer forma."
+      },
+      "note": "Você só recebe resumos dos grupos aos quais pertence, e apenas sobre a atividade de outros membros — nunca sobre suas próprias publicações.",
+      "saved": "Configurações salvas",
+      "saveFailed": "Não foi possível salvar as configurações",
+      "loadError": "Suas configurações não carregaram agora.",
+      "retry": "Tentar novamente"
     }
   },
   "social-proof": {

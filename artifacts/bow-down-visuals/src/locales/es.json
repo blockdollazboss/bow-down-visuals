@@ -5711,6 +5711,29 @@
       "saveFailed": "No se pudo guardar ese ajuste",
       "loadError": "No se pudo cargar tu ajuste de avisos.",
       "retry": "Reintentar"
+    },
+    "groupDigest": {
+      "title": "Resúmenes de grupos",
+      "subtitle": "Un resumen de lo que pasó en cada uno de tus grupos — nuevas publicaciones, actividad del foro y nuevos miembros — en tu campana de notificaciones.",
+      "master": {
+        "title": "Resúmenes de grupos",
+        "desc": "Cuando está activado, cada grupo al que perteneces te envía un resumen por período con lo que te perdiste. Desactívalo y nunca se creará un resumen para ti."
+      },
+      "frequency": {
+        "title": "Con qué frecuencia",
+        "desc": "Diario cubre el último día, semanal cubre la última semana. Un grupo tranquilo no envía nada: sin actividad, no hay resumen.",
+        "daily": "Diario",
+        "weekly": "Semanal"
+      },
+      "email": {
+        "title": "Enviar también por correo",
+        "desc": "Desactivado por defecto. Cuando está activado, cada resumen también se envía al correo de tu cuenta. El resumen en la campana llega de cualquier manera."
+      },
+      "note": "Solo recibes resúmenes de los grupos a los que perteneces, y solo sobre la actividad de otros miembros, nunca sobre tus propias publicaciones.",
+      "saved": "Configuración de resúmenes guardada",
+      "saveFailed": "No se pudo guardar la configuración",
+      "loadError": "Tu configuración de resúmenes no se cargó.",
+      "retry": "Intentar de nuevo"
     }
   },
   "social-proof": {

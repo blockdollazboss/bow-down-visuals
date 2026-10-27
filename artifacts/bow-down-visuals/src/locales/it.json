@@ -5711,6 +5711,29 @@
       "saveFailed": "Impossibile salvare quell'impostazione",
       "loadError": "Impossibile caricare la tua impostazione di feedback.",
       "retry": "Riprova"
+    },
+    "groupDigest": {
+      "title": "Riepiloghi dei gruppi",
+      "subtitle": "Un riepilogo di ciò che è successo in ciascuno dei tuoi gruppi — nuovi post, attività del forum e nuovi membri — nella campanella delle notifiche.",
+      "master": {
+        "title": "Riepiloghi dei gruppi",
+        "desc": "Quando è attivo, ogni gruppo a cui appartieni ti invia un riepilogo per periodo con ciò che ti sei perso. Disattivalo e non verrà mai creato un riepilogo per te."
+      },
+      "frequency": {
+        "title": "Frequenza",
+        "desc": "Giornaliero copre l'ultimo giorno, settimanale l'ultima settimana. Un gruppo tranquillo non invia nulla: nessuna attività, nessun riepilogo.",
+        "daily": "Giornaliero",
+        "weekly": "Settimanale"
+      },
+      "email": {
+        "title": "Inviami anche via email",
+        "desc": "Disattivato per impostazione predefinita. Quando è attivo, ogni riepilogo viene inviato anche all'email del tuo account. Il riepilogo nella campanella arriva comunque."
+      },
+      "note": "Ricevi riepiloghi solo per i gruppi a cui appartieni, e solo sull'attività degli altri membri — mai sui tuoi post.",
+      "saved": "Impostazioni salvate",
+      "saveFailed": "Impossibile salvare le impostazioni",
+      "loadError": "Le tue impostazioni non si sono caricate.",
+      "retry": "Riprova"
     }
   },
   "social-proof": {

@@ -12,6 +12,7 @@ import { SoundPrefsSettings } from "@/components/SoundPrefsSettings";
 import { MonthWrappedSettings } from "@/components/MonthWrappedSettings";
 import { CurrencyDisplaySettings } from "@/components/CurrencyDisplaySettings";
 import { FeedbackPromptSettings } from "@/components/FeedbackPromptSettings";
+import { GroupDigestSettings } from "@/components/GroupDigestSettings";
 import { ContentWarningSettings } from "@/components/ContentWarningSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { DeveloperApiSettings } from "@/components/DeveloperApiSettings";
@@ -306,6 +307,10 @@ export default function Settings() {
 
         <SettingsCardBoundary name="feedback-prompts">
           <FeedbackPromptSettings />
+        </SettingsCardBoundary>
+
+        <SettingsCardBoundary name="group-digest">
+          <GroupDigestSettings />
         </SettingsCardBoundary>
 
         <SettingsCardBoundary name="content-warnings">

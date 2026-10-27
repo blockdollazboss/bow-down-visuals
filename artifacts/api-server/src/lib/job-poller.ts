@@ -53,6 +53,7 @@ import {
 } from "./wavespeed";
 import { recordLipSyncHistory } from "./payment-record";
 import { runViralSpikeWatch } from "./viral-spike-watch";
+import { runGroupDigestSweep } from "./group-digest";
 import { mirrorExternalMediaUrl } from "./mirrorMedia";
 
 /**
@@ -214,6 +215,14 @@ export async function runPollerTick(): Promise<void> {
        never throws — this catch is belt-and-braces like every phase. */
     await runViralSpikeWatch().catch((err) =>
       logger.error({ err }, "[job-poller] viral spike watch phase failed"),
+    );
+    /* Per-group activity digest: per-member, per-group aggregation over
+       group posts/forum/joins since each member's last digest, delivered
+       on the notifications bell rail (+ opt-in email). Internally
+       throttled (GROUP_DIGEST_INTERVAL_MS, default 1h), fail-closed on
+       unreadable prefs, and never throws — this catch is belt-and-braces. */
+    await runGroupDigestSweep().catch((err) =>
+      logger.error({ err }, "[job-poller] group digest phase failed"),
     );
   } finally {
     tickInFlight = false;

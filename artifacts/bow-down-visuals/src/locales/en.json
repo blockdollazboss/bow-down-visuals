@@ -5958,6 +5958,29 @@
       "saveFailed": "Couldn't save that setting",
       "loadError": "Couldn't load your feedback prompt setting.",
       "retry": "Retry"
+    },
+    "groupDigest": {
+      "title": "Group digests",
+      "subtitle": "A roundup of what happened in each of your groups — new posts, forum activity and new members — in your notification bell.",
+      "master": {
+        "title": "Group digests",
+        "desc": "When on, each group you're in sends you one digest per period with what you missed. Turn it off and no group digest is ever created for you."
+      },
+      "frequency": {
+        "title": "How often",
+        "desc": "Daily covers the last day, weekly covers the last week. A quiet group sends nothing — no activity, no digest.",
+        "daily": "Daily",
+        "weekly": "Weekly"
+      },
+      "email": {
+        "title": "Also email my digests",
+        "desc": "Off by default. When on, each digest is also sent to your account email. The bell digest happens either way."
+      },
+      "note": "You only ever get a digest for groups you belong to, and only about other members' activity — never your own posts.",
+      "saved": "Group digest settings saved",
+      "saveFailed": "Couldn't save group digest settings",
+      "loadError": "Your group digest settings wouldn't load just now.",
+      "retry": "Try again"
     }
   },
   "social-proof": {
