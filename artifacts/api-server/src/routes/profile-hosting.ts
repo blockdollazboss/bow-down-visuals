@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
-import { HOSTING_PLAN, hostingPriceUsdPerMonth, hostingPriceConfigured } from "../lib/platform-fees";
+import { HOSTING_PLAN, HOSTING_INCLUDED_WITH_TIER, hostingPriceUsdPerMonth, hostingPriceConfigured } from "../lib/platform-fees";
 import { resolveHostingEntitlement, resolvePaidPlan } from "../lib/profile-website";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
@@ -22,11 +22,15 @@ import { stripeTaxSessionFields } from "../lib/stripe-tax";
      GET  /creator-hosting/me        caller's entitlement (auth)
      POST /creator-hosting/checkout  Stripe TEST subscription (auth)
 
-   PRICE LAW: the price is a named server config value
-   (HOSTING_PRICE_USD_PER_MONTH + STRIPE_PRICE_HOSTING). Until the owner
-   sets them the plan shows as not yet available and checkout refuses —
-   no invented price is ever displayed or charged. Entitlement lands in
-   creator_hosting via the Stripe webhook (kind "creator_hosting").   */
+   PRICE RULED BY OWNER (by delegation) 2026-10-27: $9/mo standalone
+   (HOSTING_PRICE_USD_PER_MONTH in lib/platform-fees), and INCLUDED with
+   Creator Elite while subscribed — Elite members are entitled with no
+   second charge and checkout refuses to sell them the plan. Checkout
+   charges through STRIPE_PRICE_HOSTING; until that TEST price id is
+   configured, checkout honestly refuses rather than faking a charge.
+   Standalone entitlement lands in creator_hosting via the Stripe
+   webhook (kind "creator_hosting"); Elite inclusion resolves live from
+   the creator's tier (lib/profile-website.ts).   */
 
 const router = Router();
 
@@ -80,7 +84,10 @@ export interface HostingPlanDto {
   name: string;
   tagline: string;
   features: Array<{ label: string; detailsUrl: string }>;
-  priceUsdPerMonth: number | null;
+  /** The ruled standalone price — $9/mo (owner ruling 2026-10-27). */
+  priceUsdPerMonth: number;
+  /** The tier that includes Hosting at no extra charge. */
+  includedWithTier: string;
   priceConfigured: boolean;
   available: boolean;
 }
@@ -92,6 +99,7 @@ export function hostingPlanDto(): HostingPlanDto {
     tagline: HOSTING_PLAN.tagline,
     features: HOSTING_PLAN.features,
     priceUsdPerMonth: hostingPriceUsdPerMonth(),
+    includedWithTier: HOSTING_INCLUDED_WITH_TIER,
     priceConfigured: configured,
     available: configured,
   };
@@ -104,7 +112,7 @@ router.get("/creator-hosting/plan", publicApiLimiter, (_req, res) => {
     plan,
     note: plan.available
       ? "Test mode only — no real charge."
-      : "The Hosting plan's price hasn't been set yet — it isn't available for purchase until it is.",
+      : `Hosting is $${plan.priceUsdPerMonth}/mo — and it's included with Creator Elite. Checkout for this plan isn't switched on yet.`,
   });
 });
 
@@ -120,11 +128,15 @@ router.get("/creator-hosting/me", requireAuth, async (req, res) => {
       res.status(404).json({ error: "NO_PROFILE", message: "Create your creator profile first — Hosting runs your page." });
       return;
     }
-    const hosting = await resolveHostingEntitlement(profile.id);
+    const hosting = await resolveHostingEntitlement(profile.id, req.userId!);
     const paidPlan = await resolvePaidPlan(profile.id, req.userId!);
     res.json({
       hostingEntitled: hosting.entitled,
       hostingStatus: hosting.status,
+      /* "hosting" = own Hosting subscription; "elite" = included with
+         Creator Elite (no separate Hosting charge). */
+      hostingSource: hosting.source,
+      includedWithElite: hosting.source === "elite",
       currentPeriodEnd: hosting.currentPeriodEnd,
       /* Clean branding is the paid state from ANY paid source — a Pro or
          Elite creator already has it without buying Hosting. */
@@ -155,14 +167,6 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     return;
   }
 
-  if (!hostingPriceConfigured()) {
-    res.status(503).json({
-      error: "HOSTING_NOT_PRICED",
-      message: "The Hosting plan isn't available for purchase yet — its price hasn't been set. Nothing was charged.",
-    });
-    return;
-  }
-
   const [profile] = await db
     .select({ id: creatorProfilesTable.id })
     .from(creatorProfilesTable)
@@ -173,11 +177,29 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     return;
   }
 
-  const existing = await resolveHostingEntitlement(profile.id);
+  /* Entitlement first: an entitled creator is never sold the plan —
+     Elite members most of all, since Hosting is included with their
+     plan and a second charge is exactly what the ruling forbids. */
+  const existing = await resolveHostingEntitlement(profile.id, req.userId!);
+  if (existing.entitled && existing.source === "elite") {
+    res.status(409).json({
+      error: "HOSTING_INCLUDED_WITH_ELITE",
+      message: "Hosting is included with your Creator Elite plan — there's no separate charge for it.",
+    });
+    return;
+  }
   if (existing.entitled) {
     res.status(409).json({
       error: "ALREADY_HOSTED",
       message: "Your page is already on the Hosting plan — no need to buy it twice.",
+    });
+    return;
+  }
+
+  if (!hostingPriceConfigured()) {
+    res.status(503).json({
+      error: "HOSTING_CHECKOUT_UNAVAILABLE",
+      message: "Hosting checkout isn't switched on yet — nothing was charged.",
     });
     return;
   }

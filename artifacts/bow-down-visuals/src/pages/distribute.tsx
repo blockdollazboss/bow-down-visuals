@@ -168,7 +168,9 @@ interface PricingTier {
 }
 interface PricingInfo {
   tiers: PricingTier[];
-  annualPlan: { label: string; creditsPerYear: number; note: string; comingSoon: boolean } | null;
+  /* Distribute Unlimited — price RULED $399/yr USD (owner, by delegation,
+     2026-10-27); served live by GET /api/distribution/pricing. */
+  annualPlan: { label: string; priceUsdPerYear: number; currency: string; blurb: string; comingSoon: boolean } | null;
   aiMetadataCost: number;
   aiStrategyCost: number;
   aggregator: string;
@@ -3413,9 +3415,9 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
               <FlaskConical className="h-4 w-4" />{t("distribute.sandbox_mode_statuses_will_simul")}
             </p>
           )}
-          {pricing?.annualPlan?.comingSoon && (
+          {pricing?.annualPlan && (
             <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold text-white/45">
-              <Clock className="h-3 w-3" /> {pricing.annualPlan.label} — coming soon
+              <Clock className="h-3 w-3" /> {pricing.annualPlan.label} — ${pricing.annualPlan.priceUsdPerYear}/yr{pricing.annualPlan.comingSoon ? " · coming soon" : ""}
             </p>
           )}
         </div>

@@ -5,13 +5,16 @@
  *   GET  /creator-hosting/me        caller's entitlement (auth)
  *   POST /creator-hosting/checkout  Stripe TEST subscription (auth)
  *
- * PRICE LAW pinned here: with no price configured (the shipped default)
- * the plan reports priceUsdPerMonth: null + available: false and
- * checkout refuses with 503 HOSTING_NOT_PRICED — no invented price is
- * ever displayed or charged. With the owner's config set, checkout
- * creates a TEST-mode subscription session whose price is the
- * configured Stripe price id, with kind "creator_hosting" metadata the
- * webhook sync keys on.
+ * PRICE LAW pinned here (owner ruling by delegation, 2026-10-27): the
+ * standalone price is RULED at $9/mo in code and always displayed;
+ * Hosting is INCLUDED with Creator Elite — an Elite caller reads as
+ * entitled (source "elite") and checkout refuses to sell them the plan
+ * (409 HOSTING_INCLUDED_WITH_ELITE, no session, no second charge).
+ * Checkout charges through the configured Stripe TEST price id; until
+ * that id exists, checkout refuses with 503
+ * HOSTING_CHECKOUT_UNAVAILABLE rather than faking a charge. With the
+ * id set, checkout creates a TEST-mode subscription session with kind
+ * "creator_hosting" metadata the webhook sync keys on.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import express from "express";
@@ -20,13 +23,16 @@ import { PgDialect } from "drizzle-orm/pg-core";
 
 const OWNER_USER = "00000000-0000-4000-8000-0000000000aa";
 const HOSTED_USER = "00000000-0000-4000-8000-0000000000bb";
+const ELITE_USER = "00000000-0000-4000-8000-0000000000cc";
 const OWNER_PROFILE = "11111111-1111-4111-8111-111111111111";
 const HOSTED_PROFILE = "22222222-2222-4222-8222-222222222222";
+const ELITE_PROFILE = "33333333-3333-4333-8333-333333333333";
 
 const h = vi.hoisted(() => ({
   state: {
     profilesById: new Map<string, Record<string, unknown>>(),
     hostingByProfile: new Map<string, Record<string, unknown>>(),
+    subscriptionsByProfile: new Map<string, Record<string, unknown>>(),
     stripeCreateParams: null as any,
   },
 }));
@@ -89,7 +95,10 @@ vi.mock("@workspace/db", async (importOriginal) => {
       const row = state.hostingByProfile.get(String(params[0]));
       return row ? [row] : [];
     }
-    if (table === creatorSubscriptionsTable) return [];
+    if (table === creatorSubscriptionsTable) {
+      const row = state.subscriptionsByProfile.get(String(params[0]));
+      return row ? [row] : [];
+    }
     return [];
   }
 
@@ -146,9 +155,13 @@ beforeEach(() => {
   h.state.profilesById = new Map([
     [OWNER_PROFILE, { id: OWNER_PROFILE, userId: OWNER_USER, slug: "owner-creator" }],
     [HOSTED_PROFILE, { id: HOSTED_PROFILE, userId: HOSTED_USER, slug: "hosted-creator" }],
+    [ELITE_PROFILE, { id: ELITE_PROFILE, userId: ELITE_USER, slug: "elite-creator" }],
   ]);
   h.state.hostingByProfile = new Map([
     [HOSTED_PROFILE, { profileId: HOSTED_PROFILE, status: "active", currentPeriodEnd: null }],
+  ]);
+  h.state.subscriptionsByProfile = new Map([
+    [ELITE_PROFILE, { profileId: ELITE_PROFILE, tier: "elite", status: "active", currentPeriodEnd: null }],
   ]);
   h.state.stripeCreateParams = null;
 });
@@ -174,17 +187,20 @@ async function call(method: string, path: string, opts: { user?: string; body?: 
 }
 
 describe("GET /creator-hosting/plan", () => {
-  it("with no price configured, the plan is honestly unavailable — no invented price", async () => {
+  it("shows the ruled $9/mo price and the Elite inclusion, even before checkout is switched on", async () => {
     const { status, json } = await call("GET", "/creator-hosting/plan");
     expect(status).toBe(200);
     expect(json.plan.name).toBe("Hosting");
-    expect(json.plan.priceUsdPerMonth).toBeNull();
+    expect(json.plan.priceUsdPerMonth).toBe(9);
+    expect(json.plan.includedWithTier).toBe("elite");
     expect(json.plan.priceConfigured).toBe(false);
     expect(json.plan.available).toBe(false);
-    expect(json.plan.features.map((f: any) => f.label).join(" ")).toMatch(/custom domain/i);
+    const labels = json.plan.features.map((f: any) => f.label).join(" ");
+    expect(labels).toMatch(/custom domain/i);
+    expect(labels).toMatch(/Included with Creator Elite/i);
   });
 
-  it("with the owner's config set, the configured price is the displayed price", async () => {
+  it("with the owner's env override + Stripe price id set, the override is the displayed price", async () => {
     process.env["HOSTING_PRICE_USD_PER_MONTH"] = "15";
     process.env["STRIPE_PRICE_HOSTING"] = "price_test_hosting";
     const { json } = await call("GET", "/creator-hosting/plan");
@@ -194,10 +210,19 @@ describe("GET /creator-hosting/plan", () => {
 });
 
 describe("POST /creator-hosting/checkout", () => {
-  it("refuses with 503 when the price is unset — nothing is charged", async () => {
+  it("refuses with 503 when checkout isn't switched on — nothing is charged", async () => {
     const { status, json } = await call("POST", "/creator-hosting/checkout", { user: OWNER_USER, body: {} });
     expect(status).toBe(503);
-    expect(json.error).toBe("HOSTING_NOT_PRICED");
+    expect(json.error).toBe("HOSTING_CHECKOUT_UNAVAILABLE");
+    expect(h.state.stripeCreateParams).toBeNull();
+  });
+
+  it("never sells Hosting to an Elite member — it's included, no second charge", async () => {
+    process.env["STRIPE_PRICE_HOSTING"] = "price_test_hosting";
+    process.env["STRIPE_SECRET_KEY"] = "sk_test_example";
+    const { status, json } = await call("POST", "/creator-hosting/checkout", { user: ELITE_USER, body: {} });
+    expect(status).toBe(409);
+    expect(json.error).toBe("HOSTING_INCLUDED_WITH_ELITE");
     expect(h.state.stripeCreateParams).toBeNull();
   });
 
@@ -235,10 +260,24 @@ describe("GET /creator-hosting/me", () => {
     const hosted = await call("GET", "/creator-hosting/me", { user: HOSTED_USER });
     expect(hosted.status).toBe(200);
     expect(hosted.json.hostingEntitled).toBe(true);
+    expect(hosted.json.hostingSource).toBe("hosting");
+    expect(hosted.json.includedWithElite).toBe(false);
     expect(hosted.json.cleanBranding).toBe(true);
 
     const plain = await call("GET", "/creator-hosting/me", { user: OWNER_USER });
     expect(plain.json.hostingEntitled).toBe(false);
+    expect(plain.json.hostingSource).toBeNull();
     expect(plain.json.cleanBranding).toBe(false);
+  });
+
+  it("an Elite member is hosting-entitled through Elite — no Hosting row, no extra charge", async () => {
+    const elite = await call("GET", "/creator-hosting/me", { user: ELITE_USER });
+    expect(elite.status).toBe(200);
+    expect(elite.json.hostingEntitled).toBe(true);
+    expect(elite.json.hostingSource).toBe("elite");
+    expect(elite.json.includedWithElite).toBe(true);
+    expect(elite.json.cleanBranding).toBe(true);
+    expect(elite.json.plan.priceUsdPerMonth).toBe(9);
+    expect(elite.json.plan.includedWithTier).toBe("elite");
   });
 });

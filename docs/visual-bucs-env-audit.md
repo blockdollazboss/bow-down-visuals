@@ -48,7 +48,7 @@ dashboard (staging or production), the dashboard value OVERRIDES the code defaul
 | `DISCORD_AI_ANNOUNCEMENT_CREDIT_COST` | 100 | ×100 or remove (default 100) |
 | `DISTRIBUTION_AI_CREDIT_COST` | 100 | ×100 or remove (default 100) |
 | `DISTRIBUTION_ALBUM_CREDITS` | 3000 | ×100 or remove (default 3000) |
-| `DISTRIBUTION_ANNUAL_CREDITS` | 399 | ×100 or remove (default 399) |
+| `DISTRIBUTION_ANNUAL_CREDITS` | — | RETIRED 2026-10-27: Distribute Unlimited is ruled $399/yr in USD (owner, by delegation), not Visual Bucs — see `DISTRIBUTION_ANNUAL_USD_PER_YEAR` / `DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR` |
 | `DISTRIBUTION_EP_CREDITS` | 2000 | ×100 or remove (default 2000) |
 | `DISTRIBUTION_RELEASE_CREDITS` | 1000 | ×100 or remove (default 1000) |
 | `DISTRIBUTION_SINGLE_CREDITS` | ? | Check manually |

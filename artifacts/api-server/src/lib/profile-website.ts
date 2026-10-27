@@ -1,6 +1,12 @@
 import { db, creatorSubscriptionsTable, creatorHostingTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { tierFromLegacyPlan, tierFromPlanTier } from "./platform-fees";
+import {
+  HOSTING_INCLUDED_WITH_TIER,
+  meetsTier,
+  tierFromLegacyPlan,
+  tierFromPlanTier,
+  type CreatorTier,
+} from "./platform-fees";
 import { logger } from "./logger";
 
 /* ── "The profile IS the website" — shared model (Stack 3) ───────────────
@@ -676,71 +682,140 @@ export function colorwayById(id: string | null | undefined): ProfileColorway | n
   return PROFILE_COLORWAYS.find((c) => c.id === id) ?? null;
 }
 
-/* ── Paid — the ONE definition (items 7 + 8) ──────────────────────────────
-   A profile is PAID when ANY of these hold:
-     1. creator_subscriptions: status active|trialing AND tier pro|elite
-        (the creator-tier subscription, Stripe-synced).
-     2. creator_hosting: status active|trialing (the Hosting plan).
-     3. The account's Supabase profiles row carries a paid plan:
-        plan_tier >= 4 on the 1–6 ladder (tierFromPlanTier → pro+), or a
-        legacy plan name that maps to pro/elite (tierFromLegacyPlan) —
+/* ── Tier + Paid — the ONE definition (items 7 + 8) ──────────────────────
+   resolveProfileTier reads the creator's tier from:
+     1. creator_subscriptions: status active|trialing (the creator-tier
+        subscription, Stripe-synced).
+     2. The account's Supabase profiles row: plan_tier on the 1–6 ladder
+        (tierFromPlanTier), or a legacy plan name (tierFromLegacyPlan) —
         the same sources require-auth folds into req.userPlan, so nobody
         who already pays reads as free.
-   Never throws: any lookup failure reads as NOT paid (the branding mark
-   is the safe failure mode — it never hides a mark it shouldn't). */
+   A profile is PAID (resolvePaidPlan) when its tier is pro|elite OR its
+   creator_hosting row is active|trialing (the Hosting plan).
+   HOSTING ENTITLEMENT (owner ruling 2026-10-27): Hosting is included
+   with Creator Elite — an Elite creator is hosting-entitled while
+   subscribed, with no second charge (resolveHostingEntitlement).
+   Never throws: any lookup failure reads as NOT paid / free (the
+   branding mark is the safe failure mode — it never hides a mark it
+   shouldn't). */
 
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 
-export async function resolvePaidPlan(profileId: string, userId: string): Promise<boolean> {
+function higherTier(a: CreatorTier, b: CreatorTier): CreatorTier {
+  return meetsTier(a, b) ? a : b;
+}
+
+/**
+ * The creator's current tier — the ONE tier ladder, read from the same
+ * sources resolvePaidPlan has always used:
+ *   1. creator_subscriptions (Stripe-synced; active|trialing rows only).
+ *   2. The account's Supabase profiles row (plan_tier ladder / legacy
+ *      plan name, via platform-fees' mappers).
+ * The highest source wins. Never throws: each lookup degrades on its own
+ * and any failure reads as "free" (the safe failure mode).
+ */
+export async function resolveProfileTier(profileId: string, userId: string): Promise<CreatorTier> {
+  let tier: CreatorTier = "free";
   try {
     const [sub] = await db
       .select({ tier: creatorSubscriptionsTable.tier, status: creatorSubscriptionsTable.status })
       .from(creatorSubscriptionsTable)
       .where(eq(creatorSubscriptionsTable.profileId, profileId))
       .limit(1);
-    if (sub && ACTIVE_STATUSES.has(sub.status) && (sub.tier === "pro" || sub.tier === "elite")) {
-      return true;
+    if (sub && ACTIVE_STATUSES.has(sub.status)) {
+      tier = higherTier(tier, sub.tier === "elite" ? "elite" : sub.tier === "pro" ? "pro" : "free");
     }
+  } catch (err) {
+    logger.warn({ err, profileId }, "resolveProfileTier: subscription lookup failed");
+  }
+  try {
+    const rows = await db.execute(sql`SELECT plan, plan_tier FROM profiles WHERE id = ${userId} LIMIT 1`);
+    const row = (rows.rows[0] ?? null) as { plan?: unknown; plan_tier?: unknown } | null;
+    if (row) {
+      tier = higherTier(tier, tierFromPlanTier(typeof row.plan_tier === "number" ? row.plan_tier : null));
+      tier = higherTier(tier, tierFromLegacyPlan(typeof row.plan === "string" ? row.plan : null));
+    }
+  } catch (err) {
+    logger.warn({ err, profileId }, "resolveProfileTier: profiles lookup failed");
+  }
+  return tier;
+}
+
+export async function resolvePaidPlan(profileId: string, userId: string): Promise<boolean> {
+  try {
+    if ((await resolveProfileTier(profileId, userId)) !== "free") return true;
     const [hosting] = await db
       .select({ status: creatorHostingTable.status })
       .from(creatorHostingTable)
       .where(eq(creatorHostingTable.profileId, profileId))
       .limit(1);
-    if (hosting && ACTIVE_STATUSES.has(hosting.status)) {
-      return true;
-    }
-    const rows = await db.execute(sql`SELECT plan, plan_tier FROM profiles WHERE id = ${userId} LIMIT 1`);
-    const row = (rows.rows[0] ?? null) as { plan?: unknown; plan_tier?: unknown } | null;
-    if (row) {
-      const byTier = tierFromPlanTier(typeof row.plan_tier === "number" ? row.plan_tier : null);
-      const byName = tierFromLegacyPlan(typeof row.plan === "string" ? row.plan : null);
-      if (byTier !== "free" || byName !== "free") return true;
-    }
-    return false;
+    return !!hosting && ACTIVE_STATUSES.has(hosting.status);
   } catch (err) {
     logger.warn({ err, profileId }, "resolvePaidPlan: lookup failed — reading as not paid");
     return false;
   }
 }
 
-/** Hosting entitlement alone (item 8's own state, for its endpoints). */
+export type HostingEntitlementSource = "hosting" | "elite" | null;
+
+export interface HostingEntitlement {
+  entitled: boolean;
+  status: string | null;
+  currentPeriodEnd: Date | null;
+  /** How the entitlement is held: the profile's own Hosting subscription,
+      or included with the tier that carries it (Creator Elite). */
+  source: HostingEntitlementSource;
+}
+
+/**
+ * Hosting entitlement (item 8 + the owner's 2026-10-27 ruling): entitled
+ * when the profile's own Hosting subscription is active|trialing, OR
+ * when the creator's tier includes Hosting — Creator Elite members are
+ * hosting-entitled while subscribed, with NO second charge. The own-
+ * subscription source wins when both hold (it is the paid state of
+ * record). Never throws: a lookup failure reads as not entitled.
+ */
 export async function resolveHostingEntitlement(
   profileId: string,
-): Promise<{ entitled: boolean; status: string | null; currentPeriodEnd: Date | null }> {
+  userId: string,
+): Promise<HostingEntitlement> {
   try {
     const [row] = await db
       .select({ status: creatorHostingTable.status, currentPeriodEnd: creatorHostingTable.currentPeriodEnd })
       .from(creatorHostingTable)
       .where(eq(creatorHostingTable.profileId, profileId))
       .limit(1);
-    if (!row) return { entitled: false, status: null, currentPeriodEnd: null };
+    if (row && ACTIVE_STATUSES.has(row.status)) {
+      return { entitled: true, status: row.status, currentPeriodEnd: row.currentPeriodEnd ?? null, source: "hosting" };
+    }
+    if ((await resolveProfileTier(profileId, userId)) === HOSTING_INCLUDED_WITH_TIER) {
+      /* Included via Elite: report the Elite subscription's own status
+         and period end when the Stripe-synced row carries them. */
+      let status: string | null = "active";
+      let currentPeriodEnd: Date | null = null;
+      try {
+        const [sub] = await db
+          .select({ status: creatorSubscriptionsTable.status, currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd, tier: creatorSubscriptionsTable.tier })
+          .from(creatorSubscriptionsTable)
+          .where(eq(creatorSubscriptionsTable.profileId, profileId))
+          .limit(1);
+        if (sub && ACTIVE_STATUSES.has(sub.status) && sub.tier === HOSTING_INCLUDED_WITH_TIER) {
+          status = sub.status;
+          currentPeriodEnd = sub.currentPeriodEnd ?? null;
+        }
+      } catch {
+        /* The entitlement stands on the tier alone. */
+      }
+      return { entitled: true, status, currentPeriodEnd, source: "elite" };
+    }
     return {
-      entitled: ACTIVE_STATUSES.has(row.status),
-      status: row.status,
-      currentPeriodEnd: row.currentPeriodEnd ?? null,
+      entitled: false,
+      status: row?.status ?? null,
+      currentPeriodEnd: row?.currentPeriodEnd ?? null,
+      source: null,
     };
   } catch (err) {
     logger.warn({ err, profileId }, "resolveHostingEntitlement: lookup failed");
-    return { entitled: false, status: null, currentPeriodEnd: null };
+    return { entitled: false, status: null, currentPeriodEnd: null, source: null };
   }
 }

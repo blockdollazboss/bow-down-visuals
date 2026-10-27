@@ -98,9 +98,13 @@ split tooling. Tiers are env-overridable
 (`DISTRIBUTION_SINGLE_CREDITS` / `_EP_` / `_ALBUM_`) and served live by
 `GET /api/distribution/pricing` — no frontend redeploy to reprice.
 
-**Annual unlimited plan** ("Distribute Unlimited", default 399cr/yr ≈
-DistroKid's $19.99/yr equivalent at credit value) is the upsell lever —
-listed `comingSoon` until billing supports subscriptions.
+**Annual unlimited plan** ("Distribute Unlimited") is the upsell lever —
+**$399/yr in USD** (★ price ruled by the owner, by delegation, 2026-10-27;
+`DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR` in the distribution route,
+served live as `annualPlan.priceUsdPerYear` by
+`GET /api/distribution/pricing`). Listed `comingSoon` until subscription
+billing supports purchasing it — the price is confirmed, the purchase
+rail is not wired yet.
 
 **AI upsells on the same page**: release metadata (1cr), pre-release
 strategy (1cr), cover art via the existing image pipeline (1–2cr). All
