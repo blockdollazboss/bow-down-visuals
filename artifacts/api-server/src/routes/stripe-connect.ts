@@ -14,6 +14,9 @@ import {
   getConnectStatus,
   createPayoutTransfer,
   getUserEmail,
+  persistConnectFlags,
+  connectStateFromStored,
+  type ConnectAccountState,
 } from "../lib/stripe-connect";
 import { saleSplitAdjustments } from "../lib/sale-splits";
 import { readPendingPayoutForSeller } from "../lib/seller-earnings";
@@ -210,6 +213,35 @@ router.post("/connect/refresh", requireAuth, publicApiLimiter, async (req, res) 
   }
 });
 
+/* Reconcile the stored Connect flags against Stripe's live state —
+ * the self-heal (payfix payout-build). The webhook keeps the flags
+ * fresh, but a missed/thin event used to strand a verified seller at
+ * "isn't verified yet" forever because nothing ever wrote the live
+ * truth back. Every status read and every payout attempt reconciles:
+ * live wins, differences persist, and the caller gets the full state
+ * machine + Stripe's action-needed reasons. Falls back to the stored
+ * flags (same derivation) when Stripe is unreachable. */
+export async function reconcileConnectState(
+  profileId: string,
+  fields: Awaited<ReturnType<typeof getProfileConnectFields>>,
+): Promise<ConnectAccountState> {
+  if (!fields.accountId) return connectStateFromStored(fields);
+  try {
+    const live = await getConnectStatus(fields.accountId);
+    if (
+      live.onboarded !== fields.onboarded ||
+      live.chargesEnabled !== fields.chargesEnabled ||
+      live.payoutsEnabled !== fields.payoutsEnabled
+    ) {
+      await persistConnectFlags(profileId, live);
+    }
+    return live;
+  } catch (err) {
+    logger.warn({ err, profileId }, "[connect] live status check failed — using stored flags");
+    return connectStateFromStored(fields);
+  }
+}
+
 /* ── GET /api/connect/status — onboarding + capability state + pending total */
 router.get("/connect/status", requireAuth, publicApiLimiter, async (req, res) => {
   if (!stripeOr503(res)) return;
@@ -220,31 +252,27 @@ router.get("/connect/status", requireAuth, publicApiLimiter, async (req, res) =>
       return;
     }
     const fields = await getProfileConnectFields(profileId);
-    let live: { onboarded: boolean; chargesEnabled: boolean; payoutsEnabled: boolean } | null = null;
-    if (fields.accountId) {
-      try {
-        const s = await getConnectStatus(fields.accountId);
-        live = { onboarded: s.onboarded, chargesEnabled: s.chargesEnabled, payoutsEnabled: s.payoutsEnabled };
-      } catch (err) {
-        logger.warn({ err, profileId }, "[connect] live status check failed — using stored flags");
-      }
-    }
-    /* The pending figure is THE LEDGER READ (lib/seller-earnings,
-       payfix store-dashboards): the same number GET
+    /* JOIN2 COMPOSITION (payfix payout-build × store-dashboards): the
+       live account state comes from payout-build's reconcileConnectState
+       (it supersedes the old inline getConnectStatus block), while the
+       displayed pending figure is store-dashboards' LEDGER READ
+       (lib/seller-earnings) — the same number GET
        /api/earnings/pending-payout returns, beats included. The old
        pendingPayoutCents formula never counted beat income and read
-       $0.00 for sellers whose sales were real (Oct 26 state check).
-       It remains only as the payout ACTION's internal helper for the
-       sibling payout-build lane; this displayed figure is the ledger
-       read, and a ledger failure 500s honestly above — never a fake 0. */
+       $0.00 for sellers whose sales were real (Oct 26 state check); it
+       remains only as the payout ACTION's internal helper below. A
+       ledger failure 500s honestly — never a fake 0. */
+    const state = await reconcileConnectState(profileId, fields);
     const pendingRead = await readPendingPayoutForSeller(req.userId!);
     const pending = pendingRead.pendingCents;
     res.json({
       connected: !!fields.accountId,
       accountId: fields.accountId,
-      onboarded: live?.onboarded ?? fields.onboarded,
-      chargesEnabled: live?.chargesEnabled ?? fields.chargesEnabled,
-      payoutsEnabled: live?.payoutsEnabled ?? fields.payoutsEnabled,
+      onboarded: state.onboarded,
+      chargesEnabled: state.chargesEnabled,
+      payoutsEnabled: state.payoutsEnabled,
+      state: state.state,
+      actionNeeded: state.actionNeeded,
       pendingCents: pending,
       pendingLedger: {
         accruedCents: pendingRead.accruedCents,
@@ -287,18 +315,20 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
       res.status(400).json({ error: "NO_ACCOUNT", message: "Connect your bank first." });
       return;
     }
-    if (!fields.payoutsEnabled) {
-      // Re-check live in case the webhook hasn't landed yet.
-      try {
-        const live = await getConnectStatus(fields.accountId);
-        if (!live.payoutsEnabled) {
-          res.status(400).json({ error: "NOT_ONBOARDED", message: "Finish your Stripe setup before your first payout." });
-          return;
-        }
-      } catch {
-        res.status(400).json({ error: "NOT_ONBOARDED", message: "Finish your Stripe setup before your first payout." });
-        return;
-      }
+    /* Gate on the RECONCILED state, never the stored flags alone:
+       reconcile live (and persist) first, so a seller Stripe has
+       verified is never refused over a webhook that hasn't landed —
+       and a seller Stripe hasn't verified is refused with Stripe's
+       own reason attached. */
+    const gate = await reconcileConnectState(profileId, fields);
+    if (!gate.payoutsEnabled) {
+      res.status(400).json({
+        error: "NOT_ONBOARDED",
+        message: "Finish your Stripe setup before your first payout.",
+        state: gate.state,
+        actionNeeded: gate.actionNeeded,
+      });
+      return;
     }
 
     const available = await pendingPayoutCents(profileId);
@@ -372,6 +402,40 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, userId: req.userId }, "[connect] payout failed");
     res.status(500).json({ error: `Payout failed: ${msg}` });
+  }
+});
+
+/* ── GET /api/connect/payouts — the seller's payout history ──────────
+ * creator_payouts rows were written by POST /connect/payout but never
+ * readable anywhere (Pass 6 FAIL 2): no history endpoint, no UI list.
+ * Truthful rows only — amount, status and dates exactly as recorded. */
+router.get("/connect/payouts", requireAuth, publicApiLimiter, async (req, res) => {
+  if (!stripeOr503(res)) return;
+  try {
+    const profileId = await callerProfileId(req.userId!);
+    if (!profileId) {
+      res.status(404).json({ error: "NO_PROFILE" });
+      return;
+    }
+    const r = await db.execute(sql`
+      SELECT id, amount_cents, status, stripe_transfer_id, created_at, updated_at
+      FROM creator_payouts
+      WHERE profile_id = ${profileId}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+    const payouts = (r.rows as Array<Record<string, unknown>>).map((row) => ({
+      id: String(row["id"]),
+      amountCents: Number(row["amount_cents"]),
+      status: String(row["status"]),
+      stripeTransferId: (row["stripe_transfer_id"] as string | null) ?? null,
+      createdAt: new Date(row["created_at"] as string).toISOString(),
+      updatedAt: new Date(row["updated_at"] as string).toISOString(),
+    }));
+    res.json({ payouts, testMode: isTestMode() });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[connect] payout history failed");
+    res.status(500).json({ error: "Could not load payout history." });
   }
 });
 
