@@ -4,13 +4,15 @@ import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { tipJarPendingForUser } from "./generate/tip-jar";
-import { sellerEarningsSummary, readPendingPayoutForSeller } from "../lib/seller-earnings";
+import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, readPendingPayoutForSeller } from "../lib/seller-earnings";
 
 /* ─── Unified earnings (Stack 8 #5; payfix store-dashboards) ─────────────
    ONE money picture per creator, read-only over the existing ledgers —
    no money movement, no new tables. Since the payfix lane, every USD
    source below is an adapter over the SINGLE aggregation in
-   lib/seller-earnings.ts (sellerEarningsSummary) — the same module the
+   lib/seller-earnings.ts (sellerStoreSales / sellerBeats /
+   sellerMemberships / sellerBrandDeals, composed by
+   sellerEarningsSummary) — the same module the
    pending-payout ledger syncs from — so /api/earnings, the store
    dashboards and the pending-payout figure can never tell different
    stories about the same sale again (Oct 26 state check: /store/
@@ -65,7 +67,7 @@ const errSource = (): SourceResult => ({ status: "error", totalCents: null, coun
    settle discipline the route below does. */
 
 export async function storeSales(userId: string) {
-  const s = (await sellerEarningsSummary(userId)).storeSales;
+  const s = await sellerStoreSales(userId);
   return {
     status: "ok" as const,
     totalCents: s.totalCents,
@@ -85,7 +87,7 @@ export async function storeSales(userId: string) {
 }
 
 export async function beats(userId: string) {
-  const b = (await sellerEarningsSummary(userId)).beats;
+  const b = await sellerBeats(userId);
   return {
     status: "ok" as const,
     totalCents: b.totalCents,
@@ -96,12 +98,12 @@ export async function beats(userId: string) {
 }
 
 export async function memberships(userId: string) {
-  const m = (await sellerEarningsSummary(userId)).memberships;
+  const m = await sellerMemberships(userId);
   return { status: "ok" as const, totalCents: m.totalCents, count: m.count };
 }
 
 export async function brandDeals(userId: string) {
-  const d = (await sellerEarningsSummary(userId)).brandDeals;
+  const d = await sellerBrandDeals(userId);
   return { status: "ok" as const, totalCents: d.totalCents, count: d.count };
 }
 

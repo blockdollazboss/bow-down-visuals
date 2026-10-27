@@ -378,7 +378,12 @@ export interface SellerEarningsSummary {
   brandDeals: { totalCents: number; count: number };
 }
 
-export async function sellerEarningsSummary(userId: string): Promise<SellerEarningsSummary> {
+/* Per-rail readers — the summary composes these, and routes/earnings
+ * calls them individually so one rail's failure degrades only its own
+ * source card (the route's pinned honesty contract), while the math
+ * itself lives in exactly one place. */
+
+export async function sellerStoreSales(userId: string): Promise<SellerEarningsSummary["storeSales"]> {
   const digital = await db.execute(sql`
     SELECT COALESCE(SUM(ds.creator_amount_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM digital_sales ds
@@ -400,7 +405,22 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
   const o = (orders.rows as any[])[0] ?? { cents: 0, n: 0 };
   const sh = (shop.rows as any[])[0] ?? { cents: 0, n: 0 };
   const splits = await saleSplitAdjustments(userId);
+  return {
+    totalCents: Number(d.cents) + Number(o.cents) + Number(sh.cents) - splits.subtractCents + splits.addCents,
+    count: Number(d.n) + Number(o.n) + Number(sh.n) + splits.addCount,
+    digitalSalesCents: Number(d.cents),
+    digitalSalesCount: Number(d.n),
+    profileStoreCents: Number(o.cents),
+    profileStoreOrders: Number(o.n),
+    shopSalesCents: Number(sh.cents),
+    shopSales: Number(sh.n),
+    coSellerSharesPaidOutCents: splits.subtractCents,
+    coSellerSplitCents: splits.addCents,
+    coSellerSplitSales: splits.addCount,
+  };
+}
 
+export async function sellerBeats(userId: string): Promise<SellerEarningsSummary["beats"]> {
   const beatsRes = await db.execute(sql`
     SELECT COALESCE(SUM(price_cents - commission_cents), 0)::int AS net,
            COALESCE(SUM(price_cents), 0)::int AS gross,
@@ -410,51 +430,48 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
     WHERE producer_id = ${userId} AND status = 'completed'
   `);
   const b = (beatsRes.rows as any[])[0] ?? { net: 0, gross: 0, commission: 0, n: 0 };
+  return {
+    totalCents: Number(b.net),
+    grossCents: Number(b.gross),
+    commissionCents: Number(b.commission),
+    count: Number(b.n),
+  };
+}
 
+export async function sellerMemberships(userId: string): Promise<SellerEarningsSummary["memberships"]> {
   const memb = await db.execute(sql`
     SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM fan_members
     WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND status <> 'refunded'
   `);
   const m = (memb.rows as any[])[0] ?? { cents: 0, n: 0 };
+  return { totalCents: Number(m.cents), count: Number(m.n) };
+}
 
+export async function sellerBrandDeals(userId: string): Promise<SellerEarningsSummary["brandDeals"]> {
   const deals = await db.execute(sql`
     SELECT COALESCE(SUM(net_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM sponsor_payouts
     WHERE creator_user_id = ${userId}::text AND status = 'released'
   `);
   const dl = (deals.rows as any[])[0] ?? { cents: 0, n: 0 };
+  return { totalCents: Number(dl.cents), count: Number(dl.n) };
+}
 
-  const storeTotal =
-    Number(d.cents) + Number(o.cents) + Number(sh.cents) - splits.subtractCents + splits.addCents;
-
-  const summary: SellerEarningsSummary = {
+export async function sellerEarningsSummary(userId: string): Promise<SellerEarningsSummary> {
+  const storeSales = await sellerStoreSales(userId);
+  const beats = await sellerBeats(userId);
+  const memberships = await sellerMemberships(userId);
+  const brandDeals = await sellerBrandDeals(userId);
+  return {
     sellerUserId: userId,
     currency: "USD",
-    totalCents: storeTotal + Number(b.net) + Number(m.cents) + Number(dl.cents),
-    storeSales: {
-      totalCents: storeTotal,
-      count: Number(d.n) + Number(o.n) + Number(sh.n) + splits.addCount,
-      digitalSalesCents: Number(d.cents),
-      digitalSalesCount: Number(d.n),
-      profileStoreCents: Number(o.cents),
-      profileStoreOrders: Number(o.n),
-      shopSalesCents: Number(sh.cents),
-      shopSales: Number(sh.n),
-      coSellerSharesPaidOutCents: splits.subtractCents,
-      coSellerSplitCents: splits.addCents,
-      coSellerSplitSales: splits.addCount,
-    },
-    beats: {
-      totalCents: Number(b.net),
-      grossCents: Number(b.gross),
-      commissionCents: Number(b.commission),
-      count: Number(b.n),
-    },
-    memberships: { totalCents: Number(m.cents), count: Number(m.n) },
-    brandDeals: { totalCents: Number(dl.cents), count: Number(dl.n) },
+    totalCents: storeSales.totalCents + beats.totalCents + memberships.totalCents + brandDeals.totalCents,
+    storeSales,
+    beats,
+    memberships,
+    brandDeals,
   };
-  return summary;
 }
 
 /* Best-effort sync hook for sale-completion callers: never let a ledger
