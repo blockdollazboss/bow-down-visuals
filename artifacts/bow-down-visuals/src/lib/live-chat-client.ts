@@ -27,6 +27,13 @@ export interface ChatMessage {
   /** 'chat' | 'tip' — tip messages render gold with their amount. */
   kind?: "chat" | "tip";
   tipAmountVb?: number | null;
+  /** Unified feed source tag (Round-2 #12): the server tags every
+   *  message with the source it arrived from ('site' | 'twitch' |
+   *  'youtube'). Optional so older payloads still parse; the merged
+   *  panel's site adapter treats a missing tag as 'site'. */
+  source?: "site" | "twitch" | "youtube";
+  /** The platform's own message id for ingested rows; else absent. */
+  externalId?: string | null;
 }
 
 export interface ChatPin {
@@ -45,6 +52,17 @@ export interface ChatPage {
   pinned?: ChatPin | null;
   /** Appointed channel moderators (user ids) for badge + controls. */
   moderatorIds?: string[];
+  /** Unified feed (Round-2 #12): the server's source-tagged merged
+   *  feed + honest per-source states + truthful presence (external
+   *  viewer counts are null = unknown, never invented). Optional so
+   *  older payloads still parse. */
+  feed?: Array<ChatMessage & { source: "site" | "twitch" | "youtube" }>;
+  sources?: Array<{ source: string; ingestionLive: boolean; note: string }>;
+  presence?: {
+    perSource: Array<{ source: string; viewers: number | null }>;
+    totalKnown: number;
+    knownSources: string[];
+  };
 }
 
 /** A live alert event from the room (tip / follow) — the studio's
@@ -144,6 +162,10 @@ export class LiveChatClient {
    *  when the server sent it, so the notice can name it. */
   ticketLocked = false;
   ticketPriceVb: number | null = null;
+  /** Unified presence (Round-2 #12), from server data only: real
+   *  measured viewers per source — external platforms are null
+   *  (unknown), never an invented count. Null until a page loads. */
+  presence: ChatPage["presence"] = undefined;
 
   /** My role on this stream, from server data (owner / moderator / viewer). */
   get selfRole(): "owner" | "moderator" | "viewer" {
@@ -221,6 +243,7 @@ export class LiveChatClient {
     this.streamStatus = page.streamStatus;
     this.ownerId = page.ownerId;
     this.pinned = page.pinned ?? null;
+    if (page.presence) this.presence = page.presence;
     if (page.moderatorIds) this.moderatorIds = new Set(page.moderatorIds);
     const byId = new Map<string, ChatMessage>();
     for (const m of page.messages) byId.set(m.id, m);
@@ -352,6 +375,7 @@ export class LiveChatClient {
       this.streamStatus = page.streamStatus;
       this.ownerId = page.ownerId;
       this.pinned = page.pinned ?? this.pinned;
+      if (page.presence) this.presence = page.presence;
       if (page.moderatorIds) this.moderatorIds = new Set(page.moderatorIds);
       this.mergeMessages(page.messages);
       if (statusChanged) {

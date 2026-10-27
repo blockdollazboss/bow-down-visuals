@@ -18,6 +18,15 @@ import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } f
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
 import { isTicketed, canEnterStream, ticketDoorInfo, countActiveTickets } from "../lib/live-tickets";
 import { sweepIfLarge } from "../lib/sweep-map";
+import {
+  createUnifiedChatRegistry,
+  mergeUnifiedFeed,
+  unifiedPresence,
+  unifiedSourceStates,
+  type UnifiedChatMessage,
+  type UnifiedChatSourceId,
+} from "../lib/unified-live-chat";
+import { countViewers } from "./live-streams";
 import { awardChatPoints } from "../lib/loyalty";
 import { queueKeywordComment } from "../lib/keyword-automations";
 import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
@@ -53,8 +62,15 @@ export async function logModAction(entry: { profileId: string; streamId: string;
    Clients whose socket fails fall back to polling GET ?after=….
    Deleted messages are soft-deleted with the body cleared and are
    never served again; live clients get a message_deleted event so
-   the row disappears in place. No presence counts are exposed —
-   nothing here pretends to know who is "in" the chat. */
+   the row disappears in place.
+
+   Unified feed (Round-2 #12): GET also returns `feed` (the messages
+   run through lib/unified-live-chat's source-adapter registry +
+   guarded merge, each one source-tagged), `sources` (honest
+   per-source ingestion states — external adapters are config-gated
+   and inert until a real platform transport lands), and `presence`
+   (the site's real heartbeat viewer count; external counts are null,
+   never invented — no ghost headcounts). */
 
 const router = Router();
 
@@ -158,18 +174,53 @@ export interface LiveChatMessageDto {
   /** 'chat' | 'tip' — tip messages carry their Visual Bucs amount. */
   kind: "chat" | "tip";
   tipAmountVb: number | null;
+  /** Unified feed source tag (Round-2 #12): 'site' | 'twitch' |
+   *  'youtube'. Rows written before the unified columns read 'site'. */
+  source: UnifiedChatSourceId;
+  /** The platform's own message id for ingested rows; else null. */
+  externalId: string | null;
+}
+
+const KNOWN_SOURCES: readonly string[] = ["site", "twitch", "youtube"];
+
+function rowSource(row: LiveChatMessage): UnifiedChatSourceId {
+  const s = (row as { source?: string | null }).source ?? "site";
+  return (KNOWN_SOURCES.includes(s) ? s : "site") as UnifiedChatSourceId;
 }
 
 function toDto(row: LiveChatMessage, cards: Map<string, AuthorCard>): LiveChatMessageDto {
+  const externalAuthor = (row as { external_author_name?: string | null }).external_author_name ?? null;
+  const card = cards.get(row.user_id) ?? { displayName: "Someone", avatarUrl: null, slug: null };
   return {
     id: row.id,
     streamId: row.stream_id,
     userId: row.user_id,
     body: row.body,
     createdAt: new Date(row.created_at).toISOString(),
-    author: cards.get(row.user_id) ?? { displayName: "Someone", avatarUrl: null, slug: null },
+    /* An ingested external author keeps their platform name — they
+       are never dressed up as a Bow Down profile. */
+    author: externalAuthor ? { displayName: externalAuthor, avatarUrl: null, slug: null } : card,
     kind: row.kind === "tip" ? "tip" : "chat",
     tipAmountVb: row.tip_amount_vb ?? null,
+    source: rowSource(row),
+    externalId: (row as { external_id?: string | null }).external_id ?? null,
+  };
+}
+
+/** Project a chat DTO into the unified feed model (lib/unified-live-chat). */
+export function toUnifiedMessage(dto: LiveChatMessageDto): UnifiedChatMessage {
+  return {
+    id: dto.id,
+    streamId: dto.streamId,
+    source: dto.source,
+    externalId: dto.externalId,
+    userId: dto.userId,
+    authorName: dto.author.displayName,
+    authorAvatarUrl: dto.author.avatarUrl,
+    body: dto.body,
+    kind: dto.kind,
+    tipAmountVb: dto.tipAmountVb,
+    createdAt: dto.createdAt,
   };
 }
 
@@ -264,12 +315,26 @@ router.get("/live/:id/chat", publicApiLimiter, async (req: Request, res: Respons
       rows = rows.reverse();
     }
 
+    const dtos = await toDtos(rows);
+    const status = effectiveStatus(stream);
+    /* Unified cross-platform feed (Round-2 #12): the same messages,
+       run through the server source-adapter registry + guarded merge
+       — one model the panel renders from, each message source-tagged.
+       External adapters are config-gated and inert until a real
+       transport lands, so today the feed is the site's chat, tagged
+       'site'; sources/presence state that honestly (presence counts
+       real heartbeat viewers for the site, null — unknown — for
+       external platforms; nothing is invented). */
+    const feed = mergeUnifiedFeed(createUnifiedChatRegistry(() => dtos.map(toUnifiedMessage)));
     res.json({
       streamId: stream.id,
-      streamStatus: effectiveStatus(stream),
+      streamStatus: status,
       streamTitle: stream.title,
       ownerId: stream.user_id,
-      messages: await toDtos(rows),
+      messages: dtos,
+      feed,
+      sources: unifiedSourceStates({ streamStatus: status }),
+      presence: unifiedPresence({ siteViewers: countViewers(stream.id) }),
       hasMore,
       pinned: await getActivePin(stream.id).catch(() => null),
       moderatorIds: await getModeratorIds(stream.profile_id).catch(() => [] as string[]),
@@ -360,7 +425,7 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
 
     const inserted = await db
       .insert(liveChatMessagesTable)
-      .values({ stream_id: stream.id, user_id: userId, body })
+      .values({ stream_id: stream.id, user_id: userId, body, source: "site" })
       .returning();
     const row = inserted[0];
     if (!row) throw new Error("chat insert returned no row");

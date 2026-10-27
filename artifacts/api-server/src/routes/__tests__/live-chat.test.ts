@@ -343,6 +343,25 @@ describe("GET /live/:id/chat", () => {
     expect(json.messages).toEqual([]);
     expect(json.hasMore).toBe(false);
   });
+
+  it("unified feed: messages are source-tagged 'site', external sources are honestly not ingesting, presence counts nobody external", async () => {
+    seedMessage(STREAM, VIEWER, "unified hello", new Date(T0.getTime() + 1000));
+    const { status, json } = await req("GET", `/api/live/${STREAM}/chat`);
+    expect(status).toBe(200);
+    expect(json.messages[0].source).toBe("site");
+    expect(json.feed).toHaveLength(1);
+    expect(json.feed[0]).toMatchObject({ body: "unified hello", source: "site", authorName: "Viewer One" });
+    expect(json.sources.map((s: any) => s.source)).toEqual(["site", "twitch", "youtube"]);
+    expect(json.sources[0].ingestionLive).toBe(true);
+    for (const s of json.sources.slice(1)) {
+      expect(s.ingestionLive).toBe(false);
+      expect(s.gate.canIngest).toBe(false);
+    }
+    expect(json.presence.knownSources).toEqual(["site"]);
+    expect(json.presence.perSource.find((p: any) => p.source === "twitch").viewers).toBeNull();
+    expect(json.presence.perSource.find((p: any) => p.source === "youtube").viewers).toBeNull();
+    expect(json.presence.totalKnown).toBe(json.presence.perSource[0].viewers);
+  });
 });
 
 describe("POST /live/:id/chat", () => {
