@@ -268,6 +268,9 @@ const CARDS: Array<[string, string]> = [
   ["permanence", "PermanenceSettings"],
   ["catalog-export", "CatalogExportPanel"],
   ["mod-console", "ModConsolePanel"],
+  /* JOIN2 (upg-identity Vault): its Settings card joined — isolated
+     like every other card. */
+  ["vault", "VaultSettings"],
   ["danger-zone", "DangerZone"],
 ];
 

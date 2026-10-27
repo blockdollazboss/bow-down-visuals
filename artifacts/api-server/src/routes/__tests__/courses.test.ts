@@ -166,6 +166,7 @@ CREATE TABLE store_products (
   media_alt_texts jsonb NOT NULL DEFAULT '[]', gift_card_denominations_cents jsonb,
   bump_product_id uuid, bump_percent_off integer NOT NULL DEFAULT 0,
   splits jsonb,
+  group_profile_id uuid,
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
   kind text NOT NULL,

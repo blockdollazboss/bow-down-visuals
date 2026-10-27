@@ -333,6 +333,7 @@ describe("isPublicPath — representative positives from every public family", (
     ["law — home", "/"],
     ["law — the World", "/world"],
     ["ruling — creator profile storefront", "/artist/king-shark"],
+    ["ruling — duo/group profile storefront (N20)", "/group/crown-duo"],
     ["necessity — login", "/login"],
     ["necessity — signup", "/signup"],
     ["necessity — reset password", "/reset-password"],
@@ -462,8 +463,8 @@ describe("the shipped allowlist itself", () => {
     expect(new Set(PUBLIC_ROUTES).size).toBe(PUBLIC_ROUTES.length);
   });
 
-  it("contains exactly the approved public set (48 patterns)", () => {
-    expect(PUBLIC_ROUTES).toHaveLength(48);
+  it("contains exactly the approved public set (49 patterns)", () => {
+    expect(PUBLIC_ROUTES).toHaveLength(49);
   });
 
   it("judges a path with a query string the same as the bare path", () => {

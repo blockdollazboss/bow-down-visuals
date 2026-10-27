@@ -19,6 +19,7 @@ import { ContentWarningSettings } from "@/components/ContentWarningSettings";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { DeveloperApiSettings } from "@/components/DeveloperApiSettings";
 import { TeamSeats } from "@/components/TeamSeats";
+import { VaultSettings } from "@/components/VaultSettings";
 import { LegacySettings, LegacyContactSettings, PermanenceSettings, CatalogExportPanel, ModConsolePanel } from "@/components/trust/TrustPanels";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -374,6 +375,10 @@ export default function Settings() {
 
         <SettingsCardBoundary name="mod-console">
           <ModConsolePanel />
+        </SettingsCardBoundary>
+
+        <SettingsCardBoundary name="vault">
+          <VaultSettings />
         </SettingsCardBoundary>
 
         <SettingsCardBoundary name="danger-zone">

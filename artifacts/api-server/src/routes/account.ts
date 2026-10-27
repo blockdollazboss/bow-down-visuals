@@ -10,6 +10,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { buildAccountExportPayload } from "../lib/account-export";
 
 const router = Router();
 
@@ -20,57 +21,18 @@ function adminEmails(): string[] {
     .filter(Boolean);
 }
 
-/** Fetch one table's rows for a user; returns [] when the table is missing or errors. */
-async function fetchUserRows(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  table: string,
-  userId: string,
-): Promise<unknown[]> {
-  try {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data ?? [];
-  } catch {
-    return [];
-  }
-}
-
 /**
  * GET /api/account/export
  * Download everything the account owns: profile, projects, drafts,
  * generated clips, songs. Service-role read, filtered to the requester.
+ * Payload built by lib/account-export.ts — shared with The Vault (#162).
  */
 router.get("/account/export", requireAuth, async (req: Request, res: Response) => {
   try {
-    const supabase = getSupabaseAdmin();
     const userId = req.userId!;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-
-    const [projects, drafts, clips, songs] = await Promise.all([
-      fetchUserRows(supabase, "projects", userId),
-      fetchUserRows(supabase, "project_drafts", userId),
-      fetchUserRows(supabase, "generated_clips", userId),
-      fetchUserRows(supabase, "songs", userId),
-    ]);
-
+    const payload = await buildAccountExportPayload(userId);
     req.log.info({ userId }, "account: data export generated");
-    res.json({
-      exportedAt: new Date().toISOString(),
-      profile: profile ?? null,
-      projects,
-      drafts,
-      clips,
-      songs,
-    });
+    res.json(payload);
   } catch (err) {
     req.log.error({ err }, "account: export failed");
     res.status(500).json({ error: "Could not export your data. Please try again." });

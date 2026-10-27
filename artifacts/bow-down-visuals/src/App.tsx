@@ -198,6 +198,7 @@ const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
 const TeamPage = lazyWithRetry(() => import("@/pages/team"));
+const GroupPublic = lazyWithRetry(() => import("@/pages/group-public"));
 const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
 const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
 const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
@@ -582,6 +583,7 @@ function AppShell() {
           <Route path="/hashtag/:tag"><HashtagPage /></Route>
           {/* Creator Streaming Platform — public surfaces */}
           <Route path="/artist/:slug"><ArtistPublic /></Route>
+          <Route path="/group/:slug"><GroupPublic /></Route>
           <Route path="/photo-preset/:slug"><PhotoPresetPage /></Route>
           <Route path="/collection/:slug"><FanCollection /></Route>
           <Route path="/track/:id"><StreamTrackPage /></Route>

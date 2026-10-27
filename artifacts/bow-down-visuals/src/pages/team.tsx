@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Users, UserPlus, Trash2, LogOut, Crown, Shield, User as UserIcon } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
+import { GroupProfileSettings } from "@/components/GroupProfileSettings";
 import { useTranslation } from "react-i18next";
 
 interface Team {
@@ -465,6 +466,10 @@ export default function TeamPage() {
               ))}
             </div>
           </Card>
+
+          {/* Duo/Group public profile (N20) — the team's public half
+              is managed where the team itself is managed. */}
+          <GroupProfileSettings teamId={activeTeam.id} myRole={activeTeam.myRole} />
 
           {/* Spending — a failed load shows its note in place of the section */}
           {spendingFailed && spending.length === 0 && (activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
