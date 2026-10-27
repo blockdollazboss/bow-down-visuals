@@ -217,8 +217,8 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return {
     ...actual,
     db: {
-      // ensureWheelSpinsTable + the wheel_spins analytics insert: best-effort
-      // in production, no-ops here.
+      // The wheel_spins analytics insert: best-effort in production,
+      // a no-op here.
       execute: async () => [],
       insert: (table: unknown) => {
         if (table !== actual.retentionClaimRecordsTable) {

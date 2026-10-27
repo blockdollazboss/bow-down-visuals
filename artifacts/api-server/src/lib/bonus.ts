@@ -40,53 +40,23 @@ export const WHEEL_SEGMENTS: WheelSegment[] = [
   { credits: 20000, weight: 0.1, label: "JACKPOT", isJackpot: true },
 ];
 
-/* ── Where the bonus columns live (QC-200 G6 fix) ────────────────────────
-   The bonus/streak columns (bonus_credits, daily_streak, last_daily_claim,
-   last_wheel_spin, streak_freezes, …) live on the SUPABASE `profiles`
-   table, and every read/write of them in this module goes through the
-   Supabase client — never through DATABASE_URL. Their DDL is owned by the
-   Supabase-side migrations (supabase/migrations/0054_bonus_columns.sql +
-   0056_streak_freezes.sql, run in the Supabase SQL Editor).
-
-   The old ensureBonusColumns() ran `ALTER TABLE profiles …` against
-   DATABASE_URL (Render Postgres) — a different database that has no
-   `profiles` relation in production — so every bonus request logged
-   `relation "profiles" does not exist` (production logs, Oct 25 ~20:58)
-   and, because the ALTER shared one statement string with the
-   wheel_spins CREATE, the wheel_spins table was never created either.
-   The runtime ALTER is gone: no DDL against a foreign database, and the
-   one table this module DOES write through DATABASE_URL (wheel_spins,
-   the spin analytics log) gets its own ensure below. */
-
-let wheelSpinsEnsured = false;
-
-/**
- * Best-effort: creates the wheel_spins analytics table in the
- * DATABASE_URL database if missing — the same database spinWheel()
- * inserts into. Failures are logged, not thrown: the insert site is
- * already best-effort, so a missing table can never take down a spin
- * that already paid out.
- */
-export async function ensureWheelSpinsTable(): Promise<void> {
-  if (wheelSpinsEnsured) return;
-  try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS wheel_spins (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        spun_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        prize_credits INTEGER NOT NULL,
-        was_jackpot BOOLEAN NOT NULL DEFAULT FALSE
-      )
-    `);
-    await db.execute(sql`
-      CREATE INDEX IF NOT EXISTS idx_wheel_spins_user ON wheel_spins(user_id)
-    `);
-    wheelSpinsEnsured = true;
-  } catch (err) {
-    logger.warn({ err }, "ensureWheelSpinsTable: CREATE failed — wheel_spins log inserts will fail until it exists");
-  }
-}
+/* Schema ownership — there is NO runtime self-heal here anymore.
+   The former ensureBonusColumns() ran `ALTER TABLE profiles …` through
+   the Drizzle `db` (DATABASE_URL = Render Postgres), but `profiles` is a
+   Supabase table — Render Postgres has no `profiles` relation (see
+   credits.ts / export-jobs.ts), so the ALTER threw
+   `relation "profiles" does not exist` (42P01) on the first bonus call
+   of every process, and because the legitimate Render-side
+   `wheel_spins` CREATE shared the same batch, it never landed either.
+   Removed per the referrals.ts Stack-8 doctrine: tables are defined
+   ONCE and the boot migration runner owns creation. Owners now:
+   - bonus/streak columns on Supabase `profiles`:
+     supabase/migrations/0054_bonus_columns.sql + 0056_streak_freezes.sql
+     (run once in the Supabase SQL Editor). If they are missing, the
+     Supabase reads/writes below throw the real error — nothing here
+     masks it.
+   - `wheel_spins` (Render Postgres, written by spinWheel below):
+     lib/db/migrations/9999_schema_drift_fixes.sql. */
 
 export interface BonusProfile {
   bonusCredits: number;
@@ -486,7 +456,6 @@ export async function spinWheel(userId: string): Promise<WheelSpinResult> {
 
   // Analytics log (best-effort; never blocks the prize).
   try {
-    await ensureWheelSpinsTable();
     await db.execute(sql`
       INSERT INTO wheel_spins (user_id, prize_credits, was_jackpot)
       VALUES (${userId}, ${segment.credits}, ${segment.isJackpot ?? false})

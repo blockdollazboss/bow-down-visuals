@@ -13,8 +13,13 @@
  * Pins:
  *  - bonus.ts issues NO DDL/DML against `profiles` through the
  *    DATABASE_URL db handle (source pin + executed-statement capture);
- *  - ensureWheelSpinsTable() creates ONLY wheel_spins (+ its index)
- *    through that handle, and latches after the first success.
+ *  - JOIN2 ADAPTATION (schema-drift composition): wheel_spins creation
+ *    is owned by the boot migration runner, NOT a runtime self-heal —
+ *    the orphan schema-drift lane's design won the join over G6's
+ *    runtime ensureWheelSpinsTable() (Stack-8 doctrine: tables are
+ *    defined once, migrations own creation). The second pin below now
+ *    asserts bonus.ts carries no runtime CREATE TABLE and the
+ *    migrations chain creates wheel_spins.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as fs from "node:fs";
@@ -44,8 +49,6 @@ vi.mock("../supabase-admin", () => ({
   },
 }));
 
-import { ensureWheelSpinsTable } from "../bonus";
-
 describe("bonus schema drift (G6)", () => {
   beforeEach(() => {
     h.statements.length = 0;
@@ -64,13 +67,18 @@ describe("bonus schema drift (G6)", () => {
     expect(src).toContain('.from("profiles")');
   });
 
-  it("ensureWheelSpinsTable creates only wheel_spins and latches", async () => {
-    await ensureWheelSpinsTable();
-    await ensureWheelSpinsTable();
-    const joined = h.statements.join("\n");
-    expect(joined).toContain("wheel_spins");
-    expect(joined).not.toMatch(/profiles/i);
-    /* Two statements (table + index), exactly once despite two calls. */
-    expect(h.statements).toHaveLength(2);
+  it("wheel_spins is migration-owned: no runtime CREATE in bonus.ts, the migration chain creates it", () => {
+    const raw = fs.readFileSync(path.join(__dirname, "..", "bonus.ts"), "utf8");
+    const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(src).not.toMatch(/CREATE TABLE/i);
+    const migrationsDir = path.join(__dirname, "..", "..", "..", "..", "..", "lib", "db", "migrations");
+    const sql = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => fs.readFileSync(path.join(migrationsDir, f), "utf8"))
+      .join("\n");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS wheel_spins");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS contests");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS contest_entries");
   });
 });
