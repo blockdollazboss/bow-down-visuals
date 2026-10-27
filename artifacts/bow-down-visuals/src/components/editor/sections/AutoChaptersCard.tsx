@@ -150,7 +150,7 @@ export function AutoChaptersCard({
         {/* Source toggle */}
         <div className="flex gap-2">
           {(["audio", "transcript"] as const).map((m) => (
-            <button
+            <button aria-pressed={mode === m}
               key={m}
               type="button"
               onClick={() => setMode(m)}
@@ -166,7 +166,7 @@ export function AutoChaptersCard({
         </div>
 
         {mode === "transcript" && (
-          <textarea
+          <textarea aria-label="Paste your transcript here. Add [M:SS] timestamps per line for exact chapter times, or leave plain text and we'll scale from the video duration."
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
             rows={5}
@@ -186,7 +186,7 @@ export function AutoChaptersCard({
           <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">
             Max chapters
           </label>
-          <input
+          <input aria-label="Max chapters"
             type="number"
             min={2}
             max={20}
@@ -250,7 +250,7 @@ export function AutoChaptersCard({
             <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
               {chapters.map((c, i) => (
                 <div key={i} className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-black/30 px-2 py-1.5">
-                  <input
+                  <input aria-label="Chapter start time (M:SS)"
                     value={formatChapterTime(c.startSec)}
                     onChange={(e) => {
                       const v = parseChapterTime(e.target.value);
@@ -264,7 +264,7 @@ export function AutoChaptersCard({
                     className="w-16 shrink-0 rounded-md border border-white/10 bg-black/50 px-1.5 py-1 text-[11px] font-mono text-primary focus:outline-none focus:border-primary/50"
                     title="Chapter start time (M:SS)"
                   />
-                  <input
+                  <input aria-label="Chapter title"
                     value={c.title}
                     onChange={(e) => updateChapter(i, { title: e.target.value })}
                     maxLength={80}

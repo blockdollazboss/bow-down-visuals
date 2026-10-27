@@ -531,7 +531,7 @@ export function MotionTrackCard({
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {MODE_META.map((m) => (
-              <button
+              <button aria-pressed={mode === m.id}
                 key={m.id}
                 type="button"
                 onClick={() => setMode(m.id)}
@@ -556,7 +556,7 @@ export function MotionTrackCard({
           <div className="mt-3 space-y-3">
             {mode === "text" && (
               <>
-                <input
+                <input aria-label={t("videoEditor.motionTrack.textPlaceholder")}
                   type="text"
                   value={labelText}
                   onChange={(e) => setLabelText(e.target.value)}
@@ -566,7 +566,7 @@ export function MotionTrackCard({
                 />
                 <div className="flex flex-wrap gap-2">
                   {(["clean", "glow"] as const).map((s) => (
-                    <button
+                    <button aria-pressed={textStyle === s}
                       key={s}
                       type="button"
                       onClick={() => setTextStyle(s)}
@@ -578,7 +578,7 @@ export function MotionTrackCard({
                     </button>
                   ))}
                   {(["above", "below", "center"] as const).map((p) => (
-                    <button
+                    <button aria-pressed={textPosition === p}
                       key={p}
                       type="button"
                       onClick={() => setTextPosition(p)}
@@ -593,7 +593,7 @@ export function MotionTrackCard({
               </>
             )}
             {mode === "sticker" && (
-              <input
+              <input aria-label={t("videoEditor.motionTrack.stickerPlaceholder")}
                 type="url"
                 value={stickerUrl}
                 onChange={(e) => setStickerUrl(e.target.value)}

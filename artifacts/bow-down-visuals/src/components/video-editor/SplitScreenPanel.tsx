@@ -485,7 +485,7 @@ export default function SplitScreenPanel({
               </p>
               {/* Simple / Custom mode */}
               <div className="flex rounded-lg border border-white/10 bg-black/40 p-0.5">
-                <button
+                <button aria-pressed={mode === "simple"}
                   onClick={() => setMode("simple")}
                   className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors ${
                     mode === "simple" ? "bg-[#e8c86a] text-black" : "text-white/50 hover:text-white"
@@ -494,7 +494,7 @@ export default function SplitScreenPanel({
                 >
                   <Zap className="h-3 w-3" /> {t("splitScreen.modeSimple")}
                 </button>
-                <button
+                <button aria-pressed={mode === "custom"}
                   onClick={() => setMode("custom")}
                   className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors ${
                     mode === "custom" ? "bg-[#e8c86a] text-black" : "text-white/50 hover:text-white"
@@ -564,7 +564,7 @@ export default function SplitScreenPanel({
                   <p className="text-xs font-bold text-white">{t("splitScreen.pipSize")}</p>
                   <span className="text-[11px] text-white/40">{Math.round(pipSize * 100)}%</span>
                 </div>
-                <input
+                <input aria-label={t("splitScreen.pipSize")}
                   type="range"
                   min={0.1}
                   max={0.5}
@@ -640,7 +640,7 @@ export default function SplitScreenPanel({
                       >
                         <Link2 className="h-3.5 w-3.5 mr-1.5" /> {t("splitScreen.pasteUrl")}
                       </Button>
-                      <input
+                      <input aria-label={`Upload video for cell ${i + 1}`}
                         ref={(el) => { fileInputs.current[i] = el; }}
                         type="file"
                         className="hidden"
@@ -683,7 +683,7 @@ export default function SplitScreenPanel({
 
                   {showUrlInput[i] && !url && (
                     <div className="mt-2 flex gap-2">
-                      <input
+                      <input aria-label={`Video URL for cell ${i + 1}`}
                         value={urlDrafts[i] ?? ""}
                         onChange={(e) => setUrlDrafts((p) => ({ ...p, [i]: e.target.value }))}
                         placeholder="https://…"
@@ -733,7 +733,7 @@ export default function SplitScreenPanel({
                       </p>
                       <span className="text-[11px] text-white/40">{Math.round((levels[i] ?? 1) * 100)}%</span>
                     </div>
-                    <input
+                    <input aria-label={t(cellLabelKey(layoutKey, i), { n: i + 1 })}
                       type="range"
                       min={0}
                       max={1}
@@ -763,14 +763,14 @@ export default function SplitScreenPanel({
                   <p className="text-xs font-bold text-white">{t("splitScreen.gap")}</p>
                   <span className="text-[11px] text-white/40">{gap}px</span>
                 </div>
-                <input type="range" min={0} max={48} step={2} value={gap} onChange={(e) => setGap(Number(e.target.value))} className="w-full accent-[#e8c86a]" />
+                <input aria-label={t("splitScreen.gap")} type="range" min={0} max={48} step={2} value={gap} onChange={(e) => setGap(Number(e.target.value))} className="w-full accent-[#e8c86a]" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-bold text-white">{t("splitScreen.borderWidth")}</p>
                   <span className="text-[11px] text-white/40">{border}px</span>
                 </div>
-                <input type="range" min={0} max={16} step={1} value={border} onChange={(e) => setBorder(Number(e.target.value))} className="w-full accent-[#e8c86a]" />
+                <input aria-label={t("splitScreen.borderWidth")} type="range" min={0} max={16} step={1} value={border} onChange={(e) => setBorder(Number(e.target.value))} className="w-full accent-[#e8c86a]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">

@@ -196,7 +196,7 @@ export function CanvasGeneratorSection({
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/50">
               Cover art URL <span className="text-primary">*</span>
             </label>
-            <input
+            <input aria-label="Cover art URL"
               className={inputClass}
               value={coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
@@ -207,7 +207,7 @@ export function CanvasGeneratorSection({
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/50">
               Song audio URL <span className="font-normal normal-case text-white/30">(optional — drives the Beat Pulse energy)</span>
             </label>
-            <input
+            <input aria-label="Song audio URL"
               className={inputClass}
               value={audioUrl}
               onChange={(e) => setAudioUrl(e.target.value)}
@@ -217,11 +217,11 @@ export function CanvasGeneratorSection({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/50">Song title</label>
-              <input className={inputClass} value={songTitle} onChange={(e) => setSongTitle(e.target.value)} placeholder="Midnight Gold" />
+              <input aria-label="Song title" className={inputClass} value={songTitle} onChange={(e) => setSongTitle(e.target.value)} placeholder="Midnight Gold" />
             </div>
             <div>
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/50">Artist name</label>
-              <input className={inputClass} value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder="Your artist name" />
+              <input aria-label="Artist name" className={inputClass} value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder="Your artist name" />
             </div>
           </div>
           {style === "lyricFlicker" && (
@@ -229,7 +229,7 @@ export function CanvasGeneratorSection({
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/50">
                 Lyric line <span className="text-primary">*</span>
               </label>
-              <input
+              <input aria-label="The one line that defines the song"
                 className={inputClass}
                 value={overlayText}
                 maxLength={60}
@@ -277,7 +277,7 @@ export function CanvasGeneratorSection({
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/50">Loop style</p>
           <div className="grid grid-cols-2 gap-2">
             {styles.map((s) => (
-              <button
+              <button aria-pressed={style === s.key}
                 key={s.key}
                 type="button"
                 onClick={() => setStyle(s.key)}

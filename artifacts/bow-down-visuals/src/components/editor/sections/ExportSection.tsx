@@ -440,7 +440,7 @@ export function ExportSection({
               const avail = isSourceAvailable(opt.value, audioUrl, ms.exports);
               const active = va.source === opt.value;
               return (
-                <button
+                <button aria-pressed={active}
                   key={opt.value}
                   type="button"
                   onClick={() => setVideoAudio({ source: opt.value })}
@@ -585,7 +585,7 @@ export function ExportSection({
               Skip ahead into the track before it plays under the video — great for skipping a silent intro or landing the hook right on scene 1.
             </p>
             <div className="flex gap-2 items-center">
-              <input
+              <input aria-label="Song start point"
                 type="text"
                 value={startSecInput}
                 onChange={(e) => setStartSecInput(e.target.value)}
@@ -696,7 +696,7 @@ export function ExportSection({
               ].map((p) => {
                 const active = (settings.export.format ?? "9:16") === p.format;
                 return (
-                  <button key={p.name} type="button"
+                  <button aria-pressed={active} key={p.name} type="button"
                     onClick={() => setExport({ format: p.format as typeof settings.export.format, resolution: p.resolution as typeof settings.export.resolution })}
                     title={`${p.name}: ${p.desc}`}
                     className={`px-2 py-2 rounded-lg text-left border transition-colors ${
@@ -778,7 +778,7 @@ export function ExportSection({
 
               {/* Upload custom */}
               <div>
-                <input
+                <input aria-label="Upload custom watermark image"
                   ref={wmInputRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -894,7 +894,7 @@ export function ExportSection({
           {/* Mode selector */}
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {RANGE_MODE_OPTIONS.map((opt) => (
-              <button
+              <button aria-pressed={rangeMode === opt.value}
                 key={opt.value}
                 type="button"
                 onClick={() => setExportRange({ mode: opt.value })}
@@ -916,7 +916,7 @@ export function ExportSection({
               <div className="space-y-1">
                 <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">Start time</label>
                 <div className="flex gap-2">
-                  <input
+                  <input aria-label="Start time"
                     type="text"
                     value={customStartInput}
                     onChange={(e) => setCustomStartInput(e.target.value)}
@@ -947,7 +947,7 @@ export function ExportSection({
               <div className="space-y-1">
                 <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">End time</label>
                 <div className="flex gap-2">
-                  <input
+                  <input aria-label="End time"
                     type="text"
                     value={customEndInput}
                     onChange={(e) => setCustomEndInput(e.target.value)}
@@ -1297,7 +1297,7 @@ function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardPro
           {CAPTION_EXPORT_OPTIONS.map((opt) => {
             const active = mode === opt.value;
             return (
-              <button
+              <button aria-pressed={active}
                 key={opt.value}
                 type="button"
                 onClick={() => onChange(opt.value)}

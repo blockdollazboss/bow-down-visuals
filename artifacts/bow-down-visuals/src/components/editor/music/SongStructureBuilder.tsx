@@ -326,7 +326,7 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
             <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
               {t("wave9.structure.vibeLabel")}
             </label>
-            <input
+            <input aria-label={t("wave9.structure.vibeLabel")}
               className={inputClass}
               placeholder={t("wave9.structure.vibePlaceholder")}
               value={vibe}
@@ -337,7 +337,7 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
             <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
               {t("wave9.structure.lyricsLabel")}
             </label>
-            <textarea
+            <textarea aria-label={t("wave9.structure.lyricsLabel")}
               className={`${inputClass} min-h-[90px] resize-y`}
               placeholder={t("wave9.structure.lyricsPlaceholder")}
               value={lyricsText}
@@ -396,7 +396,7 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
           <div className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-2.5">
             <p className="text-xs font-black uppercase tracking-widest text-white/50">{t("wave9.structure.saveHeading")}</p>
             <div className="flex gap-2">
-              <input
+              <input aria-label={t("wave9.structure.namePlaceholder")}
                 className={`${inputClass} !py-2.5`}
                 placeholder={t("wave9.structure.namePlaceholder")}
                 value={savedName}

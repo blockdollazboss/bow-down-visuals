@@ -605,7 +605,7 @@ export function ScreenRecorderPanel({
               <p className="text-[11px] font-black text-white/50 uppercase tracking-widest mb-2">{tr("sourceLabel")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {sourceOptions.map((o) => (
-                  <button
+                  <button aria-pressed={sourceHint === o.id}
                     key={o.id}
                     type="button"
                     onClick={() => setSourceHint(o.id)}
@@ -624,7 +624,7 @@ export function ScreenRecorderPanel({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <button aria-pressed={webcamOn}
                 type="button"
                 onClick={() => setWebcamOn((v) => !v)}
                 className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors ${
@@ -636,7 +636,7 @@ export function ScreenRecorderPanel({
                 {webcamOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
                 {tr(webcamOn ? "webcamOn" : "webcamOff")}
               </button>
-              <button
+              <button aria-pressed={micOn}
                 type="button"
                 onClick={() => setMicOn((v) => !v)}
                 className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors ${
@@ -656,7 +656,7 @@ export function ScreenRecorderPanel({
                 <p className="text-[11px] font-black text-white/50 uppercase tracking-widest">{tr("brandTitle")}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button
+                <button aria-pressed={watermarkOn}
                   type="button"
                   onClick={() => setWatermarkOn((v) => !v)}
                   className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors ${
@@ -667,7 +667,7 @@ export function ScreenRecorderPanel({
                 >
                   {tr(watermarkOn ? "watermarkOn" : "watermarkOff")}
                 </button>
-                <button
+                <button aria-pressed={introOn}
                   type="button"
                   onClick={() => setIntroOn((v) => !v)}
                   className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors ${
@@ -729,7 +729,7 @@ export function ScreenRecorderPanel({
                 <p className="text-[11px] font-black text-white/50 uppercase tracking-widest mb-2">{tr("overlayLabel")}</p>
                 <div className="grid grid-cols-4 gap-2">
                   {corners.map((c) => (
-                    <button
+                    <button aria-pressed={corner === c.id}
                       key={c.id}
                       type="button"
                       onClick={() => { setCorner(c.id); setOverlayPos(CORNER_POS[c.id]); }}

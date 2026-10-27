@@ -196,7 +196,7 @@ export function ThreeSecondLabSection({ openingHint, bare, onApplyOpening }: Thr
               : t("videoEditor.labUploadCta", { defaultValue: "Choose a video clip (MP4/MOV, ≤ 80 MB) — or analyze the timeline opening below" })}
           </button>
         )}
-        <input
+        <input aria-label="Choose a video clip"
           ref={clipInputRef}
           type="file"
           accept="video/*"
@@ -217,7 +217,7 @@ export function ThreeSecondLabSection({ openingHint, bare, onApplyOpening }: Thr
             ? t("videoEditor.labVideoLabelClip", { defaultValue: "Describe your uploaded clip *" })
             : t("videoEditor.labVideoLabel", { defaultValue: "What is the video about? *" })}
         </label>
-        <textarea
+        <textarea aria-label={t("videoEditor.labVideoPh", { defaultValue: "e.g. A luxury lifestyle montage from my latest single…" })}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t("videoEditor.labVideoPh", { defaultValue: "e.g. A luxury lifestyle montage from my latest single…" })}
@@ -229,7 +229,7 @@ export function ThreeSecondLabSection({ openingHint, bare, onApplyOpening }: Thr
         <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
           {t("videoEditor.labNiche", { defaultValue: "Niche (optional)" })}
         </label>
-        <input value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1`} maxLength={120} />
+        <input aria-label={t("videoEditor.labNiche", { defaultValue: "Niche (optional)" })} value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1`} maxLength={120} />
       </div>
 
       {error && <p className="text-xs text-red-400">{error}</p>}

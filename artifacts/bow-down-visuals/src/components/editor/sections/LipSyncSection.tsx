@@ -1999,7 +1999,7 @@ export function LipSyncSection({
               {/* Upload vocal stem */}
               <div className="space-y-2">
                 <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Upload Vocal Stem</p>
-                <input
+                <input aria-label="Upload vocal stem"
                   ref={stemInputRef}
                   type="file"
                   accept="audio/*"
@@ -2079,7 +2079,7 @@ export function LipSyncSection({
                     const isSel = scene.id === (ls.selectedSceneId ?? clipsWithFaces[0]?.id);
                     const status = ce.lipSyncStatus;
                     return (
-                      <button
+                      <button aria-pressed={isSel}
                         key={scene.id}
                         type="button"
                         onClick={() => updateLipSync({ selectedSceneId: scene.id })}
@@ -2883,7 +2883,7 @@ export function LipSyncSection({
                       </div>
                       <div className="flex gap-1">
                         {([-1.0, -0.5, 0, 0.5, 1.0] as const).map((v) => (
-                          <button
+                          <button aria-pressed={audioOffset === v}
                             key={v}
                             type="button"
                             onClick={() => setAudioOffset(v)}
@@ -2920,7 +2920,7 @@ export function LipSyncSection({
                   {/* ── Preview Audio Segment + Validate Timing buttons ── */}
                   {selectedTiming && (
                     <div className="flex gap-2">
-                      <button
+                      <button aria-pressed={isPreviewingAudio}
                         type="button"
                         onClick={previewAudioSegment}
                         disabled={!audioReady}

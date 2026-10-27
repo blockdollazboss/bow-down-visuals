@@ -47,10 +47,10 @@ function TimeFields({ start, end, onStart, onEnd }: {
 }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <input type="number" step={0.1} min={0} value={start} className={num}
+      <input aria-label="Start (seconds)" type="number" step={0.1} min={0} value={start} className={num}
         onChange={(e) => onStart(Number(e.target.value))} title="Start (seconds) — moves the item" />
       <span className="text-white/30 text-[10px]">→</span>
-      <input type="number" step={0.1} min={0} value={end} className={num}
+      <input aria-label="End (seconds)" type="number" step={0.1} min={0} value={end} className={num}
         onChange={(e) => onEnd(Number(e.target.value))} title="End (seconds) — trims the item" />
     </span>
   );
@@ -188,7 +188,7 @@ export function LanesPanel({ settings, setSettings }: {
                     </label>
                   ))}
                 </div>
-                <input
+                <input aria-label="Voice track URL — a vocal stem or uploaded voice recording"
                   value={settings.audioDucking.voiceUrl ?? ""}
                   onChange={(e) => setSettings({ ...settings, audioDucking: { ...settings.audioDucking, voiceUrl: e.target.value.trim() || null } })}
                   placeholder="Voice track URL — a vocal stem or uploaded voice recording"

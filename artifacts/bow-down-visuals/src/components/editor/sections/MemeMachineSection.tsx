@@ -226,7 +226,7 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
               : t("videoEditor.memeMachineUploadCta", { defaultValue: "Choose a meme image (JPG/PNG, ≤ 10 MB)" })}
           </button>
         )}
-        <input
+        <input aria-label="Choose a meme image"
           ref={templateInputRef}
           type="file"
           accept="image/*"
@@ -247,7 +247,7 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
         </p>
         <div className="grid grid-cols-2 gap-2">
           {allFormats.map((f) => (
-            <button
+            <button aria-pressed={formatId === f.id}
               key={f.id}
               type="button"
               onClick={() => setFormatId(f.id)}
@@ -273,7 +273,7 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
         <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
           {t("videoEditor.memeMachineContext", { defaultValue: "Describe the clip moment *" })}
         </label>
-        <textarea
+        <textarea aria-label={t("videoEditor.memeMachineContext", { defaultValue: "Describe the clip moment *" })}
           value={context}
           onChange={(e) => setContext(e.target.value)}
           placeholder={t("videoEditor.memeMachinePh", { defaultValue: "e.g. Me realizing the take was muted the whole time…" })}
@@ -301,7 +301,7 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
             {t("videoEditor.memeMachinePick", { defaultValue: "Pick your punchline" })}
           </p>
           {captions.map((c, i) => (
-            <button
+            <button aria-pressed={picked === i}
               key={i}
               type="button"
               onClick={() => { setPicked(i); setApplied(false); }}

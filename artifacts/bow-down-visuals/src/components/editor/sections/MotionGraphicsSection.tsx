@@ -383,7 +383,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
                 const Icon = tpl.icon;
                 const active = tpl.id === selectedId;
                 return (
-                  <button
+                  <button aria-pressed={active}
                     key={tpl.id}
                     type="button"
                     onClick={() => setSelectedId(tpl.id)}
@@ -439,7 +439,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
             <label className="text-[11px] font-bold text-white/50 block mb-1">
               {t(`motionGraphics.${f.labelKey}`, { defaultValue: f.labelKey })}
             </label>
-            <input
+            <input aria-label={t(`motionGraphics.${f.labelKey}`, { defaultValue: f.labelKey })}
               type="text"
               value={tplTexts[f.key] ?? ""}
               onChange={(e) =>
@@ -456,7 +456,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
             <label className="text-[11px] font-bold text-white/50 block mb-1">
               {t("motionGraphics.textColor", { defaultValue: "Text color" })}
             </label>
-            <input
+            <input aria-label={t("motionGraphics.textColor", { defaultValue: "Text color" })}
               type="color"
               value={tplColors.text}
               onChange={(e) => setColors((prev) => ({ ...prev, [selectedId]: { ...prev[selectedId]!, text: e.target.value } }))}
@@ -467,7 +467,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
             <label className="text-[11px] font-bold text-white/50 block mb-1">
               {t("motionGraphics.accentColor", { defaultValue: "Accent color" })}
             </label>
-            <input
+            <input aria-label={t("motionGraphics.accentColor", { defaultValue: "Accent color" })}
               type="color"
               value={tplColors.accent}
               onChange={(e) => setColors((prev) => ({ ...prev, [selectedId]: { ...prev[selectedId]!, accent: e.target.value } }))}
@@ -502,7 +502,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
           <label className="text-[11px] font-bold text-white/50 block mb-1">
             {t("motionGraphics.duration", { defaultValue: "Duration" })} — {tplDuration}s
           </label>
-          <input
+          <input aria-label={t("motionGraphics.duration", { defaultValue: "Duration" })}
             type="range"
             min={1}
             max={10}

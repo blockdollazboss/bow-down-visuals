@@ -327,7 +327,7 @@ export function BeatSyncSection({
                   className={`flex items-center gap-2 px-3 py-1.5 transition-colors ${m.keep ? "" : "opacity-40"}`}
                   data-testid={`wave9b-marker-${m.id}`}
                 >
-                  <button
+                  <button aria-pressed={m.keep}
                     type="button"
                     onClick={() => toggleKeep(m.id)}
                     title={m.keep ? t(`${ns}.dismissMarker`) : t(`${ns}.keepMarker`)}

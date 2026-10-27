@@ -153,7 +153,7 @@ function ExtendStartField({
       }
     >
       <div className="flex items-center gap-3">
-        <input
+        <input aria-label="Extend from"
           type="range"
           min={5}
           max={end}
@@ -1404,7 +1404,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         {personas.length > 0 && (
           <Field label="Persona" hint="A saved style + voice — applying one loads its sound into the form">
             <div className="flex items-center gap-1.5">
-              <select
+              <select aria-label="Persona"
                 value={activePersonaId ?? ""}
                 onChange={(e) => {
                   const id = e.target.value;
@@ -1450,7 +1450,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         >
           <div className="flex items-center gap-1.5">
             <Mic className="h-4 w-4 shrink-0 text-primary/70" />
-            <select
+            <select aria-label="Singing voice"
               value={voiceId ?? ""}
               onChange={(e) => {
                 const id = e.target.value;
@@ -1503,7 +1503,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                 placeholder="Voice name — e.g. My Stage Voice"
                 testId="input-clone-voice-name"
               />
-              <input
+              <input aria-label="Clone voice sample file"
                 ref={cloneInputRef}
                 type="file"
                 accept="audio/*"
@@ -1668,7 +1668,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                 </button>
               ))}
             </div>
-            <textarea
+            <textarea aria-label="Your lyrics"
               ref={lyricsRef}
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
@@ -1690,7 +1690,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
             {showLyrics && (
               <div className="mt-2">
                 <Field label="Your lyrics" hint="Sung verbatim. Use [Verse], [Chorus] etc. for structure.">
-                  <textarea
+                  <textarea aria-label="Your lyrics"
                     ref={lyricsRef}
                     value={lyrics}
                     onChange={(e) => setLyrics(e.target.value)}
@@ -1939,7 +1939,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
             {openPanel === "replace" && (
               <div className="space-y-3 rounded-xl border border-white/[0.07] bg-black/30 p-3">
                 <Field label="Section to redo">
-                  <select
+                  <select aria-label="Section to redo"
                     value={Math.min(sectionIdx, sections.length - 1)}
                     onChange={(e) => {
                       const idx = Number(e.target.value);
@@ -1968,7 +1968,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                       {sectionRanges.map((r, i) => {
                         const active = i === Math.min(sectionIdx, sections.length - 1);
                         return (
-                          <button
+                          <button aria-pressed={active}
                             key={`${r.name}-${i}`}
                             type="button"
                             disabled={replacing}
@@ -2072,7 +2072,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     {/* ── Upload-your-audio: Finish / Extend / Cover your own track ── */}
     <EditorCard title="Start From Your Track" subtitle="Upload a song or rough demo — finish it, extend it, or cover it" icon={<Upload className="h-4 w-4" />}>
       <div className="space-y-4">
-        <input
+        <input aria-label="Upload your audio track"
           ref={uploadInputRef}
           type="file"
           accept="audio/*,.mp3,.wav,.m4a,.ogg,.oga,.flac,.aac,.opus,.webm"

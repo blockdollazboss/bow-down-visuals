@@ -290,7 +290,7 @@ export function ColorGradeSection({
           <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Clip to grade</p>
           <div className="flex flex-wrap gap-2">
             {clips.map((s) => (
-              <button
+              <button aria-pressed={s.id === activeScene?.id}
                 key={s.id}
                 onClick={() => { setSceneId(s.id); setResult(null); setError(null); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
@@ -356,7 +356,7 @@ export function ColorGradeSection({
                       {hint} · {wheels[key] > 0 ? "+" : ""}{wheels[key]}
                     </span>
                   </div>
-                  <input
+                  <input aria-label={label}
                     type="range"
                     min={-100}
                     max={100}
@@ -404,7 +404,7 @@ export function ColorGradeSection({
             {presets.map((p) => {
               const isGrading = grading === p.key;
               return (
-                <button
+                <button aria-pressed={isGrading}
                   key={p.key}
                   onClick={() => void applyPreset(p.key)}
                   disabled={busy}

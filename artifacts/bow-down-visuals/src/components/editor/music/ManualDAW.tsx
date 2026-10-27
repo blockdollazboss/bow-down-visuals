@@ -280,7 +280,7 @@ export function ManualDAW({
           const Icon = t.icon;
           const active = tab === t.id;
           return (
-            <button
+            <button aria-pressed={active}
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}

@@ -314,7 +314,7 @@ export function LutImportSection({
           <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Clip to grade</p>
           <div className="flex flex-wrap gap-2">
             {clips.map((s) => (
-              <button
+              <button aria-pressed={s.id === activeScene?.id}
                 key={s.id}
                 onClick={() => { setSceneId(s.id); setPreviewUrl(null); setResult(null); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
@@ -336,7 +336,7 @@ export function LutImportSection({
             {presets.map((p) => {
               const active = source?.kind === "preset" && source.preset.id === p.id;
               return (
-                <button
+                <button aria-pressed={active}
                   key={p.id}
                   onClick={() => { setSource({ kind: "preset", preset: p }); setPreviewUrl(null); setResult(null); setError(null); }}
                   className={`rounded-xl border p-2.5 text-left transition-all ${
@@ -361,7 +361,7 @@ export function LutImportSection({
         <div>
           <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Or import your own</p>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <input aria-label="Import your own LUT file"
               ref={fileInputRef}
               type="file"
               accept=".cube,.3dl"

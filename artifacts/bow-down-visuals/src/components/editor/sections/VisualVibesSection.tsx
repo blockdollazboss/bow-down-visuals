@@ -249,7 +249,7 @@ export function VisualVibesSection({ settings, setSettings, bare }: VisualVibesS
         {VIBES.map((vibe) => {
           const isActive = activeVibe?.id === vibe.id;
           return (
-            <button
+            <button aria-pressed={isActive}
               key={vibe.id}
               type="button"
               onClick={() => applyVibe(vibe)}

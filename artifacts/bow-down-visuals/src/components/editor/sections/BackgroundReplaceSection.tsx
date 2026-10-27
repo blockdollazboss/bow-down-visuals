@@ -694,7 +694,7 @@ export function BackgroundReplaceSection({
                       <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1.5">
                         {t(`${ns}.ai.promptLabel`, { defaultValue: "Describe your background" })}
                       </p>
-                      <textarea
+                      <textarea aria-label="Describe your background"
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         rows={2}
@@ -712,7 +712,7 @@ export function BackgroundReplaceSection({
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {AI_STYLE_PRESETS.map((s) => (
-                          <button
+                          <button aria-pressed={aiStyle === s.id}
                             key={s.id}
                             type="button"
                             onClick={() => setAiStyle(s.id)}
@@ -780,7 +780,7 @@ export function BackgroundReplaceSection({
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {BG_PRESETS.map((p) => (
-                  <button
+                  <button aria-pressed={presetId === p.id}
                     key={p.id}
                     type="button"
                     onClick={() => {
@@ -807,7 +807,7 @@ export function BackgroundReplaceSection({
 
             {presetId === "custom" && (
               <div>
-                <input
+                <input aria-label="Upload custom background image"
                   ref={fileRef}
                   type="file"
                   accept="image/*"
@@ -841,14 +841,14 @@ export function BackgroundReplaceSection({
                 </p>
                 {resultUrl && (
                   <div className="flex rounded-lg border border-white/10 overflow-hidden text-[11px] font-bold">
-                    <button
+                    <button aria-pressed={!showAfter}
                       type="button"
                       onClick={() => setShowAfter(false)}
                       className={`px-3 py-1 transition-colors ${!showAfter ? "bg-[#C9A84C]/20 text-[#e8c96a]" : "text-white/40 hover:text-white/70"}`}
                     >
                       {t(`${ns}.before`)}
                     </button>
-                    <button
+                    <button aria-pressed={showAfter}
                       type="button"
                       onClick={() => setShowAfter(true)}
                       className={`px-3 py-1 transition-colors ${showAfter ? "bg-[#C9A84C]/20 text-[#e8c96a]" : "text-white/40 hover:text-white/70"}`}

@@ -133,7 +133,7 @@ export function ColorCurvesPanel({ curves, onChange, videoRef }: {
 
       <div className="flex flex-wrap gap-1.5">
         {CHANNELS.map((c) => (
-          <button key={c.id} type="button" onClick={() => { setChannel(c.id); setSelected(null); }}
+          <button aria-pressed={channel === c.id} key={c.id} type="button" onClick={() => { setChannel(c.id); setSelected(null); }}
             className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-colors ${
               channel === c.id ? "text-black border-transparent" : "border-white/10 text-white/60 hover:text-white"
             }`}

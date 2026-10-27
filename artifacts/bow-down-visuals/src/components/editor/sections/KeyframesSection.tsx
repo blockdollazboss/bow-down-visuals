@@ -116,7 +116,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
       {clips.length > 1 && (
         <div className="flex flex-wrap gap-1.5 mb-4">
           {clips.map((s, i) => (
-            <button
+            <button aria-pressed={activeScene.id === s.id}
               key={s.id}
               type="button"
               onClick={() => { setSceneId(s.id); setSelectedId(null); }}
@@ -171,7 +171,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
             />
             {/* Keyframe diamonds */}
             {keyframes.map((k) => (
-              <button
+              <button aria-pressed={selectedId === k.id}
                 key={k.id}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setSelectedId(k.id); }}
@@ -263,7 +263,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
             <div className="flex flex-wrap items-center gap-1.5">
               <p className="text-[11px] font-bold text-white/60 mr-1">Graph</p>
               {(["scale", "x", "y", "rotation", "opacity"] as const).map((prop) => (
-                <button key={prop} type="button" onClick={() => setGraphProp(prop)}
+                <button aria-pressed={graphProp === prop} key={prop} type="button" onClick={() => setGraphProp(prop)}
                   className={`text-[10px] font-bold px-2 py-1 rounded-full border ${
                     graphProp === prop ? "bg-primary/20 border-primary text-primary" : "border-white/15 text-white/50"
                   }`}>

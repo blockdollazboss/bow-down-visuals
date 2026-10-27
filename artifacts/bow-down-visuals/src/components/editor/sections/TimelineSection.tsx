@@ -208,7 +208,7 @@ export function TimelineSection({
               return (
                 <div key={scene.id}>
                   {/* Scene row — click seeks the master player to this scene */}
-                  <button
+                  <button aria-pressed={isActive}
                     type="button"
                     onClick={() => originalIndex >= 0 && seekToScene(originalIndex)}
                     disabled={!onSeek}
@@ -260,7 +260,7 @@ export function TimelineSection({
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <select
+                          <select aria-label="Clip transition"
                             value={transition}
                             onChange={e => setClipTransition(scene.id, e.target.value)}
                             onClick={e => e.stopPropagation()}
@@ -272,7 +272,7 @@ export function TimelineSection({
                           </select>
 
                           {transition !== "Cut" && (
-                            <select
+                            <select aria-label="Transition duration"
                               value={String(transitionDuration)}
                               onChange={e => setClipTransitionDuration(scene.id, Number(e.target.value))}
                               onClick={e => e.stopPropagation()}

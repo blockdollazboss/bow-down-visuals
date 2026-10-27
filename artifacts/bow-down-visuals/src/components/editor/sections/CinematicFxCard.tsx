@@ -185,7 +185,7 @@ export function CinematicFxCard({
       {/* Scene picker */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[11px] font-semibold text-white/50 shrink-0">Clip</span>
-        <select
+        <select aria-label="Clip"
           value={activeScene?.id ?? ""}
           onChange={(e) => setSceneId(e.target.value)}
           data-testid="cinematic-fx-scene-picker"
@@ -235,7 +235,7 @@ export function CinematicFxCard({
       {/* Intensity */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0">Intensity</span>
-        <input
+        <input aria-label="Intensity"
           type="range" min={10} max={100} value={intensity}
           onChange={(e) => setIntensity(Number(e.target.value))}
           className="flex-1 h-1 min-w-0 cursor-pointer" style={{ accentColor: "#C9A84C" }}
@@ -245,7 +245,7 @@ export function CinematicFxCard({
       </div>
 
       {/* Attribution — free burned tag (virality) */}
-      <button
+      <button aria-pressed={attribution}
         type="button"
         onClick={() => setAttribution(!attribution)}
         data-testid="cinematic-fx-attribution"

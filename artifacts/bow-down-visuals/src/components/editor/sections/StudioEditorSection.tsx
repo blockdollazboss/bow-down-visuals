@@ -689,7 +689,7 @@ export function StudioEditorSection({
                       <label className="text-[9px] text-white/40 uppercase tracking-wider font-bold block mb-1">
                         {label}: {val.toFixed(1)}s
                       </label>
-                      <input type="range" min={0} max={clipDur * 0.45} step={0.1} value={val}
+                      <input aria-label={label} type="range" min={0} max={clipDur * 0.45} step={0.1} value={val}
                         disabled={isLocked}
                         onChange={(e) => updateTrim(key, Number(e.target.value))}
                         className="w-full accent-primary disabled:opacity-40" />

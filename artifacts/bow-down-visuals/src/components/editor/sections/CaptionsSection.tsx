@@ -1189,7 +1189,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           )}
 
           {/* Lyrics textarea */}
-          <textarea
+          <textarea aria-label="Lyrics for captions"
             value={quickLyrics}
             onChange={(e) => { setQuickLyrics(e.target.value); setGenerateStatus(null); }}
             placeholder={
@@ -1207,7 +1207,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
               {SPLIT_STYLE_DEFS.map((s) => {
                 const active = splitStyle === s.id;
                 return (
-                  <button
+                  <button aria-pressed={active}
                     key={s.id}
                     type="button"
                     onClick={() => setCaption("captionSplitStyle", s.id)}
@@ -1547,7 +1547,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">First Vocal Offset</p>
             <div className="flex gap-2">
               <div className="flex-1 relative">
-                <input
+                <input aria-label="First vocal offset (seconds)"
                   type="number"
                   min="0"
                   step="0.5"
@@ -1715,7 +1715,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           {CAPTION_MODE_DEFS.map((m) => {
             const active = c.mode === m.id;
             return (
-              <button
+              <button aria-pressed={active}
                 key={m.id}
                 type="button"
                 onClick={() => setMode(m.id)}
@@ -1795,7 +1795,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                 />
               </Field>
               <Field label="Font" hint="Burned into the export in the same face">
-                <select
+                <select aria-label="Font"
                   value={c.fontFamily || ""}
                   onChange={(e) => setCaption("fontFamily", e.target.value)}
                   className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-bold text-white/80 outline-none focus:border-[#C9A84C]/50 [&>optgroup]:bg-[#141414] [&>option]:bg-[#141414]"
@@ -1864,7 +1864,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
             <Field label="Text Color">
               <div className="flex items-center gap-3">
-                <input
+                <input aria-label="Text Color"
                   type="color"
                   value={c.textColor}
                   onChange={(e) => setCaption("textColor", e.target.value)}
@@ -2032,7 +2032,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       {c.mode === "auto" && (
         <EditorCard title="Full Lyrics" subtitle="Paste full lyrics — captions will be split automatically">
           <div className="space-y-3">
-            <textarea
+            <textarea aria-label="Full lyrics"
               value={c.lyricsText}
               onChange={(e) => setCaption("lyricsText", e.target.value)}
               placeholder={"Paste your lyrics here…\n\nEach phrase becomes one caption.\n[Section headers] are stripped automatically."}
@@ -2049,7 +2049,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
       {c.mode === "hook" && (
         <EditorCard title="Hook Text" subtitle="Type the hook or chorus lines you want to show">
-          <textarea
+          <textarea aria-label="Hook text"
             value={c.hookText}
             onChange={(e) => setCaption("hookText", e.target.value)}
             placeholder={"Type your hook / chorus here…\nOne line per caption."}
@@ -2063,7 +2063,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       {c.mode === "best-bar" && (
         <EditorCard title="Best Bar" subtitle="The one bar you want burned over the entire video">
           <div className="space-y-3">
-            <textarea
+            <textarea aria-label="Type your best bar here…"
               value={c.bestBarText}
               onChange={(e) => setCaption("bestBarText", e.target.value)}
               placeholder="Type your best bar here…"
@@ -2245,7 +2245,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                         : "hover:bg-white/[0.03]"
                     }`}
                   >
-                    <input
+                    <input aria-label={`Caption line ${i + 1} start (seconds)`}
                       type="number"
                       value={line.startSec}
                       min={0}
@@ -2256,7 +2256,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                       title={secToLabel(line.startSec)}
                       className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield]"
                     />
-                    <input
+                    <input aria-label={`Caption line ${i + 1} end (seconds)`}
                       type="number"
                       value={line.endSec}
                       min={0}
@@ -2267,7 +2267,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                       title={line.endSec >= 999 ? "Full video" : secToLabel(line.endSec)}
                       className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield]"
                     />
-                    <input
+                    <input aria-label={`Caption line ${i + 1} text`}
                       type="text"
                       value={line.text}
                       onClick={(e) => e.stopPropagation()}

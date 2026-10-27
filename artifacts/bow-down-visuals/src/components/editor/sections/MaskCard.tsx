@@ -330,7 +330,7 @@ export function MaskCard({
                 {PRESETS.map((preset) => {
                   const active = presetId === preset.id;
                   return (
-                    <button
+                    <button aria-pressed={active}
                       key={preset.id}
                       type="button"
                       onClick={() => applyPreset(preset)}
@@ -359,7 +359,7 @@ export function MaskCard({
             <div className="space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0">{t("videoEditor.mask.feather")}</span>
-                <input
+                <input aria-label={t("videoEditor.mask.feather")}
                   type="range"
                   min={0}
                   max={100}
@@ -385,7 +385,7 @@ export function MaskCard({
                   {t("videoEditor.mask.creditToggle")}
                 </Chip>
               </div>
-              <input
+              <input aria-label={t("videoEditor.mask.textPlaceholder")}
                 type="text"
                 value={text}
                 maxLength={80}
