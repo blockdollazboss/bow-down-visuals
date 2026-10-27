@@ -9,6 +9,7 @@ import {
   type CourtSeasonStanding,
   type CourtSeasonWall as CourtSeasonWallData,
 } from "@/lib/world/court-season";
+import { CrownsChamber } from "./CrownsChamber";
 
 /* ─── The Season Marks Wall (Ring 4 — court seasons) ───────────────
    The Royal Court Chamber's collectible record: every settled
@@ -151,6 +152,8 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
         Marks are honor, not money: earned by published work, exports, followers, streams, tips,
         sales and memberships during the season. No Visual Bucs change hands on this wall.
       </p>
+
+      <CrownsChamber isLight={isLight} />
     </div>
   );
 }
