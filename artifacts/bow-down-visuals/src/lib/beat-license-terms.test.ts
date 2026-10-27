@@ -1,11 +1,14 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   defaultTermsForTier,
   describeTerms,
   describeTermsInline,
   formatLabel,
+  saleTermsFromRow,
   templateTerms,
   type BeatLicenseTemplate,
+  type BeatLicenseTerms,
 } from "./beat-license-terms";
 
 describe("beat license terms display", () => {
@@ -77,5 +80,40 @@ describe("beat license terms display", () => {
     expect(terms.termYears).toBe(5);
     expect(terms.territory).toBe("US");
     expect(formatLabel("wav_mp3_stems")).toBe("WAV + MP3 + stems");
+  });
+});
+
+describe("saleTermsFromRow — the dashboard's raw-row snapshot", () => {
+  const sold: BeatLicenseTerms = {
+    ...defaultTermsForTier("basic"),
+    name: "Lease Plus",
+    streamsCap: 250_000,
+  };
+
+  it("reads terms_snapshot from a raw dashboard sale row", () => {
+    /* GET /beats/mine/dashboard returns raw beat_licenses rows: the
+       snapshot is terms_snapshot, and a row read only for `terms`
+       renders no sold terms at all (the bug this normalizer fixes). */
+    expect(saleTermsFromRow({ terms_snapshot: sold })).toEqual(sold);
+    expect(saleTermsFromRow({ terms_snapshot: sold })?.name).toBe("Lease Plus");
+  });
+
+  it("reads terms from a license DTO row", () => {
+    expect(saleTermsFromRow({ terms: sold })).toEqual(sold);
+  });
+
+  it("the DTO name wins when both are present, and empty rows give null", () => {
+    const dtoTerms: BeatLicenseTerms = { ...sold, name: "DTO Terms" };
+    expect(saleTermsFromRow({ terms: dtoTerms, terms_snapshot: sold })?.name).toBe("DTO Terms");
+    expect(saleTermsFromRow({})).toBeNull();
+    expect(saleTermsFromRow({ terms: null, terms_snapshot: null })).toBeNull();
+    /* A pre-0188 sale has no snapshot at all — null, never invented terms. */
+    expect(saleTermsFromRow({ terms_snapshot: null })).toBeNull();
+  });
+
+  it("the beats page normalizes dashboard sales through it", () => {
+    const page = readFileSync(new URL("../pages/beats.tsx", import.meta.url), "utf8");
+    expect(page).toContain("saleTermsFromRow(s)");
+    expect(page).toContain("describeTermsInline(s.terms)");
   });
 });

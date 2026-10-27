@@ -44,6 +44,20 @@ export interface BeatLicenseTemplate {
   updatedAt: string;
 }
 
+/** The sold terms on a license/sale row, whichever shape the row
+    arrived in. License DTOs (purchase verify, GET /beats/licenses/mine)
+    call the purchase-time snapshot `terms`; the producer dashboard
+    (GET /beats/mine/dashboard) returns raw license rows, where the same
+    snapshot rides `terms_snapshot`. Reading only `terms` silently
+    drops the sold terms on dashboard rows — normalize here so every
+    surface renders the terms exactly as sold. */
+export function saleTermsFromRow(row: {
+  terms?: BeatLicenseTerms | null;
+  terms_snapshot?: BeatLicenseTerms | null;
+}): BeatLicenseTerms | null {
+  return row.terms ?? row.terms_snapshot ?? null;
+}
+
 export function templateTerms(t: BeatLicenseTemplate): BeatLicenseTerms {
   return {
     name: t.name,

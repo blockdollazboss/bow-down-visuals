@@ -21,6 +21,7 @@ import {
   defaultTermsForTier,
   describeTermsInline,
   formatLabel,
+  saleTermsFromRow,
   templateTerms,
   type BeatLicenseTemplate,
   type BeatLicenseTerms,
@@ -76,6 +77,10 @@ interface License {
   /** The purchased terms snapshot (0188) — buyer surfaces render the
       terms from this copy, never from the live template. */
   terms?: BeatLicenseTerms | null;
+  /** The same snapshot under its raw-row name: the dashboard payload
+      carries raw license rows (terms_snapshot), the license DTOs carry
+      terms. fetchDashboard normalizes both into `terms`. */
+  terms_snapshot?: BeatLicenseTerms | null;
   price_cents: number;
   status: string;
   created_at: string;
@@ -226,7 +231,10 @@ export default function Beats() {
       if (!res.ok) throw new Error("load failed");
       const data = await res.json() as { beats?: Beat[]; sales?: License[]; stats?: typeof stats };
       setMyBeats(data.beats ?? []);
-      setSales(data.sales ?? []);
+      /* Dashboard sales are raw license rows: their sold terms ride
+         terms_snapshot, not the DTO's `terms` — normalize so the sales
+         list renders the terms exactly as sold (it silently never did). */
+      setSales((data.sales ?? []).map((s) => ({ ...s, terms: saleTermsFromRow(s) })));
       setStats(data.stats ?? null);
       dashLoadedRef.current = true;
       setSectionStates((prev) => settleSection(prev, "dashboard", true));
