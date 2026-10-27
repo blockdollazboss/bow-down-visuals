@@ -122,6 +122,14 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
      dispatch refuses them. Plain uuid (no FK) — the FK lives on
      email_automations.campaign_id, one direction only, no cycle. */
   automationId: uuid("automation_id"),
+  /* When the row last entered the `queued` state (stamped by every
+     route that queues a campaign; provisional migration
+     9999_g6_schema_drift_repair). The campaign drain's stale-queue
+     gate (QC-200 G6, lib/email-campaign-sender.ts) anchors on this:
+     rows with no stamp predate the gate and rows whose stamp is older
+     than the gate window are HELD (status "held_stale") instead of
+     sending — a deliberate re-queue re-stamps and releases the hold. */
+  queuedAt:  timestamp("queued_at", { withTimezone: true }),
   sentAt:    timestamp("sent_at", { withTimezone: true }),
   recipientCount: integer("recipient_count").notNull().default(0),
   /* Measured counters (migration 0189): delivered = provider accepted;
@@ -140,7 +148,7 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaignsTable)
     body: z.string().min(1, "Body is required.").max(50000),
     /* Full server-side vocabulary. The API route narrows what a client
        may request to "draft" | "queued" — the rest are sender-stamped. */
-    status: z.enum(["draft", "queued", "sending", "sent", "failed"]).default("draft"),
+    status: z.enum(["draft", "queued", "sending", "sent", "failed", "held_stale"]).default("draft"),
     kind: z.enum(["campaign"]).default("campaign"),
   });
 export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;

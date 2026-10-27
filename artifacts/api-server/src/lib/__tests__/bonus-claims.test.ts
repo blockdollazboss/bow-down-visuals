@@ -217,7 +217,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return {
     ...actual,
     db: {
-      // ensureBonusColumns + the wheel_spins analytics insert: best-effort
+      // ensureWheelSpinsTable + the wheel_spins analytics insert: best-effort
       // in production, no-ops here.
       execute: async () => [],
       insert: (table: unknown) => {

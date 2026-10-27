@@ -40,46 +40,51 @@ export const WHEEL_SEGMENTS: WheelSegment[] = [
   { credits: 20000, weight: 0.1, label: "JACKPOT", isJackpot: true },
 ];
 
-let bonusColumnsEnsured = false;
+/* ── Where the bonus columns live (QC-200 G6 fix) ────────────────────────
+   The bonus/streak columns (bonus_credits, daily_streak, last_daily_claim,
+   last_wheel_spin, streak_freezes, …) live on the SUPABASE `profiles`
+   table, and every read/write of them in this module goes through the
+   Supabase client — never through DATABASE_URL. Their DDL is owned by the
+   Supabase-side migrations (supabase/migrations/0054_bonus_columns.sql +
+   0056_streak_freezes.sql, run in the Supabase SQL Editor).
+
+   The old ensureBonusColumns() ran `ALTER TABLE profiles …` against
+   DATABASE_URL (Render Postgres) — a different database that has no
+   `profiles` relation in production — so every bonus request logged
+   `relation "profiles" does not exist` (production logs, Oct 25 ~20:58)
+   and, because the ALTER shared one statement string with the
+   wheel_spins CREATE, the wheel_spins table was never created either.
+   The runtime ALTER is gone: no DDL against a foreign database, and the
+   one table this module DOES write through DATABASE_URL (wheel_spins,
+   the spin analytics log) gets its own ensure below. */
+
+let wheelSpinsEnsured = false;
 
 /**
- * Best-effort: adds bonus/streak columns to the Supabase `profiles` table if
- * missing. NOTE — this ALTER runs against DATABASE_URL (Render Postgres in
- * production), which is a DIFFERENT database from the Supabase project that
- * serves the `profiles` table. It only takes effect in setups where
- * DATABASE_URL *is* the Supabase Postgres. The authoritative fix is the
- * Supabase-side migration: supabase/migrations/0054_bonus_columns.sql
- * (run once in the Supabase SQL Editor). Failures here are logged, not
- * thrown, so a wrong-DB ALTER can never take down the bonus endpoints —
- * the subsequent Supabase query will surface the real error instead.
+ * Best-effort: creates the wheel_spins analytics table in the
+ * DATABASE_URL database if missing — the same database spinWheel()
+ * inserts into. Failures are logged, not thrown: the insert site is
+ * already best-effort, so a missing table can never take down a spin
+ * that already paid out.
  */
-export async function ensureBonusColumns(): Promise<void> {
-  if (bonusColumnsEnsured) return;
+export async function ensureWheelSpinsTable(): Promise<void> {
+  if (wheelSpinsEnsured) return;
   try {
-    await db.execute(sql.raw(`
-    ALTER TABLE profiles
-      ADD COLUMN IF NOT EXISTS bonus_credits INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS bonus_credits_expires_at TIMESTAMPTZ NULL,
-      ADD COLUMN IF NOT EXISTS daily_streak INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS last_daily_claim DATE NULL,
-      ADD COLUMN IF NOT EXISTS last_wheel_spin TIMESTAMPTZ NULL,
-      ADD COLUMN IF NOT EXISTS streak_freezes INTEGER NOT NULL DEFAULT 0;
-    CREATE TABLE IF NOT EXISTS wheel_spins (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL,
-      spun_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      prize_credits INTEGER NOT NULL,
-      was_jackpot BOOLEAN NOT NULL DEFAULT FALSE
-    );
-    CREATE INDEX IF NOT EXISTS idx_wheel_spins_user ON wheel_spins(user_id);
-  `));
-    bonusColumnsEnsured = true;
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS wheel_spins (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL,
+        spun_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        prize_credits INTEGER NOT NULL,
+        was_jackpot BOOLEAN NOT NULL DEFAULT FALSE
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_wheel_spins_user ON wheel_spins(user_id)
+    `);
+    wheelSpinsEnsured = true;
   } catch (err) {
-    logger.warn(
-      { err },
-      "ensureBonusColumns: runtime ALTER failed — expected when DATABASE_URL is not the Supabase DB; " +
-        "run supabase/migrations/0054_bonus_columns.sql in the Supabase SQL Editor instead",
-    );
+    logger.warn({ err }, "ensureWheelSpinsTable: CREATE failed — wheel_spins log inserts will fail until it exists");
   }
 }
 
@@ -94,7 +99,6 @@ export interface BonusProfile {
 }
 
 export async function getBonusProfile(userId: string): Promise<BonusProfile> {
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("profiles")
@@ -115,7 +119,6 @@ export async function getBonusProfile(userId: string): Promise<BonusProfile> {
 /** Adds bonus credits, extending expiry to 48h from now. */
 export async function addBonusCredits(userId: string, amount: number): Promise<void> {
   if (amount <= 0) return;
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const expiresAt = new Date(Date.now() + BONUS_EXPIRY_HOURS * 3600 * 1000).toISOString();
 
@@ -206,7 +209,6 @@ export interface DailyClaimResult {
 }
 
 export async function claimDailyBonus(userId: string): Promise<DailyClaimResult> {
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
   const today = utcToday();
 
@@ -422,7 +424,6 @@ export function pickWheelSegment(random: number = Math.random()): WheelSegment {
 }
 
 export async function spinWheel(userId: string): Promise<WheelSpinResult> {
-  await ensureBonusColumns();
   const admin = getSupabaseAdmin();
 
   const { data: profile, error } = await admin
@@ -485,10 +486,11 @@ export async function spinWheel(userId: string): Promise<WheelSpinResult> {
 
   // Analytics log (best-effort; never blocks the prize).
   try {
-    await db.execute(sql.raw(`
+    await ensureWheelSpinsTable();
+    await db.execute(sql`
       INSERT INTO wheel_spins (user_id, prize_credits, was_jackpot)
-      VALUES ('${userId}', ${segment.credits}, ${segment.isJackpot ? "TRUE" : "FALSE"});
-    `));
+      VALUES (${userId}, ${segment.credits}, ${segment.isJackpot ?? false})
+    `);
   } catch (e) {
     logger.warn({ userId, err: (e as Error).message }, "[bonus] wheel_spins log failed");
   }
