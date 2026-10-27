@@ -261,6 +261,7 @@ import retentionRouter from "./retention";
 import soundPrefsRouter from "./sound-prefs";
 import livePrefsRouter from "./live-prefs";
 import liveHighlightsRouter from "./live-highlights";
+import liveStageManagerRouter from "./live-stage-manager";
 import pitchFixRouter from "./pitch-fix";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
@@ -630,6 +631,7 @@ router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
 router.use(livePrefsRouter);             // /api/live-prefs (live automation switches, UPGRADE #172/#166)
 router.use(liveHighlightsRouter);        // /api/live-streams/:id/highlights (Auto-Highlights proposals, UPGRADE #172)
+router.use(liveStageManagerRouter);       // /api/live-streams/:id/stage-manager (co-host state/mute/unpin, UPGRADE #166)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)

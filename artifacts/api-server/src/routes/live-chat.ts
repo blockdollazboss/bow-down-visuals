@@ -20,8 +20,19 @@ import { isTicketed, canEnterStream, ticketDoorInfo, countActiveTickets } from "
 import { sweepIfLarge } from "../lib/sweep-map";
 import { awardChatPoints } from "../lib/loyalty";
 import { queueKeywordComment } from "../lib/keyword-automations";
-import { chatAutomodRulesTable, chatModActionsTable } from "@workspace/db";
+import { chatAutomodRulesTable, chatModActionsTable, liveStageManagerStateTable } from "@workspace/db";
 import { evaluateAutomod } from "../lib/automod";
+import {
+  deliverStageFlag,
+  drizzleStageManagerStore,
+  evaluateChatMessage,
+  evaluateTip,
+  evaluateViewerCount,
+  loadStageGate,
+  stageMemoryFor,
+  type StageAction,
+} from "../lib/stage-manager";
+import { THY_CHEAT_CODE_USER_ID } from "../lib/kings-welcome";
 
 /** Stack 10 #4: record a moderation action in the unified console log.
  *  Best-effort by design — logging must never fail the action itself. */
@@ -59,6 +70,116 @@ export async function logModAction(entry: { profileId: string; streamId: string;
 const router = Router();
 
 const MAX_LIVE_MS = 12 * 60 * 60 * 1000; // matches live-streams' lifecycle cap
+/* ── Stage Manager (#166): the co-host's pin + action execution ───────
+   The co-host pin lives in live_stage_manager_state (separate from a
+   tip's paid pin — paid pins always outrank it and the two never
+   fight: the co-host only pins when no paid pin is up). */
+
+export interface StagePinDto {
+  message: LiveChatMessageDto;
+  pinnedUntil: string;
+}
+
+export async function getActiveStagePin(streamId: string): Promise<StagePinDto | null> {
+  const rows = await db
+    .select()
+    .from(liveStageManagerStateTable)
+    .where(eq(liveStageManagerStateTable.stream_id, streamId))
+    .limit(1);
+  const state = rows[0];
+  if (!state?.pinned_message_id || !state.pinned_until) return null;
+  if (new Date(state.pinned_until).getTime() <= Date.now()) return null;
+  const msgRows = await db
+    .select()
+    .from(liveChatMessagesTable)
+    .where(and(eq(liveChatMessagesTable.id, state.pinned_message_id), isNull(liveChatMessagesTable.deleted_at)))
+    .limit(1);
+  if (!msgRows[0]) return null;
+  const message = (await chatMessageDtos(msgRows))[0];
+  if (!message) return null;
+  return { message, pinnedUntil: new Date(state.pinned_until).toISOString() };
+}
+
+type StageStreamRef = { id: string; user_id: string; title: string };
+
+async function executeStageActions(stream: StageStreamRef, actions: StageAction[]): Promise<void> {
+  for (const action of actions) {
+    try {
+      if (action.type === "drop_link") {
+        const full = `${action.rule.label} — ${action.rule.url}`;
+        const body = full.length <= 500 ? full : action.rule.url;
+        const inserted = await db
+          .insert(liveChatMessagesTable)
+          .values({ stream_id: stream.id, user_id: THY_CHEAT_CODE_USER_ID, body })
+          .returning();
+        if (inserted[0]) {
+          const dto = (await chatMessageDtos(inserted))[0];
+          if (dto) liveChatHub.broadcast(stream.id, { type: "message", message: dto });
+        }
+      } else if (action.type === "pin") {
+        const until = new Date(Date.now() + action.durationMs);
+        await drizzleStageManagerStore.setPin(stream.id, action.messageId, until);
+        const stagePinned = await getActiveStagePin(stream.id).catch(() => null);
+        liveChatHub.broadcast(stream.id, { type: "stage_pin_updated", stagePinned });
+      } else if (action.type === "sting") {
+        liveChatHub.broadcast(stream.id, { type: "stage_sting", milestone: action.milestone });
+      } else if (action.type === "flag") {
+        await deliverStageFlag(
+          drizzleStageManagerStore,
+          { id: stream.id, ownerUserId: stream.user_id, title: stream.title },
+          action,
+        );
+      }
+    } catch (err) {
+      logger.error({ err, streamId: stream.id, action: action.type }, "stage-manager: action delivery failed");
+    }
+  }
+}
+
+async function runStageManager(
+  stream: StageStreamRef,
+  evaluate: (gate: Awaited<ReturnType<typeof loadStageGate>>, mem: ReturnType<typeof stageMemoryFor>) => StageAction[],
+): Promise<void> {
+  try {
+    const gate = await loadStageGate(drizzleStageManagerStore, { id: stream.id, ownerUserId: stream.user_id });
+    const actions = evaluate(gate, stageMemoryFor(stream.id));
+    if (actions.length > 0) await executeStageActions(stream, actions);
+  } catch (err) {
+    logger.error({ err, streamId: stream.id }, "stage-manager: evaluation failed");
+  }
+}
+
+/** Fire-and-forget after a chat message lands (from the POST route). */
+export function stageManagerChatFollowUp(stream: StageStreamRef, row: LiveChatMessage): void {
+  void runStageManager(stream, (gate, mem) =>
+    evaluateChatMessage(
+      gate,
+      mem,
+      { id: stream.id, ownerUserId: stream.user_id },
+      {
+        id: row.id,
+        userId: row.user_id,
+        body: row.body,
+        kind: row.kind === "tip" ? "tip" : "chat",
+        tipAmountVb: row.tip_amount_vb ?? null,
+      },
+    ),
+  );
+}
+
+/** Fire-and-forget after a tip lands (from the tips route). */
+export function stageManagerTipFollowUp(
+  stream: StageStreamRef,
+  tip: { messageId: string | null; amountVb: number; paidPinActive: boolean },
+): void {
+  void runStageManager(stream, (gate, mem) => evaluateTip(gate, mem, tip));
+}
+
+/** Fire-and-forget off the heartbeat's fresh viewer count. */
+export function stageManagerViewerFollowUp(stream: StageStreamRef, viewerCount: number): void {
+  void runStageManager(stream, (gate, mem) => evaluateViewerCount(gate, mem, viewerCount));
+}
+
 const HISTORY_LIMIT = 100;
 const MAX_BODY_CHARS = 500;
 const POST_INTERVAL_MS = 1500;
@@ -272,6 +393,7 @@ router.get("/live/:id/chat", publicApiLimiter, async (req: Request, res: Respons
       messages: await toDtos(rows),
       hasMore,
       pinned: await getActivePin(stream.id).catch(() => null),
+      stagePinned: await getActiveStagePin(stream.id).catch(() => null),
       moderatorIds: await getModeratorIds(stream.profile_id).catch(() => [] as string[]),
     });
   } catch (err) {
@@ -372,6 +494,10 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
 
     const dto = (await toDtos([row]))[0];
     liveChatHub.broadcast(stream.id, { type: "message", message: dto });
+    /* Stage Manager (#166): the co-host reads the room off every
+       landed message — link drops, trouble flags — fire-and-forget,
+       it can never fail the chatter's own post. */
+    stageManagerChatFollowUp(stream, row);
     // Loyalty (Stack 9 #6): chatting earns the channel's points —
     // fire-and-forget, it can never fail the message itself.
     void awardChatPoints(userId, stream.profile_id, stream.user_id);

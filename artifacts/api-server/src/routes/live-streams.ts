@@ -47,6 +47,7 @@ import {
   generateHighlightProposals,
 } from "../lib/auto-highlights";
 import { stopAllRelays } from "../lib/multistream";
+import { stageManagerViewerFollowUp } from "./live-chat";
 import { attemptFanOut } from "../lib/fanout";
 import { fanOutGoLiveAlerts } from "../lib/live-alerts";
 import {
@@ -1592,6 +1593,9 @@ router.post("/live-streams/:id/heartbeat", publicApiLimiter, async (req: Request
       }
     }
     const count = touchViewer(row.id, parsed.data.session_id);
+    /* Stage Manager (#166): viewer milestones sting off the fresh
+       count — fire-and-forget, a heartbeat never waits on it. */
+    stageManagerViewerFollowUp(row, count);
     // Viewer samples for the post-stream summary's average: one row
     // per stream per SAMPLE_MS window (not one per heartbeat), written
     // off the response path — a sample failure never fails a view.
