@@ -11,7 +11,7 @@ import {
   challengeWinnersTable,
   notificationsTable,
 } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto } from "./challenge-engine";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -296,7 +296,6 @@ router.get("/shorts/king-duet", feedLimiter, async (req, res) => {
   try {
     const clips = await db.execute(sql`
       SELECT pv.id, pv.title, pv.video_url, pv.thumbnail_url, pv.view_count, pv.like_count, pv.created_at,
-             (SELECT COUNT(*)::int FROM profile_videos d WHERE d.duet_with = pv.id AND d.is_published = true) AS duet_count,
              cp.id AS creator_id, cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar
       FROM profile_videos pv
       JOIN creator_profiles cp ON cp.id = pv.profile_id
@@ -304,6 +303,18 @@ router.get("/shorts/king-duet", feedLimiter, async (req, res) => {
       ORDER BY pv.created_at DESC
       LIMIT 12
     `);
+    /* Duet counts via the builder (one grouped pass in JS over the
+       ≤12 open clips) — no correlated subquery needed on this rail. */
+    const clipIds = (clips.rows as Record<string, unknown>[]).map((r) => String(r["id"]));
+    const duetCounts = new Map<string, number>();
+    if (clipIds.length) {
+      const childRows = await db.select({ duetWith: profileVideosTable.duetWith })
+        .from(profileVideosTable)
+        .where(and(inArray(profileVideosTable.duetWith, clipIds), eq(profileVideosTable.isPublished, true)));
+      for (const c of childRows) {
+        if (c.duetWith) duetCounts.set(c.duetWith, (duetCounts.get(c.duetWith) ?? 0) + 1);
+      }
+    }
     const featured = await db.execute(sql`
       SELECT pv.id, pv.title, pv.video_url, pv.thumbnail_url, pv.view_count, pv.like_count,
              pv.king_featured_at, pv.created_at,
@@ -331,7 +342,7 @@ router.get("/shorts/king-duet", feedLimiter, async (req, res) => {
         : null,
       open_clips: clipRows.map((r) => ({
         id: r["id"], title: r["title"], video_url: r["video_url"], thumbnail_url: r["thumbnail_url"],
-        view_count: num(r["view_count"]), like_count: num(r["like_count"]), duet_count: num(r["duet_count"]),
+        view_count: num(r["view_count"]), like_count: num(r["like_count"]), duet_count: duetCounts.get(String(r["id"])) ?? 0,
         duets_enabled: true,
         creator: { id: r["creator_id"], slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"], is_official: true },
         created_at: r["created_at"],
