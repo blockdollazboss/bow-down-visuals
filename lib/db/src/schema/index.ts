@@ -164,6 +164,7 @@ export * from "./coach-tracker";
 export * from "./content-reports";
 export * from "./operator-actions";
 export * from "./payment-reversals";
+export * from "./pending-payout-ledger";
 export * from "./clip-charge-obligations";
 export * from "./website-builder-projects";
 export * from "./api-keys";

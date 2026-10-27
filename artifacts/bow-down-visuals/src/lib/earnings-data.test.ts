@@ -18,6 +18,7 @@ const good = {
   partial: false,
   sources: {
     storeSales: { status: "ok", totalCents: 2000, count: 4, breakdown: { profileStoreCents: 1500, shopSalesCents: 500 } },
+    beats: { status: "ok", totalCents: 2549, count: 1, grossCents: 2999, commissionCents: 450 },
     memberships: { status: "ok", totalCents: 1200, count: 2 },
     brandDeals: { status: "ok", totalCents: 1000, count: 1 },
     tips: { status: "ok", streamTipsVb: 300, streamTipCount: 3, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "open" },
@@ -51,6 +52,20 @@ describe("normalizeEarningsResponse", () => {
     const d = normalizeEarningsResponse({ totalCents: 0, totalTipsVb: null });
     expect(d?.sources.tips.status).toBe("error");
     expect(d?.partial).toBe(true);
+  });
+  it("beat income rides its own source with the commission split (payfix store-dashboards)", () => {
+    const d = normalizeEarningsResponse(good);
+    expect(d?.sources.beats.status).toBe("ok");
+    if (d?.sources.beats.status === "ok") {
+      expect(d.sources.beats.totalCents).toBe(2549);
+      expect(d.sources.beats.grossCents).toBe(2999);
+      expect(d.sources.beats.commissionCents).toBe(450);
+    }
+    /* A payload from before the beats source existed degrades that one
+       card to its error state — never a fabricated $0. */
+    const legacy = normalizeEarningsResponse({ ...good, sources: { ...good.sources, beats: undefined } });
+    expect(legacy?.sources.beats.status).toBe("error");
+    expect(legacy?.partial).toBe(true);
   });
 });
 
@@ -190,6 +205,7 @@ describe("loadEarnings", () => {
       partial: false,
       sources: {
         storeSales: { status: "ok", totalCents: 0, count: 0, breakdown: { profileStoreCents: 0, profileStoreOrders: 0, shopSalesCents: 0, shopSales: 0 } },
+        beats: { status: "ok", totalCents: 0, count: 0, grossCents: 0, commissionCents: 0 },
         memberships: { status: "ok", totalCents: 0, count: 0 },
         brandDeals: { status: "ok", totalCents: 0, count: 0 },
         tips: { status: "ok", streamTipsVb: 0, streamTipCount: 0, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "pending_payment" },

@@ -45,6 +45,16 @@ CREATE TABLE live_stream_tips (
   id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0,
   creator_credited_at timestamptz
 );
+CREATE TABLE digital_sales (
+  id uuid PRIMARY KEY, profile_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
+  platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0,
+  stripe_session_id text, status text NOT NULL DEFAULT 'completed'
+);
+CREATE TABLE beat_licenses (
+  id uuid PRIMARY KEY, producer_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0,
+  commission_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment',
+  stripe_session_id text
+);
 CREATE TABLE sponsor_payouts (
   id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'released'
@@ -90,6 +100,7 @@ describe("GET /earnings", () => {
     expect(json.totalTipsVb).toBe(0);
     expect(json.partial).toBe(false);
     expect(json.sources.storeSales).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
+    expect(json.sources.beats).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.memberships).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.brandDeals).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.tips).toMatchObject({ status: "ok", streamTipsVb: 0, tipJarPendingCents: 0 });
@@ -107,6 +118,8 @@ describe("GET /earnings", () => {
     await db.execute(sql`INSERT INTO fan_members (id, user_id, price_cents, stripe_session_id) VALUES (${randomUUID()}, ${OTHER}, 9900, 'cs_2')`);
     await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${USER}, 500, now())`);
     await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${USER}, 300, NULL)`);
+    await db.execute(sql`INSERT INTO beat_licenses (id, producer_id, price_cents, commission_cents, status) VALUES (${randomUUID()}, ${USER}, 2999, 450, 'completed')`);
+    await db.execute(sql`INSERT INTO beat_licenses (id, producer_id, price_cents, commission_cents, status) VALUES (${randomUUID()}, ${OTHER}, 9999, 1500, 'completed')`);
     await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status) VALUES (${randomUUID()}, ${USER}, 8500, 'released')`);
     await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status) VALUES (${randomUUID()}, ${USER}, 1000, 'pending')`);
 
@@ -115,12 +128,14 @@ describe("GET /earnings", () => {
     expect(json.sources.storeSales.totalCents).toBe(10800);
     expect(json.sources.storeSales.count).toBe(2);
     expect(json.sources.storeSales.breakdown).toMatchObject({ profileStoreCents: 9000, shopSalesCents: 1800 });
+    // beats: the producer's completed license nets price - 15% commission; other producers excluded
+    expect(json.sources.beats).toMatchObject({ totalCents: 2549, count: 1, grossCents: 2999, commissionCents: 450 });
     // memberships: only the paid-checkout row (stripe_session_id set), not the free/manual row, not other users'
     expect(json.sources.memberships).toMatchObject({ totalCents: 1500, count: 1 });
     // brand deals: released net only
     expect(json.sources.brandDeals).toMatchObject({ totalCents: 8500, count: 1 });
-    // total USD = 10800 + 1500 + 8500; VB tips NOT folded in
-    expect(json.totalCents).toBe(20800);
+    // total USD = 10800 + 2549 (beats) + 1500 + 8500; VB tips NOT folded in
+    expect(json.totalCents).toBe(23349);
     // stream tips: only the credited tip counts
     expect(json.totalTipsVb).toBe(500);
     expect(json.sources.tips.streamTipCount).toBe(1);

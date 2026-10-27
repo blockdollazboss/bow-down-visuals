@@ -16,6 +16,7 @@ import {
   getUserEmail,
 } from "../lib/stripe-connect";
 import { saleSplitAdjustments } from "../lib/sale-splits";
+import { readPendingPayoutForSeller } from "../lib/seller-earnings";
 
 const router = Router();
 
@@ -228,7 +229,16 @@ router.get("/connect/status", requireAuth, publicApiLimiter, async (req, res) =>
         logger.warn({ err, profileId }, "[connect] live status check failed — using stored flags");
       }
     }
-    const pending = await pendingPayoutCents(profileId);
+    /* The pending figure is THE LEDGER READ (lib/seller-earnings,
+       payfix store-dashboards): the same number GET
+       /api/earnings/pending-payout returns, beats included. The old
+       pendingPayoutCents formula never counted beat income and read
+       $0.00 for sellers whose sales were real (Oct 26 state check).
+       It remains only as the payout ACTION's internal helper for the
+       sibling payout-build lane; this displayed figure is the ledger
+       read, and a ledger failure 500s honestly above — never a fake 0. */
+    const pendingRead = await readPendingPayoutForSeller(req.userId!);
+    const pending = pendingRead.pendingCents;
     res.json({
       connected: !!fields.accountId,
       accountId: fields.accountId,
@@ -236,6 +246,15 @@ router.get("/connect/status", requireAuth, publicApiLimiter, async (req, res) =>
       chargesEnabled: live?.chargesEnabled ?? fields.chargesEnabled,
       payoutsEnabled: live?.payoutsEnabled ?? fields.payoutsEnabled,
       pendingCents: pending,
+      pendingLedger: {
+        accruedCents: pendingRead.accruedCents,
+        reversedCents: pendingRead.reversedCents,
+        sponsorReleasedCents: pendingRead.sponsorReleasedCents,
+        settledCents: pendingRead.settledCents,
+        coSellerAdjustCents: pendingRead.coSellerAdjustCents,
+        accrualCount: pendingRead.accrualCount,
+        reversalCount: pendingRead.reversalCount,
+      },
       minPayoutCents: MIN_PAYOUT_CENTS,
       testMode: isTestMode(),
     });
