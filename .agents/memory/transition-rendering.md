@@ -26,7 +26,7 @@ whole job; the renderer was already there.
 - Transitions are preview-only — they are NOT part of the FFmpeg effects export
   pipeline.
 
-# Export transition boundary mapping (Export Doctor)
+# Export transition boundary mapping
 
 `AppliedTransition.sceneIndex` is the DESTINATION scene — the transition INTO
 scene N (scene 0 is always "Cut", nothing transitions into it). When mapping

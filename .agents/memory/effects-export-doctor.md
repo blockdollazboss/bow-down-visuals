@@ -3,7 +3,7 @@ name: Effects export via CSS→FFmpeg parity
 description: How saved Auto AI visual effects are exported and why the real export does not burn them.
 ---
 
-# Effects export (Export Doctor)
+# Effects export
 
 The real video export does NOT burn the saved Auto AI visual effects into the file — they are CSS-only in the master player preview. There is an explicit skip in the real export pipeline noting vignette/film-grain/etc. are "too complex... CSS-only in preview." So there is no shared effect→FFmpeg mapping in the real export to reuse.
 
