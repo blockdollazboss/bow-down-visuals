@@ -155,6 +155,7 @@ import trustRouter from "./trust";
 import membershipsRouter from "./generate/memberships";
 import podcastRouter from "./generate/podcast";
 import podcastDialogueRouter from "./generate/podcast-dialogue";
+import podcastMultiplierRouter from "./generate/podcast-multiplier";
 import pressKitRouter from "./generate/press-kit";
 import pressReleaseRouter from "./generate/press-release";
 import royaltiesRouter from "./generate/royalties";
@@ -527,6 +528,7 @@ router.use(trustRouter);                     // Stack 10: /api/content-id/finger
 router.use(membershipsRouter);
 router.use(podcastRouter);
 router.use(podcastDialogueRouter);
+router.use(podcastMultiplierRouter);
 router.use(pressKitRouter);
 router.use(pressReleaseRouter);
 router.use(royaltiesRouter);
