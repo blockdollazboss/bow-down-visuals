@@ -66,7 +66,6 @@ router.get("/ai-upscale/status", requireAuth, async (_req: Request, res: Respons
   res.json({
     configured: generativeUpscaleConfigured(),
     creditCost: GENERATIVE_UPSCALE_CREDIT_COST,
-    pricePlaceholder: true,
     classicCost: 300, // the ffmpeg upscaler stays cheaper — always
   });
 });
@@ -80,9 +79,10 @@ router.get("/ai-upscale/status", requireAuth, async (_req: Request, res: Respons
  * GENERATIVE_UPSCALE_NOT_CONFIGURED when no provider key exists — the UI
  * shows a clear disabled message instead of charging or failing silently.
  *
- * NOTE: the live provider submit is not implemented yet (no key, no
- * approved pricing). When unconfigured, no job is created and no credits
- * are charged.
+ * NOTE: the live provider submit is not implemented yet (no provider
+ * key configured). The price is NOT the blocker — 1,500 VB is official
+ * (ruling A-05 above). When unconfigured, no job is created and no
+ * credits are charged.
  */
 router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
   if (!generativeUpscaleConfigured()) {
@@ -139,7 +139,7 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
   };
   jobs.set(job.id, job);
 
-  // Fire-and-forget: the provider submit is stubbed until approved.
+  // Fire-and-forget: the provider submit is stubbed until a provider is wired.
   void (async () => {
     try {
       job.status = "processing";

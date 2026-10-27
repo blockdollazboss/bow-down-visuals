@@ -14,7 +14,9 @@
  *   GENERATIVE_UPSCALE_API_URL — optional override for the provider base URL
  *
  * DO NOT make live provider calls until a key is provisioned and the user
- * has approved the provider + pricing.
+ * has approved the provider. (Pricing is already approved: the official
+ * price is 1,500 Visual Bucs — owner ruling A-05, 2026-10-24, pinned by
+ * GENERATIVE_UPSCALE_CREDIT_COST in routes/generate/upscale-generative.ts.)
  */
 
 /** True only when a provider key is configured. The UI gates on this. */
@@ -58,13 +60,15 @@ export interface GenerativeUpscaleResult {
  * Submits a generative upscale to the configured provider.
  * NOT IMPLEMENTED — throws GenerativeUpscaleNotConfiguredError until a key
  * exists, and throws "not implemented" once configured until the provider
- * call is written (requires user approval of provider + pricing first).
+ * call is written (requires user approval of the provider first; the
+ * 1,500 VB price is already official — ruling A-05).
  */
 export async function submitGenerativeUpscale(_req: GenerativeUpscaleRequest): Promise<GenerativeUpscaleResult> {
   requireConfigured();
-  // Provider call deliberately not implemented: no approved pricing yet.
+  // Provider call deliberately not implemented: the provider itself is
+  // not approved/wired yet (the 1,500 VB price IS approved — ruling A-05).
   throw new Error(
     "Generative upscale provider is configured but the live submit call is not implemented yet — " +
-      "needs provider + pricing approval before any paid upscale runs.",
+      "needs provider approval before any paid upscale runs.",
   );
 }
