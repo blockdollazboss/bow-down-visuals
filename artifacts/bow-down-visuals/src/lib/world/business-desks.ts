@@ -1467,11 +1467,4 @@ export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
     benchPath: "/press-kit",
     note: "The press-release generator panel that shares the 2D press-kit page (POST /api/press-release/…) — Stack-100 #71 graduated the kit editor itself (full field editing, layout, public toggle, PDF via the public page, copy-link, delete); the release writer is the part that remains on the bench.",
   },
-  {
-    id: "coach-full-page-depth",
-    title: "NATIVE FOLLOW-ON: Full coach page depth",
-    desk: "coach",
-    benchPath: "/coach",
-    note: "The coach's sibling tabs — the niche analyzer and the money/action trackers as full panels. Stack-100 #75 graduated the ask itself: the creator's real niche/platforms/followers/cadence and their real Money Tracker snapshot now drive the plan in-world, and the plan's moves + eligibility read back at the desk.",
-  },
 ];

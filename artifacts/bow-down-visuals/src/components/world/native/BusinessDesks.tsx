@@ -17,6 +17,7 @@ import {
 import { NativeCard } from "./NativeCard";
 import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
+import { MoneyActionTrackerSection, NicheAnalyzerSection } from "./CoachPanels";
 import { PostAssistBlock } from "./PostAssist";
 import { UgcAdsStation } from "./UgcAdsStation";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
@@ -2710,6 +2711,14 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           pin-to-product) and the briefs board complete here on the
           website panel's own seam and rails. */}
       <UgcAdsStation isLight={isLight} />
+
+      {/* The Coach's full panels, finished in-world (parity P3,
+          par-coach-depth): the niche analyzer (150 VB) + idea
+          validator (75 VB), and the money/action trackers as full
+          panels on the /coach page's own rails — the
+          coach-full-page-depth follow-on graduates on these. */}
+      <NicheAnalyzerSection isLight={isLight} />
+      <MoneyActionTrackerSection isLight={isLight} />
 
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
