@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { TrendRadar } from "@/components/TrendRadar";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 
@@ -279,6 +280,11 @@ export default function TrendPredictor() {
             {t("trends.heroDescription")}
           </p>
         </div>
+
+        {/* ── TREND RADAR (#178) — real-signal feed, docked above the
+            AI forecast: rising sounds, topics, and formats from real
+            play windows, one tap into Create. ── */}
+        <TrendRadar />
 
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
         <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>

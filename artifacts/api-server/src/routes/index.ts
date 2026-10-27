@@ -275,6 +275,10 @@ import soundPrefsRouter from "./sound-prefs";
 import monthWrappedRouter from "./month-wrapped";
 import groupDigestRouter from "./group-digest";
 import viralSpikeRouter from "./viral-spike";
+import secondLifeRouter from "./second-life";
+import trendRadarRouter from "./trend-radar";
+import dropDayKitsRouter from "./drop-day-kits";
+import globalDropRouter from "./global-drop";
 import pitchFixRouter from "./pitch-fix";
 import studioGearRouter from "./studio-gear";
 import openVerseRouter from "./open-verse";
@@ -676,6 +680,10 @@ router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, 
 router.use(monthWrappedRouter);          // /api/month-wrapped (Your Month, Wrapped, idea #170)
 router.use(groupDigestRouter);           // /api/group-digest-prefs (per-group activity digest)
 router.use(viralSpikeRouter);            // /api/viral-spike-prefs + /api/viral-spike-kits (viral-spike response kit, orphan wave)
+router.use(secondLifeRouter);            // /api/second-life/* (Second Life revival queue + watch switch, UPGRADE #161)
+router.use(trendRadarRouter);            // /api/trend-radar (real-signal trend feed, UPGRADE #178)
+router.use(dropDayKitsRouter);
+router.use(globalDropRouter);           // /api/drop-day-kits (one-tap release kit assembly, UPGRADE #169)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/studio-gear/* (Branding Shop studio-gear line, test mode)
 router.use(openVerseRouter);             // /api/open-verse/* (Open Verse #176 — splits rail reuse, creator-gated pick, exactly-once ledger)

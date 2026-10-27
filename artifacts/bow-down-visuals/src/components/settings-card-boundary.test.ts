@@ -250,6 +250,9 @@ const CARDS: Array<[string, string]> = [
   /* JOIN2 (orphan-wave viral-spike kit): its Settings card joined —
      isolated like every other card. */
   ["viral-spike", "ViralSpikeSettings"],
+  /* JOIN2 (upg-promo Second Life): its Settings card joined — isolated
+     like every other card. */
+  ["second-life", "SecondLifeSettings"],
   ["feedback-prompts", "FeedbackPromptSettings"],
   /* JOIN2 (orphan-wave group-digest): the digest card joined the page —
      isolated like every other card. */

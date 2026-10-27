@@ -8,8 +8,9 @@ import {
   creatorProfilesTable,
 } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
-import { buildRadarFeed, radarHeadline, type RadarSignalInput } from "../lib/trend-radar";
+import { buildRadarFeed, radarHeadline, buildTrendFeed, type RadarSignalInput } from "../lib/trend-radar";
 
 /* ─── Trend Radar (#178) ───────────────────────────────────────────────────
    GET /api/trend-radar/feed — the radar: REAL on-site signals only.
@@ -116,6 +117,30 @@ router.get("/trend-radar/feed", publicApiLimiter, async (_req: Request, res: Res
   }
   const feed = buildRadarFeed(inputs, 20);
   return res.json({ feed, headline: radarHeadline(feed), windowHours: 24 });
+});
+
+
+/* ─── Trend Radar (#178, upg-promo) — the real-signal daily feed ─────
+   GET /api/trend-radar?genre= — rising sounds, topics, and formats
+   computed ONLY from real play_events windows (last 24h vs the prior
+   7 days). This is the Trends page's honest-data rail: nothing here
+   is predicted or padded, and a quiet niche answers with fewer rows.
+   The AI trend-predictor keeps its own surface; it is NOT a source
+   for this feed. (Sibling of the public /trend-radar/feed above:
+   that one is the results-wall radar; this one is the authed daily
+   feed the Trends page reads.) */
+
+router.get("/trend-radar", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const genre =
+    typeof req.query.genre === "string" && req.query.genre.trim()
+      ? req.query.genre.trim().slice(0, 60)
+      : undefined;
+  try {
+    res.json(await buildTrendFeed({ genre }));
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[trend-radar] feed failed");
+    res.status(500).json({ error: "Could not build the trend feed" });
+  }
 });
 
 export default router;

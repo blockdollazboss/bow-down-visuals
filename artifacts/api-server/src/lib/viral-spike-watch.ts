@@ -1,6 +1,7 @@
 import { sql, eq, and } from "drizzle-orm";
 import { db, notificationsTable, viralSpikeEpisodesTable } from "@workspace/db";
 import { logger } from "./logger";
+import { drizzleRevivalStore, isSecondLifeWatchEnabled, proposeRevivalForSpike } from "./second-life";
 
 /**
  * Viral Spike Watch (Stack-100 #3, Wave 3, Lane 11) — VERIFY-FIRST lane.
@@ -183,6 +184,11 @@ export interface SpikeWatchSummary {
   checked: number;
   fired: Array<{ kind: SpikeKind; mediaId: string; title: string; currentPlays: number; baselineDaily: number }>;
   rearmed: number;
+  /** Second Life (#161): revival proposals recorded with fired alerts. */
+  revivalsProposed: number;
+  /** Second Life (#161): items skipped because the creator turned
+   *  catalog watching off in Settings. */
+  watchOffSkipped: number;
 }
 
 let lastRunAt = 0;
@@ -190,7 +196,7 @@ let lastRunAt = 0;
 /** One detection pass. Never throws — the poller phase also guards, but
  *  a watch that can crash its host is worse than a watch that skips. */
 export async function runViralSpikeWatch(opts?: { force?: boolean }): Promise<SpikeWatchSummary> {
-  const empty: SpikeWatchSummary = { skipped: false, error: false, checked: 0, fired: [], rearmed: 0 };
+  const empty: SpikeWatchSummary = { skipped: false, error: false, checked: 0, fired: [], rearmed: 0, revivalsProposed: 0, watchOffSkipped: 0 };
   const nowMs = Date.now();
   if (!opts?.force && lastRunAt > 0 && nowMs - lastRunAt < SPIKE_WATCH_INTERVAL_MS) {
     return { ...empty, skipped: true };
@@ -210,9 +216,26 @@ export async function runViralSpikeWatch(opts?: { force?: boolean }): Promise<Sp
     const summary: SpikeWatchSummary = { ...empty, checked: windows.length, fired: [] };
     const seen = new Set<string>();
 
+    /* Second Life (#161) off-switch: an owner who turned catalog
+       watching off in Settings is skipped ENTIRELY — no alert, no
+       proposal, no episode bookkeeping. One pref read per owner per
+       pass. */
+    const watchEnabledByOwner = new Map<string, boolean>();
+    const watchEnabled = async (ownerUserId: string): Promise<boolean> => {
+      const cached = watchEnabledByOwner.get(ownerUserId);
+      if (cached !== undefined) return cached;
+      const enabled = await isSecondLifeWatchEnabled(ownerUserId);
+      watchEnabledByOwner.set(ownerUserId, enabled);
+      return enabled;
+    };
+
     for (const row of windows) {
       const key = `${row.kind}:${row.mediaId}`;
       seen.add(key);
+      if (!(await watchEnabled(row.ownerUserId))) {
+        summary.watchOffSkipped += 1;
+        continue;
+      }
       const ep = episodes.get(key);
       const ev = evaluateSpike(row.currentPlays, row.baselinePlays);
 
@@ -255,6 +278,14 @@ export async function runViralSpikeWatch(opts?: { force?: boolean }): Promise<Sp
           kind: row.kind, mediaId: row.mediaId, title: row.title,
           currentPlays: row.currentPlays, baselineDaily: ev.baselineDaily,
         });
+        /* Second Life (#161): the one-tap revival rides THIS alert —
+           a proposal row created in the same pass, carrying the same
+           real numbers. The bell itself is unchanged (one bell per
+           episode — the fatigue discipline above wins); the proposal
+           surfaces in the creator's Second Life queue and attached to
+           the bell item by media id. Approving never posts. */
+        const proposal = await proposeRevivalForSpike(drizzleRevivalStore, row, ev);
+        if (proposal) summary.revivalsProposed += 1;
       } else if (ep?.episodeState === "active") {
         if (!ev.spike && hasFallenBack(row.currentPlays, ev.baselineDaily)) {
           await db

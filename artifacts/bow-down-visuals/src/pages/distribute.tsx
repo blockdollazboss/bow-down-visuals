@@ -19,6 +19,8 @@ import { SampleClearanceShipCheck } from "@/components/sample-clearance/SampleCl
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
+import { DropDayKitPanel } from "@/components/distribute/DropDayKitPanel";
+import { GlobalDropPanel } from "@/components/distribute/GlobalDropPanel";
 import { LandingContentPanel, LyricsPackagePanel, ChangeRequestsPanel, ReleasePermanencePanel, SplitStatementsPanel, RosterPanel } from "@/components/distribute/DistributionLegacyPanels";
 import { useHubProject } from "@/lib/hub-project";
 import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-handoff";
@@ -1403,6 +1405,15 @@ function ReleaseMetadataManager(props: {
         “Send to Presave” saves your metadata first, then creates or refreshes the public presave page —
         it shows fans a live countdown to your release date.
       </p>
+
+      {/* Drop Day Kit (#169): one-tap assembly of teaser + banners +
+          countdown + land-time heads-up for THIS release. */}
+      <DropDayKitPanel releaseId={release.id} authFetch={authFetch} />
+
+      {/* Global Drop (#165): the five-language package for THIS
+          release — reviewed versions that publish into the smartlink's
+          language routing. */}
+      <GlobalDropPanel releaseId={release.id} authFetch={authFetch} />
     </Section>
   );
 }

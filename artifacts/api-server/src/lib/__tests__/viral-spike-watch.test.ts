@@ -49,6 +49,8 @@ const h = vi.hoisted(() => {
       events: [] as Array<{ kind: string; mediaId: string; ageHours: number }>,
       episodes: [] as Array<Record<string, unknown>>,
       notifications: [] as Array<Record<string, unknown>>,
+      prefs: [] as Array<Record<string, unknown>>,
+      revivals: [] as Array<Record<string, unknown>>,
       failEpisodes: false,
     },
     TRACKS: {
@@ -69,7 +71,7 @@ const h = vi.hoisted(() => {
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
-  const { notificationsTable, viralSpikeEpisodesTable } = actual;
+  const { notificationsTable, viralSpikeEpisodesTable, secondLifePrefsTable, secondLifeRevivalsTable } = actual;
   const state = h.state;
   const TRACKS = h.TRACKS;
   const VIDEOS = h.VIDEOS;
@@ -107,6 +109,19 @@ vi.mock("@workspace/db", async (importOriginal) => {
     },
     select: (_fields?: unknown) => ({
       from: (table: unknown) => {
+        if (table === secondLifePrefsTable) {
+          // Second Life (#161) prefs read: where(eq(userId)) → limit(1).
+          return {
+            where: (cond: unknown) => ({
+              limit: async (_n: number) => {
+                const params = renderParams(cond).map(String);
+                return state.prefs
+                  .filter((r) => params.includes(String(r["userId"])))
+                  .map((r) => ({ ...r }));
+              },
+            }),
+          };
+        }
         if (table === viralSpikeEpisodesTable) {
           if (state.failEpisodes) {
             return {
@@ -121,6 +136,16 @@ vi.mock("@workspace/db", async (importOriginal) => {
     }),
     insert: (table: unknown) => ({
       values: (v: Record<string, unknown>) => {
+        if (table === secondLifeRevivalsTable) {
+          // Second Life (#161): insert(...).values(...).returning({ id }).
+          return {
+            returning: async (_fields?: unknown) => {
+              const row = { id: `revival-${state.revivals.length + 1}`, ...v };
+              state.revivals.push(row);
+              return [{ id: row.id }];
+            },
+          };
+        }
         if (table === notificationsTable) {
           state.notifications.push({ ...v });
           return thenable([]);
@@ -178,6 +203,8 @@ beforeEach(() => {
   h.state.events = [];
   h.state.episodes = [];
   h.state.notifications = [];
+  h.state.prefs = [];
+  h.state.revivals = [];
   h.state.failEpisodes = false;
   __testHooks.resetThrottle();
 });
@@ -358,5 +385,47 @@ describe("runViralSpikeWatch — episodes end to end", () => {
     const second = await runViralSpikeWatch();
     expect(second.skipped).toBe(true);
     expect(h.state.notifications).toHaveLength(1);
+  });
+});
+
+describe("Second Life (#161) — revival proposals ride the alert", () => {
+  it("a fired spike records ONE proposal carrying the same real numbers and the item's own plan", async () => {
+    seed("track", TRACK_SPIKE, 120, 70); // 10/day baseline, 120 today
+    const res = await runViralSpikeWatch({ force: true });
+    expect(res.fired).toHaveLength(1);
+    expect(res.revivalsProposed).toBe(1);
+    expect(res.watchOffSkipped).toBe(0);
+    expect(h.state.revivals).toHaveLength(1);
+    expect(h.state.revivals[0]).toMatchObject({
+      ownerUserId: OWNER,
+      profileId: PROFILE_A,
+      kind: "track",
+      mediaId: TRACK_SPIKE,
+      currentPlays: 120,
+      baselineDaily: 10,
+    });
+    const plan = h.state.revivals[0]!["plan"] as { steps: Array<{ action: string; createLink: string }> };
+    expect(plan.steps.map((s) => s.action)).toEqual(["recut_short", "fresh_cover"]);
+    expect(plan.steps[0]!.createLink).toContain(`source=${TRACK_SPIKE}`);
+
+    // The proposal rides the EPISODE, not the pass: a muted second
+    // pass over the same spike proposes nothing new.
+    const second = await runViralSpikeWatch({ force: true });
+    expect(second.revivalsProposed).toBe(0);
+    expect(h.state.revivals).toHaveLength(1);
+  });
+
+  it("watch OFF in Second Life prefs: the catalog is skipped entirely — no alert, no proposal, no episode", async () => {
+    h.state.prefs.push({ userId: OWNER, watchEnabled: false });
+    seed("track", TRACK_SPIKE, 120, 70); // an undeniable spike
+    seed("video", VIDEO_COLD, 150, 0); // and a cold-start spike
+    const res = await runViralSpikeWatch({ force: true });
+    expect(res.error).toBe(false);
+    expect(res.fired).toHaveLength(0);
+    expect(res.revivalsProposed).toBe(0);
+    expect(res.watchOffSkipped).toBeGreaterThan(0);
+    expect(h.state.notifications).toHaveLength(0);
+    expect(h.state.revivals).toHaveLength(0);
+    expect(h.state.episodes).toHaveLength(0);
   });
 });

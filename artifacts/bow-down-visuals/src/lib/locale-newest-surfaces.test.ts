@@ -199,6 +199,10 @@ const BLOCK_PREFIXES = [
   "artistVault.identity",
   "beats.template",
   "myShop.discount",
+  /* Stack-200 upg-promo #178 fill: Trend Radar's 22 keys on /trends
+     (the trends namespace predates this test's whole-namespace list,
+     so the radar block registers by prefix). */
+  "trends.radar",
 ] as const;
 /* The wave-3 email block: tags + segments + campaign send + automations
    (migration-era keys under email-list, added after the base catalog). */
@@ -276,7 +280,7 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill, plus the Stack-200 Community Grants nav key, plus the payfix billing-cancel settings.billing fill, plus the Stack-200 export failure-UX fill, plus the orphan-wave viral-spike kit settings fill (4545 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill, plus the Stack-200 Community Grants nav key, plus the payfix billing-cancel settings.billing fill, plus the Stack-200 export failure-UX fill, plus the orphan-wave viral-spike kit settings fill, plus the Stack-200 upg-promo #161 Second Life fill and the Stack-200 upg-promo #178 Trend Radar fill (4589 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
@@ -320,8 +324,15 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        (title, subtitle, toggle, save/load states) in all ten
        catalogs = 4545. (The kit's Promote panel copy lives under
        promote.viralSpike, outside this derived set; it is held to
-       parity by the locale-waves W6 closure instead.) */
-    expect(REQUIRED.length).toBe(4545);
+       parity by the locale-waves W6 closure instead.)
+       Plus Stack-200 upg-promo #161 (Second Life): +22
+       settings.secondLife keys — the Settings card's copy (watch
+       switch + revival queue states) in all ten catalogs. settings
+       is a whole namespace here, so they derive automatically = 4567.
+       Plus Stack-200 upg-promo #178 (Trend Radar): +22 trends.radar
+       keys (block prefix above — the trends namespace itself is not
+       in the whole-namespace list) in all ten catalogs = 4589. */
+    expect(REQUIRED.length).toBe(4589);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

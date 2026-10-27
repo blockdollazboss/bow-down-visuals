@@ -5736,6 +5736,32 @@
       "saveFailed": "그 설정을 저장하지 못했습니다",
       "loadError": "바이럴 스파이크 설정을 불러오지 못했습니다.",
       "retry": "다시 시도"
+    },
+    "secondLife": {
+      "title": "Second Life",
+      "subtitle": "Your back catalog, watched. When an old track or video starts spiking again, Second Life plans its comeback — a re-cut short and a fresh cover — and waits for your word.",
+      "loadError": "Second Life settings couldn't load.",
+      "retry": "Retry",
+      "saved": "Second Life settings saved",
+      "saveFailed": "Couldn't save Second Life settings",
+      "watch": {
+        "title": "Watch my catalog",
+        "desc": "On: Bow Down keeps an eye on your older tracks and videos and alerts you the moment one starts spiking, with a revival plan attached. Off: no watching, no spike alerts, no revival plans."
+      },
+      "queueTitle": "Revival plans waiting on you",
+      "queueLoading": "Loading your revival queue…",
+      "queueEmpty": "Nothing waiting. When an older track or video starts spiking, its revival plan lands here.",
+      "spikingTrack": "A back-catalog track is spiking",
+      "spikingVideo": "A back-catalog video is spiking",
+      "spikeNumbers": "{{current}} plays in the last 24 hours — its usual pace is {{baseline}} a day.",
+      "approve": "Plan my revival",
+      "dismiss": "Dismiss",
+      "approved": "Revival plan unlocked — finish it in Create",
+      "dismissed": "Revival dismissed",
+      "decisionFailed": "Couldn't record that — try again",
+      "recut": "Re-cut as a short",
+      "freshCover": "Fresh cover",
+      "neverAutoPost": "Approving never posts anything. The plan opens in Create, pre-loaded with the spiking item — you review and publish from there."
     }
   },
   "social-proof": {
@@ -6769,7 +6795,33 @@
     "watchlistMeta": "{{niche}} · 신뢰도 {{confidence}}%",
     "whereDoYouPost": "어디에 게시하시나요?",
     "yourNiche": "내 니치",
-    "yourWatchlist": "내 관심 목록"
+    "yourWatchlist": "내 관심 목록",
+    "radar": {
+      "title": "Trend Radar — what's actually rising",
+      "subtitle": "Real plays from the last 24 hours against the prior 7 days. No predictions, no padding — a trend is here only because creators are playing it, right now.",
+      "loadError": "The Trend Radar couldn't load.",
+      "retry": "Retry",
+      "loading": "Reading today's real plays…",
+      "allEmpty": "Nothing on the platform clears the bar right now — a trend needs real plays and real lift, and today nothing has both yet. Check back as more plays land.",
+      "soundsTitle": "Rising sounds",
+      "soundsEmpty": "No sound is rising on real plays yet today.",
+      "useSound": "Use this sound",
+      "topicsTitle": "Rising topics",
+      "topicsEmpty": "No topic is rising on real plays yet today.",
+      "makeInLane": "Make in this lane",
+      "formatsTitle": "Rising formats",
+      "formatsEmpty": "No format is rising on real plays yet today.",
+      "scaffold": "Scaffold this format",
+      "pace": "{{current}} plays in 24h · {{velocity}}x its usual pace",
+      "coldStart": "Brand new — {{current}} plays in its first 24 hours",
+      "honestNote": "Every number above is a counted play from the last 24 hours, compared with the same item's own prior 7 days. If a lane looks short, that's the honest picture — the bar never lowers to fill the page.",
+      "format": {
+        "short": "Shorts",
+        "duet": "Duets",
+        "stitch": "Stitches",
+        "full": "Full videos"
+      }
+    }
   },
   "upscale": {
     "afterAlt": "이후 — 업스케일 이미지",

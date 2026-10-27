@@ -12,6 +12,7 @@ import { SoundPrefsSettings } from "@/components/SoundPrefsSettings";
 import { MonthWrappedSettings } from "@/components/MonthWrappedSettings";
 import { CurrencyDisplaySettings } from "@/components/CurrencyDisplaySettings";
 import { ViralSpikeSettings } from "@/components/ViralSpikeSettings";
+import { SecondLifeSettings } from "@/components/SecondLifeSettings";
 import { FeedbackPromptSettings } from "@/components/FeedbackPromptSettings";
 import { GroupDigestSettings } from "@/components/GroupDigestSettings";
 import { ContentWarningSettings } from "@/components/ContentWarningSettings";
@@ -317,6 +318,10 @@ export default function Settings() {
 
         <SettingsCardBoundary name="viral-spike">
           <ViralSpikeSettings />
+        </SettingsCardBoundary>
+
+        <SettingsCardBoundary name="second-life">
+          <SecondLifeSettings />
         </SettingsCardBoundary>
 
         <SettingsCardBoundary name="feedback-prompts">
