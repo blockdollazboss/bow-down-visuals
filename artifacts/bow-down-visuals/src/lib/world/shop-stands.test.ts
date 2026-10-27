@@ -67,6 +67,13 @@ import {
   tierAnnualSavingLabel,
   tierOffersTrial,
   parseCreatorUserId,
+  parseClubDirectory,
+  clubStartingLabel,
+  parseRecipientUserId,
+  membershipCheckoutPayload,
+  membershipPendingKey,
+  parseMembershipPending,
+  membershipVerifyState,
   parseMineShops,
   isOwnStand,
   SHOP_AI_DESCRIPTION_COST_VB,
@@ -310,6 +317,85 @@ describe("Crowns & Memberships", () => {
     expect(parseCreatorUserId("not-an-id")).toBeNull();
     expect(parseCreatorUserId("/memberships?creator=nope")).toBeNull();
     expect(parseCreatorUserId("")).toBeNull();
+  });
+});
+
+describe("Crowns depth — directory, gifting, return verify (P3)", () => {
+  const CLUB = {
+    creatorUserId: "11111111-1111-4111-8111-111111111111",
+    displayName: "Queen A",
+    slug: "queen-a",
+    avatarUrl: "https://img/a.png",
+    tierCount: 2,
+    startingPriceCents: 500,
+    startingPriceDollars: 5,
+    hasTrial: true,
+  };
+
+  it("the directory parse keeps honest rows and drops the malformed", () => {
+    const rows = parseClubDirectory({ clubs: [CLUB, { displayName: "no id" }, null, "junk"] });
+    expect(rows).toEqual([CLUB]);
+    expect(parseClubDirectory({ clubs: "nope" })).toBeNull();
+    expect(parseClubDirectory(null)).toBeNull();
+    expect(parseClubDirectory({})).toBeNull();
+    /* A profile-less creator still lists — with nulls, never guesses. */
+    const bare = parseClubDirectory({
+      clubs: [{ creatorUserId: CLUB.creatorUserId, tierCount: 1, startingPriceCents: 0, startingPriceDollars: 0 }],
+    });
+    expect(bare?.[0]?.displayName).toBeNull();
+    expect(bare?.[0]?.hasTrial).toBe(false);
+  });
+
+  it("the starting label reads the rail's own amounts; a free floor says so", () => {
+    const row = parseClubDirectory({ clubs: [CLUB] })![0]!;
+    expect(clubStartingLabel(row)).toBe("Crowns from $5 / month");
+    expect(clubStartingLabel({ ...row, startingPriceCents: 0 })).toBe("Free crowns");
+    expect(clubStartingLabel({ ...row, startingPriceCents: 950, startingPriceDollars: 9.5 })).toBe(
+      "Crowns from $9.50 / month",
+    );
+  });
+
+  it("a gift recipient parses from the same shapes as a join id — junk never gifts", () => {
+    const id = "22222222-2222-4222-8222-222222222222";
+    expect(parseRecipientUserId(id)).toBe(id);
+    expect(parseRecipientUserId(`https://bowdownvisuals.com/memberships?creator=${id}`)).toBe(id);
+    expect(parseRecipientUserId("my best friend")).toBeNull();
+    expect(parseRecipientUserId("")).toBeNull();
+  });
+
+  it("the checkout body carries the recipient ONLY on a real gift", () => {
+    const id = "22222222-2222-4222-8222-222222222222";
+    expect(membershipCheckoutPayload("t1", "monthly", null)).toEqual({ tierId: "t1", billingPeriod: "monthly" });
+    expect(membershipCheckoutPayload("t1", "annual", id)).toEqual({
+      tierId: "t1",
+      billingPeriod: "annual",
+      recipientUserId: id,
+    });
+  });
+
+  it("the pending stash round-trips and refuses junk", () => {
+    expect(membershipPendingKey()).toBe("bdv-crowns-pending-checkout");
+    expect(parseMembershipPending(JSON.stringify({ sessionId: "cs_1", tierName: "Gold", isGift: true }))).toEqual({
+      sessionId: "cs_1",
+      tierName: "Gold",
+      isGift: true,
+    });
+    expect(parseMembershipPending(JSON.stringify({ tierName: "Gold" }))).toBeNull();
+    expect(parseMembershipPending("not json")).toBeNull();
+    expect(parseMembershipPending(null)).toBeNull();
+    /* A name-less stash still verifies — under the plain fallback name. */
+    expect(parseMembershipPending(JSON.stringify({ sessionId: "cs_2" }))?.tierName).toBe("Membership");
+  });
+
+  it("verify answers read in exactly three honest states", () => {
+    expect(membershipVerifyState(200, { success: true, membership: {} })).toBe("confirmed");
+    /* The idempotent duplicate answer is a landing, not an error. */
+    expect(membershipVerifyState(200, { success: true, duplicate: true })).toBe("confirmed");
+    expect(membershipVerifyState(400, { error: "Payment has not been completed." })).toBe("pending");
+    expect(membershipVerifyState(400, { error: "That checkout wasn't for a membership." })).toBe("dead");
+    expect(membershipVerifyState(404, { error: "Checkout session not found." })).toBe("dead");
+    expect(membershipVerifyState(200, { success: false })).toBe("dead");
+    expect(membershipVerifyState(500, { error: "Couldn't verify that payment. Try again." })).toBe("dead");
   });
 });
 

@@ -459,6 +459,151 @@ export interface MyMembershipDto {
   isGift: boolean;
 }
 
+/* ─── Crowns depth — directory, gifting, return verify (P3) ──────
+   The parity-P3 fill-ins at this stand, on the memberships rail's
+   own endpoints (routes/generate/memberships.ts):
+   - the club DIRECTORY (GET /api/memberships/directory) — clubs
+     are browsable; the pasted join ID stays as the other door;
+   - GIFTING — POST /api/memberships/checkout already takes a
+     recipientUserId (the caller pays, the recipient becomes the
+     member); the stand just has to ask who the crown is for;
+   - the RETURN VERIFY — POST /api/memberships/verify is the only
+     path from a paid hosted checkout to an active membership, and
+     the checkout response hands the stand the sessionId, so the
+     stand confirms the landing itself when the walker returns
+     (the Marketplace stand's pending-order discipline, §0144).
+   Prices stay the rail's: directory amounts are server-computed,
+   and no fee math lives here at all. */
+
+export interface ClubDirectoryRow {
+  creatorUserId: string;
+  /** The creator's public profile name — null when they have no
+   *  public profile (the row still lists; the ID is the identity). */
+  displayName: string | null;
+  slug: string | null;
+  avatarUrl: string | null;
+  tierCount: number;
+  startingPriceCents: number;
+  startingPriceDollars: number;
+  hasTrial: boolean;
+}
+
+/** GET /api/memberships/directory, parsed tolerantly: rows without
+ *  a real creator id drop out; a payload without a clubs array is
+ *  no directory at all (null — the stand reports the load failed
+ *  instead of rendering an invented empty room). */
+export function parseClubDirectory(payload: unknown): ClubDirectoryRow[] | null {
+  if (!payload || typeof payload !== "object") return null;
+  const rows = (payload as { clubs?: unknown }).clubs;
+  if (!Array.isArray(rows)) return null;
+  const out: ClubDirectoryRow[] = [];
+  for (const raw of rows as Array<Record<string, unknown>>) {
+    if (!raw || typeof raw !== "object") continue;
+    if (typeof raw["creatorUserId"] !== "string" || !raw["creatorUserId"]) continue;
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+    out.push({
+      creatorUserId: raw["creatorUserId"],
+      displayName: typeof raw["displayName"] === "string" && raw["displayName"] ? raw["displayName"] : null,
+      slug: typeof raw["slug"] === "string" && raw["slug"] ? raw["slug"] : null,
+      avatarUrl: typeof raw["avatarUrl"] === "string" && raw["avatarUrl"] ? raw["avatarUrl"] : null,
+      tierCount: num(raw["tierCount"]),
+      startingPriceCents: num(raw["startingPriceCents"]),
+      startingPriceDollars: num(raw["startingPriceDollars"]),
+      hasTrial: raw["hasTrial"] === true,
+    });
+  }
+  return out;
+}
+
+/** The directory row's price line — the cheapest crown, in the
+ *  page's money format; a free cheapest crown says so. */
+export function clubStartingLabel(row: ClubDirectoryRow): string {
+  if (row.startingPriceCents <= 0) return "Free crowns";
+  return `Crowns from ${membershipDollars(row.startingPriceDollars)} / month`;
+}
+
+/** Who a gift is for, taken from whatever the walker pastes: the
+ *  recipient's bare user ID, or a link carrying one (their join
+ *  link — the same shapes parseCreatorUserId accepts, because a
+ *  fan's ID rides in exactly those places). Junk is null — the
+ *  stand asks again instead of gifting a stranger by typo. */
+export function parseRecipientUserId(input: string): string | null {
+  return parseCreatorUserId(input);
+}
+
+/** POST /api/memberships/checkout — the join body, with the gift
+ *  recipient riding ONLY when one was honestly parsed (an absent
+ *  recipient is the plain self-join the rail has always taken). */
+export function membershipCheckoutPayload(
+  tierId: string,
+  period: BillingPeriod,
+  recipientUserId: string | null,
+): { tierId: string; billingPeriod: BillingPeriod; recipientUserId?: string } {
+  return {
+    tierId,
+    billingPeriod: period,
+    ...(recipientUserId ? { recipientUserId } : {}),
+  };
+}
+
+/** A membership checkout the stand opened in the hosted tab and
+ *  hasn't confirmed yet — stashed under membershipPendingKey so
+ *  the return (focus, reopen, the check button) verifies THIS
+ *  session instead of forgetting the join ever left. */
+export interface MembershipPendingCheckout {
+  sessionId: string;
+  tierName: string;
+  isGift: boolean;
+}
+
+/** The stash key — one pending membership checkout per walker
+ *  (the rail's idempotency makes a re-verify of the same session
+ *  a safe duplicate answer, never a second charge). */
+export function membershipPendingKey(): string {
+  return "bdv-crowns-pending-checkout";
+}
+
+export function parseMembershipPending(raw: string | null): MembershipPendingCheckout | null {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof p["sessionId"] !== "string" || !p["sessionId"]) return null;
+    return {
+      sessionId: p["sessionId"],
+      tierName: typeof p["tierName"] === "string" && p["tierName"] ? p["tierName"] : "Membership",
+      isGift: p["isGift"] === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** What POST /api/memberships/verify answered, in the stand's
+ *  three honest states:
+ *  - "confirmed": 200 with success — the membership is ACTIVE
+ *    (a duplicate answer counts: the seat landed earlier and
+ *    this verify is the stand catching up);
+ *  - "pending": the rail's own not-paid-yet refusal — the
+ *    payment hasn't completed; the marker stays, the walker is
+ *    told to finish at the hosted page and check again;
+ *  - "dead": anything else (a stale/forged/other-kind session) —
+ *    the marker drops; nothing about a membership is claimed. */
+export type MembershipVerifyState = "confirmed" | "pending" | "dead";
+export function membershipVerifyState(status: number, payload: unknown): MembershipVerifyState {
+  if (status === 200 && payload && typeof payload === "object" && (payload as { success?: unknown }).success === true) {
+    return "confirmed";
+  }
+  if (
+    status === 400 &&
+    payload &&
+    typeof payload === "object" &&
+    (payload as { error?: unknown }).error === "Payment has not been completed."
+  ) {
+    return "pending";
+  }
+  return "dead";
+}
+
 /* ─── Stand management — the owner's side of the Marketplace ──────
    The same rails the website's My Shop page manages with, ridden
    from the stand itself (Stack-4 #7 — the parity follow-on Stack-3

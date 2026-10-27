@@ -7,6 +7,7 @@ import {
   fanTiersTable,
   fanMembersTable,
   fanMembershipGiftsTable,
+  creatorProfilesTable,
   emailListsTable,
   emailAutomationsTable,
   emailAutomationSendsTable,
@@ -673,6 +674,82 @@ router.get("/memberships/public/:creatorUserId", publicApiLimiter, async (req, r
   } catch (err) {
     logger.error({ err, creatorUserId }, "[memberships] public tiers load failed");
     res.status(500).json({ error: "Couldn't load memberships. Try again." });
+  }
+});
+
+/* GET /api/memberships/directory — every club with at least one
+   ACTIVE tier, browsable (the Crowns stand's directory, parity P3:
+   joining used to take a pasted join ID and nothing else). Public,
+   like the per-creator read above: a row carries only what the join
+   cards themselves show — the creator's public profile name/handle
+   when they have one, how many crowns are on offer, the cheapest
+   crown's price, and whether any crown offers a trial. No member
+   data rides along (rosters stay owner-scoped on /members). A
+   creator with tiers but no public profile still lists — the join
+   ID is the row's identity, the name is decoration. */
+router.get("/memberships/directory", publicApiLimiter, async (_req, res) => {
+  try {
+    const tiers = await db
+      .select()
+      .from(fanTiersTable)
+      .where(eq(fanTiersTable.is_active, "true"));
+    interface ClubAcc {
+      tierCount: number;
+      startingPriceCents: number;
+      hasTrial: boolean;
+    }
+    const byCreator = new Map<string, ClubAcc>();
+    for (const t of tiers) {
+      const acc = byCreator.get(t.user_id) ?? {
+        tierCount: 0,
+        startingPriceCents: Number.POSITIVE_INFINITY,
+        hasTrial: false,
+      };
+      acc.tierCount += 1;
+      acc.startingPriceCents = Math.min(acc.startingPriceCents, t.price_cents);
+      acc.hasTrial = acc.hasTrial || t.trial_enabled === true;
+      byCreator.set(t.user_id, acc);
+    }
+    const creatorIds = [...byCreator.keys()];
+    const profiles = creatorIds.length
+      ? await db
+          .select({
+            userId: creatorProfilesTable.userId,
+            displayName: creatorProfilesTable.displayName,
+            slug: creatorProfilesTable.slug,
+            avatarUrl: creatorProfilesTable.avatarUrl,
+          })
+          .from(creatorProfilesTable)
+          .where(inArray(creatorProfilesTable.userId, creatorIds))
+      : [];
+    const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
+    const clubs = creatorIds
+      .map((creatorUserId) => {
+        const acc = byCreator.get(creatorUserId)!;
+        const profile = profileByUser.get(creatorUserId);
+        return {
+          creatorUserId,
+          displayName: profile?.displayName ?? null,
+          slug: profile?.slug ?? null,
+          avatarUrl: profile?.avatarUrl ?? null,
+          tierCount: acc.tierCount,
+          startingPriceCents: acc.startingPriceCents,
+          startingPriceDollars: centsToDollars(acc.startingPriceCents),
+          hasTrial: acc.hasTrial,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.tierCount - a.tierCount ||
+          a.startingPriceCents - b.startingPriceCents ||
+          (a.displayName ?? "").localeCompare(b.displayName ?? "") ||
+          a.creatorUserId.localeCompare(b.creatorUserId),
+      )
+      .slice(0, 60);
+    res.json({ clubs, testMode: isCheckoutTestMode() });
+  } catch (err) {
+    logger.error({ err }, "[memberships] directory load failed");
+    res.status(500).json({ error: "Couldn't load the club directory. Try again." });
   }
 });
 
