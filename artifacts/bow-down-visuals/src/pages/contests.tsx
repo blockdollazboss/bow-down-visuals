@@ -13,6 +13,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import OpenVerseDesk from "@/components/songs/OpenVerseDesk";
 import RemixKingSection from "@/components/remix-king/RemixKingSection";
+import CoverFridaysPanel from "@/components/challenges/CoverFridaysPanel";
 import ShareMenu from "@/components/ShareMenu";
 import { useHubProject } from "@/lib/hub-project";
 import {
@@ -354,6 +355,10 @@ export default function Contests() {
             <p className="text-sm text-red-200/80">{error}</p>
           </div>
         )}
+
+        <div className="mt-8">
+          <CoverFridaysPanel />
+        </div>
 
         {!user && (
           <div className="mt-8">

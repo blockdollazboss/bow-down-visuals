@@ -169,6 +169,8 @@ import scriptWriterRouter from "./generate/script-writer";
 import sfxRouter from "./generate/sfx";
 import thumbnailTestRouter from "./generate/thumbnail-test";
 import trendPredictorRouter from "./generate/trend-predictor";
+import trendRadarRouter from "./trend-radar";
+import coverFridaysRouter from "./cover-fridays";
 import sceneEffectsRouter from "./generate/scene-effects";
 import trendJackerRouter from "./generate/trend-jacker";
 import styleStealerRouter from "./generate/style-stealer";
@@ -568,6 +570,8 @@ router.use(scriptWriterRouter);
 router.use(sfxRouter);
 router.use(thumbnailTestRouter);
 router.use(trendPredictorRouter);
+router.use(trendRadarRouter);
+router.use(coverFridaysRouter);
 router.use(sceneEffectsRouter); // /api/scene-effects/* — Viral Effects rail (recipes + Turbo Effect Match)
 router.use(trendJackerRouter);
 router.use(styleStealerRouter);
