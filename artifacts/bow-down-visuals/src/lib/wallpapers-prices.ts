@@ -25,6 +25,24 @@
  *   figure the server's CLEAN_RENDER_COST is mapped from too.
  * - Screensaver render / screensaver video (runway clip): direct
  *   registry entries for their own endpoints.
+ *
+ * Owner price rulings, Oct 27, 2026 (by delegation), reconciled
+ * honestly against this desk's actual shape:
+ * - "Single wallpaper = 100" — the desk's single is generating one
+ *   wallpaper: WALLPAPER_GENERATE_COST, already 100 (the nano model
+ *   rail). Pinned in wallpapers-prices.test.ts.
+ * - "Living wallpaper = 300" — WALLPAPER_SCREENSAVER_RENDER_COST,
+ *   landed on both rails (registry + server constant).
+ * - "Pack of 10 = 500" — THE DESK SELLS NO PACK OF 10. Its only pack
+ *   is the 3-piece theme pack (phone + lock + desktop), priced as
+ *   two clean renders (WALLPAPER_CLEAN_PACK_COST = 2 × 400 = 800,
+ *   branded free), and /api/wallpapers/pack-download zips renders the
+ *   user already made for free. The clean figures stay mapped from
+ *   the clean-export rail (branded free / clean 400 — the site-wide
+ *   clean-output price), so no 500 figure was forced onto either
+ *   surface; a 10-wallpaper bundle at 500 would be a new product,
+ *   not a price wiring. Recorded here so the gap is explicit, never
+ *   silently papered over.
  */
 import { getCreditCost } from "./credit-costs";
 import { ARTIST_IMAGE_MODELS } from "../components/generate-artist-image";
