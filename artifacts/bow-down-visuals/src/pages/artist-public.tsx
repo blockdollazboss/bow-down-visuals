@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { Loader2, Link2Off, Crown, BadgeCheck, AlertTriangle, RotateCcw } from "lucide-react";
+import { Loader2, Link2Off, Crown, BadgeCheck, AlertTriangle, RotateCcw, Play, Pause } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -64,6 +64,54 @@ function OfficialBadge() {
         <BadgeCheck className="h-3.5 w-3.5" />
         Official · Bow Down Visuals
       </span>
+    </div>
+  );
+}
+
+/* ─── Producer tag (#159 Your Own Tag) — the creator's approved signature
+   tag sounds right on the profile: one tap plays it (spoken tag or the
+   two-second sonic logo), tap again to stop. Renders nothing without an
+   approved tag (the payload carries producer_tag_url only then). ── */
+function ProducerTagBadge({ url, kind, name }: { url: string; kind?: string | null; name: string }) {
+  const isLight = useIsLightTheme();
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) {
+      el.pause();
+    } else {
+      void el.play().catch(() => setPlaying(false));
+    }
+  };
+  return (
+    <div className="flex justify-center px-4 pb-4">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? `Stop ${name}'s producer tag` : `Play ${name}'s producer tag`}
+        className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold transition ${
+          isLight
+            ? "border-[#7A5A12]/45 bg-[#C9A84C]/15 text-[#7A5A12] hover:bg-[#C9A84C]/25"
+            : "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
+        }`}
+        title={kind === "sonic" ? "This creator's sonic logo" : "This creator's producer tag"}
+      >
+        {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+        {playing ? "Playing the tag…" : "Hear my tag"}
+        <span className={`${isLight ? "text-[#7A5A12]/70" : "text-amber-300/60"} font-semibold`}>
+          {kind === "sonic" ? "Sonic logo" : "Producer tag"}
+        </span>
+      </button>
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="none"
+        onEnded={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+      />
     </div>
   );
 }
@@ -336,6 +384,9 @@ export default function ArtistPublic() {
               <>
                 {profile.is_official && <OfficialBadge />}
                 {profile.recruiter_badge && <RecruiterBadge badge={profile.recruiter_badge} />}
+                {profile.producer_tag_url && (
+                  <ProducerTagBadge url={profile.producer_tag_url} kind={profile.producer_tag_kind} name={profile.display_name} />
+                )}
                 {/* C5: verified social proof from connected accounts
                     (renders nothing when no figure is live). */}
                 <SocialProofStrip figures={profile.social_proof} />

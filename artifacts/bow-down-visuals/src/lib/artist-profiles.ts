@@ -453,6 +453,10 @@ export interface CreatorProfile {
   shop_handle?: string | null;
   /* Virality wave: the creator's referral rank badge (null when unranked). */
   recruiter_badge?: { stars: number; title: string; signups: number; ratePct: number } | null;
+  /* #159 Your Own Tag: the creator's approved signature tag, sounded
+     right on the profile (null when none approved). */
+  producer_tag_url?: string | null;
+  producer_tag_kind?: string | null;
   /* C5: live social proof — verified figures from the creator's
      connected accounts, already shaped server-side for public display
      (hidden / disconnected / >7-day figures never ship). updatedAt is

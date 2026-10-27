@@ -44,6 +44,7 @@ import { getRecruiterBadgeForUser } from "./referrals";
 import { getPublicSocialProof } from "../lib/social-proof";
 import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
+import { getActiveProducerTag } from "./generate/producer-tag-lifecycle";
 import { sendEmail, emailShell, emailDetailBox, escapeHtml, isEmailConfigured } from "../lib/email";
 import { mirrorExternalMediaUrl, isExternalHttpUrl, isPermanentMediaValue } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
@@ -1353,6 +1354,14 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
       profile.userId,
       socialProofFetcher(profile.userId),
     ).catch(() => []);
+    /* #159 Your Own Tag: the creator's approved signature tag sounds
+       right on the profile — settled like every other aux source so a
+       tag lookup can never take the profile down. */
+    const producerTag = await settleAux(
+      "producerTag",
+      () => getActiveProducerTag(profile.userId),
+      null,
+    );
 
     res.json(await refreshSupabaseStorageUrlsDeep({
       profile: {
@@ -1398,6 +1407,9 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
         referral_code: referralCode,
         // C5: verified social-proof figures ([] when none are live).
         social_proof: socialProof,
+        // #159: the creator's signature tag (null when none approved).
+        producer_tag_url: producerTag?.audioUrl ?? null,
+        producer_tag_kind: producerTag?.kind ?? null,
         // Presence flags + monetization checklist — neighbors link off these
         // without extra round-trips; UI renders "N of 5 money moves done".
         ...extras,
