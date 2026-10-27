@@ -135,6 +135,7 @@ CREATE TABLE profile_videos (
   is_published boolean NOT NULL DEFAULT false,
   is_short boolean NOT NULL DEFAULT false,
   duet_with uuid, stitch_with uuid,
+  duets_enabled boolean NOT NULL DEFAULT true, king_featured_at timestamptz,
   sound_id text, sound_title text, sound_url text,
   sound_use_count integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
