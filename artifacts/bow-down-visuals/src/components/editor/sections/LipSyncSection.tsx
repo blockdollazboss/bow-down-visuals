@@ -1702,7 +1702,7 @@ export function LipSyncSection({
 
               {/* Status rows */}
               <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
-                <StatusRow label="provider"            value={providerStatus?.providerName ?? "none"}              ok={providerConnected} />
+                <StatusRow label="provider"            value={providerStatus?.providerName ? lipSyncProviderLabel(providerStatus.providerName) : "none"}              ok={providerConnected} />
                 <StatusRow label="connected"           value={providerConnected ? "yes" : "no"}                    ok={providerConnected} />
                 <StatusRow label="server key found"    value={providerStatus?.serverKeyFound ? "yes" : "no"}       ok={providerStatus?.serverKeyFound} />
                 <StatusRow label="frontend key exposed" value="no"                                                  ok={true} />

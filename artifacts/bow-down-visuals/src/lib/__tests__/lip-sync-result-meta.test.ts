@@ -5,8 +5,10 @@ import {
 } from "../lip-sync-result-meta";
 
 describe("lipSyncProviderLabel (board item 60: no raw provider ids in the editor)", () => {
-  it("maps the raw LatentSync id to a human label", () => {
-    expect(lipSyncProviderLabel("latentsync")).toBe("LatentSync");
+  it("maps the raw LatentSync id to the friendly Lip Sync label", () => {
+    expect(lipSyncProviderLabel("latentsync")).toBe("Lip Sync");
+    expect(lipSyncProviderLabel("LatentSync")).toBe("Lip Sync");
+    expect(lipSyncProviderLabel(" latent-sync ")).toBe("Lip Sync");
   });
   it("maps the sync family to Sync", () => {
     expect(lipSyncProviderLabel("sync")).toBe("Sync");

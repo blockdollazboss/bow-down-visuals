@@ -35,12 +35,16 @@ function dims(w: unknown, h: unknown): string | null {
 /**
  * Human provider label for editor surfaces (board item 60): the raw
  * provider ids ("latentsync", "sync") are internal names, never shown
- * to creators verbatim.
+ * to creators verbatim — and neither is the model name behind the
+ * default route. Creators see the friendly feature name ("Lip Sync");
+ * the internal ids/keys stay unchanged everywhere else.
  */
 export function lipSyncProviderLabel(provider: string | null | undefined): string {
   switch ((provider ?? "").trim().toLowerCase()) {
     case "latentsync":
-      return "LatentSync";
+    case "latent-sync":
+    case "latent_sync":
+      return "Lip Sync";
     case "sync":
     case "sync.so":
     case "synclabs":
