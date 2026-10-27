@@ -81,6 +81,14 @@ import {
   CourtSeasonScheduler,
   COURT_SEASON_TICK_MS,
 } from "../lib/world-court-season";
+import {
+  CrownsScheduler,
+  CROWNS_TICK_MS,
+} from "../lib/the-crowns";
+import {
+  CoverFridaysScheduler,
+  COVER_FRIDAYS_TICK_MS,
+} from "../lib/cover-fridays";
 import { gateCourtSeasonHerald } from "../lib/operator-duties";
 import { createStageTipper } from "../lib/world-stage-tips";
 import { isTicketed } from "../lib/live-tickets";
@@ -2003,6 +2011,55 @@ export function startCourtSeasonScheduler(palace: WorldPalace): { stop: () => vo
   };
   run();
   const timer = setInterval(run, COURT_SEASON_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Start The Crowns scheduler (N8, lib/the-crowns): every
+ * CROWNS_TICK_MS it decides the oldest ended year that has no
+ * frozen row yet — the year's published categories freeze into
+ * house_crown_years (provisional migration 9999-the-crowns) and
+ * the court is heralded through the announce channel, exactly
+ * once per year (the year's primary key is the idempotency).
+ * Called once from index.ts after the WS mount — tests drive the
+ * scheduler class directly, so no interval runs under vitest.
+ * The first tick runs immediately: a restart after a year's turn
+ * decides it on boot.
+ */
+export function startCrownsScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new CrownsScheduler({ palace });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[crowns] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, CROWNS_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Start the Cover Fridays cadence (N19, lib/cover-fridays):
+ * every COVER_FRIDAYS_TICK_MS it ensures the current week's
+ * cover challenge exists (the house theme's contest, created
+ * from the published rotation — never admin-launched) and
+ * crowns the oldest past week whose Monday has arrived, the
+ * King's pick claimed by the challenge's status flip so the
+ * crowning and its herald fire exactly once. Called once from
+ * index.ts after the WS mount (the herald rides the palace
+ * announce channel); tests drive the scheduler class directly.
+ */
+export function startCoverFridaysScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new CoverFridaysScheduler({ palace });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[cover-fridays] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, COVER_FRIDAYS_TICK_MS);
   timer.unref?.();
   return { stop: () => clearInterval(timer) };
 }

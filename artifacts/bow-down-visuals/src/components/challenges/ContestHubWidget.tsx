@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBucs, formatBucsShort } from "@/lib/visual-bucs";
 import ConfettiBurst from "@/components/artist/confetti-burst";
+import { CoverFridaysCard } from "./CoverFridaysCard";
 import { cn } from "@/lib/utils";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
@@ -181,6 +182,7 @@ export default function ContestHubWidget() {
     : "/login";
 
   return (
+    <div className="space-y-4">
     <section aria-label={t("weekly_contest.aria", { defaultValue: "Weekly creator contest" })}
       className={cn(
         "relative overflow-hidden rounded-3xl border p-6 md:p-7",
@@ -214,6 +216,8 @@ export default function ContestHubWidget() {
         <LastWeekStrip lastWeek={data.last_week} />
       )}
     </section>
+      <CoverFridaysCard />
+    </div>
   );
 }
 

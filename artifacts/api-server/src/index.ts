@@ -5,7 +5,7 @@ import { registerLiveChatWs } from "./routes/live-chat";
 import { registerLiveCaptionsWs } from "./routes/live-captions";
 import { registerLiveBackstageWs } from "./routes/live-guests";
 import { registerLiveControlWs } from "./routes/live-control";
-import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler } from "./routes/world";
+import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, startCourtSeasonScheduler, startCrownsScheduler, startCoverFridaysScheduler } from "./routes/world";
 import { startOperatorDuties } from "./lib/operator-duties";
 import { registerWorldContestAnnouncer } from "./lib/world-contests";
 import { registerPartyWs } from "./routes/party";
@@ -162,6 +162,17 @@ startKingMomentScheduler(worldPalace);
    freeze into the marks wall's record and the court is heralded —
    once per season, by the settlement row's primary key. */
 startCourtSeasonScheduler(worldPalace);
+/* The Crowns (N8): at each year's turn the year's published
+   categories freeze into the awards record and the court is
+   heralded — once per year, by the year row's primary key.
+   Winners wear their crowns on their profiles for the year. */
+startCrownsScheduler(worldPalace);
+/* Cover Fridays (N19): the weekly house cover ritual — the
+   week's challenge ensured from the published theme rotation,
+   and the King crowns the best cover by Monday, the winner
+   featured as the crown. Exactly once per week, by the
+   challenge's status flip. */
+startCoverFridaysScheduler(worldPalace);
 /* The operator's automatic duties (Phase 2, Lane G): host reminders
    before booked events + the trouble-flag watch, on one tick; the
    winner heralds hang off the contest decision and the court
