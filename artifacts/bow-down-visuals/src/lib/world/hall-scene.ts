@@ -134,6 +134,7 @@ import {
   buildWorldFixtures,
   type WorldFixtures,
 } from "./guard-fixtures-scene";
+import type { FixtureBodyId } from "./guard-fixtures";
 import {
   PALACE_LAYOUT,
   PALACE_DOORS,
@@ -1726,6 +1727,13 @@ export class KingsHallScene {
    *  applyLook; a build failure leaves the palace exactly as it was
    *  (fixtures are additive — they can never take the scene down). */
   private fixtures: WorldFixtures | null = null;
+  /** The last load failure per fixture body, recorded when the
+   *  body's whole retry plan ran out (guard-fixtures
+   *  fixtureLoadPlan). A failed body is a REPORTED event — held
+   *  here and warned to the console — never a silent stand-in:
+   *  until Oct 26 ensureFixtures passed buildWorldFixtures no
+   *  onError at all, so every failure vanished in production. */
+  private fixtureLoadErrors = new Map<FixtureBodyId, string>();
   /** The visible sky group (items 3/4): re-centred on the camera
    *  per frame in servicePerfSystems so the dome is always the
    *  same distance in every direction. */
@@ -1909,17 +1917,39 @@ export class KingsHallScene {
    *  immediately; each 3D body swaps in when its GLB lands, and a
    *  body that cannot load leaves its stand-in standing forever —
    *  a post is never empty and a failure here never reaches the
-   *  scene (the whole build is exception-isolated). */
+   *  scene (the whole build is exception-isolated). A body whose
+   *  retry plan runs out is REPORTED through onError into
+   *  fixtureLoadErrors + the console (fixtureLoadError below is
+   *  the read side) — never silently swallowed. */
   private ensureFixtures(): void {
     if (this.fixtures) return;
     try {
-      const fixtures = buildWorldFixtures();
+      const fixtures = buildWorldFixtures({
+        onError: (body, err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          this.fixtureLoadErrors.set(body, message);
+          console.warn(`[world] fixture body "${body}" failed to load: ${message}`);
+        },
+      });
       this.scene.add(fixtures.hall);
       this.scene.add(fixtures.plaza);
       this.fixtures = fixtures;
     } catch {
       this.fixtures = null;
     }
+  }
+
+  /** Proof surface: is this fixture body standing as the real 3D
+   *  body right now (not its matte/capsule stand-in)? */
+  fixtureBodyLive(body: FixtureBodyId): boolean {
+    return this.fixtures?.bodyLive(body) ?? false;
+  }
+
+  /** Proof surface: the recorded load failure for a body whose
+   *  retry plan ran out — null while it is still loading or once
+   *  it stands live. */
+  fixtureLoadError(body: FixtureBodyId): string | null {
+    return this.fixtureLoadErrors.get(body) ?? null;
   }
 
   private disposeLookGroup(group: THREE.Group): void {

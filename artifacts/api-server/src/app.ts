@@ -16,6 +16,7 @@ import { ogPreviewMiddleware, siteOrigin } from "./lib/og-preview";
 import { cacheControlForFile, spaFallbackStatus } from "./lib/cache-policy";
 import { securityHeaders } from "./lib/security-headers";
 import { getWaitlistInvitePublic } from "./routes/waitlist";
+import { skipWorldStaticAssets } from "./lib/rate-limit";
 
 const app: Express = express();
 
@@ -43,6 +44,11 @@ const globalLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { error: "Too many requests. Please try again in a minute." },
+  /* Static World assets (fixture bodies, mattes, loops, hall
+   * textures) never burn this bucket — they are the palace
+   * figures' fallback source and load last in the World entry
+   * burst (see lib/rate-limit.ts skipWorldStaticAssets). */
+  skip: skipWorldStaticAssets,
 });
 app.use(globalLimiter);
 

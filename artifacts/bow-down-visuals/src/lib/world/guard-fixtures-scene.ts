@@ -26,8 +26,10 @@ import { mediaUrl } from "../media-cdn";
 import {
   FIXTURE_BODIES,
   WORLD_FIXTURES,
+  attemptLoadPlan,
   bodyTexturesLanded,
   fixtureFallbackFor,
+  fixtureLoadPlan,
   fixtureNormalization,
   fixtureRotY,
   fixtureSway,
@@ -210,9 +212,13 @@ export function buildWorldFixtures(opts?: {
 
   /* One load per body; a clone lands at each of its posts. Every
    * failure path keeps the fallback standing. The URL policy mirrors
-   * the hall's own texture loader: the media CDN first, and on any
-   * failure the same asset on the site origin (the public/ copy ships
-   * with the app whether or not the bucket carries the body yet). */
+   * the hall's own texture loader — the media CDN first, the same
+   * asset on the site origin second (the public/ copy ships with
+   * the app whether or not the bucket carries the body yet) — walked
+   * as a bounded retry plan (guard-fixtures.fixtureLoadPlan): the
+   * sources alternate with backoff, because the load fires last in
+   * the World-entry burst and a single transient shed or severed
+   * transfer must not strand the post on its stand-in all session. */
   const loader = new GLTFLoader();
   /* A parse that "succeeds" without its textures is a failure: the
    * body materials carry no baseColorFactor, so a texture-less parse
@@ -239,15 +245,9 @@ export function buildWorldFixtures(opts?: {
       }
       return gltf;
     };
-    const cdn = mediaUrl(path);
-    if (cdn !== path) {
-      try {
-        return await attempt(cdn);
-      } catch {
-        /* fall through to the origin copy */
-      }
-    }
-    return attempt(path);
+    return attemptLoadPlan(fixtureLoadPlan(mediaUrl(path), path), attempt, (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms)),
+    );
   };
   for (const bodyDef of Object.values(FIXTURE_BODIES)) {
     loadBody(bodyDef.glbPath)
