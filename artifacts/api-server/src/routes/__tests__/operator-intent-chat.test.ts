@@ -461,12 +461,12 @@ describe("POST /api/free-chat — hands on the knowledge-base fallback path (the
     expect(state.cores.bioGenerate).not.toHaveBeenCalled();
   });
 
-  it("a guest's direct order gets the honest sign-in line and executes nothing", async () => {
+  it("a guest's direct order never executes — it keeps the ordinary answer path and creates nothing", async () => {
     const { json } = await postFreeChat("Make me a sound effect of thunder crashing");
-    expect(json.action).toMatchObject({ status: "refused", reason: "needs_sign_in" });
-    expect(json.reply).toContain("signed-in members");
+    expect(json.action).toBeUndefined();
     expect(state.cores.sfx).not.toHaveBeenCalled();
     expect(pendingRows()).toHaveLength(0);
+    expect(auditRows()).toHaveLength(0);
   });
 });
 
@@ -522,12 +522,23 @@ describe("POST /api/chat — deterministic orders with no model marker", () => {
     expect(state.cores.sfx).not.toHaveBeenCalled();
   });
 
-  it("missing details ask instead of proposing — no pending row, no charge", async () => {
+  it("an INCOMPLETE order falls through to the model path — the deterministic layer never half-proposes", async () => {
+    /* "Make me a sound effect" names no sound: elicitation belongs to
+       the model/marker path, which sees the whole conversation (the
+       validator's ask for this exact case stays pinned at the
+       executor level and in the marker-path suite). Here the model
+       stub answers plainly, so the turn ships untouched: no proposal,
+       no pending row, no rail call, no charge. */
     const { json } = await postChat("Make me a sound effect", MEMBER);
-    expect(json.action).toMatchObject({ status: "refused", reason: "missing_args" });
-    expect(json.reply).toContain("What sound should I make");
+    expect(json.reply).toBe("All good, fin-friend. 🦈");
+    expect(json.action).toBeUndefined();
     expect(pendingRows()).toHaveLength(0);
     expect(state.cores.sfx).not.toHaveBeenCalled();
+
+    const free = await postFreeChat("Generate my bios", MEMBER);
+    expect(free.json.action).toBeUndefined();
+    expect(pendingRows()).toHaveLength(0);
+    expect(state.cores.bioGenerate).not.toHaveBeenCalled();
   });
 
   it("a song order lands on the tier its stated duration belongs to (2 minutes → 800 VB standard)", async () => {

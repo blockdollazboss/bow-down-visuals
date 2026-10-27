@@ -271,12 +271,13 @@ export async function processOperatorPreTurn(input: {
    dead: page guides + doors, never a proposal (PASS 4, Oct 26). This
    layer recognizes CLEAR charged-action requests in code, before any
    model runs, and feeds them into the exact same proposeAction path
-   the marker uses: registry price quoted by the server, validator
-   asks when a detail the member never gave is missing, single-use
+   the marker uses: registry price quoted by the server, single-use
    confirmation, executor, same rails. It extracts ONLY what the
    member actually stated — never an invented prompt, length, name,
    or script. Ambiguous or informational phrasing returns null and
-   the normal answer path runs untouched. */
+   the normal answer path runs untouched, and so does an INCOMPLETE
+   order (a detail the member never gave): elicitation belongs to
+   the model/marker path, which sees the whole conversation. */
 
 export interface OperatorIntent {
   toolId: string;
@@ -559,7 +560,20 @@ async function proposeTurn(input: {
 /* ── Pre-model deterministic turn: capability listing + clear charged
    requests, handled WITHOUT a model call so the operator's hands work
    on every brain path (KB fallback included). Runs after the pending-
-   confirmation pre-turn, before the model. ─────────────────────────── */
+   confirmation pre-turn, before the model.
+
+   Scope discipline: this layer takes the turn ONLY when it can finish
+   the job itself — the capability answer, or a proposal for a COMPLETE
+   order (every detail the tool needs was stated in this message, so
+   the validator accepts the extracted args). An INCOMPLETE order
+   falls through to the model path untouched: the model sees the whole
+   conversation (details given in earlier turns ride its marker), its
+   validators ask for what's missing, and the marker path owns the
+   guest sign-in line — the deterministic layer, which sees one
+   message, must never shadow that elicitation with a half-proposal.
+   Guests likewise fall through: nothing here executes for them, and
+   the ordinary answer path (plus the marker path's sign-in line when
+   a model marks) stays exactly as it was before this layer. ─────── */
 
 export async function processOperatorIntentTurn(input: {
   userId?: string;
@@ -577,11 +591,28 @@ export async function processOperatorIntentTurn(input: {
   if (!intent) return null;
   const tool = getTool(intent.toolId);
   if (!tool) return null;
-  if (!input.userId) {
-    return { replyText: NEEDS_SIGN_IN, action: { toolId: tool.id, status: "refused", reason: "needs_sign_in" } };
-  }
+  if (!input.userId) return null;
   if (!toolIsCharged(tool)) return null;
-  return proposeTurn({ userId: input.userId, channel: input.channel, toolId: tool.id, args: intent.args });
+  const proposal = await proposeAction({
+    userId: input.userId,
+    toolId: tool.id,
+    args: intent.args,
+    channel: input.channel,
+  });
+  if (proposal.status !== "proposed") {
+    /* Incomplete order → fall through to the model/marker path
+       (see the scope note above). A hands-off refusal still answers
+       directly: the kill switch stills every hand, this one included. */
+    if (proposal.reason === "missing_args") return null;
+    return {
+      replyText: proposal.reason === "hands_disabled" ? HANDS_OFF : CANT_DO_YET,
+      action: { toolId: tool.id, status: "refused", reason: proposal.reason },
+    };
+  }
+  return {
+    replyText: proposalText(tool.name, proposal.priceQuoted),
+    action: { toolId: tool.id, status: "proposed", priceQuoted: proposal.priceQuoted },
+  };
 }
 
 /* ── Post-model turn: a marker in the model's reply ─────────────────── */
