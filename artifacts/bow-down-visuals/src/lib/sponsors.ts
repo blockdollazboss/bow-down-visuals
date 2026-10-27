@@ -16,6 +16,21 @@ export function daysLeftLabel(deadlineIso: string, nowMs: number = Date.now()): 
   return `${d} days left`;
 }
 
+/* Pre-pay split preview for a direct profile sponsorship. Mirrors the
+   backend sponsorFeeSplit() exactly (fee = round(gross * bps / 10000),
+   net = gross − fee) so what the buyer sees before paying is what the
+   release step writes. The feeBps comes from the server quote
+   (SPONSOR_PLATFORM_FEE_BPS on the sponsor rail — 1500 = 15% default);
+   it is NEVER hardcoded here. */
+export function sponsorSplitPreview(
+  grossCents: number,
+  feeBps: number,
+): { feeCents: number; netCents: number } {
+  const gross = Math.max(0, Math.round(grossCents));
+  const feeCents = Math.round((gross * feeBps) / 10000);
+  return { feeCents, netCents: gross - feeCents };
+}
+
 /* Clamp a matcher score into 0–100 (mirrors the backend clamp). */
 export function clampScore(n: number): number {
   if (!Number.isFinite(n)) return 0;

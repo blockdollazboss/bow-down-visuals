@@ -264,6 +264,32 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
        was taken but no credits were granted. This webhook branch grants
        server-side, sharing idempotency with /verify via the PI id. */
     const pi = event.data.object as Stripe.PaymentIntent;
+    /* ── Sponsor escrow (on-site PaymentIntent funding) ──────────────────
+       The profile Sponsor flow funds escrow with a PaymentIntent
+       (metadata.sponsor_deal_id) confirmed on-site; the client then
+       calls POST /api/sponsors/escrow/verify. If the tab closed first,
+       this branch settles the same way — markEscrowFunded is idempotent
+       and both paths key the funding on the PaymentIntent id, so the
+       escrow settles exactly once. */
+    if (pi.metadata?.sponsor_deal_id) {
+      const dealId = pi.metadata.sponsor_deal_id;
+      try {
+        const { markEscrowFunded } = await import("../routes/generate/sponsors");
+        const result = await markEscrowFunded(dealId, pi.id, pi.id);
+        if (!result.ok && result.reason !== "already-funded") {
+          logger.warn({ dealId, reason: result.reason }, "Stripe webhook: sponsor PI escrow not applied");
+          res.status(200).json({ received: true, warning: `Escrow not applied: ${result.reason}` });
+          return;
+        }
+        res.status(200).json({ received: true, success: true, escrow: "funded" });
+      } catch (err: unknown) {
+        const msg = (err as { message?: string })?.message ?? "unknown";
+        logger.error({ err, msg, dealId }, "Stripe webhook: sponsor PI escrow funding failed");
+        // 500 so Stripe retries — silently dropping a paid escrow is worse.
+        res.status(500).json({ error: `Sponsor escrow funding failed: ${msg}` });
+      }
+      return;
+    }
     if (pi.metadata?.source !== "express_pay") {
       res.status(200).json({ received: true });
       return;

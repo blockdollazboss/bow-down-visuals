@@ -1070,6 +1070,371 @@ router.post("/sponsors/deals/:id/release", publicApiLimiter, requireAuth, async 
   }
 });
 
+/* ── Direct profile sponsorship (payfix sponsor-purchase lane) ──────────
+   A signed-in user sponsors a SPECIFIC creator from that creator's
+   /artist/:slug profile. There is NO platform-set sponsor price in the
+   codebase (creator_profiles carries no sponsor price; media-kit rates
+   are free-text display strings), so the price is the SPONSOR's own
+   amount — the same way a brand sets the agreed amount on the existing
+   rail — never a number this code invents.
+
+   The purchase is a sponsor_deals row born already aimed at the creator:
+   target_creator_user_id + accepted_user_id set, an accepted application
+   row standing in for the creator's side, agreed_amount_cents locked.
+   From there the EXISTING escrow lifecycle owns the money unchanged:
+   fund (Stripe TEST, on-site PaymentIntent below — or the Checkout /
+   sandbox paths on the deal page) → creator start → creator complete →
+   sponsor release, where sponsorFeeSplit() applies
+   SPONSOR_PLATFORM_FEE_BPS (default 1500 = 15% platform / 85% creator).
+   The creator's consent step is Start: funded money only moves when the
+   creator starts the work and delivers. */
+
+export const directSponsorSchema = z.object({
+  amountCents: z.number().int().min(100).max(100000000),
+  brandName: z.string().trim().min(1, "Tell the creator who is sponsoring them.").max(120),
+  deliverables: z.string().trim().min(1, "Say what this sponsorship covers.").max(500),
+  message: z.string().trim().max(2000).optional().default(""),
+});
+
+interface CreatorProfileLite {
+  user_id: string;
+  slug: string;
+  display_name: string;
+  vertical: string;
+  is_public: boolean;
+}
+
+async function findPublicCreatorBySlug(slug: string): Promise<CreatorProfileLite | null> {
+  const result = await db.execute(sql`
+    SELECT user_id, slug, display_name, vertical, is_public
+    FROM creator_profiles
+    WHERE slug = ${slug.toLowerCase()}
+    LIMIT 1
+  `);
+  const row = (result.rows[0] as unknown as CreatorProfileLite) ?? null;
+  if (!row || !row.is_public) return null;
+  return row;
+}
+
+function sponsorSplitDto(grossCents: number) {
+  const { feeCents, netCents } = sponsorFeeSplit(grossCents);
+  return {
+    grossCents,
+    feeCents,
+    netCents,
+    feeBps: SPONSOR_PLATFORM_FEE_BPS,
+    feePct: SPONSOR_PLATFORM_FEE_BPS / 100,
+    creatorPct: 100 - SPONSOR_PLATFORM_FEE_BPS / 100,
+  };
+}
+
+/* GET /api/sponsors/creator/:slug — pre-pay quote surface for the profile
+   Sponsor action: who you'd sponsor, the fee constant this rail actually
+   applies, and the creator's existing public sponsors (recognition —
+   only deals whose escrow actually funded are listed). */
+router.get("/sponsors/creator/:slug", publicApiLimiter, requireAuth, async (req, res) => {
+  const slug = typeof req.params["slug"] === "string" ? req.params["slug"] : "";
+  if (!slug || slug.length > 120) {
+    res.status(400).json({ error: "Invalid creator." });
+    return;
+  }
+  try {
+    const profile = await findPublicCreatorBySlug(slug);
+    if (!profile) {
+      res.status(404).json({ error: "That creator's page isn't public." });
+      return;
+    }
+    const creatorUserId = String(profile.user_id);
+    const sponsors = await db.execute(sql`
+      SELECT brand_name, agreed_amount_cents, escrow_status, status, created_at
+      FROM sponsor_deals
+      WHERE target_creator_user_id = ${creatorUserId}
+        AND escrow_status IN ('funded', 'released')
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+    res.json({
+      creator: { slug: profile.slug, displayName: profile.display_name, vertical: profile.vertical },
+      isSelf: creatorUserId === req.userId,
+      feeBps: SPONSOR_PLATFORM_FEE_BPS,
+      feePct: SPONSOR_PLATFORM_FEE_BPS / 100,
+      creatorPct: 100 - SPONSOR_PLATFORM_FEE_BPS / 100,
+      sponsors: (sponsors.rows as { brand_name: string; agreed_amount_cents: number | null; escrow_status: string; status: string; created_at: string }[]).map((r) => ({
+        brandName: r.brand_name,
+        amountCents: r.agreed_amount_cents,
+        escrowStatus: r.escrow_status,
+        status: r.status,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    logger.error({ err }, "[sponsors] failed to load creator sponsor quote");
+    res.status(500).json({ error: "Could not load sponsorship for this creator — try again." });
+  }
+});
+
+/* POST /api/sponsors/creator/:slug — create a direct sponsorship of THIS
+   creator at the sponsor's own amount. Returns the deal plus the exact
+   split the release step will apply, so the buyer sees price + split
+   BEFORE paying. Paying is the separate fund step (escrow model). */
+router.post("/sponsors/creator/:slug", publicApiLimiter, requireAuth, async (req, res) => {
+  const slug = typeof req.params["slug"] === "string" ? req.params["slug"] : "";
+  const parsed = directSponsorSchema.safeParse(req.body ?? {});
+  if (!slug || slug.length > 120 || !parsed.success) {
+    res.status(400).json({
+      error: "Invalid sponsorship.",
+      details: !parsed.success ? parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) : undefined,
+    });
+    return;
+  }
+  try {
+    const profile = await findPublicCreatorBySlug(slug);
+    if (!profile) {
+      res.status(404).json({ error: "That creator's page isn't public." });
+      return;
+    }
+    const creatorUserId = String(profile.user_id);
+    if (creatorUserId === req.userId) {
+      res.status(400).json({ error: "You can't sponsor yourself." });
+      return;
+    }
+    const { amountCents, brandName, deliverables, message } = parsed.data;
+    const dealId = randomUUID();
+    const applicationId = randomUUID();
+    /* budget_min/budget_max are whole dollars on this table; the exact
+       money lives in agreed_amount_cents. Floor/ceil keeps the agreed
+       amount inside the stated range, same rule as application review. */
+    const budgetMin = Math.floor(amountCents / 100);
+    const budgetMax = Math.ceil(amountCents / 100);
+    const deadline = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const description =
+      message || `Direct sponsorship of ${profile.display_name} — bought from their Bow Down Visuals profile.`;
+    await db.execute(sql`
+      INSERT INTO sponsor_deals
+        (id, brand_name, budget_min, budget_max, niche, deliverables, description, deadline, posted_by, status,
+         agreed_amount_cents, escrow_status, accepted_application_id, accepted_user_id, target_creator_user_id)
+      VALUES
+        (${dealId}, ${brandName}, ${budgetMin}, ${budgetMax}, ${"Direct sponsorship"},
+         ${deliverables}, ${description}, ${deadline}, ${req.userId!}, 'active',
+         ${amountCents}, 'unfunded', ${applicationId}, ${creatorUserId}, ${creatorUserId})
+    `);
+    await db.execute(sql`
+      INSERT INTO sponsor_applications (id, deal_id, user_id, pitch, portfolio_url, status, decided_at)
+      VALUES (${applicationId}, ${dealId}, ${creatorUserId}, ${description}, ${null}, 'accepted', NOW())
+    `);
+    const deal = await findDeal(dealId);
+    res.json({
+      deal: deal ? toFullDealDto(deal, 1, null) : null,
+      targetCreatorUserId: creatorUserId,
+      split: sponsorSplitDto(amountCents),
+    });
+  } catch (err) {
+    logger.error({ err }, "[sponsors] failed to create direct sponsorship");
+    res.status(500).json({ error: "Could not create that sponsorship — try again." });
+  }
+});
+
+/**
+ * Deterministic Stripe idempotency key for a sponsor escrow
+ * PaymentIntent (the on-site funding path). Same intent discipline as
+ * buildSponsorEscrowCheckoutKey: one funding act, one intent.
+ */
+export function buildSponsorEscrowPaymentIntentKey(args: {
+  brandUserId: string;
+  dealId: string;
+  acceptedApplicationId: string;
+  amountCents: number;
+}): string {
+  return buildCheckoutSessionIdempotencyKey({
+    memberId: args.brandUserId,
+    rail: "sponsor-escrow-pi",
+    purchaseIntent: {
+      dealId: args.dealId,
+      acceptedApplicationId: args.acceptedApplicationId,
+      amountCents: args.amountCents,
+    },
+  });
+}
+
+/* POST /api/sponsors/deals/:id/fund-intent — ON-SITE funding (Stripe TEST
+   PaymentIntent, the Express Pay pattern: the card is confirmed in the
+   page with Stripe.js and POST /api/sponsors/escrow/verify settles the
+   escrow — the buyer never leaves bowdownvisuals.com). Without Stripe
+   keys: { sandbox: true } and the existing sandbox fund/confirm pair
+   simulates the same movement. Replay-safe: a deal already in 'funding'
+   returns its existing intent's client secret instead of minting a
+   second payable intent. */
+router.post("/sponsors/deals/:id/fund-intent", publicApiLimiter, requireAuth, async (req, res) => {
+  const dealId = uuidParam(req.params["id"]);
+  if (!dealId) {
+    res.status(400).json({ error: "Invalid deal id." });
+    return;
+  }
+  try {
+    const deal = await findDeal(dealId);
+    if (!deal) {
+      res.status(404).json({ error: "Deal not found." });
+      return;
+    }
+    if (deal.posted_by !== req.userId) {
+      res.status(403).json({ error: "Only the brand that posted this deal can fund it." });
+      return;
+    }
+    if (!deal.accepted_application_id || !deal.accepted_user_id) {
+      res.status(409).json({ error: "Accept a creator's application before funding the deal." });
+      return;
+    }
+    if (deal.escrow_status === "funded" || deal.escrow_status === "released") {
+      res.status(409).json({ error: `This deal is already ${deal.escrow_status}.` });
+      return;
+    }
+    const amountCents = deal.agreed_amount_cents;
+    if (!amountCents || amountCents <= 0) {
+      res.status(409).json({ error: "This deal has no agreed payout to fund." });
+      return;
+    }
+    if (!isStripeConfigured()) {
+      res.json({
+        sandbox: true,
+        amountCents,
+        split: sponsorSplitDto(amountCents),
+        message: "Sandbox mode — no real money moved. Fund + confirm to simulate funding.",
+      });
+      return;
+    }
+
+    const stripe = createGuardedStripeClient();
+
+    /* Replay / resume: an intent already minted for this funding act is
+       returned as-is while it is still confirmable. */
+    if (deal.escrow_status === "funding" && deal.stripe_payment_intent_id) {
+      const existing = await stripe.paymentIntents.retrieve(deal.stripe_payment_intent_id);
+      if (existing.status === "succeeded") {
+        res.status(409).json({ error: "This funding already paid — verify it to settle the escrow." });
+        return;
+      }
+      if (existing.status !== "canceled") {
+        res.json({
+          sandbox: false,
+          clientSecret: existing.client_secret,
+          paymentIntentId: existing.id,
+          amountCents,
+          split: sponsorSplitDto(amountCents),
+          resumed: true,
+        });
+        return;
+      }
+      /* canceled → fall through and mint a fresh intent for the same act */
+    }
+
+    await db.execute(sql`
+      UPDATE sponsor_deals SET escrow_status = 'funding' WHERE id = ${dealId}
+    `);
+    const idempotencyKey = buildSponsorEscrowPaymentIntentKey({
+      brandUserId: req.userId!,
+      dealId,
+      acceptedApplicationId: deal.accepted_application_id,
+      amountCents,
+    });
+    const pi = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: "usd",
+      automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+      description: `Sponsorship escrow — ${deal.brand_name}`,
+      metadata: {
+        sponsor_deal_id: dealId,
+        sponsor_escrow: "true",
+        source: "sponsor_escrow",
+        brand_user_id: req.userId!,
+        amount_cents: String(amountCents),
+      },
+    }, { idempotencyKey });
+    await db.execute(sql`
+      UPDATE sponsor_deals SET stripe_payment_intent_id = ${pi.id} WHERE id = ${dealId}
+    `);
+    res.json({
+      sandbox: false,
+      clientSecret: pi.client_secret,
+      paymentIntentId: pi.id,
+      amountCents,
+      split: sponsorSplitDto(amountCents),
+    });
+  } catch (err) {
+    logger.error({ err }, "[sponsors] failed to create escrow payment intent");
+    await db.execute(sql`
+      UPDATE sponsor_deals SET escrow_status = 'unfunded'
+      WHERE id = ${dealId} AND escrow_status = 'funding' AND stripe_payment_intent_id IS NULL
+    `).catch(() => undefined);
+    res.status(500).json({ error: "Could not start the funding flow — try again." });
+  }
+});
+
+export const escrowVerifySchema = z.object({
+  dealId: z.string().uuid(),
+  paymentIntentId: z.string().min(1).max(200),
+});
+
+/* POST /api/sponsors/escrow/verify — settle an on-site PaymentIntent
+   funding. Mirrors /payments/express/verify: the intent is retrieved
+   from Stripe server-side, its metadata + amount must match the deal,
+   and markEscrowFunded settles exactly once (the
+   payment_intent.succeeded webhook branch settles the same way if the
+   tab closed first — both key on the PaymentIntent id). */
+router.post("/sponsors/escrow/verify", publicApiLimiter, requireAuth, async (req, res) => {
+  const parsed = escrowVerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    invalidBody(res, parsed);
+    return;
+  }
+  if (!isStripeConfigured()) {
+    res.status(400).json({ error: "Sandbox mode — confirm the sandbox funding instead." });
+    return;
+  }
+  const { dealId, paymentIntentId } = parsed.data;
+  try {
+    const deal = await findDeal(dealId);
+    if (!deal) {
+      res.status(404).json({ error: "Deal not found." });
+      return;
+    }
+    if (deal.posted_by !== req.userId) {
+      res.status(403).json({ error: "Only the brand can verify this funding." });
+      return;
+    }
+    const stripe = createGuardedStripeClient();
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (pi.metadata?.["sponsor_deal_id"] !== dealId) {
+      res.status(400).json({ error: "That payment isn't for this sponsorship." });
+      return;
+    }
+    if (pi.status !== "succeeded") {
+      res.status(400).json({ error: "Payment has not been completed." });
+      return;
+    }
+    if (deal.agreed_amount_cents && pi.amount !== deal.agreed_amount_cents) {
+      res.status(400).json({ error: "Payment amount doesn't match the agreed sponsorship." });
+      return;
+    }
+    if (deal.escrow_status === "funded" && deal.stripe_payment_intent_id === pi.id) {
+      res.json({ success: true, escrowStatus: "funded", duplicate: true });
+      return;
+    }
+    const result = await markEscrowFunded(dealId, pi.id, pi.id);
+    if (!result.ok) {
+      if (deal.escrow_status === "funded") {
+        res.json({ success: true, escrowStatus: "funded", duplicate: true });
+        return;
+      }
+      res.status(409).json({ error: `Could not settle funding (${result.reason}).` });
+      return;
+    }
+    res.json({ success: true, escrowStatus: "funded", duplicate: result.reason === "already-funded" });
+  } catch (err) {
+    logger.error({ err }, "[sponsors] escrow verify failed");
+    res.status(500).json({ error: "Could not verify funding — try again." });
+  }
+});
+
 /* GET /api/sponsors/dashboard — my deals, my applications, my earnings.
    Free (pure UI read). */
 router.get("/sponsors/dashboard", publicApiLimiter, requireAuth, async (req, res) => {
