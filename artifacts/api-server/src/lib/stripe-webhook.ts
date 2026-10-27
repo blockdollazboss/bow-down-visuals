@@ -347,6 +347,37 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── PERFORMANCE BOOKING ESCROW (#158) ───────────────────────────────
+  // Promoters fund Book-the-Artist fees through Checkout with
+  // metadata.performance_booking_id set. Same ownership shape as
+  // sponsor escrow: this path owns the money; it never touches
+  // credits. Idempotency is handled inside markPerformanceEscrowFunded.
+  if (session.metadata?.performance_booking_id) {
+    const bookingId = session.metadata.performance_booking_id;
+    logger.info({ bookingId, sessionId: session.id }, "Stripe webhook: performance escrow payment verified");
+    try {
+      const { markPerformanceEscrowFunded } = await import("../routes/performance-bookings");
+      const result = await markPerformanceEscrowFunded(
+        bookingId,
+        session.id,
+        typeof session.payment_intent === "string" ? session.payment_intent : null,
+      );
+      if (!result.ok) {
+        logger.warn({ bookingId, reason: result.reason }, "Stripe webhook: performance escrow funding not applied");
+        res.status(200).json({ received: true, warning: `Performance escrow not applied: ${result.reason}` });
+        return;
+      }
+      res.status(200).json({ received: true, success: true, escrow: "funded" });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, bookingId }, "Stripe webhook: performance escrow funding failed");
+      // P0-7 twin: 500 so Stripe retries — 200 would silently drop a paid escrow.
+      res.status(500).json({ error: `Performance escrow funding failed: ${msg}` });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const userId = session.metadata?.user_id;
   const creditPack = session.metadata?.credit_pack ?? "unknown";
   const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);

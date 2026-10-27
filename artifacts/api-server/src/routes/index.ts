@@ -372,6 +372,7 @@ import creatorCommunityRouter from "./community";
 import domainsRouter from "./domains";
 import storeRouter from "./store";
 import storefrontRouter from "./storefront";
+import performanceBookingsRouter from "./performance-bookings";
 import shopifyBridgeRouter from "./shopify-bridge";
 import giftCardsRouter from "./gift-cards";
 import creatorTiersRouter from "./creator-tiers";
@@ -732,6 +733,7 @@ router.use(creatorCommunityRouter);   // /api/groups/*, /api/events/*, /api/dm/*
 router.use(domainsRouter);                  // /api/domains/*
 router.use(storeRouter);                    // /api/store/* (digital sales checkout)
 router.use(storefrontRouter);               // /api/storefront/* (products, orders, discounts)
+router.use(performanceBookingsRouter);      // /api/performance-bookings/* (Book the Artist, #158)
 router.use(shopifyBridgeRouter);            // /api/storefront/shopify-import/*, /api/storefront/shopify-export/* (CSV bridge)
 router.use(giftCardsRouter);                // /api/gift-cards/* (stored-value gift cards: buy/verify/balance/mine/sold/refund)
 router.use(creatorTiersRouter);             // /api/creator-tiers/*
