@@ -5,14 +5,16 @@ import { Radio, Loader2, Sparkles, ClipboardCheck, Scissors } from "lucide-react
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import LiveStageDesk from "@/components/go-live/LiveStageDesk";
 
 /* ── Stream Copilot ───────────────────────────────────────────────────────
-   Live hub (/go-live) tab. HONEST SCOPE: no real-time co-hosting.
-   (1) Pre-stream: AI generates a setup checklist, talking points/segment
-       plan, and "clip watch-fors" — moment types to watch for that make
-       good clips. 1 VB.
-   (2) Post-stream: paste a recap with timestamps; AI identifies the most
-       clip-worthy moments with titles + descriptions. 1 VB. */
+   Live hub (/go-live) tab. (1) Pre-stream: AI generates a setup
+       checklist, talking points/segment plan, and "clip watch-fors" —
+       moment types to watch for that make good clips. 1 VB.
+   (2) Post-stream: paste a recap with timestamps; AI identifies the
+       most clip-worthy moments with titles + descriptions. 1 VB.
+   Real-time co-hosting lives in the Live Stage Desk docked below
+   (#166 Stage Manager + #172 Auto-Highlights + #153 Classes). */
 
 const PREP_COST = 1;
 const CLIP_COST = 1;
@@ -107,7 +109,7 @@ export default function StreamCopilotSection() {
           <h3 className="text-lg font-black text-white">{t("streamCopilot.title", { defaultValue: "Stream Copilot" })}</h3>
         </div>
         <p className="text-sm text-white/50 mb-6">
-          {t("streamCopilot.desc", { defaultValue: "Your pre-stream prepper and post-stream clip spotter. No fake real-time co-hosting — just sharp prep and sharp clips." })}
+          {t("streamCopilot.desc", { defaultValue: "Your pre-stream prepper and post-stream clip spotter — and below, your Stage Manager co-hosts live while you stream." })}
         </p>
 
         <div className={`inline-flex rounded-xl border p-1 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/80" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -206,6 +208,7 @@ export default function StreamCopilotSection() {
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
         {outOfCredits && <div className="mt-4"><OutOfCredits /></div>}
       </div>
+      <LiveStageDesk />
     </div>
   );
 }

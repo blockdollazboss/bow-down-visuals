@@ -883,6 +883,38 @@ router.get("/live-streams/status", requireAuth, async (req: Request, res: Respon
   }
 });
 
+/* The creator's own recent streams — the Live Stage desk's picker
+   (#153/#166/#172 read models all key off one of the caller's
+   streams). Slim rows only; registered before /live-streams/:id so
+   "mine" is never captured as a stream id. */
+router.get("/live-streams/mine", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .select()
+      .from(liveStreamsTable)
+      .where(eq(liveStreamsTable.user_id, req.userId!))
+      .orderBy(desc(liveStreamsTable.created_at))
+      .limit(20);
+    res.json({
+      streams: rows.map((s) => ({
+        id: s.id,
+        title: s.title,
+        status: s.status,
+        is_class: s.is_class,
+        ticket_price_vb: s.ticket_price_vb ?? null,
+        class_course_product_id: s.class_course_product_id ?? null,
+        has_vod: typeof s.vod_url === "string" && s.vod_url.length > 0,
+        started_at: s.started_at ? new Date(s.started_at).toISOString() : null,
+        ended_at: s.ended_at ? new Date(s.ended_at).toISOString() : null,
+        created_at: new Date(s.created_at).toISOString(),
+      })),
+    });
+  } catch (err) {
+    logger.error({ err }, "live-streams/mine failed");
+    res.status(500).json({ error: "Your streams couldn't load." });
+  }
+});
+
 router.post("/live-streams", requireAuth, async (req: Request, res: Response) => {
   try {
     const transport = selectedLiveTransport();

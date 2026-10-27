@@ -614,5 +614,14 @@ describe("ticketed go-live (Wave 4 #31)", () => {
     expect(bodies[1]).not.toHaveProperty("ticket_price_vb");
     expect(bodies[1]).not.toHaveProperty("ticket_capacity");
     await free.stop();
+
+    /* Creator Classes (#153): isClass rides the create body as
+       is_class — and only when the creator turned it on. */
+    const klass = make();
+    await klass.start(ownFakeStream(), { title: "Class", ticket: { priceVb: 500, isClass: true } });
+    expect(bodies[2]).toMatchObject({ title: "Class", ticket_price_vb: 500, is_class: true });
+    await klass.stop();
+    expect(bodies[0]).not.toHaveProperty("is_class");
+    expect(bodies[1]).not.toHaveProperty("is_class");
   });
 });

@@ -175,6 +175,10 @@ export default function BroadcastStudio() {
   const [ticketed, setTicketed] = useState(false);
   const [ticketPrice, setTicketPrice] = useState("");
   const [ticketCapacity, setTicketCapacity] = useState("");
+  /* Creator Classes (#153): a ticketed show can run as a class — the
+     ticket IS the enrollment, and the replay is listed as a course
+     (draft) when the session's recording lands. */
+  const [isClass, setIsClass] = useState(false);
   const [liveTicketsSold, setLiveTicketsSold] = useState(0);
   const [cameras, setCameras] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [mics, setMics] = useState<Array<{ deviceId: string; label: string }>>([]);
@@ -658,7 +662,7 @@ export default function BroadcastStudio() {
         toast({ title: "Seat limit needs a whole number", description: "Leave it blank for no limit.", variant: "destructive" });
         return;
       }
-      ticket = { priceVb: price, capacity: cap };
+      ticket = { priceVb: price, capacity: cap, ...(isClass ? { isClass: true } : {}) };
     }
     const stream = assembleStream();
     if (!stream) return;
@@ -1538,6 +1542,29 @@ export default function BroadcastStudio() {
                   className={`${inputCls} mt-1.5`}
                   data-testid="input-ticket-capacity"
                 />
+              </label>
+            </div>
+          )}
+          {ticketed && (
+            <div className="mt-3 flex items-start justify-between gap-3">
+              <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                Run this show as a class: every ticket holder is an enrolled student,
+                and when the session ends the replay is listed as a course (as a draft —
+                you set the price and publish it).
+              </p>
+              <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isClass}
+                  disabled={isLivePhase}
+                  onClick={() => setIsClass(!isClass)}
+                  className={`relative h-6 w-10 rounded-full transition-colors ${isClass ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
+                  data-testid="switch-is-class"
+                >
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${isClass ? "left-[18px]" : "left-0.5"}`} />
+                </button>
+                Run as a class
               </label>
             </div>
           )}

@@ -26,6 +26,7 @@ import {
   type SourceConnection,
 } from "@/lib/merged-live-chat";
 import { savedDestinationsFromPayload } from "@/lib/destination-keys";
+import { playSignatureSound } from "@/lib/signature-sounds";
 
 /* ─── Live chat panel ─────────────────────────────────────────────────────
    ONE panel for the watch page and the studio: same messages, same
@@ -148,6 +149,12 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
     // them to the studio's Program overlay, which listens on window.
     client.onAlert = (alert) => {
       window.dispatchEvent(new CustomEvent("bdv:live-alert", { detail: { ...alert, streamId } }));
+    };
+    // Stage Manager (#166): a milestone in the room plays the Royal
+    // Sting through the signature sound switchboard — the listener's
+    // own sound prefs (and device mute) always win, per the sounds law.
+    client.onSting = () => {
+      playSignatureSound("sting");
     };
     void client.start();
     return () => client.stop();
@@ -282,6 +289,24 @@ export default function LiveChatPanel({ streamId, className = "" }: { streamId: 
                 <span className="text-[#fbbf24]">{client.pinned.message.author.displayName}:</span>{" "}
                 {client.pinned.message.body ? (
                   <KingTokenText body={client.pinned.message.body} theme="dark" />
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+          )}
+          {client.stagePinned && new Date(client.stagePinned.pinnedUntil).getTime() > Date.now() && (
+            <div
+              className="border-b border-white/10 bg-white/[0.04] px-4 py-2.5"
+              data-testid="chat-stage-pin"
+            >
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                Pinned by Thy Cheat Code · co-host
+              </p>
+              <p className="mt-0.5 break-words text-sm font-semibold text-white">
+                <span className="text-[#fbbf24]">{client.stagePinned.message.author.displayName}:</span>{" "}
+                {client.stagePinned.message.body ? (
+                  <KingTokenText body={client.stagePinned.message.body} theme="dark" />
                 ) : (
                   "—"
                 )}
