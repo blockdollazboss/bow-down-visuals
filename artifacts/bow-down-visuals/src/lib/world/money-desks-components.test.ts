@@ -101,3 +101,64 @@ describe("#64 room store contracts", () => {
     expect(rooms).not.toContain("window.location.href = ");
   });
 });
+
+describe("#63b crowns depth contracts (parity P3 — par-membership-depth)", () => {
+  it("the roster rides the members rail — list, status PATCH, remove, manual add", () => {
+    expect(stands).toContain('fetch("/api/memberships/members"');
+    expect(stands).toContain("`/api/memberships/members/${member.id}`");
+    expect(stands).toContain('method: "PATCH"');
+    expect(stands).toContain("memberStatusPayload(status)");
+    expect(stands).toContain("buildMemberAddPayload(memberTierId, memberLabel)");
+    expect(stands).toContain('data-testid="world-crowns-roster"');
+    expect(stands).toContain('data-testid="world-crowns-roster-row"');
+    expect(stands).toContain('data-testid="world-crowns-member-add"');
+    expect(stands).toContain('data-testid="world-crowns-member-remove"');
+    /* Roster writes land only from server answers. */
+    expect(stands).toContain("savedMemberStatus(data)");
+    expect(stands).toContain("applyMemberStatus(list, saved)");
+    expect(stands).toContain("removeMemberRow(list, member.id)");
+    /* The manual add's honesty: a record, no payment taken. */
+    expect(stands).toContain("It takes no payment and sends them nothing.");
+  });
+
+  it("the perk suggester rides the confirmed-spend seam at the rail's own price", () => {
+    expect(stands).toContain('confirmedFetch("/api/memberships/ai-perks"');
+    expect(stands).toContain("overrideCost: MEMBERSHIP_AI_PERKS_COST_VB");
+    expect(stands).toContain("buildPerkSuggestPayload({ niche, audienceSize })");
+    expect(stands).toContain("parsePerkSuggestions(data)");
+    expect(stands).toContain('data-testid="world-crowns-perk-suggest"');
+    expect(stands).toContain('data-testid="world-crowns-perk-use"');
+    /* A suggestion fills the FORM — the save stays the creator's tap. */
+    expect(stands).toContain("tierFormFromSuggestion(f, s)");
+  });
+
+  it("clubs are browsable — the directory lists, the paste door stays", () => {
+    expect(stands).toContain('fetch("/api/memberships/directory")');
+    expect(stands).toContain("parseClubDirectory(await res.json())");
+    expect(stands).toContain('data-testid="world-crowns-directory"');
+    expect(stands).toContain('data-testid="world-crowns-directory-row"');
+    expect(stands).toContain("clubStartingLabel(row)");
+    expect(stands).toContain("onClick={() => void loadClub(row.creatorUserId)}");
+    expect(stands).toContain("parseCreatorUserId(creatorInput)");
+  });
+
+  it("gifting rides the checkout rail's recipient — free gifts land in-world, trials hide", () => {
+    expect(stands).toContain("membershipCheckoutPayload(tier.id, period, recipientId)");
+    expect(stands).toContain("parseRecipientUserId(recipientInput)");
+    expect(stands).toContain('data-testid="world-crowns-gift"');
+    expect(stands).toContain("Gift sent — they're a member now.");
+    expect(stands).toContain("tierOffersTrial(tier) && !recipientId");
+  });
+
+  it("the return VERIFY confirms the landing — stash at checkout, verify on return", () => {
+    expect(stands).toContain("localStorage.setItem(membershipPendingKey(), JSON.stringify(pending))");
+    expect(stands).toContain("parseMembershipPending(localStorage.getItem(membershipPendingKey()))");
+    expect(stands).toContain('fetch("/api/memberships/verify"');
+    expect(stands).toContain("membershipVerifyState(res.status, data)");
+    expect(stands).toContain('data-testid="world-crowns-join-confirmation"');
+    expect(stands).toContain('data-testid="world-crowns-verify"');
+    /* The money moment is still the ONE marked transfer, new tab only. */
+    expect(stands).toContain('window.open(url, "_blank", "noopener,noreferrer")');
+    expect(stands).not.toContain("window.location.href = ");
+  });
+});
