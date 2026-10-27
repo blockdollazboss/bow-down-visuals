@@ -12,24 +12,33 @@
 export interface TargetLanguage {
   code: string;
   label: string;
+  /** The language's own name for itself (autonym). */
+  nativeLabel: string;
 }
 
-/** Keep in sync with the backend TARGET_LANGUAGES catalog. */
+/**
+ * Mirror of the ONE canonical catalog — api-server
+ * lib/dub-caption-languages.ts (DUB_CAPTION_LANGUAGES), shared by the
+ * video translator, video dub, and caption translation. Widened
+ * 14 → 15 (English added). Parity is pinned by
+ * lib/video-translator.test.ts; change both sides together.
+ */
 export const TARGET_LANGUAGES: TargetLanguage[] = [
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "pt", label: "Portuguese" },
-  { code: "de", label: "German" },
-  { code: "it", label: "Italian" },
-  { code: "nl", label: "Dutch" },
-  { code: "pl", label: "Polish" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "zh", label: "Chinese (Mandarin)" },
-  { code: "hi", label: "Hindi" },
-  { code: "ar", label: "Arabic" },
-  { code: "ru", label: "Russian" },
-  { code: "tr", label: "Turkish" },
+  { code: "en", label: "English", nativeLabel: "English" },
+  { code: "es", label: "Spanish", nativeLabel: "Español" },
+  { code: "fr", label: "French", nativeLabel: "Français" },
+  { code: "pt", label: "Portuguese", nativeLabel: "Português" },
+  { code: "de", label: "German", nativeLabel: "Deutsch" },
+  { code: "it", label: "Italian", nativeLabel: "Italiano" },
+  { code: "nl", label: "Dutch", nativeLabel: "Nederlands" },
+  { code: "pl", label: "Polish", nativeLabel: "Polski" },
+  { code: "ja", label: "Japanese", nativeLabel: "日本語" },
+  { code: "ko", label: "Korean", nativeLabel: "한국어" },
+  { code: "zh", label: "Chinese (Mandarin)", nativeLabel: "中文" },
+  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी" },
+  { code: "ar", label: "Arabic", nativeLabel: "العربية" },
+  { code: "ru", label: "Russian", nativeLabel: "Русский" },
+  { code: "tr", label: "Turkish", nativeLabel: "Türkçe" },
 ];
 
 export const TRANSLATOR_CREDITS_PER_MIN_PER_LANG = 500;

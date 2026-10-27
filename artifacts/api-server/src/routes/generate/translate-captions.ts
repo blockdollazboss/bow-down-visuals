@@ -3,6 +3,10 @@ import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
+import {
+  DUB_CAPTION_LANGUAGES,
+  unsupportedDubCaptionLanguages,
+} from "../../lib/dub-caption-languages";
 
 const router = Router();
 
@@ -12,18 +16,13 @@ const router = Router();
 
 const TRANSLATE_COST_PER_LANG = 50;
 
-const SUPPORTED_LANGUAGES = [
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-  { code: "it", label: "Italian" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "zh", label: "Chinese" },
-  { code: "ar", label: "Arabic" },
-  { code: "hi", label: "Hindi" },
-] as const;
+/** Canonical catalog (lib/dub-caption-languages.ts) — shared with the
+ *  video translator + video dub; widened 10 → 15 (adds en/nl/pl/ru/tr).
+ *  One list for UI + validation. */
+export const SUPPORTED_LANGUAGES = DUB_CAPTION_LANGUAGES.map((l) => ({
+  code: l.code,
+  label: l.label,
+}));
 
 const translateSchema = z.object({
   captions: z.array(z.object({
@@ -31,7 +30,7 @@ const translateSchema = z.object({
     end: z.number(),
     text: z.string(),
   })).min(1).max(500),
-  targetLanguages: z.array(z.string()).min(1).max(10),
+  targetLanguages: z.array(z.string()).min(1).max(DUB_CAPTION_LANGUAGES.length),
 });
 
 router.get("/translate-languages", requireAuth, (_req, res) => {
@@ -48,7 +47,17 @@ router.post("/translate-captions", requireAuth, async (req, res) => {
     return;
   }
 
-  const totalCost = TRANSLATE_COST_PER_LANG * parsed.data.targetLanguages.length;
+  // Validate BEFORE charging: unknown codes used to be silently skipped
+  // inside the translation loop after the charge had already landed.
+  const unsupported = unsupportedDubCaptionLanguages(parsed.data.targetLanguages);
+  if (unsupported.length > 0) {
+    res.status(400).json({ error: `Unsupported language(s): ${unsupported.join(", ")}` });
+    return;
+  }
+  // Dedupe so a repeated code is never charged or translated twice.
+  const targetLanguages = [...new Set(parsed.data.targetLanguages)];
+
+  const totalCost = TRANSLATE_COST_PER_LANG * targetLanguages.length;
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < totalCost) {
     res.status(402).json({
@@ -61,7 +70,7 @@ router.post("/translate-captions", requireAuth, async (req, res) => {
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, totalCost, {
-      action: `Caption Translation (${parsed.data.targetLanguages.length} langs)`,
+      action: `Caption Translation (${targetLanguages.length} langs)`,
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
@@ -76,7 +85,7 @@ router.post("/translate-captions", requireAuth, async (req, res) => {
     const translations: Record<string, typeof parsed.data.captions> = {};
 
     // Translate to each language
-    await Promise.all(parsed.data.targetLanguages.map(async (langCode) => {
+    await Promise.all(targetLanguages.map(async (langCode) => {
       const lang = SUPPORTED_LANGUAGES.find((l) => l.code === langCode);
       if (!lang) return;
 

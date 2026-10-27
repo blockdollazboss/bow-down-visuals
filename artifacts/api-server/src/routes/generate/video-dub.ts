@@ -7,6 +7,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { transcribeAudioTimed } from "../../lib/transcription";
+import { DUB_CAPTION_LANGUAGES } from "../../lib/dub-caption-languages";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
@@ -29,19 +30,13 @@ const DUB_COST = Number(process.env["VIDEO_DUB_CREDITS"]) || 500;
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 const FFMPEG_TIMEOUT_MS = 600_000;
 
-const DUB_LANGUAGES = [
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-  { code: "it", label: "Italian" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "zh", label: "Chinese" },
-  { code: "ar", label: "Arabic" },
-  { code: "hi", label: "Hindi" },
-  { code: "en", label: "English" },
-] as const;
+/** Canonical catalog (lib/dub-caption-languages.ts) — shared with the
+ *  video translator + caption translation; widened 11 → 15 (adds
+ *  nl/pl/ru/tr). One list for UI + validation. */
+export const DUB_LANGUAGES = DUB_CAPTION_LANGUAGES.map((l) => ({
+  code: l.code,
+  label: l.label,
+}));
 
 const dubSchema = z.object({
   videoUrl: z.string().trim().min(1).max(2048),
