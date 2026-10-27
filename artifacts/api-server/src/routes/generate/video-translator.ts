@@ -52,6 +52,11 @@ import {
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 import { tmpUploadStorage } from "../../lib/upload-storage";
+import {
+  DUB_CAPTION_LANGUAGES,
+  isDubCaptionLanguage,
+  dubCaptionLanguageLabel,
+} from "../../lib/dub-caption-languages";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -67,7 +72,11 @@ const WHISPER_MAX_BYTES = 24 * 1024 * 1024; // 24 MB — chunk past this
 const WHISPER_TIMEOUT_MS = 240_000;
 const TTS_TIMEOUT_MS = 180_000;
 
-/* ── Supported languages ─────────────────────────────────────────────── */
+/* ── Supported languages ───────────────────────────────────────────────
+ * The canonical catalog lives in lib/dub-caption-languages.ts and is
+ * shared with video-dub + translate-captions (ONE list for UI +
+ * validation; widened to 15 with English added here). The exports below
+ * keep this route's established shape for its importers/tests. */
 
 export interface TargetLanguage {
   code: string;
@@ -75,29 +84,18 @@ export interface TargetLanguage {
   elevenLabsCode: string; // BCP-47 hint for multilingual TTS
 }
 
-export const TARGET_LANGUAGES: TargetLanguage[] = [
-  { code: "es", label: "Spanish", elevenLabsCode: "es" },
-  { code: "fr", label: "French", elevenLabsCode: "fr" },
-  { code: "pt", label: "Portuguese", elevenLabsCode: "pt" },
-  { code: "de", label: "German", elevenLabsCode: "de" },
-  { code: "it", label: "Italian", elevenLabsCode: "it" },
-  { code: "nl", label: "Dutch", elevenLabsCode: "nl" },
-  { code: "pl", label: "Polish", elevenLabsCode: "pl" },
-  { code: "ja", label: "Japanese", elevenLabsCode: "ja" },
-  { code: "ko", label: "Korean", elevenLabsCode: "ko" },
-  { code: "zh", label: "Chinese (Mandarin)", elevenLabsCode: "zh" },
-  { code: "hi", label: "Hindi", elevenLabsCode: "hi" },
-  { code: "ar", label: "Arabic", elevenLabsCode: "ar" },
-  { code: "ru", label: "Russian", elevenLabsCode: "ru" },
-  { code: "tr", label: "Turkish", elevenLabsCode: "tr" },
-];
+export const TARGET_LANGUAGES: TargetLanguage[] = DUB_CAPTION_LANGUAGES.map((l) => ({
+  code: l.code,
+  label: l.label,
+  elevenLabsCode: l.elevenLabsCode,
+}));
 
 export function isSupportedLanguage(code: string): boolean {
-  return TARGET_LANGUAGES.some((l) => l.code === code);
+  return isDubCaptionLanguage(code);
 }
 
 export function languageLabel(code: string): string {
-  return TARGET_LANGUAGES.find((l) => l.code === code)?.label ?? code;
+  return dubCaptionLanguageLabel(code);
 }
 
 /* ── Cost estimation (shared with frontend lib — keep in sync) ───────── */
