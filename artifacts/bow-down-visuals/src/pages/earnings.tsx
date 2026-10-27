@@ -46,6 +46,97 @@ function SourceCard({ title, source, detail }: { title: string; source: SourceOk
   );
 }
 
+/* ── Pending payout (payfix store-dashboards) ────────────────────────────
+ * The seller's payable balance, read from THE ledger:
+ * GET /api/earnings/pending-payout (pending_payout_ledger — every
+ * completed sale accrues its net exactly once; a refund reverses it
+ * exactly once). This is the same figure the Store Dashboard's Get
+ * Paid card shows via /api/connect/status — one number, everywhere.
+ * Its own fetch + failure state: a failed load says so, never $0.00. */
+interface PendingPayoutRead {
+  pendingCents: number;
+  accruedCents: number;
+  reversedCents: number;
+  sponsorReleasedCents: number;
+  settledCents: number;
+  rows: Array<{
+    id: string;
+    sourceKind: string;
+    entryType: "accrual" | "reversal";
+    grossCents: number;
+    platformFeeCents: number;
+    netCents: number;
+    createdAt: string;
+  }>;
+}
+
+const LEDGER_KIND_LABEL: Record<string, string> = {
+  digital_sale: "Digital sale",
+  store_order: "Store order",
+  shop_event: "Shop sale",
+  beat_license: "Beat license",
+  membership: "Membership",
+};
+
+function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null> }) {
+  const [read, setRead] = useState<PendingPayoutRead | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken().catch(() => null);
+        const res = await fetch("/api/earnings/pending-payout", {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (!res.ok) throw new Error(`pending payout failed (${res.status})`);
+        const data = (await res.json()) as PendingPayoutRead;
+        if (!cancelled) setRead(data);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [getToken]);
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-card p-5" data-testid="pending-payout-card">
+      <div className="text-sm text-muted-foreground">Pending payout</div>
+      {failed ? (
+        <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+      ) : !read ? (
+        <div className="mt-2 text-sm text-muted-foreground">Loading your payable balance…</div>
+      ) : (
+        <>
+          <div className="mt-2 text-2xl font-bold">{usd(read.pendingCents)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            accrued {usd(read.accruedCents)}
+            {read.reversedCents > 0 ? ` · refunds reversed ${usd(read.reversedCents)}` : ""}
+            {read.sponsorReleasedCents > 0 ? ` · brand deals released ${usd(read.sponsorReleasedCents)}` : ""}
+            {read.settledCents > 0 ? ` · already paid out ${usd(read.settledCents)}` : ""}
+          </div>
+          {read.rows.length > 0 && (
+            <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+              {read.rows.slice(0, 8).map((r) => (
+                <li key={r.id} className="flex justify-between gap-2">
+                  <span>
+                    {LEDGER_KIND_LABEL[r.sourceKind] ?? r.sourceKind}
+                    {r.entryType === "reversal" ? " — refund reversal" : ""}
+                  </span>
+                  <span className={r.entryType === "reversal" ? "text-destructive" : ""}>
+                    {r.entryType === "reversal" ? "−" : "+"}{usd(r.netCents)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Earnings() {
   const { user, loading: authLoading, getAccessToken } = useAuth();
   const [data, setData] = useState<EarningsResponse | null>(null);
@@ -128,7 +219,7 @@ export default function Earnings() {
   return (
     <div className="mx-auto max-w-3xl p-6">
       <h1 className="text-2xl font-bold">Earnings</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Every stream, one picture — sales, memberships, tips and brand deals.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Every stream, one picture — sales, beats, memberships, tips and brand deals.</p>
 
       <div className="mt-6 rounded-xl border border-border bg-card p-5">
         <div className="text-sm text-muted-foreground">Total earned (USD)</div>
@@ -149,6 +240,9 @@ export default function Earnings() {
             sources.storeSales.status === "ok" && sources.storeSales.breakdown
               ? [
                   `profile store ${usd(sources.storeSales.breakdown.profileStoreCents)} · shop ${usd(sources.storeSales.breakdown.shopSalesCents)}`,
+                  sources.storeSales.breakdown.digitalSalesCents > 0
+                    ? `digital store ${usd(sources.storeSales.breakdown.digitalSalesCents)}`
+                    : null,
                   /* #36 co-seller splits: what my sales paid my
                      co-sellers, and what I earned as a co-seller on
                      other creators' products — each shown only when
@@ -162,6 +256,15 @@ export default function Earnings() {
                 ]
                   .filter(Boolean)
                   .join(" · ")
+              : undefined
+          }
+        />
+        <SourceCard
+          title="Beats (licenses sold)"
+          source={sources.beats}
+          detail={
+            sources.beats.status === "ok"
+              ? `gross ${usd(sources.beats.grossCents)} · platform commission ${usd(sources.beats.commissionCents)} (15%)`
               : undefined
           }
         />
@@ -182,6 +285,8 @@ export default function Earnings() {
           )}
         </div>
       </div>
+      <PendingPayoutCard getToken={() => getAccessToken()} />
+
       {/* #16: the affiliate desk docks in the money desk — its own fetch,
           its own failure state, never a standalone page. */}
       <AffiliateDeskSection />

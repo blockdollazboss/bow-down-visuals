@@ -37,10 +37,21 @@ export interface EarningsTips {
 export interface StoreSalesBreakdown {
   profileStoreCents: number;
   shopSalesCents: number;
+  /* Digital-store sales (payfix store-dashboards): absent on older
+     payloads → 0. */
+  digitalSalesCents: number;
+  digitalSalesCount: number;
   coSellerSharesPaidOutCents: number;
   coSellerSplitCents: number;
   coSellerSplitSales: number;
 }
+
+/** Beat-license income (payfix store-dashboards): previously visible
+    only on the Producer Dashboard; now a first-class Earnings source
+    with the 15% commission split shown. */
+export type BeatsSource =
+  | (SourceOk & { grossCents: number; commissionCents: number })
+  | (SourceErr & { grossCents: null; commissionCents: null });
 
 export interface EarningsResponse {
   currency: string;
@@ -49,6 +60,7 @@ export interface EarningsResponse {
   partial: boolean;
   sources: {
     storeSales: (SourceOk & { breakdown: StoreSalesBreakdown | null }) | (SourceErr & { breakdown: null });
+    beats: BeatsSource;
     memberships: EarningsSource;
     brandDeals: EarningsSource;
     tips: EarningsTips;
@@ -182,6 +194,8 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
       breakdown = {
         profileStoreCents: p,
         shopSalesCents: s,
+        digitalSalesCents: finite(rawStore.breakdown.digitalSalesCents) ?? 0,
+        digitalSalesCount: finite(rawStore.breakdown.digitalSalesCount) ?? 0,
         /* #36 co-seller splits: absent on older payloads → 0. */
         coSellerSharesPaidOutCents: finite(rawStore.breakdown.coSellerSharesPaidOutCents) ?? 0,
         coSellerSplitCents: finite(rawStore.breakdown.coSellerSplitCents) ?? 0,
@@ -192,6 +206,20 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
   const storeSales = storeBase.status === "ok"
     ? { ...storeBase, breakdown }
     : { ...errSource(), breakdown: null };
+
+  const rawBeats = sources.beats;
+  const beatsBase = moneySource(rawBeats);
+  let beats: BeatsSource;
+  if (beatsBase.status === "ok" && isObj(rawBeats)) {
+    beats = {
+      ...beatsBase,
+      grossCents: finite(rawBeats.grossCents) ?? beatsBase.totalCents,
+      commissionCents: finite(rawBeats.commissionCents) ?? 0,
+    };
+  } else {
+    beats = { ...errSource(), grossCents: null, commissionCents: null };
+    degraded = true;
+  }
 
   const memberships = moneySource(sources.memberships);
   if (memberships.status === "error") degraded = true;
@@ -226,6 +254,6 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
     totalCents,
     totalTipsVb: finite(payload.totalTipsVb),
     partial: payload.partial === true || degraded,
-    sources: { storeSales, memberships, brandDeals, tips },
+    sources: { storeSales, beats, memberships, brandDeals, tips },
   };
 }
