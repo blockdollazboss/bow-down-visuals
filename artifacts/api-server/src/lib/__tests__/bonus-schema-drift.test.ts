@@ -52,7 +52,11 @@ describe("bonus schema drift (G6)", () => {
   });
 
   it("bonus.ts never ALTERs or writes `profiles` through the DATABASE_URL handle", () => {
-    const src = fs.readFileSync(path.join(__dirname, "..", "bonus.ts"), "utf8");
+    const raw = fs.readFileSync(path.join(__dirname, "..", "bonus.ts"), "utf8");
+    /* Strip comments first: bonus.ts's own header prose legitimately
+       NAMES the old ALTER while explaining why it is gone — the pin
+       governs executable code, not the explanation. */
+    const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     expect(src).not.toMatch(/ALTER TABLE profiles/i);
     expect(src).not.toMatch(/INSERT INTO profiles/i);
     expect(src).not.toMatch(/UPDATE profiles/i);
