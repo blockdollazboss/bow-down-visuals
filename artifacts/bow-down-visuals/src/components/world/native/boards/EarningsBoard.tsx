@@ -13,6 +13,8 @@ import {
 import { loadEarnings, EarningsLoadCancelled } from "@/lib/earnings-data";
 import { PayoutDesk } from "@/components/world/native/PayoutDesk";
 import { MoneyActionsDesk } from "@/components/world/native/MoneyActionsDesk";
+import { CatalogExportDesk } from "@/components/world/native/CatalogExportDesk";
+import { SuccessionDesk } from "@/components/world/native/SuccessionDesk";
 import { PlansDesk } from "@/components/world/native/PlansDesk";
 import { TipJarDesk } from "@/components/world/native/TipJarDesk";
 import { ledgerPage } from "@/lib/world/money-desks-2";
@@ -50,7 +52,13 @@ import {
    (permanence PUTs, claim PATCHes); #66 adds the TipJarDesk
    (your tip page + settings), #69 the PlansDesk (site plan
    subscriptions on the creator-tiers rails) and #70 turns the
-   Ledger tab into the full paginated history. The statement
+   Ledger tab into the full paginated history. World Parity
+   P3-F adds the tail desks: the CatalogExportDesk (the
+   catalog-export builder on its routes/trust.ts rail — one
+   kind, picked fields, the file downloads in the room) and
+   the SuccessionDesk (legacy designation, inbox answers and
+   legacy contact on the /api/legacy/* rails) — the two Get
+   Paid surfaces that had no in-world form. The statement
    card views the year's statement ON the board and downloads it
    as a PDF file (plan §3.9: a download is not a pull-up) using
    the documents panel's own blob pattern. The view and the PDF
@@ -471,6 +479,18 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 catalog read from its rail, checkout/portal hosted
                 in a new tab, exactly as the pricing page rides it. */}
             <PlansDesk isLight={isLight} />
+
+            {/* World Parity P3-F: the catalog-export builder —
+                one kind, the fields you pick, built on the
+                routes/trust.ts rail and downloaded as a file
+                in the room, exactly as Settings builds it. */}
+            <CatalogExportDesk isLight={isLight} />
+
+            {/* World Parity P3-F: legacy & succession — the
+                designation, the inbox answers and the legacy
+                contact on the /api/legacy/* rails, the Settings
+                panels' own forms promoted in-world. */}
+            <SuccessionDesk isLight={isLight} />
           </>
         )
       ) : ledgerFailed ? (
