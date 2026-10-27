@@ -143,8 +143,10 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
   });
 });
 
-/* ── ensure a creator profile exists (checkout needs a profile_id FK target) ── */
-async function ensureProfile(userId: string, email: string | undefined): Promise<string> {
+/* ── ensure a creator profile exists (checkout needs a profile_id FK target) ──
+   Exported for the embedded-checkout subscription rail, which needs
+   the exact same profile guarantee as the hosted tier checkout. */
+export async function ensureProfile(userId: string, email: string | undefined): Promise<string> {
   const [existing] = await db
     .select({ id: creatorProfilesTable.id })
     .from(creatorProfilesTable)

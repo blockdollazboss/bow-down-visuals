@@ -63,6 +63,7 @@ import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 /* Order bumps (Stack-100 #3, feature #13): one add-on offer per item,
    ticked at checkout, charged in the same Stripe session. All bump
    money math lives in lib/order-bumps.ts. */
@@ -957,6 +958,12 @@ const CheckoutSchema = z.object({
   /* Order bump (feature #13): the buyer ticked the add-on. The server
      re-resolves the offer and its price — the tick alone buys nothing. */
   includeBump: z.boolean().default(false),
+  /* Embedded checkout (owner law 2026-10-26: never leave the site):
+     "embedded" creates the SAME Checkout Session in embedded_page
+     ui_mode and answers a clientSecret for the on-page
+     <EmbeddedCheckout> mount instead of a hosted URL. Absent =
+     legacy hosted session (fallback rail only). */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
 router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) => {
@@ -1270,8 +1277,21 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
             ]
           : []),
       ],
-      success_url: `${baseUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/store/buy/${kind}/${id}`,
+      /* Embedded ui_mode (2026-10-26): same session, same metadata,
+         same idempotency key — only the presentation differs. An
+         embedded session takes return_url (our own /store/success
+         page, which runs the existing verify rail) instead of
+         success/cancel URLs, and Stripe renders the form on our page.
+         EMBEDDED_CHECKOUT=off forces the legacy hosted shape. */
+      ...(parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled()
+        ? {
+            ui_mode: "embedded_page" as const,
+            return_url: `${baseUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
+          }
+        : {
+            success_url: `${baseUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/store/buy/${kind}/${id}`,
+          }),
       metadata: {
         buyer_user_id: req.userId!,
         profile_id: item.profileId,
@@ -1300,6 +1320,10 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     );
     res.json({
       url: session.url, sessionId: session.id,
+      /* Embedded sessions have no hosted URL to redirect to — the
+         clientSecret is what the on-page <EmbeddedCheckout> mounts. */
+      clientSecret: session.client_secret ?? null,
+      uiMode: parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled() ? "embedded" : "hosted",
       amountCents: totalCents, amount: money(totalCents),
       mainAmountCents: chargeCents,
       bump: bump
