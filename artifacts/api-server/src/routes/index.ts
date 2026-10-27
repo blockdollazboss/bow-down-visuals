@@ -277,7 +277,6 @@ import monthWrappedRouter from "./month-wrapped";
 import groupDigestRouter from "./group-digest";
 import viralSpikeRouter from "./viral-spike";
 import secondLifeRouter from "./second-life";
-import trendRadarRouter from "./trend-radar";
 import dropDayKitsRouter from "./drop-day-kits";
 import globalDropRouter from "./global-drop";
 import livePrefsRouter from "./live-prefs";

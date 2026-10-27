@@ -93,6 +93,8 @@ export function radarHeadline(feed: RadarSignal[]): string {
   const surging = feed.filter((s) => s.movement === "surging").length;
   if (surging > 0) return `${surging} signal${surging === 1 ? "" : "s"} surging in the last 24 hours.`;
   return `${feed.length} verified signal${feed.length === 1 ? "" : "s"} moving in the last 24 hours.`;
+}
+
 /* ─── Trend Radar (#178) — UPGRADE of Trends / Trend Predictor ─────────
    The /trends page's forecast is an AI prediction. This delta adds the
    REAL-SIGNAL daily feed the audit scoped next to it:

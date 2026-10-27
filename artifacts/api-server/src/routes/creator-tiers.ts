@@ -191,6 +191,8 @@ router.get("/creator-tiers/history", requireAuth, async (req, res) => {
       createdAt: r.createdAt,
     })),
   });
+});
+
 /* ── GET /creator-tiers/billing ── auth: Settings → Billing ──
    Reads the SAME creator_subscriptions row the webhook sync maintains
    and the tier gate reads — one source, no drift. Free users (no row,
