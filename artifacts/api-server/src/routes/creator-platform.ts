@@ -591,6 +591,11 @@ function enrichVideo(
     /* The profile-song pin (wave-2 #10) — see enrichTrack. */
     is_pinned: isPinned,
     is_short: row.isShort,
+    /* Duet Rails (#173): the creator's per-video duet switch — the
+       watch page's MediaLinkBar offers no duet door when this is
+       false. Pre-migration rows read as the DB default (on). */
+    duets_enabled: row.duetsEnabled ?? true,
+    king_featured_at: row.kingFeaturedAt ?? null,
     /* Row columns are season/episode; the client reads *_number. */
     season_number: row.season,
     episode_number: row.episode,

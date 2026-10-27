@@ -347,6 +347,7 @@ export default function StreamWatchPage() {
                   artistName={artistName}
                   soundId={video.sound?.id ?? null}
                   soundTitle={video.sound?.title ?? null}
+                  duetsEnabled={video.duets_enabled}
                 />
               </div>
 

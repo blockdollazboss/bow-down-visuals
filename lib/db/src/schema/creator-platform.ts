@@ -169,6 +169,20 @@ export const profileVideosTable = pgTable("profile_videos", {
   duetWith:          uuid("duet_with").references((): AnyPgColumn => (profileVideosTable as unknown as { id: AnyPgColumn }).id, { onDelete: "set null" }),
   /** Stitch parent (the original short being stitched). NULL = original. */
   stitchWith:        uuid("stitch_with").references((): AnyPgColumn => (profileVideosTable as unknown as { id: AnyPgColumn }).id, { onDelete: "set null" }),
+  /** Duet Rails (#173): the ORIGINAL creator's per-video switch.
+   *  true (default) = anyone may duet this video on the rails;
+   *  false = the duet door offers nothing and POST /videos/:id/duet
+   *  (and POST /shorts with duet_with) refuse with 403. Stitches are
+   *  a separate kind and are NOT governed by this switch. Column
+   *  lands via the held 9999-duet-rails migration (renumbered at
+   *  join); pre-migration rows read as enabled (the DB default). */
+  duetsEnabled:      boolean("duets_enabled").notNull().default(true),
+  /** Duet the King (N3, absorbed into #173): set when the house
+   *  (Thy Cheat Code, the official profile) features this duet —
+   *  a duet OF an official-profile clip — as the King's pick.
+   *  NULL = not featured. The pick is a house pick, stated as such
+   *  on every surface; the fan (this video's creator) is credited. */
+  kingFeaturedAt:    timestamp("king_featured_at", { withTimezone: true }),
   /** Sound used by this short: free-text id (slug) + display metadata. */
   soundId:           text("sound_id"),
   soundTitle:        text("sound_title"),
