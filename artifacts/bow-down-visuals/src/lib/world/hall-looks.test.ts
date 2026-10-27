@@ -9,7 +9,7 @@
  * swap the looks, drop the sun, or move the big screen off centre.
  */
 import { describe, it, expect } from "vitest";
-import { HALL_LOOKS, HALL_SCREEN, LOOK_FADE_MS, hallLookFor, lookFadeProgress, normalizeHallTheme } from "./hall-looks";
+import { HALL_LOOKS, HALL_SCREEN, LOOK_FADE_MS, areaWashFor, hallLookFor, lookFadeProgress, normalizeHallTheme } from "./hall-looks";
 
 function luminance(hex: number): number {
   const r = (hex >> 16) & 0xff;
@@ -87,6 +87,46 @@ describe("the two looks", () => {
       expect(look.floorOverlayOpacity).toBeLessThan(0.75);
       expect(look.floorRoughness).toBeLessThan(0.15);
     }
+  });
+});
+
+describe("the plaza daylight trim (#90)", () => {
+  it("indoors, both looks keep their authored wash exactly — the hall is untouched", () => {
+    for (const theme of ["light", "dark"] as const) {
+      const look = hallLookFor(theme);
+      const wash = areaWashFor(look, false);
+      expect(wash.ambientIntensity).toBe(look.ambient.intensity);
+      expect(wash.hemisphereIntensity).toBe(look.hemisphere.intensity);
+      expect(wash.sunIntensity).toBeNull();
+    }
+  });
+
+  it("the dark look is untouched outdoors too — no dark regression", () => {
+    const look = hallLookFor("dark");
+    const wash = areaWashFor(look, true);
+    expect(wash.ambientIntensity).toBe(look.ambient.intensity);
+    expect(wash.hemisphereIntensity).toBe(look.hemisphere.intensity);
+    expect(wash.sunIntensity).toBeNull();
+  });
+
+  it("outdoors in daylight the flat wash and sun ease off the bright paving", () => {
+    const look = hallLookFor("light");
+    const wash = areaWashFor(look, true);
+    // The directionless wash is the contrast killer — it must drop.
+    expect(wash.ambientIntensity).toBeLessThan(look.ambient.intensity);
+    expect(wash.hemisphereIntensity).toBeLessThan(look.hemisphere.intensity);
+    expect(wash.ambientIntensity + wash.hemisphereIntensity).toBeLessThanOrEqual(1.0);
+    // The sun stays a real sun (shadows + modelling), just eased.
+    expect(wash.sunIntensity).not.toBeNull();
+    expect(wash.sunIntensity!).toBeLessThan(look.sun.intensity);
+    expect(wash.sunIntensity!).toBeGreaterThan(2.0);
+    // Peak stack on the day paving (sun + wash) drops by ~a fifth
+    // vs the untrimmed look — the washout margin.
+    const before = look.sun.intensity + look.ambient.intensity + look.hemisphere.intensity;
+    const after = wash.sunIntensity! + wash.ambientIntensity + wash.hemisphereIntensity;
+    expect(after).toBeLessThan(before * 0.85);
+    // …while staying honestly sunnier than the night rig.
+    expect(after).toBeGreaterThan(1.5);
   });
 });
 

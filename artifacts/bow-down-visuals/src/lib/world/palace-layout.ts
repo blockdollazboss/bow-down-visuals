@@ -1258,13 +1258,36 @@ export function roomAt(x: number, z: number, fallback: string): string {
   return fallback;
 }
 
-/** Clamp a position into a room's walk rect. */
+/** Clamp a position into a room's standing footprint: its walk
+ *  rect UNION its grounds rects. The grounds are part of the room
+ *  (the server clamp boxes cover them — api-server
+ *  lib/world-palace.ts), and two authored spawns live in them:
+ *  the plaza spawn (0, 31.5) stands in the promenade grounds and
+ *  the Boardwalk spawn (0, 36.2) in its entry-strip grounds.
+ *  Walk-rect-only clamping filed both arrivals metres away from
+ *  their spawn points (the plaza arrival landed at z 25.7, off
+ *  its own SPAWN_DRESSING medallion) and yanked a
+ *  return-through-door step from the doorway apron to the walk
+ *  rect's edge. A point already inside any of the room's rects
+ *  stands unchanged; otherwise the NEAREST point across all the
+ *  rects wins, so a clamp moves a body as little as the room
+ *  allows. */
 export function clampToRoom(roomId: string, x: number, z: number): { x: number; z: number } {
   const room = palaceRoomLayout(roomId) ?? PALACE_LAYOUT[HALL_ROOM_ID]!;
-  return {
-    x: Math.min(room.walk.maxX, Math.max(room.walk.minX, x)),
-    z: Math.min(room.walk.maxZ, Math.max(room.walk.minZ, z)),
-  };
+  const rects: PalaceRect[] = room.grounds ? [room.walk, ...room.grounds] : [room.walk];
+  let best: { x: number; z: number } | null = null;
+  let bestD2 = Infinity;
+  for (const r of rects) {
+    const cx = Math.min(r.maxX, Math.max(r.minX, x));
+    const cz = Math.min(r.maxZ, Math.max(r.minZ, z));
+    const d2 = (cx - x) * (cx - x) + (cz - z) * (cz - z);
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = { x: cx, z: cz };
+      if (d2 === 0) break;
+    }
+  }
+  return best!;
 }
 
 export interface PalaceMoveResult {
