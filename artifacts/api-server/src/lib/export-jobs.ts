@@ -30,7 +30,7 @@ import { getSupabaseAdmin } from "./supabase-admin";
  * but every queued job row is re-enqueued by recovery on boot.
  */
 
-export type ExportJobState = "queued" | "active" | "done" | "failed";
+export type ExportJobState = "queued" | "active" | "done" | "failed" | "cancelled";
 
 export interface ExportJobError {
   message: string;
@@ -122,7 +122,7 @@ export async function createExportJob(
   const d = db();
   // Best-effort prune of old terminal jobs; never blocks creation.
   d.execute(
-    sql`DELETE FROM export_jobs WHERE state IN ('done', 'failed') AND created_at < now() - interval '2 hours'`,
+    sql`DELETE FROM export_jobs WHERE state IN ('done', 'failed', 'cancelled') AND created_at < now() - interval '2 hours'`,
   ).catch((err) => logger.warn({ err }, "[export-jobs] prune failed"));
   const res = await d.execute(sql`
     INSERT INTO export_jobs (user_id, project_id, params)
@@ -307,12 +307,33 @@ export async function reserveCreditsForJob(
 }
 
 /**
+ * Atomically claim the right to release this job's standing charge:
+ * flips credits_charged true→false and reports whether THIS caller won
+ * the flip. The cancel endpoint and the worker can both reach a release
+ * for the same job (a cancel lands while the render is finishing); the
+ * flip is the exactly-once gate — only the winner refunds.
+ */
+export async function claimChargeRelease(id: string): Promise<boolean> {
+  const res = await db().execute(sql`
+    UPDATE export_jobs SET credits_charged = false, updated_at = now()
+    WHERE id = ${id} AND credits_charged = true
+    RETURNING id
+  `);
+  return res.rows.length > 0;
+}
+
+/**
  * A-07: RELEASE a standing reservation in full — the render failed, or the
  * finished output turned out branded (branded exports are free, A-01), so
  * no charge may stand. Refunds through the ledger-aware refundCredits and
  * clears the flag, mirroring the completion-save failure path (D5 G2).
  * Only call when this job's flag is set by a reservation/charge this run
  * is responsible for.
+ *
+ * Payfix lane 6: the release is claimed through claimChargeRelease first,
+ * so concurrent releasers (cancel endpoint vs worker) refund EXACTLY
+ * ONCE — a caller that loses the flip refunds nothing. If the refund
+ * itself throws, the flag is re-armed so a later attempt can retry.
  */
 export async function releaseJobReservation(
   jobId: string,
@@ -320,8 +341,40 @@ export async function releaseJobReservation(
   cost: number,
   action: string,
 ): Promise<void> {
-  await refundCredits(userId, cost, { action });
-  await clearJobChargeFlag(jobId);
+  const claimed = await claimChargeRelease(jobId);
+  if (!claimed) return;
+  try {
+    await refundCredits(userId, cost, { action });
+  } catch (err) {
+    await db()
+      .execute(sql`
+        UPDATE export_jobs SET credits_charged = true, updated_at = now()
+        WHERE id = ${jobId} AND credits_charged = false
+      `)
+      .catch(() => undefined);
+    throw err;
+  }
+}
+
+/**
+ * Cancel a queued/active job (payfix lane 6): a single atomic UPDATE, so
+ * a job that raced to a terminal state (done/failed) is never clobbered
+ * — the caller gets undefined and reports the terminal state instead.
+ * `state` is a text column, so "cancelled" needs no migration. The
+ * worker cooperates: claimJobForRun only claims 'queued', completeJob
+ * only completes queued/active, failJob only fails queued/active, and
+ * the settle path re-reads the row before charging — a cancelled job is
+ * never settled and its result is discarded.
+ */
+export async function cancelExportJob(id: string): Promise<ExportJob | undefined> {
+  const res = await db().execute(sql`
+    UPDATE export_jobs
+    SET state = 'cancelled', stage = 'cancelled', updated_at = now()
+    WHERE id = ${id} AND state IN ('queued', 'active')
+    RETURNING ${JOB_COLUMNS}
+  `);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? toExportJob(row) : undefined;
 }
 
 /**
@@ -352,11 +405,14 @@ export async function completeJob(id: string, result: Record<string, unknown>): 
 }
 
 export async function failJob(id: string, error: ExportJobError): Promise<void> {
+  /* State-guarded (payfix lane 6): a job the user cancelled — or one
+     that already completed — must never be overwritten to "failed" by a
+     late worker error path. */
   await db().execute(sql`
     UPDATE export_jobs
     SET state = 'failed', stage = 'failed', progress = 0,
         error = ${JSON.stringify(error ?? {})}::jsonb, updated_at = now()
-    WHERE id = ${id}
+    WHERE id = ${id} AND state IN ('queued', 'active')
   `);
 }
 
@@ -446,7 +502,7 @@ export function describeJobProgress(job: Pick<ExportJob, "state" | "stage" | "up
   let progress: number;
   if (job.state === "done") {
     progress = 100;
-  } else if (job.state === "failed") {
+  } else if (job.state === "failed" || job.state === "cancelled") {
     progress = 0;
   } else if (stage === "completed") {
     progress = 100;
@@ -485,6 +541,8 @@ function humanizeStage(stage: string): string {
       return "Completed";
     case "failed":
       return "Failed";
+    case "cancelled":
+      return "Cancelled";
     default:
       if (stage.startsWith("normalizing clip")) return `Preparing ${stage.replace("normalizing ", "")}…`;
       return stage;

@@ -54,8 +54,11 @@ vi.mock("drizzle-orm/node-postgres", () => ({
         return { rows: [{ id: "job-1" }] };
       }
       if (/SET credits_charged = false/.test(text)) {
+        const was = h.flag;
         h.flag = false;
-        return { rows: [] };
+        /* claimChargeRelease (payfix lane 6) flips the flag WITH
+           RETURNING id — model the row it gets when the flag stood. */
+        return { rows: /RETURNING/.test(text) && was ? [{ id: "job-1" }] : [] };
       }
       return { rows: [] };
     },
