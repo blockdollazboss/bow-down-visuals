@@ -162,7 +162,6 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
 /* ── GET /creator-tiers/history ── auth ──
    Visible subscription receipt/history rows (payfix upgrade-path):
    subscribed / tier_changed / renewed / payment_failed / canceled,

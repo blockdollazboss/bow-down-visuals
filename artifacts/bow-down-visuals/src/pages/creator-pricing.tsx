@@ -446,7 +446,6 @@ export default function CreatorPricing() {
             </button>
           </div>
         )}
->>>>>>> stack200/orph-embedded-checkout
 
         {/* earned rank — stars come from work, never from a tier */}
         <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
