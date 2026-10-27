@@ -1,11 +1,15 @@
 /**
  * Paid Priority DMs (Wave-4 #44) — route gate tests.
  *
- * PRICE GATE: PRIORITY_DM_ENABLED ships OFF (open owner call). With
- * the gate off the routes must (a) say so plainly, (b) never expose a
- * purchasable price, and (c) refuse a send BEFORE any charge or row.
- * The core money promises (exactly-once charge, refund-on-block,
- * expiry refund, reply payout) are covered in lib/__tests__/priority-dms.
+ * PRICE + GATE — OWNER RULED 2026-10-27: the gate ships OPEN and the
+ * price is the platform's ruled 100 VB per message. With the gate on
+ * the routes must (a) say so, (b) expose the ruled price on the
+ * creator's own settings, and (c) let a creator opt in with no price
+ * of their own. With the kill switch (PRIORITY_DM_ENABLED=false) the
+ * routes must say so plainly, expose no purchasable price, and refuse
+ * a send BEFORE any charge or row. The core money promises
+ * (exactly-once charge at 100 VB, refund-on-block, expiry refund,
+ * reply payout) are covered in lib/__tests__/priority-dms.
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import express from "express";
@@ -54,7 +58,7 @@ let server: any;
 let baseUrl: string;
 
 beforeAll(async () => {
-  delete process.env["PRIORITY_DM_ENABLED"]; // gate OFF, as shipped
+  delete process.env["PRIORITY_DM_ENABLED"]; // gate ON, as shipped after the ruling
   const app = express();
   app.use(express.json());
   app.use("/api", router);
@@ -64,13 +68,51 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  delete process.env["PRIORITY_DM_ENABLED"];
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
 beforeEach(() => { h.chargeCalls = 0; });
 
-describe("gate OFF (the shipped default)", () => {
-  it("status says not available and exposes no price", async () => {
+describe("gate ON (the shipped default — owner ruling 2026-10-27)", () => {
+  it("status is honest: platform on, this creator not opted in, no price leaked", async () => {
+    const res = await fetch(`${baseUrl}/priority-dms/status?creator=${CREATOR}`);
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(200);
+    expect(body.platform_enabled).toBe(true);
+    expect(body.available).toBe(false);
+    expect(body.reason).toBe("not_opted_in");
+    expect(body).not.toHaveProperty("price_vb");
+  });
+
+  it("my-settings loads defaults plus the ruled platform price of 100 VB", async () => {
+    const res = await fetch(`${baseUrl}/priority-dms/my-settings`);
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(200);
+    expect(body.platform_enabled).toBe(true);
+    expect(body.opted_in).toBe(false);
+    expect(body.min_price_vb).toBeNull();
+    expect(body.price_vb).toBe(100);
+  });
+
+  it("opting in WITHOUT a price of my own succeeds — the platform price rules", async () => {
+    const res = await fetch(`${baseUrl}/priority-dms/my-settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ opted_in: true, reply_window_hours: 24 }),
+    });
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(200);
+    expect(body.opted_in).toBe(true);
+    expect(body.price_vb).toBe(100);
+  });
+});
+
+describe("gate OFF (the PRIORITY_DM_ENABLED=false kill switch)", () => {
+  beforeAll(() => { process.env["PRIORITY_DM_ENABLED"] = "false"; });
+  afterAll(() => { delete process.env["PRIORITY_DM_ENABLED"]; });
+
+  it("status says gate_off and exposes no price", async () => {
     const res = await fetch(`${baseUrl}/priority-dms/status?creator=${CREATOR}`);
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(200);
@@ -90,23 +132,5 @@ describe("gate OFF (the shipped default)", () => {
     expect(res.status).toBe(403);
     expect(body.error).toBe("priority_dm_unavailable");
     expect(h.chargeCalls).toBe(0);
-  });
-
-  it("my-settings loads honest defaults — opted out, no price invented", async () => {
-    const res = await fetch(`${baseUrl}/priority-dms/my-settings`);
-    const body = await res.json() as Record<string, unknown>;
-    expect(res.status).toBe(200);
-    expect(body.platform_enabled).toBe(false);
-    expect(body.opted_in).toBe(false);
-    expect(body.min_price_vb).toBeNull();
-  });
-
-  it("opting in without my own price is refused — no default fills in", async () => {
-    const res = await fetch(`${baseUrl}/priority-dms/my-settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ opted_in: true }),
-    });
-    expect(res.status).toBe(400);
   });
 });

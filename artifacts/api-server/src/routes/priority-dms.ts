@@ -19,6 +19,7 @@ import {
   validateSettingsUpdate,
   sendPriorityDm,
   settlePriorityDms,
+  priorityDmPriceVb,
   type PriorityDmDeps,
   type PriorityDmRow,
   type PriorityDmSettingsLike,
@@ -34,10 +35,13 @@ import {
  *   GET  /priority-dms/mine                     my sent priority DMs (as fan)
  *   POST /priority-dms/settle                   settle my held rows now
  *
- * ⚠️ PRICE GATE: PRIORITY_DM_ENABLED (lib/priority-dms) ships OFF — an
- * open owner call. While off, status says so plainly, no price is
- * exposed as purchasable, and send refuses before any charge. Normal
- * DMs (routes/community.ts) are completely untouched by this file.
+ * PRICE + GATE — OWNER RULED 2026-10-27: the gate is OPEN (the
+ * PRIORITY_DM_ENABLED env flag remains only as an ops kill switch —
+ * exactly "false" closes it) and the price is the platform's ruled
+ * 100 VB per priority message, charged and displayed. While the kill
+ * switch is off, status says so plainly, no price is exposed as
+ * purchasable, and send refuses before any charge. Normal DMs
+ * (routes/community.ts) are completely untouched by this file.
  *
  * Money: TEST MODE Visual Bucs on the existing rails only —
  * chargeCredits (personal balance, idempotency-keyed) holds the escrow,
@@ -209,7 +213,7 @@ const credits: PriorityDmDeps["credits"] = {
 };
 
 function deps(): PriorityDmDeps {
-  return { store, credits, platformEnabled: isPriorityDmPlatformEnabled() };
+  return { store, credits, platformEnabled: isPriorityDmPlatformEnabled(), priceVb: priorityDmPriceVb() };
 }
 
 const sendSchema = z.object({
@@ -236,7 +240,7 @@ router.get("/priority-dms/status", requireAuth, async (req, res) => {
     }
     if (!creator) { res.status(400).json({ error: "Missing creator." }); return; }
     const settings = await store.getSettings(creator);
-    const sellable = evaluateSellable(settings, true);
+    const sellable = evaluateSellable(settings, true, priorityDmPriceVb());
     if (!sellable.sellable) {
       res.json({ platform_enabled: true, available: false, reason: sellable.reason });
       return;
@@ -254,9 +258,10 @@ router.get("/priority-dms/status", requireAuth, async (req, res) => {
   }
 });
 
-/** My creator controls: current state, gate included. My own stated
- *  price stays visible to ME while the gate is off (it is my setting,
- *  not a purchasable offer). */
+/** My creator controls: current state, gate included. `price_vb` is
+ *  the platform's ruled per-message price (100 VB) — what fans pay;
+ *  my legacy stated price stays visible to ME as a stored setting,
+ *  never as the purchasable price. */
 router.get("/priority-dms/my-settings", requireAuth, async (req, res) => {
   try {
     const settings = await store.getSettings(req.userId!);
@@ -264,11 +269,12 @@ router.get("/priority-dms/my-settings", requireAuth, async (req, res) => {
       platform_enabled: isPriorityDmPlatformEnabled(),
       opted_in: settings?.optedIn ?? false,
       min_price_vb: settings?.minPriceVb ?? null,
+      price_vb: priorityDmPriceVb(),
       reply_window_hours: settings?.replyWindowHours ?? 48,
     });
   } catch (err) {
     if (isMissingTable(err)) {
-      res.json({ platform_enabled: isPriorityDmPlatformEnabled(), opted_in: false, min_price_vb: null, reply_window_hours: 48, not_ready: true });
+      res.json({ platform_enabled: isPriorityDmPlatformEnabled(), opted_in: false, min_price_vb: null, price_vb: priorityDmPriceVb(), reply_window_hours: 48, not_ready: true });
       return;
     }
     console.error("[priority-dms] GET /my-settings failed", err);
@@ -303,6 +309,7 @@ router.put("/priority-dms/my-settings", requireAuth, async (req, res) => {
       platform_enabled: isPriorityDmPlatformEnabled(),
       opted_in: out.settings.optedIn,
       min_price_vb: out.settings.minPriceVb,
+      price_vb: priorityDmPriceVb(),
       reply_window_hours: out.settings.replyWindowHours,
     });
   } catch (err) {

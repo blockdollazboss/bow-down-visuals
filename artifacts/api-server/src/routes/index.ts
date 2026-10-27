@@ -698,7 +698,7 @@ router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/stud
 router.use(openVerseRouter);             // /api/open-verse/* (Open Verse #176 — splits rail reuse, creator-gated pick, exactly-once ledger)
 router.use(sampleClearanceRouter);       // /api/sample-clearance/* (Sample Clearance Lane, Stack-200 N2)
 router.use(communityGrantsRouter);       // /api/community-grants/* + /api/admin/community-grants/* (Community Grants, N15)
-router.use(priorityDmsRouter);           // /api/priority-dms/* (Paid Priority DMs, Wave-4 #44 — gated OFF by PRIORITY_DM_ENABLED until the owner rules)
+router.use(priorityDmsRouter);           // /api/priority-dms/* (Paid Priority DMs, Wave-4 #44 — owner ruled 2026-10-27: gate OPEN at the ruled 100 VB/message; PRIORITY_DM_ENABLED=false is the kill switch)
 router.use(proxyEditingRouter);          // /api/proxy-editing/* (proxy editing, board 184)
 router.use(remixKingRouter);             // /api/remix-king/* + /api/admin/remix-king/* (Remix the King, #152)
 router.use(loopExchangeRouter);          // /api/loop-exchange/* (Loop Exchange, Stack-200 #168)

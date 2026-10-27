@@ -26,16 +26,18 @@ const router = Router();
    money path on the site) via POST /shoutouts/requests/:id/checkout;
    the verify endpoint flips it pending_payment → accepted exactly
    once when the session reports paid. Free requests (price 0) keep
-   the manual accept flow. The site's 10% platform fee intent is
-   unchanged. Only the AI message helper costs credits (1 credit,
-   charge-before-generate, refund on provider failure). */
+   the manual accept flow. The platform fee is the flat 5% law (owner
+   ruling 2026-10-27, by delegation: the shoutouts route's own 10%
+   constant aligns to flat 5% everywhere, retiring the 10%). Only the
+   AI message helper costs credits (1 credit, charge-before-generate,
+   refund on provider failure). */
 
 /* 1 credit per AI message draft — env-overridable without a deploy. */
 export const SHOUTOUT_AI_CREDITS = Number(process.env["SHOUTOUT_AI_CREDIT_COST"]) || 100;
 
-/* Platform fee intent for v1 — recorded for transparency; no money moves
-   until payment processing ships. */
-export const SHOUTOUT_PLATFORM_FEE_PCT = Number(process.env["SHOUTOUT_PLATFORM_FEE_PCT"]) || 10;
+/* Platform fee — flat 5%, the site-wide law (owner ruling 2026-10-27).
+   Env-overridable without a deploy; the default is the ruled 5. */
+export const SHOUTOUT_PLATFORM_FEE_PCT = Number(process.env["SHOUTOUT_PLATFORM_FEE_PCT"]) || 5;
 
 export const REQUEST_STATUSES = [
   "pending_payment",
