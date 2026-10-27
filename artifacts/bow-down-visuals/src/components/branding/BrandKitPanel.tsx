@@ -18,6 +18,7 @@ import {
 } from "@/lib/brand-kit";
 import { fetchAssetLibrary, libraryAssetsOfKind, type LibraryAsset } from "@/lib/asset-library";
 import { CreatorFontPicker } from "@/components/CreatorFontPicker";
+import { buildBrandSheetSvg } from "@/lib/design-vector-export";
 
 /* ─── Brand Kit panel — the creator's ONE brand record ─────────────────────
    Docked as the first tab of the Branding hub. Generation (200 Visual
@@ -160,6 +161,45 @@ export function BrandKitPanel() {
     } finally {
       setSaving(false);
     }
+  }
+
+  /* ── Brand sheet (SVG): true vectors from the kit's CURRENT words,
+     colors and fonts (the panel's hand edits included). Free, like
+     every design-file export. The kit's logo is a picture: it is NOT
+     in the file — the result names it, and its PNG download lives in
+     the logo field below. */
+  function downloadBrandSheet() {
+    if (!kit) return;
+    setError(null);
+    setNotice(null);
+    const current: BrandKit = {
+      ...kit,
+      brandName: brandName.trim(),
+      colors: colors.map((c) => ({ hex: c.hex.trim(), name: c.name.trim(), role: c.role })),
+      fonts: fonts.map((f) => ({ heading: f.heading.trim(), body: f.body.trim(), usage: f.usage.trim() })),
+      selectedTagline,
+      logoUrl: logoUrl.trim() || null,
+    };
+    const result = buildBrandSheetSvg(current);
+    if (!result.svg) {
+      setError(result.reason ?? t("brandingKit.brand.sheetFailed", { defaultValue: "No brand sheet yet — fill in the kit first." }));
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([result.svg], { type: "image/svg+xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "brand-sheet.svg";
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setNotice(
+      result.excludedRaster.length
+        ? t("brandingKit.brand.sheetDownloadedRaster", {
+            defaultValue: `Brand sheet (SVG) downloaded — true vectors for ${result.included.join(", ")}. Your logo is a picture, so it is named in the file but never baked in; its PNG download is in the logo field below.`,
+          })
+        : t("brandingKit.brand.sheetDownloaded", {
+            defaultValue: `Brand sheet (SVG) downloaded — true vectors for ${result.included.join(", ")}, ready for print and Illustrator.`,
+          }),
+    );
   }
 
   async function handleApply() {
@@ -611,6 +651,15 @@ export function BrandKitPanel() {
           >
             {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {t("brandingKit.brand.apply", { defaultValue: "Apply to my profile theme" })}
+          </button>
+          <button
+            onClick={downloadBrandSheet}
+            disabled={!kit}
+            title={!kit ? "Generate a kit first" : "True-vector brand sheet — your words, colors and fonts as real SVG text and shapes"}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-black text-white/70 transition hover:border-primary/50 hover:text-primary disabled:opacity-40"
+          >
+            <Download className="h-4 w-4" />
+            {t("brandingKit.brand.downloadSheet", { defaultValue: "Brand sheet (SVG)" })}
           </button>
         </div>
       </section>

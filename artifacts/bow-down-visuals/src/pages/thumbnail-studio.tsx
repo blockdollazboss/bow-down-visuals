@@ -36,6 +36,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useTranslation } from "react-i18next";
 import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
+import { RasterVectorExportNote } from "@/components/VectorExport";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { CostBadge } from "@/components/CostBadge";
 import { CreatorFontPicker } from "@/components/CreatorFontPicker";
@@ -952,6 +953,7 @@ export function ThumbnailMakerModule() {
                     <Button size="sm" className="gold-glow font-bold gap-2">
                       <Download className="h-4 w-4" />{t("thumbnailMaker.downloadButton")}</Button>
                   </a>
+                  <RasterVectorExportNote kindLabel="thumbnail" tone={isLight ? "light" : "dark"} />
                   {/* Spine reverse handoff: the thumbnail is already in the hub
                       project — Video Studio picks it up as an image reference. */}
                   <Link href="/video-studio">
