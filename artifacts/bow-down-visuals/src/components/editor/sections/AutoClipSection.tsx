@@ -1,11 +1,29 @@
 import { useRef, useState } from "react";
 import { EditorSettings, getClipEdit } from "@/lib/editor-settings";
-import { pollExportJob } from "@/lib/export-job-poll";
+import {
+  pollExportJob,
+  EXPORT_POLL_LOST_CONTACT_CODE,
+  EXPORT_POLL_TIMEOUT_CODE,
+  EXPORT_POLL_UNKNOWN_STATUS_CODE,
+} from "@/lib/export-job-poll";
+
 import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useHubProject } from "@/lib/hub-project";
 import { Button } from "@/components/ui/button";
 import { Scissors, Loader2, Download, RotateCcw, X } from "lucide-react";
+
+/* True when a clip's export outcome is UNKNOWN (the poller lost contact,
+   timed out, or got an answer it cannot follow) — the render may still
+   finish server-side, so these must never get a "not charged" promise. */
+function isUnknownOutcomeCode(code?: string): boolean {
+  return (
+    code === EXPORT_POLL_LOST_CONTACT_CODE ||
+    code === EXPORT_POLL_TIMEOUT_CODE ||
+    code === EXPORT_POLL_UNKNOWN_STATUS_CODE ||
+    (code?.startsWith("http_") ?? false)
+  );
+}
 
 /* ── AutoClipSection ───────────────────────────────────────────────
    The content creator's cheat code for distribution: turn a finished
@@ -44,6 +62,7 @@ interface ClipJob {
   status: "pending" | "rendering" | "done" | "error";
   url?: string;
   error?: string;
+  errorCode?: string;
 }
 
 function formatTime(sec: number): string {
@@ -214,7 +233,14 @@ export function AutoClipSection({
       } catch (e) {
         setJobs((prev) =>
           prev.map((j) =>
-            j.id === i ? { ...j, status: "error", error: e instanceof Error ? e.message : "Failed" } : j
+            j.id === i
+              ? {
+                  ...j,
+                  status: "error",
+                  error: e instanceof Error ? e.message : "Failed",
+                  errorCode: (e as { code?: string }).code,
+                }
+              : j
           )
         );
       }
@@ -225,14 +251,23 @@ export function AutoClipSection({
   async function retryJob(id: number) {
     const job = jobs.find((j) => j.id === id);
     if (!job || isRunning) return;
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: "rendering", error: undefined } : j)));
+    setJobs((prev) =>
+      prev.map((j) => (j.id === id ? { ...j, status: "rendering", error: undefined, errorCode: undefined } : j))
+    );
     try {
       const url = await renderOne(job);
       setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: "done", url } : j)));
     } catch (e) {
       setJobs((prev) =>
         prev.map((j) =>
-          j.id === id ? { ...j, status: "error", error: e instanceof Error ? e.message : "Failed" } : j
+          j.id === id
+            ? {
+                ...j,
+                status: "error",
+                error: e instanceof Error ? e.message : "Failed",
+                errorCode: (e as { code?: string }).code,
+              }
+            : j
         )
       );
     }
@@ -245,6 +280,16 @@ export function AutoClipSection({
   }
 
   const doneCount = jobs.filter((j) => j.status === "done").length;
+  /* Failure-UX (orphan-wave export-poll-stop): a failed clip gets the same
+     honest split as the main export panel — terminal failures were not
+     charged (the rail releases the hold in full); unknown outcomes get no
+     such promise, just the wait-before-retry warning. */
+  const anyFailedClip = jobs.some(
+    (j) => j.status === "error" && j.error !== "Cancelled" && !isUnknownOutcomeCode(j.errorCode)
+  );
+  const anyUnknownClip = jobs.some(
+    (j) => j.status === "error" && j.error !== "Cancelled" && isUnknownOutcomeCode(j.errorCode)
+  );
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
@@ -371,6 +416,16 @@ export function AutoClipSection({
                   )}
                 </div>
               ))}
+              {anyFailedClip && (
+                <p className="text-red-300/80 text-[11px] leading-relaxed px-1" data-testid="autoclip-failure-charge-note">
+                  Failed clips were not charged — any Visual Bucs hold for a failed clip was released in full. Hit Retry on a clip to run it again.
+                </p>
+              )}
+              {anyUnknownClip && (
+                <p className="text-red-300/80 text-[11px] leading-relaxed px-1" data-testid="autoclip-failure-unknown-note">
+                  Some clips couldn&apos;t be confirmed — they may still finish on the server. Wait a few minutes before retrying, so you don&apos;t pay for two renders of the same clip.
+                </p>
+              )}
             </div>
           )}
         </>
