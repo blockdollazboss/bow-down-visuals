@@ -417,7 +417,27 @@ export const WORLD_FIRST_WELCOME_WATCHDOG_MS = 60_000;
  * every interval on a live path; no frame at all for
  * WORLD_LIVENESS_TIMEOUT_MS means the path is dead — possibly
  * silently, with the socket still claiming open — and the client
- * retires it and re-enters through the same quiet reconnect. */
+ * retires it and re-enters through the same quiet reconnect.
+ *
+ * 3. The WIND-DOWN: the cadences above are calibrated for a tab
+ * somebody is looking at. When the page winds down (tab hidden —
+ * the page reports it through setWoundDown), a browser throttles
+ * this client's own timers, so ticks land late and irregularly:
+ * the 75 s liveness window could then trip on a path that is
+ * perfectly alive (the room answered every ping it ever got), and
+ * the client would tear down a healthy socket — a full quiet
+ * reconnect, a peer.leave + peer.join for the whole room, a voice
+ * mesh rebuild — for nothing. So while wound down the keepalive
+ * runs at a deliberate slow cadence (WORLD_KEEPALIVE_WINDDOWN_MS:
+ * frame silence stays inside the server's 90 s staleness sweep,
+ * the cadence world-room.ts already budgets a background tab)
+ * and the liveness window widens past proof-of-death into
+ * patience (WORLD_LIVENESS_WINDDOWN_MS): while hidden, the server
+ * sweep is the corpse-reaper, not this clock. Winding back up
+ * re-proves the path on the spot — an immediate ping and the
+ * foreground clock restarted — so a path that truly died in the
+ * background is still caught by the ordinary window, from the
+ * moment the person is actually back to see it. */
 /** How often an inside client sends its keepalive ping. Inside the
  *  strictest plausible intermediary idle window (55–120 s) with
  *  room to spare. */
@@ -426,6 +446,21 @@ export const WORLD_KEEPALIVE_INTERVAL_MS = 25_000;
  *  the path is presumed dead: three keepalive cycles with no pong
  *  is not a quiet room, it's a corpse. */
 export const WORLD_LIVENESS_TIMEOUT_MS = 75_000;
+/** The keepalive cadence while the page is wound down (tab
+ *  hidden): slow enough to stop burning a backgrounded tab's
+ *  battery on foreground chatter, fast enough that frame silence
+ *  never reaches the server's WORLD_PEER_STALE_MS (90 s) — this
+ *  is the "~60 s from a throttled background tab" cadence the
+ *  server's staleness math already budgets, now deliberate
+ *  instead of left to whatever a browser's throttle does. */
+export const WORLD_KEEPALIVE_WINDDOWN_MS = 60_000;
+/** The liveness window while wound down. Hidden-tab timers fire
+ *  late and coalesced, so the foreground window would convict
+ *  live paths on arithmetic alone; this window (three missed
+ *  wind-down pings) leaves corpse duty to the server's sweep
+ *  while hidden, and the wind-up re-proof (see setWoundDown)
+ *  restores the strict clock the moment the tab returns. */
+export const WORLD_LIVENESS_WINDDOWN_MS = 180_000;
 
 export function defaultWorldSocketUrl(
   loc: { protocol: string; host: string },
@@ -770,6 +805,11 @@ export class WorldClient {
    *  ANY inbound frame landed, on the injected clock. */
   private keepaliveTimer: unknown = null;
   private lastInboundAt = 0;
+  /** The page is wound down (tab hidden): the keepalive runs its
+   *  slow cadence and the liveness window widens — see
+   *  setWoundDown. The page owns the DOM signal; the client only
+   *  ever hears the boolean. */
+  private woundDown = false;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
   /** The vault character this client wants to stand as. `undefined` =
@@ -850,21 +890,55 @@ export class WorldClient {
    * clock: the ping guarantees a `pong` back on a live path, so a
    * full liveness window of total silence — no pong, no peer
    * traffic, nothing — is a dead path even when the socket still
-   * claims to be open. */
+   * claims to be open. Both numbers wind down with the page: the
+   * helpers below are the only places the cadence is chosen, so a
+   * hidden tab never runs (or is judged by) foreground timing. */
+  private keepaliveIntervalMs(): number {
+    return this.woundDown ? WORLD_KEEPALIVE_WINDDOWN_MS : WORLD_KEEPALIVE_INTERVAL_MS;
+  }
+
+  private livenessTimeoutMs(): number {
+    return this.woundDown ? WORLD_LIVENESS_WINDDOWN_MS : WORLD_LIVENESS_TIMEOUT_MS;
+  }
+
+  /** The page wound down (hidden=true: tab backgrounded) or back
+   *  up (hidden=false: somebody is looking again). Called by the
+   *  page from its visibilitychange listener; a tab that OPENS in
+   *  the background is reported before it ever enters, and the
+   *  recorded flag shapes the keepalive from the first welcome.
+   *
+   *  Winding down restarts the loop at the slow cadence with the
+   *  wide window — no frame is owed on the transition itself.
+   *  Winding up restarts the foreground loop AND pings on the
+   *  spot: the path re-proves itself immediately, the liveness
+   *  clock runs from the return (not from before the tab went
+   *  away), and a path that died while hidden — swept peer,
+   *  killed socket — surfaces through the ordinary close /
+   *  liveness machinery within one strict window of the return
+   *  instead of standing as a false "inside" until some later
+   *  tick happens to notice. */
+  setWoundDown(hidden: boolean): void {
+    if (this.woundDown === hidden) return;
+    this.woundDown = hidden;
+    if (this.status !== "inside" || this.inSequence) return;
+    this.startKeepalive();
+    if (!hidden) this.send({ type: "ping" });
+  }
+
   private startKeepalive(): void {
     this.stopKeepalive();
     this.lastInboundAt = this.now();
     const tick = () => {
       this.keepaliveTimer = null;
       if (this.status !== "inside" || this.inSequence) return;
-      if (this.now() - this.lastInboundAt > WORLD_LIVENESS_TIMEOUT_MS) {
+      if (this.now() - this.lastInboundAt > this.livenessTimeoutMs()) {
         this.handleDeadPath();
         return;
       }
       this.send({ type: "ping" });
-      this.keepaliveTimer = this.setTimer(tick, WORLD_KEEPALIVE_INTERVAL_MS);
+      this.keepaliveTimer = this.setTimer(tick, this.keepaliveIntervalMs());
     };
-    this.keepaliveTimer = this.setTimer(tick, WORLD_KEEPALIVE_INTERVAL_MS);
+    this.keepaliveTimer = this.setTimer(tick, this.keepaliveIntervalMs());
   }
 
   private stopKeepalive(): void {
@@ -1101,6 +1175,7 @@ export class WorldClient {
     this.setStatus("closed");
     this.clearConnectTimers();
     this.stopKeepalive();
+    this.woundDown = false;
     this.inSequence = false;
     this.sequenceIsReconnect = false;
     this.setReconnecting(false);
