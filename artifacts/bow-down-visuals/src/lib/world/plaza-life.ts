@@ -371,13 +371,22 @@ export interface PlazaBench {
   alongZ: boolean;
 }
 
-/** Benches: a pair north of the monument facing it across the
- *  braziers' line, a pair south of it on the stations' row (set
- *  back from every station point), and a pair facing the pool
- *  across its east and west ends. */
+/** Benches: a pair north of the monument facing it from the
+ *  open paving south of the hall steps, a pair south of it on
+ *  the stations' row (set back from every station point), and a
+ *  pair facing the pool across its east and west ends.
+ *  The north pair stood at z 16.0 until the #89 audit: that
+ *  footprint is the ceremonial hall-step PLATFORMS' own ground
+ *  (x 2.1..5.6, z 15.16..16.4, top 0.36) — the benches were
+ *  built at floor height, buried to their seats in the
+ *  platforms, and the plaza guard fixtures' posts (±3.85, 15.7)
+ *  stand on those same platforms, inside the benches' blocked
+ *  rects. At z 17.6 the pair keeps its line and facing on flat
+ *  plaza floor, clear of the platforms, the guards, the
+ *  braziers and the monument tiers. */
 export const PLAZA_BENCHES: readonly PlazaBench[] = [
-  { x: -3.4, z: 16.0, alongZ: false },
-  { x: 3.4, z: 16.0, alongZ: false },
+  { x: -3.4, z: 17.6, alongZ: false },
+  { x: 3.4, z: 17.6, alongZ: false },
   { x: -3.4, z: 23.2, alongZ: false },
   { x: 3.4, z: 23.2, alongZ: false },
   { x: -20.8, z: 29.3, alongZ: true },

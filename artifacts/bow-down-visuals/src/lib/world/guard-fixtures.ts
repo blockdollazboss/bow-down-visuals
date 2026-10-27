@@ -115,24 +115,33 @@ export interface WorldFixtureDef {
   postRotY: number;
 }
 
+/** The hall stage's top surface (hall-scene buildStage: a
+ *  22 × 5.8 slab centred (0, -15.1), 0.7 thick — top y = 0.7,
+ *  footprint z -18..-12.2, x ±11). Every hall post stands ON it. */
+export const HALL_STAGE_TOP_Y = 0.7;
+
 /**
  * The posts. Coordinates read off the built geometry:
- *  - The dais (both looks): a 12 m slab centred (0, -15.7), front edge
- *    z = -13.5, its top a metre up. The King stands on the FLOOR at
- *    the dais foot (0, -13.1) — floor height is look-independent, the
- *    dais top is not (0.96 vs 1.13), and a King floating or sunk by
- *    look is worse than a King at the foot of his throne.
- *  - Hall guards flank the dais just outside its 6 m half-width, on
- *    the floor, a step behind the King's line: (±6.9, -14.3).
+ *  - The stage (hall-scene buildStage): the slab above; the dais
+ *    sits ON it (centred (0, -15.7), front edge z = -13.5, its top
+ *    look-dependent 0.96/1.13). The King stands ON THE STAGE at
+ *    the dais foot (0, -13.1) — 0.4 m in front of the dais edge,
+ *    his feet on the stage top (y = HALL_STAGE_TOP_Y). An earlier
+ *    reading put the hall posts on "the floor" at y = 0: at these
+ *    z the floor is the stage slab itself, so y = 0 buried the
+ *    King and both guards 0.7 m inside it — only their upper
+ *    bodies cleared the stage surface.
+ *  - Hall guards flank the dais just outside its 6 m half-width,
+ *    on the stage, a step behind the King's line: (±6.9, -14.3).
  *  - Plaza guards stand ON the ceremonial step platforms flanking
  *    the arch approach (palace-grounds HALL_STEPS: platform top
  *    y = 0.36, step runs centred x = ±3.85, platform z 15.16-16.4):
  *    (±3.85, 0.36, 15.7), facing the plaza they guard.
  */
 export const WORLD_FIXTURES: readonly WorldFixtureDef[] = [
-  { id: "hall-king", body: "king", area: "hall", position: { x: 0, y: 0, z: -13.1 }, postRotY: 0 },
-  { id: "hall-guard-male", body: "guard-male", area: "hall", position: { x: -6.9, y: 0, z: -14.3 }, postRotY: 0 },
-  { id: "hall-guard-female", body: "guard-female", area: "hall", position: { x: 6.9, y: 0, z: -14.3 }, postRotY: 0 },
+  { id: "hall-king", body: "king", area: "hall", position: { x: 0, y: HALL_STAGE_TOP_Y, z: -13.1 }, postRotY: 0 },
+  { id: "hall-guard-male", body: "guard-male", area: "hall", position: { x: -6.9, y: HALL_STAGE_TOP_Y, z: -14.3 }, postRotY: 0 },
+  { id: "hall-guard-female", body: "guard-female", area: "hall", position: { x: 6.9, y: HALL_STAGE_TOP_Y, z: -14.3 }, postRotY: 0 },
   { id: "plaza-guard-male", body: "guard-male", area: "plaza", position: { x: -3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
   { id: "plaza-guard-female", body: "guard-female", area: "plaza", position: { x: 3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
 ];

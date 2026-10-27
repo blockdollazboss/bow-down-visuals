@@ -217,11 +217,13 @@ describe("elevation (item 38)", () => {
     expect(isWalkable(0, 14)).toBe(true);
     expect(isWalkable(0, 13)).toBe(true);
     // Every built step box lands inside the footprint record, and
-    // its centre stands at exactly the box's own top height —
-    // EXCEPT where a real solid stands on the box: a plaza-life
-    // table set occupies each platform's centre, and a solid
-    // inside a zone always wins (the zone yields, the top is
-    // not standing ground there).
+    // its centre stands at exactly the box's own top height. (A
+    // solid inside a zone would win — the zone yields — but since
+    // the #89 fix NO solid stands on the hall steps: the bench
+    // pair that occupied both platforms moved to open paving at
+    // z 17.6, because the platforms carry the plaza guard posts
+    // and a bench built at floor height stood buried to its seat
+    // in the platform. See plaza-life.ts PLAZA_BENCHES.)
     for (const s of hallStepRuns()) {
       const r: PalaceRect = {
         minX: s.cx - s.w / 2, maxX: s.cx + s.w / 2, minZ: s.cz - s.d / 2, maxZ: s.cz + s.d / 2,
@@ -239,12 +241,13 @@ describe("elevation (item 38)", () => {
         expect(groundHeightAt(s.cx, s.cz)).toBeCloseTo(s.cy + s.h / 2, 9);
       }
     }
-    // The occupied centres are exactly the two platform boxes.
+    // No step-box centre is occupied any more (#89): the two
+    // platform centres (cz 15.78) are the guard posts' own ground
+    // and stand at platform height.
     const occupied = hallStepRuns().filter((s) =>
       PLAZA_BLOCKED.some((b) => pointInRect(s.cx, s.cz, b)),
     );
-    expect(occupied).toHaveLength(2);
-    expect(occupied.every((s) => Math.abs(s.cz - 15.78) < 0.01)).toBe(true);
+    expect(occupied).toHaveLength(0);
     // Three rises a side, marching up toward the façade.
     const west = hallStepRuns().filter((s) => s.cx < 0);
     expect(west.length).toBe(4); // 3 treads + the platform

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FIXTURE_BODIES,
+  HALL_STAGE_TOP_Y,
   KING_FIXTURE_HEIGHT,
   WORLD_FIXTURES,
   bodyTexturesLanded,
@@ -15,6 +16,7 @@ import {
   DEFAULT_CHARACTER_PATH,
   DEFAULT_FIGURE_HEIGHT,
 } from "./figure";
+import { COURTYARD_ID, PALACE_LAYOUT, groundHeightAt, pointInRect } from "./palace-layout";
 
 describe("WORLD_FIXTURES — the court's posts", () => {
   it("stands five figures: the King + two guards in the hall, two on the plaza steps", () => {
@@ -27,15 +29,21 @@ describe("WORLD_FIXTURES — the court's posts", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("puts the King centred at the dais foot, on the floor, facing his court", () => {
+  it("puts the King centred at the dais foot, ON THE STAGE, facing his court", () => {
     const king = WORLD_FIXTURES.find((f) => f.body === "king");
     expect(king).toBeDefined();
     expect(king!.position.x).toBe(0);
-    expect(king!.position.y).toBe(0);
-    /* Dais front edge is z=-13.5; the stage seats ring sits at
-     * z≈-9.6. The King stands between them, clear of both. */
+    /* #89 audit: the stage slab (hall-scene buildStage) tops out
+     * at y = 0.7 and spans z -18..-12.2 — a post at this z stands
+     * on the stage, never on the y = 0 floor. At y = 0 the King's
+     * lower 0.7 m was inside the slab. */
+    expect(king!.position.y).toBe(HALL_STAGE_TOP_Y);
+    expect(HALL_STAGE_TOP_Y).toBe(0.7);
+    /* Dais front edge is z=-13.5; the stage's front lip is
+     * z=-12.2. The King stands on the stage between them, clear
+     * of both. */
     expect(king!.position.z).toBeGreaterThan(-13.5);
-    expect(king!.position.z).toBeLessThan(-9.6);
+    expect(king!.position.z).toBeLessThan(-12.2);
     expect(king!.postRotY).toBe(0);
   });
 
@@ -44,7 +52,12 @@ describe("WORLD_FIXTURES — the court's posts", () => {
     expect(guards).toHaveLength(2);
     for (const g of guards) {
       expect(Math.abs(g.position.x)).toBeGreaterThan(6);
-      expect(g.position.y).toBe(0);
+      /* On the stage like the King (their z is stage ground too),
+       * and inside the stage's x span (±11). */
+      expect(g.position.y).toBe(HALL_STAGE_TOP_Y);
+      expect(Math.abs(g.position.x)).toBeLessThan(11);
+      expect(g.position.z).toBeGreaterThan(-18);
+      expect(g.position.z).toBeLessThan(-12.2);
     }
     expect(guards.map((g) => Math.sign(g.position.x)).sort()).toEqual([-1, 1]);
   });
@@ -57,6 +70,21 @@ describe("WORLD_FIXTURES — the court's posts", () => {
       /* Platform band z 15.16..16.4. */
       expect(g.position.z).toBeGreaterThan(15.16);
       expect(g.position.z).toBeLessThan(16.4);
+    }
+  });
+
+  /* #89 audit: a post must stand on CLEAR ground at its own
+   * height — the plaza posts failed both halves: a bench pair
+   * shared their platforms (its blocked rect covered the posts,
+   * which also nullified the platform's step zone, so the layout
+   * read the ground under the guards as y = 0, not 0.36). */
+  it("every plaza post stands clear of every solid, on ground at its own height", () => {
+    const blocked = PALACE_LAYOUT[COURTYARD_ID]!.blocked ?? [];
+    for (const f of WORLD_FIXTURES.filter((f) => f.area === "plaza")) {
+      for (const b of blocked) {
+        expect(pointInRect(f.position.x, f.position.z, b), `${f.id} inside ${JSON.stringify(b)}`).toBe(false);
+      }
+      expect(groundHeightAt(f.position.x, f.position.z)).toBeCloseTo(f.position.y, 5);
     }
   });
 });
