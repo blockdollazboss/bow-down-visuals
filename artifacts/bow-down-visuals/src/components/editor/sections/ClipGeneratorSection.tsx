@@ -817,7 +817,7 @@ export function ClipGeneratorSection({
                 className="absolute top-full mt-1 left-0 z-50 min-w-[200px] rounded-xl border border-white/10 bg-zinc-900 shadow-xl shadow-black/40 py-1 text-xs"
               >
                 {(["end", "before", "after", "playhead"] as InsertMode[]).map((mode) => (
-                  <button
+                  <button aria-pressed={insertMode === mode}
                     key={mode}
                     type="button"
                     onClick={() => {
@@ -849,7 +849,7 @@ export function ClipGeneratorSection({
             {uploadStatus === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
             Upload Video
           </button>
-          <input
+          <input aria-label="Upload your own video file"
             ref={fileInputRef}
             type="file"
             accept="video/*"
@@ -1284,7 +1284,7 @@ function SceneClipCard({
           </span>
         )}
         {hasClip && (
-          <button
+          <button aria-pressed={scene.approved}
             type="button"
             onClick={() => onUpdateScene(scene.id, { approved: !scene.approved })}
             data-testid={`btn-approve-${index}`}
@@ -1318,7 +1318,7 @@ function SceneClipCard({
           <IconBtn title="Ripple delete (removes clip and closes gap)" danger onClick={() => onRemove(scene.id)} testId={`btn-rem-${index}`}>
             <Trash2 className="h-3 w-3" />
           </IconBtn>
-          <button
+          <button aria-expanded={detailOpen}
             type="button"
             onClick={() => setDetailOpen((o) => !o)}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${

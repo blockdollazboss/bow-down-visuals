@@ -1208,7 +1208,7 @@ export function TimelineDock({
           {freezeBusy ? t("videoEditor.freezing") : t("videoEditor.freeze")}
         </button>
 
-        <button type="button" onClick={() => setSnapEnabled((s) => !s)}
+        <button aria-pressed={snapEnabled} type="button" onClick={() => setSnapEnabled((s) => !s)}
           className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
             snapEnabled ? "text-primary border-primary/30 bg-primary/10" : "text-muted-foreground/70 border-border"
           }`}
@@ -1250,7 +1250,7 @@ export function TimelineDock({
           Crop song
         </button>
 
-        <button type="button" onClick={() => setShowSync((s) => !s)}
+        <button aria-pressed={showSync} type="button" onClick={() => setShowSync((s) => !s)}
           data-testid="timeline-dock-sync-toggle"
           title="Audio/video sync status and sync mode"
           className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
@@ -1322,7 +1322,7 @@ export function TimelineDock({
             {SYNC_MODES.map((mode) => {
               const isSelectedMode = syncMode === mode.id;
               return (
-                <button
+                <button aria-pressed={isSelectedMode}
                   key={mode.id}
                   type="button"
                   onClick={() => setSyncMode(mode.id)}

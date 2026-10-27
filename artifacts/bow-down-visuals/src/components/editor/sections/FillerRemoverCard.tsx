@@ -360,7 +360,7 @@ export function FillerRemoverCard({
                 {t("fillerRemover.customWordsLabel")}
               </p>
               <div className="flex gap-2">
-                <input
+                <input aria-label={t("fillerRemover.customWordsPlaceholder")}
                   type="text"
                   value={customInput}
                   onChange={(e) => setCustomInput(e.target.value)}
@@ -419,7 +419,7 @@ export function FillerRemoverCard({
                   <span className="text-[11px] font-semibold text-white/60 w-28 shrink-0">
                     {t("fillerRemover.minPauseLabel")}
                   </span>
-                  <input
+                  <input aria-label={t("fillerRemover.minPauseLabel")}
                     type="range"
                     min={0.3}
                     max={3}

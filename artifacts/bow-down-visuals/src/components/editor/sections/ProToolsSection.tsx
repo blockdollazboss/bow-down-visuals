@@ -68,7 +68,7 @@ function SliderRow({
   return (
     <div className="flex items-center gap-2 w-full min-w-0 py-0.5">
       <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0 truncate">{label}</span>
-      <input
+      <input aria-label={label}
         type="range" min={-100} max={100} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="flex-1 h-1 min-w-0 cursor-pointer"
@@ -312,7 +312,7 @@ export function ProToolsSection({
     <div className="space-y-4">
       {/* Scene picker */}
       <div className="flex items-center gap-3">
-        <select
+        <select aria-label="Scene"
           value={activeScene.id}
           onChange={(e) => setSceneId(e.target.value)}
           data-testid="pro-tools-scene-picker"
@@ -355,7 +355,7 @@ export function ProToolsSection({
               <Wand2 className="h-3.5 w-3.5" /> Auto-Levels · Free
             </button>
           </div>
-          <input
+          <input aria-label="Describe the look"
             type="text" value={look} onChange={(e) => setLook(e.target.value)}
             placeholder='Describe the look — e.g. "warm cinematic", "cold drill night" (optional)'
             className="w-full px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#C9A84C]/50"
@@ -433,7 +433,7 @@ export function ProToolsSection({
           <Collapsible title={`Advanced — color picker & edges${pt.chromaKey.enabled ? " ●" : ""}`}>
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <input
+                <input aria-label="Chroma key color"
                   type="color" value={pt.chromaKey.color}
                   onChange={(e) => patchProTools({ chromaKey: { ...pt.chromaKey, enabled: true, color: e.target.value } })}
                   className="h-9 w-12 rounded cursor-pointer bg-transparent"
@@ -448,7 +448,7 @@ export function ProToolsSection({
                     data-testid={`pro-chroma-swatch-${c.replace("#", "")}`}
                   />
                 ))}
-                <button
+                <button aria-pressed={eyedropperOn}
                   type="button"
                   onClick={() => setEyedropperOn((v) => !v)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
@@ -476,7 +476,7 @@ export function ProToolsSection({
                 onChange={(v) => patchProTools({ chromaKey: { ...pt.chromaKey, blend: v } })} />
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0">Backdrop</span>
-                <input
+                <input aria-label="Chroma key backdrop color"
                   type="color" value={pt.chromaKey.bgColor}
                   onChange={(e) => patchProTools({ chromaKey: { ...pt.chromaKey, bgColor: e.target.value } })}
                   className="h-8 w-11 rounded cursor-pointer bg-transparent"
@@ -537,7 +537,7 @@ export function ProToolsSection({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0">Speed</span>
-                <input
+                <input aria-label="Speed"
                   type="range" min={0.25} max={4} step={0.05} value={pt.speed}
                   onChange={(e) => patchProTools({ speed: Number(e.target.value) })}
                   className="flex-1 h-1 cursor-pointer" style={{ accentColor: "#C9A84C" }}
@@ -685,7 +685,7 @@ export function ProToolsSection({
                   <span className="text-[11px] font-semibold text-white/60 w-24 shrink-0 capitalize">
                     {k === "x" ? "Left" : k === "y" ? "Top" : k === "w" ? "Width" : "Height"}
                   </span>
-                  <input
+                  <input aria-label={k === "x" ? "Crop left" : k === "y" ? "Crop top" : k === "w" ? "Crop width" : "Crop height"}
                     type="range" min={0} max={100} value={Math.round(pt.crop[k] * 100)}
                     onChange={(e) => {
                       const v = Number(e.target.value) / 100;

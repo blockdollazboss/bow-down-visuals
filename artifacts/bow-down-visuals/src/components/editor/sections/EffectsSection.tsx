@@ -61,7 +61,7 @@ function IntensityRow({
   return (
     <div className="flex items-center gap-2 w-full min-w-0 py-0.5">
       <span className="text-[11px] font-semibold text-white/60 w-28 shrink-0 truncate">{label}</span>
-      <input
+      <input aria-label={label}
         type="range"
         min={0}
         max={100}
@@ -374,7 +374,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                   />
                   {ov !== "Logo / Watermark" && (
                     <div className="flex justify-end -mt-0.5 mb-1">
-                      <button
+                      <button aria-pressed={isSolo}
                         type="button"
                         onClick={() => setSettings({
                           ...settings,
@@ -469,7 +469,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             {(settings.watermarkType ?? "logo") === "text" && (
               <div>
                 <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Text</label>
-                <input type="text"
+                <input aria-label="Text" type="text"
                   value={settings.watermarkText ?? "Bow Down Visuals"}
                   onChange={(e) => setSettings({ ...settings, watermarkText: e.target.value })}
                   placeholder="Bow Down Visuals"
@@ -517,7 +517,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1">
                   Edge margin — {settings.watermarkMargin ?? 16}px
                 </label>
-                <input type="range" min={4} max={48} step={2}
+                <input aria-label="Size" type="range" min={4} max={48} step={2}
                   value={settings.watermarkMargin ?? 16}
                   onChange={(e) => setSettings({ ...settings, watermarkMargin: Number(e.target.value) })}
                   className="w-full accent-[#C9A84C] h-1"
@@ -677,7 +677,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             <CostBadge cost={500} className="ml-2" />
           </p>
           <div className="flex gap-2">
-            <select
+            <select aria-label="Scene for background removal"
               value={bgRemovalScene}
               onChange={(e) => setBgRemovalScene(e.target.value)}
               className="flex-1 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2 text-sm text-white"

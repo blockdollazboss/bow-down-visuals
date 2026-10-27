@@ -35,6 +35,7 @@ export function IconBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
       data-testid={testId}
       className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${
         danger

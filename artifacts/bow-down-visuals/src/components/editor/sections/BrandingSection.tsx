@@ -284,7 +284,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                   {OUTRO_CTA_PRESETS.map((cta) => {
                     const active = oc.ctaPreset === cta.id;
                     return (
-                      <button
+                      <button aria-pressed={active}
                         key={cta.id}
                         type="button"
                         onClick={() => setOutro({ ctaPreset: cta.id })}
@@ -375,7 +375,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                   </div>
                 )}
                 {wmError && <p className="text-xs text-red-400">{wmError}</p>}
-                <input
+                <input aria-label="Upload watermark logo"
                   ref={fileInputRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -418,7 +418,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                   {POSITION_OPTIONS.map((p) => {
                     const active = wm.position === p.value;
                     return (
-                      <button
+                      <button aria-pressed={active}
                         key={p.value}
                         type="button"
                         onClick={() => setWm({ position: p.value as typeof wm.position })}

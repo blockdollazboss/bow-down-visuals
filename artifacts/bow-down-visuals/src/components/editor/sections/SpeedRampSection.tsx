@@ -257,7 +257,7 @@ export function SpeedRampSection({
           <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Clip to retime</p>
           <div className="flex flex-wrap gap-2">
             {clips.map((s) => (
-              <button
+              <button aria-pressed={s.id === activeScene?.id}
                 key={s.id}
                 onClick={() => { setSceneId(s.id); setResult(null); setError(null); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
@@ -284,7 +284,7 @@ export function SpeedRampSection({
           </p>
           <div className="grid grid-cols-3 gap-2">
             {SLOW_FACTORS.map((f) => (
-              <button
+              <button aria-pressed={f === 2}
                 key={f}
                 onClick={() => void handleSlowMotion(f)}
                 disabled={working !== null}
@@ -332,7 +332,7 @@ export function SpeedRampSection({
               {constantPresets.map((p) => {
                 const active = presetKey === p.key;
                 return (
-                  <button
+                  <button aria-pressed={active}
                     key={p.key}
                     onClick={() => { setPresetKey(p.key); setResult(null); setError(null); }}
                     className={`rounded-xl border p-2.5 text-left transition-all ${
@@ -370,7 +370,7 @@ export function SpeedRampSection({
               {rampPresets.map((p) => {
                 const active = presetKey === p.key;
                 return (
-                  <button
+                  <button aria-pressed={active}
                     key={p.key}
                     onClick={() => { setPresetKey(p.key); setResult(null); setError(null); }}
                     className={`rounded-xl border p-2.5 text-left transition-all ${

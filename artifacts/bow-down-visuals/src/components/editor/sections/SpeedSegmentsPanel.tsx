@@ -272,7 +272,7 @@ export function SpeedSegmentsPanel({ pt, patchProTools }: {
               <span className="text-[11px] font-mono text-white/40 w-24 shrink-0">
                 {Math.round(selPoint.t * 100)}% · pt {selIdx + 1}/{curve.length}
               </span>
-              <input type="range" min={SPEED_CURVE_MIN} max={SPEED_CURVE_MAX} step={0.05} value={selPoint.speed}
+              <input aria-label="Selected point speed" type="range" min={SPEED_CURVE_MIN} max={SPEED_CURVE_MAX} step={0.05} value={selPoint.speed}
                 onChange={(e) => patchCurve(curve.map((p, i) => (i === selIdx ? { ...p, speed: Number(e.target.value) } : p)))}
                 className="flex-1 h-1 min-w-24 cursor-pointer" style={{ accentColor: "#C9A84C" }} />
               <span className="text-[10px] font-mono text-white/40 w-10">{selPoint.speed.toFixed(2)}×</span>
@@ -308,7 +308,7 @@ export function SpeedSegmentsPanel({ pt, patchProTools }: {
                 <span className="text-[11px] font-mono text-white/40 w-24 shrink-0">
                   {Math.round(s.startT * 100)}%–{Math.round(s.endT * 100)}%
                 </span>
-                <input type="range" min={0.25} max={4} step={0.05} value={s.speed}
+                <input aria-label="Segment speed" type="range" min={0.25} max={4} step={0.05} value={s.speed}
                   onChange={(e) => patchSegments(segments.map((x) => x.id === s.id ? { ...x, speed: Number(e.target.value) } : x))}
                   className="flex-1 h-1 min-w-24 cursor-pointer" style={{ accentColor: "#C9A84C" }} />
                 <span className="text-[10px] font-mono text-white/40 w-10">{s.speed.toFixed(2)}×</span>

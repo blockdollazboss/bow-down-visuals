@@ -395,7 +395,7 @@ export function SongWorkflow({
             <label className="block text-[10px] font-black text-white/50 uppercase tracking-wide">
               Lyrics For Captions
             </label>
-            <textarea
+            <textarea aria-label="Lyrics For Captions"
               value={manualLyrics}
               onChange={(e) => setManualLyrics(e.target.value)}
               placeholder={"Paste your song lyrics here…\n\nEach line becomes one caption.\n[Verse], [Hook], [Chorus] labels are stripped automatically."}

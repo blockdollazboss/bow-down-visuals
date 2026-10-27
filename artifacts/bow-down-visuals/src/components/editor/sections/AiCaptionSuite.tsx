@@ -684,7 +684,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
             )
           ) : (
             <div>
-              <input
+              <input aria-label="Upload video for captions"
                 ref={fileInputRef}
                 type="file"
                 accept="video/*"
@@ -795,7 +795,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                       className="w-16 shrink-0 bg-white/[0.04] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/70 font-mono"
                       aria-label={t("captionSuite.endLabel")}
                     />
-                    <input
+                    <input aria-label={t("captionSuite.linePlaceholder")}
                       type="text" value={l.text}
                       onChange={(e) => updateLine(l.id, { text: e.target.value })}
                       placeholder={t("captionSuite.linePlaceholder")}
@@ -1183,7 +1183,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                         <span className="w-32 shrink-0 text-[11px] text-white/35 font-mono truncate">
                           {l.start.toFixed(1)}s → {l.end.toFixed(1)}s
                         </span>
-                        <input
+                        <input aria-label="Translated caption text"
                           type="text" value={l.text}
                           onChange={(e) => updateTranslatedLine(activeLang, l.id, e.target.value)}
                           className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/85 focus:outline-none focus:border-[#E8C468]/50"

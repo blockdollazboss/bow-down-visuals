@@ -183,7 +183,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           {MIX_PRESETS.map((preset) => {
             const active = opts.preset === preset.id;
             return (
-              <button
+              <button aria-pressed={active}
                 key={preset.id}
                 type="button"
                 onClick={() => patch({ preset: preset.id as MixPresetId })}

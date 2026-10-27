@@ -228,7 +228,7 @@ export function SubjectReframeCard({
           </p>
           <div className="flex flex-wrap gap-2">
             {options.map((o) => (
-              <button
+              <button aria-pressed={activeOption?.id === o.id}
                 key={o.id}
                 onClick={() => pickSource(o.id)}
                 disabled={working}
@@ -251,7 +251,7 @@ export function SubjectReframeCard({
             )}
           </div>
           {options.length === 0 && (
-            <input
+            <input aria-label={t("videoEditor.subjectReframe.sourcePlaceholder")}
               value={manualUrl}
               onChange={(e) => {
                 setManualUrl(e.target.value);
@@ -275,7 +275,7 @@ export function SubjectReframeCard({
               const active = aspect === spec.key;
               const sw = spec.width / spec.height;
               return (
-                <button
+                <button aria-pressed={active}
                   key={spec.key}
                   onClick={() => pickAspect(spec.key)}
                   disabled={working}

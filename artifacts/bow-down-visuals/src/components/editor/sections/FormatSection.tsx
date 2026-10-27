@@ -57,7 +57,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
           const active = fmt === vf.id;
           const [fw, fh] = formatDimensions(vf.id as VideoFormat);
           return (
-            <button
+            <button aria-pressed={active}
               key={vf.id}
               type="button"
               onClick={() => setFormat(vf.id as VideoFormat)}
@@ -87,7 +87,7 @@ export function FormatSection({ settings, setSettings }: FormatSectionProps) {
         </label>
         <div className="flex flex-col gap-1">
           {FIT_MODES.map(({ id, label: lbl, desc }) => (
-            <button
+            <button aria-pressed={fitMode === id}
               key={id}
               type="button"
               onClick={() => setFitMode(id)}

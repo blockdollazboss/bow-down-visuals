@@ -397,7 +397,7 @@ export function VoiceDirectedEditsSection({
         {/* Command input */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <input
+            <input aria-label={t("wave9.directEdit.placeholder")}
               id="voice-directed-command-input"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
@@ -453,7 +453,7 @@ export function VoiceDirectedEditsSection({
               {plan.ops.map((op, i) => {
                 const on = confirmed[i];
                 return (
-                  <button
+                  <button aria-pressed={on}
                     key={i}
                     type="button"
                     onClick={() => toggleOp(i)}

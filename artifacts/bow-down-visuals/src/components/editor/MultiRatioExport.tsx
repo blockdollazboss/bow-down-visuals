@@ -323,7 +323,7 @@ export function MultiRatioExportCard({
             <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">
               {t("videoEditor.multiRatio.sourceLabel")}
             </label>
-            <input
+            <input aria-label={t("videoEditor.multiRatio.sourceLabel")}
               value={manualUrl}
               onChange={(e) => setManualUrl(e.target.value)}
               placeholder={t("videoEditor.multiRatio.sourcePlaceholder")}
@@ -343,7 +343,7 @@ export function MultiRatioExportCard({
               const active = selected.includes(cfg.key);
               const sw = cfg.width / cfg.height;
               return (
-                <button
+                <button aria-pressed={active}
                   key={cfg.key}
                   onClick={() => toggleRatio(cfg.key)}
                   disabled={!!jobActive}
@@ -392,7 +392,7 @@ export function MultiRatioExportCard({
                 { value: "crop", title: t("videoEditor.multiRatio.modeCropTitle"), desc: t("videoEditor.multiRatio.modeCropDesc") },
               ] as const
             ).map((m) => (
-              <button
+              <button aria-pressed={mode === m.value}
                 key={m.value}
                 onClick={() => setMode(m.value)}
                 disabled={!!jobActive}
@@ -714,7 +714,7 @@ export function ExtractAudioCard({ videoUrl }: { videoUrl: string | null }) {
             <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">
               {t("videoEditor.extractAudio.sourceLabel")}
             </label>
-            <input
+            <input aria-label={t("videoEditor.extractAudio.sourceLabel")}
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder={t("videoEditor.extractAudio.sourcePlaceholder")}
@@ -726,7 +726,7 @@ export function ExtractAudioCard({ videoUrl }: { videoUrl: string | null }) {
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="flex rounded-xl border border-white/10 overflow-hidden shrink-0">
             {(["mp3", "wav"] as const).map((f) => (
-              <button
+              <button aria-pressed={format === f}
                 key={f}
                 onClick={() => setFormat(f)}
                 className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider transition-colors ${

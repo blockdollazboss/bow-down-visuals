@@ -298,7 +298,7 @@ export function MusicStudio({
 
       {/* ── Create / Upload action hierarchy (Suno-style) ── */}
       <div className="grid grid-cols-2 gap-2">
-        <button
+        <button aria-pressed={studioTab === "create"}
           type="button"
           onClick={() => { setStudioTab("create"); if (!isSimple) setMode("auto"); }}
           className={`flex items-center justify-center gap-2 h-11 rounded-xl text-[13px] font-black transition-colors border ${

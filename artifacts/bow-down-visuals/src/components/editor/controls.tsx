@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useId, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
@@ -50,18 +50,21 @@ export function Collapsible({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={panelId}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
         data-testid={`collapsible-${title.toLowerCase().replace(/\s+/g, "-")}`}
       >
         <span className="text-[11px] font-black text-white/50 uppercase tracking-widest">{title}</span>
         {open ? <ChevronUp className="h-4 w-4 text-white/40" /> : <ChevronDown className="h-4 w-4 text-white/40" />}
       </button>
-      {open && <div className="px-4 pb-4 pt-1 space-y-4">{children}</div>}
+      {open && <div id={panelId} className="px-4 pb-4 pt-1 space-y-4">{children}</div>}
     </div>
   );
 }
@@ -85,6 +88,7 @@ export function Segmented<T extends string>({
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
+          aria-pressed={value === opt.value}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors capitalize ${
             value === opt.value
               ? "bg-primary text-black"
@@ -109,13 +113,30 @@ export function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  // a11y B-1: the visible <label> below is not programmatically associated
+  // (no htmlFor — the control is an arbitrary child). When the field holds a
+  // single control that doesn't already carry a name, lend it the field's
+  // label text as its aria-label so the name matches what sighted users see.
+  // (When the child is a wrapper element the aria-label lands on the wrapper
+  // and is ignored by AT; panels with wrapped controls name the control
+  // itself — see a11y-editor-panels.test.ts.)
+  let control = children;
+  if (Children.count(children) === 1) {
+    const only = Children.only(children);
+    if (isValidElement(only)) {
+      const p = only.props as Record<string, unknown>;
+      if (!p["aria-label"] && !p["aria-labelledby"] && !p["ariaLabel"]) {
+        control = cloneElement(only, { "aria-label": label } as Record<string, unknown>);
+      }
+    }
+  }
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <label className="text-[10px] font-black text-white/45 uppercase tracking-widest">{label}</label>
         {hint && <span className="text-[10px] text-white/25">{hint}</span>}
       </div>
-      {children}
+      {control}
     </div>
   );
 }
@@ -141,6 +162,7 @@ export function Chip({
       type="button"
       onClick={onClick}
       title={title}
+      aria-pressed={active}
       draggable={draggable}
       onDragStart={onDragStart}
       className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
@@ -160,11 +182,13 @@ export function TextInput({
   onChange,
   placeholder,
   testId,
+  "aria-label": ariaLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   testId?: string;
+  "aria-label"?: string;
 }) {
   return (
     <input
@@ -172,6 +196,7 @@ export function TextInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      aria-label={ariaLabel ?? placeholder}
       data-testid={testId}
       className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-primary/40 transition-colors"
     />
@@ -184,17 +209,20 @@ export function Dropdown({
   options,
   onChange,
   testId,
+  "aria-label": ariaLabel,
 }: {
   value: string;
   options: readonly string[];
   onChange: (v: string) => void;
   testId?: string;
+  "aria-label"?: string;
 }) {
   const isLight = useIsLightTheme();
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      aria-label={ariaLabel}
       data-testid={testId}
       className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-primary/40 transition-colors"
       style={{ colorScheme: isLight ? "light" : "dark" }}

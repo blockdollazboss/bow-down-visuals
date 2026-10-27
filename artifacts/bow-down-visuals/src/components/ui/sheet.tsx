@@ -56,12 +56,52 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, onCloseAutoFocus, ...props }, ref) => {
+  // a11y B-3 (focus return): every Sheet in the app is CONTROLLED
+  // (open + onOpenChange, opened from a plain button — there is no
+  // SheetTrigger anywhere). Radix's default onCloseAutoFocus focuses
+  // context.triggerRef, which is null without a Trigger, and it calls
+  // preventDefault first — which also suppresses FocusScope's own
+  // restore-to-previously-focused fallback. Net effect before this fix:
+  // closing a sheet dropped keyboard focus to <body>. So capture the
+  // element that had focus when the sheet's DOM mounted (refs attach
+  // before Radix's auto-focus effects run, and the opener is never
+  // inside the sheet) and return focus to it on close — unless the
+  // caller supplied their own onCloseAutoFocus.
+  const openerRef = React.useRef<HTMLElement | null>(null);
+  const setContentRef = React.useCallback(
+    (node: React.ElementRef<typeof SheetPrimitive.Content> | null) => {
+      if (node) {
+        const active = document.activeElement as HTMLElement | null;
+        if (active && active !== document.body && !node.contains(active)) {
+          openerRef.current = active;
+        }
+      }
+      if (typeof ref === "function") {
+        (ref as (node: React.ElementRef<typeof SheetPrimitive.Content> | null) => void)(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<React.ElementRef<typeof SheetPrimitive.Content> | null>).current = node;
+      }
+    },
+    [ref],
+  );
+  return (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
-      ref={ref}
+      ref={setContentRef}
       className={cn(sheetVariants({ side }), className)}
+      onCloseAutoFocus={(event) => {
+        if (onCloseAutoFocus) {
+          onCloseAutoFocus(event);
+          return;
+        }
+        const opener = openerRef.current;
+        if (opener && document.contains(opener) && typeof opener.focus === "function") {
+          event.preventDefault();
+          opener.focus();
+        }
+      }}
       {...props}
     >
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
@@ -71,7 +111,8 @@ const SheetContent = React.forwardRef<
       {children}
     </SheetPrimitive.Content>
   </SheetPortal>
-))
+  );
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({

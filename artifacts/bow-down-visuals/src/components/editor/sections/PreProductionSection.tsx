@@ -216,7 +216,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
       {/* Sub-tabs */}
       <div className="flex gap-2">
         {tabs.map((t) => (
-          <button
+          <button aria-pressed={subTab === t.id}
             key={t.id}
             onClick={() => setSubTab(t.id)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
@@ -269,7 +269,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
             {BIBLE_FIELDS.map((f) => (
               <div key={f.key}>
                 <label className="text-[11px] font-bold text-white/60 uppercase tracking-wide">{f.label}</label>
-                <textarea
+                <textarea aria-label={f.label}
                   value={pp.bible[f.key]}
                   onChange={(e) => updateBible({ [f.key]: e.target.value } as Partial<ProductionBible>)}
                   placeholder={f.hint}
@@ -386,7 +386,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-2.5">
             <div className="flex flex-wrap gap-1.5">
               {ASSET_CATEGORIES.map((c) => (
-                <button
+                <button aria-pressed={assetCategory === c}
                   key={c}
                   onClick={() => setAssetCategory(c)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
@@ -400,7 +400,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
               ))}
             </div>
             <div className="flex gap-2">
-              <input
+              <input aria-label={`Describe the ${assetCategory.toLowerCase()}`}
                 value={assetPrompt}
                 onChange={(e) => setAssetPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && generateAsset()}

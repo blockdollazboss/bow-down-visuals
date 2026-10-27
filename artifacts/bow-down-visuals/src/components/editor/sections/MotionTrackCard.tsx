@@ -386,6 +386,16 @@ export function MotionTrackCard({
           <div
             className="relative rounded-xl overflow-hidden border border-white/10 bg-black cursor-crosshair select-none"
             onClick={placeBox}
+            tabIndex={0}
+            role="group"
+            aria-label={`${t("videoEditor.motionTrack.step1")} — ${t("videoEditor.motionTrack.pickHint")} (${Math.round(boxX * 100)}%, ${Math.round(boxY * 100)}%)`}
+            onKeyDown={(e) => {
+              const step = e.shiftKey ? 0.1 : 0.02;
+              if (e.key === "ArrowLeft") { e.preventDefault(); setBoxX(Math.min(0.98, Math.max(0.02, boxX - step))); }
+              else if (e.key === "ArrowRight") { e.preventDefault(); setBoxX(Math.min(0.98, Math.max(0.02, boxX + step))); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); setBoxY(Math.min(0.98, Math.max(0.02, boxY - step))); }
+              else if (e.key === "ArrowDown") { e.preventDefault(); setBoxY(Math.min(0.98, Math.max(0.02, boxY + step))); }
+            }}
             data-testid="motion-track-picker"
           >
             <video
@@ -531,7 +541,7 @@ export function MotionTrackCard({
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {MODE_META.map((m) => (
-              <button
+              <button aria-pressed={mode === m.id}
                 key={m.id}
                 type="button"
                 onClick={() => setMode(m.id)}
@@ -556,7 +566,7 @@ export function MotionTrackCard({
           <div className="mt-3 space-y-3">
             {mode === "text" && (
               <>
-                <input
+                <input aria-label={t("videoEditor.motionTrack.textPlaceholder")}
                   type="text"
                   value={labelText}
                   onChange={(e) => setLabelText(e.target.value)}
@@ -566,7 +576,7 @@ export function MotionTrackCard({
                 />
                 <div className="flex flex-wrap gap-2">
                   {(["clean", "glow"] as const).map((s) => (
-                    <button
+                    <button aria-pressed={textStyle === s}
                       key={s}
                       type="button"
                       onClick={() => setTextStyle(s)}
@@ -578,7 +588,7 @@ export function MotionTrackCard({
                     </button>
                   ))}
                   {(["above", "below", "center"] as const).map((p) => (
-                    <button
+                    <button aria-pressed={textPosition === p}
                       key={p}
                       type="button"
                       onClick={() => setTextPosition(p)}
@@ -593,7 +603,7 @@ export function MotionTrackCard({
               </>
             )}
             {mode === "sticker" && (
-              <input
+              <input aria-label={t("videoEditor.motionTrack.stickerPlaceholder")}
                 type="url"
                 value={stickerUrl}
                 onChange={(e) => setStickerUrl(e.target.value)}

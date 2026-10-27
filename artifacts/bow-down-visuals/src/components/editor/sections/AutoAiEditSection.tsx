@@ -374,7 +374,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
                     <div key={t.sceneIndex} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="shrink-0 text-[9px] font-black text-white/30 w-12">Scene {t.sceneIndex + 1}</span>
-                        <select
+                        <select aria-label={`Transition for scene ${t.sceneIndex + 1}`}
                           value={normalized}
                           onChange={(e) => setRowTransition(t.sceneIndex, e.target.value)}
                           disabled={t.sceneIndex === 0}

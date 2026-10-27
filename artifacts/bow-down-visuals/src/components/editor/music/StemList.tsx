@@ -136,7 +136,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
 
   return (
     <div className="space-y-4">
-      <input
+      <input aria-label="Replace stem file"
         ref={replaceRef}
         type="file"
         accept={STEM_ACCEPT}
@@ -146,7 +146,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
       />
       {variant === "tracks" && (
         <>
-          <input
+          <input aria-label="Upload stem files"
             ref={fileRef}
             type="file"
             accept={STEM_ACCEPT}
@@ -191,7 +191,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
               >
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">
-                    <input
+                    <input aria-label="Stem name"
                       type="text"
                       value={stem.name}
                       disabled={stem.locked}

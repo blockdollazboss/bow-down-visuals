@@ -148,13 +148,13 @@ export function StyleStealerSection({ settings, setSettings, bare }: StyleSteale
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("videoEditor.styleStealerUrl", { defaultValue: "Viral video URL" })}
           </label>
-          <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://…" className={`${inputClass} mt-1`} maxLength={500} />
+          <input aria-label={t("videoEditor.styleStealerUrl", { defaultValue: "Viral video URL" })} value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://…" className={`${inputClass} mt-1`} maxLength={500} />
         </div>
         <div>
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("videoEditor.styleStealerDescLabel", { defaultValue: "Describe what you saw *" })}
           </label>
-          <textarea
+          <textarea aria-label={t("videoEditor.styleStealerDescLabel", { defaultValue: "Describe what you saw *" })}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t("videoEditor.styleStealerDescPh", { defaultValue: "e.g. Opens with a freeze-frame + bold text, jump cuts every 2 sec on the beat, captions pop word-by-word…" })}
@@ -166,7 +166,7 @@ export function StyleStealerSection({ settings, setSettings, bare }: StyleSteale
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("videoEditor.styleStealerNiche", { defaultValue: "Your niche (optional)" })}
           </label>
-          <input value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1`} maxLength={120} />
+          <input aria-label={t("videoEditor.styleStealerNiche", { defaultValue: "Your niche (optional)" })} value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1`} maxLength={120} />
         </div>
       </div>
 

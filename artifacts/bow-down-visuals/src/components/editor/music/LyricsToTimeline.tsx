@@ -184,7 +184,7 @@ export function LyricsToTimeline({ lyrics, songTitle, durationSec }: LyricsToTim
             <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
               {t("wave9.timeline.lyricsLabel")}
             </label>
-            <textarea
+            <textarea aria-label={t("wave9.timeline.lyricsLabel")}
               className={`${inputClass} min-h-[110px] resize-y`}
               placeholder={t("wave9.timeline.lyricsPlaceholder")}
               value={lyricsText}
@@ -197,7 +197,7 @@ export function LyricsToTimeline({ lyrics, songTitle, durationSec }: LyricsToTim
               {t("wave9.timeline.durationLabel")}
             </label>
             <div className="flex items-center gap-2">
-              <input
+              <input aria-label={t("wave9.timeline.durationLabel")}
                 type="number"
                 min={5}
                 max={3600}

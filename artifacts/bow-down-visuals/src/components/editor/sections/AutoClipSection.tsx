@@ -268,7 +268,7 @@ export function AutoClipSection({
               <span className="text-[11px] text-white/45 font-medium block mb-1.5">Number of clips</span>
               <div className="flex gap-1.5">
                 {[3, 5, 10].map((n) => (
-                  <button
+                  <button aria-pressed={clipCount === n}
                     key={n}
                     onClick={() => setClipCount(n)}
                     disabled={isRunning}
@@ -287,7 +287,7 @@ export function AutoClipSection({
               <span className="text-[11px] text-white/45 font-medium block mb-1.5">Clip length</span>
               <div className="flex gap-1.5">
                 {[15, 30, 60].map((n) => (
-                  <button
+                  <button aria-pressed={clipLen === n}
                     key={n}
                     onClick={() => setClipLen(n)}
                     disabled={isRunning || n > projectDurationSec}

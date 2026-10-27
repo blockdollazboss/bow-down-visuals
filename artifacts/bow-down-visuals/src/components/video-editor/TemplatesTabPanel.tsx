@@ -630,7 +630,7 @@ export default function TemplatesTabPanel({
                       >
                         <Link2 className="h-3.5 w-3.5 mr-1.5" /> {t("videoTemplates.pasteUrl")}
                       </Button>
-                      <input
+                      <input aria-label={`Upload file for template slot ${slot.key}`}
                         ref={(el) => { fileInputs.current[slot.key] = el; }}
                         type="file"
                         className="hidden"
@@ -675,7 +675,7 @@ export default function TemplatesTabPanel({
                   {/* URL input */}
                   {showUrlInput[slot.key] && !url && (
                     <div className="mt-2 flex gap-2">
-                      <input
+                      <input aria-label={`Media URL for template slot ${slot.key}`}
                         value={urlDrafts[slot.key] ?? ""}
                         onChange={(e) => setUrlDrafts((p) => ({ ...p, [slot.key]: e.target.value }))}
                         placeholder="https://…"
@@ -698,7 +698,7 @@ export default function TemplatesTabPanel({
                 {t("videoTemplates.textOverlays")}
               </p>
               {selected.overlays.map((ov, i) => (
-                <input
+                <input aria-label={ov.text}
                   key={i}
                   value={overlayTexts[i] ?? ""}
                   onChange={(e) =>
@@ -735,7 +735,7 @@ export default function TemplatesTabPanel({
                 <Button size="sm" variant="outline" className="border-white/15 text-white/70" onClick={() => bedInput.current?.click()}>
                   <Upload className="h-3.5 w-3.5 mr-1.5" /> {t("videoTemplates.uploadAudio")}
                 </Button>
-                <input
+                <input aria-label={t("videoTemplates.uploadAudio")}
                   ref={bedInput}
                   type="file"
                   accept="audio/*"
