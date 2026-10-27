@@ -291,7 +291,7 @@
     "faqTitle": "الأسئلة الشائعة",
     "faqs": [
       {
-        "a": "استوديو الذكاء الاصطناعي لصنّاع المحتوى — أكثر من 19 أداة تكتب أغانيك، وتصوّر فيديوهاتك، وتقص ترويجك، وتصمم علامتك، وتدير أعمالك. حساب واحد، نظام Visual Bucs واحد، لا حاجة لفريق.",
+        "a": "استوديو الذكاء الاصطناعي لصنّاع المحتوى — 36 أداة تكتب أغانيك، وتصوّر فيديوهاتك، وتقص ترويجك، وتصمم علامتك، وتدير أعمالك. حساب واحد، نظام Visual Bucs واحد، لا حاجة لفريق.",
         "q": "ما هو Bow Down Visuals؟"
       },
       {
@@ -337,7 +337,7 @@
     "heroHeadlineA": "سيظن منافسوك أنك",
     "heroHeadlineB": "وظّفت فريقاً كاملاً.",
     "heroSlogan": "هذا يبدو كغش. وهذه هي الفكرة.",
-    "heroSub": "Bow Down Visuals هو استوديو الذكاء الاصطناعي الذي يكتب أغانيك، ويصوّر فيديوهاتك، ويقص مقاطعك الترويجية، ويدير أعمالك — أكثر من 19 أداة، نظام Visual Bucs واحد، ولا حاجة لأي إذن.",
+    "heroSub": "Bow Down Visuals هو استوديو الذكاء الاصطناعي الذي يكتب أغانيك، ويصوّر فيديوهاتك، ويقص مقاطعك الترويجية، ويدير أعمالك — 36 أداة، نظام Visual Bucs واحد، ولا حاجة لأي إذن.",
     "howKicker": "كيف يعمل",
     "howSub": "لا فريق. لا اجتماعات ميزانية. أنت فقط والشفرة.",
     "howTitle": "من الفكرة إلى الإمبراطورية في دقائق",
@@ -354,7 +354,7 @@
     "makeKicker": "ما يمكنك صنعه",
     "makeSub": "استوديو واحد. كل أصل تحتاجه مسيرتك الموسيقية — مُولَّد، لا مُفوَّض.",
     "makeTitle": "كل ما يحتاجه إصدارك",
-    "manifestoBody": "الصناعة أخذت دورها. أكثر من 19 أداة ذكاء اصطناعي. شفرة سرية واحدة. صفر إذن مطلوب.",
+    "manifestoBody": "الصناعة أخذت دورها. 36 أداة ذكاء اصطناعي. شفرة سرية واحدة. صفر إذن مطلوب.",
     "manifestoKicker": "رسالة من الملك",
     "manifestoRumor": "شائعة: هذه الصفحة فيها شفرة سرية.",
     "manifestoTitleA": "انحنِ",
@@ -375,7 +375,7 @@
       "ملفات صحفية",
       "عروض رعاية"
     ],
-    "pageDescription": "استوديو الذكاء الاصطناعي لصنّاع المحتوى: أغانٍ، فيديوهات موسيقية، مقاطع ترويجية، هوية بصرية وأدوات أعمال. أكثر من 19 ميزة ذكاء اصطناعي — ادفع فقط لما تصنعه.",
+    "pageDescription": "استوديو الذكاء الاصطناعي لصنّاع المحتوى: أغانٍ، فيديوهات موسيقية، مقاطع ترويجية، هوية بصرية وأدوات أعمال. 36 أداة — ادفع فقط لما تصنعه.",
     "pageTitle": "Bow Down Visuals — الشفرة السرية لصانع المحتوى",
     "positioning": "الشفرة السرية لصانع المحتوى",
     "pricingKicker": "حزم Visual Bucs",
@@ -5795,30 +5795,30 @@
       "retry": "حاول مجددًا"
     },
     "secondLife": {
-      "title": "Second Life",
-      "subtitle": "Your back catalog, watched. When an old track or video starts spiking again, Second Life plans its comeback — a re-cut short and a fresh cover — and waits for your word.",
-      "loadError": "Second Life settings couldn't load.",
-      "retry": "Retry",
-      "saved": "Second Life settings saved",
-      "saveFailed": "Couldn't save Second Life settings",
+      "title": "الحياة الثانية",
+      "subtitle": "كتالوجك القديم تحت المراقبة. عندما يبدأ مسار أو فيديو قديم في الصعود مجدداً، تخطط الحياة الثانية لعودته — مقطع قصير معاد قصّه وغلاف جديد — وتنتظر كلمتك.",
+      "loadError": "تعذّر تحميل إعدادات الحياة الثانية.",
+      "retry": "إعادة المحاولة",
+      "saved": "تم حفظ إعدادات الحياة الثانية",
+      "saveFailed": "تعذّر حفظ إعدادات الحياة الثانية",
       "watch": {
-        "title": "Watch my catalog",
-        "desc": "On: Bow Down keeps an eye on your older tracks and videos and alerts you the moment one starts spiking, with a revival plan attached. Off: no watching, no spike alerts, no revival plans."
+        "title": "راقب كتالوجي",
+        "desc": "مفعّل: يراقب Bow Down مساراتك وفيديوهاتك الأقدم ويُنبّهك لحظة بدء صعود أحدها، مع خطة عودة مرفقة. معطّل: لا مراقبة، لا تنبيهات صعود، لا خطط عودة."
       },
-      "queueTitle": "Revival plans waiting on you",
-      "queueLoading": "Loading your revival queue…",
-      "queueEmpty": "Nothing waiting. When an older track or video starts spiking, its revival plan lands here.",
-      "spikingTrack": "A back-catalog track is spiking",
-      "spikingVideo": "A back-catalog video is spiking",
-      "spikeNumbers": "{{current}} plays in the last 24 hours — its usual pace is {{baseline}} a day.",
-      "approve": "Plan my revival",
-      "dismiss": "Dismiss",
-      "approved": "Revival plan unlocked — finish it in Create",
-      "dismissed": "Revival dismissed",
-      "decisionFailed": "Couldn't record that — try again",
-      "recut": "Re-cut as a short",
-      "freshCover": "Fresh cover",
-      "neverAutoPost": "Approving never posts anything. The plan opens in Create, pre-loaded with the spiking item — you review and publish from there."
+      "queueTitle": "خطط عودة بانتظارك",
+      "queueLoading": "تحميل قائمة عودتك…",
+      "queueEmpty": "لا شيء في الانتظار. عندما يبدأ مسار أو فيديو أقدم في الصعود، تهبط خطة عودته هنا.",
+      "spikingTrack": "مسار من الكتالوج القديم يصعد بقوة",
+      "spikingVideo": "فيديو من الكتالوج القديم يصعد بقوة",
+      "spikeNumbers": "{{current}} تشغيل في آخر 24 ساعة — إيقاعه المعتاد {{baseline}} يومياً.",
+      "approve": "خطط لعودتي",
+      "dismiss": "تجاهل",
+      "approved": "تم فتح خطة العودة — أكملها في «إنشاء»",
+      "dismissed": "تم تجاهل العودة",
+      "decisionFailed": "تعذّر تسجيل ذلك — حاول مجدداً",
+      "recut": "أعد قصّه كمقطع قصير",
+      "freshCover": "غلاف جديد",
+      "neverAutoPost": "الموافقة لا تنشر أي شيء أبداً. تُفتح الخطة في «إنشاء» محمّلة مسبقاً بالعنصر الصاعد — تراجعها وتنشرها من هناك."
     }
   },
   "social-proof": {
@@ -5913,7 +5913,11 @@
     "totalLabel": "الإجمالي",
     "ugcAd": "إعلان UGC",
     "watchTheAd": "شاهد الإعلان",
-    "yourCart": "سلتك"
+    "yourCart": "سلتك",
+    "download": "تنزيل",
+    "downloadsInLibrary": "متاح أيضاً في مكتبتك",
+    "orderIdLabel": "رقم الطلب",
+    "yourDownloads": "تنزيلاتك"
   },
   "shoutouts": {
     "acceptButton": "قبول",
@@ -6858,29 +6862,29 @@
     "yourNiche": "مجال عملك",
     "yourWatchlist": "قائمة المراقبة الخاصة بك",
     "radar": {
-      "title": "Trend Radar — what's actually rising",
-      "subtitle": "Real plays from the last 24 hours against the prior 7 days. No predictions, no padding — a trend is here only because creators are playing it, right now.",
-      "loadError": "The Trend Radar couldn't load.",
-      "retry": "Retry",
-      "loading": "Reading today's real plays…",
-      "allEmpty": "Nothing on the platform clears the bar right now — a trend needs real plays and real lift, and today nothing has both yet. Check back as more plays land.",
-      "soundsTitle": "Rising sounds",
-      "soundsEmpty": "No sound is rising on real plays yet today.",
-      "useSound": "Use this sound",
-      "topicsTitle": "Rising topics",
-      "topicsEmpty": "No topic is rising on real plays yet today.",
-      "makeInLane": "Make in this lane",
-      "formatsTitle": "Rising formats",
-      "formatsEmpty": "No format is rising on real plays yet today.",
-      "scaffold": "Scaffold this format",
-      "pace": "{{current}} plays in 24h · {{velocity}}x its usual pace",
-      "coldStart": "Brand new — {{current}} plays in its first 24 hours",
-      "honestNote": "Every number above is a counted play from the last 24 hours, compared with the same item's own prior 7 days. If a lane looks short, that's the honest picture — the bar never lowers to fill the page.",
+      "title": "رادار الترند — ما يصعد فعلاً",
+      "subtitle": "تشغيلات حقيقية من آخر 24 ساعة مقابل الـ7 أيام السابقة. بلا توقعات وبلا حشو — الترند هنا فقط لأن الصنّاع يشغّلونه الآن فعلاً.",
+      "loadError": "تعذّر تحميل رادار الترند.",
+      "retry": "إعادة المحاولة",
+      "loading": "قراءة تشغيلات اليوم الحقيقية…",
+      "allEmpty": "لا شيء على المنصة يتجاوز الحد الآن — الترند يحتاج تشغيلات حقيقية ودفعة حقيقية، واليوم لا شيء يملك الاثنين بعد. عد عندما تصل تشغيلات أكثر.",
+      "soundsTitle": "أصوات صاعدة",
+      "soundsEmpty": "لا صوت يصعد اليوم بتشغيلات حقيقية بعد.",
+      "useSound": "استخدم هذا الصوت",
+      "topicsTitle": "مواضيع صاعدة",
+      "topicsEmpty": "لا موضوع يصعد اليوم بتشغيلات حقيقية بعد.",
+      "makeInLane": "اصنع في هذا المسار",
+      "formatsTitle": "صيغ صاعدة",
+      "formatsEmpty": "لا صيغة تصعد اليوم بتشغيلات حقيقية بعد.",
+      "scaffold": "جهّز هذه الصيغة",
+      "pace": "{{current}} تشغيل في 24 ساعة · {{velocity}}x إيقاعه المعتاد",
+      "coldStart": "جديد تماماً — {{current}} تشغيل في أول 24 ساعة له",
+      "honestNote": "كل رقم أعلاه هو تشغيل محسوب من آخر 24 ساعة، مقارناً بالـ7 أيام السابقة للعنصر نفسه. إذا بدا مسار قصيراً، فهذه هي الصورة الصادقة — الحد لا ينخفض أبداً لملء الصفحة.",
       "format": {
-        "short": "Shorts",
-        "duet": "Duets",
-        "stitch": "Stitches",
-        "full": "Full videos"
+        "short": "مقاطع قصيرة",
+        "duet": "ثنائيات",
+        "stitch": "دمج المقاطع",
+        "full": "فيديوهات كاملة"
       }
     }
   },
@@ -9699,7 +9703,7 @@
     },
     "bottomCta": {
       "joinBeta": "انضم إلى البيتا",
-      "text": "أعضاء البيتا يثبّتون السعر التأسيسي ويحصلون على 100 Visual Bucs إضافية في يوم الإطلاق.",
+      "text": "ابدأ مجاناً وانتقل إلى Pro أو Elite عندما تدفع الميزات ثمن نفسها — الدفع مفتوح في وضع الاختبار.",
       "title": "ادخل مبكراً.",
       "tryTools": "جرّب الأدوات"
     },
@@ -9754,7 +9758,7 @@
     "hero": {
       "disclaimer": "لا توليدات مجانية. لا رسوم حوسبة خفية. شاهد تكلفة Visual Bucs قبل أن تنشئ.",
       "kicker": "الأسعار",
-      "subtitle": "اصعد من Street Punk إلى Kingpin — كلما ارتفعت رتبتك، فتحت المزيد من القوة و Visual Bucs والأتمتة والتحكم.",
+      "subtitle": "ثلاث خطط للصنّاع — مجانية وPro وElite — كلها بنفس رسوم المنصة الثابتة 5%. تضيف الخطط المدفوعة نطاقك الخاص ومنتجات غير محدودة وتحليلات احترافية ودفعات ترويج بالذكاء الاصطناعي.",
       "titleLine1": "اختر",
       "titleLine2": "رتبتك",
       "videoAriaLabel": "Thy Cheat Code يرتقي بالمستوى"
@@ -9763,7 +9767,7 @@
       "description": "استوديو إبداعي مدعوم بالذكاء الاصطناعي لمنشئي المحتوى، يقدم خطط اشتراك لكلمات الأغاني ومعالجات الفيديوهات الموسيقية والمقاطع الترويجية والصور المصغرة.",
       "offerCatalogName": "خطط Bow Down Visuals"
     },
-    "pageDescription": "اختر رتبتك — ست خطط للمنشئين مصنفة بالنجوم.",
+    "pageDescription": "خطط للصنّاع: مجانية، وPro بسعر 12 دولاراً شهرياً، وElite بسعر 29 دولاراً شهرياً، بالإضافة إلى حزم Visual Bucs. الدفع مفتوح في وضع الاختبار.",
     "pageTitle": "الأسعار",
     "planCard": {
       "bestFor": "الأفضل لـ: {{bestFor}}",

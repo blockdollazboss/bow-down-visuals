@@ -90,9 +90,11 @@ describe("SiteMode's profile surface — store + tip entry points intact (audit 
 
   it("tip entry point: ProfileActions carries the Tip Jar link to /tips/<slug>", () => {
     expect(profileSectionsSource).toContain("profile.tip_jar_enabled");
-    expect(profileSectionsSource).toContain(
-      "href={`/tips/${encodeURIComponent(profile.slug)}`}",
-    );
+    /* Join #2 composition: upg-deals N4 (One Tip Jar) refactored the
+       inline href into the shared jarPath helper — jarPath(slug) returns
+       exactly `/tips/${encodeURIComponent(slug)}` (pinned by
+       lib/one-tip-jar.test.ts), so the door is unchanged. */
+    expect(profileSectionsSource).toContain("href={jarPath(profile.slug)}");
     expect(profileSectionsSource).toContain("Tip Jar");
   });
 });

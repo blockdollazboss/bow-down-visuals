@@ -809,6 +809,7 @@ const W5_LEGIT_IDENTICAL = new Set([
   "scheduler.platforms.instagram.label",
   "scheduler.platforms.instagram.sub",
   "scheduler.platforms.tiktok.label",
+  "scheduler.platforms.x.label",
   "scheduler.tabs.plan",
   "scheduler.titlePrefix",
   "scheduler.titleSuffix",

@@ -596,6 +596,7 @@ const W5_LEGIT: string[] = [
   "scheduler.platforms.instagram.label",
   "scheduler.platforms.instagram.sub",
   "scheduler.platforms.tiktok.label",
+  "scheduler.platforms.x.label",
   "scheduler.titlePrefix",
   "scriptWriter.bRollLabel",
   "scriptWriter.beatLabel",

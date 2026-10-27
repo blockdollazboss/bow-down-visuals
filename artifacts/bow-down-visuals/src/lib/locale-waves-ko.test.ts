@@ -177,7 +177,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "sounds.platformReels", "sounds.platformShorts", "sounds.platformTiktok",
     "makeSong.genreRB", "sfx.titleAccent", "vocalTune.semitones",
     "scheduler.platforms.instagram.label", "scheduler.platforms.instagram.sub",
-    "scheduler.platforms.tiktok.label", "scheduler.platforms.facebook.label",
+    "scheduler.platforms.tiktok.label", "scheduler.platforms.x.label", "scheduler.platforms.facebook.label",
     "scheduler.communityPosts.platformLabels.youtube-community",
     "scheduler.communityPosts.platformLabels.x",
     "scheduler.communityPosts.platformLabels.instagram",

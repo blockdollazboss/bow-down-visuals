@@ -272,6 +272,7 @@ const W4_ALLOW = new Set([
   "scheduler.platforms.facebook.label",
   "scheduler.platforms.instagram.label",
   "scheduler.platforms.tiktok.label",
+  "scheduler.platforms.x.label",
   "scheduler.titlePrefix",
   "scheduler.titleSuffix",
   "sfx.titleAccent",

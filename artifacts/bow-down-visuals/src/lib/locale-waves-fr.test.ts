@@ -513,6 +513,7 @@ const W4_LEGIT: ReadonlySet<string> = new Set([
   "scheduler.platforms.instagram.label",
   "scheduler.platforms.instagram.sub",
   "scheduler.platforms.tiktok.label",
+  "scheduler.platforms.x.label",
   "sfx.categoryFoley",
   "sfx.categoryImpacts",
   "sfx.categoryRisers",

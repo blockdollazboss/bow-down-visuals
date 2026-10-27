@@ -165,10 +165,6 @@ export default function CreatorPricing() {
         });
         return;
       }
-      if (res.ok && data.url) {
-        window.location.href = data.url;
-        return;
-      }
       setError(data.message ?? data.error ?? "Checkout didn't start. Try again in a minute.");
     } catch {
       setError("Network hiccup — try again.");

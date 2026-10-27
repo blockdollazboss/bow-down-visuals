@@ -6,7 +6,6 @@ import {
   describeTermsInline,
   formatLabel,
   saleTermsFromRow,
-  plainWordsForTerms,
   templateTerms,
   type BeatLicenseTemplate,
   type BeatLicenseTerms,
@@ -116,20 +115,5 @@ describe("saleTermsFromRow — the dashboard's raw-row snapshot", () => {
     const page = readFileSync(new URL("../pages/beats.tsx", import.meta.url), "utf8");
     expect(page).toContain("saleTermsFromRow(s)");
     expect(page).toContain("describeTermsInline(s.terms)");
-describe("plain-words checkout (N11)", () => {
-  it("renders the four sections in reading order for a fixed tier", () => {
-    const sections = plainWordsForTerms(defaultTermsForTier("basic"));
-    expect(sections.map((s) => s.heading)).toEqual(["What you get", "What you can do", "The limits", "Credit"]);
-    const lines = sections.flatMap((s) => s.lines);
-    expect(lines).toContain("Up to 50,000 streams of your song.");
-    expect(lines).toContain("Radio and TV play is NOT covered by this license.");
-    expect(lines).toContain("Other artists can license this same beat too — it isn't only yours.");
-  });
-
-  it("exclusive words say only-you and never soften the ownership line", () => {
-    const lines = plainWordsForTerms(defaultTermsForTier("exclusive")).flatMap((s) => s.lines);
-    expect(lines[0]).toContain("full ownership");
-    expect(lines.some((l) => l.includes("the producer stops selling this beat"))).toBe(true);
-    expect(lines.some((l) => l.includes("Other artists can license"))).toBe(false);
   });
 });

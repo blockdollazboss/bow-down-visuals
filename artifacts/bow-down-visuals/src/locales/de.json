@@ -104,7 +104,7 @@
     "heroSubtitle": "Alles, was du brauchst, um wie ein Profi zu erstellen — Musik, Videos, Thumbnails, Branding und mehr. Alles KI-gestützt.",
     "heroTitle": "Der Cheat-Code für Content-Erstellung",
     "pageTitle": "Bow Down Visuals — Der Cheat-Code für Content-Creator",
-    "pageDescription": "Das KI-Studio für Content-Creator: Songs, Musikvideos, Promo-Clips, Branding & Business-Tools. Über 19 KI-Features — zahlen Sie nur für das, was Sie erstellen.",
+    "pageDescription": "Das KI-Studio für Content-Creator: Songs, Musikvideos, Promo-Clips, Branding & Business-Tools. 36 Tools — zahlen Sie nur für das, was Sie erstellen.",
     "shareLabel": "Verbreiten Sie den Code",
     "shareLabelTellCreator": "Erzählen Sie es einem Creator",
     "shareX": "Auf X teilen",
@@ -127,7 +127,7 @@
     "heroHeadlineA": "Ihre Konkurrenz wird denken, Sie hätten",
     "heroHeadlineB": "ein Team eingestellt.",
     "heroSlogan": "Das fühlt sich wie Schummeln an. Genau darum geht's.",
-    "heroSub": "Bow Down Visuals ist das KI-Studio, das Ihre Songs schreibt, Ihre Videos dreht, Ihre Promo schneidet und Ihr Business führt — über 19 Tools, ein Visual-Bucs-System, null Freigaben nötig.",
+    "heroSub": "Bow Down Visuals ist das KI-Studio, das Ihre Songs schreibt, Ihre Videos dreht, Ihre Promo schneidet und Ihr Business führt — 36 Tools, ein Visual-Bucs-System, null Freigaben nötig.",
     "watchItWork": "Sehen Sie es in Aktion",
     "alreadyHaveAccount": "Haben Sie schon ein Konto? ",
     "signIn": "Anmelden",
@@ -303,7 +303,7 @@
     "manifestoKicker": "Eine Botschaft vom King",
     "manifestoTitleA": "BOW",
     "manifestoTitleB": "DOWN.",
-    "manifestoBody": "Die Industrie hatte ihren Auftritt. Über 19 KI-Tools. Ein Cheat-Code. Null Freigaben nötig.",
+    "manifestoBody": "Die Industrie hatte ihren Auftritt. 36 KI-Tools. Ein Cheat-Code. Null Freigaben nötig.",
     "manifestoRumor": "Gerücht: Diese Seite hat einen Cheat-Code.",
     "studioKicker": "Das Studio",
     "studioTitle": "Ein Login. Die ganze Maschine.",
@@ -463,7 +463,7 @@
     "faqs": [
       {
         "q": "Was ist Bow Down Visuals?",
-        "a": "Das KI-Studio für Content-Creator — über 19 Tools, die Ihre Songs schreiben, Ihre Videos drehen, Ihre Promo schneiden, Ihre Marke designen und Ihr Business führen. Ein Konto, ein Visual-Bucs-System, kein Team erforderlich."
+        "a": "Das KI-Studio für Content-Creator — 36 Tools, die Ihre Songs schreiben, Ihre Videos drehen, Ihre Promo schneiden, Ihre Marke designen und Ihr Business führen. Ein Konto, ein Visual-Bucs-System, kein Team erforderlich."
       },
       {
         "q": "Wie funktionieren Visual Bucs?",
@@ -5747,30 +5747,30 @@
       "retry": "Erneut versuchen"
     },
     "secondLife": {
-      "title": "Second Life",
-      "subtitle": "Your back catalog, watched. When an old track or video starts spiking again, Second Life plans its comeback — a re-cut short and a fresh cover — and waits for your word.",
-      "loadError": "Second Life settings couldn't load.",
-      "retry": "Retry",
-      "saved": "Second Life settings saved",
-      "saveFailed": "Couldn't save Second Life settings",
+      "title": "Zweites Leben",
+      "subtitle": "Ihr Back-Katalog, beobachtet. Wenn ein alter Track oder ein altes Video wieder zu steigen beginnt, plant Zweites Leben sein Comeback — einen neu geschnittenen Kurzclip und ein frisches Cover — und wartet auf Ihr Wort.",
+      "loadError": "Die Einstellungen für Zweites Leben konnten nicht laden.",
+      "retry": "Erneut versuchen",
+      "saved": "Einstellungen für Zweites Leben gespeichert",
+      "saveFailed": "Einstellungen für Zweites Leben konnten nicht gespeichert werden",
       "watch": {
-        "title": "Watch my catalog",
-        "desc": "On: Bow Down keeps an eye on your older tracks and videos and alerts you the moment one starts spiking, with a revival plan attached. Off: no watching, no spike alerts, no revival plans."
+        "title": "Meinen Katalog beobachten",
+        "desc": "An: Bow Down behält Ihre älteren Tracks und Videos im Blick und meldet sich, sobald eines zu steigen beginnt — mit Revival-Plan im Anhang. Aus: keine Beobachtung, keine Spike-Alarme, keine Revival-Pläne."
       },
-      "queueTitle": "Revival plans waiting on you",
-      "queueLoading": "Loading your revival queue…",
-      "queueEmpty": "Nothing waiting. When an older track or video starts spiking, its revival plan lands here.",
-      "spikingTrack": "A back-catalog track is spiking",
-      "spikingVideo": "A back-catalog video is spiking",
-      "spikeNumbers": "{{current}} plays in the last 24 hours — its usual pace is {{baseline}} a day.",
-      "approve": "Plan my revival",
-      "dismiss": "Dismiss",
-      "approved": "Revival plan unlocked — finish it in Create",
-      "dismissed": "Revival dismissed",
-      "decisionFailed": "Couldn't record that — try again",
-      "recut": "Re-cut as a short",
-      "freshCover": "Fresh cover",
-      "neverAutoPost": "Approving never posts anything. The plan opens in Create, pre-loaded with the spiking item — you review and publish from there."
+      "queueTitle": "Revival-Pläne, die auf Sie warten",
+      "queueLoading": "Lade Ihre Revival-Warteschlange…",
+      "queueEmpty": "Nichts wartet. Wenn ein älterer Track oder ein älteres Video zu steigen beginnt, landet sein Revival-Plan hier.",
+      "spikingTrack": "Ein Back-Katalog-Track steigt stark",
+      "spikingVideo": "Ein Back-Katalog-Video steigt stark",
+      "spikeNumbers": "{{current}} Plays in den letzten 24 Stunden — sein übliches Tempo ist {{baseline}} pro Tag.",
+      "approve": "Mein Revival planen",
+      "dismiss": "Verwerfen",
+      "approved": "Revival-Plan freigeschaltet — stellen Sie ihn in Erstellen fertig",
+      "dismissed": "Revival verworfen",
+      "decisionFailed": "Das konnte nicht festgehalten werden — versuchen Sie es erneut",
+      "recut": "Als Kurzclip neu schneiden",
+      "freshCover": "Frisches Cover",
+      "neverAutoPost": "Genehmigen postet nie etwas. Der Plan öffnet sich in Erstellen, vorgeladen mit dem steigenden Element — Sie prüfen und veröffentlichen von dort."
     }
   },
   "social-proof": {
@@ -5865,7 +5865,11 @@
     "totalLabel": "Gesamt",
     "ugcAd": "UGC-Werbung",
     "watchTheAd": "Werbung ansehen",
-    "yourCart": "Ihr Warenkorb"
+    "yourCart": "Ihr Warenkorb",
+    "download": "Herunterladen",
+    "downloadsInLibrary": "Auch in Ihrer Bibliothek verfügbar",
+    "orderIdLabel": "Bestell-ID",
+    "yourDownloads": "Ihre Downloads"
   },
   "shoutouts": {
     "acceptButton": "Annehmen",
@@ -6806,29 +6810,29 @@
     "yourNiche": "Deine Nische",
     "yourWatchlist": "Deine Watchlist",
     "radar": {
-      "title": "Trend Radar — what's actually rising",
-      "subtitle": "Real plays from the last 24 hours against the prior 7 days. No predictions, no padding — a trend is here only because creators are playing it, right now.",
-      "loadError": "The Trend Radar couldn't load.",
-      "retry": "Retry",
-      "loading": "Reading today's real plays…",
-      "allEmpty": "Nothing on the platform clears the bar right now — a trend needs real plays and real lift, and today nothing has both yet. Check back as more plays land.",
-      "soundsTitle": "Rising sounds",
-      "soundsEmpty": "No sound is rising on real plays yet today.",
-      "useSound": "Use this sound",
-      "topicsTitle": "Rising topics",
-      "topicsEmpty": "No topic is rising on real plays yet today.",
-      "makeInLane": "Make in this lane",
-      "formatsTitle": "Rising formats",
-      "formatsEmpty": "No format is rising on real plays yet today.",
-      "scaffold": "Scaffold this format",
-      "pace": "{{current}} plays in 24h · {{velocity}}x its usual pace",
-      "coldStart": "Brand new — {{current}} plays in its first 24 hours",
-      "honestNote": "Every number above is a counted play from the last 24 hours, compared with the same item's own prior 7 days. If a lane looks short, that's the honest picture — the bar never lowers to fill the page.",
+      "title": "Trend Radar — was wirklich steigt",
+      "subtitle": "Echte Plays der letzten 24 Stunden gegenüber den vorangegangenen 7 Tagen. Keine Vorhersagen, kein Füllmaterial — ein Trend ist nur hier, weil Creator ihn gerade jetzt abspielen.",
+      "loadError": "Der Trend Radar konnte nicht laden.",
+      "retry": "Erneut versuchen",
+      "loading": "Lese die echten Plays von heute…",
+      "allEmpty": "Gerade schafft es nichts auf der Plattform über die Latte — ein Trend braucht echte Plays und echten Anstieg, und heute hat noch nichts beides. Schau wieder vorbei, wenn mehr Plays eintreffen.",
+      "soundsTitle": "Steigende Sounds",
+      "soundsEmpty": "Heute steigt noch kein Sound mit echten Plays.",
+      "useSound": "Diesen Sound verwenden",
+      "topicsTitle": "Steigende Themen",
+      "topicsEmpty": "Heute steigt noch kein Thema mit echten Plays.",
+      "makeInLane": "In dieser Lane erstellen",
+      "formatsTitle": "Steigende Formate",
+      "formatsEmpty": "Heute steigt noch kein Format mit echten Plays.",
+      "scaffold": "Dieses Format vorbereiten",
+      "pace": "{{current}} Plays in 24 Std. · {{velocity}}x sein übliches Tempo",
+      "coldStart": "Brandneu — {{current}} Plays in seinen ersten 24 Stunden",
+      "honestNote": "Jede Zahl oben ist ein gezählter Play aus den letzten 24 Stunden, verglichen mit den eigenen vorangegangenen 7 Tagen desselben Elements. Wenn eine Lane kurz aussieht, ist das das ehrliche Bild — die Latte sinkt nie, um die Seite zu füllen.",
       "format": {
-        "short": "Shorts",
-        "duet": "Duets",
-        "stitch": "Stitches",
-        "full": "Full videos"
+        "short": "Kurzclips",
+        "duet": "Duette",
+        "stitch": "Zusammenschnitte",
+        "full": "Volle Videos"
       }
     }
   },
@@ -9623,7 +9627,7 @@
     },
     "bottomCta": {
       "joinBeta": "Beta beitreten",
-      "text": "Beta-Mitglieder sichern sich den Gründungstarif und erhalten am Starttag 100 Bonus Visual Bucs.",
+      "text": "Starten Sie kostenlos und wechseln Sie zu Pro oder Elite, wenn sich die Funktionen selbst bezahlen — die Kasse ist im Testmodus geöffnet.",
       "title": "Steige früh ein.",
       "tryTools": "Tools ausprobieren"
     },
@@ -9678,7 +9682,7 @@
     "hero": {
       "disclaimer": "Keine kostenlosen Generierungen. Keine versteckten Rechenkosten. Sieh dir die Visual Buc Kosten an, bevor du erstellst.",
       "kicker": "Preise",
-      "subtitle": "Steige vom Street Punk zum Kingpin auf — je höher dein Rang, desto mehr Power, Visual Bucs, Automatisierung und Kontrolle schaltest du frei.",
+      "subtitle": "Drei Creator-Pläne — Free, Pro und Elite — alle zur gleichen flachen Plattformgebühr von 5 %. Bezahlte Stufen bringen Ihre eigene Domain, unbegrenzte Produkte, Profi-Analysen und KI-Promo-Boosts.",
       "titleLine1": "Wähle deinen",
       "titleLine2": "Rang",
       "videoAriaLabel": "Thy Cheat Code steigt auf"
@@ -9687,7 +9691,7 @@
       "description": "KI-gestütztes Kreativstudio für Content Creator mit Abo-Plänen für Songtexte, Musikvideo-Treatments, Promo-Clips und Thumbnails.",
       "offerCatalogName": "Bow Down Visuals Pläne"
     },
-    "pageDescription": "Wähle deinen Rang — sechs Creator-Pläne mit Sternebewertung.",
+    "pageDescription": "Creator-Pläne: Free, Pro für 12 $/Monat und Elite für 29 $/Monat, plus Visual-Bucs-Pakete. Die Kasse ist im Testmodus geöffnet.",
     "pageTitle": "Preise",
     "planCard": {
       "bestFor": "Am besten für: {{bestFor}}",

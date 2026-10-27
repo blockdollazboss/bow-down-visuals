@@ -85,6 +85,7 @@ export const CREATOR_PLANS: CreatorPlan[] = [
       { label: "Priority placement in discovery", detailsUrl: "/creator-pricing#feature-discovery" },
       { label: "Dedicated support badge + priority support", detailsUrl: "/creator-pricing#feature-support" },
       { label: "100 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
+      { label: "Profile Hosting included — the $9/mo Hosting plan is free while you're Elite", detailsUrl: "/creator-pricing#feature-site" },
     ],
   },
 ];
