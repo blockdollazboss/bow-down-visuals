@@ -42,6 +42,7 @@
  *   POST   /storefront/orders/:id/log-to-tracker  auth: push a sale into the Money Tracker (idempotent)
  *   POST   /storefront/orders/:id/service-confirm auth: confirm/decline a service booking
  *   GET    /storefront/product/:id/slots          public: open booking slots (bookable services)
+ *   POST   /storefront/product/:id/office-hours/book auth: book an Office Hours session in Visual Bucs (#167)
  *   GET    /storefront/bookings                   auth: my bookings as buyer + as seller
  *   POST   /storefront/orders/:id/booking-cancel  auth: cancel a calendar booking (+ Stripe refund)
  *   GET    /storefront/deliver/:token             public: token-gated instant delivery (digital)
@@ -137,6 +138,14 @@ import {
   fetchServiceBookingRanges,
   placeServiceBooking,
 } from "../lib/service-bookings";
+import {
+  officeHoursInfo,
+  officeHoursChargeKey,
+  officeHoursMessagesPath,
+  chargeOfficeHoursBooking,
+  refundOfficeHoursBooking,
+  officeHoursChargeLanded,
+} from "../lib/office-hours";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import {
   applyStripeTaxToPriceData,
@@ -1121,16 +1130,247 @@ router.get("/storefront/product/:id/slots", publicApiLimiter, async (req, res) =
       list.push(s);
       byDate.set(date, list);
     }
+    const oh = officeHoursInfo(p.service_details);
     res.json({
       bookable: true,
       timezone: info.availability.timezone,
       durationMin: info.durationMin,
       days: [...byDate.entries()].map(([date, daySlots]) => ({ date, slots: daySlots })),
-      note: "Times are shown in your own timezone. The booking is confirmed the moment payment completes.",
+      /* Office Hours (#167): when this service sells in Visual Bucs,
+         the client books through the VB endpoint below, not Stripe
+         checkout — the price and the door are named right here. */
+      officeHours: oh.officeHours,
+      priceVb: oh.officeHours ? oh.priceVb : null,
+      bookEndpoint: oh.officeHours && oh.priceVb
+        ? `/api/storefront/product/${id}/office-hours/book`
+        : null,
+      note: oh.officeHours
+        ? "Times are shown in your own timezone. This is an Office Hours session: it costs Visual Bucs and happens as a video call inside Messages."
+        : "Times are shown in your own timezone. The booking is confirmed the moment payment completes.",
     });
   } catch (err) {
     logger.error({ err, id }, "[storefront] slots failed");
     res.status(500).json({ error: "Could not load open times." });
+  }
+});
+
+/* ═══════════════ OFFICE HOURS: book a VB session (#167) ═════════════
+   The VB twin of the dollar booking flow: same slot grid, same
+   product-lock + checkSlot + hardened dual-write, but payment is a
+   Visual Bucs charge (lib/office-hours) instead of a Stripe session —
+   so the booking confirms IMMEDIATELY (no hold expiry, no verify
+   step). The record carries md 'messages_call' + vb + ck from the
+   first write; the dollar columns stay 0. A refused charge releases
+   the hold in the same breath, so a slot is never stranded by a
+   balance the buyer didn't have. */
+const OfficeHoursBookSchema = z.object({
+  bookingStartUtc: z.string().datetime(),
+  buyerTimezone: z.string().max(64).optional(),
+});
+
+router.post("/storefront/product/:id/office-hours/book", requireAuth, publicApiLimiter, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "Invalid product id." });
+    return;
+  }
+  const parsed = OfficeHoursBookSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Pick a time first — bookingStartUtc is required." });
+    return;
+  }
+  try {
+    const p = await fetchProduct(id, true);
+    if (!p) {
+      res.status(404).json({ error: "Product not found or no longer for sale." });
+      return;
+    }
+    if (p.kind !== "service") {
+      res.status(400).json({ error: "NOT_OFFICE_HOURS", message: "Only services can be Office Hours sessions." });
+      return;
+    }
+    const oh = officeHoursInfo(p.service_details);
+    if (!oh.officeHours) {
+      res.status(400).json({
+        error: "NOT_OFFICE_HOURS",
+        message: "This service isn't an Office Hours session — book it through the regular checkout.",
+      });
+      return;
+    }
+    if (!oh.priceVb) {
+      res.status(400).json({
+        error: "OFFICE_HOURS_MISCONFIGURED",
+        message: "This Office Hours service has no Visual Bucs price set — the creator needs to set one before it can be booked.",
+      });
+      return;
+    }
+    const priceVb = oh.priceVb;
+    const sellerUserId = await creatorUserId(db, p.profile_id);
+    if (sellerUserId && sellerUserId === req.userId) {
+      res.status(400).json({ error: "OWN_SERVICE", message: "You can't book your own Office Hours." });
+      return;
+    }
+    const startUtc = new Date(parsed.data.bookingStartUtc);
+    if (Number.isNaN(startUtc.getTime())) {
+      res.status(400).json({ error: "Invalid booking time." });
+      return;
+    }
+    const info = bookableInfo(p.service_details);
+    if (!info.bookable || !info.availability) {
+      res.status(400).json({
+        error: "SLOT_NOT_BOOKABLE",
+        message: "This service doesn't take calendar bookings right now.",
+      });
+      return;
+    }
+    const buyerTz =
+      parsed.data.buyerTimezone && isValidTimeZone(parsed.data.buyerTimezone)
+        ? parsed.data.buyerTimezone
+        : info.availability.timezone;
+    const now = new Date();
+    const chargeKey = officeHoursChargeKey({
+      buyerUserId: req.userId!,
+      productId: id,
+      startUtc: startUtc.toISOString(),
+    });
+
+    /* Phase 1 — the slot claim, under the product lock, exactly like
+       the dollar hold (minus Stripe): insert the order as a hold with
+       the full Office Hours record, dual-write the hardened row. */
+    let hold: { orderId: string; record: BookingRecord };
+    try {
+      const placed = await db.transaction(async (tx) => {
+        const run = tx as unknown as SqlRunner;
+        await lockProductRow(run, id);
+        const cur = await run.execute(sql`
+          SELECT service_details, is_active FROM store_products WHERE id = ${id} LIMIT 1
+        `);
+        const crow = cur.rows[0] as Record<string, unknown> | undefined;
+        if (!crow || !crow["is_active"]) {
+          return { ok: false, status: 404, code: "NOT_FOR_SALE", message: "This product isn't for sale right now." } as const;
+        }
+        const curInfo = bookableInfo(crow["service_details"] as Record<string, unknown> | null);
+        const curOh = officeHoursInfo(crow["service_details"] as Record<string, unknown> | null);
+        if (!curInfo.bookable || !curInfo.availability || !curOh.officeHours || !curOh.priceVb) {
+          return { ok: false, status: 400, code: "SLOT_NOT_BOOKABLE", message: "This service doesn't take Office Hours bookings right now." } as const;
+        }
+        const check = await checkSlot(run, {
+          productId: id,
+          availability: curInfo.availability,
+          durationMin: curInfo.durationMin,
+          startUtc,
+          buyerUserId: req.userId!,
+          buyerTz,
+          now,
+        });
+        if (!check.ok) {
+          return {
+            ok: false,
+            status: check.code === "SLOT_NOT_OFFERED" ? 400 : 409,
+            code: check.code, message: check.message,
+          } as const;
+        }
+        const record: BookingRecord = {
+          ...check.record, md: "messages_call", vb: curOh.priceVb, ck: chargeKey,
+        };
+        const inserted = await run.execute(sql`
+          INSERT INTO store_orders
+            (buyer_user_id, profile_id, product_id, product_title, product_kind,
+             quantity, amount_cents, discount_code, platform_fee_cents,
+             creator_amount_cents, stripe_session_id, status, fulfillment_note)
+          VALUES (${req.userId!}, ${p.profile_id}, ${p.id}, ${p.title}, 'service',
+                  1, 0, NULL, 0, 0, NULL, 'booking_held', ${encodeBookingNote(record)})
+          RETURNING id
+        `);
+        const orderId = String((inserted.rows[0] as Record<string, unknown>)["id"]);
+        try {
+          await placeServiceBooking(run, {
+            orderId, productId: id, profileId: p.profile_id, buyerUserId: req.userId!,
+            record, holdExpiresAt: new Date(now.getTime() + BOOKING_HOLD_TTL_MIN * 60_000), now,
+          });
+        } catch (err) {
+          if (err instanceof BookingSlotConflictError) {
+            await run.execute(sql`DELETE FROM store_orders WHERE id = ${orderId} AND status = 'booking_held'`);
+            return { ok: false, status: 409, code: "SLOT_TAKEN", message: err.message } as const;
+          }
+          throw err;
+        }
+        return { ok: true, orderId, record } as const;
+      });
+      if (!placed.ok) {
+        res.status(placed.status).json({ error: placed.code, message: placed.message });
+        return;
+      }
+      hold = { orderId: placed.orderId, record: placed.record };
+    } catch (err) {
+      if (err instanceof BookingSlotConflictError) {
+        res.status(409).json({ error: "SLOT_TAKEN", message: err.message });
+        return;
+      }
+      throw err;
+    }
+
+    /* Phase 2 — the VB charge. Idempotent on the intent key: if this
+       exact booking already charged (a lost-response retry that got
+       past the slot guard because its first hold lapsed), the charge
+       is a no-op success and this booking stands as the paid one. */
+    const charge = await chargeOfficeHoursBooking({
+      buyerUserId: req.userId!, priceVb, chargeKey,
+    });
+    if (!charge.ok) {
+      /* Release the claim in the same breath: cancel the order +
+         hardened row so the slot frees immediately and no money moved. */
+      const released: BookingRecord = {
+        ...hold.record, st: "cancelled", ca: "buyer", cx: new Date().toISOString(), rf: "not_required",
+      };
+      await db.execute(sql`
+        UPDATE store_orders SET status = 'cancelled', fulfillment_note = ${encodeBookingNote(released)}
+        WHERE id = ${hold.orderId} AND status = 'booking_held'
+      `).catch((e) => logger.error({ err: e, orderId: hold.orderId }, "[storefront] office-hours: hold release after refused charge failed"));
+      await cancelServiceBooking(db, hold.orderId).catch(() => undefined);
+      res.status(charge.status).json({ error: charge.code, message: charge.message });
+      return;
+    }
+
+    /* Phase 3 — confirm in place (the VB twin of verify): flip the
+       hold to a completed, confirmed booking and light the hardened
+       row. A crash between charge and confirm leaves a paid hold the
+       reminder/ops rails can see — never a silent free booking: the
+       record carries vb + ck from phase 1. */
+    const confirmed: BookingRecord = { ...hold.record, st: "confirmed" };
+    await db.execute(sql`
+      UPDATE store_orders SET status = 'completed', fulfillment_note = ${encodeBookingNote(confirmed)}
+      WHERE id = ${hold.orderId} AND status = 'booking_held'
+    `);
+    await confirmServiceBooking(db, hold.orderId).catch((e) =>
+      logger.error({ err: e, orderId: hold.orderId }, "[storefront] office-hours: hardened confirm failed"),
+    );
+    if (sellerUserId) {
+      await notifyBookingParty(db, {
+        userId: sellerUserId,
+        jobType: "storefront_office_hours_booked",
+        jobId: hold.orderId,
+        title: `Office Hours booked: ${p.title}`,
+        message: `A ${priceVb} VB Office Hours session was booked — ${bookingHumanLine(confirmed)}. It happens as a video call in your Messages.`,
+      }).catch(() => undefined);
+    }
+    logger.info({ orderId: hold.orderId, productId: id, priceVb }, "[storefront] office hours booked");
+    res.status(201).json({
+      booked: true,
+      orderId: hold.orderId,
+      priceVb,
+      balanceAfter: charge.balanceAfter,
+      startUtc: confirmed.s,
+      endUtc: confirmed.e,
+      creatorTimezone: confirmed.ctz,
+      buyerTimezone: confirmed.btz,
+      medium: "messages_call",
+      messagesUrl: sellerUserId ? officeHoursMessagesPath(sellerUserId) : "/messages",
+      note: "Paid in Visual Bucs — no card was charged. The session happens as a video call inside Messages; cancelling refunds your Bucs in full.",
+    });
+  } catch (err) {
+    logger.error({ err, id }, "[storefront] office-hours book failed");
+    res.status(500).json({ error: "Could not book this session — if your balance changed, the booking record carries the charge key for support." });
   }
 });
 
@@ -1171,6 +1411,12 @@ const ServiceDetailsSchema = z.object({
      availability is set, buyers pick a real open slot at checkout. */
   booking_enabled: z.boolean().optional(),
   availability: BookingAvailabilitySchema.optional(),
+  /* Office Hours (#167): a 1:1 session sold in Visual Bucs and held as
+     a video call inside Messages. price_vb is required (integer > 0)
+     when office_hours is on — enforced by the create refine below and
+     re-checked at booking time. */
+  office_hours: z.boolean().optional(),
+  price_vb: z.number().int().positive().max(1_000_000).optional(),
 }).optional().nullable();
 
 const BaseProductSchema = z.object({
@@ -1219,6 +1465,10 @@ const CreateProductSchema = BaseProductSchema.refine((d) => d.kind !== "ticket" 
 }).refine((d) => d.kind !== "service" || !!d.serviceDetails, {
   message: "Service products need service details (duration, location, booking link).",
   path: ["serviceDetails"],
+}).refine((d) => d.serviceDetails?.office_hours !== true
+  || (typeof d.serviceDetails?.price_vb === "number" && d.serviceDetails.price_vb > 0), {
+  message: "Office Hours services need a Visual Bucs price (price_vb).",
+  path: ["serviceDetails", "price_vb"],
 }).refine((d) => !d.affiliateEnabled || (d.affiliateCommissionBps != null && d.affiliateCommissionBps >= 1), {
   message: "Turning affiliates on needs the commission you'll pay them (affiliateCommissionBps, 1–10000 = 0.01%–100% of your cut).",
   path: ["affiliateCommissionBps"],
@@ -4768,7 +5018,8 @@ router.get("/storefront/bookings", requireAuth, async (req, res) => {
              o.amount_cents, o.discount_code, o.platform_fee_cents,
              o.creator_amount_cents, o.status, o.fulfillment_note, o.created_at,
              o.profile_id, o.buyer_user_id,
-             cp.display_name AS seller_name, cp.slug AS seller_slug
+             cp.display_name AS seller_name, cp.slug AS seller_slug,
+             cp.user_id AS seller_user_id
       FROM store_orders o
       LEFT JOIN creator_profiles cp ON cp.id = o.profile_id
       WHERE o.product_kind = 'service'
@@ -4793,6 +5044,20 @@ router.get("/storefront/bookings", requireAuth, async (req, res) => {
           sellerSlug: (row["seller_slug"] as string | null) ?? null,
           amountCents: Number(row["amount_cents"]),
           amount: money(Number(row["amount_cents"])),
+          /* Office Hours (#167): VB-priced Messages-call sessions say
+             so — price in Bucs (the dollar amount above stays 0) and
+             the door into the DM thread where the call happens. The
+             "other side" is the seller for a buyer, the buyer for a
+             seller. */
+          medium: rec.md ?? null,
+          priceVb: rec.vb ?? null,
+          messagesUrl: rec.md === "messages_call"
+            ? officeHoursMessagesPath(
+                role === "buyer"
+                  ? String(row["seller_user_id"] ?? "")
+                  : String(row["buyer_user_id"]),
+              )
+            : null,
           startUtc: rec.s,
           endUtc: rec.e,
           creatorTimezone: rec.ctz,
@@ -4890,7 +5155,25 @@ router.post("/storefront/orders/:id/booking-cancel", requireAuth, publicApiLimit
     const amountCents = Number(row["amount_cents"]);
     const sessionId = (row["stripe_session_id"] as string | null) ?? null;
     let refundState: BookingRecord["rf"] = "not_required";
-    if (status === "held") {
+    if (rec.vb && rec.ck) {
+      /* Office Hours (#167): the money is Visual Bucs, not Stripe —
+         refund the buyer in full through the credits rail and void
+         the charge key so they can book again. A failed refund still
+         cancels the slot and the record says refund_failed, exactly
+         like the Stripe path's honesty. A booking still in 'held'
+         only refunds when its charge actually landed (a refused
+         charge that was released in the same breath must never be
+         "refunded" — that would print Bucs from nothing). */
+      const owesRefund = rec.st === "confirmed" || (await officeHoursChargeLanded(rec.ck));
+      if (owesRefund) {
+        const refunded = await refundOfficeHoursBooking({
+          buyerUserId: String(row["buyer_user_id"]),
+          priceVb: rec.vb,
+          chargeKey: rec.ck,
+        });
+        refundState = refunded ? "refunded" : "refund_failed";
+      }
+    } else if (status === "held") {
       refundState = "not_required";
     } else if (amountCents > 0 && sessionId) {
       const stripe = getStripe();

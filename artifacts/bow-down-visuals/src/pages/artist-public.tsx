@@ -20,6 +20,7 @@ import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSec
 import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
 import SupporterBoardSection from "@/components/artist/SupporterBoardSection";
 import SponsorCreatorSection from "@/components/artist/SponsorCreatorSection";
+import BookArtistSection from "@/components/artist/BookArtistSection";
 import {
   fetchPublicLayout,
   grandStageFallbackBlocks,
@@ -511,6 +512,11 @@ export default function ArtistPublic() {
             rail — price + 15%/85% split shown before paying, funded
             on-site, and funded sponsors are recognised in the section. */}
         <SponsorCreatorSection slug={slug} displayName={profile.display_name} />
+        {/* Book the Artist (#158): the promoter-facing booking door —
+            offer form + the escrow walk for both sides, docked on the
+            profile beside the store (MONEY step), never a standalone
+            page. */}
+        <BookArtistSection profile={profile} />
         <ProfileActions profile={profile} />
         <div className="flex justify-center px-4 pb-4">
           <EmbedButton

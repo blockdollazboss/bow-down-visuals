@@ -83,6 +83,15 @@ export interface ServiceDetails {
   /** Turn native calendar booking on for this service. */
   booking_enabled?: boolean;
   availability?: BookingAvailability;
+  /** Office Hours (#167): this service is a 1:1 session sold in Visual
+   *  Bucs and held as a video call inside Messages. Requires
+   *  booking_enabled + availability (the same slot grid); the buyer
+   *  pays price_vb from their VB balance at booking time — the Stripe
+   *  rail and price_cents are NOT used for these bookings. */
+  office_hours?: boolean;
+  /** Office Hours price in Visual Bucs (integer > 0). Meaningful only
+   *  when office_hours is true. */
+  price_vb?: number;
 }
 
 export const storeProductsTable = pgTable("store_products", {

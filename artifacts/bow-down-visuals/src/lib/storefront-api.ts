@@ -15,6 +15,12 @@ export interface ServiceDetails {
   location?: string;
   booking_calendar_link?: string;
   notes?: string;
+  /* Office Hours (#167): a 1:1 session sold in Visual Bucs and held as
+     a video call inside Messages — the one VB-priced service shape.
+     price_vb is the VB price; price_cents stays 0/unused for it. */
+  office_hours?: boolean;
+  price_vb?: number;
+  booking_enabled?: boolean;
 }
 
 export interface ProductLinks {
