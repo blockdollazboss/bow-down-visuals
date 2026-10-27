@@ -125,7 +125,7 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
       {clientSecret ? (
         <EmbeddedPaymentForm
           clientSecret={clientSecret}
-          submitLabel={`${t("pricing.creditPacks.buyButton")} — ${pack.price}`}
+          submitLabel={`${t("pricing.creditPacks.buyButton")} — ${pack.priceLabel}`}
           onConfirmed={handleConfirmed}
           onError={(msg) => setErrorMsg(msg)}
         />

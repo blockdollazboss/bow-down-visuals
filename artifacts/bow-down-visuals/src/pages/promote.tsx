@@ -268,6 +268,7 @@ export default function Promote() {
           Refer & Earn handoff above it. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
         <ResultsWallPanel />
+      </div>
       {/* Viral-spike response kit — visible in both tabs, above the panels.
           Renders only what the server measured: a fired kit's steps, an
           honest still-measuring note, or the opted-out state. */}

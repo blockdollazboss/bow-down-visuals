@@ -165,6 +165,10 @@ function FeatureVerseBadge({ userId }: { userId: string }) {
       >
         Book a feature verse · {listing.priceVb.toLocaleString("en-US")} VB
       </Link>
+    </div>
+  );
+}
+
 /* ─── Producer tag (#159 Your Own Tag) — the creator's approved signature
    tag sounds right on the profile: one tap plays it (spoken tag or the
    two-second sonic logo), tap again to stop. Renders nothing without an

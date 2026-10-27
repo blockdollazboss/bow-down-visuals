@@ -78,6 +78,9 @@ export async function cancelExportJob(opts: {
     throw new Error(`Cancel export failed (HTTP ${res.status})`);
   }
   return (await res.json()) as { status: string; charge?: ExportChargeInfo };
+}
+
+/**
  * Machine-readable failure kinds the poller stamps on `.code` so the
  * export surface can pick honest copy per outcome (FinalVideoExport):
  *  - a server-reported terminal failure keeps the server's own code
