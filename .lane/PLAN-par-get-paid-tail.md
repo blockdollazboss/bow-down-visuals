@@ -29,3 +29,14 @@ server logic, no migrations.
 Both themes via NativeCard + isLight, same as MoneyActionsDesk.
 Native panels only; no website footer (Earnings Board desks carry
 none — the sanctioned-exit law is untouched: no hosted pages here).
+
+## CLOSE-OUT (Oct 27)
+All rungs banked: 620f4f74 plan · 83de17c0 lib (24 tests) ·
+7958785a desk 1 · 524e36dd desk 2 · cba9fba1 wiring + pins.
+Verification: new tests 32/32 (24 lib + 8 source-contract pins);
+World suite slice (src/lib/world) 117 files / 2,064 tests ALL
+PASS; FE typecheck exit 0. No server changes, no migrations —
+both rails were complete site-side (routes/trust.ts), exactly as
+the audit said. Named leftovers: none in scope. (The full-catalog
+PACKAGE, POST /api/catalog-export, is a separate Settings tool
+and was not part of this lane's builder scope.)
