@@ -382,7 +382,7 @@ describe("63b · the roster + the perk suggester (parity P3)", () => {
       ...emptyTierForm(),
       description: "old copy",
       trialEnabled: true,
-      annualDiscountPct: "15",
+      annualDiscount: "15",
     };
     const filled = tierFormFromSuggestion(form, {
       name: "Inner Circle",
@@ -394,6 +394,6 @@ describe("63b · the roster + the perk suggester (parity P3)", () => {
     expect(filled.perks).toEqual(["Early drops"]);
     expect(filled.description).toBe("");
     expect(filled.trialEnabled).toBe(true);
-    expect(filled.annualDiscountPct).toBe("15");
+    expect(filled.annualDiscount).toBe("15");
   });
 });

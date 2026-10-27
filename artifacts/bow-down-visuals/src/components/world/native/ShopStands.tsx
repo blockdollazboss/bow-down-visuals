@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
-  BadgeCheck, BarChart3, Check, Crown, Gem, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
-  Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, X,
+  BadgeCheck, BarChart3, Check, Crown, Gem, Gift, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
+  Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Users, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -43,18 +43,34 @@ import {
 } from "@/lib/world/shop-stands";
 import type { CartLine } from "@/lib/shops";
 import {
+  MEMBER_STATUS_OPTIONS,
+  MEMBERSHIP_AI_PERKS_COST_VB,
   TIER_PERKS_MAX,
   apiErrorLine,
+  applyMemberStatus,
   applyTierSave,
+  buildMemberAddPayload,
+  buildPerkSuggestPayload,
   buildTierPayload,
   emptyTierForm,
+  memberAddProblem,
+  memberStatusPayload,
   parseOwnTiers,
+  parsePerkSuggestions,
+  parseRosterMembers,
+  removeMemberRow,
   removeTier,
+  savedMemberStatus,
   savedTierDto,
   tierActivePayload,
   tierFormFromDto,
+  tierFormFromSuggestion,
   tierFormProblem,
   tierNetCents,
+  type AudienceSize,
+  type MemberStatusOption,
+  type RosterMemberDto,
+  type SuggestedTierDto,
   type TierFormState,
 } from "@/lib/world/money-desks";
 
@@ -1967,6 +1983,7 @@ interface MembershipDashboardDto {
 
 function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
   const authHeaders = useAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const [ownTiers, setOwnTiers] = useState<MembershipTierDto[] | null>(null);
   const [ownFailed, setOwnFailed] = useState(false);
   const [feePct, setFeePct] = useState(10);
@@ -1979,6 +1996,23 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  /* Depth (parity P3): the member roster the dashboard only
+     counted, and the perk suggester — both on the memberships
+     page's own rails (GET/PATCH/DELETE/POST /api/memberships/
+     members, POST /api/memberships/ai-perks). */
+  const [roster, setRoster] = useState<RosterMemberDto[] | null>(null);
+  const [rosterFailed, setRosterFailed] = useState(false);
+  const [rosterMsg, setRosterMsg] = useState<string | null>(null);
+  const [memberTierId, setMemberTierId] = useState("");
+  const [memberLabel, setMemberLabel] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+  const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
+  const [niche, setNiche] = useState("");
+  const [audienceSize, setAudienceSize] = useState<AudienceSize>("starting");
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestedTierDto[] | null>(null);
+  const [suggestMsg, setSuggestMsg] = useState<string | null>(null);
 
   const loadOwn = async () => {
     try {
@@ -2009,10 +2043,155 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       }
     } catch { /* the dashboard strip is additive — tiers are the desk */ }
   };
+  const loadRoster = async () => {
+    try {
+      const res = await fetch("/api/memberships/members", { headers: await authHeaders() });
+      if (!res.ok) throw new Error("roster");
+      const parsed = parseRosterMembers(await res.json());
+      if (!parsed) throw new Error("roster");
+      setRoster(parsed);
+      setRosterFailed(false);
+    } catch {
+      setRosterFailed(true);
+    }
+  };
   useEffect(() => {
     void loadOwn();
+    void loadRoster();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* The roster's status verb — the page's own PATCH, applied to
+     the row ONLY from the server's confirmed answer. */
+  const changeMemberStatus = async (member: RosterMemberDto, status: MemberStatusOption) => {
+    if (memberBusyId || status === member.status) return;
+    setMemberBusyId(member.id);
+    setRosterMsg(null);
+    try {
+      const res = await fetch(`/api/memberships/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(memberStatusPayload(status)),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't update that member — try again in a moment."));
+      const saved = savedMemberStatus(data);
+      if (!saved) throw new Error("Couldn't update that member — try again in a moment.");
+      setRoster((list) => (list ? applyMemberStatus(list, saved) : list));
+      setRosterMsg(`${member.fanLabel} is now ${saved.status.replace("_", " ")}.`);
+    } catch (e) {
+      setRosterMsg(e instanceof Error ? e.message : "Couldn't update that member — try again in a moment.");
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  /* Remove a seat — two taps like tier delete, and the row goes
+     only after the server confirms the delete. */
+  const removeMember = async (member: RosterMemberDto) => {
+    if (confirmingRemoveId !== member.id) {
+      setConfirmingRemoveId(member.id);
+      return;
+    }
+    setMemberBusyId(member.id);
+    setRosterMsg(null);
+    try {
+      const res = await fetch(`/api/memberships/members/${member.id}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        throw new Error(apiErrorLine(data, "Couldn't remove that member."));
+      }
+      setRoster((list) => (list ? removeMemberRow(list, member.id) : list));
+      setRosterMsg(`${member.fanLabel} is off the roster.`);
+    } catch (e) {
+      setRosterMsg(e instanceof Error ? e.message : "Couldn't remove that member.");
+    } finally {
+      setMemberBusyId(null);
+      setConfirmingRemoveId(null);
+    }
+  };
+
+  /* The manual add — the page's "track a member by hand" for
+     subscribers collected elsewhere. Honest by construction:
+     the rail records the seat; no payment is taken here and the
+     copy never pretends otherwise. */
+  const addMember = async () => {
+    const problem = memberAddProblem(memberTierId, memberLabel);
+    if (problem) {
+      setRosterMsg(problem);
+      return;
+    }
+    const body = buildMemberAddPayload(memberTierId, memberLabel);
+    if (!body) return;
+    setAddingMember(true);
+    setRosterMsg(null);
+    try {
+      const res = await fetch("/api/memberships/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't add that member — try again in a moment."));
+      setMemberLabel("");
+      setRosterMsg(`${body.fanLabel} is on the roster.`);
+      void loadRoster();
+    } catch (e) {
+      setRosterMsg(e instanceof Error ? e.message : "Couldn't add that member — try again in a moment.");
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  /* The perk suggester — POST /api/memberships/ai-perks through
+     the confirmed-spend seam at the server's own price (100 VB;
+     the endpoint isn't in the client registry, so the price
+     rides as the confirm's override). A declined confirm is a
+     quiet no-op; the suggestions land as drafts — using one
+     fills the tier form, and nothing saves until save is tapped. */
+  const runPerkSuggest = async () => {
+    if (suggestBusy) return;
+    if (!niche.trim()) {
+      setSuggestMsg("Tell the suggester your niche first — what your channel is about.");
+      return;
+    }
+    setSuggestBusy(true);
+    setSuggestMsg(null);
+    try {
+      const res = await confirmedFetch("/api/memberships/ai-perks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPerkSuggestPayload({ niche, audienceSize })),
+        overrideCost: MEMBERSHIP_AI_PERKS_COST_VB,
+        overrideFeature: "Membership perk suggester",
+      });
+      if (!res) return; /* the creator declined the spend confirm — nothing charged, nothing changed */
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (aiOutOfCredits(res.status, data)) {
+        setSuggestMsg("You're out of Visual Bucs — top up and the suggester is yours again.");
+        return;
+      }
+      if (!res.ok) throw new Error(apiErrorLine(data, "The suggester didn't answer — if Visual Bucs were charged, they're refunded."));
+      const got = parsePerkSuggestions(data);
+      if (!got) throw new Error("The suggester came back empty — if Visual Bucs were charged, they're refunded.");
+      setSuggestions(got);
+      setSuggestMsg("Pick a suggestion to load it into the tier form — edit anything, then create the tier.");
+    } catch (e) {
+      setSuggestMsg(e instanceof Error ? e.message : "The suggester didn't answer — if Visual Bucs were charged, they're refunded.");
+    } finally {
+      setSuggestBusy(false);
+    }
+  };
+
+  const applySuggestion = (s: SuggestedTierDto) => {
+    setEditingId(null);
+    setPerkInput("");
+    setForm((f) => tierFormFromSuggestion(f, s));
+    setMsg(`“${s.name}” is loaded into the form — make it yours, then create the tier.`);
+  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -2240,6 +2419,65 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                   </ul>
                 )}
               </div>
+              <div className={`space-y-2 rounded-xl border border-dashed px-3 py-2.5 ${isLight ? "border-[#C9A84C]/50 bg-white/30" : "border-white/15 bg-white/[0.03]"}`}>
+                <span className={`block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>
+                  Perk suggester — {MEMBERSHIP_AI_PERKS_COST_VB} VB
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={niche}
+                    onChange={(e) => setNiche(e.target.value)}
+                    placeholder="Your niche — drill beats, sneaker reviews…"
+                    className={`${inputCls(isLight)} min-w-0 flex-1`}
+                    maxLength={80}
+                    aria-label="Your niche"
+                  />
+                  <select
+                    value={audienceSize}
+                    onChange={(e) => setAudienceSize(e.target.value as AudienceSize)}
+                    className={`${inputCls(isLight)} w-auto`}
+                    aria-label="Audience size"
+                  >
+                    <option value="starting">Starting out</option>
+                    <option value="growing">Growing</option>
+                    <option value="established">Established</option>
+                  </select>
+                  <button type="button" data-testid="world-crowns-perk-suggest" onClick={() => void runPerkSuggest()} disabled={suggestBusy} className={chipBtn(isLight)}>
+                    {suggestBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Suggest tiers
+                  </button>
+                </div>
+                {suggestMsg && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{suggestMsg}</p>}
+                {suggestions && (
+                  <div className="space-y-1.5">
+                    {suggestions.map((s, i) => (
+                      <div
+                        key={`${s.name}-${i}`}
+                        data-testid="world-crowns-perk-suggestion"
+                        className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{s.name}</span>
+                          <span className={`text-xs ${muted(isLight)}`}>{membershipDollars(s.priceDollars)} / month</span>
+                          <span className="ml-auto">
+                            <button type="button" data-testid="world-crowns-perk-use" onClick={() => applySuggestion(s)} className={chipBtn(isLight)}>
+                              <Plus className="h-3 w-3" /> Use this tier
+                            </button>
+                          </span>
+                        </div>
+                        <ul className="mt-1 space-y-0.5">
+                          {s.perks.map((perk, j) => (
+                            <li key={j} className={`flex items-center gap-2 text-xs ${muted(isLight)}`}>
+                              <Check className="h-3 w-3 shrink-0 text-[#d4af37]" />
+                              <span>{perk}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="flex flex-wrap items-end gap-3">
                 <label className={`inline-flex items-center gap-2 text-xs font-semibold ${muted(isLight)}`}>
                   <input
@@ -2268,6 +2506,99 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                     Cancel edit
                   </button>
                 )}
+              </div>
+            </div>
+
+            <div className={`space-y-2 rounded-2xl border px-3 py-3 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/10 bg-black/30"}`}>
+              <p className={`flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                <Users className="h-3.5 w-3.5" /> Your members
+              </p>
+              <div data-testid="world-crowns-roster" className="space-y-2">
+                {rosterFailed ? (
+                  <NativeErrorState isLight={isLight} title="Your member list wouldn't load" message="Your club is fine — the roster couldn't be brought to the stand. Try again." onRetry={() => void loadRoster()} />
+                ) : roster === null ? (
+                  <NativeLoadingState isLight={isLight} message="Bringing your members…" />
+                ) : (
+                  <>
+                    {roster.length === 0 ? (
+                      <p className={`text-xs ${muted(isLight)}`}>
+                        No members yet — when a fan takes a crown at this stand, or you add one below, they land here.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {roster.map((m) => (
+                          <div
+                            key={m.id}
+                            data-testid="world-crowns-roster-row"
+                            className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                          >
+                            <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{m.fanLabel}</span>
+                            <span className={`text-xs ${muted(isLight)}`}>
+                              {m.tierName ?? "Membership"} · {membershipDollars(m.priceDollars)}{m.billingPeriod === "annual" ? "/yr" : "/mo"}
+                              {m.isGift ? " · gift" : ""}
+                              {m.joinedAt ? ` · joined ${m.joinedAt.slice(0, 10)}` : ""}
+                            </span>
+                            <span className="ml-auto inline-flex flex-wrap items-center gap-1.5">
+                              <select
+                                aria-label={`Status for ${m.fanLabel}`}
+                                value={m.status}
+                                disabled={memberBusyId === m.id}
+                                onChange={(e) => void changeMemberStatus(m, e.target.value as MemberStatusOption)}
+                                className={`${inputCls(isLight)} w-auto py-1 text-xs`}
+                              >
+                                {(MEMBER_STATUS_OPTIONS as readonly string[]).includes(m.status) ? null : (
+                                  <option value={m.status}>{m.status.replace("_", " ")}</option>
+                                )}
+                                {MEMBER_STATUS_OPTIONS.map((s) => (
+                                  <option key={s} value={s}>{s.replace("_", " ")}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                data-testid="world-crowns-member-remove"
+                                onClick={() => void removeMember(m)}
+                                disabled={memberBusyId === m.id}
+                                className={`${chipBtn(isLight)} ${confirmingRemoveId === m.id ? "border-red-400 text-red-300" : ""}`}
+                              >
+                                {memberBusyId === m.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                {confirmingRemoveId === m.id ? "Tap again to remove" : "Remove"}
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={memberTierId}
+                        onChange={(e) => setMemberTierId(e.target.value)}
+                        className={`${inputCls(isLight)} w-auto flex-1`}
+                        aria-label="Tier for the member you're adding"
+                      >
+                        <option value="">Pick a tier…</option>
+                        {ownTiers.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name} — {tierPriceLabel(t, "monthly")}</option>
+                        ))}
+                      </select>
+                      <input
+                        value={memberLabel}
+                        onChange={(e) => setMemberLabel(e.target.value)}
+                        placeholder="Their name or email, as you track them"
+                        className={`${inputCls(isLight)} min-w-0 flex-1`}
+                        maxLength={120}
+                        aria-label="Member label"
+                      />
+                      <button type="button" data-testid="world-crowns-member-add" onClick={() => void addMember()} disabled={addingMember} className={goldBtn(addingMember)}>
+                        {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        Add member
+                      </button>
+                    </div>
+                    <p className={`text-[11px] ${muted(isLight)}`}>
+                      Adding a member here is your own record — for subscribers you collect somewhere else. It takes no payment and sends them nothing.
+                    </p>
+                  </>
+                )}
+                {rosterMsg && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{rosterMsg}</p>}
               </div>
             </div>
           </>
