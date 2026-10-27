@@ -5661,6 +5661,29 @@
       "saveFailed": "Diese Einstellung konnte nicht gespeichert werden",
       "loadError": "Deine Feedback-Einstellung konnte nicht geladen werden.",
       "retry": "Erneut versuchen"
+    },
+    "groupDigest": {
+      "title": "Gruppen-Zusammenfassungen",
+      "subtitle": "Ein Überblick über die Aktivität in jeder deiner Gruppen — neue Beiträge, Forenaktivität und neue Mitglieder — in deiner Benachrichtigungsglocke.",
+      "master": {
+        "title": "Gruppen-Zusammenfassungen",
+        "desc": "Wenn aktiviert, sendet dir jede deiner Gruppen eine Zusammenfassung pro Zeitraum mit allem, was du verpasst hast. Deaktiviere sie, und es wird nie eine Zusammenfassung für dich erstellt."
+      },
+      "frequency": {
+        "title": "Wie oft",
+        "desc": "Täglich deckt den letzten Tag ab, wöchentlich die letzte Woche. Eine ruhige Gruppe sendet nichts — keine Aktivität, keine Zusammenfassung.",
+        "daily": "Täglich",
+        "weekly": "Wöchentlich"
+      },
+      "email": {
+        "title": "Auch per E-Mail senden",
+        "desc": "Standardmäßig aus. Wenn aktiviert, wird jede Zusammenfassung zusätzlich an deine Konto-E-Mail gesendet. Die Glocke erhält sie in jedem Fall."
+      },
+      "note": "Du erhältst nur Zusammenfassungen für Gruppen, in denen du Mitglied bist, und nur über die Aktivität anderer Mitglieder — nie über deine eigenen Beiträge.",
+      "saved": "Einstellungen gespeichert",
+      "saveFailed": "Einstellungen konnten nicht gespeichert werden",
+      "loadError": "Deine Einstellungen konnten gerade nicht geladen werden.",
+      "retry": "Erneut versuchen"
     }
   },
   "social-proof": {

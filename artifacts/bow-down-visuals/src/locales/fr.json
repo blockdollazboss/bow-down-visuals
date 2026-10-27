@@ -5831,6 +5831,29 @@
       "saveFailed": "Impossible d'enregistrer ce réglage",
       "loadError": "Impossible de charger votre réglage d'invites.",
       "retry": "Réessayer"
+    },
+    "groupDigest": {
+      "title": "Résumés de groupes",
+      "subtitle": "Un récapitulatif de l'activité de chacun de vos groupes — nouvelles publications, forum et nouveaux membres — dans votre cloche de notifications.",
+      "master": {
+        "title": "Résumés de groupes",
+        "desc": "Quand c'est activé, chaque groupe dont vous faites partie vous envoie un résumé par période avec ce que vous avez manqué. Désactivez-le et aucun résumé ne sera jamais créé pour vous."
+      },
+      "frequency": {
+        "title": "Fréquence",
+        "desc": "Quotidien couvre le dernier jour, hebdomadaire la dernière semaine. Un groupe calme n'envoie rien : pas d'activité, pas de résumé.",
+        "daily": "Quotidien",
+        "weekly": "Hebdomadaire"
+      },
+      "email": {
+        "title": "Recevoir aussi par e-mail",
+        "desc": "Désactivé par défaut. Quand c'est activé, chaque résumé est aussi envoyé à l'e-mail de votre compte. Le résumé dans la cloche arrive dans tous les cas."
+      },
+      "note": "Vous ne recevez de résumés que pour les groupes dont vous faites partie, et uniquement sur l'activité des autres membres — jamais vos propres publications.",
+      "saved": "Paramètres des résumés enregistrés",
+      "saveFailed": "Impossible d'enregistrer les paramètres",
+      "loadError": "Vos paramètres de résumés n'ont pas pu se charger.",
+      "retry": "Réessayer"
     }
   },
   "social-proof": {
