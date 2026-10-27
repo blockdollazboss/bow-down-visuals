@@ -4,12 +4,13 @@
  * (components/PriorityDmPanel) does the fetching.
  *
  * Honesty rules carried to the surface:
- *   - PRICE GATE: the platform flag is an open owner call and ships
- *     OFF. While off there is NO price anywhere in this UI — the copy
- *     says priority DMs aren't available yet, plainly.
- *   - When on, the only price ever shown is the creator's own stated
- *     minimum, next to the creator's stated reply window and the
- *     auto-refund text — all three before the fan pays.
+ *   - PRICE + GATE — OWNER RULED 2026-10-27: the platform gate is
+ *     OPEN and the price is the platform's ruled 100 VB per message.
+ *     If the kill switch ever closes the gate there is NO price
+ *     anywhere in this UI — the copy says priority DMs are off.
+ *   - When on, the only price ever shown is the ruled platform price
+ *     from the status response, next to the creator's stated reply
+ *     window and the auto-refund text — all three before the fan pays.
  */
 
 export interface PriorityStatusResponse {
@@ -34,12 +35,13 @@ export interface PriorityDmRowDto {
   created_at: string;
 }
 
-/** The gate-off explanation — shown verbatim instead of any price. */
+/** The gate-off explanation — shown verbatim instead of any price
+ *  (only reachable via the platform kill switch). */
 export const PRIORITY_DM_GATE_OFF_COPY =
-  "Priority DMs aren't available yet — the platform hasn't turned them on. Normal messages are free and work exactly as always.";
+  "Priority DMs are switched off right now. Normal messages are free and work exactly as always.";
 
 /** Can the fan buy right now? Only a live platform + an opted-in
- *  creator with their own stated price counts — nothing else. */
+ *  creator with the ruled platform price stated counts — nothing else. */
 export function canBuyPriority(status: PriorityStatusResponse | null): boolean {
   return Boolean(
     status?.platform_enabled &&

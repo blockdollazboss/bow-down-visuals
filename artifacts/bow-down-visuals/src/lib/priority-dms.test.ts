@@ -16,7 +16,7 @@ import {
 } from "./priority-dms";
 
 const LIVE: PriorityStatusResponse = {
-  platform_enabled: true, available: true, price_vb: 500, reply_window_hours: 48,
+  platform_enabled: true, available: true, price_vb: 100, reply_window_hours: 48,
 };
 const GATE_OFF: PriorityStatusResponse = { platform_enabled: false, available: false, reason: "gate_off" };
 
@@ -24,7 +24,7 @@ describe("gate-off honesty", () => {
   it("gate off is never buyable and produces no purchase statement", () => {
     expect(canBuyPriority(GATE_OFF)).toBe(false);
     expect(priorityPurchaseStatement(GATE_OFF)).toBeNull();
-    expect(PRIORITY_DM_GATE_OFF_COPY).toContain("aren't available yet");
+    expect(PRIORITY_DM_GATE_OFF_COPY).toContain("switched off");
     expect(PRIORITY_DM_GATE_OFF_COPY).not.toMatch(/\d+\s*(VB|Visual Bucs)/);
   });
 
@@ -38,7 +38,7 @@ describe("gate-off honesty", () => {
 describe("the pre-purchase statement", () => {
   it("states price, window and the full auto-refund together", () => {
     const s = priorityPurchaseStatement(LIVE);
-    expect(s).toContain("500 Visual Bucs");
+    expect(s).toContain("100 Visual Bucs");
     expect(s).toContain("2 days");
     expect(s).toContain("come back in full, automatically");
   });

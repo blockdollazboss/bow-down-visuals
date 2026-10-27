@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Zap, Save } from "lucide-react";
-import { goldInput, goldButton, ghostButton } from "@/lib/community-ui";
+import { goldButton, ghostButton } from "@/lib/community-ui";
 import {
   canBuyPriority, priorityPurchaseStatement, priorityRowLabel,
   newPriorityIntentKey, PRIORITY_DM_GATE_OFF_COPY,
@@ -10,13 +10,15 @@ import {
 /* ─── Priority DMs (Wave-4 #44) — docked INSIDE Messages ─────────────
    Three pieces, all in the existing Messages surface (no new page):
      1. PriorityDmSettingsCard — the creator's own controls in the
-        sidebar: opt in/out, MY price, MY stated reply window.
+        sidebar: opt in/out and MY stated reply window. The price is
+        the platform's ruled 100 VB (owner ruling 2026-10-27), shown
+        read-only — creators don't set it.
      2. PriorityDmLane — the creator's priority inbox lane: held /
         replied / refunded rows, labelled honestly.
      3. PriorityDmComposer — the fan's buy action in the thread: the
         full statement (price + window + auto-refund) before paying.
-   PRICE GATE: platform_enabled=false renders the honest not-yet
-   copy and NO price, ever (lib/priority-dms). */
+   GATE: platform_enabled=false (kill switch) renders the honest
+   switched-off copy and NO price, ever (lib/priority-dms). */
 
 type Api = {
   get: (p: string) => Promise<unknown>;
@@ -28,13 +30,14 @@ interface MySettings {
   platform_enabled: boolean;
   opted_in: boolean;
   min_price_vb: number | null;
+  /* The platform's ruled per-message price (owner ruling 2026-10-27). */
+  price_vb?: number;
   reply_window_hours: number;
   not_ready?: boolean;
 }
 
 export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: (msg: string) => void }) {
   const [settings, setSettings] = useState<MySettings | null>(null);
-  const [priceText, setPriceText] = useState("");
   const [windowHours, setWindowHours] = useState(48);
   const [saving, setSaving] = useState(false);
 
@@ -43,30 +46,29 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
       (d) => {
         const s = d as MySettings;
         setSettings(s);
-        setPriceText(s.min_price_vb != null ? String(s.min_price_vb) : "");
         setWindowHours(s.reply_window_hours || 48);
       },
-      () => setSettings({ platform_enabled: false, opted_in: false, min_price_vb: null, reply_window_hours: 48 }),
+      () => setSettings({ platform_enabled: false, opted_in: false, min_price_vb: null, price_vb: 100, reply_window_hours: 48 }),
     );
   }, [api]);
 
   async function save(optedIn: boolean) {
     setSaving(true);
     try {
-      const price = priceText.trim() === "" ? null : Number(priceText);
       const d = (await api.put("/api/priority-dms/my-settings", {
         opted_in: optedIn,
-        min_price_vb: price,
         reply_window_hours: windowHours,
       })) as MySettings;
       setSettings(d);
       onNotice(optedIn
-        ? "Priority DMs on — fans see your price and your reply window before they pay."
+        ? "Priority DMs on — fans see the 100 VB price and your reply window before they pay."
         : "Priority DMs off — your normal inbox is untouched.");
     } catch (e) {
       onNotice(e instanceof Error ? e.message : "Couldn't save your priority DM settings.");
     } finally { setSaving(false); }
   }
+
+  const priceVb = settings?.price_vb ?? 100;
 
   if (!settings) return null;
   return (
@@ -76,19 +78,19 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
       </p>
       {!settings.platform_enabled ? (
         <p className="mt-2 text-xs leading-relaxed text-white/50" data-testid="priority-dm-gate-off">
-          {PRIORITY_DM_GATE_OFF_COPY} You can set your price and reply window now — they only go live if the platform turns priority DMs on.
+          {PRIORITY_DM_GATE_OFF_COPY} You can still set your reply window now — it applies when priority DMs are back on.
         </p>
       ) : (
         <p className="mt-2 text-xs leading-relaxed text-white/50">
-          Fans pay your price to land in your priority lane. No reply inside your window = they are refunded in full, automatically.
+          Fans pay the platform price to land in your priority lane. Reply inside your window and it is yours — no reply = they are refunded in full, automatically.
         </p>
       )}
-      <label className="mt-3 block text-[11px] font-semibold text-white/60">
-        My price (Visual Bucs — you set it, there is no default)
-        <input value={priceText} onChange={(e) => setPriceText(e.target.value.replace(/[^0-9]/g, ""))}
-          inputMode="numeric" placeholder="e.g. 500" data-testid="priority-dm-price"
-          className={`${goldInput} mt-1`} />
-      </label>
+      <div className="mt-3 text-[11px] font-semibold text-white/60">
+        Platform price
+        <p className="mt-1 text-sm font-normal text-white/80" data-testid="priority-dm-price">
+          {priceVb} Visual Bucs per priority message — set by the platform, the same for every creator.
+        </p>
+      </div>
       <label className="mt-2 block text-[11px] font-semibold text-white/60">
         I reply within
         <select value={windowHours} onChange={(e) => setWindowHours(Number(e.target.value))}
@@ -117,7 +119,7 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
         )}
       </div>
       <p className="mt-2 text-[11px] text-white/40">
-        {settings.opted_in ? "On — your stated price and window are what fans see." : "Off — nobody can buy a priority DM from you."}
+        {settings.opted_in ? `On — fans see the ${priceVb} VB price and your reply window before they pay.` : "Off — nobody can buy a priority DM from you."}
       </p>
     </div>
   );
