@@ -43,6 +43,7 @@ import adminRouter from "./admin";
 import reportsRouter from "./reports";
 import accountRouter from "./account";
 import vaultRouter from "./vault";
+import groupProfilesRouter from "./group-profiles";
 import bowChallengeRouter from "./bow-challenge";
 import nfcCardsRouter from "./nfc-cards";
 import bioPagesRouter from "./bio-pages";
@@ -459,7 +460,7 @@ router.use(publicApiRouter); // Stack-100 #3 #9: /api-keys management + Public C
 router.use(carouselRouter);
 router.use(booksRouter);
 router.use(bonusRouter);
-router.use(teamsRouter);router.use(teamSeatsRouter);
+router.use(teamsRouter);router.use(teamSeatsRouter);router.use(groupProfilesRouter);
 router.use(referralsRouter);
 router.use(sharesRouter);
 router.use(generatedClipsRouter);
