@@ -137,6 +137,7 @@ import brandingShopRouter from "./generate/branding-shop";
 import collabsRouter from "./generate/collabs";
 import coPostsRouter from "./co-posts";
 import coReleasesRouter from "./co-releases";
+import plainDealsRouter from "./plain-deals";
 import communityRouter from "./generate/community";
 import contestsRouter from "./generate/contests";
 import copyrightRouter from "./generate/copyright";
@@ -543,6 +544,7 @@ router.use(brandingShopRouter);
 router.use(collabsRouter);
 router.use(coPostsRouter); // /api/co-posts/* (Stack-100 #3 #24: Collabs payoff — one post, both profiles)
 router.use(coReleasesRouter); // /api/co-releases/* (Stack-100 #3 Wave 3: co-posts phase 2 — one release/product, both profiles, consented royalty split)
+router.use(plainDealsRouter); // /api/plain-deals/* (Stack-200 upgrade #164: Plain-Words Deals — write/sign a deal in plain words; split attaches to co-release / sale-splits rails at signature)
 router.use(communityRouter);
 router.use(contestsRouter);
 router.use(copyrightRouter);

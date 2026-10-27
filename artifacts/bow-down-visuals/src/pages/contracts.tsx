@@ -9,6 +9,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { PlainWordsDeals } from "@/components/contracts/PlainWordsDeals";
 
 /* ─── Contract Analyzer ──────────────────────────────────────────────────
    AI contract review for creators: paste a record deal, brand deal, sync
@@ -386,6 +387,10 @@ export default function Contracts() {
             >{t("contracts.analyze_another_contract")}</button>
           </div>
         )}
+
+        {/* Plain-Words Deals (#164): the agreements home docked under the
+            analyzer — write/sign a collab deal in plain words here. */}
+        <PlainWordsDeals isLight={isLight} />
       </main>
 
       <OutOfCredits />

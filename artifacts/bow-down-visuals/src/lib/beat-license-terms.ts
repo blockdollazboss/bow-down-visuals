@@ -138,3 +138,72 @@ export function describeTerms(terms: BeatLicenseTerms): string[] {
 export function describeTermsInline(terms: BeatLicenseTerms): string {
   return describeTerms(terms).join(" · ");
 }
+
+/* ─── One-tap leases (N11): the plain-words checkout ─────────────────────
+   The same rendering the API serves on GET /beats/:id/offers and
+   stamps acceptance against (api-server lib/beat-plain-terms.ts) —
+   kept word-for-word so the words on this screen are the words in
+   the license snapshot. The modal's one tap ("Agree & pay") sends
+   plainTermsAgreed and the server records terms_accepted_at. */
+
+export interface PlainTermsSection {
+  heading: string;
+  lines: string[];
+}
+
+const PLAIN_FORMAT_LINES: Record<BeatLicenseFormat, string> = {
+  mp3: "The beat as an MP3 file.",
+  wav_mp3: "The beat as WAV + MP3 files.",
+  wav_mp3_stems: "The beat as WAV + MP3 files, plus the separate track stems.",
+  ownership_stems: "The beat itself — full ownership, plus the separate track stems.",
+};
+
+function plainCapLine(cap: number | null, capped: string, unlimited: string): string {
+  return cap === null ? unlimited : capped.replace("{n}", cap.toLocaleString("en-US"));
+}
+
+export function plainWordsForTerms(terms: BeatLicenseTerms): PlainTermsSection[] {
+  const get: string[] = [PLAIN_FORMAT_LINES[terms.format] ?? PLAIN_FORMAT_LINES.mp3];
+  if (terms.isExclusive) {
+    get.push("Only you get this — once you buy it, the producer stops selling this beat.");
+  }
+  const canDo: string[] = [
+    plainCapLine(terms.streamsCap, "Up to {n} streams of your song.", "Unlimited streams of your song."),
+    plainCapLine(terms.salesCap, "Up to {n} copies or downloads sold.", "Unlimited copies or downloads sold."),
+    plainCapLine(terms.musicVideosCap, "Up to {n} music video(s) with the song.", "Unlimited music videos with the song."),
+    plainCapLine(terms.livePerformancesCap, "Up to {n} live performances of the song.", "Unlimited live performances of the song."),
+    terms.radioTvAllowed
+      ? "Radio and TV play is allowed."
+      : "Radio and TV play is NOT covered by this license.",
+  ];
+  const limits: string[] = [
+    terms.termYears === null
+      ? "The license never expires."
+      : `The license runs ${terms.termYears} year${terms.termYears === 1 ? "" : "s"} from purchase.`,
+    `Valid ${terms.territory === "Worldwide" ? "worldwide" : `in ${terms.territory}`}.`,
+  ];
+  if (!terms.isExclusive) {
+    limits.push("Other artists can license this same beat too — it isn't only yours.");
+  }
+  if (terms.termsNote) {
+    limits.push(`Also from the producer: ${terms.termsNote}`);
+  }
+  const credit: string[] = [
+    terms.creditLine
+      ? `Use this credit line wherever the song appears: "${terms.creditLine}"`
+      : "Credit the producer in your song's credits wherever it appears.",
+  ];
+  return [
+    { heading: "What you get", lines: get },
+    { heading: "What you can do", lines: canDo },
+    { heading: "The limits", lines: limits },
+    { heading: "Credit", lines: credit },
+  ];
+}
+
+export const BEAT_PLAIN_TERMS_COPY = {
+  agreeAndPay: "Agree & pay",
+  agreeHint:
+    "Tapping “Agree & pay” is your signature on these words — they're saved with your license exactly as shown here.",
+  oneTapNote: "One tap: you agree to the words above and go straight to payment. No contract wall, no fine print.",
+} as const;

@@ -2,12 +2,19 @@ import { Router } from "express";
 import { z } from "zod";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
-import { db, creatorProfilesTable, tipJarTipsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, creatorProfilesTable, tipJarTipsTable, liveStreamTipsTable, worldStageTipsTable } from "@workspace/db";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import {
+  canonicalJarUrl,
+  jarQrTarget,
+  jarTotals,
+  mergeJarActivity,
+  type JarActivityEntry,
+} from "../../lib/one-tip-jar";
 
 /* ─── Tip Jar ──────────────────────────────────────────────────────────────
    Creators accept tips/donations from fans at /tips/:handle.
@@ -604,6 +611,109 @@ router.get("/tips/page/:handle", publicApiLimiter, async (req, res) => {
       ? "Tips are charged securely at checkout."
       : "Payment processing is coming soon — no charge is made today.",
   });
+});
+
+/* GET /api/tips/jar/:handle → the ONE tip jar (N4). Public.
+   The jar is the single identity every tip door belongs to: this view
+   resolves the handle (or profile slug, same two namespaces as the
+   page), returns the canonical address every surface and QR code
+   points at, the funding-goal progress (USD page rail), per-rail
+   totals — dollars and Visual Bucs in separate lanes, never summed —
+   and one merged activity feed across the tip page (paid USD rows),
+   live streams (VB) and the World stage (VB). The rails themselves
+   are untouched; this is their shared front door. */
+router.get("/tips/jar/:handle", publicApiLimiter, async (req, res) => {
+  const handle = String(req.params.handle ?? "").toLowerCase();
+  const ownerId = await resolveTipPageOwnerId(handle);
+  if (!ownerId) {
+    res.status(404).json({ error: "Tip jar not found." });
+    return;
+  }
+  const settings = tipPages.get(ownerId)!;
+  try {
+    /* A generous per-rail window feeds both the totals and the feed;
+       the feed itself caps at the lib's display limit. */
+    const RAIL_WINDOW = 500;
+    const paidRows = await db
+      .select()
+      .from(tipJarTipsTable)
+      .where(and(eq(tipJarTipsTable.page_user_id, ownerId), eq(tipJarTipsTable.status, TIP_STATUS_PAID)))
+      .orderBy(desc(tipJarTipsTable.created_at))
+      .limit(RAIL_WINDOW);
+    const liveRows = await db
+      .select()
+      .from(liveStreamTipsTable)
+      .where(eq(liveStreamTipsTable.creator_user_id, ownerId))
+      .orderBy(desc(liveStreamTipsTable.created_at))
+      .limit(RAIL_WINDOW);
+    const stageRows = await db
+      .select()
+      .from(worldStageTipsTable)
+      .where(eq(worldStageTipsTable.toUserId, ownerId))
+      .orderBy(desc(worldStageTipsTable.createdAt))
+      .limit(RAIL_WINDOW);
+
+    const tipperIds = [
+      ...new Set([
+        ...liveRows.map((r) => r.tipper_user_id),
+        ...stageRows.map((r) => r.fromUserId),
+      ]),
+    ];
+    const nameByUser = new Map<string, string>();
+    if (tipperIds.length > 0) {
+      const profiles = await db
+        .select({ userId: creatorProfilesTable.userId, displayName: creatorProfilesTable.displayName })
+        .from(creatorProfilesTable)
+        .where(inArray(creatorProfilesTable.userId, tipperIds));
+      for (const p of profiles) nameByUser.set(p.userId, p.displayName);
+    }
+
+    const entries: JarActivityEntry[] = [
+      ...paidRows.map((r) => ({
+        door: "tip_page" as const,
+        unit: "USD" as const,
+        amount: r.amount_cents,
+        fromLabel: r.fan_name || "A fan",
+        message: r.message || null,
+        at: (r.paid_at ?? r.created_at).toISOString(),
+      })),
+      ...liveRows.map((r) => ({
+        door: "live_stream" as const,
+        unit: "VB" as const,
+        amount: r.amount_vb,
+        fromLabel: nameByUser.get(r.tipper_user_id) ?? "A fan",
+        message: null,
+        at: r.created_at.toISOString(),
+      })),
+      ...stageRows.map((r) => ({
+        door: "world_stage" as const,
+        unit: "VB" as const,
+        amount: r.amountVb,
+        fromLabel: nameByUser.get(r.fromUserId) ?? "A fan",
+        message: null,
+        at: r.createdAt.toISOString(),
+      })),
+    ];
+
+    const goal = await fundingGoalView(settings);
+    res.json({
+      jar: {
+        handle: settings.handle,
+        displayName: settings.displayName,
+        message: settings.message,
+        canonicalUrl: canonicalJarUrl(settings.handle),
+        qrTarget: jarQrTarget(settings.handle),
+        suggestedAmounts: settings.suggestedAmounts,
+        paymentsLive: paymentsConfigured(),
+      },
+      goal,
+      totals: jarTotals(entries),
+      activity: mergeJarActivity(entries),
+    });
+  } catch (err) {
+    logger.error({ err, handle }, "[tip-jar] jar view failed");
+    res.status(500).json({ error: "Couldn't load that tip jar." });
+  }
 });
 
 /* POST /api/tips/:handle/tip → record a tip INTENT. No auth. NEVER charges.

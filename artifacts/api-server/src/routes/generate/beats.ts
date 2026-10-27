@@ -21,6 +21,7 @@ import {
   type BeatLicenseTier,
 } from "./beats-pricing";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
+import { plainWordsForTerms, renderPlainTermsText } from "../../lib/beat-plain-terms";
 import { refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage";
 import {
   createPaymentCheckout,
@@ -49,6 +50,11 @@ const router = Router();
 const beatLicenseSchema = z.object({
   tier: z.enum(["basic", "premium", "exclusive"]).optional(),
   templateId: z.string().uuid().optional(),
+  /* N11: the buyer's one tap on the plain-words checkout ("Agree &
+     pay"). When true, the license row records terms_accepted_at — the
+     durable acceptance of the terms snapshot exactly as rendered in
+     plain words. Absent/false keeps the legacy purchase behavior. */
+  plainTermsAgreed: z.boolean().optional(),
 }).refine((v) => (v.tier === undefined) !== (v.templateId === undefined), {
   message: "Choose exactly one of tier or templateId.",
 });
@@ -190,6 +196,83 @@ router.get("/beats/:id", async (req, res) => {
     res.json({ beat: withTemplates });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch beat";
+    res.status(500).json({ error: msg });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GET /api/beats/:id/offers — the one-tap lease shelf (N11).
+   Every offer on this beat — the fixed tiers the producer priced and
+   their custom templates — with the terms rendered IN PLAIN WORDS.
+   The words come from the SAME terms objects the purchase snapshots
+   (defaultTermsForTier / termsFromTemplateRow), so what the buyer
+   reads on this shelf is exactly what lands on their license; the
+   tap on "Agree & pay" (POST /beats/:id/license with
+   plainTermsAgreed) records the acceptance on the row.
+───────────────────────────────────────────────────────────────────────────── */
+router.get("/beats/:id/offers", async (req, res) => {
+  const { id } = req.params as { id: string };
+  try {
+    const rows = await db.select().from(beatsTable).where(eq(beatsTable.id, id)).limit(1);
+    const beat = rows[0];
+    if (!beat) {
+      res.status(404).json({ error: "Beat not found" });
+      return;
+    }
+    type Offer = {
+      kind: "tier" | "template";
+      tier: BeatLicenseTier | null;
+      templateId: string | null;
+      name: string;
+      priceCents: number;
+      available: boolean;
+      terms: BeatLicenseTerms;
+      plainWords: ReturnType<typeof plainWordsForTerms>;
+      plainText: string;
+    };
+    const offers: Offer[] = [];
+    const tierPrices: Array<{ tier: BeatLicenseTier; price: number | null }> = [
+      { tier: "basic", price: beat.basic_price_cents },
+      { tier: "premium", price: beat.premium_price_cents },
+      { tier: "exclusive", price: beat.exclusive_price_cents },
+    ];
+    for (const { tier, price } of tierPrices) {
+      if (price === null || price === undefined || price <= 0) continue;
+      const terms = defaultTermsForTier(tier);
+      offers.push({
+        kind: "tier",
+        tier,
+        templateId: null,
+        name: terms.name,
+        priceCents: price,
+        available: !(tier === "exclusive" && beat.exclusive_sold),
+        terms,
+        plainWords: plainWordsForTerms(terms),
+        plainText: renderPlainTermsText(terms),
+      });
+    }
+    const templates = await db
+      .select()
+      .from(beatLicenseTemplatesTable)
+      .where(eq(beatLicenseTemplatesTable.producer_id, beat.user_id))
+      .orderBy(desc(beatLicenseTemplatesTable.created_at));
+    for (const t of templates) {
+      const terms = termsFromTemplateRow(t);
+      offers.push({
+        kind: "template",
+        tier: null,
+        templateId: t.id,
+        name: terms.name,
+        priceCents: t.price_cents,
+        available: !(t.is_exclusive && beat.exclusive_sold),
+        terms,
+        plainWords: plainWordsForTerms(terms),
+        plainText: renderPlainTermsText(terms),
+      });
+    }
+    res.json({ beat_id: beat.id, title: beat.title, offers });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to load offers";
     res.status(500).json({ error: msg });
   }
 });
@@ -585,6 +668,10 @@ export function toLicenseJson(l: BeatLicenseRow) {
     /* The terms exactly as sold — buyer surfaces render from this
        snapshot, never from the (possibly since-edited) template. */
     terms: l.terms_snapshot,
+    /* N11: the plain words of the sold terms + when the buyer agreed
+       to them on the one-tap checkout (null = bought without the tap). */
+    plainWords: l.terms_snapshot ? plainWordsForTerms(l.terms_snapshot) : null,
+    termsAcceptedAt: l.terms_accepted_at,
     priceCents: l.price_cents,
     commissionCents: l.commission_cents,
     status: l.status,
@@ -825,6 +912,7 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       price_cents: priceCents,
       commission_cents: commissionFor(priceCents),
       status: "pending_payment",
+      terms_accepted_at: parsed.data.plainTermsAgreed ? new Date() : null,
     }).returning();
     const license = inserted[0]!;
 

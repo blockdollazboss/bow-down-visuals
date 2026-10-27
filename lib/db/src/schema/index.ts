@@ -189,3 +189,4 @@ export * from "./product-offers";
 export * from "./priority-dms";
 export * from "./wave4850";
 export * from "./results-wall";
+export * from "./plain-deals";

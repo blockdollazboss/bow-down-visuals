@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
+import { OneTipJarCard } from "@/components/tips/OneTipJarCard";
 
 /* ─── Tip Jar — creator dashboard ──────────────────────────────────────────
    Set up your public tip page at /tips/:handle, share the link, and watch
@@ -433,6 +434,14 @@ export default function Tips() {
                 )}
               </section>
             </div>
+
+            {/* One Tip Jar (N4): the merged jar — every door's tips,
+                the canonical link, and the printable QR card. */}
+            {dashboard?.hasPage && dashboard.handle && (
+              <div className="mt-6">
+                <OneTipJarCard handle={dashboard.handle} isLight={isLight} />
+              </div>
+            )}
           </>
         )}
       </main>
