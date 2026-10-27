@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTable } from "@workspace/db";
+import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTable, creatorSubscriptionReceiptsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
@@ -93,6 +93,46 @@ async function upsertSubscription(values: {
     `);
 }
 
+/* ── Visible receipt/history rows (payfix upgrade-path, task 4) ────────
+   Pass 1 found NO receipt anywhere for a paid subscription. Every
+   lifecycle transition writes exactly one row to
+   creator_subscription_receipts; idempotency_key is UNIQUE and the
+   insert is ON CONFLICT DO NOTHING, so a replayed webhook delivery
+   can never duplicate a receipt. Best-effort: a receipt failure must
+   never roll back the entitlement sync itself. */
+export async function recordSubscriptionReceipt(values: {
+  profileId: string;
+  kind: string;
+  tier?: string | null;
+  status?: string | null;
+  amountCents?: number | null;
+  currency?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripeObjectId?: string | null;
+  idempotencyKey: string;
+}): Promise<void> {
+  try {
+    await db
+      .insert(creatorSubscriptionReceiptsTable)
+      .values({
+        profileId: values.profileId,
+        kind: values.kind,
+        tier: values.tier ?? null,
+        status: values.status ?? null,
+        amountCents: values.amountCents ?? null,
+        currency: values.currency ?? null,
+        stripeSubscriptionId: values.stripeSubscriptionId ?? null,
+        stripeCustomerId: values.stripeCustomerId ?? null,
+        stripeObjectId: values.stripeObjectId ?? null,
+        idempotencyKey: values.idempotencyKey,
+      })
+      .onConflictDoNothing();
+  } catch (err) {
+    logger.warn({ err, kind: values.kind }, "subscription receipt write failed (non-fatal)");
+  }
+}
+
 /** checkout.session.completed with metadata.kind === "creator_tier". */
 export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
   const tier = validTier(session.metadata?.["tier"]) ? (session.metadata!["tier"] as CreatorTier) : null;
@@ -125,6 +165,18 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
     stripeCustomerId: customerId,
     currentPeriodEnd,
   });
+  await recordSubscriptionReceipt({
+    profileId,
+    kind: "subscribed",
+    tier,
+    status: "active",
+    amountCents: session.amount_total ?? null,
+    currency: session.currency ?? null,
+    stripeSubscriptionId: subId ?? null,
+    stripeCustomerId: customerId,
+    stripeObjectId: session.id,
+    idempotencyKey: `checkout:${session.id}`,
+  });
   logger.info({ sessionId: session.id, profileId, tier }, "creator tier activated via webhook");
 
   /* ── Subscription confirmation email — best-effort, fail-open. The tier is
@@ -156,7 +208,7 @@ ${emailButton(`${baseUrlForEmail()}/dashboard`, "Open my dashboard")}`
 }
 
 /** customer.subscription.updated / .deleted — keep tier + status in sync. */
-export async function handleTierSubscriptionEvent(subscription: Stripe.Subscription): Promise<void> {
+export async function handleTierSubscriptionEvent(subscription: Stripe.Subscription, eventId?: string): Promise<void> {
   const stripe = getStripe();
   const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
   const priceId = subscription.items.data[0]?.price?.id ?? null;
@@ -170,6 +222,11 @@ export async function handleTierSubscriptionEvent(subscription: Stripe.Subscript
     return;
   }
   const status = subscription.status; // active | trialing | past_due | canceled | incomplete…
+  const [prior] = await db
+    .select({ tier: creatorSubscriptionsTable.tier, status: creatorSubscriptionsTable.status })
+    .from(creatorSubscriptionsTable)
+    .where(eq(creatorSubscriptionsTable.profileId, profileId))
+    .limit(1);
   await upsertSubscription({
     profileId,
     tier: tier ?? "free",
@@ -179,6 +236,26 @@ export async function handleTierSubscriptionEvent(subscription: Stripe.Subscript
     currentPeriodEnd: periodEndOf(subscription),
     cancelAtPeriodEnd: cancelAtOf(subscription),
   });
+  /* Receipt only for a real transition (tier or status actually
+     changed) — routine subscription.updated noise writes nothing. */
+  const nextTier = tier ?? "free";
+  const tierChanged = !!prior && prior.tier !== nextTier;
+  const statusChanged = !!prior && prior.status !== status;
+  if (tierChanged || statusChanged) {
+    const kind = status === "canceled" ? "canceled" : tierChanged ? "tier_changed" : "status_changed";
+    await recordSubscriptionReceipt({
+      profileId,
+      kind,
+      tier: nextTier,
+      status,
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: customerId,
+      stripeObjectId: subscription.id,
+      idempotencyKey: eventId
+        ? `evt:${eventId}`
+        : `sub:${subscription.id}:${nextTier}:${status}:${periodEndOf(subscription)?.toISOString() ?? ""}`,
+    });
+  }
   logger.info({ subId: subscription.id, profileId, tier, status }, "creator tier synced from subscription event");
 }
 
@@ -186,6 +263,15 @@ export async function handleTierSubscriptionEvent(subscription: Stripe.Subscript
 export async function handleTierInvoiceFailed(invoice: Stripe.Invoice): Promise<void> {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
   if (!customerId) return;
+  const [subRow] = await db
+    .select({
+      profileId: creatorSubscriptionsTable.profileId,
+      tier: creatorSubscriptionsTable.tier,
+      stripeSubscriptionId: creatorSubscriptionsTable.stripeSubscriptionId,
+    })
+    .from(creatorSubscriptionsTable)
+    .where(eq(creatorSubscriptionsTable.stripeCustomerId, customerId))
+    .limit(1);
   await db
     .update(creatorSubscriptionsTable)
     .set({ status: "past_due", updatedAt: new Date() })
@@ -194,7 +280,62 @@ export async function handleTierInvoiceFailed(invoice: Stripe.Invoice): Promise<
     .update(creatorHostingTable)
     .set({ status: "past_due", updatedAt: new Date() })
     .where(eq(creatorHostingTable.stripeCustomerId, customerId));
+  if (subRow) {
+    await recordSubscriptionReceipt({
+      profileId: subRow.profileId,
+      kind: "payment_failed",
+      tier: subRow.tier,
+      status: "past_due",
+      amountCents: invoice.amount_due ?? null,
+      currency: invoice.currency ?? null,
+      stripeSubscriptionId: subRow.stripeSubscriptionId,
+      stripeCustomerId: customerId,
+      stripeObjectId: invoice.id,
+      idempotencyKey: `invoice_failed:${invoice.id}`,
+    });
+  }
   logger.info({ customerId }, "creator tier marked past_due after failed invoice");
+}
+
+/** invoice.paid — the recurring renewal receipt, exactly once per invoice.
+    Only invoices for THE recorded tier subscription count (the same
+    customer may also carry a Hosting subscription on a separate sub). */
+export async function handleTierInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
+  const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+  if (!customerId) return;
+  const invSubId =
+    typeof (invoice as unknown as { subscription?: unknown }).subscription === "string"
+      ? ((invoice as unknown as { subscription: string }).subscription)
+      : null;
+  const [subRow] = await db
+    .select({
+      profileId: creatorSubscriptionsTable.profileId,
+      tier: creatorSubscriptionsTable.tier,
+      stripeSubscriptionId: creatorSubscriptionsTable.stripeSubscriptionId,
+    })
+    .from(creatorSubscriptionsTable)
+    .where(eq(creatorSubscriptionsTable.stripeCustomerId, customerId))
+    .limit(1);
+  if (!subRow) return;
+  if (invSubId && subRow.stripeSubscriptionId && invSubId !== subRow.stripeSubscriptionId) return;
+  // The first invoice of a brand-new subscription is already receipted
+  // by the checkout handler ('subscribed'); renewals are billing_reason
+  // subscription_cycle / subscription_update (proration invoices).
+  const reason = (invoice as unknown as { billing_reason?: string | null }).billing_reason ?? null;
+  if (reason === "subscription_create") return;
+  await recordSubscriptionReceipt({
+    profileId: subRow.profileId,
+    kind: reason === "subscription_update" ? "tier_changed" : "renewed",
+    tier: subRow.tier,
+    status: "active",
+    amountCents: invoice.amount_paid ?? null,
+    currency: invoice.currency ?? null,
+    stripeSubscriptionId: subRow.stripeSubscriptionId,
+    stripeCustomerId: customerId,
+    stripeObjectId: invoice.id,
+    idempotencyKey: `invoice_paid:${invoice.id}`,
+  });
+  logger.info({ customerId, invoiceId: invoice.id }, "creator tier renewal receipt recorded");
 }
 
 /* ── Hosting plan sync (Stack 3, item 8) ──────────────────────────────────

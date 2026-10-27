@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import Stripe from "stripe";
 import { randomBytes } from "crypto";
-import { db, creatorProfilesTable, creatorSubscriptionsTable, digitalSalesTable } from "@workspace/db";
+import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorSubscriptionReceiptsTable, digitalSalesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { resolveCreatorTier } from "../middlewares/require-tier";
@@ -10,6 +10,8 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
+import { changeCreatorTierSubscription } from "../lib/creator-tier-upgrade";
 import {
   TIER_PLANS,
   TIER_FEE_BPS,
@@ -143,6 +145,36 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
   });
 });
 
+/* ── GET /creator-tiers/history ── auth ──
+   Visible subscription receipt/history rows (payfix upgrade-path):
+   subscribed / tier_changed / renewed / payment_failed / canceled,
+   written exactly once per Stripe lifecycle event by the webhook sync. */
+router.get("/creator-tiers/history", requireAuth, async (req, res) => {
+  const { profileId } = await resolveCreatorTier(req.userId, req.userPlan);
+  if (!profileId) {
+    res.json({ receipts: [] });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(creatorSubscriptionReceiptsTable)
+    .where(eq(creatorSubscriptionReceiptsTable.profileId, profileId))
+    .orderBy(desc(creatorSubscriptionReceiptsTable.createdAt))
+    .limit(50);
+  res.json({
+    receipts: rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      tier: r.tier,
+      status: r.status,
+      amountCents: r.amountCents,
+      amount: r.amountCents != null ? formatUsd(r.amountCents) : null,
+      currency: r.currency,
+      createdAt: r.createdAt,
+    })),
+  });
+});
+
 /* ── ensure a creator profile exists (checkout needs a profile_id FK target) ── */
 async function ensureProfile(userId: string, email: string | undefined): Promise<string> {
   const [existing] = await db
@@ -251,6 +283,47 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
     res.status(500).json({ error: "Couldn't start checkout safely. Try again in a minute." });
     return;
   }
+  /* ── Tier CHANGE on a live subscription (payfix upgrade-path) ────────
+     An active/trialing subscription is never re-purchased: the SAME
+     subscription is updated to the new price with proration, on the
+     SAME customer. No checkout session, no second subscription. */
+  if (currentSub?.stripeSubscriptionId && (currentSub.status === "active" || currentSub.status === "trialing")) {
+    if (currentSub.tier === tier) {
+      res.status(409).json({ error: `You're already on the ${plan.name} tier.`, code: "ALREADY_ON_TIER" });
+      return;
+    }
+    try {
+      const changed = await changeCreatorTierSubscription(stripe, {
+        subscriptionId: currentSub.stripeSubscriptionId,
+        priceId,
+        tier,
+        userId: req.userId!,
+        profileId,
+      });
+      // Optimistic local sync (the customer.subscription.updated webhook
+      // will re-assert the same values idempotently).
+      await db
+        .update(creatorSubscriptionsTable)
+        .set({
+          tier,
+          status: changed.status,
+          currentPeriodEnd: changed.currentPeriodEnd ?? currentSub.currentPeriodEnd,
+          updatedAt: new Date(),
+        })
+        .where(eq(creatorSubscriptionsTable.profileId, profileId));
+      logger.info(
+        { userId: req.userId, from: currentSub.tier, to: tier, subscriptionId: changed.subscriptionId },
+        "creator tier changed in place (prorated subscription update)",
+      );
+      res.json({ upgraded: true, changed: true, tier, subscriptionId: changed.subscriptionId });
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg }, "creator-tiers checkout: subscription update failed");
+      res.status(502).json({ error: `Couldn't change your plan: ${msg}` });
+    }
+    return;
+  }
+
   const idempotencyKey = buildCreatorTierCheckoutKey({
     userId: req.userId!,
     tier,
@@ -258,11 +331,29 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
     current: currentSub,
   });
 
+  /* One Stripe customer per user (payfix upgrade-path): resolve/persist
+     the customer BEFORE any session exists. Without this, Stripe minted
+     a fresh customer per checkout and an "upgrade" became a second
+     subscription on a second customer (Pass 1, Oct 26: $41/mo billed). */
+  let customerId: string;
+  try {
+    customerId = await getOrCreateStripeCustomerForUser(stripe, {
+      userId: req.userId!,
+      profileId,
+      email: req.userEmail,
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-tiers checkout: customer resolve failed");
+    res.status(500).json({ error: "Couldn't start checkout safely. Try again in a minute." });
+    return;
+  }
+
   const back = returnTo ?? "/dashboard";
   const baseUrl = getBaseUrl(req);
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/creator-pricing?upgrade=success&tier=${tier}&returnTo=${encodeURIComponent(back)}`,
       cancel_url: `${baseUrl}/creator-pricing?upgrade=cancelled&returnTo=${encodeURIComponent(back)}`,

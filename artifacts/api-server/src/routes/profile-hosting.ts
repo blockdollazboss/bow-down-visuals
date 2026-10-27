@@ -9,6 +9,7 @@ import { logger } from "../lib/logger";
 import { HOSTING_PLAN, hostingPriceUsdPerMonth, hostingPriceConfigured } from "../lib/platform-fees";
 import { resolveHostingEntitlement, resolvePaidPlan } from "../lib/profile-website";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
 
 /* ── Hosting plan (Stack 3, item 8) ──────────────────────────────────────
    ONE plan packaged on the creator-tiers chassis: custom domain + clean
@@ -224,11 +225,27 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     current: currentHosting,
   });
 
+  /* One Stripe customer per user (payfix upgrade-path): hosting shares
+     the SAME customer as the tier subscription — never a second one. */
+  let customerId: string;
+  try {
+    customerId = await getOrCreateStripeCustomerForUser(stripe, {
+      userId: req.userId!,
+      profileId: profile.id,
+      email: req.userEmail,
+    });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-hosting checkout: customer resolve failed");
+    res.status(500).json({ error: "Checkout couldn't start — try again in a moment." });
+    return;
+  }
+
   const back = parsed.data.returnTo ?? "/creator-pricing";
   const baseUrl = getBaseUrl(req);
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/creator-pricing?hosting=success&returnTo=${encodeURIComponent(back)}`,
       cancel_url: `${baseUrl}/creator-pricing?hosting=cancelled&returnTo=${encodeURIComponent(back)}`,
