@@ -12,6 +12,7 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { analyzeMelody, type MelodyAnalysis } from "../../lib/melody-analysis";
+import { recordLibrarySong } from "../../lib/library-song";
 import { db, humRecordingsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
@@ -461,9 +462,27 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
       });
       markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
+      /* ── N12 delta: the demo lands in the creator's song library as a
+         song start in Create (the same library finish-my-song and the
+         editor read from) — not just a generation-history MP3. The hum
+         IS the composition and is credited as such on the response. A
+         library-write failure never fails the paid generation
+         (recordLibrarySong logs and returns null). ── */
+      const librarySongId = await recordLibrarySong({
+        userId: req.userId!,
+        title: fields.songTitle?.trim() || "Hum-to-Song Demo",
+        audioUrl: songUrl,
+        audioPath: songPath,
+        source: "hum-demo",
+        durationSec: Math.round(RESULT_LENGTH_MS / 1000),
+      });
+
       res.json({
         url: songUrl,
         storagePath: songPath,
+        librarySongId,
+        compositionCredit:
+          "Composed from your own hum — you are the composer of this demo's melody.",
         humRef: humRow.id,
         humUrl: humRow.audioUrl,
         analysis,
