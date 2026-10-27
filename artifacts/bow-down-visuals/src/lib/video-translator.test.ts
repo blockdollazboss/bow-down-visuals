@@ -49,6 +49,28 @@ describe("video-translator lib", () => {
     for (const c of ["es", "fr", "pt", "de"]) expect(codes).toContain(c);
   });
 
+  it("mirrors the canonical 15-language catalog (UI/API parity)", () => {
+    // The ONE list: api-server lib/dub-caption-languages.ts. The video
+    // translator, video dub, and caption translation all validate
+    // against the same codes + labels; this pin fails if either side drifts.
+    expect(TARGET_LANGUAGES.map((l) => l.code)).toEqual([
+      "en", "es", "fr", "pt", "de", "it", "nl", "pl", "ja", "ko", "zh", "hi", "ar", "ru", "tr",
+    ]);
+    expect(TARGET_LANGUAGES).toHaveLength(15);
+    for (const lang of TARGET_LANGUAGES) {
+      expect(lang.label.length).toBeGreaterThan(0);
+      expect(lang.nativeLabel.length).toBeGreaterThan(0);
+      expect(isSupportedLanguage(lang.code)).toBe(true);
+    }
+    // The widening gain on this surface: English.
+    expect(languageLabel("en")).toBe("English");
+    expect(TARGET_LANGUAGES.find((l) => l.code === "zh")?.label).toBe("Chinese (Mandarin)");
+    expect(TARGET_LANGUAGES.find((l) => l.code === "es")?.nativeLabel).toBe("Español");
+    // Garbage still rejected.
+    expect(isSupportedLanguage("xx")).toBe(false);
+    expect(isSupportedLanguage("klingon")).toBe(false);
+  });
+
   it("formats durations for the UI", () => {
     expect(formatDuration(90)).toBe("1:30");
     expect(formatDuration(null)).toBe("—");

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
+import { TARGET_LANGUAGES } from "@/lib/video-translator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls";
@@ -17,7 +18,7 @@ import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls
  *   1. GENERATE  → POST /api/auto-captions      (Whisper word timings + editable transcript)
  *   2. STYLE     → POST /api/caption-styler      (AI word-sync burn, async job w/ polled status)
  *              → POST /api/style-subtitles       (burn the step-1 transcript, SRT-based)
- *   3. TRANSLATE → POST /api/translate-captions  (10-language translations of the captions)
+ *   3. TRANSLATE → POST /api/translate-captions  (15-language translations of the captions)
  * No backend routes were renamed or removed — the panel is the one place
  * users think about captions. */
 
@@ -82,18 +83,10 @@ const TRANSCRIPT_STYLES = [
   { key: "neon", label: "Neon", blurb: "Glowing cyan text, night-club energy" },
 ] as const;
 
-const LANGUAGES = [
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-  { code: "it", label: "Italian" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "zh", label: "Chinese" },
-  { code: "ar", label: "Arabic" },
-  { code: "hi", label: "Hindi" },
-] as const;
+/* The ONE canonical dub/caption catalog (lib/video-translator.ts,
+ * mirroring api-server lib/dub-caption-languages.ts) — widened
+ * 10 → 15 languages, shared with the translator + dub surfaces. */
+const LANGUAGES = TARGET_LANGUAGES;
 
 /* ── SRT / VTT builders ─────────────────────────────────────────────── */
 function pad(n: number, len = 2) {

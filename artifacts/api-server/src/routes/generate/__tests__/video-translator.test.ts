@@ -117,6 +117,12 @@ describe("language catalog", () => {
     expect(languageLabel("xx")).toBe("xx");
   });
 
+  it("exposes the widened canonical 15-language catalog (incl. English)", () => {
+    expect(TARGET_LANGUAGES).toHaveLength(15);
+    expect(isSupportedLanguage("en")).toBe(true);
+    expect(languageLabel("en")).toBe("English");
+  });
+
   it("every language has an ElevenLabs BCP-47 hint", () => {
     for (const lang of TARGET_LANGUAGES) {
       expect(lang.elevenLabsCode.length).toBeGreaterThan(0);
