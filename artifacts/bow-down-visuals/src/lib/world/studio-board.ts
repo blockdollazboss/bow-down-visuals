@@ -273,3 +273,213 @@ export function historyStatusWord(row: Pick<StudioHistoryRow, "saveStatus" | "re
   if (row.saveStatus === "save_failed") return "Save failed";
   return null;
 }
+
+/* ─── The widget family (P3-E) ──────────────────────────────────────
+   Five widgets join the board: challenges & contests, the away
+   digest, the weekly leaderboard (shaped in treasury-quests —
+   reused), the sponsor pipeline, and next moves. Each widget's
+   shaping lives here; each reads its own rail and degrades alone. */
+
+/* The away digest — GET /api/retention/away-digest.
+   The rail answers {show:false, reason} for most visits — those
+   are honest states, not errors: the digest is off in settings,
+   this is a first visit, or nothing has piled up yet. Only a
+   {show:true} payload carries lines, and every line below is
+   built from the payload's own fields, verbatim counts. */
+
+export type StudioDigestState = "off" | "first-visit" | "recent" | "ready";
+
+export interface StudioDigest {
+  state: StudioDigestState;
+  hoursAway: number | null;
+  completedJobs: number;
+  failedJobs: number;
+  newProjectLabels: string[];
+  bowRaceLine: string | null;
+  jackpotLine: string | null;
+  streakDays: number | null;
+}
+
+export function normalizeStudioDigest(payload: unknown): StudioDigest | null {
+  if (!isObj(payload)) return null;
+  const base: StudioDigest = {
+    state: "recent",
+    hoursAway: num(payload["hoursAway"]),
+    completedJobs: 0,
+    failedJobs: 0,
+    newProjectLabels: [],
+    bowRaceLine: null,
+    jackpotLine: null,
+    streakDays: null,
+  };
+  if (payload["show"] !== true) {
+    const reason = str(payload["reason"]);
+    if (reason === "disabled") return { ...base, state: "off" };
+    if (reason === "first-visit") return { ...base, state: "first-visit" };
+    return base;
+  }
+  const jobs = Array.isArray(payload["completedJobs"]) ? payload["completedJobs"] : [];
+  const labels: string[] = [];
+  if (Array.isArray(payload["newProjects"])) {
+    for (const p of payload["newProjects"]) {
+      if (!isObj(p)) continue;
+      labels.push(
+        studioProjectLabel({ title: p["title"], project_type: p["projectType"] ?? p["project_type"] }),
+      );
+    }
+  }
+  let bowRaceLine: string | null = null;
+  if (isObj(payload["bowRace"])) {
+    const total = num(payload["bowRace"]["totalBows"]);
+    const target = num(payload["bowRace"]["target"]);
+    if (total !== null && target !== null) {
+      bowRaceLine = `Bow Race: ${total.toLocaleString("en-US")} of ${target.toLocaleString("en-US")} bows`;
+      if (payload["bowRace"]["youWon"] === true) bowRaceLine += " — you won it";
+    }
+  }
+  let jackpotLine: string | null = null;
+  if (isObj(payload["jackpot"])) {
+    const name = str(payload["jackpot"]["name"]);
+    const prize = num(payload["jackpot"]["prizeCredits"]);
+    if (name && prize !== null) jackpotLine = `${name}: ${prize.toLocaleString("en-US")} VB jackpot live now`;
+  }
+  let streakDays: number | null = null;
+  if (isObj(payload["streak"])) {
+    const current = num(payload["streak"]["currentStreak"]);
+    if (current !== null && current > 0) streakDays = current;
+  }
+  return {
+    ...base,
+    state: "ready",
+    completedJobs: jobs.length,
+    failedJobs: num(payload["failedJobs"]) ?? 0,
+    newProjectLabels: labels,
+    bowRaceLine,
+    jackpotLine,
+    streakDays,
+  };
+}
+
+/* The sponsor pipeline — GET /api/wave8/sponsors/deals.
+   The derivation is the dashboard's own, mirrored exactly: a deal
+   is active until its stage closes it (paid / lost / rejected /
+   dead), the pipeline total is the active deals' value in whole
+   dollars, and the next deal to touch is the freshest active one. */
+
+export interface SponsorPipeline {
+  activeCount: number;
+  pipelineDollars: number;
+  next: { sponsorName: string; stage: string } | null;
+}
+
+const SPONSOR_CLOSED_STAGES: readonly string[] = ["paid", "lost", "rejected", "dead"];
+
+export function normalizeSponsorPipeline(payload: unknown): SponsorPipeline | null {
+  const deals = Array.isArray(payload)
+    ? payload
+    : isObj(payload) && Array.isArray(payload["deals"])
+      ? payload["deals"]
+      : null;
+  if (!deals) return null;
+  const active: { sponsorName: string; stage: string; cents: number; updatedAt: string }[] = [];
+  for (const row of deals) {
+    if (!isObj(row)) continue;
+    const stage = str(row["stage"]) ?? "";
+    if (SPONSOR_CLOSED_STAGES.includes(stage.toLowerCase())) continue;
+    active.push({
+      sponsorName: str(row["sponsorName"]) ?? "A sponsor",
+      stage,
+      cents: num(row["dealValueCents"]) ?? 0,
+      updatedAt: str(row["updatedAt"]) ?? "",
+    });
+  }
+  const cents = active.reduce((sum, d) => sum + d.cents, 0);
+  const next = [...active].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
+  return {
+    activeCount: active.length,
+    pipelineDollars: Math.round(cents / 100),
+    next: next ? { sponsorName: next.sponsorName, stage: next.stage } : null,
+  };
+}
+
+/* Challenges & contests — a summary over rails shaped elsewhere:
+   the weekly contest (games-lobby's parseWeeklyContest) and the
+   palace contests (contests.ts normalizeContests). A contest is
+   live while its phase is announced, open or judging; the next
+   one to close is the soonest live deadline. */
+
+export interface StudioContestSummary {
+  liveCount: number;
+  nextTitle: string | null;
+  nextEndsAt: string | null;
+}
+
+export function summarizeContests(
+  contests: readonly import("./contests").WorldContest[],
+): StudioContestSummary {
+  const live = contests.filter(
+    (c) => c.phase === "announced" || c.phase === "open" || c.phase === "judging",
+  );
+  const next = [...live]
+    .filter((c) => !!c.endsAt)
+    .sort((a, b) => a.endsAt.localeCompare(b.endsAt))[0];
+  return {
+    liveCount: live.length,
+    nextTitle: next ? next.title : null,
+    nextEndsAt: next ? next.endsAt : null,
+  };
+}
+
+/* Next moves — the dashboard's rule-based derivation, shaped from
+   real state only. The dashboard always offers: finish your
+   latest project, and its money section names the next sponsor
+   follow-up; the board adds the daily claim when the strip says
+   it's waiting, and the trending look the dashboard offers
+   unconditionally. At most three moves, in that order. */
+
+export interface StudioNextMove {
+  kind: "finish" | "sponsor" | "daily" | "trend";
+  title: string;
+  sub: string;
+  /** Set only on the finish move — the board's Continue seam. */
+  projectId: string | null;
+}
+
+export function studioNextMoves(input: {
+  latestProject: { id: string; label: string } | null;
+  sponsorNextName: string | null;
+  canClaimDaily: boolean;
+}): StudioNextMove[] {
+  const moves: StudioNextMove[] = [];
+  if (input.latestProject) {
+    moves.push({
+      kind: "finish",
+      title: `Finish “${input.latestProject.label}”`,
+      sub: "Pick it back up in the editor — Continue is on its row below.",
+      projectId: input.latestProject.id,
+    });
+  }
+  if (input.sponsorNextName) {
+    moves.push({
+      kind: "sponsor",
+      title: `Follow up with ${input.sponsorNextName}`,
+      sub: "Your freshest open sponsor deal.",
+      projectId: null,
+    });
+  }
+  if (input.canClaimDaily) {
+    moves.push({
+      kind: "daily",
+      title: "Claim today's drop",
+      sub: "Your daily drop is waiting at the Treasury counter.",
+      projectId: null,
+    });
+  }
+  moves.push({
+    kind: "trend",
+    title: "See what's trending",
+    sub: "The Charts board shows what's climbing this week.",
+    projectId: null,
+  });
+  return moves.slice(0, 3);
+}
