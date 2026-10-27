@@ -160,6 +160,20 @@ describe("route contract (source pins)", () => {
     expect(route).toContain('"/studio-gear/orders/:id/proof/request-revision"');
   });
 
+  it("checkout refuses to mark a custom piece paid before design-proof approval (JOIN2 gate)", () => {
+    /* The owner's pre-order ruling: made-to-order charges at proof
+       approval. The gate sits in /studio-gear/checkout ahead of the
+       paid stamp and keys on the state machine's own predicate. */
+    expect(route).toContain("if (!productionAllowed(order.proof_status))");
+    expect(route).toContain('"proof_not_approved"');
+    /* House pieces and approved proofs remain chargeable at order. */
+    expect(productionAllowed("not_required")).toBe(true);
+    expect(productionAllowed("approved")).toBe(true);
+    expect(productionAllowed("pending")).toBe(false);
+    expect(productionAllowed("sent")).toBe(false);
+    expect(productionAllowed("revision_requested")).toBe(false);
+  });
+
   it("the partner proof send is admin-gated, and custom orders require a spec", () => {
     expect(route).toContain('"/admin/studio-gear/orders/:id/proof/send"');
     expect(route).toContain("requireAdmin");

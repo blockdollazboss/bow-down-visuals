@@ -242,8 +242,10 @@ router.post("/studio-gear/orders", publicApiLimiter, requireAuth, async (req, re
 });
 
 /* ── POST /studio-gear/checkout — TEST-MODE completion (no real charge) ─
-   Marks the order paid with a test session id. Production still waits on
-   the proof gate for custom orders — paying never skips a proof. */
+   Marks the order paid with a test session id. Custom orders are
+   charge-gated on design-proof approval (see the gate inside): an
+   unapproved proof refuses here, so a made-to-order piece is never
+   paid before its proof settles — and production waits for both. */
 router.post("/studio-gear/checkout", publicApiLimiter, requireAuth, async (req, res) => {
   const { orderId } = (req.body ?? {}) as { orderId?: string };
   if (!orderId || typeof orderId !== "string") {
@@ -258,6 +260,22 @@ router.post("/studio-gear/checkout", publicApiLimiter, requireAuth, async (req, 
   if (refuseIfTerminal(order, res)) return;
   if (order.paid) {
     res.status(400).json({ error: "This order is already paid." });
+    return;
+  }
+  /* ── The design-proof charge gate (JOIN2, owner's pre-order ruling
+     2026-10-27: made-to-order gear charges at design-proof approval) ──
+     A custom piece is NEVER marked paid before its buyer approves the
+     design proof. productionAllowed() is the state machine's own
+     predicate: house pieces (proof not_required) and approved proofs
+     charge here; a pending / sent / revision_requested proof refuses
+     with 409 — the order stays unpaid until the proof settles, which
+     is also what unlocks production (gearOrderStatusFor below). */
+  if (!productionAllowed(order.proof_status)) {
+    res.status(409).json({
+      error: "This made-to-order piece charges when you approve its design proof — not before. Once the proof is approved, checkout opens here.",
+      code: "proof_not_approved",
+      proofStatus: order.proof_status,
+    });
     return;
   }
   /* Recompute + verify the stored total against the ruled catalog. */
