@@ -11,8 +11,11 @@
  * no credit_usage rows. This suite pins the SERVER side of the fixed
  * chain:
  *
- *   apply → referrals row + 1,000 referee grant + ledger row
+ *   apply → referrals row with the 1,000 welcome PENDING (rung 3: a bare
+ *         signup grants nothing) → creator-profile creation fires the
+ *         grant exactly once (ledger key `referral-welcome:<userId>`)
  *         → second apply is a 400, nothing double-grants
+ *         → plus-address alias of a claimed mailbox (rung 2): withheld
  *   purchase award → referrer +250 exactly once per Stripe session
  *         → repeat award for the same session pays nothing more
  *   Promoter HQ (/referrals/me) → sees the join and the 250
@@ -26,6 +29,9 @@ import type { Server } from "node:http";
 const A = "11111111-1111-4111-8111-111111111111"; // referrer (the owner role)
 const B = "22222222-2222-4222-8222-222222222222"; // referee
 const C = "33333333-3333-4333-8333-333333333333"; // referee for rollback tests
+const D = "44444444-4444-4444-8444-444444444444"; // alias-account referee #1
+const E = "55555555-5555-4555-8555-555555555555"; // alias-account referee #2
+const F = "66666666-6666-4666-8666-666666666666"; // alias-account referee #3
 const CODE = "QRBCBEVG";
 const SESSION = "cs_test_chain";
 
@@ -118,20 +124,23 @@ function makeFakeSupabase() {
 
   function mutateChain(rows: Row[], apply: (r: Row) => void, remove = false) {
     const filters: Array<[string, unknown]> = [];
+    const execute = () => {
+      const matched = rows.filter((r) => filters.every(([k, v]) => r[k] === v));
+      if (remove) {
+        for (const r of matched) rows.splice(rows.indexOf(r), 1);
+      } else {
+        matched.forEach(apply);
+      }
+      return { data: matched, error: null };
+    };
     const builder: any = {
       eq: (col: string, v: unknown) => {
         filters.push([col, v]);
         return builder;
       },
-      then: (res: any, rej: any) => {
-        const matched = rows.filter((r) => filters.every(([k, v]) => r[k] === v));
-        if (remove) {
-          for (const r of matched) rows.splice(rows.indexOf(r), 1);
-        } else {
-          matched.forEach(apply);
-        }
-        return Promise.resolve({ data: matched, error: null }).then(res, rej);
-      },
+      // update(...).eq(...).eq(...).select("id") — the rung-3 claim flip.
+      select: async (_cols?: string) => execute(),
+      then: (res: any, rej: any) => Promise.resolve(execute()).then(res, rej),
     };
     return builder;
   }
@@ -171,6 +180,8 @@ vi.mock("../../middlewares/require-auth", () => ({
     const u = req.headers["x-test-user"];
     if (!u) return res.status(401).json({ error: "Unauthorized" });
     req.userId = String(u);
+    const email = req.headers["x-test-email"];
+    if (email) req.userEmail = String(email);
     next();
   },
 }));
@@ -206,6 +217,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 import referralsRouter, { awardReferralPayout } from "../referrals";
+import { maybeGrantPendingReferralWelcome } from "../../lib/referral-welcome";
 
 let server: Server;
 let base = "";
@@ -248,31 +260,75 @@ beforeEach(() => {
   // above is safe — each request/award builds a new client facade.)
 });
 
-async function applyAs(userId: string, code: string) {
+async function applyAs(userId: string, code: string, email?: string) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-test-user": userId,
+  };
+  if (email) headers["x-test-email"] = email;
   const res = await fetch(`${base}/api/referrals/apply`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-test-user": userId },
+    headers,
     body: JSON.stringify({ code }),
   });
   return { status: res.status, body: (await res.json()) as any };
 }
 
-describe("referred signup → binding + welcome grant + ledger", () => {
-  it("apply records the referral, grants the referee 1,000, and writes the ledger row", async () => {
+describe("referred signup → binding + PENDING welcome (rung 3)", () => {
+  it("apply records the referral with the welcome pending — no grant, no ledger row yet", async () => {
     const { status, body } = await applyAs(B, CODE);
     expect(status).toBe(200);
-    expect(body.refereeReward).toBe(1000);
+    expect(body.refereeReward).toBe(0);
+    expect(body.welcomeStatus).toBe("pending");
+    expect(body.welcomePending).toBe(1000);
+    expect(body.welcomeWithheld).toBeNull();
 
     expect(h.state.referrals).toHaveLength(1);
     const row = h.state.referrals[0]!;
     expect(row["referrer_user_id"]).toBe(A);
     expect(row["referee_user_id"]).toBe(B);
+    expect(row["welcome_status"]).toBe("pending");
+    expect(row["referee_credits_awarded"]).toBe(0);
     expect(new Date(row["share_expires_at"]).getTime()).toBeGreaterThan(Date.now());
 
+    // A bare signup earns nothing: balance and ledger untouched.
+    expect(h.state.balances.get(B)).toBe(1300);
+    expect(h.state.ledger).toHaveLength(0);
+  });
+
+  it("creator-profile creation fires the pending welcome exactly once; replays never double-grant", async () => {
+    await applyAs(B, CODE);
+    // No profile yet → the grant check is a no-op.
+    const early = await maybeGrantPendingReferralWelcome(B);
+    expect(early).toEqual({ granted: false, amount: 0, reason: "no_creator_profile" });
+    expect(h.state.balances.get(B)).toBe(1300);
+
+    // Profile created (the creator-platform hook calls the same fn).
+    h.state.profiles.push({ id: "profile-b", user_id: B });
+    const fired = await maybeGrantPendingReferralWelcome(B);
+    expect(fired).toEqual({ granted: true, amount: 1000, reason: "granted" });
     expect(h.state.balances.get(B)).toBe(2300); // 1,300 start + 1,000 welcome
     expect(h.state.ledger).toEqual([
       { userId: B, action: "Referral Welcome Grant", creditsUsed: -1000, idempotencyKey: `referral-welcome:${B}` },
     ]);
+    expect(h.state.referrals[0]!["welcome_status"]).toBe("granted");
+    expect(h.state.referrals[0]!["referee_credits_awarded"]).toBe(1000);
+
+    // Replays (profile re-saves, retries) never pay again.
+    const replay = await maybeGrantPendingReferralWelcome(B);
+    expect(replay.granted).toBe(false);
+    expect(h.state.balances.get(B)).toBe(2300);
+    expect(h.state.ledger).toHaveLength(1);
+  });
+
+  it("a referee who already has a creator profile is granted at apply time", async () => {
+    h.state.profiles.push({ id: "profile-b", user_id: B });
+    const { status, body } = await applyAs(B, CODE);
+    expect(status).toBe(200);
+    expect(body.welcomeStatus).toBe("granted");
+    expect(body.refereeReward).toBe(1000);
+    expect(h.state.balances.get(B)).toBe(2300);
+    expect(h.state.ledger).toHaveLength(1);
   });
 
   it("a second apply is a 400 and grants nothing more", async () => {
@@ -280,8 +336,8 @@ describe("referred signup → binding + welcome grant + ledger", () => {
     const again = await applyAs(B, CODE);
     expect(again.status).toBe(400);
     expect(h.state.referrals).toHaveLength(1);
-    expect(h.state.balances.get(B)).toBe(2300);
-    expect(h.state.ledger).toHaveLength(1);
+    expect(h.state.balances.get(B)).toBe(1300);
+    expect(h.state.ledger).toHaveLength(0);
   });
 
   it("an unknown code is a 404 and records nothing", async () => {
@@ -340,20 +396,57 @@ describe("Promoter HQ read side", () => {
   });
 });
 
+describe("rung 2 — one welcome per canonical mailbox (route level)", () => {
+  it("plus-address duplicate: the second alias account is withheld and gets NO second welcome", async () => {
+    const first = await applyAs(D, CODE, "fan+promo@gmail.com");
+    expect(first.status).toBe(200);
+    expect(first.body.welcomeStatus).toBe("pending");
+    expect(h.state.referrals.find((r) => r["referee_user_id"] === D)!["referee_canonical_email"]).toBe("fan@gmail.com");
+    expect(h.state.referrals.find((r) => r["referee_user_id"] === D)!["welcome_status"]).toBe("pending");
+
+    // Same inbox, different alias spelling + a brand-new account.
+    const dupe = await applyAs(E, CODE, "fan@gmail.com");
+    expect(dupe.status).toBe(200);
+    expect(dupe.body.refereeReward).toBe(0);
+    expect(dupe.body.welcomeStatus).toBe("withheld");
+    expect(dupe.body.welcomePending).toBe(0);
+    expect(dupe.body.welcomeWithheld).toBe("duplicate_mailbox");
+    const dupeRow = h.state.referrals.find((r) => r["referee_user_id"] === E)!;
+    expect(dupeRow["welcome_status"]).toBe("withheld");
+    expect(dupeRow["referee_credits_awarded"]).toBe(0);
+
+    // Gmail-dot spelling of the same inbox is also a duplicate.
+    const dotDupe = await applyAs(F, CODE, "f.an@gmail.com");
+    expect(dotDupe.body.welcomeWithheld).toBe("duplicate_mailbox");
+
+    // And the withheld rows can never pay at profile creation.
+    h.state.profiles.push({ id: "profile-e", user_id: E });
+    const fired = await maybeGrantPendingReferralWelcome(E);
+    expect(fired.granted).toBe(false);
+    expect(h.state.balances.get(E) ?? 0).toBe(0);
+    expect(h.state.ledger.filter((l) => l.userId === E)).toHaveLength(0);
+  });
+});
+
 describe("ledger failure → rollback + claim release (retryable, never silently burned)", () => {
-  it("apply: a failed ledger write rolls the grant back, deletes the row, and a retry succeeds", async () => {
+  it("grant: a failed ledger write at profile creation claws back, releases the claim, and a retry pays once", async () => {
+    await applyAs(C, CODE);
+    h.state.profiles.push({ id: "profile-c", user_id: C });
     h.state.ledgerFails = true;
-    const failed = await applyAs(C, CODE);
-    expect(failed.status).toBe(500);
-    expect(h.state.referrals.filter((r) => r["referee_user_id"] === C)).toHaveLength(0);
+    const failed = await maybeGrantPendingReferralWelcome(C);
+    expect(failed).toEqual({ granted: false, amount: 0, reason: "error" });
     expect(h.state.balances.get(C)).toBe(300); // granted then clawed back, net zero
     expect(h.state.payCalls.filter((p) => p.userId === C).map((p) => p.amount)).toEqual([1000, -1000]);
+    expect(h.state.referrals.find((r) => r["referee_user_id"] === C)!["welcome_status"]).toBe("pending");
 
     h.state.ledgerFails = false;
-    const retry = await applyAs(C, CODE);
-    expect(retry.status).toBe(200);
+    const retry = await maybeGrantPendingReferralWelcome(C);
+    expect(retry.granted).toBe(true);
     expect(h.state.balances.get(C)).toBe(1300);
-    expect(h.state.referrals.filter((r) => r["referee_user_id"] === C)).toHaveLength(1);
+    expect(h.state.ledger.filter((l) => l.userId === C)).toHaveLength(1);
+    const replay = await maybeGrantPendingReferralWelcome(C);
+    expect(replay.granted).toBe(false);
+    expect(h.state.balances.get(C)).toBe(1300);
   });
 
   it("award: a failed ledger write releases the payout claim, and a retry pays exactly once", async () => {

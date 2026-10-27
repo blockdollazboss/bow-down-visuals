@@ -3,12 +3,16 @@ import { randomBytes } from "crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { canonicalEmail } from "../lib/canonical-email";
+import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { logger } from "../lib/logger";
 
 const router = Router();
 
 /* ── Referral revenue-share program ──────────────────────────────────────
-   - Referee (new user) gets 10 welcome credits when they apply a code.
+   - Referee welcome (1,000 VB) is PENDING at apply (rung 3) and pays
+     exactly once when the referee creates a creator profile — one per
+     canonical mailbox (rung 2). See lib/referral-welcome.
    - Referrer gets 25% of the referee's credit PURCHASES, paid in site
      credits, for 90 days after the referral. No upfront referrer payout,
      so fake signups earn nothing.
@@ -287,18 +291,43 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       return;
     }
 
+    /* Referral guards rung 2 — one welcome per canonical mailbox.
+       Plus-address and gmail-dot aliases deliver to the SAME inbox, so
+       a second account opened on an alias of a mailbox that already
+       claimed a referral welcome is the same person farming the grant.
+       The referral itself still records (the referrer's revenue share
+       only ever pays on real purchases), but the welcome is withheld.
+       An unusable auth email canonicalizes to null and never matches —
+       the guard fails open rather than blocking a legit signup. */
+    const refereeCanonicalEmail = canonicalEmail(req.userEmail);
+    let duplicateMailbox = false;
+    if (refereeCanonicalEmail) {
+      const { data: sameMailbox } = await supabase
+        .from("referrals")
+        .select("id")
+        .eq("referee_canonical_email", refereeCanonicalEmail);
+      duplicateMailbox = Array.isArray(sameMailbox) && sameMailbox.length > 0;
+    }
+
     // Record the referral with a 90-day revenue-share window.
-    // Referee gets 10 welcome credits now; referrer earns 25% of future
-    // purchases — no upfront referrer payout.
+    // Referrer earns 25% of future purchases — no upfront referrer payout.
     const shareExpiresAt = new Date(
       Date.now() + SHARE_WINDOW_DAYS * 24 * 60 * 60 * 1000
     ).toISOString();
 
+    /* Referral guards rung 3 — the welcome is PENDING, not paid here.
+       A bare signup earns nothing: the 1,000 VB referee welcome is held
+       (welcome_status='pending', referee_credits_awarded=0) until the
+       referee creates a creator profile, when lib/referral-welcome pays
+       it exactly once (ledger key `referral-welcome:<userId>`). A rung-2
+       duplicate canonical mailbox is 'withheld' and never pays. */
     const { error: insertError } = await supabase.from("referrals").insert({
       referrer_user_id: codeRow.user_id,
       referee_user_id: userId,
+      referee_canonical_email: refereeCanonicalEmail,
+      welcome_status: duplicateMailbox ? "withheld" : "pending",
       referrer_credits_awarded: 0,
-      referee_credits_awarded: REFEREE_WELCOME_CREDITS,
+      referee_credits_awarded: 0,
       revenue_share_pct: REVENUE_SHARE_PCT,
       share_expires_at: shareExpiresAt,
       total_referrer_earned: 0,
@@ -309,38 +338,28 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       return;
     }
 
-    /* Grant + display ledger, Shark-Drop style (money integrity): the
-       welcome grant must appear on the referee's /credit-history, whose
-       activity feed reads the credit_usage ledger — a bare profiles.credits
-       bump is invisible there (the Pass 0 "balance moved, no rows" bug).
-       If either leg fails after the referrals row landed, release the
-       claim (delete the row) and claw back any credits that moved, so the
-       referee can retry cleanly instead of being stuck "already referred"
-       with nothing granted. */
-    let welcomeGranted = false;
-    try {
-      await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
-      welcomeGranted = true;
-      await recordCreditUsageStrict({
-        userId,
-        action: "Referral Welcome Grant",
-        creditsUsed: -REFEREE_WELCOME_CREDITS,
-        idempotencyKey: `referral-welcome:${userId}`,
-      });
-    } catch (grantErr) {
-      if (welcomeGranted) {
-        await addCreditsToProfile(userId, -REFEREE_WELCOME_CREDITS).catch(() => {});
-      }
-      await supabase.from("referrals").delete().eq("referee_user_id", userId);
-      throw grantErr;
-    }
+    /* Edge case: the referee ALREADY has a creator profile (applied a
+       code after setting up shop) — the pending condition is already
+       met, so fire the grant now through the same exactly-once rail.
+       Never throws; with no profile it is a no-op and the welcome
+       stays pending for profile creation. */
+    const welcomeNow = duplicateMailbox
+      ? { granted: false, amount: 0 }
+      : await maybeGrantPendingReferralWelcome(userId);
 
     // Promoter Program: check for newly unlocked star milestones (idempotent).
     const newMilestones = await awardMilestoneBonuses(codeRow.user_id);
 
     res.json({
       ok: true,
-      refereeReward: REFEREE_WELCOME_CREDITS,
+      refereeReward: welcomeNow.granted ? welcomeNow.amount : 0,
+      welcomeStatus: duplicateMailbox
+        ? "withheld"
+        : welcomeNow.granted
+          ? "granted"
+          : "pending",
+      welcomePending: duplicateMailbox || welcomeNow.granted ? 0 : REFEREE_WELCOME_CREDITS,
+      welcomeWithheld: duplicateMailbox ? "duplicate_mailbox" : null,
       revenueSharePct: REVENUE_SHARE_PCT,
       shareWindowDays: SHARE_WINDOW_DAYS,
       milestonesAwarded: newMilestones.map((t) => ({

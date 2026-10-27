@@ -48,6 +48,7 @@ import {
   type MoveHomeStepState,
 } from "@workspace/db";
 import { ensureKingsWelcome } from "./kings-welcome";
+import { maybeGrantPendingReferralWelcome } from "./referral-welcome";
 import { getOpenAI, getTextModel } from "./ai-clients";
 import { logger } from "./logger";
 import { fillServerTemplate, type ServerLocale } from "./server-i18n";
@@ -790,6 +791,9 @@ async function applyProfile(userId: string, progress: MoveHomeProgress): Promise
   /* Same welcome the normal profile-creation door fires: Thy Cheat
      Code follows back. Idempotent, never throws. */
   await ensureKingsWelcome(userId);
+  /* Referral guards rung 3: profile creation fires the pending referral
+     welcome exactly once. Never throws. */
+  await maybeGrantPendingReferralWelcome(userId, { profileConfirmed: true });
   return created.id;
 }
 

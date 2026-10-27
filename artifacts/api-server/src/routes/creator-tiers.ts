@@ -9,6 +9,7 @@ import { resolveCreatorTier } from "../middlewares/require-tier";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
+import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
 import { changeCreatorTierSubscription } from "../lib/creator-tier-upgrade";
@@ -341,6 +342,9 @@ async function ensureProfile(userId: string, email: string | undefined): Promise
   // The Tom move: profile created → Thy Cheat Code first-friend hook
   // (idempotent, never throws).
   await ensureKingsWelcome(userId);
+  // Referral guards rung 3: profile creation fires the pending referral
+  // welcome exactly once. Never throws.
+  await maybeGrantPendingReferralWelcome(userId, { profileConfirmed: true });
   return created.id;
 }
 

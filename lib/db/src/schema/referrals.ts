@@ -34,6 +34,22 @@ export const referralsTable = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     referrerUserId: uuid("referrer_user_id").notNull(),
     refereeUserId: uuid("referee_user_id").notNull().unique(),
+    /* Anti-farm (referral guards rung 2): the referee's canonical
+       mailbox at apply time (lib/canonical-email: +tag stripped, gmail
+       dots folded). One welcome grant per canonical mailbox, however
+       many accounts alias it. Null on pre-rung rows and whenever the
+       auth email was unusable — nulls never match each other. */
+    refereeCanonicalEmail: text("referee_canonical_email"),
+    /* Anti-farm (referral guards rung 3): welcome-grant lifecycle.
+       'pending'  — referral recorded, welcome held until the referee
+                    creates a creator profile, then paid exactly once
+                    (lib/referral-welcome, ledger key
+                    `referral-welcome:<userId>`).
+       'granted'  — welcome paid (refereeCreditsAwarded carries it).
+       'withheld' — rung-2 duplicate canonical mailbox; never pays.
+       Default 'granted': pre-rung rows were paid at apply time under
+       the old rail, so the historical default is the truthful one. */
+    welcomeStatus: text("welcome_status").notNull().default("granted"),
     referrerCreditsAwarded: integer("referrer_credits_awarded").notNull().default(0),
     refereeCreditsAwarded: integer("referee_credits_awarded").notNull().default(10),
     revenueSharePct: integer("revenue_share_pct").notNull().default(25),
@@ -44,6 +60,7 @@ export const referralsTable = pgTable(
   (t) => [
     index("referrals_referrer_idx").on(t.referrerUserId),
     index("referrals_referee_idx").on(t.refereeUserId),
+    index("referrals_referee_canonical_email_idx").on(t.refereeCanonicalEmail),
   ],
 );
 
