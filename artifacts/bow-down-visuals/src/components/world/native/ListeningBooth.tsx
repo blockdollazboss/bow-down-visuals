@@ -61,7 +61,12 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
      (GET/POST /api/playlists… in routes/creator-platform.ts, spoken
      by lib/streaming's fetchMyPlaylists / createPlaylist /
      addItemToPlaylist). No parallel playlist store exists or was
-     invented.
+     invented. A playlist can also be STARTED on its own from the
+     Your Playlists area (2.12's "build playlists from the shelf" as
+     a first-class act, not only as a side effect of adding a
+     track): the area renders as soon as playlists load — empty
+     included — with a name field that creates an empty list the
+     shelf's Add-to-playlist chips then fill.
    • Download link + receipt (2.16) — POST /api/store/token is the
      token's legitimate use: a delivery link the buyer explicitly
      mints. Its `url` is an HTML delivery page that burns one of
@@ -250,6 +255,8 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
   const [queuedId, setQueuedId] = useState<string | null>(null);
   const [pickerFor, setPickerFor] = useState<PickerTarget | null>(null);
   const [playlists, setPlaylists] = useState<ShelfPlaylistSummary[] | null>(null);
+  const [newListTitle, setNewListTitle] = useState("");
+  const [creatingList, setCreatingList] = useState(false);
   const [myMusic, setMyMusic] = useState<MyMusicTrack[] | null>(null);
   const [mints, setMints] = useState<Record<string, ShelfDownloadMint>>({});
   const [mintBusyId, setMintBusyId] = useState<string | null>(null);
@@ -408,6 +415,33 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     }
   };
 
+  /** Start a playlist of its own (2.12): an empty list, created on
+   *  the site's rails from the Booth — the shelf's Add-to-playlist
+   *  chips fill it afterwards. The create rail needs a creator
+   *  profile; a refusal says so honestly and changes nothing. */
+  const startPlaylist = async () => {
+    const title = newListTitle.trim();
+    if (!title || creatingList) return;
+    setCreatingList(true);
+    setNote(null);
+    try {
+      const created = await createPlaylist(title, await authHeaders());
+      if (!created) {
+        setNote(
+          "That playlist couldn't be started — if you haven't set up a creator profile yet, playlists start there. Nothing was changed.",
+        );
+        return;
+      }
+      setNewListTitle("");
+      setNote(`“${created.title ?? title}” is started — add songs to it from your shelf and it plays here.`);
+      void load();
+    } catch {
+      setNote("That playlist couldn't be started — the rails hiccuped. Nothing was changed.");
+    } finally {
+      setCreatingList(false);
+    }
+  };
+
   const mintDownload = async (p: ShelfPurchase) => {
     if (mintBusyId) return;
     setMintBusyId(p.id);
@@ -496,13 +530,84 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
   const sectionTitle = `px-1 pt-4 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`;
   const allEmpty = purchases.length === 0 && (playlists ?? []).length === 0 && (myMusic ?? []).length === 0;
 
+  /* Your Playlists (2.12): rendered as soon as the lists load —
+     EMPTY INCLUDED — so building a playlist is always one name
+     away at the Booth, never hidden behind owning one already.
+     The block rides both returns (the bare-shelf empty state and
+     the full shelf) so the build path never disappears. */
+  const playlistsBlock = playlists !== null && (
+    <>
+      <p className={sectionTitle}>Your playlists</p>
+      {playlists.length === 0 ? (
+        <p className={`px-1 pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+          No playlists yet — start one here, then fill it from your shelf.
+        </p>
+      ) : (
+        <NativeShelf>
+          {playlists.map((pl) => (
+            <NativeShelfRow
+              key={pl.id}
+              isLight={isLight}
+              title={pl.title}
+              detail={`${pl.itemCount} ${pl.itemCount === 1 ? "item" : "items"} · yours`}
+              artworkUrl={pl.coverUrl}
+              action={
+                <button
+                  type="button"
+                  data-testid="world-shelf-playlist-play"
+                  onClick={() => void playPlaylist(pl)}
+                  disabled={resolvingId === pl.id}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  {resolvingId === pl.id ? "Opening…" : "Play it here"}
+                </button>
+              }
+            />
+          ))}
+        </NativeShelf>
+      )}
+      <div className="mt-2 flex items-center gap-2 px-1">
+        <input
+          type="text"
+          value={newListTitle}
+          onChange={(e) => setNewListTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void startPlaylist(); }}
+          placeholder="New playlist name…"
+          maxLength={80}
+          data-testid="world-shelf-playlist-start-name"
+          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none ${
+            isLight
+              ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
+              : "border-white/15 bg-white/5 text-white placeholder:text-white/35"
+          }`}
+        />
+        <button
+          type="button"
+          data-testid="world-shelf-playlist-start"
+          disabled={creatingList || !newListTitle.trim()}
+          onClick={() => void startPlaylist()}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+        >
+          <Plus className="h-3.5 w-3.5" /> Start a playlist
+        </button>
+      </div>
+    </>
+  );
+
   if (allEmpty && playlists !== null && myMusic !== null) {
     return (
-      <NativeEmptyState
-        isLight={isLight}
-        message="Your shelf is bare — nothing bought, made or lined up yet."
-        detail="When you buy a track, video, course or any digital drop, it lands here forever, playable where you stand. Your own songs and playlists live here too."
-      />
+      <div>
+        <NativeEmptyState
+          isLight={isLight}
+          message="Your shelf is bare — nothing bought, made or lined up yet."
+          detail="When you buy a track, video, course or any digital drop, it lands here forever, playable where you stand. Your own songs and playlists live here too."
+        />
+        {playlistsBlock}
+        {note && (
+          <p className={`px-1 pt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
+        )}
+      </div>
     );
   }
 
@@ -646,34 +751,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
         </NativeShelf>
       )}
 
-      {(playlists ?? []).length > 0 && (
-        <>
-          <p className={sectionTitle}>Your playlists</p>
-          <NativeShelf>
-            {(playlists ?? []).map((pl) => (
-              <NativeShelfRow
-                key={pl.id}
-                isLight={isLight}
-                title={pl.title}
-                detail={`${pl.itemCount} ${pl.itemCount === 1 ? "item" : "items"} · yours`}
-                artworkUrl={pl.coverUrl}
-                action={
-                  <button
-                    type="button"
-                    data-testid="world-shelf-playlist-play"
-                    onClick={() => void playPlaylist(pl)}
-                    disabled={resolvingId === pl.id}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    {resolvingId === pl.id ? "Opening…" : "Play it here"}
-                  </button>
-                }
-              />
-            ))}
-          </NativeShelf>
-        </>
-      )}
+      {playlistsBlock}
 
       {(myMusic ?? []).length > 0 && (
         <>
