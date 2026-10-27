@@ -244,7 +244,8 @@ const runwayClipSchema = z.object({
    *  separate price. A locked pack's ingredient wins over this field. */
   endFrameImageUrl: z.string().max(2048).optional().nullable(),
   /** Video model: "gen4.5" (default, 5s), "seedance2_5" (premium, up to
-   *  30s), or "veo3_1" (cinematic; refused until VEO_PRICING_APPROVED). */
+   *  30s), or "veo3_1" (Cinematic premium upsell, 1,200 VB per 8s clip —
+   *  owner ruling Oct 27, 2026; VEO_PRICING_APPROVED). */
   model: z.enum(["gen4.5", "seedance2_5", "veo3_1"]).optional(),
   /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
   durationSec: z.number().finite().min(1).max(60).optional(),

@@ -858,8 +858,10 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 300;
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 600;
   const SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT = 200;
-  /* Veo 3.1: fixed 8s clips at 400/sec (must match server VEO_CREDITS_PER_SEC_DEFAULT). */
-  const VEO_CREDITS_PER_SEC_CLIENT = 400;
+  /* Veo 3.1 "Cinematic": fixed 8s clips at 150/sec = 1,200 VB per clip
+     (owner ruling Oct 27, 2026 — premium upsell, not hidden; must match
+     server VEO_CREDITS_PER_SEC_DEFAULT). */
+  const VEO_CREDITS_PER_SEC_CLIENT = 150;
   const VEO_CLIP_DURATION_CLIENT = 8;
   const isDraftRequest = clipModel === "seedance2_5" && draftMode;
   const clipCost = clipModel === "veo3_1"
