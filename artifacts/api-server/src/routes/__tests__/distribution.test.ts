@@ -122,6 +122,8 @@ import router, {
   PLATFORM_LABEL,
   RELEASE_STATUSES,
   RELEASE_TIER_CREDITS,
+  ANNUAL_UNLIMITED_PLAN,
+  DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR,
   metadataSchema,
   strategySchema,
   createReleaseSchema,
@@ -685,12 +687,27 @@ describe("tiered release pricing", () => {
     expect(RELEASE_TIER_CREDITS.album).toBe(3000);
   });
 
+  it("Distribute Unlimited is ruled at $399/yr USD (owner ruling 2026-10-27)", () => {
+    expect(DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR).toBe(399);
+    expect(ANNUAL_UNLIMITED_PLAN.priceUsdPerYear).toBe(
+      DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR,
+    );
+    expect(ANNUAL_UNLIMITED_PLAN.label).toBe("Distribute Unlimited");
+    expect(ANNUAL_UNLIMITED_PLAN).not.toHaveProperty("creditsPerYear");
+  });
+
   it("GET /api/distribution/pricing exposes live tiers", async () => {
     const { status, json } = await req("GET", "/distribution/pricing");
     expect(status).toBe(200);
     expect(json.tiers).toHaveLength(3);
     expect(json.tiers.find((t: any) => t.type === "album").credits).toBe(3000);
     expect(json.annualPlan.comingSoon).toBe(true);
+    /* ★ Owner ruling (by delegation) 2026-10-27: Distribute Unlimited is
+       $399/yr in USD — the payload carries the dollar price, never a
+       Visual Bucs credit price. */
+    expect(json.annualPlan.priceUsdPerYear).toBe(399);
+    expect(json.annualPlan.currency).toBe("USD");
+    expect(json.annualPlan.creditsPerYear).toBeUndefined();
     expect(json.aggregator).toBe("mock");
     expect(json.aggregatorLive).toBe(false);
   });

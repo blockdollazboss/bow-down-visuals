@@ -61,8 +61,9 @@ export const DISTRIBUTION_RELEASE_CREDITS =
    delivery monitoring, and the pre-save/royalty tooling — not just the raw
    aggregator pass-through. Tiers are env-overridable without a redeploy of
    the pricing page (GET /api/distribution/pricing reads these live).
-   Annual unlimited (DistroKid-style $19.99/yr equivalent ≈ 40cr) is the
-   upsell — listed as coming-soon until billing supports subscriptions. */
+   Annual unlimited ("Distribute Unlimited") is the upsell — its price is
+   RULED $399/yr in USD (see ANNUAL_UNLIMITED_PLAN below); it stays listed
+   as coming-soon until subscription billing supports purchasing it. */
 export const RELEASE_TIER_CREDITS = {
   single: Number(process.env["DISTRIBUTION_SINGLE_CREDITS"]) || DISTRIBUTION_RELEASE_CREDITS,
   ep: Number(process.env["DISTRIBUTION_EP_CREDITS"]) || 2000,
@@ -70,9 +71,23 @@ export const RELEASE_TIER_CREDITS = {
 } as const;
 export type ReleaseType = keyof typeof RELEASE_TIER_CREDITS;
 
+/* ★ PRICE RULED BY OWNER (by delegation) 2026-10-27: Distribute Unlimited
+   is $399/yr — USD dollars, NOT Visual Bucs. This constant previously
+   carried the same number 399 as a VB-credit price (env
+   DISTRIBUTION_ANNUAL_CREDITS); the ruling settles the unit: the plan is a
+   dollar subscription. Display == rail: GET /api/distribution/pricing
+   serves this object and every surface renders from it.
+   comingSoon stays HONEST: the price is confirmed, but no purchase rail
+   exists yet (subscription billing for this plan is not wired) — nothing
+   may present it as buyable until a checkout actually charges $399/yr. */
+export const DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR = 399;
+
 export const ANNUAL_UNLIMITED_PLAN = {
   label: "Distribute Unlimited",
-  creditsPerYear: Number(process.env["DISTRIBUTION_ANNUAL_CREDITS"]) || 399,
+  priceUsdPerYear:
+    Number(process.env["DISTRIBUTION_ANNUAL_USD_PER_YEAR"]) ||
+    DISTRIBUTE_UNLIMITED_PRICE_USD_PER_YEAR,
+  currency: "USD",
   blurb:
     "Unlimited singles, EPs, and albums for a year — keep 100% of royalties.",
   comingSoon: true,
