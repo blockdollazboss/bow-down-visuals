@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   CalendarPlus, CheckCircle2, Loader2, Rocket, Save, Shirt, ShoppingBag, Sparkles, Trash2,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { NativeCard } from "./NativeCard";
 import { NativeLoadingState, NativeErrorState } from "./NativeStates";
