@@ -69,13 +69,13 @@ describe("SHOUTOUT_AI_CREDITS", () => {
 });
 
 describe("platform fee", () => {
-  it("records a 10% platform-fee intent", () => {
-    expect(SHOUTOUT_PLATFORM_FEE_PCT).toBe(10);
+  it("records the flat 5% platform fee (owner ruling 2026-10-27)", () => {
+    expect(SHOUTOUT_PLATFORM_FEE_PCT).toBe(5);
   });
 
   it("netAfterFee deducts the fee", () => {
-    expect(netAfterFee(1000)).toBe(900);
-    expect(netAfterFee(999)).toBe(899);
+    expect(netAfterFee(1000)).toBe(950);
+    expect(netAfterFee(999)).toBe(949);
     expect(netAfterFee(0)).toBe(0);
   });
 });

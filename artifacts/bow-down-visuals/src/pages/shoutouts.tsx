@@ -652,7 +652,7 @@ export default function Shoutouts() {
                       className={`w-full px-5 py-2.5 rounded-xl font-bold disabled:cursor-not-allowed ${!displayName.trim() && !saving ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-[#C9A84C] text-black hover:bg-[#DDBB62]"}`}>
                       {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t("shoutouts.saveButton")}
                     </button>
-                    <p className="text-[11px] text-white/35">{t("shoutouts.setupFeeNote", { fee: revenue?.platformFeePct ?? 10 })}</p>
+                    <p className="text-[11px] text-white/35">{t("shoutouts.setupFeeNote", { fee: revenue?.platformFeePct ?? 5 })}</p>
                   </div>
                   )}
                 </div>

@@ -10,7 +10,8 @@ import { z } from "zod";
        → adopted as the canonical base fee below. NOT invented; it matches
        the shops the site already sells through.
      - store.ts (digital sales): reuses STOREFRONT_PLATFORM_FEE_BPS (10%).
-     - memberships.ts: 10% · shoutouts.ts: 10% · live-shopping.ts: 5%
+     - memberships.ts: 10% · shoutouts.ts: 10% → 5% (aligned to the
+       flat-5% law by owner ruling 2026-10-27) · live-shopping.ts: 5%
        · sponsors.ts: 1500 bps (15%) · beats: 15% commission.
    Those surfaces keep their own constants for now; new creator-platform
    sale types use this module, and the others can migrate to it.
