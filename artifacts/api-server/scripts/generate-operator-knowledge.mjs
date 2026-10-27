@@ -1038,68 +1038,15 @@ const FEATURE_PRICE_LINKS = [
      the editor's own rails the one-hop scan cannot reach — the
      multi-ratio export (called from a section two hops down), the
      lip-sync run-all orchestration (called from the Music Studio's
-     LipSyncStudio, also two hops), and the Export Doctor's thirteen
-     free rails (its section is likewise nested). Without these links
+     LipSyncStudio, also two hops). Without these links
      the operator could not truthfully describe how the editor exports
-     in other ratios, runs lip sync across scenes, or repairs clips. */
+     in other ratios or runs lip sync across scenes. */
   {
     endpoint: "/api/export-multi-ratio",
     attachToFeatureIds: ["video-editor"],
   },
   {
     endpoint: "/api/lip-sync/run-all",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-audio",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-audio",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-captions",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-effects",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-all-overlays",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-overlays-range",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-effects-range",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-effects-transitions",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/export-audio-sync-short",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/repair-normalize",
-    attachToFeatureIds: ["video-editor"],
-  },
-  {
-    endpoint: "/api/export-doctor/repair-clip",
     attachToFeatureIds: ["video-editor"],
   },
 ];

@@ -1,6 +1,6 @@
 /* ── Shared CSS → FFmpeg effect translation ───────────────────────────────
- * SINGLE source of truth used by BOTH Export Doctor diagnostics
- * (export-doctor.ts) and the real export pipeline (export-video.ts). Do not
+ * SINGLE source of truth used by the real export pipeline (export-video.ts
+ * and lane-export.ts). Do not
  * fork this logic — any change here must stay in lockstep with the master
  * player's EFFECT_CSS_FILTERS table (video-editor.tsx) so the burned export
  * matches the live CSS preview.

@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "185bbcb52bda668828beee0be0141272cbfa709b",
+  "baseCommit": "bdbdc6eebaee2a2eec7235e368e402c1f1e4e9d7",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-25",
+  "generatedAt": "2026-10-27",
   "counts": {
     "routesInApp": 235,
     "pageFiles": 181,
     "features": 244,
     "excludedRoutes": 71,
     "excludedPageFiles": 35,
-    "pricedActions": 228,
+    "pricedActions": 215,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
@@ -12517,19 +12517,6 @@
         "/api/caption-styler",
         "/api/caption-styler/:param",
         "/api/credits/claim-trial",
-        "/api/export-doctor/export",
-        "/api/export-doctor/export-all",
-        "/api/export-doctor/export-all-audio",
-        "/api/export-doctor/export-all-captions",
-        "/api/export-doctor/export-all-effects",
-        "/api/export-doctor/export-all-overlays",
-        "/api/export-doctor/export-audio",
-        "/api/export-doctor/export-audio-sync-short",
-        "/api/export-doctor/export-effects-range",
-        "/api/export-doctor/export-effects-transitions",
-        "/api/export-doctor/export-overlays-range",
-        "/api/export-doctor/repair-clip",
-        "/api/export-doctor/repair-normalize",
         "/api/export-final-video",
         "/api/export-multi-ratio",
         "/api/export-quality",
@@ -12665,84 +12652,6 @@
           "feature": "Caption Styler",
           "vb": 300,
           "endpoint": "/api/caption-styler",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Clip (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export All Clips (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-all",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export All Audio (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-all-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Captions (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-all-captions",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Effects (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-all-effects",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Overlays (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-all-overlays",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Audio (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-audio",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Audio Sync (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-audio-sync-short",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Effects Range (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-effects-range",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Transitions (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-effects-transitions",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Export Overlays Range (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/export-overlays-range",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Repair Clip (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/repair-clip",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "Repair: Normalize Clip (free)",
-          "vb": 0,
-          "endpoint": "/api/export-doctor/repair-normalize",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {

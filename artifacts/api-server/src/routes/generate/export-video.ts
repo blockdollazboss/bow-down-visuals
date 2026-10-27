@@ -1072,7 +1072,7 @@ export interface ExportRequestBody {
     /** Global Auto AI effects (color grade, film grain, glow, blur, vignette,
      *  B&W, neon glow, VHS, cinematic bars, etc.) — mirrors settings.effects
      *  and the master player's live CSS preview. Translated to FFmpeg via the
-     *  shared buildEffectStack() (effects-ffmpeg.ts) — same code Export Doctor uses. */
+     *  shared buildEffectStack() (effects-ffmpeg.ts). */
     effects?: string[] | null;
     /** Active overlay effect names from settings.overlays (e.g. "Light Leaks",
      *  "Animated Waveform", "Logo / Watermark"). Burned into the export via
@@ -2064,9 +2064,8 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     }
 
     // ── Global Auto AI effects (color grade, film grain, glow, blur, vignette,
-    //    B&W, neon glow, VHS, cinematic bars, etc.) — SAME translation Export
-    //    Doctor uses (buildEffectStack in effects-ffmpeg.ts), so a real export
-    //    matches what the diagnostics panel already predicted. Animated overlays
+    //    B&W, neon glow, VHS, cinematic bars, etc.) — translated via the shared
+    //    buildEffectStack in effects-ffmpeg.ts. Animated overlays
     //    (Smoke/Rain/Sparks/etc.) are intentionally not in this map and stay
     //    preview-only. ──
     if (Array.isArray(effects) && effects.length > 0) {
