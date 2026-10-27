@@ -31,7 +31,14 @@ import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, 
 import { proToolsActive } from "@/lib/editor-settings";
 import { computeManualTimings, computeSceneTimings } from "@/lib/scene-timing";
 import { buildFcpxml, fcpxmlFileName, type FcpxmlClipInput, type FcpxmlTimelineInput } from "@/lib/fcpxml-export";
-import { pollExportJob, cancelExportJob, isExportCancelledError } from "@/lib/export-job-poll";
+import {
+  pollExportJob,
+  cancelExportJob,
+  isExportCancelledError,
+  EXPORT_POLL_LOST_CONTACT_CODE,
+  EXPORT_POLL_TIMEOUT_CODE,
+  EXPORT_POLL_UNKNOWN_STATUS_CODE,
+} from "@/lib/export-job-poll";
 import { exportPriceFor, type ExportChargeInfo } from "@/lib/export-pricing";
 
 interface ExportRecord {
@@ -358,6 +365,13 @@ export function FinalVideoExport({
     existingExport?.final_video_url ?? null,
   );
   const [errorMsg, setErrorMsg]         = useState<string | null>(null);
+  /* Failure-UX kind (orphan-wave export-poll-stop): "failed" = the job is
+     over (server said so, or the export request itself failed) — the rail
+     released any Visual Bucs hold, so the panel says exactly that.
+     "unknown_outcome" = the poller lost contact / timed out / got an
+     answer it cannot follow — the job may still finish server-side, so
+     the panel must NOT promise "not charged" for those. */
+  const [errorKind, setErrorKind]       = useState<"failed" | "unknown_outcome">("failed");
   const [errorStderr, setErrorStderr]   = useState<string[] | null>(null);
   const [errorExitCode, setErrorExitCode] = useState<number | null>(null);
   const [confirmed, setConfirmed]       = useState(false);
@@ -897,6 +911,7 @@ export function FinalVideoExport({
        confirmation" note — nothing has started, no job exists,
        nothing is charged. */
     setErrorMsg(null);
+    setErrorKind("failed");
     setExportCharge(null);
     lastChargeKeyRef.current = "";
     setProgressStep("");
@@ -1019,6 +1034,15 @@ export function FinalVideoExport({
         return;
       }
       setStatus("failed");
+      const failureCode = (err as { code?: string }).code;
+      setErrorKind(
+        failureCode === EXPORT_POLL_LOST_CONTACT_CODE ||
+          failureCode === EXPORT_POLL_TIMEOUT_CODE ||
+          failureCode === EXPORT_POLL_UNKNOWN_STATUS_CODE ||
+          (failureCode?.startsWith("http_") ?? false)
+          ? "unknown_outcome"
+          : "failed",
+      );
       setErrorMsg(msg);
       setErrorStderr((err as { stderrTail?: string[] }).stderrTail ?? null);
       setErrorExitCode((err as { ffmpegExitCode?: number }).ffmpegExitCode ?? null);
@@ -1306,6 +1330,20 @@ export function FinalVideoExport({
               </p>
               {errorMsg && (
                 <p className="text-xs text-red-400/80 mt-1 leading-relaxed break-words">{errorMsg}</p>
+              )}
+              {errorKind === "failed" ? (
+                <>
+                  <p className="text-xs text-red-300/90 mt-1.5 leading-relaxed" data-testid="export-failure-charge-note">
+                    {t("videoExport.failedNotCharged")}
+                  </p>
+                  <p className="text-xs text-red-400/70 mt-1 leading-relaxed">
+                    {t("videoExport.failedNextStep")}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-red-300/90 mt-1.5 leading-relaxed" data-testid="export-failure-charge-note">
+                  {t("videoExport.failedUnknownOutcome")}
+                </p>
               )}
               {errorStderr && errorStderr.length > 0 && (
                 <details className="mt-2">
