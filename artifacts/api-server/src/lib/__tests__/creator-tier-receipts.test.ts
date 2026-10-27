@@ -85,7 +85,7 @@ const userId = randomUUID();
 const profileId = randomUUID();
 
 async function receipts(): Promise<any[]> {
-  const r = await testState.db.execute(sql`SELECT kind, tier, amount_cents FROM creator_subscription_receipts ORDER BY created_at, kind`);
+  const r = await testState.db.execute(sql`SELECT kind, tier, status, amount_cents FROM creator_subscription_receipts ORDER BY created_at, kind`);
   return r.rows;
 }
 
