@@ -136,7 +136,7 @@ const CREDIT_PACKS = [
 const FAQS = [
   {
     q: "What is Bow Down Visuals?",
-    a: "The AI studio for content creators — 19 studios that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required.",
+    a: "The AI studio for content creators — 36 tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required.",
   },
   {
     q: "How do Visual Bucs work?",
@@ -171,7 +171,7 @@ const SOFTWARE_APPLICATION_JSON_LD = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 19 studios on simple Visual Buc pricing.",
+    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 36 tools on simple Visual Buc pricing.",
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "USD",
@@ -781,10 +781,14 @@ function CheatCodeDemo() {
   );
 }
 
-/* ───── Proof band — real numbers only, counted from the repo ───── */
+/* ───── Proof band — real numbers only, counted from the repo ─────
+   First stat: 36 = SITE_FEATURES.length in src/data/features.ts, the
+   feature registry ("single source of truth for every user-facing
+   feature"). It replaced the stale "19 studios" claim on 2026-10-27
+   (#94) — no code registers 19 studios. */
 
 const PROOF_STATS = [
-  { value: "19" },
+  { value: "36" },
   { value: "$9" },
   { value: "400 VB" },
   { value: "0" },
