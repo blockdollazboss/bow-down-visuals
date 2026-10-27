@@ -182,7 +182,7 @@
         "/api/waitlist"
       ],
       "prices": [],
-      "description": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 19 studios — pay only for what you create.",
+      "description": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 36 tools — pay only for what you create.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"home.pageDescription\" (page's own string)",
       "nextSteps": []
     },
@@ -8233,7 +8233,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "description": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 19 studios — pay only for what you create.",
+      "description": "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 36 tools — pay only for what you create.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"home.pageDescription\"",
       "nextSteps": []
     },
