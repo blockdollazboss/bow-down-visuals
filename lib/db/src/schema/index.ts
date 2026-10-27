@@ -103,6 +103,8 @@ export * from "./creator-platform";
 export * from "./royal-court";
 export * from "./profile-hosting";
 export * from "./creator-subscriptions";
+export * from "./user-stripe-customers";
+export * from "./creator-subscription-receipts";
 export * from "./creator-payouts";
 export * from "./custom-domains";
 export * from "./creator-social";
