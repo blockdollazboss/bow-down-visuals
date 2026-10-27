@@ -36,6 +36,16 @@ import {
 } from "../lib/cloudflare-stream";
 import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
 import { closeBackstage } from "../lib/live-backstage";
+import {
+  drizzleCreatorClassStore,
+  getClassRoster,
+  isClassStream,
+  listClassReplayAsCourse,
+} from "../lib/creator-classes";
+import {
+  drizzleAutoHighlightsStore,
+  generateHighlightProposals,
+} from "../lib/auto-highlights";
 import { stopAllRelays } from "../lib/multistream";
 import { attemptFanOut } from "../lib/fanout";
 import { fanOutGoLiveAlerts } from "../lib/live-alerts";
@@ -348,6 +358,11 @@ export interface LiveStreamDto {
    *  is present only for viewers entitled to enter (see
    *  resolveStreamAccess). */
   ticket: TicketDoorInfo | null;
+  /** Creator Classes (#153): this stream runs as a class (a ticket IS
+   *  the enrollment), and — once the replay has registered and been
+   *  listed — the course product it became. Null until then. */
+  is_class: boolean;
+  class_course_product_id: string | null;
   /** Whether the viewer this DTO was built for may enter (ticket
    *  holder, owner, or channel moderator; every viewer of a free
    *  stream). List surfaces build DTOs with no viewer — a ticketed
@@ -431,6 +446,8 @@ export function toStreamDto(
     creator: toCreatorDto(profile),
     playback: isLive && (urls.whep_url || urls.hls_url) ? urls : null,
     ticket: acc.door,
+    is_class: row.is_class === true,
+    class_course_product_id: row.class_course_product_id ?? null,
     viewer_ticket: acc.entitled,
     playback_token: acc.playbackToken,
   };
@@ -611,7 +628,19 @@ async function registerStreamVod(
     .set({ vod_url: vodUrl, vod_clip_id: clipId, destinations, updated_at: now })
     .where(eq(liveStreamsTable.id, row.id))
     .returning();
-  return { row: updated[0] ?? row, clipId };
+  const finalRow = updated[0] ?? row;
+  /* Post-registration hooks (fire-and-forget, each exactly-once by
+     its own ledger): Creator Classes lists the replay as a course
+     (#153); Auto-Highlights proposes its best-3 (#172, wired in
+     lib/auto-highlights). A hook failure never fails the save — the
+     recording IS registered; the hooks log loudly and can re-run. */
+  void listClassReplayAsCourse(drizzleCreatorClassStore, finalRow).catch((err) => {
+    logger.error({ err, streamId: finalRow.id }, "live-streams: class replay listing failed");
+  });
+  void generateHighlightProposals(drizzleAutoHighlightsStore, finalRow).catch((err) => {
+    logger.error({ err, streamId: finalRow.id }, "live-streams: auto-highlights generation failed");
+  });
+  return { row: finalRow, clipId };
 }
 
 /** The flip side, recorded just as honestly: the recording did not save. */
@@ -801,6 +830,9 @@ const createSchema = z.object({
      means anything on a ticketed stream. */
   ticket_price_vb: z.number().int().min(0).max(LIVE_TICKET_MAX_VB).optional(),
   ticket_capacity: z.number().int().min(1).max(LIVE_TICKET_MAX_CAPACITY).nullable().optional(),
+  /* Creator Classes (#153): run this ticketed stream as a class —
+     enrollment rides the ticket rail; refused without a price. */
+  is_class: z.boolean().optional(),
   /* Optional multistream destinations — stored normalized (site always
      first + active in v1; everything else pending/off, never faked live). */
   destinations: z
@@ -886,6 +918,16 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
       });
       return;
     }
+    /* A class IS a ticketed stream (the ticket is the enrollment) —
+       a class with no price has no door and no roster. */
+    const isClass = parsed.data.is_class === true;
+    if (isClass && ticketPriceVb === null) {
+      res.status(400).json({
+        error: "A class sells seats — set a ticket price and the class runs on the same door.",
+        code: "CLASS_NEEDS_TICKET",
+      });
+      return;
+    }
     const ticketCapacity = ticketPriceVb !== null ? (parsed.data.ticket_capacity ?? null) : null;
     const profile = await getProfileByUserId(req.userId!);
     if (!profile) {
@@ -935,6 +977,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
             whip_url: null,
             ticket_price_vb: ticketPriceVb,
             ticket_capacity: ticketCapacity,
+            is_class: isClass,
             destinations: sanitizeRequestedDestinations(parsed.data.destinations),
           })
           .returning();
@@ -1001,6 +1044,7 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           whip_url: input.whipUrl,
           ticket_price_vb: ticketPriceVb,
           ticket_capacity: ticketCapacity,
+          is_class: isClass,
           destinations: sanitizeRequestedDestinations(parsed.data.destinations),
         })
         .returning();
@@ -1102,6 +1146,37 @@ router.post("/live-streams/:id/vod", requireAuth, async (req: Request, res: Resp
   } catch (err) {
     logger.error({ err }, "live-streams vod failed");
     res.status(500).json({ error: "Could not save your recording." });
+  }
+});
+
+/* ── Creator Classes roster (#153) ────────────────────────────────────────
+   The teacher's enrollment list for a class stream: the buyer list of
+   the ticket rail, read by the owner only. A ticket IS the enrollment
+   — there is no second list to keep in sync. */
+router.get("/live-streams/:id/class-roster", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const row = await getStreamById(String(req.params.id));
+    if (!row) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    if (row.user_id !== req.userId) {
+      res.status(403).json({ error: "That's not your stream." });
+      return;
+    }
+    if (!isClassStream(row)) {
+      res.status(400).json({ error: "That stream isn't a class.", code: "NOT_A_CLASS" });
+      return;
+    }
+    const roster = await getClassRoster(drizzleCreatorClassStore, row);
+    res.json({
+      roster,
+      ticket: ticketDoorInfo(row, roster.enrolled),
+      course_product_id: row.class_course_product_id ?? null,
+    });
+  } catch (err) {
+    logger.error({ err }, "live-streams class-roster failed");
+    res.status(500).json({ error: "Could not load the class roster." });
   }
 });
 
