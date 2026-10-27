@@ -260,6 +260,7 @@ import retentionDoctorRouter from "./retention-doctor";
 import retentionRouter from "./retention";
 import soundPrefsRouter from "./sound-prefs";
 import secondLifeRouter from "./second-life";
+import trendRadarRouter from "./trend-radar";
 import pitchFixRouter from "./pitch-fix";
 import retentionDelightRouter from "./retention-delight";
 import activityFeedRouter from "./activity-feed";
@@ -628,6 +629,7 @@ router.use(retentionDoctorRouter);
 router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
 router.use(secondLifeRouter);            // /api/second-life/* (Second Life revival queue + watch switch, UPGRADE #161)
+router.use(trendRadarRouter);            // /api/trend-radar (real-signal trend feed, UPGRADE #178)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(retentionDelightRouter);
 router.use(activityFeedRouter);           // /api/activity/feed (live FOMO feed)
