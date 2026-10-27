@@ -67,15 +67,34 @@ export function createTestDb(): TestDb {  const mem = newDb({ autoCreateForeignK
   // delegating — pg-mem returns Date objects for timestamps, which the
   // store's `new Date(...)` parsing handles either way.
   const clientShim = {
-    query: (config: unknown, values?: unknown[]) => {
-      const cfg =
-        config !== null &&
-        typeof config === "object" &&
-        !Array.isArray(config) &&
-        "types" in config
-          ? (({ types: _stripped, ...rest }: Record<string, unknown>) => rest)(config)
-          : config;
-      return (pool as unknown as { query: (c: unknown, v?: unknown[]) => Promise<unknown> }).query(cfg, values);
+    query: async (config: unknown, values?: unknown[]) => {
+      let cfg = config;
+      let wantArrayRows = false;
+      if (cfg !== null && typeof cfg === "object" && !Array.isArray(cfg)) {
+        const rec = cfg as Record<string, unknown>;
+        const { types: _types, rowMode, ...rest } = rec;
+        if ("types" in rec || "rowMode" in rec) cfg = rest;
+        // pg-mem rejects drizzle's rowMode:"array" queries ("Not
+        // supported: pg rowMode") — run in object mode and translate
+        // rows back to field-ordered arrays, which is all drizzle's
+        // array-mode mapping consumes. Paths that never set rowMode
+        // (db.execute) are untouched.
+        wantArrayRows = rowMode === "array";
+      }
+      const result = (await (pool as unknown as { query: (c: unknown, v?: unknown[]) => Promise<unknown> }).query(cfg, values)) as {
+        rows: Record<string, unknown>[];
+        fields?: { name: string }[];
+      };
+      if (wantArrayRows && result && Array.isArray(result.rows) && result.rows.length > 0) {
+        // pg-mem's pg adapter returns no `fields` — fall back to the row
+        // objects' key order (pg-mem emits keys in select-list order).
+        const names =
+          result.fields && result.fields.length > 0
+            ? result.fields.map((f) => f.name)
+            : Object.keys(result.rows[0]);
+        return { ...result, rows: result.rows.map((r) => names.map((n) => r[n])) };
+      }
+      return result;
     },
   };
   const db = drizzle(clientShim as never);

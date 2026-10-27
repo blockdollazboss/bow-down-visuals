@@ -136,7 +136,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       const sub = event.data.object as Stripe.Subscription;
       if (sub.metadata?.kind === "creator_tier") {
         const { handleTierSubscriptionEvent } = await import("./creator-tier-sync");
-        await handleTierSubscriptionEvent(sub);
+        await handleTierSubscriptionEvent(sub, event.id);
         res.status(200).json({ received: true, kind: "creator_tier" });
         return;
       }
@@ -146,6 +146,14 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         res.status(200).json({ received: true, kind: "creator_hosting" });
         return;
       }
+    } else if (event.type === "invoice.paid") {
+      /* Renewal receipt row for the tier subscription (payfix
+         upgrade-path) — exactly once per invoice id. */
+      const inv = event.data.object as Stripe.Invoice;
+      const { handleTierInvoicePaid } = await import("./creator-tier-sync");
+      await handleTierInvoicePaid(inv);
+      res.status(200).json({ received: true, kind: "creator_tier" });
+      return;
     } else if (event.type === "invoice.payment_failed") {
       const inv = event.data.object as Stripe.Invoice;
       const { handleTierInvoiceFailed } = await import("./creator-tier-sync");
