@@ -99,7 +99,14 @@ export default function ShopStorefront() {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
-  const [orderDone, setOrderDone] = useState<{ lines: number; gross: number; fee: number; net: number } | null>(null);
+  const [orderDone, setOrderDone] = useState<{
+    lines: number; gross: number; fee: number; net: number;
+    /* Digital delivery (payfix lane 4): the visible order id + what
+       the buyer actually received (download/access rows), straight
+       from the server's paid confirmation. */
+    orderId?: string | null;
+    deliveries?: Array<{ product_name?: string | null; deliverable_url: string; deliverable_name?: string | null }>;
+  } | null>(null);
   /* Discount code (0190): validated against THIS shop's codes via the
      public validate endpoint; the server re-validates at checkout and
      is always the pricing authority — the totals shown here mirror
@@ -272,6 +279,8 @@ export default function ShopStorefront() {
           setOrderDone({
             lines: lines.reduce((s: number, l: { quantity?: number }) => s + (l.quantity ?? 1), 0) || 1,
             gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0,
+            orderId: typeof data.orderId === "string" ? data.orderId : null,
+            deliveries: Array.isArray(data.deliveries) ? data.deliveries : [],
           });
           setCart([]);
           setCartOpen(true);
@@ -317,7 +326,11 @@ export default function ShopStorefront() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
       if ((data.free === true || data.paidWithGiftCard === true) && data.paid === true) {
-        setOrderDone({ lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0 });
+        setOrderDone({
+          lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0,
+          orderId: typeof data.orderId === "string" ? data.orderId : typeof data.groupId === "string" ? data.groupId : null,
+          deliveries: Array.isArray(data.deliveries) ? data.deliveries : [],
+        });
         setCart([]);
         return;
       }
@@ -675,7 +688,26 @@ export default function ShopStorefront() {
                   <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.orderTotalLabel")}</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
                   <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.platformFeeLabel", { feePct })}</span><span>{centsToDisplay(orderDone.fee)}</span></div>
                   <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">{t("shop.sellerReceivesLabel")}</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
+                  {orderDone.orderId && (
+                    <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="text-white/50">{t("shop.orderIdLabel", { defaultValue: "Order ID" })}</span><span className="font-mono text-[11px] text-amber-200">{orderDone.orderId}</span></div>
+                  )}
                 </div>
+                {orderDone.deliveries && orderDone.deliveries.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-400/[0.06] p-3 text-left text-xs">
+                    <p className="font-bold text-emerald-200">{t("shop.yourDownloads", { defaultValue: "Your downloads" })}</p>
+                    <ul className="mt-1.5 space-y-1.5">
+                      {orderDone.deliveries.map((d, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2">
+                          <span className="truncate text-white/70">{d.deliverable_name || d.product_name || "Digital product"}</span>
+                          <a href={d.deliverable_url} target="_blank" rel="noreferrer" className="shrink-0 font-bold text-amber-300 underline hover:text-amber-200">
+                            {t("shop.download", { defaultValue: "Download" })}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] text-white/45">{t("shop.downloadsInLibrary", { defaultValue: "These stay in your library — sign in with the email you checked out with to find them again any time." })}</p>
+                  </div>
+                )}
                 <button className="mt-3 text-xs font-bold text-white/50 hover:text-white" onClick={() => { setOrderDone(null); setCartOpen(false); }}>
                   {t("shop.continueShopping")}
                 </button>

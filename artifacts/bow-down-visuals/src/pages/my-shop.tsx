@@ -70,6 +70,12 @@ interface Product {
      cut). Buyer reads carry them as the published offer. */
   affiliate_enabled?: boolean;
   affiliate_commission_bps?: number | null;
+  /* Digital delivery (payfix lane 4): 'digital' products carry the
+     file the buyer receives after paying. Owner reads carry the
+     deliverable fields; buyer reads never do. */
+  product_type?: "digital" | "physical" | null;
+  deliverable_url?: string | null;
+  deliverable_name?: string | null;
   /* Co-seller revenue splits (Wave 4 #36): the normalized list the
      shop rail presents — [{ userId, sharePct }] including my own
      entry; null/absent = solo product. Names aren't presented on
@@ -145,6 +151,13 @@ export default function MyShop() {
      is derived by lib/splits-editor, never a row here). */
   const [pSplitDrafts, setPSplitDrafts] = useState<SplitCoSellerDraft[]>([]);
   const [pImageAlt, setPImageAlt] = useState("");
+  /* Digital delivery (payfix lane 4): product kind + the deliverable
+     file/URL a digital buyer receives after paying. */
+  const [pProductType, setPProductType] = useState<"digital" | "physical">("physical");
+  const [pDeliverableUrl, setPDeliverableUrl] = useState("");
+  const [pDeliverableName, setPDeliverableName] = useState("");
+  const [pDeliverableUploading, setPDeliverableUploading] = useState(false);
+  const [pDeliverableMsg, setPDeliverableMsg] = useState<string | null>(null);
   const [pSaving, setPSaving] = useState(false);
   const [pauseTogglingId, setPauseTogglingId] = useState<string | null>(null);
   const [aiProdDescLoading, setAiProdDescLoading] = useState(false);
@@ -344,6 +357,7 @@ export default function MyShop() {
     setPName(""); setPPrice(""); setPDesc(""); setPImageUrl(""); setPImageAlt(""); setImageStyleHint("");
     setPAffiliates(false); setPAffiliatePct("");
     setPSplitDrafts([]);
+    setPProductType("physical"); setPDeliverableUrl(""); setPDeliverableName(""); setPDeliverableMsg(null);
     setShowProductForm(true);
   }
 
@@ -356,6 +370,10 @@ export default function MyShop() {
     setPAffiliates(p.affiliate_enabled === true);
     setPAffiliatePct(p.affiliate_commission_bps != null ? String(p.affiliate_commission_bps / 100) : "");
     setPSplitDrafts(draftsFromPresented(p.splits, user?.id ?? ""));
+    setPProductType(p.product_type === "digital" ? "digital" : "physical");
+    setPDeliverableUrl(p.deliverable_url ?? "");
+    setPDeliverableName(p.deliverable_name ?? "");
+    setPDeliverableMsg(null);
     setPImageAlt(p.image_alt_text ?? "");
     setImageStyleHint("");
     setBumpTargetId(p.bumpConfig?.bumpProductId ?? "");
@@ -428,6 +446,35 @@ export default function MyShop() {
     }
   }
 
+  /* Digital delivery (payfix lane 4): upload the deliverable file
+     (multipart — the JSON body cap could never carry a real file).
+     The returned URL is what the product save stores; buyers only
+     ever see it through their own paid delivery. */
+  async function uploadDeliverable(file: File) {
+    if (!activeShop || pDeliverableUploading) return;
+    setPDeliverableUploading(true);
+    setPDeliverableMsg(null);
+    try {
+      const token = await getAccessToken();
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/shops/${activeShop.id}/deliverables/upload`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: form,
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; name?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error || "The file upload failed — nothing was saved. Try again, or paste a hosted URL for the file instead.");
+      setPDeliverableUrl(data.url);
+      setPDeliverableName(data.name ?? file.name);
+      setPDeliverableMsg(`Attached: ${data.name ?? file.name} — buyers receive it after paying.`);
+    } catch (err) {
+      setPDeliverableMsg(err instanceof Error ? err.message : "The file upload failed — nothing was saved.");
+    } finally {
+      setPDeliverableUploading(false);
+    }
+  }
+
   async function saveProduct() {
     if (!activeShop || pSaving) return;
     const cents = dollarsToCents(pPrice);
@@ -469,13 +516,18 @@ export default function MyShop() {
         affiliate_commission_bps: affiliateBps,
         ...(splitsTouched ? { splits: splitPayload } : {}),
         image_alt_text: pImageAlt.trim(),
+        /* Digital delivery (payfix lane 4): the kind + deliverable ride
+           every save; the server refuses a digital product with no file. */
+        product_type: pProductType,
+        deliverable_url: pProductType === "digital" ? pDeliverableUrl.trim() : "",
+        deliverable_name: pProductType === "digital" ? pDeliverableName.trim() : "",
       };
       const url = editingProduct
         ? `/api/shops/${activeShop.id}/products/${editingProduct.id}`
         : `/api/shops/${activeShop.id}/products`;
       const res = await authed(url, { method: editingProduct ? "PATCH" : "POST", body: JSON.stringify(body) });
-      const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string };
-      if (!res.ok) throw new Error(data.error || t("myShop.saveProductFailed"));
+      const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.message || data.error || t("myShop.saveProductFailed"));
       setProducts((ps) =>
         editingProduct ? ps.map((x) => (x.id === editingProduct.id ? data.product! : x)) : [...ps, data.product!]
       );
@@ -845,6 +897,50 @@ export default function MyShop() {
                           label="Describe the product photo for screen readers"
                           context={pName || undefined}
                         />
+                      </div>
+                      {/* Digital delivery (payfix lane 4): the product kind +
+                          the file a digital buyer receives after paying. */}
+                      <div className={`mt-4 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF3DC]/70" : "border-white/10 bg-black/30"}`}>
+                        <label htmlFor="myshop-product-type" className="text-xs font-semibold text-white/50">Product type</label>
+                        <select
+                          id="myshop-product-type"
+                          className="mt-1 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none"
+                          value={pProductType}
+                          onChange={(e) => setPProductType(e.target.value === "digital" ? "digital" : "physical")}
+                        >
+                          <option value="physical">Physical — shipped / in person</option>
+                          <option value="digital">Digital — buyer downloads after paying</option>
+                        </select>
+                        {pProductType === "digital" && (
+                          <div className="mt-3">
+                            <label htmlFor="myshop-deliverable-url" className="text-xs font-semibold text-white/50">Deliverable file — what the buyer receives</label>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <label className={`${ghostBtn} cursor-pointer`}>
+                                {pDeliverableUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                <span className="text-xs">{pDeliverableUrl ? "Replace file" : "Upload file"}</span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  aria-label="Upload the deliverable file"
+                                  disabled={pDeliverableUploading}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadDeliverable(f); e.target.value = ""; }}
+                                />
+                              </label>
+                              {pDeliverableName && <span className="text-xs text-emerald-300">{pDeliverableName}</span>}
+                            </div>
+                            <input
+                              id="myshop-deliverable-url"
+                              className="mt-2 w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/50 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                              value={pDeliverableUrl}
+                              onChange={(e) => setPDeliverableUrl(e.target.value)}
+                              placeholder="…or paste a hosted file URL (https://…)"
+                            />
+                            <p className="mt-1 text-[11px] leading-relaxed text-white/40">
+                              Required for digital products. The file stays hidden — a buyer sees it only in their own library after their payment goes through.
+                            </p>
+                            {pDeliverableMsg && <p className="mt-1.5 text-xs text-amber-200/90">{pDeliverableMsg}</p>}
+                          </div>
+                        )}
                       </div>
                       {/* #16: Creator Product Affiliates — docked in the product settings. */}
                       <div className={`mt-4 rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-[#FBF3DC]/70" : "border-white/10 bg-black/30"}`}>

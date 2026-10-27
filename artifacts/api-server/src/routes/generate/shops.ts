@@ -18,6 +18,7 @@
  * handle the drizzle query builder's rowMode:'array'.
  */
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
@@ -1250,35 +1251,66 @@ router.delete("/shops/:id/products/:productId", requireAuth, async (req, res) =>
 });
 
 /* ── POST /api/shops/:id/deliverables/upload — attach a digital file ─────
-   The seller's deliverable for a digital product: base64 file in,
-   stored object URL out (R2 when configured, else the shop-products
-   Supabase bucket — the product-image storage pattern). The returned
-   URL is what the product form saves as deliverable_url; it is never
-   shown to buyers except through their own paid delivery row. */
+   The seller's deliverable for a digital product: file in, stored
+   object URL out (R2 when configured, else the shop-products Supabase
+   bucket — the product-image storage pattern). The returned URL is
+   what the product form saves as deliverable_url; it is never shown
+   to buyers except through their own paid delivery row.
+   Multipart (field "file") is the real path — the app's JSON body cap
+   is 256kb, so base64-in-JSON could never carry a real deliverable;
+   the JSON base64 shape stays for small programmatic uploads/tests. */
 const deliverableUploadSchema = z.object({
   fileName: z.string().trim().min(1).max(200),
   contentType: z.string().trim().max(120).optional().default("application/octet-stream"),
   dataBase64: z.string().min(1),
 });
 const DELIVERABLE_MAX_BYTES = 25 * 1024 * 1024;
+const deliverableMultipart = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: DELIVERABLE_MAX_BYTES },
+});
 
-router.post("/shops/:id/deliverables/upload", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/:id/deliverables/upload", publicApiLimiter, requireAuth, (req, res, next) => {
+  deliverableMultipart.single("file")(req, res, (err: unknown) => {
+    if (err) {
+      const tooBig = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE";
+      res.status(tooBig ? 413 : 400).json({
+        error: tooBig
+          ? "That file is over the 25 MB delivery limit — attach a smaller file, or paste a hosted URL for it instead."
+          : "That file couldn't be read — try uploading it again.",
+      });
+      return;
+    }
+    next();
+  });
+}, async (req, res) => {
   const shop = await getOwnedShop(param(req.params.id), req.userId!);
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });
     return;
   }
-  const parsed = deliverableUploadSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid upload.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
-    return;
-  }
   let buf: Buffer;
-  try {
-    buf = Buffer.from(parsed.data.dataBase64, "base64");
-  } catch {
-    res.status(400).json({ error: "That file couldn't be read — try uploading it again." });
-    return;
+  let rawName: string;
+  let contentType: string;
+  const file = (req as { file?: { buffer: Buffer; originalname: string; mimetype: string } }).file;
+  if (file) {
+    buf = file.buffer;
+    rawName = file.originalname || "deliverable";
+    contentType = file.mimetype || "application/octet-stream";
+  } else {
+    const parsed = deliverableUploadSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid upload.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
+      return;
+    }
+    try {
+      buf = Buffer.from(parsed.data.dataBase64, "base64");
+    } catch {
+      res.status(400).json({ error: "That file couldn't be read — try uploading it again." });
+      return;
+    }
+    rawName = parsed.data.fileName;
+    contentType = parsed.data.contentType || "application/octet-stream";
   }
   if (buf.length === 0) {
     res.status(400).json({ error: "That file is empty — pick a file with content to deliver." });
@@ -1288,9 +1320,8 @@ router.post("/shops/:id/deliverables/upload", publicApiLimiter, requireAuth, asy
     res.status(413).json({ error: "That file is over the 25 MB delivery limit — attach a smaller file, or paste a hosted URL for it instead." });
     return;
   }
-  const safeName = parsed.data.fileName.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "deliverable";
+  const safeName = rawName.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "deliverable";
   const filePath = `${req.userId!}/deliverables/${randomUUID()}-${safeName}`;
-  const contentType = parsed.data.contentType || "application/octet-stream";
   try {
     let publicUrl: string;
     if (isR2Configured()) {
@@ -1304,7 +1335,7 @@ router.post("/shops/:id/deliverables/upload", publicApiLimiter, requireAuth, asy
       if (upErr) throw upErr;
       publicUrl = getSupabaseAdmin().storage.from(SHOP_PRODUCTS_BUCKET).getPublicUrl(filePath).data.publicUrl;
     }
-    res.status(201).json({ url: publicUrl, name: parsed.data.fileName, sizeBytes: buf.length });
+    res.status(201).json({ url: publicUrl, name: rawName, sizeBytes: buf.length });
   } catch (err) {
     logger.error({ err, shopId: shop.id }, "[shops] deliverable upload failed");
     res.status(502).json({ error: "The file upload failed — nothing was saved. Try again, or paste a hosted URL for the file instead." });
