@@ -85,6 +85,10 @@ import {
   CrownsScheduler,
   CROWNS_TICK_MS,
 } from "../lib/the-crowns";
+import {
+  CoverFridaysScheduler,
+  COVER_FRIDAYS_TICK_MS,
+} from "../lib/cover-fridays";
 import { gateCourtSeasonHerald } from "../lib/operator-duties";
 import { createStageTipper } from "../lib/world-stage-tips";
 import { isTicketed } from "../lib/live-tickets";
@@ -2032,6 +2036,30 @@ export function startCrownsScheduler(palace: WorldPalace): { stop: () => void } 
   };
   run();
   const timer = setInterval(run, CROWNS_TICK_MS);
+  timer.unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Start the Cover Fridays cadence (N19, lib/cover-fridays):
+ * every COVER_FRIDAYS_TICK_MS it ensures the current week's
+ * cover challenge exists (the house theme's contest, created
+ * from the published rotation — never admin-launched) and
+ * crowns the oldest past week whose Monday has arrived, the
+ * King's pick claimed by the challenge's status flip so the
+ * crowning and its herald fire exactly once. Called once from
+ * index.ts after the WS mount (the herald rides the palace
+ * announce channel); tests drive the scheduler class directly.
+ */
+export function startCoverFridaysScheduler(palace: WorldPalace): { stop: () => void } {
+  const scheduler = new CoverFridaysScheduler({ palace });
+  const run = () => {
+    void scheduler.tick().catch((err) => {
+      logger.warn({ err }, "[cover-fridays] scheduler tick failed");
+    });
+  };
+  run();
+  const timer = setInterval(run, COVER_FRIDAYS_TICK_MS);
   timer.unref?.();
   return { stop: () => clearInterval(timer) };
 }

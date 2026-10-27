@@ -369,6 +369,7 @@ import mirrorMediaRouter from "./mirror-media";
 import discoveryRouter from "./discovery";
 import shortsRouter from "./shorts";
 import challengeEngineRouter from "./challenge-engine";
+import coverFridaysRouter from "./cover-fridays";
 import creatorCommunityRouter from "./community";
 import domainsRouter from "./domains";
 import storeRouter from "./store";
@@ -728,6 +729,12 @@ router.use("/discovery", discoveryRouter);  // /api/discovery/*
    (Wave 3 #12 removed the duplicate mount that lived inside shorts.ts).
    It mounts before shortsRouter; shorts serves no challenge routes —
    it only borrows the engine's DTO/status helpers for /hashtag. */
+/* Cover Fridays (N19) mounts AHEAD of the engine so its one
+   specific path wins over the engine's GET /challenges/:slug
+   capture — the same specific-before-slug ordering the engine
+   keeps internally (weekly/trending before :slug). It serves
+   no other challenge path; entering/voting stay the engine's. */
+router.use(coverFridaysRouter);             // /api/challenges/cover-fridays (Cover Fridays ritual read, N19)
 router.use(challengeEngineRouter);          // /api/challenges/* engine 2.0: prizes, votes, winners, lifecycle
 router.use(shortsRouter);                   // /api/shorts/*, /api/sounds/*, /api/hashtag/*
 router.use(creatorCommunityRouter);   // /api/groups/*, /api/events/*, /api/dm/*, /api/explore
