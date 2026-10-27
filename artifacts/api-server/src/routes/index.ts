@@ -72,6 +72,7 @@ import musicExportRouter from "./music-export";
 import uploadWatermarkRouter from "./upload-watermark";
 import devRouter from "./dev";
 import stripePaymentsRouter from "./stripe-payments";
+import embeddedCheckoutRouter from "./embedded-checkout";
 import stripeConnectRouter from "./stripe-connect";
 import creditsRouter from "./credits";
 import publicApiRouter from "./public-api";
@@ -477,6 +478,7 @@ router.use(musicExportRouter);
 router.use(uploadWatermarkRouter);
 router.use(devRouter);
 router.use(stripePaymentsRouter);
+router.use(embeddedCheckoutRouter); // /api/embedded-checkout/* — on-site PaymentElement flows (credit packs + plan subscriptions)
 router.use(stripeConnectRouter);
 router.use(creditsRouter);
 router.use(publicApiRouter); // Stack-100 #3 #9: /api-keys management + Public Creator API /v1 (me, content, balance, generate/bio)

@@ -329,7 +329,14 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       }
       return;
     }
-    if (pi.metadata?.source !== "express_pay") {
+    /* Embedded checkout (2026-10-26): credit-pack PaymentIntents from
+       the on-site PaymentElement flow carry source="embedded_checkout"
+       + kind="credit_pack" and fulfill through this SAME branch —
+       identical metadata fields, identical PI-id idempotency key into
+       fulfillCreditPurchase, identical referral award below. */
+    const isEmbeddedCreditPack =
+      pi.metadata?.source === "embedded_checkout" && pi.metadata?.kind === "credit_pack";
+    if (pi.metadata?.source !== "express_pay" && !isEmbeddedCreditPack) {
       res.status(200).json({ received: true });
       return;
     }

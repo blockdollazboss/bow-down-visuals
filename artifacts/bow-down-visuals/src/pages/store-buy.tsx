@@ -5,6 +5,7 @@ import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Ke
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { EmbeddedSessionCheckout } from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── /store/buy/:kind/:id — the drop page ─────────────────────────────────
    Sell ANY digital content: a track, a video course, a series pass, a sample
@@ -93,6 +94,10 @@ export default function StoreBuy() {
      re-resolves and re-prices it at checkout — the tick alone buys
      nothing. */
   const [includeBump, setIncludeBump] = useState(false);
+  /* Embedded store checkout: the session client secret mounts the
+     Stripe form below the buy button, on this page. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
+  const [paidNote, setPaidNote] = useState<string | null>(null);
 
   async function onShare() {
     if (!data) return;
@@ -163,11 +168,14 @@ export default function StoreBuy() {
         body: JSON.stringify({
           kind: params.kind,
           id: params.id,
+          /* Embedded checkout (2026-10-26): the store form mounts on
+             THIS page — no redirect to a Stripe-hosted page. */
+          uiMode: "embedded",
           ...(amountCents !== undefined ? { amountCents } : {}),
           ...(includeBump && data?.bump ? { includeBump: true } : {}),
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string; watchUrl?: string };
+      const body = (await res.json().catch(() => ({}))) as { url?: string; clientSecret?: string; paid?: boolean; error?: string; message?: string; watchUrl?: string };
       /* A series unlock can't be bought twice — the rail refuses the
          second checkout; send the fan straight to their series. For a
          bundle, explain instead: the message names the series they
@@ -181,8 +189,20 @@ export default function StoreBuy() {
         navigate(body.watchUrl);
         return;
       }
-      if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
-      window.location.href = body.url;
+      if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+      if (body.paid) {
+        // Paid in full by gift card — the server already recorded the
+        // sale and delivered; there is no card form to mount.
+        setPaidNote("Paid in full with your gift card — your purchase is in your library.");
+        setBuying(false);
+        return;
+      }
+      if (body.clientSecret) {
+        setEmbeddedSecret(body.clientSecret);
+        setBuying(false);
+        return;
+      }
+      throw new Error(body.message || body.error || "Checkout failed.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed.");
       setBuying(false);
@@ -365,16 +385,32 @@ export default function StoreBuy() {
                 </label>
               )}
 
-              <button
-                onClick={buyNow}
-                disabled={buying}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
-              >
-                {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                {buying ? "Opening secure checkout…" : user
-                  ? data.item.kind === "series" ? "Unlock it now — watch instantly" : data.item.kind === "bundle" ? "Get the bundle — everything at once" : "Buy it now — instant delivery"
-                  : "Sign in to buy"}
-              </button>
+              {paidNote ? (
+                <div className="mt-6 rounded-xl border border-emerald-400/40 bg-emerald-400/10 p-4 text-center text-sm font-bold text-emerald-200">
+                  {paidNote}
+                </div>
+              ) : embeddedSecret ? (
+                <div className="mt-6">
+                  <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+                  <button
+                    onClick={() => setEmbeddedSecret(null)}
+                    className="mt-2 w-full text-center text-xs text-amber-100/40 hover:text-amber-100/70"
+                  >
+                    Cancel — no charge
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={buyNow}
+                  disabled={buying}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                >
+                  {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                  {buying ? "Preparing secure checkout…" : user
+                    ? data.item.kind === "series" ? "Unlock it now — watch instantly" : data.item.kind === "bundle" ? "Get the bundle — everything at once" : "Buy it now — instant delivery"
+                    : "Sign in to buy"}
+                </button>
+              )}
 
               <div className="mt-5 flex items-center justify-center gap-2 text-xs text-amber-100/50">
                 <ShieldCheck className="h-4 w-4 text-amber-400" />

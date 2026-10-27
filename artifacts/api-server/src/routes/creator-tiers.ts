@@ -162,6 +162,7 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
 /* ── GET /creator-tiers/history ── auth ──
    Visible subscription receipt/history rows (payfix upgrade-path):
    subscribed / tier_changed / renewed / payment_failed / canceled,
@@ -306,8 +307,10 @@ router.post("/creator-tiers/resume", requireAuth, publicApiLimiter, async (req: 
   }
 });
 
-/* ── ensure a creator profile exists (checkout needs a profile_id FK target) ── */
-async function ensureProfile(userId: string, email: string | undefined): Promise<string> {
+/* ── ensure a creator profile exists (checkout needs a profile_id FK target) ──
+   Exported for the embedded-checkout subscription rail, which needs
+   the exact same profile guarantee as the hosted tier checkout. */
+export async function ensureProfile(userId: string, email: string | undefined): Promise<string> {
   const [existing] = await db
     .select({ id: creatorProfilesTable.id })
     .from(creatorProfilesTable)
