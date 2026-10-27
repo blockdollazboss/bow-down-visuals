@@ -1,9 +1,10 @@
-import { pgTable, uuid, text, integer, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
 import { generatedClipsTable } from "./generated-clips";
+import { storeProductsTable } from "./storefront";
 
 /* Native on-site broadcasts — the "Go Live" stream studio (migration 0129).
    Deliberately separate from discord_streams: those rows are schedule /
@@ -69,6 +70,20 @@ export const liveStreamsTable = pgTable(
        nothing. */
     ticket_price_vb: integer("ticket_price_vb"),
     ticket_capacity: integer("ticket_capacity"),
+    /* Creator Classes (upgrade #153): a ticketed stream the creator
+       runs as a class — students enroll through the SAME ticket rail
+       (a ticket IS the enrollment; no second rail), the buyer list is
+       the roster, and when the session's replay registers it is listed
+       automatically as a course product (class_course_product_id —
+       a store_products row of kind 'course', created by
+       lib/creator-classes at VOD registration; NULL until then).
+       is_class only has meaning on a ticketed stream — the create
+       route refuses the combination class-without-a-price. */
+    is_class: boolean("is_class").notNull().default(false),
+    class_course_product_id: uuid("class_course_product_id").references(
+      () => storeProductsTable.id,
+      { onDelete: "set null" },
+    ),
     viewer_count: integer("viewer_count").notNull().default(0),
     peak_viewers: integer("peak_viewers").notNull().default(0),
     vod_url: text("vod_url"),
