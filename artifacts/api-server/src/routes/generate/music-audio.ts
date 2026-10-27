@@ -20,7 +20,7 @@ const execFileAsync = promisify(execFile);
 const router = Router();
 const BUCKET = "audio-stems";
 export const MIN_LENGTH_MS = 10_000;
-export const MAX_LENGTH_MS = 300_000;
+export const MAX_LENGTH_MS = 600_000;
 const DEFAULT_LENGTH_MS = 60_000;
 
 /**
@@ -29,6 +29,14 @@ const DEFAULT_LENGTH_MS = 60_000;
  * - Up to 1 min:  400 Visual Bucs (~$2.00, ~$0.30 cost)
  * - Up to 3 min:  800 Visual Bucs (~$4.00, ~$0.90 cost)
  * - Up to 5 min: 1200 Visual Bucs (~$6.00, ~$1.50 cost)
+ * - Up to 10 min: 2400 Visual Bucs (~$12.00, ~$3.00 cost) — owner ruling
+ *   by delegation, Oct 27, 2026 ("do the prices as you recommend"):
+ *   songs above 5 minutes get this tier instead of silently pricing
+ *   as a 5-minute song.
+ *
+ * Requests above 10 minutes are clamped to 600_000 ms by
+ * clampLengthMs (the same clamp behavior the old 5-minute cap had),
+ * so no song is ever generated — or charged — beyond the top tier.
  *
  * SONG_PRICE_TIERS is the single source for these numbers:
  * creditCostForLength derives from it, the operator Tier-3 song tools
@@ -40,6 +48,7 @@ export const SONG_PRICE_TIERS = [
   { maxLengthMs: 60_000, cost: 400 },
   { maxLengthMs: 180_000, cost: 800 },
   { maxLengthMs: 300_000, cost: 1_200 },
+  { maxLengthMs: 600_000, cost: 2_400 },
 ] as const;
 
 export function creditCostForLength(lengthMs: number): number {

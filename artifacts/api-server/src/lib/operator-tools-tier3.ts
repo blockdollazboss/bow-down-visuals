@@ -113,7 +113,8 @@ function songValidator(tierPriceVb: number): Validator {
         ok: false,
         askText:
           `How long should the song be? Up to 1 minute is ${creditCostForLength(60_000)} Visual Bucs, ` +
-          `up to 3 minutes is ${creditCostForLength(180_000)}, and up to 5 minutes is ${creditCostForLength(300_000)}. 🦈`,
+          `up to 3 minutes is ${creditCostForLength(180_000)}, up to 5 minutes is ${creditCostForLength(300_000)}, ` +
+          `and up to 10 minutes is ${creditCostForLength(600_000)}. 🦈`,
       };
     }
     const ms = clampLengthMs(lengthSeconds);

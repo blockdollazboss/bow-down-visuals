@@ -7,9 +7,10 @@
  *    request keeps its exact pre-end-frame shape.
  *  - gen4.5: the SDK's Gen4_5.PromptImage position is 'first' ONLY, so
  *    the end-frame parameter must be ABSENT — never sent-and-ignored.
- *  - veo3_1: still refused by the pricing gate (VEO_PRICING_APPROVED is
- *    an open owner price call) — 402 before any provider call, end frame
- *    or not.
+ *  - veo3_1: pricing APPROVED by the owner's Oct 27, 2026 ruling (Veo
+ *    Cinematic kept as a premium upsell at 1,200 VB per 8s clip, not
+ *    hidden) — the submission reaches the provider at exactly 1,200 VB,
+ *    end frame forwarded.
  *  - locked packs: the shot's locked endFrameImageUrl ingredient wins
  *    over the per-request field (the end frame rides the pack).
  *  - charge discipline: an end frame never changes the credit cost.
@@ -239,19 +240,31 @@ describe("gen4.5 — parameter absent, never sent-and-ignored", () => {
   });
 });
 
-describe("veo3_1 — pricing refusal untouched", () => {
-  it("refuses with the pricing gate before any provider call, end frame included", async () => {
+describe("veo3_1 — pricing approved at the ruled 1,200 VB (owner, Oct 27)", () => {
+  it("reaches the provider at exactly 1,200 VB per clip, end frame forwarded", async () => {
     const { status, json } = await submit({
       promptText: "cinematic dolly shot",
       model: "veo3_1",
       referenceImageUrl: REF,
       endFrameImageUrl: END,
     });
-    expect(status).toBe(402);
-    expect(json.error).toBe("veo_pricing_pending_approval");
-    expect(h.veoCalls).toHaveLength(0);
+    expect(status).toBe(200);
+    expect(json.creditCost).toBe(1200);
+    expect(json.endFrameUsed).toBe(true);
+    expect(h.veoCalls).toHaveLength(1);
     expect(h.imageCalls).toHaveLength(0);
     expect(h.textCalls).toHaveLength(0);
+  });
+
+  it("the pure plan pins the same 1,200 VB the route charges (display == rail)", async () => {
+    const { resolveClipPlan, VEO_PRICING_APPROVED, VEO_CLIP_CREDIT_COST } = await import(
+      "../generate/clip-pricing"
+    );
+    expect(VEO_PRICING_APPROVED).toBe(true);
+    const plan = resolveClipPlan({ model: "veo3_1" });
+    expect(plan.creditCost).toBe(1200);
+    expect(plan.creditCost).toBe(VEO_CLIP_CREDIT_COST);
+    expect(plan.durationSec).toBe(8);
   });
 });
 

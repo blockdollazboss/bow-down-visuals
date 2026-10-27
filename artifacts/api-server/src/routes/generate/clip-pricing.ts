@@ -46,18 +46,25 @@ export const SEEDANCE_PRICING_APPROVED = true; // flipped 2026-09-25 after expli
 /** Bump when the proposed rates change, so an approval is tied to a version. */
 export const SEEDANCE_PRICING_VERSION = "2026-09-25-resolution-aware";
 
-/* ── Veo 3.1 (Google) — cinematic clips with native audio ───────────────────
-   Provider cost is $0.40/sec at 720p (Standard). At ~$0.50 per site credit,
-   400/sec retails $2.00/sec = 5.0x margin. Clips are fixed 8s (Veo's max and
-   the only length allowed with reference images), so one clip = 3200 credits.
-   Same GEMINI_API_KEY as Nano Banana — no separate credential. */
-export const VEO_CREDITS_PER_SEC_DEFAULT = 400;
+/* ── Veo 3.1 (Google) — "Cinematic" clips with native audio ────────────────
+   OWNER RULING (Oct 27, 2026): Veo Cinematic STAYS as a premium upsell at
+   1,200 VB per clip — NOT hidden. Clips are fixed 8s (Veo's max and the only
+   length allowed with reference images), so the per-second constant below
+   is 1,200 / 8 = 150/sec; the per-CLIP price is the ruled number and the
+   tests pin plan.creditCost === 1200. Provider cost is $0.40/sec at 720p
+   (Standard) = $3.20/clip. Same GEMINI_API_KEY as Nano Banana — no separate
+   credential. */
+export const VEO_CREDITS_PER_SEC_DEFAULT = 150;
+/** The ruled per-clip price (owner, Oct 27): 150/sec × fixed 8s = 1,200 VB. */
+export const VEO_CLIP_CREDIT_COST = 1200;
 export const VEO_CLIP_DURATION_SEC = 8;
-/* Explicit approval gate (same pattern as Seedance): the Veo price is a
-   PROPOSAL until the user approves it. Flip to true only after explicit user
-   approval, in a reviewed commit — never as a drive-by. */
-export const VEO_PRICING_APPROVED = false;
-export const VEO_PRICING_VERSION = "2026-10-11-veo3_1";
+/* Explicit approval gate (same pattern as Seedance): the Veo price was a
+   PROPOSAL until the user approved it. APPROVED by the owner's Oct 27, 2026
+   ruling (kept as a premium upsell at 1,200 VB per clip, not hidden) —
+   flipped in the same reviewed change that set the price. */
+export const VEO_PRICING_APPROVED = true; // flipped 2026-10-27 after the owner's Veo Cinematic ruling
+/** Bump when the proposed rates change, so an approval is tied to a version. */
+export const VEO_PRICING_VERSION = "2026-10-27-veo-cinematic-1200";
 
 /* ── End-frame (last-frame) keyframe support, per model ────────────────────
    Grounded in the provider request builders vendored in this tree:
