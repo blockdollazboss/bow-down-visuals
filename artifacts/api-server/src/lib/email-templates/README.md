@@ -36,7 +36,10 @@ file's full contents, save.
   the card its own golden-marble ivory, so the design renders identically
   on light and dark client canvases and stays legible if a client strips
   backgrounds and forces white.
-- The logo URL is the jsDelivr `@main` copy of the repo file — the
-  production host is gated/dark pre-launch, so mail clients could not
-  fetch the logo from bowdownvisuals.com. When the logo moves to the R2
-  media bucket, update `EMAIL_LOGO_URL` in `../email.ts` and regenerate.
+- The logo URL is the permanent R2 media-bucket copy
+  (`https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/logo-email.png`,
+  flipped from the interim jsDelivr `@main` default on Oct 26, 2026) —
+  the production host is gated/dark pre-launch, so mail clients could
+  not fetch the logo from bowdownvisuals.com. The URL comes from
+  `EMAIL_LOGO_URL` in `../email.ts`; if it ever changes, update it there
+  and regenerate.

@@ -29,15 +29,16 @@ describe("email shell brand mark", () => {
     expect(html).not.toContain("🦈");
   });
 
-  it("default logo URL pins jsDelivr @main — @staging 404s, logo-email.png is not on that branch (S27-20)", () => {
+  it("default logo URL is the permanent R2 home — the jsDelivr interim default is retired (Oct 26, 2026 flip)", () => {
     /* Only meaningful when the env override is unset in the test env:
        EMAIL_LOGO_URL is captured at module import. */
     if (!process.env.EMAIL_LOGO_URL) {
       expect(EMAIL_LOGO_URL).toBe(
-        "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@main/artifacts/bow-down-visuals/public/logo-email.png",
+        "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/logo-email.png",
       );
     }
     expect(EMAIL_LOGO_URL).not.toContain("@staging");
+    expect(EMAIL_LOGO_URL).not.toContain("jsdelivr");
   });
 
   it("keeps the gold-on-black THY CHEAT CODE / BOW DOWN VISUALS header text", () => {

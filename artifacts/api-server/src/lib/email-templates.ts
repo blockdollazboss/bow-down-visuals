@@ -16,8 +16,9 @@
  * The markup intentionally mirrors emailShell (same band, card, button,
  * sign-off, footer) but is fully static: a dashboard template cannot call
  * our code, so colors and the logo URL are inlined literally. The logo is
- * the same EMAIL_LOGO_URL asset (jsDelivr @main — the production host is
- * gated/dark pre-launch, so mail clients could not fetch it from there).
+ * the same EMAIL_LOGO_URL asset (the permanent R2 media-bucket home —
+ * the production host is gated/dark pre-launch, so mail clients could
+ * not fetch it from there).
  */
 import { EMAIL_COLORS, EMAIL_LOGO_URL } from "./email";
 

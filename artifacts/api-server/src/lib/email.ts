@@ -44,18 +44,18 @@ export function houseFromAddress(raw: string): string {
  *
  * The URL must be absolute and anonymously reachable by mail clients.
  * bowdownvisuals.com is suspended-dark until launch (503) and the
- * staging host is password-gated (401), so the asset is served from the
- * owner's own public repo via the jsDelivr CDN — byte-identical to the
- * repo file (sha256 1c583113…). INTERIM home only: the default pins
- * @main because logo-email.png exists on main (shipped Oct 22, 2026)
- * and does NOT exist on the staging branch (the old @staging default
- * 404'd in every email header). The PERMANENT home is the R2 media
- * bucket alongside the rest of the site's media — move the file there
- * and point EMAIL_LOGO_URL at it when that upload happens.
+ * staging host is password-gated (401), so the asset lives in its
+ * PERMANENT home: the R2 media bucket alongside the rest of the site's
+ * media, as logo-email.png (600×600, the same export as the repo file
+ * artifacts/bow-down-visuals/public/logo-email.png, sha256 1c583113…).
+ * It previously served from the owner's public repo via the jsDelivr
+ * CDN (@main) as an interim home; that default retired in the R2 flip
+ * (Oct 26, 2026). The EMAIL_LOGO_URL env var still overrides this
+ * default when set.
  */
 export const EMAIL_LOGO_URL =
   process.env.EMAIL_LOGO_URL ??
-  "https://cdn.jsdelivr.net/gh/blockdollazboss/bow-down-visuals@main/artifacts/bow-down-visuals/public/logo-email.png";
+  "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/logo-email.png";
 
 let client: Resend | null = null;
 function getClient(): Resend | null {
