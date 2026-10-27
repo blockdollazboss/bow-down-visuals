@@ -5920,6 +5920,32 @@
       "saveFailed": "Couldn't save that setting",
       "loadError": "Couldn't load your feedback prompt setting.",
       "retry": "Retry"
+    },
+    "secondLife": {
+      "title": "Second Life",
+      "subtitle": "Your back catalog, watched. When an old track or video starts spiking again, Second Life plans its comeback — a re-cut short and a fresh cover — and waits for your word.",
+      "loadError": "Second Life settings couldn't load.",
+      "retry": "Retry",
+      "saved": "Second Life settings saved",
+      "saveFailed": "Couldn't save Second Life settings",
+      "watch": {
+        "title": "Watch my catalog",
+        "desc": "On: Bow Down keeps an eye on your older tracks and videos and alerts you the moment one starts spiking, with a revival plan attached. Off: no watching, no spike alerts, no revival plans."
+      },
+      "queueTitle": "Revival plans waiting on you",
+      "queueLoading": "Loading your revival queue…",
+      "queueEmpty": "Nothing waiting. When an older track or video starts spiking, its revival plan lands here.",
+      "spikingTrack": "A back-catalog track is spiking",
+      "spikingVideo": "A back-catalog video is spiking",
+      "spikeNumbers": "{{current}} plays in the last 24 hours — its usual pace is {{baseline}} a day.",
+      "approve": "Plan my revival",
+      "dismiss": "Dismiss",
+      "approved": "Revival plan unlocked — finish it in Create",
+      "dismissed": "Revival dismissed",
+      "decisionFailed": "Couldn't record that — try again",
+      "recut": "Re-cut as a short",
+      "freshCover": "Fresh cover",
+      "neverAutoPost": "Approving never posts anything. The plan opens in Create, pre-loaded with the spiking item — you review and publish from there."
     }
   },
   "social-proof": {
