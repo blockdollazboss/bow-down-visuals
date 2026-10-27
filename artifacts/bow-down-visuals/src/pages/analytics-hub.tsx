@@ -16,6 +16,7 @@ import { ClaimsPanel, RetentionPanel } from "@/components/trust/TrustPanels";
 import ChannelAuditPanel from "@/components/analytics-hub/ChannelAuditPanel";
 import ViralityCheckPanel from "@/components/analytics-hub/ViralityCheckPanel";
 import FanDecoderSection from "@/components/analytics-hub/FanDecoderSection";
+import { AudienceRoomPanel } from "@/components/analytics-hub/AudienceRoomPanel";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -887,7 +888,7 @@ export default function AnalyticsHub() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── Competitor Tracker tab state ─────────────────────────────── */
-  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected" | "channelAudit" | "virality" | "fandecoder">("dashboard");
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor" | "intelligence" | "contentid" | "milestones" | "connected" | "channelAudit" | "virality" | "fandecoder" | "audience">("dashboard");
   /* Deep-link into the Content Intelligence chain: ?hook= drops a hook
      into Step 2 (from Hook Studio's "full intelligence check"). */
   const [intelInitialHook, setIntelInitialHook] = useState("");
@@ -936,6 +937,8 @@ export default function AnalyticsHub() {
       }
       else if (params.get("tab") === "fan-decoder") {
         setHubTab("fandecoder");
+      } else if (params.get("tab") === "audience") {
+        setHubTab("audience");
       }
     } catch {
       /* non-browser or malformed URL — ignore */
@@ -1408,6 +1411,19 @@ export default function AnalyticsHub() {
             >
               <Ear className="h-4 w-4" aria-hidden="true" />
               {t("analyticsHub.tabFanDecoder", { defaultValue: "Fan Decoder" })}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "audience"}
+              onClick={() => setHubTab("audience")}
+              className={`flex items-center gap-2 whitespace-nowrap shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "audience"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Users className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabAudienceRoom", { defaultValue: "Audience Room" })}
             </button>
           </div>
         </div>
@@ -2471,6 +2487,15 @@ export default function AnalyticsHub() {
         )}
         {hubTab === "fandecoder" && (
           <FanDecoderSection />
+        )}
+
+        {/* ── AUDIENCE ROOM (N16) ────────────────────────────────────────
+            One honest room over my own plays: best hours + declared play
+            sources from real play_events rows; fan city stays absent —
+            the platform records no fan location, and the panel says so
+            instead of estimating. Absorbed into the hub; no new page. */}
+        {hubTab === "audience" && (
+          <AudienceRoomPanel />
         )}
       </main>
 

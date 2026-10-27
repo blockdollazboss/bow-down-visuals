@@ -5,12 +5,13 @@ import { Link } from "wouter";
 import {
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
-  AlertTriangle, RotateCcw, Megaphone, Disc3,
+  AlertTriangle, RotateCcw, Megaphone, Disc3, HeartHandshake,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { NicheLabel, PlatformLabel, scoreColor, fillProposalTemplate, clampFollowers } from "@/lib/collabs";
 import { CoPostsPanel, type CoPostPartner } from "@/components/collabs/CoPostsPanel";
+import { CollabMatchPanel } from "@/components/collabs/CollabMatchPanel";
 import { CoReleasesPanel } from "@/components/collabs/CoReleasesPanel";
 import { useTranslation } from "react-i18next";
 
@@ -81,7 +82,7 @@ interface InboxRequest {
   toNiche?: string | null;
 }
 
-type Tab = "browse" | "profile" | "match" | "inbox" | "coposts" | "coreleases";
+type Tab = "browse" | "profile" | "match" | "matches" | "inbox" | "coposts" | "coreleases";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -101,7 +102,7 @@ export default function CollabFinder() {
   const [tab, setTab] = useState<Tab>(() => {
     try {
       const tabParam = new URLSearchParams(window.location.search).get("tab");
-      return tabParam === "coposts" ? "coposts" : tabParam === "coreleases" ? "coreleases" : "browse";
+      return tabParam === "coposts" ? "coposts" : tabParam === "coreleases" ? "coreleases" : tabParam === "matches" ? "matches" : "browse";
     } catch {
       return "browse";
     }
@@ -397,6 +398,7 @@ export default function CollabFinder() {
     { key: "browse", label: t("collabs.tabBrowse"), icon: Search },
     { key: "profile", label: t("collabs.tabProfile"), icon: UserRound },
     { key: "match", label: t("collabs.tabMatch"), icon: Sparkles },
+    { key: "matches", label: "Collab Match", icon: HeartHandshake },
     { key: "inbox", label: pendingCount > 0 ? t("collabs.tabInboxWithCount", { count: pendingCount }) : t("collabs.tabInbox"), icon: Inbox },
     { key: "coposts", label: "Co-posts", icon: Megaphone },
     { key: "coreleases", label: "Co-releases", icon: Disc3 },
@@ -719,6 +721,10 @@ export default function CollabFinder() {
               </div>
             )}
           </section>
+        )}
+
+        {user && tab === "matches" && (
+          <CollabMatchPanel authed={authed} />
         )}
 
         {user && tab === "coposts" && (
