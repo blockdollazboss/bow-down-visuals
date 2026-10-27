@@ -6,11 +6,13 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
 import { formatEventTime } from "@/lib/world/objective-strip";
 import {
   CALENDAR_RECENT_WINDOW_DAYS,
+  QUEST_RESET_KIND,
   calendarDayLabel,
   calendarEventAction,
   groupPalaceCalendar,
   normalizeCalendarEvents,
   palaceDayKey,
+  questResetCalendarEvent,
   type CalendarEvent,
 } from "@/lib/world/palace-calendar";
 import { PALACE_LAYOUT, creatorSlugFromRoomId } from "@/lib/world/palace-layout";
@@ -25,6 +27,10 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
    listening parties, drops, contests and office hours, grouped by
    palace day (the UTC day-turn), today first and the week ahead
    after it — plus the look back at what the last seven days held.
+   One further line is the quest week's own: the weekly quest
+   reset, derived from the quest pool's Monday week (never an
+   events-rail row) and appended to the slate before grouping, so
+   the board names the turn the Treasury's slate turns on.
    It reads the events rail's own public slate (with the server's
    opt-in look back), the same read the board's Today block makes,
    so it reads identically for guests and members; what differs is
@@ -40,6 +46,7 @@ const KIND_LABELS: Record<string, string> = {
   drop: "Drop",
   contest: "Contest",
   office_hours: "Office hours",
+  quest_reset: "Quest week",
 };
 
 export function PalaceCalendarBlock({
@@ -93,7 +100,16 @@ export function PalaceCalendarBlock({
   }, [tick]);
 
   const calendar = useMemo(
-    () => (read ? groupPalaceCalendar(read.upcoming, read.recent, Date.now()) : null),
+    () =>
+      read
+        ? groupPalaceCalendar(
+            /* The slate plus the quest reset — the week's own turn,
+               shaped from the quest pool's Monday week at read time. */
+            [...read.upcoming, questResetCalendarEvent(Date.now())],
+            read.recent,
+            Date.now(),
+          )
+        : null,
     [read],
   );
 
@@ -107,6 +123,10 @@ export function PalaceCalendarBlock({
         "the palace");
 
   const detailFor = (e: CalendarEvent): string => {
+    /* The reset has no room and no host — its line says what turns. */
+    if (e.kind === QUEST_RESET_KIND) {
+      return "Quest week · the weekly slate and the shared quest pool turn over at the day-turn — the new slate waits at the Quest Board";
+    }
     const parts = [
       KIND_LABELS[e.kind] ?? "Palace event",
       roomNameFor(e.roomId, e.hostName),
@@ -152,7 +172,8 @@ export function PalaceCalendarBlock({
           onClick={() => onOpenStation(action.stationId)}
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
         >
-          <Swords className="h-3.5 w-3.5" /> See the contest
+          <Swords className="h-3.5 w-3.5" />{" "}
+          {e.kind === QUEST_RESET_KIND ? "See the quests" : "See the contest"}
         </button>
       );
     }

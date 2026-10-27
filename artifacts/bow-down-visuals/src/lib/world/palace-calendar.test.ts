@@ -308,4 +308,14 @@ describe("wiring", () => {
     expect(block).toContain("NativeErrorState");
     expect(block).toContain("The calendar wouldn't open");
   });
+
+  it("the quest reset rides the slate — shaped from the quest week, walked to the Quest Board", () => {
+    expect(block).toContain("questResetCalendarEvent(Date.now())");
+    expect(block).toContain("QUEST_RESET_KIND");
+    expect(block).toContain("See the quests");
+    /* The reset is never read off the events rail — the block
+       derives it from the quest week (palace-calendar.ts) and the
+       rail read stays the slate's own. */
+    expect(block).not.toContain('kind: "quest_reset"');
+  });
 });
