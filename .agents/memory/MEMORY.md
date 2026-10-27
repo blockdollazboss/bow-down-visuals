@@ -6,4 +6,4 @@
 - [Segmented control type constraint](segmented-types.md) — Segmented<T extends string> only accepts strings; convert numeric settings (CardDuration) with String/Number at call site.
 - [Timeline transition rendering](transition-rendering.md) — master player renders transitions from clips[sceneId].transition; scene 0 never transitions (prevSceneIdxRef=-999 sentinel forces re-fire for preview).
 - [Caption ASS render parity](caption-ass-parity.md) — the real export's ASS builder lives in ONE shared lib (caption-ass.ts); never fork it.
-- [Effects export parity](effects-export-doctor.md) — real export does NOT burn effects (CSS-only preview); master player applies global settings.effects; replicate EFFECT_CSS_FILTERS table and translate CSS→FFmpeg.
+- [Effects export parity](effects-export-parity.md) — real export does NOT burn effects (CSS-only preview); master player applies global settings.effects; replicate EFFECT_CSS_FILTERS table and translate CSS→FFmpeg.
