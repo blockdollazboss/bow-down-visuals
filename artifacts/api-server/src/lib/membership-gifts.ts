@@ -25,6 +25,7 @@
  * All DB access is raw SQL via db.execute (the pg-mem test adapter
  * cannot run drizzle's query builder — same discipline as gift-cards).
  */
+import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
@@ -244,10 +245,10 @@ export async function fulfillGiftMembership(
 
   const inserted = await db.execute(sql`
     INSERT INTO membership_gifts
-      (sender_user_id, recipient_user_id, recipient_profile_id, tier, months, status,
+      (id, sender_user_id, recipient_user_id, recipient_profile_id, tier, months, status,
        stripe_session_id, stripe_payment_intent_id, amount_cents, currency,
        period_start, period_end)
-    VALUES (${input.senderUserId}, ${input.recipientUserId}, ${input.recipientProfileId},
+    VALUES (${randomUUID()}, ${input.senderUserId}, ${input.recipientUserId}, ${input.recipientProfileId},
             ${input.tier}, ${input.months}, 'active',
             ${input.sessionId}, ${input.paymentIntentId}, ${input.amountCents}, ${input.currency},
             ${periodStart.toISOString()}, ${periodEnd.toISOString()})
@@ -270,8 +271,8 @@ export async function fulfillGiftMembership(
     const tierName = giftTierName(input.tier);
     const queued = periodStart.getTime() > now.getTime();
     await db.execute(sql`
-      INSERT INTO notifications (user_id, kind, title, body, link)
-      VALUES (${input.recipientUserId}, 'membership_gift',
+      INSERT INTO notifications (id, user_id, kind, title, body, link)
+      VALUES (${randomUUID()}, ${input.recipientUserId}, 'membership_gift',
               ${`${gifter.split(" (")[0]} gifted you ${tierName}`},
               ${`${gifter} gifted you ${input.months} month${input.months === 1 ? "" : "s"} of ${tierName} on Bow Down Visuals — ${queued ? `it starts ${periodStart.toISOString().slice(0, 10)} (queued behind your current gift, so no time is lost) and runs` : "it is active now and runs"} until ${periodEnd.toISOString().slice(0, 10)}. ${GIFT_NO_RENEW_COPY}`},
               '/creator-pricing')
