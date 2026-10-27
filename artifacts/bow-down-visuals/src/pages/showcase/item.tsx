@@ -10,6 +10,7 @@ import { ArrowLeft, ArrowRight, Heart, Eye, AlertTriangle, RotateCcw } from "luc
 import { useAuth } from "@/contexts/AuthContext";
 import ShareMenu from "@/components/ShareMenu";
 import { WatchChapters } from "@/components/player-upgrades/WatchChapters";
+import { ShowcaseVideoTools } from "@/components/player-upgrades/ShowcaseVideoTools";
 import type { ShowcaseItem } from "./index";
 
 /* ─── Public showcase item page ───
@@ -167,6 +168,9 @@ export default function ShowcaseItemPage() {
 
           {/* Auto Chapters (N5): approved sets only; renders nothing otherwise. */}
           {item.media_type === "video" && <WatchChapters slug={item.slug} onSeek={seekTo} />}
+
+          {/* Creator tools (#174 + N5 owner side): renders only for the owner. */}
+          {item.media_type === "video" && <ShowcaseVideoTools itemId={item.id} />}
 
           {/* Meta + social proof */}
           <div className="flex flex-wrap items-start justify-between gap-6 mb-8">
