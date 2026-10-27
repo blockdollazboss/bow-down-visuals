@@ -316,6 +316,26 @@ describe("tips, pins and alerts (Stack 2)", () => {
     expect(alerts).toEqual([{ kind: "tip", title: "Fan tipped 500 Visual Bucs", body: "yo", amountVb: 500 }]);
     rig.client.stop();
   });
+
+  it("Stage Manager (#166): the co-host pin rides its own slot and milestone stings reach onSting", async () => {
+    const rig = makeRig();
+    const pinMessage = msg("m7", OTHER, "great question!", "2026-10-16T10:01:00.000Z");
+    rig.setFetch(async () => ({
+      status: 200,
+      json: { ...page([pinMessage]), stagePinned: { message: pinMessage, pinnedUntil: "2026-10-16T10:03:00.000Z" } },
+    }));
+    const stings: string[] = [];
+    rig.client.onSting = (m) => stings.push(m);
+    await rig.client.start();
+    expect(rig.client.stagePinned?.message.id).toBe("m7");
+    expect(rig.client.pinned).toBeNull();
+    rig.sockets[0].open();
+    rig.sockets[0].emit({ type: "stage_sting", milestone: "500 VB in tips" });
+    expect(stings).toEqual(["500 VB in tips"]);
+    rig.sockets[0].emit({ type: "stage_pin_updated", stagePinned: null });
+    expect(rig.client.stagePinned).toBeNull();
+    rig.client.stop();
+  });
 });
 
 describe("defaultSocketUrl", () => {

@@ -33,7 +33,7 @@ import {
   LIVE_TIP_PIN_MINIMUM_VB,
   LIVE_TIP_PIN_DURATION_MS,
 } from "../lib/live-config";
-import { liveChatHub, effectiveStatus, getActivePin, chatMessageDtos } from "./live-chat";
+import { liveChatHub, effectiveStatus, getActivePin, chatMessageDtos, stageManagerTipFollowUp } from "./live-chat";
 import { isTicketed, canEnterStream } from "../lib/live-tickets";
 import { awardTipPoints } from "../lib/loyalty";
 
@@ -454,6 +454,17 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
         const pin = await getActivePin(stream.id).catch(() => null);
         liveChatHub.broadcast(stream.id, { type: "pin_updated", pinned: pin });
       }
+    }
+
+    /* Stage Manager (#166): a landed tip is the co-host's cue —
+       milestone stings + the supporter pin when no paid pin is up.
+       Retries skip it: the money already counted once. */
+    if (!isRetry) {
+      stageManagerTipFollowUp(stream, {
+        messageId: tip.message_id ?? null,
+        amountVb,
+        paidPinActive: pinnedUntil != null,
+      });
     }
 
     res.status(isRetry ? 200 : 201).json({

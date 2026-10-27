@@ -115,6 +115,9 @@ export const DESTINATION_PLATFORMS: DestinationPlatformInfo[] = [
 export interface StreamTicketSetup {
   priceVb: number;
   capacity?: number | null;
+  /** Creator Classes (#153): run this ticketed show as a class — the
+   *  ticket is the enrollment and the replay lists as a course. */
+  isClass?: boolean;
 }
 
 export interface StreamTransport {
@@ -282,7 +285,7 @@ export class WhipTransport implements StreamTransport {
         title,
         ...(destinations?.length ? { destinations } : {}),
         ...(ticket && ticket.priceVb > 0
-          ? { ticket_price_vb: ticket.priceVb, ...(ticket.capacity != null ? { ticket_capacity: ticket.capacity } : {}) }
+          ? { ticket_price_vb: ticket.priceVb, ...(ticket.capacity != null ? { ticket_capacity: ticket.capacity } : {}), ...(ticket.isClass ? { is_class: true } : {}) }
           : {}),
       }),
     });
@@ -508,7 +511,7 @@ export class OwnServerTransport implements StreamTransport {
         title,
         ...(destinations?.length ? { destinations } : {}),
         ...(ticket && ticket.priceVb > 0
-          ? { ticket_price_vb: ticket.priceVb, ...(ticket.capacity != null ? { ticket_capacity: ticket.capacity } : {}) }
+          ? { ticket_price_vb: ticket.priceVb, ...(ticket.capacity != null ? { ticket_capacity: ticket.capacity } : {}), ...(ticket.isClass ? { is_class: true } : {}) }
           : {}),
       }),
     });

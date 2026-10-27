@@ -584,6 +584,52 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
   }
 }
 
+export interface StreamerCutJobStart {
+  job: CutJob;
+  creditsRemaining: number;
+  creditsCharged: number;
+}
+
+/**
+ * Start a cut job on the house rail: charge the per-clip price up
+ * front (refunded by runCutJob on failure), register the job, and
+ * run it detached. Shared by POST /streamer-clips/cut and by
+ * Auto-Highlights (#172), whose approved proposals cut the stream's
+ * own recording through this same rail — one price, one job model.
+ * Throws OutOfCreditsError / LedgerWriteError from the charge.
+ */
+export async function startStreamerCutJob(
+  userId: string,
+  videoRef: string,
+  clips: Array<{ startSec: number; endSec: number; title?: string }>,
+  attribution?: boolean,
+): Promise<StreamerCutJobStart> {
+  const cost = CUT_CREDIT_COST * clips.length;
+  const creditsRemaining = await chargeCredits(userId, cost, {
+    action: `Streamer Clips — cut ${clips.length} clip${clips.length > 1 ? "s" : ""}`,
+  });
+  const job: CutJob = {
+    id: randomUUID(),
+    userId,
+    status: "queued",
+    clips: clips.map((c) => ({
+      title: c.title || `Clip ${formatTimestamp(c.startSec)}`,
+      startSec: c.startSec,
+      endSec: c.endSec,
+      outputUrl: null,
+      outputRef: null,
+    })),
+    error: null,
+    creditsCharged: cost,
+    createdAt: Date.now(),
+    attribution,
+  };
+  cutJobs.set(job.id, job);
+  // Server-owned: runs detached from the request/tab lifecycle.
+  void runCutJob(job, videoRef);
+  return { job, creditsRemaining, creditsCharged: cost };
+}
+
 /**
  * POST /api/streamer-clips/cut
  *
@@ -620,11 +666,9 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     });
     return;
   }
-  let creditsRemaining = balance;
+  let started: StreamerCutJobStart;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, cost, {
-      action: `Streamer Clips — cut ${clips.length} clip${clips.length > 1 ? "s" : ""}`,
-    });
+    started = await startStreamerCutJob(req.userId!, videoRef, clips, attribution);
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -640,32 +684,12 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     throw err;
   }
 
-  const job: CutJob = {
-    id: randomUUID(),
-    userId: req.userId!,
-    status: "queued",
-    clips: clips.map((c) => ({
-      title: c.title || `Clip ${formatTimestamp(c.startSec)}`,
-      startSec: c.startSec,
-      endSec: c.endSec,
-      outputUrl: null,
-      outputRef: null,
-    })),
-    error: null,
-    creditsCharged: cost,
-    createdAt: Date.now(),
-    attribution,
-  };
-  cutJobs.set(job.id, job);
-  // Server-owned: runs detached from the request/tab lifecycle.
-  void runCutJob(job, videoRef);
-
   res.status(202).json({
-    jobId: job.id,
-    status: job.status,
-    clipCount: job.clips.length,
-    creditsCharged: cost,
-    creditsRemaining,
+    jobId: started.job.id,
+    status: started.job.status,
+    clipCount: started.job.clips.length,
+    creditsCharged: started.creditsCharged,
+    creditsRemaining: started.creditsRemaining,
   });
 });
 

@@ -50,6 +50,8 @@ export interface ChatPage {
   hasMore: boolean;
   /** The server's active paid pin (null when there is none). */
   pinned?: ChatPin | null;
+  /** The Stage Manager co-host's active pin (#166), if any. */
+  stagePinned?: ChatPin | null;
   /** Appointed channel moderators (user ids) for badge + controls. */
   moderatorIds?: string[];
   /** Unified feed (Round-2 #12): the server's source-tagged merged
@@ -152,6 +154,11 @@ export class LiveChatClient {
   notice: string | null = null;
   /** The active paid pin, always from server data (page or socket). */
   pinned: ChatPin | null = null;
+  /** The Stage Manager co-host's pin (#166) — its own slot: a paid
+   *  pin always outranks it, and the panel labels it as the co-host's. */
+  stagePinned: ChatPin | null = null;
+  /** Royal Sting milestone events from the co-host (#166). */
+  onSting: ((milestone: string) => void) | null = null;
   /** Live alert events (tips/follows) for the studio overlay. */
   onAlert: ((alert: LiveAlertEvent) => void) | null = null;
   /** Appointed channel moderators, from server data only. */
@@ -244,6 +251,7 @@ export class LiveChatClient {
     this.ownerId = page.ownerId;
     this.pinned = page.pinned ?? null;
     if (page.presence) this.presence = page.presence;
+    this.stagePinned = page.stagePinned ?? null;
     if (page.moderatorIds) this.moderatorIds = new Set(page.moderatorIds);
     const byId = new Map<string, ChatMessage>();
     for (const m of page.messages) byId.set(m.id, m);
@@ -376,6 +384,7 @@ export class LiveChatClient {
       this.ownerId = page.ownerId;
       this.pinned = page.pinned ?? this.pinned;
       if (page.presence) this.presence = page.presence;
+      if (page.stagePinned !== undefined) this.stagePinned = page.stagePinned;
       if (page.moderatorIds) this.moderatorIds = new Set(page.moderatorIds);
       this.mergeMessages(page.messages);
       if (statusChanged) {
@@ -405,6 +414,11 @@ export class LiveChatClient {
     } else if (ev.type === "pin_updated") {
       this.pinned = (ev.pinned as ChatPin | null) ?? null;
       this.onChange();
+    } else if (ev.type === "stage_pin_updated") {
+      this.stagePinned = (ev.stagePinned as ChatPin | null) ?? null;
+      this.onChange();
+    } else if (ev.type === "stage_sting" && typeof ev.milestone === "string") {
+      this.onSting?.(ev.milestone);
     } else if (ev.type === "alert" && ev.alert && typeof ev.alert.title === "string") {
       this.onAlert?.({
         kind: ev.alert.kind === "follow" ? "follow" : "tip",

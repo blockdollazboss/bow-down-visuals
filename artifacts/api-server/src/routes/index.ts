@@ -279,6 +279,9 @@ import secondLifeRouter from "./second-life";
 import trendRadarRouter from "./trend-radar";
 import dropDayKitsRouter from "./drop-day-kits";
 import globalDropRouter from "./global-drop";
+import livePrefsRouter from "./live-prefs";
+import liveHighlightsRouter from "./live-highlights";
+import liveStageManagerRouter from "./live-stage-manager";
 import pitchFixRouter from "./pitch-fix";
 import studioGearRouter from "./studio-gear";
 import openVerseRouter from "./open-verse";
@@ -684,6 +687,9 @@ router.use(secondLifeRouter);            // /api/second-life/* (Second Life revi
 router.use(trendRadarRouter);            // /api/trend-radar (real-signal trend feed, UPGRADE #178)
 router.use(dropDayKitsRouter);
 router.use(globalDropRouter);           // /api/drop-day-kits (one-tap release kit assembly, UPGRADE #169)
+router.use(livePrefsRouter);             // /api/live-prefs (live automation switches, UPGRADE #172/#166)
+router.use(liveHighlightsRouter);        // /api/live-streams/:id/highlights (Auto-Highlights proposals, UPGRADE #172)
+router.use(liveStageManagerRouter);       // /api/live-streams/:id/stage-manager (co-host state/mute/unpin, UPGRADE #166)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/studio-gear/* (Branding Shop studio-gear line, test mode)
 router.use(openVerseRouter);             // /api/open-verse/* (Open Verse #176 — splits rail reuse, creator-gated pick, exactly-once ledger)
