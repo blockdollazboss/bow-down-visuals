@@ -10,6 +10,7 @@ import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import TierBadge from "@/components/TierBadge";
 import { SocialProofBand } from "@/components/SocialProofBand";
+import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
 import { loginPathWithNext } from "@/lib/auth-next";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
@@ -84,6 +85,17 @@ export default function CreatorPricing() {
     })();
   }, []);
 
+  /* Embedded checkout (2026-10-26): the plan PaymentElement mounts on
+     THIS page — no redirect to a Stripe-hosted page. The legacy hosted
+     /creator-tiers/checkout endpoint stays server-side as fallback. */
+  const [embedded, setEmbedded] = useState<{
+    tier: "pro" | "elite";
+    clientSecret: string;
+    subscriptionId: string;
+    label: string;
+  } | null>(null);
+  const [embeddedDone, setEmbeddedDone] = useState<string | null>(null);
+
   async function checkout(tier: "pro" | "elite" | "free") {
     if (tier === "free") return; // free tier has no checkout
     const paidTier: "pro" | "elite" = tier;
@@ -93,26 +105,56 @@ export default function CreatorPricing() {
     }
     setBuying(paidTier);
     setError(null);
+    setEmbeddedDone(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/creator-tiers/checkout", {
+      const res = await fetch("/api/embedded-checkout/subscription/intent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ tier: paidTier, returnTo }),
+        body: JSON.stringify({ tier: paidTier }),
       });
       const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url;
+      if (res.ok && data.clientSecret && data.subscriptionId) {
+        setEmbedded({
+          tier: paidTier,
+          clientSecret: data.clientSecret,
+          subscriptionId: data.subscriptionId,
+          label: data.label ?? paidTier,
+        });
         return;
       }
-      setError(data.error ?? "Checkout didn't start. Try again in a minute.");
+      setError(data.message ?? data.error ?? "Checkout didn't start. Try again in a minute.");
     } catch {
       setError("Network hiccup — try again.");
     } finally {
       setBuying(null);
+    }
+  }
+
+  async function handleSubscriptionConfirmed() {
+    if (!embedded) return;
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/embedded-checkout/subscription/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ subscriptionId: embedded.subscriptionId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "Your payment went through — we're still applying your plan. Refresh in a moment.");
+        return;
+      }
+      setEmbeddedDone(embedded.tier);
+      setEmbedded(null);
+    } catch {
+      setError("Your payment went through — we're still applying your plan. Refresh in a moment.");
     }
   }
 
@@ -319,6 +361,35 @@ export default function CreatorPricing() {
         </div>
         {error && (
           <div className="mt-4 rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-sm text-red-200">{error}</div>
+        )}
+        {embeddedDone && (
+          <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5">
+            <div className="flex items-center gap-2 font-black text-emerald-200">
+              <BadgeCheck className="h-5 w-5" /> You're {embeddedDone === "elite" ? "Elite" : "Pro"} now. Let's get this money. 🎉
+            </div>
+            <p className="mt-1 text-sm text-white/60">
+              Your plan is active — paid right here, no detour. The platform fee stays a flat 5% on every tier.
+            </p>
+          </div>
+        )}
+        {embedded && (
+          <div className="mx-auto mt-6 max-w-md">
+            <p className="mb-2 text-center text-sm font-bold">
+              Finish your {embedded.tier === "elite" ? "Elite" : "Pro"} upgrade — right here:
+            </p>
+            <EmbeddedPaymentForm
+              clientSecret={embedded.clientSecret}
+              submitLabel={embedded.label}
+              onConfirmed={handleSubscriptionConfirmed}
+              onError={(msg) => setError(msg)}
+            />
+            <button
+              onClick={() => setEmbedded(null)}
+              className="mt-2 w-full text-center text-xs text-white/40 hover:text-white/70"
+            >
+              Cancel — no charge
+            </button>
+          </div>
         )}
 
         {/* earned rank — stars come from work, never from a tier */}

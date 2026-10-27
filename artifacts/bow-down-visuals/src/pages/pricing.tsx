@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExpressPayButton } from "@/components/ExpressPayButton";
+import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { PricingSwitcher } from "@/components/PricingSwitcher";
@@ -40,6 +41,10 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  /* Embedded checkout (2026-10-26): the PaymentElement mounts right
+     here in the card — the buyer never leaves this page. The legacy
+     hosted session endpoint stays server-side as fallback only. */
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   async function handleBuy() {
     if (!user) {
@@ -50,7 +55,7 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
     setErrorMsg(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/create-checkout-session", {
+      const res = await fetch("/api/embedded-checkout/credit-pack/intent", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -58,16 +63,42 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
         },
         body: JSON.stringify({ pack: pack.packKey }),
       });
-      const data = await res.json() as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
+      const data = await res.json() as { clientSecret?: string; error?: string };
+      if (!res.ok || !data.clientSecret) {
         setErrorMsg(data.error ?? t("pricing.creditPacks.checkoutFailed"));
         return;
       }
-      window.location.href = data.url;
+      setClientSecret(data.clientSecret);
     } catch {
       setErrorMsg(t("pricing.creditPacks.networkError"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleConfirmed(paymentIntentId: string) {
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/embedded-checkout/credit-pack/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ paymentIntentId }),
+      });
+      const data = await res.json() as { success?: boolean; added?: number; error?: string };
+      if (!res.ok || !data.success) {
+        setErrorMsg(
+          data.error ??
+            "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.",
+        );
+        return;
+      }
+      setClientSecret(null);
+      setSuccessMsg(`+${(data.added ?? 0).toLocaleString()} Visual Bucs added!`);
+    } catch {
+      setErrorMsg("Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.");
     }
   }
 
@@ -86,19 +117,28 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
       {successMsg && (
         <p className="text-[11px] text-green-400 leading-snug text-center px-1">{successMsg}</p>
       )}
-      <Button
-        size="sm"
-        onClick={handleBuy}
-        disabled={loading}
-        className="w-full font-bold gap-2"
-        variant="luxury"
-      >
-        {loading ? (
-          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("pricing.creditPacks.processing")}</>
-        ) : (
-          <><CreditCard className="h-3.5 w-3.5" /> {t("pricing.creditPacks.buyButton")}</>
-        )}
-      </Button>
+      {clientSecret ? (
+        <EmbeddedPaymentForm
+          clientSecret={clientSecret}
+          submitLabel={`${t("pricing.creditPacks.buyButton")} — ${pack.price}`}
+          onConfirmed={handleConfirmed}
+          onError={(msg) => setErrorMsg(msg)}
+        />
+      ) : (
+        <Button
+          size="sm"
+          onClick={handleBuy}
+          disabled={loading}
+          className="w-full font-bold gap-2"
+          variant="luxury"
+        >
+          {loading ? (
+            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("pricing.creditPacks.processing")}</>
+          ) : (
+            <><CreditCard className="h-3.5 w-3.5" /> {t("pricing.creditPacks.buyButton")}</>
+          )}
+        </Button>
+      )}
       {user && (
         <div className="w-full">
           <div className="flex items-center gap-3 my-1">
