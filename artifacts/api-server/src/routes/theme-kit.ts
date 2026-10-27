@@ -19,6 +19,9 @@ import {
   buildThemepack,
   buildKitZip,
   KIT_BUNDLE_KINDS,
+  DESIGNED_ICON_NAMES,
+  WALLPAPER_DEVICES,
+  appIconSitePath,
   type KitBundleKind,
   type KitMode,
 } from "../lib/theme-kit-build";
@@ -32,9 +35,12 @@ import { THEME_PACK_KNOWN_IDS, THEME_PACK_PREMIUM_IDS, THEME_PACK_PRICE_VB } fro
    - GET  /theme-packs/kit/manifests — every pack × 12 components.
    - POST /theme-packs/kit/:packId/download {kind, mode, assets?} —
      entitlement-gated bundle: a real .themepack (CAB) for Windows,
-     zips for mac/android/ios/chrome/sounds/full. Icon/widget/share
-     SVGs are rendered by the ONE glyph source (FE lib/theme-kit.ts)
-     and passed in by the desk, so no second glyph source exists.
+     zips for mac/android/ios/chrome/sounds/full. ALL art (the
+     designed icon set, app-icon composites, per-device wallpapers)
+     is resolved server-side from the approved library — downloads
+     ship the approved art no matter what the caller passes; the
+     desk still passes the widget / Chrome-manifest / share-card
+     text builders it owns.
    - GET/PUT /theme-packs/customizations/:packId — the customization
      capstone storage: every component, per device.
    - Creator packs: POST /theme-packs/creator-packs (design from a
@@ -165,6 +171,20 @@ router.get("/theme-packs/kit/manifests", async (_req, res) => {
       tier: p.tier,
       components: KIT_COMPONENT_IDS.map((id) => ({ id, modes: ["light", "dark"] })),
       bundleKinds: KIT_BUNDLE_KINDS,
+      icons: {
+        source: "designed-art-manifest",
+        count: DESIGNED_ICON_NAMES.length,
+        modes: ["light", "dark"],
+        names: [...DESIGNED_ICON_NAMES],
+        note: "The owner-approved designed emblem set for this pack — downloads ship these files, never code-drawn substitutes.",
+      },
+      appIcon: { light: appIconSitePath(p.id, "light"), dark: appIconSitePath(p.id, "dark") },
+      wallpapers: {
+        art: "pack ground — clean, no logo baked on",
+        devices: WALLPAPER_DEVICES.map((d) => ({ id: d.id, width: d.width, height: d.height })),
+        modes: ["light", "dark"],
+        slots: ["home", "lock"],
+      },
       sounds: {
         source: "site-sound-library",
         roles: [...SOUND_ROLE_SET],
@@ -179,7 +199,7 @@ router.post("/theme-packs/kit/:packId/download", requireAuth, async (req, res) =
   const packId = String(req.params.packId);
   const body = (req.body ?? {}) as {
     kind?: string; mode?: string;
-    assets?: { iconSvgs?: Record<string, string>; folderSvg?: string; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string };
+    assets?: { widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string };
   };
   const kind = (body.kind ?? "full") as KitBundleKind;
   const mode: KitMode = body.mode === "light" ? "light" : "dark";
@@ -216,7 +236,7 @@ async function streamBundle(
   pack: (typeof SERVER_PACKS)[number],
   kind: KitBundleKind,
   mode: KitMode,
-  assets: { iconSvgs?: Record<string, string>; folderSvg?: string; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string } | undefined,
+  assets: { widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string } | undefined,
 ): Promise<void> {
   const r = res as unknown as import("express").Response;
   if (kind === "windows") {
@@ -229,8 +249,6 @@ async function streamBundle(
   }
   const archive = buildKitZip(pack, kind, {
     mode,
-    iconSvgs: assets?.iconSvgs,
-    folderSvg: assets?.folderSvg,
     widgetSvg: assets?.widgetSvg,
     chromeManifest: assets?.chromeManifest,
     shareCardSvg: assets?.shareCardSvg,

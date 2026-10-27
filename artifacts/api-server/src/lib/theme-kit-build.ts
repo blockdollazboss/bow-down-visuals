@@ -12,10 +12,20 @@
    deploy, bundles carry the role manifest (SOUND-MANIFEST.json)
    pointing at the library paths instead of silent substitutes.
 
-   ART: wallpaper bytes resolve from the approved library only — the
-   frontend public/wallpapers/ tree (pack grounds + King's Set stills
-   and living loops). Asset roots can be overridden with
-   THEME_KIT_ASSET_DIR (used by tests with fixtures). */
+   ART: every image byte resolves from the owner-approved library only
+   (QC-200 G3 fix): the DESIGNED icon set from
+   ~/workspace/theme-pack-art/MANIFEST.md (500 designed emblems —
+   5 packs × 50 icons × light+dark — shipped scale-only at 512×512
+   under public/theme-packs/icons/, provenance + hashes in
+   public/theme-packs/kit-assets-manifest.json), the pack app icons
+   (the REAL full logo lockup composited whole onto the pack tile,
+   public/theme-packs/app-icons/), and wallpaper bytes from the
+   frontend public/wallpapers/ tree (pack grounds + per-device
+   crop-to-fill renders + King's Set stills and living loops).
+   Kit wallpapers are CLEAN — no logo is ever baked or composited
+   onto them; the whole logo ships as its own file. Asset roots can
+   be overridden with THEME_KIT_ASSET_DIR (used by tests with
+   fixtures). */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -80,6 +90,60 @@ export const SERVER_PACKS: ServerPack[] = [
 
 export function serverPackById(id: string): ServerPack | undefined {
   return SERVER_PACKS.find((p) => p.id === id);
+}
+
+/* ─── Designed icon set (the approved art — never code-drawn) ───────── */
+
+/** The approved top-50 icon names, in manifest order: the original
+    top 20, then the top-50 expansion (MANIFEST.md, Oct 25 2026).
+    Mirror of the FE DESIGNED_ICON_NAMES — the parity test pins both
+    lists to the same 50 names. */
+export const DESIGNED_ICON_NAMES = [
+  "phone", "messages", "camera", "photos", "music", "video", "browser", "mail",
+  "shop", "maps", "settings", "clock", "calendar", "weather", "notes",
+  "calculator", "wallet", "health", "social", "files",
+  "contacts", "voice-recorder", "compass", "flashlight", "reminders",
+  "timer", "podcasts", "books", "news", "workout", "games", "tv", "radio",
+  "translator", "scanner", "passwords", "cloud", "bank", "food", "rides",
+  "flights", "tickets", "events", "smart-home", "security", "search",
+  "stocks", "learn", "vpn", "video-call",
+] as const;
+export type DesignedIconName = (typeof DESIGNED_ICON_NAMES)[number];
+
+/** Site path of one designed icon (the approved emblem master,
+    scale-only at 512×512 — see kit-assets-manifest.json). */
+export function designedIconSitePath(packId: string, icon: string, mode: KitMode): string {
+  return `/theme-packs/icons/${packId}/${icon}-${mode}.webp`;
+}
+
+/** Site path of the pack's app icon: the REAL full illustrated logo
+    lockup composited whole onto the pack tile (never cropped, never
+    redrawn — the approved app-icons-logo composites). */
+export function appIconSitePath(packId: string, mode: KitMode): string {
+  return `/theme-packs/app-icons/${packId}-${mode}.webp`;
+}
+
+/** The whole-logo master for a mode — ships as its own file; kit
+    wallpapers stay clean. */
+export function logoSitePath(mode: KitMode): string {
+  return mode === "dark" ? "/logo-static.webp" : "/logo-light.webp";
+}
+
+/* ─── Per-device wallpapers (canonical sizes from the preset list) ──── */
+
+export const WALLPAPER_DEVICES = [
+  { id: "phone", label: "Phone", width: 1179, height: 2556 },
+  { id: "tablet", label: "Tablet", width: 1640, height: 2360 },
+  { id: "desktop", label: "Desktop", width: 1920, height: 1080 },
+] as const;
+export type WallpaperDeviceId = (typeof WALLPAPER_DEVICES)[number]["id"];
+
+/** Site path of the per-device crop-to-fill render of a pack ground
+    (clean — no logo composited). Home and lock share the pack's one
+    approved ground art per mode; no distinct lock scene has been
+    approved per pack, and the kit says so rather than inventing one. */
+export function deviceWallpaperSitePath(packId: string, mode: KitMode, device: WallpaperDeviceId): string {
+  return `/wallpapers/theme-packs/devices/${packId}-${mode}-${device}.webp`;
 }
 
 /* ─── Sound library (single source of truth, by role) ───────────────── */
@@ -296,16 +360,20 @@ export function buildWindowsThemeText(pack: ServerPack, mode: KitMode): string {
 }
 
 /** A real .themepack (CAB) for one pack × mode: theme text, wallpaper
-    (approved library bytes, branded lockup already on pack grounds),
-    pack cursors, and the LIBRARY sound files under manifest names. */
+    (the pack's CLEAN approved ground — no logo baked onto it), the
+    whole logo as its own file, the pack app icon (the real logo
+    lockup composited whole onto the pack tile), pack cursors, and
+    the LIBRARY sound files under manifest names. */
 export function buildThemepack(pack: ServerPack, mode: KitMode): Buffer {
   const files: CabFile[] = [
     { name: `${pack.id}-${mode}.theme`, data: Buffer.from(buildWindowsThemeText(pack, mode), "utf8") },
   ];
   const wallpaper = readSiteAsset(pack.deviceArt[mode]);
   if (wallpaper) files.push({ name: "wallpaper.webp", data: wallpaper });
-  const logo = readSiteAsset(mode === "dark" ? "/logo-static.webp" : "/logo-light.webp");
+  const logo = readSiteAsset(logoSitePath(mode));
   if (logo) files.push({ name: "logo.webp", data: logo });
+  const appIcon = readSiteAsset(appIconSitePath(pack.id, mode));
+  if (appIcon) files.push({ name: "app-icon.webp", data: appIcon });
   const accent = hslToHex(pack.colors[mode].primary);
   files.push({ name: "cursors\\arrow.cur", data: buildCursorFile(accent, "arrow") });
   files.push({ name: "cursors\\hand.cur", data: buildCursorFile(accent, "hand") });
@@ -353,30 +421,106 @@ function addSounds(archive: InstanceType<typeof ZipArchive>, prefix: string): vo
   }
 }
 
+/** Per-device wallpapers for BOTH modes: the full approved ground,
+    a crop-to-fill render sized for phone / tablet / desktop as the
+    home wallpaper, and the same sized renders as the lock wallpaper.
+    HONEST SLOT NOTE: home and lock share the pack's one approved
+    ground art per mode — no distinct lock scene has been approved
+    per pack, so the kit ships the ground sized per device for both
+    slots instead of inventing lock art. All wallpapers are CLEAN:
+    no logo is baked or composited onto them; the whole logo ships
+    as its own file (logo-<mode>.webp). */
 function addWallpapers(archive: InstanceType<typeof ZipArchive>, pack: ServerPack, prefix: string): void {
   for (const mode of ["light", "dark"] as KitMode[]) {
-    const bytes = readSiteAsset(pack.deviceArt[mode]);
-    if (bytes) archive.append(bytes, { name: `${prefix}wallpaper-${mode}.webp` });
-    const logo = readSiteAsset(mode === "dark" ? "/logo-static.webp" : "/logo-light.webp");
+    const ground = readSiteAsset(pack.deviceArt[mode]);
+    if (ground) archive.append(ground, { name: `${prefix}wallpaper-${mode}-original.webp` });
+    for (const device of WALLPAPER_DEVICES) {
+      const sized = readSiteAsset(deviceWallpaperSitePath(pack.id, mode, device.id));
+      if (sized) {
+        archive.append(sized, { name: `${prefix}wallpaper-${mode}-${device.id}.webp` });
+        archive.append(sized, { name: `${prefix}lock-${mode}-${device.id}.webp` });
+      }
+    }
+    const logo = readSiteAsset(logoSitePath(mode));
     if (logo) archive.append(logo, { name: `${prefix}logo-${mode}.webp` });
   }
-  // Approved living loops + screensaver (King's Set library pieces).
+  // Approved King's Set library pieces: stills + living loops +
+  // screensaver (shared approved library, shipped as extras).
+  for (const still of ["kings-set-throne-phone.webp", "kings-set-plaza-phone.webp", "kings-set-stage-desktop.webp"]) {
+    const bytes = readSiteAsset(`/wallpapers/${still}`);
+    if (bytes) archive.append(bytes, { name: `${prefix}living/${still}` });
+  }
   for (const loop of ["kings-set-throne-loop.mp4", "kings-set-plaza-loop.mp4", "kings-set-stage-loop.mp4"]) {
     const bytes = readSiteAsset(`/wallpapers/${loop}`);
     if (bytes) archive.append(bytes, { name: `${prefix}living/${loop}` });
   }
 }
 
-/** Build a zip bundle for one pack. `iconSvgs` are supplied by the
-    caller (the FE-generated per-pack glyph set is mirrored by the
-    route from its own server-side SVG strings — see routes/theme-kit
-    ICON_SVG_SOURCE note) — to keep ONE glyph source, the route passes
-    rendered SVGs in; when absent, the bundle carries the icon
-    manifest so the desk's client-side export can fill them. */
+/** The DESIGNED icon set: the approved emblem art for this pack —
+    all 50 icons × light AND dark, the actual files from the art
+    manifest (never code-drawn substitutes). Returns the site paths
+    that were missing from the asset library so the bundle can say
+    so honestly instead of silently shipping a partial set. */
+function addDesignedIcons(
+  archive: InstanceType<typeof ZipArchive>,
+  pack: ServerPack,
+  prefix: string,
+): string[] {
+  const missing: string[] = [];
+  for (const mode of ["light", "dark"] as KitMode[]) {
+    for (const icon of DESIGNED_ICON_NAMES) {
+      const sitePath = designedIconSitePath(pack.id, icon, mode);
+      const bytes = readSiteAsset(sitePath);
+      if (bytes) archive.append(bytes, { name: `${prefix}icons/${icon}-${mode}.webp` });
+      else missing.push(sitePath);
+    }
+  }
+  if (missing.length > 0) {
+    archive.append(
+      [
+        "Some designed icon files were not present in this deploy's asset library:",
+        ...missing.map((m) => `- ${m}`),
+        "No substitute art was generated — the designed set is the owner-approved",
+        "art from the theme-pack art manifest. Re-download this kit once the",
+        "asset library is complete.",
+      ].join("\n"),
+      { name: `${prefix}icons/ICONS-MISSING.txt` },
+    );
+  }
+  return missing;
+}
+
+/** The pack app icons: the REAL full logo lockup composited whole
+    onto the pack tile — one per mode, byte-identical to the
+    approved composites. */
+function addAppIcons(archive: InstanceType<typeof ZipArchive>, pack: ServerPack, prefix: string): void {
+  for (const mode of ["light", "dark"] as KitMode[]) {
+    const bytes = readSiteAsset(appIconSitePath(pack.id, mode));
+    if (bytes) archive.append(bytes, { name: `${prefix}app-icon-${mode}.webp` });
+  }
+}
+
+/** Folder icons ARE the pack's designed "files" emblem (the DESIGN
+    finals from the art manifest) — shipped per mode, no code-drawn
+    folder glyph. */
+function addFolderIcons(archive: InstanceType<typeof ZipArchive>, pack: ServerPack, prefix: string): void {
+  for (const mode of ["light", "dark"] as KitMode[]) {
+    const bytes = readSiteAsset(designedIconSitePath(pack.id, "files", mode));
+    if (bytes) archive.append(bytes, { name: `${prefix}folder-icon-${mode}.webp` });
+  }
+}
+
+/** Build a zip bundle for one pack. ALL art ships from the approved
+    library on disk — the designed icon set, the app-icon composites
+    and the per-device wallpapers are resolved server-side from the
+    pack's own assets, never supplied by the caller, so a download
+    always carries the approved art whatever client asked for it.
+    The remaining caller-supplied pieces are text builders owned by
+    the FE kit module (widget art, Chrome manifest, share card). */
 export function buildKitZip(
   pack: ServerPack,
   kind: Exclude<KitBundleKind, "windows">,
-  opts: { mode: KitMode; iconSvgs?: Record<string, string>; folderSvg?: string; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string },
+  opts: { mode: KitMode; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string },
 ): InstanceType<typeof ZipArchive> {
   const archive = new ZipArchive({ zlib: { level: 9 } });
   const base = `${pack.id}-${opts.mode}/`;
@@ -387,39 +531,58 @@ export function buildKitZip(
     `Bundle: ${kind}`,
     ``,
     `One package, one price, owned forever. Every component ships in light AND dark.`,
+    `Icons: the designed emblem set approved for this pack — all 50 icons in light`,
+    `and dark (icons/ folder), plus the pack app icon: the real Bow Down Visuals`,
+    `logo lockup, whole, on the pack tile (app-icon-light/dark.webp).`,
+    `Wallpapers: this pack's clean ground art (no logo baked on), sized per device`,
+    `— wallpaper-<mode>-phone/tablet/desktop.webp for home, lock-<mode>-*.webp for`,
+    `the lock screen. Home and lock share the pack's approved ground art: no`,
+    `separate lock scene has been approved for this pack, so none was invented.`,
+    `The whole logo ships on its own as logo-<mode>.webp.`,
     `Sounds: this pack's ringtone / notification / sound scheme ARE the site sound`,
     `library's signature set by role (single source of truth) — never per-pack copies.`,
     pack.tier === "premium" ? `Premium pack — licensed to the purchasing account.` : `Included pack — free for everyone.`,
   ].join("\n");
   archive.append(readme, { name: `${base}README.txt` });
-  archive.append(JSON.stringify({ packId: pack.id, kind, mode: opts.mode, accent }, null, 2), { name: `${base}kit.json` });
+  archive.append(JSON.stringify({
+    packId: pack.id, kind, mode: opts.mode, accent,
+    icons: {
+      source: "designed art manifest (owner-approved, Oct 25 2026)",
+      count: DESIGNED_ICON_NAMES.length,
+      modes: ["light", "dark"],
+      names: [...DESIGNED_ICON_NAMES],
+    },
+    appIcon: { light: appIconSitePath(pack.id, "light"), dark: appIconSitePath(pack.id, "dark") },
+    wallpapers: {
+      art: "pack ground — clean, no logo baked on",
+      devices: WALLPAPER_DEVICES.map((d) => ({ id: d.id, width: d.width, height: d.height })),
+      modes: ["light", "dark"],
+      lockArt: "same approved ground art as home, sized per device (no distinct lock scene approved)",
+    },
+  }, null, 2), { name: `${base}kit.json` });
 
   if (kind === "mac" || kind === "full") {
     addWallpapers(archive, pack, `${base}mac/`);
-    if (opts.folderSvg) archive.append(opts.folderSvg, { name: `${base}mac/folder-icon.svg` });
+    addFolderIcons(archive, pack, `${base}mac/`);
+    addAppIcons(archive, pack, `${base}mac/`);
     archive.append("Set the wallpapers from System Settings > Wallpaper. Folder icons: Get Info on a folder, drag the icon file onto the icon well.", { name: `${base}mac/INSTALL.txt` });
   }
   if (kind === "android" || kind === "full") {
     addWallpapers(archive, pack, `${base}android/`);
-    if (opts.iconSvgs) {
-      for (const [name, svg] of Object.entries(opts.iconSvgs)) {
-        archive.append(svg, { name: `${base}android/icons/${name}.svg` });
-      }
-    }
-    archive.append("Android: apply the icons with your launcher's icon-pack import (SVG set), set wallpaper-home.webp / wallpaper-lock from the kit, and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role).", { name: `${base}android/INSTALL.txt` });
+    addDesignedIcons(archive, pack, `${base}android/`);
+    addAppIcons(archive, pack, `${base}android/`);
+    archive.append("Android: apply the icons with your launcher's icon-pack import (the designed icons/ set, light and dark), set the wallpapers from the kit (wallpaper-<mode>-phone.webp for home, lock-<mode>-phone.webp for the lock screen), and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role).", { name: `${base}android/INSTALL.txt` });
     addSounds(archive, `${base}android/sounds/`);
   }
   if (kind === "ios" || kind === "full") {
     addWallpapers(archive, pack, `${base}ios/`);
-    if (opts.iconSvgs) {
-      for (const [name, svg] of Object.entries(opts.iconSvgs)) {
-        archive.append(svg, { name: `${base}ios/icons/${name}.svg` });
-      }
-    }
+    addDesignedIcons(archive, pack, `${base}ios/`);
+    addAppIcons(archive, pack, `${base}ios/`);
     archive.append([
       "iPhone / iPad — honest labeling: Apple does not allow a true system theme.",
       "This kit uses Apple's own Shortcuts route: Shortcuts > + > Open App > choose the",
-      "app > Share > Add to Home Screen > set the kit icon. Repeat per app. Your",
+      "app > Share > Add to Home Screen > set the kit icon from the icons/ folder",
+      "(the pack's designed set — pick the light or dark face). Repeat per app. Your",
       "original apps stay in the App Library. Wallpapers set from Photos > Share >",
       "Use as Wallpaper. Ringtones install via GarageBand / Finder sync from the",
       "sounds folder (the site sound library set, by role).",
@@ -428,7 +591,7 @@ export function buildKitZip(
   }
   if (kind === "chrome" || kind === "full") {
     if (opts.chromeManifest) archive.append(opts.chromeManifest, { name: `${base}chrome/manifest.json` });
-    const wp = readSiteAsset(pack.deviceArt[opts.mode]);
+    const wp = readSiteAsset(deviceWallpaperSitePath(pack.id, opts.mode, "desktop")) ?? readSiteAsset(pack.deviceArt[opts.mode]);
     if (wp) archive.append(wp, { name: `${base}chrome/theme-ntp-background.webp` });
     archive.append("Chrome: chrome://extensions > Developer mode > Load unpacked > select this chrome folder.", { name: `${base}chrome/INSTALL.txt` });
   }

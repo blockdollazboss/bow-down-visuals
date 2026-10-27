@@ -96,7 +96,10 @@ vi.mock("../../lib/credits", async (importOriginal) => {
 });
 
 import themeKitRouter, { sanitizeMix } from "../theme-kit";
-import { buildCab, buildCursorFile } from "../../lib/theme-kit-build";
+import {
+  buildCab, buildCursorFile, readSiteAsset, designedIconSitePath, appIconSitePath,
+  deviceWallpaperSitePath, DESIGNED_ICON_NAMES, WALLPAPER_DEVICES,
+} from "../../lib/theme-kit-build";
 import { createTestDb } from "../../lib/__tests__/test-db";
 import { sql } from "drizzle-orm";
 
@@ -168,19 +171,35 @@ CREATE TABLE creator_subscriptions (
 
 const LIBRARY_WAV = Buffer.from("RIFF----WAVEfmt library-master-bytes");
 
+const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
+
 beforeAll(async () => {
   // Fixture approved-library tree (the asset resolver's test root):
-  // pack grounds, logos, living loops, and the SOUND LIBRARY files.
+  // pack grounds, per-device wallpapers, the DESIGNED icon set,
+  // app-icon composites, logos, living stills/loops, and the SOUND
+  // LIBRARY files.
   const root = mkdtempSync(join(tmpdir(), "theme-kit-assets-"));
-  mkdirSync(join(root, "wallpapers/theme-packs"), { recursive: true });
+  mkdirSync(join(root, "wallpapers/theme-packs/devices"), { recursive: true });
   mkdirSync(join(root, "sounds"), { recursive: true });
-  for (const id of ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"]) {
+  mkdirSync(join(root, "theme-packs/app-icons"), { recursive: true });
+  for (const id of PACK_IDS) {
+    mkdirSync(join(root, `theme-packs/icons/${id}`), { recursive: true });
     for (const mode of ["dark", "light"]) {
       writeFileSync(join(root, `wallpapers/theme-packs/${id}-${mode}.webp`), Buffer.from(`art-${id}-${mode}`));
+      writeFileSync(join(root, `theme-packs/app-icons/${id}-${mode}.webp`), Buffer.from(`appicon-${id}-${mode}`));
+      for (const device of ["phone", "tablet", "desktop"]) {
+        writeFileSync(join(root, `wallpapers/theme-packs/devices/${id}-${mode}-${device}.webp`), Buffer.from(`device-${id}-${mode}-${device}`));
+      }
+      for (const icon of DESIGNED_ICON_NAMES) {
+        writeFileSync(join(root, `theme-packs/icons/${id}/${icon}-${mode}.webp`), Buffer.from(`icon-${id}-${icon}-${mode}`));
+      }
     }
   }
   for (const loop of ["kings-set-throne-loop.mp4", "kings-set-plaza-loop.mp4", "kings-set-stage-loop.mp4"]) {
     writeFileSync(join(root, `wallpapers/${loop}`), Buffer.from(`loop-${loop}`));
+  }
+  for (const still of ["kings-set-throne-phone.webp", "kings-set-plaza-phone.webp", "kings-set-stage-desktop.webp"]) {
+    writeFileSync(join(root, `wallpapers/${still}`), Buffer.from(`still-${still}`));
   }
   writeFileSync(join(root, "logo-static.webp"), Buffer.from("logo-dark"));
   writeFileSync(join(root, "logo-light.webp"), Buffer.from("logo-light"));
@@ -233,6 +252,42 @@ describe("manifests", () => {
       expect(p.sounds.roles).toHaveLength(6);
     }
   });
+
+  it("declares the designed icon set, app icons and per-device wallpapers per pack", async () => {
+    const r = await call("GET", "/theme-packs/kit/manifests");
+    for (const p of r.json.packs) {
+      expect(p.icons.source).toBe("designed-art-manifest");
+      expect(p.icons.count).toBe(50);
+      expect(p.icons.names).toEqual([...DESIGNED_ICON_NAMES]);
+      expect(p.icons.modes).toEqual(["light", "dark"]);
+      expect(p.appIcon.light).toBe(`/theme-packs/app-icons/${p.packId}-light.webp`);
+      expect(p.appIcon.dark).toBe(`/theme-packs/app-icons/${p.packId}-dark.webp`);
+      expect(p.wallpapers.devices.map((d: { id: string }) => d.id)).toEqual(["phone", "tablet", "desktop"]);
+      expect(p.wallpapers.modes).toEqual(["light", "dark"]);
+      expect(p.wallpapers.slots).toEqual(["home", "lock"]);
+    }
+  });
+});
+
+describe("designed art resolution (kit vs manifest)", () => {
+  it("every pack × icon × mode resolves to the designed file bytes", () => {
+    expect(DESIGNED_ICON_NAMES).toHaveLength(50);
+    expect(new Set(DESIGNED_ICON_NAMES).size).toBe(50);
+    for (const id of PACK_IDS) {
+      for (const mode of ["light", "dark"] as const) {
+        for (const icon of DESIGNED_ICON_NAMES) {
+          const bytes = readSiteAsset(designedIconSitePath(id, icon, mode));
+          expect(bytes?.toString(), `${id}/${icon}/${mode}`).toBe(`icon-${id}-${icon}-${mode}`);
+        }
+        const app = readSiteAsset(appIconSitePath(id, mode));
+        expect(app?.toString()).toBe(`appicon-${id}-${mode}`);
+        for (const device of WALLPAPER_DEVICES) {
+          const wp = readSiteAsset(deviceWallpaperSitePath(id, mode, device.id));
+          expect(wp?.toString()).toBe(`device-${id}-${mode}-${device.id}`);
+        }
+      }
+    }
+  });
 });
 
 describe("bundle builders", () => {
@@ -260,19 +315,51 @@ describe("downloads + entitlement", () => {
     // Sound sync: the bytes inside ARE the library file bytes — no fork.
     expect(r.buf.includes(LIBRARY_WAV)).toBe(true);
     expect(r.buf.includes(Buffer.from("SOUND-MANIFEST.json"))).toBe(true);
+    // App icon: the pack's logo-lockup composite ships (name + bytes).
+    expect(r.buf.includes(Buffer.from("app-icon.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("appicon-golden-marble-dark"))).toBe(true);
+    // Wallpaper is the clean ground bytes; the whole logo is separate.
+    expect(r.buf.includes(Buffer.from("art-golden-marble-dark"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("logo-dark"))).toBe(true);
   });
 
-  it("included pack: full zip starts with PK and carries the themepack", async () => {
+  it("included pack: full zip starts with PK and carries the designed kit", async () => {
     const r = await callBytes("POST", "/theme-packs/kit/shark-tank/download", {
       kind: "full", mode: "light",
-      assets: { iconSvgs: { "phone-dark": "<svg>phone</svg>" } },
     });
     expect(r.status).toBe(200);
     expect(r.buf.subarray(0, 2).toString("ascii")).toBe("PK");
     // Entry names sit plaintext in zip local headers (payloads are deflated).
     expect(r.buf.includes(Buffer.from("windows/shark-tank-light.themepack"))).toBe(true);
-    expect(r.buf.includes(Buffer.from("android/icons/phone-dark.svg"))).toBe(true);
     expect(r.buf.includes(Buffer.from("ios/GUIDED-SETUP.txt"))).toBe(true);
+    // Designed icons — BOTH modes, the approved .webp files, no SVG set.
+    expect(r.buf.includes(Buffer.from("android/icons/phone-light.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("android/icons/phone-dark.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("ios/icons/video-call-dark.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("icons/phone-dark.svg"))).toBe(false);
+    // App icons, per-device wallpapers for home AND lock, both modes.
+    expect(r.buf.includes(Buffer.from("android/app-icon-light.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("android/app-icon-dark.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("android/wallpaper-light-phone.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("android/wallpaper-dark-desktop.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("android/lock-light-tablet.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("android/wallpaper-dark-original.webp"))).toBe(true);
+    // Mac bundle: folder icons are the designed files emblem per mode.
+    expect(r.buf.includes(Buffer.from("mac/folder-icon-light.webp"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("mac/folder-icon-dark.webp"))).toBe(true);
+    // King's Set library stills ride along as extras.
+    expect(r.buf.includes(Buffer.from("android/living/kings-set-throne-phone.webp"))).toBe(true);
+  });
+
+  it("caller-supplied icon art is ignored — the kit ships the library's designed files", async () => {
+    const r = await callBytes("POST", "/theme-packs/kit/golden-marble/download", {
+      kind: "android", mode: "dark",
+      assets: { iconSvgs: { "phone-dark": "<svg>forged</svg>" } },
+    });
+    expect(r.status).toBe(200);
+    expect(r.buf.includes(Buffer.from("icons/phone-dark.svg"))).toBe(false);
+    expect(r.buf.includes(Buffer.from("forged"))).toBe(false);
+    expect(r.buf.includes(Buffer.from("icons/phone-dark.webp"))).toBe(true);
   });
 
   it("premium pack is locked until owned, then downloads", async () => {
