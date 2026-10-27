@@ -119,6 +119,12 @@ export const playEventsTable = pgTable("play_events", {
   kind:     text("kind").notNull(),
   mediaId:  uuid("media_id").notNull(),
   userId:   uuid("user_id"),
+  /* Audience Room (N16): where the play came from, when the playing
+     surface says so ('profile' | 'feed' | 'charts' | 'search' |
+     'playlist' | 'world' | 'fan_link' | 'direct' | 'other'). NULL =
+     recorded before source tracking existed — the panel labels those
+     honestly as untracked, never guesses. */
+  source:   text("source"),
   playedAt: timestamp("played_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [check("play_events_kind_check", sql`${t.kind} IN ('track','video')`)]);
 
