@@ -20,3 +20,19 @@ Branch stack200/upg-fans @ base ecc63098. Commit-ladder: bank every rung.
 
 ## Covered-check findings
 (pending)
+
+## Covered-check findings (Oct 27)
+- #175: /collabs has profiles + AI match report (paid) + creator-sent requests.
+  NO house-initiated suggestions, no opt-in brokering. Delta is REAL, build it.
+- N16: play_events(kind, media_id, user_id, played_at) exists; NO source column,
+  NO fan city recorded anywhere in the platform (no user/fan location field).
+  -> Best hours: real (played_at histogram). Play sources: add nullable
+     play_events.source + accept it on both play endpoints; panel shows
+     recorded sources, legacy plays labelled untracked. Fan city: UNSUPPORTED
+     at base -> panel omitted per audit rule (API reports unavailable+reason,
+     never estimated).
+- N17: share_events counts share ACTIONS only; referrals attribute platform
+  recruits only. No per-fan content links, no click/arrival/signup attribution
+  per fan. Delta is REAL, build it: fan_links + fan_link_events, public
+  redirect records clicks, play-with-code records arrivals, attribute-signup
+  endpoint for signups.
