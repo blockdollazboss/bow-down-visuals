@@ -11,6 +11,7 @@ import {
 } from "./payment-record";
 import { awardReferralPayout } from "../routes/referrals";
 import { createGuardedStripeClient } from "./stripe-client";
+import { sessionAmountExcludingTaxCents } from "./stripe-tax";
 
 export async function stripeWebhookHandler(req: Request, res: Response): Promise<void> {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
@@ -88,7 +89,11 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
           const { fetchMarketSaleBySession, markMarketSalePaid } = await import("./market-sale");
           const rows = await fetchMarketSaleBySession(s.id);
           const expected = rows.reduce((sum, r) => sum + Number(r.amount_cents), 0);
-          if (rows.length > 0 && (s.amount_total ?? 0) === expected) {
+          /* Stripe Tax (lib/stripe-tax.ts): compare NET of any tax
+             Stripe collected on top — amount_tax is 0/absent while
+             tax is off, so the guard is exactly as strict as today.
+             The exactly-once flip itself is unchanged. */
+          if (rows.length > 0 && sessionAmountExcludingTaxCents(s) === expected) {
             await markMarketSalePaid(s.id);
           } else {
             logger.warn({ sessionId: s.id, rows: rows.length, amountTotal: s.amount_total, expected }, "Stripe webhook: marketplace sale not applied (no pending order or amount mismatch)");

@@ -63,6 +63,12 @@ import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import {
+  applyStripeTaxToPriceData,
+  sessionAmountExcludingTaxCents,
+  stripeTaxKindForStoreKind,
+  stripeTaxSessionFields,
+} from "../lib/stripe-tax";
 /* Order bumps (Stack-100 #3, feature #13): one add-on offer per item,
    ticked at checkout, charged in the same Stripe session. All bump
    money math lives in lib/order-bumps.ts. */
@@ -1231,9 +1237,12 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     try {
       session = await stripe.checkout.sessions.create({
       mode: "payment",
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off; line items below gain tax fields only when it is on. */
+      ...stripeTaxSessionFields(),
       line_items: [
         {
-          price_data: {
+          price_data: applyStripeTaxToPriceData({
             currency: "usd",
             /* Gift-card tender: Stripe charges only the amount still
                due; the sale record at verify carries the full gross. */
@@ -1247,13 +1256,13 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
                   : `Digital download · ${kind}`,
               images: artworkUrl ? [artworkUrl] : undefined,
             },
-          },
+          }, stripeTaxKindForStoreKind(kind)),
           quantity: 1,
         },
         ...(bump
           ? [
               {
-                price_data: {
+                price_data: applyStripeTaxToPriceData({
                   currency: "usd",
                   unit_amount: bump.unitCents,
                   product_data: {
@@ -1264,7 +1273,7 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
                         : "Digital download · add-on",
                     images: bumpArtworkUrl ? [bumpArtworkUrl] : undefined,
                   },
-                },
+                }, stripeTaxKindForStoreKind(bump.item.itemKind)),
                 quantity: 1,
               },
             ]
@@ -1416,7 +1425,11 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
      the sale's gross is due + tender and the fee splits the GROSS. */
   const giftCardAppliedCents = Math.max(0, parseInt(meta["gift_card_applied_cents"] ?? "0", 10) || 0);
   const giftReservationId = meta["gift_card_reservation_id"] || null;
-  const amountCents = (session.amount_total ?? 0) + giftCardAppliedCents;
+  /* Stripe Tax (lib/stripe-tax.ts): the session total includes any
+     tax Stripe collected on top; splits derive from the sale gross,
+     which is the total NET of tax. amount_tax is 0/absent while tax
+     is off, so this is identical to the raw total today. */
+  const amountCents = sessionAmountExcludingTaxCents(session) + giftCardAppliedCents;
   /* Bump facts (feature #13): only what checkout wrote into metadata.
      Every split below is re-derived from the session total + this
      amount — never trusted from the client or the metadata fees. */

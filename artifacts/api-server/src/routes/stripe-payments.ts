@@ -9,6 +9,7 @@ import {
   buildCheckoutSessionIdempotencyKey,
   createGuardedStripeClient,
 } from "../lib/stripe-client";
+import { stripeTaxSessionFields, isStripeTaxEnabled } from "../lib/stripe-tax";
 
 const router = Router();
 
@@ -80,6 +81,10 @@ router.get("/stripe-status", requireAuth, publicApiLimiter, async (_req, res) =>
 
   const status = {
     secretKeyPresent: !!secretKey,
+    /* Stripe Tax activation state (lib/stripe-tax.ts): false until
+       the owner finishes the Dashboard/registration steps and sets
+       STRIPE_TAX_ENABLED — checkout is unchanged while this is false. */
+    stripeTaxEnabled: isStripeTaxEnabled(),
     secretKeyPrefix: secretKey ? secretKey.slice(0, 7) : null,
     webhookSecretPresent: !!webhookSecret,
     webhookSecretPrefix: webhookSecret ? webhookSecret.slice(0, 6) : null,
@@ -161,6 +166,10 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off. Price-ID line: the pack Product's tax code is set in
+         the Dashboard at activation — there is no per-line field. */
+      ...stripeTaxSessionFields(),
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?payment=cancelled`,

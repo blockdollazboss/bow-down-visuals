@@ -852,6 +852,8 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
           rail: "beat-license",
           purchaseIntent: license.id,
         },
+        /* A beat license is a digital audio work (lib/stripe-tax.ts). */
+        taxKind: "store-audio",
       });
     } catch (err) {
       /* No checkout → no dangling payable license; remove the intent row. */

@@ -8,6 +8,8 @@
  * back net of collected tax so fee splits never touch tax money.
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type Stripe from "stripe";
 import { DIGITAL_ITEM_KINDS } from "@workspace/db";
 import { STORE_PRODUCT_KINDS } from "@workspace/db";
@@ -132,6 +134,32 @@ describe("applyStripeTaxToPriceData", () => {
     /* the input is not mutated */
     expect(base.product_data).not.toHaveProperty("tax_code");
   });
+});
+
+describe("rail wiring contracts (source)", () => {
+  /* A future refactor must not silently drop tax from a rail: every
+     named integration point references the gated helpers. */
+  const read = (rel: string) =>
+    readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+  const cases: Array<[string, string[]]> = [
+    ["../../routes/stripe-payments.ts", ["stripeTaxSessionFields", "isStripeTaxEnabled"]],
+    ["../../routes/creator-tiers.ts", ["stripeTaxSessionFields"]],
+    ["../../routes/profile-hosting.ts", ["stripeTaxSessionFields"]],
+    ["../stripe-checkout.ts", ["stripeTaxSessionFields", "applyStripeTaxToPriceData"]],
+    ["../../routes/store.ts", ["stripeTaxSessionFields", "applyStripeTaxToPriceData", "sessionAmountExcludingTaxCents"]],
+    ["../../routes/storefront.ts", ["stripeTaxSessionFields", "applyStripeTaxToPriceData", "sessionAmountExcludingTaxCents"]],
+    ["../../routes/generate/shops.ts", ["stripeTaxSessionFields", "applyStripeTaxToPriceData", "sessionAmountExcludingTaxCents"]],
+    ["../../routes/generate/beats.ts", ["taxKind: \"store-audio\""]],
+    ["../stripe-webhook.ts", ["sessionAmountExcludingTaxCents"]],
+  ];
+  for (const [rel, tokens] of cases) {
+    it(`${rel} carries the Stripe Tax integration points`, () => {
+      const src = read(rel);
+      for (const token of tokens) {
+        expect(src, `${rel} missing ${token}`).toContain(token);
+      }
+    });
+  }
 });
 
 describe("session tax amount reads", () => {

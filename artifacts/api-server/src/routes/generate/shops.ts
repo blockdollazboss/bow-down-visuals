@@ -39,6 +39,11 @@ import {
   isCheckoutTestMode,
 } from "../../lib/stripe-checkout";
 import {
+  applyStripeTaxToPriceData,
+  sessionAmountExcludingTaxCents,
+  stripeTaxSessionFields,
+} from "../../lib/stripe-tax";
+import {
   fetchMarketSaleBySession,
   markMarketSalePaid,
   marketSaleIsPaid,
@@ -2351,6 +2356,10 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     const base = checkoutBaseUrl(req);
     session = await stripe.checkout.sessions.create({
       mode: "payment",
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off. shop_products carries no kind column, so lines use
+         the generic digital code (STRIPE_TAX_CODE_STORE_DIGITAL). */
+      ...stripeTaxSessionFields(),
       ...(buyerEmail ? { customer_email: buyerEmail } : {}),
       /* With a gift card in play the session charges only the amount
          still due, as one line — the shop_events rows still carry the
@@ -2358,22 +2367,22 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
          markdown). Verify expects due, not gross, for these groups. */
       line_items: giftCardAppliedCents > 0
         ? [{
-            price_data: {
+            price_data: applyStripeTaxToPriceData({
               currency: "usd",
               unit_amount: amountDueCents,
               product_data: { name: `${shop.name} — order`, description: `Gift card applied: $${(giftCardAppliedCents / 100).toFixed(2)}` },
-            },
+            }, "store-digital"),
             quantity: 1,
           }]
         : allLines.map((l) => ({
-            price_data: {
+            price_data: applyStripeTaxToPriceData({
               currency: "usd",
               unit_amount: l.unitCents,
               product_data: {
                 name: l.isBump ? `${l.name} (add-on)` : l.name,
                 description: shop.name,
               },
-            },
+            }, "store-digital"),
             quantity: l.quantity,
           })),
       metadata: {
@@ -2477,7 +2486,10 @@ router.post("/storefronts/checkout/verify", publicApiLimiter, async (req, res) =
     } catch { /* no gift tables yet → no tender */ }
   }
   const expected = rows.reduce((s, r) => s + Number(r.amount_cents), 0) - giftAppliedForGroup;
-  if ((session.amount_total ?? 0) !== expected) {
+  /* Stripe Tax (lib/stripe-tax.ts): the session total includes any
+     tax Stripe collected on top; the order match is against the
+     total NET of tax. amount_tax is 0/absent while tax is off. */
+  if (sessionAmountExcludingTaxCents(session) !== expected) {
     logger.error({ sessionId, amountTotal: session.amount_total, expected }, "[storefronts] verify: paid amount does not match the order");
     res.status(400).json({ error: "The paid amount doesn't match this order." });
     return;
@@ -2702,13 +2714,16 @@ router.post("/shops/:id/pos/checkout", publicApiLimiter, requireAuth, async (req
     const base = checkoutBaseUrl(req);
     session = await stripe.checkout.sessions.create({
       mode: "payment",
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off; lines gain tax fields only when it is on. */
+      ...stripeTaxSessionFields(),
       ...(buyerEmail ? { customer_email: buyerEmail } : {}),
       line_items: lines.map((l) => ({
-        price_data: {
+        price_data: applyStripeTaxToPriceData({
           currency: "usd",
           unit_amount: l.unitCents,
           product_data: { name: l.name, description: shop.name },
-        },
+        }, "store-digital"),
         quantity: l.quantity,
       })),
       metadata: {

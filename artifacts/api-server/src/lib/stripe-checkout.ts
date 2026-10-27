@@ -18,6 +18,11 @@ import {
   isStripeTestModeKey,
   type CheckoutSessionIdempotencyScope,
 } from "./stripe-client";
+import {
+  applyStripeTaxToPriceData,
+  stripeTaxSessionFields,
+  type StripeTaxKind,
+} from "./stripe-tax";
 
 export function getCheckoutStripe(): Stripe {
   return createGuardedStripeClient();
@@ -50,6 +55,12 @@ export interface PaymentCheckoutInput {
   metadata: Record<string, string>;
   /** Member + rail + purchase-intent scope for the Stripe create key. */
   idempotency: CheckoutSessionIdempotencyScope;
+  /**
+   * Stripe Tax kind for this rail's line item (lib/stripe-tax.ts).
+   * Only takes effect when STRIPE_TAX_ENABLED is on; defaults to the
+   * generic electronically-supplied-services code.
+   */
+  taxKind?: StripeTaxKind;
 }
 
 /** Create a one-time payment Checkout Session for an exact amount. */
@@ -63,16 +74,20 @@ export async function createPaymentCheckout(
   const idempotencyKey = buildCheckoutSessionIdempotencyKey(input.idempotency);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
+    ...stripeTaxSessionFields(),
     line_items: [
       {
-        price_data: {
-          currency: "usd",
-          unit_amount: input.amountCents,
-          product_data: {
-            name: input.productName,
-            description: input.description,
+        price_data: applyStripeTaxToPriceData(
+          {
+            currency: "usd",
+            unit_amount: input.amountCents,
+            product_data: {
+              name: input.productName,
+              description: input.description,
+            },
           },
-        },
+          input.taxKind ?? "electronically-supplied-services",
+        ),
         quantity: 1,
       },
     ],
