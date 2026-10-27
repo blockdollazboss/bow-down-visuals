@@ -4,6 +4,7 @@ import { TrendingUp, Hash, MessageCircle, Clapperboard, AlertTriangle, RotateCcw
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiJson, type TrendingTopic } from "@/lib/social-api";
+import TrendRadarPanel from "@/components/discovery/TrendRadarPanel";
 
 /* ─── /trending — what's moving in the last 24h ───────────────────────────
    Hashtag velocity from posts + video tags. Every topic links to its
@@ -33,6 +34,8 @@ export default function TrendingPage() {
         <TrendingUp className="h-6 w-6 text-[#d4af37]" /> Trending
       </h1>
       <p className="mb-6 text-xs text-neutral-500">Hashtag velocity over the last 24 hours — posts + video tags.</p>
+
+      <TrendRadarPanel />
 
       {loading && (
         <div className="space-y-3">
