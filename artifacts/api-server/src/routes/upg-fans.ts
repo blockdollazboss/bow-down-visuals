@@ -388,7 +388,7 @@ router.get("/fan-links/for-me", publicApiLimiter, requireAuth, async (req: Reque
       rollup,
       topFans: rollup.topFans.map((f) => ({
         ...f,
-        displayName: nameOf.get(f.fan_user_id) ?? "A fan",
+        displayName: nameOf.get(f.fanUserId) ?? "A fan",
       })),
       links: links.map((l) => ({
         ...toLinkRow(l),
