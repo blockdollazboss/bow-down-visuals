@@ -48,6 +48,7 @@ describe("S27-21 social publishing copy prices (100, derived)", () => {
     { endpoint: "/api/social/instagram/publish", constant: "INSTAGRAM_POST_CREDITS" },
     { endpoint: "/api/social/facebook/publish", constant: "FACEBOOK_POST_CREDITS" },
     { endpoint: "/api/social/tiktok/publish", constant: "TIKTOK_POST_CREDITS" },
+    { endpoint: "/api/social/x/publish", constant: "X_POST_CREDITS" },
   ] as const;
 
   for (const spec of SOCIAL) {
@@ -90,6 +91,14 @@ describe("S27-21 social publishing copy prices (100, derived)", () => {
     expect(src).not.toContain("200 Visual Bucs");
     expect(src).toContain('getCreditCost("/api/social/tiktok/publish")');
     expect(src.match(/\{tiktokPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
+  });
+
+  // Wave-4 #42: the X modal joins the same pin set as the other three.
+  it("XPostModal carries no 200 Visual Bucs and derives the X cost in both spots", () => {
+    const src = readComponent("XPostModal.tsx");
+    expect(src).not.toContain("200 Visual Bucs");
+    expect(src).toContain('getCreditCost("/api/social/x/publish")');
+    expect(src.match(/\{xPostCost\} Visual Bucs/g) ?? []).toHaveLength(2);
   });
 });
 

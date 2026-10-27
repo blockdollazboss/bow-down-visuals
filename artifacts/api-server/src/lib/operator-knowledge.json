@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "185bbcb52bda668828beee0be0141272cbfa709b",
+  "baseCommit": "b2ecc73cfca082a4c348e02d10da76608d421734",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-25",
+  "generatedAt": "2026-10-27",
   "counts": {
     "routesInApp": 235,
     "pageFiles": 181,
     "features": 244,
     "excludedRoutes": 71,
     "excludedPageFiles": 35,
-    "pricedActions": 228,
+    "pricedActions": 229,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
@@ -10320,6 +10320,8 @@
         "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
         "/api/social/tiktok/publish",
+        "/api/social/x/auth-url",
+        "/api/social/x/publish",
         "/api/songs",
         "/api/trend-jacker/draft",
         "/api/trend-predictor/forecast",
@@ -10363,6 +10365,12 @@
           "feature": "Publish to TikTok",
           "vb": 100,
           "endpoint": "/api/social/tiktok/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to X",
+          "vb": 100,
+          "endpoint": "/api/social/x/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10432,6 +10440,8 @@
         "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
         "/api/social/tiktok/publish",
+        "/api/social/x/auth-url",
+        "/api/social/x/publish",
         "/api/songs",
         "/api/trend-jacker/draft",
         "/api/trend-predictor/forecast",
@@ -10475,6 +10485,12 @@
           "feature": "Publish to TikTok",
           "vb": 100,
           "endpoint": "/api/social/tiktok/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to X",
+          "vb": 100,
+          "endpoint": "/api/social/x/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10544,6 +10560,8 @@
         "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
         "/api/social/tiktok/publish",
+        "/api/social/x/auth-url",
+        "/api/social/x/publish",
         "/api/songs",
         "/api/trend-jacker/draft",
         "/api/trend-predictor/forecast",
@@ -10587,6 +10605,12 @@
           "feature": "Publish to TikTok",
           "vb": 100,
           "endpoint": "/api/social/tiktok/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to X",
+          "vb": 100,
+          "endpoint": "/api/social/x/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -10729,6 +10753,8 @@
         "/api/social/instagram/publish",
         "/api/social/tiktok/auth-url",
         "/api/social/tiktok/publish",
+        "/api/social/x/auth-url",
+        "/api/social/x/publish",
         "/api/sound-prefs",
         "/api/team-seats",
         "/api/team-seats/:param",
@@ -10762,6 +10788,12 @@
           "feature": "Publish to TikTok",
           "vb": 100,
           "endpoint": "/api/social/tiktok/publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Publish to X",
+          "vb": 100,
+          "endpoint": "/api/social/x/publish",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
