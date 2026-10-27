@@ -5,18 +5,21 @@ import { createHash } from "crypto";
  *
  * A fan pays Visual Bucs to land one message in a creator's priority
  * inbox lane inside Messages. THE HONESTY RULE IS THE FEATURE:
- *   - the price is the CREATOR's own stated minimum — this module has
- *     no platform default, floor, or fallback price anywhere;
- *   - the reply window is stated before the fan pays;
+ *   - the price is the platform's ruled price — 100 VB per priority
+ *     message (owner ruling 2026-10-27) — stated before the fan pays;
+ *   - the reply window is the creator's own stated window, shown
+ *     before the fan pays;
  *   - unanswered inside the window = full auto-refund, exactly once;
  *   - a block always wins: blocked fans cannot buy, and a delivery
  *     refused by a block refunds exactly once.
  *
- * ⚠️ PRICE GATE: the platform on/off flag is an OPEN OWNER CALL. The
- * feature ships GATED OFF — `PRIORITY_DM_ENABLED` must be exactly
- * "true" before anything is sellable, and while it is off every
- * surface says plainly that priority DMs are not yet available
- * (never a made-up price).
+ * PRICE + GATE — OWNER RULED 2026-10-27: the gate is OPEN and the
+ * price is 100 VB per priority message. `PRIORITY_DM_ENABLED` remains
+ * as the ops kill switch: exactly "false" closes the gate, anything
+ * else (including unset) leaves it open. The creator-stated
+ * `minPriceVb` setting from the gated era is kept stored for compat
+ * but no longer sets or gates the charge — the ruled platform price
+ * is the only price ever charged or displayed.
  *
  * Money shape (escrow, TEST MODE Visual Bucs on the existing rails):
  * the fan's charge is HELD (row status 'held'); it pays out to the
@@ -35,11 +38,12 @@ import { createHash } from "crypto";
 
 export const PRIORITY_DM_GATE_ENV = "PRIORITY_DM_ENABLED";
 
-/** Platform gate: OFF unless the env flag is exactly "true". */
+/** Platform gate: OPEN (owner ruling 2026-10-27). Only the exact
+ *  kill-switch value "false" closes it; unset means open. */
 export function isPriorityDmPlatformEnabled(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return env[PRIORITY_DM_GATE_ENV] === "true";
+  return env[PRIORITY_DM_GATE_ENV] !== "false";
 }
 
 /* ── Creator-stated values (validated, never invented) ───────────────── */
@@ -78,22 +82,42 @@ export interface PriorityDmSettingsLike {
   replyWindowHours: number;
 }
 
+/* ── The ruled platform price (owner ruling 2026-10-27) ────────────── */
+
+export const PRIORITY_DM_PRICE_ENV = "PRIORITY_DM_PRICE_VB";
+
+/** THE price: 100 VB per priority message. This is the only price a
+ *  fan is ever charged or shown for a priority DM. */
+export const PRIORITY_DM_PRICE_VB = 100;
+
+/** The live price: the ruled 100, env-overridable without a deploy.
+ *  An invalid override falls back to the ruled 100 — never to a
+ *  creator-stated price. */
+export function priorityDmPriceVb(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const v = Number(env[PRIORITY_DM_PRICE_ENV]);
+  return isValidCreatorPrice(v) ? v : PRIORITY_DM_PRICE_VB;
+}
+
 export type PriorityDmSellable =
   | { sellable: true; priceVb: number; replyWindowHours: number }
   | { sellable: false; reason: "gate_off" | "not_opted_in" | "no_price" | "bad_window" };
 
 /** Can this creator currently sell a priority DM? The gate is checked
- *  first so a gated-off platform never leaks a creator's price as if
- *  it were purchasable. */
+ *  first so a gated-off platform never leaks a price as if it were
+ *  purchasable. The price is the platform's ruled price — the
+ *  creator's stored minPriceVb no longer sets or gates it. ("no_price"
+ *  remains in the reason union for API compat; it is never returned.) */
 export function evaluateSellable(
   settings: PriorityDmSettingsLike | null,
   platformEnabled: boolean,
+  priceVb: number = PRIORITY_DM_PRICE_VB,
 ): PriorityDmSellable {
   if (!platformEnabled) return { sellable: false, reason: "gate_off" };
   if (!settings || !settings.optedIn) return { sellable: false, reason: "not_opted_in" };
-  if (!isValidCreatorPrice(settings.minPriceVb)) return { sellable: false, reason: "no_price" };
   if (!isValidReplyWindowHours(settings.replyWindowHours)) return { sellable: false, reason: "bad_window" };
-  return { sellable: true, priceVb: settings.minPriceVb, replyWindowHours: settings.replyWindowHours };
+  return { sellable: true, priceVb, replyWindowHours: settings.replyWindowHours };
 }
 
 /* ── Rows + ports ────────────────────────────────────────────────────── */
@@ -161,6 +185,8 @@ export interface PriorityDmDeps {
   store: PriorityDmStore;
   credits: PriorityDmCredits;
   platformEnabled: boolean;
+  /** The charge/display price; defaults to the ruled 100 VB. */
+  priceVb?: number;
   now?: () => Date;
 }
 
@@ -212,7 +238,7 @@ export async function sendPriorityDm(
   }
 
   const settings = await deps.store.getSettings(input.creatorUserId);
-  const sellable = evaluateSellable(settings, true);
+  const sellable = evaluateSellable(settings, true, deps.priceVb ?? PRIORITY_DM_PRICE_VB);
   if (!sellable.sellable) {
     // gate_off cannot occur here (checked above); map the rest plainly.
     return { kind: "not_available", reason: sellable.reason === "gate_off" ? "not_opted_in" : sellable.reason };
@@ -345,10 +371,11 @@ export type UpdateSettingsOutcome =
   | { ok: true; settings: { optedIn: boolean; minPriceVb: number | null; replyWindowHours: number } }
   | { ok: false; message: string };
 
-/** Validate a creator settings update. Opting in REQUIRES a creator-
- *  typed price and a stated window — there is no default to fall back
- *  to. Opting out is always allowed and keeps the stated values for
- *  when they return. */
+/** Validate a creator settings update. Since the 2026-10-27 ruling
+ *  the price is the platform's (100 VB), so opting in requires only a
+ *  stated reply window. A supplied legacy price is still shape-checked
+ *  and stored, but it never sets or gates the charge. Opting out is
+ *  always allowed and keeps the stated values for when they return. */
 export function validateSettingsUpdate(
   current: PriorityDmSettingsLike | null,
   input: { opted_in?: unknown; min_price_vb?: unknown; reply_window_hours?: unknown },
@@ -364,9 +391,6 @@ export function validateSettingsUpdate(
   if (input.reply_window_hours !== undefined) {
     if (isValidReplyWindowHours(input.reply_window_hours)) replyWindowHours = input.reply_window_hours;
     else return { ok: false, message: `Reply window must be a whole number of hours between ${PRIORITY_DM_MIN_WINDOW_HOURS} and ${PRIORITY_DM_MAX_WINDOW_HOURS}.` };
-  }
-  if (optedIn && !isValidCreatorPrice(minPriceVb)) {
-    return { ok: false, message: "Set your own price in Visual Bucs before turning priority DMs on — there is no default price." };
   }
   if (optedIn && !isValidReplyWindowHours(replyWindowHours)) {
     return { ok: false, message: "State your reply window before turning priority DMs on." };

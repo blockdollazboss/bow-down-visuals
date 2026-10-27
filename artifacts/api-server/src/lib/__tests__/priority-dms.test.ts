@@ -2,10 +2,12 @@
  * Paid Priority DMs (Wave-4 #44) — core tests.
  *
  * The promises under test are the feature's honesty rules:
- *   - the platform gate ships OFF; gate-off means nothing is sellable
- *     and no price is ever shown or charged;
- *   - the price is the creator's own stated minimum — opting in with
- *     no price set is refused (no platform default exists);
+ *   - the platform gate is OPEN (owner ruling 2026-10-27); only the
+ *     kill switch (PRIORITY_DM_ENABLED=false) closes it, and closed
+ *     means nothing is sellable and no price is shown or charged;
+ *   - the price is the platform's ruled 100 VB per message — a
+ *     creator's stored price never sets or gates the charge, and
+ *     opting in needs no price at all;
  *   - a charge happens exactly once — a retried purchase returns the
  *     original row and never charges again;
  *   - a block always wins: a pre-blocked fan is refused with NO
@@ -24,6 +26,8 @@ import {
   sendPriorityDm,
   settlePriorityDms,
   buildPriorityDmKey,
+  priorityDmPriceVb,
+  PRIORITY_DM_PRICE_VB,
   type PriorityDmDeps,
   type PriorityDmRow,
   type PriorityDmSettingsLike,
@@ -106,12 +110,20 @@ function deps(world: ReturnType<typeof makeWorld>, enabled = true, now = () => T
   return { store: world.store, credits: world.credits, platformEnabled: enabled, now };
 }
 
-describe("platform gate (PRICE GATE — owner call, ships OFF)", () => {
-  it("is off by default and only exactly 'true' turns it on", () => {
-    expect(isPriorityDmPlatformEnabled({})).toBe(false);
-    expect(isPriorityDmPlatformEnabled({ PRIORITY_DM_ENABLED: "false" })).toBe(false);
-    expect(isPriorityDmPlatformEnabled({ PRIORITY_DM_ENABLED: "1" })).toBe(false);
+describe("platform gate (owner ruling 2026-10-27 — ships OPEN)", () => {
+  it("is on by default; only exactly 'false' (the kill switch) turns it off", () => {
+    expect(isPriorityDmPlatformEnabled({})).toBe(true);
     expect(isPriorityDmPlatformEnabled({ PRIORITY_DM_ENABLED: "true" })).toBe(true);
+    expect(isPriorityDmPlatformEnabled({ PRIORITY_DM_ENABLED: "1" })).toBe(true);
+    expect(isPriorityDmPlatformEnabled({ PRIORITY_DM_ENABLED: "false" })).toBe(false);
+  });
+
+  it("the price is the ruled 100 VB; an invalid override falls back to it", () => {
+    expect(PRIORITY_DM_PRICE_VB).toBe(100);
+    expect(priorityDmPriceVb({})).toBe(100);
+    expect(priorityDmPriceVb({ PRIORITY_DM_PRICE_VB: "250" })).toBe(250);
+    expect(priorityDmPriceVb({ PRIORITY_DM_PRICE_VB: "abc" })).toBe(100);
+    expect(priorityDmPriceVb({ PRIORITY_DM_PRICE_VB: "0" })).toBe(100);
   });
 
   it("gate-off: send refuses before any charge and sellable hides the price", async () => {
@@ -123,18 +135,21 @@ describe("platform gate (PRICE GATE — owner call, ships OFF)", () => {
   });
 });
 
-describe("creator controls — opt in/out and their own price", () => {
-  it("opted-out creator is not sellable; opted-in with no price is not sellable", () => {
+describe("creator controls — opt in/out; the price is the platform's", () => {
+  it("opted-out creator is not sellable; opted-in sells at the ruled 100 VB with or without a stored price", () => {
     expect(evaluateSellable({ creatorUserId: CREATOR, optedIn: false, minPriceVb: 500, replyWindowHours: 48 }, true))
       .toEqual({ sellable: false, reason: "not_opted_in" });
     expect(evaluateSellable({ creatorUserId: CREATOR, optedIn: true, minPriceVb: null, replyWindowHours: 48 }, true))
-      .toEqual({ sellable: false, reason: "no_price" });
+      .toEqual({ sellable: true, priceVb: 100, replyWindowHours: 48 });
+    /* A stored creator price (500 here) never overrides the ruled price. */
+    expect(evaluateSellable({ creatorUserId: CREATOR, optedIn: true, minPriceVb: 500, replyWindowHours: 48 }, true))
+      .toEqual({ sellable: true, priceVb: 100, replyWindowHours: 48 });
     expect(evaluateSellable(null, true)).toEqual({ sellable: false, reason: "not_opted_in" });
   });
 
-  it("opting in REQUIRES a creator-typed price — no default is ever filled in", () => {
+  it("opting in needs no creator price — the platform price is the ruled 100 VB", () => {
     const out = validateSettingsUpdate(null, { opted_in: true });
-    expect(out.ok).toBe(false);
+    expect(out).toEqual({ ok: true, settings: { optedIn: true, minPriceVb: null, replyWindowHours: 48 } });
     const ok = validateSettingsUpdate(null, { opted_in: true, min_price_vb: 750, reply_window_hours: 24 });
     expect(ok).toEqual({ ok: true, settings: { optedIn: true, minPriceVb: 750, replyWindowHours: 24 } });
   });
@@ -156,17 +171,24 @@ describe("creator controls — opt in/out and their own price", () => {
 });
 
 describe("send — charge exactly once", () => {
-  it("charges the creator's stated price once and delivers with the stated deadline", async () => {
+  it("charges the ruled 100 VB once (never the creator's stored 500) and delivers with the stated deadline", async () => {
     const world = makeWorld();
     const out = await sendPriorityDm(deps(world), { senderUserId: FAN, creatorUserId: CREATOR, body: "collab?", clientKey: "intent-0002" });
     expect(out.kind).toBe("sent");
-    expect(world.charges).toEqual([{ userId: FAN, amount: 500, key: expect.stringContaining("intent-0002") }]);
+    expect(world.charges).toEqual([{ userId: FAN, amount: 100, key: expect.stringContaining("intent-0002") }]);
     if (out.kind === "sent") {
-      expect(out.row.amountVb).toBe(500);
+      expect(out.row.amountVb).toBe(100);
       expect(out.row.replyDeadline.getTime()).toBe(T0.getTime() + 48 * HOUR);
       expect(out.row.status).toBe("held");
       expect(out.row.messageId).toBeTruthy();
     }
+  });
+
+  it("an opted-in creator with NO stored price still sells at the ruled 100 VB", async () => {
+    const world = makeWorld({ settings: { creatorUserId: CREATOR, optedIn: true, minPriceVb: null, replyWindowHours: 24 } });
+    const out = await sendPriorityDm(deps(world), { senderUserId: FAN, creatorUserId: CREATOR, body: "hi", clientKey: "intent-0002b" });
+    expect(out.kind).toBe("sent");
+    expect(world.charges).toEqual([{ userId: FAN, amount: 100, key: expect.stringContaining("intent-0002b") }]);
   });
 
   it("a retried purchase (same intent key) returns the original row and never charges twice", async () => {
@@ -212,7 +234,7 @@ describe("block always wins — refund path is exact", () => {
     const out = await sendPriorityDm(deps(world), { senderUserId: FAN, creatorUserId: CREATOR, body: "hi", clientKey: "intent-0006" });
     expect(out.kind).toBe("refunded_blocked");
     expect(world.charges).toHaveLength(1);
-    expect(world.refunds).toEqual([{ userId: FAN, amount: 500 }]);
+    expect(world.refunds).toEqual([{ userId: FAN, amount: 100 }]);
     expect(insertSpy).not.toHaveBeenCalled();
     // Settling afterwards must not refund a second time.
     const summary = await settlePriorityDms(deps(world), { creatorUserId: CREATOR });
@@ -229,7 +251,7 @@ describe("block always wins — refund path is exact", () => {
     const s2 = await settlePriorityDms(deps(world), { creatorUserId: CREATOR });
     expect(s1.refundedBlocked).toBe(1);
     expect(s2.refundedBlocked).toBe(0);
-    expect(world.refunds).toEqual([{ userId: FAN, amount: 500 }]);
+    expect(world.refunds).toEqual([{ userId: FAN, amount: 100 }]);
     expect(world.payouts).toHaveLength(0);
   });
 });
@@ -249,7 +271,7 @@ describe("settle — the stated window is the contract", () => {
     const s2 = await settlePriorityDms(deps(world, true, after), { creatorUserId: CREATOR });
     expect(s1.refundedExpired).toBe(1);
     expect(s2.refundedExpired).toBe(0);
-    expect(world.refunds).toEqual([{ userId: FAN, amount: 500 }]);
+    expect(world.refunds).toEqual([{ userId: FAN, amount: 100 }]);
     expect(world.payouts).toHaveLength(0);
   });
 
@@ -268,7 +290,7 @@ describe("settle — the stated window is the contract", () => {
     const s2 = await settlePriorityDms(deps(world), { creatorUserId: CREATOR });
     expect(s1.replied).toBe(1);
     expect(s2.replied).toBe(0);
-    expect(world.payouts).toEqual([{ userId: CREATOR, amount: 500 }]);
+    expect(world.payouts).toEqual([{ userId: CREATOR, amount: 100 }]);
     expect(world.refunds).toHaveLength(0);
   });
 
@@ -279,6 +301,6 @@ describe("settle — the stated window is the contract", () => {
     expect(s.replied).toBe(0);
     expect(s.refundedExpired).toBe(1);
     expect(world.payouts).toHaveLength(0);
-    expect(world.refunds).toEqual([{ userId: FAN, amount: 500 }]);
+    expect(world.refunds).toEqual([{ userId: FAN, amount: 100 }]);
   });
 });
