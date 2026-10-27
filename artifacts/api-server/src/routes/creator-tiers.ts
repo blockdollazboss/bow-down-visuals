@@ -14,6 +14,7 @@ import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from ".
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
 import { changeCreatorTierSubscription } from "../lib/creator-tier-upgrade";
 import { buildBillingState, type SubscriptionBillingRow } from "../lib/billing-state";
+import { stripeTaxSessionFields } from "../lib/stripe-tax";
 import {
   TIER_PLANS,
   TIER_FEE_BPS,
@@ -490,6 +491,10 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off. Price-ID line: the tier Product's tax code + the
+         Price's tax behavior are set in the Dashboard at activation. */
+      ...stripeTaxSessionFields(),
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/creator-pricing?upgrade=success&tier=${tier}&returnTo=${encodeURIComponent(back)}`,
       cancel_url: `${baseUrl}/creator-pricing?upgrade=cancelled&returnTo=${encodeURIComponent(back)}`,

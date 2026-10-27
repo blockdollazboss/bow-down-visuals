@@ -10,6 +10,7 @@ import { HOSTING_PLAN, hostingPriceUsdPerMonth, hostingPriceConfigured } from ".
 import { resolveHostingEntitlement, resolvePaidPlan } from "../lib/profile-website";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
+import { stripeTaxSessionFields } from "../lib/stripe-tax";
 
 /* ── Hosting plan (Stack 3, item 8) ──────────────────────────────────────
    ONE plan packaged on the creator-tiers chassis: custom domain + clean
@@ -246,6 +247,10 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off. Price-ID line: the hosting Product's tax code + the
+         Price's tax behavior are set in the Dashboard at activation. */
+      ...stripeTaxSessionFields(),
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/creator-pricing?hosting=success&returnTo=${encodeURIComponent(back)}`,
       cancel_url: `${baseUrl}/creator-pricing?hosting=cancelled&returnTo=${encodeURIComponent(back)}`,

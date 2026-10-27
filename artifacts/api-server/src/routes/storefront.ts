@@ -139,6 +139,12 @@ import {
 } from "../lib/service-bookings";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import {
+  applyStripeTaxToPriceData,
+  sessionAmountExcludingTaxCents,
+  stripeTaxKindForStorefrontKind,
+  stripeTaxSessionFields,
+} from "../lib/stripe-tax";
+import {
   GiftCardsUnavailable,
   findCardByCode,
   isGiftCardCodeShape,
@@ -2161,6 +2167,9 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     try {
       session = await stripe.checkout.sessions.create({
       mode: "payment",
+      /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
+         is off; line items below gain tax fields only when it is on. */
+      ...stripeTaxSessionFields(),
       ...(bookingHold
         ? { expires_at: Math.floor(Date.now() / 1000) + (BOOKING_HOLD_TTL_MIN + 5) * 60 }
         : {}),
@@ -2174,7 +2183,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       payment_intent_data: { setup_future_usage: "off_session" },
       line_items: [
         {
-          price_data: {
+          price_data: applyStripeTaxToPriceData({
             currency: "usd",
             /* With a gift card in play the session charges only the
                amount still due, as one line — the order record (at
@@ -2188,13 +2197,13 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
                   : `${p.kind} · Bow Down Visuals`,
               images: (p.media_urls ?? []).slice(0, 1),
             },
-          },
+          }, stripeTaxKindForStorefrontKind(p.kind)),
           quantity: giftCardAppliedCents > 0 ? 1 : quantity,
         },
         ...(bump
           ? [
               {
-                price_data: {
+                price_data: applyStripeTaxToPriceData({
                   currency: "usd",
                   unit_amount: bump.unitCents,
                   product_data: {
@@ -2205,7 +2214,7 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
                         : `${bump.target.kind} · add-on · Bow Down Visuals`,
                     images: (bump.target.media_urls ?? []).slice(0, 1),
                   },
-                },
+                }, stripeTaxKindForStorefrontKind(bump.target.kind)),
                 quantity: 1,
               },
             ]
@@ -2643,7 +2652,11 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
      (lib/gift-cards.ts). The reservation settles further down. */
   const giftCardAppliedCents = Math.max(0, parseInt(meta["gift_card_applied_cents"] ?? "0", 10) || 0);
   const giftReservationId = meta["gift_card_reservation_id"] || null;
-  const amountCents = (session.amount_total ?? Number(meta["amount_cents"] ?? 0)) + giftCardAppliedCents;
+  /* Stripe Tax (lib/stripe-tax.ts): splits derive from the sale gross
+     NET of any tax Stripe collected on top. amount_tax is 0/absent
+     while tax is off, so this matches the raw total today; the
+     metadata fallback is preserved for sessions without a total. */
+  const amountCents = sessionAmountExcludingTaxCents(session, Number(meta["amount_cents"] ?? 0)) + giftCardAppliedCents;
   /* Bump facts (feature #13): only what checkout wrote into metadata.
      Every split below is re-derived from the session total + this
      amount — never trusted from the client or the metadata fees. */
