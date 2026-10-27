@@ -32,6 +32,8 @@ import {
   WORLD_WELCOME_WATCHDOG_MS,
   WORLD_KEEPALIVE_INTERVAL_MS,
   WORLD_LIVENESS_TIMEOUT_MS,
+  WORLD_KEEPALIVE_WINDDOWN_MS,
+  WORLD_LIVENESS_WINDDOWN_MS,
   type WorldLockRefusal,
   type WorldSocketLike,
   type WorldStatus,
@@ -1407,6 +1409,93 @@ describe("session longevity — keepalive + the quiet reconnect", () => {
     h.timers.fireNext();
     expect(h.sockets[0]!.sent.filter((f) => f.type === "ping")).toHaveLength(2);
     expect(h.client.status).toBe("inside");
+  });
+
+  it("winding down slows the cadence and widens the liveness window — a throttled tick cannot convict a live path", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.client.setWoundDown(true);
+    // The loop re-arms at the wind-down cadence, owing no frame.
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_WINDDOWN_MS]);
+    expect(h.sockets[0]!.sent.filter((f) => f.type === "ping")).toHaveLength(0);
+
+    // A backgrounded browser coalesces timers: the tick lands way
+    // past the FOREGROUND liveness window, in total silence. The
+    // path is alive (the room answers every ping it gets) — the
+    // wide window must ping, not declare death.
+    h.nowRef.t += WORLD_LIVENESS_TIMEOUT_MS + 25_000;
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_WINDDOWN_MS);
+    expect(h.sockets[0]!.sent).toContainEqual({ type: "ping" });
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(false);
+    expect(h.sockets[0]!.readyState).toBe(1); // never retired
+
+    // But a hidden CORPSE still dies: silence past the wind-down
+    // window retires the socket and re-enters quietly, as ever.
+    h.sockets[0]!.receive({ type: "pong" }); // the ping above, answered
+    h.nowRef.t += WORLD_LIVENESS_WINDDOWN_MS + 1_000;
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_WINDDOWN_MS);
+    expect(h.sockets[0]!.readyState).toBe(3);
+    expect(h.client.status).toBe("inside");
+    expect(h.client.reconnecting).toBe(true);
+  });
+
+  it("winding back up pings on the spot, restores the strict clock, and starts it from the return", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.client.setWoundDown(true);
+    h.nowRef.t += 10 * 60_000; // ten hidden minutes, pongs trickling
+    h.sockets[0]!.receive({ type: "pong" });
+    h.client.setWoundDown(false);
+    // Proof is owed NOW, not at the next tick — and the loop is
+    // back on the foreground cadence.
+    expect(h.sockets[0]!.sent).toContainEqual({ type: "ping" });
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
+
+    // The strict window runs from the RETURN: the wind-up ping's
+    // pong buys a full foreground window, no more.
+    h.sockets[0]!.receive({ type: "pong" });
+    h.nowRef.t += WORLD_LIVENESS_TIMEOUT_MS - 1_000;
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_INTERVAL_MS);
+    expect(h.client.reconnecting).toBe(false);
+    h.nowRef.t += 2_000;
+    h.timers.fireNext();
+    expect(h.sockets[0]!.readyState).toBe(3);
+    expect(h.client.reconnecting).toBe(true);
+  });
+
+  it("a tab that opens in the background enters already wound down", async () => {
+    const h = makeLongClient();
+    h.client.setWoundDown(true); // reported before the first connect
+    await land(h);
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_WINDDOWN_MS]);
+    expect(h.timers.fireNext()).toBe(WORLD_KEEPALIVE_WINDDOWN_MS);
+    expect(h.sockets[0]!.sent).toContainEqual({ type: "ping" });
+  });
+
+  it("setWoundDown is idempotent, defers to a running sequence, and dies with disconnect", async () => {
+    const h = makeLongClient();
+    await land(h);
+    h.client.setWoundDown(true);
+    h.client.setWoundDown(true); // no double re-arm
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_WINDDOWN_MS]);
+
+    // Mid-reconnect the flag is only recorded: no ping is owed to
+    // a socket that has not welcomed yet, and the landed keepalive
+    // takes the recorded (foreground) cadence.
+    h.sockets[0]!.onclose?.({ code: 1006 }); // the server drops us
+    await flush();
+    expect(h.client.reconnecting).toBe(true);
+    h.client.setWoundDown(false);
+    expect(h.sockets[1]!.sent.filter((f) => f.type === "ping")).toHaveLength(0);
+    h.sockets[1]!.receive({ type: "welcome", peerId: SELF.peerId, you: SELF, peers: [] });
+    expect(h.timers.pendingDelays()).toEqual([WORLD_KEEPALIVE_INTERVAL_MS]);
+
+    // After a deliberate disconnect the signal arms nothing.
+    h.client.disconnect();
+    h.client.setWoundDown(true);
+    expect(h.timers.pendingDelays()).toEqual([]);
+    expect(h.client.status).toBe("closed");
   });
 
   it("any inbound frame feeds the liveness clock — a busy room is its own proof of life", async () => {
