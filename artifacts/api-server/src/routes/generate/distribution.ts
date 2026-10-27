@@ -26,6 +26,7 @@ import { parseSpotifyItem } from "../../lib/distribution-legacy";
 import {
   cleanLanguageDestinations,
   cleanTerritoryDestinations,
+  normalizeCountryCode,
   resolveSmartlinkDestination,
   sanitizeDestinationMap,
   type DestinationMap,
@@ -2210,11 +2211,14 @@ function cleanChannel(raw: unknown): string | null {
   return v || null;
 }
 
-/* Coarse geography only: the CDN's country header, validated to an ISO
-   code ('XX'/unknown is dropped). The fan's IP is never read or stored. */
+/* Coarse geography only: the CDN's country header (cf-ipcountry, with
+   the x-vercel-ip-country fallback the stack also provides), validated
+   by the smartlink-routing normalizer — one source of truth for what
+   counts as a territory code ('XX'/unknown is dropped), shared with
+   the creator-entered routing keys so a stored key can only ever match
+   a real signal. The fan's IP is never read or stored. */
 function requestCountry(req: Request): string | null {
-  const raw = (req.get("cf-ipcountry") ?? req.get("x-vercel-ip-country") ?? "").trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(raw) && raw !== "XX" ? raw : null;
+  return normalizeCountryCode(req.get("cf-ipcountry") ?? req.get("x-vercel-ip-country"));
 }
 
 /* ─── Smartlink territory / language routing (Stack-100 #3 W3) ────────
