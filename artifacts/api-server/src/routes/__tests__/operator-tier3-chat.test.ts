@@ -236,8 +236,20 @@ describe("Tier 3 through the chat box", () => {
     const { json } = await postChat("Make me a 2-minute song about summer", MEMBER);
     expect(json.reply).toContain("800 Visual Bucs");
     expect(json.reply).not.toContain("400 Visual Bucs");
-    expect(json.action).toMatchObject({ status: "refused", reason: "missing_args" });
-    expect(h.fake.store("operatorPendingActions").rows).toHaveLength(0);
+    /* Payfix operator-hands supersedes the marker outcome here: the
+       member's stated length routes in code BEFORE the model, so the
+       deterministic layer proposes the tier the length actually
+       belongs to (standard, 800) and the wrong-tier marker never
+       runs. The price law this test pins is unchanged — the quote is
+       the true tier price, never the wrong tier's 400 — and the
+       executor-level wrong-tier refusal stays pinned in
+       lib/__tests__/operator-tier3.test.ts. */
+    expect(json.action).toMatchObject({
+      toolId: "generate.song.standard",
+      status: "proposed",
+      priceQuoted: 800,
+    });
+    expect(h.fake.store("operatorPendingActions").rows).toHaveLength(1);
   });
 
   it("nested JSON args (a UGC script object) survive the marker and reach the rail", async () => {

@@ -37,7 +37,7 @@
 
 import type { OperatorChannel } from "@workspace/db";
 import { getTool } from "./operator-tools";
-import { toolIsCharged } from "./operator-tool-catalog";
+import { OPERATOR_TOOL_DEFS, toolIsCharged } from "./operator-tool-catalog";
 import { findFeatures } from "./operator-knowledge";
 import {
   cancelPendingAction,
@@ -264,6 +264,357 @@ export async function processOperatorPreTurn(input: {
   };
 }
 
+/* ── Deterministic intent (payfix operator-hands lane) ────────────────
+   The marker path above depends on a model choosing to emit a marker —
+   and the live widget's fallback brain (the knowledge-base composer)
+   cannot emit one at all, so on that path the operator's hands were
+   dead: page guides + doors, never a proposal (PASS 4, Oct 26). This
+   layer recognizes CLEAR charged-action requests in code, before any
+   model runs, and feeds them into the exact same proposeAction path
+   the marker uses: registry price quoted by the server, single-use
+   confirmation, executor, same rails. It extracts ONLY what the
+   member actually stated — never an invented prompt, length, name,
+   or script. Ambiguous or informational phrasing returns null and
+   the normal answer path runs untouched, and so does an INCOMPLETE
+   order (a detail the member never gave): elicitation belongs to
+   the model/marker path, which sees the whole conversation. */
+
+export interface OperatorIntent {
+  toolId: string;
+  args: Record<string, unknown>;
+}
+
+function cleanPhrase(s: string): string {
+  return s.replace(/\s+/g, " ").replace(/^[\s:—–-]+/, "").replace(/[\s.!?]+$/, "").trim();
+}
+
+/** A duration the member stated, in seconds ("30 seconds", "2 minutes",
+    "45s", "a 3-minute song"). Null when none was stated. */
+function statedSeconds(t: string): number | null {
+  const m =
+    t.match(/(\d+(?:\.\d+)?)\s*(seconds?|secs?|minutes?|mins?)\b/i) ??
+    t.match(/(\d+(?:\.\d+)?)\s*-\s*(second|minute)\b/i) ??
+    t.match(/\b(\d+(?:\.\d+)?)s\b/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return /min/i.test(m[2] ?? "") ? Math.round(n * 60) : Math.round(n);
+}
+
+function stripDuration(t: string): string {
+  return t
+    .replace(/,?\s*\bfor\s+\d+(?:\.\d+)?\s*(seconds?|secs?|minutes?|mins?)\b/gi, "")
+    .replace(/,?\s*\b\d+(?:\.\d+)?\s*-\s*(second|minute)\s+/gi, " ")
+    .replace(/,?\s*\b\d+(?:\.\d+)?\s*(seconds?|secs?|minutes?|mins?)\b/gi, "")
+    .replace(/,?\s*\b\d+(?:\.\d+)?s\b/gi, "");
+}
+
+/** Informational questions ("how do I…", "what does it cost…") are NOT
+    orders — they keep the normal answer path. Direct asks ("can you
+    make me…") are orders despite the question mark. */
+function isImperativeAsk(t: string): boolean {
+  if (/^(how|why|where|when)\b/i.test(t)) return false;
+  if (/\bhow (do|can) i\b/i.test(t)) return false;
+  if (/^(can|could|will|would) you\b/i.test(t)) return true;
+  if (/^(please\b|make\b|create\b|generate\b|write\b|publish\b|run\b|build\b|do\b|give me\b|i want\b|i need\b|let'?s\b)/i.test(t)) return true;
+  /* Bare noun orders: "SFX: thunder crash", "sound effect of rain". */
+  if (/^(sfx|sound effect|song|video|bio|headshot|brand kit)\b/i.test(t)) return true;
+  return false;
+}
+
+const SONG_TIERS = ["generate.song.short", "generate.song.standard", "generate.song.long"] as const;
+
+function songIntent(t: string): OperatorIntent | null {
+  if (!/\b(song|track)\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  const seconds = statedSeconds(t);
+  if (seconds !== null) args["lengthSeconds"] = seconds;
+  const about = t.match(/\babout\s+(.+)$/i) ?? t.match(/\bsong\s*:\s*(.+)$/i);
+  if (about) args["prompt"] = cleanPhrase(stripDuration(about[1]!));
+  const tier = seconds === null || seconds <= 60 ? SONG_TIERS[0] : seconds <= 180 ? SONG_TIERS[1] : SONG_TIERS[2];
+  return { toolId: tier, args };
+}
+
+function bioIntent(t: string): OperatorIntent | null {
+  if (/\bpublish\b/i.test(t) && /\bbio\b/i.test(t)) {
+    const page = t.match(/\bpublish\s+(?:my\s+)?(?:bio page\s+)?["“]?([a-z0-9-_ ]+?)["”]?\s*$/i);
+    return { toolId: "bio.publish", args: page && !/^(it|my bio|the bio|bio)$/i.test(page[1]!.trim()) ? { page: cleanPhrase(page[1]!) } : {} };
+  }
+  if (!/\bbios?\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  /* Personality segment: everything after the word personality/traits. */
+  let head = t;
+  const pers = t.match(/\b(?:personality|traits)\s*(?:is|:)?\s*(.+)$/i);
+  if (pers) {
+    args["personality"] = pers[1]!.split(/,|\band\b/i).map((x) => cleanPhrase(x)).filter(Boolean);
+    head = t.slice(0, pers.index);
+  }
+  const forMatch = head.match(/\bfor\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*$/i);
+  if (forMatch) {
+    const niche = cleanPhrase(forMatch[1]!.replace(/\bwith\s*$/, ""));
+    if (niche && !/^(me|my)/i.test(niche)) args["niche"] = niche.replace(/^a\s+/i, "");
+  }
+  const handle = t.match(/@([a-z0-9_.]+)/i);
+  if (handle) args["handle"] = `@${handle[1]}`;
+  return { toolId: "bio.generate", args };
+}
+
+function sfxIntent(t: string): OperatorIntent | null {
+  if (!/\b(sfx|sound effect|sound)\b/i.test(t)) return null;
+  let prompt = "";
+  const after = t.match(/\b(?:sfx|sound effect)\s*(?:of|for|:)?\s*(.+)$/i);
+  const before = t.match(/\b(?:make|create|generate|run)\s+(?:me\s+)?(?:a\s+|an\s+|the\s+)?(.+?)\s+(?:sfx|sound effect|sound)\b/i);
+  if (after && after[1] && !/^(effect|effects)$/i.test(after[1].trim())) prompt = after[1];
+  else if (before) prompt = before[1]!;
+  else if (/\bsound\b/i.test(t)) {
+    const of = t.match(/\bsound\s+of\s+(.+)$/i);
+    if (of) prompt = of[1]!;
+  }
+  if (!prompt) return { toolId: "sfx.generate", args: {} };
+  const args: Record<string, unknown> = {};
+  const seconds = statedSeconds(prompt);
+  if (seconds !== null) args["durationSeconds"] = seconds;
+  prompt = cleanPhrase(stripDuration(prompt));
+  if (prompt) args["prompt"] = prompt;
+  const cat: Array<[RegExp, string]> = [
+    [/\b(boom|impact|slam|explosion|hit)\b/i, "impacts"],
+    [/\bwhoosh|swoosh|fly-?by\b/i, "whooshes"],
+    [/\briser|build-?up|rising\b/i, "risers"],
+    [/\b(click|pop|notification|ui)\b/i, "ui"],
+    [/\b(ambient|atmosphere|room tone|nature)\b/i, "ambient"],
+    [/\b(footsteps?|foley)\b/i, "foley"],
+  ];
+  for (const [re, key] of cat) if (re.test(prompt)) { args["category"] = key; break; }
+  return { toolId: "sfx.generate", args };
+}
+
+function videoIntent(t: string): OperatorIntent | null {
+  if (!/\b(video|clip)\b/i.test(t) || /\bugc\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  const m =
+    t.match(/\b(?:video|clip)\s+(?:of|about|showing)\s+(.+)$/i) ??
+    t.match(/\b(?:video|clip)\s*:\s*(.+)$/i);
+  if (m) args["prompt"] = cleanPhrase(m[1]!);
+  return { toolId: "generate.video", args };
+}
+
+function brandKitIntent(t: string): OperatorIntent | null {
+  if (!/\bbrand kit\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  let rest = cleanPhrase(t.slice(t.toLowerCase().indexOf("brand kit") + "brand kit".length));
+  rest = rest.replace(/^for\s+/i, "");
+  if (rest) {
+    const vibeMatch = rest.match(/\bvibe\s*(?:is|:)\s*(.+)$/i);
+    if (vibeMatch) {
+      args["vibe"] = cleanPhrase(vibeMatch[1]!);
+      rest = cleanPhrase(rest.slice(0, vibeMatch.index).replace(/,\s*$/, ""));
+      if (rest) args["brandName"] = rest;
+    } else {
+      const parts = rest.split(",").map((x) => cleanPhrase(x)).filter(Boolean);
+      if (parts[0]) args["brandName"] = parts[0];
+      if (parts[1]) args["vibe"] = parts.slice(1).join(", ").replace(/\s+vibe$/i, "");
+      else if (parts[0] && /\s+vibe$/i.test(parts[0])) args["brandName"] = parts[0].replace(/\s+vibe$/i, "");
+    }
+  }
+  return { toolId: "brandkit.generate", args };
+}
+
+function headshotIntent(t: string): OperatorIntent | null {
+  if (!/\bheadshot\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  const preset = t.match(/\b(studio|stage|street|luxury)\b/i);
+  if (preset) args["preset"] = preset[1]!.toLowerCase();
+  return { toolId: "headshot.generate", args };
+}
+
+const STREAM_ASSET_PHRASES: Array<[RegExp, string]> = [
+  [/starting[ -]?soon/i, "screen-starting"],
+  [/be[ -]?right[ -]?back|\bbrb\b/i, "screen-brb"],
+  [/ending screen|stream ending/i, "screen-ending"],
+  [/webcam frame/i, "webcam-frame"],
+  [/chat frame/i, "chat-frame"],
+  [/follower alert/i, "alert-follower"],
+  [/subscriber alert|sub alert/i, "alert-subscriber"],
+  [/donation alert/i, "alert-donation"],
+  [/about panel/i, "panel-about"],
+  [/rules panel/i, "panel-rules"],
+  [/schedule panel/i, "panel-schedule"],
+  [/socials panel/i, "panel-socials"],
+];
+
+function streamPackIntent(t: string): OperatorIntent | null {
+  if (!/\b(stream graphic|stream pack|starting|brb|webcam frame|chat frame|panel|alert)\b/i.test(t)) return null;
+  if (!/\b(make|create|generate|stream)\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  for (const [re, key] of STREAM_ASSET_PHRASES) if (re.test(t)) { args["asset"] = key; break; }
+  const chan = t.match(/\bchannel\s+(?:name\s+)?(?:is\s+)?([a-z0-9_-]+)/i) ?? t.match(/\bfor\s+([a-z0-9_-]+)\s*$/i);
+  if (chan) args["channelName"] = chan[1];
+  return { toolId: "streampack.asset", args };
+}
+
+function ugcPersonaIntent(t: string): OperatorIntent | null {
+  if (!/\bpersona\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  const after = t.match(/\bpersona\b\s*(?::|—|–|-)?\s*(.+)$/i);
+  if (after) {
+    const desc = cleanPhrase(after[1]!.replace(/^(who is|that is|described as)\s+/i, ""));
+    if (desc && !/^(for|please)/i.test(desc)) args["description"] = desc;
+  }
+  return { toolId: "ugc.persona", args };
+}
+
+function ugcVideoIntent(t: string): OperatorIntent | null {
+  if (!/\b(ugc|product ad)\b/i.test(t)) return null;
+  const args: Record<string, unknown> = {};
+  const prod = t.match(/\bfor\s+(.+?)(?:,|;|\s+with\s+|\s+in\s+the\s+|\s+style\b|$)/i);
+  if (prod && !/^(me|my)/i.test(prod[1]!)) args["productName"] = cleanPhrase(prod[1]!);
+  const style = t.match(/\b(unboxing|honest-review|problem-fix|grwm)\b/i);
+  if (style) args["style"] = style[1]!.toLowerCase();
+  const script = t.match(/\bhook\s*:\s*([^;]+);?\s*lines?\s*:\s*([^;]+);?\s*(?:cta|call to action)\s*:\s*(.+)$/i);
+  if (script) {
+    args["script"] = {
+      hook: cleanPhrase(script[1]!),
+      lines: script[2]!.split(/\s*\|\s*|,\s*/).map((x) => cleanPhrase(x)).filter(Boolean),
+      cta: cleanPhrase(script[3]!),
+    };
+  }
+  return { toolId: "ugc.video", args };
+}
+
+/** Recognize a clear charged-action request, in code. Returns null for
+    anything else — questions, small talk, and every free tool keep
+    their existing paths. */
+export function detectOperatorIntent(message: string): OperatorIntent | null {
+  const t = message.trim();
+  if (!t || t.length > 2000) return null;
+  if (!isImperativeAsk(t)) return null;
+  /* Order matters: specific surfaces before generic nouns. */
+  if (/\bbios?\b/i.test(t) && (/\bpublish\b/i.test(t) || /\b(generate|make|create|write)\b/i.test(t))) return bioIntent(t);
+  if (/\bpersona\b/i.test(t)) return ugcPersonaIntent(t);
+  if (/\b(ugc|product ad)\b/i.test(t)) return ugcVideoIntent(t);
+  if (/\bbrand kit\b/i.test(t)) return brandKitIntent(t);
+  if (/\bheadshot\b/i.test(t)) return headshotIntent(t);
+  if (/\b(sfx|sound effect)\b/i.test(t)) return sfxIntent(t);
+  const sp = streamPackIntent(t);
+  if (sp && sp.args["asset"]) return sp;
+  if (/\b(song|track)\b/i.test(t)) return songIntent(t);
+  if (/\b(video|clip)\b/i.test(t)) return videoIntent(t);
+  if (sp) return sp;
+  return null;
+}
+
+/** "What charged actions can you perform in chat?" — answered by code
+    from the live registry, never by a model or the feature KB. */
+export function isCapabilityQuestion(message: string): boolean {
+  const t = message.trim();
+  if (/\bcharged actions\b/i.test(t)) return true;
+  if (/\bwhat\b[^?]*\bcan you\b[^?]*\b(in chat|right here|for me)\b/i.test(t)) return true;
+  if (/\b(list|show me|tell me)\b[^?]*\b(you can (do|run|make)|can you do|actions)\b/i.test(t) && /\b(chat|do|run|perform)\b/i.test(t)) return true;
+  return false;
+}
+
+export function composeCapabilityReply(): string {
+  const lines = OPERATOR_TOOL_DEFS.filter((d) => toolIsCharged(d)).map(
+    (d) => `• ${d.name} — ${d.priceVb!.toLocaleString("en-US")} Visual Bucs`,
+  );
+  return (
+    `Here's what I can run for you right here in chat — you say the word, I put the price in front of you, and nothing charges until you say "yes":\n` +
+    `${lines.join("\n")}\n` +
+    `I can run up to 20 charged actions a day for you here. 🦈`
+  );
+}
+
+/** The shared proposal step: registry price quoted by the server,
+    validator asks first when details are missing. Used identically by
+    the marker path and the deterministic intent path. */
+async function proposeTurn(input: {
+  userId: string;
+  channel: OperatorChannel;
+  toolId: string;
+  args: Record<string, unknown>;
+}): Promise<OperatorTurnResult> {
+  const tool = getTool(input.toolId)!;
+  const proposal = await proposeAction({
+    userId: input.userId,
+    toolId: tool.id,
+    args: input.args,
+    channel: input.channel,
+  });
+  if (proposal.status !== "proposed") {
+    return {
+      replyText:
+        proposal.reason === "hands_disabled"
+          ? HANDS_OFF
+          : proposal.reason === "missing_args" && proposal.askText
+            ? proposal.askText
+            : CANT_DO_YET,
+      action: { toolId: tool.id, status: "refused", reason: proposal.reason },
+    };
+  }
+  return {
+    replyText: proposalText(tool.name, proposal.priceQuoted),
+    action: { toolId: tool.id, status: "proposed", priceQuoted: proposal.priceQuoted },
+  };
+}
+
+/* ── Pre-model deterministic turn: capability listing + clear charged
+   requests, handled WITHOUT a model call so the operator's hands work
+   on every brain path (KB fallback included). Runs after the pending-
+   confirmation pre-turn, before the model.
+
+   Scope discipline: this layer takes the turn ONLY when it can finish
+   the job itself — the capability answer, or a proposal for a COMPLETE
+   order (every detail the tool needs was stated in this message, so
+   the validator accepts the extracted args). An INCOMPLETE order
+   falls through to the model path untouched: the model sees the whole
+   conversation (details given in earlier turns ride its marker), its
+   validators ask for what's missing, and the marker path owns the
+   guest sign-in line — the deterministic layer, which sees one
+   message, must never shadow that elicitation with a half-proposal.
+   Guests likewise fall through: nothing here executes for them, and
+   the ordinary answer path (plus the marker path's sign-in line when
+   a model marks) stays exactly as it was before this layer. ─────── */
+
+export async function processOperatorIntentTurn(input: {
+  userId?: string;
+  userEmail?: string;
+  channel: OperatorChannel;
+  message: string;
+}): Promise<OperatorTurnResult | null> {
+  if (isCapabilityQuestion(input.message)) {
+    return {
+      replyText: composeCapabilityReply(),
+      action: { toolId: "operator.capabilities", status: "done" },
+    };
+  }
+  const intent = detectOperatorIntent(input.message);
+  if (!intent) return null;
+  const tool = getTool(intent.toolId);
+  if (!tool) return null;
+  if (!input.userId) return null;
+  if (!toolIsCharged(tool)) return null;
+  const proposal = await proposeAction({
+    userId: input.userId,
+    toolId: tool.id,
+    args: intent.args,
+    channel: input.channel,
+  });
+  if (proposal.status !== "proposed") {
+    /* Incomplete order → fall through to the model/marker path
+       (see the scope note above). A hands-off refusal still answers
+       directly: the kill switch stills every hand, this one included. */
+    if (proposal.reason === "missing_args") return null;
+    return {
+      replyText: proposal.reason === "hands_disabled" ? HANDS_OFF : CANT_DO_YET,
+      action: { toolId: tool.id, status: "refused", reason: proposal.reason },
+    };
+  }
+  return {
+    replyText: proposalText(tool.name, proposal.priceQuoted),
+    action: { toolId: tool.id, status: "proposed", priceQuoted: proposal.priceQuoted },
+  };
+}
+
 /* ── Post-model turn: a marker in the model's reply ─────────────────── */
 
 export async function processOperatorReply(input: {
@@ -303,30 +654,10 @@ export async function processOperatorReply(input: {
     };
   }
 
-  /* Charged: this turn only PROPOSES. The proposal text is composed
-     here from the registry price — the model's words never quote it.
-     The marker's args ride along: the executor validates them first,
-     and an incomplete request proposes nothing — the member is asked
-     for the missing detail (missing_args) instead of being quoted. */
-  const proposal = await proposeAction({
-    userId: input.userId,
-    toolId: tool.id,
-    args: marker.args,
-    channel: input.channel,
-  });
-  if (proposal.status !== "proposed") {
-    return {
-      replyText:
-        proposal.reason === "hands_disabled"
-          ? HANDS_OFF
-          : proposal.reason === "missing_args" && proposal.askText
-            ? proposal.askText
-            : CANT_DO_YET,
-      action: { toolId: tool.id, status: "refused", reason: proposal.reason },
-    };
-  }
-  return {
-    replyText: proposalText(tool.name, proposal.priceQuoted),
-    action: { toolId: tool.id, status: "proposed", priceQuoted: proposal.priceQuoted },
-  };
+  /* Charged: this turn only PROPOSES, through the shared proposal
+     step — the proposal text is composed from the registry price,
+     the model's words never quote it, and the marker's args are
+     validated first (incomplete → the member is asked, nothing is
+     quoted). */
+  return proposeTurn({ userId: input.userId, channel: input.channel, toolId: tool.id, args: marker.args });
 }
