@@ -107,6 +107,7 @@ export * from "./creator-payouts";
 export * from "./custom-domains";
 export * from "./creator-social";
 export * from "./viral-spike-watch";
+export * from "./viral-spike";
 export * from "./creator-stories-posts";
 export * from "./creator-shorts";
 export * from "./community";
