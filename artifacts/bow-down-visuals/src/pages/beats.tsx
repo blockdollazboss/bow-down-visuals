@@ -18,9 +18,11 @@ import {
 } from "@/lib/dashboard-sections";
 import {
   BEAT_LICENSE_FORMATS,
+  BEAT_PLAIN_TERMS_COPY,
   defaultTermsForTier,
   describeTermsInline,
   formatLabel,
+  plainWordsForTerms,
   templateTerms,
   type BeatLicenseTemplate,
   type BeatLicenseTerms,
@@ -330,8 +332,14 @@ export default function Beats() {
       const res = await fetch(`/api/beats/${licenseBeat.id}/license`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        /* Exactly one offer: the chosen custom template, else the tier. */
-        body: JSON.stringify(licenseTemplateId ? { templateId: licenseTemplateId } : { tier: licenseTier }),
+        /* Exactly one offer: the chosen custom template, else the tier.
+           N11: this tap IS the agreement — the plain words above the
+           button are the checkout, and the server stamps
+           terms_accepted_at on the license row for this purchase. */
+        body: JSON.stringify({
+          ...(licenseTemplateId ? { templateId: licenseTemplateId } : { tier: licenseTier }),
+          plainTermsAgreed: true,
+        }),
       });
       const data = await res.json() as { message?: string; error?: string; checkoutUrl?: string };
       if (!res.ok) {
@@ -728,6 +736,46 @@ export default function Beats() {
                 );
               })}
             </div>
+            {/* N11 one-tap lease: the chosen offer IN PLAIN WORDS — this
+                block is the checkout. The words render from the same
+                terms the server snapshots onto the license. */}
+            {(() => {
+              const selectedTemplate = licenseTemplateId
+                ? (licenseBeat.license_templates ?? []).find((x) => x.id === licenseTemplateId) ?? null
+                : null;
+              const selectedTerms = selectedTemplate
+                ? templateTerms(selectedTemplate)
+                : defaultTermsForTier(licenseTier);
+              const selectedPrice = selectedTemplate
+                ? selectedTemplate.priceCents
+                : priceFor(licenseBeat, licenseTier);
+              return (
+                <div className="rounded-xl border border-[#C9A84C]/30 bg-black/20 p-4 mb-4" data-testid="beat-plain-words">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black uppercase tracking-widest text-yellow-200/90">
+                      {selectedTerms.name} — in plain words
+                    </span>
+                    <span className="text-yellow-200 font-semibold text-sm">{centsToDollars(selectedPrice)}</span>
+                  </div>
+                  <div className="space-y-2.5 max-h-[38vh] overflow-y-auto pr-1">
+                    {plainWordsForTerms(selectedTerms).map((section) => (
+                      <div key={section.heading}>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-white/40">{section.heading}</div>
+                        <ul className="mt-0.5 space-y-0.5">
+                          {section.lines.map((line) => (
+                            <li key={line} className="text-xs text-white/70 flex gap-1.5">
+                              <span className="text-yellow-200/60">•</span>
+                              <span>{line}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-white/35 mt-2">{BEAT_PLAIN_TERMS_COPY.oneTapNote}</p>
+                </div>
+              );
+            })()}
             <div className="flex items-start gap-2 text-xs text-yellow-200/80 bg-yellow-500/10 border border-yellow-500/25 rounded-xl p-3 mb-4">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               {t("beats.paymentNote")}
@@ -738,12 +786,16 @@ export default function Beats() {
             <button onClick={reserveLicense} disabled={licensing}
               className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
-              {t("beats.reserveLicenseButton", {
-                tier: licenseTemplateId
-                  ? ((licenseBeat.license_templates ?? []).find((x) => x.id === licenseTemplateId)?.name ?? "")
-                  : t(LICENSE_TIERS.find((x) => x.key === licenseTier)?.labelKey ?? ""),
+              {t("beats.agreeAndPayButton", {
+                defaultValue: "Agree & pay — {{price}}",
+                price: centsToDollars(
+                  licenseTemplateId
+                    ? ((licenseBeat.license_templates ?? []).find((x) => x.id === licenseTemplateId)?.priceCents ?? 0)
+                    : priceFor(licenseBeat, licenseTier),
+                ),
               })}
             </button>
+            <p className="text-[11px] text-white/35 text-center mt-2">{BEAT_PLAIN_TERMS_COPY.agreeHint}</p>
             {licenseBeat && (
               <Link
                 href={`/make-song?audioUrl=${encodeURIComponent(licenseBeat.audio_url || licenseBeat.preview_url || "")}`}

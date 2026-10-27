@@ -4,6 +4,7 @@ import {
   describeTerms,
   describeTermsInline,
   formatLabel,
+  plainWordsForTerms,
   templateTerms,
   type BeatLicenseTemplate,
 } from "./beat-license-terms";
@@ -77,5 +78,23 @@ describe("beat license terms display", () => {
     expect(terms.termYears).toBe(5);
     expect(terms.territory).toBe("US");
     expect(formatLabel("wav_mp3_stems")).toBe("WAV + MP3 + stems");
+  });
+});
+
+describe("plain-words checkout (N11)", () => {
+  it("renders the four sections in reading order for a fixed tier", () => {
+    const sections = plainWordsForTerms(defaultTermsForTier("basic"));
+    expect(sections.map((s) => s.heading)).toEqual(["What you get", "What you can do", "The limits", "Credit"]);
+    const lines = sections.flatMap((s) => s.lines);
+    expect(lines).toContain("Up to 50,000 streams of your song.");
+    expect(lines).toContain("Radio and TV play is NOT covered by this license.");
+    expect(lines).toContain("Other artists can license this same beat too — it isn't only yours.");
+  });
+
+  it("exclusive words say only-you and never soften the ownership line", () => {
+    const lines = plainWordsForTerms(defaultTermsForTier("exclusive")).flatMap((s) => s.lines);
+    expect(lines[0]).toContain("full ownership");
+    expect(lines.some((l) => l.includes("the producer stops selling this beat"))).toBe(true);
+    expect(lines.some((l) => l.includes("Other artists can license"))).toBe(false);
   });
 });
