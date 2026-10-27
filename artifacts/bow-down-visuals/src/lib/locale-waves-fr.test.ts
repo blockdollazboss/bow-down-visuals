@@ -736,6 +736,7 @@ describe("fr W5 (Stack-28 appendix) — namespaces closed whole", () => {
 
 const W6_NAMESPACES: string[] = ["privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "terms", "copyright", "contact", "locations", "websiteBuilder", "download", "milestones", "lufs", "presave", "release", "videoEditor", "stabilize", "create", "press-kit", "press-public", "wave8", "podcast", "videoExport", "moveHome", "nav", "captionSuite", "contentIntelligence", "outreach", "hubSpine", "wave9", "cover-art", "analyticsHub", "admin", "proFinishing", "djSets", "share", "brandingKit", "catalogImport", "dashboard", "paidSeries", "playlist", "review", "settings", "showcasePublish", "smartClips", "tutorials"];
 const W6_LEGIT = new Set([
+  "settings.billing.status.free",
   "lufs.labelOriginal",
   "lufs.pause",
   "lufs.abOriginal",
