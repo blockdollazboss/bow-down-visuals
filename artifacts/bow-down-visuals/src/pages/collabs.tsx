@@ -2,7 +2,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import {
+import { Lock,
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
   AlertTriangle, RotateCcw, Megaphone, Disc3,
@@ -70,7 +70,11 @@ interface MatchReport {
 
 interface InboxRequest {
   id: string;
-  message: string;
+  /* Collab Match (#175): a received intro's pitch is null until BOTH
+     creators opt in — the server locks it, the inbox explains why. */
+  message: string | null;
+  introLocked?: boolean;
+  lockedReason?: string | null;
   status: string;
   createdAt: string;
   fromUserId?: string | null;
@@ -666,7 +670,11 @@ export default function CollabFinder() {
                             <span className="font-bold text-white">{r.fromDisplayName ?? t("collabs.anonymousCreator")}</span>
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${r.status === "pending" ? "bg-amber-400/15 text-amber-300" : r.status === "accepted" ? "bg-emerald-400/15 text-emerald-300" : "bg-white/10 text-white/50"}`}>{r.status}</span>
                           </div>
-                          <p className="mb-3 text-sm text-white/70">{r.message}</p>
+                          {r.introLocked ? (
+                            <p className="mb-3 flex items-center gap-2 text-sm text-amber-200/80"><Lock className="h-4 w-4 shrink-0" /> {r.lockedReason ?? "Intro locked until you both opt in."}</p>
+                          ) : (
+                            <p className="mb-3 text-sm text-white/70">{r.message}</p>
+                          )}
                           {r.status === "pending" && (
                             <div className="flex gap-2">
                               <button onClick={() => respond(r.id, "accepted")} className={ghostBtn}><CheckCircle2 className="h-4 w-4" /> {t("collabs.accept")}</button>

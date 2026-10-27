@@ -3,6 +3,7 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { eq, and, or, desc } from "drizzle-orm";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { introForViewer, detectMutualIntro, mutualAcceptedStatus, type CollabRequestStatus } from "../../lib/collab-intro";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -442,6 +443,35 @@ router.post("/collabs/requests", publicApiLimiter, requireAuth, async (req, res)
       message: parsed.data.message.trim(),
       status: "pending",
     });
+    /* Collab Match (#175): if the other creator already opted in toward
+       me, this send is the second opt-in — the match is mutual, so both
+       intros unlock (both requests become accepted) right now. */
+    const reverse = await db
+      .select({ id: collabRequestsTable.id, status: collabRequestsTable.status })
+      .from(collabRequestsTable)
+      .where(
+        and(
+          eq(collabRequestsTable.from_user_id, parsed.data.toUserId),
+          eq(collabRequestsTable.to_user_id, req.userId!),
+        ),
+      )
+      .limit(1);
+    const reverseStatus = (reverse[0]?.status ?? null) as CollabRequestStatus | null;
+    if (reverse[0] && detectMutualIntro("pending", reverseStatus)) {
+      const accepted = mutualAcceptedStatus(reverseStatus!);
+      if (accepted === "accepted") {
+        await db.update(collabRequestsTable).set({ status: "accepted", updated_at: new Date() })
+          .where(eq(collabRequestsTable.id, reverse[0].id));
+        await db.update(collabRequestsTable).set({ status: "accepted", updated_at: new Date() })
+          .where(and(
+            eq(collabRequestsTable.from_user_id, req.userId!),
+            eq(collabRequestsTable.to_user_id, parsed.data.toUserId),
+            eq(collabRequestsTable.status, "pending"),
+          ));
+        res.json({ ok: true, mutualMatch: true });
+        return;
+      }
+    }
     res.json({ ok: true });
   } catch (err) {
     logger.error({ err }, "[collabs] send request failed");
@@ -487,7 +517,14 @@ router.get("/collabs/requests", publicApiLimiter, requireAuth, async (req, res) 
         .orderBy(desc(collabRequestsTable.created_at))
         .limit(100),
     ]);
-    res.json({ received, sent });
+    /* Collab Match (#175) double opt-in: a received intro's pitch stays
+       locked until the receiver accepts — public profile facts show, the
+       pitch does not. Sent rows are the sender's own words, always open. */
+    const receivedViews = received.map((r) => {
+      const intro = introForViewer(r.status as CollabRequestStatus, r.message, false);
+      return { ...r, message: intro.message, introLocked: intro.introLocked, lockedReason: intro.lockedReason };
+    });
+    res.json({ received: receivedViews, sent });
   } catch (err) {
     logger.error({ err }, "[collabs] inbox failed");
     res.status(500).json({ error: "Couldn't load your inbox — try again." });
