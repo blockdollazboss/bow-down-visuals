@@ -113,6 +113,23 @@ export interface WorldFixtureDef {
    * arriving visitor walking from the monument to the arch.
    */
   postRotY: number;
+  /**
+   * Where a walker ADDRESSES this figure — the point courtesies.ts
+   * measures COURTESY_RANGE_M from. Absent = the post itself.
+   *
+   * Q169 (QC-200): the two hall guards stand at (±6.9, −14.3),
+   * flanking the dais, but the hall's walk floor ends at z = −11.6 —
+   * the closest a walker may stand is 2.70 m from either body,
+   * beyond the 2.2 m courtesy range, so "Salute the guard" could
+   * never fire. The bodies stay at their posts (the scene design
+   * is the owner's); each guard's anchor stands at the foot of the
+   * post instead, on the line a visitor stops on to address them:
+   * (±6.9, −12.6) — 1.0 m from the walk floor's edge, 1.7 m in
+   * front of the body. The King needs no anchor (his post is
+   * 1.5 m from the walk edge) and neither do the plaza guards
+   * (they stand on walkable step platforms).
+   */
+  courtesyAnchor?: { x: number; z: number };
 }
 
 /**
@@ -128,11 +145,13 @@ export interface WorldFixtureDef {
  *    the arch approach (palace-grounds HALL_STEPS: platform top
  *    y = 0.36, step runs centred x = ±3.85, platform z 15.16-16.4):
  *    (±3.85, 0.36, 15.7), facing the plaza they guard.
+ *  - The hall guards' courtesyAnchor points (see the field): the
+ *    bodies do NOT move; only where a walker addresses them does.
  */
 export const WORLD_FIXTURES: readonly WorldFixtureDef[] = [
   { id: "hall-king", body: "king", area: "hall", position: { x: 0, y: 0, z: -13.1 }, postRotY: 0 },
-  { id: "hall-guard-male", body: "guard-male", area: "hall", position: { x: -6.9, y: 0, z: -14.3 }, postRotY: 0 },
-  { id: "hall-guard-female", body: "guard-female", area: "hall", position: { x: 6.9, y: 0, z: -14.3 }, postRotY: 0 },
+  { id: "hall-guard-male", body: "guard-male", area: "hall", position: { x: -6.9, y: 0, z: -14.3 }, postRotY: 0, courtesyAnchor: { x: -6.9, z: -12.6 } },
+  { id: "hall-guard-female", body: "guard-female", area: "hall", position: { x: 6.9, y: 0, z: -14.3 }, postRotY: 0, courtesyAnchor: { x: 6.9, z: -12.6 } },
   { id: "plaza-guard-male", body: "guard-male", area: "plaza", position: { x: -3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
   { id: "plaza-guard-female", body: "guard-female", area: "plaza", position: { x: 3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
 ];

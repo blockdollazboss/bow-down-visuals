@@ -17,6 +17,14 @@
  * it is a member act exactly like the emotes are — guests get
  * none (actionRoleOk in bindings.ts is the gate the page checks;
  * this module only answers "who is near, and what do they offer").
+ *
+ * Distance is measured to the fixture's COURTESY POINT — its
+ * courtesyAnchor when the def carries one, else the post itself
+ * (Q169, QC-200: the hall guards' bodies stand 2.70 m from the
+ * closest walkable ground, outside this range forever; their
+ * anchors stand at the foot of their posts, in range — see
+ * guard-fixtures.ts. The bodies never moved; the range never
+ * changed; only where the walker addresses the guard did.)
  */
 import { WORLD_FIXTURES, type WorldFixtureDef } from "./guard-fixtures";
 import { HALL_ROOM_ID, COURTYARD_ID } from "./palace-layout";
@@ -34,8 +42,15 @@ export interface FixtureCourtesy {
   action: WorldActionId;
   /** The prompt's verb phrase, e.g. "Bow to the King". */
   label: string;
-  /** Floor-plane distance from the walker to the post. */
+  /** Floor-plane distance from the walker to the fixture's
+   *  courtesy point (its anchor when set, else its post). */
   distance: number;
+}
+
+/** The point a fixture's courtesy is measured from: its
+ *  courtesyAnchor when the def carries one, else the post. */
+export function courtesyPointOf(fixture: WorldFixtureDef): { x: number; z: number } {
+  return fixture.courtesyAnchor ?? fixture.position;
 }
 
 /** The room each fixture area is stood in: the hall fixtures live
@@ -53,14 +68,15 @@ function courtesyFor(fixture: WorldFixtureDef): { action: WorldActionId; label: 
 
 /**
  * The courtesy on offer at a spot, if any: the nearest fixture
- * post in this room inside COURTESY_RANGE_M. Fixtures stood in
- * other rooms (or other areas) never answer.
+ * courtesy point in this room inside COURTESY_RANGE_M. Fixtures
+ * stood in other rooms (or other areas) never answer.
  */
 export function nearestCourtesy(roomId: string, x: number, z: number): FixtureCourtesy | null {
   let best: FixtureCourtesy | null = null;
   for (const fixture of WORLD_FIXTURES) {
     if (AREA_ROOM[fixture.area] !== roomId) continue;
-    const distance = Math.hypot(x - fixture.position.x, z - fixture.position.z);
+    const point = courtesyPointOf(fixture);
+    const distance = Math.hypot(x - point.x, z - point.z);
     if (distance > COURTESY_RANGE_M) continue;
     if (best && distance >= best.distance) continue;
     best = { fixture, ...courtesyFor(fixture), distance };
