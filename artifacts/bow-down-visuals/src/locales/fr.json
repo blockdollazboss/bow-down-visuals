@@ -5831,6 +5831,16 @@
       "saveFailed": "Impossible d'enregistrer ce réglage",
       "loadError": "Impossible de charger votre réglage d'invites.",
       "retry": "Réessayer"
+    },
+    "viralSpike": {
+      "title": "Kit de réponse aux pics viraux",
+      "subtitle": "Quand une de vos publications décolle soudainement, recevez un kit prêt à l’emploi d’étapes à suivre — suite, légendes, image de marque, promotion, argent — pendant qu’elle est en plein essor.",
+      "toggleTitle": "Surveiller mes publications pour les pics viraux",
+      "toggleDesc": "Quand c’est activé, le site vérifie le nombre réel de vues de vos publications environ une fois par heure et crée un kit de réponse sur la page Promouvoir quand l’une d’elles s’envole. Le kit ne fait que suggérer — il ne publie ni ne modifie jamais rien pour vous. Désactivez-le et toute vérification s’arrête : aucun instantané de vues n’est enregistré et aucun kit n’est créé.",
+      "saved": "Réglage des pics viraux enregistré",
+      "saveFailed": "Impossible d’enregistrer ce réglage",
+      "loadError": "Impossible de charger votre réglage des pics viraux.",
+      "retry": "Réessayer"
     }
   },
   "social-proof": {
@@ -10204,6 +10214,28 @@
     "needTextCaptions": "Besoin de légendes texte ?"
   },
   "promote": {
+    "viralSpike": {
+      "title": "Kit de réponse aux pics viraux",
+      "subtitle": "Créé uniquement à partir des vues réelles et mesurées de vos publications — jamais une estimation.",
+      "loading": "Vérification des vues de vos publications…",
+      "loadError": "La vérification des pics n’a pas pu s’exécuter pour le moment.",
+      "retry": "Réessayer",
+      "disabledTitle": "La surveillance des pics est désactivée",
+      "disabledDesc": "Vous avez désactivé le kit de pics viraux dans les Paramètres, donc rien n’est mesuré et aucun kit n’est créé. Réactivez-le à tout moment.",
+      "settingsCta": "Ouvrir les Paramètres",
+      "noContentTitle": "Rien à surveiller pour l’instant",
+      "noContentDesc": "Publiez une publication vitrine ou un short et le kit commencera à surveiller ses vues réelles.",
+      "measuringTitle": "Mesure en cours",
+      "measuringDesc": "Nous construisons l’historique de vues de {{count}} de vos publications. Un pic ne peut être détecté que lorsqu’il existe une base réelle de comparaison — revenez bientôt.",
+      "quietTitle": "Aucun pic pour le moment",
+      "quietDesc": "Vos publications avancent à leur rythme habituel. Quand l’une d’elles décollera, son kit de réponse apparaîtra ici.",
+      "stage": {
+        "create": "Créer",
+        "brand": "Marque",
+        "promote": "Promouvoir",
+        "money": "Argent"
+      }
+    },
     "copyLabel": "Copier {{label}}",
     "copy": "Copier",
     "copied": "Copié",

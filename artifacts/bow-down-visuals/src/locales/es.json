@@ -5673,6 +5673,16 @@
       "saveFailed": "No se pudo guardar ese ajuste",
       "loadError": "No se pudo cargar tu ajuste de avisos.",
       "retry": "Reintentar"
+    },
+    "viralSpike": {
+      "title": "Kit de respuesta a picos virales",
+      "subtitle": "Cuando una de tus publicaciones despega de repente, recibe un kit listo de pasos a seguir — secuela, subtítulos, marca, promoción, dinero — mientras está en auge.",
+      "toggleTitle": "Vigilar mis publicaciones por picos virales",
+      "toggleDesc": "Cuando está activado, el sitio revisa las vistas reales de tus publicaciones aproximadamente una vez por hora y crea un kit de respuesta en la página Promocionar cuando una se dispara. El kit solo sugiere — nunca publica ni cambia nada por ti. Desactívalo y toda la revisión se detiene: no se registran instantáneas de vistas ni se crean kits.",
+      "saved": "Configuración de picos virales guardada",
+      "saveFailed": "No se pudo guardar esa configuración",
+      "loadError": "No se pudo cargar tu configuración de picos virales.",
+      "retry": "Reintentar"
     }
   },
   "social-proof": {
@@ -9912,6 +9922,28 @@
     "needTextCaptions": "¿Necesitas subtítulos de texto?"
   },
   "promote": {
+    "viralSpike": {
+      "title": "Kit de respuesta a picos virales",
+      "subtitle": "Creado solo a partir de las vistas reales y medidas de tus publicaciones — nunca una suposición.",
+      "loading": "Revisando las vistas de tus publicaciones…",
+      "loadError": "La revisión de picos no pudo ejecutarse ahora.",
+      "retry": "Intentar de nuevo",
+      "disabledTitle": "La vigilancia de picos está desactivada",
+      "disabledDesc": "Desactivaste el kit de picos virales en Configuración, así que no se mide nada ni se crean kits. Vuelve a activarlo cuando quieras.",
+      "settingsCta": "Abrir Configuración",
+      "noContentTitle": "Nada que vigilar todavía",
+      "noContentDesc": "Publica una publicación en el escaparate o un corto y el kit empezará a vigilar sus vistas reales.",
+      "measuringTitle": "Aún midiendo",
+      "measuringDesc": "Estamos creando el historial de vistas de {{count}} de tus publicaciones. Un pico solo puede detectarse cuando hay una base real con la que compararlo — vuelve pronto.",
+      "quietTitle": "Sin picos por ahora",
+      "quietDesc": "Tus publicaciones avanzan a su ritmo habitual. Cuando una despegue, su kit de respuesta aparecerá aquí.",
+      "stage": {
+        "create": "Crear",
+        "brand": "Marca",
+        "promote": "Promocionar",
+        "money": "Dinero"
+      }
+    },
     "copyLabel": "Copiar {{label}}",
     "copy": "Copiar",
     "copied": "Copiado",
