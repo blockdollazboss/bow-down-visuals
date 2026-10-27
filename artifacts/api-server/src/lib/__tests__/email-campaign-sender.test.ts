@@ -13,6 +13,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import {
   drainEmailQueue,
+  isStaleQueuedCampaign,
   queueWelcomeSequence,
   welcomeStepContent,
   welcomeStepTimes,
@@ -275,6 +276,137 @@ describe("campaign sending", () => {
   });
 });
 
+describe("stale-queue gate (Q187 rider — the former manual staging step, automated)", () => {
+  /* The legacy welcome row exactly as the OLD subscribe code inserted
+     it (git 984f2993): status queued, recipientCount 1, subject/body
+     copied from the list's welcome template, no recipient stored. */
+  function makeStaleCampaign(patch: Partial<EmailCampaign> = {}): EmailCampaign {
+    return makeCampaign({
+      id: "camp-stale",
+      status: "queued",
+      subject: "Welcome!",
+      body: "Hi Fan,\n\nStep one body.",
+      recipientCount: 1,
+      ...patch,
+    });
+  }
+
+  it("predicate: stale is exactly recipientCount 1 with no recipient stored", () => {
+    expect(isStaleQueuedCampaign({ recipientCount: 1 }, 0)).toBe(true);
+    expect(isStaleQueuedCampaign({ recipientCount: 1 }, 1)).toBe(false);
+    expect(isStaleQueuedCampaign({ recipientCount: 0 }, 0)).toBe(false);
+    expect(isStaleQueuedCampaign({ recipientCount: 2 }, 0)).toBe(false);
+  });
+
+  it("a stale queued campaign is cleared by the sweep and never sent; a fresh one in the same pool sends", async () => {
+    const stale = makeStaleCampaign();
+    const fresh = makeCampaign({ id: "camp-fresh", status: "queued", recipientCount: 0 });
+    const updates: Array<{ id: string; patch: Partial<EmailCampaign> }> = [];
+    const mail: Array<Record<string, unknown>> = [];
+    const deps = baseDeps({
+      listQueuedCampaigns: async () => [stale, fresh],
+      countStoredRecipients: async () => 0,
+      updateCampaign: async (id, patch) => {
+        updates.push({ id, patch });
+      },
+      /* Faithful claim mimic: it can only claim rows still queued —
+         the sweep's failed stamp removes the stale row from the pool. */
+      claimQueuedCampaigns: async () =>
+        [stale, fresh]
+          .filter((c) => !updates.some((u) => u.id === c.id && u.patch.status === "failed"))
+          .map((c) => ({ ...c, status: "sending" })),
+      send: async (opts) => {
+        mail.push(opts as unknown as Record<string, unknown>);
+        return { sent: true, id: "msg-fresh" };
+      },
+    });
+    const out = await drainEmailQueue(deps);
+    expect(out.staleCleared).toBe(1);
+    expect(updates).toContainEqual({ id: "camp-stale", patch: { status: "failed", recipientCount: 0 } });
+    /* The fresh campaign sent; nothing was ever mailed with the stale
+       welcome subject (the whole-list widening the gate exists to stop). */
+    expect(out.campaigns).toEqual({ delivered: 1, attempted: 1 });
+    expect(mail).toHaveLength(1);
+    expect(mail.every((m) => m["subject"] === "Big news")).toBe(true);
+    expect(updates).toContainEqual({
+      id: "camp-fresh",
+      patch: { status: "sent", sentAt: ANCHOR, recipientCount: 1 },
+    });
+  });
+
+  it("post-claim check: a stale row a claim hands back anyway is stamped failed and not sent", async () => {
+    const updates: Array<{ id: string; patch: Partial<EmailCampaign> }> = [];
+    const send = vi.fn(async () => ({ sent: true, id: "x" }));
+    const deps = baseDeps({
+      listQueuedCampaigns: async () => [],
+      /* The claim flipped queued → sending; the legacy stamp survives. */
+      claimQueuedCampaigns: async () => [makeStaleCampaign({ status: "sending" })],
+      countStoredRecipients: async () => 0,
+      updateCampaign: async (id, patch) => {
+        updates.push({ id, patch });
+      },
+      send,
+    });
+    const out = await drainEmailQueue(deps);
+    expect(send).not.toHaveBeenCalled();
+    expect(out.staleCleared).toBe(1);
+    expect(out.campaigns).toEqual({ delivered: 0, attempted: 0 });
+    expect(updates).toEqual([{ id: "camp-stale", patch: { status: "failed", recipientCount: 0 } }]);
+  });
+
+  it("a fresh queued campaign (recipientCount 0, nothing stored yet) is sent, never gated", async () => {
+    const updates: Array<Partial<EmailCampaign>> = [];
+    const deps = baseDeps({
+      listQueuedCampaigns: async () => [makeCampaign({ status: "queued", recipientCount: 0 })],
+      claimQueuedCampaigns: async () => [makeCampaign()],
+      countStoredRecipients: async () => 0,
+      updateCampaign: async (_id, patch) => {
+        updates.push(patch);
+      },
+    });
+    const out = await drainEmailQueue(deps);
+    expect(out.staleCleared).toBe(0);
+    expect(out.campaigns).toEqual({ delivered: 1, attempted: 1 });
+    expect(updates).toEqual([{ status: "sent", sentAt: ANCHOR, recipientCount: 1 }]);
+  });
+
+  it("recipientCount 1 WITH a stored recipient is fresh work — a re-queued 1-delivery campaign sends", async () => {
+    const updates: Array<Partial<EmailCampaign>> = [];
+    const send = vi.fn(async () => ({ sent: true, id: "msg-1" }));
+    const deps = baseDeps({
+      listQueuedCampaigns: async () => [makeCampaign({ status: "queued", recipientCount: 1 })],
+      claimQueuedCampaigns: async () => [makeCampaign({ recipientCount: 1 })],
+      /* One delivery row exists — the recipient IS stored. */
+      countStoredRecipients: async () => 1,
+      updateCampaign: async (_id, patch) => {
+        updates.push(patch);
+      },
+      send,
+    });
+    const out = await drainEmailQueue(deps);
+    expect(out.staleCleared).toBe(0);
+    expect(send).toHaveBeenCalled();
+    expect(updates).toEqual([{ status: "sent", sentAt: ANCHOR, recipientCount: 1 }]);
+  });
+
+  it("gate failure is fail-closed: an unscreenable pool is never claimed or sent", async () => {
+    const claim = vi.fn(async () => [makeCampaign()]);
+    const send = vi.fn(async () => ({ sent: true, id: "x" }));
+    const deps = baseDeps({
+      listQueuedCampaigns: async () => {
+        throw new Error("db down");
+      },
+      claimQueuedCampaigns: claim,
+      send,
+    });
+    const out = await drainEmailQueue(deps);
+    expect(claim).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(out.campaigns).toEqual({ delivered: 0, attempted: 0 });
+    expect(out.staleCleared).toBe(0);
+  });
+});
+
 describe("welcome deliveries", () => {
   function makeDelivery(patch: Partial<EmailSequenceDelivery> = {}): EmailSequenceDelivery {
     return {
@@ -373,6 +505,16 @@ describe("route + sender contract (source)", () => {
   it("a public token unsubscribe route exists (GET page + POST one-click)", () => {
     expect(routeSrc).toContain('router.get("/email-list/unsubscribe/:token"');
     expect(routeSrc).toContain('router.post("/email-list/unsubscribe/:token"');
+  });
+
+  it("the stale-queue gate is automated in code — the header no longer prescribes a manual clear", () => {
+    expect(senderSrc).toContain("Stale-queue gate (AUTOMATED");
+    expect(senderSrc).toContain("isStaleQueuedCampaign");
+    expect(senderSrc).toContain("no manual clearing step remains");
+    /* The old manual instruction is gone: no "clear … before this
+       sender's first drain" step is left for a human to remember. */
+    expect(senderSrc).not.toContain("before this sender's");
+    expect(senderSrc).not.toMatch(/Clear\s+any stale/);
   });
 
   it("the sender never writes open-tracking numbers (opens stay honestly untracked)", () => {
