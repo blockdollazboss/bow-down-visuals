@@ -67,17 +67,24 @@ export interface LedgerSyncResult {
   totalInserted: number;
 }
 
-async function insertCount(stmt: ReturnType<typeof sql>): Promise<number> {
-  /* Every sync INSERT ends in RETURNING id; with ON CONFLICT DO NOTHING
-     the returned rows are exactly the rows inserted. */
-  const r = await db.execute(stmt);
-  return (r.rows as unknown[]).length;
+async function ledgerCountFor(userId: string, kind: string, entryType: string): Promise<number> {
+  const r = await db.execute(sql`
+    SELECT COUNT(*)::int AS n FROM pending_payout_ledger
+    WHERE seller_user_id = ${userId} AND source_kind = ${kind} AND entry_type = ${entryType}
+  `);
+  return Number(((r.rows as any[])[0] ?? { n: 0 }).n);
 }
 
 export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<LedgerSyncResult> {
   const inserted: Record<string, number> = {};
+  /* Inserted counts are measured as row-count deltas around each
+     statement — exact on real Postgres and on the pg-mem test harness
+     (whose RETURNING over-reports rows skipped by ON CONFLICT). */
   const run = async (key: string, stmt: ReturnType<typeof sql>) => {
-    inserted[key] = await insertCount(stmt);
+    const [kind, entryType] = key.split(":");
+    const before = await ledgerCountFor(userId, kind!, entryType!);
+    await db.execute(stmt);
+    inserted[key] = (await ledgerCountFor(userId, kind!, entryType!)) - before;
   };
 
   /* digital_sales — profile store (5% split already on the row).
@@ -92,7 +99,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     JOIN creator_profiles cp ON cp.id = ds.profile_id
     WHERE cp.user_id = ${userId} AND ds.status IN ('completed', 'refunded')
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
   await run("digital_sale:reversal", sql`
     INSERT INTO pending_payout_ledger
@@ -104,7 +110,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     JOIN creator_profiles cp ON cp.id = ds.profile_id
     WHERE cp.user_id = ${userId} AND ds.status = 'refunded'
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
 
   /* store_orders — profile storefront (5% split already on the row). */
@@ -118,7 +123,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     JOIN creator_profiles cp ON cp.id = o.profile_id
     WHERE cp.user_id = ${userId} AND o.status IN ('completed', 'refunded')
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
   await run("store_order:reversal", sql`
     INSERT INTO pending_payout_ledger
@@ -130,7 +134,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     JOIN creator_profiles cp ON cp.id = o.profile_id
     WHERE cp.user_id = ${userId} AND o.status = 'refunded'
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
 
   /* shop_events — marketplace shop (5%; net = amount − fee on the row).
@@ -148,7 +151,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     FROM shop_events se
     WHERE se.user_id = ${userId} AND se.event_type IN ('sale', 'refunded_sale')
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
   await run("shop_event:reversal", sql`
     INSERT INTO pending_payout_ledger
@@ -160,7 +162,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     FROM shop_events se
     WHERE se.user_id = ${userId} AND se.event_type = 'refunded_sale'
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
 
   /* beat_licenses — producer rail (15% commission already on the row;
@@ -176,7 +177,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     FROM beat_licenses bl
     WHERE bl.producer_id = ${userId} AND bl.status IN ('completed', 'refunded')
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
   await run("beat_license:reversal", sql`
     INSERT INTO pending_payout_ledger
@@ -188,7 +188,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     FROM beat_licenses bl
     WHERE bl.producer_id = ${userId} AND bl.status = 'refunded'
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
 
   /* fan_members — paid memberships (stripe_session_id present = a real
@@ -203,7 +202,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     FROM fan_members fm
     WHERE fm.user_id = ${userId} AND fm.stripe_session_id IS NOT NULL
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
   await run("membership:reversal", sql`
     INSERT INTO pending_payout_ledger
@@ -215,7 +213,6 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     WHERE fm.user_id = ${userId} AND fm.stripe_session_id IS NOT NULL
       AND fm.status = 'refunded'
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
-    RETURNING id
   `);
 
   const totalInserted = Object.values(inserted).reduce((a, b) => a + b, 0);
