@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Gift, Loader2, BadgeCheck, Search } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js/pure";
+import type { StripeEmbeddedCheckout } from "@stripe/stripe-js";
 import { useAuth } from "@/contexts/AuthContext";
 import { loginPathWithNext } from "@/lib/auth-next";
 
@@ -109,7 +110,7 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
   /* Mount the embedded checkout on this page when a session exists. */
   useEffect(() => {
     if (!clientSecret || !checkoutRef.current) return;
-    let embedded: { destroy: () => void } | null = null;
+    let embedded: StripeEmbeddedCheckout | null = null;
     let cancelled = false;
     (async () => {
       const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
