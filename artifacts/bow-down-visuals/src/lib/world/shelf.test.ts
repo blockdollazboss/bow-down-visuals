@@ -463,6 +463,18 @@ describe("source pins — playlists + queue-next are wired in the booth (2.12)",
     expect(booth).toContain("shelfPlayer.queueNext");
   });
 
+  it("a playlist can be STARTED on its own at the booth — the build is not only a picker's side effect", () => {
+    const booth = read("../../components/world/native/ListeningBooth.tsx");
+    expect(booth).toContain('data-testid="world-shelf-playlist-start-name"');
+    expect(booth).toContain('data-testid="world-shelf-playlist-start"');
+    expect(booth).toContain("startPlaylist");
+    // The Your Playlists area renders once lists load — empty
+    // included — on BOTH booth returns, so the build path can
+    // never be hidden behind already owning a playlist.
+    expect(booth).toContain("const playlistsBlock = playlists !== null");
+    expect(booth.match(/\{playlistsBlock\}/g)?.length).toBe(2);
+  });
+
   it("playing a playlist puts the first item on and the rest in the queue, in order", () => {
     const booth = read("../../components/world/native/ListeningBooth.tsx");
     expect(booth).toContain('data-testid="world-shelf-playlist-play"');
