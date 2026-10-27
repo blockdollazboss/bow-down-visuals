@@ -453,6 +453,44 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "business" },
     websitePath: "/branding-kit?tab=jewelry",
   },
+  {
+    /* The Smart Cards stand (parity P3-C): the Atelier's missing
+       department — the NFC Smart Business Cards line (pages/
+       nfc-cards.tsx) complete in-world on its /api/nfc-cards
+       rails: pick a card, write what a tap shows, reserve the
+       order, manage your cards. Stands on the Atelier's north
+       wall between the branding kit and the branding shop, clear
+       of both prompts (3 m from the kit desk, 3 m from the shop). */
+    id: "smart-cards-stand",
+    roomId: BRANDING_ATELIER_ID,
+    name: "Smart Cards",
+    tagline: "Your profile on a card — tap it, and they land on you.",
+    x: 21,
+    z: 4.5,
+    membersOnly: false,
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/nfc-cards",
+  },
+  {
+    /* The Merch Bench (parity P3-C): the Atelier's missing
+       workbench — the branding shop's Merch line complete
+       in-world: the Product Photo Studio (design a batch, get
+       the product photos), the Merch Drop Planner (a priced
+       drop plan with its launch week), and the Merch store
+       (your designs, prices, margins and orders) on the shop's
+       own /api/merch + /api/wave8 rails. Stands on the Atelier's
+       south wall at the open west end, clear of the jewelry
+       bench's prompt (5.5 m away). */
+    id: "merch-bench",
+    roomId: BRANDING_ATELIER_ID,
+    name: "Merch Bench",
+    tagline: "Design it, shoot it, plan the drop — your merch, end to end.",
+    x: 15.5,
+    z: 8,
+    membersOnly: false,
+    panel: { kind: "native", pattern: "business" },
+    websitePath: "/branding-kit?tab=shop&subtab=merch",
+  },
 
   /* ── Courtyard ───────────────────────────────────────────────── */
   {
