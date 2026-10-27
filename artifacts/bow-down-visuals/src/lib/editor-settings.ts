@@ -1431,7 +1431,7 @@ export interface VideoAudioSync {
   duration?: number;
   /**
    * How to handle an audio/video length mismatch.
-   * Saved per-project and respected by Export Doctor.
+   * Saved per-project.
    * Defaults to "keep-as-is" (no automatic stretching).
    */
   syncMode: AudioVideoSyncMode;

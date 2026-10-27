@@ -1041,11 +1041,10 @@ describe("operator knowledge — Stack-28 KB integration", () => {
 
   /* Lane D A-03 remainder (Stack-200 editor lane): the video-editor
      entry must name its WHOLE export story — the priced rails behind
-     nested sections (multi-ratio, lip-sync run-all, the Export
-     Doctor's free rails) and the unpriced sub-steps (prepare + job
-     poll). Before the generator's link tables landed, its endpoint
-     list omitted every one of these, so the operator could not
-     truthfully describe how the editor exports. */
+     nested sections (multi-ratio, lip-sync run-all) and the unpriced
+     sub-steps (prepare + job poll). Before the generator's link tables
+     landed, its endpoint list omitted every one of these, so the
+     operator could not truthfully describe how the editor exports. */
   it("the video-editor entry names the full export rail set (A-03)", () => {
     const editor = byId("video-editor")!;
     for (const ep of [
@@ -1055,15 +1054,11 @@ describe("operator knowledge — Stack-28 KB integration", () => {
       "/api/export-multi-ratio",
       "/api/prepare-export-files",
       "/api/lip-sync/run-all",
-      "/api/export-doctor/export",
-      "/api/export-doctor/export-all-captions",
-      "/api/export-doctor/repair-clip",
     ]) {
       expect(editor.endpoints, ep).toContain(ep);
     }
     expect(editor.prices.find((p) => p.endpoint === "/api/export-multi-ratio")!.vb).toBe(100);
     expect(editor.prices.find((p) => p.endpoint === "/api/lip-sync/run-all")!.vb).toBe(300);
-    expect(editor.prices.find((p) => p.endpoint === "/api/export-doctor/export")!.vb).toBe(0);
   });
 
   /* A6-K5: the social-publish rails (100 VB each in the registry)

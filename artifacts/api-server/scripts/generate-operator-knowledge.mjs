@@ -54,8 +54,10 @@
                                  router.* registrations), so an endpoint
                                  family whose calling surface sits past
                                  the page scan's one hop is never invisible
-                                 to the operator (ExportDoctor B-08: the
-                                 export-doctor route file).
+                                 to the operator (the B-08 mechanism;
+                                 its sole entry retired with the Export
+                                 Doctor's removal — the table stands
+                                 empty until the next such family).
      duration-tiered prices .... src/routes/generate/music-audio.ts
                                  SONG_PRICE_TIERS — the table the charging
                                  function creditCostForLength derives from.
@@ -1066,15 +1068,9 @@ const FEATURE_PRICE_LINKS = [
      the editor's own rails the one-hop scan cannot reach — the
      multi-ratio export (called from a section two hops down) and the
      lip-sync run-all orchestration (called from the Music Studio's
-     LipSyncStudio, also two hops). Without these links the operator
-     could not truthfully describe how the editor exports in other
-     ratios or runs lip sync across scenes. The Export Doctor's free
-     rails are NOT listed here any more: they are harvested from the
-     doctor's own route file by ROUTE_FILE_FEATURE_LINKS below
-     (ExportDoctor B-08, generator half) — the hand list this table
-     used to carry named only thirteen of the file's eighteen routes
-     and silently omitted the diagnostic steps (test-url, download,
-     check-clip-urls, download-all, export-audio-sync-diagnostic). */
+     LipSyncStudio, also two hops). Without these links
+     the operator could not truthfully describe how the editor exports
+     in other ratios or runs lip sync across scenes. */
   {
     endpoint: "/api/export-multi-ratio",
     attachToFeatureIds: ["video-editor"],
@@ -1104,44 +1100,22 @@ const FEATURE_ENDPOINT_LINKS = [
   },
 ];
 
-/** Whole-route-file harvest (ExportDoctor B-08, generator half).
+/** Whole-route-file harvest (B-08 mechanism, generator half).
     CLASSIFICATION only — which server route file belongs to which
     feature entry, and which path family inside that file is the
     feature's. The endpoints themselves are EXTRACTED from the file's
     own router.* registrations at generation time (see
-    extractRouteFileEndpoints), never hand-listed, so the family can
-    never silently thin the way the hand-kept FEATURE_PRICE_LINKS
-    list did (thirteen of eighteen export-doctor routes; the five
-    diagnostic steps — test-url, download, check-clip-urls,
-    download-all, export-audio-sync-diagnostic — were absent from the
-    knowledge base while their export siblings were present).
+    extractRouteFileEndpoints), never hand-listed, so a family can
+    never silently thin the way a hand-kept list can.
 
-    The doctor's surface is docked in the video editor's Export tab
-    (components/editor/sections/ExportDoctor.tsx, two hops past the
-    page scan), so the whole family attaches to the video-editor
-    entry — the in-workflow home the A-03 links already used.
-
-    Price honesty: an endpoint the CREDIT_COSTS registry prices
-    (every export-doctor rail is registered free, 0 VB) attaches
-    with its registry price, exactly like FEATURE_PRICE_LINKS; an
-    endpoint with NO registry row is an unpriced sub-step (the
-    FEATURE_ENDPOINT_LINKS precedent) and attaches endpoint-only —
-    the generator never invents a price for it. Generation THROWS
-    when the file stops serving the family, when a route in the
-    file falls outside the declared family prefix, when the router
-    is no longer mounted prefix-free in routes/index.ts (so
-    /api + route path stops being the served path), or when the
-    registry names a family endpoint the file no longer serves —
-    drift fails loudly instead of emitting stale knowledge. */
-const ROUTE_FILE_FEATURE_LINKS = [
-  {
-    routeFile: "routes/generate/export-doctor.ts",
-    routeImport: "./generate/export-doctor",
-    routerVar: "exportDoctorRouter",
-    pathPrefix: "/export-doctor/",
-    attachToFeatureIds: ["video-editor"],
-  },
-];
+    JOIN2 STATE: the table stands EMPTY. Its sole entry was the
+    Export Doctor's route file (the original B-08 case), and the
+    Export Doctor was removed from the product entirely
+    (stack200/remove-expdoctor — a dev diagnostic that shipped by
+    mistake; owner's removal ruling). The mechanism stays: the next
+    endpoint family whose calling surface sits past the page scan
+    gets an entry here instead of a hand list. */
+const ROUTE_FILE_FEATURE_LINKS = [];
 
 /** Docked surfaces: real features that live as a tab, panel, or mode
     inside a host page and own no route of their own, so the route
@@ -1976,7 +1950,7 @@ function main() {
     }
   }
 
-  /* Route-file harvest pass (ExportDoctor B-08, generator half — see
+  /* Route-file harvest pass (B-08 mechanism — see
      ROUTE_FILE_FEATURE_LINKS): every endpoint a reviewed server route
      file registers attaches to its feature entries, extracted from
      the file itself rather than hand-listed. Registry-priced routes
