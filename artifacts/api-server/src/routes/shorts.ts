@@ -52,6 +52,10 @@ async function profileVideosHasAltText(): Promise<boolean> {
      POST /videos/:id/stitch      stitch a video (auth)
      GET  /videos/:id/duets       children duets (public)
      GET  /videos/:id/stitches    children stitches (public)
+     PATCH /videos/:id/duet-settings  creator's per-video duet switch (auth, owner)
+     GET  /shorts/king-duet       Duet the King event rail (public, #173/N3)
+     POST /videos/:id/king-feature    the King's featured pick (auth, house only)
+     DELETE /videos/:id/king-feature  unfeature (auth, house only)
      GET  /sounds/trending        trending sounds (public)
      GET  /sounds/:id             sound page (public)
      GET  /hashtag/:tag           tagged content across tables (public)
@@ -156,6 +160,11 @@ interface ShortRow extends Record<string, unknown> {
   download_price_cents: unknown;
   duet_with: string | null;
   stitch_with: string | null;
+  /* Duet Rails (#173): the creator's per-video duet switch + the
+     King's featured-pick stamp (N3). pv.* carries both columns. */
+  duets_enabled?: boolean | null;
+  king_featured_at?: string | null;
+  creator_is_official?: boolean | null;
   sound_id: string | null;
   sound_title: string | null;
   sound_url: string | null;
@@ -196,9 +205,13 @@ function shapeShort(r: ShortRow) {
     download_price_cents: num(r.download_price_cents),
     duet_with: r.duet_with,
     stitch_with: r.stitch_with,
+    /* #173: a missing/NULL switch reads as its DB default — duets ON.
+       The duet door hides and POST refuses only on an explicit off. */
+    duets_enabled: r.duets_enabled !== false,
+    king_featured_at: r.king_featured_at ?? null,
     sound: r.sound_id ? { id: r.sound_id, title: r.sound_title, url: r.sound_url, use_count: num(r.sound_use_count) } : null,
     score: num(r.score),
-    creator: { id: r.profile_id, slug: r.creator_slug, display_name: r.creator_name, avatar_url: r.creator_avatar },
+    creator: { id: r.profile_id, slug: r.creator_slug, display_name: r.creator_name, avatar_url: r.creator_avatar, is_official: !!r.creator_is_official },
     duet_parent: r.duet_parent_id ? { id: r.duet_parent_id, title: r.duet_parent_title, creator_slug: r.duet_parent_slug } : null,
     stitch_parent: r.stitch_parent_id ? { id: r.stitch_parent_id, title: r.stitch_parent_title, creator_slug: r.stitch_parent_slug } : null,
     duet_count: num(r.duet_count),
@@ -225,7 +238,7 @@ router.get("/shorts/feed", feedLimiter, async (req, res) => {
     const result = await db.execute(sql`
       WITH base AS (
         SELECT pv.*,
-               cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar,
+               cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar, cp.is_official AS creator_is_official,
                CASE WHEN f.profile_id IS NOT NULL THEN 2.5 ELSE 1.0 END AS follow_mult,
                CASE WHEN cp.slug = ANY(${sql`ARRAY[${sql.join(OFFICIAL_SLUGS.map((s) => sql`${s}`), sql`, `)}]::text[]`}) THEN 1.5 ELSE 1.0 END AS bdv_mult,
                CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS viewer_liked,
@@ -270,6 +283,77 @@ router.get("/shorts/feed", feedLimiter, async (req, res) => {
   }
 });
 
+/* ── GET /shorts/king-duet — Duet the King (N3, absorbed into #173) ────────
+   The launch event ON these rails, not a second machine: the King's
+   own posted clips (official Thy Cheat Code profile) whose duet
+   switch is ON are the open doors — fans duet them through the exact
+   same POST /videos/:id/duet rail — and the King's featured pick is
+   a duet of one of those clips, stamped king_featured_at by the
+   house. ANTI-FAKE: pick_kind is spelled out in the payload — the
+   pick is a HOUSE pick, chosen by Thy Cheat Code, and the fan who
+   made the duet is credited as its creator on every item. */
+router.get("/shorts/king-duet", feedLimiter, async (req, res) => {
+  try {
+    const clips = await db.execute(sql`
+      SELECT pv.id, pv.title, pv.video_url, pv.thumbnail_url, pv.view_count, pv.like_count, pv.created_at,
+             (SELECT COUNT(*)::int FROM profile_videos d WHERE d.duet_with = pv.id AND d.is_published = true) AS duet_count,
+             cp.id AS creator_id, cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar
+      FROM profile_videos pv
+      JOIN creator_profiles cp ON cp.id = pv.profile_id
+      WHERE cp.is_official = true AND pv.is_published = true AND pv.is_short = true AND pv.duets_enabled = true
+      ORDER BY pv.created_at DESC
+      LIMIT 12
+    `);
+    const featured = await db.execute(sql`
+      SELECT pv.id, pv.title, pv.video_url, pv.thumbnail_url, pv.view_count, pv.like_count,
+             pv.king_featured_at, pv.created_at,
+             cp.id AS creator_id, cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar,
+             dp.id AS duet_parent_id, dp.title AS duet_parent_title,
+             dcp.slug AS duet_parent_slug, dcp.display_name AS duet_parent_name
+      FROM profile_videos pv
+      JOIN creator_profiles cp ON cp.id = pv.profile_id
+      LEFT JOIN profile_videos dp ON dp.id = pv.duet_with
+      LEFT JOIN creator_profiles dcp ON dcp.id = dp.profile_id
+      WHERE pv.king_featured_at IS NOT NULL AND pv.is_published = true
+      ORDER BY pv.king_featured_at DESC
+      LIMIT 12
+    `);
+    const clipRows = clips.rows as Record<string, unknown>[];
+    const featRows = featured.rows as Record<string, unknown>[];
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      event: {
+        name: "Duet the King",
+        pick_kind: "house_pick",
+        note: "Thy Cheat Code posts a clip and opens it for duets. The featured duet is the King's own house pick — and the fan who made it is credited right on the pick.",
+      },
+      king: clipRows.length
+        ? { id: clipRows[0]!["creator_id"], slug: clipRows[0]!["creator_slug"], display_name: clipRows[0]!["creator_name"], avatar_url: clipRows[0]!["creator_avatar"] }
+        : null,
+      open_clips: clipRows.map((r) => ({
+        id: r["id"], title: r["title"], video_url: r["video_url"], thumbnail_url: r["thumbnail_url"],
+        view_count: num(r["view_count"]), like_count: num(r["like_count"]), duet_count: num(r["duet_count"]),
+        duets_enabled: true,
+        creator: { id: r["creator_id"], slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"], is_official: true },
+        created_at: r["created_at"],
+      })),
+      featured: featRows.map((r) => ({
+        id: r["id"], title: r["title"], video_url: r["video_url"], thumbnail_url: r["thumbnail_url"],
+        view_count: num(r["view_count"]), like_count: num(r["like_count"]),
+        king_featured_at: r["king_featured_at"], created_at: r["created_at"],
+        pick_kind: "house_pick",
+        /* The fan is the featured video's creator — credited by construction. */
+        creator: { id: r["creator_id"], slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
+        duet_parent: r["duet_parent_id"]
+          ? { id: r["duet_parent_id"], title: r["duet_parent_title"], creator_slug: r["duet_parent_slug"], creator_name: r["duet_parent_name"] }
+          : null,
+      })),
+    }));
+  } catch (err) {
+    req.log.error({ err }, "king-duet rail error");
+    res.status(500).json({ error: "The King's rail glitched. Try again." });
+  }
+});
+
 /** GET /shorts/:id — one short, fully linked (share target / deep links). */
 router.get("/shorts/:id", feedLimiter, async (req, res) => {
   try {
@@ -277,7 +361,7 @@ router.get("/shorts/:id", feedLimiter, async (req, res) => {
     const viewerId = await optionalViewerId(req);
     const result = await db.execute(sql`
       SELECT pv.*,
-             cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar,
+             cp.slug AS creator_slug, cp.display_name AS creator_name, cp.avatar_url AS creator_avatar, cp.is_official AS creator_is_official,
              CASE WHEN f.profile_id IS NOT NULL THEN 2.5 ELSE 1.0 END AS follow_mult,
              CASE WHEN cp.slug = ANY(${sql`ARRAY[${sql.join(OFFICIAL_SLUGS.map((s) => sql`${s}`), sql`, `)}]::text[]`}) THEN 1.5 ELSE 1.0 END AS bdv_mult,
              CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS viewer_liked,
@@ -335,6 +419,8 @@ const postShortSchema = z.object({
   sound_url: z.string().url().max(2048).optional().nullable(),
   duet_with: z.string().uuid().optional().nullable(),
   stitch_with: z.string().uuid().optional().nullable(),
+  /* #173: publish with duets already off (default: on). */
+  duets_enabled: z.boolean().optional(),
   challenge_id: z.string().uuid().optional().nullable(),
   is_published: z.boolean().optional().default(true),
 });
@@ -351,8 +437,18 @@ async function insertShort(
   if (parentId) {
     const [row] = await db.select({
       id: profileVideosTable.id, profileId: profileVideosTable.profileId, title: profileVideosTable.title,
+      duetsEnabled: profileVideosTable.duetsEnabled,
     }).from(profileVideosTable).where(eq(profileVideosTable.id, parentId)).limit(1);
     if (!row) return { error: "The original video doesn't exist. Dead link, chief.", status: 404 };
+    /* Duet Rails (#173): the original creator holds the switch. A
+       duet against a switched-off video is refused HERE — the one
+       funnel both POST /shorts (duet_with) and POST /videos/:id/duet
+       pass through — so no door (feed rail, MediaLinkBar, editor
+       deep link) can sneak past it. Stitches are a separate kind
+       and are not governed by the duet switch. */
+    if (b.duet_with && row.duetsEnabled === false) {
+      return { error: "Duets are off for this video — the creator turned them off.", status: 403 };
+    }
     parent = row;
   }
 
@@ -370,6 +466,7 @@ async function insertShort(
     tags: b.tags ?? [],
     durationSec: b.duration_sec ?? 0,
     isShort: true,
+    duetsEnabled: b.duets_enabled ?? true,
     duetWith: b.duet_with ?? null,
     stitchWith: b.stitch_with ?? null,
     soundId,
@@ -489,6 +586,126 @@ function linkShortHandler(kind: "duet" | "stitch") {
 router.post("/videos/:id/duet", requireAuth, writeLimiter, linkShortHandler("duet"));
 router.post("/videos/:id/stitch", requireAuth, writeLimiter, linkShortHandler("stitch"));
 
+/* ── PATCH /videos/:id/duet-settings — the creator's duet switch (#173) ────
+   Per-video, held by the ORIGINAL creator (the profile that owns the
+   video) — never buried in global settings. Flipping it off closes
+   the duet door everywhere at once: the feed/MediaLinkBar stop
+   offering it and insertShort refuses new duets at POST. Existing
+   duets are untouched — the switch governs new duets, not history. */
+const duetSettingsSchema = z.object({ duets_enabled: z.boolean() });
+router.patch("/videos/:id/duet-settings", requireAuth, writeLimiter, async (req, res) => {
+  try {
+    const videoId = String(req.params["id"]);
+    const parsed = duetSettingsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Send duets_enabled as true or false." });
+      return;
+    }
+    const [video] = await db.select({
+      id: profileVideosTable.id, profileId: profileVideosTable.profileId,
+    }).from(profileVideosTable).where(eq(profileVideosTable.id, videoId)).limit(1);
+    if (!video) {
+      res.status(404).json({ error: "That video doesn't exist. Dead link, chief." });
+      return;
+    }
+    const own = await requireOwnProfile(req.userId!, video.profileId);
+    if (!own) {
+      res.status(403).json({ error: "Only the video's creator holds its duet switch." });
+      return;
+    }
+    await db.update(profileVideosTable)
+      .set({ duetsEnabled: parsed.data.duets_enabled })
+      .where(eq(profileVideosTable.id, videoId));
+    res.json({ id: videoId, duets_enabled: parsed.data.duets_enabled });
+  } catch (err) {
+    req.log.error({ err }, "duet-settings error");
+    res.status(500).json({ error: "The switch didn't flip. Try again." });
+  }
+});
+
+/* ── The King's featured pick (N3) ──────────────────────────────────────────
+   House-only: the caller must own an OFFICIAL profile (today exactly
+   one — Thy Cheat Code). The pick must be a published duet OF an
+   official clip: you cannot feature a random video, and you cannot
+   feature your own post — the featured creator is always the fan. */
+async function callersOfficialProfile(userId: string) {
+  const [p] = await db.select().from(creatorProfilesTable)
+    .where(and(eq(creatorProfilesTable.userId, userId), eq(creatorProfilesTable.isOfficial, true)))
+    .limit(1);
+  return p ?? null;
+}
+
+router.post("/videos/:id/king-feature", requireAuth, writeLimiter, async (req, res) => {
+  try {
+    const videoId = String(req.params["id"]);
+    const house = await callersOfficialProfile(req.userId!);
+    if (!house) {
+      res.status(403).json({ error: "Only the King's house account can feature a duet." });
+      return;
+    }
+    const [video] = await db.select().from(profileVideosTable)
+      .where(eq(profileVideosTable.id, videoId)).limit(1);
+    if (!video) {
+      res.status(404).json({ error: "That video doesn't exist. Dead link, chief." });
+      return;
+    }
+    if (!video.duetWith) {
+      res.status(400).json({ error: "The King's pick is a duet — this video isn't one." });
+      return;
+    }
+    if (!video.isPublished) {
+      res.status(400).json({ error: "An unpublished duet can't be featured." });
+      return;
+    }
+    const [parent] = await db.select({ profileId: profileVideosTable.profileId })
+      .from(profileVideosTable).where(eq(profileVideosTable.id, video.duetWith)).limit(1);
+    const [parentProfile] = parent
+      ? await db.select({ isOfficial: creatorProfilesTable.isOfficial })
+          .from(creatorProfilesTable).where(eq(creatorProfilesTable.id, parent.profileId)).limit(1)
+      : [undefined];
+    if (!parentProfile?.isOfficial) {
+      res.status(400).json({ error: "The King's pick must be a duet of the King's own clip." });
+      return;
+    }
+    const featuredAt = new Date();
+    await db.update(profileVideosTable)
+      .set({ kingFeaturedAt: featuredAt })
+      .where(eq(profileVideosTable.id, videoId));
+    const fan = await db.select().from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.id, video.profileId)).limit(1).then((r) => r[0] ?? null);
+    if (fan && fan.userId !== req.userId) {
+      await notify(fan.userId, {
+        kind: "king_featured",
+        title: `👑 The King featured your duet "${video.title}"`,
+        body: "Thy Cheat Code picked your duet as the King's featured pick — your name rides on it.",
+        link: `/shorts?start=${videoId}`,
+      });
+    }
+    res.json({ id: videoId, king_featured_at: featuredAt.toISOString(), pick_kind: "house_pick" });
+  } catch (err) {
+    req.log.error({ err }, "king-feature error");
+    res.status(500).json({ error: "The pick didn't land. Try again." });
+  }
+});
+
+router.delete("/videos/:id/king-feature", requireAuth, writeLimiter, async (req, res) => {
+  try {
+    const videoId = String(req.params["id"]);
+    const house = await callersOfficialProfile(req.userId!);
+    if (!house) {
+      res.status(403).json({ error: "Only the King's house account can feature a duet." });
+      return;
+    }
+    await db.update(profileVideosTable)
+      .set({ kingFeaturedAt: null })
+      .where(eq(profileVideosTable.id, videoId));
+    res.json({ id: videoId, king_featured_at: null });
+  } catch (err) {
+    req.log.error({ err }, "king-unfeature error");
+    res.status(500).json({ error: "The pick didn't lift. Try again." });
+  }
+});
+
 /** GET /videos/:id/duets & /videos/:id/stitches — children link back to parents. */
 async function childrenHandler(kind: "duet" | "stitch", req: Request, res: Response): Promise<void> {
   try {
@@ -500,6 +717,7 @@ async function childrenHandler(kind: "duet" | "stitch", req: Request, res: Respo
       thumbnailUrl: profileVideosTable.thumbnailUrl, viewCount: profileVideosTable.viewCount,
       likeCount: profileVideosTable.likeCount, createdAt: profileVideosTable.createdAt,
       profileId: profileVideosTable.profileId,
+      kingFeaturedAt: profileVideosTable.kingFeaturedAt,
     }).from(profileVideosTable)
       .where(and(eq(col, parentId), eq(profileVideosTable.isPublished, true)))
       .orderBy(desc(profileVideosTable.createdAt))
@@ -518,6 +736,9 @@ async function childrenHandler(kind: "duet" | "stitch", req: Request, res: Respo
       items: rows.map((r) => ({
         id: r.id, title: r.title, video_url: r.videoUrl, thumbnail_url: r.thumbnailUrl,
         view_count: r.viewCount, like_count: r.likeCount, created_at: r.createdAt,
+        /* #173/N3: the King's pick rides the children list so the
+           lineage UI can crown it wherever duets are listed. */
+        king_featured_at: r.kingFeaturedAt ?? null,
         creator: byId.get(r.profileId) ?? null,
       })),
     }));
