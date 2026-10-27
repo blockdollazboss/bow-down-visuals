@@ -34,6 +34,7 @@ export * from "./tip-jar";
 export * from "./contact-messages";
 export * from "./export-jobs";
 export * from "./vault-jobs";
+export * from "./group-profiles";
 export * from "./lip-sync-jobs";
 export * from "./lip-sync-runs";
 export * from "./multi-ratio-jobs";

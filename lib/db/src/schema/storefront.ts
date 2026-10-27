@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { creatorProfilesTable } from "./creator-platform";
+import { groupProfilesTable } from "./group-profiles";
 
 /**
  * Creator Streaming Platform — Sell Everything storefront (migration 0099).
@@ -129,6 +130,14 @@ export const storeProductsTable = pgTable("store_products", {
      publishing-splits sum-to-100 machine; schema/sale-splits.ts).
      Null = no co-sellers: the product sells exactly as before. */
   splits:         jsonb("splits").$type<import("./sale-splits").ProductSplit[] | null>(),
+  /* Duo/Group Profiles (Stack-200 UPGRADE N20, provisional migration
+     9999-group-profiles): non-null = this product is sold under a
+     group's shared store (schema/group-profiles.ts). Its splits were
+     stamped from the group's written split terms at creation, so the
+     sale-splits rail divides it like any co-seller product. The
+     storefront routes probe for this column and degrade to "no group
+     store" until the migration lands. */
+  groupProfileId: uuid("group_profile_id").references(() => groupProfilesTable.id, { onDelete: "set null" }),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
