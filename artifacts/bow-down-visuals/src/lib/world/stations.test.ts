@@ -46,8 +46,9 @@ describe("the station registry", () => {
      * Stack-100 #74 (Jewelry Bench), item 33 (Row Slate),
      * item 34 (Ateliers Slate), item 35 (Boardwalk Slate) and
      * item 97's closing part (the Hook Desk) and item 36
-     * (Heights Slate). */
-    expect(PALACE_STATIONS.length).toBe(41);
+     * (Heights Slate) + parity P3-C (the Smart Cards stand
+     * and the Merch Bench). */
+    expect(PALACE_STATIONS.length).toBe(43);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -70,7 +71,7 @@ describe("the station registry", () => {
       expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
       expect(s.panel.kind, s.id).not.toBe("page");
     }
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(22);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(24);
     /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
      * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
      * + the plaza monument's Kingdom Board (Open World Phase 1)
@@ -109,12 +110,14 @@ describe("the station registry", () => {
       "branding-shop-desk": "shop",
       "press-kit-desk": "business",
       "jewelry-bench": "business",
+      "smart-cards-stand": "business",
+      "merch-bench": "business",
       marketplace: "shop",
       "community-hall": "social",
       "promote-room": "business",
       "get-paid-room": "board",
     };
-    expect(Object.keys(patterns).length).toBe(22);
+    expect(Object.keys(patterns).length).toBe(24);
     for (const [id, pattern] of Object.entries(patterns)) {
       expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern });
     }
@@ -151,6 +154,8 @@ describe("the station registry", () => {
       "branding-shop-desk": "/branding-kit?tab=shop",
       "press-kit-desk": "/press-kit",
       "jewelry-bench": "/branding-kit?tab=jewelry",
+      "smart-cards-stand": "/nfc-cards",
+      "merch-bench": "/branding-kit?tab=shop&subtab=merch",
       "kingdom-board-plaza": null,
       marketplace: "/storefronts",
       "community-hall": "/community",
