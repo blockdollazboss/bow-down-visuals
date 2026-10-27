@@ -5981,6 +5981,16 @@
       "saveFailed": "Couldn't save group digest settings",
       "loadError": "Your group digest settings wouldn't load just now.",
       "retry": "Try again"
+    },
+    "viralSpike": {
+      "title": "Viral-spike response kit",
+      "subtitle": "When one of your posts suddenly takes off, get a ready kit of follow-up steps — sequel, captions, branding, promotion, money — while it's hot.",
+      "toggleTitle": "Watch my posts for viral spikes",
+      "toggleDesc": "When on, the site checks your posts' real view counts about once an hour and builds a response kit on the Promote page when one spikes. The kit only suggests — it never posts or changes anything for you. Turn it off and all checking stops: no view snapshots are recorded and no kits are built.",
+      "saved": "Viral-spike setting saved",
+      "saveFailed": "Couldn't save that setting",
+      "loadError": "Couldn't load your viral-spike setting.",
+      "retry": "Retry"
     }
   },
   "social-proof": {
@@ -10353,6 +10363,28 @@
     "needTextCaptions": "Need text captions?"
   },
   "promote": {
+    "viralSpike": {
+      "title": "Viral-spike response kit",
+      "subtitle": "Built only from your posts' real, measured view counts — never a guess.",
+      "loading": "Checking your posts' view counts…",
+      "loadError": "The spike check wouldn't run just now.",
+      "retry": "Try again",
+      "disabledTitle": "Spike watching is off",
+      "disabledDesc": "You turned the viral-spike kit off in Settings, so nothing is being measured and no kits are built. Turn it back on any time.",
+      "settingsCta": "Open Settings",
+      "noContentTitle": "Nothing to watch yet",
+      "noContentDesc": "Publish a showcase post or a short and the kit will start watching its real view count.",
+      "measuringTitle": "Still measuring",
+      "measuringDesc": "We're building the view history for {{count}} of your posts. A spike can only be called once there's a real baseline to compare against — check back soon.",
+      "quietTitle": "No spikes right now",
+      "quietDesc": "Your posts are moving at their usual pace. When one takes off, its response kit will appear here.",
+      "stage": {
+        "create": "Create",
+        "brand": "Brand",
+        "promote": "Promote",
+        "money": "Money"
+      }
+    },
     "copyLabel": "Copy {{label}}",
     "copy": "Copy",
     "copied": "Copied",

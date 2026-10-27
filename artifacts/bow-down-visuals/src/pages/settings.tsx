@@ -11,6 +11,7 @@ import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { SoundPrefsSettings } from "@/components/SoundPrefsSettings";
 import { MonthWrappedSettings } from "@/components/MonthWrappedSettings";
 import { CurrencyDisplaySettings } from "@/components/CurrencyDisplaySettings";
+import { ViralSpikeSettings } from "@/components/ViralSpikeSettings";
 import { FeedbackPromptSettings } from "@/components/FeedbackPromptSettings";
 import { GroupDigestSettings } from "@/components/GroupDigestSettings";
 import { ContentWarningSettings } from "@/components/ContentWarningSettings";
@@ -303,6 +304,10 @@ export default function Settings() {
         </SettingsCardBoundary>
         <SettingsCardBoundary name="currency-display">
           <CurrencyDisplaySettings />
+        </SettingsCardBoundary>
+
+        <SettingsCardBoundary name="viral-spike">
+          <ViralSpikeSettings />
         </SettingsCardBoundary>
 
         <SettingsCardBoundary name="feedback-prompts">

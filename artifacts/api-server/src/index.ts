@@ -19,6 +19,7 @@ import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
 import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
+import { startViralSpikeSweeper } from "./lib/viral-spike-service";
 import { startProductDropSweeper } from "./lib/product-drop-notify";
 import { startEmailAutomationSweeper } from "./lib/email-automations";
 import { startJobPoller } from "./lib/job-poller";
@@ -108,6 +109,13 @@ const server = app.listen(port, (err) => {
   // ever emailed twice. Runs once shortly after boot, then on
   // PRESAVE_NOTIFY_SWEEP_INTERVAL_MS.
   startPresaveReleaseSweeper();
+  // Viral-spike response kit (orphan wave): hourly timestamped samples
+  // of real view counters (showcase_items.views / profile_videos
+  // .view_count) for opted-in creators — the snapshot history is what
+  // makes spike velocity honest instead of invented. Opt-out (Settings)
+  // stops all sampling for an account; the sweeper fails closed (logs +
+  // skips) until the provisional 9999 migration is renumbered/applied.
+  startViralSpikeSweeper();
   // Timed product drops (Stack-100 #3 #25): a scheduled drop's moment
   // arriving flips it live (status-guarded, winner-only) and emails the
   // capture list exactly once through the claim ledger. Public reads

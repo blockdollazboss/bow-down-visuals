@@ -5734,6 +5734,16 @@
       "saveFailed": "Impossibile salvare le impostazioni",
       "loadError": "Le tue impostazioni non si sono caricate.",
       "retry": "Riprova"
+    },
+    "viralSpike": {
+      "title": "Kit di risposta ai picchi virali",
+      "subtitle": "Quando uno dei tuoi post decolla all’improvviso, ricevi un kit pronto di passi successivi — sequel, didascalie, branding, promozione, denaro — mentre è ancora caldo.",
+      "toggleTitle": "Controlla i miei post per picchi virali",
+      "toggleDesc": "Quando è attivo, il sito controlla le visualizzazioni reali dei tuoi post circa una volta all’ora e crea un kit di risposta nella pagina Promuovi quando uno esplode. Il kit si limita a suggerire — non pubblica né modifica mai nulla per te. Disattivalo e ogni controllo si ferma: non vengono registrate istantanee delle visualizzazioni né creati kit.",
+      "saved": "Impostazione picchi virali salvata",
+      "saveFailed": "Impossibile salvare questa impostazione",
+      "loadError": "Impossibile caricare la tua impostazione sui picchi virali.",
+      "retry": "Riprova"
     }
   },
   "social-proof": {
@@ -14494,6 +14504,28 @@
     "title": "Informativa sulla privacy"
   },
   "promote": {
+    "viralSpike": {
+      "title": "Kit di risposta ai picchi virali",
+      "subtitle": "Creato solo dalle visualizzazioni reali e misurate dei tuoi post — mai un’ipotesi.",
+      "loading": "Controllo delle visualizzazioni dei tuoi post…",
+      "loadError": "Il controllo dei picchi non è riuscito in questo momento.",
+      "retry": "Riprova",
+      "disabledTitle": "Il controllo dei picchi è disattivato",
+      "disabledDesc": "Hai disattivato il kit picchi virali nelle Impostazioni, quindi non viene misurato nulla e non vengono creati kit. Riattivalo quando vuoi.",
+      "settingsCta": "Apri Impostazioni",
+      "noContentTitle": "Ancora niente da controllare",
+      "noContentDesc": "Pubblica un post in vetrina o uno short e il kit inizierà a controllarne le visualizzazioni reali.",
+      "measuringTitle": "Misurazione in corso",
+      "measuringDesc": "Stiamo costruendo lo storico delle visualizzazioni di {{count}} dei tuoi post. Un picco può essere rilevato solo quando esiste una base reale di confronto — torna presto a controllare.",
+      "quietTitle": "Nessun picco al momento",
+      "quietDesc": "I tuoi post avanzano al loro ritmo abituale. Quando uno decollerà, il suo kit di risposta apparirà qui.",
+      "stage": {
+        "create": "Crea",
+        "brand": "Marchio",
+        "promote": "Promuovi",
+        "money": "Denaro"
+      }
+    },
     "copyLabel": "Copia {{label}}",
     "copy": "Copia",
     "copied": "Copiato",

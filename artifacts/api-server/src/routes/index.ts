@@ -270,6 +270,7 @@ import retentionRouter from "./retention";
 import soundPrefsRouter from "./sound-prefs";
 import monthWrappedRouter from "./month-wrapped";
 import groupDigestRouter from "./group-digest";
+import viralSpikeRouter from "./viral-spike";
 import pitchFixRouter from "./pitch-fix";
 import studioGearRouter from "./studio-gear";
 import openVerseRouter from "./open-verse";
@@ -666,6 +667,7 @@ router.use(retentionRouter);
 router.use(soundPrefsRouter);            // /api/sound-prefs (signature sounds, UPGRADES 183)
 router.use(monthWrappedRouter);          // /api/month-wrapped (Your Month, Wrapped, idea #170)
 router.use(groupDigestRouter);           // /api/group-digest-prefs (per-group activity digest)
+router.use(viralSpikeRouter);            // /api/viral-spike-prefs + /api/viral-spike-kits (viral-spike response kit, orphan wave)
 router.use(pitchFixRouter);              // /api/pitch-fix/* + /api/admin/pitch-fix/* (Pitch & Fix + Feedback Pop-Ups, UPGRADES 196+180)
 router.use(studioGearRouter);            // /api/studio-gear/* + /api/admin/studio-gear/* (Branding Shop studio-gear line, test mode)
 router.use(openVerseRouter);             // /api/open-verse/* (Open Verse #176 — splits rail reuse, creator-gated pick, exactly-once ledger)

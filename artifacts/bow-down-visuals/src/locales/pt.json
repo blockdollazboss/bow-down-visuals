@@ -5734,6 +5734,16 @@
       "saveFailed": "Não foi possível salvar as configurações",
       "loadError": "Suas configurações não carregaram agora.",
       "retry": "Tentar novamente"
+    },
+    "viralSpike": {
+      "title": "Kit de resposta a picos virais",
+      "subtitle": "Quando uma das suas publicações decola de repente, receba um kit pronto de próximos passos — sequência, legendas, marca, promoção, dinheiro — enquanto está em alta.",
+      "toggleTitle": "Monitorar minhas publicações quanto a picos virais",
+      "toggleDesc": "Quando ativado, o site verifica as visualizações reais das suas publicações cerca de uma vez por hora e cria um kit de resposta na página Promover quando uma dispara. O kit apenas sugere — nunca publica nem altera nada por você. Desative e toda a verificação para: nenhum registro de visualizações é gravado e nenhum kit é criado.",
+      "saved": "Configuração de picos virais salva",
+      "saveFailed": "Não foi possível salvar essa configuração",
+      "loadError": "Não foi possível carregar sua configuração de picos virais.",
+      "retry": "Tentar novamente"
     }
   },
   "social-proof": {
@@ -14695,6 +14705,28 @@
     "title": "Política de privacidade"
   },
   "promote": {
+    "viralSpike": {
+      "title": "Kit de resposta a picos virais",
+      "subtitle": "Criado apenas a partir das visualizações reais e medidas das suas publicações — nunca um palpite.",
+      "loading": "Verificando as visualizações das suas publicações…",
+      "loadError": "A verificação de picos não pôde ser executada agora.",
+      "retry": "Tentar novamente",
+      "disabledTitle": "O monitoramento de picos está desativado",
+      "disabledDesc": "Você desativou o kit de picos virais nas Configurações, então nada é medido e nenhum kit é criado. Reative quando quiser.",
+      "settingsCta": "Abrir Configurações",
+      "noContentTitle": "Nada para monitorar ainda",
+      "noContentDesc": "Publique uma publicação de vitrine ou um short e o kit começará a monitorar suas visualizações reais.",
+      "measuringTitle": "Ainda medindo",
+      "measuringDesc": "Estamos construindo o histórico de visualizações de {{count}} das suas publicações. Um pico só pode ser identificado quando há uma base real de comparação — volte em breve.",
+      "quietTitle": "Sem picos no momento",
+      "quietDesc": "Suas publicações estão no ritmo habitual. Quando uma decolar, o kit de resposta dela aparecerá aqui.",
+      "stage": {
+        "create": "Criar",
+        "brand": "Marca",
+        "promote": "Promover",
+        "money": "Dinheiro"
+      }
+    },
     "copyLabel": "Copiar {{label}}",
     "copy": "Copiar",
     "copied": "Copiado",

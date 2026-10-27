@@ -17,7 +17,7 @@
  *      the healthy passthrough, and the retry handler's state math;
  *  (b) composition: a failed card's fallback rendered alongside a
  *      healthy card and page content — all three present in one tree;
- *  (c) source pins that settings.tsx wraps EVERY card (all 22 on the joined tree) and
+ *  (c) source pins that settings.tsx wraps EVERY card (all 23 on the joined tree) and
  *      that the boundary carries the catch contract. The client-side
  *      catch itself is React's documented class-boundary behavior —
  *      the same mechanism the production RouteErrorBoundary relies on.
@@ -247,6 +247,9 @@ const CARDS: Array<[string, string]> = [
      cards that joined the page after G4 — isolated too. */
   ["month-wrapped", "MonthWrappedSettings"],
   ["currency-display", "CurrencyDisplaySettings"],
+  /* JOIN2 (orphan-wave viral-spike kit): its Settings card joined —
+     isolated like every other card. */
+  ["viral-spike", "ViralSpikeSettings"],
   ["feedback-prompts", "FeedbackPromptSettings"],
   /* JOIN2 (orphan-wave group-digest): the digest card joined the page —
      isolated like every other card. */
@@ -266,7 +269,7 @@ const CARDS: Array<[string, string]> = [
 ];
 
 describe("settings.tsx — every card is isolated (source pins)", () => {
-  it("wraps each of the 22 cards in its own boundary", () => {
+  it("wraps each of the 23 cards in its own boundary", () => {
     for (const [slug, component] of CARDS) {
       const pattern = new RegExp(
         `<SettingsCardBoundary name="${slug}">\\s*<${component}[ />]`,

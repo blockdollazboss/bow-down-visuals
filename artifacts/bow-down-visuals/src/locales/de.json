@@ -5722,6 +5722,16 @@
       "saveFailed": "Einstellungen konnten nicht gespeichert werden",
       "loadError": "Deine Einstellungen konnten gerade nicht geladen werden.",
       "retry": "Erneut versuchen"
+    },
+    "viralSpike": {
+      "title": "Reaktions-Kit für virale Spitzen",
+      "subtitle": "Wenn einer deiner Beiträge plötzlich durchstartet, erhältst du ein fertiges Kit mit Folgeschritten — Fortsetzung, Captions, Branding, Promotion, Geld — solange er heiß ist.",
+      "toggleTitle": "Meine Beiträge auf virale Spitzen überwachen",
+      "toggleDesc": "Wenn aktiviert, prüft die Seite etwa einmal pro Stunde die echten Aufrufzahlen deiner Beiträge und erstellt auf der Promote-Seite ein Reaktions-Kit, wenn einer durchstartet. Das Kit macht nur Vorschläge — es postet oder ändert niemals etwas für dich. Schalte es aus, und jede Prüfung stoppt: Es werden keine Aufruf-Snapshots gespeichert und keine Kits erstellt.",
+      "saved": "Einstellung für virale Spitzen gespeichert",
+      "saveFailed": "Diese Einstellung konnte nicht gespeichert werden",
+      "loadError": "Deine Einstellung für virale Spitzen konnte nicht geladen werden.",
+      "retry": "Erneut versuchen"
     }
   },
   "social-proof": {
@@ -9860,6 +9870,28 @@
     "needTextCaptions": "Brauchst du Text-Untertitel?"
   },
   "promote": {
+    "viralSpike": {
+      "title": "Reaktions-Kit für virale Spitzen",
+      "subtitle": "Erstellt nur aus den echten, gemessenen Aufrufzahlen deiner Beiträge — niemals eine Schätzung.",
+      "loading": "Aufrufzahlen deiner Beiträge werden geprüft…",
+      "loadError": "Die Spitzenprüfung konnte gerade nicht laufen.",
+      "retry": "Erneut versuchen",
+      "disabledTitle": "Spitzenüberwachung ist aus",
+      "disabledDesc": "Du hast das Kit für virale Spitzen in den Einstellungen ausgeschaltet, also wird nichts gemessen und keine Kits werden erstellt. Schalte es jederzeit wieder ein.",
+      "settingsCta": "Einstellungen öffnen",
+      "noContentTitle": "Noch nichts zu überwachen",
+      "noContentDesc": "Veröffentliche einen Showcase-Beitrag oder ein Short, und das Kit beginnt, seine echten Aufrufe zu überwachen.",
+      "measuringTitle": "Messung läuft noch",
+      "measuringDesc": "Wir bauen den Aufrufverlauf für {{count}} deiner Beiträge auf. Eine Spitze kann nur erkannt werden, wenn es eine echte Vergleichsbasis gibt — schau bald wieder vorbei.",
+      "quietTitle": "Gerade keine Spitzen",
+      "quietDesc": "Deine Beiträge laufen in ihrem üblichen Tempo. Wenn einer durchstartet, erscheint sein Reaktions-Kit hier.",
+      "stage": {
+        "create": "Erstellen",
+        "brand": "Branding",
+        "promote": "Promoten",
+        "money": "Geld"
+      }
+    },
     "copyLabel": "{{label}} kopieren",
     "copy": "Kopieren",
     "copied": "Kopiert",
