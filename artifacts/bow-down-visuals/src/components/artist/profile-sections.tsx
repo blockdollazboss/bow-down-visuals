@@ -7,6 +7,7 @@ import {
   ExternalLink, MapPin, Crown, Pin,
 } from "lucide-react";
 import { PROFILE_VISIT_WORLD_TEST_ID, VISIT_WORLD_LABEL, WORLD_ROUTE } from "@/lib/world-entry";
+import { jarPath } from "@/lib/one-tip-jar";
 import type {
   CreatorProfile, FeaturedMedia, ProfileSection, SeriesEntry,
   MerchItem, ProfileEventItem, SocialPostItem, ProfileMediaItem,
@@ -988,7 +989,7 @@ export function ProfileActions({ profile }: { profile: CreatorProfile }) {
       )}
       {profile.tip_jar_enabled && (
         <Link
-          href={`/tips/${encodeURIComponent(profile.slug)}`}
+          href={jarPath(profile.slug)}
           className="flex items-center gap-1.5 rounded-full border px-5 py-2 text-sm font-bold transition hover:scale-105"
           style={{ borderColor: "var(--ap-border)", color: "var(--ap-text)" }}
         >

@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatBucs } from "@/lib/visual-bucs";
+import { jarPath } from "@/lib/one-tip-jar";
 import { normalizeShortsFeed, normalizeShortItem } from "@/lib/shorts-data";
 import {
   postShortPublishHref,
@@ -492,7 +493,7 @@ function ShortCard({
         )}
         {/* money rail: tip + buy — guide them to the money */}
         {tipHandle && (
-          <Link href={`/tips/${encodeURIComponent(tipHandle)}`} className="flex flex-col items-center gap-1" title="Tip the creator">
+          <Link href={jarPath(tipHandle)} className="flex flex-col items-center gap-1" title="Tip the creator">
             <span className="rounded-full bg-primary/90 p-3"><HandCoins className="h-6 w-6 text-black" /></span>
             <span className="text-xs font-semibold text-primary">Tip</span>
           </Link>
