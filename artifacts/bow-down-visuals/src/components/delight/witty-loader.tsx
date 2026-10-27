@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { mediaUrl } from "@/lib/media-cdn";
-import SpotlightModal from "@/components/SpotlightModal";
-import LoadingScreenModal from "@/components/LoadingScreenModal";
+import { openInquiry } from "@/lib/inquiry-modal-store";
 
 /* ─── Shared loader timing — every loading screen matches ──
    The barcode is the single source of truth: it drives the progress,
@@ -53,7 +52,6 @@ export function useWittyLine(intervalMs = 2200): string {
 
 export default function WittyLoader({ message, onComplete }: { message?: string; onComplete?: () => void }) {
   const { t } = useTranslation();
-  const [inquireModal, setInquireModal] = useState<"spotlight" | "loading-screen" | null>(null);
   // Theme-aware background: light theme gets the ivory throne, dark gets the dark throne
   const [isLight, setIsLight] = useState(false);
   useEffect(() => {
@@ -169,7 +167,10 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
           <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${isLight ? "text-[#8a6d1f]" : "text-white/40"}`}>Now featuring</p>
           {"inquire" in promo && promo.inquire ? (
             <button
-              onClick={() => setInquireModal(promo.inquire)}
+              type="button"
+              data-testid="witty-promo-inquire"
+              data-inquire={promo.inquire}
+              onClick={() => openInquiry(promo.inquire)}
               className={`mt-2 border rounded-xl backdrop-blur-sm p-5 text-left w-full transition-colors cursor-pointer ${
                 isLight
                   ? "border-[#c9a84c]/40 bg-white/85 hover:border-[#c9a84c]/70 hover:bg-white"
@@ -219,9 +220,12 @@ export default function WittyLoader({ message, onComplete }: { message?: string;
         <BarcodeStrip progress={progress} isLight={isLight} />
       </div>
 
-      {/* Ad inquiry modals — above the loader overlay */}
-      <SpotlightModal open={inquireModal === "spotlight"} onClose={() => setInquireModal(null)} />
-      <LoadingScreenModal open={inquireModal === "loading-screen"} onClose={() => setInquireModal(null)} />
+      {/* Ad inquiry modals are NOT rendered here (payfix Fix 2): this
+          loader unmounts the moment loading resolves, which killed the
+          form mid-click. The promo click records the inquiry in
+          lib/inquiry-modal-store and InquiryModalHost (App root, never
+          unmounted by SPA navigation) renders the existing form, which
+          then stays up until the user closes or submits it. */}
 
     </div>
   );

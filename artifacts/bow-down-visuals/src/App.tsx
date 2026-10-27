@@ -3,6 +3,7 @@ import { CreateRedirect } from "@/components/create-redirect";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import InquiryModalHost from "@/components/InquiryModalHost";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -862,6 +863,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
             </AuthProvider>
           </ThemePlayerProvider>
         </WouterRouter>
+        <InquiryModalHost />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
