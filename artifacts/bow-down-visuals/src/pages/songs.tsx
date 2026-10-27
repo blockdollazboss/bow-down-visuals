@@ -12,6 +12,7 @@ import { RemixChain } from "@/components/songs/RemixChain";
 import AlbumsSection from "./songs/albums-section";
 import DjSetPrep, { DjChips, type DjAnalysis } from "./songs/dj-set-prep";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
+import { KaraokePanel } from "@/components/player-upgrades/KaraokePanel";
 import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
 
 interface SongRecord {
@@ -473,6 +474,8 @@ export default function SongsPage() {
                 </span>
               </div>
               <audio controls src={s.audio_url} className="w-full h-8" />
+              {/* Karaoke Mode (N9): in-player sing-along on this song. */}
+              <KaraokePanel songId={s.id} audioUrl={s.audio_url} title={s.title} isLight={isLight} />
               {/* DJ read: BPM · key · Camelot chips, or the free analysis. */}
               <div className="mt-2">
                 {djAnalysisById[s.id] ? (
