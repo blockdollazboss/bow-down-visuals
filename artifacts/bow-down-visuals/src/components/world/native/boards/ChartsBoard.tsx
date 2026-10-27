@@ -10,14 +10,19 @@ import {
   NativeLoadingState,
 } from "@/components/world/native";
 import {
+  CHART_VERTICALS,
   CHART_WINDOWS,
   chartLikeIdsParam,
   chartLikeKey,
   chartRepostIdsParam,
   chartTrackPlayInput,
+  chartVerticalLabel,
   chartVideoPlayInput,
+  chartsBrandsPath,
   chartsCreatorsPath,
+  chartsEarnersPath,
   chartsMediaPath,
+  chartsRisingPath,
   chartWindowNoun,
   followStateFromResponse,
   followUrl,
@@ -33,12 +38,13 @@ import {
   repostStateFromToggle,
   type ChartCreatorRow,
   type ChartTrackRow,
+  type ChartVertical,
   type ChartVideoRow,
   type ChartWindow,
 } from "@/lib/world/charts-board";
+import { BrandOutreachPanel } from "./BrandOutreachPanel";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import { shelfEmbedCode } from "@/lib/world/shelf";
-import { UGC_PAYMENT_NOTE } from "@/lib/ugc-ads";
 import { copyText, formatCount, toggleLike, toggleRepost, type MediaKind } from "@/lib/streaming";
 import { formatMoney } from "@/components/discovery/cards";
 import type { ShelfPlayerController } from "@/components/world/native/ShelfPlayer";
@@ -77,7 +83,16 @@ import type { ShelfPlayerController } from "@/components/world/native/ShelfPlaye
    (GET /api/discovery/reposts) for the same reason the hearts are
    seeded — and every media row carries Copy embed code: the
    website player's own iframe (shelfEmbedCode — /embed/<kind>/<id>,
-   a page the embed system really serves for tracks and videos). */
+   a page the embed system really serves for tracks and videos).
+   P3 parity: the /charts page's OTHER switcher — the creator
+   vertical — stands on the board too, on every tab: each discovery
+   read filters server-side by vertical (the fixed-span boards
+   included), so switching re-queries like the window switcher and
+   rows cache per window+vertical. And the For Brands tab's
+   outreach no longer doors to the website: BrandOutreachPanel
+   drafts a pitch on the Brand Deals rail and posts a brief on the
+   Promote rail, both in-world; one quiet website footer is all
+   that still points out. */
 
 type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners" | "brands";
 
@@ -125,8 +140,13 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
      rows cache PER WINDOW — a window's rows are its own server
      aggregate, and coming back to a window shows its own read. */
   const [window, setWindow] = useState<ChartWindow>("week");
-  const [mediaByWindow, setMediaByWindow] = useState<
-    Partial<Record<ChartWindow, { tracks: ChartTrackRow[]; videos: ChartVideoRow[] }>>
+  /* The vertical switcher's choice (the /charts page's other
+     switcher). Every discovery read filters by it server-side, so
+     media rows cache PER WINDOW+VERTICAL — a vertical's rows are
+     its own server read, like a window's. */
+  const [vertical, setVertical] = useState<ChartVertical>("all");
+  const [mediaByKey, setMediaByKey] = useState<
+    Partial<Record<string, { tracks: ChartTrackRow[]; videos: ChartVideoRow[] }>>
   >({});
   const [creators, setCreators] = useState<Partial<Record<string, ChartCreatorRow[]>>>({});
   const [failedKey, setFailedKey] = useState<string | null>(null);
@@ -146,28 +166,30 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  /* The active window's media rows (both tabs share one read) and
-     the cache key the current view loads under: media tabs key by
-     window, the creators tab keys by tab+window, and the fixed-span
-     tabs key by tab alone — their span never moves. */
-  const media = mediaByWindow[window];
+  /* The active view's media rows (both media tabs share one read)
+     and the cache key the current view loads under: media tabs key
+     by window+vertical, the creators tab keys by tab+window+
+     vertical, and the fixed-span tabs key by tab+vertical — their
+     span never moves, but their vertical does. */
+  const mediaKey = `${window}:${vertical}`;
+  const media = mediaByKey[mediaKey];
   const tracks = media?.tracks ?? null;
   const videos = media?.videos ?? null;
   const loadKey =
     tab === "tracks" || tab === "videos"
-      ? `media:${window}`
+      ? `media:${mediaKey}`
       : tab === "creators"
-        ? `creators:${window}`
-        : tab;
+        ? `creators:${mediaKey}`
+        : `${tab}:${vertical}`;
 
-  /* Load the active view's rows (once per tab+window; the retry
-     tick reloads the failed one). Switching windows re-queries —
-     each window is a different server aggregate. */
+  /* Load the active view's rows (once per tab+window+vertical;
+     the retry tick reloads the failed one). Switching windows or
+     verticals re-queries — each is a different server read. */
   useEffect(() => {
     let cancelled = false;
     const loaded =
       tab === "tracks" || tab === "videos"
-        ? mediaByWindow[window] !== undefined
+        ? mediaByKey[mediaKey] !== undefined
         : creators[loadKey] !== undefined;
     if (loaded && failedKey !== loadKey) return;
     (async () => {
@@ -175,13 +197,13 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         if (tab === "tracks" || tab === "videos") {
           /* One payload carries both keys — the tracks and videos
              tabs are two views of the same chart read. */
-          const res = await fetch(chartsMediaPath(window));
+          const res = await fetch(chartsMediaPath(window, vertical));
           if (!res.ok) throw new Error("charts");
           const payload = await res.json();
           if (!cancelled) {
-            setMediaByWindow((prev) => ({
+            setMediaByKey((prev) => ({
               ...prev,
-              [window]: {
+              [mediaKey]: {
                 tracks: normalizeChartTracks(payload),
                 videos: normalizeChartVideos(payload),
               },
@@ -191,12 +213,12 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         } else {
           const path =
             tab === "creators"
-              ? chartsCreatorsPath(window)
+              ? chartsCreatorsPath(window, vertical)
               : tab === "rising"
-                ? "/api/discovery/rising?limit=12"
+                ? chartsRisingPath(vertical)
                 : tab === "brands"
-                  ? "/api/discovery/brands?limit=12"
-                  : "/api/discovery/rising-earners?limit=12";
+                  ? chartsBrandsPath(vertical)
+                  : chartsEarnersPath(vertical);
           const res = await fetch(path);
           if (!res.ok) throw new Error("creators");
           /* The /brands payload keys its rows "creators" like the
@@ -215,7 +237,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, tick, window]);
+  }, [tab, tick, window, vertical]);
 
   /* The walker's follow state for the creator rows on show —
      one batched read, members only (the page's own pattern). */
@@ -503,15 +525,18 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     (tab === "tracks" ? tracks === null : tab === "videos" ? videos === null : creators[loadKey] === undefined);
 
   /* The windowed tabs title off the chosen window; the fixed-span
-     tabs keep theirs. */
+     tabs keep theirs. A chosen vertical names itself in every
+     title — the board never shows a filtered read under an
+     unfiltered name. */
   const boardTitle =
-    tab === "tracks"
+    (tab === "tracks"
       ? `Top tracks — ${chartWindowNoun(window)}`
       : tab === "videos"
         ? `Top videos — ${chartWindowNoun(window)}`
         : tab === "creators"
           ? `Top creators — ${chartWindowNoun(window)}`
-          : (FIXED_TAB_TITLES[tab] ?? "");
+          : (FIXED_TAB_TITLES[tab] ?? "")) +
+    (vertical === "all" ? "" : ` · ${chartVerticalLabel(vertical)}`);
   const windowedTab = tab === "tracks" || tab === "videos" || tab === "creators";
 
   return (
@@ -553,6 +578,27 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           ))}
         </div>
       )}
+
+      {/* The vertical switcher — the /charts page's other switcher.
+          Unlike the window switcher it stands on EVERY tab: each
+          discovery read filters by vertical server-side, the
+          fixed-span boards included, so it never pretends to move
+          a span it can't — it moves the audience, which it can. */}
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Chart vertical">
+        {CHART_VERTICALS.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            role="tab"
+            aria-selected={vertical === v.key}
+            data-testid={`world-charts-vertical-${v.key}`}
+            onClick={() => setVertical(v.key)}
+            className={tabBtn(vertical === v.key)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
 
       {failedKey === loadKey ? (
         <NativeErrorState
@@ -690,7 +736,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                   : tab === "earners"
                     ? "No earners on the board yet."
                     : tab === "brands"
-                      ? "No creators to scout yet."
+                      ? vertical === "all"
+                        ? "No creators to scout yet."
+                        : `No ${chartVerticalLabel(vertical)} creators to scout yet.`
                       : window === "all"
                         ? "No creators on the all-time board — yet."
                         : `No creators are charting ${chartWindowNoun(window)} — yet.`
@@ -748,25 +796,13 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         </NativeBoard>
       )}
 
-      {tab === "brands" && !isGuest && failedKey !== loadKey && creators["brands"] !== undefined && (
-        <div className="space-y-1.5 px-1">
-          <p className={`text-xs ${muted}`}>
-            Scouting only here — outreach lives on the website:{" "}
-            <Link
-              href="/brand-deals"
-              data-testid="world-charts-brands-door"
-              className="font-bold text-[#d4af37] underline underline-offset-2"
-            >
-              Brand Deals
-            </Link>{" "}
-            (find brands, build a pitch) or{" "}
-            <Link href="/promote" className="font-bold text-[#d4af37] underline underline-offset-2">
-              post a brief in Promote
-            </Link>{" "}
-            and let creators claim it.
-          </p>
-          <p className={`text-xs ${muted}`}>{UGC_PAYMENT_NOTE}</p>
-        </div>
+      {/* For Brands outreach, in-world (P3): the pitch draft and
+          the brief post happen at the board on the site's own
+          rails — the panel carries the honesty note and the one
+          quiet website footer. Members only, and only once the
+          scout rows themselves loaded. */}
+      {tab === "brands" && !isGuest && failedKey !== loadKey && creators[loadKey] !== undefined && (
+        <BrandOutreachPanel isLight={isLight} />
       )}
       {queuedId && !jukeboxDenied && (
         <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
