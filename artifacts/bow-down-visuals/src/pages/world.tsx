@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
-  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge,
+  RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge, Zap,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen, Camera,
@@ -26,6 +26,7 @@ import {
   type WorldActionDef,
 } from "@/lib/world/actions";
 import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
+import { touchSprintAfter, type TouchSprintAction } from "@/lib/world/sprint";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -507,6 +508,30 @@ export default function WorldPage() {
      you can see who you're standing as. Remembered on the device. */
   const [viewMode, setViewMode] = useState<HallViewMode>(() => loadViewMode());
   const [qualityPref, setQualityPref] = useState<QualityPreference>(() => loadQualityPreference());
+  /* Touch sprint (Q194): the world strip's Sprint hold, the touch
+     family's peer of Shift and the pad's hurry buttons. The held
+     state lives here; the scene reads it through setTouchSprint
+     (the pad-action-page pattern), and sprint.ts's merge runs the
+     walker at the one shared RUN_SPEED while it holds. Every way
+     a hold can end — thumb lift, slide-off, pointer cancel, the
+     window losing focus, leaving the inside state — releases it
+     through touchSprintAfter, so the sprint never sticks on. */
+  const [touchSprint, setTouchSprint] = useState(false);
+  const touchSprintRef = useRef(false);
+  const applyTouchSprint = useCallback((action: TouchSprintAction) => {
+    const next = touchSprintAfter(touchSprintRef.current, action);
+    touchSprintRef.current = next;
+    setTouchSprint(next);
+    sceneRef.current?.setTouchSprint(next);
+  }, []);
+  useEffect(() => {
+    const release = () => applyTouchSprint("release");
+    window.addEventListener("blur", release);
+    return () => window.removeEventListener("blur", release);
+  }, [applyTouchSprint]);
+  useEffect(() => {
+    if (status !== "inside") applyTouchSprint("release");
+  }, [status, applyTouchSprint]);
   /* The avatar action my figure is performing (the action bar's
      state; the scene reports its own endings — a finished bow,
      a walk that ended the dance — through onSelfAction). */
@@ -4011,7 +4036,8 @@ export default function WorldPage() {
             targets big enough for a thumb — Interact wears the
             showing prompt's own words, Claim stands only while a
             moment can actually be claimed, Photo frames the
-            shot. Pad and keys carry the same three verbs. */}
+            shot, and Sprint is the touch family's run (a hold,
+            Q194). Pad and keys carry the same verbs. */}
         {status === "inside" && (
           <div
             className="mb-2 flex flex-wrap items-center gap-1.5"
@@ -4050,6 +4076,35 @@ export default function WorldPage() {
                   <Gem className="h-4 w-4" /> Claim the moment
                 </button>
               )}
+            {/* Sprint (Q194): the touch family's run — a HOLD,
+                like Shift on the keys and RT on a pad. Thumb down
+                runs at the one shared RUN_SPEED (sprint.ts);
+                thumb up, off the button, or cancelled walks
+                again. Movement is every walker's verb, so guests
+                hold it too — same standing as the Photo button. */}
+            <button
+              type="button"
+              data-testid="world-strip-sprint"
+              aria-pressed={touchSprint}
+              title="Hold to sprint — the same run as Shift on a keyboard"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                applyTouchSprint("press");
+              }}
+              onPointerUp={() => applyTouchSprint("release")}
+              onPointerCancel={() => applyTouchSprint("release")}
+              onPointerLeave={() => applyTouchSprint("release")}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`inline-flex touch-none select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                touchSprint
+                  ? "border-[#d4af37] bg-[#d4af37] text-black"
+                  : isLight
+                    ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                    : "border-white/15 text-white/80 hover:text-white"
+              }`}
+            >
+              <Zap className="h-4 w-4" /> Sprint
+            </button>
             <button
               type="button"
               data-testid="world-strip-photo"
