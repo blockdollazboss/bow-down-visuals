@@ -695,7 +695,6 @@ describe("parity follow-on log — thorough, each bench named", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
     for (const required of [
       "press-release-panel",
-      "coach-full-page-depth",
     ]) {
       expect(ids, required).toContain(required);
     }
@@ -725,6 +724,12 @@ describe("parity follow-on log — thorough, each bench named", () => {
     // The Scheduler graduated too (Stack-100 #45): compose, calendar,
     // best-time, edit and cancel are native at the Promote Desk.
     expect(ids).not.toContain("scheduler-calendar");
+    // The coach's full-page depth graduated (World parity P3,
+    // par-coach-depth): the niche analyzer and the money/action
+    // trackers are FULL native panels at the Promote Desk
+    // (components/world/native/CoachPanels.tsx on lib/world/
+    // coach-panels.ts), riding the /coach page's own rails.
+    expect(ids).not.toContain("coach-full-page-depth");
     for (const f of BUSINESS_NATIVE_FOLLOW_ONS) {
       expect(f.title.startsWith("NATIVE FOLLOW-ON:"), f.id).toBe(true);
       expect(f.benchPath.startsWith("/"), f.id).toBe(true);
@@ -1019,5 +1024,49 @@ describe("coach on real inputs (Stack-100 #75)", () => {
     expect(desk).toContain('data-testid="world-coach-niche"');
     expect(desk).toContain('data-testid="world-coach-cadence"');
     expect(desk).not.toContain("body: JSON.stringify(buildCoachPayload())");
+  });
+});
+
+describe("coach full panels in-world (parity P3, par-coach-depth)", () => {
+  const panels = readFileSync(
+    new URL("../../components/world/native/CoachPanels.tsx", import.meta.url),
+    "utf8",
+  );
+  const desk = readFileSync(
+    new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("both panels dock at the Promote Desk beside the other finished sections", () => {
+    expect(desk).toContain("import { MoneyActionTrackerSection, NicheAnalyzerSection } from \"./CoachPanels\";");
+    expect(desk).toContain("<NicheAnalyzerSection isLight={isLight} />");
+    expect(desk).toContain("<MoneyActionTrackerSection isLight={isLight} />");
+  });
+
+  it("the niche analyzer rides the page's rails — analyze, validate, roadmap save", () => {
+    expect(panels).toContain('confirmedFetch("/api/analyze-niche"');
+    expect(panels).toContain('confirmedFetch("/api/validate-idea"');
+    expect(panels).toContain('confirmedFetch("/api/coach/action-items"');
+    expect(panels).toContain("buildRoadmapSavePayload(result.analysis)");
+    expect(panels).toContain('data-testid="world-coach-niche-form"');
+    expect(panels).toContain('data-testid="world-coach-niche-analyze"');
+    expect(panels).toContain('data-testid="world-coach-niche-results"');
+    expect(panels).toContain('data-testid="world-coach-niche-validate"');
+    expect(panels).toContain('data-testid="world-coach-niche-save-roadmap"');
+  });
+
+  it("the trackers ride the free rails — money CRUD + link, plan numbers, goal, items", () => {
+    expect(panels).toContain('fetch("/api/money"');
+    expect(panels).toContain('confirmedFetch("/api/money"');
+    expect(panels).toContain("`/api/money/${entry.id}`");
+    expect(panels).toContain('confirmedFetch("/api/coach/plan-numbers"');
+    expect(panels).toContain('confirmedFetch("/api/coach/action-items"');
+    expect(panels).toContain('confirmedFetch("/api/coach/goal"');
+    expect(panels).toContain("`/api/coach/action-items/${item.id}`");
+    expect(panels).toContain('data-testid="world-coach-money-panel"');
+    expect(panels).toContain('data-testid="world-coach-money-entries"');
+    expect(panels).toContain('data-testid="world-coach-tracker-panel"');
+    expect(panels).toContain('data-testid="world-coach-tracker-goal"');
+    expect(panels).toContain('data-testid="world-coach-tracker-items"');
   });
 });
