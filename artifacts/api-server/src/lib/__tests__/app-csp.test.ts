@@ -11,8 +11,10 @@
  * and only the same-origin fallback copies ever served — the
  * bucket-first chain was dead on arrival. These pins keep the
  * bucket origin in both directives. Source contract, matching the
- * suite's readFileSync pin pattern: app.ts is the one place the
- * header is built.
+ * suite's readFileSync pin pattern: lib/security-headers.ts is the
+ * one place the header is built (the security-headers middleware
+ * lived inline in app.ts until the HSTS extraction moved it there;
+ * app.ts still mounts it first, before every other middleware).
  */
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
@@ -21,7 +23,7 @@ import { describe, it, expect } from "vitest";
    frontend's media-cdn.ts builds every engine URL from. */
 const MEDIA_BUCKET_ORIGIN = "https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev";
 
-const appSrc = readFileSync(new URL("../../app.ts", import.meta.url), "utf8");
+const appSrc = readFileSync(new URL("../security-headers.ts", import.meta.url), "utf8");
 
 function directive(name: string): string {
   /* The MAIN policy's line — identified by the jsdelivr allowance
@@ -31,7 +33,7 @@ function directive(name: string): string {
     .split("\n")
     .map((l) => l.trim())
     .find((l) => l.startsWith(`"${name} `) && l.includes("cdn.jsdelivr.net"));
-  expect(line, `main CSP directive ${name} present in app.ts`).toBeTruthy();
+  expect(line, `main CSP directive ${name} present in security-headers.ts`).toBeTruthy();
   return line!;
 }
 
