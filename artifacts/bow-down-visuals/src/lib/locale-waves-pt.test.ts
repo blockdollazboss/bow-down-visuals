@@ -126,7 +126,6 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "pricing.creditPacks.packs.150.price",
   "pricing.creditPacks.packs.50.price",
   "pricing.creditPacks.packs.500.price",
-  "pricing.plans.gangster.features.f2",
   "referrals.contest.days",
   "referrals.contest.hours",
   "referrals.contest.mins",

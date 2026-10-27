@@ -10010,12 +10010,12 @@
     "betaNotice": {
       "cta": "Join the beta list for early access →",
       "label": "Beta Notice:",
-      "text": "Bow Down Visuals is currently in beta. Payments are not live yet."
+      "text": "Bow Down Visuals is currently in beta. Checkout is open in test mode — no real money is charged."
     },
     "bottomCta": {
-      "joinBeta": "Join Beta",
-      "text": "Beta members lock in the founding rate and get 100 bonus Visual Bucs on launch day.",
-      "title": "Get in early.",
+      "joinBeta": "See Creator Plans",
+      "text": "Start free, go Pro or Elite when the features pay for themselves — checkout is open in test mode.",
+      "title": "Pick your plan.",
       "tryTools": "Try the Tools"
     },
     "cancelledBanner": {
@@ -10049,14 +10049,14 @@
       "testModeLead": "Payments are currently in",
       "testModeStrong": "test mode",
       "testModeTail": ". No real money is charged.",
-      "title": "Test Visual Buc Packs"
+      "title": "Visual Buc Packs"
     },
     "faq": {
       "a1": "Visual Bucs are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly Visual Bucs balance.",
-      "a2": "Not yet. Bow Down Visuals is currently in beta. Payments are coming soon. Join the beta list now to lock in your founding rate and get early access when billing goes live.",
+      "a2": "Checkout is open in test mode: you can subscribe to Pro or Elite and buy Visual Buc packs today, and no real money is charged. Real payments turn on at launch.",
       "a3": "Yes. Beta users can test selected tools with a starter Visual Bucs balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
       "a4": "Yes — music video clip generation is a premium action and uses more Visual Bucs than standard text generation. The exact cost per clip will be confirmed at launch.",
-      "a5": "Yes. Once billing is live, you can upgrade, downgrade, or cancel any time from your account settings. No contracts. No cancellation fees.",
+      "a5": "Yes. You can upgrade, downgrade, or cancel any time from your account settings. You keep your tier until the end of the billing period, then glide back to Free. No contracts. No cancellation fees.",
       "a6": "AI song vocals and full beat generation are planned but not fully launched yet. Right now the platform creates professional lyrics, hooks, verses, AI music prompts, video treatments, and promo content — everything you need to direct and produce your release.",
       "q1": "What are Visual Bucs?",
       "q2": "Are payments live yet?",
@@ -10069,111 +10069,21 @@
     "hero": {
       "disclaimer": "No free generations. No hidden compute charges. See the Visual Buc cost before you create.",
       "kicker": "Pricing",
-      "subtitle": "Climb from Street Punk to Kingpin — the higher your rank, the more power, Visual Bucs, automation, and control you unlock.",
-      "titleLine1": "Choose Your",
-      "titleLine2": "Rank",
+      "subtitle": "Three creator plans — Free, Pro and Elite — every one at the same flat 5% platform fee. Paid tiers add your own domain, unlimited products, pro analytics and AI promotion boosts.",
+      "titleLine1": "Plans &",
+      "titleLine2": "Visual Bucs",
       "videoAriaLabel": "Thy Cheat Code leveling up"
     },
     "jsonLd": {
       "description": "AI-powered creative studio for content creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
       "offerCatalogName": "Bow Down Visuals Plans"
     },
-    "pageDescription": "Choose your rank — six star-rated creator plans.",
+    "pageDescription": "Free, Pro $12/mo and Elite $29/mo creator plans, plus Visual Buc packs. Checkout is open in test mode.",
     "pageTitle": "Pricing",
     "planCard": {
       "bestFor": "Best for: {{bestFor}}",
       "perMonth": "/month",
       "wantedStarsAria": "{{stars}} out of 6 wanted stars"
-    },
-    "plans": {
-      "comingSoonNote": "Billing is not live yet. All plan buttons join the beta list.",
-      "crimeBoss": {
-        "badge": "Exclusive",
-        "bestFor": "High-volume creators",
-        "credits": "150,000 Visual Bucs monthly",
-        "cta": "Become a Crime Boss",
-        "features": {
-          "f1": "Everything in Shot Caller",
-          "f2": "Priority generation queue",
-          "f3": "4K output where supported",
-          "f4": "Early access to new AI models",
-          "f5": "Advanced cross-platform analytics",
-          "f6": "Exclusive Crime Boss templates & styles"
-        },
-        "name": "Crime Boss"
-      },
-      "gangster": {
-        "bestFor": "Serious full-time creators",
-        "credits": "25,000 Visual Bucs monthly",
-        "cta": "Become a Gangster",
-        "features": {
-          "f1": "Everything in Hustler",
-          "f2": "Lip Sync",
-          "f3": "Mastering + stem separation",
-          "f4": "Advanced effects & transitions",
-          "f5": "Upscaling & watermark cleanup",
-          "f6": "Batch creative variations"
-        },
-        "name": "Gangster"
-      },
-      "hustler": {
-        "badge": "Most Popular",
-        "bestFor": "Active solo creators",
-        "credits": "10,000 Visual Bucs monthly",
-        "cta": "Rank Up to Hustler",
-        "features": {
-          "f1": "Everything in Street Punk",
-          "f2": "Video clip generation",
-          "f3": "Full Visual Vibes access",
-          "f4": "Creator Vault + Photo Shoot",
-          "f5": "Artist Voice Lock",
-          "f6": "Character video references"
-        },
-        "name": "Hustler"
-      },
-      "kingpin": {
-        "badge": "Top Tier",
-        "bestFor": "Labels, agencies & power users",
-        "credits": "400,000 Visual Bucs monthly",
-        "cta": "Claim the Kingpin Crown",
-        "features": {
-          "f1": "Everything in Crime Boss",
-          "f2": "8K delivery where supported",
-          "f3": "Custom style training",
-          "f4": "White-label client deliverables",
-          "f5": "API access & automation",
-          "f6": "Dedicated account manager"
-        },
-        "name": "Kingpin"
-      },
-      "shotCaller": {
-        "bestFor": "Teams & creator brands",
-        "credits": "60,000 Visual Bucs monthly",
-        "cta": "Become a Shot Caller",
-        "features": {
-          "f1": "Everything in Gangster",
-          "f2": "Team workspace & member roles",
-          "f3": "Shared vaults & brand libraries",
-          "f4": "Review & approval workflow",
-          "f5": "Social scheduling & publishing",
-          "f6": "Bulk asset creation"
-        },
-        "name": "Shot Caller"
-      },
-      "streetPunk": {
-        "bestFor": "New creators",
-        "credits": "2,500 Visual Bucs monthly",
-        "cta": "Become a Street Punk",
-        "features": {
-          "f1": "Music Maker",
-          "f2": "Music video plans & treatments",
-          "f3": "Promo clip planning",
-          "f4": "Hook Studio + virality check",
-          "f5": "Thumbnail Maker & Logo Maker",
-          "f6": "Thy Cheat Code guided setup"
-        },
-        "name": "Street Punk"
-      }
     },
     "wantedMeter": {
       "ariaLabel": "Preview rank",

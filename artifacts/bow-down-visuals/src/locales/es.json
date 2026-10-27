@@ -9540,7 +9540,7 @@
     "betaNotice": {
       "cta": "Únete a la lista beta para acceso anticipado →",
       "label": "Aviso beta:",
-      "text": "Bow Down Visuals está actualmente en beta. Los pagos aún no están activos."
+      "text": "Bow Down Visuals está actualmente en beta. El pago está abierto en modo de prueba: no se cobra dinero real."
     },
     "bottomCta": {
       "joinBeta": "Únete a la beta",
@@ -9583,7 +9583,7 @@
     },
     "faq": {
       "a1": "Los Visual Bucs se usan cada vez que ejecutas una generación con IA: hacer una canción, generar un plan de video, crear clips promocionales o producir clips de video musical. Cada acción se descuenta de tu balance mensual de Visual Bucs.",
-      "a2": "Todavía no. Bow Down Visuals está actualmente en beta. Los pagos llegarán pronto. Únete a la lista beta ahora para asegurar tu tarifa fundadora y obtener acceso anticipado cuando la facturación se active.",
+      "a2": "El pago está abierto en modo de prueba: puedes suscribirte a Pro o Elite y comprar paquetes de Visual Bucs hoy, sin que se cobre dinero real. Los pagos reales se activan en el lanzamiento.",
       "a3": "Sí. Los usuarios beta pueden probar herramientas seleccionadas con un balance inicial de Visual Bucs. Regístrate, explora las herramientas para creadores y danos tu opinión. El acceso completo se abre con el lanzamiento de pago.",
       "a4": "Sí: la generación de clips de video musical es una acción premium y usa más Visual Bucs que la generación de texto estándar. El costo exacto por clip se confirmará en el lanzamiento.",
       "a5": "Sí. Una vez que la facturación esté activa, puedes subir, bajar o cancelar en cualquier momento desde los ajustes de tu cuenta. Sin contratos. Sin cargos por cancelación.",
@@ -9614,96 +9614,6 @@
       "bestFor": "Ideal para: {{bestFor}}",
       "perMonth": "/mes",
       "wantedStarsAria": "{{stars}} de 6 estrellas buscadas"
-    },
-    "plans": {
-      "comingSoonNote": "La facturación aún no está activa. Todos los botones de planes se unen a la lista beta.",
-      "crimeBoss": {
-        "badge": "Exclusivo",
-        "bestFor": "Creadores de alto volumen",
-        "credits": "150,000 Visual Bucs mensuales",
-        "cta": "Conviértete en Crime Boss",
-        "features": {
-          "f1": "Todo lo de Shot Caller",
-          "f2": "Cola de generación prioritaria",
-          "f3": "Salida 4K donde sea compatible",
-          "f4": "Acceso anticipado a nuevos modelos de IA",
-          "f5": "Analíticas avanzadas multiplataforma",
-          "f6": "Plantillas y estilos exclusivos de Crime Boss"
-        },
-        "name": "Crime Boss"
-      },
-      "gangster": {
-        "bestFor": "Creadores serios de tiempo completo",
-        "credits": "25,000 Visual Bucs mensuales",
-        "cta": "Conviértete en Gangster",
-        "features": {
-          "f1": "Todo lo de Hustler",
-          "f2": "AI Lip Sync",
-          "f3": "AI mastering + stem separation",
-          "f4": "Efectos y transiciones avanzados",
-          "f5": "Escalado y limpieza de marcas de agua",
-          "f6": "Variaciones creativas por lotes"
-        },
-        "name": "Gangster"
-      },
-      "hustler": {
-        "badge": "Más popular",
-        "bestFor": "Creadores solos activos",
-        "credits": "10,000 Visual Bucs mensuales",
-        "cta": "Sube a Hustler",
-        "features": {
-          "f1": "Todo lo de Street Punk",
-          "f2": "AI video clip generation",
-          "f3": "Acceso completo a Visual Vibes",
-          "f4": "Creator Vault + Photo Shoot",
-          "f5": "Artist Voice Lock",
-          "f6": "Referencias de video de personajes"
-        },
-        "name": "Hustler"
-      },
-      "kingpin": {
-        "badge": "Nivel superior",
-        "bestFor": "Sellos, agencias y usuarios avanzados",
-        "credits": "400,000 Visual Bucs mensuales",
-        "cta": "Reclama la corona Kingpin",
-        "features": {
-          "f1": "Todo lo de Crime Boss",
-          "f2": "Entrega 8K donde sea compatible",
-          "f3": "Custom AI style training",
-          "f4": "Entregables para clientes con tu marca",
-          "f5": "Acceso a API y automatización",
-          "f6": "Gerente de cuenta dedicado"
-        },
-        "name": "Kingpin"
-      },
-      "shotCaller": {
-        "bestFor": "Equipos y marcas de creadores",
-        "credits": "60,000 Visual Bucs mensuales",
-        "cta": "Conviértete en Shot Caller",
-        "features": {
-          "f1": "Todo lo de Gangster",
-          "f2": "Espacio de trabajo en equipo y roles de miembros",
-          "f3": "Bóvedas compartidas y bibliotecas de marca",
-          "f4": "Flujo de revisión y aprobación",
-          "f5": "Programación y publicación en redes sociales",
-          "f6": "Creación de recursos por lotes"
-        },
-        "name": "Shot Caller"
-      },
-      "streetPunk": {
-        "bestFor": "Creadores nuevos",
-        "credits": "2,500 Visual Bucs mensuales",
-        "cta": "Conviértete en Street Punk",
-        "features": {
-          "f1": "AI Music Maker",
-          "f2": "Planes y tratamientos de videos musicales",
-          "f3": "Planificación de clips promocionales",
-          "f4": "Hook Studio + chequeo de viralidad",
-          "f5": "Thumbnail Maker y Logo Maker",
-          "f6": "Configuración guiada por Thy Cheat Code"
-        },
-        "name": "Street Punk"
-      }
     },
     "wantedMeter": {
       "ariaLabel": "Vista previa del rango",

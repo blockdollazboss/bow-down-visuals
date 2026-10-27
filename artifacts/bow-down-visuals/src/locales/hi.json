@@ -9255,7 +9255,7 @@
     "betaNotice": {
       "cta": "जल्दी एक्सेस के लिए बीटा सूची में शामिल हों →",
       "label": "बीटा सूचना:",
-      "text": "Bow Down Visuals अभी बीटा में है। पेमेंट अभी लाइव नहीं हैं।"
+      "text": "Bow Down Visuals वर्तमान में बीटा में है। चेकआउट टेस्ट मोड में खुला है — कोई वास्तविक पैसा नहीं लिया जाता।"
     },
     "bottomCta": {
       "joinBeta": "बीटा में शामिल हों",
@@ -9298,7 +9298,7 @@
     },
     "faq": {
       "a1": "जब भी आप AI generation चलाते हैं — गाना बनाना, वीडियो प्लान जनरेट करना, प्रोमो क्लिप बनाना, या म्यूज़िक वीडियो क्लिप तैयार करना — Visual Bucs इस्तेमाल होते हैं। हर एक्शन आपके मासिक Visual Bucs बैलेंस से कटता है।",
-      "a2": "अभी नहीं। Bow Down Visuals अभी बीटा में है। पेमेंट जल्द आ रहे हैं। अपना founding rate लॉक करने और बिलिंग लाइव होने पर जल्दी एक्सेस पाने के लिए अभी बीटा सूची में शामिल हों।",
+      "a2": "चेकआउट टेस्ट मोड में खुला है: आप आज Pro या Elite की सदस्यता ले सकते हैं और Visual Buc पैक खरीद सकते हैं — कोई वास्तविक पैसा नहीं लिया जाता। वास्तविक भुगतान लॉन्च पर शुरू होंगे।",
       "a3": "हाँ। बीटा उपयोगकर्ता एक स्टार्टर Visual Bucs बैलेंस के साथ चुनिंदा tools टेस्ट कर सकते हैं। साइन अप करें, creator tools देखें, और हमें फीडबैक दें। पूरी एक्सेस पेड लॉन्च के साथ खुलेगी।",
       "a4": "हाँ — म्यूज़िक वीडियो क्लिप जनरेशन एक प्रीमियम एक्शन है और स्टैंडर्ड टेक्स्ट जनरेशन से ज़्यादा Visual Bucs इस्तेमाल करता है। प्रति क्लिप सटीक लागत लॉन्च पर कन्फ़र्म की जाएगी।",
       "a5": "हाँ। बिलिंग लाइव होने के बाद, आप अपनी अकाउंट सेटिंग्स से कभी भी अपग्रेड, डाउनग्रेड, या रद्द कर सकते हैं। कोई कॉन्ट्रैक्ट नहीं। कोई रद्दीकरण शुल्क नहीं।",
@@ -9316,7 +9316,7 @@
       "kicker": "मूल्य निर्धारण",
       "subtitle": "Street Punk से Kingpin तक चढ़ें — आपका rank जितना ऊँचा, उतनी ज़्यादा ताक़त, Visual Bucs, ऑटोमेशन, और नियंत्रण आप अनलॉक करते हैं।",
       "titleLine1": "अपना चुनें",
-      "titleLine2": "Rank",
+      "titleLine2": "Visual Bucs",
       "videoAriaLabel": "Thy Cheat Code लेवल अप कर रहा है"
     },
     "jsonLd": {
@@ -9328,96 +9328,6 @@
       "bestFor": "इसके लिए सर्वश्रेष्ठ: {{bestFor}}",
       "perMonth": "/महीना",
       "wantedStarsAria": "6 में से {{stars}} wanted स्टार"
-    },
-    "plans": {
-      "comingSoonNote": "बिलिंग अभी लाइव नहीं है। सभी प्लान बटन बीटा सूची में शामिल करते हैं।",
-      "crimeBoss": {
-        "badge": "विशेष",
-        "bestFor": "उच्च-वॉल्यूम creators",
-        "credits": "150,000 Visual Bucs मासिक",
-        "cta": "Crime Boss बनें",
-        "features": {
-          "f1": "Shot Caller में सब कुछ",
-          "f2": "प्राथमिकता generation कतार",
-          "f3": "जहाँ समर्थित हो, 4K आउटपुट",
-          "f4": "नए AI मॉडलों तक जल्दी एक्सेस",
-          "f5": "उन्नत क्रॉस-प्लेटफ़ॉर्म एनालिटिक्स",
-          "f6": "विशेष Crime Boss टेम्पलेट और स्टाइल"
-        },
-        "name": "Crime Boss"
-      },
-      "gangster": {
-        "bestFor": "गंभीर फुल-टाइम creators",
-        "credits": "25,000 Visual Bucs मासिक",
-        "cta": "Gangster बनें",
-        "features": {
-          "f1": "Hustler में सब कुछ",
-          "f2": "Lip Sync",
-          "f3": "Mastering + stem separation",
-          "f4": "उन्नत इफ़ेक्ट और ट्रांज़िशन",
-          "f5": "Upscaling और watermark सफ़ाई",
-          "f6": "बैच creative वेरिएशन"
-        },
-        "name": "Gangster"
-      },
-      "hustler": {
-        "badge": "सबसे लोकप्रिय",
-        "bestFor": "सक्रिय सोलो creators",
-        "credits": "10,000 Visual Bucs मासिक",
-        "cta": "Hustler तक Rank Up करें",
-        "features": {
-          "f1": "Street Punk में सब कुछ",
-          "f2": "वीडियो क्लिप जनरेशन",
-          "f3": "पूरी Visual Vibes एक्सेस",
-          "f4": "Creator Vault + Photo Shoot",
-          "f5": "Artist Voice Lock",
-          "f6": "Character वीडियो संदर्भ"
-        },
-        "name": "Hustler"
-      },
-      "kingpin": {
-        "badge": "टॉप Tier",
-        "bestFor": "लेबल, एजेंसियाँ और पावर उपयोगकर्ता",
-        "credits": "400,000 Visual Bucs मासिक",
-        "cta": "Kingpin Crown हासिल करें",
-        "features": {
-          "f1": "Crime Boss में सब कुछ",
-          "f2": "जहाँ समर्थित हो, 8K डिलीवरी",
-          "f3": "कस्टम स्टाइल ट्रेनिंग",
-          "f4": "White-label क्लाइंट डिलीवरेबल",
-          "f5": "API एक्सेस और ऑटोमेशन",
-          "f6": "समर्पित अकाउंट मैनेजर"
-        },
-        "name": "Kingpin"
-      },
-      "shotCaller": {
-        "bestFor": "टीमें और creator ब्रांड",
-        "credits": "60,000 Visual Bucs मासिक",
-        "cta": "Shot Caller बनें",
-        "features": {
-          "f1": "Gangster में सब कुछ",
-          "f2": "टीम वर्कस्पेस और सदस्य भूमिकाएँ",
-          "f3": "साझा vault और ब्रांड लाइब्रेरी",
-          "f4": "समीक्षा और अनुमोदन वर्कफ़्लो",
-          "f5": "सोशल शेड्यूलिंग और पब्लिशिंग",
-          "f6": "बल्क एसेट निर्माण"
-        },
-        "name": "Shot Caller"
-      },
-      "streetPunk": {
-        "bestFor": "नए creators",
-        "credits": "2,500 Visual Bucs मासिक",
-        "cta": "Street Punk बनें",
-        "features": {
-          "f1": "Music Maker",
-          "f2": "म्यूज़िक वीडियो प्लान और treatments",
-          "f3": "प्रोमो क्लिप योजना",
-          "f4": "Hook Studio + virality check",
-          "f5": "Thumbnail Maker और Logo Maker",
-          "f6": "Thy Cheat Code निर्देशित सेटअप"
-        },
-        "name": "Street Punk"
-      }
     },
     "wantedMeter": {
       "ariaLabel": "Rank का पूर्वावलोकन",
