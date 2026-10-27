@@ -47,6 +47,7 @@ export * from "./locations";
 export * from "./artist-outfits";
 export * from "./discord";
 export * from "./sponsor-deals";
+export * from "./performance-bookings";
 export * from "./distribution-releases";
 export * from "./distribution-v2";
 export * from "./branding-orders";
