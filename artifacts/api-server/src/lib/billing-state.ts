@@ -57,6 +57,10 @@ export interface BillingState {
   hasStripeCustomer: boolean;
   canCancel: boolean;
   canResume: boolean;
+  /** A live paid subscription can be repriced in place (Pro ↔ Elite)
+      from Settings → Billing / the pricing page — the change control
+      Gate Pass 1 (Oct 28) found missing everywhere. */
+  canChangePlan: boolean;
 }
 
 const LIVE_STATUSES = new Set(["active", "trialing"]);
@@ -85,6 +89,7 @@ export function buildBillingState(
     hasStripeCustomer: !!row?.stripeCustomerId,
     canCancel: false,
     canResume: false,
+    canChangePlan: false,
   };
 
   if (!row || !row.stripeSubscriptionId || row.tier === "free") {
@@ -102,6 +107,7 @@ export function buildBillingState(
       status: "canceling",
       endsAt: iso(row.cancelAtPeriodEnd) ?? iso(row.currentPeriodEnd),
       canResume: true,
+      canChangePlan: true,
     };
   }
 
@@ -111,11 +117,12 @@ export function buildBillingState(
       status: row.status,
       renewalDate: iso(row.currentPeriodEnd),
       canCancel: true,
+      canChangePlan: true,
     };
   }
 
   if (row.status === "past_due") {
-    return { ...base, status: "past_due" };
+    return { ...base, status: "past_due", canChangePlan: true };
   }
 
   return { ...base, status: "incomplete" };
