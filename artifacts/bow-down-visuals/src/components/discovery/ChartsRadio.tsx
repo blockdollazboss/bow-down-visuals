@@ -180,7 +180,14 @@ export function ChartsRadioPanel({ compact = false }: { compact?: boolean }) {
   return (
     <section
       data-testid="charts-radio"
-      className={`rounded-2xl border p-4 sm:p-5 ${shell}`}
+      /* Compact is the World dock: its lines land asynchronously
+         (station load, resume hint, "up next"), so the panel carries
+         its own dvh cap + internal scroll — docked, it can never
+         grow past the screen's edge (audit §B5). The full Charts
+         page keeps natural page flow. */
+      className={`rounded-2xl border p-4 sm:p-5 ${
+        compact ? "max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-7rem)]" : ""
+      } ${shell}`}
       aria-label="Charts Radio — the house station"
     >
       <div className="flex flex-wrap items-center gap-3">

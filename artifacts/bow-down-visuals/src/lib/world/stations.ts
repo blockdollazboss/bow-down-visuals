@@ -789,3 +789,35 @@ export function nearestStation(
   }
   return best;
 }
+
+/** The nearest station in the room with NO radius cap, plus the
+ *  distance to it — the wayfinding read. The prompt radius is a
+ *  promise about when E offers; the walker's compass needs a
+ *  target even when nothing is close enough to offer (at spawn
+ *  the nearest door stands 7+ metres away). Same registry walk
+ *  as nearestStation, uncapped. */
+export function nearestStationTarget(
+  roomId: string,
+  x: number,
+  z: number,
+): { station: PalaceStation; distance: number } | null {
+  let best: PalaceStation | null = null;
+  let bestDist = Infinity;
+  for (const s of stationsInRoom(roomId)) {
+    const d = Math.hypot(s.x - x, s.z - z);
+    if (d < bestDist) {
+      best = s;
+      bestDist = d;
+    }
+  }
+  return best ? { station: best, distance: bestDist } : null;
+}
+
+/** A desk that MAKES things: a native station on the "create"
+ *  pattern (the Create Wing's song / video / cover / audio /
+ *  thumbnail / hook desks). Derived from the registry's own
+ *  pattern so a future create desk joins the walker's first
+ *  objective without a second list to keep in step. */
+export function isCreateDesk(station: PalaceStation): boolean {
+  return station.panel.kind === "native" && station.panel.pattern === "create";
+}
