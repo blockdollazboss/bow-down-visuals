@@ -174,14 +174,19 @@ export async function fetchUndeliveredSalesForBuyer(
     const keyClause = email
       ? sql`(e.buyer_user_id = ${userId} OR LOWER(e.buyer_email) = LOWER(${email}))`
       : sql`e.buyer_user_id = ${userId}`;
+    /* Anti-join via LEFT JOIN (delivery sale_event_id is UNIQUE, so at
+       most one delivery row per sale — no fan-out). Written this way
+       instead of NOT EXISTS so the pg-mem harness can execute it;
+       semantics are identical on real Postgres. */
     const r = await db.execute(sql`
       SELECT e.id AS sale_event_id, e.checkout_group_id AS order_id, e.product_id,
              p.name AS product_name, p.product_type AS product_type,
              e.paid_at, e.created_at
       FROM shop_events e
       LEFT JOIN shop_products p ON p.id = e.product_id
+      LEFT JOIN shop_deliveries d ON d.sale_event_id = e.id
       WHERE e.event_type = 'sale' AND ${keyClause}
-        AND NOT EXISTS (SELECT 1 FROM shop_deliveries d WHERE d.sale_event_id = e.id)
+        AND d.id IS NULL
       ORDER BY COALESCE(e.paid_at, e.created_at) DESC
       LIMIT 200
     `);
