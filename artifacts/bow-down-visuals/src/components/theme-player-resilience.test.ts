@@ -65,3 +65,24 @@ describe("BowDownAIGuide — widget open drives recovery", () => {
     expect(guide).toContain("Checking again…");
   });
 });
+
+describe("play() failures surface instead of being swallowed", () => {
+  it("user-initiated play goes through attemptPlay and records rejection", () => {
+    expect(ctx).toContain("attemptPlay");
+    expect(ctx).toContain("setPlayFailed(true)");
+    expect(ctx).toContain("playFailed");
+  });
+
+  it("the old optimistic swallow is gone from togglePlay/toggleMute", () => {
+    expect(ctx).not.toContain(
+      "audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});",
+    );
+  });
+
+  it("the row names the failure and points at the retry", () => {
+    expect(guide).toContain("— couldn't play");
+    expect(guide).toContain(
+      "Couldn't start the theme song — tap play to try again.",
+    );
+  });
+});

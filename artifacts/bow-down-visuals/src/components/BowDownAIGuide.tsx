@@ -486,7 +486,7 @@ function saveOpen(v: boolean) {
 
 /* ─── Theme player row ─── */
 function ThemePlayerRow() {
-  const { status, checking, playing, muted, volume, togglePlay, toggleMute, setVolume, reprobe } = useThemePlayer();
+  const { status, checking, playFailed, playing, muted, volume, togglePlay, toggleMute, setVolume, reprobe } = useThemePlayer();
   const loaded      = status === "ready";
   const missing     = status === "missing";
   const failed      = status === "error";
@@ -502,6 +502,9 @@ function ThemePlayerRow() {
             a site error to every visitor. Red is reserved for real errors. */}
         {missing && <span className="text-[#C9A84C]/80 font-normal normal-case tracking-normal ml-1">— coming soon</span>}
         {failed && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— couldn't load</span>}
+        {/* Lane T: a rejected manual play() is a real, named state —
+            not the old silent no-op where the button claimed playing. */}
+        {playFailed && !playing && <span className="text-red-400/80 font-normal normal-case tracking-normal ml-1">— couldn't play</span>}
       </p>
       {/* Lane T: unavailable is no longer a dead end. The probe failure
           that produced missing/error may have been one transient moment
@@ -575,6 +578,12 @@ function ThemePlayerRow() {
             {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
           </button>
         </div>
+      )}
+      {/* Recoverable play failure: the play button above is the retry. */}
+      {playFailed && !playing && !unavailable && (
+        <p className="text-[10px] text-red-400/80 leading-snug">
+          Couldn't start the theme song — tap play to try again.
+        </p>
       )}
     </div>
   );

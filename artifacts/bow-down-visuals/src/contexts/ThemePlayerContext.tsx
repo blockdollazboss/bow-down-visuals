@@ -7,6 +7,7 @@ import { attachThemeAnalyser } from "@/lib/theme-analyser";
 import { mediaUrl } from "@/lib/media-cdn";
 import {
   ThemeProbe,
+  attemptPlay,
   type ThemeAvailability,
   type ThemeProbeSnapshot,
 } from "@/lib/theme-probe";
@@ -19,6 +20,10 @@ interface ThemePlayerCtx {
   status: Status;
   /** A theme-track availability probe is in flight right now. */
   checking: boolean;
+  /** The last user-initiated play() attempt was rejected (autoplay
+      policy, decode, network). Surfaced by the widget row; cleared by
+      the next attempt or any successful play. */
+  playFailed: boolean;
   playing: boolean;
   muted: boolean;
   volume: number;
@@ -68,6 +73,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
   const elementErrored = useRef(false);
   const [snap,    setSnap]    = useState<ThemeProbeSnapshot>({ status: "probing", checking: false });
   const status = snap.status;
+  const [playFailed, setPlayFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [muted,   setMuted]   = useState(false);
   const [volume,  setVolumeState] = useState(0.65);
@@ -107,7 +113,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     audio.muted  = false;
     audio.volume = volumeRef.current;
     audio.play()
-      .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(audio); })
+      .then(() => { setPlaying(true); setMuted(false); setPlayFailed(false); attachThemeAnalyser(audio); })
       .catch(() => { /* blocked — the unlock listener below stays armed */ });
   }, []);
 
@@ -147,7 +153,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       a.muted  = false;
       a.volume = volumeRef.current;
       a.play()
-        .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(a); removeUnlock(); })
+        .then(() => { setPlaying(true); setMuted(false); setPlayFailed(false); attachThemeAnalyser(a); removeUnlock(); })
         .catch(() => {});
     };
     document.addEventListener("click",      unlock);
@@ -254,7 +260,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       audio.muted  = false;
       audio.volume = audioRef.current?.volume ?? 0.65;
       audio.play()
-        .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(audio); })
+        .then(() => { setPlaying(true); setMuted(false); setPlayFailed(false); attachThemeAnalyser(audio); })
         .catch(() => {});
     }
 
@@ -315,8 +321,20 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       autoPausedByNav.current = false;
       audio.muted  = manuallyMuted.current;
       audio.volume = volume;
-      audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});
-      setPlaying(true);
+      /* Honest state: claim "playing" only once playback actually
+         starts. A rejection (autoplay policy, decode, network) used to
+         be swallowed while the UI claimed playing — now it flips
+         playFailed so the row can show it and the user can retry. */
+      setPlayFailed(false);
+      void attemptPlay(audio).then((ok) => {
+        if (ok) {
+          setPlaying(true);
+          attachThemeAnalyser(audio);
+        } else {
+          setPlaying(false);
+          setPlayFailed(true);
+        }
+      });
     }
   }, [playing, volume]);
 
@@ -329,8 +347,15 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     setMuted(next);
     /* Unmuting should also ensure playback starts if paused */
     if (!next && !playing && !manuallyPaused.current) {
-      audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});
-      setPlaying(true);
+      setPlayFailed(false);
+      void attemptPlay(audio).then((ok) => {
+        if (ok) {
+          setPlaying(true);
+          attachThemeAnalyser(audio);
+        } else {
+          setPlayFailed(true);
+        }
+      });
     }
   }, [muted, playing]);
 
@@ -357,7 +382,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      status, checking: snap.checking, playing, muted, volume,
+      status, checking: snap.checking, playFailed, playing, muted, volume,
       togglePlay, toggleMute, setVolume, reprobe, setWidgetOpen,
     }}>
       {children}
