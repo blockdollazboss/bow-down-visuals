@@ -1618,6 +1618,9 @@ export class KingsHallScene {
    *  next moveRig frame as one press edge; the stepper's own
    *  buffering covers presses that land a hair early. */
   private jumpQueued = false;
+  /** The XR jump button's last polled state (edge detection —
+   *  tickXrMove reads no other buttons today). */
+  private xrJumpPrev = false;
   /** Footstep dust (item 57): the pool every figure's completed
    *  steps raise puffs into, and the ONE Points cloud that renders
    *  them (built lazily at the first footfall). */
@@ -10096,6 +10099,22 @@ export class KingsHallScene {
       strafe = ax;
       break;
     }
+    /* The jump in XR (stack300): one button edge — the
+     *  controller's face button (buttons[4], the A/X position)
+     *  where the pad wears it too, or the thumbstick click
+     *  (buttons[3]) on controllers without one. Either hand
+     *  counts; the edge queues one jump at the same door as
+     *  every other family, so the double jump is a second,
+     *  deliberate press here too. */
+    let xrJumpDown = false;
+    for (const source of session.inputSources) {
+      const buttons = source.gamepad?.buttons;
+      if (!buttons) continue;
+      const idx = buttons.length > 4 ? 4 : buttons.length > 3 ? 3 : -1;
+      if (idx >= 0 && buttons[idx]?.pressed) xrJumpDown = true;
+    }
+    if (xrJumpDown && !this.xrJumpPrev) this.queueJump();
+    this.xrJumpPrev = xrJumpDown;
     // Called every frame, stick centered or not — the body's ease
     // and settle live in the frames after the stick lets go.
     this.moveRig(fwd, strafe, dt, WALK_SPEED, yawFromLook);
