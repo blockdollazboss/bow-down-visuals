@@ -3506,9 +3506,22 @@ export default function WorldPage() {
             the plaza (the King's Hall spawn). Its own press-to-play
             panel: NOT the Music Hall jukebox (that box stays the
             hall's alone) and never autoplay — sound starts only on
-            the walker's press. */}
+            the walker's press.
+            The dock is anchored to the VIEWPORT (fixed), capped in
+            dvh with its own internal scroll. It used to sit absolute
+            at this spot in the JSX — outside the room box, under a
+            page root that is not positioned — so its "bottom" was
+            measured against the whole page, and the panel grew past
+            the screen's edge as its lines landed (audit §B5;
+            owner's screenshot, 2026-10-27). Now its bottom edge is
+            always the same distance above the screen's bottom edge,
+            and the dvh cap + internal scroll mean late-arriving
+            content can never push it past the top of the screen. */}
         {status === "inside" && roomId === HALL_ROOM_ID && !photoMode && (
-          <div className="absolute bottom-24 left-3 z-10 w-[min(92vw,380px)] sm:bottom-20" data-testid="world-plaza-radio">
+          <div
+            className="fixed bottom-24 left-3 z-30 max-h-[calc(100dvh-8rem)] w-[min(92vw,380px)] overflow-y-auto overscroll-contain sm:bottom-20 sm:max-h-[calc(100dvh-7rem)]"
+            data-testid="world-plaza-radio"
+          >
             <ChartsRadioPanel compact />
           </div>
         )}
