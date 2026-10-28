@@ -332,6 +332,67 @@ async function subscriptionSecretParts(
   }
 }
 
+/* Repeat-click hygiene (stack500 lane S): a failed or abandoned
+   intent leaves the member's default_incomplete subscription
+   dangling on their Stripe customer. Before minting another one,
+   adopt the newest dangling subscription FOR THIS TIER whose price
+   still matches — its invoice confirmation secret is still the
+   PaymentElement secret for that purchase — and cancel the rest
+   (older same-tier duplicates, wrong-price leftovers, ones whose
+   secret can no longer be read). Hygiene never blocks checkout: a
+   Stripe failure in the scan falls through to a fresh create. */
+async function adoptDanglingSubscription(
+  stripe: Stripe,
+  args: { customerId: string; userId: string; tier: string; priceId: string },
+): Promise<{ subscription: Stripe.Subscription; parts: InvoiceSecretParts } | null> {
+  let dangling: Stripe.Subscription[];
+  try {
+    const page = await stripe.subscriptions.list({
+      customer: args.customerId,
+      status: "incomplete",
+      limit: 100,
+    });
+    dangling = page.data.filter(
+      (s) =>
+        s.metadata?.["kind"] === "creator_tier" &&
+        s.metadata?.["user_id"] === args.userId &&
+        s.metadata?.["tier"] === args.tier,
+    );
+  } catch (err) {
+    logger.warn({ err }, "embedded-checkout: dangling subscription scan failed (continuing to create)");
+    return null;
+  }
+  dangling.sort((a, b) => b.created - a.created);
+
+  const cancelQuiet = async (sub: Stripe.Subscription) => {
+    try {
+      await stripe.subscriptions.cancel(sub.id);
+    } catch (err) {
+      logger.warn({ err, subscriptionId: sub.id }, "embedded-checkout: dangling subscription cancel failed");
+    }
+  };
+
+  let adopted: { subscription: Stripe.Subscription; parts: InvoiceSecretParts } | null = null;
+  for (const sub of dangling) {
+    if (adopted) {
+      await cancelQuiet(sub);
+      continue;
+    }
+    const priceMatches = sub.items.data.some((item) => item.price?.id === args.priceId);
+    if (!priceMatches) {
+      await cancelQuiet(sub);
+      continue;
+    }
+    const parts = await subscriptionSecretParts(stripe, sub);
+    if (!parts) {
+      await cancelQuiet(sub);
+      continue;
+    }
+    adopted = { subscription: sub, parts };
+  }
+  return adopted;
+}
+
 const subIntentSchema = z.object({
   tier: z.enum(["pro", "elite"]),
 });
@@ -431,6 +492,33 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
         metadata: { kind: "creator_tier", user_id: req.userId!, profile_id: profileId },
       }, { idempotencyKey: customerKey });
       customerId = customer.id;
+    }
+
+    /* Hygiene first: adopt this member's dangling incomplete
+       subscription for this tier (an earlier click that failed or
+       was abandoned) instead of piling up a new one per click. */
+    const adopted = await adoptDanglingSubscription(stripe, {
+      customerId,
+      userId: req.userId!,
+      tier,
+      priceId,
+    });
+    if (adopted) {
+      logger.info(
+        { userId: req.userId, tier, subscriptionId: adopted.subscription.id },
+        "embedded-checkout: subscription intent adopted dangling subscription",
+      );
+      res.json({
+        success: true,
+        clientSecret: adopted.parts.clientSecret,
+        subscriptionId: adopted.subscription.id,
+        paymentIntentId: adopted.parts.paymentIntentId,
+        tier,
+        amount: plan.priceUsdPerMonth != null ? plan.priceUsdPerMonth * 100 : (adopted.parts.invoice.amount_due ?? 0),
+        currency: "usd",
+        label: `${plan.name} — $${plan.priceUsdPerMonth}/month`,
+      });
+      return;
     }
 
     const subscription = await stripe.subscriptions.create({
