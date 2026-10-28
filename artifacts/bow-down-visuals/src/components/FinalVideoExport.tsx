@@ -525,6 +525,24 @@ export function FinalVideoExport({
     }
   }
 
+  /* Prepare sessions are SINGLE-USE server-side: executeExport's
+     finally deletes the session after EVERY run, whatever the outcome.
+     The dialog therefore drops its copy the moment a job reaches a
+     terminal state — otherwise the next export posts a dead prepareId
+     and dies (Pass 3(a): two branded attempts shared one spent session).
+     The PREPARE_STALE auto-recovery in handleExport remains the second
+     line of defence for a session that dies before any job runs
+     (TTL expiry, server restart). */
+  function invalidatePrepare() {
+    setPrepareId(null);
+    setPrepareAllReady(false);
+    setPrepareExpiresAt(null);
+    setPrepareReadyCount(0);
+    setClipCheckResults(null);
+    setAudioCheckResult(null);
+    setPrepareState("idle");
+  }
+
   const hasAudio = !!effectiveAudioUrl && audioSource !== "none";
 
   /* ── FCPXML timeline (Pro Finishing Door) ──────────────────────────────
@@ -983,6 +1001,9 @@ export function FinalVideoExport({
       activeJobIdRef.current = null;
       setExportUrl(data.url);
       setStatus("completed");
+      /* Terminal (done): the job consumed the prepare session
+         server-side — the next export must prepare fresh. */
+      invalidatePrepare();
       /* Feedback Pop-Ups (UPGRADES 180): a finished export is a
          qualifying moment — the host decides (toggle, cap,
          suppression, roll) whether a prompt follows. */
@@ -1013,6 +1034,12 @@ export function FinalVideoExport({
     } catch (err: unknown) {
       setIsAutoRecovering(false);
       setAwaitingConfirm(false);
+      /* Terminal (failed / cancelled / outcome unknown): if a job
+         actually ran, it consumed the prepare session server-side —
+         drop the dialog's copy so the next export prepares fresh.
+         Errors thrown before any job existed (spend-dialog / POST
+         failures) leave the session untouched. */
+      if (activeJobIdRef.current !== null) invalidatePrepare();
       if (isExportCancelledError(err)) {
         /* Mid-job Cancel (rung 2): not a failure. The server releases
            the reservation exactly once and never settles a cancelled
@@ -1606,9 +1633,6 @@ export function FinalVideoExport({
                         </span>
                       </span>
                     )}
-                    <span className="text-white/40">{t("videoExport.ffmpegStartedLabel")}
-                      <span className="ml-1 font-bold text-white/30">{t("videoExport.no")}</span>
-                    </span>
                     {prepareState === "failed" && prepareError && (
                       <span className="w-full text-red-400/80 mt-0.5">{prepareError}</span>
                     )}
