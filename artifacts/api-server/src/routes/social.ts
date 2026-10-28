@@ -34,7 +34,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, getCreditBalance, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
@@ -483,13 +483,11 @@ const publishSchema = z.object({
 /* Fresh balance read for the idempotency-reclaim path, where the original
    attempt already deducted and we must not deduct again. */
 async function readCreditBalance(userId: string): Promise<number> {
+  /* The shared spendable balance (credits + live bonus) — a private
+     credits-column-only read here reported a balance that ignored the
+     bonus pool charges draw from (Stack400 Lane 4). */
   try {
-    const { data } = await getSupabaseAdmin()
-      .from("profiles")
-      .select("credits")
-      .eq("id", userId)
-      .single();
-    return (data as { credits?: number } | null)?.credits ?? 0;
+    return await getCreditBalance(userId);
   } catch {
     return 0;
   }
