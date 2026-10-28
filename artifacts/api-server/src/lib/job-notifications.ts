@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
 import { refreshSupabaseStorageUrl } from "./objectStorage";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 
 /**
  * Exactly-once job completion/failure notifications.
@@ -58,6 +59,13 @@ let _dbOverride: DrizzleDb | null = null;
 /** Test seam — never used outside tests. */
 export function __setJobNotificationsDb(db: DrizzleDb | null): void {
   _dbOverride = db;
+}
+
+type ExportEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _exportEventNotifier: ExportEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setExportEventNotifier(fn: ExportEventNotifier | null): void {
+  _exportEventNotifier = fn ?? notifyUserEvent;
 }
 
 function getPool(): Pool {
@@ -224,6 +232,8 @@ async function dispatchDirect(n: JobNotification, channel: "discord" | "log"): P
  * pinged the user when one finished. Each poller tick picks up export_jobs
  * rows in done/failed (last 24h) that have no notification yet and records
  * exactly one (the UNIQUE constraint holds even if two ticks race).
+ * Each fresh landing also fires the device-push event (bell + category-
+ * gated ping via push-events) — exactly once, on the same landing.
  * Returns how many notifications were created.
  */
 export async function notifyTerminalExportJobs(): Promise<number> {
@@ -249,38 +259,66 @@ export async function notifyTerminalExportJobs(): Promise<number> {
   for (const r of rows) {
     const jobId = String(r["id"]);
     const state = String(r["state"]);
+    const userId = String(r["user_id"]);
+    const projectId = r["project_id"] != null ? String(r["project_id"]) : null;
     try {
-      let ok: boolean;
+      let title: string;
+      let message: string;
+      let videoUrl: string | null = null;
       if (state === "done") {
         const result = asJsonRecord(r["result"]);
-        const videoUrl = typeof result?.["url"] === "string" ? (result["url"] as string) : null;
-        ok = await createJobNotification({
-          jobType: "export",
-          jobId,
-          userId: String(r["user_id"]),
-          projectId: r["project_id"] != null ? String(r["project_id"]) : null,
-          status: "completed",
-          title: "Export ready",
-          message: "Your video export finished.",
-          videoUrl,
-        });
+        videoUrl = typeof result?.["url"] === "string" ? (result["url"] as string) : null;
+        title = "Export ready";
+        message = "Your video export finished.";
       } else {
         const errRec = asJsonRecord(r["error"]);
-        const message =
+        const raw =
           typeof errRec?.["message"] === "string" && errRec["message"]
             ? String(errRec["message"])
             : "The export failed.";
-        ok = await createJobNotification({
-          jobType: "export",
-          jobId,
-          userId: String(r["user_id"]),
-          projectId: r["project_id"] != null ? String(r["project_id"]) : null,
-          status: "failed",
-          title: "Export failed",
-          message: message.length > 500 ? `${message.slice(0, 500)}…` : message,
-        });
+        title = "Export failed";
+        message = raw.length > 500 ? `${raw.slice(0, 500)}…` : raw;
       }
-      if (ok) created++;
+      const ok = await createJobNotification({
+        jobType: "export",
+        jobId,
+        userId,
+        projectId,
+        status: state === "done" ? "completed" : "failed",
+        title,
+        message,
+        videoUrl,
+      });
+      if (ok) {
+        created++;
+        /* Device-push rail (Stack500 push foundation, exports wired
+           stack600): the same exactly-once landing also lands the
+           owner's bell row and — when their "money" push category is
+           on (the default; the spec assigns exports to money, the
+           paid-work rail) — pings their devices. This is the ONLY
+           export hook: terminal transitions reach here once via the
+           backfill's LEFT JOIN, createJobNotification's UNIQUE gate
+           makes `ok` true exactly once per job, and a boot-recovery
+           re-run of an interrupted (non-terminal) job produces no row
+           until it truly finishes — so recovery can never double-fire.
+           Best-effort: notifyUserEvent never throws, and this catch
+           keeps a notifier failure from failing the backfill. */
+        try {
+          await _exportEventNotifier({
+            userId,
+            category: "money",
+            kind: state === "done" ? "export_done" : "export_failed",
+            title,
+            body:
+              state === "done"
+                ? "Your video export finished — tap to open the project and download it."
+                : message,
+            link: projectId ? `/video-editor?project=${projectId}` : "/my-projects?tab=history",
+          });
+        } catch (err) {
+          logger.warn({ err, jobId }, "[job-notifications] export push event failed (non-fatal)");
+        }
+      }
     } catch (err) {
       logger.warn({ err, jobId }, "[job-notifications] export backfill notification failed");
     }
