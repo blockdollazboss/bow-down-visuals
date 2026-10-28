@@ -22,14 +22,20 @@ import {
   fireCommercePurchase,
   type CommercePixels,
 } from "@/lib/commerce-pixels";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
    Anyone can view. No auth required. Cart is local-only (localStorage).
    Checkout is a real card checkout via /api/storefronts/checkout (0144):
-   the order is recorded pending, the buyer pays the listed price on the
-   hosted payment page, and Bow Down Visuals takes a 5% platform fee
-   from the seller's cut. Returning with ?session_id= verifies the
-   payment server-side — only a confirmed payment shows as paid here. */
+   the order is recorded pending, and Bow Down Visuals takes a 5%
+   platform fee from the seller's cut. Payment happens EMBEDDED on this
+   page (owner law 2026-10-26: never leave the site) — the hosted
+   Stripe page remains only as the fallback rail when the embedded
+   form can't mount. Either way the session returns here with
+   ?checkout=paid&session_id= and the payment is verified server-side —
+   only a confirmed payment shows as paid here, and a signed-in buyer's
+   session rides along so delivery lands on their account. */
 
 interface PublicShop {
   id: string;
@@ -99,7 +105,16 @@ export default function ShopStorefront() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [feePct, setFeePct] = useState(10);
   /* checkout */
+  const { getAccessToken } = useAuth();
   const [buyerEmail, setBuyerEmail] = useState("");
+  /* Embedded checkout (stack400 lane 2): the client secret of the
+     pending order's on-page payment form, when the server minted one.
+     Set = the buyer pays right here in the cart drawer; the hosted
+     redirect below is only the fallback rail. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
+  /* Closing the drawer abandons the on-page form (the order stays
+     pending server-side and can never charge by itself). */
+  useEffect(() => { if (!cartOpen) setEmbeddedSecret(null); }, [cartOpen]);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderDone, setOrderDone] = useState<{
@@ -299,22 +314,43 @@ export default function ShopStorefront() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* The signed-in buyer's session rides along when there is one, so
+     the server stamps the order (and the delivery) to their ACCOUNT —
+     never a gate: guests check out exactly as before. */
+  async function checkoutHeaders(): Promise<Record<string, string>> {
+    const token = await getAccessToken().catch(() => null);
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  }
+
   /* Real card checkout: ONE call for the whole cart. The server prices
-     it from its own product rows, records the order as pending, and
-     answers the hosted payment page — the browser goes there to pay.
-     A free cart completes in place. Failure leaves the cart untouched. */
+     it from its own product rows, records the order as pending, and —
+     the default — answers a clientSecret for the EMBEDDED payment form
+     mounted right here (never-leave-the-site law). The hosted payment
+     page is the fallback rail only, used when the embedded form can't
+     mount on this device. A free cart completes in place. Failure
+     leaves the cart untouched. */
   async function placeOrder() {
     if (!shop || cartDetailed.length === 0) return;
     setPlacing(true);
     setOrderError(null);
+    setEmbeddedSecret(null);
     try {
       const res = await fetch("/api/storefronts/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await checkoutHeaders(),
         body: JSON.stringify({
           shopId: shop.id,
           items: cartDetailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
+          /* Ask for the embedded presentation when this device can
+             mount it (publishable key configured) — the server answers
+             a clientSecret instead of a hosted URL and the buyer pays
+             right here; the session returns to THIS shop page. */
+          ...(hasStripePublishableKey()
+            ? { uiMode: "embedded", returnPath: `/shop/${handle}` }
+            : {}),
           ...(appliedCode ? { discountCode: appliedCode.code } : discountInput.trim() ? { discountCode: discountInput.trim() } : {}),
           /* #16: a fan's share link lands on this shop with ?ref=CODE —
              pass it through so the sale attributes to them. The server
@@ -337,6 +373,14 @@ export default function ShopStorefront() {
         setCart([]);
         return;
       }
+      if (typeof data.clientSecret === "string" && data.clientSecret && hasStripePublishableKey()) {
+        /* Embedded: mount the payment form in this drawer. The order
+           stays pending until the payment confirms; completion returns
+           to this page, where the verify-on-return above settles it
+           and shows the delivery. */
+        setEmbeddedSecret(data.clientSecret);
+        return;
+      }
       const url = typeof data.url === "string" ? data.url : typeof data.checkoutUrl === "string" ? data.checkoutUrl : null;
       if (url) {
         window.location.href = url;
@@ -357,16 +401,26 @@ export default function ShopStorefront() {
     if (!shop) return;
     const res = await fetch("/api/storefronts/checkout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await checkoutHeaders(),
       body: JSON.stringify({
         shopId: shop.id,
         productId: offer.item_id,
         offerId: offer.id,
         ...(buyerEmail.trim() ? { buyerEmail: buyerEmail.trim() } : {}),
+        /* Same embedded-first discipline as the cart: pay in the
+           drawer on this page; hosted is the fallback rail only. */
+        ...(hasStripePublishableKey()
+          ? { uiMode: "embedded", returnPath: `/shop/${handle}` }
+          : {}),
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
+    if (typeof data.clientSecret === "string" && data.clientSecret && hasStripePublishableKey()) {
+      setEmbeddedSecret(data.clientSecret);
+      setCartOpen(true);
+      return;
+    }
     const url = typeof data.url === "string" ? data.url : typeof data.checkoutUrl === "string" ? data.checkoutUrl : null;
     if (!url) throw new Error(t("shop.errorOrderFailed"));
     window.location.href = url;
@@ -640,7 +694,7 @@ export default function ShopStorefront() {
                 ))
               )}
             </div>
-            {cartDetailed.length > 0 && !orderDone && (
+            {cartDetailed.length > 0 && !orderDone && !embeddedSecret && (
               <div className="mt-4 border-t border-white/10 pt-4">
                 {bumpTotalCents > 0 && (
                   <div className="mb-1.5 flex justify-between text-sm">
@@ -715,6 +769,22 @@ export default function ShopStorefront() {
                 </p>
               </div>
             )}
+            {embeddedSecret && !orderDone && (
+              <div className="mt-4 border-t border-white/10 pt-4" data-testid="shop-embedded-checkout">
+                <p className="text-xs leading-relaxed text-white/60">
+                  {t("shop.embeddedPendingNote", { defaultValue: "Your order is saved as pending — finish paying right here. It only counts as a sale once the payment confirms, and your download lands in your Library." })}
+                </p>
+                <div className="mt-3">
+                  <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+                </div>
+                <button
+                  className="mt-3 w-full text-center text-xs font-bold text-white/50 hover:text-white"
+                  onClick={() => setEmbeddedSecret(null)}
+                >
+                  {t("shop.embeddedCancel", { defaultValue: "Not now — nothing is charged until you pay" })}
+                </button>
+              </div>
+            )}
             {orderDone && (
               <div className="mt-4 border-t border-white/10 pt-4 text-center" role="status">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15">
@@ -743,7 +813,7 @@ export default function ShopStorefront() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-2 text-[11px] text-white/45">{t("shop.downloadsInLibrary", { defaultValue: "These stay in your library — sign in with the email you checked out with to find them again any time." })}</p>
+                    <p className="mt-2 text-[11px] text-white/45">{t("shop.downloadsInLibrary", { defaultValue: "These stay in your Library under Purchases — find them there any time." })}</p>
                   </div>
                 )}
                 <button className="mt-3 text-xs font-bold text-white/50 hover:text-white" onClick={() => { setOrderDone(null); setCartOpen(false); }}>

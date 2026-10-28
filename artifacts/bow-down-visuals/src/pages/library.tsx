@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
   Library as LibraryIcon, Search, Sparkles, Type, Wand2, Heart, Mic2,
-  ArrowRight, Clock, X, Check, Copy, ChevronRight,
+  ArrowRight, Clock, X, Check, Copy, ChevronRight, ShoppingBag,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchWishlist } from "@/lib/wishlists";
 import { libraryTabFromParams, type LibraryTab } from "@/lib/library-tab";
 import WishlistPanel from "@/components/wishlist/WishlistPanel";
+import PurchasesPanel from "@/components/library/PurchasesPanel";
 import { FeatureVersePanel } from "@/components/collabs/FeatureVersePanel";
 import GiftsForYou from "@/components/storefront/GiftsForYou";
 
@@ -77,6 +78,7 @@ export default function Library() {
   const { user, getAccessToken } = useAuth();
   const [wishlistCount, setWishlistCount] = useState(0);
   const [featureOrderCount, setFeatureOrderCount] = useState(0);
+  const [purchasesCount, setPurchasesCount] = useState(0);
   useEffect(() => {
     if (!user) {
       setWishlistCount(0);
@@ -158,6 +160,7 @@ export default function Library() {
     { key: "fonts", label: t("library.tabFonts", { defaultValue: "Fonts" }), icon: Type, count: LIBRARY_FONTS.length },
     { key: "wishlist", label: t("library.tabWishlist", { defaultValue: "Wishlist" }), icon: Heart, count: wishlistCount },
     { key: "features", label: t("library.tabFeatures", { defaultValue: "Feature Orders" }), icon: Mic2, count: featureOrderCount },
+    { key: "purchases", label: t("library.tabPurchases", { defaultValue: "Purchases" }), icon: ShoppingBag, count: purchasesCount },
   ];
 
   return (
@@ -301,6 +304,14 @@ export default function Library() {
             on the Collabs page's Feature Verse tab. ═══ */}
         {tab === "features" && (
           <FeatureVersePanel variant="orders" onOrdersLoaded={setFeatureOrderCount} />
+        )}
+
+        {/* ═══ PURCHASES (stack400 lane 2) — the buyer's downloads home:
+            every paid digital shop purchase (shop_deliveries) with its
+            download link + order id. The endpoint existed since payfix
+            lane 4; this tab is its first frontend surface. ═══ */}
+        {tab === "purchases" && (
+          <PurchasesPanel onCountChange={setPurchasesCount} />
         )}
       </div>
     </div>

@@ -35,6 +35,9 @@ export interface MarketSaleRow {
   amount_cents: number;
   platform_fee_cents: number;
   buyer_email: string | null;
+  /** The buyer's account id, stamped at checkout from their verified
+   *  session (migration 0297). Absent pre-migration. */
+  buyer_user_id?: string | null;
   event_type: string;
   payment_status: string | null;
   stripe_session_id: string | null;
@@ -70,26 +73,37 @@ const SALE_COLUMNS_WITH_BUMP = sql`
   e.paid_at, e.created_at
 `;
 
+/* The buyer id (migration 0297) rides the same best-effort discipline:
+   widest select first, then the bump select, then the plain one — a
+   pre-migration database keeps every receipt working exactly as before. */
+const SALE_COLUMNS_WITH_BUYER = sql`
+  e.id, e.shop_id, e.user_id, e.product_id, p.name AS product_name,
+  e.quantity, e.amount_cents, e.platform_fee_cents, e.buyer_email, e.buyer_user_id,
+  e.event_type, e.payment_status, e.stripe_session_id, e.checkout_group_id,
+  e.discount_code, e.affiliate_code, e.bump_for_product_id,
+  e.paid_at, e.created_at
+`;
+
 export async function fetchMarketSaleBySession(sessionId: string): Promise<MarketSaleRow[]> {
-  try {
-    const r = await db.execute(sql`
-      SELECT ${SALE_COLUMNS_WITH_BUMP}
-      FROM shop_events e
-      LEFT JOIN shop_products p ON p.id = e.product_id
-      WHERE e.stripe_session_id = ${sessionId}
-      ORDER BY e.created_at ASC
-    `);
-    return r.rows as unknown as MarketSaleRow[];
-  } catch {
-    const r = await db.execute(sql`
-      SELECT ${SALE_COLUMNS}
-      FROM shop_events e
-      LEFT JOIN shop_products p ON p.id = e.product_id
-      WHERE e.stripe_session_id = ${sessionId}
-      ORDER BY e.created_at ASC
-    `);
-    return r.rows as unknown as MarketSaleRow[];
+  const columnSets = [SALE_COLUMNS_WITH_BUYER, SALE_COLUMNS_WITH_BUMP, SALE_COLUMNS];
+  for (let i = 0; i < columnSets.length; i++) {
+    try {
+      const r = await db.execute(sql`
+        SELECT ${columnSets[i]}
+        FROM shop_events e
+        LEFT JOIN shop_products p ON p.id = e.product_id
+        WHERE e.stripe_session_id = ${sessionId}
+        ORDER BY e.created_at ASC
+      `);
+      return r.rows as unknown as MarketSaleRow[];
+    } catch (err) {
+      /* Column set not landed yet — fall through to the narrower one.
+         The narrowest set failing is a real error: let it propagate,
+         exactly as before. */
+      if (i === columnSets.length - 1) throw err;
+    }
   }
+  return [];
 }
 
 /** True once every row for the session is a recorded (paid) sale. */
@@ -175,6 +189,7 @@ export async function markMarketSalePaid(
           shopId: String(row.shop_id),
           productId: row.product_id ? String(row.product_id) : null,
           buyerEmail: row.buyer_email,
+          buyerUserId: row.buyer_user_id ? String(row.buyer_user_id) : null,
           orderId: row.checkout_group_id ? String(row.checkout_group_id) : sessionId,
         })),
     );
