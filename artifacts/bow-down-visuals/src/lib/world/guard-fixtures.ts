@@ -369,6 +369,64 @@ export function fixtureHealDelayMs(healAttemptIndex: number): number {
  *  unreliable anyway). A re-check never consumes a heal attempt. */
 export const FIXTURE_HEAL_VISIBILITY_RECHECK_MS = 60_000;
 
+/* ── The failure beacon ─────────────────────────────────────────────
+   When a body's fast plan runs out, the failure must be visible
+   somewhere besides the owner's screen and a console nobody opens:
+   the scene POSTs one small report per post to the api-server
+   (POST /api/world/fixture-failure), which logs it structured. The
+   payload is built here so its shape stays pure and testable:
+   strings are clamped (an error message must not become a log
+   bomb) and the error flattens to name + message only. */
+
+export interface FixtureFailureReport {
+  postId: string;
+  body: FixtureBodyId;
+  /** Fast-plan attempts made before the plan ran out. The heal
+   *  ring's later attempts are NOT beacons — one report per post
+   *  per session says "this post is on its fallback"; the ring
+   *  handles the rest. */
+  attempts: number;
+  errorName: string;
+  errorMessage: string;
+  userAgent: string;
+}
+
+const clampReportField = (s: string, max: number): string =>
+  s.length > max ? s.slice(0, max) : s;
+
+export function buildFixtureFailureReport(input: {
+  postId: string;
+  body: FixtureBodyId;
+  attempts: number;
+  err: unknown;
+  userAgent: string;
+}): FixtureFailureReport {
+  const err = input.err;
+  const errorName = err instanceof Error && err.name ? err.name : "Error";
+  const errorMessage = err instanceof Error ? err.message : String(err ?? "unknown error");
+  return {
+    postId: clampReportField(String(input.postId || "unknown-post"), 64),
+    body: input.body,
+    attempts: Number.isFinite(input.attempts) ? Math.max(1, Math.floor(input.attempts)) : 1,
+    errorName: clampReportField(errorName, 120),
+    errorMessage: clampReportField(errorMessage || "unknown error", 500),
+    userAgent: clampReportField(String(input.userAgent ?? ""), 300),
+  };
+}
+
+/** Once per post per session — the beacon's rate discipline. The
+ *  first claim(postId) returns true; every later claim for the same
+ *  post returns false. Posts claim independently. */
+export class FixtureBeaconLedger {
+  private claimed = new Set<string>();
+
+  claim(postId: string): boolean {
+    if (this.claimed.has(postId)) return false;
+    this.claimed.add(postId);
+    return true;
+  }
+}
+
 export interface FixtureHealLoopDeps {
   /** Run one heal attempt (the full load plan). Resolves true when
    *  the body landed. Must not reject. */

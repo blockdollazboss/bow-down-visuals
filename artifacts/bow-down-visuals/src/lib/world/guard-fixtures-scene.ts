@@ -19,6 +19,10 @@
  *     the plan on a slow ring — minutes apart, visible tab only — so
  *     a transient failure swaps the real body in mid-session without
  *     a reload, and onRecovered fires so the failure record clears.
+ *     The exhaustion also fires the failure beacon: one small report
+ *     per post per session to the api-server, which logs it — the
+ *     next failure on the owner's machine is diagnosable from the
+ *     server logs, not from a console nobody opens.
  *   - Static bodies: no skinning, no per-frame work beyond a whisper
  *     of sway (guard-fixtures.fixtureSway). The two posts of one body
  *     share geometry/materials through the clone.
@@ -33,10 +37,12 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mediaUrl } from "../media-cdn";
 import {
   FIXTURE_BODIES,
+  FixtureBeaconLedger,
   FixtureHealLoop,
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
+  buildFixtureFailureReport,
   fixtureFallbackFor,
   fixtureLoadPlan,
   fixtureNormalization,
@@ -45,6 +51,7 @@ import {
   fixtureSway,
   type FixtureBodyDef,
   type FixtureBodyId,
+  type FixtureFailureReport,
   type WorldFixtureDef,
 } from "./guard-fixtures";
 import { figureWidthForHeight } from "./figure";
@@ -253,6 +260,11 @@ export function buildWorldFixtures(opts?: {
   /** A body whose fast plan failed later landed via the heal loop —
    *  the caller clears its recorded failure. */
   onRecovered?: (body: FixtureBodyId) => void;
+  /** The failure beacon's transport. Default: the site's own API
+   *  (fixture-beacon.ts, dynamically imported so the sender's
+   *  session machinery stays out of this module's static graph).
+   *  Injected in tests. */
+  reportFailure?: (report: FixtureFailureReport) => void;
 }): WorldFixtures {
   const hall = new THREE.Group();
   hall.name = "world-fixtures-hall";
@@ -340,6 +352,7 @@ export function buildWorldFixtures(opts?: {
    * path and the heal loop. Resolves, never rejects. */
   let disposed = false;
   const healLoops = new Map<FixtureBodyId, FixtureHealLoop>();
+  const beaconLedger = new FixtureBeaconLedger();
   const tryLoadBody = async (
     bodyDef: FixtureBodyDef,
   ): Promise<{ ok: true } | { ok: false; err: unknown }> => {
@@ -374,6 +387,32 @@ export function buildWorldFixtures(opts?: {
        * held the post until re-entry, and on Oct 27 the King stood
        * as a gold capsule for the owner's whole session. */
       opts?.onError?.(bodyDef.id, res.err);
+      /* Beacon: one report per POST of this body, once per session
+       * (the ledger), so the next failure on any machine — the
+       * owner's included — is diagnosable from the server logs
+       * instead of a console nobody opens. Silent on success by
+       * construction: this block only runs on exhaustion. */
+      const fastAttempts = fixtureLoadPlan(mediaUrl(bodyDef.glbPath), bodyDef.glbPath).length;
+      for (const slot of slots) {
+        if (slot.def.body !== bodyDef.id) continue;
+        if (!beaconLedger.claim(slot.def.id)) continue;
+        const report = buildFixtureFailureReport({
+          postId: slot.def.id,
+          body: bodyDef.id,
+          attempts: fastAttempts,
+          err: res.err,
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+        });
+        if (opts?.reportFailure) {
+          opts.reportFailure(report);
+        } else {
+          void import("./fixture-beacon")
+            .then((m) => m.sendFixtureFailureReport(report))
+            .catch(() => {
+              /* The beacon never becomes a failure itself. */
+            });
+        }
+      }
       const loop = new FixtureHealLoop({
         attempt: async () => (await tryLoadBody(bodyDef)).ok,
         isVisible: () =>

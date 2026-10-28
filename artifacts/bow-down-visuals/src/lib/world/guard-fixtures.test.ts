@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   FIXTURE_BODIES,
   FIXTURE_HEAL_VISIBILITY_RECHECK_MS,
+  FixtureBeaconLedger,
   FixtureHealLoop,
   HALL_STAGE_TOP_Y,
   KING_FIXTURE_HEIGHT,
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
+  buildFixtureFailureReport,
   fixtureFallbackFor,
   fixtureHealDelayMs,
   fixtureLoadPlan,
@@ -457,5 +459,65 @@ describe("FixtureHealLoop — a failed load is not final for the session", () =>
     await flush();
     expect(loop.isStopped).toBe(true);
     expect(loop.attemptCount).toBe(2);
+  });
+});
+
+describe("buildFixtureFailureReport — the beacon payload", () => {
+  it("flattens an Error to name + message and carries the post facts", () => {
+    const err = new Error("textures did not land for https://cdn.example/world/king-gen.glb");
+    err.name = "FixtureTextureError";
+    const report = buildFixtureFailureReport({
+      postId: "hall-king",
+      body: "king",
+      attempts: 4,
+      err,
+      userAgent: "Mozilla/5.0 (Test)",
+    });
+    expect(report).toEqual({
+      postId: "hall-king",
+      body: "king",
+      attempts: 4,
+      errorName: "FixtureTextureError",
+      errorMessage: "textures did not land for https://cdn.example/world/king-gen.glb",
+      userAgent: "Mozilla/5.0 (Test)",
+    });
+  });
+
+  it("survives non-Error failures and clamps every field", () => {
+    const report = buildFixtureFailureReport({
+      postId: "p".repeat(100),
+      body: "guard-male",
+      attempts: 0,
+      err: "x".repeat(900),
+      userAgent: "u".repeat(400),
+    });
+    expect(report.postId).toHaveLength(64);
+    expect(report.attempts).toBe(1);
+    expect(report.errorName).toBe("Error");
+    expect(report.errorMessage).toHaveLength(500);
+    expect(report.userAgent).toHaveLength(300);
+  });
+
+  it("an absent error still reports a message", () => {
+    const report = buildFixtureFailureReport({
+      postId: "plaza-guard-female",
+      body: "guard-female",
+      attempts: Number.NaN,
+      err: undefined,
+      userAgent: "",
+    });
+    expect(report.attempts).toBe(1);
+    expect(report.errorMessage.length).toBeGreaterThan(0);
+  });
+});
+
+describe("FixtureBeaconLedger — once per post per session", () => {
+  it("the first claim wins, every repeat is refused, posts are independent", () => {
+    const ledger = new FixtureBeaconLedger();
+    expect(ledger.claim("hall-king")).toBe(true);
+    expect(ledger.claim("hall-king")).toBe(false);
+    expect(ledger.claim("hall-king")).toBe(false);
+    expect(ledger.claim("hall-guard-male")).toBe(true);
+    expect(ledger.claim("hall-guard-male")).toBe(false);
   });
 });

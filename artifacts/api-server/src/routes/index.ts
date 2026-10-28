@@ -395,6 +395,7 @@ import worldCourtSeasonRouter from "./world-court-season";
 import theCrownsRouter from "./the-crowns";
 import worldContestsRouter from "./world-contests";
 import worldTutorialRouter from "./world-tutorial";
+import worldFixtureFailureRouter from "./world-fixture-failure";
 import moveHomeRouter from "./move-home";
 import first100Router from "./first100";
 import catalogImportRouter from "./catalog-import";
@@ -794,6 +795,7 @@ router.use(worldCourtSeasonRouter);           // /api/world/court-season (Court 
 router.use(theCrownsRouter);                  // /api/crowns + /api/crowns/worn/:userId (The Crowns — yearly house awards read, N8/9999)
 router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
 router.use(worldTutorialRouter);              // /api/world/tutorial (Your First 10 Minutes quest line, 0149)
+router.use(worldFixtureFailureRouter);        // /api/world/fixture-failure (World fixture load-failure beacon → structured warn log)
 router.use(moveHomeRouter);                   // /api/move-home (Move Home concierge onboarding, 0193)
 router.use(first100Router);                   // /api/first100 (First 100 Fans guided path, #155)
 router.use(catalogImportRouter);              // /api/catalog-import (Back-Catalog Migration Assistant, 0200)
