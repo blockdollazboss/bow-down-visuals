@@ -76,6 +76,19 @@ describe("2.4 song+video wizard contracts", () => {
     expect(desks).toContain("buildSongVideoProjectPayload");
     expect(desks).toContain('data-testid="world-song-video-wizard"');
   });
+
+  it("creation desk lane: the wizard's scenes generate in-world and its save needs no step-through", () => {
+    /* Per-scene clips on the confirmed rail at the plan price,
+       saved to My Clips as they land. */
+    expect(desks).toContain('data-testid="world-song-video-make-clip"');
+    expect(desks).toContain("withSceneClip");
+    /* The finish is a plain /api/projects save from the wizard
+       itself; the editor is a separate, optional button. */
+    expect(desks).toContain('data-testid="world-song-video-save"');
+    expect(desks).toContain('data-testid="world-song-video-editor"');
+    expect(desks).toContain("Save the finished package");
+    expect(desks).not.toContain("Save + open in the editor");
+  });
 });
 
 describe("2.5 song desk tab contracts", () => {

@@ -87,6 +87,7 @@ import {
   vaultsOfResponse,
   withArtistVault,
   withSceneApproval,
+  withSceneClip,
   TRANSCRIBE_FORM_FIELD,
   SONG_AUDIO_LENGTH_SECONDS,
   songDeskTotalCost,
@@ -843,7 +844,14 @@ export function SongVideoDesk(props: CreateDeskProps) {
    scenes, approved per scene), the auto-edit plan applied
    (POST /api/generate/ai-edit-plan → applyAiTransitionsToClips,
    the page's own application), and the finished package saved as
-   a project (POST /api/projects, the page's save shape). */
+   a project (POST /api/projects, the page's save shape).
+   Creation Desk lane: the wizard's scenes now GENERATE here —
+   per-scene clips on the same clip rail as the Video Desk
+   (confirmedFetch at the picked model's plan price) with
+   SceneStudio's library save on success, so a finished scene
+   clip lands in My Clips without leaving the World. Saving the
+   package is a plain project save; the editor step-through is
+   an optional extra beside it, never the finish line. */
 
 function SongVideoWizard(props: {
   isLight: boolean;
@@ -855,6 +863,7 @@ function SongVideoWizard(props: {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const quest = useQuestProgressChip();
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -866,6 +875,13 @@ function SongVideoWizard(props: {
   const [planApplied, setPlanApplied] = useState(false);
   const [editorSettings, setEditorSettings] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
+  const [clipSettings, setClipSettings] = useState<ClipSettings>(DEFAULT_CLIP_SETTINGS);
+  const [clipBusy, setClipBusy] = useState<string | null>(null);
+  const clipPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => {
+    if (clipPollRef.current) clearInterval(clipPollRef.current);
+  }, []);
 
   const lyrics = transcript.trim();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -974,11 +990,72 @@ function SongVideoWizard(props: {
     }
   };
 
-  const savePackage = async () => {
-    if (busy) return;
-    setBusy("save");
+  /* Generate one scene's clip HERE — the Video Desk's rail and
+     rules: the picked model's price is on the button, the member
+     confirms, the rail charges on success only, and the finished
+     clip saves to My Clips (SceneStudio's save) as it lands. */
+  const makeSceneClip = (scene: SceneData) => {
+    if (clipBusy) return;
+    setClipBusy(scene.id);
     setError(null);
-    const payload = buildSongVideoProjectPayload({
+    void (async () => {
+      try {
+        const scenePrompt = scene.aiVideoPrompt || scene.action || `Scene ${scene.sceneNumber}`;
+        const res = await confirmedFetch("/api/generate-runway-clip", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildRunwayClipPayload(scenePrompt, scene.negativePrompt ?? "", clipSettings)),
+          overrideCost: clipPlanCost(clipSettings),
+          overrideFeature: "Generate Video Clip",
+        });
+        if (!res) {
+          /* The member declined the price — nothing ran. */
+          setClipBusy(null);
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
+        if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The clip make didn't start.");
+        const taskId = data.taskId;
+        clipPollRef.current = setInterval(async () => {
+          try {
+            const poll = await fetch(`/api/generate-runway-clip/${taskId}`, { headers: await authHeaders() });
+            const pdata = (await poll.json()) as Parameters<typeof interpretTaskPoll>[0];
+            const read = interpretTaskPoll(pdata);
+            if (read.done) {
+              if (clipPollRef.current) clearInterval(clipPollRef.current);
+              setClipBusy(null);
+              if (read.failed || !read.url) {
+                setError(read.error ?? "Clip generation failed.");
+              } else {
+                setScenes((prev) => withSceneClip(prev, scene.id, read.url!));
+                refreshProfile();
+                void saveGeneratedClipToLibrary(
+                  authHeaders,
+                  buildGeneratedClipSavePayload({
+                    title: `Scene ${scene.sceneNumber}${scene.section ? ` — ${scene.section}` : ""}`,
+                    prompt: scenePrompt,
+                    videoUrl: read.url,
+                    runwayJobId: taskId,
+                    sceneId: scene.id,
+                  }),
+                );
+              }
+            }
+          } catch {
+            if (clipPollRef.current) clearInterval(clipPollRef.current);
+            setClipBusy(null);
+            setError("Network error while the clip was making.");
+          }
+        }, 5000);
+      } catch (err) {
+        setClipBusy(null);
+        setError(err instanceof Error ? err.message : "Clip generation failed.");
+      }
+    })();
+  };
+
+  const packagePayload = () =>
+    buildSongVideoProjectPayload({
       title: [props.artistName, "Song + Video"].filter(Boolean).join(" — ") || "Song + Video",
       artistName: props.artistName,
       genre: SONG_VIDEO_TURBO_DEFAULTS.genre,
@@ -991,17 +1068,21 @@ function SongVideoWizard(props: {
         aiEdit: { ...defaultAiEditSettings(), enabled: true, style: "viral-tiktok", autoApplyTransitions: true },
       },
     });
+
+  /* The finish is a plain project save — no step-through. The
+     scenes' clips already live in My Clips; this saves the whole
+     package (song + scenes + clips + edit plan) as one project. */
+  const savePackage = async () => {
+    if (busy) return;
+    setBusy("save");
+    setError(null);
     try {
-      if (props.onSendToEditor) {
-        props.onSendToEditor(payload);
-      } else {
-        const res = await fetch("/api/projects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error("Saving the package didn't land — try again.");
-      }
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(packagePayload()),
+      });
+      if (!res.ok) throw new Error("Saving the package didn't land — try again.");
       setSaved(true);
       void quest.checkAfter();
     } catch (err) {
@@ -1032,25 +1113,45 @@ function SongVideoWizard(props: {
       </button>
       {scenes.length > 0 ? (
         <div className="space-y-2" data-testid="world-song-video-scene-review">
+          <ClipModelPicker isLight={isLight} settings={clipSettings} onChange={setClipSettings} />
           {scenes.map((scene) => (
-            <div key={scene.id} className={`flex flex-wrap items-center gap-2 rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
-              <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
-              <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.lyricLine || scene.action}</span>
-              <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold">
-                <input type="checkbox" checked={scene.approved} onChange={(e) => setScenes((prev) => withSceneApproval(prev, scene.id, e.target.checked))} />
-                Keep
-              </label>
+            <div key={scene.id} className={`rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
+                <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.lyricLine || scene.action}</span>
+                <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold">
+                  <input type="checkbox" checked={scene.approved} onChange={(e) => setScenes((prev) => withSceneApproval(prev, scene.id, e.target.checked))} />
+                  Keep
+                </label>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {scene.demoClipUrl ? (
+                  <span className="text-xs font-bold text-emerald-500">Clip made — saved to My Clips</span>
+                ) : scene.approved ? (
+                  <button type="button" data-testid="world-song-video-make-clip" onClick={() => makeSceneClip(scene)} disabled={clipBusy !== null} className={chipCls}>
+                    {clipBusy === scene.id ? "Making the clip…" : `Make this clip · ${clipPlanCost(clipSettings).toLocaleString("en-US")} Visual Bucs`}
+                  </button>
+                ) : (
+                  <span className={`text-[11px] ${muted}`}>Keep it to film it.</span>
+                )}
+              </div>
+              {scene.demoClipUrl ? <video src={scene.demoClipUrl} controls playsInline className="mt-2 max-h-[200px] w-full rounded-lg" /> : null}
             </div>
           ))}
           <div className="flex flex-wrap gap-2">
             <button type="button" data-testid="world-song-video-apply-plan" onClick={() => void applyPlan()} disabled={busy !== null} className={chipCls}>
               {busy === "plan" ? "Applying…" : planApplied ? "Auto-edit plan applied ✓" : `Apply the auto-edit plan · ${aiEditPlanCost().toLocaleString("en-US")} Visual Bucs`}
             </button>
-            <button type="button" data-testid="world-song-video-save" onClick={() => void savePackage()} disabled={busy !== null || props.editorBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
-              {props.onSendToEditor ? "Save + open in the editor" : "Save the finished package"}
+            <button type="button" data-testid="world-song-video-save" onClick={() => void savePackage()} disabled={busy !== null} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+              {busy === "save" ? "Saving…" : "Save the finished package"}
             </button>
+            {props.onSendToEditor ? (
+              <button type="button" data-testid="world-song-video-editor" onClick={() => props.onSendToEditor?.(packagePayload())} disabled={busy !== null || props.editorBusy} className={chipCls}>
+                Open in the editor
+              </button>
+            ) : null}
           </div>
-          {saved ? <p className={`text-xs font-semibold ${muted}`}>Saved — the finished package is a project now{planApplied ? ", auto-edit plan riding inside it" : ""}.</p> : null}
+          {saved ? <p className={`text-xs font-semibold ${muted}`}>Saved — the finished package is a project now{planApplied ? ", auto-edit plan riding inside it" : ""}. Its clips are already in My Clips.</p> : null}
         </div>
       ) : null}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
