@@ -8,23 +8,28 @@ import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import {
   analyzeSectionsCost,
   buildAnalyzeSectionsPayload,
+  buildGeneratedClipSavePayload,
   buildRunwayClipPayload,
   buildStoryboardDraftPayload,
   buildStoryboardProjectPayload,
   buildVideoPlanPayload,
+  clipPlanCost,
+  DEFAULT_CLIP_SETTINGS,
   interpretTaskPoll,
   storyboardStepOf,
   transcribeCost,
-  videoClipCost,
   videoPlanCost,
   withSceneApproval,
   withSceneClip,
+  type ClipSettings,
 } from "@/lib/world/create-desks";
 import {
   QuestProgressChip,
+  saveGeneratedClipToLibrary,
   useDeskAuthHeaders,
   useQuestProgressChip,
 } from "./CreateDeskShared";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Ring 2 (2.3) — the storyboard bench ───────────────────────────
    make-video.tsx's storyboard machinery docked at the Video Desk
@@ -36,7 +41,12 @@ import {
    (POST /api/drafts, workflow "make-video") → saved project
    (POST /api/projects, make-video's performSave shape) that the
    editor step-through seeds from. Every price is shown before its
-   step runs, from the registry via lib/world/create-desks. */
+   step runs, from the registry via lib/world/create-desks.
+   Creation Desk lane: per-scene clips run on the Video Desk's
+   picked model settings (confirmedFetch — price shown, member
+   confirms, the rail charges on success only) and every finished
+   clip is saved to My Clips (POST /api/generated-clips) the
+   moment it lands, exactly as SceneStudio saves it. */
 
 export function StoryboardBench(props: {
   isLight: boolean;
@@ -47,10 +57,16 @@ export function StoryboardBench(props: {
    *  package's raw text, parsed into scenes on demand. */
   packageResult?: string | null;
   onScenesReady?: (scenes: SceneData[]) => void;
+  /** The Video Desk's model picker state — per-scene clips are
+   *  made with the picked model at its plan price. Defaults to
+   *  the desk default (Standard) when a host doesn't pass it. */
+  clipSettings?: ClipSettings;
 }) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
+  const clipSettings = props.clipSettings ?? DEFAULT_CLIP_SETTINGS;
   const quest = useQuestProgressChip();
   const [lyrics, setLyrics] = useState("");
   const [structure, setStructure] = useState<SongStructure | null>(null);
@@ -183,13 +199,24 @@ export function StoryboardBench(props: {
     setError(null);
     void (async () => {
       try {
-        const res = await fetch("/api/generate-runway-clip", {
+        const scenePrompt = scene.aiVideoPrompt || scene.action || `Scene ${scene.sceneNumber}`;
+        /* Price shown on the button, confirmed before it runs,
+           charged by the rail on success only (confirmedFetch —
+           the UGC Ads station's pattern). */
+        const res = await confirmedFetch("/api/generate-runway-clip", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-          body: JSON.stringify(buildRunwayClipPayload(scene.aiVideoPrompt || scene.action || `Scene ${scene.sceneNumber}`, scene.negativePrompt ?? "")),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildRunwayClipPayload(scenePrompt, scene.negativePrompt ?? "", clipSettings)),
+          overrideCost: clipPlanCost(clipSettings),
+          overrideFeature: "Generate Video Clip",
         });
-        const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string };
-        if (!res.ok || !data.taskId) throw new Error(data.error ?? "The clip make didn't start.");
+        if (!res) {
+          /* The member declined the price — nothing ran. */
+          setClipBusy(null);
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
+        if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The clip make didn't start.");
         const taskId = data.taskId;
         pollRef.current = setInterval(async () => {
           try {
@@ -204,6 +231,18 @@ export function StoryboardBench(props: {
               } else {
                 setScenes((prev) => withSceneClip(prev, scene.id, read.url!));
                 refreshProfile();
+                /* SceneStudio's library save: the finished scene
+                   clip lands in My Clips, not just this bench. */
+                void saveGeneratedClipToLibrary(
+                  authHeaders,
+                  buildGeneratedClipSavePayload({
+                    title: `Scene ${scene.sceneNumber}${scene.section ? ` — ${scene.section}` : ""}`,
+                    prompt: scenePrompt,
+                    videoUrl: read.url,
+                    runwayJobId: taskId,
+                    sceneId: scene.id,
+                  }),
+                );
               }
             }
           } catch {
@@ -304,7 +343,7 @@ export function StoryboardBench(props: {
       {scenes.length > 0 ? (
         <div className="space-y-2" data-testid="world-storyboard-scenes">
           <p className={`text-xs font-semibold ${muted}`}>
-            Review each scene — approve the ones to film. Step: {step}. Autosaved as you go.
+            Review each scene — approve the ones to film. Step: {step}. Autosaved as you go, and every finished clip saves to My Clips.
           </p>
           {scenes.map((scene) => (
             <div key={scene.id} className={`rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
@@ -328,7 +367,7 @@ export function StoryboardBench(props: {
                 ) : scene.approved ? (
                   <button type="button" data-testid="world-storyboard-make-clip" onClick={() => makeClip(scene)} disabled={clipBusy !== null} className={chipCls}>
                     {clipBusy === scene.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Make this clip · {videoClipCost().toLocaleString("en-US")} Visual Bucs
+                    Make this clip · {clipPlanCost(clipSettings).toLocaleString("en-US")} Visual Bucs
                   </button>
                 ) : (
                   <span className={`text-[11px] ${muted}`}>Approve it to film it.</span>

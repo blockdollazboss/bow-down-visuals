@@ -24,8 +24,17 @@ import {
   buildCoverInMotionPayload,
   buildDraftPayload,
   buildEditorProjectPayload,
+  buildGeneratedClipSavePayload,
   buildRunwayClipPayload,
   buildSfxPayload,
+  clampSeedanceDuration,
+  clipPlanCost,
+  CLIP_MODEL_OPTIONS,
+  DEFAULT_CLIP_SETTINGS,
+  SEEDANCE_1080P_PER_SEC_VB,
+  SEEDANCE_720P_PER_SEC_VB,
+  SEEDANCE_DRAFT_PER_SEC_VB,
+  VEO_CLIP_COST_VB,
   buildBeatPayload,
   BEAT_KEYS,
   BEAT_LENGTHS,
@@ -62,6 +71,7 @@ import {
   schedulePrefillForMedia,
   sfxCost,
   songDeskCost,
+  songDeskTotalCost,
   songVideoDeskCost,
   thumbnailDeskCost,
   videoClipCost,
@@ -167,6 +177,125 @@ describe("payload builders mirror the pages (pin b)", () => {
     expect(plan.presenter).toBeNull();
     const clip = buildRunwayClipPayload("a palace scene", "blurry");
     expect(clip).toEqual({ promptText: "a palace scene", negativePrompt: "blurry", ratio: "720:1280" });
+  });
+
+  it("creation desk: picked-model clip bodies carry the rail's model fields (SceneStudio's shape)", () => {
+    /* No settings → the historical default-model body, byte for byte. */
+    expect(buildRunwayClipPayload("a palace scene", "blurry", undefined)).toEqual({
+      promptText: "a palace scene",
+      negativePrompt: "blurry",
+      ratio: "720:1280",
+    });
+    /* Seedance: model + clamped length + resolution + draft ride. */
+    expect(
+      buildRunwayClipPayload("a palace scene", "", {
+        model: "seedance2_5",
+        durationSec: 45,
+        resolution: "1080p",
+        draft: false,
+      }),
+    ).toEqual({
+      promptText: "a palace scene",
+      negativePrompt: "",
+      ratio: "720:1280",
+      model: "seedance2_5",
+      durationSec: 30,
+      resolution: "1080p",
+      draft: false,
+    });
+    /* Veo: fixed 8s on the rail; no Seedance-only fields leak in. */
+    expect(
+      buildRunwayClipPayload("a palace scene", "", {
+        model: "veo3_1",
+        durationSec: 20,
+        resolution: "1080p",
+        draft: true,
+      }),
+    ).toEqual({
+      promptText: "a palace scene",
+      negativePrompt: "",
+      ratio: "720:1280",
+      model: "veo3_1",
+      durationSec: 8,
+    });
+    /* gen4.5 with settings: the model is named, length is its fixed 5s. */
+    expect(buildRunwayClipPayload("a palace scene", "", DEFAULT_CLIP_SETTINGS)).toEqual({
+      promptText: "a palace scene",
+      negativePrompt: "",
+      ratio: "720:1280",
+      model: "gen4.5",
+      durationSec: 5,
+    });
+  });
+
+  it("creation desk: clip plan prices are the standing approved pricing", () => {
+    /* gen4.5 — the registry's flat rail cost. */
+    expect(clipPlanCost(DEFAULT_CLIP_SETTINGS)).toBe(400);
+    expect(clipPlanCost(DEFAULT_CLIP_SETTINGS)).toBe(videoClipCost());
+    /* Seedance per-second tiers (server clip-pricing defaults). */
+    expect(SEEDANCE_DRAFT_PER_SEC_VB).toBe(200);
+    expect(SEEDANCE_720P_PER_SEC_VB).toBe(300);
+    expect(SEEDANCE_1080P_PER_SEC_VB).toBe(600);
+    expect(
+      clipPlanCost({ model: "seedance2_5", durationSec: 5, resolution: "720p", draft: false }),
+    ).toBe(5 * 300);
+    expect(
+      clipPlanCost({ model: "seedance2_5", durationSec: 10, resolution: "1080p", draft: false }),
+    ).toBe(10 * 600);
+    expect(
+      clipPlanCost({ model: "seedance2_5", durationSec: 10, resolution: "1080p", draft: true }),
+    ).toBe(10 * 200);
+    /* The price clamps the length exactly like the server plan does. */
+    expect(
+      clipPlanCost({ model: "seedance2_5", durationSec: 2, resolution: "720p", draft: false }),
+    ).toBe(3 * 300);
+    expect(
+      clipPlanCost({ model: "seedance2_5", durationSec: 90, resolution: "720p", draft: false }),
+    ).toBe(30 * 300);
+    expect(clampSeedanceDuration(Number.NaN)).toBe(5);
+    /* Veo — the ruled flat per-clip price, whatever the settings say. */
+    expect(VEO_CLIP_COST_VB).toBe(1200);
+    expect(
+      clipPlanCost({ model: "veo3_1", durationSec: 30, resolution: "1080p", draft: true }),
+    ).toBe(1200);
+    /* The picker offers exactly the models the rail's schema serves. */
+    expect(CLIP_MODEL_OPTIONS.map((m) => m.id)).toEqual(["gen4.5", "seedance2_5", "veo3_1"]);
+  });
+
+  it("creation desk: the library save body is SceneStudio's, field for field", () => {
+    expect(
+      buildGeneratedClipSavePayload({
+        title: "Scene 2",
+        prompt: "the hook lands",
+        videoUrl: "https://cdn.example/clip.mp4",
+        runwayJobId: "task-123",
+        sceneId: "scene-2",
+      }),
+    ).toEqual({
+      projectId: null,
+      sceneId: "scene-2",
+      title: "Scene 2",
+      prompt: "the hook lands",
+      finalPrompt: "the hook lands",
+      runwayJobId: "task-123",
+      artistVaultId: null,
+      videoUrl: "https://cdn.example/clip.mp4",
+      status: "completed",
+    });
+    /* An empty prompt saves as null, like SceneStudio's aiVideoPrompt || null. */
+    expect(
+      buildGeneratedClipSavePayload({
+        title: "Video Desk clip",
+        prompt: "",
+        videoUrl: "https://cdn.example/clip.mp4",
+        runwayJobId: "task-9",
+      }).prompt,
+    ).toBeNull();
+  });
+
+  it("song desk: the up-front total is package + audio, each from its own rail", () => {
+    expect(songDeskTotalCost()).toBe(songDeskCost() + musicAudioCost());
+    expect(songDeskTotalCost()).toBe(800);
   });
 
   it("cover art, cover-in-motion and artist image bodies match their panels", () => {

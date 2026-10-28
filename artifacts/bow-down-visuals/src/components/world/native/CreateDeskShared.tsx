@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, ChevronDown, Disc3, ListMusic, Music, PenLine, Rocket, Scissors, Sparkles, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { jukeboxChipStateOf, jukeboxTrackIdOf } from "@/lib/world/create-desks";
+import {
+  jukeboxChipStateOf,
+  jukeboxTrackIdOf,
+  CLIP_MODEL_OPTIONS,
+  SEEDANCE_DURATION_OPTIONS,
+  VEO_CLIP_COST_VB,
+  type ClipSettings,
+} from "@/lib/world/create-desks";
 import type { ReleasePrefill } from "@/lib/world/release-desk";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
 import { ReleaseDeskStandalone } from "./ReleaseDesk";
@@ -123,6 +130,125 @@ export function AdvancedExpander({
       {open ? <div className="space-y-3 px-3 pb-3">{children}</div> : null}
     </div>
   );
+}
+
+/* ─── The clip model picker ────────────────────────────────────────
+   The model shelf the clip rail already serves, docked at the
+   Create desks (it used to live only in the 2D Scene Studio):
+   Standard / Premium · Seedance 2.5 / Cinematic · Veo, with the
+   length + finish controls only where the picked model supports
+   them. Purely controlled — the desk owns the settings and prices
+   the run from lib/world/create-desks' clipPlanCost. */
+
+export function ClipModelPicker(props: {
+  isLight: boolean;
+  settings: ClipSettings;
+  onChange: (settings: ClipSettings) => void;
+}) {
+  const { isLight, settings, onChange } = props;
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const chip = (active: boolean) =>
+    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+      active
+        ? "border-[#d4af37] bg-[#d4af37] text-black"
+        : isLight
+          ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+          : "border-white/15 text-white/75 hover:text-white"
+    }`;
+  const picked = CLIP_MODEL_OPTIONS.find((m) => m.id === settings.model);
+  return (
+    <div className="space-y-2" data-testid="world-clip-model-picker">
+      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Clip model">
+        {CLIP_MODEL_OPTIONS.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="radio"
+            aria-checked={settings.model === m.id}
+            data-testid={`world-clip-model-${m.id}`}
+            onClick={() => onChange({ ...settings, model: m.id })}
+            className={chip(settings.model === m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {picked ? <p className={`text-[11px] ${muted}`}>{picked.blurb}</p> : null}
+      {settings.model === "seedance2_5" ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Clip length">
+            <span className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Length</span>
+            {SEEDANCE_DURATION_OPTIONS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                role="radio"
+                aria-checked={settings.durationSec === d}
+                data-testid={`world-clip-duration-${d}`}
+                onClick={() => onChange({ ...settings, durationSec: d })}
+                className={chip(settings.durationSec === d)}
+              >
+                {d}s
+              </button>
+            ))}
+            <span className={`ml-2 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Finish</span>
+            {settings.draft ? (
+              <span className={chip(true)}>480p draft</span>
+            ) : (
+              (["720p", "1080p"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.resolution === r}
+                  data-testid={`world-clip-res-${r}`}
+                  onClick={() => onChange({ ...settings, resolution: r })}
+                  className={chip(settings.resolution === r)}
+                >
+                  {r}
+                </button>
+              ))
+            )}
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+            <input
+              type="checkbox"
+              data-testid="world-clip-draft-toggle"
+              checked={settings.draft}
+              onChange={(e) => onChange({ ...settings, draft: e.target.checked })}
+            />
+            Draft mode — cheap 480p preview first
+          </label>
+        </div>
+      ) : null}
+      {settings.model === "veo3_1" ? (
+        <p className={`text-[11px] ${muted}`}>
+          One fixed 8-second clip · {VEO_CLIP_COST_VB.toLocaleString("en-US")} Visual Bucs.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** POST /api/generated-clips — the library save SceneStudio makes
+ *  the moment a clip lands, shared by the Create desks: a finished
+ *  desk clip lands in My Clips like any other. Best-effort like the
+ *  page's (the clip already plays in the panel either way); the
+ *  boolean lets the desk SAY whether the library copy landed. */
+export async function saveGeneratedClipToLibrary(
+  authHeaders: () => Promise<Record<string, string>>,
+  payload: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/generated-clips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /* ─── Result chips ───────────────────────────────────────────────────
@@ -350,6 +476,12 @@ export function SongAudioRail(props: {
   title: string;
   costVisualBucs: number;
   onMakeAudio: () => void;
+  /** The Song Desk's one-confirmation flow: the member already
+   *  confirmed this leg as part of the desk's up-front total, so
+   *  the button carries no second price — the note names the
+   *  total it rides on. The leg still charges exactly once, on
+   *  its own rail, only when the audio is made. */
+  includedInTotal?: number;
 }) {
   const { isLight } = props;
   if (props.state === "done" && props.audioUrl) {
@@ -372,12 +504,21 @@ export function SongAudioRail(props: {
         {props.state === "running"
           ? "Making the audio…"
           : props.state === "failed"
-            ? `Make the audio again · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`
-            : `Make the audio · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`}
+            ? props.includedInTotal !== undefined
+              ? "Make the audio again"
+              : `Make the audio again · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`
+            : props.includedInTotal !== undefined
+              ? "Make the audio"
+              : `Make the audio · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`}
       </button>
       {props.state === "failed" && props.error ? (
         <p data-testid="world-create-audio-error" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
           {props.error}
+        </p>
+      ) : props.includedInTotal !== undefined ? (
+        <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+          Covered by the {props.includedInTotal.toLocaleString("en-US")} Visual Bucs you confirmed for this song —
+          this leg charges its share only when the audio lands, never twice. The song saves to your library, ready to publish.
         </p>
       ) : (
         <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
