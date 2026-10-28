@@ -336,15 +336,150 @@ export function buildVideoPlanPayload(
 
 /** The runway clip body MusicVideoTimeline posts for a scene:
  *  promptText + negativePrompt + the vertical ratio, nothing else
- *  (the flat default-model charge — see videoClipCost). */
+ *  (the flat default-model charge — see videoClipCost). With clip
+ *  settings (the Creation Desk's model picker), the SAME body plus
+ *  the fields SceneStudio posts for the picked model — the rail
+ *  (routes/generate/runway-clip.ts) resolves the plan server-side
+ *  from exactly these fields. The no-settings shape is unchanged:
+ *  the server's default model runs, as before. */
 export function buildRunwayClipPayload(
   prompt: string,
   negativePrompt = "",
+  settings?: ClipSettings,
 ): Record<string, unknown> {
-  return {
+  const base: Record<string, unknown> = {
     promptText: prompt.trim(),
     negativePrompt,
     ratio: "720:1280",
+  };
+  if (!settings) return base;
+  return {
+    ...base,
+    model: settings.model,
+    durationSec:
+      settings.model === "veo3_1"
+        ? VEO_CLIP_DURATION_SEC
+        : settings.model === "seedance2_5"
+          ? clampSeedanceDuration(settings.durationSec)
+          : 5,
+    ...(settings.model === "seedance2_5"
+      ? { resolution: settings.resolution, draft: settings.draft }
+      : {}),
+  };
+}
+
+/* ─── The clip model shelf — the Creation Desk's picker ────────────
+   The models POST /api/generate-runway-clip already serves (its
+   zod schema: "gen4.5" | "seedance2_5" | "veo3_1"), priced from
+   the standing approved pricing — the api-server's clip-pricing.ts
+   defaults, which SceneStudio's client constants mirror:
+     - gen4.5: flat 400 VB per clip (the registry's rail cost).
+     - Seedance 2.5: 200 VB/sec draft 480p, 300 VB/sec at 720p,
+       600 VB/sec at 1080p; length clamped 3–30s server-side
+       (SEEDANCE_MIN/MAX_DURATION_SEC) and clamped the same here.
+     - Veo Cinematic: 1,200 VB per fixed 8s clip (owner ruling
+       Oct 27, 2026: VEO_CLIP_CREDIT_COST = 150/sec × 8s).
+   The desk's tier labels mirror SceneStudio's picker (Standard /
+   Premium / Cinematic); Seedance 2.5 and Veo are NAMED beside
+   their tier because the owner asked for them by name — a picker
+   he cannot find his model in is the defect this lane closes. */
+
+export type ClipModelId = "gen4.5" | "seedance2_5" | "veo3_1";
+
+export interface ClipSettings {
+  model: ClipModelId;
+  /** Seedance only: requested length in seconds (clamped 3–30).
+   *  gen4.5 is fixed at 5s and Veo at 8s on the rail itself. */
+  durationSec: number;
+  /** Seedance only: output tier. Draft mode renders 480p instead. */
+  resolution: "720p" | "1080p";
+  /** Seedance only: cheap 480p draft preview. */
+  draft: boolean;
+}
+
+export const DEFAULT_CLIP_SETTINGS: ClipSettings = {
+  model: "gen4.5",
+  durationSec: 5,
+  resolution: "720p",
+  draft: false,
+};
+
+export const CLIP_MODEL_OPTIONS: ReadonlyArray<{
+  id: ClipModelId;
+  label: string;
+  blurb: string;
+}> = [
+  { id: "gen4.5", label: "Standard", blurb: "The everyday clip maker — one flat price per clip." },
+  { id: "seedance2_5", label: "Premium · Seedance 2.5", blurb: "Your pick of length and finish, priced by the second." },
+  { id: "veo3_1", label: "Cinematic · Veo", blurb: "The film look with native sound — a fixed 8-second clip." },
+];
+
+/** Seedance lengths the picker offers — SceneStudio's own set. */
+export const SEEDANCE_DURATION_OPTIONS: readonly number[] = [5, 10, 15, 30];
+
+/** Server clip-pricing.ts: SEEDANCE_MIN/MAX_DURATION_SEC (3–30). */
+export const SEEDANCE_MIN_DURATION_SEC = 3;
+export const SEEDANCE_MAX_DURATION_SEC = 30;
+
+/** Server clip-pricing.ts: VEO_CLIP_DURATION_SEC. */
+export const VEO_CLIP_DURATION_SEC = 8;
+
+/** Seedance per-second rates — server clip-pricing.ts defaults
+ *  (SEEDANCE_*_CREDITS_PER_SEC_DEFAULT), mirrored by SceneStudio's
+ *  client constants of the same values. */
+export const SEEDANCE_DRAFT_PER_SEC_VB = 200;
+export const SEEDANCE_720P_PER_SEC_VB = 300;
+export const SEEDANCE_1080P_PER_SEC_VB = 600;
+
+/** Veo's ruled per-clip price — server VEO_CLIP_CREDIT_COST. */
+export const VEO_CLIP_COST_VB = 1200;
+
+/** The rail's Seedance clamp, applied before pricing so the price
+ *  on the runner is the price the server resolves: a finite number
+ *  rounds into 3–30; anything else is the 5s default. */
+export function clampSeedanceDuration(sec: number): number {
+  if (!Number.isFinite(sec)) return 5;
+  return Math.min(SEEDANCE_MAX_DURATION_SEC, Math.max(SEEDANCE_MIN_DURATION_SEC, Math.round(sec)));
+}
+
+/** The exact Visual Bucs price of one clip under these settings —
+ *  the number the runner shows and confirmedFetch confirms. The
+ *  rail charges this on success and nothing on failure. */
+export function clipPlanCost(settings: ClipSettings): number {
+  if (settings.model === "veo3_1") return VEO_CLIP_COST_VB;
+  if (settings.model === "seedance2_5") {
+    const perSec = settings.draft
+      ? SEEDANCE_DRAFT_PER_SEC_VB
+      : settings.resolution === "1080p"
+        ? SEEDANCE_1080P_PER_SEC_VB
+        : SEEDANCE_720P_PER_SEC_VB;
+    return clampSeedanceDuration(settings.durationSec) * perSec;
+  }
+  return videoClipCost();
+}
+
+/** SceneStudio's library save (its autoSaveClip body, field for
+ *  field): POST /api/generated-clips is what lands a finished clip
+ *  in My Clips. A desk-made clip posts EXACTLY this body so it
+ *  arrives in the library like any other clip. */
+export function buildGeneratedClipSavePayload(input: {
+  title: string;
+  prompt: string;
+  videoUrl: string;
+  runwayJobId: string;
+  sceneId?: string | null;
+  projectId?: string | null;
+}): Record<string, unknown> {
+  return {
+    projectId: input.projectId ?? null,
+    sceneId: input.sceneId ?? null,
+    title: input.title,
+    prompt: input.prompt ? input.prompt : null,
+    finalPrompt: input.prompt,
+    runwayJobId: input.runwayJobId,
+    artistVaultId: null,
+    videoUrl: input.videoUrl,
+    status: "completed",
   };
 }
 
@@ -787,6 +922,15 @@ export function musicAudioCost(lengthSeconds: number = SONG_AUDIO_LENGTH_SECONDS
   if (lengthSeconds <= 60) return base;
   if (lengthSeconds <= 180) return base * 2;
   return base * 3;
+}
+
+/** The Song Desk's ONE up-front number: the song package
+ *  (400, /api/generate-song) plus the real audio at the desk's
+ *  length (400, /api/generate-music-audio) = 800 Visual Bucs. The
+ *  member confirms this total once; each leg still charges exactly
+ *  once on its own rail, only when that leg runs. */
+export function songDeskTotalCost(): number {
+  return songDeskCost() + musicAudioCost();
 }
 
 /** One ## section of a song package (the hub-song section shape). */
