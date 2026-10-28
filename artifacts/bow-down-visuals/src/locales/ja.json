@@ -11670,6 +11670,8 @@
     "sliderScaleMin": "下書き · 小さめ",
     "sliderStandard": "標準",
     "watermarkFree": "無料のエクスポートには透かしが入ります。加入者は取り除けます。",
+    "watermarkOffPrice": "オフ：クリーン書き出し — 400 Visual Bucs、レンダリング開始時に予約されます。",
+    "watermarkOnPrice": "オン：動画に Bow Down Visuals の透かしが入ります — この書き出しは無料です。",
     "watermarkSubscriber": "加入者は透かしなしでエクスポートできます — いつでもオフに。",
     "watermarkTitle": "「Made with Bow Down Visuals」の透かし",
     "watermarkUpsell": "消したいですか?",
