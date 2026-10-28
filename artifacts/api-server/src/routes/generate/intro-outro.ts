@@ -7,7 +7,15 @@ import path from "path";
 import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
+import { refundCredits, getCreditBalance } from "../../lib/credits";
+import {
+  generationChargeIntentStore,
+  recordGenerationChargeIntent,
+  resolvePendingCharge,
+  settleGenerationCharge,
+  markGenerationIntentDelivered,
+  markGenerationIntentFailed,
+} from "../../lib/generation-charge-intents";
 import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import { z } from "zod";
 import {
@@ -127,6 +135,16 @@ router.post("/generate-intro-outro", requireAuth, async (req, res) => {
         });
 
     pendingIntroTasks.set(task.id, { userId: req.userId!, credits: CREDIT_COST });
+    /* Durable charge intent (Lane 4): survives the restarts the
+       in-memory map cannot — the success poll settles from this row
+       when the map entry is gone. */
+    await recordGenerationChargeIntent(generationChargeIntentStore, {
+      taskId: task.id,
+      rail: "intro-outro",
+      userId: req.userId!,
+      credits: CREDIT_COST,
+      action: "Intro/Outro Video",
+    });
     req.log.info({ taskId: task.id, userId: req.userId }, "[intro-outro] task submitted — credits pending on SUCCEEDED");
     res.json({ taskId: task.id, creditCost: CREDIT_COST, type: resolved.type, durationSec: INTRO_OUTRO_DURATION_SEC, status: "processing" });
   } catch (err: unknown) {
@@ -169,24 +187,32 @@ router.get("/generate-intro-outro/:taskId", requireAuth, async (req, res) => {
       const pending = pendingIntroTasks.get(taskId);
       let creditsRemaining: number | undefined;
 
-      /* ── Charge credits (only once, guarded by pendingIntroTasks presence) ── */
-      if (pending && pending.userId === req.userId) {
-        try {
-          creditsRemaining = await chargeCreditsAtomic(
-            req.userId!,
-            pending.credits,
-            { action: "Intro/Outro Video" },
-            { rollbackOnLedgerFailure: false },
-          );
-          req.log.info({ taskId, userId: req.userId, creditsAfter: creditsRemaining, deducted: pending.credits }, "[intro-outro] credits deducted");
-        } catch (err) {
-          if (err instanceof LedgerWriteError) {
-            req.log.error({ err, taskId }, "[intro-outro] CRITICAL: ledger write failed after deduction");
-          } else {
-            req.log.error({ err, taskId }, "[intro-outro] credit deduction FAILED — video delivered without charge");
-          }
+      /* ── Charge credits (only once) — resolved from the in-memory map
+         OR the durable submit-time intent (Lane 4). A missing map entry
+         used to mean a silent free delivery; now the intent row settles
+         the charge, and when NEITHER exists the delivery is logged as
+         unchargeable at error level. ── */
+      const resolved = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pending
+          ? { userId: pending.userId, credits: pending.credits, action: "Intro/Outro Video" }
+          : null,
+      );
+      let chargeOutcome: "charged" | "charged_unledgered" | "already" | "charge_failed" | "skipped" = "skipped";
+      if (resolved && resolved.userId === req.userId) {
+        chargeOutcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
+        if (chargeOutcome !== "charge_failed") {
+          creditsRemaining = await getCreditBalance(req.userId!).catch(() => undefined);
+          req.log.info({ taskId, userId: req.userId, creditsAfter: creditsRemaining, deducted: resolved.credits, source: resolved.source }, "[intro-outro] credits deducted");
         }
+        /* charge_failed: settle logged CRITICAL, intent stays awaiting;
+           delivery is stamped below and the sweeper retries. */
         pendingIntroTasks.delete(taskId);
+      } else if (resolved && resolved.userId !== req.userId) {
+        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[intro-outro] userId mismatch on poll — skipping charge");
+      } else if (!resolved) {
+        req.log.error({ taskId }, "[intro-outro] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0297 or a failed intent record (logged CRITICAL at submit)");
       }
 
       /* ── Upload to Supabase Storage ── */
@@ -196,26 +222,34 @@ router.get("/generate-intro-outro/:taskId", requireAuth, async (req, res) => {
         const objectName = `intros-outros/${randomUUID()}.mp4`;
         // R2 migration: zero-egress public upload (Supabase fallback when R2 unset).
         const publicUrl = await uploadPublicMediaToR2(INTRO_OUTRO_BUCKET, objectName, readFileSync(tmpFile), "video/mp4");
+        await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         res.json({ status: "succeeded", url: publicUrl, path: objectName, creditsRemaining });
       } catch (uploadErr: unknown) {
         /* Upload failed after a successful charge — refund so the user
-           never pays for a video they can't access. */
-        if (pending && pending.userId === req.userId) {
+           never pays for a video they can't access. Lane 4: the refund
+           is gated on the charge actually having landed (the pre-fix
+           code refunded even when the charge itself had failed — a
+           refund with no charge). When the charge failed too, nothing
+           is owed either way: the intent is left undelivered so the
+           sweeper never charges for this response. */
+        if (resolved && resolved.userId === req.userId && chargeOutcome !== "charge_failed" && chargeOutcome !== "skipped") {
           try {
-            await refundCredits(req.userId!, pending.credits, { action: "Intro/Outro — Refund (upload failed)" });
-            req.log.info({ taskId, userId: req.userId, refunded: pending.credits }, "[intro-outro] refunded after upload failure");
+            await refundCredits(req.userId!, resolved.credits, { action: "Intro/Outro — Refund (upload failed)" });
+            req.log.info({ taskId, userId: req.userId, refunded: resolved.credits }, "[intro-outro] refunded after upload failure");
           } catch (refundErr) {
             req.log.error({ err: refundErr, taskId }, "[intro-outro] CRITICAL: refund failed after upload failure");
           }
+          await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         }
         req.log.error({ err: uploadErr }, "[intro-outro] bucket upload failed — returning raw Runway URL as fallback");
-        res.json({ status: "succeeded", url: runwayUrl, path: null, creditsRemaining, refunded: true });
+        res.json({ status: "succeeded", url: runwayUrl, path: null, creditsRemaining, refunded: chargeOutcome === "charged" || chargeOutcome === "charged_unledgered" || chargeOutcome === "already" });
       } finally {
         cleanup(tmpFile);
       }
 
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
       pendingIntroTasks.delete(taskId);
+      await markGenerationIntentFailed(generationChargeIntentStore, taskId);
       req.log.info({ taskId, status: task.status }, "[intro-outro] task failed — no credits charged");
       res.json({
         status: task.status === "CANCELLED" ? "cancelled" : "failed",

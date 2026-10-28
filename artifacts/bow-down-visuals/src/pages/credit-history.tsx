@@ -24,6 +24,11 @@ interface Usage {
   action: string;
   creditsUsed: number;
   projectId: string | null;
+  /** Set when the spend came out of a team pool: the row belongs to the
+   *  member's history for visibility, but it never moved their personal
+   *  balance (Stack400 Lane 4) — labelled in the row so the personal
+   *  rows alone reconcile with the displayed balance. */
+  teamId?: string | null;
 }
 
 interface CreditHistory {
@@ -332,7 +337,14 @@ export default function CreditHistory() {
                         return (
                           <tr key={u.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
                             <td className="px-4 py-3 text-white/50">{fmt(u.createdAt)}</td>
-                            <td className="px-4 py-3 text-white/80">{u.action}</td>
+                            <td className="px-4 py-3 text-white/80">
+                              {u.action}
+                              {u.teamId && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-sky-500/10 text-sky-300 border-sky-500/20">
+                                  Team pool
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <span
                                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${

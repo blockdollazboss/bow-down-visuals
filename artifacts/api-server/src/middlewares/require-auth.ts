@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { recordGrantLedger, STARTER_GRANT_CREDITS } from "../lib/grant-ledger";
+import { spendableBalance } from "../lib/credits";
 import { logger } from "../lib/logger";
 import { resolveCreatorTier } from "./require-tier";
 import {
@@ -87,7 +88,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   // deriveEffectivePlan).
   const { data: profile, error: profileError } = await userClient
     .from("profiles")
-    .select("id, credits, plan, plan_tier")
+    .select("id, credits, bonus_credits, bonus_credits_expires_at, plan, plan_tier")
     .eq("id", user.id)
     .single();
 
@@ -96,7 +97,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   if (profile) {
-    req.userCredits = profile.credits;
+    /* userCredits is the SPENDABLE balance (credits + live bonus) — the
+       same number the displays show and deductCredits charges against.
+       Stamping the raw credits column here made route pre-checks 402
+       members whose money sat in the bonus pool, and made every quoted
+       balance disagree with the charge rail. */
+    req.userCredits = spendableBalance(profile);
     const byLegacy = tierFromLegacyPlan(profile.plan);
     const byPlanTier = tierFromPlanTier(profile.plan_tier);
     const legacyTier = meetsTier(byPlanTier, byLegacy) ? byPlanTier : byLegacy;

@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
+import { spendableCredits } from "@/lib/balance";
 import { installSessionGuard, registerSessionHooks } from "@/lib/session-guard";
 
 interface Profile {
@@ -10,7 +11,15 @@ interface Profile {
   plan: string;
   /** Plan tier 1–6. Tier N caps Creator Level at N stars. Defaults to 1. */
   plan_tier: number;
+  /** The DISPLAYED balance: spendable total (credits column + live bonus
+   *  pool), folded in fetchProfile — see the charge-integrity note there.
+   *  Every consumer of profile.credits is showing or quoting "my balance",
+   *  so this is the number they must all share. */
   credits: number;
+  /** Raw profiles.credits column, kept for surfaces that need the split. */
+  credits_base?: number;
+  bonus_credits?: number | null;
+  bonus_credits_expires_at?: string | null;
   created_at: string;
 }
 
@@ -228,6 +237,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         /* Non-fatal: fall back to the stored plan value. */
       }
+      /* Charge integrity (Stack400 Lane 4): the server charges against
+       * credits + live bonus and spends the bonus pool FIRST, so the
+       * displayed balance must be that same spendable total. Showing the
+       * raw credits column let a real, ledgered charge leave every
+       * balance readout unmoved (Pass 4: −100 row, balance unchanged).
+       * Fold once, here, so the header, sidebar, panels, /credit-history
+       * and the spend-confirm dialog's "After" all reconcile with the
+       * ledger by construction. */
+      data.credits_base = data.credits;
+      data.credits = spendableCredits(data);
     }
     setProfile(data ?? null);
   }

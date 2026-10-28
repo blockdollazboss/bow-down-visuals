@@ -180,6 +180,7 @@ export * from "./operator-actions";
 export * from "./payment-reversals";
 export * from "./pending-payout-ledger";
 export * from "./clip-charge-obligations";
+export * from "./generation-charge-intents";
 export * from "./website-builder-projects";
 export * from "./api-keys";
 export * from "./theme-packs";

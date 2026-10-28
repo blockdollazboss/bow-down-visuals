@@ -34,9 +34,8 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, getCreditBalance, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
-import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -483,13 +482,11 @@ const publishSchema = z.object({
 /* Fresh balance read for the idempotency-reclaim path, where the original
    attempt already deducted and we must not deduct again. */
 async function readCreditBalance(userId: string): Promise<number> {
+  /* The shared spendable balance (credits + live bonus) — a private
+     credits-column-only read here reported a balance that ignored the
+     bonus pool charges draw from (Stack400 Lane 4). */
   try {
-    const { data } = await getSupabaseAdmin()
-      .from("profiles")
-      .select("credits")
-      .eq("id", userId)
-      .single();
-    return (data as { credits?: number } | null)?.credits ?? 0;
+    return await getCreditBalance(userId);
   } catch {
     return 0;
   }
@@ -976,11 +973,7 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record tiktok attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "TikTok Auto-Post",
-      creditsUsed: TIKTOK_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     logger.info({ userId: req.userId }, "[social] tiktok draft delivered to inbox");
     res.json({
       publishId,
@@ -1335,11 +1328,7 @@ router.post("/social/x/publish", requireAuth, async (req: Request, res: Response
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record X publish attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "X Auto-Post",
-      creditsUsed: X_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ tweetId, permalink, creditsUsed: X_POST_CREDITS, creditsRemaining });
   } catch (err) {
     const message = err instanceof XApiError ? err.userMessage : "Couldn't publish to X.";
@@ -1533,11 +1522,7 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record Facebook publish attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Facebook Auto-Post",
-      creditsUsed: FACEBOOK_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ videoId, permalink, creditsUsed: FACEBOOK_POST_CREDITS, creditsRemaining });
   } catch (err) {
     const message = err instanceof MetaApiError ? err.userMessage : "Couldn't publish to Facebook.";

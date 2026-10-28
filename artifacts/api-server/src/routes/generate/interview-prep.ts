@@ -5,7 +5,6 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -264,7 +263,7 @@ router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "AI Interview Prep Session", creditsUsed: INTERVIEW_PREP_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ session, creditsUsed: INTERVIEW_PREP_CREDIT_COST, creditsRemaining: creditsRemaining0 });
   } catch (err) {
     await refund(req.userId!, INTERVIEW_PREP_CREDIT_COST);
@@ -333,7 +332,7 @@ router.post("/interview-prep/feedback", publicApiLimiter, requireAuth, async (re
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "AI Interview Prep Feedback", creditsUsed: INTERVIEW_FEEDBACK_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ feedback, creditsUsed: INTERVIEW_FEEDBACK_CREDIT_COST, creditsRemaining: creditsRemaining0 });
   } catch (err) {
     await refund(req.userId!, INTERVIEW_FEEDBACK_CREDIT_COST);

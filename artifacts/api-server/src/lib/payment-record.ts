@@ -305,6 +305,13 @@ export async function getCreditUsage(userId: string) {
       action: creditUsageTable.action,
       creditsUsed: creditUsageTable.creditsUsed,
       projectId: creditUsageTable.projectId,
+      /* Charge integrity (Stack400 Lane 4): a team-pool charge lands in
+         the member's history but never moved their personal balance.
+         Without teamId the row is indistinguishable from a personal
+         spend and the history can never reconcile with the displayed
+         balance — expose it so clients label team rows and reconcile
+         the personal rows (teamId null) against the personal balance. */
+      teamId: creditUsageTable.teamId,
     })
     .from(creditUsageTable)
     .where(eq(creditUsageTable.userId, userId))

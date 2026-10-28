@@ -4,7 +4,6 @@ import { eq, desc } from "drizzle-orm";
 import { db, socialAccountsTable, socialStatSnapshotsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
-import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { decryptToken, encryptToken } from "../lib/social-crypto";
 import { refreshTikTokTokens, TikTokApiError } from "../lib/social-tiktok";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
@@ -600,11 +599,7 @@ router.post(
       if (!data || typeof data !== "object") {
         throw new Error("Model returned malformed insights JSON");
       }
-      try {
-        await recordCreditUsage({ userId: req.userId!, action: "analytics-insights", creditsUsed: ANALYTICS_INSIGHTS_CREDITS });
-      } catch (e) {
-        logger.warn({ e }, "[analytics] insights usage record failed (non-fatal)");
-      }
+      /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
       res.json({
         insights: {
           headline: typeof data.headline === "string" ? data.headline : "",
@@ -681,11 +676,7 @@ router.post(
       if (!data || !Array.isArray(data.suggestions)) {
         throw new Error("Model returned malformed suggestions JSON");
       }
-      try {
-        await recordCreditUsage({ userId: req.userId!, action: "analytics-suggestions", creditsUsed: ANALYTICS_SUGGESTIONS_CREDITS });
-      } catch (e) {
-        logger.warn({ e }, "[analytics] suggestions usage record failed (non-fatal)");
-      }
+      /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
       res.json({
         suggestions: data.suggestions.slice(0, 5).map((s: any) => ({
           title: typeof s.title === "string" ? s.title : "",

@@ -6,7 +6,6 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 import { objectStorageClient } from "../../lib/objectStorage";
 import { signGetUrl } from "../upload-watermark";
 import {
@@ -835,11 +834,7 @@ router.post("/catalog-vault/vault", publicApiLimiter, requireAuth, async (req, r
         status: "vaulted",
       })
       .returning();
-    await recordCreditUsage({
-      userId: req.userId!,
-      action: "Catalog Vault — permanent release hosting",
-      creditsUsed: CATALOG_VAULT_CREDIT_COST,
-    });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({
       vaulted: true,
       releaseId,

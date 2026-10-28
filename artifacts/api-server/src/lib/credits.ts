@@ -11,6 +11,39 @@ import { eq, sql, and } from "drizzle-orm";
  * below `cost`. Routes translate this into the existing 402
  * { error: "out_of_credits" } response shape.
  */
+/**
+ * THE spendable balance: `profiles.credits` plus the live (unexpired)
+ * bonus pool. This is the one balance definition every surface must use —
+ * displays, quotes, affordability pre-checks, and charge returns.
+ *
+ * Charge-integrity law (Stack400 Lane 4): deductions draw the bonus pool
+ * first (deductCredits), so any surface that reads `credits` alone can
+ * show an unmoved balance next to a real ledger charge — the ledger and
+ * the balance readout disagree and the member was promised an "After"
+ * number the system never intended to show. One definition, everywhere:
+ * a charge of N always moves THIS number by exactly N.
+ */
+export function spendableBalance(
+  profile: {
+    credits?: number | null;
+    bonus_credits?: number | null;
+    bonus_credits_expires_at?: string | null;
+  } | null,
+  now: number = Date.now(),
+): number {
+  if (!profile) return 0;
+  const credits = profile.credits ?? 0;
+  let bonus = profile.bonus_credits ?? 0;
+  if (
+    bonus > 0 &&
+    profile.bonus_credits_expires_at &&
+    new Date(profile.bonus_credits_expires_at).getTime() < now
+  ) {
+    bonus = 0;
+  }
+  return credits + bonus;
+}
+
 export class OutOfCreditsError extends Error {
   readonly status = 402;
   constructor() {
@@ -171,7 +204,11 @@ export async function deductCredits(userId: string, cost: number): Promise<numbe
     logger.error({ userId, cost, err: updateErr.message }, "[credits] deduction write failed");
     throw updateErr;
   }
-  return creditsAfter;
+  /* Return the SPENDABLE total after (credits + remaining bonus) — the
+     same number every display shows. Returning only the credits column
+     made rails report a "creditsRemaining" that ignored the bonus pool
+     the charge had just spent from. */
+  return creditsAfter + bonusAfter;
 }
 
 export interface ChargeLedgerRecord {
@@ -278,8 +315,18 @@ async function readTeamPoolBalance(teamId: string): Promise<number | null> {
  */
 async function readPersonalBalance(userId: string): Promise<number> {
   const admin = getSupabaseAdmin();
-  const { data } = await admin.from("profiles").select("credits").eq("id", userId).single();
-  return (data as { credits?: number } | null)?.credits ?? 0;
+  const { data } = await admin
+    .from("profiles")
+    .select("credits, bonus_credits, bonus_credits_expires_at")
+    .eq("id", userId)
+    .single();
+  return spendableBalance(
+    data as {
+      credits?: number;
+      bonus_credits?: number;
+      bonus_credits_expires_at?: string | null;
+    } | null,
+  );
 }
 
 /** Public balance read for rails that answer "how many Visual Bucs do

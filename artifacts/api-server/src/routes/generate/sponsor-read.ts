@@ -5,7 +5,6 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -178,7 +177,7 @@ router.post("/sponsor-read", publicApiLimiter, requireAuth, async (req, res) => 
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "Sponsor Read", creditsUsed: SPONSOR_READ_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ read, creditsUsed: SPONSOR_READ_CREDIT_COST, creditsRemaining });
   } catch (err) {
     await refund();
