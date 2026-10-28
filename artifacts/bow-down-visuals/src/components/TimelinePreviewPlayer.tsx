@@ -68,6 +68,10 @@ export interface SharedPreviewState {
 export interface TimelinePlayerHandle {
   /** Toggle play/pause — resumes from current position or starts from 0 */
   togglePlay: () => void;
+  /** Pause if playing (no-op otherwise) — lets the editor playback arbiter
+   *  stop the master when the Music Studio mix preview starts, so the two
+   *  engines never sound at once. */
+  pause: () => void;
   /** Restart playback from the beginning */
   restart: () => void;
   /** Seek to ~1s before the given scene's boundary and play through its transition. */
@@ -533,6 +537,10 @@ function TimelinePreviewPlayer({
       } else {
         startTimeline();
       }
+    },
+    pause() {
+      // Use playingRef — see togglePlay note above about the stale closure.
+      if (playingRef.current) pauseTimeline();
     },
     restart: startTimeline,
     previewTransition,

@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
+import { PlaybackArbiter, PlaybackArbiterContext, MASTER_PLAYBACK_ID } from "@/lib/playback-arbiter";
 import { ClipContextMenu, type ContextMenuItem } from "@/components/editor/ClipContextMenu";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { computeSceneTimings } from "@/lib/scene-timing";
@@ -1183,6 +1184,33 @@ export default function VideoEditor() {
   const timelinePlayerRef = useRef<TimelinePlayerHandle>(null);
   /** Single shared video element driven imperatively by the effect below */
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  /* ── Playback arbiter — ONE transport truth for the editor ──────────────
+   * The timeline (master) player and the Music Studio mix preview are two
+   * engines that can play the same song; left uncoordinated they sound at
+   * once (an echo) and their buttons/clocks disagree. Both register with
+   * this single arbiter (the mix registers itself via context in
+   * useMixPreview): starting either one pauses the other. */
+  const [playbackArbiter] = useState(() => new PlaybackArbiter());
+  /** Ref mirror of the latest broadcast state so the master participant's
+   *  isPlaying() reads live state without re-registering every tick. */
+  const previewStateRef = useRef<SharedPreviewState | null>(null);
+  useEffect(() => {
+    previewStateRef.current = previewEngineState;
+  }, [previewEngineState]);
+  useEffect(
+    () =>
+      playbackArbiter.register({
+        id: MASTER_PLAYBACK_ID,
+        isPlaying: () => previewStateRef.current?.isPlaying ?? false,
+        pause: () => timelinePlayerRef.current?.pause(),
+      }),
+    [playbackArbiter],
+  );
+  useEffect(() => {
+    if (previewEngineState?.isPlaying) playbackArbiter.notifyPlaying(MASTER_PLAYBACK_ID);
+    else playbackArbiter.notifyStopped(MASTER_PLAYBACK_ID);
+  }, [previewEngineState?.isPlaying, playbackArbiter]);
 
   /* ── Deep-link initial seek (?t=seconds) ────────────────────────────────────
    * From client review comments: /video-editor?project=<id>&t=42 opens the
@@ -2433,6 +2461,10 @@ export default function VideoEditor() {
                       artistName={artistName}
                       songTitle={songTitle}
                       audioUrl={audioUrl}
+                      masterPlayer={previewAudioUrl ? {
+                        state: previewEngineState,
+                        onTogglePlay: () => timelinePlayerRef.current?.togglePlay(),
+                      } : null}
                       projectId={projectId}
                       getAccessToken={getAccessToken}
                       onTranscriptReady={handleTranscriptReady}
@@ -3054,6 +3086,7 @@ export default function VideoEditor() {
     );
   };
   return (
+    <PlaybackArbiterContext.Provider value={playbackArbiter}>
     <>
     <style>{`
       .vv-marble-page { background: var(--vv-marble-page); }
@@ -4047,6 +4080,7 @@ export default function VideoEditor() {
       </Suspense>
     )}
     </>
+    </PlaybackArbiterContext.Provider>
   );
 }
 

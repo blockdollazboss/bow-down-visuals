@@ -13,6 +13,7 @@ import { AdLibGenerator } from "@/components/wave8/AdLibGenerator";
 import { SongStructureBuilder } from "@/components/editor/music/SongStructureBuilder";
 import { LyricsToTimeline } from "@/components/editor/music/LyricsToTimeline";
 import { useMixPreview } from "@/components/editor/music/useMixPreview";
+import type { SharedPreviewState } from "@/components/TimelinePreviewPlayer";
 import type { AudioExportType, DirectAudioExportStatus } from "@/lib/audio-export";
 
 interface MusicStudioProps {
@@ -22,6 +23,16 @@ interface MusicStudioProps {
   songTitle?: string;
   /** Uploaded song URL from project.input_data */
   audioUrl?: string | null;
+  /** Master (timeline) player mirror from the editor page: the shared
+   *  engine state broadcast by TimelinePreviewPlayer plus a toggle that
+   *  drives its TimelinePlayerHandle. When present (and no stem is
+   *  solo'd), the Now Playing header transports the MASTER player and
+   *  reads the shared clock — one clock for the project song. Null when
+   *  the timeline has no audio to play. */
+  masterPlayer?: {
+    state: SharedPreviewState | null;
+    onTogglePlay: () => void;
+  } | null;
   /** Project ID — used when saving transcript */
   projectId?: string | null;
   /** Auth token getter for API calls */
@@ -66,6 +77,7 @@ export function MusicStudio({
   artistName,
   songTitle,
   audioUrl,
+  masterPlayer,
   projectId,
   getAccessToken,
   onTranscriptReady,
@@ -191,7 +203,26 @@ export function MusicStudio({
   const displayArtist = artistName?.trim() || activeArtist?.artist_name || "Unknown Artist";
   const durationSec =
     ms.videoAudio.duration ?? (preview.duration > 0 ? preview.duration : (ms.stems[0]?.durationSec ?? null));
-  const isPlaying = preview.playState === "playing";
+
+  /* ── One playback truth for the header ────────────────────────────────
+   * When the master (timeline) player is available and no stem is solo'd,
+   * this header IS the project song's transport: the button toggles the
+   * master player through its handle and the waveform/clock read the
+   * shared master state — the song gets exactly one clock on screen.
+   * With a stem solo'd, the header stays on the mix engine instead: that
+   * is a stem audition, and the editor playback arbiter still guarantees
+   * the two engines never sound at once. */
+  const anySolo = ms.stems.some((s) => s.solo);
+  const mirrorMaster = !!masterPlayer && !anySolo;
+  const isPlaying = mirrorMaster
+    ? (masterPlayer.state?.isPlaying ?? false)
+    : preview.playState === "playing";
+  const headerPosition = mirrorMaster
+    ? (masterPlayer.state?.currentTime ?? 0)
+    : preview.position;
+  const headerDuration = mirrorMaster
+    ? (masterPlayer.state?.audioDuration ?? preview.duration)
+    : preview.duration;
 
   /* Deterministic waveform bars (Suno-style) */
   const bars = useMemo(() => {
@@ -205,7 +236,7 @@ export function MusicStudio({
     return arr;
   }, []);
 
-  const progress = preview.duration > 0 ? Math.min(1, preview.position / preview.duration) : 0;
+  const progress = headerDuration > 0 ? Math.min(1, headerPosition / headerDuration) : 0;
 
   /* Vocal-producer input for the Wave 8 Ad-Lib Generator: artist voice
      description composed from the active vault profile. */
@@ -265,8 +296,11 @@ export function MusicStudio({
           {/* Play button */}
           <button
             type="button"
-            onClick={() => preview.toggle()}
-            disabled={!preview.hasStems && !effectiveAudioUrl}
+            onClick={() => {
+              if (mirrorMaster) masterPlayer.onTogglePlay();
+              else preview.toggle();
+            }}
+            disabled={!mirrorMaster && !preview.hasStems && !effectiveAudioUrl}
             data-testid="musicstudio-play"
             className="h-12 w-12 rounded-full bg-primary text-black flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0 shadow-[0_0_24px_rgba(234,179,8,0.25)]"
             aria-label={isPlaying ? "Pause" : "Play"}
@@ -290,8 +324,8 @@ export function MusicStudio({
             })}
           </div>
           <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] font-mono text-white/35 tabular-nums">{formatTime(preview.position)}</span>
-            <span className="text-[10px] font-mono text-white/35 tabular-nums">{formatTime(preview.duration || durationSec)}</span>
+            <span className="text-[10px] font-mono text-white/35 tabular-nums">{formatTime(headerPosition)}</span>
+            <span className="text-[10px] font-mono text-white/35 tabular-nums">{formatTime(headerDuration || durationSec)}</span>
           </div>
         </div>
       </div>
