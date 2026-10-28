@@ -6,7 +6,6 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -219,7 +218,7 @@ router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "Show Finder", creditsUsed: SHOW_FINDER_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({
       opportunities,
       disclaimer: VERIFY_DISCLAIMER,
@@ -316,7 +315,7 @@ router.post("/show-finder/pitch", publicApiLimiter, requireAuth, async (req, res
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "Show Finder Pitch", creditsUsed: SHOW_FINDER_PITCH_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ pitch, tips, creditsUsed: SHOW_FINDER_PITCH_CREDIT_COST, creditsRemaining });
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

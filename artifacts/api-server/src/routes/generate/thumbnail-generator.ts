@@ -5,7 +5,6 @@ import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage } from "../../lib/payment-record";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
 import { chargeCredits } from "../../lib/credits";
 import {
@@ -264,11 +263,7 @@ router.post(
       return;
     }
 
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "AI Thumbnail Generator",
-      creditsUsed: BATCH_CREDIT_COST,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
 
     req.log.info(
       { userId: req.userId, creditsAfter, variations: images.length },

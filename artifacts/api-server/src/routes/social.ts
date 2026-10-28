@@ -36,7 +36,6 @@ import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, getCreditBalance, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
-import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -974,11 +973,7 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record tiktok attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "TikTok Auto-Post",
-      creditsUsed: TIKTOK_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     logger.info({ userId: req.userId }, "[social] tiktok draft delivered to inbox");
     res.json({
       publishId,
@@ -1333,11 +1328,7 @@ router.post("/social/x/publish", requireAuth, async (req: Request, res: Response
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record X publish attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "X Auto-Post",
-      creditsUsed: X_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ tweetId, permalink, creditsUsed: X_POST_CREDITS, creditsRemaining });
   } catch (err) {
     const message = err instanceof XApiError ? err.userMessage : "Couldn't publish to X.";
@@ -1531,11 +1522,7 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record Facebook publish attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Facebook Auto-Post",
-      creditsUsed: FACEBOOK_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ videoId, permalink, creditsUsed: FACEBOOK_POST_CREDITS, creditsRemaining });
   } catch (err) {
     const message = err instanceof MetaApiError ? err.userMessage : "Couldn't publish to Facebook.";

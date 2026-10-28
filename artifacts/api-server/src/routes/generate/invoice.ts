@@ -5,7 +5,6 @@ import { logger } from "../../lib/logger";
 import { isUniqueViolation } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 import { db, invoicesTable, INVOICE_STATUSES, type Invoice } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { renderInvoicePdf } from "../../lib/invoice-render";
@@ -187,11 +186,7 @@ router.post("/generate-invoice", publicApiLimiter, requireAuth, async (req, res)
 
     const pdf = renderInvoicePdf(inserted);
 
-    await recordCreditUsage({
-      userId: req.userId!,
-      action: "Generate Invoice",
-      creditsUsed: INVOICE_CREDIT_COST,
-    });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
 
     res.json({
       invoice: sanitizeRow(inserted),

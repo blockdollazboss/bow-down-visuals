@@ -9,7 +9,6 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { queueWelcomeSequence } from "../../lib/email-campaign-sender";
 import { EMAIL_LOGO_URL } from "../../lib/email";
-import { recordCreditUsage } from "../../lib/payment-record";
 import {
   db,
   emailListsTable,
@@ -796,15 +795,7 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
       throw new Error("Model returned no usable newsletter draft");
     }
 
-    try {
-      await recordCreditUsage({
-        userId: req.userId!,
-        action: "AI Newsletter Draft",
-        creditsUsed: EMAIL_NEWSLETTER_CREDIT_COST,
-      });
-    } catch (err) {
-      logger.warn({ err }, "[email-list] credit usage record failed (non-fatal)");
-    }
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
 
     res.json({ ...draft, creditsUsed: EMAIL_NEWSLETTER_CREDIT_COST, creditsRemaining });
   } catch (err) {

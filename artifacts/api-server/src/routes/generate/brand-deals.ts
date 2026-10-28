@@ -6,7 +6,6 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -239,7 +238,7 @@ router.post("/brand-deals", publicApiLimiter, requireAuth, async (req, res) => {
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "Brand Deal Finder", creditsUsed: BRAND_DEAL_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({
       deals,
       disclaimer: VERIFY_DISCLAIMER,
@@ -335,7 +334,7 @@ router.post("/brand-deals/outreach", publicApiLimiter, requireAuth, async (req, 
       return;
     }
 
-    await recordCreditUsage({ userId: req.userId!, action: "Brand Deal Outreach", creditsUsed: BRAND_DEAL_OUTREACH_CREDIT_COST });
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ outreach, tips, creditsUsed: BRAND_DEAL_OUTREACH_CREDIT_COST, creditsRemaining });
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

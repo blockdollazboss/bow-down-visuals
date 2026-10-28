@@ -10,7 +10,6 @@ import {
   refundCredits,
   OutOfCreditsError,
 } from "../../lib/credits";
-import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -199,7 +198,7 @@ router.post("/community/moderate", publicApiLimiter, requireAuth, async (req, re
     });
     const raw = completion.choices[0]?.message?.content?.trim() ?? "[]";
     const flags = parseModerationJson(raw, comments.length);
-    recordCreditUsage({ userId: req.userId!, action: "Community Moderation", creditsUsed: cost }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4: the duplicate recordCreditUsage write that lived here double-counted every charge in the member's history). */
     res.json({
       flags,
       reviewed: comments.length,
@@ -275,7 +274,7 @@ router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req,
       res.status(502).json({ error: "Couldn't draft replies — try again. (Visual Buc refunded.)" });
       return;
     }
-    recordCreditUsage({ userId: req.userId!, action: "Community Reply Drafts", creditsUsed: cost }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ drafts, creditsUsed: cost, creditsRemaining });
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Reply Drafts (provider failure refund)");
@@ -338,7 +337,7 @@ router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, r
       res.status(502).json({ error: "Couldn't build the sentiment report — try again. (Visual Buc refunded.)" });
       return;
     }
-    recordCreditUsage({ userId: req.userId!, action: "Community Sentiment Report", creditsUsed: cost }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ report, analyzed: comments.length, creditsUsed: cost, creditsRemaining });
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Sentiment (provider failure refund)");
@@ -408,7 +407,7 @@ router.post("/community/superfans", publicApiLimiter, requireAuth, async (req, r
     } catch {
       superfans = [];
     }
-    recordCreditUsage({ userId: req.userId!, action: "Community Superfan Radar", creditsUsed: cost }).catch(() => {});
+    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
     res.json({ superfans, analyzed: comments.length, creditsUsed: cost, creditsRemaining });
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Superfan Radar (provider failure refund)");
