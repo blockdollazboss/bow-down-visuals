@@ -235,7 +235,15 @@ import {
   actionPoseAt,
   type WorldActionId,
 } from "./actions";
-import { createMover, stepMover, easeFigureHeight, type MoverState } from "./movement";
+import {
+  createMover,
+  createVertical,
+  stepMover,
+  stepVertical,
+  easeFigureHeight,
+  type MoverState,
+  type VerticalState,
+} from "./movement";
 import {
   createStepDust,
   spawnStepPuff,
@@ -1598,6 +1606,21 @@ export class KingsHallScene {
    *  velocity, stride bob, lean, stop settle. (My figure rig carries
    *  a mover too, unused — peers' rigs are the ones it drives.) */
   private selfMover: MoverState = createMover(0, 9.5);
+  /** The jump (stack300): my vertical state + the eased
+   *  ground-follow it rides on. rig.position.y is their SUM —
+   *  the ground half eases while the body is on it and freezes
+   *  mid-jump; the offset half is movement.ts's gravity arc.
+   *  Spawn and doorway step-backs re-anchor both (below). */
+  private selfVertical: VerticalState = createVertical();
+  private selfGroundY = 0;
+  /** A jump press queued by any input family (Space, the touch
+   *  Jump button, the pad, an XR controller) — consumed by the
+   *  next moveRig frame as one press edge; the stepper's own
+   *  buffering covers presses that land a hair early. */
+  private jumpQueued = false;
+  /** The XR jump button's last polled state (edge detection —
+   *  tickXrMove reads no other buttons today). */
+  private xrJumpPrev = false;
   /** Footstep dust (item 57): the pool every figure's completed
    *  steps raise puffs into, and the ONE Points cloud that renders
    *  them (built lazily at the first footfall). */
@@ -1651,6 +1674,14 @@ export class KingsHallScene {
 
   setTouchSprint(held: boolean): void {
     this.touchSprint = held;
+  }
+  /** Queue one jump press (stack300): every input family lands
+   *  here — Space, the strip's Jump button, the pad's A tap, an
+   *  XR controller button — and moveRig consumes the queue as a
+   *  single press edge, so no family can double-fire a jump and
+   *  the double jump is always a deliberate second press. */
+  queueJump(): void {
+    this.jumpQueued = true;
   }
   /** My own performed action changed on its own — a one-shot
    *  finished, or walking ended a held toggle — so the page's
@@ -8705,6 +8736,10 @@ export class KingsHallScene {
     // The body re-anchors with the spawn — no stride, no settle
     // carried across a teleport.
     this.selfMover = createMover(p.x, p.z);
+    // Nor a jump: a spawn never materializes mid-arc.
+    this.selfVertical = createVertical();
+    this.selfGroundY = this.rig.position.y;
+    this.jumpQueued = false;
   }
 
   /** The room the walker stands in (the scene's own truth — it
@@ -8766,6 +8801,10 @@ export class KingsHallScene {
     this.selfMover.pz = p.z;
     this.selfMover.vx = 0;
     this.selfMover.vz = 0;
+    // A refused doorway ends any jump with the placement.
+    this.selfVertical = createVertical();
+    this.selfGroundY = this.rig.position.y;
+    this.jumpQueued = false;
   }
 
   /** Only the room you stand in renders around you — plus the hall,
@@ -9183,10 +9222,30 @@ export class KingsHallScene {
         this.keys.delete(e.code);
         return;
       }
+      /* Space is the jump (stack300, bindings.ts KEY_VERBS):
+       *  claim the press before anything else can — a focused
+       *  page button would eat it and fire itself on keyup, and
+       *  the page would scroll under the world. The edge queues
+       *  one jump; auto-repeat is not a press, so holding Space
+       *  is one jump — the double is a second, deliberate press. */
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!e.repeat) this.queueJump();
+        return;
+      }
       this.keys.add(e.code);
     }) as EventListener);
     this.on(window, "keyup", ((e: KeyboardEvent) => {
       this.keys.delete(e.code);
+      /* Space's release completes a focused button's click as
+       *  surely as its press scrolls — the jump claimed both.
+       *  In a field, Space is a space: never claimed there. */
+      if (e.code === "Space") {
+        const t = e.target as HTMLElement | null;
+        if (!(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) {
+          e.preventDefault();
+        }
+      }
     }) as EventListener);
     this.on(window, "blur", (() => {
       this.keys.clear();
@@ -9925,12 +9984,38 @@ export class KingsHallScene {
      * reachable: treads and tiers are climbed by their steps, a
      * step off an edge resolves down within the step-down rule,
      * and an edge beyond it never resolves at all — no void
-     * falls, no teleport pops. */
-    this.rig.position.y = easeFigureHeight(
-      this.rig.position.y,
-      groundHeightAt(res.x, res.z),
-      dt,
-    );
+     * falls, no teleport pops.
+     *
+     * Jump (stack300): the rig's y is now a SUM — selfGroundY
+     * (that same ease) + the jump offset. The ease runs while
+     * the body is on the ground — standing, walking, or pinned
+     * at offset 0 riding a step-down out — and freezes while
+     * the body is separated (offset or upward velocity live),
+     * so a jump's arc is measured from the ground it left. The
+     * resolver above never sees the offset: its samples gate on
+     * the ground alone, so mid-jump the body crosses exactly the
+     * ground it could have walked — no vaulting walls, terraces
+     * or blocked rects; landing on a higher surface mid-jump is
+     * platforming, a later phase. Support for the stepper =
+     * the ease has arrived at the ground under the figure; a
+     * step-down still being ridden reads unsupported, which is
+     * what runs its coyote time. A landing snaps the ground
+     * half outright to the ground under the landing (a
+     * placement, per the doctrine above) and feeds the impact
+     * to the gait's settle spring, so touchdown dips. */
+    const ground = groundHeightAt(res.x, res.z);
+    const v = this.selfVertical;
+    if (v.yOffset <= 0 && v.vy <= 0) {
+      this.selfGroundY = easeFigureHeight(this.selfGroundY, ground, dt);
+    }
+    const supported = this.selfGroundY - ground <= 0.05;
+    const jumpPressed = this.jumpQueued;
+    this.jumpQueued = false;
+    if (stepVertical(v, dt, jumpPressed, supported)) {
+      this.selfGroundY = ground;
+      this.selfMover.settleVel -= v.landSpeed * 0.5;
+    }
+    this.rig.position.y = this.selfGroundY + v.yOffset;
     // Actually walking ends a held toggle (dance/sit) on my own
     // figure — the same rule the server applies to my move frames,
     // so what I see and what the room sees agree.
@@ -9983,6 +10068,9 @@ export class KingsHallScene {
       if (intent.pageCycle) this.onPadPageCycle?.();
       if (intent.photoMode) this.onPadPhotoMode?.();
       if (intent.momentClaim) this.onPadMomentClaim?.();
+      /* A's tap (stack300): the pad's jump joins Space and the
+       *  touch button at the one queue. */
+      if (intent.jump) this.queueJump();
     }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {
@@ -10024,6 +10112,22 @@ export class KingsHallScene {
       strafe = ax;
       break;
     }
+    /* The jump in XR (stack300): one button edge — the
+     *  controller's face button (buttons[4], the A/X position)
+     *  where the pad wears it too, or the thumbstick click
+     *  (buttons[3]) on controllers without one. Either hand
+     *  counts; the edge queues one jump at the same door as
+     *  every other family, so the double jump is a second,
+     *  deliberate press here too. */
+    let xrJumpDown = false;
+    for (const source of session.inputSources) {
+      const buttons = source.gamepad?.buttons;
+      if (!buttons) continue;
+      const idx = buttons.length > 4 ? 4 : buttons.length > 3 ? 3 : -1;
+      if (idx >= 0 && buttons[idx]?.pressed) xrJumpDown = true;
+    }
+    if (xrJumpDown && !this.xrJumpPrev) this.queueJump();
+    this.xrJumpPrev = xrJumpDown;
     // Called every frame, stick centered or not — the body's ease
     // and settle live in the frames after the stick lets go.
     this.moveRig(fwd, strafe, dt, WALK_SPEED, yawFromLook);

@@ -7,7 +7,7 @@ import {
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen, Camera,
-  Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash,
+  Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash, ArrowBigUpDash,
 } from "lucide-react";
 import {
   ACTION_PAGES,
@@ -4057,8 +4057,9 @@ export default function WorldPage() {
             targets big enough for a thumb — Interact wears the
             showing prompt's own words, Claim stands only while a
             moment can actually be claimed, Photo frames the
-            shot, and Sprint is the touch family's run (a hold,
-            Q194). Pad and keys carry the same verbs. */}
+            shot, Sprint is the touch family's run (a hold, Q194),
+            and Jump is its hop (a tap, stack300). Pad and keys
+            carry the same verbs. */}
         {status === "inside" && (
           <div
             className="mb-2 flex flex-wrap items-center gap-1.5"
@@ -4125,6 +4126,30 @@ export default function WorldPage() {
               }`}
             >
               <Zap className="h-4 w-4" /> Sprint
+            </button>
+            {/* Jump (stack300): the touch family's hop — a TAP,
+                like Space on the keys and A's tap on a pad; a
+                second tap mid-air is the double jump. Movement
+                is every walker's verb, so guests tap it too —
+                same standing as Sprint. The press lands on the
+                scene's one jump queue; pointer-up does nothing,
+                so a held thumb never machine-guns hops. */}
+            <button
+              type="button"
+              data-testid="world-strip-jump"
+              title="Jump — tap again in the air for a double jump"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                sceneRef.current?.queueJump();
+              }}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`inline-flex touch-none select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105 ${
+                isLight
+                  ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                  : "border-white/15 text-white/80 hover:text-white"
+              }`}
+            >
+              <ArrowBigUpDash className="h-4 w-4" /> Jump
             </button>
             <button
               type="button"
