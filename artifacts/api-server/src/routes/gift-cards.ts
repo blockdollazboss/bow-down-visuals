@@ -40,6 +40,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 import {
   GiftCardsUnavailable,
@@ -108,6 +109,12 @@ const CheckoutSchema = z.object({
   recipientEmail: z.string().trim().email().max(254),
   recipientName: z.string().trim().max(120).optional(),
   message: z.string().trim().max(500).optional(),
+  /* Embedded checkout (owner law 2026-10-26: "we should never have to
+     leave my site"): "embedded" creates the SAME session in
+     embedded_page ui_mode and answers a clientSecret for the on-page
+     mount on the product page; absent/"hosted" keeps the legacy shape.
+     Mirrors routes/store.ts + routes/storefront.ts. */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
 export function buildGiftCardCheckoutKey(args: {
@@ -133,6 +140,11 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
     return;
   }
   const { productId, amountCents, recipientEmail } = parsed.data;
+  /* Embedded presentation is asked for per-request and honored only
+     while the EMBEDDED_CHECKOUT kill switch is on — the session,
+     metadata, idempotency key and every money figure are identical
+     either way; only the presentation differs. */
+  const embeddedRequested = parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
 
   let stripe: Stripe;
   try {
@@ -195,8 +207,26 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/storefront/product/${p.id}?gift=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/storefront/product/${p.id}`,
+      /* Embedded ui_mode (owner law 2026-10-26): same session, same
+         metadata, same idempotency key — only the presentation
+         differs. An embedded session takes return_url instead of
+         success/cancel URLs, and Stripe renders the form on the
+         product page. The return path is the hosted success path —
+         fixed server-side, built only from the product row (no
+         client input reaches it, so there is no open-redirect
+         surface) — so the page's existing verify-on-return effect
+         issues the card after an embedded payment exactly as after
+         a hosted one. EMBEDDED_CHECKOUT=off forces the legacy
+         hosted shape. */
+      ...(embeddedRequested
+        ? {
+            ui_mode: "embedded_page" as const,
+            return_url: `${baseUrl}/storefront/product/${p.id}?gift=success&session_id={CHECKOUT_SESSION_ID}`,
+          }
+        : {
+            success_url: `${baseUrl}/storefront/product/${p.id}?gift=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/storefront/product/${p.id}`,
+          }),
       metadata: {
         type: "gift_card_purchase",
         buyer_user_id: req.userId!,
@@ -213,11 +243,24 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
         creator_amount_cents: "0",
       },
     }, { idempotencyKey });
+    /* An embedded session without a client secret cannot be mounted
+       on the page — fail through the catch below exactly like a
+       failed creation instead of answering a secret-less "embedded"
+       response. This rail holds no reservation, so nothing strands;
+       the idempotency key alone makes a buyer retry safe. */
+    if (embeddedRequested && !session.client_secret) {
+      throw new Error("Checkout session did not return a client secret");
+    }
 
     logger.info({ userId: req.userId, productId, amountCents, sessionId: session.id }, "[gift-cards] checkout session created");
     res.json({
       url: session.url,
       sessionId: session.id,
+      /* Embedded sessions have no hosted URL to redirect to — the
+         clientSecret is what the on-page <EmbeddedCheckout> mounts
+         (null on the hosted shape, mirroring routes/store.ts). */
+      clientSecret: embeddedRequested ? (session.client_secret ?? null) : null,
+      uiMode: embeddedRequested ? "embedded" : "hosted",
       amountCents,
       amount: formatUsd(amountCents),
       recipientEmail,

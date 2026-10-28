@@ -413,6 +413,11 @@ export default function StorefrontProduct() {
      when the checkout answers a clientSecret, the payment form mounts
      right here in the buy panel instead of redirecting to Stripe. */
   const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
+  /* Embedded gift-card checkout (owner law 2026-10-26: never leave
+     the site): when the gift-card checkout answers a clientSecret,
+     the payment form mounts right here in the gift panel instead of
+     redirecting to Stripe's hosted page. */
+  const [giftEmbeddedSecret, setGiftEmbeddedSecret] = useState<string | null>(null);
   /* Lead-magnet claim state (0190). */
   const [claimEmail, setClaimEmail] = useState("");
   const [claimName, setClaimName] = useState("");
@@ -582,10 +587,21 @@ export default function StorefrontProduct() {
             recipientEmail: recipientEmail.trim(),
             ...(recipientName.trim() ? { recipientName: recipientName.trim() } : {}),
             ...(giftMessage.trim() ? { message: giftMessage.trim() } : {}),
+            /* Embedded-first (owner law 2026-10-26): ask for the
+               on-page presentation whenever this device can mount it;
+               the hosted redirect below remains only as the fallback
+               when no clientSecret comes back. */
+            ...(hasStripePublishableKey() ? { uiMode: "embedded" } : {}),
           }),
         });
-        const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-        if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
+        const body = (await res.json().catch(() => ({}))) as { url?: string; clientSecret?: string | null; error?: string; message?: string };
+        if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+        if (body.clientSecret) {
+          setGiftEmbeddedSecret(body.clientSecret);
+          setBuying(false);
+          return;
+        }
+        if (!body.url) throw new Error("Checkout failed.");
         window.location.href = body.url;
         return;
       }
@@ -949,14 +965,26 @@ export default function StorefrontProduct() {
                     />
                   </div>
                   {buyError && <p className="mt-3 text-sm font-bold text-red-300">{buyError}</p>}
-                  <button
-                    onClick={buyNow}
-                    disabled={buying}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
-                  >
-                    {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                    {buying ? "Opening secure checkout…" : user ? "Send this gift card" : "Sign in to send a gift card"}
-                  </button>
+                  {giftEmbeddedSecret ? (
+                    <div className="mt-4" data-testid="gift-card-embedded-checkout">
+                      <EmbeddedSessionCheckout clientSecret={giftEmbeddedSecret} />
+                      <button
+                        onClick={() => setGiftEmbeddedSecret(null)}
+                        className="mt-2 w-full text-center text-xs text-amber-100/40 hover:text-amber-100/70"
+                      >
+                        Cancel — no charge
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={buyNow}
+                      disabled={buying}
+                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                    >
+                      {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                      {buying ? "Opening secure checkout…" : user ? "Send this gift card" : "Sign in to send a gift card"}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
