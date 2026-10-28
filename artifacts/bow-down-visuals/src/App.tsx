@@ -11,6 +11,7 @@ import { loadSoundPrefsIntoEngine } from "@/lib/signature-sounds";
 import { HubProjectProvider } from "@/lib/hub-project";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
+import PushSubscriptionRepair from "@/components/PushSubscriptionRepair";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
 import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
@@ -483,6 +484,7 @@ function AppShell() {
     .includes(location.split("?")[0].split("#")[0]);
   return (
     <>
+      <PushSubscriptionRepair />
       <ScrollToTop />
       {typeof window !== "undefined" && <FloatingThemeToggle />}
       {/* The Reverse Door (owner, 2026-10-17): every page carries a way

@@ -117,3 +117,111 @@ export async function hasPushSubscription(win: Window = window): Promise<boolean
     return false;
   }
 }
+
+/* ─── Per-category push preferences (migration 0299) ──────────────────────
+   The switches that gate which event categories may ping this user's
+   devices. Mirrors the server defaults in lib/push-events.ts — keep
+   the two in sync. */
+
+export type PushCategory = "money" | "messages" | "live" | "mentions" | "social";
+export type PushPreferenceMap = Record<PushCategory, boolean>;
+
+export const PUSH_PREFERENCE_DEFAULTS: PushPreferenceMap = {
+  money: true,
+  messages: true,
+  live: true,
+  mentions: true,
+  social: false,
+};
+
+export function normalizePushPreferences(json: any): PushPreferenceMap {
+  const out = { ...PUSH_PREFERENCE_DEFAULTS };
+  const prefs = json && typeof json === "object" ? json.preferences : null;
+  if (prefs && typeof prefs === "object") {
+    for (const key of Object.keys(out) as PushCategory[]) {
+      if (typeof prefs[key] === "boolean") out[key] = prefs[key];
+    }
+  }
+  return out;
+}
+
+export async function fetchPushPreferences(deps: PushDeps): Promise<PushPreferenceMap> {
+  const { status, json } = await deps.fetchJson("/api/push/preferences");
+  if (status !== 200) throw new Error("preferences load failed");
+  return normalizePushPreferences(json);
+}
+
+export async function updatePushPreferences(
+  deps: PushDeps,
+  patch: Partial<PushPreferenceMap>,
+): Promise<PushPreferenceMap> {
+  const { status, json } = await deps.fetchJson("/api/push/preferences", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+  if (status !== 200) throw new Error("preferences save failed");
+  return normalizePushPreferences(json);
+}
+
+/* ─── Subscription lifecycle repair (runs on sign-in) ─────────────────────
+   Browsers rotate push endpoints and servers rotate VAPID keys; a
+   subscription registered months ago — or under a different account
+   on a shared machine — silently stops matching the server's rows.
+   On sign-in, when permission is ALREADY granted (this NEVER prompts),
+   re-register the current subscription so the endpoint belongs to the
+   signed-in user with fresh keys; if the subscription was made under
+   a different VAPID key, replace it. */
+
+export type PushRepairOutcome =
+  | "unsupported"
+  | "no_permission" // not granted — repair never prompts
+  | "not_configured" // server has no push keys in this environment
+  | "no_subscription" // nothing to repair; the opt-in surfaces own asking
+  | "repaired" // re-registered as-is
+  | "rotated"; // key changed — subscription replaced and registered
+
+function keyBytesEqual(a: ArrayBuffer | null, b: Uint8Array<ArrayBuffer>): boolean {
+  if (!a) return false;
+  const bytes = new Uint8Array(a);
+  if (bytes.length !== b.length) return false;
+  for (let i = 0; i < bytes.length; i++) if (bytes[i] !== b[i]) return false;
+  return true;
+}
+
+async function registerSubscription(deps: PushDeps, subscription: PushSubscription): Promise<void> {
+  const json = subscription.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    throw new Error("subscription incomplete");
+  }
+  const { status } = await deps.fetchJson("/api/push/subscriptions", {
+    method: "POST",
+    body: JSON.stringify({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } }),
+  });
+  if (status !== 200 && status !== 201) throw new Error("register failed");
+}
+
+export async function repairPushSubscription(
+  deps: PushDeps,
+  win: Window = window,
+): Promise<PushRepairOutcome> {
+  if (pushSupport(win) === "unsupported") return "unsupported";
+  const NotificationApi = notificationOf(win);
+  if (!NotificationApi || NotificationApi.permission !== "granted") return "no_permission";
+  const config = await fetchPushConfig(deps);
+  if (!config.configured || !config.publicKey) return "not_configured";
+  const registration = await win.navigator.serviceWorker.ready;
+  const existing = await registration.pushManager.getSubscription();
+  if (!existing) return "no_subscription";
+  const currentKey = urlBase64ToUint8Array(config.publicKey);
+  if (keyBytesEqual(existing.options?.applicationServerKey ?? null, currentKey)) {
+    await registerSubscription(deps, existing);
+    return "repaired";
+  }
+  await existing.unsubscribe().catch(() => undefined);
+  const fresh = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: currentKey,
+  });
+  await registerSubscription(deps, fresh);
+  return "rotated";
+}

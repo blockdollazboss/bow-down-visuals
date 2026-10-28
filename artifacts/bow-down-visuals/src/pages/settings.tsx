@@ -9,6 +9,7 @@ import { SocialProofSettings } from "@/components/SocialProofSettings";
 import { PasskeyManager } from "@/components/Passkey";
 import { RetentionPrefsSettings } from "@/components/RetentionPrefsSettings";
 import { SoundPrefsSettings } from "@/components/SoundPrefsSettings";
+import { PushNotificationSettings } from "@/components/PushNotificationSettings";
 import { MonthWrappedSettings } from "@/components/MonthWrappedSettings";
 import { CurrencyDisplaySettings } from "@/components/CurrencyDisplaySettings";
 import { ViralSpikeSettings } from "@/components/ViralSpikeSettings";
@@ -308,6 +309,10 @@ export default function Settings() {
 
         <SettingsCardBoundary name="sounds">
           <SoundPrefsSettings />
+        </SettingsCardBoundary>
+
+        <SettingsCardBoundary name="push-notifications">
+          <PushNotificationSettings />
         </SettingsCardBoundary>
 
         <SettingsCardBoundary name="month-wrapped">

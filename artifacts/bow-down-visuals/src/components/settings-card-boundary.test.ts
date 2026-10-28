@@ -243,6 +243,9 @@ const CARDS: Array<[string, string]> = [
   ["passkeys", "PasskeyManager"],
   ["retention-prefs", "RetentionPrefsSettings"],
   ["sounds", "SoundPrefsSettings"],
+  /* STACK500 (push foundation): the device-notifications card joined —
+     isolated like every other card. */
+  ["push-notifications", "PushNotificationSettings"],
   /* JOIN2 (Join #1 rem-month-wrapped + rem-currency-display): two more
      cards that joined the page after G4 — isolated too. */
   ["month-wrapped", "MonthWrappedSettings"],
@@ -275,7 +278,7 @@ const CARDS: Array<[string, string]> = [
 ];
 
 describe("settings.tsx — every card is isolated (source pins)", () => {
-  it("wraps each of the 23 cards in its own boundary", () => {
+  it("wraps each of the 24 cards in its own boundary", () => {
     for (const [slug, component] of CARDS) {
       const pattern = new RegExp(
         `<SettingsCardBoundary name="${slug}">\\s*<${component}[ />]`,
