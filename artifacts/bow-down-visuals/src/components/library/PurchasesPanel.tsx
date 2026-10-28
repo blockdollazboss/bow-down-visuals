@@ -23,9 +23,14 @@ export interface ShopPurchase {
   orderId: string;
   productId: string | null;
   productName: string | null;
-  downloadUrl: string;
+  /* Null when the sale produced no delivery row (the product carried
+     nothing deliverable): the API marks those deliveryMissing and the
+     row renders as an order record, never a dead Download button. */
+  downloadUrl: string | null;
   fileName: string | null;
   deliveredAt: string;
+  deliveryMissing?: boolean;
+  productType?: string | null;
 }
 
 export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: number) => void }) {
@@ -111,15 +116,27 @@ export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: 
               <span className="ml-2 font-mono">{t("library.purchasesOrder", { defaultValue: "Order" })} {p.orderId.slice(0, 8)}</span>
             </div>
           </div>
-          <a
-            href={p.downloadUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-4 py-2 text-xs font-black text-black transition hover:brightness-110"
-          >
-            <Download className="h-3.5 w-3.5" />
-            {t("library.purchasesDownload", { defaultValue: "Download" })}
-          </a>
+          {p.deliveryMissing ? (
+            <span
+              className={`inline-flex shrink-0 items-center rounded-full px-3 py-2 text-[11px] font-bold ${
+                isLight ? "bg-black/5 text-black/50" : "bg-white/5 text-white/40"
+              }`}
+            >
+              {p.productType === "digital"
+                ? t("library.purchasesAwaitingFile", { defaultValue: "Waiting on the seller's file" })
+                : t("library.purchasesOrderRecorded", { defaultValue: "Order recorded" })}
+            </span>
+          ) : (
+            <a
+              href={p.downloadUrl ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-4 py-2 text-xs font-black text-black transition hover:brightness-110"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {t("library.purchasesDownload", { defaultValue: "Download" })}
+            </a>
+          )}
         </div>
       ))}
     </div>
