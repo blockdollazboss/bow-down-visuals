@@ -40,6 +40,9 @@ vi.mock("../../lib/credits", () => ({
   refundCredits: vi.fn(async (_u: string, amount: number, meta: any) => {
     h.refunds.push({ amount, action: meta?.action });
   }),
+  // Lane 4 (charge integrity): the logo rail reads the spendable balance
+  // after charging; the fake follows this mock's 4242-balance convention.
+  getCreditBalance: vi.fn(async (_u: string) => 4242),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
