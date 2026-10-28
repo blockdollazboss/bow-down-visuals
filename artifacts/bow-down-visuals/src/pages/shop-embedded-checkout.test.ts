@@ -55,6 +55,93 @@ describe("shop page — embedded-first checkout", () => {
   });
 });
 
+describe("cart drawer — checkout reachability (stack600)", () => {
+  /* Gate Pass 2 (Oct 28, live on stack500): the embedded Stripe
+     form's Pay button rendered BELOW the drawer's visible area —
+     the panel cut off around the Cash App Pay row and ordinary
+     scrolling never reached Pay (a keyboard Tab-walk + Enter
+     eventually submitted). Mechanism: the drawer is an `h-full`
+     flex column whose ONLY scroll region wrapped the cart items;
+     the totals, the embedded checkout and the done state were
+     non-scrollable siblings below it. Their combined height —
+     dominated by the Stripe iframe at its full content height —
+     exceeds the viewport at short heights, and with no ancestor
+     scroll container the overflow simply spills past the bottom
+     of the fixed overlay. Owner law (Oct 28): "nothing should be
+     difficult" — a Pay button must never sit unreachable.
+     Fix contract: ONE scroll region (`flex-1 min-h-0
+     overflow-y-auto`) under the pinned header contains the items,
+     the totals/place-order block, the embedded checkout AND the
+     done state, so the whole payment form scrolls inside the
+     drawer at any viewport height. `min-h-0` is load-bearing:
+     without it the flex child refuses to shrink below content
+     height and the region cannot scroll at all. */
+
+  const asideStart = shopSrc.indexOf("<aside");
+  const asideEnd = shopSrc.indexOf("</aside>", asideStart);
+  const aside = shopSrc.slice(asideStart, asideEnd);
+
+  const regionOpen = aside.indexOf("overflow-y-auto");
+  const regionTagStart = aside.lastIndexOf("<div", regionOpen);
+
+  /** Index of the `</div>` that closes the div opened at `openIdx`,
+   *  found by walking div open/close tokens (self-closing divs are
+   *  depth-neutral). Returns -1 if unbalanced. */
+  function matchingDivClose(src: string, openIdx: number): number {
+    const tagRe = /<div\b[^>]*>|<\/div>/g;
+    tagRe.lastIndex = openIdx;
+    let depth = 0;
+    let m: RegExpExecArray | null;
+    while ((m = tagRe.exec(src)) !== null) {
+      if (m[0] === "</div>") {
+        depth -= 1;
+        if (depth === 0) return m.index;
+      } else if (!m[0].endsWith("/>")) {
+        depth += 1;
+      }
+    }
+    return -1;
+  }
+
+  it("the drawer is a full-height flex column with exactly one scroll region", () => {
+    expect(aside).toContain("h-full w-full max-w-md");
+    expect(aside).toContain("flex flex-col");
+    expect(aside.split("overflow-y-auto").length - 1).toBe(1);
+  });
+
+  it("the scroll region can actually shrink and scroll (flex-1 + min-h-0)", () => {
+    const regionTag = aside.slice(regionTagStart, aside.indexOf(">", regionOpen) + 1);
+    expect(regionTag).toContain("flex-1");
+    expect(regionTag).toContain("min-h-0");
+    expect(regionTag).toContain("overflow-y-auto");
+  });
+
+  it("items, totals, embedded checkout and the done state all render INSIDE the scroll region", () => {
+    const regionClose = matchingDivClose(aside, regionTagStart);
+    expect(regionClose).toBeGreaterThan(regionTagStart);
+    const anchors: Array<[string, string]> = [
+      ["cart items", "cartDetailed.map"],
+      ["totals / place-order", "shop.placeOrder"],
+      ["embedded checkout", 'data-testid="shop-embedded-checkout"'],
+      ["stripe mount", "<EmbeddedSessionCheckout clientSecret={embeddedSecret} />"],
+      ["order done state", "shop.orderRecorded"],
+    ];
+    for (const [label, anchor] of anchors) {
+      const idx = aside.indexOf(anchor);
+      expect(idx, `${label} anchor present`).toBeGreaterThan(regionTagStart);
+      expect(idx, `${label} inside the scroll region`).toBeLessThan(regionClose);
+    }
+  });
+
+  it("the items keep their space-y-3 card spacing inside the region", () => {
+    const regionClose = matchingDivClose(aside, regionTagStart);
+    const wrapper = aside.indexOf('<div className="space-y-3">');
+    expect(wrapper).toBeGreaterThan(regionTagStart);
+    expect(wrapper).toBeLessThan(regionClose);
+    expect(aside.indexOf("cartDetailed.map")).toBeGreaterThan(wrapper);
+  });
+});
+
 describe("library — Purchases tab", () => {
   it("?tab=purchases resolves to the purchases tab", () => {
     expect(libraryTabFromParams(new URLSearchParams("tab=purchases"))).toBe("purchases");
