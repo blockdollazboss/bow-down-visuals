@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   follows: [] as Array<Record<string, unknown>>,
   deliveries: [] as Array<Record<string, unknown>>,
   notifications: [] as Array<Record<string, unknown>>,
+  prefs: [] as Array<Record<string, unknown>>,
   pushCalls: [] as string[],
 }));
 
@@ -44,11 +45,25 @@ vi.mock("../../lib/push", () => ({
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
-  const { followsTable, notificationsTable, liveGoLiveDeliveriesTable } = actual;
+  const { followsTable, notificationsTable, liveGoLiveDeliveriesTable, pushNotificationPrefsTable } = actual;
   const tableOf = (t: unknown) =>
-    t === followsTable ? "follows" : t === notificationsTable ? "notifications" : t === liveGoLiveDeliveriesTable ? "deliveries" : "?";
+    t === followsTable
+      ? "follows"
+      : t === notificationsTable
+        ? "notifications"
+        : t === liveGoLiveDeliveriesTable
+          ? "deliveries"
+          : t === pushNotificationPrefsTable
+            ? "prefs"
+            : "?";
   const rowsOf = (kind: string) =>
-    kind === "follows" ? h.follows : kind === "notifications" ? h.notifications : h.deliveries;
+    kind === "follows"
+      ? h.follows
+      : kind === "notifications"
+        ? h.notifications
+        : kind === "prefs"
+          ? h.prefs
+          : h.deliveries;
 
   const db = {
     select: (fields?: Record<string, { name: string }>) => ({
@@ -70,6 +85,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
             cond = c;
             return self;
           },
+          limit: () => self,
           then: (res: any, rej: any) => Promise.resolve(run()).then(res, rej),
         };
         return self;
@@ -122,6 +138,7 @@ beforeEach(() => {
   ];
   h.deliveries = [];
   h.notifications = [];
+  h.prefs = [];
   h.pushCalls = [];
 });
 
@@ -149,6 +166,24 @@ describe("fanOutGoLiveAlerts", () => {
     expect(second.alreadyDelivered).toBe(2);
     expect(h.notifications).toHaveLength(2);
     expect(h.pushCalls).toHaveLength(2);
+  });
+
+  it("a follower with live push switched off still gets the bell row, never the ping", async () => {
+    h.prefs = [
+      {
+        userId: FAN2,
+        moneyEnabled: true,
+        messagesEnabled: true,
+        liveEnabled: false,
+        mentionsEnabled: true,
+        socialEnabled: false,
+      },
+    ];
+    const result = await fanOutGoLiveAlerts(stream, creator);
+    expect(result.notified).toBe(2);
+    expect(result.pushSent).toBe(1);
+    expect(h.notifications).toHaveLength(2);
+    expect(h.pushCalls).toEqual([FAN1]);
   });
 
   it("a creator with no followers fans out to an honest zero", async () => {

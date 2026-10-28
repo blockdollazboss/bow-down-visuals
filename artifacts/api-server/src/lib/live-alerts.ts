@@ -7,7 +7,7 @@ import {
   type LiveStream,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { sendPushToUser } from "./push";
+import { pushIfCategoryEnabled } from "./push-events";
 
 /* ── Go-live alerts ──────────────────────────────────────────────────────
    When a creator goes live, every follower gets exactly one alert:
@@ -64,14 +64,18 @@ export async function fanOutGoLiveAlerts(
         link,
       });
       result.notified++;
-      // Push rides along best-effort: unset keys / dead endpoints are
-      // handled (and logged) inside sendPushToUser.
-      const push = await sendPushToUser(followerUserId, { title, body, link, kind: "live" }).catch(
-        (err) => {
-          logger.warn({ err, followerUserId }, "go-live alert: push attempt failed");
-          return null;
-        },
-      );
+      // Push rides along best-effort, gated on the follower's "live"
+      // push preference (defaults on; the bell row above always lands).
+      // Unset keys / dead endpoints are handled inside the send service.
+      const push = await pushIfCategoryEnabled(followerUserId, "live", {
+        title,
+        body,
+        link,
+        kind: "live",
+      }).catch((err) => {
+        logger.warn({ err, followerUserId }, "go-live alert: push attempt failed");
+        return null;
+      });
       if (push) result.pushSent += push.sent;
     }
   } catch (err) {
