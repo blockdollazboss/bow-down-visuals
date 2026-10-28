@@ -1,11 +1,28 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { getPaymentHistory, getCreditUsage } from "../lib/payment-record";
+import { getCreditBalanceComposition } from "../lib/credits";
 import { getSupabaseAdmin, addCreditsAtomic } from "../lib/supabase-admin";
 import { recordGrantLedger, TRIAL_GRANT_CREDITS } from "../lib/grant-ledger";
 import { logger } from "../lib/logger";
 
 const router = Router();
+
+/**
+ * GET /credits/balance — the spendable total split into its permanent
+ * and temporary parts (Lane V-bucs). Read-only: the total is the same
+ * number every balance surface already shows; this only names what it
+ * is made of and when the temporary part expires.
+ */
+router.get("/credits/balance", requireAuth, async (req, res) => {
+  try {
+    const balance = await getCreditBalanceComposition(req.userId!);
+    res.json({ balance });
+  } catch (err) {
+    req.log.error({ err }, "credits/balance failed");
+    res.status(500).json({ error: "Failed to load Visual Buc balance." });
+  }
+});
 
 router.get("/credits/history", requireAuth, async (req, res) => {
   const userId = req.userId!;
@@ -26,8 +43,20 @@ router.get("/credits/history", requireAuth, async (req, res) => {
     }
   };
 
+  /* The balance composition rides along additively (Lane V-bucs): the
+     history page's header splits the total into permanent + temporary
+     from THIS read. It settles separately — a balance-read failure
+     degrades to balance: null (the page falls back to the profile it
+     already holds) and never fails the ledgers or flips `partial`,
+     which keeps its purchases/usage meaning. */
+  const balancePromise = getCreditBalanceComposition(userId).catch((err) => {
+    req.log.error({ err, source: "balance" }, "credits/history ledger failed");
+    return null;
+  });
+
   const purchases = await settle("purchases", () => getPaymentHistory(userId));
   const usage = await settle("usage", () => getCreditUsage(userId));
+  const balance = await balancePromise;
 
   if (purchases.failed && usage.failed) {
     res.status(500).json({ error: "Failed to load Visual Buc history." });
@@ -39,6 +68,7 @@ router.get("/credits/history", requireAuth, async (req, res) => {
     usage: usage.items,
     /* Additive + backward-compatible: older clients ignore this. */
     partial: purchases.failed || usage.failed,
+    balance,
   });
 });
 
