@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { EarningsDocuments } from "@/components/trust/TrustPanels";
 import AffiliateDeskSection from "@/components/affiliates/AffiliateDeskSection";
+import ConnectPayoutCard from "@/components/earnings/ConnectPayoutCard";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -286,6 +287,13 @@ export default function Earnings() {
         </div>
       </div>
       <PendingPayoutCard getToken={() => getAccessToken()} />
+
+      {/* Lane 5 (stack400): the payout door docks directly under the
+          pending balance it acts on — Connect state, Start/Continue
+          setup, cash out, history. The same /api/connect/* rail the
+          Store Dashboard's Get Paid card uses; this page showed the
+          balance with no door to move it. */}
+      <ConnectPayoutCard getToken={() => getAccessToken()} />
 
       {/* #16: the affiliate desk docks in the money desk — its own fetch,
           its own failure state, never a standalone page. */}
