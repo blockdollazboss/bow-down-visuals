@@ -190,6 +190,57 @@ export function fixtureRotY(def: WorldFixtureDef): number {
   return def.postRotY + FIXTURE_BODIES[def.body].rawRotY;
 }
 
+/** The plaza arrival stance — the courtyard spawn, pinned in
+ *  palace-layout (PALACE_LAYOUT[COURTYARD_ID].spawn = (0, 31.5)).
+ *  Duplicated here as a literal so this module stays free of the
+ *  layout import; guard-fixtures.test.ts pins the two together. */
+export const PLAZA_SPAWN = { x: 0, z: 31.5 } as const;
+
+/**
+ * The order body loads START in, judged from the arrival: a post
+ * wears its flat stand-in until its body lands, so the bodies an
+ * arriving visitor sees FIRST should be requested first. Bodies
+ * with a plaza post outrank hall-only bodies; within that, the
+ * body whose nearest post stands closest to the spawn stance
+ * goes first (the King's greeter at 5.2 m, then the plaza guards
+ * at 15.8 m); table order breaks ties. Every body appears once.
+ *
+ * The loads themselves still run concurrently (one load per body,
+ * each walking its own retry plan) — this orders the requests'
+ * initiation, it does not serialise them: serialising would hold
+ * the guards hostage to the King's 4.3 MB, the opposite of the
+ * intent. Until Oct 27 the iteration was FIXTURE_BODIES' record
+ * order (guards, then the King) and the loads fired at the END of
+ * applyLook, behind the whole look-texture burst — the greeter's
+ * body was the last request of the entry burst.
+ */
+export function fixtureBodyLoadOrder(
+  fixtures: readonly WorldFixtureDef[] = WORLD_FIXTURES,
+): FixtureBodyId[] {
+  const rank = new Map<FixtureBodyId, { plaza: boolean; nearest: number; first: number }>();
+  fixtures.forEach((def, i) => {
+    const d = Math.hypot(def.position.x - PLAZA_SPAWN.x, def.position.z - PLAZA_SPAWN.z);
+    const cur = rank.get(def.body);
+    if (!cur) {
+      rank.set(def.body, { plaza: def.area === "plaza", nearest: d, first: i });
+    } else {
+      cur.plaza = cur.plaza || def.area === "plaza";
+      cur.nearest = Math.min(cur.nearest, d);
+    }
+  });
+  return [...rank.entries()]
+    .sort((a, b) =>
+      a[1].plaza !== b[1].plaza
+        ? a[1].plaza
+          ? -1
+          : 1
+        : a[1].nearest !== b[1].nearest
+          ? a[1].nearest - b[1].nearest
+          : a[1].first - b[1].first,
+    )
+    .map(([body]) => body);
+}
+
 export interface BoundsLike {
   min: { x: number; y: number; z: number };
   max: { x: number; y: number; z: number };

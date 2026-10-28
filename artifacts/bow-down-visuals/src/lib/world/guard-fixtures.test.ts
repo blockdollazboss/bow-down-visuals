@@ -3,9 +3,11 @@ import {
   FIXTURE_BODIES,
   HALL_STAGE_TOP_Y,
   KING_FIXTURE_HEIGHT,
+  PLAZA_SPAWN,
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
+  fixtureBodyLoadOrder,
   fixtureFallbackFor,
   fixtureLoadPlan,
   fixtureNormalization,
@@ -13,6 +15,7 @@ import {
   fixtureRotY,
   fixtureSway,
   fixtureSwayPhase,
+  type WorldFixtureDef,
 } from "./guard-fixtures";
 import {
   DEFAULT_CHARACTER_FEMALE_PATH,
@@ -144,6 +147,31 @@ describe("FIXTURE_BODIES — the live slots and facing", () => {
     const male = WORLD_FIXTURES.find((f) => f.id === "hall-guard-male")!;
     expect(fixtureRotY(female)).toBe(0);
     expect(fixtureRotY(male)).toBe(0);
+  });
+});
+
+describe("fixtureBodyLoadOrder — plaza bodies start first, the greeter ahead", () => {
+  it("PLAZA_SPAWN is the layout's pinned courtyard spawn", () => {
+    expect(PLAZA_SPAWN).toEqual(PALACE_LAYOUT[COURTYARD_ID]!.spawn);
+  });
+
+  it("starts the King's body first (his greeter stands 5.2 m from spawn), then the guards'", () => {
+    expect(fixtureBodyLoadOrder()).toEqual(["king", "guard-male", "guard-female"]);
+  });
+
+  it("names every body exactly once", () => {
+    const order = fixtureBodyLoadOrder();
+    expect(new Set(order).size).toBe(order.length);
+    expect([...order].sort()).toEqual(Object.keys(FIXTURE_BODIES).sort());
+  });
+
+  it("a hall-only body loads after every plaza body, however close to the hall it stands", () => {
+    const defs: WorldFixtureDef[] = [
+      { id: "hall-only", body: "guard-male", area: "hall", position: { x: 0, y: 0.7, z: -13 }, postRotY: 0 },
+      { id: "plaza-far", body: "guard-female", area: "plaza", position: { x: 3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
+      { id: "plaza-near", body: "king", area: "plaza", position: { x: 2.6, y: 0, z: 27 }, postRotY: 0 },
+    ];
+    expect(fixtureBodyLoadOrder(defs)).toEqual(["king", "guard-female", "guard-male"]);
   });
 });
 

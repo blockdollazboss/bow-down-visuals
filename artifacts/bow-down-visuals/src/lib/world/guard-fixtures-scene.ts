@@ -28,6 +28,7 @@ import {
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
+  fixtureBodyLoadOrder,
   fixtureFallbackFor,
   fixtureLoadPlan,
   fixtureNormalization,
@@ -216,9 +217,19 @@ export function buildWorldFixtures(opts?: {
    * asset on the site origin second (the public/ copy ships with
    * the app whether or not the bucket carries the body yet) — walked
    * as a bounded retry plan (guard-fixtures.fixtureLoadPlan): the
-   * sources alternate with backoff, because the load fires last in
-   * the World-entry burst and a single transient shed or severed
-   * transfer must not strand the post on its stand-in all session. */
+   * sources alternate with backoff, because a single transient shed
+   * or severed transfer must not strand the post on its stand-in
+   * all session.
+   *
+   * START ORDER (stack300, Oct 27): the loads initiate in
+   * guard-fixtures.fixtureBodyLoadOrder — plaza bodies first, the
+   * King's greeter body ahead of the guards' — and hall-scene now
+   * builds the fixtures at the TOP of applyLook, ahead of the look's
+   * own texture burst. Until then the bodies were requested in
+   * FIXTURE_BODIES record order (guards, King last) at the END of
+   * the entry burst, and an arrival watched the flat stand-ins for
+   * the whole ~13 MB. The loads still run CONCURRENTLY — the order
+   * is initiation priority, never a queue. */
   const loader = new GLTFLoader();
   /* A parse that "succeeds" without its textures is a failure: the
    * body materials carry no baseColorFactor, so a texture-less parse
@@ -249,7 +260,8 @@ export function buildWorldFixtures(opts?: {
       new Promise((resolve) => setTimeout(resolve, ms)),
     );
   };
-  for (const bodyDef of Object.values(FIXTURE_BODIES)) {
+  for (const bodyId of fixtureBodyLoadOrder()) {
+    const bodyDef = FIXTURE_BODIES[bodyId];
     loadBody(bodyDef.glbPath)
       .then((gltf) => {
         const template = normalizeBody(gltf.scene, bodyDef.height);
