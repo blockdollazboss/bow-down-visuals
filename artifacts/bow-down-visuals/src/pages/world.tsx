@@ -8,6 +8,7 @@ import {
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen, Camera,
   Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash,
+  Navigation2,
 } from "lucide-react";
 import {
   ACTION_PAGES,
@@ -122,9 +123,16 @@ import {
 } from "@/lib/world/tutorial";
 import {
   nearestStation,
+  stationsInRoom,
   STATION_BY_ID,
   type PalaceStation,
 } from "@/lib/world/stations";
+import {
+  guideView,
+  pickGuideTarget,
+  sameGuideView,
+  type GuideView,
+} from "@/lib/world/wayfinding";
 import {
   jukeboxPlaybackNow,
   jukeboxNeedsSeek,
@@ -589,6 +597,15 @@ export default function WorldPage() {
      scene builds its markers from — and the panel it opened. */
   const [nearStation, setNearStation] = useState<PalaceStation | null>(null);
   const nearStationIdRef = useRef<string | null>(null);
+  /* Wayfinding — the quiet compass: the one door worth pointing
+   * at while nothing is in reach, picked on the station tick from
+   * the walker's pose (lib/world/wayfinding). A walker counts as
+   * fresh until they open their first desk; the panel-open effect
+   * below is the one choke point every open passes through, so it
+   * keeps that book. */
+  const [guide, setGuide] = useState<GuideView | null>(null);
+  const guideRef = useRef<GuideView | null>(null);
+  const openedDeskRef = useRef(false);
   const [panelTarget, setPanelTarget] = useState<StationPanelTarget | null>(null);
   /* The bring-it-to-the-walker effect. Opening a desk must be
    * SEEN to open (owner's live report, 2026-10-25: "haven't been
@@ -602,9 +619,12 @@ export default function WorldPage() {
    * one-shot scroll-into-view; audit §B5, owner's screenshot
    * 2026-10-27.) What this effect still owes on open: release
    * pointer lock (taken on canvas click; it was never released
-   * anywhere, leaving the panel unclickable until Esc). */
+   * anywhere, leaving the panel unclickable until Esc) — and mark
+   * the walker seasoned for the compass: every desk open passes
+   * through this one effect, whatever drove it. */
   useEffect(() => {
     if (!panelTarget) return;
+    openedDeskRef.current = true;
     if (document.pointerLockElement) document.exitPointerLock();
   }, [panelTarget]);
   /* The door-opener behind both the E key and the controller's LB:
@@ -2373,6 +2393,10 @@ export default function WorldPage() {
             if (!cancelled) setNearCourtesy(null);
           }
           stationDistRef.current = null;
+          if (guideRef.current !== null) {
+            guideRef.current = null;
+            if (!cancelled) setGuide(null);
+          }
         } else {
           const pose = scene.localPose();
           const st = nearestStation(client.room.id, pose.x, pose.z);
@@ -2399,6 +2423,25 @@ export default function WorldPage() {
                 ? prev
                 : courtesy,
             );
+          }
+          /* Wayfinding rides the same tick: while the walker
+             stands where no door offers itself, the compass holds
+             one target — the nearest door, or, for a fresh walker,
+             this room's nearest creation desk. The view compares
+             snapped (whole metres, 5° arrow steps) so the chip
+             re-renders on real change, never on tick jitter. */
+          const guideTarget = pickGuideTarget(
+            stationsInRoom(client.room.id),
+            pose.x,
+            pose.z,
+            !openedDeskRef.current,
+          );
+          const nextGuide = guideTarget
+            ? guideView(guideTarget, pose.x, pose.z, pose.rotY, !openedDeskRef.current)
+            : null;
+          if (!sameGuideView(guideRef.current, nextGuide)) {
+            guideRef.current = nextGuide;
+            if (!cancelled) setGuide(nextGuide);
           }
         }
         if (client.jukebox !== jukeboxAnchorRef.current.state) {
@@ -3160,6 +3203,39 @@ export default function WorldPage() {
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Connection dropped — walking you back in…
             </p>
+          </div>
+        )}
+        {/* Wayfinding — the quiet compass (lib/world/wayfinding):
+            while no door is in reach and no panel is open, one
+            small chip points at the door worth walking to — for a
+            fresh walker the room's creation desk, plus, in a room
+            with no creation desk, a line naming where the making
+            happens. It steps aside the moment a real prompt, a
+            courtesy, a panel or photo mode takes the stage, and it
+            sits below the top-3 line the reconnect pill and the
+            stage plate share. */}
+        {status === "inside" && guide && !nearStation && !nearCourtesy && !panelTarget && !photoMode && !reconnecting && overlay === null && (
+          <div className="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2 text-center" data-testid="world-guide">
+            <p
+              className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-lg backdrop-blur-sm ${
+                isLight
+                  ? "border-[#C9A84C]/60 bg-[#FCF7EA]/90 text-[#6B5B36]"
+                  : "border-[#d4af37]/40 bg-black/75 text-[#e8c86a]"
+              }`}
+            >
+              <Navigation2
+                className="h-3.5 w-3.5 shrink-0 transition-transform duration-200"
+                style={{ transform: `rotate(${guide.arrowDeg}deg)` }}
+                aria-hidden="true"
+              />
+              {guide.mode === "create" ? `Make something — ${guide.name}` : guide.name}
+              <span className={isLight ? "text-[#6B5B36]/70" : "text-white/50"}>{guide.metres} m</span>
+            </p>
+            {guide.mode === "first-steps" && (
+              <p className={`mt-1.5 text-[11px] font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+                New here? Songs, videos and covers are made at the Create Wing desks.
+              </p>
+            )}
           </div>
         )}
         {bootFailed && (
