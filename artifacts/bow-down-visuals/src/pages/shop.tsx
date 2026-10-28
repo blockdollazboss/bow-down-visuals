@@ -444,8 +444,13 @@ export default function ShopStorefront() {
         </main>
       ) : (
         <main>
-          {/* banner */}
+          {/* banner — dark-locked: the band's ground is an inline dark
+              gradient the light remaps cannot repaint, so the lock keeps
+              its ink white in light theme (§16), like the creator
+              profile banner. Without it the name/tagline remapped to
+              dark ink on the black band and vanished. */}
           <div
+            data-dark-lock
             className="relative overflow-hidden"
             style={{ background: shop.banner_image_url ? undefined : `linear-gradient(135deg, ${shop.banner_color}, #000)` }}
           >
