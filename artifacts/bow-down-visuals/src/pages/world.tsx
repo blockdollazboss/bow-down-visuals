@@ -26,7 +26,16 @@ import {
   type WorldActionId,
   type WorldActionDef,
 } from "@/lib/world/actions";
-import { toggleFullscreen, isFullscreenActive, fullscreenSupported } from "@/lib/world/fullscreen";
+import {
+  toggleFullscreen,
+  isFullscreenActive,
+  fullscreenSupported,
+  initialFullscreenRecovery,
+  fsRecoveryOnToggle,
+  fsRecoveryOnChange,
+  fsRecoveryOnReenterClick,
+  type FullscreenRecoveryState,
+} from "@/lib/world/fullscreen";
 import { touchSprintAfter, type TouchSprintAction } from "@/lib/world/sprint";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -360,6 +369,10 @@ export default function WorldPage() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const roomRef = useRef<HTMLDivElement | null>(null);
+  /* The fullscreen root: the PAGE root, not the room box — every
+     in-world surface renders under it, so all of it stays visible
+     and usable while fullscreen (see lib/world/fullscreen). */
+  const pageRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<WorldClient | null>(null);
   const sceneRef = useRef<KingsHallScene | null>(null);
   const meshRef = useRef<VoiceMesh | null>(null);
@@ -805,6 +818,12 @@ export default function WorldPage() {
      loop and the session never depend on either). */
   const [isFs, setIsFs] = useState(false);
   const [fsSupported, setFsSupported] = useState(false);
+  /* Platform-exit recovery (lib/world/fullscreen): true when a
+     platform exit (Esc, a file chooser, an OS gesture) dropped the
+     walker out of fullscreen they had chosen — the next in-world
+     click re-enters, and the room shows the way back meanwhile. */
+  const [fsArmed, setFsArmed] = useState(false);
+  const fsRecoveryRef = useRef<FullscreenRecoveryState>(initialFullscreenRecovery);
   const [padConnected, setPadConnected] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
@@ -1260,21 +1279,54 @@ export default function WorldPage() {
 
   const toggleViewMode = () => setViewMode((m) => toggledViewMode(m));
 
-  /* Fullscreen: the standard API on the room container. The
-     `fullscreenchange` event is the ground truth (it also fires for
-     the browser's own Esc exit), so no exit path strands anything —
-     the render loop, pointer lock and XR entry are untouched. */
+  /* Fullscreen: the standard API on the PAGE ROOT — every in-world
+     surface (station sheets, the character / Screen / host panels,
+     the radio dock, the control row) renders under the page root,
+     so doing things in the World never costs the walker their
+     fullscreen (owner's live report, 2026-10-28: the room-only root
+     hid every panel outside it, so each desk meant leaving
+     fullscreen first). The `fullscreenchange` event is the ground
+     truth (it also fires for the browser's own Esc exit), so no
+     exit path strands anything — the render loop, pointer lock and
+     XR entry are untouched; the handler only mirrors view state and
+     feeds the platform-exit recovery below. */
   useEffect(() => {
-    const sync = () => setIsFs(isFullscreenActive(document));
+    const sync = () => {
+      const active = isFullscreenActive(document);
+      setIsFs(active);
+      const next = fsRecoveryOnChange(fsRecoveryRef.current, active);
+      fsRecoveryRef.current = next;
+      setFsArmed(next.armed);
+    };
     sync();
-    setFsSupported(fullscreenSupported(document, document.documentElement));
+    setFsSupported(fullscreenSupported(document, pageRef.current ?? document.documentElement));
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
 
   const toggleFs = () => {
-    void toggleFullscreen(document, roomRef.current);
+    fsRecoveryRef.current = fsRecoveryOnToggle(fsRecoveryRef.current, isFullscreenActive(document));
+    setFsArmed(fsRecoveryRef.current.armed);
+    void toggleFullscreen(document, pageRef.current);
   };
+
+  /* The recovery's other half: while a platform exit has the
+     recovery armed, the next click anywhere on the page re-enters
+     fullscreen. Capture-phase and never interfering — the click
+     still does its own job; it is simply also the user gesture
+     requestFullscreen requires. One shot: the arm is spent whether
+     or not the browser accepts. */
+  useEffect(() => {
+    if (!fsArmed) return;
+    const onPointer = () => {
+      const { state, reenter } = fsRecoveryOnReenterClick(fsRecoveryRef.current);
+      fsRecoveryRef.current = state;
+      setFsArmed(state.armed);
+      if (reenter) void toggleFullscreen(document, pageRef.current);
+    };
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => document.removeEventListener("pointerdown", onPointer, true);
+  }, [fsArmed]);
 
   /* Controller presence: a paired gamepad announces itself; the
      scene polls it for input (left stick walks, right stick looks,
@@ -2629,6 +2681,8 @@ export default function WorldPage() {
 
   return (
     <div
+      ref={pageRef}
+      data-testid="world-page-root"
       className={`flex min-h-screen flex-col ${isLight ? "bg-[#f3ead3] text-[#2a1e07]" : "bg-black text-white"}`}
       {...(isLight ? {} : { "data-dark-lock": true })}
     >
@@ -3203,6 +3257,24 @@ export default function WorldPage() {
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Connection dropped — walking you back in…
             </p>
+          </div>
+        )}
+        {/* A platform exit (Esc, a file chooser, an OS gesture)
+            dropped the fullscreen the walker had chosen: the way
+            back is one tap — and the recovery is also armed, so the
+            next in-world click re-enters on its own (see the
+            pointerdown effect by the fullscreen state). */}
+        {fsArmed && !reconnecting && overlay === null && (
+          <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2">
+            <button
+              type="button"
+              data-testid="world-fs-reenter"
+              onClick={toggleFs}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg transition hover:scale-105 ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}
+            >
+              <Maximize className="h-3.5 w-3.5" />
+              Full screen dropped — tap to go back in
+            </button>
           </div>
         )}
         {/* Wayfinding — the quiet compass (lib/world/wayfinding):
