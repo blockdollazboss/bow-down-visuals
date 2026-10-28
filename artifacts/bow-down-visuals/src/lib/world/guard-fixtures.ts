@@ -26,6 +26,7 @@ import {
   DEFAULT_CHARACTER_FEMALE_PATH,
   DEFAULT_CHARACTER_PATH,
   DEFAULT_FIGURE_HEIGHT,
+  KING_PORTRAIT_PATH,
 } from "./figure";
 
 export type FixtureBodyId = "guard-male" | "guard-female" | "king";
@@ -77,17 +78,26 @@ export const FIXTURE_BODIES: Readonly<Record<FixtureBodyId, FixtureBodyDef>> = {
 
 export type FixtureFallback =
   | { kind: "matte"; src: string }
+  | { kind: "portrait"; src: string }
   | { kind: "capsule"; color: number };
 
 /**
  * What stands at a post before the body lands — and forever, if the
- * body cannot load. A post is NEVER empty (the fallback law).
+ * body cannot load. A post is NEVER empty (the fallback law), and
+ * what stands there must be DIGNIFIED — a figure of the person, not
+ * a bare placeholder shape.
  *  - Guards fall back to the same approved matte the presence figures
  *    wear (figure.ts owns those paths).
  *  - The King has no matte (his portrait art carries a studio
- *    backdrop — a raw rectangle in the hall would be a lie), so he
- *    falls back to the house capsule in gold: the same stand-in the
- *    figure system itself uses while a portrait loads.
+ *    backdrop, so it cannot stand as a fake cut-out body) — but he
+ *    HAS a portrait figure: the presence system stands him on the
+ *    gold-framed easel panel (figure.ts's "portrait" kind), where
+ *    the backdrop is honest because the panel presents AS a
+ *    portrait. His post falls back to exactly that: his portrait
+ *    on the easel. A picture of the King beats a capsule — on
+ *    Oct 27 the capsule is what the owner got, for a whole session.
+ *  - The capsule remains only as the scene-level last resort, if a
+ *    post's fallback ART itself cannot load (guard-fixtures-scene).
  */
 export function fixtureFallbackFor(body: FixtureBodyId): FixtureFallback {
   switch (body) {
@@ -96,8 +106,26 @@ export function fixtureFallbackFor(body: FixtureBodyId): FixtureFallback {
     case "guard-female":
       return { kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH };
     case "king":
-      return { kind: "capsule", color: 0xc9a227 };
+      return { kind: "portrait", src: KING_PORTRAIT_PATH };
   }
+}
+
+/** The easel panel box a portrait fallback is fitted into, metres:
+ *  the panel never exceeds these bounds, and the art's aspect is
+ *  preserved inside them (never stretched). Sized against the King
+ *  post: his 3D body stands 2.35 m; the portrait panel on its easel
+ *  (base 0.5 m, panel ≤1.5 m) tops out at 2.0 m — present, not
+ *  pretending to his full stature. */
+export const FIXTURE_PORTRAIT_MAX_W = 1.7;
+export const FIXTURE_PORTRAIT_MAX_H = 1.5;
+
+/** Fit an aspect (w/h) into the portrait panel box. A degenerate
+ *  aspect falls back to the panel's own box aspect. */
+export function fixturePortraitPanelSize(aspect: number): { w: number; h: number } {
+  const boxAspect = FIXTURE_PORTRAIT_MAX_W / FIXTURE_PORTRAIT_MAX_H;
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : boxAspect;
+  if (a >= boxAspect) return { w: FIXTURE_PORTRAIT_MAX_W, h: FIXTURE_PORTRAIT_MAX_W / a };
+  return { w: FIXTURE_PORTRAIT_MAX_H * a, h: FIXTURE_PORTRAIT_MAX_H };
 }
 
 export interface WorldFixtureDef {
@@ -383,4 +411,179 @@ export async function attemptLoadPlan<T>(
     }
   }
   throw lastErr;
+}
+
+/* ── The slow ring: a failed load is not final for the session ──────
+   The fast plan above spends itself in ~5 s at World entry — inside
+   the entry burst, where a shed or a severed transfer is most
+   likely, and (Oct 27) a texture class the owner's own browser
+   chokes on fails every attempt identically. Before this ring, that
+   was the end of it: the stand-in held the post until re-entry, and
+   the King stood as a bare gold capsule for the owner's whole
+   session. The heal loop is the second, slower ring around the fast
+   plan: it re-walks the SAME bounded plan minutes later, when the
+   burst is long gone and a transient cause has had time to pass. */
+
+/** Delay before heal attempt `healAttemptIndex` (0-based): a 1-minute
+ *  first look, then 3, then 10, then a steady 15-minute cadence —
+ *  at most 4 attempts per hour once settled, sparse enough to never
+ *  become traffic, patient enough to outlast an outage. */
+export function fixtureHealDelayMs(healAttemptIndex: number): number {
+  const schedule = [60_000, 180_000, 600_000, 900_000];
+  const i = Math.min(Math.max(Math.floor(healAttemptIndex) || 0, 0), schedule.length - 1);
+  return schedule[i]!;
+}
+
+/** While the tab is hidden the loop re-checks on this cadence
+ *  instead of attempting: a hidden tab must not spend loads nobody
+ *  can see (and a throttled background timer makes the attempt
+ *  unreliable anyway). A re-check never consumes a heal attempt. */
+export const FIXTURE_HEAL_VISIBILITY_RECHECK_MS = 60_000;
+
+/* ── The failure beacon ─────────────────────────────────────────────
+   When a body's fast plan runs out, the failure must be visible
+   somewhere besides the owner's screen and a console nobody opens:
+   the scene POSTs one small report per post to the api-server
+   (POST /api/world/fixture-failure), which logs it structured. The
+   payload is built here so its shape stays pure and testable:
+   strings are clamped (an error message must not become a log
+   bomb) and the error flattens to name + message only. */
+
+export interface FixtureFailureReport {
+  postId: string;
+  body: FixtureBodyId;
+  /** Fast-plan attempts made before the plan ran out. The heal
+   *  ring's later attempts are NOT beacons — one report per post
+   *  per session says "this post is on its fallback"; the ring
+   *  handles the rest. */
+  attempts: number;
+  errorName: string;
+  errorMessage: string;
+  userAgent: string;
+}
+
+const clampReportField = (s: string, max: number): string =>
+  s.length > max ? s.slice(0, max) : s;
+
+export function buildFixtureFailureReport(input: {
+  postId: string;
+  body: FixtureBodyId;
+  attempts: number;
+  err: unknown;
+  userAgent: string;
+}): FixtureFailureReport {
+  const err = input.err;
+  const errorName = err instanceof Error && err.name ? err.name : "Error";
+  const errorMessage = err instanceof Error ? err.message : String(err ?? "unknown error");
+  return {
+    postId: clampReportField(String(input.postId || "unknown-post"), 64),
+    body: input.body,
+    attempts: Number.isFinite(input.attempts) ? Math.max(1, Math.floor(input.attempts)) : 1,
+    errorName: clampReportField(errorName, 120),
+    errorMessage: clampReportField(errorMessage || "unknown error", 500),
+    userAgent: clampReportField(String(input.userAgent ?? ""), 300),
+  };
+}
+
+/** Once per post per session — the beacon's rate discipline. The
+ *  first claim(postId) returns true; every later claim for the same
+ *  post returns false. Posts claim independently. */
+export class FixtureBeaconLedger {
+  private claimed = new Set<string>();
+
+  claim(postId: string): boolean {
+    if (this.claimed.has(postId)) return false;
+    this.claimed.add(postId);
+    return true;
+  }
+}
+
+export interface FixtureHealLoopDeps {
+  /** Run one heal attempt (the full load plan). Resolves true when
+   *  the body landed. Must not reject. */
+  attempt: () => Promise<boolean>;
+  /** Is the world tab visible right now? Attempts run only visible. */
+  isVisible: () => boolean;
+  /** Timer injection (the scene passes setTimeout/clearTimeout;
+   *  tests drive a manual clock). */
+  setTimer: (fn: () => void, ms: number) => unknown;
+  clearTimer: (handle: unknown) => void;
+  /** Fired once when a heal attempt lands the body. */
+  onHealed?: () => void;
+}
+
+/**
+ * The slow ring itself, as an injectable state machine (the scene
+ * does the loading; this decides WHEN). One loop per failed body.
+ * start() after the fast plan exhausts; stop() on scene dispose or
+ * once healed. A stopped loop never attempts again.
+ */
+export class FixtureHealLoop {
+  private timer: unknown = null;
+  private attempts = 0;
+  private stopped = false;
+  private inFlight = false;
+
+  constructor(private deps: FixtureHealLoopDeps) {}
+
+  /** Heal attempts actually run so far (visibility re-checks and
+   *  armed-but-unfired timers do not count). */
+  get attemptCount(): number {
+    return this.attempts;
+  }
+
+  get isStopped(): boolean {
+    return this.stopped;
+  }
+
+  start(): void {
+    if (this.stopped || this.timer !== null) return;
+    this.arm(fixtureHealDelayMs(this.attempts));
+  }
+
+  stop(): void {
+    this.stopped = true;
+    if (this.timer !== null) {
+      this.deps.clearTimer(this.timer);
+      this.timer = null;
+    }
+  }
+
+  private arm(delayMs: number): void {
+    if (this.stopped) return;
+    this.timer = this.deps.setTimer(() => {
+      this.timer = null;
+      this.tick();
+    }, delayMs);
+  }
+
+  private tick(): void {
+    if (this.stopped) return;
+    if (!this.deps.isVisible() || this.inFlight) {
+      /* Not now — look again shortly without spending an attempt. */
+      this.arm(FIXTURE_HEAL_VISIBILITY_RECHECK_MS);
+      return;
+    }
+    this.inFlight = true;
+    this.attempts += 1;
+    void this.deps.attempt().then(
+      (landed) => {
+        this.inFlight = false;
+        if (this.stopped) return;
+        if (landed) {
+          this.stopped = true;
+          this.deps.onHealed?.();
+          return;
+        }
+        this.arm(fixtureHealDelayMs(this.attempts));
+      },
+      () => {
+        /* attempt() contracts never to reject; a violation is a
+         * failed attempt, not a dead loop. */
+        this.inFlight = false;
+        if (this.stopped) return;
+        this.arm(fixtureHealDelayMs(this.attempts));
+      },
+    );
+  }
 }

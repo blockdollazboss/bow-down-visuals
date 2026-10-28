@@ -5,12 +5,24 @@
  * Shape of the build, per fixture post:
  *   - The FALLBACK stands first, synchronously: the guard's approved
  *     matte on a plane (the presence figures' own material recipe),
- *     or the gold house capsule for the King. A post is never empty.
+ *     or the King's portrait on the gold-framed easel (the presence
+ *     system's portrait figure, never the bare capsule). A post is
+ *     never empty, and never a placeholder shape if a figure of the
+ *     person exists.
  *   - The body's GLB loads ONCE per body (three bodies total), is
  *     normalized with the proof loader's math, and a clone swaps into
  *     every post of that body. Any failure — network, parse,
  *     degenerate bounds — leaves the fallback standing and reports
  *     through onError; nothing here can throw into the scene.
+ *   - A failed load is NOT final: when the fast retry plan runs out,
+ *     the heal loop (guard-fixtures FixtureHealLoop) keeps re-walking
+ *     the plan on a slow ring — minutes apart, visible tab only — so
+ *     a transient failure swaps the real body in mid-session without
+ *     a reload, and onRecovered fires so the failure record clears.
+ *     The exhaustion also fires the failure beacon: one small report
+ *     per post per session to the api-server, which logs it — the
+ *     next failure on the owner's machine is diagnosable from the
+ *     server logs, not from a console nobody opens.
  *   - Static bodies: no skinning, no per-frame work beyond a whisper
  *     of sway (guard-fixtures.fixtureSway). The two posts of one body
  *     share geometry/materials through the clone.
@@ -25,16 +37,22 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mediaUrl } from "../media-cdn";
 import {
   FIXTURE_BODIES,
+  FixtureBeaconLedger,
+  FixtureHealLoop,
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
+  buildFixtureFailureReport,
   fixtureBodyLoadOrder,
   fixtureFallbackFor,
   fixtureLoadPlan,
   fixtureNormalization,
+  fixturePortraitPanelSize,
   fixtureRotY,
   fixtureSway,
+  type FixtureBodyDef,
   type FixtureBodyId,
+  type FixtureFailureReport,
   type WorldFixtureDef,
 } from "./guard-fixtures";
 import { figureWidthForHeight } from "./figure";
@@ -125,10 +143,82 @@ function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Gro
         group.add(buildCapsule(body.height, 0xc9a227));
       },
     );
+  } else if (fallback.kind === "portrait") {
+    buildPortraitStandin(group, body.height, fallback.src);
   } else {
     group.add(buildCapsule(body.height, fallback.color));
   }
   return group;
+}
+
+/** The easel's base height — the presence portrait figure's own
+ *  (hall-scene PORTRAIT_BASE_Y): the panel's bottom edge. */
+const FIXTURE_PORTRAIT_BASE_Y = 0.5;
+
+/**
+ * The King's dignified fallback: his portrait on the gold-framed
+ * easel — the presence system's portrait-figure recipe (hall-scene
+ * buildPortraitFigure): a gold frame box, the portrait plane proud
+ * of its front face, an easel post to the floor. The panel is sized
+ * from the art's aspect inside the fixture panel box, corrected
+ * when the texture lands, so the portrait is never stretched. If
+ * the portrait art itself cannot load, the gold capsule stands as
+ * the last resort — a post is never empty — but the capsule is no
+ * longer any post's PLANNED face.
+ */
+function buildPortraitStandin(group: THREE.Group, bodyHeight: number, src: string): void {
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xd4af37,
+    emissive: 0x8a6a1c,
+    emissiveIntensity: 0.35,
+    roughness: 0.3,
+    metalness: 0.9,
+  });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.05), goldMat);
+  const panelMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05 });
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), panelMat);
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.05, FIXTURE_PORTRAIT_BASE_Y - 0.02, 10),
+    goldMat,
+  );
+  post.position.y = (FIXTURE_PORTRAIT_BASE_Y - 0.02) / 2 + 0.02;
+  const layout = (size: { w: number; h: number }) => {
+    const centerY = FIXTURE_PORTRAIT_BASE_Y + size.h / 2;
+    frame.geometry.dispose();
+    frame.geometry = new THREE.BoxGeometry(size.w + 0.1, size.h + 0.1, 0.05);
+    frame.position.set(0, centerY, 0);
+    panel.geometry.dispose();
+    panel.geometry = new THREE.PlaneGeometry(size.w, size.h);
+    panel.position.set(0, centerY, 0.028);
+  };
+  /* Provisional layout from the King portrait's known aspect
+   * (938×841); the load callback re-fits from the real pixels. */
+  layout(fixturePortraitPanelSize(938 / 841));
+  group.add(frame);
+  group.add(panel);
+  group.add(post);
+  new THREE.TextureLoader().load(
+    mediaUrl(src),
+    (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      const img = tex.image as { width?: number; height?: number } | undefined;
+      if (img?.width && img?.height) {
+        layout(fixturePortraitPanelSize(img.width / img.height));
+      }
+      panelMat.map = tex;
+      panelMat.needsUpdate = true;
+    },
+    undefined,
+    () => {
+      /* Portrait art failed too: the gold capsule stands instead —
+       * the last resort, never the plan. */
+      frame.visible = false;
+      panel.visible = false;
+      post.visible = false;
+      group.add(buildCapsule(bodyHeight, 0xc9a227));
+    },
+  );
 }
 
 function buildCapsule(height: number, color: number): THREE.Mesh {
@@ -168,6 +258,14 @@ function normalizeBody(scene: THREE.Object3D, targetHeight: number): THREE.Group
 
 export function buildWorldFixtures(opts?: {
   onError?: (body: FixtureBodyId, err: unknown) => void;
+  /** A body whose fast plan failed later landed via the heal loop —
+   *  the caller clears its recorded failure. */
+  onRecovered?: (body: FixtureBodyId) => void;
+  /** The failure beacon's transport. Default: the site's own API
+   *  (fixture-beacon.ts, dynamically imported so the sender's
+   *  session machinery stays out of this module's static graph).
+   *  Injected in tests. */
+  reportFailure?: (report: FixtureFailureReport) => void;
 }): WorldFixtures {
   const hall = new THREE.Group();
   hall.name = "world-fixtures-hall";
@@ -260,27 +358,84 @@ export function buildWorldFixtures(opts?: {
       new Promise((resolve) => setTimeout(resolve, ms)),
     );
   };
+  /* One full load for a body — the bounded plan, normalization, and
+   * the clone swap into every post of that body — shared by the fast
+   * path and the heal loop. Resolves, never rejects. */
+  let disposed = false;
+  const healLoops = new Map<FixtureBodyId, FixtureHealLoop>();
+  const beaconLedger = new FixtureBeaconLedger();
+  const tryLoadBody = async (
+    bodyDef: FixtureBodyDef,
+  ): Promise<{ ok: true } | { ok: false; err: unknown }> => {
+    try {
+      const gltf = await loadBody(bodyDef.glbPath);
+      const template = normalizeBody(gltf.scene, bodyDef.height);
+      if (!template) throw new Error(`degenerate bounds in ${bodyDef.glbPath}`);
+      for (const slot of slots) {
+        if (slot.def.body !== bodyDef.id) continue;
+        const bodyGroup = template.clone(true);
+        bodyGroup.name = `fixture-body-${slot.def.id}`;
+        slot.group.add(bodyGroup);
+        /* The standin stays in the group, hidden — never an empty
+         * post, and no shared-texture dispose hazards. */
+        slot.standin.visible = false;
+        slot.live = true;
+      }
+      liveBodies.add(bodyDef.id);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, err };
+    }
+  };
   for (const bodyId of fixtureBodyLoadOrder()) {
     const bodyDef = FIXTURE_BODIES[bodyId];
-    loadBody(bodyDef.glbPath)
-      .then((gltf) => {
-        const template = normalizeBody(gltf.scene, bodyDef.height);
-        if (!template) throw new Error(`degenerate bounds in ${bodyDef.glbPath}`);
-        for (const slot of slots) {
-          if (slot.def.body !== bodyDef.id) continue;
-          const bodyGroup = template.clone(true);
-          bodyGroup.name = `fixture-body-${slot.def.id}`;
-          slot.group.add(bodyGroup);
-          /* The standin stays in the group, hidden — never an empty
-           * post, and no shared-texture dispose hazards. */
-          slot.standin.visible = false;
-          slot.live = true;
+    void tryLoadBody(bodyDef).then((res) => {
+      if (res.ok || disposed) return;
+      /* The fast plan ran out. Report it once through onError — and
+       * do not let it be final for the session: the heal loop keeps
+       * re-walking the plan on the slow ring (minutes apart, visible
+       * tab only) until the body lands or the scene is disposed.
+       * Before the ring, this rejection was the end — the stand-in
+       * held the post until re-entry, and on Oct 27 the King stood
+       * as a gold capsule for the owner's whole session. */
+      opts?.onError?.(bodyDef.id, res.err);
+      /* Beacon: one report per POST of this body, once per session
+       * (the ledger), so the next failure on any machine — the
+       * owner's included — is diagnosable from the server logs
+       * instead of a console nobody opens. Silent on success by
+       * construction: this block only runs on exhaustion. */
+      const fastAttempts = fixtureLoadPlan(mediaUrl(bodyDef.glbPath), bodyDef.glbPath).length;
+      for (const slot of slots) {
+        if (slot.def.body !== bodyDef.id) continue;
+        if (!beaconLedger.claim(slot.def.id)) continue;
+        const report = buildFixtureFailureReport({
+          postId: slot.def.id,
+          body: bodyDef.id,
+          attempts: fastAttempts,
+          err: res.err,
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+        });
+        if (opts?.reportFailure) {
+          opts.reportFailure(report);
+        } else {
+          void import("./fixture-beacon")
+            .then((m) => m.sendFixtureFailureReport(report))
+            .catch(() => {
+              /* The beacon never becomes a failure itself. */
+            });
         }
-        liveBodies.add(bodyDef.id);
-      })
-      .catch((err: unknown) => {
-        opts?.onError?.(bodyDef.id, err);
+      }
+      const loop = new FixtureHealLoop({
+        attempt: async () => (await tryLoadBody(bodyDef)).ok,
+        isVisible: () =>
+          typeof document === "undefined" || document.visibilityState !== "hidden",
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+        clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        onHealed: () => opts?.onRecovered?.(bodyDef.id),
       });
+      healLoops.set(bodyDef.id, loop);
+      loop.start();
+    });
   }
 
   return {
@@ -307,6 +462,9 @@ export function buildWorldFixtures(opts?: {
       }
     },
     dispose() {
+      disposed = true;
+      for (const loop of healLoops.values()) loop.stop();
+      healLoops.clear();
       const seen = new Set<unknown>();
       const kill = (root: THREE.Object3D) => {
         root.traverse((obj) => {
