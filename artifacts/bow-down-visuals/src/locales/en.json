@@ -14638,6 +14638,8 @@
     "sliderScaleMin": "Draft · smaller",
     "sliderStandard": "Standard",
     "watermarkFree": "Free exports carry the watermark. Subscribers can remove it.",
+    "watermarkOffPrice": "Off: clean export — 400 Visual Bucs, reserved when the render starts.",
+    "watermarkOnPrice": "On: your video carries the Bow Down Visuals watermark — this export is free.",
     "watermarkSubscriber": "Subscribers can export clean — toggle it off anytime.",
     "watermarkTitle": "\"Made with Bow Down Visuals\" watermark",
     "watermarkUpsell": "Want it gone?",

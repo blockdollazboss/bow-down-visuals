@@ -31,27 +31,38 @@ export interface ExportWatermarkInput {
   /** The branding block, when one rides the request. Its watermark
    *  section decides for itself, exactly as on the server. */
   branding?: { watermark?: ExportBrandingWatermarkInput | null } | null;
-  /** True when the viewer may export clean (a paying subscriber).
-   *  Non-subscribers are force-watermarked server-side. */
+  /** Subscriber status — now only feeds the legacy default for a
+   *  request that omits the watermark flag entirely. An explicit
+   *  toggle decides on every plan (clean = 400 VB, A-02). */
   isSubscriber?: boolean;
 }
 
 /**
  * Mirror of the server's predictExportWatermarked — keep the two in
  * lockstep (export-pricing.test.ts walks the same truth table as the
- * server's export-branded-free.test.ts):
- *  - an enabled branding watermark decides for itself (custom logo, or
- *    the house watermark unless explicitly switched off with no logo);
- *  - otherwise only subscribers may export clean; everyone else is
- *    branded, and a subscriber is branded exactly when they asked.
+ * server's export-branded-free.test.ts). ONE truth table, owned by the
+ * export-time decision (stack400 lane 3):
+ *  - `addWatermark === false` is an explicit OFF and ALWAYS wins — the
+ *    export is clean at the ruled 400 VB on every plan (A-02). Before
+ *    this fix the default-on branding block (and the free-plan gate)
+ *    silently overrode the toggle, so the dialog could never quote the
+ *    clean price the owner asked for;
+ *  - otherwise an enabled branding watermark chooses the artwork
+ *    (custom logo, or the house watermark unless explicitly switched
+ *    off with no logo);
+ *  - `addWatermark === true` → branded;
+ *  - flag omitted → the legacy plan default (free/trial branded,
+ *    subscribers clean).
  */
 export function predictClientExportWatermarked(input: ExportWatermarkInput): boolean {
+  if (input.addWatermark === false) return false;
   const bwm = input.branding?.watermark;
   if (bwm?.enabled) {
     if (typeof bwm.customLogoUrl === "string" && bwm.customLogoUrl.startsWith("http")) return true;
     return bwm.bdvWatermark !== false;
   }
-  return input.isSubscriber ? input.addWatermark === true : true;
+  if (input.addWatermark === true) return true;
+  return !input.isSubscriber;
 }
 
 export interface ExportPrice {
