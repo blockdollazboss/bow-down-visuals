@@ -5838,6 +5838,7 @@
     "cartEmpty": "장바구니가 비어 있습니다.",
     "cartLabel": "장바구니",
     "checkoutNote": "실제 카드 결제 — 안전한 호스팅 결제 페이지에서 결제를 완료합니다. 표시된 가격을 결제하며, Bow Down Visuals는 판매자 몫에서 {{feePct}}%의 플랫폼 수수료를 가져갑니다. 주문은 결제가 확인될 때까지 보류 상태로 저장됩니다.",
+    "checkoutNoteOnSite": "실제 카드 결제 — 이 페이지에서 사이트를 떠나지 않고 결제를 완료합니다. 표시된 가격을 결제하며, Bow Down Visuals는 판매자 몫에서 {{feePct}}%의 플랫폼 수수료를 가져갑니다. 주문은 결제가 확인될 때까지 보류 상태로 저장됩니다.",
     "closeCartLabel": "장바구니 닫기",
     "closeLabel": "닫기",
     "continueShopping": "계속 쇼핑하기",

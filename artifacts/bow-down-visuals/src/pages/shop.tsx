@@ -765,7 +765,11 @@ export default function ShopStorefront() {
                   {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(displayTotalCents) })}
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-white/50">
-                  {t("shop.checkoutNote", { feePct })}
+                  {/* Mode-aware note: when this build can mount the
+                      embedded form (publishable key present) the buyer
+                      pays right here — say so. The hosted wording is
+                      only true on the fallback rail (no key). */}
+                  {t(hasStripePublishableKey() ? "shop.checkoutNoteOnSite" : "shop.checkoutNote", { feePct })}
                 </p>
               </div>
             )}

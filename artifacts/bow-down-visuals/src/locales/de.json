@@ -5838,6 +5838,7 @@
     "cartEmpty": "Ihr Warenkorb ist leer.",
     "cartLabel": "Warenkorb",
     "checkoutNote": "Echte Kartenzahlung — du schließt die Zahlung auf der sicheren, gehosteten Zahlungsseite ab. Du zahlst den gelisteten Preis; Bow Down Visuals nimmt eine {{feePct}} %-Plattformgebühr vom Anteil des Verkäufers. Deine Bestellung wird als ausstehend gespeichert, bis die Zahlung bestätigt ist.",
+    "checkoutNoteOnSite": "Echte Kartenzahlung — du schließt die Zahlung hier auf dieser Seite ab, ohne die Website zu verlassen. Du zahlst den gelisteten Preis; Bow Down Visuals nimmt eine {{feePct}} %-Plattformgebühr vom Anteil des Verkäufers. Deine Bestellung wird als ausstehend gespeichert, bis die Zahlung bestätigt ist.",
     "closeCartLabel": "Warenkorb schließen",
     "closeLabel": "Schließen",
     "continueShopping": "Weiter einkaufen",

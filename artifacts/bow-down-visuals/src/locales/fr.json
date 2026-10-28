@@ -6008,6 +6008,7 @@
     "cartEmpty": "Ton panier est vide.",
     "cartLabel": "Panier",
     "checkoutNote": "Prise de commande — le traitement par carte via Stripe Connect arrive bientôt ; le vendeur te recontacte pour finaliser le paiement. Tu paies le prix affiché ; Bow Down Visuals prend une commission plateforme de {{feePct}} % sur la part du vendeur.",
+    "checkoutNoteOnSite": "Paiement réel par carte — tu paies ici même, sur cette page, sans quitter le site. Tu paies le prix affiché ; Bow Down Visuals prend une commission plateforme de {{feePct}} % sur la part du vendeur. Ta commande est enregistrée comme en attente jusqu’à la confirmation du paiement.",
     "closeCartLabel": "Fermer le panier",
     "closeLabel": "Fermer",
     "continueShopping": "Continuer mes achats",
