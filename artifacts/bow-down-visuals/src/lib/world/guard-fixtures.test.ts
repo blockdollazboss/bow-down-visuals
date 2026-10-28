@@ -22,14 +22,37 @@ import {
 import { COURTYARD_ID, PALACE_LAYOUT, groundHeightAt, pointInRect } from "./palace-layout";
 
 describe("WORLD_FIXTURES — the court's posts", () => {
-  it("stands five figures: the King + two guards in the hall, two on the plaza steps", () => {
-    expect(WORLD_FIXTURES).toHaveLength(5);
+  it("stands six figures: the King + two guards in the hall, two guards on the plaza steps, and the King greeting on the plaza", () => {
+    expect(WORLD_FIXTURES).toHaveLength(6);
     const hall = WORLD_FIXTURES.filter((f) => f.area === "hall");
     const plaza = WORLD_FIXTURES.filter((f) => f.area === "plaza");
     expect(hall.map((f) => f.body).sort()).toEqual(["guard-female", "guard-male", "king"]);
-    expect(plaza.map((f) => f.body).sort()).toEqual(["guard-female", "guard-male"]);
+    expect(plaza.map((f) => f.body).sort()).toEqual(["guard-female", "guard-male", "king"]);
     const ids = WORLD_FIXTURES.map((f) => f.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("the King greets arrivals on the plaza, off the spine, in the first frame from spawn", () => {
+    const greeter = WORLD_FIXTURES.find((f) => f.id === "plaza-king");
+    expect(greeter).toBeDefined();
+    expect(greeter!.body).toBe("king");
+    expect(greeter!.area).toBe("plaza");
+    /* Flat plaza floor — no platform stands on the arrival court. */
+    expect(greeter!.position.y).toBe(0);
+    /* The walk spine (|x| ≤ 1.8, plaza-life) stays clear, with the
+     * body's own half-width east of its edge. */
+    expect(Math.abs(greeter!.position.x)).toBeGreaterThan(1.8);
+    /* Between the monument (z 19.7) and the spawn stance (z 31.5),
+     * south of the monument's furniture line (lamps z 24.2, benches
+     * z 23.2) and north of the spawn cluster — and nearer the
+     * arriving visitor than the monument is, so he is met first. */
+    expect(greeter!.position.z).toBeGreaterThan(24.2);
+    expect(greeter!.position.z).toBeLessThan(31.5);
+    const fromSpawn = Math.hypot(greeter!.position.x - 0, greeter!.position.z - 31.5);
+    expect(fromSpawn).toBeLessThan(31.5 - 19.7);
+    /* Facing the arriving visitor, the plaza posts' convention. */
+    expect(greeter!.postRotY).toBe(0);
+    expect(fixtureRotY(greeter!)).toBe(0);
   });
 
   it("puts the King centred at the dais foot, ON THE STAGE, facing his court", () => {
@@ -66,7 +89,8 @@ describe("WORLD_FIXTURES — the court's posts", () => {
   });
 
   it("stands the plaza guards ON the step platforms (palace-grounds HALL_STEPS)", () => {
-    const guards = WORLD_FIXTURES.filter((f) => f.area === "plaza");
+    const guards = WORLD_FIXTURES.filter((f) => f.area === "plaza" && f.body !== "king");
+    expect(guards).toHaveLength(2);
     for (const g of guards) {
       expect(g.position.y).toBeCloseTo(0.36, 5);
       expect(Math.abs(g.position.x)).toBeCloseTo(3.85, 5);
