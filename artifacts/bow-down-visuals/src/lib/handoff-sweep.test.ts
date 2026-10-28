@@ -77,6 +77,23 @@ describe("E8 sweep fix 2 — /login?next= is honored after sign-in", () => {
     expect(postLoginPath("?next=/presave/x")).toBe("/presave/x");
   });
 
+  it("an auth screen is never honored as the return destination (gate re-run #2, Oct 28)", () => {
+    // The exact search string the live 404 shipped with: the gate
+    // bounced a guest at /sign-in to /login?next=%2Fsign-in, and the
+    // receiver handed the freshly signed-in user straight back to
+    // the route-less /sign-in (catch-all 404, sidebar present).
+    expect(safeNextPath("?next=%2Fsign-in")).toBeNull();
+    expect(safeNextPath("?next=/sign-in")).toBeNull();
+    expect(safeNextPath("?next=/login")).toBeNull();
+    expect(safeNextPath("?next=/signup")).toBeNull();
+    expect(safeNextPath("?next=/qr-login")).toBeNull();
+    expect(safeNextPath("?next=/reset-password")).toBeNull();
+    // …so post-login lands on the default — a real route inside the
+    // sidebar layout — never the 404.
+    expect(postLoginPath("?next=%2Fsign-in")).toBe("/choose-artist");
+    expect(postLoginPath("?next=/sign-in?from=gate")).toBe("/choose-artist");
+  });
+
   it("the login page routes BOTH success paths through postLoginPath", () => {
     expect(loginPageSource).toContain('import { postLoginPath } from "@/lib/auth-next"');
     const uses = loginPageSource.match(/setLocation\(postLoginPath\(window\.location\.search\)\)/g) ?? [];
