@@ -235,7 +235,15 @@ import {
   actionPoseAt,
   type WorldActionId,
 } from "./actions";
-import { createMover, stepMover, easeFigureHeight, type MoverState } from "./movement";
+import {
+  createMover,
+  createVertical,
+  stepMover,
+  stepVertical,
+  easeFigureHeight,
+  type MoverState,
+  type VerticalState,
+} from "./movement";
 import {
   createStepDust,
   spawnStepPuff,
@@ -1598,6 +1606,18 @@ export class KingsHallScene {
    *  velocity, stride bob, lean, stop settle. (My figure rig carries
    *  a mover too, unused — peers' rigs are the ones it drives.) */
   private selfMover: MoverState = createMover(0, 9.5);
+  /** The jump (stack300): my vertical state + the eased
+   *  ground-follow it rides on. rig.position.y is their SUM —
+   *  the ground half eases while the body is on it and freezes
+   *  mid-jump; the offset half is movement.ts's gravity arc.
+   *  Spawn and doorway step-backs re-anchor both (below). */
+  private selfVertical: VerticalState = createVertical();
+  private selfGroundY = 0;
+  /** A jump press queued by any input family (Space, the touch
+   *  Jump button, the pad, an XR controller) — consumed by the
+   *  next moveRig frame as one press edge; the stepper's own
+   *  buffering covers presses that land a hair early. */
+  private jumpQueued = false;
   /** Footstep dust (item 57): the pool every figure's completed
    *  steps raise puffs into, and the ONE Points cloud that renders
    *  them (built lazily at the first footfall). */
@@ -1651,6 +1671,14 @@ export class KingsHallScene {
 
   setTouchSprint(held: boolean): void {
     this.touchSprint = held;
+  }
+  /** Queue one jump press (stack300): every input family lands
+   *  here — Space, the strip's Jump button, the pad's A tap, an
+   *  XR controller button — and moveRig consumes the queue as a
+   *  single press edge, so no family can double-fire a jump and
+   *  the double jump is always a deliberate second press. */
+  queueJump(): void {
+    this.jumpQueued = true;
   }
   /** My own performed action changed on its own — a one-shot
    *  finished, or walking ended a held toggle — so the page's
@@ -8692,6 +8720,10 @@ export class KingsHallScene {
     // The body re-anchors with the spawn — no stride, no settle
     // carried across a teleport.
     this.selfMover = createMover(p.x, p.z);
+    // Nor a jump: a spawn never materializes mid-arc.
+    this.selfVertical = createVertical();
+    this.selfGroundY = this.rig.position.y;
+    this.jumpQueued = false;
   }
 
   /** The room the walker stands in (the scene's own truth — it
@@ -8753,6 +8785,10 @@ export class KingsHallScene {
     this.selfMover.pz = p.z;
     this.selfMover.vx = 0;
     this.selfMover.vz = 0;
+    // A refused doorway ends any jump with the placement.
+    this.selfVertical = createVertical();
+    this.selfGroundY = this.rig.position.y;
+    this.jumpQueued = false;
   }
 
   /** Only the room you stand in renders around you — plus the hall,
@@ -9912,12 +9948,38 @@ export class KingsHallScene {
      * reachable: treads and tiers are climbed by their steps, a
      * step off an edge resolves down within the step-down rule,
      * and an edge beyond it never resolves at all — no void
-     * falls, no teleport pops. */
-    this.rig.position.y = easeFigureHeight(
-      this.rig.position.y,
-      groundHeightAt(res.x, res.z),
-      dt,
-    );
+     * falls, no teleport pops.
+     *
+     * Jump (stack300): the rig's y is now a SUM — selfGroundY
+     * (that same ease) + the jump offset. The ease runs while
+     * the body is on the ground — standing, walking, or pinned
+     * at offset 0 riding a step-down out — and freezes while
+     * the body is separated (offset or upward velocity live),
+     * so a jump's arc is measured from the ground it left. The
+     * resolver above never sees the offset: its samples gate on
+     * the ground alone, so mid-jump the body crosses exactly the
+     * ground it could have walked — no vaulting walls, terraces
+     * or blocked rects; landing on a higher surface mid-jump is
+     * platforming, a later phase. Support for the stepper =
+     * the ease has arrived at the ground under the figure; a
+     * step-down still being ridden reads unsupported, which is
+     * what runs its coyote time. A landing snaps the ground
+     * half outright to the ground under the landing (a
+     * placement, per the doctrine above) and feeds the impact
+     * to the gait's settle spring, so touchdown dips. */
+    const ground = groundHeightAt(res.x, res.z);
+    const v = this.selfVertical;
+    if (v.yOffset <= 0 && v.vy <= 0) {
+      this.selfGroundY = easeFigureHeight(this.selfGroundY, ground, dt);
+    }
+    const supported = this.selfGroundY - ground <= 0.05;
+    const jumpPressed = this.jumpQueued;
+    this.jumpQueued = false;
+    if (stepVertical(v, dt, jumpPressed, supported)) {
+      this.selfGroundY = ground;
+      this.selfMover.settleVel -= v.landSpeed * 0.5;
+    }
+    this.rig.position.y = this.selfGroundY + v.yOffset;
     // Actually walking ends a held toggle (dance/sit) on my own
     // figure — the same rule the server applies to my move frames,
     // so what I see and what the room sees agree.
