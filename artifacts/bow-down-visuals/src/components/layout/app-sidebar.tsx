@@ -487,7 +487,7 @@ export function AppSidebar() {
     : null;
   const breakdownTitle =
     balanceComp && balanceComp.temporaryCredits > 0
-      ? t("credit-history.breakdown_summary", {
+      ? t("balance.breakdown_summary", {
           permanent: balanceComp.permanentCredits.toLocaleString("en-US"),
           temporary: balanceComp.temporaryCredits.toLocaleString("en-US"),
         })

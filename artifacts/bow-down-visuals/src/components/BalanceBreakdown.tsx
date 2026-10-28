@@ -12,10 +12,13 @@
  *    (sidebar footer, spend-confirm dialog): the total stays untouched
  *    there; this line rides under it only while a temporary part exists.
  *
- * Copy lives in the credit-history namespace (en.json). The other nine
- * catalogs do not carry these keys yet — they fall back to English
- * until the translation wave picks them up (flagged in the lane report;
- * payment/balance copy is never machine-guessed into a catalog).
+ * Copy lives in the `balance` namespace (en.json) — a new namespace, so
+ * the locale-wave suites that pin older namespaces are untouched. The
+ * other nine catalogs do not carry these keys yet — they fall back to
+ * English until the translation wave picks them up (flagged in the
+ * lane report; payment/balance copy is never machine-guessed into a
+ * catalog). Singular/plural variants are separate keys selected in
+ * code, not i18next count families.
  */
 import { Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -42,10 +45,12 @@ function expiryClause(
     grant.expiresAt != null &&
     new Date(grant.expiresAt).toDateString() === new Date(now).toDateString();
   if (sameDay) {
-    return t("credit-history.temporary_expires_today", { amount, date });
+    return t("balance.temporary_expires_today", { amount, date });
   }
   const days = daysUntilExpiry(grant.expiresAt, now) ?? 0;
-  return t("credit-history.temporary_expires", { amount, date, count: days });
+  return days === 1
+    ? t("balance.temporary_expires_day", { amount, date })
+    : t("balance.temporary_expires_days", { amount, date, days });
 }
 
 /** "+ 1 more temporary grant (200)" when later grants sit behind the
@@ -58,8 +63,10 @@ function moreGrantsClause(
   if (!soonest || composition.temporaryGrants.length <= 1) return "";
   const count = composition.temporaryGrants.length - 1;
   const amount = fmtNum(composition.temporaryCredits - soonest.amount);
-  /* Base key + count: i18next resolves the _one/_other plural forms. */
-  return t("credit-history.temporary_more_grants", { count, amount });
+  return t(count === 1 ? "balance.temporary_more_grant" : "balance.temporary_more_grants", {
+    count,
+    amount,
+  });
 }
 
 export function BalanceBreakdown({
@@ -78,11 +85,11 @@ export function BalanceBreakdown({
     <div className={className} data-testid="balance-breakdown">
       <div className="flex flex-wrap gap-x-8 gap-y-1">
         <p className="text-sm text-white/70">
-          {t("credit-history.permanent_label")}:{" "}
+          {t("balance.permanent_label")}:{" "}
           <span className="font-black text-white">{fmtNum(composition.permanentCredits)}</span>
         </p>
         <p className="text-sm text-white/70">
-          {t("credit-history.temporary_label")}:{" "}
+          {t("balance.temporary_label")}:{" "}
           <span className="font-black text-amber-300">{fmtNum(composition.temporaryCredits)}</span>
         </p>
       </div>
@@ -97,9 +104,9 @@ export function BalanceBreakdown({
               </span>
             </p>
           ) : (
-            <p className="text-xs text-white/50">{t("credit-history.temporary_no_expiry")}</p>
+            <p className="text-xs text-white/50">{t("balance.temporary_no_expiry")}</p>
           )}
-          <p className="text-xs text-white/40">{t("credit-history.temporary_spent_first")}</p>
+          <p className="text-xs text-white/40">{t("balance.temporary_spent_first")}</p>
         </div>
       )}
     </div>
@@ -127,24 +134,23 @@ export function TemporaryBucsNote({
 
   let text: string;
   if (mode === "label") {
-    const base = t("credit-history.temporary_amount", { amount: total });
+    const base = t("balance.temporary_amount", { amount: total });
     text = soonest ? `${base} — ${expiryClause(t, i18n.language, soonest, now)}` : base;
   } else if (soonest && composition.temporaryGrants.length <= 1) {
     const date = formatExpiryDate(soonest.expiresAt, i18n.language);
     const sameDay =
       soonest.expiresAt != null &&
       new Date(soonest.expiresAt).toDateString() === new Date(now).toDateString();
+    const days = daysUntilExpiry(soonest.expiresAt, now) ?? 0;
     text = sameDay
-      ? t("credit-history.includes_temporary_today", { amount: total, date })
-      : t("credit-history.includes_temporary", {
-          amount: total,
-          date,
-          count: daysUntilExpiry(soonest.expiresAt, now) ?? 0,
-        });
+      ? t("balance.includes_temporary_today", { amount: total, date })
+      : days === 1
+        ? t("balance.includes_temporary_day", { amount: total, date })
+        : t("balance.includes_temporary_days", { amount: total, date, days });
   } else if (soonest) {
-    text = `${t("credit-history.includes_temporary_no_expiry", { amount: total })} — ${expiryClause(t, i18n.language, soonest, now)}`;
+    text = `${t("balance.includes_temporary_no_expiry", { amount: total })} — ${expiryClause(t, i18n.language, soonest, now)}`;
   } else {
-    text = t("credit-history.includes_temporary_no_expiry", { amount: total });
+    text = t("balance.includes_temporary_no_expiry", { amount: total });
   }
 
   return (

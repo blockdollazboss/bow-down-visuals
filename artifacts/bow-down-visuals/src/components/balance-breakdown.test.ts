@@ -44,49 +44,49 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 
 describe("rendered strings — the split and the expiry wording", () => {
   it("labels the two parts", () => {
-    expect(i18n.t("credit-history.permanent_label")).toBe("Permanent");
-    expect(i18n.t("credit-history.temporary_label")).toBe("Temporary");
-    expect(i18n.t("credit-history.permanent_amount", { amount: "87,475" })).toBe("Permanent: 87,475");
-    expect(i18n.t("credit-history.temporary_amount", { amount: "100" })).toBe("Temporary: 100");
+    expect(i18n.t("balance.permanent_label")).toBe("Permanent");
+    expect(i18n.t("balance.temporary_label")).toBe("Temporary");
+    expect(i18n.t("balance.permanent_amount", { amount: "87,475" })).toBe("Permanent: 87,475");
+    expect(i18n.t("balance.temporary_amount", { amount: "100" })).toBe("Temporary: 100");
   });
 
   it("names the soonest expiry with its amount, date, and days left (plural-aware)", () => {
     expect(
-      i18n.t("credit-history.temporary_expires", { amount: "300", date: "Oct 30, 2026", count: 2 }),
+      i18n.t("balance.temporary_expires_days", { amount: "300", date: "Oct 30, 2026", days: 2 }),
     ).toBe("300 expire Oct 30, 2026 (in 2 days)");
     expect(
-      i18n.t("credit-history.temporary_expires", { amount: "300", date: "Oct 29, 2026", count: 1 }),
+      i18n.t("balance.temporary_expires_day", { amount: "300", date: "Oct 29, 2026" }),
     ).toBe("300 expire Oct 29, 2026 (in 1 day)");
     expect(
-      i18n.t("credit-history.temporary_expires_today", { amount: "300", date: "Oct 28, 2026" }),
+      i18n.t("balance.temporary_expires_today", { amount: "300", date: "Oct 28, 2026" }),
     ).toBe("300 expire today, Oct 28, 2026");
   });
 
   it("renders the dialog sub-line: includes Y temporary Bucs — expires <date>", () => {
     expect(
-      i18n.t("credit-history.includes_temporary", { amount: "100", date: "Oct 30, 2026", count: 2 }),
+      i18n.t("balance.includes_temporary_days", { amount: "100", date: "Oct 30, 2026", days: 2 }),
     ).toBe("Includes 100 temporary Bucs — expires Oct 30, 2026 (in 2 days)");
     expect(
-      i18n.t("credit-history.includes_temporary", { amount: "100", date: "Oct 29, 2026", count: 1 }),
+      i18n.t("balance.includes_temporary_day", { amount: "100", date: "Oct 29, 2026" }),
     ).toBe("Includes 100 temporary Bucs — expires Oct 29, 2026 (in 1 day)");
-    expect(i18n.t("credit-history.includes_temporary_no_expiry", { amount: "100" })).toBe(
+    expect(i18n.t("balance.includes_temporary_no_expiry", { amount: "100" })).toBe(
       "Includes 100 temporary Bucs",
     );
   });
 
   it("counts later grants behind the soonest one, plural-aware", () => {
-    expect(i18n.t("credit-history.temporary_more_grants", { count: 1, amount: "200" })).toBe(
+    expect(i18n.t("balance.temporary_more_grant", { count: 1, amount: "200" })).toBe(
       "+ 1 more temporary grant (200)",
     );
-    expect(i18n.t("credit-history.temporary_more_grants", { count: 2, amount: "700" })).toBe(
+    expect(i18n.t("balance.temporary_more_grants", { count: 2, amount: "700" })).toBe(
       "+ 2 more temporary grants (700)",
     );
   });
 
   it("carries the spent-first note and the sidebar summary", () => {
-    expect(i18n.t("credit-history.temporary_spent_first")).toContain("spent first");
+    expect(i18n.t("balance.temporary_spent_first")).toContain("spent first");
     expect(
-      i18n.t("credit-history.breakdown_summary", { permanent: "87,475", temporary: "100" }),
+      i18n.t("balance.breakdown_summary", { permanent: "87,475", temporary: "100" }),
     ).toBe("Permanent: 87,475 · Temporary: 100");
   });
 });
@@ -95,10 +95,10 @@ describe("locale honesty — new balance keys are English-only for now", () => {
   it("non-English catalogs fall back to English for the new keys", () => {
     for (const lng of ALL.filter((l) => l !== "en")) {
       expect(
-        i18n.t("credit-history.includes_temporary", {
+        i18n.t("balance.includes_temporary_days", {
           amount: "100",
           date: "Oct 30, 2026",
-          count: 2,
+          days: 2,
           lng,
         }),
         `${lng} should fall back to the English string`,
@@ -131,7 +131,7 @@ describe("surface wiring", () => {
     expect(sidebar).toContain("TemporaryBucsNote");
     expect(sidebar).toContain('mode="label"');
     expect(sidebar).toContain("balanceComp.temporaryCredits > 0");
-    expect(sidebar).toContain('t("credit-history.breakdown_summary"');
+    expect(sidebar).toContain('t("balance.breakdown_summary"');
     /* The single total still renders in both sidebar spots. */
     expect(sidebar).toContain("{profile.credits.toLocaleString(\"en-US\")} left");
   });
