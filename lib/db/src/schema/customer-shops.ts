@@ -155,6 +155,12 @@ export const shopEventsTable = pgTable("shop_events", {
   platform_fee_cents: integer("platform_fee_cents").notNull().default(0),
   /** Buyer email for sale events (order follow-up). */
   buyer_email: text("buyer_email"),
+  /** The buyer's account id when a verified session rode along at
+      checkout (migration 0297, stack400 lane 2). The delivery key that
+      cannot be lost by a blank/mistyped email field: shop_deliveries
+      copies it at the paid flip and the buyer library matches on it.
+      Null on guest checkouts — those keep the email key. */
+  buyer_user_id: uuid("buyer_user_id"),
   /** Marketplace card checkout (migration 0144): the Stripe Checkout
       session that pays for this row. One session can cover several cart
       lines — one row per line, all sharing the session id (index, not

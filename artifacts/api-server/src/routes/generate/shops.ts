@@ -68,6 +68,7 @@ import {
 } from "../../lib/sale-splits";
 import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer } from "../../lib/shop-delivery";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
+import { resolveOptionalSession } from "../../lib/optional-auth";
 import {
   readBumpConfig,
   validateBumpTarget,
@@ -2222,6 +2223,10 @@ const checkoutSchema = z.object({
      answers a clientSecret for the on-page mount (the World ShopStands
      desk) instead of a hosted URL. Absent = hosted (fallback rail). */
   uiMode: z.enum(["embedded", "hosted"]).optional(),
+  /* Where an embedded session returns when payment completes. Only a
+     shop page path is honored (the 2D /shop/:handle page runs its own
+     verify-on-return there); anything else keeps the World return. */
+  returnPath: z.string().trim().max(200).optional(),
   /* Optional shop discount code (0190) — validated server-side against
      THIS shop's codes, exactly like the storefront rail validates
      against the seller's profile. */
@@ -2273,6 +2278,28 @@ interface CheckoutLine {
     order (unreachable in practice — a bump line can only exist once
     the attachment columns do — but an order must never be lost to a
     labelling column). */
+/* Buyer identity (migration 0297, stack400 lane 2): shop_events gains
+   buyer_user_id — the delivery key stamped from the buyer's verified
+   session at checkout. Same probe discipline as the delivery columns
+   (row-length form: COUNT over information_schema throws in pg-mem).
+   Until the column lands, inserts simply omit it and delivery keeps
+   the email key, exactly as before. */
+let shopEventsBuyerColKnown: boolean | null = null;
+async function shopEventsHasBuyerId(): Promise<boolean> {
+  if (shopEventsBuyerColKnown !== null) return shopEventsBuyerColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'shop_events' AND column_name = 'buyer_user_id'
+      LIMIT 1
+    `);
+    shopEventsBuyerColKnown = r.rows.length > 0;
+  } catch {
+    shopEventsBuyerColKnown = false;
+  }
+  return shopEventsBuyerColKnown;
+}
+
 async function insertShopEventLine(
   l: CheckoutLine,
   shopId: string,
@@ -2282,20 +2309,38 @@ async function insertShopEventLine(
     paymentStatus: string;
     paidNow: boolean;
     buyerEmail: string;
+    /** The buyer's account id from their verified session, when one
+        rode along (migration 0297). Null for guest checkouts. */
+    buyerUserId?: string | null;
     groupId: string;
     discountCode: string | null;
   },
 ): Promise<void> {
+  const withBuyer = opts.buyerUserId != null && (await shopEventsHasBuyerId());
   if (l.isBump && l.bumpFor) {
     try {
-      await db.execute(sql`
-        INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code, bump_for_product_id, affiliate_code)
-        VALUES (${l.saleId}, ${shopId}, ${sellerUserId}, ${opts.eventType}, ${l.productId}, ${l.gross}, ${l.fee}, ${opts.buyerEmail || null}, ${opts.paymentStatus}, ${opts.paidNow ? sql`now()` : sql`NULL`}, ${l.quantity}, ${opts.groupId}, ${opts.discountCode}, ${l.bumpFor}, ${l.affiliateCode ?? null})
-      `);
+      if (withBuyer) {
+        await db.execute(sql`
+          INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, buyer_user_id, payment_status, paid_at, quantity, checkout_group_id, discount_code, bump_for_product_id, affiliate_code)
+          VALUES (${l.saleId}, ${shopId}, ${sellerUserId}, ${opts.eventType}, ${l.productId}, ${l.gross}, ${l.fee}, ${opts.buyerEmail || null}, ${opts.buyerUserId!}, ${opts.paymentStatus}, ${opts.paidNow ? sql`now()` : sql`NULL`}, ${l.quantity}, ${opts.groupId}, ${opts.discountCode}, ${l.bumpFor}, ${l.affiliateCode ?? null})
+        `);
+      } else {
+        await db.execute(sql`
+          INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code, bump_for_product_id, affiliate_code)
+          VALUES (${l.saleId}, ${shopId}, ${sellerUserId}, ${opts.eventType}, ${l.productId}, ${l.gross}, ${l.fee}, ${opts.buyerEmail || null}, ${opts.paymentStatus}, ${opts.paidNow ? sql`now()` : sql`NULL`}, ${l.quantity}, ${opts.groupId}, ${opts.discountCode}, ${l.bumpFor}, ${l.affiliateCode ?? null})
+        `);
+      }
       return;
     } catch {
       /* Marker column absent — record the line without it. */
     }
+  }
+  if (withBuyer) {
+    await db.execute(sql`
+      INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, buyer_user_id, payment_status, paid_at, quantity, checkout_group_id, discount_code, affiliate_code)
+      VALUES (${l.saleId}, ${shopId}, ${sellerUserId}, ${opts.eventType}, ${l.productId}, ${l.gross}, ${l.fee}, ${opts.buyerEmail || null}, ${opts.buyerUserId!}, ${opts.paymentStatus}, ${opts.paidNow ? sql`now()` : sql`NULL`}, ${l.quantity}, ${opts.groupId}, ${opts.discountCode}, ${l.affiliateCode ?? null})
+    `);
+    return;
   }
   await db.execute(sql`
     INSERT INTO shop_events (id, shop_id, user_id, event_type, product_id, amount_cents, platform_fee_cents, buyer_email, payment_status, paid_at, quantity, checkout_group_id, discount_code, affiliate_code)
@@ -2309,7 +2354,16 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     res.status(400).json({ error: "Invalid order." });
     return;
   }
-  const { shopId, buyerEmail } = parsed.data;
+  const { shopId } = parsed.data;
+  /* Buyer identity (stack400 lane 2): when a verified session rides
+     along, the buyer's account id is stamped on every order line and
+     their account email fills a blank checkout-email field — delivery
+     is keyed to the ACCOUNT, not to whatever was typed (or not typed)
+     into a form field. Optional auth only: guests check out exactly
+     as before, keyed by the email they give. */
+  await resolveOptionalSession(req);
+  const sessionBuyerId = req.userId ?? null;
+  const buyerEmail = parsed.data.buyerEmail || req.userEmail || "";
 
   /* Merge duplicate lines, then price EVERY line from the server's
      own product rows — client-supplied amounts are never read. */
@@ -2577,7 +2631,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
     for (const l of allLines) {
       await insertShopEventLine(l, shopId, shop.user_id, {
         eventType: "sale", paymentStatus: paidByGiftCard ? "gift_card" : "no_payment_required", paidNow: true,
-        buyerEmail, groupId, discountCode: l.isBump ? null : discountCode,
+        buyerEmail, buyerUserId: sessionBuyerId, groupId, discountCode: l.isBump ? null : discountCode,
       });
       /* Co-seller splits (#36): this line recorded as a sale right
          here, so its net divides right here (no-op without splits). */
@@ -2609,7 +2663,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
        shop_deliveries rows the hosted-checkout paid flip writes. */
     await deliverPaidShopLinesSafely(allLines.map((l) => ({
       saleEventId: l.saleId, shopId, productId: l.productId,
-      buyerEmail: buyerEmail || null, orderId: groupId,
+      buyerEmail: buyerEmail || null, buyerUserId: sessionBuyerId, orderId: groupId,
     })));
     const freeDeliveries = await fetchDeliveriesForSaleEvents(allLines.map((l) => l.saleId));
     res.status(201).json({
@@ -2643,7 +2697,7 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
   for (const l of allLines) {
     await insertShopEventLine(l, shopId, shop.user_id, {
       eventType: "pending_sale", paymentStatus: "pending", paidNow: false,
-      buyerEmail, groupId, discountCode: l.isBump ? null : discountCode,
+      buyerEmail, buyerUserId: sessionBuyerId, groupId, discountCode: l.isBump ? null : discountCode,
     });
   }
 
@@ -2703,7 +2757,13 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       ...(embeddedRequested
         ? {
             ui_mode: "embedded_page" as const,
-            return_url: `${base}/world?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
+            /* The World stand returns into the World; the 2D shop page
+               names its own path so its verify-on-return settles the
+               order and shows the delivery there. Only /shop/ paths
+               are honored — anything else keeps the World return. */
+            return_url: parsed.data.returnPath?.startsWith("/shop/")
+              ? `${base}${parsed.data.returnPath}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`
+              : `${base}/world?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,
           }
         : {
             success_url: `${base}/shop/${shop.handle}?checkout=paid&session_id={CHECKOUT_SESSION_ID}`,

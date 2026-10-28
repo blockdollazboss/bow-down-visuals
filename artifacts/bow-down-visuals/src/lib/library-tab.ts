@@ -4,11 +4,11 @@
    falls back to presets; anything else asks for nothing and the page
    applies its own default. */
 
-export type LibraryTab = "templates" | "presets" | "fonts" | "wishlist" | "features";
+export type LibraryTab = "templates" | "presets" | "fonts" | "wishlist" | "features" | "purchases";
 
 export function libraryTabFromParams(params: URLSearchParams): LibraryTab | null {
   const tab = params.get("tab");
-  if (tab === "presets" || tab === "fonts" || tab === "templates" || tab === "wishlist" || tab === "features") return tab;
+  if (tab === "presets" || tab === "fonts" || tab === "templates" || tab === "wishlist" || tab === "features" || tab === "purchases") return tab;
   if (params.get("tool") === "video") return "presets";
   return null;
 }

@@ -33,6 +33,12 @@ export interface DeliveryLineInput {
   shopId: string;
   productId: string | null;
   buyerEmail: string | null;
+  /** The buyer's account id when a verified session rode along at
+   *  checkout (migration 0297). Preferred over the email resolution:
+   *  an email-only key is lost whenever the buyer leaves the checkout
+   *  email field blank or types a different inbox than their account's
+   *  (the Oct 26 + Oct 28 gate failures). */
+  buyerUserId?: string | null;
   /** The checkout group id — the order's visible identifier. */
   orderId: string;
 }
@@ -91,7 +97,7 @@ export async function deliverPaidShopLinesSafely(lines: DeliveryLineInput[]): Pr
         );
         continue;
       }
-      const buyerUserId = await buyerUserIdForEmail(line.buyerEmail);
+      const buyerUserId = line.buyerUserId ?? (await buyerUserIdForEmail(line.buyerEmail));
       const ins = await db.execute(sql`
         INSERT INTO shop_deliveries
           (sale_event_id, shop_id, product_id, buyer_user_id, buyer_email, order_id, product_name, deliverable_url, deliverable_name)
