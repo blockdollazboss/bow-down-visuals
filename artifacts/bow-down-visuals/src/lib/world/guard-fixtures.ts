@@ -156,6 +156,25 @@ export const HALL_STAGE_TOP_Y = 0.7;
  *    (±3.85, 0.36, 15.7), facing the plaza they guard.
  *  - The hall guards' courtesyAnchor points (see the field): the
  *    bodies do NOT move; only where a walker addresses them does.
+ *  - The King ALSO greets on the plaza (stack300, Oct 27 — the
+ *    owner's live walk found flat characters at spawn and no King
+ *    at all: his only post was the throne, ~45 m in). The greeter
+ *    stands at (2.6, 0, 27.0): on the arrival court's east flank,
+ *    5.2 m from the spawn stance (0, 31.5) at ~30° off the arrival
+ *    axis — inside the first frame a visitor sees, facing +Z,
+ *    toward the arriving visitor, the plaza guards' convention.
+ *    x = 2.6 keeps the walk spine (|x| ≤ 1.8, plaza-life) clear
+ *    with the body's own half-width to spare; z = 27.0 stands in
+ *    the open paving band between the monument's south furniture
+ *    line (lamps ±2.9 @ z 24.2, benches ±3.4 @ z 23.2, urns ±2.85
+ *    @ z 21.9 — the diagnosis's suggested (3.2, ~24) pocket is
+ *    INSIDE that furniture) and the spawn cluster (planter trough
+ *    (2.2, 29.5), urns ±2.7 @ z 31.5), clear of every blocked rect,
+ *    on flat plaza floor (y = 0 — no platform there). One King,
+ *    one greeter: the plaza's mirrored pairs are furniture and
+ *    guards; the King is singular, as he is on the throne axis.
+ *    The same loaded king body clones here (one load, every post)
+ *    with the same fallback law — the gold capsule until he lands.
  */
 export const WORLD_FIXTURES: readonly WorldFixtureDef[] = [
   { id: "hall-king", body: "king", area: "hall", position: { x: 0, y: HALL_STAGE_TOP_Y, z: -13.1 }, postRotY: 0 },
@@ -163,11 +182,63 @@ export const WORLD_FIXTURES: readonly WorldFixtureDef[] = [
   { id: "hall-guard-female", body: "guard-female", area: "hall", position: { x: 6.9, y: HALL_STAGE_TOP_Y, z: -14.3 }, postRotY: 0, courtesyAnchor: { x: 6.9, z: -12.6 } },
   { id: "plaza-guard-male", body: "guard-male", area: "plaza", position: { x: -3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
   { id: "plaza-guard-female", body: "guard-female", area: "plaza", position: { x: 3.85, y: 0.36, z: 15.7 }, postRotY: 0 },
+  { id: "plaza-king", body: "king", area: "plaza", position: { x: 2.6, y: 0, z: 27.0 }, postRotY: 0 },
 ];
 
 /** The total Y rotation a fixture's group carries: post ∘ raw. */
 export function fixtureRotY(def: WorldFixtureDef): number {
   return def.postRotY + FIXTURE_BODIES[def.body].rawRotY;
+}
+
+/** The plaza arrival stance — the courtyard spawn, pinned in
+ *  palace-layout (PALACE_LAYOUT[COURTYARD_ID].spawn = (0, 31.5)).
+ *  Duplicated here as a literal so this module stays free of the
+ *  layout import; guard-fixtures.test.ts pins the two together. */
+export const PLAZA_SPAWN = { x: 0, z: 31.5 } as const;
+
+/**
+ * The order body loads START in, judged from the arrival: a post
+ * wears its flat stand-in until its body lands, so the bodies an
+ * arriving visitor sees FIRST should be requested first. Bodies
+ * with a plaza post outrank hall-only bodies; within that, the
+ * body whose nearest post stands closest to the spawn stance
+ * goes first (the King's greeter at 5.2 m, then the plaza guards
+ * at 15.8 m); table order breaks ties. Every body appears once.
+ *
+ * The loads themselves still run concurrently (one load per body,
+ * each walking its own retry plan) — this orders the requests'
+ * initiation, it does not serialise them: serialising would hold
+ * the guards hostage to the King's 4.3 MB, the opposite of the
+ * intent. Until Oct 27 the iteration was FIXTURE_BODIES' record
+ * order (guards, then the King) and the loads fired at the END of
+ * applyLook, behind the whole look-texture burst — the greeter's
+ * body was the last request of the entry burst.
+ */
+export function fixtureBodyLoadOrder(
+  fixtures: readonly WorldFixtureDef[] = WORLD_FIXTURES,
+): FixtureBodyId[] {
+  const rank = new Map<FixtureBodyId, { plaza: boolean; nearest: number; first: number }>();
+  fixtures.forEach((def, i) => {
+    const d = Math.hypot(def.position.x - PLAZA_SPAWN.x, def.position.z - PLAZA_SPAWN.z);
+    const cur = rank.get(def.body);
+    if (!cur) {
+      rank.set(def.body, { plaza: def.area === "plaza", nearest: d, first: i });
+    } else {
+      cur.plaza = cur.plaza || def.area === "plaza";
+      cur.nearest = Math.min(cur.nearest, d);
+    }
+  });
+  return [...rank.entries()]
+    .sort((a, b) =>
+      a[1].plaza !== b[1].plaza
+        ? a[1].plaza
+          ? -1
+          : 1
+        : a[1].nearest !== b[1].nearest
+          ? a[1].nearest - b[1].nearest
+          : a[1].first - b[1].first,
+    )
+    .map(([body]) => body);
 }
 
 export interface BoundsLike {

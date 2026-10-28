@@ -1852,6 +1852,16 @@ export class KingsHallScene {
   private applyLook(theme: HallTheme): void {
     const look = hallLookFor(theme);
 
+    /* Fixtures FIRST (stack300, Oct 27): the posts' stand-ins hold
+     * until each 3D body lands, and the plaza posts are what an
+     * arrival sees first — so the body loads start ahead of this
+     * look's sky capture and texture burst, not at applyLook's tail
+     * behind all of it (where they fired until now, last in the
+     * entry burst). No-op once built; the groups are scene-root,
+     * never look children, so building them before the look group
+     * exists changes nothing about the look itself. */
+    this.ensureFixtures();
+
     /* Day/night crossfade: capture the OUTGOING look's light
      * values before teardown — the tick eases exposure, background
      * and fog colour from these to the new look's over
@@ -1910,7 +1920,6 @@ export class KingsHallScene {
     // Fresh lights + fog for the room we stand in (aimSun also
     // requests the one shadow-map render the frozen map needs).
     this.applyAreaAtmosphere();
-    this.ensureFixtures();
   }
 
   /** Stand the palace fixtures (once). The stand-ins appear
