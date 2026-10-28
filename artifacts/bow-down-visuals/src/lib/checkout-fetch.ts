@@ -16,20 +16,41 @@
  * Contract:
  *  - A server JSON answer (any status) is returned as-is and NEVER
  *    retried — the server made a decision; the caller shows its
- *    message.
+ *    message (e.g. the intent route's own 502 text). This is the
+ *    only path by which a server error message reaches the buyer.
  *  - Only transport failures (fetch rejects, or the body is not
  *    JSON) are retried, up to `attempts` total tries with backoff.
  *  - If every attempt fails at transport level, a
- *    CheckoutTransportError is thrown so the caller can say honestly
- *    "couldn't reach the server — nothing was charged". */
+ *    CheckoutTransportError is thrown carrying the last HTTP status
+ *    ANY attempt was answered with (null when no response ever
+ *    arrived). checkoutFailureCopy() turns that into honest copy:
+ *    a server that answered with an error status is named as such —
+ *    the Oct 28 live failure answered 502 six times server-side
+ *    while the buyer was told the server "couldn't be reached" —
+ *    and "couldn't reach" is reserved for the case where truly
+ *    nothing answered. */
 
 export class CheckoutTransportError extends Error {
+  /** Last HTTP status any attempt was answered with; null when no
+   *  response ever arrived (pure transport failure). */
   readonly status: number | null;
   constructor(message: string, status: number | null = null) {
     super(message);
     this.name = "CheckoutTransportError";
     this.status = status;
   }
+}
+
+/* Buyer-facing copy for a checkout POST that exhausted its retries.
+ * The distinction that matters: if the server ANSWERED (an HTTP
+ * status was received, even when the body never arrived readable),
+ * say the server hit an error and name the status; only when no
+ * response ever arrived is "couldn't reach the server" the truth. */
+export function checkoutFailureCopy(err: unknown): string {
+  if (err instanceof CheckoutTransportError && err.status != null) {
+    return `The checkout server answered with an error (HTTP ${err.status}) — nothing was charged. Give it a moment and try again.`;
+  }
+  return "Couldn't reach the checkout server — nothing was charged. Give it a moment and try again.";
 }
 
 export interface JsonPostResult {
@@ -54,6 +75,10 @@ export async function postJsonWithTransportRetry(
   const doFetch = opts.fetchImpl ?? ((u, i) => fetch(u, i));
   const sleep = opts.sleepImpl ?? defaultSleep;
 
+  /* The last HTTP status ANY attempt was answered with. A received
+     response is proof the server was reached, so a later attempt's
+     fetch rejection must NOT erase it — the caller's failure copy
+     (checkoutFailureCopy) depends on the distinction. */
   let lastStatus: number | null = null;
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (attempt > 0) {
@@ -70,8 +95,9 @@ export async function postJsonWithTransportRetry(
         body: JSON.stringify(init.body),
       });
     } catch {
-      /* Transport failure (DNS, reset, proxy kill) — retryable. */
-      lastStatus = null;
+      /* Transport failure (DNS, reset, proxy kill) — retryable. No
+         response arrived on THIS attempt; any earlier attempt's
+         received status still stands. */
       continue;
     }
     lastStatus = res.status;
@@ -87,7 +113,7 @@ export async function postJsonWithTransportRetry(
     }
   }
   throw new CheckoutTransportError(
-    "Checkout request never reached the server",
+    "Checkout request exhausted retries without a usable server answer",
     lastStatus,
   );
 }

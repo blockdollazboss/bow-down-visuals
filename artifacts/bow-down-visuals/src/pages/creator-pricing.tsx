@@ -13,7 +13,7 @@ import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import GiftMembership from "@/components/GiftMembership";
 import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
-import { postJsonWithTransportRetry } from "@/lib/checkout-fetch";
+import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-fetch";
 import { loginPathWithNext } from "@/lib/auth-next";
 import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 import { CREATOR_PLANS } from "@/lib/pricing-plans";
@@ -166,11 +166,15 @@ export default function CreatorPricing() {
         return;
       }
       setError(data.message ?? data.error ?? "Checkout didn't start. Try again in a minute.");
-    } catch {
-      /* Every attempt failed before the server could answer (the
-         helper only throws for transport failures) — say so honestly
-         instead of the old bare "Network hiccup". */
-      setError("Couldn't reach the checkout server — nothing was charged. Give it a moment and try again.");
+    } catch (err) {
+      /* Every attempt failed at transport level (the helper only
+         throws for those; a server JSON answer — including the
+         route's own error messages — is returned above, never
+         thrown). checkoutFailureCopy keeps the copy honest: if the
+         server DID answer with an error status whose body never
+         arrived readable, it says so and names the status instead
+         of claiming the server couldn't be reached. */
+      setError(checkoutFailureCopy(err));
     } finally {
       setBuying(null);
     }

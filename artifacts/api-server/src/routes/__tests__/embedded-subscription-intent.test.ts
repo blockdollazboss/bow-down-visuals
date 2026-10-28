@@ -1,22 +1,32 @@
 /**
  * Route tests for POST /embedded-checkout/subscription/intent
- * (Stack400 lane 1 — the "Network hiccup" checkout death).
+ * (Stack400 lane 1 — the "Network hiccup" checkout death;
+ *  Stack500 lane S — the missing confirmation_secret 502).
  *
  * What this pins:
  *  - The happy path returns the invoice confirmation_secret +
  *    subscription id the PaymentElement mounts with, creating the
  *    subscription at the configured STRIPE_PRICE_TIER_* price with
  *    payment_behavior "default_incomplete".
- *  - The idempotency key is STABLE across a retry with unchanged
- *    durable state — that stability is what makes a client-side
- *    retry of this POST safe (same key -> Stripe replays the same
- *    subscription; no second subscription, no double charge).
+ *  - EXPANSION GATING (lane S): the Stripe double below only returns
+ *    invoice.confirmation_secret / invoice.payments when the request
+ *    expanded them — the real API's behavior, which the previous
+ *    double did NOT model (it handed the secret over
+ *    unconditionally, so the route stayed green in tests while every
+ *    live intent 502'd "no invoice confirmation secret"). The create
+ *    must expand latest_invoice.confirmation_secret; if a create
+ *    response still arrives without the secret, one retrieve with
+ *    the expand must recover it before any 502.
+ *  - Repeat-click hygiene (lane S): a second identical attempt
+ *    ADOPTS the first attempt's dangling incomplete subscription
+ *    (no second create); older duplicates, wrong-price leftovers
+ *    and unreadable dangling subs are canceled. When the hygiene
+ *    scan itself fails, the route falls through to create with the
+ *    SAME stable idempotency key — that stability is what makes a
+ *    client-side retry of this POST safe.
  *  - Every failure mode answers JSON (never HTML, never a hang):
  *    missing price env -> 500 naming the var; Stripe throwing ->
  *    502 with Stripe's message; already subscribed -> 409.
- *    (The live "Network hiccup" could therefore only come from a
- *    transport failure — the response never arriving as JSON —
- *    which is why the frontend fix retries this POST.)
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import express from "express";
@@ -30,8 +40,20 @@ const h = vi.hoisted(() => ({
   state: {
     subscriptionRow: null as Record<string, unknown> | null,
     stripeBehavior: "ok" as "ok" | "throw",
+    listBehavior: "ok" as "ok" | "throw",
+    /* "expand": faithful Stripe — expansion-gated invoice fields
+       appear only when the request expanded them.
+       "never": the create response omits confirmation_secret even
+       when it was expanded (the shape the Oct 28 live failure
+       produced); retrieve still honors the expand. */
+    createSecretMode: "expand" as "expand" | "never",
     customerCreateCalls: [] as { params: any; options: any }[],
     subscriptionCreateCalls: [] as { params: any; options: any }[],
+    subscriptionListCalls: [] as any[],
+    subscriptionRetrieveCalls: [] as { id: string; params: any }[],
+    subscriptionCancelCalls: [] as string[],
+    storedSubs: [] as any[],
+    subSeq: 0,
   },
 }));
 
@@ -59,6 +81,38 @@ vi.mock("../../lib/rate-limit", () => ({
 }));
 
 vi.mock("stripe", () => {
+  /* Faithful-enough Stripe double. Crucially it models EXPANSION
+     GATING, which the previous double did not (it returned
+     confirmation_secret unconditionally — why these tests stayed
+     green while the live route 502'd): invoice.confirmation_secret
+     and invoice.payments appear in a response ONLY when the request
+     expanded them. Subscriptions persist in a store so list /
+     retrieve / cancel behave like the real API across calls. */
+  function renderInvoice(stored: any, expand: string[], forCreate: boolean): any {
+    const inv = stored.latest_invoice;
+    const out: any = { id: inv.id, amount_due: inv.amount_due };
+    const secretOmitted = forCreate && h.state.createSecretMode === "never";
+    if (!secretOmitted && inv.confirmation_secret && expand.includes("latest_invoice.confirmation_secret")) {
+      out.confirmation_secret = inv.confirmation_secret;
+    }
+    if (inv.payments && expand.includes("latest_invoice.payments")) {
+      out.payments = inv.payments;
+    }
+    return out;
+  }
+  function renderSub(stored: any, expand: string[] = [], forCreate = false): any {
+    const wantsInvoice = expand.some((e) => e === "latest_invoice" || e.startsWith("latest_invoice."));
+    return {
+      id: stored.id,
+      created: stored.created,
+      status: stored.status,
+      customer: stored.customer,
+      metadata: stored.metadata,
+      items: stored.items,
+      latest_invoice: wantsInvoice ? renderInvoice(stored, expand, forCreate) : stored.latest_invoice.id,
+    };
+  }
+
   class FakeStripe {
     customers = {
       create: async (params: any, options: any) => {
@@ -72,27 +126,87 @@ vi.mock("stripe", () => {
         if (h.state.stripeBehavior === "throw") {
           throw new Error("Stripe API is unavailable (test double)");
         }
-        /* Basil-shaped invoice: the PaymentElement secret is the
-           invoice confirmation_secret; the PI hangs off the default
-           invoice payment — the exact shape the route reads. */
-        return {
-          id: "sub_new",
+        const seq = ++h.state.subSeq;
+        const stored: any = {
+          id: seq === 1 ? "sub_new" : `sub_new_${seq}`,
+          created: 1_700_000_000 + seq,
+          status: "incomplete",
+          customer: params.customer,
+          metadata: params.metadata,
+          items: { data: (params.items as any[]).map((it: any) => ({ price: { id: it.price } })) },
+          /* Basil-shaped invoice: the PaymentElement secret is the
+             invoice confirmation_secret; the PI hangs off the
+             default invoice payment — the exact shape the route
+             reads (when the fields are expanded). */
           latest_invoice: {
-            id: "in_new",
+            id: seq === 1 ? "in_new" : `in_new_${seq}`,
             amount_due: 1200,
-            confirmation_secret: { client_secret: "pi_new_secret_abc" },
+            confirmation_secret: { client_secret: seq === 1 ? "pi_new_secret_abc" : `pi_new_${seq}_secret` },
             payments: {
               data: [
-                { is_default: true, payment: { payment_intent: "pi_new" } },
+                { is_default: true, payment: { payment_intent: seq === 1 ? "pi_new" : `pi_new_${seq}` } },
               ],
             },
           },
         };
+        h.state.storedSubs.push(stored);
+        return renderSub(stored, params.expand ?? [], true);
+      },
+      list: async (params: any) => {
+        h.state.subscriptionListCalls.push(params);
+        if (h.state.listBehavior === "throw") {
+          throw new Error("Stripe list unavailable (test double)");
+        }
+        const data = h.state.storedSubs
+          .filter((s: any) => s.customer === params.customer && s.status === params.status)
+          .map((s: any) => renderSub(s));
+        return { data, has_more: false };
+      },
+      retrieve: async (id: string, params: any) => {
+        h.state.subscriptionRetrieveCalls.push({ id, params });
+        const stored = h.state.storedSubs.find((s: any) => s.id === id);
+        if (!stored) throw new Error(`No such subscription: ${id}`);
+        return renderSub(stored, params?.expand ?? []);
+      },
+      cancel: async (id: string) => {
+        h.state.subscriptionCancelCalls.push(id);
+        const stored = h.state.storedSubs.find((s: any) => s.id === id);
+        if (stored) stored.status = "canceled";
+        return { id, status: "canceled" };
       },
     };
   }
   return { default: FakeStripe };
 });
+
+/* Seed a dangling incomplete creator-tier subscription directly
+   into the fake's store (an earlier click's leftover). */
+function seedDangling(over: Record<string, any> = {}): any {
+  const stored: any = {
+    id: over["id"] ?? "sub_dangling",
+    created: over["created"] ?? 1_600_000_000,
+    status: "incomplete",
+    customer: over["customer"] ?? "cus_existing",
+    metadata: {
+      kind: "creator_tier",
+      user_id: USER,
+      profile_id: PROFILE,
+      tier: over["tier"] ?? "pro",
+    },
+    items: { data: [{ price: { id: over["priceId"] ?? "price_pro_test" } }] },
+    latest_invoice: {
+      id: over["invoiceId"] ?? "in_dangling",
+      amount_due: 1200,
+      confirmation_secret:
+        over["secret"] === null ? null : { client_secret: over["secret"] ?? "pi_dangling_secret" },
+      payments: {
+        data: [{ is_default: true, payment: { payment_intent: over["pi"] ?? "pi_dangling" } }],
+      },
+    },
+  };
+  h.state.storedSubs.push(stored);
+  return stored;
+}
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
@@ -174,8 +288,15 @@ beforeEach(() => {
   process.env["STRIPE_PRICE_TIER_ELITE"] = "price_elite_test";
   h.state.subscriptionRow = null;
   h.state.stripeBehavior = "ok";
+  h.state.listBehavior = "ok";
+  h.state.createSecretMode = "expand";
   h.state.customerCreateCalls = [];
   h.state.subscriptionCreateCalls = [];
+  h.state.subscriptionListCalls = [];
+  h.state.subscriptionRetrieveCalls = [];
+  h.state.subscriptionCancelCalls = [];
+  h.state.storedSubs = [];
+  h.state.subSeq = 0;
 });
 
 afterEach(() => {
@@ -215,14 +336,111 @@ describe("POST /embedded-checkout/subscription/intent", () => {
     expect(params.metadata).toMatchObject({ kind: "creator_tier", tier: "pro", user_id: USER, profile_id: PROFILE });
     expect(typeof options?.idempotencyKey).toBe("string");
     expect(options.idempotencyKey.length).toBeGreaterThan(0);
+    /* THE lane-S pin: confirmation_secret is expansion-gated in the
+       real API — the create MUST ask for it (and for the payments
+       the PI id is read from), or the response cannot contain the
+       secret and the route 502s after creating the subscription. */
+    expect(params.expand).toContain("latest_invoice.confirmation_secret");
+    expect(params.expand).toContain("latest_invoice.payments");
+    /* The secret came straight off the create response — no
+       fallback retrieve was needed. */
+    expect(h.state.subscriptionRetrieveCalls).toHaveLength(0);
   });
 
-  it("retry safety: a second identical attempt derives the SAME Stripe idempotency key", async () => {
+  it("recovers via retrieve when the create response still arrives without the secret (the Oct 28 failing shape)", async () => {
+    h.state.createSecretMode = "never";
+    const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+    expect(status).toBe(200);
+    expect(json.clientSecret).toBe("pi_new_secret_abc");
+    expect(json.subscriptionId).toBe("sub_new");
+    expect(h.state.subscriptionCreateCalls).toHaveLength(1);
+    expect(h.state.subscriptionRetrieveCalls.length).toBeGreaterThanOrEqual(1);
+    const retrieveExpand = h.state.subscriptionRetrieveCalls[0]!.params?.expand ?? [];
+    expect(retrieveExpand).toContain("latest_invoice.confirmation_secret");
+  });
+
+  it("repeat clicks converge: a second identical attempt ADOPTS the first attempt's subscription instead of creating a second", async () => {
+    const first = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+    const second = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.json.subscriptionId).toBe("sub_new");
+    expect(second.json.clientSecret).toBe("pi_new_secret_abc");
+    /* One create across both clicks — the second click adopted the
+       dangling incomplete subscription the first click left. */
+    expect(h.state.subscriptionCreateCalls).toHaveLength(1);
+    expect(h.state.subscriptionListCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("idempotency key stays stable when the hygiene scan fails and both attempts fall through to create", async () => {
+    h.state.listBehavior = "throw";
     await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
     await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
     expect(h.state.subscriptionCreateCalls).toHaveLength(2);
     const [first, second] = h.state.subscriptionCreateCalls;
     expect(second!.options.idempotencyKey).toBe(first!.options.idempotencyKey);
+  });
+
+  describe("dangling-subscription hygiene (existing Stripe customer)", () => {
+    function canceledRowWithCustomer() {
+      h.state.subscriptionRow = {
+        tier: "pro",
+        status: "canceled",
+        currentPeriodEnd: new Date("2026-10-26T00:00:00Z"),
+        stripeSubscriptionId: "sub_old_dead",
+        stripeCustomerId: "cus_existing",
+      };
+    }
+
+    it("adopts the member's dangling incomplete subscription for the tier — no new create, no new customer", async () => {
+      canceledRowWithCustomer();
+      seedDangling({ id: "sub_dangling" });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+      expect(status).toBe(200);
+      expect(json.subscriptionId).toBe("sub_dangling");
+      expect(json.clientSecret).toBe("pi_dangling_secret");
+      expect(json.paymentIntentId).toBe("pi_dangling");
+      expect(h.state.subscriptionCreateCalls).toHaveLength(0);
+      expect(h.state.customerCreateCalls).toHaveLength(0);
+      expect(h.state.subscriptionCancelCalls).toHaveLength(0);
+    });
+
+    it("cancels older duplicates and wrong-price leftovers, adopting the newest usable same-tier subscription", async () => {
+      canceledRowWithCustomer();
+      seedDangling({ id: "sub_old_dup", created: 1_600_000_100 });
+      seedDangling({ id: "sub_keep", created: 1_600_000_200, secret: "pi_keep_secret", pi: "pi_keep" });
+      seedDangling({ id: "sub_wrong_price", created: 1_600_000_300, priceId: "price_retired" });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+      expect(status).toBe(200);
+      expect(json.subscriptionId).toBe("sub_keep");
+      expect(json.clientSecret).toBe("pi_keep_secret");
+      expect(h.state.subscriptionCreateCalls).toHaveLength(0);
+      expect(h.state.subscriptionCancelCalls).toEqual(
+        expect.arrayContaining(["sub_wrong_price", "sub_old_dup"]),
+      );
+      expect(h.state.subscriptionCancelCalls).toHaveLength(2);
+    });
+
+    it("cancels a dangling subscription whose secret can no longer be read and creates fresh", async () => {
+      canceledRowWithCustomer();
+      seedDangling({ id: "sub_unreadable", secret: null });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+      expect(status).toBe(200);
+      expect(json.subscriptionId).toBe("sub_new");
+      expect(json.clientSecret).toBe("pi_new_secret_abc");
+      expect(h.state.subscriptionCancelCalls).toEqual(["sub_unreadable"]);
+      expect(h.state.subscriptionCreateCalls).toHaveLength(1);
+    });
+
+    it("ignores dangling subscriptions of the OTHER tier (left for their own intent) and creates fresh", async () => {
+      canceledRowWithCustomer();
+      seedDangling({ id: "sub_elite_dangling", tier: "elite", priceId: "price_elite_test" });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+      expect(status).toBe(200);
+      expect(json.subscriptionId).toBe("sub_new");
+      expect(h.state.subscriptionCreateCalls).toHaveLength(1);
+      expect(h.state.subscriptionCancelCalls).toHaveLength(0);
+    });
   });
 
   it("customer creation is idempotency-keyed per member — a retry replays the same customer instead of minting a duplicate", async () => {
