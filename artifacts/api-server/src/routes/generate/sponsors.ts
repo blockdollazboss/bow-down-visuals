@@ -8,7 +8,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
@@ -114,6 +114,21 @@ export function toDealDto(r: DealRow): DealDto {
 
 const router = Router();
 
+/* Credit-spending lockdown (CREDITS_ADMIN_ONLY env): chargeCredits throws
+   CreditsDisabledError BEFORE any deduction when this account may not spend
+   yet (not an admin, no admin grant). The routes answer it honestly in
+   plain language — the raw internal code "credits_disabled" must never be
+   the user-facing text (Gate Pass 5, Oct 28: the live form rendered that
+   raw code in its error banner because this route let the error escape to
+   the global handler, whose body leads with the code). Same shape the
+   live-tips rail uses: `error` is the sentence, `code` is the machine key. */
+export const SPONSOR_SPENDING_PAUSED_MESSAGE =
+  "Credit spending is paused on this account right now — nothing was charged.";
+
+function spendingPaused(res: { status: (c: number) => { json: (b: unknown) => void } }) {
+  res.status(403).json({ error: SPONSOR_SPENDING_PAUSED_MESSAGE, code: "CREDITS_DISABLED" });
+}
+
 function invalidBody(res: { status: (c: number) => { json: (b: unknown) => void } }, parsed: { error: z.ZodError }) {
   res.status(400).json({
     error: "Invalid request.",
@@ -158,6 +173,10 @@ router.post("/sponsors/deals", publicApiLimiter, requireAuth, async (req, res) =
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to post your deal.",
       });
+      return;
+    }
+    if (err instanceof CreditsDisabledError) {
+      spendingPaused(res);
       return;
     }
     throw err;
@@ -268,6 +287,10 @@ router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) =
       });
       return;
     }
+    if (err instanceof CreditsDisabledError) {
+      spendingPaused(res);
+      return;
+    }
     throw err;
   }
 
@@ -374,6 +397,10 @@ router.post("/sponsors/match", publicApiLimiter, requireAuth, async (req, res) =
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to find your matches.",
       });
+      return;
+    }
+    if (err instanceof CreditsDisabledError) {
+      spendingPaused(res);
       return;
     }
     throw err;
