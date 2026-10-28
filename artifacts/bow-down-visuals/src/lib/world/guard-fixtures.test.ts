@@ -12,6 +12,7 @@ import {
   fixtureHealDelayMs,
   fixtureLoadPlan,
   fixtureNormalization,
+  fixturePortraitPanelSize,
   fixtureRetryDelayMs,
   fixtureRotY,
   fixtureSway,
@@ -21,6 +22,7 @@ import {
   DEFAULT_CHARACTER_FEMALE_PATH,
   DEFAULT_CHARACTER_PATH,
   DEFAULT_FIGURE_HEIGHT,
+  KING_PORTRAIT_PATH,
 } from "./figure";
 import { COURTYARD_ID, PALACE_LAYOUT, groundHeightAt, pointInRect } from "./palace-layout";
 
@@ -149,15 +151,54 @@ describe("fixtureNormalization — the proof loader's math", () => {
   });
 });
 
-describe("fixtureFallbackFor — a post is never empty", () => {
+describe("fixtureFallbackFor — a post is never empty, and never a bare capsule by plan", () => {
   it("guards fall back to the presence figures' own mattes", () => {
     expect(fixtureFallbackFor("guard-male")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_PATH });
     expect(fixtureFallbackFor("guard-female")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH });
   });
 
-  it("the King falls back to the gold house capsule (he has no matte)", () => {
-    const fb = fixtureFallbackFor("king");
-    expect(fb.kind).toBe("capsule");
+  it("the King falls back to his portrait figure — NOT the gold capsule", () => {
+    /* Oct 27: the bare gold capsule is what the owner got for a
+     * whole session. His post's planned fallback is now his
+     * portrait on the easel, the presence system's portrait art. */
+    expect(fixtureFallbackFor("king")).toEqual({ kind: "portrait", src: KING_PORTRAIT_PATH });
+  });
+
+  it("every post in the table resolves to its body's dignified fallback", () => {
+    const byPost = new Map(WORLD_FIXTURES.map((f) => [f.id, fixtureFallbackFor(f.body)]));
+    expect(byPost.get("hall-king")).toEqual({ kind: "portrait", src: KING_PORTRAIT_PATH });
+    expect(byPost.get("hall-guard-male")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_PATH });
+    expect(byPost.get("hall-guard-female")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH });
+    expect(byPost.get("plaza-guard-male")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_PATH });
+    expect(byPost.get("plaza-guard-female")).toEqual({ kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH });
+    /* No post anywhere resolves to the capsule as its plan. */
+    for (const fb of byPost.values()) expect(fb.kind).not.toBe("capsule");
+  });
+});
+
+describe("fixturePortraitPanelSize — the easel panel fits the art, never stretches it", () => {
+  it("the King's portrait aspect (938×841) fits by height inside the box", () => {
+    const s = fixturePortraitPanelSize(938 / 841);
+    expect(s.h).toBeCloseTo(1.5, 10);
+    expect(s.w).toBeCloseTo(1.5 * (938 / 841), 10);
+    expect(s.w / s.h).toBeCloseTo(938 / 841, 10);
+  });
+
+  it("a wide aspect is width-bound; a tall aspect is height-bound", () => {
+    const wide = fixturePortraitPanelSize(3);
+    expect(wide.w).toBeCloseTo(1.7, 10);
+    expect(wide.h).toBeCloseTo(1.7 / 3, 10);
+    const tall = fixturePortraitPanelSize(0.5);
+    expect(tall.h).toBeCloseTo(1.5, 10);
+    expect(tall.w).toBeCloseTo(0.75, 10);
+  });
+
+  it("a degenerate aspect falls back to the box's own shape", () => {
+    for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const s = fixturePortraitPanelSize(bad);
+      expect(s.w).toBeCloseTo(1.7, 10);
+      expect(s.h).toBeCloseTo(1.5, 10);
+    }
   });
 });
 

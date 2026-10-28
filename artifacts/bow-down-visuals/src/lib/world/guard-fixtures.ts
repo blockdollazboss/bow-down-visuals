@@ -26,6 +26,7 @@ import {
   DEFAULT_CHARACTER_FEMALE_PATH,
   DEFAULT_CHARACTER_PATH,
   DEFAULT_FIGURE_HEIGHT,
+  KING_PORTRAIT_PATH,
 } from "./figure";
 
 export type FixtureBodyId = "guard-male" | "guard-female" | "king";
@@ -77,17 +78,26 @@ export const FIXTURE_BODIES: Readonly<Record<FixtureBodyId, FixtureBodyDef>> = {
 
 export type FixtureFallback =
   | { kind: "matte"; src: string }
+  | { kind: "portrait"; src: string }
   | { kind: "capsule"; color: number };
 
 /**
  * What stands at a post before the body lands — and forever, if the
- * body cannot load. A post is NEVER empty (the fallback law).
+ * body cannot load. A post is NEVER empty (the fallback law), and
+ * what stands there must be DIGNIFIED — a figure of the person, not
+ * a bare placeholder shape.
  *  - Guards fall back to the same approved matte the presence figures
  *    wear (figure.ts owns those paths).
  *  - The King has no matte (his portrait art carries a studio
- *    backdrop — a raw rectangle in the hall would be a lie), so he
- *    falls back to the house capsule in gold: the same stand-in the
- *    figure system itself uses while a portrait loads.
+ *    backdrop, so it cannot stand as a fake cut-out body) — but he
+ *    HAS a portrait figure: the presence system stands him on the
+ *    gold-framed easel panel (figure.ts's "portrait" kind), where
+ *    the backdrop is honest because the panel presents AS a
+ *    portrait. His post falls back to exactly that: his portrait
+ *    on the easel. A picture of the King beats a capsule — on
+ *    Oct 27 the capsule is what the owner got, for a whole session.
+ *  - The capsule remains only as the scene-level last resort, if a
+ *    post's fallback ART itself cannot load (guard-fixtures-scene).
  */
 export function fixtureFallbackFor(body: FixtureBodyId): FixtureFallback {
   switch (body) {
@@ -96,8 +106,26 @@ export function fixtureFallbackFor(body: FixtureBodyId): FixtureFallback {
     case "guard-female":
       return { kind: "matte", src: DEFAULT_CHARACTER_FEMALE_PATH };
     case "king":
-      return { kind: "capsule", color: 0xc9a227 };
+      return { kind: "portrait", src: KING_PORTRAIT_PATH };
   }
+}
+
+/** The easel panel box a portrait fallback is fitted into, metres:
+ *  the panel never exceeds these bounds, and the art's aspect is
+ *  preserved inside them (never stretched). Sized against the King
+ *  post: his 3D body stands 2.35 m; the portrait panel on its easel
+ *  (base 0.5 m, panel ≤1.5 m) tops out at 2.0 m — present, not
+ *  pretending to his full stature. */
+export const FIXTURE_PORTRAIT_MAX_W = 1.7;
+export const FIXTURE_PORTRAIT_MAX_H = 1.5;
+
+/** Fit an aspect (w/h) into the portrait panel box. A degenerate
+ *  aspect falls back to the panel's own box aspect. */
+export function fixturePortraitPanelSize(aspect: number): { w: number; h: number } {
+  const boxAspect = FIXTURE_PORTRAIT_MAX_W / FIXTURE_PORTRAIT_MAX_H;
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : boxAspect;
+  if (a >= boxAspect) return { w: FIXTURE_PORTRAIT_MAX_W, h: FIXTURE_PORTRAIT_MAX_W / a };
+  return { w: FIXTURE_PORTRAIT_MAX_H * a, h: FIXTURE_PORTRAIT_MAX_H };
 }
 
 export interface WorldFixtureDef {

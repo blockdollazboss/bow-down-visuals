@@ -32,6 +32,14 @@ export const DEFAULT_CHARACTER_PATH = "/world/default-character.png";
 /** The asset slot for the approved female palace-guard art (public/). */
 export const DEFAULT_CHARACTER_FEMALE_PATH = "/world/default-character-female.png";
 
+/** The King's own portrait art (public/): the cleaned King portrait —
+ *  his official profile art (migration 0125). When the King stands
+ *  in the hall as a presence he wears a "portrait" figure (his vault
+ *  character on the gold-framed easel panel); this is the art that
+ *  portrait carries, and it is what his fixture post falls back to
+ *  when the 3D body cannot load (guard-fixtures' fallback law). */
+export const KING_PORTRAIT_PATH = "/images/shark-king-clean-authority.png";
+
 /** Which of the two house guards a default presence stands as. */
 export type GuardVariant = "male" | "female";
 

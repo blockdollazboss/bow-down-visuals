@@ -5,7 +5,10 @@
  * Shape of the build, per fixture post:
  *   - The FALLBACK stands first, synchronously: the guard's approved
  *     matte on a plane (the presence figures' own material recipe),
- *     or the gold house capsule for the King. A post is never empty.
+ *     or the King's portrait on the gold-framed easel (the presence
+ *     system's portrait figure, never the bare capsule). A post is
+ *     never empty, and never a placeholder shape if a figure of the
+ *     person exists.
  *   - The body's GLB loads ONCE per body (three bodies total), is
  *     normalized with the proof loader's math, and a clone swaps into
  *     every post of that body. Any failure — network, parse,
@@ -37,6 +40,7 @@ import {
   fixtureFallbackFor,
   fixtureLoadPlan,
   fixtureNormalization,
+  fixturePortraitPanelSize,
   fixtureRotY,
   fixtureSway,
   type FixtureBodyDef,
@@ -131,10 +135,82 @@ function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Gro
         group.add(buildCapsule(body.height, 0xc9a227));
       },
     );
+  } else if (fallback.kind === "portrait") {
+    buildPortraitStandin(group, body.height, fallback.src);
   } else {
     group.add(buildCapsule(body.height, fallback.color));
   }
   return group;
+}
+
+/** The easel's base height — the presence portrait figure's own
+ *  (hall-scene PORTRAIT_BASE_Y): the panel's bottom edge. */
+const FIXTURE_PORTRAIT_BASE_Y = 0.5;
+
+/**
+ * The King's dignified fallback: his portrait on the gold-framed
+ * easel — the presence system's portrait-figure recipe (hall-scene
+ * buildPortraitFigure): a gold frame box, the portrait plane proud
+ * of its front face, an easel post to the floor. The panel is sized
+ * from the art's aspect inside the fixture panel box, corrected
+ * when the texture lands, so the portrait is never stretched. If
+ * the portrait art itself cannot load, the gold capsule stands as
+ * the last resort — a post is never empty — but the capsule is no
+ * longer any post's PLANNED face.
+ */
+function buildPortraitStandin(group: THREE.Group, bodyHeight: number, src: string): void {
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xd4af37,
+    emissive: 0x8a6a1c,
+    emissiveIntensity: 0.35,
+    roughness: 0.3,
+    metalness: 0.9,
+  });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.05), goldMat);
+  const panelMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05 });
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), panelMat);
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.05, FIXTURE_PORTRAIT_BASE_Y - 0.02, 10),
+    goldMat,
+  );
+  post.position.y = (FIXTURE_PORTRAIT_BASE_Y - 0.02) / 2 + 0.02;
+  const layout = (size: { w: number; h: number }) => {
+    const centerY = FIXTURE_PORTRAIT_BASE_Y + size.h / 2;
+    frame.geometry.dispose();
+    frame.geometry = new THREE.BoxGeometry(size.w + 0.1, size.h + 0.1, 0.05);
+    frame.position.set(0, centerY, 0);
+    panel.geometry.dispose();
+    panel.geometry = new THREE.PlaneGeometry(size.w, size.h);
+    panel.position.set(0, centerY, 0.028);
+  };
+  /* Provisional layout from the King portrait's known aspect
+   * (938×841); the load callback re-fits from the real pixels. */
+  layout(fixturePortraitPanelSize(938 / 841));
+  group.add(frame);
+  group.add(panel);
+  group.add(post);
+  new THREE.TextureLoader().load(
+    mediaUrl(src),
+    (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      const img = tex.image as { width?: number; height?: number } | undefined;
+      if (img?.width && img?.height) {
+        layout(fixturePortraitPanelSize(img.width / img.height));
+      }
+      panelMat.map = tex;
+      panelMat.needsUpdate = true;
+    },
+    undefined,
+    () => {
+      /* Portrait art failed too: the gold capsule stands instead —
+       * the last resort, never the plan. */
+      frame.visible = false;
+      panel.visible = false;
+      post.visible = false;
+      group.add(buildCapsule(bodyHeight, 0xc9a227));
+    },
+  );
 }
 
 function buildCapsule(height: number, color: number): THREE.Mesh {
