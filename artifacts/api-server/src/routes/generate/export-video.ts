@@ -3820,6 +3820,26 @@ router.post("/export-video-job/:jobId/cancel", requireAuth, async (req, res) => 
 });
 
 /**
+ * Prepare sessions live only in the memory of the process that created
+ * them (lib/prepared-exports keeps an in-memory registry), so a job
+ * recovered after a restart can NEVER resolve its persisted prepareId —
+ * the registry it points into died with the previous process. Feeding
+ * the id to the re-run walks it straight into executeExport's
+ * PREPARE_STALE hard stop, which fires only when an id is supplied
+ * (gate re-run #3: two branded jobs died exactly this way after
+ * mid-render restarts). Dropping the id lets the same re-run take the
+ * live-download path over the persisted clip URLs and actually finish.
+ * Every other param is carried over untouched, and the caller's params
+ * object (the persisted job row's copy) is never mutated.
+ */
+export function dropPrepareIdForRecovery(params: ExportRequestBody): ExportRequestBody {
+  if (params == null || typeof params !== "object" || !("prepareId" in params)) return params;
+  const copy = { ...params };
+  delete copy.prepareId;
+  return copy;
+}
+
+/**
  * Boot recovery: re-queue export jobs orphaned by a previous process.
  * Called once from index.ts after the server starts listening. Each
  * recovered job re-runs from scratch with its persisted request params;
@@ -3842,7 +3862,7 @@ export async function recoverInterruptedExportJobs(): Promise<void> {
       /* keep "free" — watermark gating fails closed */
     }
     const ctx: ExportJobContext = {
-      body: (job.params ?? {}) as ExportRequestBody,
+      body: dropPrepareIdForRecovery((job.params ?? {}) as ExportRequestBody),
       userId: job.userId,
       userPlan: plan,
       userSupabase: admin,
