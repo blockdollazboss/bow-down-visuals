@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
    Money rule: posting a deal is 5 credits (a business listing that can
    close real money). Charged BEFORE the save, auto-refunded on failure. */
 
-const POST_COST = 5;
+const POST_COST = 500;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
