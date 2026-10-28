@@ -112,6 +112,8 @@ import {
 
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { balanceComposition } from "@/lib/balance";
+import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { STAR_RANKS, STAR_TAGLINES } from "@/lib/creator-level";
@@ -477,6 +479,20 @@ export function AppSidebar() {
 
   const footerLinks = FOOTER_LINKS.filter((l) => !l.adminOnly || isAdmin);
 
+  /* Lane V-bucs: the sidebar keeps the single spendable total, but while
+     part of it is temporary the footer names that part + its expiry, and
+     the history row's tooltip carries the full permanent/temporary split. */
+  const balanceComp = profile
+    ? (profile.balance_composition ?? balanceComposition(profile))
+    : null;
+  const breakdownTitle =
+    balanceComp && balanceComp.temporaryCredits > 0
+      ? t("balance.breakdown_summary", {
+          permanent: balanceComp.permanentCredits.toLocaleString("en-US"),
+          temporary: balanceComp.temporaryCredits.toLocaleString("en-US"),
+        })
+      : undefined;
+
   /* Sidebar docking — drag the header to dock to any of 4 edges.
      Docking only changes the DESKTOP layout. The mobile drawer (<Sidebar>
      below) is always mounted — otherwise docking top/bottom unmounts the
@@ -588,7 +604,7 @@ export function AppSidebar() {
                     isActive={location === link.href}
                     className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
                   >
-                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2" data-tour={link.tour}>
+                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2" data-tour={link.tour} title={link.href === "/credit-history" ? breakdownTitle : undefined}>
                       <link.icon className="h-5 w-5" />
                       <span className="font-medium">{t(link.labelKey)}</span>
                       {link.href === "/credit-history" && profile && (
@@ -635,6 +651,14 @@ export function AppSidebar() {
                 {profile.credits.toLocaleString("en-US")} left
               </Badge>
             </Link>
+            {balanceComp && balanceComp.temporaryCredits > 0 && (
+              <Link
+                href="/credit-history"
+                className="block px-1 text-[11px] font-medium leading-snug text-primary/90 hover:underline"
+              >
+                <TemporaryBucsNote composition={balanceComp} mode="label" />
+              </Link>
+            )}
             {/* Dev-only quick credits — lived in the old toolbar. */}
             {IS_DEV && (
               <Button

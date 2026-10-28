@@ -3,6 +3,8 @@ import { X, AlertTriangle } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { balanceComposition } from "@/lib/balance";
+import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 
 interface ConfirmRequest {
   cost: number;
@@ -39,6 +41,12 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
 
   const balance = profile?.credits ?? 0;
   const affordable = request ? balance >= request.cost : true;
+  /* Lane V-bucs: while part of the balance is temporary, the dialog says
+     so under the balance line — bonus Bucs are spent first, so the
+     spender sees expiring money being used before it is gone. */
+  const composition = profile
+    ? (profile.balance_composition ?? balanceComposition(profile))
+    : null;
 
   return (
     <CreditConfirmContext.Provider value={{ confirmSpend }}>
@@ -87,6 +95,11 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
                 <span className="text-white/50">Your balance</span>
                 <span className="font-bold text-white">{balance.toLocaleString("en-US")} Visual Bucs</span>
               </div>
+              {composition && composition.temporaryCredits > 0 && (
+                <p className="text-[11px] leading-snug text-amber-300/90">
+                  <TemporaryBucsNote composition={composition} mode="includes" />
+                </p>
+              )}
               <div className="flex justify-between text-sm border-t border-white/10 pt-2">
                 <span className="text-white/50">After</span>
                 <span className={`font-bold ${affordable ? "text-white" : "text-red-400"}`}>

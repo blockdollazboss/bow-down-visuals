@@ -44,6 +44,111 @@ export function spendableBalance(
   return credits + bonus;
 }
 
+/** One live temporary (bonus) grant segment in a balance composition. */
+export interface TemporaryCreditGrant {
+  amount: number;
+  /** ISO expiry, or null when this temporary segment has no expiry. */
+  expiresAt: string | null;
+}
+
+/**
+ * The composition behind the one spendable total (Stack500 Lane V-bucs,
+ * owner ruling Oct 28 2026): permanent Visual Bucs stay separate from
+ * temporary Visual Bucs, and the temporary side names when it goes away.
+ * This is a DISPLAY/read model only — it never changes charge or spend
+ * behaviour; deductions still draw the bonus pool first.
+ */
+export interface CreditBalanceComposition {
+  /** Permanent + live temporary — identical to spendableBalance(). */
+  total: number;
+  permanentCredits: number;
+  /** Sum of the live temporary grants only; expired grants never count. */
+  temporaryCredits: number;
+  /** Live temporary grants, soonest dated expiry first. */
+  temporaryGrants: TemporaryCreditGrant[];
+  /** The soonest dated temporary expiry and the amount expiring then. */
+  soonestTemporaryExpiry: TemporaryCreditGrant | null;
+}
+
+function finiteAmount(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * Compose a balance from permanent credits plus any number of temporary
+ * grant segments. A grant is live under the same rule spendableBalance
+ * has always used: an expiry strictly before `now` is expired, while a
+ * missing or unparseable expiry does not expire the segment.
+ */
+export function composeCreditBalance(
+  permanentCredits: number | null | undefined,
+  temporaryGrants: readonly TemporaryCreditGrant[],
+  now: number = Date.now(),
+): CreditBalanceComposition {
+  const permanent = finiteAmount(permanentCredits);
+  const live: Array<TemporaryCreditGrant & { expiryMs: number | null }> = [];
+
+  for (const grant of temporaryGrants) {
+    const amount = finiteAmount(grant?.amount);
+    if (amount <= 0) continue;
+    const parsedExpiry =
+      grant.expiresAt == null ? Number.NaN : new Date(grant.expiresAt).getTime();
+    const hasValidExpiry = Number.isFinite(parsedExpiry);
+    if (hasValidExpiry && parsedExpiry < now) continue;
+    live.push({
+      amount,
+      expiresAt: hasValidExpiry ? new Date(parsedExpiry).toISOString() : null,
+      expiryMs: hasValidExpiry ? parsedExpiry : null,
+    });
+  }
+
+  live.sort((a, b) => {
+    if (a.expiryMs == null && b.expiryMs == null) return 0;
+    if (a.expiryMs == null) return 1;
+    if (b.expiryMs == null) return -1;
+    return a.expiryMs - b.expiryMs;
+  });
+
+  const grants = live.map(({ amount, expiresAt }) => ({ amount, expiresAt }));
+  const temporaryCredits = grants.reduce((sum, grant) => sum + grant.amount, 0);
+  const soonest = grants.find((grant) => grant.expiresAt != null) ?? null;
+
+  return {
+    total: permanent + temporaryCredits,
+    permanentCredits: permanent,
+    temporaryCredits,
+    temporaryGrants: grants,
+    soonestTemporaryExpiry: soonest ? { ...soonest } : null,
+  };
+}
+
+/**
+ * Compose the balance for a profiles row. The production bonus store is
+ * ONE aggregate pool (`bonus_credits` + `bonus_credits_expires_at`):
+ * a new grant refreshes the whole pool's expiry, and the row retains no
+ * per-grant expiry history. The truthful composition is therefore the
+ * permanent credits plus that pool as a single temporary segment — this
+ * adapter never invents grant segments the profile does not store.
+ */
+export function creditBalanceComposition(
+  profile: {
+    credits?: number | null;
+    bonus_credits?: number | null;
+    bonus_credits_expires_at?: string | null;
+  } | null,
+  now: number = Date.now(),
+): CreditBalanceComposition {
+  if (!profile) return composeCreditBalance(0, [], now);
+  const bonus = finiteAmount(profile.bonus_credits);
+  return composeCreditBalance(
+    profile.credits,
+    bonus > 0
+      ? [{ amount: bonus, expiresAt: profile.bonus_credits_expires_at ?? null }]
+      : [],
+    now,
+  );
+}
+
 export class OutOfCreditsError extends Error {
   readonly status = 402;
   constructor() {
@@ -313,20 +418,24 @@ async function readTeamPoolBalance(teamId: string): Promise<number | null> {
  * stamps the same profiles.credits value onto the request); the
  * Cloud Operator's balance tool calls it through getCreditBalance.
  */
-async function readPersonalBalance(userId: string): Promise<number> {
+type PersonalBalanceProfile = {
+  credits?: number;
+  bonus_credits?: number;
+  bonus_credits_expires_at?: string | null;
+} | null;
+
+async function readPersonalBalanceProfile(userId: string): Promise<PersonalBalanceProfile> {
   const admin = getSupabaseAdmin();
   const { data } = await admin
     .from("profiles")
     .select("credits, bonus_credits, bonus_credits_expires_at")
     .eq("id", userId)
     .single();
-  return spendableBalance(
-    data as {
-      credits?: number;
-      bonus_credits?: number;
-      bonus_credits_expires_at?: string | null;
-    } | null,
-  );
+  return data as PersonalBalanceProfile;
+}
+
+async function readPersonalBalance(userId: string): Promise<number> {
+  return spendableBalance(await readPersonalBalanceProfile(userId));
 }
 
 /** Public balance read for rails that answer "how many Visual Bucs do
@@ -334,6 +443,19 @@ async function readPersonalBalance(userId: string): Promise<number> {
  *  source — never a second balance implementation. */
 export async function getCreditBalance(userId: string): Promise<number> {
   return readPersonalBalance(userId);
+}
+
+/**
+ * The same fresh profile read as getCreditBalance, shaped as the
+ * permanent/temporary composition the balance surfaces display. Its
+ * `total` is the getCreditBalance number; nothing here charges or
+ * spends — it only names what the total is made of and when the
+ * temporary part expires.
+ */
+export async function getCreditBalanceComposition(
+  userId: string,
+): Promise<CreditBalanceComposition> {
+  return creditBalanceComposition(await readPersonalBalanceProfile(userId));
 }
 
 /**

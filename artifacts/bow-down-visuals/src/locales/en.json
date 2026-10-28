@@ -3097,6 +3097,24 @@
     "metaDescription": "View your Visual Bucs balance and transaction history.",
     "could_not_load_visual_buc_histor": "Could not load Visual Buc history."
   },
+  "balance": {
+    "permanent_label": "Permanent",
+    "temporary_label": "Temporary",
+    "permanent_amount": "Permanent: {{amount}}",
+    "temporary_amount": "Temporary: {{amount}}",
+    "temporary_expires_day": "{{amount}} expire {{date}} (in 1 day)",
+    "temporary_expires_days": "{{amount}} expire {{date}} (in {{days}} days)",
+    "temporary_expires_today": "{{amount}} expire today, {{date}}",
+    "temporary_more_grant": "+ {{count}} more temporary grant ({{amount}})",
+    "temporary_more_grants": "+ {{count}} more temporary grants ({{amount}})",
+    "temporary_no_expiry": "No expiry date on record",
+    "temporary_spent_first": "Temporary Bucs are spent first — use them before they're gone.",
+    "includes_temporary_day": "Includes {{amount}} temporary Bucs — expires {{date}} (in 1 day)",
+    "includes_temporary_days": "Includes {{amount}} temporary Bucs — expires {{date}} (in {{days}} days)",
+    "includes_temporary_today": "Includes {{amount}} temporary Bucs — expires today, {{date}}",
+    "includes_temporary_no_expiry": "Includes {{amount}} temporary Bucs",
+    "breakdown_summary": "Permanent: {{permanent}} · Temporary: {{temporary}}"
+  },
   "cursor-lab": {
     "cursor_style": "Cursor Style",
     "pick_your_cursor_it_s_saved_and": "Pick your cursor. It's saved and follows you across the whole site.",

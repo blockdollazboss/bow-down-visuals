@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Briefcase, Crown, Flame, ListChecks, MailOpen, Play, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { balanceComposition } from "@/lib/balance";
+import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import {
   NativeBoard,
   NativeBoardRow,
@@ -308,6 +310,15 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
             {balance === null ? "—" : balance.toLocaleString("en-US")}{" "}
             <span className="text-[#d4af37]">Visual Bucs</span>
           </span>
+          {/* Lane V-bucs: the total stays single in-world too, but a
+              temporary part is named with its expiry under it. */}
+          {profile && (
+            <TemporaryBucsNote
+              composition={profile.balance_composition ?? balanceComposition(profile)}
+              mode="label"
+              className={`text-xs font-bold ${isLight ? "text-[#8a6d1f]" : "text-amber-300/90"}`}
+            />
+          )}
           {strip && (
             <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
               <Flame className="h-3.5 w-3.5 text-[#d4af37]" />
