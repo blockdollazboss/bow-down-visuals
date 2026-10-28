@@ -10,7 +10,7 @@ import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, refreshSupabaseStorageUrl, VIDEO_EXPORTS_BUCKET } from "../../lib/objectStorage";
 import { recordCreditUsageStrict } from "../../lib/payment-record";
-import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
+import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport, rehydratePreparedExports } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { OutOfCreditsError, refundCredits } from "../../lib/credits";
@@ -3848,6 +3848,18 @@ export function dropPrepareIdForRecovery(params: ExportRequestBody): ExportReque
  * client — ownership was verified when the job was created.
  */
 export async function recoverInterruptedExportJobs(): Promise<void> {
+  // Rebuild the prepared-export registry from the on-disk session seeds
+  // before re-driving any job: prepare sessions whose files survived the
+  // restart become usable again for fresh exports in this process.
+  // Best-effort — job recovery must proceed even if a seed is unreadable.
+  try {
+    const restored = rehydratePreparedExports();
+    if (restored > 0) {
+      logger.info({ restored }, "[export] rehydrated prepared-export sessions from disk");
+    }
+  } catch (err) {
+    logger.warn({ err }, "[export] prepared-export rehydration failed; continuing without it");
+  }
   await recoverInterruptedJobs(async (job) => {
     const admin = getSupabaseAdmin();
     let plan = "free";
