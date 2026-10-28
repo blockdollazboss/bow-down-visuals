@@ -515,6 +515,10 @@ export function describeJobProgress(job: Pick<ExportJob, "state" | "stage" | "up
       : 25;
   } else if (stage === "downloading clips") {
     progress = 8;
+  } else if (stage === "fetching audio") {
+    progress = 58;
+  } else if (stage === "building render") {
+    progress = 60;
   } else {
     progress = 3;
   }
@@ -535,6 +539,10 @@ function humanizeStage(stage: string): string {
       return "Starting render…";
     case "downloading clips":
       return "Downloading clips…";
+    case "fetching audio":
+      return "Fetching the song…";
+    case "building render":
+      return "Building the render…";
     case "combining":
       return "Stitching video with FFmpeg…";
     case "completed":

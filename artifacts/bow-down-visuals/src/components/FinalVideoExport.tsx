@@ -195,8 +195,10 @@ interface FinalVideoExportProps {
   /** How source clips fill the target canvas: "fill" (crop), "fit" (letterbox), "blur" (blurred bg).
    *  Defaults to "fill" when omitted. Forwarded to the server for FFmpeg normalization. */
   fitMode?: string | null;
-  /** True when the viewer is a monthly subscriber (may remove the watermark).
-   *  Drives the Quality panel's watermark toggle; defaults to locked-on. */
+  /** True when the viewer is a monthly subscriber. Feeds only the
+   *  pricing mirror's legacy default for flag-less requests — the
+   *  Quality panel's watermark toggle itself is open to every plan
+   *  (stack400 lane 3; clean = 400 VB, A-02). */
   isSubscriber?: boolean;
 }
 
@@ -2060,39 +2062,34 @@ function QualityPanel({
             </div>
           </div>
 
-          {/* Watermark toggle */}
+          {/* Watermark toggle — the export-time decision on every plan
+              (stack400 lane 3): ON = branded + free (A-01); OFF = clean
+              at the ruled 400 VB, reserved at render start (A-02/A-07).
+              It was locked to subscribers, which made the clean price
+              unreachable from this panel too. */}
           <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold text-white/75">{t("proFinishing.watermarkTitle")}</p>
                 <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">
-                  {isSubscriber
-                    ? t("proFinishing.watermarkSubscriber")
-                    : t("proFinishing.watermarkFree")}
+                  {qWatermark
+                    ? t("proFinishing.watermarkOnPrice", { defaultValue: "On: your video carries the Bow Down Visuals watermark — this export is free." })
+                    : t("proFinishing.watermarkOffPrice", { defaultValue: "Off: clean export — 400 Visual Bucs, reserved when the render starts." })}
                 </p>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={qWatermark}
-                disabled={!isSubscriber}
-                onClick={() => isSubscriber && setQWatermark(!qWatermark)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                onClick={() => setQWatermark(!qWatermark)}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors cursor-pointer ${
                   qWatermark ? "bg-primary" : "bg-white/15"
-                } ${isSubscriber ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                }`}
                 data-testid="quality-watermark-toggle"
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${qWatermark ? "left-[22px]" : "left-0.5"}`} />
               </button>
             </div>
-            {!isSubscriber && (
-              <p className="text-[10px] text-white/40 mt-1.5">
-                {t("proFinishing.watermarkUpsell")}{" "}
-                <a href="/video-editor?tab=upscale&sub=enhance" className="text-primary font-bold hover:underline">
-                  {t("proFinishing.watermarkUpsellLink")}
-                </a>
-              </p>
-            )}
           </div>
 
           {/* Estimate */}

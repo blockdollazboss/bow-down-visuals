@@ -264,15 +264,18 @@ export function ExportSection({
   const { getAccessToken, profile } = useAuth();
   const isLight = useIsLightTheme();
 
-  /* ── Watermark gate: only monthly subscribers can remove it.
-     Free users always export with the watermark.
-     Any plan that isn't explicitly free/trial counts as a subscriber —
-     this stays correct no matter what plan names the backend uses. ── */
+  /* ── Watermark decision (stack400 lane 3): the toggle below is the
+     ONE export-time decision, on every plan — ON = branded export,
+     free (A-01); OFF = clean export, 400 Visual Bucs reserved when the
+     render starts (A-02/A-07). The old plan gate forced the watermark
+     on for free/trial users here, in the price mirror, and on the
+     server, so a clean export could never be priced or produced.
+     isSubscriber is still derived for the FinalVideoExport prop (the
+     pricing mirror uses it only for requests that omit the flag). ── */
   const FREE_PLANS = ["", "free", "trial", "none", "null"];
   const planValue = (profile?.plan ?? "").toLowerCase().trim();
   const isSubscriber = !FREE_PLANS.includes(planValue);
-  // Non-subscribers: watermark is forced on. Subscribers: respect their toggle.
-  const effectiveWatermark = isSubscriber ? settings.export.watermark : true;
+  const effectiveWatermark = settings.export.watermark;
 
   const [wmUploading, setWmUploading] = useState(false);
   const [wmError, setWmError] = useState<string | null>(null);
@@ -714,7 +717,7 @@ export function ExportSection({
         </div>
       </EditorCard>
 
-      {/* ── Export Options: Watermark — always visible so subscribers can find the toggle.
+      {/* ── Export Options: Watermark — always visible so anyone can find the toggle.
            Simple 123: no hunting through modes for a paid feature. ── */}
       <EditorCard
         title="Watermark"
@@ -722,19 +725,19 @@ export function ExportSection({
         icon={<ImageIcon className="h-4 w-4" />}
       >
         <div className="space-y-4">
-          {/* Toggle — subscribers only can remove the watermark */}
+          {/* Toggle — the export-time watermark decision, every plan:
+              ON = branded + free; OFF = clean at the ruled 400 VB. */}
           <Chip
             active={effectiveWatermark}
-            onClick={() => isSubscriber && setExport({ watermark: !settings.export.watermark })}
+            onClick={() => setExport({ watermark: !settings.export.watermark })}
           >
             Add watermark to video
           </Chip>
-          {!isSubscriber && (
-            <p className="text-[11px] text-white/40 leading-relaxed">
-              Watermark removal is for monthly subscribers.{" "}
-              <a href="/pricing" className="text-primary font-bold hover:underline">Upgrade to remove it →</a>
-            </p>
-          )}
+          <p className="text-[11px] text-white/40 leading-relaxed">
+            {effectiveWatermark
+              ? "Branded export — free (0 Visual Bucs)."
+              : "Clean export — 400 Visual Bucs, reserved when the render starts and released in full if the export fails or is cancelled."}
+          </p>
 
           {settings.export.watermark && (
             <div className="space-y-3">
