@@ -2777,6 +2777,18 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     const tIdx = passABase.indexOf("-threads");
     if (tIdx >= 0 && tIdx + 1 < passABase.length) passABase[tIdx + 1] = "1";
     const passAArgs: string[] = [
+      // Bound the filter graph itself (stack600 rung 4): the decoder (above)
+      // and the encoder (below) are already single-threaded, but the
+      // -filter_complex graph defaulted to one thread per host core, and
+      // every graph thread queues its own 1080x1920 frame buffers through
+      // the effects chain — the last uncapped memory multiplier in this
+      // spawn. Gate re-run #3's four deaths all landed exactly here: calm
+      // Node heap (~0.33 ratio), no ffmpeg stderr or exit code, the whole
+      // container gone at "pass A starting" — Node's ~280MB baseline plus
+      // this spike over the 512MB container line. Serial filtering costs
+      // time, not quality: the graph, CRF, preset, and bitrate budget are
+      // all untouched.
+      "-filter_complex_threads", "1",
       ...passABase, // inputs + "-filter_complex" + graph (indices preserved)
       "-map", `[${voutLabel}]`,
       ...(isWaveformPath ? ["-map", `[${audioOutputFcLabel}]`] : []),
