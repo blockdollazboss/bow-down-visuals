@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   FIXTURE_BODIES,
+  FIXTURE_HEAL_VISIBILITY_RECHECK_MS,
+  FixtureHealLoop,
   HALL_STAGE_TOP_Y,
   KING_FIXTURE_HEIGHT,
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
   fixtureFallbackFor,
+  fixtureHealDelayMs,
   fixtureLoadPlan,
   fixtureNormalization,
   fixtureRetryDelayMs,
@@ -262,5 +265,156 @@ describe("attemptLoadPlan — the retry walk itself", () => {
         throw new Error(`fail-${n}`);
       }, noSleep),
     ).rejects.toThrow("fail-2");
+  });
+});
+
+describe("fixtureHealDelayMs — the slow ring's cadence", () => {
+  it("ramps 1m → 3m → 10m, then holds a 15-minute cadence", () => {
+    expect(fixtureHealDelayMs(0)).toBe(60_000);
+    expect(fixtureHealDelayMs(1)).toBe(180_000);
+    expect(fixtureHealDelayMs(2)).toBe(600_000);
+    expect(fixtureHealDelayMs(3)).toBe(900_000);
+    expect(fixtureHealDelayMs(99)).toBe(900_000);
+  });
+
+  it("caps the steady state at four attempts per hour", () => {
+    expect(3_600_000 / fixtureHealDelayMs(3)).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("FixtureHealLoop — a failed load is not final for the session", () => {
+  interface Armed {
+    fn: () => void;
+    ms: number;
+  }
+  function manualClock() {
+    const armed: Armed[] = [];
+    return {
+      armed,
+      setTimer: (fn: () => void, ms: number) => {
+        const t: Armed = { fn, ms };
+        armed.push(t);
+        return t;
+      },
+      clearTimer: (h: unknown) => {
+        const i = armed.indexOf(h as Armed);
+        if (i >= 0) armed.splice(i, 1);
+      },
+      fireNext: () => {
+        const t = armed.shift();
+        if (!t) throw new Error("no timer armed");
+        t.fn();
+        return t.ms;
+      },
+    };
+  }
+  const flush = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  it("keeps retrying on the ramp until the body lands, then stops and reports the heal", async () => {
+    const clock = manualClock();
+    let calls = 0;
+    let healed = 0;
+    const loop = new FixtureHealLoop({
+      attempt: async () => {
+        calls += 1;
+        return calls >= 3;
+      },
+      isVisible: () => true,
+      setTimer: clock.setTimer,
+      clearTimer: clock.clearTimer,
+      onHealed: () => {
+        healed += 1;
+      },
+    });
+    loop.start();
+    expect(clock.armed.map((t) => t.ms)).toEqual([60_000]);
+    expect(clock.fireNext()).toBe(60_000);
+    await flush();
+    expect(clock.armed.map((t) => t.ms)).toEqual([180_000]);
+    expect(clock.fireNext()).toBe(180_000);
+    await flush();
+    expect(clock.armed.map((t) => t.ms)).toEqual([600_000]);
+    expect(clock.fireNext()).toBe(600_000);
+    await flush();
+    expect(calls).toBe(3);
+    expect(loop.attemptCount).toBe(3);
+    expect(healed).toBe(1);
+    expect(loop.isStopped).toBe(true);
+    expect(clock.armed).toHaveLength(0);
+  });
+
+  it("never attempts while the tab is hidden — a re-check is not an attempt", async () => {
+    const clock = manualClock();
+    let visible = false;
+    let calls = 0;
+    const loop = new FixtureHealLoop({
+      attempt: async () => {
+        calls += 1;
+        return false;
+      },
+      isVisible: () => visible,
+      setTimer: clock.setTimer,
+      clearTimer: clock.clearTimer,
+    });
+    loop.start();
+    expect(clock.fireNext()).toBe(60_000);
+    expect(calls).toBe(0);
+    expect(loop.attemptCount).toBe(0);
+    expect(clock.armed.map((t) => t.ms)).toEqual([FIXTURE_HEAL_VISIBILITY_RECHECK_MS]);
+    visible = true;
+    expect(clock.fireNext()).toBe(FIXTURE_HEAL_VISIBILITY_RECHECK_MS);
+    await flush();
+    expect(calls).toBe(1);
+    expect(loop.attemptCount).toBe(1);
+    /* The failed visible attempt re-arms on the ramp's NEXT step —
+     * the hidden re-checks in between spent nothing. */
+    expect(clock.armed.map((t) => t.ms)).toEqual([180_000]);
+    loop.stop();
+  });
+
+  it("stop() disarms the ring for good", async () => {
+    const clock = manualClock();
+    let calls = 0;
+    const loop = new FixtureHealLoop({
+      attempt: async () => {
+        calls += 1;
+        return false;
+      },
+      isVisible: () => true,
+      setTimer: clock.setTimer,
+      clearTimer: clock.clearTimer,
+    });
+    loop.start();
+    loop.stop();
+    expect(clock.armed).toHaveLength(0);
+    expect(loop.isStopped).toBe(true);
+    await flush();
+    expect(calls).toBe(0);
+  });
+
+  it("a rejecting attempt counts as a failed attempt, not a dead loop", async () => {
+    const clock = manualClock();
+    let calls = 0;
+    const loop = new FixtureHealLoop({
+      attempt: async () => {
+        calls += 1;
+        if (calls === 1) throw new Error("contract violation");
+        return true;
+      },
+      isVisible: () => true,
+      setTimer: clock.setTimer,
+      clearTimer: clock.clearTimer,
+    });
+    loop.start();
+    clock.fireNext();
+    await flush();
+    expect(clock.armed.map((t) => t.ms)).toEqual([180_000]);
+    clock.fireNext();
+    await flush();
+    expect(loop.isStopped).toBe(true);
+    expect(loop.attemptCount).toBe(2);
   });
 });

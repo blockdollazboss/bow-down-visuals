@@ -11,6 +11,11 @@
  *     every post of that body. Any failure — network, parse,
  *     degenerate bounds — leaves the fallback standing and reports
  *     through onError; nothing here can throw into the scene.
+ *   - A failed load is NOT final: when the fast retry plan runs out,
+ *     the heal loop (guard-fixtures FixtureHealLoop) keeps re-walking
+ *     the plan on a slow ring — minutes apart, visible tab only — so
+ *     a transient failure swaps the real body in mid-session without
+ *     a reload, and onRecovered fires so the failure record clears.
  *   - Static bodies: no skinning, no per-frame work beyond a whisper
  *     of sway (guard-fixtures.fixtureSway). The two posts of one body
  *     share geometry/materials through the clone.
@@ -25,6 +30,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mediaUrl } from "../media-cdn";
 import {
   FIXTURE_BODIES,
+  FixtureHealLoop,
   WORLD_FIXTURES,
   attemptLoadPlan,
   bodyTexturesLanded,
@@ -33,6 +39,7 @@ import {
   fixtureNormalization,
   fixtureRotY,
   fixtureSway,
+  type FixtureBodyDef,
   type FixtureBodyId,
   type WorldFixtureDef,
 } from "./guard-fixtures";
@@ -167,6 +174,9 @@ function normalizeBody(scene: THREE.Object3D, targetHeight: number): THREE.Group
 
 export function buildWorldFixtures(opts?: {
   onError?: (body: FixtureBodyId, err: unknown) => void;
+  /** A body whose fast plan failed later landed via the heal loop —
+   *  the caller clears its recorded failure. */
+  onRecovered?: (body: FixtureBodyId) => void;
 }): WorldFixtures {
   const hall = new THREE.Group();
   hall.name = "world-fixtures-hall";
@@ -249,26 +259,56 @@ export function buildWorldFixtures(opts?: {
       new Promise((resolve) => setTimeout(resolve, ms)),
     );
   };
+  /* One full load for a body — the bounded plan, normalization, and
+   * the clone swap into every post of that body — shared by the fast
+   * path and the heal loop. Resolves, never rejects. */
+  let disposed = false;
+  const healLoops = new Map<FixtureBodyId, FixtureHealLoop>();
+  const tryLoadBody = async (
+    bodyDef: FixtureBodyDef,
+  ): Promise<{ ok: true } | { ok: false; err: unknown }> => {
+    try {
+      const gltf = await loadBody(bodyDef.glbPath);
+      const template = normalizeBody(gltf.scene, bodyDef.height);
+      if (!template) throw new Error(`degenerate bounds in ${bodyDef.glbPath}`);
+      for (const slot of slots) {
+        if (slot.def.body !== bodyDef.id) continue;
+        const bodyGroup = template.clone(true);
+        bodyGroup.name = `fixture-body-${slot.def.id}`;
+        slot.group.add(bodyGroup);
+        /* The standin stays in the group, hidden — never an empty
+         * post, and no shared-texture dispose hazards. */
+        slot.standin.visible = false;
+        slot.live = true;
+      }
+      liveBodies.add(bodyDef.id);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, err };
+    }
+  };
   for (const bodyDef of Object.values(FIXTURE_BODIES)) {
-    loadBody(bodyDef.glbPath)
-      .then((gltf) => {
-        const template = normalizeBody(gltf.scene, bodyDef.height);
-        if (!template) throw new Error(`degenerate bounds in ${bodyDef.glbPath}`);
-        for (const slot of slots) {
-          if (slot.def.body !== bodyDef.id) continue;
-          const bodyGroup = template.clone(true);
-          bodyGroup.name = `fixture-body-${slot.def.id}`;
-          slot.group.add(bodyGroup);
-          /* The standin stays in the group, hidden — never an empty
-           * post, and no shared-texture dispose hazards. */
-          slot.standin.visible = false;
-          slot.live = true;
-        }
-        liveBodies.add(bodyDef.id);
-      })
-      .catch((err: unknown) => {
-        opts?.onError?.(bodyDef.id, err);
+    void tryLoadBody(bodyDef).then((res) => {
+      if (res.ok || disposed) return;
+      /* The fast plan ran out. Report it once through onError — and
+       * do not let it be final for the session: the heal loop keeps
+       * re-walking the plan on the slow ring (minutes apart, visible
+       * tab only) until the body lands or the scene is disposed.
+       * Before the ring, this rejection was the end — the stand-in
+       * held the post until re-entry, and on Oct 27 the King stood
+       * as a gold capsule for the owner's whole session. */
+      opts?.onError?.(bodyDef.id, res.err);
+      const loop = new FixtureHealLoop({
+        attempt: async () => (await tryLoadBody(bodyDef)).ok,
+        isVisible: () =>
+          typeof document === "undefined" || document.visibilityState !== "hidden",
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+        clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        onHealed: () => opts?.onRecovered?.(bodyDef.id),
       });
+      healLoops.set(bodyDef.id, loop);
+      loop.start();
+    });
   }
 
   return {
@@ -295,6 +335,9 @@ export function buildWorldFixtures(opts?: {
       }
     },
     dispose() {
+      disposed = true;
+      for (const loop of healLoops.values()) loop.stop();
+      healLoops.clear();
       const seen = new Set<unknown>();
       const kill = (root: THREE.Object3D) => {
         root.traverse((obj) => {

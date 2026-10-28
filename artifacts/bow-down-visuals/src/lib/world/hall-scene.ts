@@ -1914,13 +1914,14 @@ export class KingsHallScene {
   }
 
   /** Stand the palace fixtures (once). The stand-ins appear
-   *  immediately; each 3D body swaps in when its GLB lands, and a
-   *  body that cannot load leaves its stand-in standing forever —
-   *  a post is never empty and a failure here never reaches the
-   *  scene (the whole build is exception-isolated). A body whose
-   *  retry plan runs out is REPORTED through onError into
-   *  fixtureLoadErrors + the console (fixtureLoadError below is
-   *  the read side) — never silently swallowed. */
+   *  immediately; each 3D body swaps in when its GLB lands. A body
+   *  whose fast retry plan runs out is REPORTED through onError
+   *  into fixtureLoadErrors + the console (fixtureLoadError below
+   *  is the read side) — never silently swallowed — and is not
+   *  final: the fixtures' heal loop keeps retrying on a slow ring,
+   *  and onRecovered clears the record when the body lands. A post
+   *  is never empty and a failure here never reaches the scene
+   *  (the whole build is exception-isolated). */
   private ensureFixtures(): void {
     if (this.fixtures) return;
     try {
@@ -1929,6 +1930,9 @@ export class KingsHallScene {
           const message = err instanceof Error ? err.message : String(err);
           this.fixtureLoadErrors.set(body, message);
           console.warn(`[world] fixture body "${body}" failed to load: ${message}`);
+        },
+        onRecovered: (body) => {
+          this.fixtureLoadErrors.delete(body);
         },
       });
       this.scene.add(fixtures.hall);
@@ -1946,8 +1950,8 @@ export class KingsHallScene {
   }
 
   /** Proof surface: the recorded load failure for a body whose
-   *  retry plan ran out — null while it is still loading or once
-   *  it stands live. */
+   *  fast retry plan ran out and whose heal loop has not landed it
+   *  yet — null while it is still loading or once it stands live. */
   fixtureLoadError(body: FixtureBodyId): string | null {
     return this.fixtureLoadErrors.get(body) ?? null;
   }

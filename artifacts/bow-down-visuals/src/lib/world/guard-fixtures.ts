@@ -313,3 +313,120 @@ export async function attemptLoadPlan<T>(
   }
   throw lastErr;
 }
+
+/* ── The slow ring: a failed load is not final for the session ──────
+   The fast plan above spends itself in ~5 s at World entry — inside
+   the entry burst, where a shed or a severed transfer is most
+   likely, and (Oct 27) a texture class the owner's own browser
+   chokes on fails every attempt identically. Before this ring, that
+   was the end of it: the stand-in held the post until re-entry, and
+   the King stood as a bare gold capsule for the owner's whole
+   session. The heal loop is the second, slower ring around the fast
+   plan: it re-walks the SAME bounded plan minutes later, when the
+   burst is long gone and a transient cause has had time to pass. */
+
+/** Delay before heal attempt `healAttemptIndex` (0-based): a 1-minute
+ *  first look, then 3, then 10, then a steady 15-minute cadence —
+ *  at most 4 attempts per hour once settled, sparse enough to never
+ *  become traffic, patient enough to outlast an outage. */
+export function fixtureHealDelayMs(healAttemptIndex: number): number {
+  const schedule = [60_000, 180_000, 600_000, 900_000];
+  const i = Math.min(Math.max(Math.floor(healAttemptIndex) || 0, 0), schedule.length - 1);
+  return schedule[i]!;
+}
+
+/** While the tab is hidden the loop re-checks on this cadence
+ *  instead of attempting: a hidden tab must not spend loads nobody
+ *  can see (and a throttled background timer makes the attempt
+ *  unreliable anyway). A re-check never consumes a heal attempt. */
+export const FIXTURE_HEAL_VISIBILITY_RECHECK_MS = 60_000;
+
+export interface FixtureHealLoopDeps {
+  /** Run one heal attempt (the full load plan). Resolves true when
+   *  the body landed. Must not reject. */
+  attempt: () => Promise<boolean>;
+  /** Is the world tab visible right now? Attempts run only visible. */
+  isVisible: () => boolean;
+  /** Timer injection (the scene passes setTimeout/clearTimeout;
+   *  tests drive a manual clock). */
+  setTimer: (fn: () => void, ms: number) => unknown;
+  clearTimer: (handle: unknown) => void;
+  /** Fired once when a heal attempt lands the body. */
+  onHealed?: () => void;
+}
+
+/**
+ * The slow ring itself, as an injectable state machine (the scene
+ * does the loading; this decides WHEN). One loop per failed body.
+ * start() after the fast plan exhausts; stop() on scene dispose or
+ * once healed. A stopped loop never attempts again.
+ */
+export class FixtureHealLoop {
+  private timer: unknown = null;
+  private attempts = 0;
+  private stopped = false;
+  private inFlight = false;
+
+  constructor(private deps: FixtureHealLoopDeps) {}
+
+  /** Heal attempts actually run so far (visibility re-checks and
+   *  armed-but-unfired timers do not count). */
+  get attemptCount(): number {
+    return this.attempts;
+  }
+
+  get isStopped(): boolean {
+    return this.stopped;
+  }
+
+  start(): void {
+    if (this.stopped || this.timer !== null) return;
+    this.arm(fixtureHealDelayMs(this.attempts));
+  }
+
+  stop(): void {
+    this.stopped = true;
+    if (this.timer !== null) {
+      this.deps.clearTimer(this.timer);
+      this.timer = null;
+    }
+  }
+
+  private arm(delayMs: number): void {
+    if (this.stopped) return;
+    this.timer = this.deps.setTimer(() => {
+      this.timer = null;
+      this.tick();
+    }, delayMs);
+  }
+
+  private tick(): void {
+    if (this.stopped) return;
+    if (!this.deps.isVisible() || this.inFlight) {
+      /* Not now — look again shortly without spending an attempt. */
+      this.arm(FIXTURE_HEAL_VISIBILITY_RECHECK_MS);
+      return;
+    }
+    this.inFlight = true;
+    this.attempts += 1;
+    void this.deps.attempt().then(
+      (landed) => {
+        this.inFlight = false;
+        if (this.stopped) return;
+        if (landed) {
+          this.stopped = true;
+          this.deps.onHealed?.();
+          return;
+        }
+        this.arm(fixtureHealDelayMs(this.attempts));
+      },
+      () => {
+        /* attempt() contracts never to reject; a violation is a
+         * failed attempt, not a dead loop. */
+        this.inFlight = false;
+        if (this.stopped) return;
+        this.arm(fixtureHealDelayMs(this.attempts));
+      },
+    );
+  }
+}
