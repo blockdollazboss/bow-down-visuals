@@ -38,6 +38,10 @@ export interface BillingStateView {
   hasStripeCustomer: boolean;
   canCancel: boolean;
   canResume: boolean;
+  /** Server-derived (billing-state.ts): a live paid subscription can
+      be repriced in place Pro ↔ Elite from this card. Optional in the
+      view type so older payloads degrade to "no control shown". */
+  canChangePlan?: boolean;
 }
 
 export type BillingDateKind = "renews" | "ends" | "ended" | null;
@@ -56,6 +60,11 @@ export interface BillingDisplay {
   showResume: boolean;
   showManagePayment: boolean;
   showSeePlans: boolean;
+  /** The other paid tier's change control (Pro ↔ Elite) — shown only
+      for a live paid plan the server says can be repriced in place. */
+  showChangePlan: boolean;
+  /** The tier a change would move TO (null on Free / single-tier). */
+  changeTargetTier: "pro" | "elite" | null;
 }
 
 export function describeBilling(b: BillingStateView): BillingDisplay {
@@ -87,6 +96,14 @@ export function describeBilling(b: BillingStateView): BillingDisplay {
     showResume: b.canResume,
     showManagePayment: b.hasStripeCustomer && b.status !== "free",
     showSeePlans: b.status === "free" || b.status === "canceled" || b.status === "incomplete",
+    showChangePlan:
+      b.canChangePlan === true && (b.plan === "pro" || b.plan === "elite"),
+    changeTargetTier:
+      b.canChangePlan === true && b.plan === "pro"
+        ? "elite"
+        : b.canChangePlan === true && b.plan === "elite"
+          ? "pro"
+          : null,
   };
 }
 

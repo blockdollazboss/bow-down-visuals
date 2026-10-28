@@ -435,9 +435,16 @@ export function AppSidebar() {
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
   /* Tier label = the SAME source as the /creator-pricing TierBadge
      (useCreatorTier → GET /creator-tiers/me → creator_subscriptions).
-     The legacy profiles.plan column is only the fallback while the
-     fetch is in flight — after a purchase the two disagreed (badge
-     PRO, sidebar "free plan", Pass 1 Oct 26). */
+     stack600 plan-tier-change: the legacy profiles.plan column is NO
+     LONGER read as a plan here at all. Gate Pass 1 (Oct 28) caught the
+     badge flipping free ↔ pro across pages and loads: while /me was in
+     flight (or had failed — the old hook never retried), the label
+     fell back to the legacy column, which can itself carry a
+     paid-looking value, so the sidebar contradicted Settings →
+     Billing (row-derived) whenever the two disagreed. resolveCreator
+     Tier already folds the legacy plan INTO /me's answer, so once /me
+     lands it is the whole truth; before it lands, the label stays
+     neutral instead of guessing from a second source. */
   const creatorTier = useCreatorTier();
   const { setOpen } = useSidebar();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -681,11 +688,13 @@ export function AppSidebar() {
                   className="flex items-center gap-1.5 mt-0.5 group/rank"
                 >
                   <span className="text-[10px] text-primary font-black tracking-wider group-hover/rank:underline">
-                    ★ {creatorTier && creatorTier.tier !== "free"
-                      ? `${creatorTier.tier} plan`
-                      : profile.plan === "beta" || !profile.plan
-                        ? "BETA TESTER"
-                        : `${profile.plan} plan`}
+                    ★ {creatorTier
+                      ? creatorTier.tier !== "free"
+                        ? `${creatorTier.tier} plan`
+                        : profile.plan === "beta" || !profile.plan
+                          ? "BETA TESTER"
+                          : "free plan"
+                      : "…"}
                   </span>
                   <span className="text-[9px] text-muted-foreground group-hover/rank:text-primary transition-colors">
                     Rank up →
