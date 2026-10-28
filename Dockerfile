@@ -76,4 +76,4 @@ EXPOSE 8080
 # 160MB heap keeps Node's RSS ~220MB, leaving ~280MB for FFmpeg.
 # NODE_HEAP_MB overrides the cap per-service (e.g. staging=256: the staging
 # bundle with all feature waves needs more boot headroom than production).
-CMD ["sh", "-c", "pnpm --filter @workspace/db migrate-boot && exec node --enable-source-maps --max-old-space-size=${NODE_HEAP_MB:-160} artifacts/api-server/dist/index.mjs"]
+CMD ["sh", "-c", "pnpm --filter @workspace/db migrate-boot && exec node --max-old-space-size=${NODE_HEAP_MB:-160} artifacts/api-server/dist/index.mjs"]
