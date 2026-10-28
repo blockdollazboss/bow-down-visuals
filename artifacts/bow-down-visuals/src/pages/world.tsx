@@ -590,20 +590,22 @@ export default function WorldPage() {
   const [nearStation, setNearStation] = useState<PalaceStation | null>(null);
   const nearStationIdRef = useRef<string | null>(null);
   const [panelTarget, setPanelTarget] = useState<StationPanelTarget | null>(null);
-  /* The opened panel's anchor + the bring-it-to-the-walker effect.
-   * The sheet mounts BELOW the stage in page flow (its root is
-   * relative, under the canvas), so without this, opening a desk
-   * changed nothing on screen — the press looked dead until the
-   * walker happened to scroll (owner's live report, 2026-10-25:
-   * "haven't been able to do anything inside of the VR world").
-   * On open: release pointer lock (taken on canvas click; it was
-   * never released anywhere, leaving the panel unclickable until
-   * Esc) and scroll the sheet into view. */
-  const panelAnchorRef = useRef<HTMLDivElement>(null);
+  /* The bring-it-to-the-walker effect. Opening a desk must be
+   * SEEN to open (owner's live report, 2026-10-25: "haven't been
+   * able to do anything inside of the VR world"). The sheet now
+   * presents itself: StationPanel's root is anchored to the
+   * viewport (fixed, dvh-capped, internally scrolling), so it
+   * lands inside the walker's view wherever the page is scrolled
+   * and the page's scroll position never moves for it — closing
+   * the sheet returns the walker to exactly the view they left.
+   * (It used to mount in page flow below the stage and rely on a
+   * one-shot scroll-into-view; audit §B5, owner's screenshot
+   * 2026-10-27.) What this effect still owes on open: release
+   * pointer lock (taken on canvas click; it was never released
+   * anywhere, leaving the panel unclickable until Esc). */
   useEffect(() => {
     if (!panelTarget) return;
     if (document.pointerLockElement) document.exitPointerLock();
-    panelAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [panelTarget]);
   /* The door-opener behind both the E key and the controller's LB:
    * a prompt must be showing and no panel may be open — one guard,
@@ -3909,10 +3911,10 @@ export default function WorldPage() {
       )}
 
       {/* The doors, opened: a station's panel (or the page a Court
-          portrait pointed at). The step-through kind renders itself
-          full-screen from inside this same mount. */}
+          portrait pointed at). The sheet anchors itself to the
+          viewport (see StationPanel's root); the step-through kind
+          renders itself full-screen from inside this same mount. */}
       {panelTarget && status === "inside" && (
-        <div ref={panelAnchorRef}>
         <StationPanel
           target={panelTarget}
           isLight={isLight}
@@ -3968,7 +3970,6 @@ export default function WorldPage() {
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
           onJukeboxRemove={(entryId) => clientRef.current?.jukeboxRemove(entryId)}
         />
-        </div>
       )}
 
       {/* ── Bottom bar: say + voice + VR ── */}

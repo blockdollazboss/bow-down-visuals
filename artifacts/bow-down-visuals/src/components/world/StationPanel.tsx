@@ -1908,12 +1908,26 @@ export default function StationPanel(props: StationPanelProps) {
     }
   })();
 
+  /* The sheet is anchored to the VIEWPORT, not the page: fixed at
+     the bottom of the screen, capped in dvh, scrolling internally.
+     It used to mount in page flow below the room box, where a desk
+     opened half below the fold (owner's screenshot, 2026-10-27 —
+     audit §B5); now it presents over the room the walker is
+     standing in, the 3D world still visible above it, and because
+     the cap + internal scroll are structural, async desk content
+     growing the sheet can never push it off-screen — the clamp is
+     the layout, not a scroll that has to be re-run. On desktop the
+     sheet floats with a margin and rounded corners; on a phone it
+     docks to the screen's bottom edge. The step-throughs above
+     keep their own full-screen frame (z-[70], above this sheet). */
   return (
     <div
-      className={`relative z-20 max-h-[62vh] overflow-y-auto border-t px-4 py-3 ${
+      className={`fixed inset-x-0 bottom-0 z-40 max-h-[86dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-16px_48px_rgba(0,0,0,0.45)] md:inset-x-6 md:bottom-4 md:rounded-2xl md:border ${
         isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"
       }`}
       data-testid="world-station-panel"
+      role="dialog"
+      aria-label={name}
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
