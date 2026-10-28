@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2, Coins, RotateCcw } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
+import { BalanceBreakdown } from "@/components/BalanceBreakdown";
+import { balanceComposition, type BalanceComposition } from "@/lib/balance";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -99,6 +101,10 @@ export default function CreditHistory() {
      reserved for both ledgers failing together. */
   const [paymentsError, setPaymentsError] = useState(false);
   const [usageError, setUsageError] = useState(false);
+  /* Lane V-bucs: the composition the history endpoint carries alongside
+     the ledgers (GET /credits/history → balance). Null until it lands —
+     the header then derives the same split from the auth profile. */
+  const [serverBalance, setServerBalance] = useState<BalanceComposition | null>(null);
 
   async function authHeaders(): Promise<Record<string, string>> {
     const token = await getAccessToken();
@@ -125,8 +131,9 @@ export default function CreditHistory() {
     try {
       const res = await fetch("/api/credits/history", { headers: await authHeaders() });
       if (!res.ok) throw new Error("Failed to load Visual Buc history");
-      const histData = (await res.json()) as { usage?: Usage[] };
+      const histData = (await res.json()) as { usage?: Usage[]; balance?: BalanceComposition | null };
       setUsage(histData.usage ?? []);
+      if (histData.balance) setServerBalance(histData.balance);
       setUsageError(false);
       return true;
     } catch {
@@ -184,22 +191,42 @@ export default function CreditHistory() {
           <p className="text-white/55 mt-2 text-sm max-w-xl">{t("credit-history.track_your_purchases_and_visual")}</p>
         </div>
 
-        {/* Section 1: Current Balance */}
-        <section className="rounded-xl bg-[#0a0a0a] border border-[#d4a017]/30 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-[#d4a017]/50 transition-colors">
-          <div className="flex items-center gap-4">
-            <VisualBucsIcon className="h-14 w-14" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-white/60">{t("credit-history.current_balance")}</p>
-              <p className="text-4xl font-black text-[#fbbf24] leading-tight">
-                {profile?.credits?.toLocaleString("en-US") ?? "—"}
-              </p>
-              <p className="text-xs text-white/30 mt-0.5">{t("credit-history.visual_bucs_available")}</p>
-            </div>
-          </div>
-          <Button asChild className="bg-gradient-to-r from-[#fbbf24] to-[#d4a017] hover:brightness-110 transition text-black font-bold shadow-[0_0_16px_rgba(251,191,36,0.35)]">
-            <Link href="/pricing#credit-packs">{t("credit-history.buy_more_visual_bucs")}</Link>
-          </Button>
-        </section>
+        {/* Section 1: Current Balance — the total, then its split
+            (Lane V-bucs): permanent and temporary on their own lines,
+            the temporary part naming when it expires. One composition
+            source per render: the history endpoint's fresh read when it
+            landed, else the split AuthContext composed on the profile. */}
+        {(() => {
+          const composition =
+            serverBalance ??
+            profile?.balance_composition ??
+            (profile ? balanceComposition(profile) : null);
+          return (
+            <section className="rounded-xl bg-[#0a0a0a] border border-[#d4a017]/30 p-6 space-y-4 hover:border-[#d4a017]/50 transition-colors">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <VisualBucsIcon className="h-14 w-14" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-white/60">{t("credit-history.current_balance")}</p>
+                    <p className="text-4xl font-black text-[#fbbf24] leading-tight">
+                      {composition?.total?.toLocaleString("en-US") ?? profile?.credits?.toLocaleString("en-US") ?? "—"}
+                    </p>
+                    <p className="text-xs text-white/30 mt-0.5">{t("credit-history.visual_bucs_available")}</p>
+                  </div>
+                </div>
+                <Button asChild className="bg-gradient-to-r from-[#fbbf24] to-[#d4a017] hover:brightness-110 transition text-black font-bold shadow-[0_0_16px_rgba(251,191,36,0.35)]">
+                  <Link href="/pricing#credit-packs">{t("credit-history.buy_more_visual_bucs")}</Link>
+                </Button>
+              </div>
+              {composition && (
+                <BalanceBreakdown
+                  composition={composition}
+                  className="border-t border-white/10 pt-4"
+                />
+              )}
+            </section>
+          );
+        })()}
 
         {loading && (
           <div className="flex items-center justify-center py-16">
