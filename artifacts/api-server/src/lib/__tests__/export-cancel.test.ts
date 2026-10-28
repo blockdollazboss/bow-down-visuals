@@ -209,10 +209,15 @@ describe("buildExportChargeInfo — charge/reserve info on POST 202 + GET job", 
         buildExportChargeInfo({ state, creditsCharged: false, params: brandedParams, result: null }, "pro"),
       ).toMatchObject({ branded: true, cost: 0, reservedAmount: 0, chargedAmount: 0, chargeState: "free" });
     }
-    // A non-subscriber is force-branded even with addWatermark off.
+    // Branded on a free plan too: toggle ON is free on every plan.
+    expect(
+      buildExportChargeInfo({ state: "active", creditsCharged: false, params: brandedParams, result: null }, "free"),
+    ).toMatchObject({ branded: true, cost: 0, chargeState: "free" });
+    // Lane 3: a non-subscriber with the toggle OFF is CLEAN at 400 —
+    // the old force-branded pin was the Oct 28 gate defect itself.
     expect(
       buildExportChargeInfo({ state: "active", creditsCharged: false, params: cleanParams, result: null }, "free"),
-    ).toMatchObject({ branded: true, cost: 0, chargeState: "free" });
+    ).toMatchObject({ branded: false, cost: 400, chargeState: "will-reserve" });
   });
 
   it("clean job: will-reserve before the hold, reserved while it stands (A-07)", () => {
