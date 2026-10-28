@@ -19,6 +19,7 @@ import { recoverInterruptedMultiRatioJobs } from "./routes/generate/export-multi
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
+import { startGenerationChargeSweeper } from "./lib/generation-charge-intents";
 import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
 import { startViralSpikeSweeper } from "./lib/viral-spike-service";
 import { startProductDropSweeper } from "./lib/product-drop-notify";
@@ -119,6 +120,14 @@ const server = app.listen(port, (err) => {
   // completed instead. Runs once shortly after boot, then on
   // CLIP_CHARGE_SWEEP_INTERVAL_MS.
   startClipChargeSweeper();
+
+  // Settle durable generation-charge intents orphaned by a previous
+  // process (Stack400 Lane 4): generations that were DELIVERED but
+  // never charged (restart between submit and success poll, or a
+  // poll-time charge failure) get charged exactly once via the
+  // 'gen-charge:<task_id>' idempotency key. Runs once shortly after
+  // boot, then on GEN_CHARGE_SWEEP_INTERVAL_MS.
+  startGenerationChargeSweeper();
 
   // Release-day presave notifications (wave 3 #15): a packaged
   // release's release_date arriving is the release moment (there is
