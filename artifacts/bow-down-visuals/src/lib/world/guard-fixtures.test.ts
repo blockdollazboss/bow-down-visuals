@@ -17,6 +17,7 @@ import {
   fixtureLoadPlan,
   fixtureNormalization,
   fixturePortraitPanelSize,
+  fixtureStandinArtPlan,
   fixtureRetryDelayMs,
   fixtureRotY,
   fixtureSway,
@@ -309,6 +310,35 @@ describe("fixtureLoadPlan — a body load is a bounded retry, not one shot", () 
     expect(fixtureRetryDelayMs(2)).toBeGreaterThan(fixtureRetryDelayMs(1));
     expect(fixtureRetryDelayMs(3)).toBeGreaterThan(fixtureRetryDelayMs(2));
     expect(fixtureRetryDelayMs(99)).toBe(fixtureRetryDelayMs(3));
+  });
+});
+
+describe("fixtureStandinArtPlan — the fallback art walks the same plan as the bodies", () => {
+  const cdn = "https://cdn.example/world/default-character.png";
+  const origin = "/world/default-character.png";
+
+  it("alternates CDN and origin, CDN first — the art has an origin leg", () => {
+    /* Regression pin (Oct 28): the stand-in art used to load from
+     * the CDN alone, one shot — with the CDN leg down, every post
+     * degraded to the bare gold capsule even though the same art
+     * sits on the origin and the bodies themselves landed via it. */
+    expect(fixtureStandinArtPlan(cdn, origin)).toEqual([cdn, origin, cdn, origin]);
+    expect(fixtureStandinArtPlan(cdn, origin)).toEqual(fixtureLoadPlan(cdn, origin));
+  });
+
+  it("with no CDN it retries the origin, like the bodies", () => {
+    expect(fixtureStandinArtPlan(origin, origin)).toEqual([origin, origin, origin]);
+  });
+
+  it("walked with attemptLoadPlan, a dead CDN still lands the art from the origin", async () => {
+    const seen: string[] = [];
+    const out = await attemptLoadPlan(fixtureStandinArtPlan(cdn, origin), async (url) => {
+      seen.push(url);
+      if (url === cdn) throw new Error("CDN leg down");
+      return `texture:${url}`;
+    }, async () => {});
+    expect(out).toBe(`texture:${origin}`);
+    expect(seen).toEqual([cdn, origin]);
   });
 });
 
