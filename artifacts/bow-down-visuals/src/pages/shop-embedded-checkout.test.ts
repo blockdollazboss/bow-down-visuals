@@ -71,4 +71,15 @@ describe("library — Purchases tab", () => {
     expect(panelSrc).toContain("Authorization: `Bearer ${token}`");
     expect(panelSrc).toContain("p.downloadUrl");
   });
+
+  it("the panel keys rows by the saleId the API actually sends (stack500 small-fixes)", () => {
+    // GET /api/shops/my-purchases maps each delivery to
+    // `saleId: d.sale_event_id` — the name the whole shops module
+    // uses. The panel's interface once declared `saleEventId`
+    // instead, so `key={p.saleEventId}` was undefined on every row
+    // and React fell back to index keys (vault-guards diagnosis §2).
+    expect(panelSrc).toContain("saleId: string;");
+    expect(panelSrc).toContain("key={p.saleId}");
+    expect(panelSrc).not.toContain("saleEventId");
+  });
 });

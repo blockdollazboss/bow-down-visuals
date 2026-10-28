@@ -59,7 +59,8 @@ describe("loginPathWithNext — the shared bounce builder", () => {
   it("carries an already-public destination verbatim (documented design)", () => {
     // The builder is allowlist-agnostic by design: callers decide
     // whether a bounce is needed, and carrying a public destination is
-    // the existing /presave + /unlock precedent. Only /login collapses.
+    // the existing /presave + /unlock precedent. Only the auth screens
+    // themselves collapse (pinned below).
     expect(loginPathWithNext("/presave/my-song")).toBe("/login?next=%2Fpresave%2Fmy-song");
     expect(loginPathWithNext("/world")).toBe("/login?next=%2Fworld");
   });
@@ -67,6 +68,19 @@ describe("loginPathWithNext — the shared bounce builder", () => {
   it("collapses the login screen itself — a bounce never nests ?next=/login", () => {
     expect(loginPathWithNext("/login")).toBe("/login");
     expect(loginPathWithNext("/login", "next=%2Fdashboard")).toBe("/login");
+  });
+
+  it("collapses /sign-in — the sign-in URL that is not a route (gate re-run #2, Oct 28)", () => {
+    // A guest who typed /sign-in used to be bounced to
+    // /login?next=%2Fsign-in; after sign-in the receiver honored it
+    // and the router rendered the catch-all 404 inside the sidebar
+    // layout. The gate's bounce for /sign-in is now bare /login.
+    expect(loginPathWithNext("/sign-in")).toBe("/login");
+    expect(loginPathWithNext("/sign-in", "next=%2Fdashboard")).toBe("/login");
+    // The rest of the auth-screen family collapses the same way.
+    expect(loginPathWithNext("/signup")).toBe("/login");
+    expect(loginPathWithNext("/qr-login")).toBe("/login");
+    expect(loginPathWithNext("/reset-password")).toBe("/login");
   });
 
   it("collapses hostile destinations to bare /login — no absolute URL can ride ?next=", () => {

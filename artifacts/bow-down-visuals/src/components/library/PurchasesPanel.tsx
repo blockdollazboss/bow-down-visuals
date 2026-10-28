@@ -15,7 +15,11 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
    standalone page. */
 
 export interface ShopPurchase {
-  saleEventId: string;
+  /* The API's field name (GET /api/shops/my-purchases sends
+     saleId: sale_event_id, the name the whole shops module uses).
+     This interface once declared the id under a different name, so
+     every row keyed by it was undefined. */
+  saleId: string;
   orderId: string;
   productId: string | null;
   productName: string | null;
@@ -91,7 +95,7 @@ export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: 
     <div className="mx-auto max-w-3xl space-y-3" data-testid="library-purchases">
       {purchases.map((p) => (
         <div
-          key={p.saleEventId}
+          key={p.saleId}
           className={`flex items-center gap-3 rounded-2xl border p-4 ${
             isLight ? "border-[#C9A84C]/40 bg-[#FCF7EA]" : "border-white/10 bg-black/40"
           }`}
