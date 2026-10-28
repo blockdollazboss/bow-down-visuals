@@ -268,6 +268,70 @@ router.post("/embedded-checkout/credit-pack/verify", requireAuth, publicApiLimit
 
 /* ── Plan subscriptions (Creator Pro $12 / Elite $29) ─────────────────── */
 
+/* The invoice fields the PaymentElement secret is read from are
+   EXPANSION-GATED in the current Stripe API: the SDK typings mark
+   Invoice.confirmation_secret and Invoice.payments as optional
+   (stripe/resources/Invoices.d.ts) and Stripe returns them ONLY when
+   named in the request's expand list. The subscription create here
+   originally expanded just "latest_invoice.payments" — so the invoice
+   arrived WITH its payments but WITHOUT confirmation_secret, and
+   every intent died at the "no invoice confirmation secret" 502
+   (live logs, Oct 28 08:10 EDT: sub_1UVPcJ2NNWa7jVHBU0cXKpJa was
+   created, the secret was absent, 502 ×6). Both fields are expanded
+   everywhere the secret is read. */
+const SUBSCRIPTION_SECRET_EXPAND: string[] = [
+  "latest_invoice.confirmation_secret",
+  "latest_invoice.payments",
+];
+
+interface InvoiceSecretParts {
+  clientSecret: string;
+  paymentIntentId: string;
+  invoice: Stripe.Invoice;
+}
+
+/* Current Stripe API: the invoice no longer carries a direct
+   payment_intent — the PaymentElement secret is the invoice's
+   confirmation_secret (a payment_intent client_secret), and the PI
+   itself hangs off the invoice's default payment. Reads a
+   subscription whose latest_invoice was expanded per
+   SUBSCRIPTION_SECRET_EXPAND; returns null when the secret (or the
+   PI id) is not on the object. */
+function invoiceSecretParts(subscription: Stripe.Subscription): InvoiceSecretParts | null {
+  const invoice = subscription.latest_invoice;
+  const invoiceObj = invoice && typeof invoice !== "string" ? invoice : null;
+  if (!invoiceObj) return null;
+  const clientSecret = invoiceObj.confirmation_secret?.client_secret ?? null;
+  const defaultPayment = invoiceObj.payments?.data?.find((p) => p.is_default) ?? invoiceObj.payments?.data?.[0];
+  const piRef = defaultPayment?.payment?.payment_intent;
+  const paymentIntentId =
+    (typeof piRef === "string" ? piRef : piRef?.id) ??
+    (clientSecret ? clientSecret.split("_secret_")[0]! : null);
+  if (!clientSecret || !paymentIntentId) return null;
+  return { clientSecret, paymentIntentId, invoice: invoiceObj };
+}
+
+/* The confirmation secret of a subscription, with one retrieve
+   fallback: if a create/list response ever arrives without the
+   expanded secret, re-read the subscription with the expand before
+   giving up — the secret exists on the invoice either way; only its
+   delivery was in doubt. */
+async function subscriptionSecretParts(
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+): Promise<InvoiceSecretParts | null> {
+  const direct = invoiceSecretParts(subscription);
+  if (direct) return direct;
+  try {
+    const fresh = await stripe.subscriptions.retrieve(subscription.id, {
+      expand: [...SUBSCRIPTION_SECRET_EXPAND],
+    });
+    return invoiceSecretParts(fresh);
+  } catch {
+    return null;
+  }
+}
+
 const subIntentSchema = z.object({
   tier: z.enum(["pro", "elite"]),
 });
@@ -375,22 +439,11 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
       payment_behavior: "default_incomplete",
       payment_settings: { save_default_payment_method: "on_subscription" },
       metadata: { kind: "creator_tier", tier, user_id: req.userId!, profile_id: profileId },
-      expand: ["latest_invoice.payments"],
+      expand: SUBSCRIPTION_SECRET_EXPAND,
     }, { idempotencyKey });
 
-    /* Current Stripe API: the invoice no longer carries a direct
-       payment_intent — the PaymentElement secret is the invoice's
-       confirmation_secret (a payment_intent client_secret), and the
-       PI itself hangs off the invoice's default payment. */
-    const invoice = subscription.latest_invoice;
-    const invoiceObj = invoice && typeof invoice !== "string" ? invoice : null;
-    const clientSecret = invoiceObj?.confirmation_secret?.client_secret ?? null;
-    const defaultPayment = invoiceObj?.payments?.data?.find((p) => p.is_default) ?? invoiceObj?.payments?.data?.[0];
-    const piRef = defaultPayment?.payment?.payment_intent;
-    const paymentIntentId =
-      (typeof piRef === "string" ? piRef : piRef?.id) ??
-      (clientSecret ? clientSecret.split("_secret_")[0]! : null);
-    if (!clientSecret || !paymentIntentId) {
+    const parts = await subscriptionSecretParts(stripe, subscription);
+    if (!parts) {
       logger.error({ subscriptionId: subscription.id }, "embedded-checkout: subscription has no invoice confirmation secret");
       res.status(502).json({ error: "Stripe couldn't start checkout. Nothing was charged — try again." });
       return;
@@ -399,11 +452,11 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
     logger.info({ userId: req.userId, tier, subscriptionId: subscription.id }, "embedded-checkout: subscription created (incomplete)");
     res.json({
       success: true,
-      clientSecret,
+      clientSecret: parts.clientSecret,
       subscriptionId: subscription.id,
-      paymentIntentId,
+      paymentIntentId: parts.paymentIntentId,
       tier,
-      amount: plan.priceUsdPerMonth != null ? plan.priceUsdPerMonth * 100 : (invoiceObj?.amount_due ?? 0),
+      amount: plan.priceUsdPerMonth != null ? plan.priceUsdPerMonth * 100 : (parts.invoice.amount_due ?? 0),
       currency: "usd",
       label: `${plan.name} — $${plan.priceUsdPerMonth}/month`,
     });
