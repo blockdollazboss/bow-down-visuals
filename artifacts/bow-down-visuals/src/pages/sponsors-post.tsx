@@ -38,6 +38,10 @@ export default function SponsorPost() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  /* Set when the server says credit spending is paused for this account
+     (403 CREDITS_DISABLED): the form then stops offering a Post action
+     that cannot succeed until the page is reloaded. */
+  const [spendingPaused, setSpendingPaused] = useState(false);
 
   async function postDeal() {
     const min = Number(budgetMin);
@@ -71,13 +75,26 @@ export default function SponsorPost() {
         }),
       });
       if (!res) return; /* user cancelled the credit confirmation */
-      const data = (await res.json().catch(() => ({}))) as { deal?: { id: string }; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { deal?: { id: string }; error?: string; message?: string; code?: string };
       if (res.status === 402) {
         setOutOfCredits(true);
         refreshProfile();
         return;
       }
-      if (!res.ok) throw new Error(data.error || t("sponsorsPost.errorPostDeal"));
+      if (res.status === 403 && data.code === "CREDITS_DISABLED") {
+        /* Spending is paused for this account — say so plainly and stop
+           offering a Post action that cannot succeed. Nothing was charged. */
+        setSpendingPaused(true);
+        setError(t("sponsorsPost.errorSpendingPaused"));
+        refreshProfile();
+        return;
+      }
+      if (!res.ok) {
+        /* Prefer the server's plain-language message; a raw internal code
+           (e.g. "credits_disabled") is never shown to the user. */
+        const raw = data.message || data.error || "";
+        throw new Error(raw && raw !== "credits_disabled" ? raw : t("sponsorsPost.errorPostDeal"));
+      }
       refreshProfile();
       navigate(data.deal?.id ? `/sponsors/${data.deal.id}` : "/sponsors");
     } catch (err) {
@@ -157,7 +174,7 @@ export default function SponsorPost() {
                 <BadgeDollarSign className="h-4 w-4 text-primary/70" aria-hidden="true" />
                 {t("sponsorsPost.costNote", { cost: POST_COST })}
               </p>
-              <button onClick={postDeal} disabled={posting}
+              <button onClick={postDeal} disabled={posting || spendingPaused}
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-3.5 text-base font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50">
                 {posting ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Megaphone className="h-5 w-5" aria-hidden="true" />}
                 {posting ? t("sponsorsPost.posting") : t("sponsorsPost.postDealButton", { cost: POST_COST })}

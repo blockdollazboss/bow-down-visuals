@@ -5374,6 +5374,7 @@
     "errorDescription": "Describe the deal.",
     "errorNiche": "What niche of creator do you need?",
     "errorPostDeal": "Could not post your deal.",
+    "errorSpendingPaused": "Credit spending is paused on this account right now — nothing was charged.",
     "eyebrow": "Brands · post a deal",
     "nicheLabel": "Creator niche needed",
     "nichePlaceholder": "e.g. Music, Gaming, Fitness",
