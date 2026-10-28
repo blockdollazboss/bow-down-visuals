@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioMixEngine, type EngineSnapshot, type EngineStem, type EngineMaster } from "@/lib/audio-engine";
+import { usePlaybackArbiter, MIX_PLAYBACK_ID } from "@/lib/playback-arbiter";
 import type { AudioStem, MasterSettings } from "@/lib/editor-settings";
 
 function toEngineStems(stems: AudioStem[]): EngineStem[] {
@@ -56,14 +57,40 @@ export interface MixPreview extends EngineSnapshot {
 export function useMixPreview(stems: AudioStem[], master: MasterSettings): MixPreview {
   const engineRef = useRef<AudioMixEngine | null>(null);
   const [snap, setSnap] = useState<EngineSnapshot>(INITIAL);
+  const snapRef = useRef<EngineSnapshot>(INITIAL);
+  const arbiter = usePlaybackArbiter();
 
   if (!engineRef.current) engineRef.current = new AudioMixEngine();
 
   useEffect(() => {
     const engine = engineRef.current!;
-    engine.subscribe(setSnap);
+    engine.subscribe((s) => {
+      snapRef.current = s;
+      setSnap(s);
+    });
     return () => engine.dispose();
   }, []);
+
+  /* ── Playback arbiter registration ─────────────────────────────────────
+   * The mix engine is the editor's second playback engine. Registered
+   * with the page's arbiter, it yields (is paused) the moment the master
+   * timeline player starts, and starting a mix audition pauses the
+   * master in return — the two can never sound at once. Outside the
+   * editor there is no arbiter in context and this is a no-op. */
+  useEffect(() => {
+    if (!arbiter) return;
+    return arbiter.register({
+      id: MIX_PLAYBACK_ID,
+      isPlaying: () => snapRef.current.playState === "playing",
+      pause: () => engineRef.current?.pause(),
+    });
+  }, [arbiter]);
+
+  useEffect(() => {
+    if (!arbiter) return;
+    if (snap.playState === "playing") arbiter.notifyPlaying(MIX_PLAYBACK_ID);
+    else arbiter.notifyStopped(MIX_PLAYBACK_ID);
+  }, [snap.playState, arbiter]);
 
   const engineStems = useMemo(() => toEngineStems(stems), [stems]);
   const engineMaster = useMemo(() => toEngineMaster(master), [master]);
