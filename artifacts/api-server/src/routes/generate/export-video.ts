@@ -3108,24 +3108,56 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     };
 
   } catch (err: unknown) {
-    const msg         = err instanceof Error ? err.message : "Export failed";
-    const exitCode    = (err as { ffmpegExitCode?: number }).ffmpegExitCode ?? null;
-    const stderrTail  = (err as { stderrTail?: string[] }).stderrTail ?? [];
-    const fullStderr  = (err as { ffmpegStderr?: string }).ffmpegStderr ?? "";
+    /* Preserve STRUCTURED failures (export-honesty fix, Pass 3(a)): the
+       prepare hard stops above throw plain objects
+       { status, error, code } — they are NOT Errors, and the old catch
+       read only `err instanceof Error`, laundering every one of them
+       into a generic "Export failed" with its status forced to 500 and
+       its code destroyed. That broke two things at once: the persisted
+       job error (the only diagnostic reachable in production) and the
+       client's PREPARE_STALE auto-recovery, which keys on
+       job.error.code and could therefore never fire. Carry the thrown
+       status/message/code through the rethrow so normalizeJobError
+       persists the real failure; the generic fallback remains only for
+       truly unknown throws. */
+    const thrown = (err !== null && typeof err === "object") ? err as {
+      status?: unknown; message?: unknown; error?: unknown; code?: unknown;
+      ffmpegExitCode?: number; stderrTail?: string[]; ffmpegStderr?: string;
+    } : {};
+    const msg = err instanceof Error
+      ? err.message
+      : typeof thrown.error === "string" && thrown.error.length > 0
+        ? thrown.error
+        : typeof thrown.message === "string" && thrown.message.length > 0
+          ? thrown.message
+          : "Export failed";
+    const status = typeof thrown.status === "number" ? thrown.status : 500;
+    const code = typeof thrown.code === "string" ? thrown.code : undefined;
+    const exitCode = thrown.ffmpegExitCode ?? null;
+    /* Bounded production diagnostics: the persisted job error is the
+       ONLY place these survive (Render logs are not reachable in the
+       field) and the dialog's details disclosure reads exactly these
+       fields — they must not be gated on IS_DEV. Cap the tail at the
+       last 20 lines, each line clipped, so the job row stays small. */
+    const stderrTail = (thrown.stderrTail ?? [])
+      .slice(-20)
+      .map((line) => (typeof line === "string" ? line.slice(0, 500) : ""));
+    const fullStderr = thrown.ffmpegStderr ?? "";
 
     exportStatus.ffmpegStage    = "failed";
     if (exitCode !== null) exportStatus.ffmpegExitCode = exitCode;
     if (stderrTail.length)  exportStatus.stderrTail    = stderrTail;
 
-    ctx.log.error({ err: msg, exitCode, stderrLines: stderrTail.length }, "[export] failed");
+    ctx.log.error({ err: msg, code, exitCode, stderrLines: stderrTail.length }, "[export] failed");
     throw {
-      status: 500,
+      status,
       message: msg,
+      ...(code ? { code } : {}),
       exportStatus,
+      stderrTail,
+      ffmpegExitCode: exitCode,
       ...(IS_DEV && fullStderr ? {
-        ffmpegStderr:  fullStderr.slice(-3000),
-        stderrTail,
-        ffmpegExitCode: exitCode,
+        ffmpegStderr: fullStderr.slice(-3000),
       } : {}),
     };
   } finally {
