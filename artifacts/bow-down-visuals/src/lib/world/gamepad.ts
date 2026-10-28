@@ -12,7 +12,11 @@
  *   axes[0..1]  left stick   → walk (x = strafe, y = forward/back)
  *   axes[2..3]  right stick  → look (x = yaw, y = pitch)
  *   RT (7) / L3 (10) held    → hurry/sprint
- *   A (0)                    → step the voice mode forward (edge)
+ *   A (0) tap                → jump (edge) — the bottom face
+ *                              button is where thumbs look for it
+ *   A (0) held ≥ 400 ms      → step the voice mode forward
+ *                              (long-press edge; bindings.ts
+ *                              PAD_JUMP_BUTTON carries the why)
  *   LT (6)                   → step the voice mode BACKWARD (edge)
  *   Y (3)                    → toggle first/third person (edge)
  *   LB (4)                   → contextual interact (edge): the door
@@ -34,6 +38,8 @@ import {
   PAD_SLOTS,
   PAD_SPRINT_BUTTONS,
   PAD_VERBS,
+  PAD_JUMP_BUTTON,
+  PAD_VOICE_LONG_PRESS_MS,
   actionForPadButton,
   DEFAULT_ACTION_PAGE,
   type ActionPageId,
@@ -51,6 +57,12 @@ export interface GamepadEdges {
   voice: boolean;
   view: boolean;
   interact: boolean;
+  /** When the current A hold began (poll clock ms), 0 = A is
+   *  up. A's tap is the jump; the hold's age is what turns the
+   *  same press into voiceStep at the long-press line. */
+  aHeldSince: number;
+  /** The current A hold has already fired its voiceStep. */
+  aVoiced: boolean;
   /** LT held at the last poll (the voice-back edge state). */
   lt: boolean;
   /** Back held at the last poll (the page-cycle edge state). */
@@ -74,6 +86,12 @@ export interface GamepadIntent {
   sprint: boolean;
   /** Edge-triggered: true only on the frame the button goes down. */
   toggleVoice: boolean;
+  /** Edge-triggered: A went down this frame — the jump. (A's
+   *  toggleVoice now rides the LONG-PRESS of the same button:
+   *  holding A past PAD_VOICE_LONG_PRESS_MS fires it once, and
+   *  the tap that started the hold has already jumped — the
+   *  documented cost of the share, bindings.ts.) */
+  jump: boolean;
   /** Edge-triggered: LT went down this frame — step the voice
    *  mode BACKWARD (the A button's reverse). */
   voiceBack: boolean;
@@ -99,6 +117,7 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   lookY: 0,
   sprint: false,
   toggleVoice: false,
+  jump: false,
   voiceBack: false,
   toggleView: false,
   interact: false,
@@ -112,6 +131,8 @@ export const IDLE_GAMEPAD_EDGES: GamepadEdges = {
   voice: false,
   view: false,
   interact: false,
+  aHeldSince: 0,
+  aVoiced: false,
   lt: false,
   page: false,
   photo: false,
@@ -155,11 +176,13 @@ function pressed(pad: GamepadLike, i: number): boolean {
  *  carry into the next poll. `page` is the active action page —
  *  the seven slots perform ITS actions. A missing pad reads as a
  *  clean idle (and resets the edges, so a reconnect never swallows
- *  or repeats a press). */
+ *  or repeats a press). `nowMs` is the poll clock — injectable so
+ *  A's tap/hold split is testable without a wall clock. */
 export function pollGamepad(
   pad: GamepadLike | null,
   prev: GamepadEdges,
   page: ActionPageId = DEFAULT_ACTION_PAGE,
+  nowMs: number = Date.now(),
 ): { intent: GamepadIntent; edges: GamepadEdges } {
   if (!pad) return { intent: IDLE_GAMEPAD_INTENT, edges: IDLE_GAMEPAD_EDGES };
   const [moveX, moveY] = applyRadialDeadzone(axis(pad, 0), axis(pad, 1));
@@ -173,10 +196,22 @@ export function pollGamepad(
     actionEdges[id] = down;
     if (action === null && down && prev.actions[id] !== true) action = id;
   }
+  /* A (PAD_JUMP_BUTTON = VERB_BUTTON.voiceStep — one button, two
+   *  gestures): the press edge is the jump; the hold crossing
+   *  PAD_VOICE_LONG_PRESS_MS is the voice step, once per hold. */
+  const aDown = pressed(pad, PAD_JUMP_BUTTON);
+  const prevAHeldSince = typeof prev.aHeldSince === "number" ? prev.aHeldSince : 0;
+  const aHeldSince = aDown ? (prevAHeldSince > 0 ? prevAHeldSince : nowMs) : 0;
+  const aVoiced =
+    aDown &&
+    (prev.aVoiced === true ||
+      (aHeldSince > 0 && nowMs - aHeldSince >= PAD_VOICE_LONG_PRESS_MS));
   const edges: GamepadEdges = {
-    voice: pressed(pad, VERB_BUTTON.voiceStep),
+    voice: aDown,
     view: pressed(pad, VERB_BUTTON.viewToggle),
     interact: pressed(pad, VERB_BUTTON.interact),
+    aHeldSince,
+    aVoiced,
     lt: pressed(pad, VERB_BUTTON.voiceBack),
     page: pressed(pad, VERB_BUTTON.pageCycle),
     photo: pressed(pad, VERB_BUTTON.photoMode),
@@ -190,7 +225,8 @@ export function pollGamepad(
       lookX,
       lookY,
       sprint: PAD_SPRINT_BUTTONS.some((b) => pressed(pad, b)),
-      toggleVoice: edges.voice && !prev.voice,
+      toggleVoice: aDown && aVoiced && prev.aVoiced !== true,
+      jump: aDown && prevAHeldSince === 0,
       voiceBack: edges.lt && !prev.lt,
       toggleView: edges.view && !prev.view,
       interact: edges.interact && !prev.interact,

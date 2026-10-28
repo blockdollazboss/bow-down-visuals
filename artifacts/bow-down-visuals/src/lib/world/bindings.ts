@@ -77,13 +77,16 @@ export type WorldVerb =
   | "interact"
   | "pageCycle"
   | "momentClaim"
-  | "photoMode";
+  | "photoMode"
+  | "jump";
 
 /** Fixed (never paged) pad verbs: button index → verb. Back (8)
  *  cycles the action page; Start (9) frames a photo; R3 (11) is
- *  the moment claim — the three buttons that were still free. */
+ *  the moment claim — the three buttons that were still free.
+ *  A (0) carries TWO gestures (stack300, below): its entry here
+ *  is the long-press one. */
 export const PAD_VERBS: Readonly<Record<number, WorldVerb>> = {
-  0: "voiceStep", // A / Cross
+  0: "voiceStep", // A / Cross — LONG-PRESS (see PAD_JUMP_BUTTON)
   6: "voiceBack", // LT / L2
   3: "viewToggle", // Y / Triangle
   4: "interact", // LB / L1
@@ -92,14 +95,36 @@ export const PAD_VERBS: Readonly<Record<number, WorldVerb>> = {
   11: "momentClaim", // R3 (right-stick click)
 };
 
+/** The jump's pad home (stack300): A / Cross (0), the bottom
+ *  face button — where every player's thumb already looks for a
+ *  jump. Every one of the 16 standard buttons already had a job
+ *  when jump arrived, so A SHARES by gesture rather than taking
+ *  a job away: a TAP of A is the jump (press edge); HOLDING A
+ *  for PAD_VOICE_LONG_PRESS_MS steps the voice mode, exactly
+ *  what A always did (voice-stepping is a stand-still act, and
+ *  the tap that begins the hold hops first — the documented
+ *  cost of the share). The alternatives lost on feel: L3's click
+ *  edge would hop at the start of every L3 sprint hold, and R3's
+ *  moment claim matters most exactly when a drop lands and the
+ *  room is scrambling. gamepad.ts polls this split; the keyboard
+ *  (Space) and touch (Jump button) families never share. */
+export const PAD_JUMP_BUTTON = 0;
+/** How long A must be held before the press becomes voiceStep
+ *  instead of just a jump (ms). */
+export const PAD_VOICE_LONG_PRESS_MS = 400;
+
 /** Keyboard verbs (KeyboardEvent.code). Movement keeps WASD /
  *  arrows / Shift — read by the scene as it always was; E was the
- *  door key long before this table named it. */
+ *  door key long before this table named it. Space joined with
+ *  the jump (stack300): the scene owns the key (edge + the
+ *  preventDefault that keeps a focused page button from eating
+ *  it), the table names it so the family stays one table. */
 export const KEY_VERBS: Readonly<Record<string, WorldVerb>> = {
   KeyE: "interact",
   KeyQ: "pageCycle",
   KeyC: "momentClaim",
   KeyP: "photoMode",
+  Space: "jump",
 };
 
 /** The action a pad button performs on a page, or null when the
@@ -145,13 +170,14 @@ export function pageForAction(action: WorldActionId): ActionPageId | null {
  * every input family resolves through these same gates so a pad
  * or a keyboard can never do what the deck would not show.
  * Photo mode and the view toggle are looking, so guests keep
- * them. Everything that performs, speaks, opens or claims is a
- * member act. Admins get the member set here — host power lives
- * in its panel, not on the pad (see the header).
+ * them; the jump is MOVING (guests walk and hurry too), so
+ * guests keep it. Everything that performs, speaks, opens or
+ * claims is a member act. Admins get the member set here — host
+ * power lives in its panel, not on the pad (see the header).
  */
 export function verbRoleOk(verb: WorldVerb, role: WorldRole): boolean {
   if (role !== "guest") return true;
-  return verb === "photoMode" || verb === "viewToggle";
+  return verb === "photoMode" || verb === "viewToggle" || verb === "jump";
 }
 
 export function actionRoleOk(role: WorldRole): boolean {

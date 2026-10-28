@@ -62,16 +62,14 @@ describe("pollGamepad", () => {
     expect(pollGamepad(pad([0, 0, 0, 0], []), IDLE_GAMEPAD_EDGES).intent.sprint).toBe(false);
   });
 
-  it("A toggles voice and Y toggles view — on the press edge only", () => {
-    const down = pollGamepad(pad([0, 0, 0, 0], [0, 3]), IDLE_GAMEPAD_EDGES);
-    expect(down.intent.toggleVoice).toBe(true);
+  it("Y toggles view — on the press edge only", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [3]), IDLE_GAMEPAD_EDGES);
     expect(down.intent.toggleView).toBe(true);
-    const held = pollGamepad(pad([0, 0, 0, 0], [0, 3]), down.edges);
-    expect(held.intent.toggleVoice).toBe(false);
+    const held = pollGamepad(pad([0, 0, 0, 0], [3]), down.edges);
     expect(held.intent.toggleView).toBe(false);
     const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges);
-    const again = pollGamepad(pad([0, 0, 0, 0], [0]), up.edges);
-    expect(again.intent.toggleVoice).toBe(true);
+    const again = pollGamepad(pad([0, 0, 0, 0], [3]), up.edges);
+    expect(again.intent.toggleView).toBe(true);
   });
 
   it("short axis/button arrays read as zeros, never crash", () => {
@@ -124,6 +122,53 @@ describe("pollGamepad", () => {
   });
 });
 
+describe("A — tap jumps, hold steps voice (stack300)", () => {
+  it("a tap is a jump — edge only, never a voice step", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [0]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(down.intent.jump).toBe(true);
+    expect(down.intent.toggleVoice).toBe(false);
+    const held = pollGamepad(pad([0, 0, 0, 0], [0]), down.edges, "perform", 1100);
+    expect(held.intent.jump).toBe(false);
+    expect(held.intent.toggleVoice).toBe(false);
+    const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges, "perform", 1150);
+    const again = pollGamepad(pad([0, 0, 0, 0], [0]), up.edges, "perform", 1200);
+    expect(again.intent.jump).toBe(true);
+    expect(again.intent.toggleVoice).toBe(false);
+  });
+
+  it("holding A past the long-press line steps voice exactly once — the tap already jumped", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [0]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(down.intent.jump).toBe(true);
+    const before = pollGamepad(pad([0, 0, 0, 0], [0]), down.edges, "perform", 1399);
+    expect(before.intent.toggleVoice).toBe(false);
+    const at = pollGamepad(pad([0, 0, 0, 0], [0]), before.edges, "perform", 1400);
+    expect(at.intent.toggleVoice).toBe(true);
+    expect(at.intent.jump).toBe(false);
+    const after = pollGamepad(pad([0, 0, 0, 0], [0]), at.edges, "perform", 2400);
+    expect(after.intent.toggleVoice).toBe(false);
+    expect(after.intent.jump).toBe(false);
+  });
+
+  it("a fresh hold after release can voice-step again", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [0]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    const voiced = pollGamepad(pad([0, 0, 0, 0], [0]), down.edges, "perform", 1500);
+    expect(voiced.intent.toggleVoice).toBe(true);
+    const up = pollGamepad(pad([0, 0, 0, 0], []), voiced.edges, "perform", 1600);
+    const down2 = pollGamepad(pad([0, 0, 0, 0], [0]), up.edges, "perform", 2000);
+    expect(down2.intent.jump).toBe(true);
+    const voiced2 = pollGamepad(pad([0, 0, 0, 0], [0]), down2.edges, "perform", 2500);
+    expect(voiced2.intent.toggleVoice).toBe(true);
+  });
+
+  it("A steals nothing else: not sprint, not an action, not view", () => {
+    const { intent } = pollGamepad(pad([0, 0, 0, 0], [0]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(intent.sprint).toBe(false);
+    expect(intent.action).toBeNull();
+    expect(intent.toggleView).toBe(false);
+    expect(intent.interact).toBe(false);
+  });
+});
+
 describe("firstGamepad", () => {
   it("skips disconnected slots", () => {
     const p = pad([0, 0, 0, 0]);
@@ -167,7 +212,10 @@ describe("avatar action buttons", () => {
 
   it("the voice/view toggles are untouched by the action map", () => {
     const { intent } = pollGamepad(pad([0, 0, 0, 0], [0, 3]), IDLE_GAMEPAD_EDGES);
-    expect(intent.toggleVoice).toBe(true);
+    /* A is a jump now (its voice step is the long-press, below);
+     *  Y still toggles the view; neither performs an action. */
+    expect(intent.jump).toBe(true);
+    expect(intent.toggleVoice).toBe(false);
     expect(intent.toggleView).toBe(true);
     expect(intent.action).toBeNull();
   });

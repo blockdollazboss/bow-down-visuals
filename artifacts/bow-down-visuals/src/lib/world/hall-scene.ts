@@ -9206,10 +9206,30 @@ export class KingsHallScene {
         this.keys.delete(e.code);
         return;
       }
+      /* Space is the jump (stack300, bindings.ts KEY_VERBS):
+       *  claim the press before anything else can — a focused
+       *  page button would eat it and fire itself on keyup, and
+       *  the page would scroll under the world. The edge queues
+       *  one jump; auto-repeat is not a press, so holding Space
+       *  is one jump — the double is a second, deliberate press. */
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!e.repeat) this.queueJump();
+        return;
+      }
       this.keys.add(e.code);
     }) as EventListener);
     this.on(window, "keyup", ((e: KeyboardEvent) => {
       this.keys.delete(e.code);
+      /* Space's release completes a focused button's click as
+       *  surely as its press scrolls — the jump claimed both.
+       *  In a field, Space is a space: never claimed there. */
+      if (e.code === "Space") {
+        const t = e.target as HTMLElement | null;
+        if (!(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) {
+          e.preventDefault();
+        }
+      }
     }) as EventListener);
     this.on(window, "blur", (() => {
       this.keys.clear();
@@ -10032,6 +10052,9 @@ export class KingsHallScene {
       if (intent.pageCycle) this.onPadPageCycle?.();
       if (intent.photoMode) this.onPadPhotoMode?.();
       if (intent.momentClaim) this.onPadMomentClaim?.();
+      /* A's tap (stack300): the pad's jump joins Space and the
+       *  touch button at the one queue. */
+      if (intent.jump) this.queueJump();
     }
     const len = Math.hypot(fwd, strafe);
     if (len > 1) {

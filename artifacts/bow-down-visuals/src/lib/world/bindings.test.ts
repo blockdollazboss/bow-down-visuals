@@ -12,6 +12,8 @@ import {
   PAD_SLOTS,
   PAD_SPRINT_BUTTONS,
   PAD_VERBS,
+  PAD_JUMP_BUTTON,
+  PAD_VOICE_LONG_PRESS_MS,
   KEY_VERBS,
   actionForPadButton,
   padButtonForAction,
@@ -89,6 +91,13 @@ describe("one input, one job", () => {
     // Guide (16) is deliberately NOT among them (OS-reserved).
     expect(claimed.has(16)).toBe(false);
     expect(claimed.size).toBe(16);
+    /* The jump (stack300) claims NO seventeenth button: it
+     *  shares A with voiceStep by gesture — tap jumps, the
+     *  long-press steps voice — so A's claim stays the voice
+     *  verb's and the face stays exactly sixteen. */
+    expect(PAD_JUMP_BUTTON).toBe(0);
+    expect(claimed.get(PAD_JUMP_BUTTON)).toBe("verb:voiceStep");
+    expect(PAD_VOICE_LONG_PRESS_MS).toBeGreaterThan(0);
   });
 
   it("keyboard verbs never collide with the digit slots or movement", () => {
@@ -96,6 +105,8 @@ describe("one input, one job", () => {
       expect(code).not.toMatch(/^Digit/);
       expect(["KeyW", "KeyA", "KeyS", "KeyD"]).not.toContain(code);
     }
+    /* Space is the keyboard's jump (stack300). */
+    expect(KEY_VERBS["Space"]).toBe("jump");
   });
 
   it("the table carries no punishment verb for any role", () => {
@@ -108,6 +119,10 @@ describe("role gates", () => {
   it("guests keep looking (photo, view) and nothing that performs, speaks, opens or claims", () => {
     expect(verbRoleOk("photoMode", "guest")).toBe(true);
     expect(verbRoleOk("viewToggle", "guest")).toBe(true);
+    /* The jump is moving, not performing — guests walk, hurry
+     *  and jump (stack300). */
+    expect(verbRoleOk("jump", "guest")).toBe(true);
+    expect(verbRoleOk("jump", "member")).toBe(true);
     for (const verb of ["voiceStep", "voiceBack", "interact", "pageCycle", "momentClaim"] as WorldVerb[]) {
       expect(verbRoleOk(verb, "guest")).toBe(false);
       expect(verbRoleOk(verb, "member")).toBe(true);
