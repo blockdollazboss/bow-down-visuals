@@ -900,6 +900,28 @@ export interface WorldGroundRect {
 export const WORLD_STEP_UP_TOLERANCE_M = 0.65;
 export const WORLD_STEP_DOWN_TOLERANCE_M = 0.75;
 
+/** Jump envelope (stack300): a claim ABOVE the step band is a
+ *  jump, and a jump is a bounded arc, not a new floor. The
+ *  client's stepper (bow-down-visuals movement.ts) flies gravity
+ *  22 m/s², takeoff 7.5 m/s (apex ≈ 1.28 m) and a 6.9 m/s double
+ *  impulse (double apex ≈ 2.36 m above the take-off ground,
+ *  worst-case airtime ≈ 1.31 s). The envelope is those numbers
+ *  with honest margin — and it is what keeps the tolerance from
+ *  becoming a hover license: height above the band is believed
+ *  only inside one episode's apex, airtime and vertical-speed
+ *  limits, and an episode that breaks them snaps to the ground
+ *  AND locks (no new episode until a claim lands on the ground),
+ *  so a permanent hover dies instead of re-arming. */
+export const WORLD_JUMP_MAX_APEX_M = 2.5;
+/** Longest believable airborne episode (frame-clock ms). */
+export const WORLD_JUMP_MAX_AIRTIME_MS = 1750;
+/** Fastest believable climb (m/s): the 7.5 takeoff + slack for
+ *  frame-cadence averaging. Descent is bounded separately, by
+ *  the fall speed the episode's own peak can honestly produce. */
+export const WORLD_JUMP_MAX_RISE_MPS = 8.5;
+/** A claim this close to the ground is a landing. */
+export const WORLD_JUMP_LAND_EPS_M = 0.08;
+
 export interface WorldRoomOptions {
   roomId?: string;
   name?: string;
@@ -1035,6 +1057,22 @@ interface WorldPeer extends WorldIdentity {
   z: number;
   rotY: number;
   lastMoveAt: number;
+  /** Jump envelope state (stack300 — see the WORLD_JUMP_*
+   *  constants): the frame-clock start of the current airborne
+   *  episode — 0 = grounded, −1 = locked after a violation until
+   *  a claim lands on the ground. */
+  airSince: number;
+  /** The ground under the episode's first airborne frame (the
+   *  apex is measured from the ground the jump LEFT, so drifting
+   *  over lower ground mid-flight is not a false violation). */
+  airGroundY: number;
+  /** The highest validated claim of this episode (the honest
+   *  fall-speed bound is derived from it). */
+  airPeakY: number;
+  /** The last accepted height claim + when (frame clock): the
+   *  vertical-speed baseline, updated on every validated move. */
+  prevClaimY: number;
+  prevClaimAt: number;
   lastSayAt: number;
   /** The last time ANY frame arrived from this peer (attach counts
    *  as arrival). The staleness sweep reads it — see
@@ -1322,13 +1360,69 @@ export class WorldRoom {
    *  claim stands (an easing client mid-climb is believed);
    *  beyond it the height snaps TO the ground — the move is never
    *  rejected over height, so presence stays truthful without
-   *  rejection storms. */
-  clampHeight(x: number, z: number, claimedY: number): number {
-    const ground = this.groundHeightAt(x, z);
-    if (
-      claimedY > ground + WORLD_STEP_UP_TOLERANCE_M ||
-      claimedY < ground - WORLD_STEP_DOWN_TOLERANCE_M
-    ) {
+   *  rejection storms.
+   *
+   *  Jump (stack300): a claim above the step band is no longer
+   *  snapped on sight — it is validated as one airborne EPISODE
+   *  against the envelope at the WORLD_JUMP_* constants (apex
+   *  from the take-off ground, airtime, vertical speed). A real
+   *  jump — the double included — passes through to the room;
+   *  anything outside the arc (a teleported height, a climb
+   *  faster than the takeoff, a hover that outlives the longest
+   *  honest airtime) snaps to the ground and LOCKS the episode
+   *  state, so the next above-band claim cannot re-arm until a
+   *  claim has landed on the ground. */
+  clampHeight(peer: WorldPeer, claimedY: number, now: number): number {
+    const ground = this.groundHeightAt(peer.x, peer.z);
+    const accepted = this.validateHeight(peer, ground, claimedY, now);
+    peer.prevClaimY = accepted;
+    peer.prevClaimAt = now;
+    return accepted;
+  }
+
+  private validateHeight(peer: WorldPeer, ground: number, claimedY: number, now: number): number {
+    const above = claimedY - ground;
+    if (above <= WORLD_STEP_UP_TOLERANCE_M) {
+      if (claimedY < ground - WORLD_STEP_DOWN_TOLERANCE_M) {
+        /* Below the honest floor (item 49's original snap): a
+         *  buried claim is no jump — the episode state clears. */
+        peer.airSince = 0;
+        return ground;
+      }
+      /* Inside the step band the claim stands as it always has.
+       *  A claim basically ON the ground is a landing: any
+       *  episode (or violation lock) ends here. */
+      if (above <= WORLD_JUMP_LAND_EPS_M) peer.airSince = 0;
+      return claimedY;
+    }
+    /* Above the band: an airborne claim. A locked peer earns no
+     *  new episode until it has landed (handled above). */
+    if (peer.airSince < 0) return ground;
+    if (peer.airSince === 0) {
+      peer.airSince = now;
+      peer.airGroundY = ground;
+      peer.airPeakY = claimedY;
+    } else if (claimedY > peer.airPeakY) {
+      peer.airPeakY = claimedY;
+    }
+    /* Vertical speed between accepted claims (the move throttle
+     *  keeps samples ≥ MOVE_MIN_INTERVAL_MS apart; the floor
+     *  keeps a same-tick pair from dividing by ~0). */
+    const dt = Math.max(MOVE_MIN_INTERVAL_MS / 1000, (now - peer.prevClaimAt) / 1000);
+    const vy = (claimedY - peer.prevClaimY) / dt;
+    /* The fastest honest fall is the one the episode's own peak
+     *  can produce under the client's gravity (22 m/s² — kept in
+     *  step with movement.ts JUMP_GRAVITY), plus slack; floored
+     *  so a short hop's quick descent is never a false snap. */
+    const fallBound =
+      Math.max(5, Math.sqrt(2 * 22 * Math.max(0, peer.airPeakY - ground)) + 2.5);
+    const violates =
+      claimedY - peer.airGroundY > WORLD_JUMP_MAX_APEX_M ||
+      now - peer.airSince > WORLD_JUMP_MAX_AIRTIME_MS ||
+      vy > WORLD_JUMP_MAX_RISE_MPS ||
+      vy < -fallBound;
+    if (violates) {
+      peer.airSince = -1;
       return ground;
     }
     return claimedY;
@@ -1552,6 +1646,14 @@ export class WorldRoom {
        * stage/screen at the front of the hall (-Z). */
       rotY: carry?.at?.rotY ?? 0,
       lastMoveAt: 0,
+      /* Jump envelope: a (re)join starts grounded on its spawn
+       * ground — doorway carries included, the arc never
+       * survives a transfer. */
+      airSince: 0,
+      airGroundY: 0,
+      airPeakY: 0,
+      prevClaimY: this.groundHeightAt(startX, startZ),
+      prevClaimAt: 0,
       lastSayAt: 0,
       lastSeenAt: Date.now(),
     };
@@ -2358,13 +2460,15 @@ export class WorldRoom {
         const prevZ = peer.z;
         peer.x = clamp(finiteOr(frame["x"], peer.x), this.bounds.minX, this.bounds.maxX);
         peer.z = clamp(finiteOr(frame["z"], peer.z), this.bounds.minZ, this.bounds.maxZ);
-        /* Height (items 48/49): the claimed y is validated
-         *  against the ground under the clamped point — believed
-         *  within a step's tolerance, clamped to the honest
-         *  ground beyond it. A frame with no usable y keeps the
-         *  last truthful height (a legacy client walks flat at
-         *  its spawn height, never snapped mid-room). */
-        peer.y = this.clampHeight(peer.x, peer.z, finiteOr(frame["y"], peer.y));
+        /* Height (items 48/49 + stack300 jump envelope): the
+         *  claimed y is validated against the ground under the
+         *  clamped point — believed within a step's tolerance,
+         *  believed above it only inside a bounded jump
+         *  episode, clamped to the honest ground beyond both. A
+         *  frame with no usable y keeps the last truthful height
+         *  (a legacy client walks flat at its spawn height, never
+         *  snapped mid-room). */
+        peer.y = this.clampHeight(peer, finiteOr(frame["y"], peer.y), now);
         const rot = finiteOr(frame["rotY"], peer.rotY);
         peer.rotY = Math.atan2(Math.sin(rot), Math.cos(rot));
         /* Walking ends a held toggle action (dance, sit) — the pose

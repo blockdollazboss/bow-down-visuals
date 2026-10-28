@@ -1288,3 +1288,142 @@ describe("height — the figure carries a real y (items 48/49/53)", () => {
     expect(welcome.peers.find((p: any) => p.displayName === "Alpha").y).toBe(0.4);
   });
 });
+
+describe("jump envelope (stack300)", () => {
+  /** A height arc flown by the real client stepper (movement.ts:
+   *  gravity 22, takeoff 7.5, double 6.9), sampled at the 100 ms
+   *  cadence presence actually rides. t is ms from the grounded
+   *  frame that precedes the press. */
+  function jumpArc(opts: { double?: boolean } = {}): Array<{ t: number; y: number }> {
+    const frames = [{ t: 0, y: 0 }];
+    let vy = 7.5;
+    let y = 0;
+    let doubled = false;
+    for (let k = 1; k <= 400; k++) {
+      if (opts.double && !doubled && vy < 1) {
+        vy = 6.9;
+        doubled = true;
+      }
+      vy -= 22 * 0.01;
+      y += vy * 0.01;
+      if (y <= 0) {
+        /* The landing is reported on the NEXT cadence frame (a
+         *  frame 70 ms after the last would die in the server's
+         *  90 ms move throttle — the arc's truth arrives whole). */
+        frames.push({ t: Math.ceil((k * 10) / 100) * 100, y: 0 });
+        break;
+      }
+      if (k % 10 === 0) frames.push({ t: k * 10, y: Math.round(y * 1000) / 1000 });
+    }
+    return frames;
+  }
+
+  function setup() {
+    const room = new WorldRoom(new RoomHub());
+    const a = fakeSocket();
+    const b = fakeSocket();
+    room.attach(a, member("Alpha"));
+    room.attach(b, member("Beta"));
+    b.sent = [];
+    const me = room.peerFor(a)!;
+    return { room, a, b, x: me.x, z: me.z };
+  }
+
+  function drive(
+    room: WorldRoom,
+    a: FakeSocket,
+    b: FakeSocket,
+    x: number,
+    z: number,
+    startAt: number,
+    claims: Array<{ t: number; y: number }>,
+  ): number[] {
+    b.sent = [];
+    for (const c of claims) {
+      frame(a, room, { type: "move", x, z, y: c.y, rotY: 0 }, startAt + c.t);
+    }
+    return b.sent.filter((m) => m.type === "peer.move").map((m) => m.y as number);
+  }
+
+  it("a real single jump passes through to the room, frame for frame", () => {
+    const { room, a, b, x, z } = setup();
+    const arc = jumpArc();
+    const seen = drive(room, a, b, x, z, 20_000, arc);
+    expect(seen).toEqual(arc.map((c) => c.y));
+    expect(Math.max(...seen)).toBeGreaterThan(1.15);
+    expect(seen[seen.length - 1]).toBe(0);
+    expect(room.peerFor(a)!.y).toBe(0);
+  });
+
+  it("a real double jump survives — the envelope is sized for it", () => {
+    const { room, a, b, x, z } = setup();
+    const arc = jumpArc({ double: true });
+    const seen = drive(room, a, b, x, z, 20_000, arc);
+    expect(seen).toEqual(arc.map((c) => c.y));
+    expect(Math.max(...seen)).toBeGreaterThan(2.1);
+    expect(seen[seen.length - 1]).toBe(0);
+  });
+
+  it("a teleported height snaps, and the lock holds until a real landing", () => {
+    const { room, a, b, x, z } = setup();
+    /* Grounded, then 2 m in one 100 ms step: no takeoff flies
+     *  20 m/s — snapped to the ground the move still lands on. */
+    let seen = drive(room, a, b, x, z, 20_000, [
+      { t: 0, y: 0 },
+      { t: 100, y: 2 },
+    ]);
+    expect(seen).toEqual([0, 0]);
+    /* Locked: a mid-arc height that would be legal inside an
+     *  episode earns nothing until the peer lands. */
+    seen = drive(room, a, b, x, z, 20_200, [{ t: 0, y: 1 }]);
+    expect(seen).toEqual([0]);
+    /* The landing clears the lock — and the next honest jump
+     *  passes whole, so the lock punishes the cheat, not the
+     *  player. */
+    const arc = jumpArc();
+    seen = drive(room, a, b, x, z, 20_400, [{ t: 0, y: 0 }, ...arc.slice(1)]);
+    expect(seen).toEqual([0, ...arc.slice(1).map((c) => c.y)]);
+  });
+
+  it("a permanent hover dies on the airtime cap and stays dead", () => {
+    const { room, a, b, x, z } = setup();
+    /* Rise legally (in-band step, then inside the rise bound),
+     *  then hold 1.28 m — a height a real jump only passes
+     *  through. The episode began at the 0.84 claim (t=200). */
+    const claims = [
+      { t: 0, y: 0 },
+      { t: 100, y: 0.53 },
+      { t: 200, y: 0.84 },
+      { t: 300, y: 1.1 },
+      { t: 400, y: 1.28 },
+    ];
+    for (let t = 500; t <= 2600; t += 100) claims.push({ t, y: 1.28 });
+    const seen = drive(room, a, b, x, z, 20_000, claims);
+    /* Believed while the arc could still be honest... */
+    expect(seen.slice(0, 5)).toEqual([0, 0.53, 0.84, 1.1, 1.28]);
+    /* ...snapped once the airtime outlives any real jump (cap
+     *  1750 ms from the episode's start at t=200)... */
+    const snapAt = seen.findIndex((y, i) => i >= 5 && y === 0);
+    expect(snapAt).toBeGreaterThanOrEqual(5);
+    expect(claims[snapAt]!.t).toBeLessThanOrEqual(2100);
+    /* ...and locked: it never re-arms while the claim hovers. */
+    expect(seen[seen.length - 1]).toBe(0);
+    expect(room.peerFor(a)!.y).toBe(0);
+  });
+
+  it("the apex cap snaps a too-tall claim even on a legal climb", () => {
+    const { room, a, b, x, z } = setup();
+    const seen = drive(room, a, b, x, z, 20_000, [
+      { t: 0, y: 0 },
+      { t: 100, y: 0.53 },
+      { t: 200, y: 0.93 },
+      { t: 300, y: 1.6 },
+      { t: 400, y: 2.2 },
+      { t: 500, y: 2.45 },
+      { t: 600, y: 2.62 },
+    ]);
+    /* Every climb step is inside the rise bound, and 2.45 is
+     *  inside the apex — only the 2.62 claim breaks the arc. */
+    expect(seen).toEqual([0, 0.53, 0.93, 1.6, 2.2, 2.45, 0]);
+  });
+});
