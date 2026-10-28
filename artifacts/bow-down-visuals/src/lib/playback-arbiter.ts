@@ -85,3 +85,51 @@ export const PlaybackArbiterContext = createContext<PlaybackArbiter | null>(null
 export function usePlaybackArbiter(): PlaybackArbiter | null {
   return useContext(PlaybackArbiterContext);
 }
+
+/* ─── Music Studio header transport selection ────────────────────────────
+ * The Music Studio "Now Playing" header shows the project song. When the
+ * master (timeline) player exists and no stem is solo'd, the header IS
+ * the master's transport: its button toggles the master and its clock is
+ * the shared master clock — one clock for the song. A solo'd stem turns
+ * the header back into a stem audition driven by the mix engine (whose
+ * own transport also lives in the Manual DAW's PreviewTransport). */
+
+export interface HeaderTransportState {
+  source: "master" | "mix";
+  isPlaying: boolean;
+  /** Seconds — from the selected engine's clock, never a blend. */
+  position: number;
+  /** Seconds — the selected engine's duration (master falls back to the
+   *  mix engine's probed duration until its own metadata lands). */
+  duration: number;
+}
+
+export function selectHeaderTransport(args: {
+  /** Master clock snapshot, or null when the timeline has no audio. */
+  master: {
+    isPlaying: boolean;
+    currentTime: number;
+    audioDuration: number | null;
+  } | null;
+  /** Any stem solo'd → the header is auditioning stems, not the song. */
+  anySolo: boolean;
+  mixPlaying: boolean;
+  mixPosition: number;
+  mixDuration: number;
+}): HeaderTransportState {
+  const { master, anySolo, mixPlaying, mixPosition, mixDuration } = args;
+  if (master && !anySolo) {
+    return {
+      source: "master",
+      isPlaying: master.isPlaying,
+      position: master.currentTime,
+      duration: master.audioDuration ?? mixDuration,
+    };
+  }
+  return {
+    source: "mix",
+    isPlaying: mixPlaying,
+    position: mixPosition,
+    duration: mixDuration,
+  };
+}

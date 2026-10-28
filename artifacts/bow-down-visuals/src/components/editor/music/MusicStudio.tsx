@@ -13,6 +13,7 @@ import { AdLibGenerator } from "@/components/wave8/AdLibGenerator";
 import { SongStructureBuilder } from "@/components/editor/music/SongStructureBuilder";
 import { LyricsToTimeline } from "@/components/editor/music/LyricsToTimeline";
 import { useMixPreview } from "@/components/editor/music/useMixPreview";
+import { selectHeaderTransport } from "@/lib/playback-arbiter";
 import type { SharedPreviewState } from "@/components/TimelinePreviewPlayer";
 import type { AudioExportType, DirectAudioExportStatus } from "@/lib/audio-export";
 
@@ -213,16 +214,23 @@ export function MusicStudio({
    * is a stem audition, and the editor playback arbiter still guarantees
    * the two engines never sound at once. */
   const anySolo = ms.stems.some((s) => s.solo);
-  const mirrorMaster = !!masterPlayer && !anySolo;
-  const isPlaying = mirrorMaster
-    ? (masterPlayer.state?.isPlaying ?? false)
-    : preview.playState === "playing";
-  const headerPosition = mirrorMaster
-    ? (masterPlayer.state?.currentTime ?? 0)
-    : preview.position;
-  const headerDuration = mirrorMaster
-    ? (masterPlayer.state?.audioDuration ?? preview.duration)
-    : preview.duration;
+  const header = selectHeaderTransport({
+    master: masterPlayer
+      ? {
+          isPlaying: masterPlayer.state?.isPlaying ?? false,
+          currentTime: masterPlayer.state?.currentTime ?? 0,
+          audioDuration: masterPlayer.state?.audioDuration ?? null,
+        }
+      : null,
+    anySolo,
+    mixPlaying: preview.playState === "playing",
+    mixPosition: preview.position,
+    mixDuration: preview.duration,
+  });
+  const mirrorMaster = header.source === "master";
+  const isPlaying = header.isPlaying;
+  const headerPosition = header.position;
+  const headerDuration = header.duration;
 
   /* Deterministic waveform bars (Suno-style) */
   const bars = useMemo(() => {

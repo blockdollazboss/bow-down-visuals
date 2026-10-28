@@ -3,6 +3,7 @@ import {
   PlaybackArbiter,
   MASTER_PLAYBACK_ID,
   MIX_PLAYBACK_ID,
+  selectHeaderTransport,
   type PlaybackParticipant,
 } from "./playback-arbiter";
 
@@ -154,5 +155,83 @@ describe("PlaybackArbiter — one playback truth", () => {
 
     expect(mixState.playing).toBe(false);
     expect(arbiter.getActiveId()).toBe(MASTER_PLAYBACK_ID);
+  });
+});
+
+describe("selectHeaderTransport — the Music Studio header's one clock", () => {
+  const masterPlaying = { isPlaying: true, currentTime: 9, audioDuration: 196 };
+
+  it("mirrors the master when it exists and no stem is solo'd", () => {
+    const state = selectHeaderTransport({
+      master: masterPlaying,
+      anySolo: false,
+      mixPlaying: true, // the mix engine's own state must not leak in
+      mixPosition: 15,
+      mixDuration: 180,
+    });
+    expect(state).toEqual({
+      source: "master",
+      isPlaying: true,
+      position: 9,
+      duration: 196,
+    });
+  });
+
+  it("mirrors a paused master too — button state follows the master, not the mix", () => {
+    const state = selectHeaderTransport({
+      master: { isPlaying: false, currentTime: 42, audioDuration: 196 },
+      anySolo: false,
+      mixPlaying: true,
+      mixPosition: 15,
+      mixDuration: 180,
+    });
+    expect(state.source).toBe("master");
+    expect(state.isPlaying).toBe(false);
+    expect(state.position).toBe(42);
+  });
+
+  it("a solo'd stem switches the header to the mix engine (stem audition)", () => {
+    const state = selectHeaderTransport({
+      master: masterPlaying,
+      anySolo: true,
+      mixPlaying: true,
+      mixPosition: 15,
+      mixDuration: 180,
+    });
+    expect(state).toEqual({
+      source: "mix",
+      isPlaying: true,
+      position: 15,
+      duration: 180,
+    });
+  });
+
+  it("without a master (timeline has no audio) the header stays on the mix", () => {
+    const state = selectHeaderTransport({
+      master: null,
+      anySolo: false,
+      mixPlaying: false,
+      mixPosition: 3,
+      mixDuration: 180,
+    });
+    expect(state).toEqual({
+      source: "mix",
+      isPlaying: false,
+      position: 3,
+      duration: 180,
+    });
+  });
+
+  it("master duration falls back to the mix's probed duration until metadata lands", () => {
+    const state = selectHeaderTransport({
+      master: { isPlaying: true, currentTime: 9, audioDuration: null },
+      anySolo: false,
+      mixPlaying: false,
+      mixPosition: 0,
+      mixDuration: 180,
+    });
+    expect(state.source).toBe("master");
+    expect(state.duration).toBe(180);
+    expect(state.position).toBe(9);
   });
 });
