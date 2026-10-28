@@ -136,6 +136,13 @@ describe("surface wiring", () => {
     expect(sidebar).toContain("{profile.credits.toLocaleString(\"en-US\")} left");
   });
 
+  it("the World's Studio board names the temporary part under its balance strip", () => {
+    const board = read("./world/native/boards/StudioBoard.tsx");
+    expect(board).toContain("TemporaryBucsNote");
+    expect(board).toContain('mode="label"');
+    expect(board).toContain("profile.balance_composition ?? balanceComposition(profile)");
+  });
+
   it("AuthContext composes the split before the spendable fold", () => {
     const auth = read("../contexts/AuthContext.tsx");
     const composed = auth.indexOf("data.balance_composition = balanceComposition(data);");
