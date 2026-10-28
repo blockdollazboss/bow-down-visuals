@@ -5850,6 +5850,7 @@
     "cartEmpty": "Il tuo carrello è vuoto.",
     "cartLabel": "Carrello",
     "checkoutNote": "Checkout con carta reale — completerai il pagamento sulla pagina di pagamento sicura ospitata. Paghi il prezzo indicato; Bow Down Visuals trattiene una commissione piattaforma del {{feePct}}% dalla quota del venditore. Il tuo ordine viene salvato come in sospeso finché il pagamento non viene confermato.",
+    "checkoutNoteOnSite": "Checkout con carta reale — completerai il pagamento qui, su questa pagina, senza lasciare il sito. Paghi il prezzo indicato; Bow Down Visuals trattiene una commissione piattaforma del {{feePct}}% dalla quota del venditore. Il tuo ordine viene salvato come in sospeso finché il pagamento non viene confermato.",
     "closeCartLabel": "Chiudi carrello",
     "closeLabel": "Chiudi",
     "continueShopping": "Continua lo shopping",

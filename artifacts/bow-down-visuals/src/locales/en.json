@@ -6097,6 +6097,7 @@
     "cartEmpty": "Your cart is empty.",
     "cartLabel": "Cart",
     "checkoutNote": "Real card checkout — you'll finish paying on the secure hosted payment page. You pay the listed price; Bow Down Visuals takes a {{feePct}}% platform fee from the seller's cut. Your order is saved as pending until the payment confirms.",
+    "checkoutNoteOnSite": "Real card checkout — you pay right here on this page, without leaving the site. You pay the listed price; Bow Down Visuals takes a {{feePct}}% platform fee from the seller's cut. Your order is saved as pending until the payment confirms.",
     "closeCartLabel": "Close cart",
     "closeLabel": "Close",
     "continueShopping": "Continue shopping",
