@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
-import { spendableCredits } from "@/lib/balance";
+import { spendableCredits, balanceComposition, type BalanceComposition } from "@/lib/balance";
 import { installSessionGuard, registerSessionHooks } from "@/lib/session-guard";
 
 interface Profile {
@@ -20,6 +20,11 @@ interface Profile {
   credits_base?: number;
   bonus_credits?: number | null;
   bonus_credits_expires_at?: string | null;
+  /** The permanent/temporary split of the displayed total (Lane V-bucs),
+   *  composed in fetchProfile from the raw columns BEFORE the fold, so
+   *  balance surfaces can name the temporary part and its expiry without
+   *  re-deriving it. Mirrors the server's creditBalanceComposition. */
+  balance_composition?: BalanceComposition;
   created_at: string;
 }
 
@@ -246,6 +251,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
        * and the spend-confirm dialog's "After" all reconcile with the
        * ledger by construction. */
       data.credits_base = data.credits;
+      /* Lane V-bucs: compose the permanent/temporary split from the RAW
+       * columns before the fold — after it, `credits` is the total and
+       * the split would have to be reverse-engineered. */
+      data.balance_composition = balanceComposition(data);
       data.credits = spendableCredits(data);
     }
     setProfile(data ?? null);
