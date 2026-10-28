@@ -3502,7 +3502,12 @@ export default function VideoEditor() {
                   </div>
                 </div>
                 {/* ── Panel size sync: 0 collapses both, 1-5 presets set BOTH sides to the same width ── */}
-                <div className="shrink-0 flex items-center justify-center gap-1.5 py-2 bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent border-y border-[#C9A84C]/10">
+                {/* Panels strip ground — dark keeps the gold fade; in light the
+                    strip takes the opaque vv-marble-panel ground (the same
+                    var-driven ground as the editor's rails) so the master
+                    player's ambient bleed can never show through the strip
+                    as a dark slab (vault-guards diagnosis 7B). */}
+                <div className={`shrink-0 flex items-center justify-center gap-1.5 py-2 border-y border-[#C9A84C]/10 ${isLight ? "vv-marble-panel" : "bg-gradient-to-b from-[#C9A84C]/[0.06] to-transparent"}`}>
                   <span className="text-[11px] font-bold vv-ink-30 uppercase tracking-wider mr-1">Panels:</span>
                   <button
                     type="button"
