@@ -55,6 +55,17 @@ describe("creation desk contracts (stack300)", () => {
        ResultChips rail), never the only persistence. */
     expect(desks).toContain("onSendToEditor");
   });
+
+  it("the Song Desk shows ONE total and confirms it once", () => {
+    /* The runner's price is the combined 800 (package + audio),
+       confirmed a single time before the package leg runs. */
+    expect(desks).toContain("costVisualBucs={songDeskTotalCost()}");
+    expect(desks).toContain("cost: songDeskTotalCost(),");
+    /* The audio leg rides that confirmation — its rail shows the
+       covered-total note instead of a second price. */
+    expect(desks).toContain("includedInTotal={songDeskTotalCost()}");
+    expect(shared).toContain("includedInTotal");
+  });
 });
 
 describe("2.4 song+video wizard contracts", () => {

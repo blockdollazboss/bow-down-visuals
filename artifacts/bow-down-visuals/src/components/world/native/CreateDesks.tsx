@@ -19,6 +19,7 @@ import {
   type SongAudioState,
 } from "./CreateDeskShared";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { StoryboardBench } from "./StoryboardBench";
 import { StoryboardPlanner } from "./StoryboardPlanner";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
@@ -88,7 +89,7 @@ import {
   withSceneApproval,
   TRANSCRIBE_FORM_FIELD,
   SONG_AUDIO_LENGTH_SECONDS,
-  songDeskCost,
+  songDeskTotalCost,
   songVideoDeskCost,
   SONG_VIDEO_TURBO_DEFAULTS,
   SONG_DRAFT_WORKFLOW,
@@ -326,6 +327,7 @@ const LENGTH_OPTIONS = ["", "30 seconds", "60 seconds", "2 minutes", "Full song"
 export function SongDesk(props: CreateDeskProps) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmSpend } = useCreditConfirm();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
   const [tab, setTab] = useState<"create" | "inspo" | "mashup" | "hum">("create");
@@ -423,6 +425,20 @@ export function SongDesk(props: CreateDeskProps) {
     rail.reset();
     void quest.snapshot();
     try {
+      /* ONE confirmation for the whole song — the package plus the
+         real audio, 800 Visual Bucs total, named up front. Each leg
+         still charges exactly once on its own rail, only when that
+         leg actually runs: decline here and nothing moves at all;
+         make the package and skip the audio and only the package
+         leg ever charged. */
+      const confirmed = await confirmSpend({
+        cost: songDeskTotalCost(),
+        feature: "Make the song — package + real audio",
+      });
+      if (!confirmed) {
+        setState("idle");
+        return;
+      }
       const token = await getAccessToken();
       const base = useAdvanced ? buildSongPayloadAdvanced(prompt, adv) : buildSongPayloadTurbo(prompt);
       const payload = vaultRaw ? withArtistVault(base, vaultRaw) : base;
@@ -509,12 +525,17 @@ export function SongDesk(props: CreateDeskProps) {
         </div>
         <DeskTextField isLight={isLight} label="Special instructions" value={adv.specialInstructions} onChange={set("specialInstructions")} />
       </AdvancedExpander>
+      <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
+        One price for the whole song — the package plus the real audio,{" "}
+        {songDeskTotalCost().toLocaleString("en-US")} Visual Bucs, confirmed once before anything runs.
+        Each part charges only when it lands.
+      </p>
       <CreateDeskRunner
         isLight={isLight}
         promptLabel="Describe the song"
         prompt={prompt}
         onPromptChange={setPrompt}
-        costVisualBucs={songDeskCost()}
+        costVisualBucs={songDeskTotalCost()}
         state={state}
         errorMessage={error}
         onRun={run}
@@ -531,6 +552,7 @@ export function SongDesk(props: CreateDeskProps) {
                 title={title}
                 costVisualBucs={rail.audioCost}
                 onMakeAudio={() => void rail.makeAudio()}
+                includedInTotal={songDeskTotalCost()}
               />
               {/* Stack-100 #49 — the finished-song finishers: the
                   site's OWN CoverSongModal + LrcExportModal docked
