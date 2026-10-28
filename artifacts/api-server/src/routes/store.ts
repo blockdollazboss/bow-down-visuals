@@ -62,6 +62,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
+import { notifyUserEvent } from "../lib/push-events";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import {
@@ -1693,14 +1694,33 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       `);
       const crow = creator.rows[0] as Record<string, unknown> | undefined;
       if (crow && String(crow["user_id"]) !== req.userId) {
-        await createJobNotification({
+        const sellerId = String(crow["user_id"]);
+        const saleTitle = "You just got paid 👑";
+        const saleMessage = `“${itemTitle}” just sold for ${money(amountCents)} — ${money(creatorCents)} is now in your pending payout. The cheat code works.${splits.bump ? ` Includes the “${bumpTitle}” add-on (${money(splits.bump.grossCents)}).` : ""}`;
+        const landed = await createJobNotification({
           jobType: "sale",
           jobId: saleId,
-          userId: String(crow["user_id"]),
+          userId: sellerId,
           status: "completed",
-          title: "You just got paid 👑",
-          message: `“${itemTitle}” just sold for ${money(amountCents)} — ${money(creatorCents)} is now in your pending payout. The cheat code works.${splits.bump ? ` Includes the “${bumpTitle}” add-on (${money(splits.bump.grossCents)}).` : ""}`,
+          title: saleTitle,
+          message: saleMessage,
         });
+        if (landed) {
+          /* First event on the device-push rail (Stack500 push
+             foundation): the same exactly-once landing also lands the
+             seller's bell row and — when their "money" push category
+             is on (the default) — pings their devices. A duplicate
+             verify never re-fires: `landed` is true only for the call
+             that created the job_notifications row. */
+          await notifyUserEvent({
+            userId: sellerId,
+            category: "money",
+            kind: "sale",
+            title: saleTitle,
+            body: saleMessage,
+            link: "/store/dashboard",
+          });
+        }
       }
     } catch (notifyErr) {
       logger.error({ notifyErr, saleId }, "[store] sale notification failed (non-fatal)");

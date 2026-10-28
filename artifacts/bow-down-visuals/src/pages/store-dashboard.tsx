@@ -28,6 +28,7 @@ import {
 } from "@/lib/storefront-api";
 import { formatDropLocal } from "@/lib/product-drop";
 import SplitsEditor from "@/components/splits/SplitsEditor";
+import PushOptInPrompt from "@/components/PushOptInPrompt";
 import CommercePixelsSettings, {
   pixelsToForm,
   type CommercePixelsFormValue,
@@ -2122,6 +2123,20 @@ export default function StoreDashboard() {
             <div className="flex justify-center py-20 text-white/40"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : (
             <EarningsHero data={checklist} />
+          )}
+
+          {/* In-context push ask (EVERYTHING SMART): only once the
+              seller has a sale does the value of a sale ping exist —
+              ask here, never on a cold first page load. */}
+          {checklist && checklist.earnings.orderCount > 0 && (
+            <div className="mt-5">
+              <PushOptInPrompt
+                when
+                context="first-sale"
+                headline="Want the next sale to ping your phone?"
+                body="Turn on device notifications and a completed sale reaches you the moment it lands — even with the site closed."
+              />
+            </div>
           )}
 
           <div className="mt-5"><ConnectPayoutCard /></div>

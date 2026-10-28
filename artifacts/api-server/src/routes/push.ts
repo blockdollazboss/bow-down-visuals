@@ -5,6 +5,12 @@ import { db, pushSubscriptionsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { pushConfig } from "../lib/push";
+import {
+  PUSH_CATEGORIES,
+  getPushPreferences,
+  updatePushPreferences,
+  type PushCategory,
+} from "../lib/push-events";
 
 /* ── Web-push subscriptions ──────────────────────────────────────────────
    GET    /push/config          (public) the VAPID public key, or
@@ -103,6 +109,55 @@ router.delete("/push/subscriptions", requireAuth, async (req: Request, res: Resp
   } catch (err) {
     logger.error({ err }, "push unsubscribe failed");
     res.status(500).json({ error: "Alerts couldn't be turned off. Try again." });
+  }
+});
+
+/* ── Per-user push preferences (migration 0299) ──────────────────────────
+   GET /push/preferences   (auth) the resolved category map (defaults
+                           materialized when the user has no row yet).
+   PUT /push/preferences   (auth) upsert any subset of the categories;
+                           returns the resolved map. These gate the
+                           device ping only — the bell always lands. */
+
+router.get("/push/preferences", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Sign in to see your alert settings." });
+      return;
+    }
+    const prefs = await getPushPreferences(userId);
+    res.json({ preferences: prefs });
+  } catch (err) {
+    logger.error({ err }, "push preferences read failed");
+    res.status(500).json({ error: "Alert settings couldn't load. Try again." });
+  }
+});
+
+const preferencesSchema = z.object(
+  Object.fromEntries(PUSH_CATEGORIES.map((c) => [c, z.boolean().optional()])) as Record<
+    PushCategory,
+    z.ZodOptional<z.ZodBoolean>
+  >,
+);
+
+router.put("/push/preferences", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Sign in to change your alert settings." });
+      return;
+    }
+    const parsed = preferencesSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "That alert setting didn't look right." });
+      return;
+    }
+    const prefs = await updatePushPreferences(userId, parsed.data);
+    res.json({ preferences: prefs });
+  } catch (err) {
+    logger.error({ err }, "push preferences write failed");
+    res.status(500).json({ error: "Alert settings couldn't save. Try again." });
   }
 });
 
