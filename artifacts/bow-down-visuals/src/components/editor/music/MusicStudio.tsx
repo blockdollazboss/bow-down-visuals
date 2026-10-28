@@ -305,7 +305,7 @@ export function MusicStudio({
           <button
             type="button"
             onClick={() => {
-              if (mirrorMaster) masterPlayer.onTogglePlay();
+              if (mirrorMaster && masterPlayer) masterPlayer.onTogglePlay();
               else preview.toggle();
             }}
             disabled={!mirrorMaster && !preview.hasStems && !effectiveAudioUrl}

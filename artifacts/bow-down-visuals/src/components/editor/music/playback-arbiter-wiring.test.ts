@@ -80,7 +80,7 @@ describe("Music Studio header transports the master for the project song", () =>
   });
 
   it("the header button toggles the master via the handle when mirroring", () => {
-    expect(musicStudio).toContain("if (mirrorMaster) masterPlayer.onTogglePlay();");
+    expect(musicStudio).toContain("if (mirrorMaster && masterPlayer) masterPlayer.onTogglePlay();");
     expect(musicStudio).toContain('data-testid="musicstudio-play"');
   });
 
