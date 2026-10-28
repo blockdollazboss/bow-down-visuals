@@ -58,8 +58,10 @@ import {
   type BeatLicenseTerms,
 } from "@/lib/beat-license-terms";
 import type { LedgerEntry } from "./earnings-board";
+import { apiErrorLine } from "./money-desks";
+import { CheckoutTransportError, checkoutFailureCopy } from "../checkout-fetch";
 
-export { apiErrorLine } from "./money-desks";
+export { apiErrorLine };
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
@@ -941,6 +943,68 @@ export function planHostedUrl(payload: unknown): string | null {
  *  a paid plan, "Free" for the free tier. */
 export function planPriceLabel(plan: SitePlan): string {
   return plan.priceUsdPerMonth === null ? "Free" : `$${plan.priceUsdPerMonth}/mo`;
+}
+
+/* ─── The subscription intent's verdict (stack600
+   plansdesk-honesty) ──────────────────────────────────────────────
+   The PlansDesk used to fire the embedded intent with a bare fetch
+   and fall through to the HOSTED checkout rail on ANY failure —
+   so a failed intent silently walked the buyer off the site, and
+   the failure itself was never shown. The creator-pricing page
+   (the desk's reference implementation) never does that: a server
+   answer is shown, a transport failure is named by
+   checkoutFailureCopy, and checkout STOPS. This pure function is
+   that page's verdict, shared: it turns the intent POST's
+   { ok, status, data } into exactly one of —
+   - "embedded": the confirmation secret arrived; mount the form.
+   - "changed": the tier change applied in place (the intent's own
+     answer for it); no payment page exists.
+   - "error": STOP with this honest line — the server's own message
+     when it sent one (its 502 text already carries the
+     nothing-charged line; its 409 names the manage path), else the
+     shared failure copy naming the HTTP status + nothing charged.
+   An OK answer with no usable secret is an error too, never a
+   reason to try another rail. */
+export type PlanIntentOutcome =
+  | { kind: "embedded"; clientSecret: string; subscriptionId: string; label: string }
+  | { kind: "changed" }
+  | { kind: "error"; message: string };
+
+export function planIntentOutcome(
+  result: { ok: boolean; status: number; data: unknown },
+  planName: string,
+): PlanIntentOutcome {
+  const { ok, status, data } = result;
+  if (ok && isObj(data)) {
+    if (data["changed"] === true) return { kind: "changed" };
+    const clientSecret = str(data["clientSecret"]);
+    const subscriptionId = str(data["subscriptionId"]);
+    if (clientSecret && subscriptionId) {
+      return {
+        kind: "embedded",
+        clientSecret,
+        subscriptionId,
+        label: str(data["label"]) ?? planName,
+      };
+    }
+  }
+  if (ok) {
+    /* The server answered OK but sent nothing the form can mount —
+       that is a failed start, stated plainly, not a detour. */
+    return {
+      kind: "error",
+      message: "Checkout didn't start — nothing was charged. Try again in a minute.",
+    };
+  }
+  return {
+    kind: "error",
+    message: apiErrorLine(
+      data,
+      checkoutFailureCopy(
+        new CheckoutTransportError("Subscription intent failed", status),
+      ),
+    ),
+  };
 }
 
 /* ─── 70 · The full credit-history ledger, paginated ─────────────── */

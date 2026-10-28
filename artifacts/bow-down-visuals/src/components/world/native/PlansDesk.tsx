@@ -8,12 +8,15 @@ import {
   parseSitePlans,
   planCheckoutPayload,
   planHostedUrl,
+  planIntentOutcome,
   planPriceLabel,
   plansNote,
+  type PlanIntentOutcome,
   type SitePlan,
   type SitePlanMe,
 } from "@/lib/world/money-desks-2";
 import { EmbeddedPaymentForm, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
+import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-fetch";
 
 /* ─── PlansDesk — your site plan (Free / Pro / Elite), purchasable
    from the Get Paid Room (Stack-100 #69). The creator-pricing page
@@ -28,6 +31,9 @@ import { EmbeddedPaymentForm, hasStripePublishableKey } from "@/components/check
    PaymentElement form in this desk via POST
    /api/embedded-checkout/subscription/intent and confirms through
    its /verify twin (the creator-pricing page's own embedded flow).
+   An intent that FAILS stops in this desk with the pricing page's
+   honest error — it never falls through to a hosted page
+   (stack600 plansdesk-honesty; see checkout() below).
    The hosted rail remains the fallback when no key is configured:
    POST /api/creator-tiers/checkout { tier, returnTo: "/world" },
    and managing rides POST /api/creator-tiers/portal; both answer a
@@ -111,31 +117,61 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
     setError(null);
     setOpenedNote(null);
     try {
-      /* JOIN2: embedded first (never leave the site) — the intent
-         answers a clientSecret + subscriptionId and the desk mounts
-         the shared form. Any intent failure falls through to the
-         rail below — including the intent's 409 for an already-
-         subscribed member, whose tier CHANGE belongs to the
-         upgrade-path checkout (it applies in place and answers
-         { changed: true }, handled under the hosted call). */
+      /* Embedded first (never leave the site) — the intent answers
+         a clientSecret + subscriptionId and the desk mounts the
+         shared form. HONESTY (stack600 plansdesk-honesty, mirroring
+         the creator-pricing page): ANY intent failure STOPS here
+         with the page's own error copy — a server answer shows its
+         message, or names its HTTP status with the
+         nothing-charged line when it sent none (so the route's own
+         409 tells an already-subscribed member to manage their
+         plan — the Manage / cancel button on their own card —
+         instead of silently opening a hosted upgrade page), and a
+         transport failure is named by checkoutFailureCopy. The
+         desk NEVER falls through to the hosted rail on a failed
+         intent: leaving for a hosted page on an error breaks
+         never-leave-the-site and hid the Gate #2 502s from buyers.
+         The intent POST rides the page's transport-resilient
+         helper — the intent is idempotency-keyed server-side, so
+         a transport retry replays the same subscription, never a
+         second one. The hosted rail below now serves ONLY the
+         no-publishable-key configuration, where embedded checkout
+         cannot run at all. */
       if (hasStripePublishableKey()) {
+        const headers = await authHeaders();
+        const token = headers.Authorization?.replace(/^Bearer\s+/i, "") ?? null;
+        let outcome: PlanIntentOutcome;
         try {
-          const ires = await fetch("/api/embedded-checkout/subscription/intent", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-            body: JSON.stringify({ tier: plan.tier }),
+          const result = await postJsonWithTransportRetry(
+            "/api/embedded-checkout/subscription/intent",
+            { token, body: { tier: plan.tier } },
+          );
+          outcome = planIntentOutcome(result, plan.name);
+        } catch (err) {
+          /* Every attempt failed at transport level — the helper
+             only throws for those; a server JSON answer is returned
+             above, never thrown. */
+          setError(checkoutFailureCopy(err));
+          return;
+        }
+        if (outcome.kind === "embedded") {
+          setEmbedded({
+            tier: plan.tier,
+            clientSecret: outcome.clientSecret,
+            subscriptionId: outcome.subscriptionId,
+            label: outcome.label,
           });
-          const idata = (await ires.json().catch(() => ({}))) as Record<string, unknown>;
-          if (ires.ok && typeof idata.clientSecret === "string" && typeof idata.subscriptionId === "string") {
-            setEmbedded({
-              tier: plan.tier,
-              clientSecret: idata.clientSecret,
-              subscriptionId: idata.subscriptionId,
-              label: typeof idata.label === "string" ? idata.label : plan.name,
-            });
-            return;
-          }
-        } catch { /* fall through to the hosted rail */ }
+          return;
+        }
+        if (outcome.kind === "changed") {
+          /* In-place tier change answered by the intent itself —
+             same note the hosted path used for { changed: true }. */
+          setOpenedNote(`${plan.name} is your plan now — the change applied in place, prorated on your existing subscription.`);
+          void load();
+          return;
+        }
+        setError(outcome.message);
+        return;
       }
       const res = await fetch("/api/creator-tiers/checkout", {
         method: "POST",
