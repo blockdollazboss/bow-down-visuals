@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ListMusic, Play, Pause, Volume2, VolumeX,
   Minimize2, ChevronUp, GripHorizontal,
-  Upload, Trash2, Loader2,
+  Upload, Trash2, Loader2, RotateCcw,
 } from "lucide-react";
 import { useThemePlayer } from "@/contexts/ThemePlayerContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -486,8 +486,8 @@ function saveOpen(v: boolean) {
 
 /* ─── Theme player row ─── */
 function ThemePlayerRow() {
-  const { status, playing, muted, volume, togglePlay, toggleMute, setVolume } = useThemePlayer();
-  const loaded      = status === "ready" || status === "playing";
+  const { status, checking, playFailed, playing, muted, volume, togglePlay, toggleMute, setVolume, reprobe } = useThemePlayer();
+  const loaded      = status === "ready";
   const missing     = status === "missing";
   const failed      = status === "error";
   const unavailable = missing || failed;
@@ -502,8 +502,40 @@ function ThemePlayerRow() {
             a site error to every visitor. Red is reserved for real errors. */}
         {missing && <span className="text-[#C9A84C]/80 font-normal normal-case tracking-normal ml-1">— coming soon</span>}
         {failed && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— couldn't load</span>}
+        {/* Lane T: a rejected manual play() is a real, named state —
+            not the old silent no-op where the button claimed playing. */}
+        {playFailed && !playing && <span className="text-red-400/80 font-normal normal-case tracking-normal ml-1">— couldn't play</span>}
       </p>
-      {!unavailable && (
+      {/* Lane T: unavailable is no longer a dead end. The probe failure
+          that produced missing/error may have been one transient moment
+          (the track itself is healthy), so the row offers tap-to-retry
+          wired to the context's reprobe — plus the widget-open backoff
+          keeps retrying on its own while this panel is open. During the
+          initial "probing" state the normal controls below render, so
+          there is always something to press. */}
+      {unavailable ? (
+        <button
+          onClick={reprobe}
+          aria-label="Retry theme song"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-left transition-colors hover:border-white/20"
+        >
+          <span
+            className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "linear-gradient(135deg,#9B7515,#DAA520)", boxShadow: "0 0 8px rgba(218,165,32,0.50)" }}
+          >
+            {checking
+              ? <Loader2 className="h-3 w-3 text-black animate-spin" />
+              : <RotateCcw className="h-3 w-3 text-black" />
+            }
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[9px] font-black uppercase tracking-[0.12em] text-yellow-400/70 leading-none">Bow Down Visuals</span>
+            <span className="block text-[10px] text-white/50 mt-1 leading-none">
+              {checking ? "Checking again…" : "Tap to retry"}
+            </span>
+          </span>
+        </button>
+      ) : (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03]">
           <button
             onClick={togglePlay}
@@ -546,6 +578,12 @@ function ThemePlayerRow() {
             {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
           </button>
         </div>
+      )}
+      {/* Recoverable play failure: the play button above is the retry. */}
+      {playFailed && !playing && !unavailable && (
+        <p className="text-[10px] text-red-400/80 leading-snug">
+          Couldn't start the theme song — tap play to try again.
+        </p>
       )}
     </div>
   );
@@ -611,7 +649,17 @@ export function BowDownAIGuide() {
   /* S27-01: coarse (touch) pointers get the wide tappable peek tab. */
   const [coarsePointer, setCoarsePointer] = useState(false);
 
-  const { playing } = useThemePlayer();
+  const { playing, setWidgetOpen } = useThemePlayer();
+
+  /* Lane T: tell the theme player when this widget is open. Opening
+     re-probes a theme whose boot probe failed (and keeps retrying on
+     backoff while open) instead of leaving "— coming soon" up for the
+     whole session. Cleanup also fires on open flips; setWatching is
+     idempotent, so the false→effect→true sequence is harmless. */
+  useEffect(() => {
+    setWidgetOpen(open);
+    return () => setWidgetOpen(false);
+  }, [open, setWidgetOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;

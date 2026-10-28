@@ -5,19 +5,36 @@ import {
 import { useLocation } from "wouter";
 import { attachThemeAnalyser } from "@/lib/theme-analyser";
 import { mediaUrl } from "@/lib/media-cdn";
+import {
+  ThemeProbe,
+  attemptPlay,
+  type ThemeAvailability,
+  type ThemeProbeSnapshot,
+} from "@/lib/theme-probe";
 
 const AUDIO_SRC = mediaUrl("audio/bow-down-visuals-theme.mp3");
 
-type Status = "probing" | "ready" | "missing" | "playing" | "error";
+type Status = ThemeAvailability;
 
 interface ThemePlayerCtx {
   status: Status;
+  /** A theme-track availability probe is in flight right now. */
+  checking: boolean;
+  /** The last user-initiated play() attempt was rejected (autoplay
+      policy, decode, network). Surfaced by the widget row; cleared by
+      the next attempt or any successful play. */
+  playFailed: boolean;
   playing: boolean;
   muted: boolean;
   volume: number;
   togglePlay: () => void;
   toggleMute: () => void;
   setVolume: (v: number) => void;
+  /** Retry the availability probe now (tap-to-retry in the widget row). */
+  reprobe: () => void;
+  /** The playlist widget opened/closed — opening re-probes an
+      unavailable theme and keeps retrying on backoff while open. */
+  setWidgetOpen: (open: boolean) => void;
 }
 
 const Ctx = createContext<ThemePlayerCtx | null>(null);
@@ -50,7 +67,13 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
   const isPublicArea = PUBLIC_PATHS.has(pathname);
 
   const audioRef       = useRef<HTMLAudioElement | null>(null);
-  const [status,  setStatus]  = useState<Status>("probing");
+  const probeRef       = useRef<ThemeProbe | null>(null);
+  /* The <audio> element itself errored since the last ready flip —
+     a successful re-probe must reload the element, not just relabel. */
+  const elementErrored = useRef(false);
+  const [snap,    setSnap]    = useState<ThemeProbeSnapshot>({ status: "probing", checking: false });
+  const status = snap.status;
+  const [playFailed, setPlayFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [muted,   setMuted]   = useState(false);
   const [volume,  setVolumeState] = useState(0.65);
@@ -90,7 +113,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     audio.muted  = false;
     audio.volume = volumeRef.current;
     audio.play()
-      .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(audio); })
+      .then(() => { setPlaying(true); setMuted(false); setPlayFailed(false); attachThemeAnalyser(audio); })
       .catch(() => { /* blocked — the unlock listener below stays armed */ });
   }, []);
 
@@ -103,7 +126,10 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     audio.muted   = false;
     audioRef.current = audio;
 
-    audio.addEventListener("error", () => setStatus("error"));
+    audio.addEventListener("error", () => {
+      elementErrored.current = true;
+      probeRef.current?.reportElementError();
+    });
 
     const removeUnlock = () => {
       document.removeEventListener("click",      unlock);
@@ -127,26 +153,41 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       a.muted  = false;
       a.volume = volumeRef.current;
       a.play()
-        .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(a); removeUnlock(); })
+        .then(() => { setPlaying(true); setMuted(false); setPlayFailed(false); attachThemeAnalyser(a); removeUnlock(); })
         .catch(() => {});
     };
     document.addEventListener("click",      unlock);
     document.addEventListener("keydown",    unlock);
     document.addEventListener("touchstart", unlock, { passive: true });
 
-    fetch(AUDIO_SRC, { method: "HEAD" })
-      .then((r) => {
-        if (!r.ok) { setStatus("missing"); return; }
-        setStatus("ready");
-
-        /* Attempt 1: unmuted autoplay (works after any prior user gesture).
-           tryAutoplay no-ops anywhere but the public area. */
-        tryAutoplay();
-      })
-      .catch(() => setStatus("missing"));
+    /*
+     * Availability lives in ThemeProbe (lib/theme-probe.ts): the boot
+     * probe below is only the FIRST attempt. A failure is no longer
+     * terminal for the session — the widget re-probes on open and on
+     * backoff, and the row offers tap-to-retry (see BowDownAIGuide).
+     */
+    const probe = new ThemeProbe({
+      head: () => fetch(AUDIO_SRC, { method: "HEAD" }).then((r) => r.ok),
+      onChange: (s) => {
+        setSnap(s);
+        /* Probe says the track is back but the element previously
+           errored: reload it so a fresh fetch replaces the dead one. */
+        if (s.status === "ready" && elementErrored.current) {
+          elementErrored.current = false;
+          audio.load();
+        }
+      },
+      /* Attempt 1: unmuted autoplay (works after any prior user gesture).
+         tryAutoplay no-ops anywhere but the public area. */
+      onReady: () => tryAutoplay(),
+    });
+    probeRef.current = probe;
+    probe.start();
 
     return () => {
       removeUnlock();
+      probe.dispose();
+      probeRef.current = null;
       audio.pause();
       audioRef.current = null;
     };
@@ -219,7 +260,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       audio.muted  = false;
       audio.volume = audioRef.current?.volume ?? 0.65;
       audio.play()
-        .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(audio); })
+        .then(() => { setPlaying(true); setMuted(false); setPlayFailed(false); attachThemeAnalyser(audio); })
         .catch(() => {});
     }
 
@@ -280,8 +321,20 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       autoPausedByNav.current = false;
       audio.muted  = manuallyMuted.current;
       audio.volume = volume;
-      audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});
-      setPlaying(true);
+      /* Honest state: claim "playing" only once playback actually
+         starts. A rejection (autoplay policy, decode, network) used to
+         be swallowed while the UI claimed playing — now it flips
+         playFailed so the row can show it and the user can retry. */
+      setPlayFailed(false);
+      void attemptPlay(audio).then((ok) => {
+        if (ok) {
+          setPlaying(true);
+          attachThemeAnalyser(audio);
+        } else {
+          setPlaying(false);
+          setPlayFailed(true);
+        }
+      });
     }
   }, [playing, volume]);
 
@@ -294,8 +347,15 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     setMuted(next);
     /* Unmuting should also ensure playback starts if paused */
     if (!next && !playing && !manuallyPaused.current) {
-      audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});
-      setPlaying(true);
+      setPlayFailed(false);
+      void attemptPlay(audio).then((ok) => {
+        if (ok) {
+          setPlaying(true);
+          attachThemeAnalyser(audio);
+        } else {
+          setPlayFailed(true);
+        }
+      });
     }
   }, [muted, playing]);
 
@@ -311,8 +371,20 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [muted]);
 
+  /* ── Availability retries (widget-driven) ── */
+  const reprobe = useCallback(() => {
+    probeRef.current?.reprobe();
+  }, []);
+
+  const setWidgetOpen = useCallback((open: boolean) => {
+    probeRef.current?.setWatching(open);
+  }, []);
+
   return (
-    <Ctx.Provider value={{ status, playing, muted, volume, togglePlay, toggleMute, setVolume }}>
+    <Ctx.Provider value={{
+      status, checking: snap.checking, playFailed, playing, muted, volume,
+      togglePlay, toggleMute, setVolume, reprobe, setWidgetOpen,
+    }}>
       {children}
     </Ctx.Provider>
   );
