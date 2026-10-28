@@ -11,6 +11,22 @@ import {
   type BillingStateView,
 } from "@/lib/billing-display";
 
+/* Mirror of the server's TierChangePreviewView (lib/tier-change.ts) —
+   the honest proration numbers behind the change-plan confirm panel. */
+interface TierChangePreview {
+  fromTier: string;
+  fromPlanName: string;
+  toTier: string;
+  toPlanName: string;
+  toPriceUsdPerMonth: number | null;
+  amountDueTodayCents: number;
+  creditCents: number;
+  currency: string;
+  effective: string;
+  renewalDate: string | null;
+  clearsPendingCancel: boolean;
+}
+
 /* ── Settings → Billing ───────────────────────────────────────────────────
    The billing surface the FAQ always promised: current plan, price,
    renewal date, and a WORKING cancel that lives on this site — POST
@@ -31,7 +47,8 @@ export function BillingSettings() {
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const [busy, setBusy] = useState<"cancel" | "resume" | "portal" | null>(null);
+  const [changePreview, setChangePreview] = useState<TierChangePreview | null>(null);
+  const [busy, setBusy] = useState<"cancel" | "resume" | "portal" | "previewChange" | "change" | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -110,6 +127,82 @@ export function BillingSettings() {
       });
     } catch {
       toast({ title: t("settings.billing.resumeFailed"), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function formatMoney(cents: number, currency: string): string {
+    try {
+      return new Intl.NumberFormat(i18n.language, {
+        style: "currency",
+        currency: (currency || "usd").toUpperCase(),
+      }).format(cents / 100);
+    } catch {
+      return `$${(cents / 100).toFixed(2)}`;
+    }
+  }
+
+  /* Change plan, step 1: price the swap. POST /change/preview runs
+     Stripe's own proration math and charges NOTHING — the confirm
+     panel below shows exactly what will happen before any money
+     moves (Gate Pass 1: subscribers had NO tier-change path at all). */
+  async function previewChange() {
+    if (busy || !billing) return;
+    const target = describeBilling(billing).changeTargetTier;
+    if (!target) return;
+    setBusy("previewChange");
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/creator-tiers/change/preview", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ tier: target }),
+      });
+      const d = (await res.json().catch(() => ({}))) as {
+        preview?: TierChangePreview;
+        billing?: BillingStateView;
+      };
+      if (d.billing) setBilling(d.billing);
+      if (!res.ok || !d.preview) throw new Error("preview failed");
+      setChangePreview(d.preview);
+    } catch {
+      toast({ title: t("settings.billing.changePreviewFailed"), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /* Change plan, step 2: apply it. The server reprices the SAME
+     subscription in place (never a second subscription) with the
+     confirmed proration, and answers with the fresh billing state. */
+  async function applyChange() {
+    if (busy || !changePreview) return;
+    setBusy("change");
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/creator-tiers/change", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ tier: changePreview.toTier }),
+      });
+      const d = (await res.json().catch(() => ({}))) as { billing?: BillingStateView };
+      if (d.billing) setBilling(d.billing);
+      if (!res.ok) throw new Error("change failed");
+      const planName = changePreview.toPlanName;
+      setChangePreview(null);
+      toast({
+        title: t("settings.billing.changeDoneTitle"),
+        description: t("settings.billing.changeDoneBody", { plan: planName }),
+      });
+    } catch {
+      toast({ title: t("settings.billing.changeFailed"), variant: "destructive" });
     } finally {
       setBusy(null);
     }
@@ -216,6 +309,67 @@ export function BillingSettings() {
             </p>
           )}
 
+          {changePreview && display.showChangePlan && (
+            <div className="rounded-xl border border-primary/40 bg-primary/5 p-4" data-testid="billing-change-confirm">
+              <p className="text-sm font-bold text-primary">
+                {t("settings.billing.changeConfirmTitle", { plan: changePreview.toPlanName })}
+              </p>
+              {changePreview.amountDueTodayCents > 0 && (
+                <p className="mt-1 text-xs text-white/70">
+                  {t("settings.billing.changeChargeToday", {
+                    amount: formatMoney(changePreview.amountDueTodayCents, changePreview.currency),
+                    fromPlan: changePreview.fromPlanName,
+                    plan: changePreview.toPlanName,
+                  })}
+                </p>
+              )}
+              {changePreview.amountDueTodayCents === 0 && changePreview.creditCents > 0 && (
+                <p className="mt-1 text-xs text-white/70">
+                  {t("settings.billing.changeCredit", {
+                    amount: formatMoney(changePreview.creditCents, changePreview.currency),
+                    fromPlan: changePreview.fromPlanName,
+                  })}
+                </p>
+              )}
+              {changePreview.amountDueTodayCents === 0 && changePreview.creditCents === 0 && (
+                <p className="mt-1 text-xs text-white/70">{t("settings.billing.changeNoCharge")}</p>
+              )}
+              <p className="mt-1 text-xs text-white/70">
+                {changePreview.renewalDate
+                  ? t("settings.billing.changeImmediate", {
+                      plan: changePreview.toPlanName,
+                      date: formatBillingDate(changePreview.renewalDate, i18n.language) ?? "",
+                    })
+                  : t("settings.billing.changeImmediateNoDate", { plan: changePreview.toPlanName })}
+              </p>
+              {changePreview.clearsPendingCancel && (
+                <p className="mt-1 text-xs font-semibold text-amber-300">
+                  {t("settings.billing.changeClearsCancel")}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => { void applyChange(); }}
+                  disabled={busy !== null}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+                  data-testid="billing-change-confirm-button"
+                >
+                  {busy === "change" && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {t("settings.billing.changeConfirmButton")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChangePreview(null)}
+                  disabled={busy !== null}
+                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/10 disabled:opacity-50"
+                >
+                  {t("settings.billing.changeBack")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {confirmingCancel && display.showCancel && (
             <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-4">
               <p className="text-sm font-bold text-red-300">
@@ -257,6 +411,20 @@ export function BillingSettings() {
               >
                 {t("settings.billing.seePlans")}
               </Link>
+            )}
+            {display.showChangePlan && !changePreview && (
+              <button
+                type="button"
+                onClick={() => { void previewChange(); }}
+                disabled={busy !== null}
+                className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+                data-testid="billing-change-plan"
+              >
+                {busy === "previewChange" && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("settings.billing.changeButton", {
+                  plan: display.changeTargetTier === "elite" ? "Elite" : "Pro",
+                })}
+              </button>
             )}
             {display.showCancel && !confirmingCancel && (
               <button
