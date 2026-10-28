@@ -3578,10 +3578,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   /* ── Credit check ──
    * Branded (watermarked) exports are FREE (ruling A-01): a request whose
    * render will carry a watermark is never gated on the clean price —
-   * free/trial users are force-watermarked and must never be charged (or
-   * blocked) as if their output were clean. A predicted-clean render
-   * gates on EXPORT_CREDIT_COST (400 Visual Bucs), which the worker then
-   * reserves at job start (ruling A-07). */
+   * nobody is charged (or blocked) as if branded output were clean. A
+   * predicted-clean render — the export-time toggle OFF, on any plan
+   * (lane 3) — gates on EXPORT_CREDIT_COST (400 Visual Bucs), which the
+   * worker then reserves at job start (ruling A-07). */
   const currentCredits = req.userCredits ?? 0;
   if (!IS_DEV && !predictExportWatermarked(body, req.userPlan) && currentCredits < EXPORT_CREDIT_COST) {
     res.status(402).json({
