@@ -17,6 +17,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import CourseOutline from "@/components/courses/CourseOutline";
 import GiftThisProductPanel from "@/components/storefront/GiftThisProductPanel";
 import { LocalCurrencyPrice } from "@/components/LocalCurrencyPrice";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
    The landing page for one store product (downloads, merch, digital
@@ -408,6 +409,10 @@ export default function StorefrontProduct() {
   const [giftMessage, setGiftMessage] = useState("");
   const [giftIssued, setGiftIssued] = useState<{ code: string | null; note: string } | null>(null);
   const [paidWithGiftCard, setPaidWithGiftCard] = useState(false);
+  /* Embedded checkout (owner law 2026-10-26: never leave the site):
+     when the checkout answers a clientSecret, the payment form mounts
+     right here in the buy panel instead of redirecting to Stripe. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   /* Lead-magnet claim state (0190). */
   const [claimEmail, setClaimEmail] = useState("");
   const [claimName, setClaimName] = useState("");
@@ -602,13 +607,23 @@ export default function StorefrontProduct() {
             ? { affiliateCode: new URLSearchParams(window.location.search).get("ref")!.trim() }
             : {}),
           ...(giftCardCode.trim() ? { giftCardCode: giftCardCode.trim() } : {}),
+          /* Embedded-first (owner law 2026-10-26): ask for the on-page
+             presentation whenever this device can mount it; the hosted
+             redirect below remains only as the fallback when no
+             clientSecret comes back. */
+          ...(hasStripePublishableKey() ? { uiMode: "embedded" } : {}),
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { url?: string | null; paidWithGiftCard?: boolean; error?: string; message?: string };
+      const body = (await res.json().catch(() => ({}))) as { url?: string | null; clientSecret?: string | null; paidWithGiftCard?: boolean; error?: string; message?: string };
       if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
-      /* The gift card covered the whole bill — no hosted checkout. */
+      /* The gift card covered the whole bill — no card checkout at all. */
       if (body.paidWithGiftCard) {
         setPaidWithGiftCard(true);
+        return;
+      }
+      if (body.clientSecret) {
+        setEmbeddedSecret(body.clientSecret);
+        setBuying(false);
         return;
       }
       if (!body.url) throw new Error("Checkout failed.");
@@ -634,10 +649,20 @@ export default function StorefrontProduct() {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ productId: data.product.id, offerId: offer.id }),
+      body: JSON.stringify({
+        productId: data.product.id,
+        offerId: offer.id,
+        /* Same embedded-first discipline as Buy Now. */
+        ...(hasStripePublishableKey() ? { uiMode: "embedded" } : {}),
+      }),
     });
-    const body = (await res.json().catch(() => ({}))) as { url?: string | null; error?: string; message?: string };
-    if (!res.ok || !body.url) throw new Error(body.message || body.error || "Checkout failed.");
+    const body = (await res.json().catch(() => ({}))) as { url?: string | null; clientSecret?: string | null; error?: string; message?: string };
+    if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+    if (body.clientSecret) {
+      setEmbeddedSecret(body.clientSecret);
+      return;
+    }
+    if (!body.url) throw new Error("Checkout failed.");
     window.location.href = body.url;
   }
 
@@ -1025,14 +1050,26 @@ export default function StorefrontProduct() {
                     </p>
                   </div>
                   {buyError && <p className="mt-3 text-sm font-bold text-red-300">{buyError}</p>}
-                  <button
-                    onClick={buyNow}
-                    disabled={buying}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
-                  >
-                    {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                    {buying ? "Opening secure checkout…" : user ? "Buy it now" : "Sign in to buy"}
-                  </button>
+                  {embeddedSecret ? (
+                    <div className="mt-4" data-testid="storefront-embedded-checkout">
+                      <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+                      <button
+                        onClick={() => setEmbeddedSecret(null)}
+                        className="mt-2 w-full text-center text-xs text-amber-100/40 hover:text-amber-100/70"
+                      >
+                        Cancel — no charge
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={buyNow}
+                      disabled={buying}
+                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+                    >
+                      {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                      {buying ? "Opening secure checkout…" : user ? "Buy it now" : "Sign in to buy"}
+                    </button>
+                  )}
                 </>
               )}
 
