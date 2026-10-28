@@ -487,7 +487,7 @@ function saveOpen(v: boolean) {
 /* ─── Theme player row ─── */
 function ThemePlayerRow() {
   const { status, playing, muted, volume, togglePlay, toggleMute, setVolume } = useThemePlayer();
-  const loaded      = status === "ready" || status === "playing";
+  const loaded      = status === "ready";
   const missing     = status === "missing";
   const failed      = status === "error";
   const unavailable = missing || failed;
@@ -611,7 +611,17 @@ export function BowDownAIGuide() {
   /* S27-01: coarse (touch) pointers get the wide tappable peek tab. */
   const [coarsePointer, setCoarsePointer] = useState(false);
 
-  const { playing } = useThemePlayer();
+  const { playing, setWidgetOpen } = useThemePlayer();
+
+  /* Lane T: tell the theme player when this widget is open. Opening
+     re-probes a theme whose boot probe failed (and keeps retrying on
+     backoff while open) instead of leaving "— coming soon" up for the
+     whole session. Cleanup also fires on open flips; setWatching is
+     idempotent, so the false→effect→true sequence is harmless. */
+  useEffect(() => {
+    setWidgetOpen(open);
+    return () => setWidgetOpen(false);
+  }, [open, setWidgetOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
