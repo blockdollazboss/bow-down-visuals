@@ -100,13 +100,13 @@ vi.mock("discord.js", () => {
 import {
   discordBotGate,
   readDiscordBotConfig,
-  createDiscordBotRuntime,
   startDiscordBotRuntime,
   stopDiscordBotRuntime,
   isDiscordBotRuntimeRunning,
   formatDuration,
   type DiscordBotConfig,
 } from "../discord-bot-runtime";
+import { createDiscordBotRuntime } from "../discord-bot-client";
 
 const SECRET16 = "0123456789abcdef";
 const FULL_ENV = {
