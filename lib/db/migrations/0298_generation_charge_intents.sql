@@ -1,4 +1,4 @@
--- 0297: Durable submit-time charge intents for poll-charged generations
+-- 0298: Durable submit-time charge intents for poll-charged generations
 -- (Stack400 Lane 4, charge integrity — payments gate Pass 3 failure).
 --
 -- The defect: the Runway-family rails (generate-runway-clip,

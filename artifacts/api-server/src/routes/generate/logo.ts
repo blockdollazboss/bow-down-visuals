@@ -275,7 +275,7 @@ router.get("/generate-logo/:taskId", requireAuth, async (req, res) => {
       } else if (resolved && resolved.userId !== req.userId) {
         req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[logo] userId mismatch on poll — skipping charge");
       } else if (!resolved) {
-        req.log.error({ taskId }, "[logo] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0297 or a failed intent record (logged CRITICAL at submit)");
+        req.log.error({ taskId }, "[logo] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0298 or a failed intent record (logged CRITICAL at submit)");
       }
 
       /* Download from Runway and re-host in our bucket. */

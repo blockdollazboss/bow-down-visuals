@@ -8,7 +8,7 @@ import { chargeCredits, LedgerWriteError } from "./credits";
 import { logger } from "./logger";
 
 /* Durable submit-time charge intents for poll-charged generations
-   (Stack400 Lane 4, charge integrity; migration 0297).
+   (Stack400 Lane 4, charge integrity; migration 0298).
 
    The defect (payments gate Pass 3, proven live): the Runway-family
    rails — generate-runway-clip, artist-image, intro-outro, logo —
@@ -226,7 +226,7 @@ export interface ResolvedPendingCharge {
   action: string;
   extra: Record<string, unknown> | null;
   /** The durable row's status at resolve time; null when no row exists
-      (a task submitted before migration 0297, or a failed record). */
+      (a task submitted before migration 0298, or a failed record). */
   intentStatus: string | null;
   source: "memory" | "intent";
 }

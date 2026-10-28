@@ -544,7 +544,7 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
       } else if (resolved && resolved.userId !== req.userId) {
         req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[artist-image] userId mismatch on poll — skipping charge");
       } else if (!resolved) {
-        req.log.error({ taskId }, "[artist-image] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0297 or a failed intent record (logged CRITICAL at submit)");
+        req.log.error({ taskId }, "[artist-image] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0298 or a failed intent record (logged CRITICAL at submit)");
       }
 
       /* ── Upload to the artist-references bucket (same bucket the page's

@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 
 /**
  * Durable submit-time charge intents for poll-charged generations
- * (migration 0297, Stack400 Lane 4 — charge integrity).
+ * (migration 0298, Stack400 Lane 4 — charge integrity).
  *
  * The defect: the Runway-family rails (runway-clip, artist-image,
  * intro-outro, logo) charge credits when the provider task SUCCEEDS

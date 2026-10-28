@@ -85,7 +85,7 @@ const VEO_CREDITS_PER_SEC =
  * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
  *
  * This map is now only the FAST PATH (Stack400 Lane 4): every submit also
- * writes a durable generation_charge_intents row (migration 0297), and the
+ * writes a durable generation_charge_intents row (migration 0298), and the
  * poller settles from that row when this map has lost the entry — a server
  * restart between submit and the success poll used to deliver the clip
  * with NO charge and NO ledger row (payments gate Pass 3), under a log
@@ -1174,7 +1174,7 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
       } else if (!resolved) {
         req.log.error(
           { taskId },
-          "[runway-clip] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0297 or a failed intent record (logged CRITICAL at submit)",
+          "[runway-clip] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0298 or a failed intent record (logged CRITICAL at submit)",
         );
       }
 
