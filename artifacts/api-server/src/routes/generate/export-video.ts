@@ -61,9 +61,28 @@ const IS_DEV = process.env["NODE_ENV"] === "development";
  * there lands on the monorepo root, independent of `process.cwd()` (which
  * some launchers set to `artifacts/api-server`, breaking
  * `path.join(process.cwd(), "artifacts/...")` lookups).
+ *
+ * Lane-3 hardening: the fixed three-level hop silently breaks under any
+ * other execution layout (tsx/vitest run the module from
+ * `src/routes/generate/`, one level deeper, so the hop landed on
+ * `artifacts/api-server/` and the house-watermark path resolved to a
+ * nonexistent `artifacts/api-server/artifacts/...` — every branded export
+ * then died at the pre-spawn check). Walk up from this module's directory
+ * to the first ancestor that actually contains the frontend's public
+ * assets; the legacy three-level resolution remains the fallback.
  */
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const WORKSPACE_ROOT = path.resolve(MODULE_DIR, "../../../");
+function resolveWorkspaceRoot(moduleDir: string): string {
+  let dir = moduleDir;
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(path.join(dir, "artifacts", "bow-down-visuals", "public"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(moduleDir, "../../../");
+}
+const WORKSPACE_ROOT = resolveWorkspaceRoot(MODULE_DIR);
 
 /* ── Export status tracking ─────────────────────────── */
 interface ExportStatusInfo {
@@ -1231,13 +1250,18 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
   let preparedExportAcquired = false;
 
   try {
-    /* ── Server-side watermark gate: only subscribers may remove it.
-       The client sends addWatermark, but a free/trial user calling the API
-       directly must not be able to bypass it. Mirrors the frontend gate. ── */
+    /* ── Watermark decision (stack400 lane 3): the export-time toggle is
+       authoritative. addWatermark === false is a CLEAN export — priced
+       400 VB by the rail (A-02) — on every plan; the old plan gate made
+       clean unreachable for free/trial users at any price, and the
+       default-on branding block (§2d) overrode the toggle entirely, so
+       the Export tab's switch changed nothing. Only a request that omits
+       the flag entirely keeps the legacy plan default (free/trial
+       branded, subscribers clean). Mirrors predictExportWatermarked. ── */
     const FREE_PLANS = ["", "free", "trial", "none", "null"];
     const userPlan = (ctx.userPlan ?? "free").toLowerCase().trim();
     const isSubscriber = !FREE_PLANS.includes(userPlan);
-    const effectiveAddWatermark = isSubscriber ? addWatermark : true;
+    const effectiveAddWatermark = typeof addWatermark === "boolean" ? addWatermark : !isSubscriber;
 
     ctx.log.info({
       clipCount: clipUrls.length,
@@ -1812,6 +1836,11 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     }
 
     /* ── 2: Resolve audio (reuse prepared file or download fresh) ── */
+    /* Stage honesty (lane 3): without these updates the persisted stage
+       sits on "normalizing clip N/N" (55%) across the whole audio fetch +
+       render-plan stretch, so any failure here reports as a normalize
+       failure. Name each stretch as it starts. */
+    exportStatus.ffmpegStage = "fetching audio";
     let audioPath: string | null = null;
     // Theme-aware default watermark: light theme gets the bronze-on-transparent
     // logo, dark theme gets the gold-on-transparent logo. (Also fixes the old
@@ -1920,8 +1949,12 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
     }
 
-    /* ── 2d: Resolve branding watermark (overrides legacy addWatermark) ── */
-    const useBrandingWm = !!(branding?.watermark?.enabled);
+    /* ── 2d: Resolve branding watermark — it supplies the ARTWORK when a
+       watermark is burned; whether one is burned is the export-time
+       decision (effectiveAddWatermark) alone (stack400 lane 3). Before
+       this, the default-on branding block overrode the Export tab's
+       toggle, so no request from the editor could ever render clean. ── */
+    const useBrandingWm = !!(branding?.watermark?.enabled) && effectiveAddWatermark;
     let brandingWmPath: string | null = null;
     if (useBrandingWm) {
       const bwm = branding!.watermark!;
@@ -1942,7 +1975,8 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         brandingWmPath = DEFAULT_WATERMARK;
       }
     }
-    // branding.watermark wins; else fall back to legacy addWatermark toggle
+    // Branding artwork when the branding watermark is in play; otherwise
+    // the legacy toggle's image (custom upload or the house default).
     const activeWmPath = useBrandingWm ? brandingWmPath : (effectiveAddWatermark ? watermarkPath : null);
 
     /* ── 2e: Download "image"/"watermark" overlay item sources (e.g. a user's logo
@@ -1972,6 +2006,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     }
 
     /* ── 3: Plan FFmpeg input indices ── */
+    exportStatus.ffmpegStage = "building render";
     // Clips fed to FFmpeg are the pre-normalized subset (only those overlapping the range).
     // Freeform layout: a leading gap before the very first rendered clip has no
     // previous clip to freeze on, so it's rendered as its own black lavfi segment
@@ -2600,6 +2635,21 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     if (missingInputs.length > 0) {
       const detail = missingInputs.map((f) => `${f.label} (${f.path})`).join("; ");
       ctx.log.error({ missingInputs }, "[export] pre-spawn check found missing input(s) — aborting before FFmpeg");
+      /* A missing file that lives under the workspace root is one of the
+         server's OWN assets (the house watermark) — it was never part of
+         the user's prepared session, and telling the user to re-prepare
+         sends them in circles (lane 3: this exact misdiagnosis hid a
+         watermark-path resolution failure). Name it as the server-side
+         problem it is. */
+      const missingServerAssets = missingInputs.filter((f) => f.path.startsWith(WORKSPACE_ROOT));
+      if (missingServerAssets.length > 0) {
+        const assetDetail = missingServerAssets.map((f) => `${f.label} (${f.path})`).join("; ");
+        throw new Error(
+          `Export blocked — a server-side asset is missing: ${assetDetail}. ` +
+          `This is a problem with the site's own files, not with your project — re-preparing will not fix it. ` +
+          `Please try again later; the team has been notified via the server logs.`,
+        );
+      }
       throw new Error(
         `Export blocked — ${missingInputs.length} input file${missingInputs.length !== 1 ? "s" : ""} ` +
         `disappeared right before rendering: ${detail}. This usually means the prepared session was ` +
@@ -3114,13 +3164,22 @@ function normalizeJobError(err: unknown): ExportJobError {
 const EXPORT_FREE_PLANS = ["", "free", "trial", "none", "null"];
 
 /**
- * A-01/A-07 (Stack-100 #3): predict from the request whether the finished
- * render will carry a watermark, mirroring executeExport's own decision:
- *  - a branding watermark block decides for itself (a custom logo URL, or
- *    the house watermark unless explicitly switched off with no logo);
- *  - otherwise only subscribers may export clean — free/trial renders are
- *    always watermarked, and a subscriber's render is watermarked exactly
- *    when they asked for it.
+ * A-01/A-02/A-07: predict from the request whether the finished render
+ * will carry a watermark, mirroring executeExport's own decision. ONE
+ * truth table, owned by the export-time decision (stack400 lane 3):
+ *  - `addWatermark === false` is an explicit export-time OFF and ALWAYS
+ *    wins: the render is clean and prices at the ruled 400 VB (A-02 —
+ *    same clean output, same price, on every plan). Before this fix the
+ *    default-on branding block (and, for free/trial plans, the plan
+ *    gate) silently overrode the toggle, so a clean export could never
+ *    be priced or produced from the Export tab at all.
+ *  - Otherwise an enabled branding watermark chooses the artwork (a
+ *    custom logo URL, or the house watermark unless explicitly switched
+ *    off with no logo).
+ *  - `addWatermark === true` with no branding watermark → branded.
+ *  - Flag omitted entirely → the legacy plan default (free/trial
+ *    branded, subscribers clean), so API callers that never expressed a
+ *    choice keep their historical behavior.
  * The prediction drives the route gates and the at-start reservation.
  * Settlement NEVER trusts it: the worker settles from the render's actual
  * output (executeExport reports `watermarked` from the watermark file it
@@ -3130,6 +3189,7 @@ export function predictExportWatermarked(
   body: { addWatermark?: boolean; branding?: unknown },
   userPlan: string | null | undefined,
 ): boolean {
+  if (body.addWatermark === false) return false;
   const bwm = (
     body.branding as
       | { watermark?: { enabled?: unknown; customLogoUrl?: unknown; bdvWatermark?: unknown } }
@@ -3140,9 +3200,9 @@ export function predictExportWatermarked(
     if (typeof bwm.customLogoUrl === "string" && bwm.customLogoUrl.startsWith("http")) return true;
     return bwm.bdvWatermark !== false;
   }
+  if (body.addWatermark === true) return true;
   const plan = (userPlan ?? "free").toLowerCase().trim();
-  const isSubscriber = !EXPORT_FREE_PLANS.includes(plan);
-  return isSubscriber ? body.addWatermark === true : true;
+  return EXPORT_FREE_PLANS.includes(plan);
 }
 
 /** Charge/reserve visibility for one export job (payfix lane 6, rung 3). */
