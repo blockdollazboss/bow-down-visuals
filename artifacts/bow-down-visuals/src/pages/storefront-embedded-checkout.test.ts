@@ -63,3 +63,45 @@ describe("storefront product page — embedded-first checkout", () => {
     expect(pageSrc).toContain("Cancel — no charge");
   });
 });
+
+describe("storefront product page — checkout reachability (stack600 audit)", () => {
+  /* Gate Pass 2's drawer trap (shop.tsx, fixed in
+     stack600/checkout-drawer-scroll) was a height-capped fixed
+     drawer whose only scroll region excluded the checkout. This
+     page carries TWO EmbeddedSessionCheckout mounts — the gift-card
+     rail (giftEmbeddedSecret) and the buy rail (embeddedSecret) —
+     and the audit verdict for both is SAFE, by structure: they
+     render in plain document flow on a `min-h-screen` page, inside
+     an auto-height card, so the document itself is the scroll
+     region and the full-height Stripe iframe (~700–950 px) is
+     reachable at document-scroll bottom at any viewport height.
+     These pins freeze that shape: if a height cap or a
+     non-scrolling overflow region ever lands on this page, the
+     mounts must be re-audited against the drawer contract. */
+
+  it("both mounts sit in plain flow wrappers (spacing only, no trap classes)", () => {
+    expect(pageSrc).toContain('<div className="mt-4" data-testid="gift-card-embedded-checkout">');
+    expect(pageSrc).toContain("<EmbeddedSessionCheckout clientSecret={giftEmbeddedSecret} />");
+    expect(pageSrc).toContain('<div className="mt-4" data-testid="storefront-embedded-checkout">');
+    expect(pageSrc).toContain("<EmbeddedSessionCheckout clientSecret={embeddedSecret} />");
+  });
+
+  it("the page root grows with its content (min-h-screen, never capped)", () => {
+    expect(pageSrc).toContain('<div className="min-h-screen bg-black text-white">');
+  });
+
+  it("no height-capped or scroll-trapping container exists anywhere in the page", () => {
+    expect(pageSrc).not.toContain("max-h-");
+    expect(pageSrc).not.toContain("h-dvh");
+    expect(pageSrc).not.toContain("h-svh");
+    expect(pageSrc).not.toContain("overflow-y-auto");
+    expect(pageSrc).not.toContain("overflow-y-hidden");
+    expect(pageSrc).not.toContain("overflow-y-scroll");
+  });
+
+  it("the only overflow-hidden is the decorative auto-height product card", () => {
+    expect(pageSrc.split("overflow-hidden").length - 1).toBe(1);
+    const card = pageSrc.slice(pageSrc.indexOf("overflow-hidden") - 40, pageSrc.indexOf("overflow-hidden") + 40);
+    expect(card).toContain("rounded-2xl");
+  });
+});
