@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   createMover,
+  createVertical,
   stepMover,
+  stepVertical,
   easeFigureHeight,
   MOVER_WALK_SPEED,
   BOB_AMP_M,
+  JUMP_GRAVITY,
+  JUMP_TAKEOFF_V,
+  JUMP_DOUBLE_V,
+  JUMP_MAX_JUMPS,
+  type VerticalState,
 } from "./movement";
 
 /**
@@ -205,5 +212,188 @@ describe("figure height follow (Stack-100 #2 items 50/55)", () => {
     expect(easeFigureHeight(0.24, 0.36, 0)).toBe(0.24);
     expect(easeFigureHeight(0.24, 0.36, -1)).toBe(0.24);
     expect(easeFigureHeight(0.05, 0.05, 1 / 60)).toBe(0.05);
+  });
+});
+
+/* ── Jump (stack300) ───────────────────────────────────────────
+ * The vertical stepper, driven the way the scene drives it: a
+ * press edge in, the offset out. Supported is the scene's
+ * ground-follow having arrived at the ground under the figure. */
+function fly(s: VerticalState, seconds: number, dt = 1 / 60, supported = true) {
+  let landed = false;
+  let peak = 0;
+  const steps = Math.round(seconds / dt);
+  for (let i = 0; i < steps; i++) {
+    if (stepVertical(s, dt, false, supported)) landed = true;
+    peak = Math.max(peak, s.yOffset);
+  }
+  return { landed, peak };
+}
+
+describe("jump — the arc is the tuned jump, not a float", () => {
+  it("takes off at the takeoff velocity and peaks at the analytic apex", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    expect(s.grounded).toBe(false);
+    expect(s.jumpsUsed).toBe(1);
+    const { landed, peak } = fly(s, 1.2);
+    const apex = (JUMP_TAKEOFF_V * JUMP_TAKEOFF_V) / (2 * JUMP_GRAVITY);
+    expect(apex).toBeCloseTo(1.28, 2);
+    /* Semi-implicit Euler shaves ~v·dt/2 off the analytic apex. */
+    expect(peak).toBeGreaterThan(apex - 0.08);
+    expect(peak).toBeLessThan(apex + 0.01);
+    expect(landed).toBe(true);
+    expect(s.grounded).toBe(true);
+    expect(s.yOffset).toBe(0);
+    expect(s.jumpsUsed).toBe(0);
+  });
+
+  it("is airborne for roughly the analytic airtime — up and down inside a second", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    let frames = 1;
+    while (!stepVertical(s, 1 / 60, false) && frames < 600) frames++;
+    const airtime = frames / 60;
+    const analytic = (2 * JUMP_TAKEOFF_V) / JUMP_GRAVITY;
+    expect(airtime).toBeGreaterThan(analytic - 0.05);
+    expect(airtime).toBeLessThan(analytic + 0.05);
+  });
+
+  it("reports the landing impact for the settle spring", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    let impact = 0;
+    for (let i = 0; i < 120 && impact === 0; i++) {
+      if (stepVertical(s, 1 / 60, false)) impact = s.landSpeed;
+    }
+    /* Falls back at (just under) the speed it left with. */
+    expect(impact).toBeGreaterThan(JUMP_TAKEOFF_V - 1);
+    expect(impact).toBeLessThanOrEqual(JUMP_TAKEOFF_V + 0.01);
+  });
+
+  it("a resting body with no press never leaves the ground", () => {
+    const s = createVertical();
+    const { landed, peak } = fly(s, 2);
+    expect(peak).toBe(0);
+    expect(landed).toBe(false);
+    expect(s.grounded).toBe(true);
+  });
+});
+
+describe("double jump — one extra impulse, never a third", () => {
+  it("a mid-air press fires the second impulse and tops out at the double apex", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    /* Ride to just shy of the first apex, then press again. */
+    let guard = 0;
+    while (s.vy > 0.5 && guard++ < 120) stepVertical(s, 1 / 60, false);
+    const before = s.yOffset;
+    stepVertical(s, 1 / 60, true);
+    expect(s.jumpsUsed).toBe(2);
+    expect(s.vy).toBeGreaterThan(JUMP_DOUBLE_V - JUMP_GRAVITY / 60 - 0.01);
+    const { landed, peak } = fly(s, 1.6);
+    const doubleApex =
+      (JUMP_TAKEOFF_V * JUMP_TAKEOFF_V) / (2 * JUMP_GRAVITY) +
+      (JUMP_DOUBLE_V * JUMP_DOUBLE_V) / (2 * JUMP_GRAVITY);
+    expect(before).toBeGreaterThan(1.1);
+    expect(peak).toBeGreaterThan(doubleApex - 0.16);
+    expect(peak).toBeLessThan(doubleApex + 0.05);
+    expect(landed).toBe(true);
+  });
+
+  it("a third press mid-air does nothing — the allowance is spent", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    stepVertical(s, 1 / 60, true);
+    expect(s.jumpsUsed).toBe(JUMP_MAX_JUMPS);
+    const vyBefore = s.vy;
+    stepVertical(s, 1 / 60, true);
+    /* Gravity only — no fresh impulse. */
+    expect(s.vy).toBeLessThan(vyBefore);
+    expect(s.jumpsUsed).toBe(JUMP_MAX_JUMPS);
+  });
+
+  it("after landing the full allowance is restored", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    stepVertical(s, 1 / 60, true);
+    fly(s, 2);
+    expect(s.grounded).toBe(true);
+    stepVertical(s, 1 / 60, true);
+    expect(s.jumpsUsed).toBe(1);
+    expect(s.grounded).toBe(false);
+  });
+});
+
+describe("coyote time + press buffering — the presses players swear they made", () => {
+  it("support lost without a press: coyote runs, the offset stays pinned, no landing is credited", () => {
+    const s = createVertical();
+    /* The ground falls away (a step-down the ease is riding). */
+    const landed = stepVertical(s, 1 / 60, false, false);
+    expect(landed).toBe(false);
+    expect(s.grounded).toBe(false);
+    expect(s.yOffset).toBe(0);
+    expect(s.jumpsUsed).toBe(0);
+    /* Support returns inside the window: standing again, whole. */
+    stepVertical(s, 1 / 60, false, true);
+    expect(s.grounded).toBe(true);
+    expect(s.jumpsUsed).toBe(0);
+  });
+
+  it("a press inside coyote grace is the FIRST jump, at full takeoff velocity", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, false, false);
+    stepVertical(s, 0.05, true, false);
+    expect(s.jumpsUsed).toBe(1);
+    expect(s.vy).toBeGreaterThan(JUMP_TAKEOFF_V - JUMP_GRAVITY * 0.05 - 0.01);
+  });
+
+  it("once coyote expires unspent, the free jump is gone — a later press is the double allowance", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, false, false);
+    /* 0.3 s unsupported with no press: coyote (0.1 s) is long gone. */
+    for (let i = 0; i < 18; i++) stepVertical(s, 1 / 60, false, false);
+    expect(s.jumpsUsed).toBe(1);
+    stepVertical(s, 1 / 60, true, false);
+    expect(s.jumpsUsed).toBe(2);
+    expect(s.vy).toBeGreaterThan(JUMP_DOUBLE_V - JUMP_GRAVITY / 60 - 0.01);
+  });
+
+  it("a press just before landing is buffered and fires off the ground", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    /* Fall until a hair above the floor, then press: too late
+     * for the double to be the point — it buffers... unless the
+     * double is still live. Spend the double first so the buffer
+     * is the only path. */
+    stepVertical(s, 1 / 60, true);
+    let guard = 0;
+    while (!(s.vy < 0 && s.yOffset < 0.12) && guard++ < 300) stepVertical(s, 1 / 60, false);
+    stepVertical(s, 1 / 60, true); // buffered — allowance spent
+    /* At this fall speed the press frame may itself be the
+     * landing frame; either way the buffered press must take
+     * off within a frame or two of touchdown — never die. */
+    let tookOffAgain = false;
+    for (let i = 0; i < 30; i++) {
+      stepVertical(s, 1 / 60, false);
+      if (!s.grounded && s.jumpsUsed === 1 && s.vy > 0) {
+        tookOffAgain = true;
+        break;
+      }
+    }
+    expect(tookOffAgain).toBe(true);
+  });
+
+  it("a stale press does not survive: buffer dies in its window", () => {
+    const s = createVertical();
+    stepVertical(s, 1 / 60, true);
+    stepVertical(s, 1 / 60, true); // double spent
+    stepVertical(s, 1 / 60, true); // buffered with nothing to spend it on
+    /* Rise + fall well past the 0.12 s buffer before landing. */
+    fly(s, 2);
+    expect(s.grounded).toBe(true);
+    stepVertical(s, 1 / 60, false);
+    expect(s.grounded).toBe(true);
+    expect(s.yOffset).toBe(0);
   });
 });

@@ -222,3 +222,169 @@ export function stepMover(
   s.leanPitch += (pitchTarget - s.leanPitch) * blend;
   s.leanRoll += (rollTarget - s.leanRoll) * blend;
 }
+
+/* ── Jump (stack300) ────────────────────────────────────────────
+ * The vertical half of the body, as pure math beside the gait.
+ * There is no physics engine in the World and this adds none:
+ * the ground is still the layout's authored ground-follow (the
+ * caller eases it, grounded only) and a jump is an OFFSET above
+ * that ground, integrated here under gravity. The offset never
+ * feeds the palace resolver, whose step gates read the ground
+ * alone — so a jump cannot vault a wall, a terrace or a blocked
+ * rectangle: while airborne the body crosses exactly the ground
+ * it could have walked, and lands on the ground under it. What
+ * you CAN do is leave the floor, twice: the second impulse is
+ * the double jump, sized inside the same server envelope (the
+ * room validates height against these constants' predictions —
+ * keep the two in step).
+ *
+ * Feel: weighty, not floaty. Real gravity (9.8) reads as moon
+ * drift at game scale; 22 m/s² with a 7.5 m/s takeoff gives a
+ * ~1.28 m apex in ~0.34 s and a ~0.68 s full hop — a jump with
+ * intent, landed before it can feel like flying. */
+
+/** Downward acceleration (m/s²). */
+export const JUMP_GRAVITY = 22;
+/** Take-off velocity (m/s): apex = v²/2g ≈ 1.28 m. */
+export const JUMP_TAKEOFF_V = 7.5;
+/** Second-impulse velocity (m/s, 0.92× the first): fired at the
+ *  first apex it tops out ≈ 2.36 m above the take-off ground. */
+export const JUMP_DOUBLE_V = 6.9;
+/** Impulses per airborne episode: the jump + the double. */
+export const JUMP_MAX_JUMPS = 2;
+/** Grace after the ground falls away (a step-down the height
+ *  ease is still riding): a press inside it is still the FIRST
+ *  jump — the press the player swears they made on the ledge. */
+export const JUMP_COYOTE_S = 0.1;
+/** A press slightly BEFORE landing is held this long and fires
+ *  on the landing frame instead of dying mid-air. */
+export const JUMP_BUFFER_S = 0.12;
+
+export interface VerticalState {
+  /** Height above the caller's ground-follow (m) — the offset
+   *  the caller adds to its eased ground height. */
+  yOffset: number;
+  /** Vertical velocity (m/s, up positive). */
+  vy: number;
+  /** Standing on the ground-follow (offset 0, supported). */
+  grounded: boolean;
+  /** Impulses spent since the last grounded frame. */
+  jumpsUsed: number;
+  /** Coyote grace remaining (s) after support was lost. */
+  coyote: number;
+  /** Buffered-press life remaining (s). */
+  buffer: number;
+  /** Impact speed (m/s) of the landing on THIS step, 0 when the
+   *  step did not land — the caller feeds it to the settle
+   *  spring so a landing dips like a stop does. */
+  landSpeed: number;
+}
+
+export function createVertical(): VerticalState {
+  return {
+    yOffset: 0,
+    vy: 0,
+    grounded: true,
+    jumpsUsed: 0,
+    coyote: 0,
+    buffer: 0,
+    landSpeed: 0,
+  };
+}
+
+/**
+ * Advance the jump one frame. Returns true on the frame the body
+ * lands (read `s.landSpeed` for the impact).
+ *
+ * @param s         the vertical state (mutated)
+ * @param dt        frame seconds (clamped internally, like the gait)
+ * @param pressed   a jump press EDGE this frame (input families
+ *                  edge-detect; a held button is one press)
+ * @param supported the ground is under the body at offset 0: the
+ *                  caller's ground-follow has arrived at the
+ *                  ground under the figure. Support lost without
+ *                  a jump (stepping down a tier the ease is still
+ *                  riding) starts coyote time instead of falling —
+ *                  the offset rides the easing ground, and only a
+ *                  real jump separates the body from it.
+ */
+export function stepVertical(
+  s: VerticalState,
+  dt: number,
+  pressed: boolean,
+  supported = true,
+): boolean {
+  if (!(dt > 0)) return false;
+  const step = Math.min(dt, 0.05);
+  s.landSpeed = 0;
+  if (pressed) s.buffer = JUMP_BUFFER_S;
+  else if (s.buffer > 0) s.buffer = Math.max(0, s.buffer - step);
+  if (s.coyote > 0) s.coyote = Math.max(0, s.coyote - step);
+
+  if (s.grounded) {
+    if (!supported) {
+      /* The ground fell away under a standing body (a step-down
+       * the ease is riding out): airborne on paper, but the
+       * offset stays pinned to the easing ground — coyote runs,
+       * and only its expiry spends the free first jump. */
+      s.grounded = false;
+      s.coyote = JUMP_COYOTE_S;
+      s.vy = 0;
+    } else if (s.buffer > 0) {
+      s.vy = JUMP_TAKEOFF_V;
+      s.jumpsUsed = 1;
+      s.grounded = false;
+      s.buffer = 0;
+      s.coyote = 0;
+    } else {
+      return false;
+    }
+  }
+
+  if (!s.grounded) {
+    if (s.buffer > 0 && s.jumpsUsed === 0 && s.coyote > 0) {
+      /* Pressed inside coyote grace: still the first jump. */
+      s.vy = JUMP_TAKEOFF_V;
+      s.jumpsUsed = 1;
+      s.buffer = 0;
+      s.coyote = 0;
+    } else if (s.buffer > 0 && s.jumpsUsed >= 1 && s.jumpsUsed < JUMP_MAX_JUMPS) {
+      /* The double jump — a fresh impulse, wherever the arc is. */
+      s.vy = JUMP_DOUBLE_V;
+      s.jumpsUsed += 1;
+      s.buffer = 0;
+    }
+    if (s.coyote === 0 && s.jumpsUsed === 0) {
+      /* Coyote ran out with no press: the free jump is spent —
+       * from here a press is the double-jump allowance, never a
+       * fresh first jump out of thin air. */
+      s.jumpsUsed = 1;
+    }
+    if (s.yOffset > 0 || s.vy > 0) {
+      s.vy -= JUMP_GRAVITY * step;
+      s.yOffset += s.vy * step;
+    }
+    if (s.yOffset <= 0) {
+      s.yOffset = 0;
+      if (supported) {
+        /* Arrival: the caller snaps its ground-follow to the
+         * ground under the landing (a placement, not an ease —
+         * the figure-height doctrine), and the settle spring
+         * takes the impact from landSpeed. A press buffered
+         * into the landing fires next frame off the grounded
+         * branch, so a held rhythm of hops never drops one. */
+        const impact = Math.abs(s.vy);
+        s.vy = 0;
+        s.grounded = true;
+        s.jumpsUsed = 0;
+        s.coyote = 0;
+        s.landSpeed = impact;
+        return true;
+      }
+      /* Still unsupported (the ground-follow hasn't arrived):
+       * rest on it — no sink, no bounce, no landing credit. */
+      s.vy = 0;
+    }
+  }
+  return false;
+}
