@@ -13,6 +13,7 @@ import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import GiftMembership from "@/components/GiftMembership";
 import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
+import { postJsonWithTransportRetry } from "@/lib/checkout-fetch";
 import { loginPathWithNext } from "@/lib/auth-next";
 import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 import { CREATOR_PLANS } from "@/lib/pricing-plans";
@@ -141,22 +142,21 @@ export default function CreatorPricing() {
     setEmbeddedDone(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/embedded-checkout/subscription/intent", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ tier: paidTier }),
-      });
-      const data = await res.json();
-      if (res.ok && data.changed) {
+      /* Transport-resilient (stack400 lane 1): the intent POST is
+         idempotency-keyed server-side, so retrying a transport
+         failure replays the same subscription — never a second one.
+         A server JSON answer is never retried; its message shows. */
+      const { ok, data } = await postJsonWithTransportRetry(
+        "/api/embedded-checkout/subscription/intent",
+        { token, body: { tier: paidTier } },
+      );
+      if (ok && data.changed) {
         // Tier change applied in place (same subscription, prorated) —
         // no checkout redirect; land on the success banner.
         window.location.href = `/creator-pricing?upgrade=success&tier=${paidTier}&returnTo=${encodeURIComponent(returnTo)}`;
         return;
       }
-      if (res.ok && data.clientSecret && data.subscriptionId) {
+      if (ok && data.clientSecret && data.subscriptionId) {
         setEmbedded({
           tier: paidTier,
           clientSecret: data.clientSecret,
@@ -167,7 +167,10 @@ export default function CreatorPricing() {
       }
       setError(data.message ?? data.error ?? "Checkout didn't start. Try again in a minute.");
     } catch {
-      setError("Network hiccup — try again.");
+      /* Every attempt failed before the server could answer (the
+         helper only throws for transport failures) — say so honestly
+         instead of the old bare "Network hiccup". */
+      setError("Couldn't reach the checkout server — nothing was charged. Give it a moment and try again.");
     } finally {
       setBuying(null);
     }

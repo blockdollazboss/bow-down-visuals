@@ -40,7 +40,11 @@ describe("the three flows no longer redirect to hosted checkout", () => {
   });
   it("creator-pricing plans use the embedded subscription endpoints", () => {
     const src = read("../../pages/creator-pricing.tsx");
-    expect(src).toContain('fetch("/api/embedded-checkout/subscription/intent"');
+    /* Stack400 lane 1: the intent POST rides postJsonWithTransportRetry
+       (the endpoint is idempotency-keyed server-side, so transport
+       retries are safe); the verify POST stays a plain fetch. */
+    expect(src).toContain('postJsonWithTransportRetry(');
+    expect(src).toContain('"/api/embedded-checkout/subscription/intent"');
     expect(src).toContain('fetch("/api/embedded-checkout/subscription/verify"');
     expect(src).toContain("<EmbeddedPaymentForm");
     expect(src).not.toContain("window.location.href = data.url");

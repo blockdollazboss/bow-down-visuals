@@ -23,8 +23,8 @@ export function assertStripeTestModeKey(key: string | undefined): string {
   return key;
 }
 
-export function createGuardedStripeClient(key?: string): Stripe {
-  return new Stripe(assertStripeTestModeKey(key ?? process.env["STRIPE_SECRET_KEY"]));
+export function createGuardedStripeClient(key?: string, config?: Stripe.StripeConfig): Stripe {
+  return new Stripe(assertStripeTestModeKey(key ?? process.env["STRIPE_SECRET_KEY"]), config);
 }
 
 export function isStripeTestModeKey(key?: string): boolean {
