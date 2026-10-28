@@ -10,7 +10,14 @@ import RunwayML from "@runwayml/sdk";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
-import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
+import {
+  generationChargeIntentStore,
+  recordGenerationChargeIntent,
+  resolvePendingCharge,
+  settleGenerationCharge,
+  markGenerationIntentDelivered,
+  markGenerationIntentFailed,
+} from "../../lib/generation-charge-intents";
 import { saveGeneration, asVaultId } from "../../lib/save-generation";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { r2Upload } from "../../lib/r2-client";
@@ -83,32 +90,39 @@ function cleanup(f: string) {
 }
 
 /**
- * Deducts site credits after a successful synchronous (OpenAI) generation.
- * Mirrors the charge logic in the Runway poller: charges once, records usage.
+ * Deducts site credits after a successful synchronous generation.
+ * Lane 4: the charge settles through a durable generation-charge intent
+ * (a minted sync-<uuid> task id), so a charge that fails in this request
+ * is no longer a silent free image — the intent is stamped delivered and
+ * the retry sweeper settles it, exactly once, via the
+ * 'gen-charge:<taskId>' idempotency key.
  */
 async function chargeForImage(req: {
   userId?: string;
   userSupabase?: ReturnType<typeof getSupabaseAdmin>;
   log: { info: (...a: unknown[]) => void; error: (...a: unknown[]) => void; warn: (...a: unknown[]) => void };
 }, credits: number, action = "Artist Image"): Promise<void> {
-  // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The image
-  // was already delivered, so on ledger failure the deduction stands (rollback
-  // disabled) and the gap is logged CRITICAL for manual reconciliation —
-  // never silent.
-  try {
-    const creditsAfter = await chargeCreditsAtomic(
-      req.userId!,
-      credits,
-      { action },
-      { rollbackOnLedgerFailure: false },
-    );
-    req.log.info({ userId: req.userId, creditsAfter, deducted: credits }, `[artist-image] credits deducted (${action})`);
-  } catch (err) {
-    if (err instanceof LedgerWriteError) {
-      req.log.error({ err }, "[artist-image] CRITICAL: ledger write failed after deduction — image delivered, charge has no ledger trace");
-    } else {
-      req.log.error({ err }, "[artist-image] credit deduction FAILED — image delivered without charge");
-    }
+  const taskId = `sync-${randomUUID()}`;
+  await recordGenerationChargeIntent(generationChargeIntentStore, {
+    taskId,
+    rail: "artist-image",
+    userId: req.userId!,
+    credits,
+    action,
+  });
+  const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, {
+    userId: req.userId!,
+    credits,
+    projectId: null,
+    action,
+    extra: null,
+    intentStatus: "awaiting",
+    source: "intent",
+  });
+  if (outcome !== "charge_failed") {
+    req.log.info({ userId: req.userId, deducted: credits }, `[artist-image] credits deducted (${action})`);
+  } else {
+    await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
   }
 }
 
@@ -444,6 +458,20 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
       prompt: finalPrompt,
       artistVaultId: asVaultId((req.body as { artistVaultId?: unknown } | undefined)?.artistVaultId),
     });
+    /* Durable charge intent (Lane 4): survives the restarts the
+       in-memory map cannot; prompt + vault ride along for the
+       post-restart history save. */
+    await recordGenerationChargeIntent(generationChargeIntentStore, {
+      taskId: task.id,
+      rail: "artist-image",
+      userId: req.userId!,
+      credits: creditCost,
+      action: "Artist Image",
+      extra: {
+        prompt: finalPrompt,
+        artistVaultId: asVaultId((req.body as { artistVaultId?: unknown } | undefined)?.artistVaultId) ?? null,
+      },
+    });
     req.log.info({ taskId: task.id, userId: req.userId }, "[artist-image] task submitted — credits pending on SUCCEEDED");
 
     res.json({ taskId: task.id, creditCost, model: plan.model, ratio: plan.ratio });
@@ -486,31 +514,37 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
 
       const pending = pendingImageTasks.get(taskId);
 
-      /* ── Charge credits (only once, guarded by pendingImageTasks presence) ── */
-      if (pending && pending.userId === req.userId) {
-        const cost = pending.credits ?? GEN4_IMAGE_CREDIT_COST;
-        // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The
-        // image was already delivered, so on ledger failure the deduction
-        // stands (rollback disabled) and the gap is logged CRITICAL — never
-        // silent.
-        try {
-          const creditsAfter = await chargeCreditsAtomic(
-            req.userId!,
-            cost,
-            { action: "Artist Image" },
-            { rollbackOnLedgerFailure: false },
-          );
-          req.log.info({ taskId, userId: req.userId, creditsAfter, deducted: cost }, "[artist-image] credits deducted");
-        } catch (err) {
-          if (err instanceof LedgerWriteError) {
-            req.log.error({ err, taskId }, "[artist-image] CRITICAL: ledger write failed after deduction — image delivered, charge has no ledger trace");
-          } else {
-            req.log.error({ err, taskId }, "[artist-image] credit deduction FAILED — image delivered without charge");
-          }
+      /* ── Charge credits (only once) — resolved from the in-memory map
+         OR the durable submit-time intent (Lane 4). The pre-fix code
+         treated a missing map entry as "charge already processed" and
+         delivered free; a missing entry now settles from the intent
+         row, and when NEITHER exists the delivery is logged as
+         unchargeable at error level, never silently assumed paid. ── */
+      const resolved = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pending
+          ? {
+              userId: pending.userId,
+              credits: pending.credits,
+              action: "Artist Image",
+              extra: { prompt: pending.prompt, artistVaultId: pending.artistVaultId ?? null },
+            }
+          : null,
+      );
+      if (resolved && resolved.userId === req.userId) {
+        const cost = resolved.credits ?? GEN4_IMAGE_CREDIT_COST;
+        const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
+        if (outcome !== "charge_failed") {
+          req.log.info({ taskId, userId: req.userId, deducted: cost, source: resolved.source }, "[artist-image] credits deducted");
         }
+        /* charge_failed: settle logged CRITICAL, intent stays awaiting;
+           delivery is stamped below and the sweeper retries. */
         pendingImageTasks.delete(taskId);
-      } else if (!pending) {
-        req.log.info({ taskId }, "[artist-image] SUCCEEDED poll after charge already processed — skipping duplicate");
+      } else if (resolved && resolved.userId !== req.userId) {
+        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[artist-image] userId mismatch on poll — skipping charge");
+      } else if (!resolved) {
+        req.log.error({ taskId }, "[artist-image] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0297 or a failed intent record (logged CRITICAL at submit)");
       }
 
       /* ── Upload to the artist-references bucket (same bucket the page's
@@ -521,21 +555,23 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
         const filePath = `${req.userId}/generated/${randomUUID()}.jpg`;
         const publicUrl = await r2Upload(filePath, readFileSync(tmpFile), "image/jpeg");
         /* Auto-save to generation history */
-        if (pending) {
+        if (resolved) {
           saveGeneration({
-            userId: pending.userId,
+            userId: resolved.userId,
             type: "image",
-            artistVaultId: pending.artistVaultId ?? null,
+            artistVaultId: (resolved.extra?.["artistVaultId"] as string | null | undefined) ?? null,
             title: "Artist Image",
             fileUrl: publicUrl,
             thumbnailUrl: publicUrl,
-            prompt: pending.prompt,
-            creditsSpent: pending.credits,
+            prompt: (resolved.extra?.["prompt"] as string | undefined) ?? "",
+            creditsSpent: resolved.credits,
           });
         }
+        await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         res.json({ status: "succeeded", url: publicUrl, path: filePath });
       } catch (uploadErr: unknown) {
         req.log.error({ err: uploadErr }, "[artist-image] bucket upload failed — returning raw Runway URL as fallback");
+        await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         res.json({ status: "succeeded", url: runwayUrl, path: null });
       } finally {
         cleanup(tmpFile);
@@ -550,6 +586,7 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
         : rawFailure ?? "Runway image generation failed with no further details.";
       req.log.info({ taskId, status: task.status, failureCode }, "[artist-image] task failed — no credits charged");
       pendingImageTasks.delete(taskId);
+      await markGenerationIntentFailed(generationChargeIntentStore, taskId);
       res.json({ status: task.status === "CANCELLED" ? "cancelled" : "failed", error: errMsg });
 
     } else {

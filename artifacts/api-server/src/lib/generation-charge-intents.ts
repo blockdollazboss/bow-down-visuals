@@ -4,7 +4,7 @@ import {
   generationChargeIntentsTable,
   type GenerationChargeIntentRow,
 } from "@workspace/db";
-import { chargeCredits } from "./credits";
+import { chargeCredits, LedgerWriteError } from "./credits";
 import { logger } from "./logger";
 
 /* Durable submit-time charge intents for poll-charged generations
@@ -190,6 +190,33 @@ export async function recordGenerationChargeIntent(
   }
 }
 
+/** Stamp an intent delivered without ever failing the delivery: a
+    failed stamp only means the retry sweeper won't see this intent —
+    logged CRITICAL so the gap is reconcilable. */
+export async function markGenerationIntentDelivered(
+  store: GenerationChargeIntentStore,
+  taskId: string,
+): Promise<void> {
+  try {
+    await store.markDelivered(taskId);
+  } catch (err) {
+    logger.error({ err, taskId }, "[gen-charge] CRITICAL: failed to stamp intent delivered — sweeper retry may miss this task");
+  }
+}
+
+/** Mark an intent failed (provider task failed/cancelled — no charge
+    is ever owed). Never throws; bookkeeping only. */
+export async function markGenerationIntentFailed(
+  store: GenerationChargeIntentStore,
+  taskId: string,
+): Promise<void> {
+  try {
+    await store.markFailed(taskId);
+  } catch (err) {
+    logger.error({ err, taskId }, "[gen-charge] failed to mark intent failed — bookkeeping gap only");
+  }
+}
+
 /* ── Settle ─────────────────────────────────────────────────────────── */
 
 export interface ResolvedPendingCharge {
@@ -263,13 +290,25 @@ export type ChargeFn = (
 const defaultChargeFn: ChargeFn = (userId, credits, record, opts) =>
   chargeCredits(userId, credits, record, opts);
 
-export type SettleOutcome = "charged" | "already" | "charge_failed";
+export type SettleOutcome = "charged" | "charged_unledgered" | "already" | "charge_failed";
 
 /** Charge a resolved pending charge exactly once and mark the intent.
-    Never throws: a failed charge leaves the intent 'awaiting' (the
-    sweeper retries after delivery) and reports 'charge_failed' so the
-    caller delivers + stamps delivered_at instead of losing the money
-    OR the generation. */
+    Never throws. Outcomes:
+      charged            — deduction + ledger row landed.
+      charged_unledgered — the deduction STANDS but the ledger write
+                           failed (chargeCredits' LedgerWriteError with
+                           rollback disabled). The money moved exactly
+                           once, so the intent is marked charged — the
+                           sweeper must NEVER retry this (a retry would
+                           double-charge: the idempotency lookup finds
+                           no row to suppress it). The missing row is
+                           the pre-existing CRITICAL manual-reconcile
+                           path inside chargeCredits.
+      already            — a previous settle landed this charge.
+      charge_failed      — the deduction did NOT land (insufficient
+                           balance, profile/store error). The intent
+                           stays 'awaiting'; after delivery the sweeper
+                           retries — safe, because nothing was taken. */
 export async function settleGenerationCharge(
   store: GenerationChargeIntentStore,
   taskId: string,
@@ -277,6 +316,7 @@ export async function settleGenerationCharge(
   chargeFn: ChargeFn = defaultChargeFn,
 ): Promise<SettleOutcome> {
   if (resolved.intentStatus === "charged") return "already";
+  let unledgered = false;
   try {
     await chargeFn(resolved.userId, resolved.credits, {
       action: resolved.action,
@@ -289,11 +329,19 @@ export async function settleGenerationCharge(
       rollbackOnLedgerFailure: false,
     });
   } catch (err) {
-    logger.error(
-      { err, taskId, userId: resolved.userId, credits: resolved.credits, action: resolved.action },
-      "[gen-charge] CRITICAL: charge failed at settle — delivery proceeds, intent stays awaiting for the retry sweeper",
-    );
-    return "charge_failed";
+    if (err instanceof LedgerWriteError) {
+      unledgered = true;
+      logger.error(
+        { err, taskId, userId: resolved.userId, credits: resolved.credits, action: resolved.action },
+        "[gen-charge] CRITICAL: deduction stands but the ledger row is missing — marking intent charged so no retry can double-charge; row gap is manual-reconcile",
+      );
+    } else {
+      logger.error(
+        { err, taskId, userId: resolved.userId, credits: resolved.credits, action: resolved.action },
+        "[gen-charge] CRITICAL: charge failed at settle — delivery proceeds, intent stays awaiting for the retry sweeper",
+      );
+      return "charge_failed";
+    }
   }
   try {
     await store.markCharged(taskId);
@@ -302,7 +350,7 @@ export async function settleGenerationCharge(
        sweeper retries later and chargeCredits suppresses the replay. */
     logger.error({ err, taskId }, "[gen-charge] CRITICAL: charge landed but markCharged failed — sweeper will reconcile via the idempotency key");
   }
-  return "charged";
+  return unledgered ? "charged_unledgered" : "charged";
 }
 
 /* ── Sweeper ────────────────────────────────────────────────────────── */
@@ -339,7 +387,7 @@ export async function sweepGenerationChargeIntents(
       intentStatus: row.status,
       source: "intent",
     }, chargeFn);
-    if (outcome === "charged" || outcome === "already") {
+    if (outcome === "charged" || outcome === "charged_unledgered" || outcome === "already") {
       charged += 1;
       logger.info(
         { taskId: row.task_id, userId: row.user_id, credits: row.credits },

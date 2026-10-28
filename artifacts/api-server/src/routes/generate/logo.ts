@@ -5,7 +5,15 @@ import RunwayML from "@runwayml/sdk";
 import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
+import { refundCredits, getCreditBalance } from "../../lib/credits";
+import {
+  generationChargeIntentStore,
+  recordGenerationChargeIntent,
+  resolvePendingCharge,
+  settleGenerationCharge,
+  markGenerationIntentDelivered,
+  markGenerationIntentFailed,
+} from "../../lib/generation-charge-intents";
 import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   resolveLogoPlan,
@@ -102,31 +110,52 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
         res.status(500).json({ error: "Image generation returned no image data." });
         return;
       }
-      /* Charge only after the image exists — failure above means no charge. */
+      /* Charge only after the image exists — failure above means no charge.
+         Lane 4: the charge settles through a durable generation-charge
+         intent (minted sync-<uuid>), so the outcomes the old try/catch
+         distinguished survive intact — charged_unledgered means the
+         deduction STANDS (only the ledger trace is missing) and counts
+         as paid; charge_failed means nothing was taken, and stamping
+         the intent delivered lets the retry sweeper settle it later
+         instead of leaving a silent free logo. */
       let charged = false;
-      try {
-        const creditsAfter = await chargeCreditsAtomic(
-          req.userId!,
-          creditCost,
-          { action: "Logo (Premium)" },
-          { rollbackOnLedgerFailure: false },
-        );
-        charged = true;
-        req.log.info({ userId: req.userId, creditsAfter, deducted: creditCost }, "[logo] credits deducted (Premium)");
-        const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
-        res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium", creditsRemaining: creditsAfter });
-      } catch (chargeErr) {
-        if (chargeErr instanceof LedgerWriteError) {
-          /* rollbackOnLedgerFailure:false — the deduction STANDS (only the
-             ledger trace is missing), so the member has paid. */
-          charged = true;
-          req.log.error({ err: chargeErr }, "[logo] CRITICAL: ledger write failed after deduction");
-        } else if (!charged) {
-          req.log.error({ err: chargeErr }, "[logo] credit deduction FAILED — logo delivered without charge");
-        }
-        /* Image was generated; still return it so the user isn't left empty-handed. */
+      const premiumTaskId = `sync-${randomUUID()}`;
+      await recordGenerationChargeIntent(generationChargeIntentStore, {
+        taskId: premiumTaskId,
+        rail: "logo",
+        userId: req.userId!,
+        credits: creditCost,
+        action: "Logo (Premium)",
+      });
+      const premiumOutcome = await settleGenerationCharge(generationChargeIntentStore, premiumTaskId, {
+        userId: req.userId!,
+        credits: creditCost,
+        projectId: null,
+        action: "Logo (Premium)",
+        extra: null,
+        intentStatus: "awaiting",
+        source: "intent",
+      });
+      charged = premiumOutcome !== "charge_failed";
+      if (charged) {
+        const creditsAfter = await getCreditBalance(req.userId!).catch(() => undefined);
+        req.log.info({ userId: req.userId, creditsAfter, deducted: creditCost, outcome: premiumOutcome }, "[logo] credits deducted (Premium)");
         try {
           const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
+          await markGenerationIntentDelivered(generationChargeIntentStore, premiumTaskId);
+          res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium", creditsRemaining: creditsAfter });
+          return;
+        } catch (firstUploadErr) {
+          void firstUploadErr; /* fall through to the shared delivery attempt below */
+        }
+      }
+      {
+        /* Image was generated; still return it so the user isn't left empty-handed.
+           (When the charge failed, stamping the intent delivered below is
+           what lets the sweeper settle it later.) */
+        try {
+          const { url, path: storagePath } = await uploadLogoImage(req.userId!, Buffer.from(b64, "base64"), "png");
+          await markGenerationIntentDelivered(generationChargeIntentStore, premiumTaskId);
           res.json({ status: "succeeded", url, path: storagePath, creditCost, model: "premium" });
         } catch (uploadErr) {
           /* Both upload attempts failed. If the charge landed, give the
@@ -172,6 +201,16 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
       contentModeration: { publicFigureThreshold: "low" },
     });
     pendingLogoTasks.set(task.id, { userId: req.userId!, credits: creditCost });
+    /* Durable charge intent (Lane 4): survives the restarts the
+       in-memory map cannot — the success poll settles from this row
+       when the map entry is gone. */
+    await recordGenerationChargeIntent(generationChargeIntentStore, {
+      taskId: task.id,
+      rail: "logo",
+      userId: req.userId!,
+      credits: creditCost,
+      action: "Logo (Standard)",
+    });
     req.log.info({ taskId: task.id, userId: req.userId }, "[logo] task submitted — credits pending on SUCCEEDED");
     res.json({ taskId: task.id, creditCost, model: "standard", status: "processing" });
   } catch (err: unknown) {
@@ -212,23 +251,31 @@ router.get("/generate-logo/:taskId", requireAuth, async (req, res) => {
 
       const pending = pendingLogoTasks.get(taskId);
       let creditsRemaining: number | undefined;
-      if (pending && pending.userId === req.userId) {
-        try {
-          creditsRemaining = await chargeCreditsAtomic(
-            req.userId!,
-            pending.credits,
-            { action: "Logo (Standard)" },
-            { rollbackOnLedgerFailure: false },
-          );
-          req.log.info({ taskId, userId: req.userId, creditsAfter: creditsRemaining, deducted: pending.credits }, "[logo] credits deducted (Standard)");
-        } catch (err) {
-          if (err instanceof LedgerWriteError) {
-            req.log.error({ err, taskId }, "[logo] CRITICAL: ledger write failed after deduction");
-          } else {
-            req.log.error({ err, taskId }, "[logo] credit deduction FAILED — logo delivered without charge");
-          }
+      /* ── Charge (only once) — resolved from the in-memory map OR the
+         durable submit-time intent (Lane 4). A missing map entry used
+         to mean a silent free delivery; now the intent row settles
+         the charge, and when NEITHER exists the delivery is logged as
+         unchargeable at error level. ── */
+      const resolved = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pending
+          ? { userId: pending.userId, credits: pending.credits, action: "Logo (Standard)" }
+          : null,
+      );
+      if (resolved && resolved.userId === req.userId) {
+        const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
+        if (outcome !== "charge_failed") {
+          creditsRemaining = await getCreditBalance(req.userId!).catch(() => undefined);
+          req.log.info({ taskId, userId: req.userId, creditsAfter: creditsRemaining, deducted: resolved.credits, source: resolved.source }, "[logo] credits deducted (Standard)");
         }
+        /* charge_failed: settle logged CRITICAL, intent stays awaiting;
+           delivery is stamped below and the sweeper retries. */
         pendingLogoTasks.delete(taskId);
+      } else if (resolved && resolved.userId !== req.userId) {
+        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[logo] userId mismatch on poll — skipping charge");
+      } else if (!resolved) {
+        req.log.error({ taskId }, "[logo] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0297 or a failed intent record (logged CRITICAL at submit)");
       }
 
       /* Download from Runway and re-host in our bucket. */
@@ -237,14 +284,17 @@ router.get("/generate-logo/:taskId", requireAuth, async (req, res) => {
         if (!dl.ok) throw new Error(`Download failed (${dl.status})`);
         const buf = Buffer.from(await dl.arrayBuffer());
         const { url, path: storagePath } = await uploadLogoImage(req.userId!, buf, "jpg");
+        await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         res.json({ status: "succeeded", url, path: storagePath, creditsRemaining });
       } catch (uploadErr: unknown) {
         req.log.error({ err: uploadErr }, "[logo] bucket upload failed — returning raw Runway URL as fallback");
+        await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         res.json({ status: "succeeded", url: runwayUrl, path: null, creditsRemaining });
       }
 
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
       pendingLogoTasks.delete(taskId);
+      await markGenerationIntentFailed(generationChargeIntentStore, taskId);
       req.log.info({ taskId, status: task.status }, "[logo] task failed — no credits charged");
       res.json({
         status: task.status === "CANCELLED" ? "cancelled" : "failed",
