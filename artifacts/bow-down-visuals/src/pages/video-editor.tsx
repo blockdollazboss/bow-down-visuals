@@ -3496,6 +3496,7 @@ export default function VideoEditor() {
                       dockHeight={dockHeight}
 
                       headerHeight={headerHeight}
+                      isLight={isLight}
                     />
 
                   </div>
@@ -4267,6 +4268,7 @@ function MasterPreviewPlayer({
   onSeek, onSetVolume, onSetMuted, onSetPlaybackRate,
   dockHeight,
   headerHeight,
+  isLight = false,
 }: {
   eng: SharedPreviewState | null;
   scenes: SceneData[];
@@ -4292,6 +4294,7 @@ function MasterPreviewPlayer({
   onSetPlaybackRate: (rate: number) => void;
   dockHeight: number;
   headerHeight: number;
+  isLight?: boolean;
 }) {
   const { t } = useTranslation();
   const containerRef  = useRef<HTMLDivElement | null>(null);
@@ -4326,6 +4329,19 @@ function MasterPreviewPlayer({
   /* Ambient glow layer — a blurred, dimmed mirror of the playing video rendered
    * behind the whole player frame (always on, not just fitMode=blur). */
   const ambientVideoRef = useRef<HTMLVideoElement | null>(null);
+  /* ── Ambient glow tint — on the dark page the dimmed mirror is the intended
+   *    cinema halo, but brightness(0.5) on the cream light page paints a
+   *    grey-brown slab that bleeds 40–56px past the frame (and shows through
+   *    the near-transparent Panels strip below). Light theme re-tints the
+   *    same mirror into a soft warm glow: washed bright, laid at half
+   *    strength over a faint gold radial, so it hugs the frame as light,
+   *    not soot. Dark theme keeps the original halo exactly as authored. ── */
+  const ambientGlowFilter = isLight
+    ? "blur(70px) brightness(1.65) saturate(1.1)"
+    : "blur(70px) brightness(0.5) saturate(1.3)";
+  const ambientGlowBackdrop = isLight
+    ? "radial-gradient(ellipse 72% 68% at 50% 50%, rgba(201,168,76,0.20) 0%, rgba(201,168,76,0.05) 55%, transparent 78%)"
+    : undefined;
 
   /* ── Master player: LOCKED IN — docked inline in the center column, never a
    *    floating overlay. Fullscreen replaces the docked player entirely;
@@ -5249,20 +5265,26 @@ function MasterPreviewPlayer({
       style={floatStyle}
       className={`relative ${theaterOn && !isHidden ? "z-[60]" : ""}`}
     >
-      {/* ── Ambient glow: blurred, dimmed mirror of the playing video, bleeding
-          out from behind the gold frame. Hidden when minimized/fullscreen. ── */}
+      {/* ── Ambient glow: blurred mirror of the playing video, bleeding out
+          from behind the gold frame. Theme-tinted via ambientGlowFilter /
+          ambientGlowBackdrop (dark halo in dark theme, warm glow in light).
+          Hidden when minimized/fullscreen. ── */}
       {!isFullscreen && !isMinimized && (
         <div
           aria-hidden
           className="absolute -inset-10 md:-inset-14 pointer-events-none select-none"
-          style={{ zIndex: 0 }}
+          style={{ zIndex: 0, background: ambientGlowBackdrop }}
         >
           <video
             ref={ambientVideoRef}
             playsInline
             muted
             className="w-full h-full object-cover"
-            style={{ filter: "blur(70px) brightness(0.5) saturate(1.3)", transform: "scale(1.06)" }}
+            style={{
+              filter: ambientGlowFilter,
+              transform: "scale(1.06)",
+              opacity: isLight ? 0.5 : undefined,
+            }}
           />
         </div>
       )}
