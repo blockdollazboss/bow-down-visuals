@@ -101,3 +101,52 @@ describe("cancelExportJob — POST the cancel endpoint", () => {
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer tok");
   });
 });
+
+describe("pollExportJob — server failure honesty (lane E)", () => {
+  it("a failed job's PREPARE_STALE code + real message reach the caller intact (the dialog's auto-recovery keys on the code)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonRes({
+          status: "failed",
+          error: {
+            message:
+              "Prepare session expired or not found (likely the server restarted or 30+ minutes passed since preparing). Click 'Prepare Export Files Only' again before exporting.",
+            code: "PREPARE_STALE",
+          },
+        }),
+      ),
+    );
+    const err = (await pollExportJob({ jobId: "job-1", getAccessToken: token, pollMs: 1 }).catch(
+      (e: unknown) => e,
+    )) as { code?: string; message?: string };
+    expect(err).toBeInstanceOf(Error);
+    expect(err.code).toBe("PREPARE_STALE");
+    expect(err.message).toContain("Prepare session expired or not found");
+    expect(err.message).not.toBe("Export failed");
+  });
+
+  it("a failed job's production diagnostics (stderrTail + ffmpegExitCode) reach the caller for the details disclosure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonRes({
+          status: "failed",
+          error: {
+            message: "FFmpeg pass A (video) failed (exit 3): Error: simulated render failure",
+            stderrTail: ["fake-ffmpeg: encoder warmup ok", "Error: simulated render failure"],
+            ffmpegExitCode: 3,
+          },
+        }),
+      ),
+    );
+    const err = (await pollExportJob({ jobId: "job-1", getAccessToken: token, pollMs: 1 }).catch(
+      (e: unknown) => e,
+    )) as { stderrTail?: string[]; ffmpegExitCode?: number | null; code?: string };
+    expect(err.stderrTail).toEqual(["fake-ffmpeg: encoder warmup ok", "Error: simulated render failure"]);
+    expect(err.ffmpegExitCode).toBe(3);
+    // No server code on an ffmpeg failure: the poller's own fallback
+    // classification applies (NOT the PREPARE_STALE recovery path).
+    expect(err.code).toBe("export_failed");
+  });
+});
