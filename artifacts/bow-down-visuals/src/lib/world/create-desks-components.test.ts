@@ -21,12 +21,39 @@ describe("2.3 storyboard bench contracts", () => {
   it("docks analysis, the audio scene flow, per-scene clips, draft autosave + project save", () => {
     expect(storyboard).toContain('fetch("/api/analyze-sections"');
     expect(storyboard).toContain("runAudioSceneFlow");
-    expect(storyboard).toContain('fetch("/api/generate-runway-clip"');
+    /* Creation Desk lane: per-scene clips ride the rail through
+       confirmedFetch (price shown, member confirms, charge on
+       success) at the picked model's plan price — never a bare
+       fetch at the old flat default. */
+    expect(storyboard).toContain('confirmedFetch("/api/generate-runway-clip"');
     expect(storyboard).toContain('fetch("/api/drafts"');
     expect(storyboard).toContain("buildStoryboardProjectPayload");
     expect(storyboard).toContain("analyzeSectionsCost()");
-    expect(storyboard).toContain("videoClipCost()");
+    expect(storyboard).toContain("clipPlanCost(clipSettings)");
     expect(storyboard).toContain('data-testid="world-storyboard-approve"');
+  });
+});
+
+describe("creation desk contracts (stack300)", () => {
+  it("the Video Desk picks the model, confirms the price, and saves finished clips to the library", () => {
+    /* The picker the 2D Scene Studio used to own alone, now docked
+       at the desk and governing the bench under it. */
+    expect(desks).toContain("<ClipModelPicker");
+    expect(desks).toContain("clipSettings={clipSettings}");
+    expect(shared).toContain('data-testid="world-clip-model-picker"');
+    /* Generation through confirmedFetch at the plan's exact price. */
+    expect(desks).toContain('confirmedFetch("/api/generate-runway-clip"');
+    expect(desks).toContain("buildRunwayClipPayload(prompt, negativePrompt, clipSettings)");
+    expect(desks).toContain("costVisualBucs={clipPlanCost(clipSettings)}");
+    /* On success the clip is saved to My Clips with SceneStudio's
+       body — the shared helper posts it, the desk says so. */
+    expect(shared).toContain('fetch("/api/generated-clips"');
+    expect(desks).toContain("buildGeneratedClipSavePayload({");
+    expect(storyboard).toContain("buildGeneratedClipSavePayload({");
+    expect(desks).toContain('data-testid="world-create-clip-library-note"');
+    /* Send to the editor survives as an optional extra (the
+       ResultChips rail), never the only persistence. */
+    expect(desks).toContain("onSendToEditor");
   });
 });
 

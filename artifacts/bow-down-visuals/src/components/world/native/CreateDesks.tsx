@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import {
   AdvancedExpander,
+  ClipModelPicker,
   DeskSelectField,
   DeskTextField,
   ImageResult,
@@ -12,10 +13,12 @@ import {
   SongAudioRail,
   TextResult,
   VideoResult,
+  saveGeneratedClipToLibrary,
   useDeskAuthHeaders,
   useQuestProgressChip,
   type SongAudioState,
 } from "./CreateDeskShared";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { StoryboardBench } from "./StoryboardBench";
 import { StoryboardPlanner } from "./StoryboardPlanner";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
@@ -50,9 +53,12 @@ import {
   buildCoverInMotionPayload,
   buildDraftPayload,
   buildEditorProjectPayload,
+  buildGeneratedClipSavePayload,
   buildMusicAudioPayload,
   buildPublishTrackPayload,
+  clipPlanCost,
   coverSourceForSong,
+  DEFAULT_CLIP_SETTINGS,
   lrcSourceForSong,
   packageLyricsOf,
   songCoverCost,
@@ -88,10 +94,10 @@ import {
   SONG_DRAFT_WORKFLOW,
   THUMBNAIL_DRAFT_WORKFLOW,
   thumbnailDeskCost,
-  videoClipCost,
   videoPlanCost,
   artistImageCost,
   EMPTY_SONG_ADVANCED,
+  type ClipSettings,
   type SongAdvanced,
   type SongVideoAdvanced,
 } from "@/lib/world/create-desks";
@@ -1037,8 +1043,13 @@ export function VideoDesk(props: CreateDeskProps) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
+  /* The model shelf: one picker governs the desk's clip AND the
+     storyboard bench's per-scene clips below it. */
+  const [clipSettings, setClipSettings] = useState<ClipSettings>(DEFAULT_CLIP_SETTINGS);
+  const [librarySaved, setLibrarySaved] = useState<boolean | null>(null);
   const [state, setState] = useState<CreateDeskJobState>("idle");
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -1072,6 +1083,19 @@ export function VideoDesk(props: CreateDeskProps) {
             setClipUrl(read.url);
             refreshProfile();
             setState("done");
+            /* The library save SceneStudio makes the moment a clip
+               lands: a desk-made clip goes to My Clips, not just
+               this panel. Best-effort — the note under the result
+               says honestly whether the library copy landed. */
+            void saveGeneratedClipToLibrary(
+              authHeaders,
+              buildGeneratedClipSavePayload({
+                title: prompt.slice(0, 80) || "Video Desk clip",
+                prompt,
+                videoUrl: read.url,
+                runwayJobId: taskId,
+              }),
+            ).then((ok) => setLibrarySaved(ok));
           }
         }
       } catch {
@@ -1088,14 +1112,25 @@ export function VideoDesk(props: CreateDeskProps) {
     setError(null);
     setClipUrl(null);
     setProgress(null);
+    setLibrarySaved(null);
     try {
-      const res = await fetch("/api/generate-runway-clip", {
+      /* The UGC Ads station's proven pattern: the price is shown,
+         the member confirms, and the rail itself charges only on
+         success — a failed generation charges nothing. */
+      const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(buildRunwayClipPayload(prompt, negativePrompt)),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRunwayClipPayload(prompt, negativePrompt, clipSettings)),
+        overrideCost: clipPlanCost(clipSettings),
+        overrideFeature: "Generate Video Clip",
       });
-      const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string };
-      if (!res.ok || !data.taskId) throw new Error(data.error ?? "The clip make didn't start.");
+      if (!res) {
+        /* The member declined the price — nothing ran. */
+        setState("idle");
+        return;
+      }
+      const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
+      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The clip make didn't start.");
       startPolling(data.taskId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Clip generation failed.");
@@ -1142,12 +1177,13 @@ export function VideoDesk(props: CreateDeskProps) {
           {planText ? <TextResult isLight={isLight} title="Your video plan" text={resultExcerpt(planText)} /> : null}
         </div>
       </AdvancedExpander>
+      <ClipModelPicker isLight={isLight} settings={clipSettings} onChange={setClipSettings} />
       <CreateDeskRunner
         isLight={isLight}
         promptLabel="Describe the clip"
         prompt={prompt}
         onPromptChange={setPrompt}
-        costVisualBucs={videoClipCost()}
+        costVisualBucs={clipPlanCost(clipSettings)}
         state={state}
         errorMessage={error}
         onRun={run}
@@ -1156,6 +1192,16 @@ export function VideoDesk(props: CreateDeskProps) {
           clipUrl ? (
             <div>
               <VideoResult url={clipUrl} title="Your clip" />
+              {librarySaved !== null ? (
+                <p
+                  data-testid="world-create-clip-library-note"
+                  className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}
+                >
+                  {librarySaved
+                    ? "Saved to My Clips — it lives in your library now, not just this panel."
+                    : "The library save didn't land — Send it to the editor below to keep this clip."}
+                </p>
+              ) : null}
               <ResultChips
                 isLight={isLight}
                 onSendToEditor={
@@ -1191,6 +1237,7 @@ export function VideoDesk(props: CreateDeskProps) {
       <StoryboardBench
         isLight={isLight}
         editorBusy={editor.busy}
+        clipSettings={clipSettings}
         onSendToEditor={
           props.onOpenEditor
             ? (payload) => {
