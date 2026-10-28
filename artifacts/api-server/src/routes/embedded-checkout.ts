@@ -6,7 +6,7 @@ import { db, creatorSubscriptionsTable } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
-import { createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import {
   EMBEDDED_CHECKOUT_SOURCE,
   buildEmbeddedIntentIdempotencyKey,
@@ -47,7 +47,14 @@ import { ensureProfile } from "./creator-tiers";
 const router = Router();
 
 function getStripe(): Stripe {
-  return createGuardedStripeClient();
+  /* Bounded network budget (stack400 lane 1): the Stripe SDK default
+     timeout is 80s — longer than the proxy windows in front of this
+     service — so a stalled Stripe call used to come back to the
+     browser as a non-JSON proxy error page, which the pricing page
+     could only report as "Network hiccup". 15s + one SDK retry keeps
+     the worst case ~30s, inside the proxy window, and a real failure
+     lands in the handlers' catches as clean JSON instead. */
+  return createGuardedStripeClient(undefined, { timeout: 15_000, maxNetworkRetries: 1 });
 }
 
 function embeddedOff(res: import("express").Response): boolean {
@@ -277,7 +284,7 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
   const priceId = plan.priceIdEnv ? process.env[plan.priceIdEnv] : null;
   if (!priceId) {
     res.status(500).json({
-      error: `Stripe price for the ${plan.name} tier isn't configured yet (${plan.priceIdEnv}). The owner adds it in Replit Secrets.`,
+      error: `Stripe price for the ${plan.name} tier isn't configured yet (${plan.priceIdEnv}). It has to be set in the server environment before this plan can be sold.`,
     });
     return;
   }
@@ -343,10 +350,22 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
   try {
     let customerId = currentSub?.stripeCustomerId ?? null;
     if (!customerId) {
+      /* Idempotency-keyed on the member (stack400 lane 1): the intent
+         POST is retried client-side on transport failures, and a retry
+         whose first attempt created the customer but lost the response
+         must replay THAT customer — an unkeyed create minted a fresh
+         customer per attempt (the Oct 26 two-customers defect family).
+         The key is stable per member, so Stripe returns the same
+         customer for every retry of this member's first purchase. */
+      const customerKey = buildCheckoutSessionIdempotencyKey({
+        memberId: req.userId!,
+        rail: "creator-tier-customer",
+        purchaseIntent: { profileId },
+      });
       const customer = await stripe.customers.create({
         ...(req.userEmail ? { email: req.userEmail } : {}),
         metadata: { kind: "creator_tier", user_id: req.userId!, profile_id: profileId },
-      });
+      }, { idempotencyKey: customerKey });
       customerId = customer.id;
     }
 

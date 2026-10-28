@@ -225,6 +225,17 @@ describe("POST /embedded-checkout/subscription/intent", () => {
     expect(second!.options.idempotencyKey).toBe(first!.options.idempotencyKey);
   });
 
+  it("customer creation is idempotency-keyed per member — a retry replays the same customer instead of minting a duplicate", async () => {
+    await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+    await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+    expect(h.state.customerCreateCalls).toHaveLength(2);
+    const [first, second] = h.state.customerCreateCalls;
+    expect(typeof first!.options?.idempotencyKey).toBe("string");
+    expect(first!.options.idempotencyKey.length).toBeGreaterThan(0);
+    expect(second!.options.idempotencyKey).toBe(first!.options.idempotencyKey);
+    expect(first!.params.metadata).toMatchObject({ kind: "creator_tier", user_id: USER, profile_id: PROFILE });
+  });
+
   it("missing price env answers 500 JSON naming the variable — never a hang or HTML", async () => {
     delete process.env["STRIPE_PRICE_TIER_PRO"];
     const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
