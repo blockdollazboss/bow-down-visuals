@@ -37,10 +37,12 @@
  *      deal auto-returns to escrow_status='unfunded'. The on-site
  *      PaymentIntent funding shape (deal's stripe_session_id IS the
  *      PI id — markEscrowFunded(dealId, pi.id, pi.id)) has NO
- *      Checkout session for sessions.list to find, so its refund
- *      parks as UNIDENTIFIED manual review with the escrow left
- *      'funded' — recorded, never silent, but flagged in the lane
- *      notes as a money-state inconsistency a human must clear.
+ *      Checkout session for sessions.list to find; since the
+ *      escrow-refund-identify fix, identifyRail probes sponsor_deals
+ *      by payment-intent id on the session miss, so a PI-funded
+ *      refund walks the SAME sponsor_deal path (unreleased →
+ *      auto-unfund; released → identified manual review). A payment
+ *      intent no deal records still parks as UNIDENTIFIED.
  *  17b. SHOUTOUT rail — shoutout_requests keyed on the session id
  *      (checkout metadata type='shoutout_request'): a full refund
  *      flips the paid request to 'refunded'. Also a dollar rail —
@@ -604,11 +606,13 @@ describe("item 17a — sponsor escrow reversal (sponsor_deals, via webhook)", ()
     expect(deal2[0]?.["escrow_status"]).toBe("unfunded");
   });
 
-  it("UNRELEASED funded deal funded on-site by PaymentIntent (stripe_session_id IS the PI id, no Checkout session): the refund cannot be identified to the deal — it parks as UNIDENTIFIED manual review, escrow left 'funded', with an audit row (recorded, not silent)", async () => {
+  it("UNRELEASED funded deal funded on-site by PaymentIntent (stripe_session_id IS the PI id, no Checkout session): the refund is identified by payment-intent id and auto-returns the escrow to 'unfunded' — the deal moves with the refund exactly as the Checkout-funded shape does", async () => {
     /* The exact shape stripe-webhook-sponsor-pi.test.ts proves the
        funding side writes: markEscrowFunded(dealId, pi.id, pi.id).
        sessions.list(payment_intent) finds no Checkout session for a
-       bare PaymentIntent, so identifyRail never reaches the deal. */
+       bare PaymentIntent; identifyRail's sponsor_deals PI probe is
+       what reaches the deal. (Pre-fix this parked as UNIDENTIFIED
+       with the escrow left 'funded' — lane 1 FLAG 2.) */
     await q(sql`
       INSERT INTO sponsor_deals (id, escrow_status, status, stripe_session_id, stripe_payment_intent_id)
       VALUES (${DEAL}, 'funded', 'funded', 'pi_sponsor_pi', 'pi_sponsor_pi')
@@ -616,19 +620,87 @@ describe("item 17a — sponsor escrow reversal (sponsor_deals, via webhook)", ()
 
     const res = await deliver(refundEvent({ chargeId: "ch_sponsor_pi", pi: "pi_sponsor_pi", amount: 100000, refunded: 100000 }));
     expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ received: true, reversed: true, rail: "sponsor_deal", creditsClawed: 0 });
+
+    const deal = await q(sql`SELECT escrow_status, status FROM sponsor_deals WHERE id = ${DEAL}`);
+    expect(deal[0]).toMatchObject({ escrow_status: "unfunded", status: "funded" });
+    const row = await reversalRow("ch_sponsor_pi");
+    expect(row).toMatchObject({
+      rail: "sponsor_deal", status: "completed", session_id: "pi_sponsor_pi",
+      entitlement_revoked: true, seller_reversed: true,
+    });
+
+    const again = await deliver(refundEvent({ chargeId: "ch_sponsor_pi", pi: "pi_sponsor_pi", amount: 100000, refunded: 100000 }));
+    expect(again.body).toMatchObject({ received: true, duplicate: true });
+    const deal2 = await q(sql`SELECT escrow_status FROM sponsor_deals WHERE id = ${DEAL}`);
+    expect(deal2[0]?.["escrow_status"]).toBe("unfunded");
+  });
+
+  it("PI-funded deal, partial refund before release: the escrow stays 'funded' (entitlement kept, recorded); the completing refund auto-unfunds it", async () => {
+    await q(sql`
+      INSERT INTO sponsor_deals (id, escrow_status, status, stripe_session_id, stripe_payment_intent_id)
+      VALUES (${DEAL}, 'funded', 'funded', 'pi_sponsor_pi', 'pi_sponsor_pi')
+    `);
+
+    const half = await deliver(refundEvent({ chargeId: "ch_sponsor_pi_part", pi: "pi_sponsor_pi", amount: 100000, refunded: 50000 }));
+    expect(half.body).toMatchObject({ received: true, reversed: true, rail: "sponsor_deal" });
+    let deal = await q(sql`SELECT escrow_status FROM sponsor_deals WHERE id = ${DEAL}`);
+    expect(deal[0]?.["escrow_status"]).toBe("funded");
+    const row = await reversalRow("ch_sponsor_pi_part");
+    expect(row).toMatchObject({ rail: "sponsor_deal", status: "completed", entitlement_revoked: false });
+    expect((row?.["details"] as Record<string, unknown>)?.["partialRefundEntitlementKept"]).toBe(true);
+
+    const full = await deliver(
+      refundEvent({ eventId: "evt_r2", chargeId: "ch_sponsor_pi_part", pi: "pi_sponsor_pi", amount: 100000, refunded: 100000 }),
+    );
+    expect(full.body).toMatchObject({ received: true, reversed: true, rail: "sponsor_deal" });
+    deal = await q(sql`SELECT escrow_status FROM sponsor_deals WHERE id = ${DEAL}`);
+    expect(deal[0]?.["escrow_status"]).toBe("unfunded");
+    const row2 = await reversalRow("ch_sponsor_pi_part");
+    expect(row2).toMatchObject({ rail: "sponsor_deal", status: "completed", entitlement_revoked: true });
+  });
+
+  it("PI-funded RELEASED deal (payout row exists): the refund is IDENTIFIED and parks in manual review by design — rail sponsor_deal, not 'unidentified'; escrow + payout untouched", async () => {
+    await q(sql`
+      INSERT INTO sponsor_deals (id, escrow_status, status, stripe_session_id, stripe_payment_intent_id)
+      VALUES (${DEAL}, 'released', 'paid', 'pi_sponsor_pi', 'pi_sponsor_pi')
+    `);
+    const payout = await q(sql`
+      INSERT INTO sponsor_payouts (deal_id, status) VALUES (${DEAL}, 'released') RETURNING id
+    `);
+    const payoutId = String(payout[0]?.["id"]);
+
+    const res = await deliver(refundEvent({ chargeId: "ch_sponsor_pi_rel", pi: "pi_sponsor_pi", amount: 100000, refunded: 100000 }));
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ received: true, warning: "Reversal needs manual review", rail: "sponsor_deal" });
+
+    const row = await reversalRow("ch_sponsor_pi_rel");
+    expect(row).toMatchObject({ rail: "sponsor_deal", status: "needs_manual_review", entitlement_revoked: false });
+    const details = row?.["details"] as Record<string, unknown>;
+    expect(details?.["payoutId"]).toBe(payoutId);
+    expect(String(details?.["manualReason"])).toContain("already released");
+
+    const deal = await q(sql`SELECT escrow_status, status FROM sponsor_deals WHERE id = ${DEAL}`);
+    expect(deal[0]).toMatchObject({ escrow_status: "released", status: "paid" });
+  });
+
+  it("a payment intent NO sponsor deal records (another deal's PI differs): the refund still parks as UNIDENTIFIED manual review and the other deal is untouched — the PI probe does not over-catch", async () => {
+    await q(sql`
+      INSERT INTO sponsor_deals (id, escrow_status, status, stripe_session_id, stripe_payment_intent_id)
+      VALUES (${DEAL}, 'funded', 'funded', 'pi_someone_else', 'pi_someone_else')
+    `);
+
+    const res = await deliver(refundEvent({ chargeId: "ch_unknown_pi", pi: "pi_unknown", amount: 5000, refunded: 5000 }));
+    expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({ received: true, warning: "Reversal needs manual review", rail: "unidentified" });
 
-    const rows = await q(sql`SELECT * FROM payment_reversals WHERE stripe_charge_id = 'ch_sponsor_pi'`);
+    const rows = await q(sql`SELECT * FROM payment_reversals WHERE stripe_charge_id = 'ch_unknown_pi'`);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ rail: "unidentified", status: "needs_manual_review" });
     expect(String((rows[0]?.["details"] as Record<string, unknown>)?.["manualReason"])).toContain("No grant record");
 
-    /* FLAGGED state (see lane notes): the escrow still reads 'funded'
-       against money Stripe has returned — safe ONLY because the
-       manual-review row exists for a human to clear it; the engine
-       does not auto-unfund this funding shape. */
-    const deal = await q(sql`SELECT escrow_status, status FROM sponsor_deals WHERE id = ${DEAL}`);
-    expect(deal[0]).toMatchObject({ escrow_status: "funded", status: "funded" });
+    const deal = await q(sql`SELECT escrow_status FROM sponsor_deals WHERE id = ${DEAL}`);
+    expect(deal[0]?.["escrow_status"]).toBe("funded");
   });
 });
 
