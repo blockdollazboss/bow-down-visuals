@@ -358,7 +358,6 @@ import wave8HighlightsRouter from "./wave8-highlights";
 import wave8MerchDropRouter from "./wave8-merch-drop";
 import wave8MediaKitRouter from "./wave8-media-kit";
 import wave8SplitsRouter from "./wave8-splits";
-import wave8SponsorsRouter from "./wave8-sponsors";
 import wave9aMusicRouter from "./wave9a-music";
 import wave9bEditorRouter from "./wave9b-editor";
 import wave9cDirectEditRouter from "./wave9c-direct-edit";
@@ -844,7 +843,6 @@ router.use(wave8HighlightsRouter);    // /api/wave8/highlights/*
 router.use(wave8MerchDropRouter);     // /api/wave8/merch-drop/*
 router.use(wave8MediaKitRouter);      // /api/wave8/media-kit/*
 router.use(wave8SplitsRouter);        // /api/wave8/splits/*
-router.use(wave8SponsorsRouter);       // /api/wave8/sponsors/*
 router.use(wave9aMusicRouter);         // /api/wave9a/*
 router.use(wave9bEditorRouter);        // /api/wave9b/*
 router.use(wave9cDirectEditRouter);    // /api/wave9c/direct/*
