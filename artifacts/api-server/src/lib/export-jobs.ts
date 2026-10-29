@@ -478,6 +478,13 @@ export function enqueueExport(run: () => Promise<void>): void {
   pumpQueue();
 }
 
+/** Queue depth snapshot for the deep-health probe (lib/deep-health):
+ * how many renders wait and how many run, right now. Read-only — the
+ * pump's behaviour is unchanged. */
+export function getExportQueueDepth(): { waiting: number; active: number } {
+  return { waiting: waitQueue.length, active: activeCount };
+}
+
 function pumpQueue(): void {
   while (activeCount < MAX_CONCURRENT_EXPORTS && waitQueue.length > 0) {
     const run = waitQueue.shift()!;
