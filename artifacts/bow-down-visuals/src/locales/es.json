@@ -2437,7 +2437,7 @@
   "collabs": {
     "accept": "Aceptar",
     "addPlatform": "+ Añadir plataforma",
-    "aiMatchBtn": "AI Match · 1cr",
+    "aiMatchBtn": "AI Match · {{cost}} crédito",
     "allNiches": "Todos los nichos",
     "anonymousCreator": "Un creador",
     "badge": "Buscador de collabs",
@@ -2484,7 +2484,7 @@
     "received": "Recibidos",
     "saveProfile": "Guardar perfil",
     "saving": "Guardando…",
-    "scoreBtn": "Puntuar · 1cr",
+    "scoreBtn": "Puntuar · {{cost}} crédito",
     "scoring": "Puntuando…",
     "sendProposalBtn": "Envíales una propuesta · Gratis",
     "sendRequest": "Enviar solicitud",

@@ -2449,7 +2449,7 @@
   "collabs": {
     "accept": "قبول",
     "addPlatform": "+ إضافة منصة",
-    "aiMatchBtn": "مطابقة الذكاء الاصطناعي · 1cr",
+    "aiMatchBtn": "مطابقة الذكاء الاصطناعي · {{cost}} رصيد",
     "allNiches": "جميع المجالات",
     "anonymousCreator": "صانع محتوى",
     "badge": "مكتشف التعاونات",
@@ -2499,7 +2499,7 @@
     "received": "المستلمة",
     "saveProfile": "حفظ الملف",
     "saving": "جارٍ الحفظ…",
-    "scoreBtn": "تقييم · 1cr",
+    "scoreBtn": "تقييم · {{cost}} رصيد",
     "scoring": "جارٍ التقييم…",
     "sendProposalBtn": "أرسل لهم اقتراحاً · مجاني",
     "sendRequest": "إرسال الطلب",

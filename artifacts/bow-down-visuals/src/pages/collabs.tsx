@@ -19,13 +19,17 @@ import { useTranslation } from "react-i18next";
 /* ─── Collab Finder ─────────────────────────────────────────────────────────
    /collabs — find collaboration partners. AI-powered per the standing rule.
 
-   Pricing: browsing profiles FREE · my profile FREE · AI match report 1 credit
+   Pricing: browsing profiles FREE · my profile FREE · AI match report 100 credits
    · sending/answering collab requests FREE (inbox is pure interface).
    Outreach templates are static copy (zero runtime compute) so proposals stay
    genuinely free: if it burns compute it charges; if it's just interface it's
    free. */
 
-const MATCH_CREDIT_COST = 1;
+/* Display mirror of the rail charge (COLLAB_MATCH_CREDITS in api-server
+   routes/generate/collabs.ts — env COLLAB_MATCH_CREDIT_COST, default
+   100 Visual Bucs). Pinned against the rail + registry by
+   lib/collab-match-price-truth.test.ts so display and charge cannot drift. */
+const MATCH_CREDIT_COST = 100;
 
 const NICHES = [
   "music", "gaming", "vlogging", "comedy", "education", "fitness",
@@ -508,7 +512,7 @@ export default function CollabFinder() {
                     {!p.isOwn && (
                       <div className="flex gap-2">
                         <button onClick={() => { setMatchTarget(p.userId); setTab("match"); }} className={ghostBtn}>
-                          <Sparkles className="h-4 w-4" /> {t("collabs.aiMatchBtn")}
+                          <Sparkles className="h-4 w-4" /> {t("collabs.aiMatchBtn", { cost: MATCH_CREDIT_COST })}
                         </button>
                         <button onClick={() => openProposal(p)} className={ghostBtn}>
                           <Send className="h-4 w-4" /> {t("collabs.proposeBtn")}
@@ -594,7 +598,7 @@ export default function CollabFinder() {
                 </select>
                 <button onClick={runMatch} disabled={matchLoading || !matchTarget} className={goldBtn}>
                   {matchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {matchLoading ? t("collabs.scoring") : t("collabs.scoreBtn")}
+                  {matchLoading ? t("collabs.scoring") : t("collabs.scoreBtn", { cost: MATCH_CREDIT_COST })}
                 </button>
               </div>
               {matchOutOfCredits && <div className="mb-4"><OutOfCredits /></div>}

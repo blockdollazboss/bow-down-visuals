@@ -2433,7 +2433,7 @@
   "collabs": {
     "accept": "स्वीकार करें",
     "addPlatform": "+ प्लेटफ़ॉर्म जोड़ें",
-    "aiMatchBtn": "AI मैच · 1cr",
+    "aiMatchBtn": "AI मैच · {{cost}} क्रेडिट",
     "allNiches": "सभी निश",
     "anonymousCreator": "एक क्रिएटर",
     "badge": "कोलैब फाइंडर",
@@ -2479,7 +2479,7 @@
     "received": "प्राप्त",
     "saveProfile": "प्रोफ़ाइल सेव करें",
     "saving": "सेव हो रहा है…",
-    "scoreBtn": "स्कोर · 1cr",
+    "scoreBtn": "स्कोर · {{cost}} क्रेडिट",
     "scoring": "स्कोर हो रहा है…",
     "sendProposalBtn": "उन्हें प्रपोज़ल भेजें · मुफ़्त",
     "sendRequest": "रिक्वेस्ट भेजें",

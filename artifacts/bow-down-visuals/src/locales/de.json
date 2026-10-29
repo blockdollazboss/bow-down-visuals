@@ -2433,7 +2433,7 @@
   "collabs": {
     "accept": "Annehmen",
     "addPlatform": "+ Plattform hinzufügen",
-    "aiMatchBtn": "KI-Match · 1cr",
+    "aiMatchBtn": "KI-Match · {{cost}} Credit",
     "allNiches": "Alle Nischen",
     "anonymousCreator": "Ein Creator",
     "badge": "Collab Finder",
@@ -2479,7 +2479,7 @@
     "received": "Empfangen",
     "saveProfile": "Profil speichern",
     "saving": "Speichern…",
-    "scoreBtn": "Score · 1cr",
+    "scoreBtn": "Score · {{cost}} Credit",
     "scoring": "Scort…",
     "sendProposalBtn": "Ihnen einen Vorschlag senden · Kostenlos",
     "sendRequest": "Anfrage senden",
