@@ -124,6 +124,7 @@ export function TimelineSection({
                   onClick={onRestart}
                   disabled={approvedScenes.length === 0}
                   className={transportButton}
+                  aria-label="Restart"
                   title="Restart (Home)"
                 >
                   <SkipBack className="h-3.5 w-3.5" />

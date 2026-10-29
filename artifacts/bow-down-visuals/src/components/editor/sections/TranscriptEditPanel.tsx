@@ -67,15 +67,15 @@ export function TranscriptEditPanel({ scenes, settings, totalDuration, onTextEdi
                 {seg.text || <span className="text-white/30">(no text for this segment)</span>}
               </p>
               <button type="button" disabled={!onTextEdit || i === 0} onClick={() => move(i, -1)}
-                className="inline-flex items-center text-[10px] font-bold text-white/50 hover:text-white border border-white/10 rounded px-1.5 py-1 disabled:opacity-30" title="Move segment earlier">
+                className="inline-flex items-center text-[10px] font-bold text-white/50 hover:text-white border border-white/10 rounded px-1.5 py-1 disabled:opacity-30" aria-label="Move segment earlier" title="Move segment earlier">
                 <ArrowUp className="h-3 w-3" />
               </button>
               <button type="button" disabled={!onTextEdit || i === segments.length - 1} onClick={() => move(i, 1)}
-                className="inline-flex items-center text-[10px] font-bold text-white/50 hover:text-white border border-white/10 rounded px-1.5 py-1 disabled:opacity-30" title="Move segment later">
+                className="inline-flex items-center text-[10px] font-bold text-white/50 hover:text-white border border-white/10 rounded px-1.5 py-1 disabled:opacity-30" aria-label="Move segment later" title="Move segment later">
                 <ArrowDown className="h-3 w-3" />
               </button>
               <button type="button" disabled={!onTextEdit} onClick={() => remove(seg.sceneId)}
-                className="inline-flex items-center text-[10px] font-bold text-white/50 hover:text-red-300 border border-white/10 rounded px-1.5 py-1 disabled:opacity-30" title="Delete segment and its clip">
+                className="inline-flex items-center text-[10px] font-bold text-white/50 hover:text-red-300 border border-white/10 rounded px-1.5 py-1 disabled:opacity-30" aria-label="Delete segment and its clip" title="Delete segment and its clip">
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>

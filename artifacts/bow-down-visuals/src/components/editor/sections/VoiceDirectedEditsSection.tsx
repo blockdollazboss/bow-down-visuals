@@ -410,7 +410,7 @@ export function VoiceDirectedEditsSection({
               <button
                 type="button"
                 onClick={toggleMic}
-                title={t("wave9.directEdit.micTitle")}
+                aria-label={t("wave9.directEdit.micTitle")} title={t("wave9.directEdit.micTitle")}
                 className={`absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${
                   listening
                     ? "bg-red-500/20 text-red-400 animate-pulse"
