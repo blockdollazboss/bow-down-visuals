@@ -32,7 +32,10 @@
  * claim window instead of firing twice; the claim is a unique
  * (user, date) insert — a double claim conflicts, never double-
  * pays. The room serializes claims per member on top (its
- * reservation set, the drop pattern).
+ * reservation set, the drop pattern). The member's bell + device
+ * ping for a landed gift (push wiring #10) rides the same anchor:
+ * it fires only from the claim path that lands the grant, so it
+ * lands exactly once per (user, date) too.
  *
  * Everything DB-shaped sits behind KingMomentStore so the
  * scheduler and the claimer are unit-tested against fakes; the
@@ -50,6 +53,7 @@ import {
 import { PALACE_ROOM_DEFS, type WorldPalace } from "./world-palace";
 import { WORLD_ROOM_ID, type WorldKingMomentClaimer } from "./world-room";
 import { addCreditsAtomic } from "./supabase-admin";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 import {
   questPoolSpendVb,
   questPoolWeekStart,
@@ -260,13 +264,44 @@ export const dbKingMomentStore: KingMomentStore = {
   },
 };
 
+/* ── King-gift push (push wiring #10, stack900 lane A4) ───────────
+   A landed audience gift is a money moment for the member, in the
+   same family as a landed stage tip (world-stage-tips) and a paid
+   Pitch & Fix reward: VB just moved into their balance. The tell
+   fires only from the one path that lands THIS claim's grant —
+   inside the protection of the claim row, the structural
+   exactly-once anchor: a replay reads "already" and never reaches
+   the tell, and a failed grant rolls the row back and returns
+   before it. Category money (every landed-credit precedent), deep
+   link /world. The moment's AVAILABILITY is a different surface —
+   the palace herald through the announce channel — and is not
+   what this wires. */
+type KingGiftEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _kingGiftEventNotifier: KingGiftEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setKingGiftEventNotifier(fn: KingGiftEventNotifier | null): void {
+  _kingGiftEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildKingGiftEvent(input: { userId: string; amountVb: number }): UserEventInput {
+  return {
+    userId: input.userId,
+    category: "money",
+    kind: "king_gift",
+    title: "👑 The King's gift",
+    body: `You just claimed the King's daily gift — ${input.amountVb.toLocaleString("en-US")} VB landed in your balance.`,
+    link: "/world",
+  };
+}
+
 /* ── The claimer (the room's injected rail) ─────────────────────── */
 
 /**
  * Build the hall's king.claim rail: the whole money rule in one
  * place. Order matters — window, then pool, then the idempotency
- * anchor (the claim row), then the grant; a failed grant rolls the
- * row back so the member may retry inside the window.
+ * anchor (the claim row), then the grant, then the tell (inside
+ * the anchor's protection, above); a failed grant rolls the row
+ * back so the member may retry inside the window.
  */
 export function createKingMomentClaimer(
   store: KingMomentStore = dbKingMomentStore,
@@ -294,6 +329,17 @@ export function createKingMomentClaimer(
         await store.deleteClaim(userId, date).catch(() => undefined);
         logger.error({ err, userId, date }, "[king-moment] grant failed — claim rolled back");
         return { ok: false, reason: "error" };
+      }
+      /* Push wiring #10: THIS call landed the gift — tell the
+         member (bell + device ping through notifyUserEvent).
+         Best-effort; the gift has already landed, so a failing
+         tell can never unwind the claim. */
+      try {
+        await _kingGiftEventNotifier(
+          buildKingGiftEvent({ userId, amountVb: KING_MOMENT_REWARD_VB }),
+        );
+      } catch (notifyErr) {
+        logger.warn({ notifyErr, userId, date }, "[king-moment] gift push failed (non-fatal)");
       }
       return { ok: true, amountVb: KING_MOMENT_REWARD_VB };
     } catch (err) {
