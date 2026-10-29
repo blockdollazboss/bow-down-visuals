@@ -1614,6 +1614,11 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   const [demoMode, setDemoMode] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  /* The embedded session's clientSecret + the order it pays for,
+     when the rail answers one — the payment form mounts in the
+     panel below the cart and the buyer never leaves the World. */
+  const [paySecret, setPaySecret] = useState<string | null>(null);
+  const [paySecretOrderId, setPaySecretOrderId] = useState<string | null>(null);
 
   const cartTotal = brandingCartTotalCents(cart);
   const cartCount = cart.reduce((n, i) => n + i.qty, 0);
@@ -1719,11 +1724,15 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     }
   };
 
-  /* Checkout — the marked transfer (§3.9): place the order
-     in-world first (intake is free; the server recomputes the
-     total), then POST checkout and open the hosted payment page
-     it returns in a NEW TAB. Demo mode (no payment key on the
-     server) completes in-world instead, clearly labelled. */
+  /* Checkout: place the order in-world first (intake is free;
+     the server recomputes the total), then POST checkout asking
+     for the embedded session whenever a publishable key is
+     present — the rail answers a clientSecret and the payment
+     form mounts right here in the panel, so the buyer never
+     leaves the palace. The hosted payment page in a NEW TAB
+     remains only as the no-key / hosted-answer fallback (§3.9's
+     marked transfer). Demo mode (no payment key on the server)
+     completes in-world instead, clearly labelled. */
   const checkout = async () => {
     if (isGuest) { membersOnlyNote(); return; }
     if (cart.length === 0 || placing) return;
@@ -1748,11 +1757,30 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       const coRes = await fetch("/api/branding-shop/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({
+          orderId,
+          /* Ask for the embedded presentation when this device can
+             mount it (publishable key configured) — the server
+             answers a clientSecret instead of a hosted URL and the
+             buyer pays right here. Otherwise the hosted rail below
+             remains the fallback. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
-      const coData = (await coRes.json().catch(() => ({}))) as { error?: string; message?: string };
+      const coData = (await coRes.json().catch(() => ({}))) as { error?: string; message?: string; clientSecret?: string };
       if (!coRes.ok) {
         setNote("Your order is saved at this stand (see Your orders below) — paying for it didn't start, so nothing was charged. Use Pay on the order when you're ready.");
+        void loadOrders();
+        return;
+      }
+      /* The clientSecret branch precedes the tab fallback: an
+         embedded answer mounts the payment form in the panel and
+         the buyer never leaves the World. */
+      if (typeof coData.clientSecret === "string" && coData.clientSecret) {
+        setPaySecret(coData.clientSecret);
+        setPaySecretOrderId(orderId);
+        setCart([]);
+        setNote("Your payment form is right here — finish paying without leaving the World. Your order stays saved at this stand either way.");
         void loadOrders();
         return;
       }
@@ -1788,10 +1816,21 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       const res = await fetch("/api/branding-shop/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({
+          orderId,
+          /* Same embedded ask as the cart checkout above. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; clientSecret?: string };
       if (!res.ok) throw new Error(data.error ?? "Checkout didn't start.");
+      /* The clientSecret branch precedes the tab fallback. */
+      if (typeof data.clientSecret === "string" && data.clientSecret) {
+        setPaySecret(data.clientSecret);
+        setPaySecretOrderId(orderId);
+        setNote("Your payment form is right here — finish paying without leaving the World.");
+        return;
+      }
       const url = hostedCheckoutUrl(data);
       if (url) {
         openCheckoutTab(url);
@@ -2041,12 +2080,31 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 {CHECKOUT_TRANSFER_LABEL} · {formatMoney(cartTotal)}
               </button>
               <p className={`text-[11px] ${muted(isLight)}`}>
-                The order is placed here at the stand first; payment itself finishes on the payment provider&rsquo;s hosted page, in a new tab.
+                The order is placed here at the stand first; when payment is set up on this device, the payment form opens right here — the provider&rsquo;s hosted page in a new tab remains only as the fallback.
               </p>
             </div>
           </div>
         )}
       </NativeCard>
+
+      {/* The embedded payment form — mounted in-panel when the
+          rail answered a clientSecret (cart checkout or an
+          order's Pay button); the order stays saved either way. */}
+      {paySecret && (
+        <div className="space-y-2 rounded-2xl border border-[#d4af37]/25 p-3" data-testid="world-branding-embedded-checkout">
+          <p className={`text-xs font-semibold ${muted(isLight)}`}>
+            Paying for order #{paySecretOrderId ? paySecretOrderId.slice(0, 8) : ""} — right here in the World.
+          </p>
+          <EmbeddedSessionCheckout clientSecret={paySecret} />
+          <button
+            type="button"
+            onClick={() => { setPaySecret(null); setPaySecretOrderId(null); }}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}
+          >
+            Close — the order stays saved at this stand
+          </button>
+        </div>
+      )}
 
       {/* Your orders — status rows, refreshed in-world. */}
       {!isGuest && (
