@@ -588,7 +588,7 @@ function JackpotCreator({
     setMsg(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/cheat-code/admin/events", {
+      const res = await fetch("/api/cheat-code/admin/events", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
