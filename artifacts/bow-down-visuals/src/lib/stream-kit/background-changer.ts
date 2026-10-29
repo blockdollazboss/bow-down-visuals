@@ -752,27 +752,41 @@ export class BackgroundChanger {
    * or an HTMLImageElement. Cover-fit is applied at draw time.
    */
   async setImage(source: string | File | Blob | HTMLImageElement | null): Promise<this> {
-    if (this._backdropUrl) {
-      URL.revokeObjectURL(this._backdropUrl);
-      this._backdropUrl = null;
-    }
     if (!source) {
+      if (this._backdropUrl) {
+        URL.revokeObjectURL(this._backdropUrl);
+        this._backdropUrl = null;
+      }
       this._backdrop = null;
       return this;
     }
     if (source instanceof HTMLImageElement) {
+      if (this._backdropUrl) {
+        URL.revokeObjectURL(this._backdropUrl);
+        this._backdropUrl = null;
+      }
       this._backdrop = source;
       return this;
     }
     const url = typeof source === "string" ? source : URL.createObjectURL(source);
-    if (typeof source !== "string") this._backdropUrl = url;
     const img = new Image();
     img.crossOrigin = "anonymous";
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new BackgroundChangerError("UNSUPPORTED", "That backdrop image could not be loaded."));
-      img.src = url;
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new BackgroundChangerError("UNSUPPORTED", "That backdrop image could not be loaded."));
+        img.src = url;
+      });
+    } catch (err) {
+      /* A failed load keeps the PREVIOUS backdrop exactly as it was:
+         its object URL is revoked only once a new image has actually
+         landed (below), and the failed pick's own URL is cleaned up.
+         A bad photo never costs the creator the background they had. */
+      if (typeof source !== "string") URL.revokeObjectURL(url);
+      throw err;
+    }
+    if (this._backdropUrl) URL.revokeObjectURL(this._backdropUrl);
+    this._backdropUrl = typeof source === "string" ? null : url;
     this._backdrop = img;
     return this;
   }

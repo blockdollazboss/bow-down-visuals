@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Radio, Square, Loader2, AlertTriangle, Camera, Mic, Users, Clock,
   Megaphone, Video, CheckCircle2, RotateCcw, MonitorPlay, Wand2,
-  Circle, Download, Keyboard, Save,
+  Circle, Download, Keyboard, Save, ImagePlus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +32,17 @@ import {
   type EngineStatusDetail,
 } from "@/lib/stream-kit/background-changer";
 import { VOICE_EFFECTS, type NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
-import { BACKDROPS, BACKDROP_URIS } from "@/lib/stream-kit/backdrops";
+import { BACKDROPS } from "@/lib/stream-kit/backdrops";
+import {
+  backdropSelectionSource,
+  greenScreenCueVisible,
+  isSelectionActive,
+  selectionAfterUpload,
+  validateBackdropUpload,
+  BACKDROP_UPLOAD_ACCEPT,
+  DEFAULT_BACKDROP_SELECTION,
+  type BackdropSelection,
+} from "@/lib/stream-kit/backdrop-selection";
 import {
   WhipTransport,
   OwnServerTransport,
@@ -201,7 +211,26 @@ export default function BroadcastStudio() {
      Pro engine, and why — rendered verbatim below so a fallback
      reads as a fallback, never as a dressed-up "On". */
   const [engineDetail, setEngineDetail] = useState<EngineStatusDetail | null>(null);
-  const [backdropId, setBackdropId] = useState("stage");
+  /* The ONE background choice (backdrop-selection.ts): a built-in
+     scene, or the creator's own photo — an uploaded file or a pasted
+     image URL, held here so the pick survives camera stop/start and
+     engine A/B switches. Before this, only a built-in id was held
+     and an uploaded photo lived nowhere: the upload control dropped
+     it silently whenever the camera was off. */
+  const [backdropSel, setBackdropSel] = useState<BackdropSelection>(DEFAULT_BACKDROP_SELECTION);
+  const [customBackdrop, setCustomBackdrop] = useState<{ source: File | string; thumb: string; name: string } | null>(null);
+  const backdropSelRef = useRef<BackdropSelection>(DEFAULT_BACKDROP_SELECTION);
+  const customBackdropRef = useRef<{ source: File | string; thumb: string; name: string } | null>(null);
+  const chooseBackdrop = useCallback((sel: BackdropSelection) => {
+    backdropSelRef.current = sel;
+    setBackdropSel(sel);
+  }, []);
+  const holdCustomBackdrop = useCallback((held: { source: File | string; thumb: string; name: string } | null) => {
+    const prev = customBackdropRef.current;
+    if (prev && prev.thumb.startsWith("blob:") && prev.thumb !== held?.thumb) URL.revokeObjectURL(prev.thumb);
+    customBackdropRef.current = held;
+    setCustomBackdrop(held);
+  }, []);
   const [camFx, setCamFx] = useState("none");
   const [nc, setNc] = useState<NoiseCancellationLevel>("on");
   const [fx, setFx] = useState("none");
@@ -472,6 +501,99 @@ export default function BroadcastStudio() {
     return "Something went wrong. Try again.";
   };
 
+  /* Apply the held background choice to a changer. Resolves the ONE
+     selection (built-in or the creator's own photo) the same way at
+     every call site — mode pick, camera start, engine landing — so
+     the photo picked in the panel is the photo behind the creator,
+     whichever engine is live. Returns false when the source could
+     not be loaded (the changer keeps its previous backdrop). */
+  const applyBackdropSelection = useCallback(async (changer: BackgroundChanger): Promise<boolean> => {
+    const source = backdropSelectionSource(backdropSelRef.current, customBackdropRef.current?.source ?? null);
+    if (source === null) return false;
+    try {
+      await changer.setImage(source);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /* Pick a background tile in the panel. The choice is held first,
+     then applied to the live changer; a source that fails to load
+     restores the previous choice — a bad pick never costs the
+     creator the background they already had. */
+  const pickBackdrop = useCallback(
+    async (sel: BackdropSelection) => {
+      const previous = backdropSelRef.current;
+      chooseBackdrop(sel);
+      setMode("image");
+      const changer = changerRef.current;
+      if (!changer) {
+        setStatusMsg("Start the camera, then your backdrop applies.");
+        return;
+      }
+      changer.setMode("image");
+      const applied = await applyBackdropSelection(changer);
+      if (!applied) {
+        chooseBackdrop(previous);
+        setStatusMsg("That backdrop image could not be loaded.");
+      }
+    },
+    [applyBackdropSelection, chooseBackdrop],
+  );
+
+  /* Upload your own photo as the background — a first-class tile in
+     the same picker, not a separate surface. Validated by the app's
+     image rules; a refused or unreadable file is announced and the
+     previous background stays. With the camera off the photo is
+     HELD and applied the moment the camera starts. */
+  const handleBackdropUpload = useCallback(
+    async (file: File | undefined) => {
+      if (!file) return;
+      const refusal = validateBackdropUpload(file);
+      if (refusal) {
+        setStatusMsg(refusal);
+        return;
+      }
+      const changer = changerRef.current;
+      if (changer) {
+        changer.setMode("image");
+        try {
+          await changer.setImage(file);
+        } catch (err) {
+          setStatusMsg(describeError(err));
+          return;
+        }
+      }
+      holdCustomBackdrop({ source: file, thumb: URL.createObjectURL(file), name: file.name });
+      chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: file.name }));
+      setMode("image");
+      if (!changer) setStatusMsg("Got it — your photo goes behind you when the camera starts.");
+    },
+    [chooseBackdrop, holdCustomBackdrop],
+  );
+
+  /* A pasted image link is the same custom choice, held the same way. */
+  const handleBackdropUrl = useCallback(
+    async (url: string) => {
+      const changer = changerRef.current;
+      if (changer) {
+        changer.setMode("image");
+        try {
+          await changer.setImage(url);
+        } catch (err) {
+          setStatusMsg(describeError(err));
+          return;
+        }
+      }
+      holdCustomBackdrop({ source: url, thumb: url, name: "Pasted image link" });
+      chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: "Pasted image link" }));
+      setMode("image");
+      if (!changer) setStatusMsg("Got it — that image goes behind you when the camera starts.");
+    },
+    [chooseBackdrop, holdCustomBackdrop],
+  );
+
   async function refreshDevices() {
     try {
       const [cams, microphones] = await Promise.all([
@@ -520,9 +642,10 @@ export default function BroadcastStudio() {
             const c = changerRef.current;
             setEngineDown(kind === "off" && !(c && c.mode === "none" && !c.engineError));
             /* Raw-first: when the engine lands after a backdrop was
-               already picked, load the chosen backdrop now. */
+               already picked, load the chosen backdrop now — the
+               held selection, built-in or the creator's own photo. */
             if (kind !== "off" && mode === "image" && c && !c.hasBackdrop()) {
-              void c.setImage(BACKDROP_URIS[backdropId] ?? null).catch(() => undefined);
+              void applyBackdropSelection(c);
             }
           },
           onEngineStatusDetail: (detail) => setEngineDetail(detail),
@@ -540,7 +663,15 @@ export default function BroadcastStudio() {
       setEngineKind(changer.getEngineKind());
       setEngineDetail(changer.getEngineStatusDetail());
       if (changer.segmentationAvailable && mode === "image" && !changer.hasBackdrop()) {
-        await changer.setImage(BACKDROP_URIS[backdropId] ?? null);
+        /* A held photo that can't load must not take the camera down
+           with it: fall back to the default built-in, say so, and
+           keep the creator's pick held for the next try. */
+        const applied = await applyBackdropSelection(changer);
+        if (!applied) {
+          chooseBackdrop(DEFAULT_BACKDROP_SELECTION);
+          await changer.setImage(backdropSelectionSource(DEFAULT_BACKDROP_SELECTION, null)).catch(() => undefined);
+          setStatusMsg("That background couldn't be loaded — the Gold Stage is behind you instead. Your pick is still saved in the panel.");
+        }
       }
       if (!mixerRef.current) {
         const mixer = new AudioMixer();
@@ -1762,7 +1893,8 @@ export default function BroadcastStudio() {
       <section className={`mb-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
         <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Behind me</h3>
         <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          Shapes the Camera source in your scenes — pick a camera source there and choose Studio backdrop or Green screen.
+          Your background lives here — turn on the green screen or a backdrop, then pick what sits behind you in
+          this same panel: a built-in scene, or your own photo.
         </p>
         <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Background mode">
           {(
@@ -1784,7 +1916,7 @@ export default function BroadcastStudio() {
                 if (!changer) return;
                 changer.setMode(m);
                 if (m === "image" && !changer.hasBackdrop()) {
-                  await changer.setImage(BACKDROP_URIS[backdropId] ?? null).catch(() => undefined);
+                  await applyBackdropSelection(changer);
                 }
               }}
               data-testid={`btn-mode-${m}`}
@@ -1844,36 +1976,87 @@ export default function BroadcastStudio() {
                   : "Pro engine couldn't start on this device — camera is running plain."}
           </p>
         )}
-        <div className="mt-4 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6">
-          {BACKDROPS.map((b) => (
+        {greenScreenCueVisible(mode) && (
+          <p className={`mt-4 text-xs font-semibold ${isLight ? "text-[#8a6d1f]" : "text-amber-200/80"}`} data-testid="gs-bg-cue">
+            Green screen is on — pick any background below, or upload your own photo, and it goes right behind
+            you. It&rsquo;s all one step, right here.
+          </p>
+        )}
+        <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+          Your background
+        </p>
+        <div
+          className="mt-2 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-6"
+          role="group"
+          aria-label="Your background"
+        >
+          {BACKDROPS.map((b) => {
+            const active = isSelectionActive(backdropSel, { kind: "builtin", id: b.id }) && mode === "image";
+            return (
+              <button
+                key={b.id}
+                type="button"
+                disabled={engineDown}
+                onClick={() => void pickBackdrop({ kind: "builtin", id: b.id })}
+                className={`overflow-hidden rounded-lg border p-1 text-center transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  active
+                    ? "border-transparent bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]"
+                    : isLight
+                      ? "border-[#C9A84C]/30 hover:border-[#C9A84C]"
+                      : "border-white/10 hover:border-white/30"
+                }`}
+                data-testid={`btn-backdrop-${b.id}`}
+              >
+                <img src={b.uri} alt="" className="aspect-video w-full rounded object-cover" />
+                <span className={`mt-1 block text-[11px] font-bold leading-tight ${active ? "text-black" : isLight ? "text-[#6B5B36]" : "text-white/60"}`}>{b.label}</span>
+              </button>
+            );
+          })}
+          {customBackdrop && (
             <button
-              key={b.id}
               type="button"
               disabled={engineDown}
-              onClick={async () => {
-                setBackdropId(b.id);
-                setMode("image");
-                const changer = changerRef.current;
-                if (!changer) {
-                  setStatusMsg("Start the camera, then your backdrop applies.");
-                  return;
-                }
-                changer.setMode("image");
-                await changer.setImage(b.uri).catch((err) => setStatusMsg(describeError(err)));
-              }}
+              onClick={() => void pickBackdrop({ kind: "custom", name: customBackdrop.name })}
               className={`overflow-hidden rounded-lg border p-1 text-center transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                backdropId === b.id && mode === "image"
+                backdropSel.kind === "custom" && mode === "image"
                   ? "border-transparent bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]"
                   : isLight
                     ? "border-[#C9A84C]/30 hover:border-[#C9A84C]"
                     : "border-white/10 hover:border-white/30"
               }`}
-              data-testid={`btn-backdrop-${b.id}`}
+              data-testid="btn-backdrop-custom"
             >
-              <img src={b.uri} alt="" className="aspect-video w-full rounded object-cover" />
-              <span className={`mt-1 block text-[11px] font-bold leading-tight ${backdropId === b.id && mode === "image" ? "text-black" : isLight ? "text-[#6B5B36]" : "text-white/60"}`}>{b.label}</span>
+              <img src={customBackdrop.thumb} alt="" className="aspect-video w-full rounded object-cover" />
+              <span className={`mt-1 block truncate text-[11px] font-bold leading-tight ${backdropSel.kind === "custom" && mode === "image" ? "text-black" : isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
+                {customBackdrop.name}
+              </span>
             </button>
-          ))}
+          )}
+          <label
+            className={`cursor-pointer overflow-hidden rounded-lg border border-dashed p-1 text-center transition ${
+              isLight
+                ? "border-[#C9A84C]/50 hover:border-[#C9A84C]"
+                : "border-white/25 hover:border-white/50"
+            } ${engineDown ? "pointer-events-none opacity-40" : ""}`}
+            data-testid="btn-backdrop-upload"
+          >
+            <span className={`flex aspect-video w-full flex-col items-center justify-center gap-1 rounded ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
+              <ImagePlus className="h-5 w-5" />
+              <span className="text-[11px] font-bold leading-tight">Upload your photo</span>
+            </span>
+            <span className={`mt-1 block text-[11px] leading-tight ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              JPG, PNG or WebP
+            </span>
+            <input
+              type="file"
+              accept={BACKDROP_UPLOAD_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                void handleBackdropUpload(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input
@@ -1882,30 +2065,13 @@ export default function BroadcastStudio() {
             aria-label="Backdrop image URL"
             placeholder="…or paste your own backdrop image URL"
             className={`${inputCls} min-w-[220px] flex-1`}
-            onKeyDown={async (e) => {
+            onKeyDown={(e) => {
               if (e.key !== "Enter") return;
               const url = (e.target as HTMLInputElement).value.trim();
-              if (!url || !changerRef.current) return;
-              setMode("image");
-              changerRef.current.setMode("image");
-              await changerRef.current.setImage(url).catch((err) => setStatusMsg(describeError(err)));
+              if (!url) return;
+              void handleBackdropUrl(url);
             }}
           />
-          <label className={`cursor-pointer rounded-lg border px-3 py-2 text-xs font-bold ${isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/10 text-white/60"}`}>
-            Upload backdrop
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file || !changerRef.current) return;
-                setMode("image");
-                changerRef.current.setMode("image");
-                await changerRef.current.setImage(file).catch((err) => setStatusMsg(describeError(err)));
-              }}
-            />
-          </label>
         </div>
       </section>
 
