@@ -203,6 +203,89 @@ describe("memory watchdog heap snapshot", () => {
   });
 });
 
+describe("memory watchdog child-tree sampling (stack800 lane 9)", () => {
+  it("aggregates only the root's descendants — children and grandchildren, not strangers", async () => {
+    const wd = await loadWatchdog();
+    const rows = [
+      { pid: 100, ppid: 1, rssMb: 280, comm: "node" },
+      { pid: 101, ppid: 100, rssMb: 262, comm: "ffmpeg" },
+      { pid: 102, ppid: 100, rssMb: 12, comm: "ffprobe" },
+      { pid: 103, ppid: 101, rssMb: 30, comm: "ffmpeg-worker" },
+      { pid: 200, ppid: 1, rssMb: 900, comm: "unrelated" },
+      { pid: 201, ppid: 200, rssMb: 50, comm: "unrelated-child" },
+    ];
+    expect(wd.aggregateChildTree(rows, 100)).toEqual({
+      childCount: 3,
+      childRssMb: 304,
+      childTopName: "ffmpeg",
+      childTopRssMb: 262,
+    });
+  });
+
+  it("reports an empty tree for a childless root and for an empty table", async () => {
+    const wd = await loadWatchdog();
+    const empty = {
+      childCount: 0,
+      childRssMb: 0,
+      childTopName: null,
+      childTopRssMb: 0,
+    };
+    expect(wd.aggregateChildTree([], 100)).toEqual(empty);
+    expect(
+      wd.aggregateChildTree([{ pid: 100, ppid: 1, rssMb: 280, comm: "node" }], 100),
+    ).toEqual(empty);
+  });
+
+  it("a corrupt table (a ppid cycle) terminates instead of looping", async () => {
+    const wd = await loadWatchdog();
+    const rows = [
+      { pid: 100, ppid: 101, rssMb: 10, comm: "a" },
+      { pid: 101, ppid: 100, rssMb: 10, comm: "b" },
+    ];
+    const sample = wd.aggregateChildTree(rows, 100);
+    expect(sample.childCount).toBe(1);
+  });
+
+  it("readProcTable sees this very process on Linux (and never throws)", async () => {
+    const wd = await loadWatchdog();
+    const rows = wd.readProcTable();
+    const self = rows.find((r) => r.pid === process.pid);
+    expect(self).toBeDefined();
+    expect(self!.rssMb).toBeGreaterThan(0);
+    expect(self!.comm.length).toBeGreaterThan(0);
+  });
+
+  it("the tick's log line carries the child-tree fields alongside the Node fields", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.5;
+    const wd = await loadWatchdog();
+    wd.runMemoryWatchdogTick();
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    const fields = vi.mocked(logger.info).mock.calls[0]![0] as Record<
+      string,
+      unknown
+    >;
+    expect(fields.rssMb).toBe(100); // the Node sample, unchanged
+    expect(typeof fields.childCount).toBe("number");
+    expect(typeof fields.childRssMb).toBe("number");
+    expect(fields.childRssMb as number).toBeGreaterThanOrEqual(0);
+    expect("childTopName" in fields).toBe(true);
+    expect("childTopRssMb" in fields).toBe(true);
+  });
+
+  it("child size never feeds the critical line — a giant child under a calm heap does not fire it", async () => {
+    heapUsedBytes = HEAP_LIMIT * 0.4;
+    rssBytes = 100 * MB;
+    const wd = await loadWatchdog();
+    const handler = vi.fn();
+    wd.setMemoryCriticalHandler(handler);
+    // Even if the live table happened to show children, the policy
+    // inputs are this process's heap/RSS only (both calm here).
+    wd.runMemoryWatchdogTick();
+    wd.runMemoryWatchdogTick();
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
+
 describe("memory watchdog critical line", () => {
   it("fires the registered handler after 2 consecutive ticks at >= 0.96 — once, and with no snapshot", async () => {
     heapUsedBytes = HEAP_LIMIT * 0.97;
