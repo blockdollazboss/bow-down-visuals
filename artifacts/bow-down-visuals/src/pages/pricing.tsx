@@ -106,7 +106,21 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
   }
 
   return (
-    <div className="lux-card p-5 flex flex-col items-center text-center gap-4">
+    /* Width contract (stack700/pack-checkout-width): the closed card is
+       one cell of a 2/4-across grid (~196px on desktop) — fine for a
+       label + price + button, but the Stripe PaymentElement it swaps
+       in needs ~300px or its fields truncate (owner screenshot,
+       Oct 29: Country clipped to "United Sta…", Link header wrapped
+       to four lines). While checkout is open the card therefore spans
+       the full grid row, tightens its side padding on small screens,
+       and the form below is capped at max-w-md — the same width
+       provision the plan-subscribe mount on /creator-pricing carries.
+       Closed state is byte-for-byte the old card. */
+    <div
+      className={`lux-card flex flex-col items-center text-center gap-4 ${
+        clientSecret ? "col-span-2 md:col-span-4 px-3 py-5 sm:p-5" : "p-5"
+      }`}
+    >
       <div className="h-11 w-11 rounded-2xl bg-gradient-to-b from-primary/25 to-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_20px_-4px_hsl(45_95%_50%/0.4),inset_0_1px_0_hsl(0_0%_100%/0.15)]">
         <CreditCard className="h-5 w-5 text-primary" />
       </div>
@@ -125,12 +139,14 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
         <p className="text-[11px] text-green-400 leading-snug text-center px-1">{successMsg}</p>
       )}
       {clientSecret ? (
-        <EmbeddedPaymentForm
-          clientSecret={clientSecret}
-          submitLabel={`${t("pricing.creditPacks.buyButton")} — ${pack.priceLabel}`}
-          onConfirmed={handleConfirmed}
-          onError={(msg) => setErrorMsg(msg)}
-        />
+        <div className="w-full max-w-md">
+          <EmbeddedPaymentForm
+            clientSecret={clientSecret}
+            submitLabel={`${t("pricing.creditPacks.buyButton")} — ${pack.priceLabel}`}
+            onConfirmed={handleConfirmed}
+            onError={(msg) => setErrorMsg(msg)}
+          />
+        </div>
       ) : (
         <Button
           size="sm"
@@ -147,7 +163,10 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
         </Button>
       )}
       {user && (
-        <div className="w-full">
+        /* max-w-md binds only while the card spans the full row (open
+           checkout above); in the closed narrow card it never binds,
+           so the closed look is unchanged. */
+        <div className="w-full max-w-md">
           <div className="flex items-center gap-3 my-1">
             <div className="flex-1 h-px bg-white/10" />
             <span className="text-[10px] uppercase tracking-widest text-white/30">or</span>
