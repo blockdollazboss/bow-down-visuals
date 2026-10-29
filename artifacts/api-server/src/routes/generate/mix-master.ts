@@ -7,6 +7,8 @@ import { promisify } from "util";
 import { Request, Response, Router, NextFunction } from "express";
 import { z } from "zod";
 import multer from "multer";
+import { createAdminAwareUpload, ADMIN_UPLOAD_MAX_BYTES } from "../../lib/upload-storage";
+import { isAdminRequest } from "../../lib/admin";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -59,7 +61,7 @@ function audioFileFilter(_req: Request, file: Express.Multer.File, cb: multer.Fi
   else cb(new Error("Only audio files (WAV, MP3, AIFF, FLAC, M4A, OGG) are allowed"));
 }
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage,
   limits: { fileSize: MAX_FILE_BYTES },
   fileFilter: audioFileFilter,
@@ -79,10 +81,11 @@ function fieldsUpload(fields: multer.Field[]) {
         for (const list of Object.values(files ?? {})) cleanupUploads(list);
         const code = (err as { code?: string })?.code;
         const message = err instanceof Error ? err.message : "Upload failed";
+        const limitBytes = isAdminRequest(req) ? ADMIN_UPLOAD_MAX_BYTES : MAX_FILE_BYTES;
         res.status(code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
           error: "UPLOAD_FAILED",
           message: code === "LIMIT_FILE_SIZE"
-            ? `A file exceeds the ${MAX_FILE_BYTES / 1024 / 1024} MB limit.`
+            ? `A file exceeds the ${limitBytes / 1024 / 1024} MB limit.`
             : message,
         });
         return;

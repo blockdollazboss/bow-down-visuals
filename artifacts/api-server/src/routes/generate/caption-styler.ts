@@ -15,7 +15,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -25,7 +25,7 @@ const CAPTION_STYLER_MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same guard as clip 
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // Whisper's hard limit
 const WHISPER_TIMEOUT_MS = 240_000; // 4 minutes
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: CAPTION_STYLER_MAX_BYTES },
   fileFilter: (_req, file, cb) => {

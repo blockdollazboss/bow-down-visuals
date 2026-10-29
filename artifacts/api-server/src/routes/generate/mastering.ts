@@ -5,7 +5,6 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
-import multer from "multer";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -14,7 +13,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
 import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
@@ -47,7 +46,7 @@ export {
   type LoudnormMeasurement,
 };
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: MASTERING_MAX_BYTES },
   fileFilter: (_req, file, cb) => {

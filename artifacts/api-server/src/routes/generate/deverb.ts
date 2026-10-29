@@ -34,7 +34,6 @@ import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
-import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { publicApiLimiter } from "../../lib/rate-limit";
@@ -43,7 +42,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -119,7 +118,7 @@ router.get("/deverb/status", publicApiLimiter, (_req: Request, res: Response) =>
 
 /* ── Upload handling ─────────────────────────────────────────────────── */
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: DEVERB_MAX_BYTES },
   fileFilter: (_req, file, cb) => {

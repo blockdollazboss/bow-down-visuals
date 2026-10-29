@@ -31,7 +31,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
 import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
 const router = Router();
@@ -108,7 +108,7 @@ const rerollThumbnailSchema = z.object({
   prompt: z.string().min(1).max(1000),
 });
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: VIDEO_MAX_BYTES },
   fileFilter: (_req, file, cb) => {

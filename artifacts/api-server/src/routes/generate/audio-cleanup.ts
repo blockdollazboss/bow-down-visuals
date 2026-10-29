@@ -6,7 +6,6 @@ import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
-import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -14,7 +13,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
 import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();
@@ -32,7 +31,7 @@ const MODE_LABELS: Record<AudioCleanupMode, string> = {
   denoise: "Full Denoise",
 };
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: AUDIO_CLEANUP_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
