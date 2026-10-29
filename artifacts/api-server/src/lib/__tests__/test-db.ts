@@ -51,6 +51,18 @@ CREATE TABLE job_notifications (
   CONSTRAINT job_notifications_job_uniq UNIQUE (job_type, job_id)
 );`;
 
+export const EXPORT_JOBS_DDL = `
+CREATE TABLE export_jobs (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  project_id uuid,
+  state text NOT NULL DEFAULT 'queued',
+  result jsonb,
+  error jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);`;
+
 export interface TestDb {
   mem: IMemoryDb;
   db: ReturnType<typeof drizzle>;
