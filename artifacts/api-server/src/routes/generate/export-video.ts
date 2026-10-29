@@ -2420,6 +2420,9 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     // ── Watermark overlay — applied LAST so it is the topmost visual layer.
     // Nothing is composited on top of it after this point. ──
+    // Hoisted so the feed pre-scale below (§4.5) uses the exact width the
+    // graph scales to — one source of truth for the display size.
+    let wmDisplayWidth = 0;
     if (wmInputIdx >= 0 && activeWmPath) {
       const bwm = useBrandingWm ? branding!.watermark : null;
       // Size as a % of TARGET_W so the logo occupies a consistent relative footprint
@@ -2428,6 +2431,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       const wmW = bwm
         ? Math.round(TARGET_W * (wmSizeMap[bwm.size] ?? 0.15))
         : Math.round(TARGET_W * (wmSizeMap[watermarkSize] ?? 0.15));
+      wmDisplayWidth = wmW;
       // If "Logo / Watermark" is in overlayEffects with an explicit intensity, use that
       // alpha so the burned watermark matches the editor overlay panel at that opacity.
       const wmOverlayIntensityVal = overlayIntensityMap["Logo / Watermark"] ?? overlayIntensityMap["Watermark"];
@@ -2488,6 +2492,43 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
     }
 
+    /* ── 4.5: Watermark feed pre-scale (stack700 export-memory) ──────
+     * The watermark enters the render as a `-loop 1` still input, and
+     * the filter graph scales it to wmDisplayWidth — but decoded frames
+     * QUEUE ahead of that scale filter at the SOURCE's full size. The
+     * house mark is 1600×1600, so every queued RGBA frame costs
+     * ~10 MB, and the still decoder runs far ahead of the single-
+     * threaded encoder: bisecting the gate re-run #3 pass-A graph
+     * locally put the watermark leg at ~109 MB of ffmpeg's 262 MB
+     * peak (encode-only 119 MB; +effects 153 MB; +watermark 262 MB).
+     * That queue is the margin that carried Node's ~280 MB baseline +
+     * ffmpeg over the 512 MB container line and killed the container
+     * seconds after "pass A starting" — RSS reaches its plateau
+     * within the first seconds of the spawn (measured), and the
+     * memory watchdog cannot see it (it samples only this process,
+     * never children). Feeding the graph a copy already at display
+     * width makes the in-graph scale an exact identity — output is
+     * byte-identical (md5-verified locally against the full-size
+     * feed) — and drops the measured peak to ~205 MB. Best-effort:
+     * any failure here feeds the original image; the render itself
+     * is never put at risk for a memory optimisation. */
+    let wmFeedPath: string | null = activeWmPath;
+    if (wmInputIdx >= 0 && activeWmPath && wmDisplayWidth > 0) {
+      const scaledWmPath = path.join(tmpDir, `bdv-wm-feed-${exportId}.png`);
+      try {
+        await execFileAsync(
+          "ffmpeg",
+          ["-y", "-i", activeWmPath, "-vf", `scale=${wmDisplayWidth}:-2`, "-pix_fmt", "rgba", scaledWmPath],
+          { timeout: 30_000 },
+        );
+        tmpFiles.push(scaledWmPath);
+        wmFeedPath = scaledWmPath;
+        ctx.log.info({ wmDisplayWidth }, "[export] watermark pre-scaled to display width for the render feed");
+      } catch (e) {
+        ctx.log.warn({ err: String(e) }, "[export] watermark pre-scale failed — feeding the full-size image (render unaffected)");
+      }
+    }
+
     /* ── 5: Build FFmpeg args ── */
     // Input ordering: intro? → normalizedClips → outro? → audio? → watermark?
     const outputPath = path.join(tmpDir, `bdv-export-${exportId}.${outExt}`);
@@ -2528,9 +2569,10 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
       ffmpegArgs.push("-i", audioPath);
     }
-    // Watermark still image (looped)
-    if (wmInputIdx >= 0 && activeWmPath) {
-      ffmpegArgs.push("-loop", "1", "-i", activeWmPath);
+    // Watermark still image (looped) — the §4.5 pre-scaled feed copy
+    // when it exists, else the original image.
+    if (wmInputIdx >= 0 && wmFeedPath) {
+      ffmpegArgs.push("-loop", "1", "-i", wmFeedPath);
     }
     // Structured overlay images (e.g. a user-uploaded logo placed via the overlay editor)
     for (let i = 0; i < overlayImagePaths.length; i++) {
@@ -2625,7 +2667,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         path: p,
       })),
       ...(audioPath ? [{ label: "Audio track", path: audioPath }] : []),
-      ...(wmInputIdx >= 0 && activeWmPath ? [{ label: "Watermark image", path: activeWmPath }] : []),
+      ...(wmInputIdx >= 0 && activeWmPath ? [{ label: "Watermark image", path: wmFeedPath ?? activeWmPath }] : []),
       ...overlayImagePaths
         .map((p, i) => (p ? { label: `Overlay image #${i + 1}`, path: p } : null))
         .filter((x): x is { label: string; path: string } => x !== null),
