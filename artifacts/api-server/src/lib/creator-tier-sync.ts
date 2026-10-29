@@ -5,6 +5,7 @@ import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
 import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail } from "./email";
 import { createGuardedStripeClient } from "./stripe-client";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 
 /* ── Creator tier subscription sync — Worker 12 ────────────────────────────
    Called from the central Stripe webhook (lib/stripe-webhook.ts). Handles:
@@ -100,6 +101,91 @@ async function upsertSubscription(values: {
    insert is ON CONFLICT DO NOTHING, so a replayed webhook delivery
    can never duplicate a receipt. Best-effort: a receipt failure must
    never roll back the entitlement sync itself. */
+/* ── Plan-landed push (push wiring #5) ───────────────────────────────────
+   A paid plan moment (subscribed / renewed / tier_changed to a paid
+   tier) confirms to the buyer on their devices: you bought it, it
+   landed. Exactly-once comes from the receipt row itself — its
+   idempotency_key is UNIQUE and the insert is ON CONFLICT DO NOTHING,
+   so only a receipt that actually LANDS fires; a replayed webhook can
+   never re-ping. Bad-news kinds (payment_failed, canceled,
+   status_changed) deliberately do not ride this rail. */
+const PLAN_LANDED_KINDS: ReadonlySet<string> = new Set(["subscribed", "renewed", "tier_changed"]);
+
+export function planLandedCopy(kind: string, tier: string | null | undefined): { title: string; body: string } | null {
+  if (!PLAN_LANDED_KINDS.has(kind)) return null;
+  if (!tier || tier === "free") return null;
+  const name = tier.charAt(0).toUpperCase() + tier.slice(1);
+  switch (kind) {
+    case "subscribed":
+      return {
+        title: `Your ${name} plan is live 👑`,
+        body: "Payment confirmed — your plan is active and everything it unlocks is ready in your studio.",
+      };
+    case "renewed":
+      return {
+        title: `Your ${name} plan renewed 👑`,
+        body: "Your renewal payment landed — your plan rolls on without a gap.",
+      };
+    case "tier_changed":
+      return {
+        title: `Your plan is now ${name} 👑`,
+        body: "The switch is done — same subscription, new tier, effective right away.",
+      };
+    default:
+      return null;
+  }
+}
+
+type TierEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _tierEventNotifier: TierEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setTierEventNotifier(fn: TierEventNotifier | null): void {
+  _tierEventNotifier = fn ?? notifyUserEvent;
+}
+
+export interface PlanLandedDeps {
+  readUserId: (profileId: string) => Promise<string | null>;
+  notify: TierEventNotifier;
+}
+
+const realPlanLandedDeps: PlanLandedDeps = {
+  readUserId: async (profileId) => {
+    const [row] = await db
+      .select({ userId: creatorProfilesTable.userId })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.id, profileId))
+      .limit(1);
+    return row?.userId ?? null;
+  },
+  notify: (input) => _tierEventNotifier(input),
+};
+
+/** Fire the plan-landed event for a receipt that just landed.
+ *  Best-effort: never throws into the entitlement sync. */
+export async function maybeNotifyPlanLanded(
+  values: { profileId: string; kind: string; tier?: string | null },
+  deps: PlanLandedDeps = realPlanLandedDeps,
+): Promise<boolean> {
+  const copy = planLandedCopy(values.kind, values.tier);
+  if (!copy) return false;
+  try {
+    const userId = await deps.readUserId(values.profileId);
+    if (!userId) return false;
+    await deps.notify({
+      userId,
+      category: "money",
+      kind: `plan_${values.kind}`,
+      title: copy.title,
+      body: copy.body,
+      link: "/settings",
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ err, profileId: values.profileId, kind: values.kind }, "tier-sync: plan-landed notification failed (non-fatal)");
+    return false;
+  }
+}
+
 export async function recordSubscriptionReceipt(values: {
   profileId: string;
   kind: string;
@@ -113,7 +199,7 @@ export async function recordSubscriptionReceipt(values: {
   idempotencyKey: string;
 }): Promise<void> {
   try {
-    await db
+    const landed = await db
       .insert(creatorSubscriptionReceiptsTable)
       .values({
         profileId: values.profileId,
@@ -127,7 +213,14 @@ export async function recordSubscriptionReceipt(values: {
         stripeObjectId: values.stripeObjectId ?? null,
         idempotencyKey: values.idempotencyKey,
       })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning();
+    /* Push wiring #5: only a receipt that LANDS fires the buyer's
+       confirmation — a replayed webhook's duplicate insert lands
+       nothing and pings nothing. */
+    if (landed[0]) {
+      await maybeNotifyPlanLanded(values);
+    }
   } catch (err) {
     logger.warn({ err, kind: values.kind }, "subscription receipt write failed (non-fatal)");
   }

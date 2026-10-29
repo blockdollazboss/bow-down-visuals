@@ -3,6 +3,7 @@ import { stripePaymentsTable, creditUsageTable, generationHistoryTable } from "@
 import { eq, desc, and, or, lt } from "drizzle-orm";
 import { logger } from "./logger";
 import { isUniqueViolation } from "./pg-errors";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 
 export interface PaymentRecord {
   stripeSessionId: string;
@@ -606,6 +607,36 @@ export type FulfillOutcome =
   | { outcome: "duplicate" }
   | { outcome: "inflight" };
 
+/* ── Pack-landed push (push wiring #5) ───────────────────────────────────
+   fulfillCreditPurchase is the ONE fulfillment both rails ride
+   (hosted webhook + embedded verify): its insert-first claim means the
+   "granted" outcome happens exactly once per purchase, so the buyer's
+   confirmation ping hangs off it — duplicates and in-flight replays
+   return before this point and can never re-ping. Best-effort: a
+   notification failure must never fail a fulfillment (a throw here
+   would mark a landed grant failed and invite a double-grant retry). */
+type PackEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _packEventNotifier: PackEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setPackEventNotifier(fn: PackEventNotifier | null): void {
+  _packEventNotifier = fn ?? notifyUserEvent;
+}
+
+export async function notifyPackLanded(p: CreditPurchase): Promise<void> {
+  try {
+    await _packEventNotifier({
+      userId: p.userId,
+      category: "money",
+      kind: "pack_landed",
+      title: "Your Visual Bucs landed 👑",
+      body: `${p.creditsAmount.toLocaleString("en-US")} VB from your ${p.creditPack} pack are in your balance now.`,
+      link: "/credit-history",
+    });
+  } catch (err) {
+    logger.warn({ err, userId: p.userId }, "fulfillCreditPurchase: pack-landed notification failed (non-fatal)");
+  }
+}
+
 export async function fulfillCreditPurchase(p: CreditPurchase): Promise<FulfillOutcome> {
   const claim = await claimStripePayment({
     stripeSessionId: p.idempotencyKey,
@@ -626,6 +657,9 @@ export async function fulfillCreditPurchase(p: CreditPurchase): Promise<FulfillO
   try {
     const { newCredits } = await addCreditsAtomic(p.userId, p.creditsAmount);
     await markPaymentCompleted(p.idempotencyKey);
+    /* Push wiring #5: the grant is complete and the claim is marked —
+       this line runs exactly once per purchase. */
+    await notifyPackLanded(p);
     logger.info(
       { idempotencyKey: p.idempotencyKey, userId: p.userId, creditsAmount: p.creditsAmount, newCredits },
       "fulfillCreditPurchase: credits granted",

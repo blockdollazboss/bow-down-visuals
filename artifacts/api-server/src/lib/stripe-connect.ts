@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { createGuardedStripeClient, isStripeTestModeKey } from "./stripe-client";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 
 /* ── Stripe Connect (Express) money-out — shared helper ──────────────────
  * TEST MODE: every call below runs against Stripe's test API when the
@@ -199,9 +200,82 @@ export function connectStateFromStored(fields: ConnectFields): ConnectAccountSta
   };
 }
 
+/* ── Payout-ready push (push wiring #4) ──────────────────────────────────
+   The moment Stripe flips a seller to payouts_enabled is a money moment
+   the seller should hear about on their phone, not discover by opening
+   Earnings. Exactly-once comes from the transition itself: the flags
+   row only crosses false → true once, and persistConnectFlags is the
+   ONE writer of those flags (webhook sync + status self-heal both ride
+   it), so the crossing is observed exactly once. */
+export function payoutBecameReady(
+  prev: Pick<ConnectFields, "payoutsEnabled">,
+  next: Pick<ConnectFields, "payoutsEnabled">,
+): boolean {
+  return !prev.payoutsEnabled && next.payoutsEnabled;
+}
+
+type ConnectEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _connectEventNotifier: ConnectEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setConnectEventNotifier(fn: ConnectEventNotifier | null): void {
+  _connectEventNotifier = fn ?? notifyUserEvent;
+}
+
+export interface PayoutReadyDeps {
+  readUserId: (profileId: string) => Promise<string | null>;
+  notify: ConnectEventNotifier;
+}
+
+const realPayoutReadyDeps: PayoutReadyDeps = {
+  readUserId: async (profileId) => {
+    const r = await db.execute(sql`
+      SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+    `);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return typeof row?.["user_id"] === "string" ? (row["user_id"] as string) : null;
+  },
+  notify: (input) => _connectEventNotifier(input),
+};
+
+/** Fire the payout-ready event iff the flags crossed to payouts-on.
+ *  Best-effort by design: never throws into the Connect sync. */
+export async function maybeNotifyPayoutReady(
+  profileId: string,
+  prev: Pick<ConnectFields, "payoutsEnabled">,
+  next: Pick<ConnectFields, "payoutsEnabled">,
+  deps: PayoutReadyDeps = realPayoutReadyDeps,
+): Promise<boolean> {
+  if (!payoutBecameReady(prev, next)) return false;
+  try {
+    const userId = await deps.readUserId(profileId);
+    if (!userId) return false;
+    await deps.notify({
+      userId,
+      category: "money",
+      kind: "payout_ready",
+      title: "You're ready to get paid 👑",
+      body: "Stripe finished verifying your account — payouts are on. Head to Earnings to send your money out.",
+      link: "/earnings",
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ err, profileId }, "connect: payout-ready notification failed (non-fatal)");
+    return false;
+  }
+}
+
 /** Persist reconciled flags onto the creator profile — the ONE writer
  *  (webhook sync + status self-heal both ride it). */
 export async function persistConnectFlags(profileId: string, s: ConnectFields): Promise<void> {
+  /* Read the stored flags BEFORE the write so the payout-ready
+   * transition (push wiring #4) is observed against the truth. A read
+   * failure skips the notification, never the persist. */
+  let prev: ConnectFields | null = null;
+  try {
+    prev = await getProfileConnectFields(profileId);
+  } catch {
+    prev = null;
+  }
   await db.execute(sql`
     UPDATE creator_profiles
     SET stripe_connect_onboarded = ${s.onboarded},
@@ -210,6 +284,9 @@ export async function persistConnectFlags(profileId: string, s: ConnectFields): 
         updated_at = NOW()
     WHERE id = ${profileId}
   `);
+  if (prev) {
+    await maybeNotifyPayoutReady(profileId, prev, s);
+  }
 }
 
 export async function getProfileConnectFields(profileId: string): Promise<ConnectFields> {

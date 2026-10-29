@@ -48,6 +48,30 @@ import {
 } from "./credits";
 import { recordCreditUsageStrict } from "./payment-record";
 import { logger } from "./logger";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
+
+/* ── Stage-tip push (push wiring #10) ────────────────────────────────────
+   A landed stage tip is a money moment for the performer. The ping
+   fires only when THIS call lands the performer's credit (the
+   creditAlreadyRecorded gate means a resumed attempt whose credit
+   already landed never re-pings), and never for a self-tip. */
+type StageTipEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _stageTipEventNotifier: StageTipEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setStageTipEventNotifier(fn: StageTipEventNotifier | null): void {
+  _stageTipEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildStageTipEvent(input: { toUserId: string; amountVb: number }): UserEventInput {
+  return {
+    userId: input.toUserId,
+    category: "money",
+    kind: "stage_tip",
+    title: "🎭 New stage tip",
+    body: `You just received a ${input.amountVb.toLocaleString("en-US")} VB stage tip in the World.`,
+    link: "/world",
+  };
+}
 
 export type StageTipResult =
   | { ok: true }
@@ -219,6 +243,15 @@ export function createStageTipper(store: StageTipStore = dbStageTipStore) {
             await store.recordCredit(toUserId, amountVb, creditKey);
           }
           await store.markCredited(tip.id);
+          /* Push wiring #10: this call landed the credit — tell the
+             performer. Best-effort; the tip has already landed. */
+          if (creditLanded && fromUserId !== toUserId) {
+            try {
+              await _stageTipEventNotifier(buildStageTipEvent({ toUserId, amountVb }));
+            } catch (notifyErr) {
+              logger.warn({ notifyErr, tipId: tip.id }, "[stage-tip] performer push failed (non-fatal)");
+            }
+          }
         } catch (err) {
           logger.error({ err, tipId: tip.id }, "[stage-tip] performer credit failed — reversing any landed credit, refunding the tipper");
           if (creditLanded) {

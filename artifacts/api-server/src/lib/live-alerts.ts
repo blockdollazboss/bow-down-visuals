@@ -25,13 +25,16 @@ export interface GoLiveAlertResult {
   /** Followers whose delivery row already existed (a repeat fire). */
   alreadyDelivered: number;
   pushSent: number;
+  /** Push wiring #9: the streamer's own "you're live" confirmation
+   *  landed (false on a repeat fire — the ledger already had it). */
+  selfNotified: boolean;
 }
 
 export async function fanOutGoLiveAlerts(
   stream: Pick<LiveStream, "id" | "user_id" | "profile_id" | "title">,
   creator: { displayName: string; slug: string },
 ): Promise<GoLiveAlertResult> {
-  const result: GoLiveAlertResult = { followers: 0, notified: 0, alreadyDelivered: 0, pushSent: 0 };
+  const result: GoLiveAlertResult = { followers: 0, notified: 0, alreadyDelivered: 0, pushSent: 0, selfNotified: false };
   try {
     const followerRows = await db
       .select({ followerUserId: followsTable.followerUserId })
@@ -77,6 +80,40 @@ export async function fanOutGoLiveAlerts(
         return null;
       });
       if (push) result.pushSent += push.sent;
+    }
+
+    /* ── Self-confirmation (push wiring #9) ────────────────────────────
+       The streamer gets their own "you're live" bell + ping, riding
+       the SAME deliveries ledger (their row keys on their own user
+       id), so a retried go-live can never double-confirm either. The
+       follower loop above excludes the streamer, so this is the only
+       place their confirmation can come from. */
+    const selfLanded = await db
+      .insert(liveGoLiveDeliveriesTable)
+      .values({ stream_id: stream.id, follower_user_id: stream.user_id })
+      .onConflictDoNothing()
+      .returning();
+    if (selfLanded[0]) {
+      const selfTitle = `You're live: ${stream.title}`;
+      const selfBody = "Your stream is on — your followers have been told. Go run your show 👑";
+      await db.insert(notificationsTable).values({
+        userId: stream.user_id,
+        kind: "live",
+        title: selfTitle,
+        body: selfBody,
+        link,
+      });
+      result.selfNotified = true;
+      const selfPush = await pushIfCategoryEnabled(stream.user_id, "live", {
+        title: selfTitle,
+        body: selfBody,
+        link,
+        kind: "live",
+      }).catch((err) => {
+        logger.warn({ err, userId: stream.user_id }, "go-live self-confirm: push attempt failed");
+        return null;
+      });
+      if (selfPush) result.pushSent += selfPush.sent;
     }
   } catch (err) {
     // Alerts are a fan-out off the go-live path: a failure here must

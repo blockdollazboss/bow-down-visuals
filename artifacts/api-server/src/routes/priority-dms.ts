@@ -12,6 +12,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError, LedgerWriteError } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { notifyUserEvent } from "../lib/push-events";
 import { logger } from "../lib/logger";
 import {
   isPriorityDmPlatformEnabled,
@@ -213,7 +214,14 @@ const credits: PriorityDmDeps["credits"] = {
 };
 
 function deps(): PriorityDmDeps {
-  return { store, credits, platformEnabled: isPriorityDmPlatformEnabled(), priceVb: priorityDmPriceVb() };
+  return {
+    store,
+    credits,
+    platformEnabled: isPriorityDmPlatformEnabled(),
+    priceVb: priorityDmPriceVb(),
+    /* Push wiring #7: the real event door for the creator ping. */
+    notifyEvent: (input) => notifyUserEvent(input),
+  };
 }
 
 const sendSchema = z.object({

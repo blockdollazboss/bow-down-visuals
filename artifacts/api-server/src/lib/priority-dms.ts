@@ -188,6 +188,36 @@ export interface PriorityDmDeps {
   /** The charge/display price; defaults to the ruled 100 VB. */
   priceVb?: number;
   now?: () => Date;
+  /** Push-wiring port (#7): the route supplies the real event door
+   *  (notifyUserEvent); absent in unit fakes, the send stays silent.
+   *  This module stays DB-free — the port is a plain function. */
+  notifyEvent?: (input: {
+    userId: string;
+    category: "messages";
+    kind: string;
+    title: string;
+    body: string;
+    link: string;
+  }) => Promise<unknown>;
+}
+
+/** The priority-DM-landed event for the CREATOR (push wiring #7).
+ *  Pure composition — the send path fires it only on the "sent"
+ *  outcome, which a duplicate (idempotency replay) never reaches. */
+export function buildPriorityDmSentEvent(input: {
+  creatorUserId: string;
+  amountVb: number;
+  body: string;
+}): { userId: string; category: "messages"; kind: string; title: string; body: string; link: string } {
+  const excerpt = input.body.trim().slice(0, 100);
+  return {
+    userId: input.creatorUserId,
+    category: "messages",
+    kind: "priority_dm",
+    title: "⚡ New priority DM",
+    body: `${excerpt ? `"${excerpt}" — ` : ""}A fan paid ${input.amountVb} VB to reach you. Reply inside your window to earn it.`,
+    link: "/messages",
+  };
 }
 
 /* ── Idempotency keys ────────────────────────────────────────────────── */
@@ -302,6 +332,20 @@ export async function sendPriorityDm(
   const conv = convNow ?? (await deps.store.getOrCreateInboxConversation(input.senderUserId, input.creatorUserId, input.senderUserId));
   const msg = await deps.store.insertMessage(conv.id, input.senderUserId, body);
   await deps.store.setDelivery(row.id, conv.id, msg.id);
+  /* Push wiring #7: the message has landed in the creator's priority
+     lane — ping the creator. This is the ONLY "sent" exit, and a
+     duplicate purchase returns earlier, so the ping is exactly-once
+     per paid message. Best-effort: the send already succeeded, so a
+     notification failure must never surface as one. */
+  if (deps.notifyEvent) {
+    try {
+      await deps.notifyEvent(
+        buildPriorityDmSentEvent({ creatorUserId: input.creatorUserId, amountVb: row.amountVb, body }),
+      );
+    } catch {
+      /* notification failure never fails a landed priority DM */
+    }
+  }
   return { kind: "sent", row: { ...row, conversationId: conv.id, messageId: msg.id } };
 }
 

@@ -35,6 +35,7 @@ import {
 import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, getCreditBalance, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef } from "../lib/objectStorage";
@@ -1826,6 +1827,29 @@ async function notifyUser(userId: string, kind: string, title: string, body: str
   }
 }
 
+/* ── Mention push (push wiring #8) ───────────────────────────────────────
+   The one mention site (post creation) rides the event door instead
+   of the bell-only helper: the bell still always lands, and the ping
+   obeys the mentioned creator's "mentions" preference. The mention is
+   created exactly once per post (extractMentions dedupes handles and
+   the caller excludes the author), so the insert is the moment. The
+   other social kinds (replies, quotes, reposts) keep the bell-only
+   helper — they are "social" interactions, not mentions. */
+type MentionEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _mentionEventNotifier: MentionEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setMentionEventNotifier(fn: MentionEventNotifier | null): void {
+  _mentionEventNotifier = fn ?? notifyUserEvent;
+}
+
+export async function notifyMention(userId: string, title: string, body: string, link: string): Promise<void> {
+  try {
+    await _mentionEventNotifier({ userId, category: "mentions", kind: "mention", title, body, link });
+  } catch {
+    /* best-effort — never break the write path over a notification */
+  }
+}
+
 /** DE-17: a notification must land ON the thing it announces — the
  *  post's own page (/post/:id, backed by GET /posts/:id) — never the
  *  feed's front door. Every post-alert kind links the post that
@@ -2555,7 +2579,7 @@ router.post("/posts", requireAuth, w8WriteLimiter, async (req: Request, res: Res
       const mentioned = await db.select().from(creatorProfilesTable).where(inArray(creatorProfilesTable.slug, mentions));
       for (const m of mentioned) {
         if (m.userId !== req.userId) {
-          await notifyUser(m.userId, "mention", `${me.displayName} mentioned you 📣`,
+          await notifyMention(m.userId, `${me.displayName} mentioned you 📣`,
             d.audience === "members" ? "" : d.body.slice(0, 120), postNotificationLink(post.id));
         }
       }
