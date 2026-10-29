@@ -18,6 +18,7 @@ import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-
 import { loginPathWithNext } from "@/lib/auth-next";
 import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 import { CREATOR_PLANS } from "@/lib/pricing-plans";
+import { pricingCardCta } from "@/lib/pricing-card-state";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
    The tier upgrade page. Sells the MONEY MATH, not vibes: every tier
@@ -137,7 +138,15 @@ export default function CreatorPricing() {
      charged today before anything moves, and confirming applies the
      change on the SAME subscription (price swap, never a second sub).
      currentTier comes from useCreatorTier — the same source the
-     sidebar badge and Settings → Billing read. */
+     sidebar badge and Settings → Billing read.
+     stack700 creator-pricing-free-card: the Free card's CTA derives
+     through pricingCardCta (shared with /pricing) — a free member
+     gets the "Your current plan" marker, a visitor keeps "Start
+     free", and a PAID member gets no CTA at all: Free is not a
+     tier-change target (the change module takes pro|elite only) and
+     leaving a paid plan is the Billing cancel-and-glide path, so an
+     actionable "Start free" here would promise a downgrade the
+     product deliberately does not perform. */
   const me = useCreatorTier();
   const currentTier = me?.tier ?? null;
   const [changeConfirm, setChangeConfirm] = useState<{
@@ -443,17 +452,19 @@ export default function CreatorPricing() {
               </ul>
               <div className="mt-6">
                 {p.tier === "free" ? (
-                  currentTier === "free" ? (
+                  pricingCardCta(p.tier, currentTier) === "your-plan" ? (
                     <div className={`rounded-full border py-2.5 text-center text-sm font-black opacity-60 ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07]" : "border-white/25 text-white"}`}>
                       Your current plan
                     </div>
-                  ) : (
+                  ) : pricingCardCta(p.tier, currentTier) === "start-free" ? (
                     <Link
                       href="/dashboard"
                       className={`block rounded-full border py-2.5 text-center text-sm font-black transition ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07] hover:border-[#C9A84C]" : "border-white/25 text-white hover:border-white/50"}`}
                     >
                       Start free
                     </Link>
+                  ) : (
+                    <div className="h-10" aria-hidden="true" />
                   )
                 ) : currentTier === p.tier ? (
                   <div className="w-full rounded-full border border-emerald-400/50 py-2.5 text-center text-sm font-black text-emerald-300">

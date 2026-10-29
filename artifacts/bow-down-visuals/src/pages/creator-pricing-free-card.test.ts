@@ -74,7 +74,7 @@ describe("/creator-pricing page wiring — the Free card renders the derivation"
   });
 
   it("Start free survives exactly once — the visitor door, inside the start-free state", () => {
-    expect(page.split("Start free").length - 1).toBe(1);
+    expect(freeBranch.split("Start free").length - 1).toBe(1);
     expect(page.split('href="/dashboard"').length - 1).toBe(1);
     const startFree = freeBranch.slice(freeBranch.indexOf('=== "start-free"'));
     expect(startFree).toContain("Start free");
