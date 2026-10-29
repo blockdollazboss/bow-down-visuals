@@ -54,6 +54,7 @@ import {
   roomDressingOptions,
   roomDressingStyleWords,
 } from "@/lib/world/creator-room-dressing";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { centsToDisplay, type CartLine } from "@/lib/shops";
 import {
@@ -1142,17 +1143,21 @@ export function CreatorRoomStation({
      the shop page's cart key (the room cart and the stand cart
      for this shop are ONE cart), quantities, and ONE
      POST /api/storefronts/checkout for the whole cart — the
-     order records PENDING, the hosted payment page opens in a
-     NEW TAB (the sanctioned transfer), and only a server-confirmed
-     paid order (verify on focus/reopen) ever renders as paid.
-     The fee line is the stand's: sellers keep 95%, the 5%
-     platform fee comes out of the seller's cut, never on top.
+     order records PENDING and the payment completes EMBEDDED
+     right here in the room (stack800 lane 6: uiMode "embedded"
+     when this device can mount it, the shared
+     EmbeddedSessionCheckout at the foot of this panel), and only
+     a server-confirmed paid order (verify on focus/reopen) ever
+     renders as paid. The hosted page in a new tab remains only
+     as the no-publishable-key fallback. The fee line is the
+     stand's: sellers keep 95%, the 5% platform fee comes out
+     of the seller's cut, never on top.
    - tracks and videos ride the profile store rail
      (POST /api/store/checkout, the store-buy page's exact body,
      name-your-price honored against the creator's minimum) —
-     hosted checkout in a new tab, members only (the rail is
-     auth-required; guests get the sign-in pitch, never a doomed
-     button);
+     embedded checkout in this panel on the same terms, members
+     only (the rail is auth-required; guests get the sign-in
+     pitch, never a doomed button);
    - store products ride POST /api/storefront/checkout with the
      product page's quantity — same treatment;
    - a kind no rail sells keeps the website buy door, labelled as
@@ -1160,9 +1165,12 @@ export function CreatorRoomStation({
    The old panel's blanket "Buy on the website" is gone: buying
    completes from this room now. */
 
-/** The one way a hosted payment page opens from the room store:
- *  a new tab, at the checkout moment, on the walker's click — the
- *  stands' uniform seam (§3.9). */
+/** The FALLBACK way a hosted payment page opens from the room
+ *  store: a new tab, at the checkout moment, on the walker's
+ *  click. The money moment itself is embedded in this panel
+ *  (stack800 lane 6) — this seam remains only for the device
+ *  that cannot mount the embedded form (no publishable key) or
+ *  a server answer that comes back hosted. */
 function openCheckoutTab(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -1234,6 +1242,11 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
   const [orderError, setOrderError] = useState<string | null>(null);
   const [paidOrder, setPaidOrder] = useState<MarketOrder | null>(null);
   const [pendingNote, setPendingNote] = useState<string | null>(null);
+  /* stack800 lane 6: the embedded checkout's clientSecret, when a
+     buy moment answered one — the shared EmbeddedSessionCheckout
+     mounts at the foot of this panel and the walker pays without
+     leaving the room. Any new buy attempt clears it. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   const [refreshingOrder, setRefreshingOrder] = useState(false);
 
   const refreshOrder = async () => {
@@ -1284,6 +1297,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
     setPlacing(true);
     setOrderError(null);
     setPendingNote(null);
+    setEmbeddedSecret(null);
     try {
       const res = await fetch("/api/storefronts/checkout", {
         method: "POST",
@@ -1292,6 +1306,13 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           shopId,
           items: detailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
+          /* stack800 lane 6: ask for the embedded presentation when
+             this device can mount it — the server answers a
+             clientSecret instead of a hosted URL and the buyer
+             pays right here in the room, exactly the Marketplace
+             stand's own ask. Otherwise the hosted rail below
+             remains the fallback. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -1300,6 +1321,14 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         const order = marketOrderFromPayload(data);
         if (order?.paid) setPaidOrder(order);
         setCart([]);
+        return;
+      }
+      if (typeof data.clientSecret === "string" && data.clientSecret) {
+        if (typeof data.sessionId === "string" && handle) {
+          try { localStorage.setItem(marketPendingKey(handle), data.sessionId); } catch { /* storage blocked */ }
+        }
+        setEmbeddedSecret(data.clientSecret);
+        setPendingNote("Your order is saved as pending — finish paying right here in this room. It confirms here the moment the payment lands; your place in the palace never moves.");
         return;
       }
       const url = hostedCheckoutUrl(data);
@@ -1330,6 +1359,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
     setBusyId(item.id);
     setBuyError(null);
     setNote(null);
+    setEmbeddedSecret(null);
     try {
       if (rail === "store") {
         const shaped = storeCheckoutPayload(item, pwywInputs[item.id] ?? "");
@@ -1337,10 +1367,25 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         const res = await fetch("/api/store/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-          body: JSON.stringify(shaped.body),
+          /* stack800 lane 6: the store-buy page's exact body plus
+             the embedded ask — the rail answers a clientSecret and
+             the form mounts at the foot of this panel. */
+          body: JSON.stringify({ ...shaped.body, uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        if (data.paid === true) {
+          /* Gift-card tender covered it in full — the server
+             already recorded the sale and delivered; there is no
+             card form to mount (the store-buy page's own answer). */
+          setNote(`“${item.title}” is yours — paid in full with your gift card and delivered to your library.`);
+          return;
+        }
+        if (typeof data.clientSecret === "string" && data.clientSecret) {
+          setEmbeddedSecret(data.clientSecret);
+          setNote(`Pay for “${item.title}” right here in the room — the payment form is at the foot of this panel.`);
+          return;
+        }
         const url = hostedCheckoutUrl(data);
         if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
         openCheckoutTab(url);
@@ -1351,10 +1396,17 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         const res = await fetch("/api/storefront/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-          body: JSON.stringify(storefrontCheckoutPayload(item, qtyInputs[item.id] ?? 1)),
+          /* stack800 lane 6: the product page's exact body plus
+             the embedded ask, same as the store rail above. */
+          body: JSON.stringify({ ...storefrontCheckoutPayload(item, qtyInputs[item.id] ?? 1), uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        if (typeof data.clientSecret === "string" && data.clientSecret) {
+          setEmbeddedSecret(data.clientSecret);
+          setNote(`Pay for “${item.title}” right here in the room — the payment form is at the foot of this panel.`);
+          return;
+        }
         const url = hostedCheckoutUrl(data);
         if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
         openCheckoutTab(url);
@@ -1553,11 +1605,19 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           )}
         </>
       )}
+      {embeddedSecret && (
+        <div className="space-y-2" data-testid="world-room-store-embedded-checkout">
+          <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+          <button type="button" onClick={() => setEmbeddedSecret(null)} className={chipCls}>
+            Close — nothing is charged until you pay in the form
+          </button>
+        </div>
+      )}
       {note && <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
       {buyError && <p className="px-1 text-xs font-semibold text-red-400">{buyError}</p>}
       <p className={`inline-flex items-center gap-1.5 px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         <Home className="h-3.5 w-3.5 text-[#d4af37]" />
-        Buying finishes at the hosted checkout, in a new tab — the room keeps your place, and the
+        Buying finishes right here in the room — the payment form opens in this panel, and the
         cart here is the same cart as this creator&rsquo;s Marketplace stand.
       </p>
     </div>

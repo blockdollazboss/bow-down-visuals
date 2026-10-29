@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { Bell, CheckCheck, Sparkles, UserPlus, Music2, Megaphone, Flame, Users, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -15,9 +16,10 @@ import { createArrivalTracker, playSignatureSound } from "@/lib/signature-sounds
    and POST /api/discovery/notifications/read — polls on the same
    60s cadence, and navigates IN-WORLD where the target lives
    in-world (groups → the Community Hall groups desk, opened on
-   that group; messages → the Post Office). Anything else is the
-   honest transfer: the website page, opened as a website page and
-   labelled as such. Members only — the rail is requireAuth, and a
+   that group; messages → the Post Office). Anything else opens
+   IN-APP (stack800 lane 6): the website page, in this same tab via
+   the app's own router, labelled as such — never a new browser tab
+   out of the World. Members only — the rail is requireAuth, and a
    guest has no inbox to be deaf to, so guests see no dead bell. */
 
 function kindIcon(kind: string) {
@@ -49,6 +51,7 @@ export function WorldNotificationsBell({
   onOpenStation: (stationId: string) => void;
 }) {
   const { user, getAccessToken } = useAuth();
+  const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<WorldNotification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -128,8 +131,12 @@ export function WorldNotificationsBell({
       return;
     }
     if (target.kind === "website") {
+      /* stack800 lane 6: in-app, same tab — the target is always a
+         same-site path (notificationTarget only ever returns one),
+         so the app's own router carries the walker there and no
+         new tab ever spawns out of the World. */
       setOpen(false);
-      window.open(target.href, "_blank", "noopener");
+      setLocation(target.href);
     }
   };
 
@@ -207,7 +214,7 @@ export function WorldNotificationsBell({
                         {timeAgo(item.created_at)}
                         {target.kind === "group" && " · Opens the group here in the palace"}
                         {target.kind === "station" && " · Opens the Post Office here"}
-                        {target.kind === "website" && " · Opens on the website ↗"}
+                        {target.kind === "website" && " · Opens on the website, right here in the app"}
                       </span>
                     </span>
                   </button>

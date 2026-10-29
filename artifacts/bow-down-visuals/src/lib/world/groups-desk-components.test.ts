@@ -88,9 +88,14 @@ describe("78 — the chrome bell rides the discovery notifications rail", () => 
     expect(bell).toContain('data-testid="world-notifications-badge"');
     expect(bell).toContain('data-testid="world-notifications-mark-all"');
   });
-  it("taps navigate in-world through the lib's targeting, website only as transfer", () => {
+  it("taps navigate in-world through the lib's targeting, website in-app (stack800 lane 6)", () => {
     expect(bell).toContain("prepareNotificationNavigation(target, window.sessionStorage)");
     expect(bell).toContain("onOpenStation(stationId)");
-    expect(bell).toContain("Opens on the website ↗");
+    /* stack800 lane 6: website targets ride the app router in this
+       tab — never a new browser tab out of the World. */
+    expect(bell).toContain("setLocation(target.href)");
+    expect(bell).not.toContain("window.open");
+    expect(bell).toContain("Opens on the website, right here in the app");
+    expect(bell).not.toContain("Opens on the website ↗");
   });
 });
