@@ -56,7 +56,7 @@ export function ThemePackQuickPicker() {
   const mode = getThemeMode();
 
   return (
-    <div className="fixed left-[128px] top-4 z-[9999]" data-testid="theme-pack-quick-picker">
+    <div className="fixed left-[128px] top-[4.25rem] z-[9999]" data-testid="theme-pack-quick-picker">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

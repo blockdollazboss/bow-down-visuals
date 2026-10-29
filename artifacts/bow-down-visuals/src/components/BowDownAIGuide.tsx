@@ -33,10 +33,11 @@ function snapPos(pt: SnapPt, w: number, h: number) {
   const m = SNAP_M;
   const cx = Math.round((vw - w) / 2), cy = Math.round((vh - h) / 2);
   const map: Record<SnapPt, { x: number; y: number }> = {
-    /* TL drops +56: the floating theme toggles (fixed, z-9999, top:16,
-       44 tall) own the top-left corner — at plain m the open panel's
+    /* TL drops +108: the floating theme toggles (fixed, z-9999, top:68,
+       44 tall — the row dropped below the jackpot banner band in
+       stack700) own the top-left corner — at plain m the open panel's
        header slid underneath them and its title was covered. */
-    TL: { x: m,          y: m + 56     },
+    TL: { x: m,          y: m + 108    },
     TC: { x: cx,         y: m          },
     TR: { x: vw - w - m, y: m          },
     RC: { x: vw - w - m, y: cy         },
