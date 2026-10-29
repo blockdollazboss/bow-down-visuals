@@ -79,6 +79,7 @@
  */
 import type { PalaceRect, PlazaWallRun } from "./palace-layout";
 import type { GroundsBox } from "./palace-grounds";
+import type { HallTheme } from "./hall-looks";
 import { BENCH, LAMP, pollenVolumeForInterior, type PollenVolume } from "./plaza-life";
 
 const rectAround = (x: number, z: number, hx: number, hz: number): PalaceRect => ({
@@ -177,8 +178,9 @@ export const HEIGHTS_WALKWAY = {
  * Three residence fronts lining the north wall, opening south
  * onto the court: four posts, a fabric canopy on their heads,
  * and a DOOR PANEL closing the front's back — a residence door
- * in dark metal with a gold trim, its transom window warm at
- * dusk (emissive only; zero new real lights). The fronts are
+ * in panelled wood with gold trim and a gold handle (DOOR_DRESS
+ * below), its transom window warm at dusk (emissive only; zero
+ * new real lights). The fronts are
  * scenery honouring the creator-rooms concept: the creators'
  * doors on the quarter where their rooms live. The posts and
  * the door panel are solid; the canopy rides above the walker's
@@ -237,6 +239,57 @@ export function frontDoor(front: HeightsFront): GroundsBox {
 }
 
 export const HEIGHTS_FRONT_DOORS: readonly GroundsBox[] = HEIGHTS_FRONTS.map(frontDoor);
+
+/* ── The residence doors' dress (stack900 door-materials lane) ────
+ * The door panels used to wear the shared darkMetal — the
+ * metalness-0.5 near-black of lamp posts, bench legs and stall
+ * frames — so a residence's front door read as one more dark
+ * metal slab, the defect the stack800 controller lane flagged.
+ * The palace's real doors (the hall's south arch, the Creator
+ * Rooms arch) speak a different language: dark warm timber, a
+ * gold trim, a gold handle at hand height. The panels now wear
+ * that language, door-only: the posts and every other darkMetal
+ * structure keep the shared metal, untouched.
+ *
+ * The shaping lives here as pure data (the boardwalk deck-style
+ * pattern): the scene paints the panelled-wood canvas from
+ * DOOR_DRESS and tints it per look via heightsDoorStyle. Panel
+ * positions are fractions of the door's face (x from its left
+ * edge, y from its top); the painted panels start BELOW the
+ * transom band (the lit transom mesh rides at the door's head,
+ * world y ≈ 1.85..2.20 of the 2.3 m door — face fractions
+ * ≈ 0.04..0.20 from the top). */
+
+export const DOOR_DRESS = {
+  /** The painted panels' span across the face. */
+  panelX: 0.16,
+  panelW: 0.68,
+  /** The tall upper panel and the shorter lower panel, as
+   *  top/bottom fractions of the face. */
+  upperPanel: { top: 0.27, bottom: 0.58 },
+  lowerPanel: { top: 0.65, bottom: 0.90 },
+  /** The gold handle: a sphere on the face's right stile, at
+   *  hand height — the Creator Rooms arch handle's own measure
+   *  (r 0.055, gold), instanced like the trim above it. */
+  handleDx: 0.66,
+  handleY: 1.02,
+  handleR: 0.055,
+  /** How proud of the face the handle's centre sits: the sphere
+   *  bites slightly into the panel so it reads attached. */
+  handleProud: 0.02,
+} as const;
+
+/** The door wood's tint per look (the deck-style law): the
+ *  painted canvas is day-bright warm walnut; the dark look dims
+ *  it warm toward dusk walnut. Roughness stays in the timber
+ *  range either way — wood is matte, and the material's
+ *  metalness is ZERO in the scene: that, more than the colour,
+ *  is what stops the panel reading as metal. */
+export function heightsDoorStyle(theme: HallTheme): { tint: number; roughness: number } {
+  return theme === "dark"
+    ? { tint: 0xa88a68, roughness: 0.82 }
+    : { tint: 0xffffff, roughness: 0.78 };
+}
 
 /* ── The overlook terraces ────────────────────────────────────────
  * Two raised stone terraces along the court's south edge — the

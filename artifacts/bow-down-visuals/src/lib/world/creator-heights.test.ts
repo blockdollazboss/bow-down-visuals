@@ -82,6 +82,8 @@ import {
   heightsPlateLines,
   heightsRosterFromDirectory,
   heightsRosterSignature,
+  DOOR_DRESS,
+  heightsDoorStyle,
 } from "./creator-heights";
 import { BACKDROP_GARDENS, backdropGroundRects, pavingSlabsFor } from "./palace-grounds";
 
@@ -291,6 +293,58 @@ describe("Creator Heights — honest collision (item 36)", () => {
     expect(cameraPointFree(HEIGHTS_ID, HEIGHTS_FRONT_POSTS[0]!.x, HEIGHTS_FRONT_POSTS[0]!.z)).toBe(false);
     expect(cameraPointFree(HEIGHTS_ID, 20.85, 20.8)).toBe(true);
     expect(cameraPointFree(HEIGHTS_ID, 14.6, 24.6)).toBe(true);
+  });
+});
+
+describe("Creator Heights — the residence doors' dress (stack900 door materials)", () => {
+  it("the painted panels sit on the door's face, below the transom band, never overlapping", () => {
+    /* The transom mesh rides at the door's head: world y = doorH − 0.28
+     * ± 0.175 → face fractions from the top of ≈ 0.046..0.198. The
+     * upper painted panel must start below that band. */
+    const transomBottom = 1 - (FRONT_KIT.doorH - 0.28 - 0.175) / FRONT_KIT.doorH;
+    expect(DOOR_DRESS.upperPanel.top).toBeGreaterThan(transomBottom);
+    expect(DOOR_DRESS.panelX).toBeGreaterThan(0);
+    expect(DOOR_DRESS.panelX + DOOR_DRESS.panelW).toBeLessThan(1);
+    expect(DOOR_DRESS.upperPanel.bottom).toBeLessThan(DOOR_DRESS.lowerPanel.top);
+    expect(DOOR_DRESS.lowerPanel.bottom).toBeLessThan(1);
+    expect(DOOR_DRESS.upperPanel.top).toBeGreaterThan(0);
+  });
+
+  it("the gold handle stands on the door's face, on its right stile, at hand height", () => {
+    for (const d of HEIGHTS_FRONT_DOORS) {
+      const hx = d.cx + DOOR_DRESS.handleDx;
+      /* Inside the door's own width, sphere and all. */
+      expect(hx - d.cx + DOOR_DRESS.handleR).toBeLessThanOrEqual(FRONT_KIT.doorW / 2);
+      /* Clear of the painted panel's right edge (panel spans panelX..panelX+panelW of the face). */
+      const panelRight = d.cx - FRONT_KIT.doorW / 2 + (DOOR_DRESS.panelX + DOOR_DRESS.panelW) * FRONT_KIT.doorW;
+      expect(hx - DOOR_DRESS.handleR).toBeGreaterThan(panelRight);
+      /* Proud of the face, biting in — attached, never floating or sunk. */
+      const faceZ = d.cz + FRONT_KIT.doorD / 2;
+      const hz = faceZ + DOOR_DRESS.handleProud;
+      expect(hz - DOOR_DRESS.handleR).toBeLessThan(faceZ);
+      expect(hz + DOOR_DRESS.handleR).toBeGreaterThan(faceZ);
+    }
+    expect(DOOR_DRESS.handleY).toBeGreaterThanOrEqual(0.9);
+    expect(DOOR_DRESS.handleY).toBeLessThanOrEqual(1.2);
+    /* The Creator Rooms arch handle's own measure. */
+    expect(DOOR_DRESS.handleR).toBe(0.055);
+  });
+
+  it("the door wood dims warm for the dark look and stays matte timber in both", () => {
+    const dark = heightsDoorStyle("dark");
+    const light = heightsDoorStyle("light");
+    expect(light.tint).toBe(0xffffff);
+    expect(dark.tint).not.toBe(0xffffff);
+    const lum = (hex: number) =>
+      0.2126 * ((hex >> 16) & 0xff) + 0.7152 * ((hex >> 8) & 0xff) + 0.0722 * (hex & 0xff);
+    expect(lum(dark.tint)).toBeLessThan(lum(light.tint));
+    /* The warm channel order survives the dusk tint (red > green > blue). */
+    expect((dark.tint >> 16) & 0xff).toBeGreaterThan((dark.tint >> 8) & 0xff);
+    expect((dark.tint >> 8) & 0xff).toBeGreaterThan(dark.tint & 0xff);
+    for (const s of [dark, light]) {
+      expect(s.roughness).toBeGreaterThanOrEqual(0.7);
+      expect(s.roughness).toBeLessThanOrEqual(0.9);
+    }
   });
 });
 
