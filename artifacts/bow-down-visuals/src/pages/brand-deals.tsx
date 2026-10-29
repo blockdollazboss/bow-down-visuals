@@ -1278,7 +1278,7 @@ function PipelineTab() {
    /sponsors as the hub's third tab. Brands post paid sponsorship deals,
    creators apply with a pitch — Bow Down Visuals takes 15% of every
    released deal.
-   Money rules: browsing is free (pure UI); the AI deal matcher is 1 credit;
+   Money rules: browsing is free (pure UI); the AI deal matcher is 100 credits;
    posting a deal lives on /sponsors/post (500 credits).
    Endpoints: GET /api/sponsors/deals, POST /api/sponsors/match. */
 
@@ -1302,7 +1302,10 @@ interface DealMatch {
   why: string;
 }
 
-const MATCHER_COST = 1;
+/* Display mirror of the rail charge (SPONSOR_AI_CREDIT_COST, 100 Visual Bucs —
+   owner ruling Oct 29, 2026). Pinned against the rail + registry by
+   lib/sponsor-ai-price-truth.test.ts so display and charge cannot drift. */
+const MATCHER_COST = 100;
 
 const marketplaceSectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
