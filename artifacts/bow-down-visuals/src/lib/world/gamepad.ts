@@ -47,16 +47,26 @@ import {
   PAD_PAGE_BUTTON,
   PAD_FULLSCREEN_LONG_PRESS_MS,
   actionForPadButton,
+  actionForSlot,
   DEFAULT_ACTION_PAGE,
   type ActionPageId,
   type WorldVerb,
 } from "./bindings";
+import { padVerbIndices, type ControllerProfile } from "./controller-profile";
 
 export const GAMEPAD_DEADZONE = 0.18;
 
 export interface GamepadLike {
   axes: readonly number[];
   buttons: readonly { pressed: boolean }[];
+  /** The pad's identity string, when the object carries one
+   *  (a real Gamepad does). controller-profile.ts classifies
+   *  the family from it; the poll itself never reads it. */
+  id?: string;
+  /** The pad's reported mapping ("standard" for every family
+   *  the classifier knows). Carried for the same reason as
+   *  `id`; the positional table is the contract either way. */
+  mapping?: string;
 }
 
 export interface GamepadEdges {
@@ -200,20 +210,32 @@ function pressed(pad: GamepadLike, i: number): boolean {
  *  the seven slots perform ITS actions. A missing pad reads as a
  *  clean idle (and resets the edges, so a reconnect never swallows
  *  or repeats a press). `nowMs` is the poll clock — injectable so
- *  A's tap/hold split is testable without a wall clock. */
+ *  A's tap/hold split is testable without a wall clock.
+ *
+ *  `profile` (stack900) is the connected pad's controller
+ *  profile: when the caller passes it, every button index
+ *  resolves through the profile's own table instead of the
+ *  bindings constants. The two tables name the same positions
+ *  today for every family (the standard mapping is positional);
+ *  resolving through the profile is what keeps the scene, the
+ *  panels and the painted names reading from one identity. */
 export function pollGamepad(
   pad: GamepadLike | null,
   prev: GamepadEdges,
   page: ActionPageId = DEFAULT_ACTION_PAGE,
   nowMs: number = Date.now(),
+  profile?: ControllerProfile | null,
 ): { intent: GamepadIntent; edges: GamepadEdges } {
   if (!pad) return { intent: IDLE_GAMEPAD_INTENT, edges: IDLE_GAMEPAD_EDGES };
+  const verbs = profile ? padVerbIndices(profile) : null;
   const [moveX, moveY] = applyRadialDeadzone(axis(pad, 0), axis(pad, 1));
   const [lookX, lookY] = applyRadialDeadzone(axis(pad, 2), axis(pad, 3));
   const actionEdges: Partial<Record<WorldActionId, boolean>> = {};
   let action: WorldActionId | null = null;
-  for (const button of PAD_SLOTS) {
-    const id = actionForPadButton(page, button);
+  const slotChecks: { button: number; id: WorldActionId | null }[] = verbs
+    ? verbs.slots.map((button, pos) => ({ button, id: actionForSlot(page, pos) }))
+    : PAD_SLOTS.map((button) => ({ button, id: actionForPadButton(page, button) }));
+  for (const { button, id } of slotChecks) {
     if (!id) continue;
     const down = pressed(pad, button);
     actionEdges[id] = down;
@@ -222,7 +244,7 @@ export function pollGamepad(
   /* A (PAD_JUMP_BUTTON = VERB_BUTTON.voiceStep — one button, two
    *  gestures): the press edge is the jump; the hold crossing
    *  PAD_VOICE_LONG_PRESS_MS is the voice step, once per hold. */
-  const aDown = pressed(pad, PAD_JUMP_BUTTON);
+  const aDown = pressed(pad, verbs ? verbs.jump : PAD_JUMP_BUTTON);
   const prevAHeldSince = typeof prev.aHeldSince === "number" ? prev.aHeldSince : 0;
   const aHeldSince = aDown ? (prevAHeldSince > 0 ? prevAHeldSince : nowMs) : 0;
   const aVoiced =
@@ -233,7 +255,7 @@ export function pollGamepad(
    *  two gestures, A's pattern): the press edge is the page
    *  cycle; the hold crossing PAD_FULLSCREEN_LONG_PRESS_MS is
    *  the fullscreen toggle, once per hold. */
-  const backDown = pressed(pad, PAD_PAGE_BUTTON);
+  const backDown = pressed(pad, verbs ? verbs.pageCycle : PAD_PAGE_BUTTON);
   const prevBackHeldSince = typeof prev.pageHeldSince === "number" ? prev.pageHeldSince : 0;
   const pageHeldSince = backDown ? (prevBackHeldSince > 0 ? prevBackHeldSince : nowMs) : 0;
   const pageFiredFs =
@@ -242,16 +264,16 @@ export function pollGamepad(
       (pageHeldSince > 0 && nowMs - pageHeldSince >= PAD_FULLSCREEN_LONG_PRESS_MS));
   const edges: GamepadEdges = {
     voice: aDown,
-    view: pressed(pad, VERB_BUTTON.viewToggle),
-    interact: pressed(pad, VERB_BUTTON.interact),
+    view: pressed(pad, verbs ? verbs.viewToggle : VERB_BUTTON.viewToggle),
+    interact: pressed(pad, verbs ? verbs.interact : VERB_BUTTON.interact),
     aHeldSince,
     aVoiced,
-    lt: pressed(pad, VERB_BUTTON.voiceBack),
+    lt: pressed(pad, verbs ? verbs.voiceBack : VERB_BUTTON.voiceBack),
     page: backDown,
     pageHeldSince,
     pageFiredFs,
-    photo: pressed(pad, VERB_BUTTON.photoMode),
-    claim: pressed(pad, VERB_BUTTON.momentClaim),
+    photo: pressed(pad, verbs ? verbs.photoMode : VERB_BUTTON.photoMode),
+    claim: pressed(pad, verbs ? verbs.momentClaim : VERB_BUTTON.momentClaim),
     actions: actionEdges,
   };
   return {
@@ -260,7 +282,7 @@ export function pollGamepad(
       moveY,
       lookX,
       lookY,
-      sprint: PAD_SPRINT_BUTTONS.some((b) => pressed(pad, b)),
+      sprint: (verbs ? verbs.sprint : PAD_SPRINT_BUTTONS).some((b) => pressed(pad, b)),
       toggleVoice: aDown && aVoiced && prev.aVoiced !== true,
       jump: aDown && prevAHeldSince === 0,
       voiceBack: edges.lt && !prev.lt,

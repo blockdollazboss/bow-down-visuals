@@ -117,25 +117,33 @@ describe("World — guest voice chip + gamepad help scoping", () => {
 
   it("the gamepad voice step is scoped to members; the rest of the help line stays", () => {
     const pad = segment(worldSource, 'data-testid="world-pad-line"', "</p>");
+    /* The button words resolve through the controller profile
+       since stack900 — the line names the pad in hand (Cross /
+       L1 / Create on a DualSense; A / LB / View on Xbox). The
+       guest SCOPING this test guards is unchanged: the voice
+       step rides the member conditional, in the pad's words. */
+    expect(pad).toContain("steps voice (off · proximity · lobby · deafen)");
+    expect(pad.indexOf("steps voice")).toBeGreaterThan(pad.indexOf("{!isGuest &&"));
+    expect(pad).toContain('padWord(padProfile, "topFace")} switches view');
     expect(pad).toContain(
-      '{!isGuest && "A steps voice (off · proximity · lobby · deafen), "}',
+      'padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at',
     );
-    expect(pad).toContain("Y switches view");
-    expect(pad).toContain("LB works the prompt you&rsquo;re standing at");
-    expect(pad).toContain("Start frames a photo.");
+    expect(pad).toContain('padWord(padProfile, "rightMenu")} frames a photo.');
     /* The action-performing claims are member-scoped too (the
        world-actions expansion): a guest's pad performs nothing,
        so the line never advertises performing to one. The D-pad
        clause and the page/claim verbs live inside the member
        fragment; the movement/view/photo verbs stay for all. */
     expect(pad).toContain("D-pad and face buttons perform the");
-    expect(pad).toContain("Back switches the action page, R3 claims the moment");
+    expect(pad).toContain(
+      'padWord(padProfile, "leftMenu")} switches the action page, {padWord(padProfile, "rightStickPress")} claims the moment',
+    );
     expect(pad.indexOf("D-pad and face buttons perform the")).toBeGreaterThan(
       pad.indexOf("{!isGuest && <>"),
     );
     /* The voice step is advertised exactly once in the page — inside
        that member-only conditional. */
-    expect(worldSource.split("A steps voice").length - 1).toBe(1);
+    expect(worldSource.split("steps voice").length - 1).toBe(1);
   });
 });
 

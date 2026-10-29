@@ -60,7 +60,12 @@ describe("opening a station panel brings it to the walker", () => {
 
 describe("an interact press with no target is answered, not silent", () => {
   it("the resolver speaks when nothing is in reach", () => {
-    expect(page).toContain("Nothing in reach — walk to a gold ring or a standing figure, then press E.");
+    expect(page).toContain("Nothing in reach — walk to a gold ring or a standing figure, then press");
+    /* The button the note names is the one the walker pressed
+       with (stack900): the pad's own interact word when a pad
+       is in hand, E for the keyboard family — resolved from
+       the controller profile, never hard-coded. */
+    expect(page).toContain('padWord(padProfileRef.current, "leftBumper") : "E"');
   });
 
   it("the note renders where the prompts live and yields to any real prompt", () => {

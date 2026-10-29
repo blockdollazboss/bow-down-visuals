@@ -108,6 +108,7 @@ import {
   type GamepadEdges,
 } from "./gamepad";
 import { DEFAULT_ACTION_PAGE, type ActionPageId } from "./bindings";
+import { controllerProfileFromPad } from "./controller-profile";
 import { WALK_SPEED, moveSpeed, sprintFromInputs } from "./sprint";
 import {
   figureWidthForHeight,
@@ -10068,7 +10069,19 @@ export class KingsHallScene {
      * tickXrMove. */
     const pads = typeof navigator !== "undefined" ? navigator.getGamepads?.() : null;
     const pad = pads ? firstGamepad([...pads]) : null;
-    const polled = pollGamepad(pad, this.padEdges, this.padActionPage);
+    /* The poll resolves its buttons through the pad in hand's
+     * controller profile (stack900): the same classifier the
+     * page's help line names the pad by, so the buttons the
+     * scene reads and the names the walker reads are one
+     * identity. Classification is memoised on the id string —
+     * a frame-rate ask costs a compare. */
+    const polled = pollGamepad(
+      pad,
+      this.padEdges,
+      this.padActionPage,
+      Date.now(),
+      pad ? controllerProfileFromPad(pad) : null,
+    );
     this.padEdges = polled.edges;
     /* A panel is open (padPanelHold): the poll above kept the
      * edges fresh on purpose — the hold discards INTENT only, so
