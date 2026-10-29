@@ -151,6 +151,94 @@ describe("the words", () => {
   });
 });
 
+describe("the book against the server's claim flow (Stack800 Lane 7)", () => {
+  /* The rails this book mirrors, as shipped: the room's claim
+   * handler (api-server lib/world-room.ts, the drop.claim case)
+   * checks guests → no-drop → already-claimed → claimed-out, in
+   * that order, reserves the spot SYNCHRONOUSLY, then pays through
+   * claimSpectacleDrop (lib/world-events.ts), whose only answers
+   * are ok / "budget" / "error"; a failed payout ROLLS THE
+   * RESERVATION BACK (the claim never landed, the member may
+   * retry), and a drop swept mid-payout resolves silently (the
+   * grant stands, no frame follows). So the room can ever send
+   * exactly six denial reasons — pinned here against the book, so
+   * a new server reason (or a renamed one) fails this suite
+   * instead of silently degrading a member's words to the generic
+   * line. The room-side behaviours themselves are pinned in
+   * api-server world-events.test.ts + world-room-drop-claim.test.ts. */
+  const SERVER_DENIAL_REASONS = [
+    "guests",
+    "no-drop",
+    "already-claimed",
+    "claimed-out",
+    "budget",
+    "error",
+  ];
+
+  it("every member-meaningful reason carries its own plain-words line — never the generic fallback, never the raw token", () => {
+    const generic = dropDeniedLine("some-unrecognized-token");
+    for (const reason of SERVER_DENIAL_REASONS.filter((r) => r !== "error")) {
+      const line = dropDeniedLine(reason);
+      expect(line, reason).not.toBe(generic);
+      expect(line, reason).not.toContain(reason);
+    }
+    // "error" is the room's internal-failure answer (no claimer,
+    // a thrown payout): it has no member-meaningful distinction
+    // to name, so it takes the generic line BY DESIGN — whose
+    // words stay honest and invite the retry the rollback allows.
+    expect(dropDeniedLine("error")).toBe(generic);
+    expect(generic).toContain("try again");
+  });
+
+  it("of all the room's reasons, only already-claimed proves a claim in the book", () => {
+    const sent = dropBookClaimSent(EMPTY_DROP_BOOK, DROP);
+    for (const reason of SERVER_DENIAL_REASONS) {
+      const after = dropBookDenied(sent, DROP, reason);
+      expect(after.sentId, reason).toBeNull();
+      expect(after.claimedId, reason).toBe(
+        reason === "already-claimed" ? DROP.eventId : null,
+      );
+    }
+  });
+
+  it("a budget refusal mirrors the server's rollback: the claim never landed, and I may claim again", () => {
+    const sent = dropBookClaimSent(EMPTY_DROP_BOOK, DROP);
+    const refused = dropBookDenied(sent, DROP, "budget");
+    expect(refused).toEqual(EMPTY_DROP_BOOK);
+    expect(dropClaimView(DROP, false, refused)).toBe("open");
+    // The retry is a fresh claim on the same chest, and it lands.
+    const retried = dropBookClaimSent(refused, DROP);
+    expect(dropClaimInFlight(DROP, retried)).toBe(true);
+    const landed = dropBookClaimed(retried, { ...DROP, claimsLeft: 1 }, true);
+    expect(dropClaimView(DROP, false, landed)).toBe("claimed");
+  });
+
+  it("an error refusal rolls back the same way — the chest is claimable again", () => {
+    const sent = dropBookClaimSent(EMPTY_DROP_BOOK, DROP);
+    const refused = dropBookDenied(sent, DROP, "error");
+    expect(refused).toEqual(EMPTY_DROP_BOOK);
+    expect(dropClaimView(DROP, false, refused)).toBe("open");
+  });
+
+  it("a drop swept mid-payout retires the in-flight claim — nothing leaks onto the next chest", () => {
+    const sent = dropBookClaimSent(EMPTY_DROP_BOOK, DROP);
+    // The room swept the chest before any answer arrived: no
+    // denial, no witness — the state frame simply empties.
+    const swept = dropBookForDrop(sent, null);
+    expect(swept).toEqual(EMPTY_DROP_BOOK);
+    const next = dropBookForDrop(swept, NEXT_DROP);
+    expect(next).toEqual(EMPTY_DROP_BOOK);
+    expect(dropClaimInFlight(NEXT_DROP, next)).toBe(false);
+    expect(dropClaimView(NEXT_DROP, false, next)).toBe("open");
+  });
+
+  it("one claim in flight at a time: a second tap while out changes nothing", () => {
+    const sent = dropBookClaimSent(EMPTY_DROP_BOOK, DROP);
+    expect(dropBookClaimSent(sent, DROP)).toEqual(sent);
+    expect(dropClaimInFlight(DROP, dropBookClaimSent(sent, DROP))).toBe(true);
+  });
+});
+
 describe("wiring pins", () => {
   const page = readFileSync(resolve(__dirname, "../../pages/world.tsx"), "utf8");
 

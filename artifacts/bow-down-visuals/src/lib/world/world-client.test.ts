@@ -643,6 +643,31 @@ describe("the palace (multi-room)", () => {
     socket.receive({ type: "room.unavailable", roomId: "world:music-hall", name: "Music Hall", cap: 30 });
     expect(refusals).toEqual([{ roomId: "world:music-hall", name: "Music Hall", cap: 30 }]);
   });
+
+  it("a refused transfer never fires onRoomChanged — the full-room refusal", async () => {
+    // The page's walked-into feed line hangs off onRoomChanged:
+    // a refusal must stay silent there (Stack800 Lane 7 item 4).
+    // I never left, so there is nothing to announce.
+    const { client, socket } = await inside();
+    let fired = 0;
+    client.onRoomChanged = () => fired++;
+    socket.receive({ type: "room.unavailable", roomId: "world:music-hall", name: "Music Hall", cap: 30 });
+    expect(fired).toBe(0);
+    expect(client.room?.id).toBe("world:kings-hall");
+  });
+
+  it("a refused transfer never fires onRoomChanged — the locked-door refusal", async () => {
+    const { client, socket } = await inside();
+    let fired = 0;
+    const locked: string[] = [];
+    client.onRoomChanged = () => fired++;
+    client.onRoomLocked = (info) => locked.push(info.roomId);
+    socket.receive({ type: "room.locked", kind: "door", roomId: "world:music-hall", name: "Music Hall" });
+    expect(locked).toEqual(["world:music-hall"]);
+    expect(fired).toBe(0);
+    expect(client.room?.id).toBe("world:kings-hall");
+    expect(client.status).toBe("inside");
+  });
 });
 
 describe("avatar actions", () => {
