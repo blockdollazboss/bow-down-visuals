@@ -14,6 +14,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const card = readFileSync(join(__dirname, "BillingSettings.tsx"), "utf8");
+const loader = readFileSync(join(__dirname, "..", "lib", "billing-load.ts"), "utf8");
 const settings = readFileSync(join(__dirname, "..", "pages", "settings.tsx"), "utf8");
 const pricing = readFileSync(join(__dirname, "..", "pages", "creator-pricing.tsx"), "utf8");
 
@@ -26,7 +27,18 @@ describe("Settings page carries the Billing section", () => {
 
 describe("Billing card talks to the banked billing API", () => {
   it("loads state from GET /api/creator-tiers/billing", () => {
-    expect(card).toContain('fetch("/api/creator-tiers/billing"');
+    /* stack800 lane 4: the fetch moved into lib/billing-load (bounded,
+     * classified); the endpoint literal lives there now and the card
+     * loads through the loader. */
+    expect(card).toContain("loadBilling(");
+    expect(card).toContain('from "@/lib/billing-load"');
+    expect(loader).toContain('"/api/creator-tiers/billing"');
+  });
+  it("a failed load renders classified copy per failure kind, never the one old sentence for every cause", () => {
+    expect(card).toContain("LOAD_ERROR_KEYS[loadFailure]");
+    for (const key of ["loadErrorSession", "loadErrorGated", "loadErrorServer", "loadErrorUnreachable"]) {
+      expect(card).toContain(`settings.billing.${key}`);
+    }
   });
   it("cancel posts to the in-site cancel endpoint (period-end semantics)", () => {
     expect(card).toContain('post("/api/creator-tiers/cancel")');
@@ -99,7 +111,7 @@ describe("billing strings exist in every locale", () => {
       const locale = JSON.parse(readFileSync(join(dir, file), "utf8"));
       const b = locale.settings?.billing;
       expect(b, file).toBeTruthy();
-      for (const key of ["title", "subtitle", "loading", "loadError", "retry", "freeBody", "seePlans", "renewsOn", "endsOn", "endedOn", "pastDueBody", "incompleteBody", "cancelButton", "cancelConfirmTitle", "cancelConfirmBody", "cancelConfirmButton", "keepPlan", "cancelDoneTitle", "cancelDoneBody", "cancelFailed", "resumeButton", "resumeDoneTitle", "resumeDoneBody", "resumeFailed", "managePayment", "manageFailed", "changeButton", "changeConfirmTitle", "changeChargeToday", "changeCredit", "changeNoCharge", "changeImmediate", "changeImmediateNoDate", "changeClearsCancel", "changeConfirmButton", "changeBack", "changeDoneTitle", "changeDoneBody", "changeFailed", "changePreviewFailed"]) {
+      for (const key of ["title", "subtitle", "loading", "loadError", "loadErrorSession", "loadErrorGated", "loadErrorServer", "loadErrorUnreachable", "retry", "freeBody", "seePlans", "renewsOn", "endsOn", "endedOn", "pastDueBody", "incompleteBody", "cancelButton", "cancelConfirmTitle", "cancelConfirmBody", "cancelConfirmButton", "keepPlan", "cancelDoneTitle", "cancelDoneBody", "cancelFailed", "resumeButton", "resumeDoneTitle", "resumeDoneBody", "resumeFailed", "managePayment", "manageFailed", "changeButton", "changeConfirmTitle", "changeChargeToday", "changeCredit", "changeNoCharge", "changeImmediate", "changeImmediateNoDate", "changeClearsCancel", "changeConfirmButton", "changeBack", "changeDoneTitle", "changeDoneBody", "changeFailed", "changePreviewFailed"]) {
         expect(typeof b[key], `${file}:${key}`).toBe("string");
         expect(b[key].length, `${file}:${key}`).toBeGreaterThan(0);
       }

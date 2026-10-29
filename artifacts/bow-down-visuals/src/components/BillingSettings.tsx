@@ -10,6 +10,24 @@ import {
   formatBillingDate,
   type BillingStateView,
 } from "@/lib/billing-display";
+import {
+  loadBilling,
+  BillingLoadError,
+  type BillingLoadFailureKind,
+} from "@/lib/billing-load";
+
+/* Terminal load copy per failure kind (stack800 lane 4): the old card
+   collapsed every cause into one "Couldn't load your billing" and
+   Retry re-ran the identical unbounded fetch, so a failure that
+   persisted looked — and was — identical forever. Each kind names
+   its own remedy: a dead session wants a sign-in, a dropped gate
+   pass wants the gate, an unreachable/server failure wants a wait. */
+const LOAD_ERROR_KEYS: Record<BillingLoadFailureKind, string> = {
+  unauthorized: "settings.billing.loadErrorSession",
+  gated: "settings.billing.loadErrorGated",
+  server: "settings.billing.loadErrorServer",
+  unreachable: "settings.billing.loadErrorUnreachable",
+};
 
 /* Mirror of the server's TierChangePreviewView (lib/tier-change.ts) —
    the honest proration numbers behind the change-plan confirm panel. */
@@ -44,7 +62,7 @@ export function BillingSettings() {
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
   const [billing, setBilling] = useState<BillingStateView | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<BillingLoadFailureKind | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [changePreview, setChangePreview] = useState<TierChangePreview | null>(null);
@@ -54,19 +72,22 @@ export function BillingSettings() {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      setLoadError(false);
+      setLoadFailure(null);
       try {
-        const token = await getAccessToken();
-        const res = await fetch("/api/creator-tiers/billing", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        /* Bounded + classified (lib/billing-load): the old bare fetch
+         * had no timeout on the request AND none on the token call in
+         * front of it, and Retry re-ran the identical sequence — in
+         * Gate #4's final session the failure simply repeated. The
+         * loader bounds the whole attempt, retries what can heal,
+         * and reports which world failed. */
+        const view = await loadBilling({
+          getToken: getAccessToken,
+          isCancelled: () => cancelled,
         });
-        if (!res.ok) throw new Error("load failed");
-        const d = (await res.json()) as { billing?: BillingStateView };
+        if (!cancelled) setBilling(view);
+      } catch (err) {
         if (cancelled) return;
-        if (!d.billing) throw new Error("load failed");
-        setBilling(d.billing);
-      } catch {
-        if (!cancelled) setLoadError(true);
+        setLoadFailure(err instanceof BillingLoadError ? err.failure : "unreachable");
       }
     })();
     return () => {
@@ -250,16 +271,16 @@ export function BillingSettings() {
         </div>
       </div>
 
-      {!billing && !loadError && (
+      {!billing && !loadFailure && (
         <p className={`mt-5 flex items-center gap-2 text-sm ${subCls}`}>
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("settings.billing.loading")}
         </p>
       )}
 
-      {loadError && (
+      {loadFailure && (
         <div className="mt-5">
-          <p className="text-sm text-red-400">{t("settings.billing.loadError")}</p>
+          <p className="text-sm text-red-400">{t(LOAD_ERROR_KEYS[loadFailure])}</p>
           <button
             type="button"
             onClick={() => setRetryNonce((n) => n + 1)}
