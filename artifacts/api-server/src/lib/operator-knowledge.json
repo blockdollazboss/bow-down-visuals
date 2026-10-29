@@ -1,18 +1,18 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "be55c9826d5fd68598872ccc12331875800a1da0",
+  "baseCommit": "d6f0a1f2ebdf2a90cd2df238b56f558d4bbcf39a",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-27",
+  "generatedAt": "2026-10-29",
   "counts": {
-    "routesInApp": 239,
+    "routesInApp": 240,
     "pageFiles": 185,
     "features": 248,
-    "excludedRoutes": 71,
+    "excludedRoutes": 72,
     "excludedPageFiles": 35,
     "pricedActions": 216,
     "routeFileEndpoints": 0,
@@ -6917,7 +6917,9 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/creator-tiers/change",
         "/api/creator-tiers/history",
+        "/api/creator-tiers/me",
         "/api/creator-tiers/plans",
         "/api/credits/claim-trial",
         "/api/embedded-checkout/subscription/intent",
@@ -7278,6 +7280,11 @@
         "/api/affiliates/offers",
         "/api/catalog-export",
         "/api/catalog-export/build",
+        "/api/connect/onboard",
+        "/api/connect/payout",
+        "/api/connect/payouts",
+        "/api/connect/refresh",
+        "/api/connect/status",
         "/api/content-id/claims",
         "/api/content-id/claims/:param",
         "/api/creator-profiles/me",
@@ -9056,6 +9063,7 @@
         "/api/product-gifts/:param/:param",
         "/api/product-gifts/mine",
         "/api/referrals/apply",
+        "/api/shops/my-purchases",
         "/api/wishlists",
         "/api/wishlists/:param/:param"
       ],
@@ -10988,6 +10996,8 @@
         "/api/creator-profiles/me",
         "/api/creator-tiers/billing",
         "/api/creator-tiers/cancel",
+        "/api/creator-tiers/change",
+        "/api/creator-tiers/change/preview",
         "/api/creator-tiers/portal",
         "/api/creator-tiers/resume",
         "/api/credits/claim-trial",
@@ -11114,11 +11124,15 @@
       "pageFile": "artifacts/bow-down-visuals/src/pages/shop.tsx",
       "component": "ShopStorefront",
       "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/credits/claim-trial",
         "/api/product-offers",
         "/api/product-offers/:param/act",
         "/api/product-offers/mine",
         "/api/product-offers/received",
         "/api/product-reviews",
+        "/api/referrals/apply",
         "/api/storefronts/checkout",
         "/api/storefronts/checkout/verify"
       ],
@@ -16003,6 +16017,11 @@
     {
       "kind": "route",
       "key": "/sounds",
+      "reason": "Redirect to /audio-studio?tab=sounds — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/sound-library",
       "reason": "Redirect to /audio-studio?tab=sounds — the target carries the knowledge entry."
     },
     {
