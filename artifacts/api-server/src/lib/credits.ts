@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
+import { isAdminUserId } from "./admin";
 import { recordCreditUsageStrict } from "./payment-record";
 import { getUserActiveTeam, deductTeamCredits } from "./teams";
 import { db, teamsTable, creditUsageTable } from "@workspace/db";
@@ -178,26 +179,10 @@ function isAdminOnlyMode(): boolean {
 }
 
 /**
- * Checks if a user is an admin by looking up their email and comparing
- * against ADMIN_EMAILS (comma-separated, case-insensitive).
+ * Checks if a user is an admin — the shared lib/admin predicate
+ * (profile-email lookup against ADMIN_EMAILS, fail-closed).
  */
-async function isAdminUser(userId: string): Promise<boolean> {
-  const adminEmails = (process.env["ADMIN_EMAILS"] ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (adminEmails.length === 0) return false;
-
-  const admin = getSupabaseAdmin();
-  const { data, error } = await admin
-    .from("profiles")
-    .select("email")
-    .eq("id", userId)
-    .single();
-  if (error || !data) return false;
-  const email = (data as { email?: string }).email?.toLowerCase() ?? "";
-  return adminEmails.includes(email);
-}
+const isAdminUser = isAdminUserId;
 
 /**
  * Checks if a user has ever received an admin credit grant.
