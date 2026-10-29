@@ -3,7 +3,7 @@ import { Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { reachApi, type LoyaltyState } from "@/lib/reach-api";
 import { pendingRedemptionsFromPayload } from "@/lib/reach-watch";
-import { apiJson } from "@/lib/social-api";
+import { apiFetch } from "@/lib/social-api";
 
 /* ── Loyalty settings + redemption queue (Stack 9 #6, creator side) ────
    Earn rules and perk costs come from fixed menus — the selects ARE
@@ -70,13 +70,23 @@ export default function LoyaltySettingsPanel() {
       setNoProfile(false);
       setLoadError(null);
       try {
-        const me = await apiJson<{ id?: string }>(getAccessToken, "/api/creator-profiles/me");
+        /* /me's contract — the same one fetchMyProfile rides: 200
+           with the profile, or a deliberate 404 when the caller has
+           no profile yet. The 404 is the no-profile ANSWER, not a
+           failed lookup, so it lands on the honest create-a-profile
+           state below. Every other non-200 and any network failure
+           IS a load error and keeps the error state: a real failure
+           must never pose as "no profile", and the hard-coded form
+           defaults must never pose as saved rules (A3-F11). */
+        const meRes = await apiFetch(getAccessToken, "/api/creator-profiles/me");
+        if (meRes.status === 404) { setNoProfile(true); return; }
+        if (!meRes.ok) throw new Error("me lookup failed");
+        const me = (await meRes.json().catch(() => null)) as { id?: string } | null;
         const pid = me?.id ?? null;
         if (!pid) { setNoProfile(true); return; }
         setProfileId(pid);
         await load(pid);
       } catch {
-        /* A failed /me lookup is a LOAD error, not "no profile". */
         setLoadError("Your loyalty settings couldn't load. Try again in a moment.");
         setLoyaltyLoading(false);
       } finally {
@@ -111,7 +121,7 @@ export default function LoyaltySettingsPanel() {
   if (noProfile || !profileId) {
     return (
       <section className="mx-auto w-full max-w-5xl px-4 pb-10">
-        <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-white">
+        <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-white" data-testid="loyalty-no-profile">
           <h2 className="flex items-center gap-2 text-lg font-black"><Trophy className="h-5 w-5 text-[#e8c86a]" /> Channel loyalty</h2>
           <p className="mt-1 text-sm text-white/50">Create your creator profile first — loyalty points live on your channel.</p>
         </div>
