@@ -92,13 +92,23 @@ describe("world controller survival — panels answer the pad", () => {
     expect(page).toContain("'[data-testid=\"world-screen-panel\"]'");
     expect(page).toContain("'[data-testid=\"world-host-panel\"]'");
     expect(page).toContain('data-testid="world-char-panel"');
+    /* The fifth family (stack900): the controller map — a
+     * look-only panel whose root holds no focusable control,
+     * so the reader's Back is its only pad verb (its own
+     * census lives in controller-map.test.ts). */
+    expect(page).toContain("'[data-testid=\"world-controller-map\"]'");
+    expect(page).toContain('data-testid="world-pad-map-toggle"');
   });
 
   it("the scene stands its pad verbs down for exactly the panels the hooks serve", () => {
     expect(scene).toContain("padPanelHold = false");
     expect(scene).toContain("if (pad && !this.padPanelHold)");
+    /* The derivation grew a fifth term when the controller
+     * map joined the bargain (stack900): while the map is
+     * open the scene's verbs stand down like any panel's, so
+     * a press lighting the diagram never also dances. */
     expect(page).toContain(
-      "scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;",
+      "scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen || padMapOpen;",
     );
   });
 

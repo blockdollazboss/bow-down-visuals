@@ -181,6 +181,7 @@ import {
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
 import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
+import ControllerMapPanel from "@/components/world/ControllerMapPanel";
 import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk, LiveScheduleDesk, LiveControllerDesk, LiveWatchDesk, LivePremiereDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
@@ -616,6 +617,10 @@ export default function WorldPage() {
      holder's tools (my live stream, the video catalog). */
   const [stageScreen, setStageScreen] = useState<WorldScreenState | null>(null);
   const [screenPanelOpen, setScreenPanelOpen] = useState(false);
+  /* The controller map (stack900): the drawn picture of the
+   * pad in hand with every button's job on it — opened from
+   * the footer's pad line, where the detected pad is named. */
+  const [padMapOpen, setPadMapOpen] = useState(false);
   /* The Charts Radio dock starts CLOSED (stack700): it used to
      render its full panel over the scene's bottom-left corner
      from the first frame of every hall walk — a menu nobody
@@ -1480,6 +1485,16 @@ export default function WorldPage() {
     resolveContainer: () => document.querySelector('[data-testid="world-host-panel"]'),
     onClose: () => setHostPanelOpen(false),
   });
+  /* The controller map is the fifth family — a look-only
+   * surface: its root holds no focusable control, so the
+   * reader's move/confirm have nothing to eat and every press
+   * is free to light its button on the diagram; Back closes
+   * it through the same bargain as every other panel. */
+  usePanelPadNav({
+    active: padMapOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-controller-map"]'),
+    onClose: () => setPadMapOpen(false),
+  });
 
   /* The scene's side of the same bargain: while any of those
    * panels is open, the scene's pad poll keeps its edges fresh
@@ -1490,8 +1505,8 @@ export default function WorldPage() {
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-    scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;
-  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
+    scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen || padMapOpen;
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen, padMapOpen]);
 
   /* Controller presence + identity live in the profile hook
      (useControllerProfile, by the state declarations): a paired
@@ -3900,6 +3915,19 @@ export default function WorldPage() {
             </button>
           ))}
 
+      {/* The controller map (stack900) — the drawn pad, every
+          button's job on it, lit live by the player's own
+          presses. It follows the profile store, so a pad swap
+          re-draws it for the new family mid-session. */}
+      {padMapOpen && status === "inside" && (
+        <ControllerMapPanel
+          profile={padProfile}
+          actionPage={actionPage}
+          isLight={isLight}
+          onClose={() => setPadMapOpen(false)}
+        />
+      )}
+
       {/* In-hall character panel — the same picker as the door,
           opened from inside (the pick rides the same verified
           presence frame; the figure swaps when the room confirms). */}
@@ -4395,6 +4423,40 @@ export default function WorldPage() {
               {padProfile.displayName} connected — left stick walks, right stick looks, trigger hurries, {!isGuest && `${padWord(padProfile, "confirm")} steps voice (off · proximity · lobby · deafen), `}{padWord(padProfile, "topFace")} switches view, {padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, {padWord(padProfile, "leftMenu")} switches the action page, {padWord(padProfile, "rightStickPress")} claims the moment</>}, {padWord(padProfile, "rightMenu")} frames a photo. In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.
             </span>
           </p>
+        )}
+        {/* The controller map's door (stack900): it stands with
+            the pad line that names the detected pad — the
+            player who just read "PS5 DualSense connected" can
+            open the picture of that pad without hunting. One
+            panel at a time, as ever: opening the map retires
+            the strips and any open desk. */}
+        {padConnected && status === "inside" && (
+          <div className="mb-2">
+            <button
+              type="button"
+              data-testid="world-pad-map-toggle"
+              aria-expanded={padMapOpen}
+              onClick={() => {
+                if (!padMapOpen) {
+                  setCharPanelOpen(false);
+                  setScreenPanelOpen(false);
+                  setHostPanelOpen(false);
+                  closeStation();
+                }
+                setPadMapOpen(!padMapOpen);
+              }}
+              className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-black transition hover:scale-105 ${
+                padMapOpen
+                  ? "border-[#d4af37] bg-[#d4af37] text-black"
+                  : isLight
+                    ? "border-[#C9A84C]/70 text-[#7A5A12] hover:bg-[#d4af37]/15"
+                    : "border-[#d4af37]/50 text-[#e8c86a] hover:bg-[#d4af37]/10"
+              }`}
+            >
+              <Gamepad2 className="h-3.5 w-3.5" />
+              {padMapOpen ? "Hide controller map" : "Controller map"}
+            </button>
+          </div>
         )}
         {/* The action bar: what your figure can DO, seen by the
             whole room — TWO pages of seven (bindings.ts). Perform
