@@ -227,7 +227,7 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
         })(),
         (async () => {
           try {
-            const res = await fetch("/api/wave8/sponsors/deals", { headers });
+            const res = await fetch("/api/sponsors/pipeline/deals", { headers });
             if (!cancelled && res.ok) setPipeline(normalizeSponsorPipeline(await res.json()));
           } catch {
             /* this widget degrades alone */

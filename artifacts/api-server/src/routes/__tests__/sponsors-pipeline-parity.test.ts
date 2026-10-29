@@ -1,24 +1,29 @@
 /**
- * Stack 8 Item 3 — characterization of the TWO sponsor surfaces, proving
- * they are NOT duplicates (documented non-merge):
+ * Sponsor rail parity — the two sponsor FEATURES on the ONE rail
+ * (stack800 Lane 2 consolidation).
  *
- *   generate/sponsors.ts  → /sponsors/*        tables sponsor_deals /
- *     sponsor_applications / sponsor_payouts. A MARKETPLACE: brands post
- *     deals (500 VB), creators apply, escrow flow fund → confirm →
- *     start → complete → release with a 15% platform fee and a
- *     sponsor_payouts ledger row. Escrow behavior is characterized by
- *     sponsors-escrow.test.ts + sponsors.test.ts (existing suite).
+ * History: Stack 8 Item 3 characterized two separate routers and proved
+ * the features are NOT duplicates of each other. That evidence stands —
+ * different tables, different money semantics — but the duplicate ROUTER
+ * is now retired: both features ride generate/sponsors.ts.
  *
- *   wave8-sponsors.ts     → /wave8/sponsors/*  table wave8_sponsor_deals
- *     (+ money_entries on mark-paid). A personal PIPELINE CRM: the
- *     creator tracks their OWN deals through pitched → negotiating →
- *     closed → paid; mark-paid posts the value to their money tracker.
- *     No applications, no escrow, no counterparty, no fund/release.
+ *   /sponsors/*           tables sponsor_deals / sponsor_applications /
+ *     sponsor_payouts. A MARKETPLACE: brands post deals (500 VB),
+ *     creators apply, escrow flow fund → confirm → start → complete →
+ *     release with a 15% platform fee and a sponsor_payouts ledger row.
+ *     Escrow behavior is characterized by sponsors-escrow.test.ts +
+ *     sponsors.test.ts (existing suite).
  *
- * Different tables, different callers (pages/brand-deals.tsx vs
- * components/wave8/SponsorPipeline.tsx), different money semantics.
- * These tests pin the wave8 surface's actual behavior and the fact that
- * the two surfaces do not see each other's data.
+ *   /sponsors/pipeline/*  table wave8_sponsor_deals (+ money_entries on
+ *     mark-paid). A personal PIPELINE CRM: the creator tracks their OWN
+ *     deals through pitched → negotiating → closed → paid; mark-paid
+ *     posts the value to their money tracker. No applications, no
+ *     escrow, no counterparty, no fund/release. (Formerly
+ *     /api/wave8/sponsors/* — those paths now 404; pinned below.)
+ *
+ * These tests pin the pipeline surface's actual behaviour on the
+ * surviving rail and the fact that the two surfaces still do not see
+ * each other's data.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "crypto";
@@ -117,7 +122,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
 vi.mock("../../lib/credits", () => ({
   chargeCredits: vi.fn(async (_u: string, cost: number) => { h.userCredits -= cost; return h.userCredits; }),
   refundCredits: vi.fn(async (_u: string, cost: number) => { h.userCredits += cost; return h.userCredits; }),
+  canUseCredits: vi.fn(async () => true),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
+  CreditsDisabledError: class CreditsDisabledError extends Error {
+    readonly status = 403;
+    constructor() {
+      super("credits_disabled");
+      this.name = "CreditsDisabledError";
+    }
+  },
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
 
@@ -126,8 +139,7 @@ vi.mock("../../lib/ai-clients", () => ({
   getTextModel: vi.fn(() => "gpt-6-sol"),
 }));
 
-import wave8Router from "../wave8-sponsors";
-import marketplaceRouter from "../generate/sponsors";
+import sponsorsRouter from "../generate/sponsors";
 
 const realFetch = globalThis.fetch;
 let server: any; let baseUrl: string;
@@ -138,8 +150,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use((req: any, _res: any, next: any) => { req.log = { error: () => {}, info: () => {} }; next(); });
-  app.use(wave8Router);
-  app.use(marketplaceRouter);
+  app.use(sponsorsRouter);
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((r) => server.on("listening", r));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -156,9 +167,9 @@ async function req(method: string, path: string, body?: unknown) {
   return { status: r.status, json: (await r.json().catch(() => null)) as any };
 }
 
-describe("wave8 pipeline surface (wave8_sponsor_deals)", () => {
+describe("pipeline surface on the sponsors rail (wave8_sponsor_deals)", () => {
   it("create is free, starts at stage pitched, returns the camelCase DTO", async () => {
-    const { status, json } = await req("POST", "/wave8/sponsors/deals", {
+    const { status, json } = await req("POST", "/sponsors/pipeline/deals", {
       sponsorName: "Shoe Co", dealValueCents: 50000, contact: "a@b.co", notes: "n",
     });
     expect(status).toBe(201);
@@ -166,23 +177,23 @@ describe("wave8 pipeline surface (wave8_sponsor_deals)", () => {
   });
 
   it("list shows only the owner's deals; PATCH moves stage; foreign PATCH 404s", async () => {
-    const created = await req("POST", "/wave8/sponsors/deals", { sponsorName: "A", dealValueCents: 100 });
+    const created = await req("POST", "/sponsors/pipeline/deals", { sponsorName: "A", dealValueCents: 100 });
     const id = created.json.deal.id;
     h.userId = OTHER;
-    await req("POST", "/wave8/sponsors/deals", { sponsorName: "B", dealValueCents: 200 });
-    const foreign = await req("PATCH", `/wave8/sponsors/deals/${id}`, { stage: "closed" });
+    await req("POST", "/sponsors/pipeline/deals", { sponsorName: "B", dealValueCents: 200 });
+    const foreign = await req("PATCH", `/sponsors/pipeline/deals/${id}`, { stage: "closed" });
     expect(foreign.status).toBe(404);
     h.userId = USER;
-    const list = await req("GET", "/wave8/sponsors/deals");
+    const list = await req("GET", "/sponsors/pipeline/deals");
     expect(list.json.deals).toHaveLength(1);
-    const moved = await req("PATCH", `/wave8/sponsors/deals/${id}`, { stage: "negotiating" });
+    const moved = await req("PATCH", `/sponsors/pipeline/deals/${id}`, { stage: "negotiating" });
     expect(moved.json.deal.stage).toBe("negotiating");
   });
 
   it("mark-paid flips stage to paid AND posts a Sponsorship money entry", async () => {
-    const created = await req("POST", "/wave8/sponsors/deals", { sponsorName: "Paid Co", dealValueCents: 75000 });
+    const created = await req("POST", "/sponsors/pipeline/deals", { sponsorName: "Paid Co", dealValueCents: 75000 });
     const id = created.json.deal.id;
-    const { status, json } = await req("POST", `/wave8/sponsors/deals/${id}/mark-paid`);
+    const { status, json } = await req("POST", `/sponsors/pipeline/deals/${id}/mark-paid`);
     expect(status).toBe(200);
     expect(json.deal.stage).toBe("paid");
     expect(json.posted).toBe(true);
@@ -192,32 +203,41 @@ describe("wave8 pipeline surface (wave8_sponsor_deals)", () => {
   });
 
   it("mark-paid on a zero-value deal posts NO money entry (posted:false)", async () => {
-    const created = await req("POST", "/wave8/sponsors/deals", { sponsorName: "Free Co", dealValueCents: 0 });
-    const { json } = await req("POST", `/wave8/sponsors/deals/${created.json.deal.id}/mark-paid`);
+    const created = await req("POST", "/sponsors/pipeline/deals", { sponsorName: "Free Co", dealValueCents: 0 });
+    const { json } = await req("POST", `/sponsors/pipeline/deals/${created.json.deal.id}/mark-paid`);
     expect(json.posted).toBe(false);
     expect(rowsOf(h.tables.moneyEntriesTable)).toHaveLength(0);
   });
 
-  it("wave8 has NO escrow flow: fund/release paths do not exist on this surface", async () => {
-    const created = await req("POST", "/wave8/sponsors/deals", { sponsorName: "X", dealValueCents: 1 });
+  it("the pipeline has NO escrow flow: fund/release paths do not exist on this surface", async () => {
+    const created = await req("POST", "/sponsors/pipeline/deals", { sponsorName: "X", dealValueCents: 1 });
     const id = created.json.deal.id;
-    expect((await req("POST", `/wave8/sponsors/deals/${id}/fund`, { amountCents: 1 })).status).toBe(404);
-    expect((await req("POST", `/wave8/sponsors/deals/${id}/release`)).status).toBe(404);
-    expect((await req("POST", `/wave8/sponsors/deals/${id}/start`)).status).toBe(404);
-    expect((await req("POST", `/wave8/sponsors/deals/${id}/complete`)).status).toBe(404);
+    expect((await req("POST", `/sponsors/pipeline/deals/${id}/fund`, { amountCents: 1 })).status).toBe(404);
+    expect((await req("POST", `/sponsors/pipeline/deals/${id}/release`)).status).toBe(404);
+    expect((await req("POST", `/sponsors/pipeline/deals/${id}/start`)).status).toBe(404);
+    expect((await req("POST", `/sponsors/pipeline/deals/${id}/complete`)).status).toBe(404);
   });
 });
 
-describe("surface separation (the non-merge evidence)", () => {
-  it("a wave8 pipeline deal is invisible to the marketplace surface (different table)", async () => {
-    await req("POST", "/wave8/sponsors/deals", { sponsorName: "Pipeline Only", dealValueCents: 100 });
+describe("surface separation (the features stay distinct on one rail)", () => {
+  it("a pipeline deal is invisible to the marketplace surface (different table)", async () => {
+    await req("POST", "/sponsors/pipeline/deals", { sponsorName: "Pipeline Only", dealValueCents: 100 });
     const { status, json } = await req("GET", "/sponsors/deals");
     expect(status).toBe(200);
     expect(json.deals ?? json).toBeDefined();
     const list = Array.isArray(json) ? json : json.deals;
     expect(list).toHaveLength(0); // marketplace reads sponsor_deals, not wave8_sponsor_deals
-    // and the wave8 list reads only its own table
-    const wave = await req("GET", "/wave8/sponsors/deals");
+    // and the pipeline list reads only its own table
+    const wave = await req("GET", "/sponsors/pipeline/deals");
     expect(wave.json.deals).toHaveLength(1);
+  });
+});
+
+describe("the retired wave8 mount", () => {
+  it("the old /wave8/sponsors/* paths are gone (404) — one rail only", async () => {
+    expect((await req("GET", "/wave8/sponsors/deals")).status).toBe(404);
+    expect((await req("POST", "/wave8/sponsors/deals", { sponsorName: "Ghost" })).status).toBe(404);
+    expect((await req("POST", "/wave8/sponsors/followup", { dealId: "x" })).status).toBe(404);
+    expect(rowsOf(h.tables.wave8SponsorDealsTable)).toHaveLength(0);
   });
 });

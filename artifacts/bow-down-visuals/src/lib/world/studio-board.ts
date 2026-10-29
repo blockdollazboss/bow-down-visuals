@@ -26,7 +26,7 @@
  *   GET /api/world/contests        (palace contests — contests.ts)
  *   GET /api/retention/away-digest (the dashboard's away digest)
  *   GET /api/retention/leaderboard (weekly board — treasury-quests)
- *   GET /api/wave8/sponsors/deals  (the sponsor pipeline)
+ *   GET /api/sponsors/pipeline/deals  (the sponsor pipeline)
  *   GET /api/drafts                (the /my-projects drafts tab)
  *   GET /api/generated-clips       (the /my-projects clips tab)
  *   GET /api/generation-history    (the /my-projects history tab)
@@ -360,7 +360,7 @@ export function normalizeStudioDigest(payload: unknown): StudioDigest | null {
   };
 }
 
-/* The sponsor pipeline — GET /api/wave8/sponsors/deals.
+/* The sponsor pipeline — GET /api/sponsors/pipeline/deals.
    The derivation is the dashboard's own, mirrored exactly: a deal
    is active until its stage closes it (paid / lost / rejected /
    dead), the pipeline total is the active deals' value in whole

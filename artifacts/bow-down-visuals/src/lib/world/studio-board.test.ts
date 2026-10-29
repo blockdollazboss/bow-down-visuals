@@ -325,7 +325,7 @@ describe("the leaderboard + digest + sponsor widgets (source pins)", () => {
     expect(boardSrc).toContain('fetch("/api/retention/leaderboard"');
     expect(boardSrc).toContain("normalizeLeaderboard(");
     expect(boardSrc).toContain('fetch("/api/retention/away-digest"');
-    expect(boardSrc).toContain('fetch("/api/wave8/sponsors/deals"');
+    expect(boardSrc).toContain('fetch("/api/sponsors/pipeline/deals"');
     expect(boardSrc).toContain('data-testid="world-studio-widget-leaderboard"');
     expect(boardSrc).toContain('data-testid="world-studio-widget-digest"');
     expect(boardSrc).toContain('data-testid="world-studio-widget-sponsors"');

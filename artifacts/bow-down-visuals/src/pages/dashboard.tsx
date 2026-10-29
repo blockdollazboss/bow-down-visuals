@@ -289,7 +289,7 @@ export default function Dashboard() {
         return res;
       }
       if (key === "deals") {
-        const res = await fetch("/api/wave8/sponsors/deals", { headers });
+        const res = await fetch("/api/sponsors/pipeline/deals", { headers });
         if (res.ok) {
           const d = await res.json().catch(() => ({ deals: [] }));
           if (mountedRef.current) setDeals(d.deals ?? []);

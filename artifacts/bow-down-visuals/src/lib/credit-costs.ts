@@ -295,7 +295,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/wave8/merch-drop/plan": { cost: 100, feature: "Merch Drop Planner" },
   "/api/wave8/media-kit/generate": { cost: 100, feature: "Media Kit Builder" },
   "/api/wave8/splits/pdf": { cost: 50, feature: "Royalty Split Sheet PDF" },
-  "/api/wave8/sponsors/followup": { cost: 50, feature: "Sponsor Follow-up Draft" },
+  "/api/sponsors/pipeline/followup": { cost: 50, feature: "Sponsor Follow-up Draft" },
   // Wave 9 — Suno + CapCut + directing layer (export-everywhere skipped: multi-ratio export already exists)
   "/api/wave9a/structure/generate": { cost: 200, feature: "Song Structure Builder" },
   "/api/wave9a/lyrics/timing": { cost: 50, feature: "Lyrics-to-Timeline" },
