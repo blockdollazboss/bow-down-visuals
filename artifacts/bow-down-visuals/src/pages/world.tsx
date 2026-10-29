@@ -4,11 +4,11 @@ import { useTranslation } from "react-i18next";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge, Zap,
-  Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
+  Maximize, Minimize, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen, Camera,
   Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash, ArrowBigUpDash,
-  Navigation2,
+  Navigation2, Settings2,
 } from "lucide-react";
 import {
   ACTION_PAGES,
@@ -252,6 +252,7 @@ import WalkInAsPicker from "@/components/world/WalkInAsPicker";
 import { SwitchToWebsite } from "@/components/world/SwitchToWebsite";
 import { WorldNotificationsBell } from "@/components/world/WorldNotificationsBell";
 import { ObjectiveStrip } from "@/components/world/ObjectiveStrip";
+import { WorldSettingsPanel } from "@/components/world/WorldSettingsPanel";
 import {
   GUEST_EMOTE_PITCH,
   GUEST_SIGN_IN_HREF,
@@ -616,6 +617,12 @@ export default function WorldPage() {
      holder's tools (my live stream, the video catalog). */
   const [stageScreen, setStageScreen] = useState<WorldScreenState | null>(null);
   const [screenPanelOpen, setScreenPanelOpen] = useState(false);
+  /* World settings (stack900): the World's own settings home —
+     one panel inside the page root, opened from the footer's
+     Settings & help door. Session state like the other strips;
+     every control inside it writes through an existing store
+     (view mode, announcements, quality, fullscreen). */
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   /* The Charts Radio dock starts CLOSED (stack700): it used to
      render its full panel over the scene's bottom-left corner
      from the first frame of every hall walk — a menu nobody
@@ -1480,6 +1487,14 @@ export default function WorldPage() {
     resolveContainer: () => document.querySelector('[data-testid="world-host-panel"]'),
     onClose: () => setHostPanelOpen(false),
   });
+  /* The fifth family (stack900): the World settings panel — the
+   * same reader, the same bargain. Its B runs the panel's own
+   * close state, like every strip's. */
+  usePanelPadNav({
+    active: settingsPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-settings-panel"]'),
+    onClose: () => setSettingsPanelOpen(false),
+  });
 
   /* The scene's side of the same bargain: while any of those
    * panels is open, the scene's pad poll keeps its edges fresh
@@ -1491,7 +1506,11 @@ export default function WorldPage() {
     const scene = sceneRef.current;
     if (!scene) return;
     scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;
-  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
+    /* The settings panel folds into the same hold (stack900): an
+     * open settings panel owns the pad exactly like the four
+     * families above. */
+    scene.padPanelHold = scene.padPanelHold || settingsPanelOpen;
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen, settingsPanelOpen]);
 
   /* Controller presence + identity live in the profile hook
      (useControllerProfile, by the state declarations): a paired
@@ -2855,6 +2874,18 @@ export default function WorldPage() {
       setHostPanelOpen((o) => !o);
     }
   };
+  /* World settings (stack900): the settings door obeys the same
+   * one-strip-at-a-time law from the other side — opening it
+   * retires the three strips and any open desk; and the effect
+   * below retires IT the moment any of those opens, so the frame
+   * never stacks the settings panel under a desk either. */
+  const toggleSettingsPanel = () => {
+    if (!settingsPanelOpen) { setCharPanelOpen(false); setScreenPanelOpen(false); setHostPanelOpen(false); setPanelTarget(null); }
+    setSettingsPanelOpen((o) => !o);
+  };
+  useEffect(() => {
+    if (panelTarget || charPanelOpen || screenPanelOpen || hostPanelOpen) setSettingsPanelOpen(false);
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
   /* The voice connection truth for the footer (item 100): rolled up
      from the mesh's per-pair states — never assumed from "in voice".
      Item 66: through the memoizing summarizer, so a render where no
@@ -4354,6 +4385,36 @@ export default function WorldPage() {
         />
       )}
 
+      {/* World settings (stack900): the World's own settings
+          home, mounted in the same band as the other strips —
+          under the page root, so it stands INSIDE the fullscreen
+          element and opening it never drops the walker's
+          fullscreen. Every control writes through the page's
+          existing state and stores; the panel is a door, not a
+          second truth. The button-map row rides a prop seam:
+          lane B6's map panel is not in this tree yet, so the page
+          passes no buttonMap here and the row is omitted — the
+          join wires `buttonMap={{ onOpen: ... }}` beside B6's
+          own mount when it lands. */}
+      {settingsPanelOpen && status === "inside" && (
+        <WorldSettingsPanel
+          isLight={isLight}
+          padProfile={padProfile}
+          isGuest={isGuest}
+          actionPage={actionPage}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          qualityPref={qualityPref}
+          onCycleQuality={() => setQualityPref((q) => nextQualityPreference(q))}
+          announceMuted={announceMuted}
+          onToggleAnnounceMuted={toggleAnnounceMuted}
+          isFs={isFs}
+          fsSupported={fsSupported}
+          onToggleFullscreen={toggleFs}
+          onClose={() => setSettingsPanelOpen(false)}
+        />
+      )}
+
       {/* ── Bottom bar: say + voice + VR ── */}
       {/* pr-24: the site shell's floating button parks at the
           viewport's bottom-right, over this footer's corner — the
@@ -4375,26 +4436,32 @@ export default function WorldPage() {
             to walk in with your name, talk, and be heard.
           </p>
         ) : null}
-        {padConnected && status === "inside" && (
-          <p className={`mb-2 flex items-start gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
-            <Gamepad2 className="mt-px h-4 w-4 shrink-0 text-[#d4af37]" />
-            {/* ONE text span on purpose (stack700): as bare flex
-                children, every text run was its own flex item and
-                the sentence wrapped inside narrow items — the
-                owner's frame showed it splitting mid-phrase into
-                columns. As one item the sentence flows and wraps
-                like a paragraph again.
-                The line names the pad it can see (stack900): the
-                display name up front, and every button word from
-                the pad's own controller profile — Cross / L1 /
-                Create on the owner's DualSense, A / LB / View on
-                an Xbox pad, positions on an unknown one. The
-                member-scoped clauses keep their exact scoping;
-                only the names resolve through the profile. */}
-            <span>
-              {padProfile.displayName} connected — left stick walks, right stick looks, trigger hurries, {!isGuest && `${padWord(padProfile, "confirm")} steps voice (off · proximity · lobby · deafen), `}{padWord(padProfile, "topFace")} switches view, {padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, {padWord(padProfile, "leftMenu")} switches the action page, {padWord(padProfile, "rightStickPress")} claims the moment</>}, {padWord(padProfile, "rightMenu")} frames a photo. In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.
-            </span>
-          </p>
+        {/* The settings door (stack900): the pad help line used
+            to stand here as a full strip — a paragraph of help
+            riding the footer of every frame, in bars the owner
+            ruled settings should not live in. It stands in the
+            World Settings panel's Help section now, readable as
+            a page; what stands here is ONE slim door chip in the
+            strip's exact place (the footer's first row, inside
+            the same pl-24/pr-24 corner reservations — the banner,
+            pill and playlist seats above the page never moved).
+            The door serves every walker inside, pad or not: view,
+            sound, display and help are device settings, and a
+            keyboard walker had no door to them at all before. */}
+        {status === "inside" && (
+          <div className="mb-2">
+            <button
+              type="button"
+              data-testid="world-settings-door"
+              aria-expanded={settingsPanelOpen}
+              onClick={toggleSettingsPanel}
+              className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-lg backdrop-blur-sm transition hover:scale-105 ${settingsPanelOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]" : isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/90 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/75 text-[#e8c86a]"}`}
+            >
+              <Settings2 className="h-3.5 w-3.5 text-[#d4af37]" />
+              Settings &amp; help
+              {padConnected && <span className="opacity-70">· {padProfile.displayName}</span>}
+            </button>
+          </div>
         )}
         {/* The action bar: what your figure can DO, seen by the
             whole room — TWO pages of seven (bindings.ts). Perform

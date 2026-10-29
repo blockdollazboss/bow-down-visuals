@@ -41,6 +41,9 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 describe("world controller survival — fullscreen by pad", () => {
   const page = read("../../pages/world.tsx");
   const scene = read("./hall-scene.ts");
+  /* The pad help line's home since stack900 (world settings):
+     the World Settings panel's Help section. */
+  const settingsPanel = read("../../components/world/WorldSettingsPanel.tsx");
 
   it("the scene dispatches the pad's fullscreen toggle and the page answers through toggleFs", () => {
     expect(scene).toContain("onPadFullscreenToggle");
@@ -67,17 +70,20 @@ describe("world controller survival — fullscreen by pad", () => {
     expect(page).toContain('padProfile.family !== "generic"');
   });
 
-  it("the footer pad line teaches the panel keys and the fullscreen hold", () => {
+  it("the settings panel's help line teaches the panel keys and the fullscreen hold", () => {
     /* The verbs are the pad in hand's own words now (stack900):
        the sentence is built from the controller profile —
        "Cross chooses and Circle goes back; hold Create" on
        the owner's DualSense — so the pin holds the shape, and
-       controller-profile.test.ts holds the per-family words. */
-    expect(page).toContain(
+       controller-profile.test.ts holds the per-family words.
+       The sentence itself moved with the help strip into the
+       World Settings panel (stack900, world settings); the
+       profile hook still lives on the page and is passed in. */
+    expect(settingsPanel).toContain(
       'In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.',
     );
     expect(page).toContain("useControllerProfile()");
-    expect(page).toContain("{padProfile.displayName} connected —");
+    expect(settingsPanel).toContain("{padProfile.displayName} connected —");
   });
 });
 
@@ -159,7 +165,12 @@ describe("world controller survival — the spawn frame's defaults", () => {
   });
 
   it("the pad help line is one flowing paragraph, not a row of flex items", () => {
-    const padLine = page.slice(page.indexOf('data-testid="world-pad-line"') - 200);
+    /* The line's home moved (stack900, world settings): it
+       stopped riding the footer as a strip and stands in the
+       World Settings panel's Help section — the same one flowing
+       span, the same classes, read from its new file. */
+    const panel = read("../../components/world/WorldSettingsPanel.tsx");
+    const padLine = panel.slice(panel.indexOf('data-testid="world-pad-line"') - 200);
     expect(padLine.slice(0, 200)).toContain("flex items-start gap-2");
     expect(padLine.slice(0, 400)).not.toContain("inline-flex items-center gap-2 text-xs font-semibold");
   });
