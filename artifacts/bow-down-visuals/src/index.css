@@ -903,6 +903,16 @@ html, body {
   outline-offset: 2px;
 }
 
+/* The controller's selection inside a World panel (stack700,
+   use-panel-pad-nav): DOM focus the gamepad moved, drawn in
+   the house gold in both themes so a controller walker can
+   always SEE where they are — the visible half of pad
+   navigation. Mirrors the :focus-visible metrics above. */
+.world-pad-focus {
+  outline: 2px solid #C9A84C !important;
+  outline-offset: 2px;
+}
+
 /* ── 17. Dark-spot sweep: pages & components that bypassed the theme ── */
 
 /* Content panel (App.tsx main frame + pricing page): marble invitation card.

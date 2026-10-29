@@ -78,6 +78,7 @@ export type WorldVerb =
   | "pageCycle"
   | "momentClaim"
   | "photoMode"
+  | "fullscreen"
   | "jump";
 
 /** Fixed (never paged) pad verbs: button index → verb. Back (8)
@@ -112,6 +113,31 @@ export const PAD_JUMP_BUTTON = 0;
 /** How long A must be held before the press becomes voiceStep
  *  instead of just a jump (ms). */
 export const PAD_VOICE_LONG_PRESS_MS = 400;
+
+/** The fullscreen toggle's pad home (stack700): Back (8), the
+ *  pageCycle button — shared by gesture exactly the way A is
+ *  shared above. Every standard button already had a job when
+ *  the owner's controller-first walk (2026-10-29: "my controller
+ *  just stops… I should be able to use my controller for
+ *  everything") demanded a pad road into fullscreen, so Back
+ *  SHARES: a TAP cycles the action page, exactly what it always
+ *  did; HOLDING Back for PAD_FULLSCREEN_LONG_PRESS_MS toggles
+ *  fullscreen, once per hold. The documented cost of the share,
+ *  mirroring A's: the tap that begins the hold cycles the page
+ *  first — a cosmetic, instantly reversible act — and pageCycle
+ *  is a stand-still act beside it. The alternatives lost on the
+ *  same grounds A rejected: Start's tap frames photo mode (a
+ *  hold there would fire the photo frame first AND strand the
+ *  chrome), and the triggers/sticks are movement's own. The
+ *  keyboard and touch families never share: the header button
+ *  is theirs. gamepad.ts polls this split. */
+export const PAD_PAGE_BUTTON = 8;
+/** How long Back must be held before the press becomes the
+ *  fullscreen toggle instead of just a page cycle (ms). Longer
+ *  than A's line: cycling pages back-to-back in a hurry is a
+ *  real pad habit, and a fullscreen flip is a bigger act than a
+ *  voice step. */
+export const PAD_FULLSCREEN_LONG_PRESS_MS = 600;
 
 /** Keyboard verbs (KeyboardEvent.code). Movement keeps WASD /
  *  arrows / Shift — read by the scene as it always was; E was the
@@ -177,7 +203,7 @@ export function pageForAction(action: WorldActionId): ActionPageId | null {
  */
 export function verbRoleOk(verb: WorldVerb, role: WorldRole): boolean {
   if (role !== "guest") return true;
-  return verb === "photoMode" || verb === "viewToggle" || verb === "jump";
+  return verb === "photoMode" || verb === "viewToggle" || verb === "jump" || verb === "fullscreen";
 }
 
 export function actionRoleOk(role: WorldRole): boolean {

@@ -1654,8 +1654,22 @@ export class KingsHallScene {
   /** A controller's Back press (the page cycles the action page;
    *  the pad's seven action slots perform the new page's set). */
   onPadPageCycle: (() => void) | null = null;
+  /** A controller's Back HOLD (the page toggles fullscreen — the
+   *  tap's sibling gesture on the same button, bindings.ts). */
+  onPadFullscreenToggle: (() => void) | null = null;
   /** A controller's Start press (the page toggles photo mode). */
   onPadPhotoMode: (() => void) | null = null;
+  /** A panel owns the walker's input (stack700): while the page
+   *  holds this true, the pad poll still runs — edges stay fresh,
+   *  so the release frame never replays a stale press — but every
+   *  intent is discarded: the stick must not walk the avatar
+   *  behind an open sheet, and no scene verb may fire under a
+   *  panel. The panel's own pad navigation (the DOM focus layer)
+   *  reads the same pad independently; the two readers never
+   *  fight because this one stands down. The page derives the
+   *  hold from its real panel states — never a second source of
+   *  truth. */
+  padPanelHold = false;
   /** A controller's R3 press (the page claims the live moment —
    *  an open drop or the King's gift — through its own handlers). */
   onPadMomentClaim: (() => void) | null = null;
@@ -10056,7 +10070,11 @@ export class KingsHallScene {
     const pad = pads ? firstGamepad([...pads]) : null;
     const polled = pollGamepad(pad, this.padEdges, this.padActionPage);
     this.padEdges = polled.edges;
-    if (pad) {
+    /* A panel is open (padPanelHold): the poll above kept the
+     * edges fresh on purpose — the hold discards INTENT only, so
+     * the panel owns the pad through the page's focus layer and
+     * nothing here walks, jumps or opens under it. */
+    if (pad && !this.padPanelHold) {
       const intent = polled.intent;
       strafe += intent.moveX;
       fwd += -intent.moveY;
@@ -10069,6 +10087,7 @@ export class KingsHallScene {
       if (intent.action) this.onPadAction?.(intent.action);
       if (intent.interact) this.onPadInteract?.();
       if (intent.pageCycle) this.onPadPageCycle?.();
+      if (intent.fullscreenToggle) this.onPadFullscreenToggle?.();
       if (intent.photoMode) this.onPadPhotoMode?.();
       if (intent.momentClaim) this.onPadMomentClaim?.();
       /* A's tap (stack300): the pad's jump joins Space and the

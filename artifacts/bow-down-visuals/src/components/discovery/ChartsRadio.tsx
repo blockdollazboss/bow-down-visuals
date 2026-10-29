@@ -207,7 +207,13 @@ export function ChartsRadioPanel({ compact = false }: { compact?: boolean }) {
               : station?.tagline || "This week's chart and the newest drops, back to back."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        {/* Compact (the World dock, 380px): the buttons take a
+            full row of their own below the title (stack700). One
+            shared row squeezed the title block to a ~50px column
+            — "24/7 house station" wrapped a word per line beside
+            the buttons (owner's frame, 2026-10-29). The full
+            Charts page keeps the one-row header. */}
+        <div className={`flex items-center gap-2 ${compact ? "w-full" : ""}`}>
           <button
             type="button"
             data-testid="charts-radio-play"

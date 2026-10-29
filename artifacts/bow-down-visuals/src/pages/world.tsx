@@ -20,6 +20,8 @@ import {
   type ActionPageId,
   type WorldRole,
 } from "@/lib/world/bindings";
+import { firstGamepad } from "@/lib/world/gamepad";
+import { usePanelPadNav } from "@/hooks/use-panel-pad-nav";
 import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
 import {
   ACTION_BY_ID,
@@ -602,6 +604,13 @@ export default function WorldPage() {
      holder's tools (my live stream, the video catalog). */
   const [stageScreen, setStageScreen] = useState<WorldScreenState | null>(null);
   const [screenPanelOpen, setScreenPanelOpen] = useState(false);
+  /* The Charts Radio dock starts CLOSED (stack700): it used to
+     render its full panel over the scene's bottom-left corner
+     from the first frame of every hall walk — a menu nobody
+     opened, sitting on the say log and the corner controls.
+     A chip in the same anchor opens it; nothing about the
+     station itself changes. */
+  const [radioOpen, setRadioOpen] = useState(false);
   const [myStream, setMyStream] = useState<{ id: string; title: string } | null>(null);
   const [catalog, setCatalog] = useState<{ mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } | null>(null);
   const [screenNote, setScreenNote] = useState<string | null>(null);
@@ -639,6 +648,20 @@ export default function WorldPage() {
     if (!panelTarget) return;
     openedDeskRef.current = true;
     if (document.pointerLockElement) document.exitPointerLock();
+  }, [panelTarget]);
+  /* One panel at a time (stack700, the owner's "way too many
+     menus in the frame"): a desk opening retires the three
+     strips — before this, a station sheet opened OVER a strip
+     left open beneath it and the frame carried both. Its own
+     effect on the same trigger, beside the release above (whose
+     body is pinned as-is by panel-open-visibility): every desk
+     open passes through panelTarget, so no opener — E, LB, a
+     prompt's Open button, a directory card — can forget it. */
+  useEffect(() => {
+    if (!panelTarget) return;
+    setCharPanelOpen(false);
+    setScreenPanelOpen(false);
+    setHostPanelOpen(false);
   }, [panelTarget]);
   /* The door-opener behind both the E key and the controller's LB:
    * a prompt must be showing and no panel may be open — one guard,
@@ -712,6 +735,10 @@ export default function WorldPage() {
    * photo mode. Every role may frame a shot. Entering it closes
    * every open panel — the chrome steps aside whole. */
   const togglePhotoModeRef = useRef<() => void>(() => {});
+  /* The pad's fullscreen toggle (the Back hold), shaped like the
+   * refs above; the real closure is assigned beside toggleFs,
+   * whose declaration it needs. */
+  const fsToggleRef = useRef<() => void>(() => {});
   togglePhotoModeRef.current = () => {
     if (!verbRoleOk("photoMode", myRole())) return;
     if (!photoModeRef.current) {
@@ -1310,6 +1337,27 @@ export default function WorldPage() {
     void toggleFullscreen(document, pageRef.current);
   };
 
+  /* The controller's fullscreen verb: the Back hold lands here
+   * (the scene's pad poll dispatches it) and runs the very same
+   * toggleFs the header button runs — so a deliberate pad exit
+   * marks itself a self-exit in the state machine (no recovery
+   * arm, no chip) exactly like a deliberate button exit does. */
+  fsToggleRef.current = () => {
+    if (!verbRoleOk("fullscreen", myRole())) return;
+    toggleFs();
+  };
+
+  /* Closing a station panel — one door for every way out (the
+   * sheet's own close button, Escape inside it, and now the
+   * controller's B through the pad-nav hook below) so the ways
+   * out can never drift apart. */
+  const closeStation = () => {
+    setPanelTarget(null);
+    /* A station visit is where tutorial steps land (the drop
+       claim, the quest claim) — re-read the line. */
+    void refreshTutorial();
+  };
+
   /* The recovery's other half: while a platform exit has the
      recovery armed, the next click anywhere on the page re-enters
      fullscreen. Capture-phase and never interfering — the click
@@ -1327,6 +1375,93 @@ export default function WorldPage() {
     document.addEventListener("pointerdown", onPointer, true);
     return () => document.removeEventListener("pointerdown", onPointer, true);
   }, [fsArmed]);
+
+  /* The recovery's controller half (stack700; the owner's live
+     walk, 2026-10-29: "I should be able to use my controller for
+     everything inside that VR world — shouldn't have to go look
+     for a mouse"). The arm above is spent by a MOUSE click only —
+     a controller-first walker, whose pad is his only pointer,
+     could never spend it, so a platform-dropped fullscreen
+     stayed dropped until he hunted the mouse down. While the
+     recovery is armed, this poll watches the pad itself: ANY
+     fresh button press spends the same arm through the same
+     pure transition (fsRecoveryOnReenterClick — the click in
+     its name is the gesture kind, and a pad press is a user
+     gesture requestFullscreen accepts exactly like one). Same
+     one-shot semantics: the arm is spent whether or not the
+     browser accepts, and the loop stops the moment it spends. */
+  useEffect(() => {
+    if (!fsArmed) return;
+    let raf = 0;
+    let prev: boolean[] = [];
+    const loop = () => {
+      try {
+        const pad = firstGamepad([...(navigator.getGamepads?.() ?? [])]);
+        const now = pad ? pad.buttons.map((b) => b.pressed) : [];
+        const freshPress = now.some((p, i) => p && !prev[i]);
+        prev = now;
+        if (pad && freshPress) {
+          const { state, reenter } = fsRecoveryOnReenterClick(fsRecoveryRef.current);
+          fsRecoveryRef.current = state;
+          setFsArmed(state.armed);
+          if (reenter) void toggleFullscreen(document, pageRef.current);
+          return;
+        }
+      } catch {
+        /* no gamepad API — the pointer road above still serves */
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [fsArmed]);
+
+  /* The panels' pad navigation (stack700) — the layer the
+     owner's controller-first walk proved missing. Every panel
+     the World opens is DOM; the scene's pad poll speaks only
+     avatar, so a panel the pad opened could not be worked by
+     the pad at all — no selection, no confirm, no back. Each
+     surface below gets the same reader (use-panel-pad-nav):
+     D-pad/stick moves DOM focus, A activates, B closes through
+     the surface's own close path. Station sheets and the desk
+     step-throughs are one family (their roots carry the three
+     testids the resolver looks up); the three strips resolve by
+     their own. */
+  usePanelPadNav({
+    active: panelTarget !== null && status === "inside",
+    resolveContainer: () =>
+      document.querySelector(
+        '[data-testid="world-station-panel"], [data-testid="world-station-stepthrough"], [data-testid="world-studio-stepthrough"]',
+      ),
+    onClose: closeStation,
+  });
+  usePanelPadNav({
+    active: charPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-char-panel"]'),
+    onClose: () => setCharPanelOpen(false),
+  });
+  usePanelPadNav({
+    active: screenPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-screen-panel"]'),
+    onClose: () => setScreenPanelOpen(false),
+  });
+  usePanelPadNav({
+    active: hostPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-host-panel"]'),
+    onClose: () => setHostPanelOpen(false),
+  });
+
+  /* The scene's side of the same bargain: while any of those
+   * panels is open, the scene's pad poll keeps its edges fresh
+   * but discards every intent — the stick must not walk the
+   * avatar behind an open sheet, and no dance may fire under a
+   * desk. Derived from the page's real panel states, the same
+   * states the hooks above key on; never a second truth. */
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
 
   /* Controller presence: a paired gamepad announces itself; the
      scene polls it for input (left stick walks, right stick looks,
@@ -1905,6 +2040,9 @@ export default function WorldPage() {
       scene.onPadPhotoMode = () => {
         if (!cancelled) togglePhotoModeRef.current();
       };
+      scene.onPadFullscreenToggle = () => {
+        if (!cancelled) fsToggleRef.current();
+      };
       scene.onPadMomentClaim = () => {
         if (!cancelled) claimMomentRef.current();
       };
@@ -2022,8 +2160,15 @@ export default function WorldPage() {
         }
         scene.removeAllPeers();
         setScreenPanelOpen(false);
+        /* The room-entry line REPLACES the previous one (stack700):
+           walking a doorway chain used to stack "You walked into…"
+           lines four deep over the scene's corner — the log keeps
+           only the current room's announcement. Speech lines are
+           untouched; only the Palace's own entry lines dedupe. */
         setSayLog((log) => [
-          ...log.slice(-7),
+          ...log
+            .filter((e) => !(e.peerId === "hall" && e.body.startsWith("You walked into")))
+            .slice(-7),
           { peerId: "hall", displayName: "The Palace", body: `You walked into ${room.name}.` },
         ]);
         if (wasInVoice) {
@@ -2663,6 +2808,23 @@ export default function WorldPage() {
           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border-white/15 text-white/75 hover:text-white"
     }`;
+  /* One strip at a time (stack700): the footer's three panel
+   * toggles route through here — opening one retires the other
+   * two and any open desk, so the frame never stacks panels the
+   * way the owner's walk found them. Closing the open one stays
+   * a plain toggle. */
+  const toggleStripPanel = (which: "char" | "screen" | "host") => {
+    if (which === "char") {
+      if (!charPanelOpen) { setScreenPanelOpen(false); setHostPanelOpen(false); setPanelTarget(null); }
+      setCharPanelOpen((o) => !o);
+    } else if (which === "screen") {
+      if (!screenPanelOpen) { setCharPanelOpen(false); setHostPanelOpen(false); setPanelTarget(null); }
+      setScreenPanelOpen((o) => !o);
+    } else {
+      if (!hostPanelOpen) { setCharPanelOpen(false); setScreenPanelOpen(false); setPanelTarget(null); }
+      setHostPanelOpen((o) => !o);
+    }
+  };
   /* The voice connection truth for the footer (item 100): rolled up
      from the mesh's per-pair states — never assumed from "in voice".
      Item 66: through the memoizing summarizer, so a render where no
@@ -3029,8 +3191,14 @@ export default function WorldPage() {
 
       {/* Walk in as — members pick a Creative Vault character (or the
           house avatar) as who they stand in the hall as. Guests and
-          signed-out visitors never see the row. */}
-      {user ? (
+          signed-out visitors never see the row. At the DOOR only
+          (stack700): once inside, this same picker lives in the
+          in-hall character panel — rendering it above the room too
+          put a whole second menu in the frame for the entire walk
+          (the owner's "way too many menus", 2026-10-29). Nothing is
+          lost: Change character in the footer opens the identical
+          picker, same handlers, from inside. */}
+      {user && status !== "inside" ? (
         <WalkInAsPicker
           characters={vaultChars}
           loadFailed={vaultLoadFailed}
@@ -3273,7 +3441,7 @@ export default function WorldPage() {
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg transition hover:scale-105 ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}
             >
               <Maximize className="h-3.5 w-3.5" />
-              Full screen dropped — tap to go back in
+              Full screen dropped — tap or press any controller button to go back in
             </button>
           </div>
         )}
@@ -3481,8 +3649,12 @@ export default function WorldPage() {
           </div>
         )}
 
-        {/* Controls hint */}
-        {status === "inside" && !photoMode && (
+        {/* Controls hint — keyboard words for keyboard walkers.
+            A connected controller swaps the footer line to the
+            pad's own words; painting the WASD pill over the scene
+            too was frame clutter for exactly the walker who
+            cannot use it (stack700). */}
+        {status === "inside" && !photoMode && !padConnected && (
           <p className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
             WASD to walk · drag or click to look · Shift to hurry · E opens what&rsquo;s in reach
           </p>
@@ -3665,20 +3837,42 @@ export default function WorldPage() {
             always the same distance above the screen's bottom edge,
             and the dvh cap + internal scroll mean late-arriving
             content can never push it past the top of the screen. */}
-        {status === "inside" && roomId === HALL_ROOM_ID && !photoMode && (
-          <div
-            className="fixed bottom-24 left-3 z-30 max-h-[calc(100dvh-8rem)] w-[min(92vw,380px)] overflow-y-auto overscroll-contain sm:bottom-20 sm:max-h-[calc(100dvh-7rem)]"
-            data-testid="world-plaza-radio"
-          >
-            <ChartsRadioPanel compact />
-          </div>
-        )}
+        {status === "inside" && roomId === HALL_ROOM_ID && !photoMode &&
+          (radioOpen ? (
+            <div
+              className="fixed bottom-24 left-3 z-30 max-h-[calc(100dvh-8rem)] w-[min(92vw,380px)] overflow-y-auto overscroll-contain sm:bottom-20 sm:max-h-[calc(100dvh-7rem)]"
+              data-testid="world-plaza-radio"
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  data-testid="world-plaza-radio-close"
+                  onClick={() => setRadioOpen(false)}
+                  aria-label="Close Charts Radio"
+                  className={`absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:bg-[#C9A84C]/15" : "border-white/15 text-white/70 hover:bg-white/10"}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <ChartsRadioPanel compact />
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              data-testid="world-plaza-radio-open"
+              onClick={() => setRadioOpen(true)}
+              className={`fixed bottom-24 left-3 z-30 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-lg backdrop-blur-sm transition hover:scale-105 sm:bottom-20 ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#7A5A12]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"}`}
+            >
+              <Music2 className="h-4 w-4" />
+              Charts Radio
+            </button>
+          ))}
 
       {/* In-hall character panel — the same picker as the door,
           opened from inside (the pick rides the same verified
           presence frame; the figure swaps when the room confirms). */}
       {charPanelOpen && user && status === "inside" && (
-        <div className={`relative z-20 border-t ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`}>
+        <div className={`relative z-20 border-t ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`} data-testid="world-char-panel">
           <WalkInAsPicker
             characters={vaultChars}
             loadFailed={vaultLoadFailed}
@@ -4080,12 +4274,7 @@ export default function WorldPage() {
           target={panelTarget}
           isLight={isLight}
           isGuest={isGuest}
-          onClose={() => {
-            setPanelTarget(null);
-            /* A station visit is where tutorial steps land (the
-               drop claim, the quest claim) — re-read the line. */
-            void refreshTutorial();
-          }}
+          onClose={closeStation}
           directory={directory}
           currentRoomId={roomId}
           kingLine={kingStripLine(kingMoment, Date.now(), isGuest)}
@@ -4138,9 +4327,15 @@ export default function WorldPage() {
           viewport's bottom-right, over this footer's corner — the
           reserved strip keeps the right-aligned controls (and the
           trailing headset status line) from ever running under it
-          and truncating mid-word (owner's screenshot, 2026-10-16). */}
+          and truncating mid-word (owner's screenshot, 2026-10-16).
+          pl-24 is its mirror (stack700): the guide's gold OPEN box
+          parks at the viewport's bottom-LEFT, and the owner's
+          frames showed it sitting on the action bar's first pill,
+          eating its left edge ("…en Creator Rooms"). Same
+          reservation, other corner — the footer's rows start
+          clear of both parked buttons. */}
       {!photoMode && (
-      <footer className={`relative z-20 border-t py-3 pl-4 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
+      <footer className={`relative z-20 border-t py-3 pl-24 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}
@@ -4149,9 +4344,17 @@ export default function WorldPage() {
           </p>
         ) : null}
         {padConnected && status === "inside" && (
-          <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
-            <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, Back switches the action page, R3 claims the moment</>}, Start frames a photo.
+          <p className={`mb-2 flex items-start gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
+            <Gamepad2 className="mt-px h-4 w-4 shrink-0 text-[#d4af37]" />
+            {/* ONE text span on purpose (stack700): as bare flex
+                children, every text run was its own flex item and
+                the sentence wrapped inside narrow items — the
+                owner's frame showed it splitting mid-phrase into
+                columns. As one item the sentence flows and wraps
+                like a paragraph again. */}
+            <span>
+              Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, Back switches the action page, R3 claims the moment</>}, Start frames a photo. In a panel, the D-pad moves, A chooses and B goes back; hold Back for full screen.
+            </span>
           </p>
         )}
         {/* The action bar: what your figure can DO, seen by the
@@ -4412,7 +4615,7 @@ export default function WorldPage() {
             {!isGuest && user && status === "inside" && (
               <button
                 type="button"
-                onClick={() => setCharPanelOpen((o) => !o)}
+                onClick={() => toggleStripPanel("char")}
                 data-testid="world-change-character"
                 aria-expanded={charPanelOpen}
                 className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${charPanelOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]" : isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
@@ -4424,7 +4627,7 @@ export default function WorldPage() {
             {!isGuest && inHall && status === "inside" && (
               <button
                 type="button"
-                onClick={() => setScreenPanelOpen((o) => !o)}
+                onClick={() => toggleStripPanel("screen")}
                 data-testid="world-screen-button"
                 aria-expanded={screenPanelOpen}
                 className={panelBtnCls(screenPanelOpen)}
@@ -4437,7 +4640,7 @@ export default function WorldPage() {
             {isAdmin && status === "inside" && (
               <button
                 type="button"
-                onClick={() => setHostPanelOpen((o) => !o)}
+                onClick={() => toggleStripPanel("host")}
                 data-testid="world-host-button"
                 aria-expanded={hostPanelOpen}
                 className={panelBtnCls(hostPanelOpen)}
