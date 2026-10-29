@@ -43,6 +43,26 @@ export function registerSessionHooks(h: SessionHooks | null) {
 
 const SESSION_ERROR_RE = /session|unauthori|not authenticated|invalid jwt|jwt expired|token|expired/i;
 
+/** True when the response is the password GATE's lock answer, not an
+ *  auth answer at all. The gate (api-server lib/staging-gate) replies
+ *  401 { error: "staging_locked" } to every API request when its
+ *  cookie is absent — a different lock than the Supabase session,
+ *  with a different remedy (re-enter the password, not re-sign-in).
+ *  This check runs BEFORE all session classification, by body code
+ *  rather than by message text, so the exemption can never be lost
+ *  to a copy edit: a gate 401 must never trigger a token refresh
+ *  (which cannot mint a gate cookie) and must never be read as
+ *  session death — Gate #4 watched exactly that compound present as
+ *  "the gate dropped my signed-in session". */
+async function isGateLockedResponse(res: Response): Promise<boolean> {
+  try {
+    const body = (await res.clone().json()) as { error?: unknown } | null;
+    return body?.error === "staging_locked";
+  } catch {
+    return false;
+  }
+}
+
 /** True when a 401/403 response body indicates a dead/invalid session. */
 async function isSessionError(res: Response): Promise<boolean> {
   try {
@@ -105,6 +125,9 @@ export function installSessionGuard() {
 
     const res = await originalFetch(input, init);
     if (res.status !== 401 && res.status !== 403) return res;
+    /* The password gate's lock is not a session failure — hands off,
+       whatever the body copy says (see isGateLockedResponse). */
+    if (await isGateLockedResponse(res)) return res;
     if (!(await isSessionError(res))) return res;
 
     /* Anonymous pass-through: session death requires a session. Public
@@ -130,6 +153,10 @@ export function installSessionGuard() {
         retried.add(retryReq);
         const retryRes = await originalFetch(retryReq);
         if (retryRes.status === 401 || retryRes.status === 403) {
+          /* A gate lock answering the retry is still not session
+           * death — the gate dropped between the first answer and
+           * the retry, and no token can fix that. */
+          if (await isGateLockedResponse(retryRes)) return retryRes;
           /* Fresh token still rejected — session is truly dead. */
           notifySessionDead();
         }
