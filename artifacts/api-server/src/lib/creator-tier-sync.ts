@@ -216,17 +216,69 @@ export async function handleTierSubscriptionEvent(subscription: Stripe.Subscript
     validTier(subscription.metadata?.["tier"])
       ? (subscription.metadata!["tier"] as CreatorTier)
       : priceIdToTier(priceId);
-  const profileId = await profileIdForCustomer(stripe, { customerId });
+  /* Resolve the profile from the subscription's OWN stamped user_id
+     first (the intent/checkout rails stamp it at creation — the same
+     metadata the hosted checkout handler trusts), falling back to the
+     customer lookup. Resolving by customer alone silently dropped the
+     sync for a profile with no creator_subscriptions row yet — a
+     first-time embedded subscriber's verify landed nothing while the
+     verify route still answered success (Gate #4 diagnosis). */
+  const profileId = await profileIdForCustomer(stripe, {
+    userId: subscription.metadata?.["user_id"],
+    customerId,
+  });
   if (!profileId) {
     logger.warn({ subId: subscription.id }, "subscription event: no creator profile for customer");
     return;
   }
   const status = subscription.status; // active | trialing | past_due | canceled | incomplete…
   const [prior] = await db
-    .select({ tier: creatorSubscriptionsTable.tier, status: creatorSubscriptionsTable.status })
+    .select({
+      tier: creatorSubscriptionsTable.tier,
+      status: creatorSubscriptionsTable.status,
+      stripeSubscriptionId: creatorSubscriptionsTable.stripeSubscriptionId,
+    })
     .from(creatorSubscriptionsTable)
     .where(eq(creatorSubscriptionsTable.profileId, profileId))
     .limit(1);
+  /* ── Current-subscription guard (Gate #4, stack600 regression) ──────
+     The profile has ONE row, but the customer can carry SEVERAL
+     creator_tier subscriptions over time (Gate #2's dangling
+     incomplete, Gate #3's ended plan, today's new one). This handler
+     used to upsert ANY of their events into the row — tier, status
+     AND stripe_subscription_id — resolved by customer alone. The
+     stack600 intent hygiene (adoptDanglingSubscription) cancels the
+     member's dangling incomplete subscriptions DURING subscribe,
+     seconds before the verify sync lands the new tier; Stripe
+     delivers the resulting customer.subscription.deleted
+     asynchronously, and when it lands AFTER the verify upsert it
+     rewrites the row to the dead subscription (status canceled →
+     the account reads Free, Billing points at a corpse). No event
+     ordering is guaranteed, so identity — not timing — is the guard:
+       · same subscription as the row records → apply (its lifecycle);
+       · a DIFFERENT subscription may write only to adopt a dead row
+         when it is itself live (the closed-tab rescue: the purchase
+         webhook arrives before any verify ran);
+       · every other foreign-subscription event is ignored — a dead
+         or stale subscription can never move the row, and a foreign
+         live one can never clobber the current live plan. */
+  if (prior?.stripeSubscriptionId && prior.stripeSubscriptionId !== subscription.id) {
+    const rowLive = prior.status === "active" || prior.status === "trialing";
+    const eventLive = status === "active" || status === "trialing";
+    if (rowLive || !eventLive) {
+      logger.warn(
+        {
+          subId: subscription.id,
+          profileId,
+          rowSubscriptionId: prior.stripeSubscriptionId,
+          rowStatus: prior.status,
+          eventStatus: status,
+        },
+        "subscription event ignored: not the profile's current subscription",
+      );
+      return;
+    }
+  }
   await upsertSubscription({
     profileId,
     tier: tier ?? "free",
