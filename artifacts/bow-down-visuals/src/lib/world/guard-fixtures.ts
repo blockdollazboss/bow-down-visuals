@@ -331,13 +331,31 @@ export function fixtureSway(id: string, nowMs: number): { rotY: number; rotZ: nu
   };
 }
 
-/** The texture slots a parsed body material can carry. */
+/** The texture slots a parsed body material can carry — named as
+ *  three.js names them on a real material: a glTF
+ *  metallicRoughnessTexture lands SPLIT across metalnessMap +
+ *  roughnessMap (three has no metallicRoughnessMap property; the
+ *  alias stays honoured for plain material-shaped inputs). */
 export interface BodyMaterialLike {
   map?: unknown;
+  metalnessMap?: unknown;
+  roughnessMap?: unknown;
   metallicRoughnessMap?: unknown;
   normalMap?: unknown;
   emissiveMap?: unknown;
   aoMap?: unknown;
+}
+
+/** A texture slot counts as landed when it holds a texture object
+ *  whose image — when the image reports a width at all — actually
+ *  has pixels. The texture-less parse leaves the slots unset (see
+ *  bodyTexturesLanded); a zero-width image is a decode that
+ *  produced nothing standing in the same clothes. */
+function textureSlotLanded(tex: unknown): boolean {
+  if (!tex || typeof tex !== "object") return false;
+  const img = (tex as { image?: { width?: unknown } | null }).image;
+  if (img && typeof img.width === "number") return img.width > 0;
+  return true;
 }
 
 /**
@@ -360,8 +378,152 @@ export function bodyTexturesLanded(
   return materials.some((m) => {
     if (!m || typeof m !== "object") return false;
     const s = m as BodyMaterialLike;
-    return !!(s.map || s.metallicRoughnessMap || s.normalMap || s.emissiveMap || s.aoMap);
+    return [
+      s.map,
+      s.metalnessMap,
+      s.roughnessMap,
+      s.metallicRoughnessMap,
+      s.normalMap,
+      s.emissiveMap,
+      s.aoMap,
+    ].some(textureSlotLanded);
   });
+}
+
+/* ── The texture repair plan ───────────────────────────────────────
+   WHY a parse lands texture-less, mechanically (proven Oct 29,
+   stack600/world-textures): three.js GLTFLoader (0.180) decodes
+   embedded images through ImageBitmapLoader, which fetches a
+   blob: object URL per image. When that fetch is refused — the
+   production CSP's connect-src lacked blob:, and fetch answers to
+   connect-src, not img-src — loadTextureImage CATCHES the failure
+   and resolves the texture to null; assignTexture then leaves the
+   slot unset and the parse "succeeds". Source alternation cannot
+   save the step (the decode dies identically on every source) and
+   a decode can die other deaths too (memory pressure mid-burst on
+   a weak machine). The texture step therefore gets its OWN second
+   mechanism: repair in place from the file's declared material
+   assignments, decoding the embedded images through the <img>
+   path (THREE.TextureLoader), which answers to img-src and never
+   touches the fetch policy. This module decides WHICH slots
+   should hold WHAT texture; the scene does the decoding. Only
+   EMBEDDED images (a bufferView, no uri) are repairable this way —
+   their bytes are already in hand inside the parsed file. */
+
+export interface GlbTextureRefLike {
+  index?: number;
+}
+
+export interface GlbMaterialLike {
+  pbrMetallicRoughness?: {
+    baseColorTexture?: GlbTextureRefLike;
+    metallicRoughnessTexture?: GlbTextureRefLike;
+  };
+  normalTexture?: GlbTextureRefLike;
+  emissiveTexture?: GlbTextureRefLike;
+  occlusionTexture?: GlbTextureRefLike;
+}
+
+export interface GlbTextureDefLike {
+  source?: number;
+  sampler?: number;
+}
+
+export interface GlbImageLike {
+  bufferView?: number;
+  mimeType?: string;
+  uri?: string;
+}
+
+/** A glTF sampler's raw enum values — the scene maps them onto
+ *  three's filter/wrap constants when it rebuilds a texture. */
+export interface GlbSamplerLike {
+  magFilter?: number;
+  minFilter?: number;
+  wrapS?: number;
+  wrapT?: number;
+}
+
+export interface GlbJsonLike {
+  materials?: readonly GlbMaterialLike[];
+  textures?: readonly GlbTextureDefLike[];
+  images?: readonly GlbImageLike[];
+  samplers?: readonly GlbSamplerLike[];
+}
+
+/** A three.js material texture slot a repair step can fill. */
+export type FixtureTextureSlot =
+  | "map"
+  | "metalnessMap"
+  | "roughnessMap"
+  | "normalMap"
+  | "emissiveMap"
+  | "aoMap";
+
+export interface FixtureTextureRepairStep {
+  /** Index of the glTF material whose three material gets the slot. */
+  materialIndex: number;
+  slot: FixtureTextureSlot;
+  textureIndex: number;
+  imageIndex: number;
+  /** Where the image bytes sit inside the file's binary chunk. */
+  bufferView: number;
+  mimeType: string;
+  /** Colour textures (base colour, emissive) decode as sRGB; data
+   *  textures (metalness/roughness, normal, occlusion) stay linear. */
+  colorSpace: "srgb" | "linear";
+  sampler?: GlbSamplerLike;
+}
+
+/**
+ * The repair steps a parsed body's file declares: one per
+ * (material, slot) texture assignment whose image is embedded.
+ * A glTF metallicRoughnessTexture yields TWO steps (metalnessMap
+ * + roughnessMap — three splits the one texture across both).
+ * Materials without textures, textures without a source, and
+ * external-uri images yield none.
+ */
+export function fixtureTextureRepairPlan(
+  json: GlbJsonLike | null | undefined,
+): FixtureTextureRepairStep[] {
+  const steps: FixtureTextureRepairStep[] = [];
+  if (!json) return steps;
+  const textures = json.textures ?? [];
+  const images = json.images ?? [];
+  const samplers = json.samplers ?? [];
+  const push = (
+    materialIndex: number,
+    slot: FixtureTextureSlot,
+    ref: GlbTextureRefLike | undefined,
+    colorSpace: "srgb" | "linear",
+  ): void => {
+    if (!ref || typeof ref.index !== "number") return;
+    const texture = textures[ref.index];
+    if (!texture || typeof texture.source !== "number") return;
+    const image = images[texture.source];
+    if (!image || typeof image.bufferView !== "number" || image.uri) return;
+    steps.push({
+      materialIndex,
+      slot,
+      textureIndex: ref.index,
+      imageIndex: texture.source,
+      bufferView: image.bufferView,
+      mimeType: image.mimeType ?? "image/png",
+      colorSpace,
+      sampler:
+        typeof texture.sampler === "number" ? samplers[texture.sampler] : undefined,
+    });
+  };
+  (json.materials ?? []).forEach((mat, i) => {
+    const pbr = mat.pbrMetallicRoughness ?? {};
+    push(i, "map", pbr.baseColorTexture, "srgb");
+    push(i, "metalnessMap", pbr.metallicRoughnessTexture, "linear");
+    push(i, "roughnessMap", pbr.metallicRoughnessTexture, "linear");
+    push(i, "normalMap", mat.normalTexture, "linear");
+    push(i, "emissiveMap", mat.emissiveTexture, "srgb");
+    push(i, "aoMap", mat.occlusionTexture, "linear");
+  });
+  return steps;
 }
 
 /**
@@ -411,6 +573,63 @@ export async function attemptLoadPlan<T>(
     }
   }
   throw lastErr;
+}
+
+/**
+ * The ceiling on ONE load attempt. Until now nothing timed a load
+ * out: GLTFLoader's promise can hang forever on a texture step
+ * that never settles, and a hung attempt is worse than a failed
+ * one — the plan never advances, the beacon never fires, the heal
+ * ring never starts, and the post stands on its fallback with no
+ * record anywhere. 60 s is sized to the bodies themselves (the
+ * largest is ~6 MB — a 1 Mbps link lands it in ~48 s): the
+ * ceiling exists to burn a HUNG attempt, never a slow one, and
+ * the heal ring owns anything longer than an attempt.
+ */
+export const FIXTURE_ATTEMPT_TIMEOUT_MS = 60_000;
+
+export interface FixtureTimerDeps {
+  setTimer: (fn: () => void, ms: number) => unknown;
+  clearTimer: (handle: unknown) => void;
+}
+
+/**
+ * Race an attempt against its ceiling: the attempt's own outcome
+ * wins when it settles first (the timer is cleared); a timeout
+ * error wins when the ceiling speaks first — and the attempt's
+ * late outcome, success or failure, is then swallowed by the
+ * handlers already attached, never an unhandled rejection and
+ * never a second settle. A non-positive ceiling disables the
+ * race and returns the attempt itself.
+ */
+export function withFixtureAttemptTimeout<T>(
+  attempt: () => Promise<T>,
+  ms: number,
+  timers: FixtureTimerDeps,
+): Promise<T> {
+  if (!(ms > 0)) return attempt();
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const handle = timers.setTimer(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`fixture load attempt timed out after ${ms}ms`));
+    }, ms);
+    attempt().then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        timers.clearTimer(handle);
+        resolve(value);
+      },
+      (err) => {
+        if (settled) return;
+        settled = true;
+        timers.clearTimer(handle);
+        reject(err);
+      },
+    );
+  });
 }
 
 /* ── The slow ring: a failed load is not final for the session ──────

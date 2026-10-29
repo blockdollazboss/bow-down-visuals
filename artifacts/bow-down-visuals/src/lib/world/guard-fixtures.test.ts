@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  FIXTURE_ATTEMPT_TIMEOUT_MS,
   FIXTURE_BODIES,
   FIXTURE_HEAL_VISIBILITY_RECHECK_MS,
   FixtureBeaconLedger,
@@ -21,6 +22,8 @@ import {
   fixtureRotY,
   fixtureSway,
   fixtureSwayPhase,
+  fixtureTextureRepairPlan,
+  withFixtureAttemptTimeout,
   type WorldFixtureDef,
 } from "./guard-fixtures";
 import {
@@ -288,6 +291,184 @@ describe("bodyTexturesLanded — a white statue is a failed load", () => {
   it("declared textures with NO landed map fail — the white-statue parse", () => {
     expect(bodyTexturesLanded(2, [{}, {}])).toBe(false);
     expect(bodyTexturesLanded(1, [])).toBe(false);
+  });
+
+  it("the slots three.js actually fills count — metalnessMap and roughnessMap", () => {
+    /* A glTF metallicRoughnessTexture lands split across these two;
+       there is no metallicRoughnessMap property on a three material. */
+    expect(bodyTexturesLanded(2, [{ metalnessMap: {} }])).toBe(true);
+    expect(bodyTexturesLanded(2, [{ roughnessMap: {} }])).toBe(true);
+  });
+
+  it("a texture whose image has no pixels has not landed", () => {
+    expect(bodyTexturesLanded(1, [{ map: { image: { width: 0, height: 0 } } }])).toBe(false);
+    expect(bodyTexturesLanded(1, [{ map: { image: { width: 2048, height: 2048 } } }])).toBe(true);
+  });
+});
+
+describe("fixtureTextureRepairPlan — the texture step's second mechanism", () => {
+  /* The king's file shape, read off the real GLB: one material,
+     baseColor → texture 0, metallicRoughness → texture 1, both
+     embedded JPEGs, one shared sampler. */
+  const kingJson = {
+    materials: [
+      {
+        pbrMetallicRoughness: {
+          baseColorTexture: { index: 0 },
+          metallicRoughnessTexture: { index: 1 },
+        },
+      },
+    ],
+    textures: [
+      { source: 0, sampler: 0 },
+      { source: 1, sampler: 0 },
+    ],
+    images: [
+      { bufferView: 4, mimeType: "image/jpeg" },
+      { bufferView: 5, mimeType: "image/jpeg" },
+    ],
+    samplers: [{ magFilter: 9729, minFilter: 9987 }],
+  };
+
+  it("plans map + the split metallicRoughness pair for the king's material", () => {
+    const steps = fixtureTextureRepairPlan(kingJson);
+    expect(steps.map((s) => [s.slot, s.textureIndex, s.imageIndex, s.bufferView, s.colorSpace])).toEqual([
+      ["map", 0, 0, 4, "srgb"],
+      ["metalnessMap", 1, 1, 5, "linear"],
+      ["roughnessMap", 1, 1, 5, "linear"],
+    ]);
+    expect(steps.every((s) => s.materialIndex === 0)).toBe(true);
+    expect(steps[0]!.sampler).toEqual({ magFilter: 9729, minFilter: 9987 });
+    expect(steps[0]!.mimeType).toBe("image/jpeg");
+  });
+
+  it("untextured materials yield no steps (the guards' fin and tail)", () => {
+    const guardJson = {
+      ...kingJson,
+      materials: [kingJson.materials[0]!, {}, { pbrMetallicRoughness: {} }],
+    };
+    const steps = fixtureTextureRepairPlan(guardJson);
+    expect(steps).toHaveLength(3);
+    expect(steps.every((s) => s.materialIndex === 0)).toBe(true);
+  });
+
+  it("normal, emissive and occlusion assignments are planned with their colour spaces", () => {
+    const json = {
+      materials: [
+        {
+          normalTexture: { index: 0 },
+          emissiveTexture: { index: 1 },
+          occlusionTexture: { index: 0 },
+        },
+      ],
+      textures: [{ source: 0 }, { source: 1 }],
+      images: [{ bufferView: 1 }, { bufferView: 2 }],
+    };
+    const steps = fixtureTextureRepairPlan(json);
+    expect(steps.map((s) => [s.slot, s.colorSpace])).toEqual([
+      ["normalMap", "linear"],
+      ["emissiveMap", "srgb"],
+      ["aoMap", "linear"],
+    ]);
+    expect(steps[0]!.mimeType).toBe("image/png");
+  });
+
+  it("external-uri images are not repairable from the parsed file — skipped", () => {
+    const json = {
+      materials: [{ pbrMetallicRoughness: { baseColorTexture: { index: 0 } } }],
+      textures: [{ source: 0 }],
+      images: [{ uri: "textures/body.jpg" }],
+    };
+    expect(fixtureTextureRepairPlan(json)).toEqual([]);
+  });
+
+  it("empty and missing declarations plan nothing", () => {
+    expect(fixtureTextureRepairPlan(null)).toEqual([]);
+    expect(fixtureTextureRepairPlan(undefined)).toEqual([]);
+    expect(fixtureTextureRepairPlan({})).toEqual([]);
+    expect(fixtureTextureRepairPlan({ materials: [] })).toEqual([]);
+  });
+});
+
+describe("withFixtureAttemptTimeout — a hung load burns the attempt, not the session", () => {
+  function manualTimers() {
+    const pending = new Map<number, () => void>();
+    const cleared: number[] = [];
+    let next = 1;
+    return {
+      deps: {
+        setTimer: (fn: () => void) => {
+          const h = next++;
+          pending.set(h, fn);
+          return h;
+        },
+        clearTimer: (h: unknown) => {
+          cleared.push(h as number);
+          pending.delete(h as number);
+        },
+      },
+      fireAll: () => {
+        for (const fn of [...pending.values()]) fn();
+      },
+      cleared,
+      pendingCount: () => pending.size,
+    };
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it("passes the attempt's value through and clears its timer", async () => {
+    const t = manualTimers();
+    const out = await withFixtureAttemptTimeout(async () => "body", 1000, t.deps);
+    expect(out).toBe("body");
+    expect(t.cleared).toEqual([1]);
+    expect(t.pendingCount()).toBe(0);
+  });
+
+  it("passes the attempt's own failure through, timer cleared", async () => {
+    const t = manualTimers();
+    await expect(
+      withFixtureAttemptTimeout(async () => {
+        throw new Error("network died");
+      }, 1000, t.deps),
+    ).rejects.toThrow("network died");
+    expect(t.cleared).toEqual([1]);
+  });
+
+  it("rejects with the timeout when the attempt never settles", async () => {
+    const t = manualTimers();
+    const raced = withFixtureAttemptTimeout(() => new Promise<string>(() => {}), 250, t.deps);
+    const assertion = expect(raced).rejects.toThrow("fixture load attempt timed out after 250ms");
+    t.fireAll();
+    await assertion;
+  });
+
+  it("a late rejection after the timeout is swallowed, never a second settle", async () => {
+    const t = manualTimers();
+    let rejectAttempt: (e: unknown) => void = () => {};
+    const raced = withFixtureAttemptTimeout(
+      () => new Promise<string>((_, rej) => { rejectAttempt = rej; }),
+      250,
+      t.deps,
+    );
+    const assertion = expect(raced).rejects.toThrow("timed out after 250ms");
+    t.fireAll();
+    rejectAttempt(new Error("late network death"));
+    await assertion;
+    await flush(); /* an unhandled rejection would surface as a suite error */
+  });
+
+  it("a non-positive ceiling disables the race", async () => {
+    const t = manualTimers();
+    const out = await withFixtureAttemptTimeout(async () => 7, 0, t.deps);
+    expect(out).toBe(7);
+    expect(t.pendingCount()).toBe(0);
+  });
+
+  it("the shipped ceiling is sized to the bodies, not to impatience", () => {
+    /* The largest body is ~6 MB; the ceiling must forgive a slow
+       link (≥30 s) while still burning a truly hung attempt. */
+    expect(FIXTURE_ATTEMPT_TIMEOUT_MS).toBeGreaterThanOrEqual(30_000);
+    expect(FIXTURE_ATTEMPT_TIMEOUT_MS).toBeLessThanOrEqual(120_000);
   });
 });
 
