@@ -42,7 +42,7 @@ type Variant = z.infer<typeof variantSchema>;
 
 /* POST /api/wave8/hook-rewriter/rewrite { post, niche }
    → 200 { variants, creditsUsed, creditsRemaining }. Paid: 50 VB. */
-router.post("/wave8/hook-rewriter/rewrite", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/hook-rewriter/rewrite", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = rewriteSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

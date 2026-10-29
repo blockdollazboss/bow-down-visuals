@@ -232,7 +232,7 @@ async function insertRegistration(
 }
 
 /* POST /api/publishing-splits — register my song + its writer splits */
-router.post("/publishing-splits", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/publishing-splits", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = createSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({
@@ -378,13 +378,13 @@ async function writerAction(req: Request, res: Response, action: "confirm" | "di
     return res.status(500).json({ error: `Could not ${action} the share — try again.` });
   }
 }
-router.post("/publishing-splits/:id/confirm", publicApiLimiter, requireAuth, (req, res) => writerAction(req, res, "confirm"));
-router.post("/publishing-splits/:id/dispute", publicApiLimiter, requireAuth, (req, res) => writerAction(req, res, "dispute"));
+router.post("/publishing-splits/:id/confirm", requireAuth, publicApiLimiter, (req, res) => writerAction(req, res, "confirm"));
+router.post("/publishing-splits/:id/dispute", requireAuth, publicApiLimiter, (req, res) => writerAction(req, res, "dispute"));
 
 /* POST /api/publishing-splits/:id/amend — owner revises the whole split.
    Re-validates the sum; confirmations reset (fresh consent for new
    shares) and the dispute flag clears. Non-owners get a 404. */
-router.post("/publishing-splits/:id/amend", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/publishing-splits/:id/amend", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const id = String(req.params.id ?? "");
   if (!UUID_RE.test(id)) return res.status(404).json({ error: "Registration not found." });
   const parsed = amendSchema.safeParse(req.body ?? {});

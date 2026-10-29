@@ -91,7 +91,7 @@ async function refundOnFailure(userId: string): Promise<void> {
   }
 }
 
-router.post("/pro-tools/auto-grade", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/pro-tools/auto-grade", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = autoGradeSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid auto-grade request." });

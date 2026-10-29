@@ -346,8 +346,8 @@ export function parsePitchKitResponse(raw: string): PitchKit {
    Returns: { kit, creditsUsed, creditsRemaining } */
 router.post(
   "/playlist-pitch/kit",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = pitchKitSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

@@ -52,7 +52,7 @@ interface CtaVariant {
    → 200 { ctas: [{ text, placement, strength }] (ranked desc), creditsUsed, creditsRemaining }
    Paid: 50 Visual Bucs per generation. Auth required. 402 pre-check, then
    chargeCredits BEFORE the model call, auto-refund on model failure. */
-router.post("/generate-cta", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/generate-cta", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = ctaSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

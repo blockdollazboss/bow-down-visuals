@@ -93,7 +93,7 @@ async function validateCaptureTarget(userId: string, listId: string | null | und
   return list ? null : "That email list isn't yours.";
 }
 
-router.get("/keyword-automations/rules", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/keyword-automations/rules", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rules = await db
       .select()
@@ -127,7 +127,7 @@ router.get("/keyword-automations/rules", publicApiLimiter, requireAuth, async (r
   }
 });
 
-router.post("/keyword-automations/rules", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/keyword-automations/rules", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const parsed = ruleBodySchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -173,7 +173,7 @@ router.post("/keyword-automations/rules", publicApiLimiter, requireAuth, async (
   }
 });
 
-router.patch("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/keyword-automations/rules/:id", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rule = await loadOwnedRule(req, res, String(req.params["id"] ?? ""));
     if (!rule) return;
@@ -221,7 +221,7 @@ router.patch("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, as
   }
 });
 
-router.delete("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/keyword-automations/rules/:id", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rule = await loadOwnedRule(req, res, String(req.params["id"] ?? ""));
     if (!rule) return;
@@ -234,7 +234,7 @@ router.delete("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, a
 });
 
 /** The audit log: every recorded fire for the caller's rules. */
-router.get("/keyword-automations/events", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/keyword-automations/events", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const limit = Math.min(100, Math.max(1, Number(req.query["limit"] ?? 50) || 50));
     const rows = await db

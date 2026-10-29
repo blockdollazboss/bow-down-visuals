@@ -110,7 +110,7 @@ export function buildScriptPrompt(input: z.infer<typeof scriptWriterSchema>): st
    → 200 { title, hook, beats, retentionBeats, cta, teleprompter, creditsUsed, creditsRemaining }
    Paid: 2 credits per script. Auth required; credits are deducted BEFORE the
    model call and REFUNDED if the provider fails (money-integrity rule). */
-router.post("/script-writer", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/script-writer", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = scriptWriterSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

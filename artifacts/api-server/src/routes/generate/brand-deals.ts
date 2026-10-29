@@ -168,7 +168,7 @@ async function refund(userId: string, cost: number, action: string) {
    → 200 { deals[], disclaimer, creditsUsed, creditsRemaining }
    Paid: 200 credits per search. Auth required; credits are deducted BEFORE the
    model call and refunded if generation fails. */
-router.post("/brand-deals", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/brand-deals", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = finderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -260,7 +260,7 @@ router.post("/brand-deals", publicApiLimiter, requireAuth, async (req, res) => {
 /* POST /api/brand-deals/outreach { brand, dealType, creatorName, niche, audienceSize, platforms, contentStyle }
    → 200 { outreach: { subject, message }, tips[], creditsUsed, creditsRemaining }
    Paid: 100 credits per outreach draft. Auth required; refunded on failure. */
-router.post("/brand-deals/outreach", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/brand-deals/outreach", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = outreachSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

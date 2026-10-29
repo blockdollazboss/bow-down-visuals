@@ -492,8 +492,8 @@ async function uploadEpisode(
 
 router.post(
   "/podcast/generate",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = generateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

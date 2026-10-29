@@ -371,8 +371,8 @@ export async function detectHighlights(
    fetch it later; the stored ref is returned to the client. */
 router.post(
   "/streamer-clips/analyze",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   upload.single("video"),
   async (req: Request, res: Response) => {
     const parsed = analyzeBodySchema.safeParse(req.body ?? {});
@@ -637,7 +637,7 @@ export async function startStreamerCutJob(
  * 2 credits per clip, charged up front; failed jobs are refunded.
  * Returns 202 + jobId — poll GET /api/streamer-clips/cut/:jobId.
  */
-router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/streamer-clips/cut", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = cutBodySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -103,7 +103,7 @@ async function refundOnFailure(reqUserId: string, amount: number, action: string
 
 /* POST /api/ai-interview/questions { topic, niche? }
    → 200 { questions[5], creditsUsed, creditsRemaining } */
-router.post("/ai-interview/questions", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ai-interview/questions", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = questionsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -164,7 +164,7 @@ router.post("/ai-interview/questions", publicApiLimiter, requireAuth, async (req
 
 /* POST /api/ai-interview/package { topic, qa[5 × {question, answer}] }
    → 200 { clips[{quote, why}], quoteCards[3], promoOutline[], creditsUsed, creditsRemaining } */
-router.post("/ai-interview/package", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ai-interview/package", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = packageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

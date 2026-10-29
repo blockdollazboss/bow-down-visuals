@@ -88,7 +88,7 @@ function pdfBufferToBase64(buf: Buffer): string {
 /* POST /api/generate-invoice { brandName, creatorName, lineItems[], dueDate, … }
    → 200 { invoice, pdfBase64, pdfFilename, creditsUsed, creditsRemaining }
    Paid: 50 Visual Bucs. Auth required; charge first, refund on failure. */
-router.post("/generate-invoice", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/generate-invoice", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = invoiceRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -206,7 +206,7 @@ router.post("/generate-invoice", publicApiLimiter, requireAuth, async (req, res)
 });
 
 /* GET /api/invoices — the creator's invoice list (free, no credits). */
-router.get("/invoices", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/invoices", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(invoicesTable)
@@ -218,7 +218,7 @@ router.get("/invoices", publicApiLimiter, requireAuth, async (req, res) => {
 
 /* GET /api/invoices/:id/pdf — download the branded PDF (free, regenerated
    from the stored row). */
-router.get("/invoices/:id/pdf", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/invoices/:id/pdf", requireAuth, publicApiLimiter, async (req, res) => {
   const invoiceId = req.params["id"] as string;
   const rows = await db
     .select()
@@ -238,7 +238,7 @@ router.get("/invoices/:id/pdf", publicApiLimiter, requireAuth, async (req, res) 
 
 /* PATCH /api/invoices/:id { status: "paid" | "unpaid" } — mark an invoice
    paid or unpaid (free; the creator's bookkeeping, no AI cost). */
-router.patch("/invoices/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/invoices/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const schema = z.object({ status: z.enum(INVOICE_STATUSES) });
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) {

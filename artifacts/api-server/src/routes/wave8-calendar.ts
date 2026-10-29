@@ -74,7 +74,7 @@ async function refund(userId: string, reason: string) {
 
 /* POST /api/wave8/calendar/autofill { weekStart, pillars, vaultVoice? }
    → 200 { slots, creditsUsed, creditsRemaining }. Paid: 150 VB. */
-router.post("/wave8/calendar/autofill", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/calendar/autofill", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = autofillSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -204,7 +204,7 @@ router.post("/wave8/calendar/autofill", publicApiLimiter, requireAuth, async (re
 });
 
 /* GET /api/wave8/calendar/slots?weekStart=YYYY-MM-DD → { slots } — free. */
-router.get("/wave8/calendar/slots", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/wave8/calendar/slots", requireAuth, publicApiLimiter, async (req, res) => {
   const weekStart = typeof req.query.weekStart === "string" ? req.query.weekStart : "";
   if (!WEEK_START_RE.test(weekStart)) {
     res.status(400).json({ error: "weekStart must be YYYY-MM-DD." });
@@ -225,7 +225,7 @@ router.get("/wave8/calendar/slots", publicApiLimiter, requireAuth, async (req, r
 
 /* PATCH /api/wave8/calendar/slots/:id { dayIndex?, position?, title?, notes?, status? }
    → { slot }. Free — drag-to-rearrange persistence. */
-router.patch("/wave8/calendar/slots/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/wave8/calendar/slots/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const idParsed = uuidParam.safeParse(req.params.id);
   const bodyParsed = patchSchema.safeParse(req.body ?? {});
   if (!idParsed.success || !bodyParsed.success) {
@@ -250,7 +250,7 @@ router.patch("/wave8/calendar/slots/:id", publicApiLimiter, requireAuth, async (
 });
 
 /* DELETE /api/wave8/calendar/slots/:id → { deleted: true }. Free. */
-router.delete("/wave8/calendar/slots/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/wave8/calendar/slots/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const idParsed = uuidParam.safeParse(req.params.id);
   if (!idParsed.success) {
     res.status(400).json({ error: "Invalid slot id." });

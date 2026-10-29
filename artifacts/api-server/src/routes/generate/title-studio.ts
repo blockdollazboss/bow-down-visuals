@@ -145,7 +145,7 @@ export function parseTitleStudioResponse(raw: string): TitleStudioResult | null 
    Paid: 1 credit per generation. Auth required; credits are deducted BEFORE
    the model call and REFUNDED when the provider call fails (charge → try →
    refund pattern). 402 out_of_credits when the balance can't cover it. */
-router.post("/title-studio", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/title-studio", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = titleStudioSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

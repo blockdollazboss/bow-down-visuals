@@ -333,7 +333,7 @@ const AI_ANNOUNCEMENT_DIRECTION: Record<(typeof AI_ANNOUNCEMENT_TYPES)[number], 
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
-router.post("/discord/ai-announcement", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/discord/ai-announcement", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = aiAnnouncementSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request." });

@@ -93,7 +93,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
    → 200 { trends[5], disclaimer, creditsUsed, creditsRemaining }
    Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
-router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/trend-predictor/forecast", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = forecastSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -210,7 +210,7 @@ router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (r
 /* POST /api/trend-predictor/ideas { niche, trend, trendWhy? }
    → 200 { ideas[10], creditsUsed, creditsRemaining }
    Paid: 100 credits per 10-idea pack. Same charge-then-refund-on-failure flow. */
-router.post("/trend-predictor/ideas", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/trend-predictor/ideas", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = ideasSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

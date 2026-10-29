@@ -59,7 +59,7 @@ function makeSlug(title: string): string {
 }
 
 /* POST /api/content-plans/publish — opt-in publish (auth required, free) */
-router.post("/content-plans/publish", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/content-plans/publish", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = PublishSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

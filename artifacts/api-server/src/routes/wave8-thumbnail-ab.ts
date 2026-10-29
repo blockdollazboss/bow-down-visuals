@@ -44,7 +44,7 @@ async function fetchSourceFile(sourceImageUrl: string) {
   return await toFile(buffer, "thumbnail-source.png", { type: contentType });
 }
 
-router.post("/wave8/thumbnail-ab/variants", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/thumbnail-ab/variants", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = bodySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_request" });

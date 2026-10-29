@@ -128,7 +128,7 @@ const router = Router();
 
 /* POST /api/content-calendar → 200 { days, creditsUsed, creditsRemaining }
    Paid: 1 credit per calendar. Auth required. */
-router.post("/content-calendar", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = contentCalendarSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

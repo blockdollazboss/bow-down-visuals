@@ -59,7 +59,7 @@ const directorPlanResponseSchema = z.object({
 type PlannedShot = z.infer<typeof plannedShotSchema>;
 
 /* ─── POST /wave9d/director/plan — 150 VB ─── */
-router.post("/wave9d/director/plan", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9d/director/plan", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = directorPlanRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -210,7 +210,7 @@ router.post("/wave9d/director/plan", publicApiLimiter, requireAuth, async (req, 
 });
 
 /* ─── GET /wave9d/director/plans — free (saved plans list) ─── */
-router.get("/wave9d/director/plans", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/wave9d/director/plans", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rows = await db
       .select({

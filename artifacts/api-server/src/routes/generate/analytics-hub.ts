@@ -58,7 +58,7 @@ const insightsSchema = z.object({
    the model call and REFUNDED on model failure, using the same pre-check +
    deductCredits + refundCredits + recordCreditUsage pattern as the paid
    generate routes. */
-router.post("/analytics-hub/insights", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/analytics-hub/insights", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = insightsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -47,7 +47,7 @@ const releaseChecklistSchema = z.object({
    → 200 { plan: { weeks: [{ label, tasks: [{ id, title, detail, category, tool }] }, summary, preSaveTip }, creditsUsed, creditsRemaining }
    Paid: 2 credits. Auth required; credits are deducted BEFORE the model
    call and auto-refunded on any provider failure or unusable output. */
-router.post("/release-checklist", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/release-checklist", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = releaseChecklistSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

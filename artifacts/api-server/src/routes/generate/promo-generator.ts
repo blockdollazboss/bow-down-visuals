@@ -84,7 +84,7 @@ const promoSchema = z.object({
    → 200 { title, body, extras[], hashtags[], cta, creditsUsed, creditsRemaining }
    Paid: 1 credit per generation. Auth required; credits are deducted BEFORE
    the model call and refunded if generation fails or returns unusable output. */
-router.post("/promo-generator", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = promoSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

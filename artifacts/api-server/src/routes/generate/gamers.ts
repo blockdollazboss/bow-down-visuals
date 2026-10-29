@@ -52,7 +52,7 @@ async function refundOnFailure(userId: string, action: string): Promise<void> {
 /* POST /api/gamers/ideas { game, niche?, contentType }
    → 200 { titles[5], videoIdeas[5], tags[10], creditsUsed, creditsRemaining }
    Paid: 1 credit per generation. Auth required. */
-router.post("/gamers/ideas", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/gamers/ideas", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = gamersIdeasSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

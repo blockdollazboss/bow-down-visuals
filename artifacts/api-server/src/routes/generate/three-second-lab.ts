@@ -71,7 +71,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
    → 200 { openings[{text,visual,score,reasoning}] (5, score desc), creditsUsed, creditsRemaining }
    Paid: 2 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
-router.post("/three-second-lab/openings", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/three-second-lab/openings", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = openingsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

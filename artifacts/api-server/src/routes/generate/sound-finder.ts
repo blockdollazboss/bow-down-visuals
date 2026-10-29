@@ -237,7 +237,7 @@ export interface SoundMatch {
 /* POST /api/sound-finder/match { videoIdea, niche, platform } → 200 { matches, ... }
    Paid: 1 credit. Charge-before-generate; auto-refund on provider failure
    or unusable output. Auth required. */
-router.post("/sound-finder/match", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sound-finder/match", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = matchSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

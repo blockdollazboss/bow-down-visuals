@@ -104,7 +104,7 @@ async function guardCredits(req: { userCredits?: number }, amount: number, topup
    Paid: 100 credits. Pre-stream prep pack — NOT live assistance. Auth required;
    credits deducted BEFORE the model call. Provider failure or unusable
    output → refund + 502. */
-router.post("/stream-copilot/prep", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/stream-copilot/prep", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = prepSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -201,7 +201,7 @@ router.post("/stream-copilot/prep", publicApiLimiter, requireAuth, async (req, r
    → 200 { moments[{timestampHint,title,description,whyItWorks}], creditsUsed, creditsRemaining }
    Paid: 100 credits. Post-stream clip planning from the creator's recap with
    timestamps — NOT live assistance. Same charge-then-refund-on-failure flow. */
-router.post("/stream-copilot/clip-plan", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/stream-copilot/clip-plan", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = clipPlanSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

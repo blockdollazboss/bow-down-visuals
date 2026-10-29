@@ -542,7 +542,7 @@ export function checklistPasses(checklist: ChecklistItem[]): boolean {
    → 200 { titleOptions[], description, genreTags[], creditsUsed, creditsRemaining }
    Paid: 1 credit. Charged BEFORE the model call; refunded if the provider
    call fails (the creator got nothing, so they keep their credit). */
-router.post("/distribution/metadata", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/distribution/metadata", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = metadataSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -640,7 +640,7 @@ router.post("/distribution/metadata", publicApiLimiter, requireAuth, async (req,
    POST /api/distribution/strategy { title, artistName, genreTags?, releaseDate?, platforms? }
    → 200 { timing, promoPlan[], checklist[], creditsUsed, creditsRemaining }
    Paid: 1 credit, same charge-then-refund-on-failure pattern. */
-router.post("/distribution/strategy", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/distribution/strategy", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = strategySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -218,7 +218,7 @@ export const generateSfxHandler = async (req: Request, res: Response) => {
     }
 };
 
-router.post("/generate-sfx", publicApiLimiter, requireAuth, generateSfxHandler);
+router.post("/generate-sfx", requireAuth, publicApiLimiter, generateSfxHandler);
 
 /* Operator core (Phase 2, payfix operator-hands lane): the Tier 3
    sfx.generate tool runs this exact handler in-process (lib/rail-core)

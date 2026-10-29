@@ -176,7 +176,7 @@ async function settledBattle(id: string): Promise<BattleRow> {
 }
 
 /* POST /api/live-battles — challenge a creator by their profile slug */
-router.post("/live-battles", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/live-battles", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = createSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -193,7 +193,7 @@ router.post("/live-battles", publicApiLimiter, requireAuth, async (req: Request,
 });
 
 /* GET /api/live-battles/mine — every battle I'm a side of */
-router.get("/live-battles/mine", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/live-battles/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const rows = await store.listBattlesForUser(req.userId!);
     const settled: BattleRow[] = [];
@@ -289,11 +289,11 @@ function respondRoute(accept: boolean) {
   };
 }
 
-router.post("/live-battles/:id/accept", publicApiLimiter, requireAuth, respondRoute(true));
-router.post("/live-battles/:id/decline", publicApiLimiter, requireAuth, respondRoute(false));
+router.post("/live-battles/:id/accept", requireAuth, publicApiLimiter, respondRoute(true));
+router.post("/live-battles/:id/decline", requireAuth, publicApiLimiter, respondRoute(false));
 
 /* POST /api/live-battles/:id/cancel — the challenger calls it off */
-router.post("/live-battles/:id/cancel", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/live-battles/:id/cancel", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = param(req, "id");
     if (!UUID_RE.test(id)) return res.status(404).json({ error: "That battle doesn't exist.", code: "not_found" });
@@ -306,7 +306,7 @@ router.post("/live-battles/:id/cancel", publicApiLimiter, requireAuth, async (re
 
 /* POST /api/live-battles/:id/start — open the battle on a live stream
    owned by one of the two battlers (the service checks both). */
-router.post("/live-battles/:id/start", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/live-battles/:id/start", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = param(req, "id");
     if (!UUID_RE.test(id)) return res.status(404).json({ error: "That battle doesn't exist.", code: "not_found" });
@@ -326,7 +326,7 @@ router.post("/live-battles/:id/start", publicApiLimiter, requireAuth, async (req
    service upserts the voter's single row, never a second one.
    Battlers can never vote (participant_vote); guests never reach
    here (requireAuth) — they watch only. */
-router.post("/live-battles/:id/vote", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/live-battles/:id/vote", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = param(req, "id");
     if (!UUID_RE.test(id)) return res.status(404).json({ error: "That battle doesn't exist.", code: "not_found" });
@@ -353,7 +353,7 @@ router.post("/live-battles/:id/vote", publicApiLimiter, requireAuth, async (req:
    the result from the recorded rows. Battlers only (the service's
    finalize is also reachable through settle once the window has
    closed, so a result never waits on a manual close). */
-router.post("/live-battles/:id/finalize", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/live-battles/:id/finalize", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = param(req, "id");
     if (!UUID_RE.test(id)) return res.status(404).json({ error: "That battle doesn't exist.", code: "not_found" });

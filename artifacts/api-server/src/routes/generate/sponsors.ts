@@ -148,7 +148,7 @@ function invalidBody(res: { status: (c: number) => { json: (b: unknown) => void 
    paused answer carries the same plain-words message the 403 carries, so
    the surface can show it verbatim; the raw internal code never appears
    as the message. */
-router.get("/sponsors/can-spend", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/sponsors/can-spend", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const canSpend = await canUseCredits(req.userId!);
     if (canSpend) {
@@ -163,7 +163,7 @@ router.get("/sponsors/can-spend", publicApiLimiter, requireAuth, async (req, res
 });
 
 /* GET /api/sponsors/deals — browse active brand deals. Free (pure UI read). */
-router.get("/sponsors/deals", publicApiLimiter, requireAuth, async (_req, res) => {
+router.get("/sponsors/deals", requireAuth, publicApiLimiter, async (_req, res) => {
   try {
     const result = await db.execute(sql`
       SELECT id, brand_name, budget_min, budget_max, niche, deliverables,
@@ -181,7 +181,7 @@ router.get("/sponsors/deals", publicApiLimiter, requireAuth, async (_req, res) =
 });
 
 /* POST /api/sponsors/deals — brands post a deal. Paid: 5 credits. */
-router.post("/sponsors/deals", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = dealSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     invalidBody(res, parsed);
@@ -243,7 +243,7 @@ async function findActiveDeal(dealId: string): Promise<DealRow | null> {
 }
 
 /* POST /api/sponsors/deals/:id/apply — creators apply with a pitch. Free. */
-router.post("/sponsors/deals/:id/apply", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals/:id/apply", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = applySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     invalidBody(res, parsed);
@@ -293,7 +293,7 @@ router.post("/sponsors/deals/:id/apply", publicApiLimiter, requireAuth, async (r
 
 /* POST /api/sponsors/pitch — AI pitch writer. Paid: 100 credits, charged BEFORE
    the model call, auto-refunded on provider failure. */
-router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/pitch", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = pitchWriterSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     invalidBody(res, parsed);
@@ -405,7 +405,7 @@ router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) =
 
 /* POST /api/sponsors/match — AI deal matcher. Paid: 100 credits, charged BEFORE
    the model call, auto-refunded on provider failure. */
-router.post("/sponsors/match", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/match", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = matcherSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     invalidBody(res, parsed);
@@ -642,7 +642,7 @@ async function myApplicationStatus(dealId: string, userId: string): Promise<stri
 
 /* GET /api/sponsors/deals/:id — deal detail. Free (pure UI read).
    Brand owner sees escrow internals; everyone sees the public fields. */
-router.get("/sponsors/deals/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/sponsors/deals/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   if (!dealId) {
     res.status(400).json({ error: "Invalid deal id." });
@@ -673,7 +673,7 @@ router.get("/sponsors/deals/:id", publicApiLimiter, requireAuth, async (req, res
 
 /* GET /api/sponsors/deals/:id/applications — brand reviews applications.
    Only the deal poster can see the pitch list. Free (pure UI read). */
-router.get("/sponsors/deals/:id/applications", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/sponsors/deals/:id/applications", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   if (!dealId) {
     res.status(400).json({ error: "Invalid deal id." });
@@ -712,7 +712,7 @@ export const reviewApplicationSchema = z.object({
 /* PATCH /api/sponsors/applications/:id — brand accepts or rejects.
    Accepting locks the deal to that creator (other pending applications are
    rejected) and arms it for escrow funding. Free (pure UI action). */
-router.patch("/sponsors/applications/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const appId = uuidParam(req.params["id"]);
   const parsed = reviewApplicationSchema.safeParse(req.body ?? {});
   if (!appId || !parsed.success) {
@@ -834,7 +834,7 @@ export function buildSponsorEscrowCheckoutKey(args: {
    Without it: sandbox mode — returns a mock session the frontend can
    "complete" to simulate the funding flow end to end. No credits involved;
    this is real money (or the sandbox stand-in). */
-router.post("/sponsors/deals/:id/fund", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   const parsed = fundSchema.safeParse(req.body ?? {});
   if (!dealId || !parsed.success) {
@@ -965,7 +965,7 @@ export const escrowConfirmSchema = z.object({
 /* POST /api/sponsors/escrow/confirm — SANDBOX ONLY. Simulates a successful
    Stripe payment for a sandbox funding session. Refuses to run when real
    Stripe keys are configured (the webhook owns that path then). */
-router.post("/sponsors/escrow/confirm", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/escrow/confirm", requireAuth, publicApiLimiter, async (req, res) => {
   if (isStripeConfigured()) {
     res.status(400).json({ error: "Sandbox confirm is disabled — Stripe is configured; fund via Checkout." });
     return;
@@ -1003,7 +1003,7 @@ router.post("/sponsors/escrow/confirm", publicApiLimiter, requireAuth, async (re
 
 /* POST /api/sponsors/deals/:id/start — accepted creator starts work.
    Deal: funded → in_progress. */
-router.post("/sponsors/deals/:id/start", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals/:id/start", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   if (!dealId) {
     res.status(400).json({ error: "Invalid deal id." });
@@ -1033,7 +1033,7 @@ router.post("/sponsors/deals/:id/start", publicApiLimiter, requireAuth, async (r
 
 /* POST /api/sponsors/deals/:id/complete — accepted creator delivers.
    Deal: in_progress → completed. The brand then releases payment. */
-router.post("/sponsors/deals/:id/complete", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals/:id/complete", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   if (!dealId) {
     res.status(400).json({ error: "Invalid deal id." });
@@ -1064,7 +1064,7 @@ router.post("/sponsors/deals/:id/complete", publicApiLimiter, requireAuth, async
 /* POST /api/sponsors/deals/:id/release — brand releases the escrow to the
    creator. Bow Down Visuals keeps 15% (platform fee); the creator gets the
    rest. Writes the payout ledger row. Deal: completed → paid. */
-router.post("/sponsors/deals/:id/release", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals/:id/release", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   if (!dealId) {
     res.status(400).json({ error: "Invalid deal id." });
@@ -1185,7 +1185,7 @@ function sponsorSplitDto(grossCents: number) {
    Sponsor action: who you'd sponsor, the fee constant this rail actually
    applies, and the creator's existing public sponsors (recognition —
    only deals whose escrow actually funded are listed). */
-router.get("/sponsors/creator/:slug", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/sponsors/creator/:slug", requireAuth, publicApiLimiter, async (req, res) => {
   const slug = typeof req.params["slug"] === "string" ? req.params["slug"] : "";
   if (!slug || slug.length > 120) {
     res.status(400).json({ error: "Invalid creator." });
@@ -1230,7 +1230,7 @@ router.get("/sponsors/creator/:slug", publicApiLimiter, requireAuth, async (req,
    creator at the sponsor's own amount. Returns the deal plus the exact
    split the release step will apply, so the buyer sees price + split
    BEFORE paying. Paying is the separate fund step (escrow model). */
-router.post("/sponsors/creator/:slug", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/creator/:slug", requireAuth, publicApiLimiter, async (req, res) => {
   const slug = typeof req.params["slug"] === "string" ? req.params["slug"] : "";
   const parsed = directSponsorSchema.safeParse(req.body ?? {});
   if (!slug || slug.length > 120 || !parsed.success) {
@@ -1317,7 +1317,7 @@ export function buildSponsorEscrowPaymentIntentKey(args: {
    simulates the same movement. Replay-safe: a deal already in 'funding'
    returns its existing intent's client secret instead of minting a
    second payable intent. */
-router.post("/sponsors/deals/:id/fund-intent", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/deals/:id/fund-intent", requireAuth, publicApiLimiter, async (req, res) => {
   const dealId = uuidParam(req.params["id"]);
   if (!dealId) {
     res.status(400).json({ error: "Invalid deal id." });
@@ -1433,7 +1433,7 @@ export const escrowVerifySchema = z.object({
    and markEscrowFunded settles exactly once (the
    payment_intent.succeeded webhook branch settles the same way if the
    tab closed first — both key on the PaymentIntent id). */
-router.post("/sponsors/escrow/verify", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsors/escrow/verify", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = escrowVerifySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     invalidBody(res, parsed);
@@ -1490,7 +1490,7 @@ router.post("/sponsors/escrow/verify", publicApiLimiter, requireAuth, async (req
 
 /* GET /api/sponsors/dashboard — my deals, my applications, my earnings.
    Free (pure UI read). */
-router.get("/sponsors/dashboard", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/sponsors/dashboard", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const posted = await db.execute(sql`
       SELECT ${sql.raw(FULL_DEAL_COLS)}
@@ -1641,7 +1641,7 @@ router.get("/sponsors/pipeline/deals", requireAuth, async (req: Request, res: Re
 });
 
 /* POST /api/sponsors/pipeline/deals — create a deal (free, starts pitched) */
-router.post("/sponsors/pipeline/deals", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/sponsors/pipeline/deals", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = pipelineDealSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1670,7 +1670,7 @@ router.post("/sponsors/pipeline/deals", publicApiLimiter, requireAuth, async (re
 });
 
 /* PATCH /api/sponsors/pipeline/deals/:id — update fields or move stage (free) */
-router.patch("/sponsors/pipeline/deals/:id", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.patch("/sponsors/pipeline/deals/:id", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
     res.status(400).json({ error: "Deal id is required." });
@@ -1712,7 +1712,7 @@ router.patch("/sponsors/pipeline/deals/:id", publicApiLimiter, requireAuth, asyn
    Marks the deal paid AND posts the deal value to the income ledger in a
    single DB transaction. If the ledger insert fails, the deal keeps its
    prior stage — the client can retry safely. Free (pure DB). */
-router.post("/sponsors/pipeline/deals/:id/mark-paid", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/sponsors/pipeline/deals/:id/mark-paid", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
     res.status(400).json({ error: "Deal id is required." });
@@ -1766,7 +1766,7 @@ router.post("/sponsors/pipeline/deals/:id/mark-paid", publicApiLimiter, requireA
    success. Charge discipline unchanged from the retired wave8 rail:
    CreditsDisabledError from chargeCredits escapes to the app handler
    exactly as before — the lockdown behaviour is identical. */
-router.post("/sponsors/pipeline/followup", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/sponsors/pipeline/followup", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = pipelineFollowupSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

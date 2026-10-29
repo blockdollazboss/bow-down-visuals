@@ -159,7 +159,7 @@ async function writeCompletion(
 /* POST /api/finish-my-song/complete — multipart { demo: audio, notes?: text }
    → 200 { songUrl, lyrics, arrangement, influence, influenceNote, creditsUsed, creditsRemaining }
    Paid: 400 Visual Bucs. Charge BEFORE generation; refund on any failure. */
-router.post("/finish-my-song/complete", publicApiLimiter, requireAuth, upload.single("demo"), async (req, res) => {
+router.post("/finish-my-song/complete", requireAuth, publicApiLimiter, upload.single("demo"), async (req, res) => {
   const parsed = fieldsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -118,7 +118,7 @@ const CAUSE_CATEGORIES = [
    Paid: 150 Visual Bucs per diagnosis. Auth required; credits are deducted
    BEFORE the model call and REFUNDED on model failure, using the same
    pre-check + chargeCredits + refundCredits pattern as the paid routes. */
-router.post("/retention-doctor", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/retention-doctor", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = retentionSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

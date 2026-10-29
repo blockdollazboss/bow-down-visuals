@@ -290,8 +290,8 @@ router.get("/podcast/dialogue/status", publicApiLimiter, (_req, res) => {
 
 router.post(
   "/podcast/dialogue",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = dialogueSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

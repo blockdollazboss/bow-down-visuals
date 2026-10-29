@@ -162,8 +162,8 @@ async function uploadVoiceover(
 
 router.post(
   "/voiceover/generate",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = generateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

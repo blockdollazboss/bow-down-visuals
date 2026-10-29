@@ -252,7 +252,7 @@ async function refundOnFailure(userId: string): Promise<void> {
    Paid: 1 credit per plan. Auth required; credits are deducted BEFORE the
    model call using the same pre-check + deductCredits + recordCreditUsage
    pattern as hook-studio and the randomizer. */
-router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/monetization-coach", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = coachSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

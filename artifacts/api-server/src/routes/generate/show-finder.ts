@@ -149,7 +149,7 @@ async function refund(userId: string, cost: number, action: string) {
    → 200 { opportunities[], disclaimer, creditsUsed, creditsRemaining }
    Paid: 200 credits per search. Auth required; credits are deducted BEFORE the
    model call and refunded if generation fails. */
-router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/show-finder", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = finderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -240,7 +240,7 @@ router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
 /* POST /api/show-finder/pitch { opportunityTitle, opportunityType, organizer, creatorName, genre, artistBio, location }
    → 200 { pitch: { subject, body }, tips[], creditsUsed, creditsRemaining }
    Paid: 100 credits per pitch draft. Auth required; refunded on failure. */
-router.post("/show-finder/pitch", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/show-finder/pitch", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = pitchSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

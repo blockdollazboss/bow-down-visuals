@@ -55,8 +55,8 @@ const viralityCheckSchema = z.object({
    for a scorecard they didn't get. */
 router.post(
   "/virality-check",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = viralityCheckSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

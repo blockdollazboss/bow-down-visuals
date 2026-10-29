@@ -142,7 +142,7 @@ const structureRequestSchema = z.object({
   title: z.string().trim().max(200).optional().default(""),
 });
 
-router.post("/wave9a/structure/generate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9a/structure/generate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = structureRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -230,7 +230,7 @@ const timingRequestSchema = z.object({
   title: z.string().trim().max(200).optional().default(""),
 });
 
-router.post("/wave9a/lyrics/timing", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9a/lyrics/timing", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = timingRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -320,7 +320,7 @@ const saveStructureSchema = z.object({
   song_id: z.string().uuid().nullable().optional(),
 });
 
-router.get("/wave9a/structures", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/wave9a/structures", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rows = await db
       .select()
@@ -334,7 +334,7 @@ router.get("/wave9a/structures", publicApiLimiter, requireAuth, async (req, res)
   }
 });
 
-router.post("/wave9a/structures", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9a/structures", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = saveStructureSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -360,7 +360,7 @@ router.post("/wave9a/structures", publicApiLimiter, requireAuth, async (req, res
   }
 });
 
-router.delete("/wave9a/structures/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/wave9a/structures/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = uuidParam.safeParse(req.params.id);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid structure id." });
@@ -396,7 +396,7 @@ const patchVersionSchema = z
   })
   .refine((o) => Object.keys(o).length > 0, "Nothing to update.");
 
-router.get("/wave9a/versions", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/wave9a/versions", requireAuth, publicApiLimiter, async (req, res) => {
   const songId = typeof req.query.song_id === "string" ? req.query.song_id : "";
   if (songId && !uuidParam.safeParse(songId).success) {
     res.status(400).json({ error: "Invalid song_id." });
@@ -420,7 +420,7 @@ router.get("/wave9a/versions", publicApiLimiter, requireAuth, async (req, res) =
   }
 });
 
-router.post("/wave9a/versions", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9a/versions", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createVersionSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -459,7 +459,7 @@ router.post("/wave9a/versions", publicApiLimiter, requireAuth, async (req, res) 
   }
 });
 
-router.patch("/wave9a/versions/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/wave9a/versions/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const idParsed = uuidParam.safeParse(req.params.id);
   const bodyParsed = patchVersionSchema.safeParse(req.body ?? {});
   if (!idParsed.success || !bodyParsed.success) {
@@ -506,7 +506,7 @@ router.patch("/wave9a/versions/:id", publicApiLimiter, requireAuth, async (req, 
   }
 });
 
-router.delete("/wave9a/versions/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/wave9a/versions/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = uuidParam.safeParse(req.params.id);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid version id." });

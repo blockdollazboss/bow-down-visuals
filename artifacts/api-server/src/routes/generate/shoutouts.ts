@@ -201,7 +201,7 @@ router.get("/shoutouts/creators", publicApiLimiter, async (_req, res) => {
 });
 
 /* GET /api/shoutouts/settings — the creator's own settings (free). */
-router.get("/shoutouts/settings", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/shoutouts/settings", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(shoutoutSettingsTable)
@@ -210,7 +210,7 @@ router.get("/shoutouts/settings", publicApiLimiter, requireAuth, async (req, res
 });
 
 /* PUT /api/shoutouts/settings — create or update settings (free, owner only). */
-router.put("/shoutouts/settings", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/shoutouts/settings", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = settingsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -394,7 +394,7 @@ router.post("/shoutouts/requests/:id/checkout/verify", publicApiLimiter, async (
 });
 
 /* GET /api/shoutouts/requests — the creator's incoming requests (free, owner only). */
-router.get("/shoutouts/requests", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/shoutouts/requests", requireAuth, publicApiLimiter, async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
   const conditions = [eq(shoutoutRequestsTable.creator_user_id, req.userId!)];
   if (status && (REQUEST_STATUSES as readonly string[]).includes(status)) {
@@ -411,7 +411,7 @@ router.get("/shoutouts/requests", publicApiLimiter, requireAuth, async (req, res
 
 /* PATCH /api/shoutouts/requests/:id — update status / delivery URL (free, owner only).
    Enforces the transition map; terminal states can't be reopened. */
-router.patch("/shoutouts/requests/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = statusSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -464,7 +464,7 @@ router.patch("/shoutouts/requests/:id", publicApiLimiter, requireAuth, async (re
    Sums are computed from real tracked requests. Priced requests are
    payable via Checkout (0142); "earnable" counts accepted+ requests —
    for priced ones that now means actually paid (or free-accepted). */
-router.get("/shoutouts/revenue", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/shoutouts/revenue", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(shoutoutRequestsTable)
@@ -496,7 +496,7 @@ router.get("/shoutouts/revenue", publicApiLimiter, requireAuth, async (req, res)
    Paid: 1 credit. Charge-before-generate; refund on provider failure.
    Helps a fan write a warm, specific shoutout request the creator will
    actually enjoy recording. */
-router.post("/shoutouts/ai-message", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = aiMessageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

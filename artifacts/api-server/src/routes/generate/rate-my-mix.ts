@@ -250,7 +250,7 @@ async function coachMix(genre: string, m: MixMeasurements): Promise<string[]> {
 /* POST /api/rate-my-mix/analyze — multipart { mix: audio, genre?: text }
    → 200 { measurements, notes, creditsUsed, creditsRemaining }
    Paid: 100 Visual Bucs. Measurement failure → refund + 502. */
-router.post("/rate-my-mix/analyze", publicApiLimiter, requireAuth, upload.single("mix"), async (req, res) => {
+router.post("/rate-my-mix/analyze", requireAuth, publicApiLimiter, upload.single("mix"), async (req, res) => {
   const parsed = fieldsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

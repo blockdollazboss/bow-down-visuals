@@ -210,7 +210,7 @@ export function parseAuditJson(raw: string): ParsedAudit {
    → 200 { overallGrade, overallScore, verdict, disclaimer, dimensions[], topPriorities[], quickActions, creditsUsed, creditsRemaining }
    Paid: 3 credits. Auth required; credits deducted BEFORE the model call,
    auto-refunded on provider failure or unusable output. */
-router.post("/channel-audit", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = auditSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

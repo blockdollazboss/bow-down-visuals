@@ -543,8 +543,8 @@ router.get("/video-translator/languages", (_req, res) => {
  */
 router.post(
   "/video-translator/translate",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   upload.single("video"),
   async (req, res) => {
     let body: unknown = req.body;

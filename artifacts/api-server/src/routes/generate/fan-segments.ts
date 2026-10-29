@@ -112,7 +112,7 @@ const refSchema = z.object({
 
 /* ── List: presets + saved, each with its LIVE count + preview ──── */
 
-router.get("/email-list/fan-segments", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/fan-segments", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const { fans } = await loadFanGraph(req.userId!);
     const presets = FAN_SEGMENT_PRESETS.map((p) => {
@@ -152,7 +152,7 @@ const saveSchema = z.object({
   rules: z.unknown(),
 });
 
-router.post("/email-list/fan-segments", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/fan-segments", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = saveSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid segment.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
@@ -177,7 +177,7 @@ router.post("/email-list/fan-segments", publicApiLimiter, requireAuth, async (re
   }
 });
 
-router.patch("/email-list/fan-segments/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/email-list/fan-segments/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const parsed = saveSchema.partial().safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -210,7 +210,7 @@ router.patch("/email-list/fan-segments/:id", publicApiLimiter, requireAuth, asyn
   }
 });
 
-router.delete("/email-list/fan-segments/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/email-list/fan-segments/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   try {
     const deleted = await deleteFanSegment(req.userId!, id);
@@ -230,7 +230,7 @@ router.delete("/email-list/fan-segments/:id", publicApiLimiter, requireAuth, asy
 
 /* ── Preview: count + preview list, nothing sent ─────────────────── */
 
-router.post("/email-list/fan-segments/preview", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/fan-segments/preview", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = refSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid preview request." });
@@ -254,7 +254,7 @@ const sendSchema = refSchema.extend({
   body: z.string().min(1, "Body is required.").max(50000),
 });
 
-router.post("/email-list/fan-segments/send", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/fan-segments/send", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = sendSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

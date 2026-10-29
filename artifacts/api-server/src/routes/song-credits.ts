@@ -144,7 +144,7 @@ router.get("/song-credits/:kind/:id/sheet", async (req: Request, res: Response) 
 });
 
 /* PUT /api/song-credits/:kind/:id — owner-only canonical write */
-router.put("/song-credits/:kind/:id", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.put("/song-credits/:kind/:id", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const anchor = parseAnchor(req);
   if (!anchor) return res.status(404).json({ error: "Song not found." });
   const parsed = saveSchema.safeParse(req.body ?? {});

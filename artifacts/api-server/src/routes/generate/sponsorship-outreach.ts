@@ -109,7 +109,7 @@ export function parseOutreachKit(raw: string): OutreachKit | null {
 /* POST /api/outreach { creator..., brand... } → 200 { kit, creditsUsed, creditsRemaining }
    Paid: 200 credits per outreach kit. Auth required; credits are deducted BEFORE
    the model call, with automatic refund on provider failure or unusable output. */
-router.post("/outreach", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/outreach", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = outreachSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

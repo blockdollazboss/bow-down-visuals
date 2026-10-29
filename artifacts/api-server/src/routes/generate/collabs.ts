@@ -208,7 +208,7 @@ function toSummary(row: typeof collabProfilesTable.$inferSelect): MatchProfileSu
 }
 
 /* GET /api/collabs/profiles?niche=music → 200 { profiles } — FREE browse */
-router.get("/collabs/profiles", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/collabs/profiles", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = browseSchema.safeParse(req.query ?? {});
   const niche = parsed.success ? parsed.data.niche : undefined;
   try {
@@ -246,7 +246,7 @@ router.get("/collabs/profiles", publicApiLimiter, requireAuth, async (req, res) 
 });
 
 /* GET /api/collabs/profile/me → 200 { profile | null } — FREE */
-router.get("/collabs/profile/me", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/collabs/profile/me", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rows = await db
       .select()
@@ -273,7 +273,7 @@ router.get("/collabs/profile/me", publicApiLimiter, requireAuth, async (req, res
 });
 
 /* POST /api/collabs/profile → 200 { profile } — FREE create/update */
-router.post("/collabs/profile", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/collabs/profile", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = upsertProfileSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -322,7 +322,7 @@ router.post("/collabs/profile", publicApiLimiter, requireAuth, async (req, res) 
 
 /* POST /api/collabs/match { targetUserId } → 200 { report, creditsUsed, creditsRemaining }
    PAID: 1 credit. Charge before generate, refund on provider failure. */
-router.post("/collabs/match", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/collabs/match", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = matchSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -399,7 +399,7 @@ router.post("/collabs/match", publicApiLimiter, requireAuth, async (req, res) =>
 });
 
 /* POST /api/collabs/requests { toUserId, message } → 200 { ok } — FREE send */
-router.post("/collabs/requests", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/collabs/requests", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = sendRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -480,7 +480,7 @@ router.post("/collabs/requests", publicApiLimiter, requireAuth, async (req, res)
 });
 
 /* GET /api/collabs/requests → 200 { received, sent } — FREE inbox */
-router.get("/collabs/requests", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/collabs/requests", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const [received, sent] = await Promise.all([
       db
@@ -532,7 +532,7 @@ router.get("/collabs/requests", publicApiLimiter, requireAuth, async (req, res) 
 });
 
 /* POST /api/collabs/requests/:id/respond { action } → 200 { ok } — FREE */
-router.post("/collabs/requests/:id/respond", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/collabs/requests/:id/respond", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = respondSchema.safeParse(req.body ?? {});
   const id = typeof req.params.id === "string" ? req.params.id : "";
   if (!parsed.success || !id) {

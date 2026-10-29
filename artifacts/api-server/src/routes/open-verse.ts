@@ -208,7 +208,7 @@ async function requirePost(req: Request, res: Response): Promise<{ post: OpenVer
 }
 
 /* POST /api/open-verse — post my song with an open verse slot */
-router.post("/open-verse", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/open-verse", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = createSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({
@@ -351,7 +351,7 @@ router.get("/open-verse/:id", requireAuth, async (req: Request, res: Response) =
 });
 
 /* POST /api/open-verse/:id/submit — submit my verse (free, in-app) */
-router.post("/open-verse/:id/submit", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/open-verse/:id/submit", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = submitSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({
@@ -460,13 +460,13 @@ async function ownerPostAction(req: Request, res: Response, action: "close" | "c
     return res.status(500).json({ error: `Could not ${action} the open verse — try again.` });
   }
 }
-router.post("/open-verse/:id/close", publicApiLimiter, requireAuth, (req, res) => ownerPostAction(req, res, "close"));
-router.post("/open-verse/:id/cancel", publicApiLimiter, requireAuth, (req, res) => ownerPostAction(req, res, "cancel"));
+router.post("/open-verse/:id/close", requireAuth, publicApiLimiter, (req, res) => ownerPostAction(req, res, "close"));
+router.post("/open-verse/:id/cancel", requireAuth, publicApiLimiter, (req, res) => ownerPostAction(req, res, "cancel"));
 
 /* POST /api/open-verse/:id/pick-winner — owner only; the winner's verse
    goes onto the track and the split agreement is ledgered EXACTLY ONCE
    (unique post_id + idempotency key; a same-winner retry replays). */
-router.post("/open-verse/:id/pick-winner", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/open-verse/:id/pick-winner", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = pickSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     return res.status(400).json({ error: "invalid", message: "Pick a verse to crown." });
@@ -521,7 +521,7 @@ router.post("/open-verse/:id/pick-winner", publicApiLimiter, requireAuth, async 
 });
 
 /* POST /api/open-verse/:id/withdraw — withdraw MY verse */
-router.post("/open-verse/:id/withdraw", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/open-verse/:id/withdraw", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     await probeOpenVerseTables();
   } catch (err) {

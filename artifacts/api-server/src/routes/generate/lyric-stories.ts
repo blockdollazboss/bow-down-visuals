@@ -101,7 +101,7 @@ async function planStoryMoments(lyrics: string, count: number, style: string): P
 
 /* POST /api/lyric-stories/generate { lyrics, count?, style? }
    → 200 { cards[{lyricExcerpt, imageUrl, visualDescription}], partial?, creditsUsed, creditsRemaining } */
-router.post("/lyric-stories/generate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/lyric-stories/generate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = storiesSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

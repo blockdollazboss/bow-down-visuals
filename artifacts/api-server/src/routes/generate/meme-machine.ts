@@ -42,7 +42,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
    → 200 { captions[5], creditsUsed, creditsRemaining }
    Paid: 100 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
-router.post("/meme-machine/captions", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/meme-machine/captions", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = captionsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
