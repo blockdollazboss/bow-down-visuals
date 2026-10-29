@@ -373,4 +373,37 @@ describe("kill switch + daily cap", () => {
     const out = await executeAction({ userId: MEMBER, toolId: "test.charged", channel: "chat_text", pendingId: proposal.pendingId });
     expect(out.status).toBe("done");
   });
+
+  it("the owner's account is never daily-capped (Oct 29, 2026: no customer restrictions)", async () => {
+    process.env["ADMIN_EMAILS"] = ADMIN_EMAIL;
+    for (let i = 0; i < OPERATOR_DAILY_CHARGED_CAP; i++) {
+      h.fake.seed("operatorActions", [{
+        userId: MEMBER, tier: 3, toolId: "test.charged", summary: "Made the test thing",
+        channel: "chat_text", priceQuoted: 400, priceCharged: 400, result: "done",
+        createdAt: new Date(),
+      }]);
+    }
+    const proposal = await proposeAction({ userId: MEMBER, userEmail: ADMIN_EMAIL, toolId: "test.charged", channel: "chat_text" });
+    if (proposal.status !== "proposed") throw new Error("unreachable");
+    const out = await executeAction({ userId: MEMBER, userEmail: ADMIN_EMAIL, toolId: "test.charged", channel: "chat_text", pendingId: proposal.pendingId });
+    expect(out.status).toBe("done");
+    expect(state.chargedRuns).toBe(1);
+  });
+
+  it("the cap still binds a non-admin at the same count (the bypass keys on the admin predicate, not the seed)", async () => {
+    process.env["ADMIN_EMAILS"] = ADMIN_EMAIL;
+    for (let i = 0; i < OPERATOR_DAILY_CHARGED_CAP; i++) {
+      h.fake.seed("operatorActions", [{
+        userId: MEMBER, tier: 3, toolId: "test.charged", summary: "Made the test thing",
+        channel: "chat_text", priceQuoted: 400, priceCharged: 400, result: "done",
+        createdAt: new Date(),
+      }]);
+    }
+    const proposal = await proposeAction({ userId: MEMBER, userEmail: "member@example.test", toolId: "test.charged", channel: "chat_text" });
+    if (proposal.status !== "proposed") throw new Error("unreachable");
+    const out = await executeAction({ userId: MEMBER, userEmail: "member@example.test", toolId: "test.charged", channel: "chat_text", pendingId: proposal.pendingId });
+    expect(out.status).toBe("refused");
+    expect(out.reason).toBe("daily_cap");
+    expect(state.chargedRuns).toBe(0);
+  });
 });

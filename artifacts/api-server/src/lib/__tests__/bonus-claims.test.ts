@@ -378,6 +378,48 @@ describe("spinWheel — CAS cooldown claim", () => {
   });
 });
 
+describe("spinWheel — owner exemption (Oct 29, 2026: no customer restrictions)", () => {
+  const OWNER_EMAIL = "owner@example.test";
+
+  it("an admin inside the hour spins anyway — and the stamp still moves", async () => {
+    process.env["ADMIN_EMAILS"] = OWNER_EMAIL;
+    try {
+      const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+      const row = seedProfile({ email: OWNER_EMAIL, last_wheel_spin: tenMinAgo, bonus_credits: 300 });
+      const res = await spinWheel(USER);
+      expect(res.spun).toBe(true);
+      expect(row.bonus_credits).toBe(300 + res.segment!.credits);
+      expect(row.last_wheel_spin).not.toBe(tenMinAgo);
+    } finally {
+      delete process.env["ADMIN_EMAILS"];
+    }
+  });
+
+  it("the same stamp still refuses a non-admin (the exemption keys on the admin predicate)", async () => {
+    process.env["ADMIN_EMAILS"] = OWNER_EMAIL;
+    try {
+      const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+      const row = seedProfile({ email: "member@example.test", last_wheel_spin: tenMinAgo, bonus_credits: 300 });
+      const res = await spinWheel(USER);
+      expect(res.spun).toBe(false);
+      expect(res.reason).toBe("cooldown");
+      expect(row.bonus_credits).toBe(300);
+    } finally {
+      delete process.env["ADMIN_EMAILS"];
+    }
+  });
+
+  it("ADMIN_EMAILS unset: even the owner's address is refused (fail-closed)", async () => {
+    delete process.env["ADMIN_EMAILS"];
+    const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+    const row = seedProfile({ email: OWNER_EMAIL, last_wheel_spin: tenMinAgo, bonus_credits: 300 });
+    const res = await spinWheel(USER);
+    expect(res.spun).toBe(false);
+    expect(res.reason).toBe("cooldown");
+    expect(row.bonus_credits).toBe(300);
+  });
+});
+
 describe("crateCooldownSeconds — status cooldown follows the hourly crate claims", () => {
   it("crate unclaimed this hour: ready (0)", () => {
     expect(crateCooldownSeconds({ available: true, nextHourIn: 1800 })).toBe(0);
