@@ -3,14 +3,20 @@ import { Check, Crown, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
 import {
+  PLAN_CHANGE_CLEARS_CANCEL_LINE,
   apiErrorLine,
   parseSitePlanMe,
   parseSitePlans,
+  planChangeChargeLine,
+  planChangeOutcome,
+  planChangeStartLine,
   planCheckoutPayload,
   planHostedUrl,
   planIntentOutcome,
   planPriceLabel,
   plansNote,
+  type PlanChangeOutcome,
+  type PlanChangePreview,
   type PlanIntentOutcome,
   type SitePlan,
   type SitePlanMe,
@@ -33,7 +39,13 @@ import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-
    its /verify twin (the creator-pricing page's own embedded flow).
    An intent that FAILS stops in this desk with the pricing page's
    honest error — it never falls through to a hosted page
-   (stack600 plansdesk-honesty; see checkout() below).
+   (stack600 plansdesk-honesty; see checkout() below). A subscriber
+   who picks a DIFFERENT tier gets the intent's mode:"change"
+   answer: the desk shows the proration preview in an in-desk
+   confirm panel (the pricing page's copy and pinned numbers) and
+   applies the swap via POST /api/creator-tiers/change — same
+   subscription, same card, all inside this sheet (stack600
+   plansdesk-change; see applyChange() below).
    The hosted rail remains the fallback when no key is configured:
    POST /api/creator-tiers/checkout { tier, returnTo: "/world" },
    and managing rides POST /api/creator-tiers/portal; both answer a
@@ -57,6 +69,8 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
   const [openedNote, setOpenedNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [embedded, setEmbedded] = useState<{ tier: string; clientSecret: string; subscriptionId: string; label: string } | null>(null);
+  const [changePreview, setChangePreview] = useState<PlanChangePreview | null>(null);
+  const [changing, setChanging] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -116,6 +130,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
     setBusyTier(plan.tier);
     setError(null);
     setOpenedNote(null);
+    setChangePreview(null);
     try {
       /* Embedded first (never leave the site) — the intent answers
          a clientSecret + subscriptionId and the desk mounts the
@@ -170,6 +185,16 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
           void load();
           return;
         }
+        if (outcome.kind === "change") {
+          /* A subscriber switching tiers (stack600 tier-change):
+             the intent charged NOTHING — it answered the proration
+             preview. The confirm panel below shows those pinned
+             numbers and Confirm applies the swap in place via
+             applyChange; Not now leaves everything untouched. */
+          setEmbedded(null);
+          setChangePreview(outcome.preview);
+          return;
+        }
         setError(outcome.message);
         return;
       }
@@ -194,6 +219,49 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network hiccup — try again.");
     } finally { setBusyTier(null); }
+  };
+
+  /* Confirm the tier change (stack600 plansdesk-change): POST the
+     preview's tier to the ONE change endpoint the pricing page and
+     Settings → Billing use. The endpoint re-prices the swap at the
+     proration instant it pinned for the preview the walker just
+     confirmed — the numbers on the panel are the numbers charged —
+     and the swap is idempotency-keyed on the pre-change state, so
+     a double-tap replays as alreadyApplied instead of charging
+     twice. The POST rides the same transport-resilient helper as
+     the intent (safe for the same reason), and every failure stops
+     HERE with the honest line — the panel stays up so the walker
+     can read it, retry, or back out with Not now. Nothing about
+     this path leaves the sheet: no new tab, no hosted fallback. */
+  const applyChange = async () => {
+    if (!changePreview || changing) return;
+    setChanging(true);
+    setError(null);
+    try {
+      const headers = await authHeaders();
+      const token = headers.Authorization?.replace(/^Bearer\s+/i, "") ?? null;
+      let outcome: PlanChangeOutcome;
+      try {
+        const result = await postJsonWithTransportRetry(
+          "/api/creator-tiers/change",
+          { token, body: { tier: changePreview.toTier } },
+        );
+        outcome = planChangeOutcome(result);
+      } catch (err) {
+        /* Every attempt failed at transport level — named by the
+           shared failure copy, nothing-charged wording included. */
+        setError(checkoutFailureCopy(err));
+        return;
+      }
+      if (outcome.kind === "error") {
+        setError(outcome.message);
+        return;
+      }
+      const name = changePreview.toPlanName;
+      setChangePreview(null);
+      setOpenedNote(`${name} is your plan now — the change applied in place, prorated on your existing subscription.`);
+      void load();
+    } finally { setChanging(false); }
   };
 
   const openPortal = async () => {
@@ -245,6 +313,10 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
               {plans.map((plan) => {
                 const isMine = me?.tier === plan.tier;
                 const paid = plan.priceUsdPerMonth !== null;
+                /* A paid subscriber looking at the OTHER paid tier is
+                   switching, not buying — the card says so, like the
+                   pricing page's subscriber buttons. */
+                const isSwitch = !!me && paid && me.tier !== "free" && me.tier !== plan.tier;
                 return (
                   <div key={plan.tier} data-testid={`world-plan-${plan.tier}`}
                     className={`flex flex-col rounded-2xl border px-3 py-3 ${isMine ? "border-[#d4af37] bg-[#d4af37]/[0.07]" : isLight ? "border-[#7A5A12]/25 bg-white/50" : "border-white/10 bg-white/5"}`}>
@@ -279,7 +351,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                       <button type="button" data-testid={`world-plan-buy-${plan.tier}`} onClick={() => void checkout(plan)} disabled={busyTier !== null}
                         className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
                         {busyTier === plan.tier ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                        {busyTier === plan.tier ? "Starting…" : `Go ${plan.name} — ${planPriceLabel(plan)}`}
+                        {busyTier === plan.tier ? "Starting…" : isSwitch ? `Switch to ${plan.name} — ${planPriceLabel(plan)}` : `Go ${plan.name} — ${planPriceLabel(plan)}`}
                       </button>
                     )}
                   </div>
@@ -304,6 +376,36 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                 >
                   Cancel — no charge
                 </button>
+              </div>
+            )}
+            {changePreview && (
+              <div data-testid="world-plans-change-confirm"
+                className={`mx-auto w-full max-w-md rounded-2xl border px-4 py-3 ${isLight ? "border-[#7A5A12]/40 bg-white/50" : "border-[#d4af37]/40 bg-[#d4af37]/[0.07]"}`}>
+                <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                  Switch to {changePreview.toPlanName}?
+                </p>
+                <p className={`mt-1 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
+                  {planChangeChargeLine(changePreview)}
+                </p>
+                <p className={`mt-1 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
+                  {planChangeStartLine(changePreview)}
+                </p>
+                {changePreview.clearsPendingCancel && (
+                  <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                    {PLAN_CHANGE_CLEARS_CANCEL_LINE}
+                  </p>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <button type="button" data-testid="world-plans-change-apply" onClick={() => void applyChange()} disabled={changing}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                    {changing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
+                    {changing ? "Switching…" : `Yes, switch to ${changePreview.toPlanName}`}
+                  </button>
+                  <button type="button" data-testid="world-plans-change-cancel" onClick={() => setChangePreview(null)} disabled={changing}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                    Not now
+                  </button>
+                </div>
               </div>
             )}
             {note && <p className={`text-[11px] ${muted}`}>{note}</p>}
