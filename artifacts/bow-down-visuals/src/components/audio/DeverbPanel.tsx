@@ -24,9 +24,9 @@ import { useHubProject } from "@/lib/hub-project";
    voiceover/podcast, cleaned vocal → song flow). */
 
 // PLACEHOLDER — NOT USER-APPROVED. Mirrors the server's
-// DEVERB_CREDIT_COST (1000 credits = 10 Visual Bucs) proposal.
+// DEVERB_CREDIT_COST (1000 Visual Bucs) proposal.
 // Do not edit: the final price needs the user's explicit approval.
-const DEVERB_CREDIT_COST_VB = 10;
+const DEVERB_CREDIT_COST_VB = 1000;
 const DEVERB_MAX_BYTES = 50 * 1024 * 1024;
 
 type DeverbModeKey = "dialogue" | "vocal";

@@ -10,9 +10,9 @@ import { useHubProject } from "@/lib/hub-project";
 
 /* ── Cover in Motion ──────────────────────────────────────────────────────
    Create hub panel. Animates cover art into a looping Spotify-canvas-style
-   visualizer via the existing image-to-video pipeline. 4 VB for a 5s loop. */
+   visualizer via the existing image-to-video pipeline. 400 VB for a 5s loop. */
 
-const COST = 4;
+const COST = 400;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none";

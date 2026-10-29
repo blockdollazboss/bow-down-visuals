@@ -9,9 +9,9 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 /* ── Fan Decoder ──────────────────────────────────────────────────────────
    Analytics hub tab. Paste comments/DMs — AI decodes what the audience
    wants next: ranked wants with supporting quotes, concrete content
-   directions, tone notes. 1 VB. */
+   directions, tone notes. 100 VB. */
 
-const COST = 1;
+const COST = 100;
 
 interface Want {
   want: string;

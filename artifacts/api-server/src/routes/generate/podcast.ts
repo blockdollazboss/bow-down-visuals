@@ -24,7 +24,7 @@
  *              download it and submit to Spotify for Podcasters / Apple
  *              Podcasts Connect. We do NOT auto-publish (honest UX).
  *
- * Pricing: 3 credits per 10 minutes of audio (env-overridable via
+ * Pricing: 300 credits per 10 minutes of audio (env-overridable via
  * PODCAST_CREDITS_PER_10MIN). Duration is estimated from word count at
  * ~150 wpm; charge-before-generate; auto-refund on provider/upload failure.
  * Topic-mode script writing is included in the audio charge.

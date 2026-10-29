@@ -11,9 +11,9 @@ import { useToast } from "@/hooks/use-toast";
    Lives in the Plan hub (/scheduler) as a tab. Picks up a trend — from the
    Trend Predictor watchlist (localStorage) or typed in — and generates a
    complete draft video package in the user's style: hook, script, shot-by-
-   shot visual plan, caption, hashtags. 2 credits per draft. */
+   shot visual plan, caption, hashtags. 200 credits per draft. */
 
-const DRAFT_CREDITS = 2;
+const DRAFT_CREDITS = 200;
 const WATCHLIST_KEY = "bdv-trend-watchlist";
 
 interface TrendDraft {

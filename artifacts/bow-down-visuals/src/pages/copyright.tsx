@@ -16,15 +16,15 @@ import { useTranslation } from "react-i18next";
    AI-powered guided page for U.S. copyright registration prep (content creators).
 
    The form is FREE UI. The AI layer is core and prominent:
-   - "Generate filing draft" → POST /api/copyright/draft (1 credit) — formal
+   - "Generate filing draft" → POST /api/copyright/draft (100 credits) — formal
      description of work + filing notes (application choice, deposit, authorship).
-   - "Ask about copyright" Q&A box → POST /api/copyright/ask (1 credit/answer).
+   - "Ask about copyright" Q&A box → POST /api/copyright/ask (100 credits/answer).
    We prepare everything; the creator files at copyright.gov themselves (v1).
    Registrations are tracked in localStorage (v1 persistence).
    NOT legal advice — disclaimer is shown in multiple places. */
 
-const DRAFT_CREDIT_COST = 1;
-const ASK_CREDIT_COST = 1;
+const DRAFT_CREDIT_COST = 100;
+const ASK_CREDIT_COST = 100;
 
 type WorkType = "song" | "sound-recording" | "lyrics" | "music-video" | "album";
 

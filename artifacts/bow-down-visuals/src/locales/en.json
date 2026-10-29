@@ -2186,7 +2186,7 @@
       }
     },
     "dealTypesLabel": "What kind of deals?",
-    "draftButton": "Draft my outreach · {{n}} credit",
+    "draftButton": "Draft my outreach · {{n}} credits",
     "draftingButton": "Drafting your outreach…",
     "errorContentStyle": "Describe your content style — it's how the scout matches brands to YOU.",
     "errorDealTypes": "Pick at least one deal type to hunt for.",
@@ -6250,7 +6250,7 @@
     "copyButton": "Copy",
     "dateTbd": "Date TBD — verify",
     "dateWindowLabel": "Date window",
-    "draftPitchButton": "Draft my pitch · {{cost}} credit",
+    "draftPitchButton": "Draft my pitch · {{cost}} credits",
     "draftingPitch": "Drafting your pitch…",
     "errorNeedGenre": "Pick a genre so the scout can match the right rooms.",
     "errorNeedLocation": "Tell the scout where you are — opportunities are local first.",

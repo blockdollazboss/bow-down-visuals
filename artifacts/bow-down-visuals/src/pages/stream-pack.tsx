@@ -59,7 +59,7 @@ const GROUP_ICONS: Record<AssetInfo["group"], typeof Layers> = {
 const GROUP_ORDER: Array<AssetInfo["group"]> = ["Overlays", "Alerts", "Panels", "Screens"];
 
 /* Fallback catalog if the API is unreachable — mirrors the server list. */
-const FALLBACK_CREDIT_COST = 1;
+const FALLBACK_CREDIT_COST = 100;
 
 export function StreamPackTool() {
   const isLight = useIsLightTheme();
@@ -459,7 +459,7 @@ export function StreamPackTool() {
                       <span className="ml-auto flex gap-1.5 shrink-0">
                         <button
                           onClick={() => generateOne(a.key)}
-                          title={t("streamPack.regenerate", { cost: creditCost * 100 })}
+                          title={t("streamPack.regenerate", { cost: creditCost })}
                           data-min-stars="3"
                           className="rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
                         >

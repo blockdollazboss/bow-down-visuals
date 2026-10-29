@@ -12,14 +12,14 @@ import {
 } from "../../lib/credits";
 
 /* ─── Meme Machine ────────────────────────────────────────────────────────
-   /api/meme-machine/captions — 1 credit: the creator describes a clip
+   /api/meme-machine/captions — 100 credits: the creator describes a clip
    moment and picks a meme format; the AI writes 5 punchy meme captions
    (top/bottom text style options) for it. */
 
 const router = Router();
 
-/* 1 credit per 5-caption pack — env-overridable without a deploy. A short
-   structured GPT-6 Sol completion; 1 credit holds a deep margin — and
+/* 100 credits per 5-caption pack — env-overridable without a deploy. A short
+   structured GPT-6 Sol completion; 100 credits holds a deep margin — and
    honors the standing rule that every AI feature costs a fee. */
 const CAPTIONS_CREDITS = Number(process.env["MEME_MACHINE_CAPTIONS_CREDITS"]) || 100;
 
@@ -40,7 +40,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/meme-machine/captions { context, format? }
    → 200 { captions[5], creditsUsed, creditsRemaining }
-   Paid: 1 credit. Auth required; credits deducted BEFORE the model call.
+   Paid: 100 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/meme-machine/captions", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = captionsSchema.safeParse(req.body ?? {});

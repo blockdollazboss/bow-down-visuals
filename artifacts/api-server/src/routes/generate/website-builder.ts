@@ -56,12 +56,12 @@ import { WEBSITE_TEMPLATES, WEBSITE_TEMPLATE_IDS, siteFilesSchema } from "./webs
 
 const router = Router();
 
-/* 30 credits per site build — env-overridable. Covers ~$1-1.50 in AI cost
+/* 3000 credits per site build — env-overridable. Covers ~$1-1.50 in AI cost
    at ~10x margin. One-time sale, not SaaS. */
 const WEBSITE_BUILD_CREDITS = Number(process.env["WEBSITE_BUILD_CREDIT_COST"]) || 3000;
 export { WEBSITE_BUILD_CREDITS };
 
-/* 2 credits per conversational edit after the initial build. */
+/* 200 credits per conversational edit after the initial build. */
 const WEBSITE_EDIT_CREDITS = Number(process.env["WEBSITE_EDIT_CREDIT_COST"]) || 200;
 export { WEBSITE_EDIT_CREDITS };
 

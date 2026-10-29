@@ -12,7 +12,7 @@ import {
 } from "../../lib/credits";
 
 /* ─── Trend Jacker ────────────────────────────────────────────────────────
-   /api/trend-jacker/draft — 2 credits: AI writes a complete video draft
+   /api/trend-jacker/draft — 200 credits: AI writes a complete video draft
    riding a named trend — scroll-stopping hook, full 60-90s script in the
    creator's style, shot-by-shot visual plan, caption, and hashtags.
 
@@ -21,8 +21,8 @@ import {
 
 const router = Router();
 
-/* 2 credits per draft — env-overridable without a deploy. A draft is a
-   long structured GPT-6 Sol completion; 2 credits holds a deep margin while
+/* 200 credits per draft — env-overridable without a deploy. A draft is a
+   long structured GPT-6 Sol completion; 200 credits holds a deep margin while
    staying an impulse buy — and honors the standing rule that every AI
    feature costs a fee. */
 const DRAFT_CREDITS = Number(process.env["TREND_JACKER_DRAFT_CREDITS"]) || 200;
@@ -62,7 +62,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/trend-jacker/draft { trend, trendWhy?, niche, styleNotes? }
    → 200 { hook, script, visualPlan[], caption, hashtags[], creditsUsed, creditsRemaining }
-   Paid: 2 credits. Auth required; credits deducted BEFORE the model call.
+   Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/trend-jacker/draft", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = draftSchema.safeParse(req.body ?? {});

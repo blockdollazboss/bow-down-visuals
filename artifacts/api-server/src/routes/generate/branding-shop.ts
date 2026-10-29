@@ -215,7 +215,7 @@ async function runwayGenerateAndUpload(
   return publicUrl;
 }
 
-/* ── POST /api/branding-shop/design — AI brand kit (PAID: 2 credits) ──────
+/* ── POST /api/branding-shop/design — AI brand kit (PAID: 200 credits) ──────
    One GPT-6 text call produces the brand brief (logo prompt + per-product
    mockup prompts); then the logo + up to 3 mockups are generated with
    Runway gen4_image in PARALLEL (server-side polling). Credits are charged

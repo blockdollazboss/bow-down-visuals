@@ -12,15 +12,15 @@ import {
 } from "../../lib/credits";
 
 /* ─── Comment to Video ────────────────────────────────────────────────────
-   /api/comment-to-video/scripts — 2 credits: the creator pastes comments
+   /api/comment-to-video/scripts — 200 credits: the creator pastes comments
    from a video; the AI picks the most video-worthy ones and writes a
    complete response-video script per pick: title, first-3-seconds hook,
    full script, visual plan, and CTA. */
 
 const router = Router();
 
-/* 2 credits per pack — env-overridable without a deploy. Up to 3 full
-   scripts is a long structured GPT-6 Sol completion; 2 credits holds a
+/* 200 credits per pack — env-overridable without a deploy. Up to 3 full
+   scripts is a long structured GPT-6 Sol completion; 200 credits holds a
    deep margin — and honors the standing rule that every AI feature costs
    a fee. */
 const SCRIPTS_CREDITS = Number(process.env["COMMENT_TO_VIDEO_SCRIPTS_CREDITS"]) || 200;
@@ -79,7 +79,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/comment-to-video/scripts { comments[1-20], niche?, count?(1-3, default 2) }
    → 200 { scripts[{title,hook,script,visualPlan,cta}], creditsUsed, creditsRemaining }
-   Paid: 2 credits. Auth required; credits deducted BEFORE the model call.
+   Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/comment-to-video/scripts", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = scriptsSchema.safeParse(req.body ?? {});

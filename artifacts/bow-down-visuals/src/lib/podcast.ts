@@ -4,7 +4,7 @@
 
 export const WORDS_PER_MINUTE = 150;
 export const SECONDS_PER_BLOCK = 600;
-export const PODCAST_CREDITS_PER_10MIN = 3;
+export const PODCAST_CREDITS_PER_10MIN = 300;
 export const MAX_SCRIPT_CHARS = 36_000;
 
 export type PodcastMode = "script" | "topic" | "video" | "dialogue";

@@ -9,9 +9,9 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 /* ── Comment-to-Video ──────────────────────────────────────────────────────
    Lives in the Content hub (/hooks) as a tab. Paste top comments; AI picks
    the most video-worthy ones and writes complete response-video scripts
-   (title, 3-second hook, full script, visual plan, CTA). 2 credits. */
+   (title, 3-second hook, full script, visual plan, CTA). 200 credits. */
 
-const COST = 2;
+const COST = 200;
 const MAX_COMMENTS = 20;
 
 interface VideoScript {

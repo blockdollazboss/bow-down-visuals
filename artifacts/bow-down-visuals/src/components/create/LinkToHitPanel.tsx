@@ -18,9 +18,9 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 
    Honest sourcing: upload = primary reliable path; link = whatever oEmbed
    publicly exposes (never faked); neither = fully AI-generated from the
-   description + comments. 3 VB per package. */
+   description + comments. 300 VB per package. */
 
-const COST = 3;
+const COST = 300;
 
 const GENRE_PRESETS = [
   "Hip-Hop", "Pop", "Country", "Rock", "EDM", "R&B", "Gospel",

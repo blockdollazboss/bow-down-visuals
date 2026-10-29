@@ -17,7 +17,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 
 const router = Router();
 
-/* 3 credits per analysis — env-overridable. One structured GPT-6 completion. */
+/* 300 credits per analysis — env-overridable. One structured GPT-6 completion. */
 const CONTRACT_ANALYSIS_CREDITS = Number(process.env["CONTRACT_ANALYSIS_CREDIT_COST"]) || 300;
 export { CONTRACT_ANALYSIS_CREDITS };
 

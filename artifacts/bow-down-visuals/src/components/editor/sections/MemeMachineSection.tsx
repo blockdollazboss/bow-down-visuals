@@ -9,12 +9,12 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ── Meme Machine ─────────────────────────────────────────────────────────
    Visual Vibes editor rail tab. Describe the clip moment, pick a meme
-   format — AI writes punchy meme captions (1 VB). One-click applies the
+   format — AI writes punchy meme captions (100 VB). One-click applies the
    winner to the timeline via the EXISTING caption system (bold meme style,
    timed to the opening seconds). Format presets tune caption style +
    suggested clip length; cutting stays manual on the timeline. */
 
-const COST = 1;
+const COST = 100;
 
 interface MemeFormat {
   id: string;

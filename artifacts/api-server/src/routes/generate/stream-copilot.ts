@@ -12,10 +12,10 @@ import {
 } from "../../lib/credits";
 
 /* ─── Stream Copilot ──────────────────────────────────────────────────────
-   /api/stream-copilot/prep — 1 credit: PRE-STREAM prep pack — a pre-stream
+   /api/stream-copilot/prep — 100 credits: PRE-STREAM prep pack — a pre-stream
    checklist, talking points / segment plan, and "clip watch-fors"
    (moment types to watch for that make good clips).
-   /api/stream-copilot/clip-plan — 1 credit: POST-STREAM — the creator
+   /api/stream-copilot/clip-plan — 100 credits: POST-STREAM — the creator
    pastes a post-stream recap with timestamps; the AI identifies the most
    clip-worthy moments with title + description + why-it-works per moment.
 
@@ -25,8 +25,8 @@ import {
 
 const router = Router();
 
-/* 1 credit per prep pack — env-overridable without a deploy. Short
-   structured GPT-6 Sol completions; 1 credit holds a deep margin — and
+/* 100 credits per prep pack — env-overridable without a deploy. Short
+   structured GPT-6 Sol completions; 100 credits holds a deep margin — and
    honors the standing rule that every AI feature costs a fee. */
 const PREP_CREDITS = Number(process.env["STREAM_COPILOT_PREP_CREDITS"]) || 100;
 const CLIP_PLAN_CREDITS = Number(process.env["STREAM_COPILOT_CLIP_PLAN_CREDITS"]) || 100;
@@ -101,7 +101,7 @@ async function guardCredits(req: { userCredits?: number }, amount: number, topup
 
 /* POST /api/stream-copilot/prep { streamTitle, topic, durationMin?, platform? }
    → 200 { checklist[], talkingPoints[], clipWatchFors[], creditsUsed, creditsRemaining }
-   Paid: 1 credit. Pre-stream prep pack — NOT live assistance. Auth required;
+   Paid: 100 credits. Pre-stream prep pack — NOT live assistance. Auth required;
    credits deducted BEFORE the model call. Provider failure or unusable
    output → refund + 502. */
 router.post("/stream-copilot/prep", publicApiLimiter, requireAuth, async (req, res) => {
@@ -199,7 +199,7 @@ router.post("/stream-copilot/prep", publicApiLimiter, requireAuth, async (req, r
 
 /* POST /api/stream-copilot/clip-plan { recap, topic? }
    → 200 { moments[{timestampHint,title,description,whyItWorks}], creditsUsed, creditsRemaining }
-   Paid: 1 credit. Post-stream clip planning from the creator's recap with
+   Paid: 100 credits. Post-stream clip planning from the creator's recap with
    timestamps — NOT live assistance. Same charge-then-refund-on-failure flow. */
 router.post("/stream-copilot/clip-plan", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = clipPlanSchema.safeParse(req.body ?? {});

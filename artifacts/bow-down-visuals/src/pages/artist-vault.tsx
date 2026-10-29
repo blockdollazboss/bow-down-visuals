@@ -744,8 +744,8 @@ function LockedVoiceSection({ vault, onChanged }: {
 
 /* ─────────────────────── REFERENCE VIDEO ─────────────────────── */
 
-const REF_VIDEO_CREDITS = 15;
-const LOOP_VIDEO_CREDITS = 2;
+const REF_VIDEO_CREDITS = 1500;
+const LOOP_VIDEO_CREDITS = 200;
 
 function ReferenceVideoSection({ vault, onChanged }: {
   vault: ArtistVaultRecord;

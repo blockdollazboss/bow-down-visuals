@@ -22,9 +22,9 @@ const PLATFORM_LABELS: Record<PlatformKey, string> = {
   x: "X",
 };
 
-/* 2 credits per insight generation — env-overridable without a deploy. A
+/* 200 credits per insight generation — env-overridable without a deploy. A
    growth-plan call is a medium-length GPT-6 Sol completion (a fraction of a
-   cent in provider fees), so 2 credits holds a deep margin while honoring
+   cent in provider fees), so 200 credits holds a deep margin while honoring
    the standing rule that every AI feature costs a fee. */
 const ANALYTICS_HUB_CREDITS = Number(process.env["ANALYTICS_HUB_CREDIT_COST"]) || 200;
 
@@ -54,7 +54,7 @@ const insightsSchema = z.object({
 
 /* POST /api/analytics-hub/insights { platforms: [...] } → 200
    { summary, recommendations, bestPlatform, focusArea, creditsUsed, creditsRemaining }
-   Paid: 2 credits per generation. Auth required; credits are deducted BEFORE
+   Paid: 200 credits per generation. Auth required; credits are deducted BEFORE
    the model call and REFUNDED on model failure, using the same pre-check +
    deductCredits + refundCredits + recordCreditUsage pattern as the paid
    generate routes. */

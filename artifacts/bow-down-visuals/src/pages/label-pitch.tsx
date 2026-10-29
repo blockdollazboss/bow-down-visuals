@@ -1025,13 +1025,13 @@ export default function LabelPitch() {
    comparable artists) → generates a professional pitch email + DM version.
    Curator directory (free, starter list) + pitch tracker (free) included.
 
-   Pricing: 2 credits per pitch kit. Tracker + curators are free.
+   Pricing: 200 credits per pitch kit. Tracker + curators are free.
 
    Deep links (kept from /playlist-pitch): ?song=TITLE pre-fills the song
    title; ?tab=sync opens the Sync Pitch Kit. Song-result pages still link
    to /playlist-pitch — the alias lands here and the parent flips mode. */
 
-const PLAYLIST_KIT_COST = 2;
+const PLAYLIST_KIT_COST = 200;
 
 type PlaylistInnerTab = "kit" | "curators" | "tracker" | "sync";
 

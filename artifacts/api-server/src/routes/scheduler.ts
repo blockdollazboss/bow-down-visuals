@@ -40,15 +40,15 @@ async function presentPost(p: ScheduledPost) {
 
    Money model (honest, no surprises):
    - Drafts: free.
-   - Scheduling: 1 credit per scheduled post, charged UP FRONT when the
+   - Scheduling: 100 credits per scheduled post, charged UP FRONT when the
      post is scheduled — no matter how many platforms it targets. The
      worker publishes through the existing provider helpers without
      charging again — attempts are marked credits-deducted.
-   - Cancel a scheduled post: automatic refund of the 1 credit.
-   - Total provider failure at fire time: automatic refund of the 1 credit.
+   - Cancel a scheduled post: automatic refund of the 100 credits.
+   - Total provider failure at fire time: automatic refund of the 100 credits.
      Partial success (posted to at least one platform): no refund — the
      scheduled post delivered.
-   - AI best-time suggestion: 1 credit, charged before the model call,
+   - AI best-time suggestion: 100 credits, charged before the model call,
      automatically refunded on provider failure.
    - Browsing the calendar: free.
 
@@ -220,7 +220,7 @@ router.get("/scheduler/posts", requireAuth, async (req: Request, res: Response) 
 
 /* ── Create a draft or scheduled post ────────────────────────────────────
    POST /api/scheduler/posts
-   - scheduledAt in the future → status `scheduled`, charges 1 credit ×
+   - scheduledAt in the future → status `scheduled`, charges 100 credits ×
      platforms up front (the social pipeline's normal fee).
    - otherwise → free `draft`. */
 
@@ -254,7 +254,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
 
   const fireAt = scheduledAt ? new Date(scheduledAt) : null;
   const wantsSchedule = !!fireAt && fireAt.getTime() > Date.now() + 60_000;
-  /* 1 credit per scheduled post — regardless of platform count. */
+  /* 100 credits per scheduled post — regardless of platform count. */
   const cost = wantsSchedule ? SCHEDULER_POST_CREDITS : 0;
 
   if (cost > 0) {
@@ -502,7 +502,7 @@ router.delete("/scheduler/posts/:id", requireAuth, async (req: Request, res: Res
 });
 
 /* ── AI best-time suggestion ─────────────────────────────────────────────
-   POST /api/scheduler/best-time — 1 credit, charged before the model call,
+   POST /api/scheduler/best-time — 100 credits, charged before the model call,
    automatically refunded on provider failure. The suggestion is guidance,
    not a guarantee. */
 

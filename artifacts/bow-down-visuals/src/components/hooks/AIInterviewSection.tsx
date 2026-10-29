@@ -12,8 +12,8 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    (2) User answers (text); AI packages the answers into clip-worthy
        moments, quote cards, and a 60s promo cut outline (200 VB). */
 
-const Q_COST = 1;
-const PKG_COST = 2;
+const Q_COST = 100;
+const PKG_COST = 200;
 
 interface ClipMoment { quote: string; why: string; }
 

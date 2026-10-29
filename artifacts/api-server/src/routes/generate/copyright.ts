@@ -9,7 +9,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 
 /* ─── Copyright Filing Assistant ──────────────────────────────────────────
    AI layer for the /copyright page (per the standing "everything AI-powered"
-   rule). Two paid endpoints, both 1 credit on GPT-6:
+   rule). Two paid endpoints, both 100 credits on GPT-6:
 
    POST /api/copyright/draft — work details in, AI-written formal "description
      of work" + filing notes out (what application to pick, what deposit to

@@ -17,13 +17,13 @@ import { usePageTitle } from "@/hooks/use-page-title";
 /* ─── Movies & Web Series ────────────────────────────────────────────────
    Two AI tools for creators going long-form:
    1. Concept generator — describe an idea → title, logline, episode
-      breakdown, character bible (POST /api/movies/concept, 4 credits).
+      breakdown, character bible (POST /api/movies/concept, 400 credits).
    2. Stream clip detector — describe a stream VOD → highlight timestamps
-      with clip-ready titles (POST /api/movies/clip-detect, 3 credits).
+      with clip-ready titles (POST /api/movies/clip-detect, 300 credits).
    Charge-before-generate with auto-refund on failure, gold/black theme. */
 
-const CONCEPT_CREDITS = 4;
-const CLIP_DETECT_CREDITS = 3;
+const CONCEPT_CREDITS = 400;
+const CLIP_DETECT_CREDITS = 300;
 
 type Tab = "concept" | "clips";
 
