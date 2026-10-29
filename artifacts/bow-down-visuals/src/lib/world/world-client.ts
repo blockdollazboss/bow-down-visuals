@@ -65,6 +65,7 @@ export interface WorldCharacterRef {
 
 export type { WorldActionId } from "./actions";
 import type { WorldActionId } from "./actions";
+import { palaceRoomLayout, roomAt } from "./palace-layout";
 
 export interface WorldPeer {
   peerId: string;
@@ -583,6 +584,11 @@ export function worldGuestSessionId(): string {
  *  where the rig stands. */
 export const TRANSFER_RESEAT_DISTANCE_M = 2.5;
 
+/** roomAt fallback for the reseat membership check: a point the
+ *  floor plan claims for NO room must read as "not the
+ *  destination", never as a match. */
+const UNCLAIMED_ROOM = "world:__unclaimed__";
+
 /** Whether a landed transfer must re-place the rig on the
  *  welcome's landing. The scene's room flips on ANY transfer
  *  welcome (the page's onRoomChanged), but nothing moved the rig
@@ -592,14 +598,41 @@ export const TRANSFER_RESEAT_DISTANCE_M = 2.5;
  *  tapped into the King's Hall, stood inside the floor). The page
  *  asks this on every room change and setSpawns the rig when the
  *  landing is far; doorway walks and same-spot reconnect landings
- *  measure near zero and are never disturbed. */
+ *  measure near zero and are never disturbed.
+ *
+ *  Two halves, because distance alone cannot tell a doorway from
+ *  a wall: the DISTANCE half above, and — when the caller names
+ *  the destination room — the MEMBERSHIP half: a rig the floor
+ *  plan does not claim for the destination is re-placed on the
+ *  landing however near it stands. Spawn-to-spawn the closest
+ *  pair in the palace is 4.70 m, but the FLOORS come closer: the
+ *  Game Rooms spawn stands 2.25 m from the Music Hall's north
+ *  strip with a wall (and no door) between, its mirror stands on
+ *  the east side, and the Creator Heights spawn stands ~2.25 m
+ *  from open Courtyard ground — a jump from any of those floors
+ *  measured "doorway-near" and stranded the rig in a room the
+ *  scene had stopped rendering (Stack800 Lane 7 audit;
+ *  spawn-integrity.test.ts pins the seams and sweeps the class).
+ *  A doorway walk is never caught by the membership half: its
+ *  crossing pose stands past the plane, already claimed by the
+ *  destination under roomAt's plane rule. A destination whose
+ *  layout is not registered (a creator room this client has not
+ *  dressed yet) degrades to the distance half alone — today's
+ *  behaviour, never a new break. */
 export function transferNeedsReseat(
   rig: { x: number; z: number },
   landing: { x: number; z: number },
+  roomId?: string,
 ): boolean {
   const dx = landing.x - rig.x;
   const dz = landing.z - rig.z;
-  return dx * dx + dz * dz > TRANSFER_RESEAT_DISTANCE_M * TRANSFER_RESEAT_DISTANCE_M;
+  if (dx * dx + dz * dz > TRANSFER_RESEAT_DISTANCE_M * TRANSFER_RESEAT_DISTANCE_M) {
+    return true;
+  }
+  if (roomId && palaceRoomLayout(roomId)) {
+    return roomAt(rig.x, rig.z, UNCLAIMED_ROOM) !== roomId;
+  }
+  return false;
 }
 
 /** The page overlay for a client status — null means "you're inside,
