@@ -24,6 +24,7 @@ import {
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { r2Upload } from "../../lib/r2-client";
 import {
   fulfillmentMode,
@@ -454,7 +455,7 @@ function getBaseUrl(req: import("express").Request): string {
    fulfillment. Without STRIPE_SECRET_KEY a clearly-labeled mock checkout
    completes the order instantly (demo mode). */
 router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req, res) => {
-  const { orderId } = (req.body ?? {}) as { orderId?: string };
+  const { orderId, uiMode } = (req.body ?? {}) as { orderId?: string; uiMode?: string };
   if (!orderId || typeof orderId !== "string") {
     res.status(400).json({ error: "orderId is required." });
     return;
@@ -524,6 +525,12 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
 
   const stripe = createGuardedStripeClient(stripeKey);
   const baseUrl = getBaseUrl(req);
+  /* Embedded presentation is asked for per-request and honored only
+     while the EMBEDDED_CHECKOUT kill switch is on — the session,
+     metadata, idempotency key and the server-recomputed total are
+     identical either way; only the presentation differs. (The demo
+     path above never reaches Stripe and is unchanged.) */
+  const embeddedRequested = uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   const idempotencyKey = buildBrandingOrderCheckoutKey({
     userId: req.userId!,
     orderId: order.id,
@@ -551,15 +558,41 @@ router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req
       user_id: req.userId!,
       kind: "branding_order",
     },
-    success_url: `${baseUrl}/branding-shop?order=${order.id}&paid=1`,
-    cancel_url: `${baseUrl}/branding-shop?order=${order.id}`,
+    /* Embedded ui_mode: the session takes a return_url (the same
+       branding-shop landing the hosted success_url names) instead of
+       success/cancel URLs. */
+    ...(embeddedRequested
+      ? {
+          ui_mode: "embedded_page" as const,
+          return_url: `${baseUrl}/branding-shop?order=${order.id}&paid=1`,
+        }
+      : {
+          success_url: `${baseUrl}/branding-shop?order=${order.id}&paid=1`,
+          cancel_url: `${baseUrl}/branding-shop?order=${order.id}`,
+        }),
   }, { idempotencyKey });
+
+  /* An embedded session without a client secret cannot be mounted
+     anywhere — refuse before binding the session to the order, so
+     the order stays cleanly unpaid and a retry can start over. */
+  if (embeddedRequested && !session.client_secret) {
+    res.status(502).json({ error: "Could not start checkout. Try again." });
+    return;
+  }
 
   await db.execute(sql`
     UPDATE branding_orders SET stripe_session_id = ${session.id} WHERE id = ${order.id}
   `);
 
-  res.json({ checkoutUrl: session.url, orderId: order.id });
+  res.json({
+    /* Embedded sessions have no hosted URL — the clientSecret is
+       what the in-World stand mounts (null on the hosted shape,
+       mirroring routes/storefront.ts). */
+    checkoutUrl: embeddedRequested ? null : session.url,
+    clientSecret: embeddedRequested ? (session.client_secret ?? null) : null,
+    uiMode: embeddedRequested ? "embedded" : "hosted",
+    orderId: order.id,
+  });
 });
 
 /* ── GET /api/branding-shop/orders — my orders (FREE) ───────────────────── */
