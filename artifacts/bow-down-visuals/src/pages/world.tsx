@@ -20,6 +20,7 @@ import {
   type ActionPageId,
   type WorldRole,
 } from "@/lib/world/bindings";
+import { firstGamepad } from "@/lib/world/gamepad";
 import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
 import {
   ACTION_BY_ID,
@@ -712,6 +713,10 @@ export default function WorldPage() {
    * photo mode. Every role may frame a shot. Entering it closes
    * every open panel — the chrome steps aside whole. */
   const togglePhotoModeRef = useRef<() => void>(() => {});
+  /* The pad's fullscreen toggle (the Back hold), shaped like the
+   * refs above; the real closure is assigned beside toggleFs,
+   * whose declaration it needs. */
+  const fsToggleRef = useRef<() => void>(() => {});
   togglePhotoModeRef.current = () => {
     if (!verbRoleOk("photoMode", myRole())) return;
     if (!photoModeRef.current) {
@@ -1310,6 +1315,16 @@ export default function WorldPage() {
     void toggleFullscreen(document, pageRef.current);
   };
 
+  /* The controller's fullscreen verb: the Back hold lands here
+   * (the scene's pad poll dispatches it) and runs the very same
+   * toggleFs the header button runs — so a deliberate pad exit
+   * marks itself a self-exit in the state machine (no recovery
+   * arm, no chip) exactly like a deliberate button exit does. */
+  fsToggleRef.current = () => {
+    if (!verbRoleOk("fullscreen", myRole())) return;
+    toggleFs();
+  };
+
   /* The recovery's other half: while a platform exit has the
      recovery armed, the next click anywhere on the page re-enters
      fullscreen. Capture-phase and never interfering — the click
@@ -1326,6 +1341,46 @@ export default function WorldPage() {
     };
     document.addEventListener("pointerdown", onPointer, true);
     return () => document.removeEventListener("pointerdown", onPointer, true);
+  }, [fsArmed]);
+
+  /* The recovery's controller half (stack700; the owner's live
+     walk, 2026-10-29: "I should be able to use my controller for
+     everything inside that VR world — shouldn't have to go look
+     for a mouse"). The arm above is spent by a MOUSE click only —
+     a controller-first walker, whose pad is his only pointer,
+     could never spend it, so a platform-dropped fullscreen
+     stayed dropped until he hunted the mouse down. While the
+     recovery is armed, this poll watches the pad itself: ANY
+     fresh button press spends the same arm through the same
+     pure transition (fsRecoveryOnReenterClick — the click in
+     its name is the gesture kind, and a pad press is a user
+     gesture requestFullscreen accepts exactly like one). Same
+     one-shot semantics: the arm is spent whether or not the
+     browser accepts, and the loop stops the moment it spends. */
+  useEffect(() => {
+    if (!fsArmed) return;
+    let raf = 0;
+    let prev: boolean[] = [];
+    const loop = () => {
+      try {
+        const pad = firstGamepad([...(navigator.getGamepads?.() ?? [])]);
+        const now = pad ? pad.buttons.map((b) => b.pressed) : [];
+        const freshPress = now.some((p, i) => p && !prev[i]);
+        prev = now;
+        if (pad && freshPress) {
+          const { state, reenter } = fsRecoveryOnReenterClick(fsRecoveryRef.current);
+          fsRecoveryRef.current = state;
+          setFsArmed(state.armed);
+          if (reenter) void toggleFullscreen(document, pageRef.current);
+          return;
+        }
+      } catch {
+        /* no gamepad API — the pointer road above still serves */
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [fsArmed]);
 
   /* Controller presence: a paired gamepad announces itself; the
@@ -1904,6 +1959,9 @@ export default function WorldPage() {
       };
       scene.onPadPhotoMode = () => {
         if (!cancelled) togglePhotoModeRef.current();
+      };
+      scene.onPadFullscreenToggle = () => {
+        if (!cancelled) fsToggleRef.current();
       };
       scene.onPadMomentClaim = () => {
         if (!cancelled) claimMomentRef.current();
@@ -3273,7 +3331,7 @@ export default function WorldPage() {
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg transition hover:scale-105 ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}
             >
               <Maximize className="h-3.5 w-3.5" />
-              Full screen dropped — tap to go back in
+              Full screen dropped — tap or press any controller button to go back in
             </button>
           </div>
         )}
@@ -4149,9 +4207,17 @@ export default function WorldPage() {
           </p>
         ) : null}
         {padConnected && status === "inside" && (
-          <p className={`mb-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
-            <Gamepad2 className="h-4 w-4 text-[#d4af37]" />
-            Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, Back switches the action page, R3 claims the moment</>}, Start frames a photo.
+          <p className={`mb-2 flex items-start gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`} data-testid="world-pad-line">
+            <Gamepad2 className="mt-px h-4 w-4 shrink-0 text-[#d4af37]" />
+            {/* ONE text span on purpose (stack700): as bare flex
+                children, every text run was its own flex item and
+                the sentence wrapped inside narrow items — the
+                owner's frame showed it splitting mid-phrase into
+                columns. As one item the sentence flows and wraps
+                like a paragraph again. */}
+            <span>
+              Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, Back switches the action page, R3 claims the moment</>}, Start frames a photo. In a panel, the D-pad moves, A chooses and B goes back; hold Back for full screen.
+            </span>
           </p>
         )}
         {/* The action bar: what your figure can DO, seen by the
