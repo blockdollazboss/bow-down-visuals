@@ -41,6 +41,13 @@ vi.mock("../../../lib/credits", () => ({
   chargeCredits: vi.fn(),
   refundCredits: vi.fn(),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
+  CreditsDisabledError: class CreditsDisabledError extends Error {
+    readonly status = 403;
+    constructor() {
+      super("credits_disabled");
+      this.name = "CreditsDisabledError";
+    }
+  },
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
 
@@ -60,7 +67,7 @@ import router, {
   matcherSchema,
   toDealDto,
 } from "../sponsors";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } from "../../../lib/credits";
 import { createTestDb } from "../../../lib/__tests__/test-db";
 import { sql } from "drizzle-orm";
 
@@ -300,6 +307,38 @@ describe("POST /api/sponsors/deals", () => {
     expect(status).toBe(400);
     expect(mockCharge).not.toHaveBeenCalled();
   });
+
+  /* Admin-only lockdown (CREDITS_ADMIN_ONLY): chargeCredits throws
+     CreditsDisabledError BEFORE any deduction. The route must answer
+     honestly in plain language — the raw internal code "credits_disabled"
+     must never be the user-facing text (Gate Pass 5, Oct 28: the live form
+     rendered that raw code in its red banner). Nothing was charged, so no
+     refund and no deal row. */
+  it("returns an honest 403 when credit spending is paused for the account", async () => {
+    mockCharge.mockRejectedValueOnce(new CreditsDisabledError());
+    const { status, json } = await req("POST", "/sponsors/deals", validDeal());
+    expect(status).toBe(403);
+    expect(json.code).toBe("CREDITS_DISABLED");
+    expect(json.error).not.toBe("credits_disabled");
+    expect(JSON.stringify(json)).not.toContain("credits_disabled");
+    expect(json.error).toMatch(/paused/i);
+    expect(json.error).toMatch(/nothing was charged/i);
+    expect(mockRefund).not.toHaveBeenCalled();
+    const r = await testState.db.execute(sql`SELECT COUNT(*)::int AS n FROM sponsor_deals`);
+    expect((r.rows[0] as { n: number }).n).toBe(0);
+  });
+
+  it("refunds the 500 in full when the deal save fails after charging", async () => {
+    /* Move the table away so the INSERT fails after the (mocked) charge lands. */
+    await testState.db.execute(sql`ALTER TABLE sponsor_deals RENAME TO sponsor_deals_gone`);
+    const { status, json } = await req("POST", "/sponsors/deals", validDeal());
+    expect(status).toBe(500);
+    expect(json.error).toMatch(/refunded/i);
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 500, { action: "Sponsor Deal Posting" });
+    expect(mockRefund).toHaveBeenCalledWith(USER_A, 500, {
+      action: "Sponsor Deal Posting — Refund (save failed)",
+    });
+  });
 });
 
 /* ── POST /api/sponsors/deals/:id/apply (free) ────────────────────────── */
@@ -385,6 +424,24 @@ describe("POST /api/sponsors/pitch", () => {
     expect(json.error).toBe("out_of_credits");
     expect(testState.openAiCreate).not.toBeNull();
   });
+
+  it("returns an honest 403 when credit spending is paused for the account", async () => {
+    let modelCalled = false;
+    testState.openAiCreate = async () => {
+      modelCalled = true;
+      return { choices: [{ message: { content: "{}" } }] };
+    };
+    mockCharge.mockRejectedValueOnce(new CreditsDisabledError());
+    const { status, json } = await req("POST", "/sponsors/pitch", {
+      dealId: randomUUID(),
+      niche: "Music",
+    });
+    expect(status).toBe(403);
+    expect(json.code).toBe("CREDITS_DISABLED");
+    expect(JSON.stringify(json)).not.toContain("credits_disabled");
+    expect(modelCalled).toBe(false);
+    expect(mockRefund).not.toHaveBeenCalled();
+  });
 });
 
 /* ── POST /api/sponsors/match (1 credit, AI) ──────────────────────────── */
@@ -440,5 +497,14 @@ describe("POST /api/sponsors/match", () => {
     const { status, json } = await req("POST", "/sponsors/match", { niche: "Music" });
     expect(status).toBe(402);
     expect(json.error).toBe("out_of_credits");
+  });
+
+  it("returns an honest 403 when credit spending is paused for the account", async () => {
+    mockCharge.mockRejectedValueOnce(new CreditsDisabledError());
+    const { status, json } = await req("POST", "/sponsors/match", { niche: "Music" });
+    expect(status).toBe(403);
+    expect(json.code).toBe("CREDITS_DISABLED");
+    expect(JSON.stringify(json)).not.toContain("credits_disabled");
+    expect(mockRefund).not.toHaveBeenCalled();
   });
 });
