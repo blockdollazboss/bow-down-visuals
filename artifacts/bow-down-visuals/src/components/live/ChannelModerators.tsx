@@ -9,8 +9,12 @@ import { apiFetch } from "@/lib/social-api";
    profile name; appointed mods can delete messages and mute
    chatters in every stream on the channel (never the creator, never
    another mod — the server enforces the same rules). States are
-   honest: loading, a real empty state, and server errors surface
-   instead of pretending. */
+   honest: loading, a real empty state, server errors surface
+   instead of pretending — and the server's deliberate NO_PROFILE
+   answer (the caller has no creator profile yet, so there is no
+   channel for moderators to belong to) renders as its own
+   create-a-profile state, never as a load error: retrying a
+   missing profile can never succeed. */
 
 interface ModeratorDto {
   userId: string;
@@ -20,7 +24,7 @@ interface ModeratorDto {
   appointedAt: string;
 }
 
-type LoadState = "loading" | "ready" | "error";
+type LoadState = "loading" | "ready" | "error" | "noprofile";
 
 export default function ChannelModerators({ className = "" }: { className?: string }) {
   const { getAccessToken } = useAuth();
@@ -38,6 +42,13 @@ export default function ChannelModerators({ className = "" }: { className?: stri
   async function refresh() {
     try {
       const { status, json } = await call("/api/live/moderators");
+      /* The server's contract: a creator with no profile yet gets a
+         deliberate 400 NO_PROFILE — a designed answer, not a failed
+         load. It renders the honest create-a-profile state below. */
+      if (status === 400 && json?.code === "NO_PROFILE") {
+        setLoad("noprofile");
+        return;
+      }
       if (status !== 200) throw new Error("load failed");
       setModerators((json.moderators ?? []) as ModeratorDto[]);
       setLoad("ready");
@@ -116,6 +127,11 @@ export default function ChannelModerators({ className = "" }: { className?: stri
             Try again
           </button>
         </div>
+      )}
+      {load === "noprofile" && (
+        <p className="mt-3 text-sm text-white/45" data-testid="moderators-no-profile">
+          Create your creator profile first — moderators belong to your channel.
+        </p>
       )}
       {load === "ready" && (
         <>

@@ -15,6 +15,7 @@ const OWNER = "00000000-0000-4000-8000-0000000000aa";
 const MOD = "00000000-0000-4000-8000-0000000000bb";
 const MOD2 = "00000000-0000-4000-8000-0000000000dd";
 const FAN = "00000000-0000-4000-8000-0000000000cc";
+const NO_PROFILE = "00000000-0000-4000-8000-0000000000ee";
 const STREAM = "22222222-2222-4222-8222-222222222222";
 const PROFILE = "11111111-1111-4111-8111-111111111111";
 
@@ -269,6 +270,35 @@ async function appointMod() {
   expect(res.status).toBe(201);
   return res;
 }
+
+describe("the profile-less shape (the panel contract)", () => {
+  /* The /go-live Moderators panel's client rides this contract: a
+     signed-in user with NO creator profile gets the deliberate
+     400 NO_PROFILE — a designed answer the panel renders as its
+     honest create-a-profile state. It must never degrade into a
+     500 (which the panel would have to show as a load error), and
+     a creator WITH a profile gets their (possibly empty) list. */
+  it("GET as a creator with a profile answers 200 with their empty list", async () => {
+    const res = await req("GET", "/api/live/moderators", { user: OWNER });
+    expect(res.status).toBe(200);
+    expect(res.json.moderators).toEqual([]);
+  });
+
+  it("GET as a signed-in user with no creator profile answers 400 NO_PROFILE", async () => {
+    const res = await req("GET", "/api/live/moderators", { user: NO_PROFILE });
+    expect(res.status).toBe(400);
+    expect(res.json.code).toBe("NO_PROFILE");
+  });
+
+  it("POST and DELETE carry the same NO_PROFILE contract", async () => {
+    const post = await req("POST", "/api/live/moderators", { user: NO_PROFILE, body: { profileSlug: "mod-one" } });
+    expect(post.status).toBe(400);
+    expect(post.json.code).toBe("NO_PROFILE");
+    const del = await req("DELETE", `/api/live/moderators/${MOD}`, { user: NO_PROFILE });
+    expect(del.status).toBe(400);
+    expect(del.json.code).toBe("NO_PROFILE");
+  });
+});
 
 describe("appointments", () => {
   it("the owner appoints by profile slug; the mod appears in the list and my-role", async () => {

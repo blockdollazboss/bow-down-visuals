@@ -282,9 +282,22 @@ describe("#32 LoyaltySettingsPanel: defaults never pose as saved rules (A3-F11)"
     expect(page).toContain('data-testid="loyalty-load-error"');
     expect(page).toContain("setNoProfile(true)");
   });
-  it("a failed /me lookup is a load error, not 'create your profile first'", () => {
+  it("/me's documented 404 is the no-profile answer; every other failure stays a load error", () => {
+    /* Refined Oct 28 (stack700 go-live panels): A3-F11's rule was
+       aimed at swallowing failures into a fake "no profile". But
+       /me's contract — the one fetchMyProfile rides — makes 404
+       the deliberate no-profile ANSWER, not a failure; mapping it
+       to the load error produced the mirror-image defect live: a
+       permanent "couldn't load" + Try again for every profile-less
+       creator (the panel's no-profile state was unreachable — the
+       endpoint never returns a 200 without an id). So: 404 →
+       no-profile state; any other failure → load error, and the
+       swallow-everything pattern stays banned. */
     expect(page).not.toContain('apiJson<{ id?: string }>(getAccessToken, "/api/creator-profiles/me").catch(() => null)');
-    expect(page).toContain("A failed /me lookup is a LOAD error, not \"no profile\"");
+    expect(page).toContain("if (meRes.status === 404) { setNoProfile(true); return; }");
+    expect(page).toContain('if (!meRes.ok) throw new Error("me lookup failed");');
+    expect(page).toContain('setLoadError("Your loyalty settings couldn\'t load. Try again in a moment.")');
+    expect(page).toContain('data-testid="loyalty-no-profile"');
   });
   it("the settings form renders ONLY from loaded values (loading/error branches gate it first)", () => {
     const loadingAt = page.indexOf('data-testid="loyalty-rules-loading"');
