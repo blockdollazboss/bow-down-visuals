@@ -109,12 +109,18 @@ html, body {
 /* ─── Stack-28 #58 — FLOATING CHROME CORNER BUDGET (390px-first) ───
    Every fixed shell element owns ONE slot; no two slots overlap at 390px.
    TOP-LEFT COLUMN (stacked, x from left edge):
-     slot T1 (top 16px, h 44px): language switcher at left 16px
-       (FloatingLanguageSwitcher, home/settings only) and the theme
-       toggle's DEFAULT slot beside it at left 72px (FloatingThemeToggle;
-       user-dragged saved positions override the default, by design).
-     slot T2 (top 68px / top-[4.25rem]): Enter-the-World pill, left 16px
-       (lib/world-entry ENTER_WORLD_CLASSNAME) — starts below T1's 60px floor.
+     The document-top strip (0–~57px) belongs to the in-flow jackpot
+     banner band; no fixed slot starts inside it (stack700 extension —
+     at top 16px the T1 row straddled the banner's lower edge and
+     covered its sprite/title; owner screenshots, Oct 28).
+     slot T1 (top 68px / top-[4.25rem], h 44px, floor 112px): language
+       switcher at left 16px (FloatingLanguageSwitcher, home/settings
+       only), the theme toggle's DEFAULT slot beside it at left 72px
+       (FloatingThemeToggle; user-dragged saved positions override the
+       default, by design), and the theme-pack quick picker at left
+       128px (ThemePackQuickPicker).
+     slot T2 (top 120px / top-[7.5rem]): Enter-the-World pill, left 16px
+       (lib/world-entry ENTER_WORLD_CLASSNAME) — starts below T1's 112px floor.
    BOTTOM:
      slot B0 (bottom 0, h ≈64px, z-60): StreamingPlayerBar (mobile mini
        player) owns the full-width bottom strip.

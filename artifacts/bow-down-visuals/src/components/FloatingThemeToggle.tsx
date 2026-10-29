@@ -55,9 +55,12 @@ export function FloatingThemeToggle() {
     // Stack-28 #58 corner budget: the toggle's default slot is the second
     // top-left slot (x=72) — the first slot (x=16) belongs to the floating
     // language switcher on the pages that mount it. Saved drag positions
-    // are unaffected.
+    // are unaffected. The row's default top is 68px (stack700 extension):
+    // the jackpot banner band (~57px) owns the document-top strip, and at
+    // top:16 the 44px row straddled the banner's lower edge and covered
+    // its sprite/title (owner screenshots, Oct 28).
     const x = pos?.x ?? 72;
-    const y = pos?.y ?? 16;
+    const y = pos?.y ?? 68;
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: x, origY: y, moved: false };
     setDragging(true);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -85,7 +88,7 @@ export function FloatingThemeToggle() {
 
   const style: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, right: "auto" }
-    : { top: 16, left: 72 };
+    : { top: 68, left: 72 };
 
   return (
     <>
