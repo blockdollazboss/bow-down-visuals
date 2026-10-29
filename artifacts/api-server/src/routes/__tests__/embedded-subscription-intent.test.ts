@@ -26,7 +26,13 @@
  *    client-side retry of this POST safe.
  *  - Every failure mode answers JSON (never HTML, never a hang):
  *    missing price env -> 500 naming the var; Stripe throwing ->
- *    502 with Stripe's message; already subscribed -> 409.
+ *    502 with Stripe's message.
+ *  - Already subscribed (stack600 plan-tier-change): same tier ->
+ *    409 ALREADY_ON_TIER; a DIFFERENT tier -> 200 mode:"change" with
+ *    Stripe's proration preview for the member's existing
+ *    subscription (nothing created, nothing charged — the old 409
+ *    dead end Gate Pass 1 hit); a live row with no Stripe
+ *    subscription id keeps the honest 409 ALREADY_SUBSCRIBED.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import express from "express";
@@ -52,6 +58,7 @@ const h = vi.hoisted(() => ({
     subscriptionListCalls: [] as any[],
     subscriptionRetrieveCalls: [] as { id: string; params: any }[],
     subscriptionCancelCalls: [] as string[],
+    invoicePreviewCalls: [] as any[],
     storedSubs: [] as any[],
     subSeq: 0,
   },
@@ -175,6 +182,18 @@ vi.mock("stripe", () => {
         return { id, status: "canceled" };
       },
     };
+    invoices = {
+      /* Proration preview double (stack600 plan-tier-change): moving
+         to Elite mid-cycle nets +850 due today; moving to Pro nets a
+         700 credit (negative amount_due). Records every call so tests
+         can prove a preview priced the EXISTING subscription. */
+      createPreview: async (params: any) => {
+        h.state.invoicePreviewCalls.push(params);
+        const price = params.subscription_details?.items?.[0]?.price;
+        const amount_due = price === "price_elite_test" ? 850 : price === "price_pro_test" ? -700 : 0;
+        return { amount_due, currency: "usd" };
+      },
+    };
   }
   return { default: FakeStripe };
 });
@@ -202,6 +221,41 @@ function seedDangling(over: Record<string, any> = {}): any {
       payments: {
         data: [{ is_default: true, payment: { payment_intent: over["pi"] ?? "pi_dangling" } }],
       },
+    },
+  };
+  h.state.storedSubs.push(stored);
+  return stored;
+}
+
+/* Seed a LIVE subscription (the member's existing paid plan) into the
+   fake's store, with the item id + period end the tier-change preview
+   reads off the retrieved subscription. */
+function seedActiveSub(over: Record<string, any> = {}): any {
+  const stored: any = {
+    id: over["id"] ?? "sub_existing",
+    created: 1_650_000_000,
+    status: over["status"] ?? "active",
+    customer: over["customer"] ?? "cus_existing",
+    metadata: {
+      kind: "creator_tier",
+      user_id: USER,
+      profile_id: PROFILE,
+      tier: over["tier"] ?? "pro",
+    },
+    items: {
+      data: [
+        {
+          id: over["itemId"] ?? "si_existing",
+          price: { id: over["priceId"] ?? "price_pro_test" },
+          current_period_end: over["cpe"] ?? Math.floor(Date.parse("2026-11-26T00:00:00Z") / 1000),
+        },
+      ],
+    },
+    latest_invoice: {
+      id: over["invoiceId"] ?? "in_existing",
+      amount_due: 1200,
+      confirmation_secret: { client_secret: "pi_existing_secret" },
+      payments: { data: [{ is_default: true, payment: { payment_intent: "pi_existing" } }] },
     },
   };
   h.state.storedSubs.push(stored);
@@ -295,6 +349,7 @@ beforeEach(() => {
   h.state.subscriptionListCalls = [];
   h.state.subscriptionRetrieveCalls = [];
   h.state.subscriptionCancelCalls = [];
+  h.state.invoicePreviewCalls = [];
   h.state.storedSubs = [];
   h.state.subSeq = 0;
 });
@@ -470,19 +525,79 @@ describe("POST /embedded-checkout/subscription/intent", () => {
     expect(json.error).toContain("Stripe API is unavailable");
   });
 
-  it("an already-subscribed member gets 409 ALREADY_SUBSCRIBED and nothing is created", async () => {
-    h.state.subscriptionRow = {
-      tier: "pro",
-      status: "active",
-      currentPeriodEnd: new Date("2026-11-26T00:00:00Z"),
-      stripeSubscriptionId: "sub_existing",
-      stripeCustomerId: "cus_existing",
-    };
-    const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "elite" } });
-    expect(status).toBe(409);
-    expect(json.error).toBe("ALREADY_SUBSCRIBED");
-    expect(h.state.subscriptionCreateCalls).toHaveLength(0);
-    expect(h.state.customerCreateCalls).toHaveLength(0);
+  describe("already subscribed — a different tier is a CHANGE, not a dead end (stack600 plan-tier-change)", () => {
+    function proRow(over: Record<string, unknown> = {}) {
+      h.state.subscriptionRow = {
+        tier: "pro",
+        status: "active",
+        currentPeriodEnd: new Date("2026-11-26T00:00:00Z"),
+        cancelAtPeriodEnd: null,
+        stripeSubscriptionId: "sub_existing",
+        stripeCustomerId: "cus_existing",
+        ...over,
+      };
+    }
+
+    it("Pro member asking for Elite gets mode:'change' with Stripe's proration preview — nothing created, nothing charged", async () => {
+      proRow();
+      seedActiveSub({ id: "sub_existing", priceId: "price_pro_test" });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "elite" } });
+      expect(status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(json.mode).toBe("change");
+      expect(json.tier).toBe("elite");
+      expect(json.fromTier).toBe("pro");
+      expect(json.subscriptionId).toBe("sub_existing");
+      expect(json.changePreview.fromTier).toBe("pro");
+      expect(json.changePreview.toTier).toBe("elite");
+      expect(json.changePreview.toPlanName).toBe("Elite");
+      expect(json.changePreview.amountDueTodayCents).toBe(850);
+      expect(json.changePreview.creditCents).toBe(0);
+      expect(json.changePreview.effective).toBe("immediate");
+      expect(json.changePreview.renewalDate).toBe("2026-11-26T00:00:00.000Z");
+      /* The preview priced the member's EXISTING subscription — no
+         create, no new customer: this response moves no money. The
+         charge happens only when the member confirms via
+         POST /creator-tiers/change. */
+      expect(h.state.invoicePreviewCalls).toHaveLength(1);
+      expect(h.state.invoicePreviewCalls[0].subscription).toBe("sub_existing");
+      expect(h.state.invoicePreviewCalls[0].customer).toBe("cus_existing");
+      expect(h.state.subscriptionCreateCalls).toHaveLength(0);
+      expect(h.state.customerCreateCalls).toHaveLength(0);
+    });
+
+    it("Elite member asking for Pro gets the downgrade preview: $0 due today, the net credit shown", async () => {
+      proRow({ tier: "elite" });
+      seedActiveSub({ id: "sub_existing", tier: "elite", priceId: "price_elite_test" });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+      expect(status).toBe(200);
+      expect(json.mode).toBe("change");
+      expect(json.changePreview.amountDueTodayCents).toBe(0);
+      expect(json.changePreview.creditCents).toBe(700);
+      expect(h.state.subscriptionCreateCalls).toHaveLength(0);
+      expect(h.state.customerCreateCalls).toHaveLength(0);
+    });
+
+    it("asking for the tier you're already on is a 409 ALREADY_ON_TIER — no preview, no create", async () => {
+      proRow();
+      seedActiveSub({ id: "sub_existing", priceId: "price_pro_test" });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "pro" } });
+      expect(status).toBe(409);
+      expect(json.error).toBe("ALREADY_ON_TIER");
+      expect(h.state.invoicePreviewCalls).toHaveLength(0);
+      expect(h.state.subscriptionCreateCalls).toHaveLength(0);
+      expect(h.state.customerCreateCalls).toHaveLength(0);
+    });
+
+    it("a live row Stripe can't identify (no subscription id) keeps the honest 409 ALREADY_SUBSCRIBED manage path", async () => {
+      proRow({ stripeSubscriptionId: null });
+      const { status, json } = await call("/embedded-checkout/subscription/intent", { user: USER, body: { tier: "elite" } });
+      expect(status).toBe(409);
+      expect(json.error).toBe("ALREADY_SUBSCRIBED");
+      expect(h.state.invoicePreviewCalls).toHaveLength(0);
+      expect(h.state.subscriptionCreateCalls).toHaveLength(0);
+      expect(h.state.customerCreateCalls).toHaveLength(0);
+    });
   });
 
   it("requires auth", async () => {
