@@ -155,7 +155,30 @@ async function identifyRail(
   if (!pi) return null;
   const sessions = await stripe.checkout.sessions.list({ payment_intent: pi, limit: 1 });
   const session = sessions.data[0];
-  if (!session) return null;
+  if (!session) {
+    /* No Checkout session for this payment intent — a bare
+       PaymentIntent. The on-site sponsor escrow rail funds deals
+       exactly that way: markEscrowFunded(dealId, pi.id, pi.id)
+       records the intent in BOTH of the deal's stripe columns and no
+       Checkout session ever exists. Probe sponsor_deals by
+       payment-intent id before giving up: without this, a dashboard
+       refund of a PI-funded escrow parked as 'unidentified' while
+       the deal kept reading escrow_status='funded' — releasable
+       against money Stripe had already returned — until a human
+       worked the manual queue. Identification only: an identified
+       deal walks the same sponsor_deal path as a Checkout-funded
+       one (unreleased → auto-unfund; a payout row → manual review),
+       and everything the probe does not positively identify keeps
+       parking exactly as before. */
+    const r = await db.execute(sql`
+      SELECT id FROM sponsor_deals
+      WHERE stripe_payment_intent_id = ${pi} OR stripe_session_id = ${pi}
+      LIMIT 1
+    `);
+    const dealRow = firstRow(r);
+    if (!dealRow) return null;
+    return identifySponsorDeal(String(dealRow["id"]), pi);
+  }
   const sid = session.id;
   const meta = session.metadata ?? {};
 
