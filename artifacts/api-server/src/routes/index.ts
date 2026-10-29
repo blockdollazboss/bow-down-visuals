@@ -22,6 +22,7 @@ import artistOutfitsRouter from "./artist-outfits";
 import artistVaultIdentityRouter from "./artist-vault-identity";
 import waitlistRouter from "./waitlist";
 import contactRouter from "./contact";
+import clientErrorsRouter from "./client-errors";
 import qrLoginRouter from "./qr-login";
 import webauthnRouter from "./webauthn";
 import r2UploadRouter from "./r2-upload";
@@ -453,6 +454,7 @@ router.use(mashupRouter);
 router.use(playlistRouter);
 router.use(waitlistRouter);
 router.use(contactRouter);
+router.use(clientErrorsRouter);            // /api/client-errors (RouteErrorBoundary self-report)
 router.use(qrLoginRouter);
 router.use(webauthnRouter);
 router.use(expressPayRouter);

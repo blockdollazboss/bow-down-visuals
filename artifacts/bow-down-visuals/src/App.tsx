@@ -8,6 +8,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { loadSoundPrefsIntoEngine } from "@/lib/signature-sounds";
+import {
+  buildBoundaryReport,
+  clearChunkReloadGuard,
+  reportBoundaryTrip,
+  tryChunkAutoReload,
+} from "@/lib/boundary-report";
 import { HubProjectProvider } from "@/lib/hub-project";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
@@ -267,8 +273,50 @@ class RouteErrorBoundary extends Component<
     return { error };
   }
 
+  componentDidMount() {
+    /* A mount with no error means routed content just rendered
+       healthily — re-arm the one-shot chunk auto-reload for the next
+       separate incident. A mount that is ALREADY tripped (the chunk
+       is still failing after an auto-reload) leaves the guard set,
+       which is what makes an auto-reload loop impossible. */
+    if (!this.state.error) {
+      try {
+        clearChunkReloadGuard(window.sessionStorage);
+      } catch {
+        /* storage refusal — the guard simply stays as it was */
+      }
+    }
+  }
+
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[RouteErrorBoundary]", error, info.componentStack);
+    /* Self-report the trip (lib/boundary-report): route path, error
+       name + truncated message, chunk-shaped or not, build id when
+       the bundle carries one → POST /api/client-errors → one server
+       log line. Until this existed, a trip's only trace was the
+       console line above in the visitor's own browser, and two owner
+       trips on Oct 28 2026 were undiagnosable by construction. The
+       helpers never throw; the extra try/catch is belt-and-braces so
+       telemetry can never take down the fallback screen itself. */
+    try {
+      reportBoundaryTrip(
+        buildBoundaryReport(error, {
+          route: window.location.pathname,
+          build:
+            (import.meta.env as { VITE_BUILD_ID?: string }).VITE_BUILD_ID ??
+            null,
+        }),
+      );
+      /* Chunk-shaped trips get ONE automatic reload — the manual
+         "Try again" tap, automated — guarded by a sessionStorage
+         flag so it can never loop (see lib/boundary-report). */
+      tryChunkAutoReload(error, {
+        storage: window.sessionStorage,
+        reload: () => window.location.reload(),
+      });
+    } catch {
+      /* the fallback screen below is the recovery — protect it */
+    }
   }
 
   render() {
