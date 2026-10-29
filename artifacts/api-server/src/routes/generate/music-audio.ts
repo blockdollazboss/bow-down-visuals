@@ -34,9 +34,11 @@ const DEFAULT_LENGTH_MS = 60_000;
  *   songs above 5 minutes get this tier instead of silently pricing
  *   as a 5-minute song.
  *
- * Requests above 10 minutes are clamped to 600_000 ms by
- * clampLengthMs (the same clamp behavior the old 5-minute cap had),
- * so no song is ever generated — or charged — beyond the top tier.
+ * Requests above 10 minutes REFUSE plainly (item 21, stack800):
+ * creditCostForLength throws SongTooLongError past the top tier and
+ * the generate handler answers a >600s request with a plain-words
+ * 400 before any charge — a fan is never silently charged the top
+ * tier for a shorter song than the one they asked for.
  *
  * SONG_PRICE_TIERS is the single source for these numbers:
  * creditCostForLength derives from it, the operator Tier-3 song tools
@@ -51,11 +53,28 @@ export const SONG_PRICE_TIERS = [
   { maxLengthMs: 600_000, cost: 2_400 },
 ] as const;
 
+/** Plain-words refusal for a song longer than the top tier (item 21):
+ *  pricing must never silently charge the 2,400 top tier for a length
+ *  above it. Carries the refused length + the limit for honest logs. */
+export class SongTooLongError extends Error {
+  readonly lengthMs: number;
+  readonly maxLengthMs: number;
+  constructor(lengthMs: number) {
+    super(
+      `That song is ${Math.round(lengthMs / 1000)} seconds long — songs can be up to 10 minutes (600 seconds). ` +
+        `Pick a length of 10 minutes or less and try again. Nothing was charged.`,
+    );
+    this.name = "SongTooLongError";
+    this.lengthMs = lengthMs;
+    this.maxLengthMs = MAX_LENGTH_MS;
+  }
+}
+
 export function creditCostForLength(lengthMs: number): number {
   for (const tier of SONG_PRICE_TIERS) {
     if (lengthMs <= tier.maxLengthMs) return tier.cost;
   }
-  return SONG_PRICE_TIERS[SONG_PRICE_TIERS.length - 1].cost;
+  throw new SongTooLongError(lengthMs);
 }
 
 export function clampLengthMs(raw: unknown): number {
@@ -143,6 +162,21 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
 
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
+  /* Item 21 over-length honesty: a request past the 10-minute top tier
+     refuses plainly BEFORE pricing/charging — never silently clamp
+     the song to 600s and charge the 2,400 top tier for it. */
+  if (
+    typeof lengthSeconds === "number" &&
+    Number.isFinite(lengthSeconds) &&
+    lengthSeconds * 1000 > MAX_LENGTH_MS
+  ) {
+    res.status(400).json({
+      error:
+        "Songs can be up to 10 minutes long — pick a length of 10 minutes or less and try again. Nothing was charged.",
+      code: "song_too_long",
+    });
+    return;
+  }
   const musicLengthMs = clampLengthMs(lengthSeconds);
   const variantCount = variants === 2 ? 2 : 1;
   const baseCost = creditCostForLength(musicLengthMs);
