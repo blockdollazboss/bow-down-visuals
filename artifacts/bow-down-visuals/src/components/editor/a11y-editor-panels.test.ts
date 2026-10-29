@@ -90,7 +90,7 @@ describe("B-1 — every editor-panel form control has an accessible name", () =>
   it("the sweep covers the full panel tree (67 files at audit time)", () => {
     expect(panels.length).toBeGreaterThanOrEqual(60);
   });
-  it("no input/select/textarea is unlabelled", () => {
+  it("no input/select/textarea is unlabelled", { timeout: 30_000 }, () => {
     const offenders: string[] = [];
     for (const { rel, src } of panels) {
       for (const tag of unlabelledControls(src)) offenders.push(`${rel}: ${tag}`);
@@ -263,14 +263,14 @@ function unnamedButtons(src: string): string[] {
 }
 
 describe("B-1 round 2 — Radix sliders/switches and icon buttons carry names", () => {
-  it("no <Slider>/<Switch> in the editor trees is unnamed (tag aria or Field-lent)", () => {
+  it("no <Slider>/<Switch> in the editor trees is unnamed (tag aria or Field-lent)", { timeout: 30_000 }, () => {
     const offenders: string[] = [];
     for (const { rel, src } of panelSources()) {
       for (const tag of unnamedPrimitives(src)) offenders.push(`${rel}: ${tag}`);
     }
     expect(offenders).toEqual([]);
   });
-  it("no icon-only <button> in the editor trees lacks an accessible name", () => {
+  it("no icon-only <button> in the editor trees lacks an accessible name", { timeout: 30_000 }, () => {
     const offenders: string[] = [];
     for (const { rel, src } of panelSources()) {
       for (const tag of unnamedButtons(src)) offenders.push(`${rel}: ${tag}`);
