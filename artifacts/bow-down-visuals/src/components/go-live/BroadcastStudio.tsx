@@ -34,6 +34,12 @@ import {
 import { VOICE_EFFECTS, type NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
 import { BACKDROPS } from "@/lib/stream-kit/backdrops";
 import {
+  loadGreenScreenFineTune,
+  saveGreenScreenFineTune,
+  GREENSCREEN_FINETUNE_DEFAULTS,
+  type GreenScreenFineTune,
+} from "@/lib/stream-kit/greenscreen-finetune";
+import {
   backdropSelectionSource,
   greenScreenCueVisible,
   isSelectionActive,
@@ -173,6 +179,93 @@ function VoiceMeter({ getAnalyser }: { getAnalyser: () => AnalyserNode | null })
   );
 }
 
+/* The Fine-tune sliders (greenscreen-finetune.ts): every row
+   drives ONE real pipeline parameter, live — the module header
+   there carries the census of what each one honestly moves.
+   `modes` gates the backdrop-specific rows (blur radius exists
+   only in Blur mode, backdrop dim only behind a photo). */
+const FINE_TUNE_SLIDERS: Array<{
+  key: keyof GreenScreenFineTune;
+  label: string;
+  hint: string;
+  min: number;
+  max: number;
+  step: number;
+  modes: BackgroundMode[];
+  format: (v: number) => string;
+}> = [
+  {
+    key: "sensitivity",
+    label: "Cut sensitivity",
+    hint: "Up: faint edges stop counting as you. Down: wispy hair and soft edges survive.",
+    min: -50,
+    max: 50,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => (v > 0 ? `+${v}` : `${v}`),
+  },
+  {
+    key: "edgeShift",
+    label: "Edge size",
+    hint: "Shrink pulls the cut in — it kills the colour halo. Grow pushes it out — it fills gaps.",
+    min: -3,
+    max: 3,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => (v > 0 ? `+${v}` : `${v}`),
+  },
+  {
+    key: "softness",
+    label: "Edge softness",
+    hint: "More softens the rim between you and the background; less makes it crisper.",
+    min: -2,
+    max: 3,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => (v > 0 ? `+${v}` : `${v}`),
+  },
+  {
+    key: "smoothing",
+    label: "Motion smoothing",
+    hint: "Up calms edge flicker while you sit still. Down follows fast moves tighter.",
+    min: 0,
+    max: 100,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => `${v}%`,
+  },
+  {
+    key: "spill",
+    label: "Green spill cleanup",
+    hint: "Pulls the green fringe off your edges — from the green screen or the room light.",
+    min: 0,
+    max: 100,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => `${v}%`,
+  },
+  {
+    key: "blur",
+    label: "Background blur",
+    hint: "How soft the room behind you melts.",
+    min: 0,
+    max: 40,
+    step: 1,
+    modes: ["blur"],
+    format: (v) => `${v}px`,
+  },
+  {
+    key: "dim",
+    label: "Backdrop dim",
+    hint: "Darkens the photo behind you so you stand out against it.",
+    min: 0,
+    max: 85,
+    step: 1,
+    modes: ["image"],
+    format: (v) => `${v}%`,
+  },
+];
+
 export default function BroadcastStudio() {
   const isLight = useIsLightTheme();
   const { user, getAccessToken } = useAuth();
@@ -211,6 +304,29 @@ export default function BroadcastStudio() {
      Pro engine, and why — rendered verbatim below so a fallback
      reads as a fallback, never as a dressed-up "On". */
   const [engineDetail, setEngineDetail] = useState<EngineStatusDetail | null>(null);
+  /* Green-screen fine-tune (owner directive, Oct 29, 2026): the
+     creator's own adjustments to the cutout — sensitivity, edge
+     size/softness, motion smoothing, spill cleanup, backdrop
+     blur/dim. Loaded from the house localStorage prefs, saved on
+     every move, applied live to the running changer, and handed
+     to the kit at construction so a camera restart keeps them.
+     At the defaults the picture is the shipped one exactly. */
+  const [fineTune, setFineTuneState] = useState<GreenScreenFineTune>(() => loadGreenScreenFineTune());
+  const fineTuneRef = useRef<GreenScreenFineTune>(fineTune);
+  const applyFineTune = useCallback((patch: Partial<GreenScreenFineTune>) => {
+    const next = { ...fineTuneRef.current, ...patch };
+    fineTuneRef.current = next;
+    setFineTuneState(next);
+    saveGreenScreenFineTune(next);
+    changerRef.current?.setFineTune(next);
+  }, []);
+  const resetFineTune = useCallback(() => {
+    const next = { ...GREENSCREEN_FINETUNE_DEFAULTS };
+    fineTuneRef.current = next;
+    saveGreenScreenFineTune(next);
+    setFineTuneState(next);
+    changerRef.current?.setFineTune(next);
+  }, []);
   /* The ONE background choice (backdrop-selection.ts): a built-in
      scene, or the creator's own photo — an uploaded file or a pasted
      image URL, held here so the pick survives camera stop/start and
@@ -626,6 +742,7 @@ export default function BroadcastStudio() {
         changerRef.current = new BackgroundChanger({
           mode,
           quality,
+          fineTune,
           audio: true,
           noiseCancellation: nc,
           voiceEffect: fx,
@@ -2073,6 +2190,53 @@ export default function BroadcastStudio() {
             }}
           />
         </div>
+        {mode !== "none" && (
+          <div className="mt-5 border-t border-dashed border-[#C9A84C]/25 pt-4" data-testid="greenscreen-finetune">
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                Fine-tune your cutout
+              </p>
+              <button
+                type="button"
+                onClick={resetFineTune}
+                className={`text-xs font-bold underline underline-offset-2 ${isLight ? "text-[#8a6d1f]" : "text-amber-200/80"}`}
+                data-testid="btn-finetune-reset"
+              >
+                Reset to standard
+              </button>
+            </div>
+            <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+              Every slider applies live and stays saved on this device. Standard is the picture you already
+              know — nothing changes until you move one.
+            </p>
+            <div className="mt-3 grid gap-x-5 gap-y-3 sm:grid-cols-2">
+              {FINE_TUNE_SLIDERS.filter((s) => s.modes.includes(mode)).map((s) => (
+                <label key={s.key} className="block">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className={`text-xs font-bold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>{s.label}</span>
+                    <span className={`text-xs font-black tabular-nums ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
+                      {s.format(fineTune[s.key])}
+                    </span>
+                  </span>
+                  <input
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    step={s.step}
+                    value={fineTune[s.key]}
+                    aria-label={s.label}
+                    onChange={(e) => applyFineTune({ [s.key]: Number(e.target.value) })}
+                    className="mt-1 w-full accent-[#C9A84C]"
+                    data-testid={`slider-finetune-${s.key}`}
+                  />
+                  <span className={`mt-0.5 block text-[11px] leading-snug ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
+                    {s.hint}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── Camera effects ── */}
