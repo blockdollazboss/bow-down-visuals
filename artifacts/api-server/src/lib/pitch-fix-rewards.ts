@@ -35,6 +35,7 @@ import { eq } from "drizzle-orm";
 import { recordCreditUsageStrict } from "./payment-record";
 import { isUniqueViolation } from "./pg-errors";
 import { logger } from "./logger";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 import {
   getRewardPoolState,
   setSubmissionStatus,
@@ -55,6 +56,24 @@ export interface RewardPayDeps {
     creditsUsed: number;
     idempotencyKey: string;
   }): Promise<"recorded" | "already-recorded">;
+  /** Push-wiring port (#11): the default deps supply the real event
+   *  door; fakes may omit it. Fired only on the "paid" outcome. */
+  notifyEvent?: (input: UserEventInput) => Promise<unknown>;
+}
+
+/** The reward-landed event for the submitter (push wiring #11). The
+ *  claim flip (queued → paid, one winner) is the exactly-once gate —
+ *  this composition is only reached by the caller that won it. */
+export function buildPitchFixRewardEvent(sub: SubmissionWire, amount: number): UserEventInput {
+  const isPitch = sub.kind === "pitch";
+  return {
+    userId: sub.submitterUserId,
+    category: "money",
+    kind: "pitch_fix_reward",
+    title: isPitch ? "Your pitch shipped 👑" : "Your fix shipped 👑",
+    body: `${isPitch ? "Your pitch" : "Your report"} made it live — and earned you ${amount} VB. Thanks for making Bow Down better.`,
+    link: "/pitch-fix",
+  };
 }
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -66,6 +85,9 @@ function isDuplicateKeyError(err: unknown): boolean {
 }
 
 export const defaultRewardPayDeps: RewardPayDeps = {
+  async notifyEvent(input) {
+    await notifyUserEvent(input);
+  },
   async addCredits(userId, amount) {
     /* Dynamic import, the payment-record pattern (supabase-admin is a
        leaf; this avoids a hard dependency cycle). */
@@ -111,7 +133,6 @@ export async function payQueuedReward(
       creditsUsed: -amount,
       idempotencyKey: pitchFixRewardLedgerKey(sub.id),
     });
-    return "paid";
   } catch (err) {
     if (granted) {
       await deps.addCredits(sub.submitterUserId, -amount).catch(() => {});
@@ -123,6 +144,18 @@ export async function payQueuedReward(
     );
     return "failed_released";
   }
+  /* Push wiring #11: grant + ledger landed and the claim was won by
+     THIS caller — tell the submitter. Deliberately AFTER the money
+     try/catch: a notification failure must never claw back a reward
+     that honestly landed. */
+  if (deps.notifyEvent) {
+    try {
+      await deps.notifyEvent(buildPitchFixRewardEvent(sub, amount));
+    } catch (notifyErr) {
+      logger.warn({ notifyErr, submissionId: sub.id }, "[pitch-fix-rewards] reward push failed (non-fatal)");
+    }
+  }
+  return "paid";
 }
 
 export interface ProcessRewardsResult {
