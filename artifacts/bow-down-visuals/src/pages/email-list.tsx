@@ -185,6 +185,17 @@ export default function EmailListBuilder() {
  const { t, i18n } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const [tab, setTab] = useState<TabKey>("dashboard");
+ /* Keyword automations live at the bottom of the newsletter tab —
+  * findable only by scrolling a tab named for something else (the
+  * Oct 25 walker never sighted the card). The dashboard door jumps
+  * straight to the card: switch tab, then scroll it into view (the
+  * analytics-hub setTimeout idiom — the tab swap must commit first). */
+ const openKeywordAutomations = () => {
+ setTab("newsletter");
+ setTimeout(() => {
+ document.getElementById("keyword-automations")?.scrollIntoView({ behavior: "smooth", block: "start" });
+ }, 100);
+ };
 
  const [lists, setLists] = useState<EmailList[]>([]);
  const [activeListId, setActiveListId] = useState<string>("");
@@ -919,6 +930,20 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  </select>
  </div>
 
+ {/* Keyword-automations door (stack800 lane 3): the card itself sits
+  at the bottom of the newsletter tab; this signpost on the landing
+  tab names it and jumps straight to it. */}
+ <div className={`${cardClass} mb-4 flex flex-wrap items-center gap-3`} data-testid="keyword-automations-door">
+ <MessageSquare className="h-5 w-5 shrink-0 text-primary" />
+ <div className="min-w-0 flex-1">
+ <p className="font-semibold">{t("email-list.kw_title")}</p>
+ <p className="text-sm text-white/50">{t("email-list.kw_door_line")}</p>
+ </div>
+ <button type="button" className={tabBtn(true)} onClick={openKeywordAutomations}>
+ {t("email-list.kw_door_open")}
+ </button>
+ </div>
+
  {subsLoadError ? (
  subsErrorBox
  ) : (
@@ -1532,7 +1557,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  </div>
 
  {/* ── keyword automations (migration 0232): comment the word → get the DM ── */}
- <div className={`${cardClass} mt-4`}>
+ <div id="keyword-automations" data-testid="keyword-automations-card" className={`${cardClass} mt-4 scroll-mt-24`}>
  <h3 className="flex items-center gap-2 font-semibold"><MessageSquare className="h-4 w-4 text-primary" />{t("email-list.kw_title")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.kw_intro")}</p>
  {kwFailed ? (
