@@ -1,5 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Megaphone, Loader2, ArrowLeft, BadgeDollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,35 @@ export default function SponsorPost() {
      (403 CREDITS_DISABLED): the form then stops offering a Post action
      that cannot succeed until the page is reloaded. */
   const [spendingPaused, setSpendingPaused] = useState(false);
+
+  /* Learn the paused state BEFORE the first attempt: the can-spend
+     readout asks the same predicate the charge enforces, so a poster
+     under the pre-launch credit lockdown sees the paused message on
+     arrival instead of only after a failed post. Fail-open on purpose —
+     if the readout can't be reached, the form stays usable and the
+     submit-time 403 below still answers honestly. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/sponsors/can-spend", {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as { canSpend?: boolean };
+        if (!cancelled && data.canSpend === false) {
+          setSpendingPaused(true);
+          setError(t("sponsorsPost.errorSpendingPaused"));
+        }
+      } catch {
+        /* readout unreachable — the submit-time 403 still speaks */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   async function postDeal() {
     const min = Number(budgetMin);
