@@ -412,6 +412,7 @@ export function CheatCodeJackpot() {
  {showBanner && bannerBody && !inEditor && (
  <div
  role="status"
+ data-testid="jackpot-banner"
  className={cn(
  "relative z-[60] border-b overflow-hidden",
  bannerBody.accent
@@ -426,6 +427,18 @@ export function CheatCodeJackpot() {
    alt=""
    aria-hidden="true"
    draggable={false}
+ />
+ {/* Readability scrim — the palace art is busy mid-tone gold in both
+     themes; at 40% over the base it dropped the pixel title to ~2.8:1
+     in light mode (measured on the shipped art). This gradient grounds
+     the text zone in the banner's own base (cream / black) and lets the
+     art keep the right side of the strip. */}
+ <div
+ aria-hidden="true"
+ data-testid="jackpot-banner-scrim"
+ className={isLight
+ ? "absolute inset-0 bg-gradient-to-r from-[#F7F1E3] via-[#F7F1E3]/80 to-[#F7F1E3]/30"
+ : "absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/30"}
  />
  <div className="relative mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
  <span aria-hidden="true" className="shrink-0 leading-none">
@@ -442,10 +455,10 @@ export function CheatCodeJackpot() {
  />
  </span>
  <div className="min-w-0 flex-1">
- <p className={`pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] uppercase ${isLight ? "text-[#7A5A12]" : "text-[#F5DE8E]"}`}>
+ <p className={`pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] uppercase ${isLight ? "text-[#7A5A12] [text-shadow:0_1px_0_rgba(255,252,240,0.9),0_0_12px_rgba(247,241,227,0.65)]" : "text-[#F5DE8E] [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_12px_rgba(0,0,0,0.6)]"}`}>
  {bannerBody.title}
  </p>
- <p className={`truncate text-[11px] sm:text-xs ${isLight ? "font-medium text-[#6B5310]" : "text-white/50"}`}>
+ <p className={`truncate text-[11px] sm:text-xs ${isLight ? "font-medium text-[#6B5310] [text-shadow:0_1px_0_rgba(255,252,240,0.75)]" : "text-white/50 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]"}`}>
  {bannerBody.sub}
  </p>
  </div>
