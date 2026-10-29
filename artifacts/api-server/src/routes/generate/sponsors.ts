@@ -13,10 +13,10 @@ import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from ".
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Money rules (standing pricing rule: AI/compute burns credits, pure UI is free):
- *  - posting a deal: 5 credits (brands pay for the listing)
+ *  - posting a deal: 500 credits (brands pay for the listing)
  *  - applying to a deal: free (pure UI — just stores the pitch)
  *  - browsing deals: free (pure UI — just reads)
- *  - AI pitch writer / AI deal matcher: 1 credit each, charged BEFORE the
+ *  - AI pitch writer / AI deal matcher: 100 credits each, charged BEFORE the
  *    model call, auto-refunded on provider failure.
  *
  * GPT-6 note: use `max_completion_tokens` — gpt-6-sol rejects `max_tokens`.
@@ -25,11 +25,15 @@ import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from ".
  * builder (same pattern as the locations route — pg-mem and the node-postgres
  * shim don't speak the query builder's rowMode). */
 
-/* 5 credits per deal posting — a business listing that can close real money,
+/* 500 credits per deal posting — a business listing that can close real money,
    so it prices above impulse AI tools. Env-overridable without a deploy. */
 export const SPONSOR_POST_CREDIT_COST =
   Number(process.env["SPONSOR_POST_CREDIT_COST"]) || 500;
-/* 1 credit per AI assist — same impulse price as the coach/hooks tools. */
+/* 100 credits per AI assist — the house AI-action price (Post Assist,
+   Auto-Grade, bio generator, camera planner all charge 100). Owner ruling
+   Oct 29, 2026: the deal matcher aligns to 100 like its siblings — the "1"
+   that lingered in comments and the client display was a pre-×100 leftover;
+   this rail has charged 100 by default all along. Env-overridable. */
 export const SPONSOR_AI_CREDIT_COST =
   Number(process.env["SPONSOR_AI_CREDIT_COST"]) || 100;
 
@@ -265,7 +269,7 @@ router.post("/sponsors/deals/:id/apply", publicApiLimiter, requireAuth, async (r
   }
 });
 
-/* POST /api/sponsors/pitch — AI pitch writer. Paid: 1 credit, charged BEFORE
+/* POST /api/sponsors/pitch — AI pitch writer. Paid: 100 credits, charged BEFORE
    the model call, auto-refunded on provider failure. */
 router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = pitchWriterSchema.safeParse(req.body ?? {});
@@ -377,7 +381,7 @@ router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) =
   }
 });
 
-/* POST /api/sponsors/match — AI deal matcher. Paid: 1 credit, charged BEFORE
+/* POST /api/sponsors/match — AI deal matcher. Paid: 100 credits, charged BEFORE
    the model call, auto-refunded on provider failure. */
 router.post("/sponsors/match", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = matcherSchema.safeParse(req.body ?? {});

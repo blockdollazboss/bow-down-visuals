@@ -14,7 +14,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── /sponsors/:id — deal detail ──────────────────────────────────────────
-   Creators: apply with a pitch (+ AI pitch writer, 1 credit), track status,
+   Creators: apply with a pitch (+ AI pitch writer, 100 credits), track status,
    start work, mark delivered.
    Brands: review applications, accept/reject, fund escrow (Stripe or
    sandbox), release payment (15% platform fee).
@@ -54,7 +54,10 @@ interface Application {
   created_at: string;
 }
 
-const AI_COST = 1;
+/* Display mirror of the rail charge (SPONSOR_AI_CREDIT_COST, 100 Visual Bucs —
+   the pitch writer shares the matcher rail constant). Pinned by
+   lib/sponsor-ai-price-truth.test.ts. */
+const AI_COST = 100;
 /* Tone display strings live in the component (via t()); keys stay stable
    because tone values are sent to the backend. */
 const TONES = [
