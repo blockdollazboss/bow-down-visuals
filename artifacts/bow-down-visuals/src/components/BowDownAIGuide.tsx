@@ -26,18 +26,43 @@ export function guidePeekPx(coarsePointer: boolean): number {
 type SnapPt = "TL" | "TC" | "TR" | "RC" | "BR" | "BC" | "BL" | "LC";
 const ALL_SNAPS: SnapPt[] = ["TL", "TC", "TR", "RC", "BR", "BC", "BL", "LC"];
 
+/* ─── Top-left floating-chrome keep-out ─────────────────────────
+   The shell's top-left chrome stack (corner budget, Stack-28 #58),
+   all fixed and all ABOVE this widget's z-9990:
+   - language switcher / theme toggle / pack picker: top 16, 44 tall
+     (z-9000/9999) — bottom edge 60;
+   - "Enter the World" pill (lib/world-entry.ts): left-4,
+     top-[4.25rem] = 68, py-3 (24) + text-sm line (20) + border (2)
+     = 46 tall, ≈170 wide (right edge ≈186), z-[9998] — bottom 114.
+   The pill is the LOWEST top-left chrome. The stack500 TL fix (+56,
+   y=76) was measured against the toggle row alone and stopped 38px
+   short of the pill: at TL the pill painted over the open panel's
+   grip + header (owner screenshot, Oct 28). A top snap whose span
+   reaches into the chrome column (x < TOP_CHROME_RIGHT) therefore
+   seats below the pill instead of at the plain margin. Desktop-wide
+   TC/TR spans start past the column and keep the plain margin. */
+const TOP_CHROME_PILL_BOTTOM = 68 + 46;                  // 114
+const TOP_CHROME_CLEAR_Y     = TOP_CHROME_PILL_BOTTOM + 8; // 122
+const TOP_CHROME_RIGHT       = 190; // pill right edge ≈186, rounded up
+
+/** Y for a top snap: clear of the top-left chrome column when the
+    panel's left edge reaches into it, the plain margin otherwise. */
+function topSnapY(x: number, m: number): number {
+  return x < TOP_CHROME_RIGHT ? TOP_CHROME_CLEAR_Y : m;
+}
+
 function snapPos(pt: SnapPt, w: number, h: number) {
   const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const m = SNAP_M;
   const cx = Math.round((vw - w) / 2), cy = Math.round((vh - h) / 2);
   const map: Record<SnapPt, { x: number; y: number }> = {
-    /* TL drops +56: the floating theme toggles (fixed, z-9999, top:16,
-       44 tall) own the top-left corner — at plain m the open panel's
-       header slid underneath them and its title was covered. */
-    TL: { x: m,          y: m + 56     },
-    TC: { x: cx,         y: m          },
-    TR: { x: vw - w - m, y: m          },
+    /* Top snaps route through topSnapY: TL always reaches into the
+       chrome column; TC/TR only on viewports narrow enough that
+       their span reaches it (phone widths). */
+    TL: { x: m,          y: topSnapY(m, m)          },
+    TC: { x: cx,         y: topSnapY(cx, m)         },
+    TR: { x: vw - w - m, y: topSnapY(vw - w - m, m) },
     RC: { x: vw - w - m, y: cy         },
     BR: { x: vw - w - m, y: vh - h - m },
     BC: { x: cx,         y: vh - h - m },
