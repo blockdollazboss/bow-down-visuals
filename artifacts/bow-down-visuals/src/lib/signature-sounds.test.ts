@@ -276,6 +276,11 @@ describe("the manifest — the only place a sound file is named", () => {
     }
   });
 
+  // Explicit 30s budget: this scan reads every .ts/.tsx under src/ and
+  // runs at ~4.4s on a calm box — ~90% of vitest's 5s default — so under
+  // multi-lane contention it used to TIME OUT and read as an offender
+  // regression (stack600 reconciliation: the scan's verdict was always
+  // "zero offenders"; the budget was the defect). Assertion unchanged.
   it("no other source file names a signature-sound asset (files-only swap)", () => {
     const srcRoot = new URL("../", import.meta.url).pathname;
     const offenders: string[] = [];
@@ -292,5 +297,5 @@ describe("the manifest — the only place a sound file is named", () => {
     };
     walk(srcRoot);
     expect(offenders).toEqual([]);
-  });
+  }, 30000);
 });
