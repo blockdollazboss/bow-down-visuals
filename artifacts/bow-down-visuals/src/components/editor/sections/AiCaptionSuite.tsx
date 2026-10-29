@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
+import { useIsAdmin, uploadLimitBytes, uploadLimitLabel } from "@/lib/use-is-admin";
 import { TARGET_LANGUAGES } from "@/lib/video-translator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -159,6 +160,9 @@ const GEN_TIPS = [
 export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimeline }: Props) {
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
+  /* Caption uploads ride the disk-backed rails (/api/upload-clip into
+     /api/caption-styler): members 80 MB, owner 1 GB. */
+  const isAdmin = useIsAdmin();
 
   const [step, setStep] = useState<Step>(1);
   const [sourceMode, setSourceMode] = useState<"upload" | "timeline">("timeline");
@@ -682,7 +686,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0] ?? null; if (f && f.size > 80 * 1024 * 1024) { setGenError("That video is over 80 MB — trim it or pick a smaller file."); setGenStatus("error"); return; } setFile(f); setVideoUrl(null); }}
+                onChange={(e) => { const f = e.target.files?.[0] ?? null; if (f && f.size > uploadLimitBytes(isAdmin, 80 * 1024 * 1024)) { setGenError(`That video is over ${uploadLimitLabel(isAdmin, 80 * 1024 * 1024)} — trim it or pick a smaller file.`); setGenStatus("error"); return; } setFile(f); setVideoUrl(null); }}
               />
               <button
                 type="button"
@@ -691,7 +695,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                 onDrop={(e) => {
                   e.preventDefault();
                   const f = e.dataTransfer.files?.[0];
-                  if (f && f.type.startsWith("video/")) { if (f.size > 80 * 1024 * 1024) { setGenError("That video is over 80 MB — trim it or pick a smaller file."); setGenStatus("error"); return; } setFile(f); setVideoUrl(null); }
+                  if (f && f.type.startsWith("video/")) { if (f.size > uploadLimitBytes(isAdmin, 80 * 1024 * 1024)) { setGenError(`That video is over ${uploadLimitLabel(isAdmin, 80 * 1024 * 1024)} — trim it or pick a smaller file.`); setGenStatus("error"); return; } setFile(f); setVideoUrl(null); }
                 }}
                 className="w-full rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center hover:border-[#E8C468]/50 transition-colors"
               >
