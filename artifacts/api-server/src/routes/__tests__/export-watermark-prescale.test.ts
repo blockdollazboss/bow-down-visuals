@@ -29,16 +29,29 @@
  *
  * IDENTITY GATE (stack700 watermark-png-gate): the identity proof
  * covers PNG sources only, and the watermark leg accepts lossy ones
- * — the dark house mark is WebP and custom logos download as .jpg /
- * .webp. For lossy sources a standalone pre-scale negotiates a
- * different intermediate format than the in-graph scale and the
- * render DRIFTS (md5-verified on the actual dark mark). §4.5 now
+ * — custom logos download as .jpg / .webp (and the house dark mark's
+ * WebP original is the asset the drift was md5-proven on). For lossy
+ * sources a standalone pre-scale negotiates a different intermediate
+ * format than the in-graph scale and the render DRIFTS. §4.5 now
  * probes the source (shared probeStillImageCodec with §4.6) and
  * pre-scales only codec == png; lossy sources feed the full-size
  * original exactly as pre-stack700. So the pre-scale pins below run
- * on the LIGHT house mark (PNG, 1600x1600), and two further pins
- * hold the lossy side: a JPEG custom logo and the WebP dark house
- * mark each spawn NO pre-scale and loop their untouched originals.
+ * on the LIGHT house mark (PNG, 1600x1600), and a further pin holds
+ * the lossy side: a JPEG custom logo spawns NO pre-scale and loops
+ * its untouched original.
+ *
+ * DARK-MARK SWAP (stack700 dark-mark-png; owner ruling, Oct 29:
+ * "Swap the dark mark to PNG — take the memory win"): the dark house
+ * mark now feeds as bdv-watermark-dark.png, a PNG re-encode carrying
+ * the WebP's exact decoded pixels (raw RGBA dumps byte-identical,
+ * md5 3b1a2a32e8fdba16965031aa2912b0f9), so the gate admits it and it
+ * is pinned below as a PRE-SCALE case. This pin previously held the
+ * opposite (the WebP mark feeding its untouched original); it flipped
+ * because the asset did. The rendered mark's small shift from the
+ * format swap itself (<=20/255 per channel inside its box) was
+ * measured and accepted by the owner; the WebP file stays in place
+ * for the photo editor and frontend surfaces, which are out of this
+ * pipeline's scope.
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { execFile } from "child_process";
@@ -376,8 +389,9 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
       aiDisclosure: true,
       customWatermarkUrl: null,
       // Light theme -> the PNG house mark: this pin covers the
-      // byte-identical class. (The dark mark is WebP — outside the
-      // class — and is pinned separately below as feed-the-original.)
+      // byte-identical class. (The dark mark's PNG re-encode is in
+      // the same class and is pinned separately below as a pre-scale
+      // case — owner-ruled swap, Oct 29.)
       watermarkTheme: "light",
       watermarkPosition: "bottom-right",
       watermarkSize: "medium",
@@ -523,13 +537,18 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
     }
   }, 300_000);
 
-  it("identity gate: the WebP dark house mark feeds its untouched original (no pre-scale)", async () => {
+  it("owner-ruled swap: the dark house mark (PNG re-encode) pre-scales like the light mark", async () => {
     // Default branding watermark + dark theme -> DEFAULT_WATERMARK is
-    // bdv-watermark.webp (codec webp), outside the byte-identical
-    // class — the most common branded-export path must not drift.
+    // bdv-watermark-dark.png since the owner-ruled swap (Oct 29:
+    // "Swap the dark mark to PNG — take the memory win"). The PNG
+    // re-encode carries the house WebP's exact decoded pixels, so it
+    // is inside the byte-identical class and the §4.5 gate admits it:
+    // the most common branded-export path now pre-scales. (This pin
+    // previously asserted the opposite — the WebP mark feeding its
+    // untouched original — and flipped with the asset.)
     const invocations = await runAndCapture(
       baseBody({ watermarkTheme: "dark" }),
-      "job-wm-webp-gate",
+      "job-wm-dark-prescale",
     );
 
     expect(captured.failed).toEqual([]);
@@ -537,26 +556,42 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
     expect(captured.completed[0]!.result.watermarked).toBe(true);
     expect(invocations.length).toBeGreaterThan(1);
 
-    // ── NO pre-scale spawn at all.
+    // ── Exactly one pre-scale spawn, and its input is the dark PNG
+    //    house mark (never the WebP, never the feed file itself).
     const prescales = invocations.filter((args) =>
       args.some((a) => /bdv-wm-feed-.*\.png$/.test(a)) && args.includes("-vf"),
     );
-    expect(prescales).toHaveLength(0);
+    expect(prescales).toHaveLength(1);
+    const prescale = prescales[0]!;
+    const feedPath = prescale.find((a) => /bdv-wm-feed-.*\.png$/.test(a))!;
+    const prescaleInput = prescale[prescale.indexOf("-i") + 1]!;
+    expect(prescaleInput).toMatch(/bdv-watermark-dark\.png$/);
+    const vfIdx = prescale.indexOf("-vf");
+    const prescaleWidth = /^scale=(\d+):-2$/.exec(prescale[vfIdx + 1]!)?.[1];
+    expect(prescaleWidth).toBeTruthy();
 
-    // ── Pass A's -loop input is the house WebP file itself.
+    // ── Pass A's -loop input is the pre-scaled feed file, and the
+    //    graph's own watermark scale targets the SAME width (the
+    //    in-graph scale is an identity on the PNG path).
     const passA = invocations.find((args) => args.includes("-filter_complex_threads"))!;
     expect(passA).toBeTruthy();
     const loopIdx = passA.indexOf("-loop");
     expect(loopIdx).toBeGreaterThan(-1);
     expect(passA[loopIdx + 1]).toBe("1");
     expect(passA[loopIdx + 2]).toBe("-i");
-    expect(passA[loopIdx + 3]).toMatch(/bdv-watermark\.webp$/);
+    expect(passA[loopIdx + 3]).toBe(feedPath);
 
-    // ── And it is the only -loop input in the whole render.
+    const graph = passA[passA.indexOf("-filter_complex") + 1]!;
+    const graphWmWidth = /scale=(\d+):-2,format=rgba/.exec(graph)?.[1];
+    expect(graphWmWidth).toBe(prescaleWidth);
+
+    // ── No invocation anywhere loops a full-size original: every
+    //    -loop input in the whole render is the pre-scaled feed.
     for (const args of invocations) {
       for (let i = 0; i < args.length; i++) {
         if (args[i] === "-loop") {
-          expect(args[i + 3]).toMatch(/bdv-watermark\.webp$/);
+          expect(args[i + 2]).toBe("-i");
+          expect(args[i + 3]).toBe(feedPath);
         }
       }
     }
