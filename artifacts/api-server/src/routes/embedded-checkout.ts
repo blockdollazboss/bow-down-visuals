@@ -18,6 +18,8 @@ import {
   getStripePaymentStatus,
 } from "../lib/payment-record";
 import { TIER_PLANS } from "../lib/platform-fees";
+import { previewCreatorTierChange } from "../lib/creator-tier-upgrade";
+import { buildTierChangePreviewView, isChangeableRow } from "../lib/tier-change";
 import { ensureProfile } from "./creator-tiers";
 
 /* ── Embedded checkout (owner law 2026-10-26: never leave the site) ─────
@@ -435,13 +437,14 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
      (same discipline as the hosted tier checkout): a double-submit
      before activation sees the same state and reuses the original
      subscription instead of minting a second subscribable one. */
-  let currentSub: { tier: string; status: string; currentPeriodEnd: Date | null; stripeSubscriptionId: string | null; stripeCustomerId: string | null } | null;
+  let currentSub: { tier: string; status: string; currentPeriodEnd: Date | null; cancelAtPeriodEnd: Date | null; stripeSubscriptionId: string | null; stripeCustomerId: string | null } | null;
   try {
     const [row] = await db
       .select({
         tier: creatorSubscriptionsTable.tier,
         status: creatorSubscriptionsTable.status,
         currentPeriodEnd: creatorSubscriptionsTable.currentPeriodEnd,
+        cancelAtPeriodEnd: creatorSubscriptionsTable.cancelAtPeriodEnd,
         stripeSubscriptionId: creatorSubscriptionsTable.stripeSubscriptionId,
         stripeCustomerId: creatorSubscriptionsTable.stripeCustomerId,
       })
@@ -456,8 +459,49 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
   }
   if (currentSub?.status === "active" || currentSub?.status === "trialing") {
     // Already subscribed on this rail — a second live subscription is
-    // never the right answer; the client shows the manage/portal path.
-    res.status(409).json({ error: "ALREADY_SUBSCRIBED", message: "You already have an active plan — manage it from your billing settings." });
+    // never the right answer (stack600 plan-tier-change: this 409 used
+    // to be a dead end — Gate Pass 1, Oct 28: billing had no change
+    // control either, so a subscriber could not move tiers anywhere).
+    if (currentSub.tier === tier) {
+      res.status(409).json({ error: "ALREADY_ON_TIER", message: `You're already on the ${plan.name} tier.` });
+      return;
+    }
+    if (!isChangeableRow(currentSub) || !currentSub.stripeSubscriptionId) {
+      // A live row we cannot identify on Stripe — never guess; the
+      // honest manage path is the only safe answer.
+      res.status(409).json({ error: "ALREADY_SUBSCRIBED", message: "You already have an active plan — manage it from your billing settings." });
+      return;
+    }
+    /* A different tier is a CHANGE, not a purchase: answer with the
+       proration preview (mode "change") and let the client confirm
+       against POST /creator-tiers/change — the same one flow Settings
+       → Billing uses (lib/tier-change.ts). No new subscription, no
+       new customer, nothing charged by this response. */
+    try {
+      const preview = await previewCreatorTierChange(stripe, {
+        subscriptionId: currentSub.stripeSubscriptionId,
+        priceId,
+      });
+      res.json({
+        success: true,
+        mode: "change",
+        tier,
+        fromTier: currentSub.tier,
+        subscriptionId: currentSub.stripeSubscriptionId,
+        changePreview: buildTierChangePreviewView({
+          row: currentSub,
+          toTier: tier,
+          amountDueTodayCents: preview.amountDueTodayCents,
+          creditCents: preview.creditCents,
+          currency: preview.currency,
+          currentPeriodEnd: preview.currentPeriodEnd,
+        }),
+      });
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, userId: req.userId }, "embedded-checkout: tier change preview failed");
+      res.status(502).json({ error: `Couldn't price that plan change: ${msg}` });
+    }
     return;
   }
   const idempotencyKey = buildEmbeddedIntentIdempotencyKey({

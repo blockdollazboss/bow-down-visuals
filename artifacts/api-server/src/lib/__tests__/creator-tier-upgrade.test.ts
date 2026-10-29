@@ -9,7 +9,7 @@
  * refuse instead of minting anything.
  */
 import { describe, it, expect, vi } from "vitest";
-import { changeCreatorTierSubscription } from "../creator-tier-upgrade";
+import { changeCreatorTierSubscription, previewCreatorTierChange } from "../creator-tier-upgrade";
 
 function fakeStripe(sub: any) {
   return {
@@ -81,5 +81,111 @@ describe("changeCreatorTierSubscription", () => {
       subscriptionId: "sub_1", priceId: "price_pro", tier: "pro", userId: "u1", profileId: "p1",
     })).rejects.toThrow(/already on that price/);
     expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+  });
+
+  it("passes prorationDate, idempotencyKey and clearPendingCancel through to the update (stack600)", async () => {
+    const stripe = fakeStripe(structuredClone(baseSub));
+    await changeCreatorTierSubscription(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite", tier: "elite", userId: "u1", profileId: "p1",
+      prorationDate: 1_798_000_000, idempotencyKey: "idem-key-1", clearPendingCancel: true,
+    });
+    const [, params, options] = (stripe.subscriptions.update as any).mock.calls[0];
+    expect(params.proration_date).toBe(1_798_000_000);
+    expect(params.cancel_at_period_end).toBe(false);
+    expect(options).toEqual({ idempotencyKey: "idem-key-1" });
+  });
+
+  it("without the stack600 options the update carries no proration_date, no cancel clear, no key (hosted rail unchanged)", async () => {
+    const stripe = fakeStripe(structuredClone(baseSub));
+    await changeCreatorTierSubscription(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite", tier: "elite", userId: "u1", profileId: "p1",
+    });
+    const [, params, options] = (stripe.subscriptions.update as any).mock.calls[0];
+    expect(params.proration_date).toBeUndefined();
+    expect(params.cancel_at_period_end).toBeUndefined();
+    expect(options).toBeUndefined();
+  });
+
+  it("a KEYED call whose change already landed answers success from the retrieved state — no second update", async () => {
+    const stripe = fakeStripe(structuredClone(baseSub));
+    const result = await changeCreatorTierSubscription(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_pro", tier: "pro", userId: "u1", profileId: "p1",
+      idempotencyKey: "idem-key-1",
+    });
+    expect(result.subscriptionId).toBe("sub_1");
+    expect(result.customerId).toBe("cus_1");
+    expect(result.status).toBe("active");
+    expect(result.currentPeriodEnd).toEqual(new Date(1_799_000_000 * 1000));
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+  });
+});
+
+function fakeStripeWithPreview(sub: any, amountDue: number) {
+  const base = fakeStripe(sub);
+  return {
+    ...base,
+    invoices: {
+      createPreview: vi.fn(async () => ({ amount_due: amountDue, currency: "usd" })),
+    },
+  };
+}
+
+describe("previewCreatorTierChange (stack600)", () => {
+  it("upgrade: a positive amount_due is today's charge; the preview targets the same sub/item at the pinned proration_date", async () => {
+    const stripe = fakeStripeWithPreview(structuredClone(baseSub), 850);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite", prorationDate: 1_798_000_000,
+    });
+    expect(preview.amountDueTodayCents).toBe(850);
+    expect(preview.creditCents).toBe(0);
+    expect(preview.currency).toBe("usd");
+    expect(preview.prorationDate).toBe(1_798_000_000);
+    expect(preview.currentPeriodEnd).toEqual(new Date(1_799_000_000 * 1000));
+    const [params] = (stripe.invoices.createPreview as any).mock.calls[0];
+    expect(params.customer).toBe("cus_1");
+    expect(params.subscription).toBe("sub_1");
+    expect(params.subscription_details).toEqual({
+      items: [{ id: "si_1", price: "price_elite" }],
+      proration_date: 1_798_000_000,
+    });
+    /* A preview writes nothing. */
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
+  });
+
+  it("downgrade: a negative amount_due becomes a credit with $0 due today", async () => {
+    const elite = structuredClone(baseSub);
+    elite.items.data[0].price.id = "price_elite";
+    const stripe = fakeStripeWithPreview(elite, -700);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_pro", prorationDate: 1_798_000_000,
+    });
+    expect(preview.amountDueTodayCents).toBe(0);
+    expect(preview.creditCents).toBe(700);
+  });
+
+  it("an unpinned preview picks a proration instant and reports the SAME one it sent to Stripe", async () => {
+    const stripe = fakeStripeWithPreview(structuredClone(baseSub), 850);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite",
+    });
+    expect(typeof preview.prorationDate).toBe("number");
+    const [params] = (stripe.invoices.createPreview as any).mock.calls[0];
+    expect(params.subscription_details.proration_date).toBe(preview.prorationDate);
+  });
+
+  it("refuses to preview a same-price change or a canceled subscription", async () => {
+    const samePrice = fakeStripeWithPreview(structuredClone(baseSub), 0);
+    await expect(previewCreatorTierChange(samePrice as any, {
+      subscriptionId: "sub_1", priceId: "price_pro",
+    })).rejects.toThrow(/already on that price/);
+    expect(samePrice.invoices.createPreview).not.toHaveBeenCalled();
+
+    const dead = structuredClone(baseSub);
+    dead.status = "canceled";
+    const canceled = fakeStripeWithPreview(dead, 0);
+    await expect(previewCreatorTierChange(canceled as any, {
+      subscriptionId: "sub_1", priceId: "price_elite",
+    })).rejects.toThrow(/cannot be changed/);
+    expect(canceled.invoices.createPreview).not.toHaveBeenCalled();
   });
 });

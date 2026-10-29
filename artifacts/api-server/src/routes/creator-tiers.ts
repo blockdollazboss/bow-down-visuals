@@ -12,7 +12,13 @@ import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
-import { changeCreatorTierSubscription } from "../lib/creator-tier-upgrade";
+import { changeCreatorTierSubscription, previewCreatorTierChange } from "../lib/creator-tier-upgrade";
+import {
+  buildTierChangeIdempotencyKey,
+  buildTierChangePreviewView,
+  isChangeableRow,
+  type TierChangePreviewView,
+} from "../lib/tier-change";
 import { buildBillingState, type SubscriptionBillingRow } from "../lib/billing-state";
 import { stripeTaxSessionFields } from "../lib/stripe-tax";
 import {
@@ -148,7 +154,16 @@ async function loadBillingRow(profileId: string): Promise<SubscriptionBillingRow
 /* ── GET /creator-tiers/me ── auth ── */
 router.get("/creator-tiers/me", requireAuth, async (req, res) => {
   const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
-  const row = profileId ? await loadBillingRow(profileId) : null;
+  let row: SubscriptionBillingRow | null = null;
+  try {
+    row = profileId ? await loadBillingRow(profileId) : null;
+  } catch (err) {
+    /* A failed billing-row read must not hang or 500 the tier read the
+       sidebar badge depends on — /me degrades to the resolved tier
+       (resolveCreatorTier already read the same row family) and the
+       billing card reports its own load failure separately. */
+    logger.warn({ err, userId: req.userId }, "creator-tiers/me: billing row read failed, answering from resolved tier");
+  }
   const billing = buildBillingState(row, tier);
   res.json({
     tier,
@@ -199,7 +214,18 @@ router.get("/creator-tiers/history", requireAuth, async (req, res) => {
    or a row with no Stripe subscription) get an honest free state. */
 router.get("/creator-tiers/billing", requireAuth, async (req, res) => {
   const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
-  const row = profileId ? await loadBillingRow(profileId) : null;
+  let row: SubscriptionBillingRow | null;
+  try {
+    row = profileId ? await loadBillingRow(profileId) : null;
+  } catch (err) {
+    /* Clean JSON 500, never an unhandled throw: the Settings card can
+       only show "Couldn't load your billing" honestly if the failure
+       arrives as an answer (Gate Pass 1, Oct 28: the card failed and
+       its own retry failed the same way). */
+    logger.error({ err, userId: req.userId }, "creator-tiers/billing: subscription row read failed");
+    res.status(500).json({ error: "Couldn't load your billing. Try again." });
+    return;
+  }
   res.json({ billing: buildBillingState(row, tier), profileId });
 });
 
@@ -306,6 +332,228 @@ router.post("/creator-tiers/resume", requireAuth, publicApiLimiter, async (req: 
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg }, "creator-tiers resume: Stripe update failed");
     res.status(502).json({ error: `Stripe couldn't resume your subscription: ${msg}` });
+  }
+});
+
+/* ── Tier CHANGE (stack600 plan-tier-change) ─────────────────────────────
+   Gate Pass 1 (Oct 28): an existing subscriber had NO way to move
+   Pro ↔ Elite — the embedded intent 409'd, Billing offered only Cancel
+   + Manage payment method, and the Stripe portal showed no plan-change
+   control. These two endpoints are the change flow, on the SAME
+   subscription and the SAME customer (lib/tier-change.ts):
+
+     POST /creator-tiers/change/preview { tier } — Stripe's own
+       proration numbers for the swap; charges nothing.
+     POST /creator-tiers/change         { tier } — the in-place swap,
+       idempotency-keyed on the pre-change state; a repeat of an
+       already-applied change answers alreadyApplied with no Stripe
+       write, so a double-click can never double-charge or duplicate. */
+const changeSchema = z.object({ tier: z.enum(["pro", "elite"]) });
+
+type ChangeTarget = { plan: (typeof TIER_PLANS)[number]; priceId: string };
+
+function changeTargetOrError(
+  res: Response,
+  tier: "pro" | "elite",
+): ChangeTarget | null {
+  const plan = TIER_PLANS.find((p) => p.tier === tier)!;
+  const priceId = plan.priceIdEnv ? process.env[plan.priceIdEnv] : null;
+  if (!priceId) {
+    res.status(500).json({
+      error: `Stripe price for the ${plan.name} tier isn't configured yet (${plan.priceIdEnv}). It has to be set in the server environment before this plan can be sold.`,
+    });
+    return null;
+  }
+  return { plan, priceId };
+}
+
+async function loadChangeRow(
+  req: Request,
+  res: Response,
+): Promise<{ profileId: string; row: SubscriptionBillingRow } | null> {
+  const { profileId } = await resolveCreatorTier(req.userId, req.userPlan);
+  if (!profileId) {
+    res.status(404).json({ error: "No creator profile yet — nothing to change." });
+    return null;
+  }
+  let row: SubscriptionBillingRow | null;
+  try {
+    row = await loadBillingRow(profileId);
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-tiers/change: subscription row read failed");
+    res.status(500).json({ error: "Couldn't load your billing. Try again." });
+    return null;
+  }
+  if (!isChangeableRow(row)) {
+    res.status(404).json({ error: "You don't have a paid plan to change — pick a plan first, then you can switch tiers any time." });
+    return null;
+  }
+  return { profileId, row };
+}
+
+router.post("/creator-tiers/change/preview", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const parsed = changeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Pick a tier: pro or elite.", details: parsed.error.issues });
+    return;
+  }
+  const { tier } = parsed.data;
+  const loaded = await loadChangeRow(req, res);
+  if (!loaded) return;
+  const { row } = loaded;
+  const { tier: effectiveTier } = await resolveCreatorTier(req.userId, req.userPlan);
+  const billing = buildBillingState(row, effectiveTier);
+  if (row.tier === tier) {
+    res.status(409).json({ error: `You're already on the ${billing.planName} tier.`, code: "ALREADY_ON_TIER", billing });
+    return;
+  }
+  const target = changeTargetOrError(res, tier);
+  if (!target) return;
+  let stripe: Stripe;
+  try {
+    stripe = getTestStripe();
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+    return;
+  }
+  try {
+    const preview = await previewCreatorTierChange(stripe, {
+      subscriptionId: row.stripeSubscriptionId!,
+      priceId: target.priceId,
+    });
+    const view: TierChangePreviewView = buildTierChangePreviewView({
+      row,
+      toTier: tier,
+      amountDueTodayCents: preview.amountDueTodayCents,
+      creditCents: preview.creditCents,
+      currency: preview.currency,
+      currentPeriodEnd: preview.currentPeriodEnd,
+    });
+    res.json({ preview: view, billing });
+  } catch (err) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg, userId: req.userId }, "creator-tiers change preview failed");
+    res.status(502).json({ error: `Couldn't price that change: ${msg}` });
+  }
+});
+
+router.post("/creator-tiers/change", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const parsed = changeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Pick a tier: pro or elite.", details: parsed.error.issues });
+    return;
+  }
+  const { tier } = parsed.data;
+  const loaded = await loadChangeRow(req, res);
+  if (!loaded) return;
+  const { profileId, row } = loaded;
+  const { tier: effectiveTier } = await resolveCreatorTier(req.userId, req.userPlan);
+  const target = changeTargetOrError(res, tier);
+  if (!target) return;
+
+  let stripe: Stripe;
+  try {
+    stripe = getTestStripe();
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+    return;
+  }
+
+  const idempotencyKey = buildTierChangeIdempotencyKey({
+    userId: req.userId!,
+    subscriptionId: row.stripeSubscriptionId!,
+    fromTier: row.tier,
+    toTier: tier,
+    currentPeriodEnd: row.currentPeriodEnd,
+  });
+
+  /* Already applied (double-click retry, or the webhook beat this
+     request to the row): the Stripe subscription's own price is the
+     arbiter — if it already carries the target price, the change has
+     landed and there is nothing left to charge. No Stripe write. */
+  if (row.tier === tier) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(row.stripeSubscriptionId!);
+      const currentPriceId = sub.items?.data?.[0]?.price?.id ?? null;
+      if (currentPriceId === target.priceId) {
+        res.json({
+          changed: true,
+          alreadyApplied: true,
+          tier,
+          subscriptionId: row.stripeSubscriptionId,
+          billing: buildBillingState(row, tier),
+        });
+        return;
+      }
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, userId: req.userId }, "creator-tiers change: already-applied check failed");
+      res.status(502).json({ error: `Couldn't change your plan: ${msg}` });
+      return;
+    }
+    res.status(409).json({
+      error: `You're already on the ${target.plan.name} tier.`,
+      code: "ALREADY_ON_TIER",
+      billing: buildBillingState(row, effectiveTier),
+    });
+    return;
+  }
+
+  try {
+    /* Preview at a pinned proration instant, then apply at the SAME
+       instant: the amounts the response reports are the amounts on
+       the invoice Stripe generates. */
+    const preview = await previewCreatorTierChange(stripe, {
+      subscriptionId: row.stripeSubscriptionId!,
+      priceId: target.priceId,
+    });
+    const changed = await changeCreatorTierSubscription(stripe, {
+      subscriptionId: row.stripeSubscriptionId!,
+      priceId: target.priceId,
+      tier,
+      userId: req.userId!,
+      profileId,
+      prorationDate: preview.prorationDate,
+      idempotencyKey,
+      clearPendingCancel: row.cancelAtPeriodEnd != null,
+    });
+    // Optimistic local sync (the customer.subscription.updated webhook
+    // re-asserts the same values idempotently, and its invoice.paid
+    // twin writes the tier_changed receipt with the real paid amount).
+    await db
+      .update(creatorSubscriptionsTable)
+      .set({
+        tier,
+        status: changed.status,
+        currentPeriodEnd: changed.currentPeriodEnd ?? row.currentPeriodEnd,
+        cancelAtPeriodEnd: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(creatorSubscriptionsTable.profileId, profileId));
+    const nextRow: SubscriptionBillingRow = {
+      ...row,
+      tier,
+      status: changed.status,
+      currentPeriodEnd: changed.currentPeriodEnd ?? row.currentPeriodEnd,
+      cancelAtPeriodEnd: null,
+    };
+    logger.info(
+      { userId: req.userId, from: row.tier, to: tier, subscriptionId: changed.subscriptionId, amountDueTodayCents: preview.amountDueTodayCents, creditCents: preview.creditCents },
+      "creator tier changed in place via change endpoint (prorated)",
+    );
+    res.json({
+      changed: true,
+      tier,
+      subscriptionId: changed.subscriptionId,
+      amountDueTodayCents: preview.amountDueTodayCents,
+      creditCents: preview.creditCents,
+      currency: preview.currency,
+      billing: buildBillingState(nextRow, tier),
+    });
+  } catch (err) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg, userId: req.userId }, "creator-tiers change: subscription update failed");
+    res.status(502).json({ error: `Couldn't change your plan: ${msg}` });
   }
 });
 

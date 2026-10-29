@@ -8,6 +8,7 @@ import {
 import { usePageTitle } from "@/hooks/use-page-title";
 import { PricingSwitcher } from "@/components/PricingSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCreatorTier } from "@/hooks/use-creator-tier";
 import TierBadge from "@/components/TierBadge";
 import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
@@ -130,6 +131,28 @@ export default function CreatorPricing() {
   } | null>(null);
   const [embeddedDone, setEmbeddedDone] = useState<string | null>(null);
 
+  /* stack600 plan-tier-change: an existing subscriber never hits a
+     dead end here. The intent route answers mode:"change" with a
+     prorated preview; the confirm panel below shows exactly what is
+     charged today before anything moves, and confirming applies the
+     change on the SAME subscription (price swap, never a second sub).
+     currentTier comes from useCreatorTier — the same source the
+     sidebar badge and Settings → Billing read. */
+  const me = useCreatorTier();
+  const currentTier = me?.tier ?? null;
+  const [changeConfirm, setChangeConfirm] = useState<{
+    fromTier: string;
+    fromPlanName: string;
+    toTier: "pro" | "elite";
+    toPlanName: string;
+    amountDueTodayCents: number;
+    creditCents: number;
+    currency: string;
+    renewalDate: string | null;
+    clearsPendingCancel: boolean;
+  } | null>(null);
+  const [changing, setChanging] = useState(false);
+
   async function checkout(tier: "pro" | "elite" | "free") {
     if (tier === "free") return; // free tier has no checkout
     const paidTier: "pro" | "elite" = tier;
@@ -154,6 +177,12 @@ export default function CreatorPricing() {
         // Tier change applied in place (same subscription, prorated) —
         // no checkout redirect; land on the success banner.
         window.location.href = `/creator-pricing?upgrade=success&tier=${paidTier}&returnTo=${encodeURIComponent(returnTo)}`;
+        return;
+      }
+      if (ok && data.mode === "change" && data.changePreview) {
+        // Existing subscriber: nothing charged yet — show the prorated
+        // preview and let them confirm the switch on this page.
+        setChangeConfirm(data.changePreview);
         return;
       }
       if (ok && data.clientSecret && data.subscriptionId) {
@@ -201,6 +230,34 @@ export default function CreatorPricing() {
       setEmbedded(null);
     } catch {
       setError("Your payment went through — we're still applying your plan. Refresh in a moment.");
+    }
+  }
+
+  async function applyChange() {
+    if (!changeConfirm || changing) return;
+    setChanging(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/creator-tiers/change", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ tier: changeConfirm.toTier }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.changed) {
+        setError(data.error ?? "Couldn't switch your plan — try again.");
+        return;
+      }
+      setChangeConfirm(null);
+      window.location.href = `/creator-pricing?upgrade=success&tier=${changeConfirm.toTier}&returnTo=${encodeURIComponent(returnTo)}`;
+    } catch {
+      setError("Couldn't switch your plan — try again.");
+    } finally {
+      setChanging(false);
     }
   }
 
@@ -386,12 +443,22 @@ export default function CreatorPricing() {
               </ul>
               <div className="mt-6">
                 {p.tier === "free" ? (
-                  <Link
-                    href="/dashboard"
-                    className={`block rounded-full border py-2.5 text-center text-sm font-black transition ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07] hover:border-[#C9A84C]" : "border-white/25 text-white hover:border-white/50"}`}
-                  >
-                    Start free
-                  </Link>
+                  currentTier === "free" ? (
+                    <div className={`rounded-full border py-2.5 text-center text-sm font-black opacity-60 ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07]" : "border-white/25 text-white"}`}>
+                      Your current plan
+                    </div>
+                  ) : (
+                    <Link
+                      href="/dashboard"
+                      className={`block rounded-full border py-2.5 text-center text-sm font-black transition ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07] hover:border-[#C9A84C]" : "border-white/25 text-white hover:border-white/50"}`}
+                    >
+                      Start free
+                    </Link>
+                  )
+                ) : currentTier === p.tier ? (
+                  <div className="w-full rounded-full border border-emerald-400/50 py-2.5 text-center text-sm font-black text-emerald-300">
+                    Your current plan
+                  </div>
                 ) : (
                   <button
                     onClick={() => checkout(p.tier)}
@@ -401,7 +468,9 @@ export default function CreatorPricing() {
                     {buying === p.tier ? (
                       <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening checkout…</span>
                     ) : p.priceConfigured ? (
-                      `Go ${p.name} — $${p.priceUsdPerMonth}/mo`
+                      currentTier === "pro" || currentTier === "elite"
+                        ? `Switch to ${p.name} — $${p.priceUsdPerMonth}/mo`
+                        : `Go ${p.name} — $${p.priceUsdPerMonth}/mo`
                     ) : (
                       `${p.name} — price coming soon`
                     )}
@@ -428,6 +497,51 @@ export default function CreatorPricing() {
             <p className="mt-1 text-sm text-white/60">
               Your plan is active — paid right here, no detour. The platform fee stays a flat 5% on every tier.
             </p>
+          </div>
+        )}
+        {changeConfirm && (
+          <div data-testid="pricing-change-confirm" className="mx-auto mt-6 max-w-md rounded-2xl border border-amber-400/40 bg-amber-400/10 p-5">
+            <p className="font-black">Switch to {changeConfirm.toPlanName}?</p>
+            {changeConfirm.amountDueTodayCents > 0 ? (
+              <p className="mt-1 text-sm text-white/70">
+                Your saved card will be charged ${(changeConfirm.amountDueTodayCents / 100).toFixed(2)} today — the prorated difference between {changeConfirm.fromPlanName} and {changeConfirm.toPlanName} for the rest of this billing period.
+              </p>
+            ) : changeConfirm.creditCents > 0 ? (
+              <p className="mt-1 text-sm text-white/70">
+                Nothing is charged today. The unused time on {changeConfirm.fromPlanName} becomes a ${(changeConfirm.creditCents / 100).toFixed(2)} credit toward your next invoices.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-white/70">Nothing is charged today.</p>
+            )}
+            <p className="mt-1 text-sm text-white/70">
+              {changeConfirm.toPlanName} starts right away — same subscription, same card{changeConfirm.renewalDate ? `, and your renewal date stays ${new Date(changeConfirm.renewalDate).toLocaleDateString()}` : ", same renewal date"}.
+            </p>
+            {changeConfirm.clearsPendingCancel && (
+              <p className="mt-1 text-sm font-semibold text-amber-300">
+                You had a cancellation pending. Switching plans clears it — you&rsquo;re staying, so your plan keeps renewing.
+              </p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                data-testid="pricing-change-confirm-button"
+                onClick={applyChange}
+                disabled={changing}
+                className="flex-1 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50"
+              >
+                {changing ? (
+                  <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Switching…</span>
+                ) : (
+                  `Yes, switch to ${changeConfirm.toPlanName}`
+                )}
+              </button>
+              <button
+                onClick={() => setChangeConfirm(null)}
+                disabled={changing}
+                className="rounded-full border border-white/25 px-5 py-2.5 text-sm font-bold text-white/80 hover:border-white/50 disabled:opacity-50"
+              >
+                Not now
+              </button>
+            </div>
           </div>
         )}
         {embedded && (
