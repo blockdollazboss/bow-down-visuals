@@ -8,6 +8,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import {
   canonicalJarUrl,
   jarQrTarget,
@@ -130,6 +131,12 @@ export const tipIntentSchema = z.object({
     .max(TIP_MAX_AMOUNT, `Maximum tip is $${TIP_MAX_AMOUNT}.`),
   fanName: z.string().trim().max(60).default(""),
   message: z.string().trim().max(280).default(""),
+  /* Embedded checkout (owner law 2026-10-26: never leave the site):
+     read by the /checkout route only — "embedded" answers a
+     clientSecret so the World PortraitTip mounts the payment form
+     in-panel; absent/"hosted" keeps the hosted-URL shape. The
+     record-a-tip intent route accepts and ignores it. */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
 /** Normalize suggested amounts: dedupe, sort ascending, round to cents. */
@@ -816,6 +823,11 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
     return;
   }
   const { amount, fanName, message } = parsed.data;
+  /* Embedded presentation is asked for per-request and honored only
+     while the EMBEDDED_CHECKOUT kill switch is on — same session,
+     same metadata, same idempotency key; only the presentation
+     differs (mirrors routes/storefront.ts). */
+  const embeddedRequested = parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   const amountCents = Math.round(amount * 100);
   const [tip] = await db
     .insert(tipJarTipsTable)
@@ -845,14 +857,38 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
         },
       ],
       metadata: { type: "tip_jar", tipId: tip!.id },
-      success_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/tips/${page.handle}`,
+      /* Embedded ui_mode: the session takes a return_url (the tip
+         page itself, which verifies on landing — the same page the
+         hosted success_url names) instead of success/cancel URLs. */
+      ...(embeddedRequested
+        ? {
+            ui_mode: "embedded_page" as const,
+            return_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
+          }
+        : {
+            success_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${base}/tips/${page.handle}`,
+          }),
     }, { idempotencyKey });
+    /* An embedded session without a client secret cannot be mounted
+       in the panel — fail the creation so the catch below drops the
+       orphan tip row exactly like any other failed session. */
+    if (embeddedRequested && !session.client_secret) {
+      throw new Error("Checkout session did not return a client secret");
+    }
     await db
       .update(tipJarTipsTable)
       .set({ stripe_session_id: session.id })
       .where(eq(tipJarTipsTable.id, tip!.id));
-    res.json({ checkoutUrl: session.url, tipId: tip!.id });
+    res.json({
+      /* Embedded sessions have no hosted URL — the clientSecret is
+         what the in-World PortraitTip mounts (null on the hosted
+         shape, mirroring routes/storefront.ts). */
+      checkoutUrl: embeddedRequested ? null : session.url,
+      clientSecret: embeddedRequested ? (session.client_secret ?? null) : null,
+      uiMode: embeddedRequested ? "embedded" : "hosted",
+      tipId: tip!.id,
+    });
   } catch (err) {
     /* No session → no charge is possible; drop the orphan row. */
     await db.delete(tipJarTipsTable).where(eq(tipJarTipsTable.id, tip!.id)).catch(() => {});
