@@ -28,11 +28,11 @@ const baseDetails: DraftDetails = {
 };
 
 describe("copyright pricing contract", () => {
-  it("AI draft costs 1 credit", () => {
+  it("AI draft costs 100 credits", () => {
     expect(COPYRIGHT_DRAFT_CREDITS).toBe(100);
   });
 
-  it("AI Q&A costs 1 credit per answer", () => {
+  it("AI Q&A costs 100 credits per answer", () => {
     expect(COPYRIGHT_ASK_CREDITS).toBe(100);
   });
 

@@ -13,7 +13,7 @@ import {
 } from "../sponsorship-outreach";
 
 describe("OUTREACH_CREDIT_COST", () => {
-  it("charges 2 credits per outreach kit", () => {
+  it("charges 200 credits per outreach kit", () => {
     expect(OUTREACH_CREDIT_COST).toBe(200);
   });
 });

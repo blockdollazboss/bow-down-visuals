@@ -34,7 +34,7 @@ describe("estimatePodcastCost", () => {
   it("keeps pricing constants in sync with the backend", () => {
     expect(WORDS_PER_MINUTE).toBe(150);
     expect(SECONDS_PER_BLOCK).toBe(600);
-    expect(PODCAST_CREDITS_PER_10MIN).toBe(3);
+    expect(PODCAST_CREDITS_PER_10MIN).toBe(300);
   });
 });
 

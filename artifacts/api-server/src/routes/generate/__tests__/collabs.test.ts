@@ -18,7 +18,7 @@ import {
 } from "../collabs";
 
 describe("COLLAB_MATCH_CREDITS", () => {
-  it("charges 1 credit per AI match report", () => {
+  it("charges 100 credits per AI match report", () => {
     expect(COLLAB_MATCH_CREDITS).toBe(100);
   });
 });
