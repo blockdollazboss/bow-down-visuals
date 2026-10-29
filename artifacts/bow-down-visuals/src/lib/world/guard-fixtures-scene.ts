@@ -53,6 +53,7 @@ import {
   fixtureStandinArtPlan,
   fixtureSway,
   fixtureTextureRepairPlan,
+  guardGraftTintFor,
   withFixtureAttemptTimeout,
   type FixtureBodyDef,
   type FixtureBodyId,
@@ -419,6 +420,46 @@ function buildCapsule(height: number, color: number): THREE.Mesh {
   return mesh;
 }
 
+/**
+ * STOPGAP application (Oct 29, 2026 — the decision and its whole
+ * story live in guard-fixtures.ts, guardGraftTintFor): darken the
+ * guard bodies' untextured graft materials on the parsed template,
+ * before the posts clone it, so every post of the body wears the
+ * tint. The names handed to the decision are the mesh's own (three
+ * names the parsed Mesh after its glTF mesh def; its node spelling
+ * goes along in case a future export flips which one survives) and
+ * the material's. A material counts as textured when any texture
+ * slot is bound. Materials with no colour to multiply are skipped.
+ */
+function applyGuardGraftTint(body: FixtureBodyId, root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const meshNames = [mesh.name, mesh.geometry?.name ?? ""];
+    const mats = Array.isArray(mesh.material)
+      ? mesh.material
+      : mesh.material
+        ? [mesh.material]
+        : [];
+    for (const mat of mats) {
+      const m = mat as THREE.MeshStandardMaterial;
+      const hasTexture = Boolean(
+        m.map ||
+          m.metalnessMap ||
+          m.roughnessMap ||
+          m.normalMap ||
+          m.emissiveMap ||
+          m.aoMap,
+      );
+      const tint = guardGraftTintFor(body, meshNames, mat.name ?? "", hasTexture);
+      if (tint === null) continue;
+      if (m.color && typeof m.color.setScalar === "function") {
+        m.color.setScalar(tint);
+      }
+    }
+  });
+}
+
 /** Normalize a loaded GLB scene into a post-ready template group. */
 function normalizeBody(scene: THREE.Object3D, targetHeight: number): THREE.Group | null {
   const bounds = new THREE.Box3().setFromObject(scene);
@@ -595,6 +636,12 @@ export function buildWorldFixtures(opts?: {
       const gltf = await loadBody(bodyDef.glbPath);
       const template = normalizeBody(gltf.scene, bodyDef.height);
       if (!template) throw new Error(`degenerate bounds in ${bodyDef.glbPath}`);
+      /* STOPGAP (Oct 29, 2026): the guard graft tint — see
+       * guard-fixtures.ts. Runs on the template, so the clones
+       * share the treated materials; a heal-loop reload parses
+       * fresh and is treated fresh. The King walks through the
+       * same call and is refused by the decision itself. */
+      applyGuardGraftTint(bodyDef.id, template);
       for (const slot of slots) {
         if (slot.def.body !== bodyDef.id) continue;
         const bodyGroup = template.clone(true);
