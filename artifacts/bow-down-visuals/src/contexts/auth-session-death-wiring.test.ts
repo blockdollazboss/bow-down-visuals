@@ -30,7 +30,9 @@ function bodyBetween(startMarker: string, endMarker: string): string {
 describe("session death and the gate pass stay separate", () => {
   it("handleSessionDeath never calls the gate logout", () => {
     const death = bodyBetween("const handleSessionDeath", "useEffect(() => {");
-    expect(death).not.toContain("__staging_logout");
+    /* The pin is about the CALL, not the word: the body's own comment
+       names the endpoint while explaining why it must never be hit. */
+    expect(death).not.toMatch(/fetch\(\s*["']\/__staging_logout/);
     /* …but it still does its real job: clear the dead session and
        land on /login with the expiry notice. */
     expect(death).toContain("clearSupabaseStorage()");
