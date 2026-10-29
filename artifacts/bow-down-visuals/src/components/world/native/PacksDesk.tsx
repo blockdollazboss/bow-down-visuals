@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { balanceComposition } from "@/lib/balance";
+import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import {
   CREDIT_PACKS,
@@ -45,6 +48,7 @@ function useAuthHeaders() {
 }
 
 export function PacksDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { profile, refreshProfile } = useAuth();
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -53,6 +57,17 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
   const [embedded, setEmbedded] = useState<{ packKey: string; clientSecret: string; label: string } | null>(null);
 
   const balance = typeof profile?.credits === "number" ? profile.credits : null;
+
+  /* Lane V-bucs remainder (stack700): the balance line keeps the
+     single spendable total; while part of it is temporary, the split
+     rides under it — Permanent on its own line, the temporary part
+     named with its expiry on the next. Same source as every shipped
+     surface (lib/balance composition over the session profile — the
+     one aggregate bonus pool with one expiry), same balance.*
+     strings the Studio board already renders in-world. */
+  const composition = profile
+    ? (profile.balance_composition ?? balanceComposition(profile))
+    : null;
 
   /* Embedded confirm: the PaymentIntent succeeded in the form — the
      /verify twin grants the Bucs server-side (the webhook is the
@@ -142,6 +157,18 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
             </span>
           )}
         </div>
+        {composition && composition.temporaryCredits > 0 && (
+          <div className="mt-1.5 flex flex-col items-end gap-0.5" data-testid="world-packs-balance-split">
+            <span className={`text-xs ${muted}`}>
+              {t("balance.permanent_amount", { amount: composition.permanentCredits.toLocaleString("en-US") })}
+            </span>
+            <TemporaryBucsNote
+              composition={composition}
+              mode="label"
+              className={`text-xs font-bold ${isLight ? "text-[#8a6d1f]" : "text-amber-300/90"}`}
+            />
+          </div>
+        )}
         <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isLight ? "border-amber-600/30 bg-amber-400/10 text-[#92600a]" : "border-yellow-500/20 bg-yellow-500/[0.06] text-yellow-200/80"}`}>
           {PACKS_TEST_MODE_NOTE}
         </p>
