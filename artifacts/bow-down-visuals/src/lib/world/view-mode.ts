@@ -1,15 +1,21 @@
 /**
  * view-mode.ts — how you watch yourself in the King's Hall.
  *
- * First person is the classic walk (you are the camera). Third
- * person pulls the camera behind your figure so you can SEE who
- * you're standing as — the owner asked for it after walking the
- * hall blind to his own character (2026-10-16). Third person is a
- * flat-screen mode: in a headset the XR camera rules stand and the
- * figure steps aside (see hall-scene's camera handling).
+ * Third person pulls the camera behind your figure so you can SEE
+ * who you're standing as — and it is the DEFAULT (Oct 29, 2026):
+ * the owner walked the Plaza in a fresh (Incognito) window and
+ * never once saw himself, because the old first-person default
+ * hides the self figure by design and a fresh window has no stored
+ * preference to rescue it. Third person is the World law: you walk
+ * as the character you picked. First person (you are the camera)
+ * stays one toggle away (Y / the view chip) and is remembered
+ * EXPLICITLY once chosen — an absent key now means "never chose",
+ * never "chose first".
  *
- * A device preference like the others: localStorage, default first
- * person (today's hall), remembered across visits.
+ * Third person is a flat-screen mode: in a headset the XR camera
+ * rules stand and the figure steps aside (see hall-scene's camera
+ * handling). A device preference like the others: localStorage,
+ * remembered across visits.
  */
 
 export type HallViewMode = "first" | "third";
@@ -30,25 +36,31 @@ function defaultStorage(): StorageLike | null {
   }
 }
 
-/** Anything unrecognized is first person — the hall as it always was. */
+/** Only an explicitly stored "first" is first person. Anything
+ *  else — "third", an absent key, a garbled value — is third
+ *  person, the default: "never chose" must land on the view that
+ *  shows you your own character. */
 export function normalizeViewMode(value: string | null | undefined): HallViewMode {
-  return value === "third" ? "third" : "first";
+  return value === "first" ? "first" : "third";
 }
 
 export function loadViewMode(storage: StorageLike | null = defaultStorage()): HallViewMode {
-  if (!storage) return "first";
+  if (!storage) return "third";
   try {
     return normalizeViewMode(storage.getItem(WORLD_VIEW_STORAGE_KEY));
   } catch {
-    return "first";
+    return "third";
   }
 }
 
 export function storeViewMode(mode: HallViewMode, storage: StorageLike | null = defaultStorage()): void {
   if (!storage) return;
   try {
-    if (mode === "third") storage.setItem(WORLD_VIEW_STORAGE_KEY, "third");
-    else storage.removeItem(WORLD_VIEW_STORAGE_KEY);
+    /* Both modes are stored explicitly: since the default flipped
+     * to third, first person can no longer be represented by the
+     * ABSENCE of the key — an absent key is "never chose" and
+     * loads as third. */
+    storage.setItem(WORLD_VIEW_STORAGE_KEY, mode);
   } catch {
     /* private mode etc. — the view still applies this visit */
   }
