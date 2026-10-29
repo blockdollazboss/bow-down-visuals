@@ -147,16 +147,18 @@ describe("fanOutGoLiveAlerts", () => {
     const result = await fanOutGoLiveAlerts(stream, creator);
     expect(result.followers).toBe(2);
     expect(result.notified).toBe(2);
-    expect(result.pushSent).toBe(2);
-    expect(h.notifications).toHaveLength(2);
-    for (const n of h.notifications) {
+    /* +1 push since push wiring #9: the streamer's self-confirmation. */
+    expect(result.pushSent).toBe(3);
+    const followerNotes = h.notifications.filter((n) => n.userId !== CREATOR);
+    expect(followerNotes).toHaveLength(2);
+    for (const n of followerNotes) {
       expect(n).toMatchObject({
         kind: "live",
         title: "King Live is live: Friday Night Live",
         link: `/live/${STREAM}`,
       });
     }
-    expect(h.pushCalls.sort()).toEqual([FAN1, FAN2].sort());
+    expect(h.pushCalls.sort()).toEqual([CREATOR, FAN1, FAN2].sort());
   });
 
   it("a second fan-out for the same stream notifies nobody again", async () => {
@@ -164,8 +166,9 @@ describe("fanOutGoLiveAlerts", () => {
     const second = await fanOutGoLiveAlerts(stream, creator);
     expect(second.notified).toBe(0);
     expect(second.alreadyDelivered).toBe(2);
-    expect(h.notifications).toHaveLength(2);
-    expect(h.pushCalls).toHaveLength(2);
+    expect(second.selfNotified).toBe(false);
+    expect(h.notifications).toHaveLength(3);
+    expect(h.pushCalls).toHaveLength(3);
   });
 
   it("a follower with live push switched off still gets the bell row, never the ping", async () => {
@@ -181,15 +184,54 @@ describe("fanOutGoLiveAlerts", () => {
     ];
     const result = await fanOutGoLiveAlerts(stream, creator);
     expect(result.notified).toBe(2);
-    expect(result.pushSent).toBe(1);
-    expect(h.notifications).toHaveLength(2);
-    expect(h.pushCalls).toEqual([FAN1]);
+    /* FAN1's ping + the streamer's self-confirm ping (no prefs row =
+       defaults, live on). FAN2's ping is the only one silenced. */
+    expect(result.pushSent).toBe(2);
+    expect(h.notifications).toHaveLength(3);
+    expect(h.pushCalls.sort()).toEqual([CREATOR, FAN1].sort());
   });
 
-  it("a creator with no followers fans out to an honest zero", async () => {
+  it("a creator with no followers still gets their own confirmation — and only that", async () => {
     h.follows = [];
     const result = await fanOutGoLiveAlerts(stream, creator);
-    expect(result).toMatchObject({ followers: 0, notified: 0 });
-    expect(h.notifications).toHaveLength(0);
+    expect(result).toMatchObject({ followers: 0, notified: 0, selfNotified: true });
+    expect(h.notifications).toHaveLength(1);
+    expect(h.notifications[0]).toMatchObject({ userId: CREATOR, kind: "live" });
+  });
+});
+
+describe("go-live self-confirmation (push wiring #9)", () => {
+  it("the streamer gets a 'You're live' bell + ping, exactly once across repeat fires", async () => {
+    const first = await fanOutGoLiveAlerts(stream, creator);
+    expect(first.selfNotified).toBe(true);
+    const self = h.notifications.find((n) => n.userId === CREATOR);
+    expect(self).toMatchObject({
+      kind: "live",
+      title: "You're live: Friday Night Live",
+      link: `/live/${STREAM}`,
+    });
+    expect(h.pushCalls.filter((u) => u === CREATOR)).toHaveLength(1);
+    const second = await fanOutGoLiveAlerts(stream, creator);
+    expect(second.selfNotified).toBe(false);
+    expect(h.notifications.filter((n) => n.userId === CREATOR)).toHaveLength(1);
+    expect(h.pushCalls.filter((u) => u === CREATOR)).toHaveLength(1);
+  });
+
+  it("a streamer with live push off gets the self bell but no self ping", async () => {
+    h.prefs = [
+      {
+        userId: CREATOR,
+        moneyEnabled: true,
+        messagesEnabled: true,
+        liveEnabled: false,
+        mentionsEnabled: true,
+        socialEnabled: false,
+      },
+    ];
+    const result = await fanOutGoLiveAlerts(stream, creator);
+    expect(result.selfNotified).toBe(true);
+    expect(h.notifications.some((n) => n.userId === CREATOR)).toBe(true);
+    expect(h.pushCalls).not.toContain(CREATOR);
+    expect(h.pushCalls.sort()).toEqual([FAN1, FAN2].sort());
   });
 });
