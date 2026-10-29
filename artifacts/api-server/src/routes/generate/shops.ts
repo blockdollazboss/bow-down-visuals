@@ -49,6 +49,7 @@ import {
   markMarketSalePaid,
   marketSaleIsPaid,
   marketSaleReceipt,
+  notifyStorefrontSaleSafely,
 } from "../../lib/market-sale";
 /* Make-an-offer (Wave 4 #43): an accepted offer on a shop product can
    price this checkout at its agreed amount — resolved and claimed in
@@ -66,7 +67,7 @@ import {
   SaleSplitError,
   type ProductSplit,
 } from "../../lib/sale-splits";
-import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer } from "../../lib/shop-delivery";
+import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer, fetchUndeliveredSalesForBuyer } from "../../lib/shop-delivery";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { resolveOptionalSession } from "../../lib/optional-auth";
 import {
@@ -799,20 +800,45 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
    order id, product, and download/access link. This is the library
    entry the launch run found missing — a paid buyer must be able to
    find what they bought again, not just at the moment of checkout.
-   Matched by account id or checkout email (lib/shop-delivery). */
+   Matched by account id or checkout email (lib/shop-delivery).
+   PLUS the order-record shim (stack600): paid sale lines that
+   produced no delivery row (the product carried nothing deliverable
+   — the Oct 28 gate's file-less "TEST Digital Download") ride along
+   marked deliveryMissing with a null downloadUrl, so the buyer's
+   library shows the ORDER under their account instead of "Nothing
+   here yet". No download is ever fabricated for them. */
 router.get("/shops/my-purchases", requireAuth, async (req, res) => {
-  const deliveries = await fetchDeliveriesForBuyer(req.userId!, req.userEmail ?? null);
-  res.json({
-    purchases: deliveries.map((d) => ({
+  const [deliveries, undelivered] = await Promise.all([
+    fetchDeliveriesForBuyer(req.userId!, req.userEmail ?? null),
+    fetchUndeliveredSalesForBuyer(req.userId!, req.userEmail ?? null),
+  ]);
+  const ts = (v: unknown): string =>
+    v instanceof Date ? v.toISOString() : String(v ?? "");
+  const purchases = [
+    ...deliveries.map((d) => ({
       orderId: d.order_id,
       saleId: d.sale_event_id,
       productId: d.product_id,
       productName: d.product_name,
-      downloadUrl: d.deliverable_url,
+      downloadUrl: d.deliverable_url as string | null,
       fileName: d.deliverable_name,
-      deliveredAt: d.created_at,
+      deliveredAt: ts(d.created_at),
+      deliveryMissing: false,
+      productType: null as string | null,
     })),
-  });
+    ...undelivered.map((u) => ({
+      orderId: u.order_id ?? "",
+      saleId: u.sale_event_id,
+      productId: u.product_id,
+      productName: u.product_name,
+      downloadUrl: null as string | null,
+      fileName: null as string | null,
+      deliveredAt: ts(u.paid_at ?? u.created_at),
+      deliveryMissing: true,
+      productType: u.product_type ?? null,
+    })),
+  ].sort((a, b) => b.deliveredAt.localeCompare(a.deliveredAt));
+  res.json({ purchases });
 });
 
 /* ── POST /api/shops — create a shop (ALL plans, incl. Free) ──────────────
@@ -2665,6 +2691,21 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
       saleEventId: l.saleId, shopId, productId: l.productId,
       buyerEmail: buyerEmail || null, buyerUserId: sessionBuyerId, orderId: groupId,
     })));
+    /* Seller "you just got paid" (stack600): this path records the
+       sale directly, so it fires the same exactly-once bell+push the
+       paid flip fires, keyed by the checkout group. A $0 free claim
+       is not a payment — no finale for those; a gift-card-covered
+       order (gross > 0) is real money and fires. */
+    if (gross > 0) {
+      await notifyStorefrontSaleSafely({
+        sellerId: String(shop.user_id),
+        buyerUserId: sessionBuyerId,
+        orderKey: groupId,
+        lines: allLines.map((l) => ({
+          productName: l.name, amountCents: l.gross, platformFeeCents: l.fee,
+        })),
+      });
+    }
     const freeDeliveries = await fetchDeliveriesForSaleEvents(allLines.map((l) => l.saleId));
     res.status(201).json({
       saleId: lines[0]!.saleId, saleIds: allLines.map((l) => l.saleId), groupId,

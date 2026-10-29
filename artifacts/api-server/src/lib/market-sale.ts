@@ -20,6 +20,8 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { recordAffiliateSaleSafely } from "./affiliates";
 import { deliverPaidShopLinesSafely } from "./shop-delivery";
+import { createJobNotification } from "./job-notifications";
+import { notifyUserEvent } from "./push-events";
 import { recordShopEventSplitsSafely } from "./sale-splits";
 import { findReservation, redeemReservation } from "./gift-cards";
 import { consumeOfferByClaimRef, releaseOfferClaimByRef } from "./product-offers";
@@ -111,6 +113,83 @@ export function marketSaleIsPaid(rows: MarketSaleRow[]): boolean {
   return rows.length > 0 && rows.every((r) => r.event_type === "sale");
 }
 
+export interface StorefrontSaleNoticeLine {
+  productName: string | null;
+  amountCents: number;
+  platformFeeCents: number;
+}
+
+/**
+ * The seller's "You just got paid" finale for STOREFRONT (marketplace
+ * shop) sales — bell row + device push, exactly once per order.
+ *
+ * The gap this closes (Oct 28 gate, Pass 2): the Stack500 push
+ * foundation wired this finale on the /api/store rail only
+ * (routes/store.ts, digital_sales) — the push scope listed the
+ * storefront sale as a separate event that was never wired. The
+ * storefront flip below ran its money legs (fee, splits, delivery)
+ * and told the seller NOTHING: earnings filled silently while the
+ * bell stayed empty.
+ *
+ * Exactly-once, two deep:
+ *   1. Callers run this only for rows they themselves recorded/flipped
+ *      (a replay flips 0 rows and never reaches here), and
+ *   2. the bell + push fire only when the UNIQUE(job_type, job_id)
+ *      job_notifications row actually lands — the same gate the
+ *      /api/store finale uses (createJobNotification's contract).
+ * One order = one notification, keyed by the checkout group, however
+ * many lines it carried. A seller buying from their own shop is not
+ * pinged about it. Best-effort: a notification failure NEVER breaks
+ * the sale it rides on; it logs and returns false.
+ */
+export async function notifyStorefrontSaleSafely(input: {
+  sellerId: string;
+  /** The buyer's account id when a verified session rode along. */
+  buyerUserId?: string | null;
+  /** Exactly-once key: the checkout group (fallback: the session id). */
+  orderKey: string;
+  lines: StorefrontSaleNoticeLine[];
+}): Promise<boolean> {
+  try {
+    if (input.lines.length === 0) return false;
+    if (input.buyerUserId && input.buyerUserId === input.sellerId) return false;
+    const gross = input.lines.reduce((s, l) => s + Number(l.amountCents || 0), 0);
+    const fees = input.lines.reduce((s, l) => s + Number(l.platformFeeCents || 0), 0);
+    const net = gross - fees;
+    const money = (c: number) => `$${(c / 100).toFixed(2)}`;
+    const title = "You just got paid 👑";
+    const firstName = input.lines[0]?.productName ?? null;
+    const message =
+      input.lines.length === 1 && firstName
+        ? `“${firstName}” just sold for ${money(gross)} — ${money(net)} is now in your pending payout. The cheat code works.`
+        : `${input.lines.length} items from your shop just sold for ${money(gross)} — ${money(net)} is now in your pending payout. The cheat code works.`;
+    const landed = await createJobNotification({
+      jobType: "sale",
+      jobId: input.orderKey,
+      userId: input.sellerId,
+      status: "completed",
+      title,
+      message,
+    });
+    if (!landed) return false;
+    await notifyUserEvent({
+      userId: input.sellerId,
+      category: "money",
+      kind: "sale",
+      title,
+      body: message,
+      link: "/store/dashboard",
+    });
+    return true;
+  } catch (err) {
+    logger.error(
+      { err, orderKey: input.orderKey },
+      "[market-sale] seller sale notification failed (sale stands)",
+    );
+    return false;
+  }
+}
+
 /**
  * Flip a session's pending lines to paid sales, exactly once.
  * Returns the rows as they stand after the attempt plus how many lines
@@ -193,6 +272,27 @@ export async function markMarketSalePaid(
           orderId: row.checkout_group_id ? String(row.checkout_group_id) : sessionId,
         })),
     );
+    /* Seller "you just got paid" (bell + push) — only the call that
+       flipped rows runs this, and the helper's own exactly-once gate
+       keeps verify + webhook + replays at one ping per order. A
+       session's lines belong to one shop; group per seller anyway so
+       the keying stays honest if that ever changes. */
+    const flippedRows = rows.filter((row) => flippedIds.has(String(row.id)));
+    for (const sellerId of new Set(flippedRows.map((r) => String(r.user_id)))) {
+      const sellerRows = flippedRows.filter((r) => String(r.user_id) === sellerId);
+      await notifyStorefrontSaleSafely({
+        sellerId,
+        buyerUserId: sellerRows[0]?.buyer_user_id ? String(sellerRows[0].buyer_user_id) : null,
+        orderKey: sellerRows[0]?.checkout_group_id
+          ? String(sellerRows[0].checkout_group_id)
+          : sessionId,
+        lines: sellerRows.map((r) => ({
+          productName: r.product_name ?? null,
+          amountCents: Number(r.amount_cents),
+          platformFeeCents: Number(r.platform_fee_cents),
+        })),
+      });
+    }
   }
   /* Gift-card settlement (Stack-100 #3 #26): if this checkout held a
      gift-card reservation (rail 'shops', ref = checkout group), the

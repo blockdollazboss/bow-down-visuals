@@ -135,6 +135,67 @@ export async function fetchDeliveriesForSaleEvents(saleEventIds: string[]): Prom
   }
 }
 
+export interface UndeliveredSaleRow {
+  sale_event_id: string;
+  order_id: string | null;
+  product_id: string | null;
+  product_name: string | null;
+  product_type: string | null;
+  paid_at: string | null;
+  created_at: string;
+}
+
+/** Paid shop sale lines that produced NO delivery row — the
+ *  order-record half of the buyer's library (read-compat shim).
+ *
+ *  A paid line lands here when its product carried nothing
+ *  deliverable at flip time: typed physical, or a digital listing
+ *  whose file was never attached. The Oct 28 gate's "TEST Digital
+ *  Download" was exactly this — sold three times at $5 while its
+ *  product row sat at the physical default with no file, so no
+ *  shop_deliveries row could ever be written and the buyer's
+ *  Library → Purchases read "Nothing here yet" forever. The sale
+ *  itself is real and recorded; the library must at least show the
+ *  ORDER under the buyer's account, honestly marked as carrying no
+ *  download, instead of pretending the purchase never happened.
+ *
+ *  Matched by the same keys the delivery read uses — account id OR
+ *  checkout email — so pre-0297 sales (recorded before buyer ids
+ *  were stamped; the column reads NULL on those rows) still surface
+ *  by the email they checked out with. Refunded sales never match:
+ *  the reversal engine renames them event_type='refunded_sale'
+ *  (lib/payment-reversals). Never throws — [] when the shop tables
+ *  aren't there yet. */
+export async function fetchUndeliveredSalesForBuyer(
+  userId: string,
+  email: string | null,
+): Promise<UndeliveredSaleRow[]> {
+  try {
+    const keyClause = email
+      ? sql`(e.buyer_user_id = ${userId} OR LOWER(e.buyer_email) = LOWER(${email}))`
+      : sql`e.buyer_user_id = ${userId}`;
+    /* Anti-join via LEFT JOIN (delivery sale_event_id is UNIQUE, so at
+       most one delivery row per sale — no fan-out). Written this way
+       instead of NOT EXISTS so the pg-mem harness can execute it;
+       semantics are identical on real Postgres. */
+    const r = await db.execute(sql`
+      SELECT e.id AS sale_event_id, e.checkout_group_id AS order_id, e.product_id,
+             p.name AS product_name, p.product_type AS product_type,
+             e.paid_at, e.created_at
+      FROM shop_events e
+      LEFT JOIN shop_products p ON p.id = e.product_id
+      LEFT JOIN shop_deliveries d ON d.sale_event_id = e.id
+      WHERE e.event_type = 'sale' AND ${keyClause}
+        AND d.id IS NULL
+      ORDER BY COALESCE(e.paid_at, e.created_at) DESC
+      LIMIT 200
+    `);
+    return r.rows as unknown as UndeliveredSaleRow[];
+  } catch {
+    return [];
+  }
+}
+
 /** The buyer's library: every delivery that is theirs — matched by
  *  account id OR by the email they checked out with. */
 export async function fetchDeliveriesForBuyer(userId: string, email: string | null): Promise<ShopDeliveryRow[]> {
