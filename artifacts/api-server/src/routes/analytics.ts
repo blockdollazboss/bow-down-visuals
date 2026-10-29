@@ -554,8 +554,8 @@ function parseModelJson(raw: string): any {
    window, and 3 prioritized moves. */
 router.post(
   "/analytics/insights",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = aiBodySchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -633,8 +633,8 @@ router.post(
    Content ideas modeled on the creator's top-performing posts. */
 router.post(
   "/analytics/suggestions",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = aiBodySchema.safeParse(req.body ?? {});
     if (!parsed.success) {

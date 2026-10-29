@@ -212,7 +212,7 @@ function notReady(res: Response) {
 }
 
 /* POST /api/co-posts — create a co-post (pending the co-author's OK) */
-router.post("/co-posts", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/co-posts", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = createCoPostSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -334,7 +334,7 @@ router.post("/co-posts", publicApiLimiter, requireAuth, async (req: Request, res
 });
 
 /* GET /api/co-posts/mine — my co-posts in every state (approval inbox) */
-router.get("/co-posts/mine", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/co-posts/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     let sideRows: Array<typeof postCoAuthorsTable.$inferSelect>;
     try {
@@ -521,8 +521,8 @@ function actionRoute(action: "accept" | "decline" | "withdraw") {
   };
 }
 
-router.post("/co-posts/:postId/accept", publicApiLimiter, requireAuth, actionRoute("accept"));
-router.post("/co-posts/:postId/decline", publicApiLimiter, requireAuth, actionRoute("decline"));
-router.post("/co-posts/:postId/withdraw", publicApiLimiter, requireAuth, actionRoute("withdraw"));
+router.post("/co-posts/:postId/accept", requireAuth, publicApiLimiter, actionRoute("accept"));
+router.post("/co-posts/:postId/decline", requireAuth, publicApiLimiter, actionRoute("decline"));
+router.post("/co-posts/:postId/withdraw", requireAuth, publicApiLimiter, actionRoute("withdraw"));
 
 export default router;

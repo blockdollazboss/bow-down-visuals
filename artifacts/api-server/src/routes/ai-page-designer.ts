@@ -308,7 +308,7 @@ const themeRequestSchema = z.object({
   regenerate: z.boolean().optional().default(false),
 });
 
-router.post("/theme", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/theme", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = themeRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -426,7 +426,7 @@ const bioRequestSchema = z.object({
   length: z.enum(["short", "medium", "long"]).optional().default("medium"),
 });
 
-router.post("/bio", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/bio", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = bioRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -497,7 +497,7 @@ const bannerRequestSchema = z.object({
   palette: z.array(hexColor).max(6).optional().default([]),
 });
 
-router.post("/banner", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/banner", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = bannerRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -581,7 +581,7 @@ const uploadSchema = z.object({
   kind: z.enum(["avatar", "banner", "background"]).default("banner"),
 });
 
-router.post("/upload", publicApiLimiter, requireAuth, (req, res) => {
+router.post("/upload", requireAuth, publicApiLimiter, (req, res) => {
   upload.single("file")(req, res, async (err: unknown) => {
     if (err) {
       res.status(400).json({ error: err instanceof Error ? err.message : "Upload failed." });

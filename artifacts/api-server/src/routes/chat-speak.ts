@@ -118,8 +118,8 @@ router.get("/chat/speak/status", (_req, res) => {
 
 router.post(
   "/chat/speak",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = speakSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

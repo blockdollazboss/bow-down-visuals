@@ -144,7 +144,7 @@ async function dto(head: HeadRow, co: CoRelease, viewerUserId: string | null) {
 
 /* POST /api/co-releases — draft (pending the co-author's approval of
    BOTH the release and the split) */
-router.post("/co-releases", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/co-releases", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = createSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -293,7 +293,7 @@ router.post("/co-releases", publicApiLimiter, requireAuth, async (req: Request, 
 });
 
 /* GET /api/co-releases/mine — approval inbox + my live co-releases */
-router.get("/co-releases/mine", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/co-releases/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     let sideRows: Array<typeof coReleaseSidesTable.$inferSelect>;
     try {
@@ -372,7 +372,7 @@ router.get("/co-releases/by-profile/:profileId", async (req: Request, res: Respo
    - product: completed store_orders for the item — creator_amount_cents
      ONLY (the rail's flat 5% platform fee is already out of it and is
      never part of the split). */
-router.get("/co-releases/:id/attribution", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/co-releases/:id/attribution", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"] ?? "");
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -547,14 +547,14 @@ function actionRoute(action: "accept" | "decline" | "withdraw") {
   };
 }
 
-router.post("/co-releases/:id/accept", publicApiLimiter, requireAuth, actionRoute("accept"));
-router.post("/co-releases/:id/decline", publicApiLimiter, requireAuth, actionRoute("decline"));
-router.post("/co-releases/:id/withdraw", publicApiLimiter, requireAuth, actionRoute("withdraw"));
+router.post("/co-releases/:id/accept", requireAuth, publicApiLimiter, actionRoute("accept"));
+router.post("/co-releases/:id/decline", requireAuth, publicApiLimiter, actionRoute("decline"));
+router.post("/co-releases/:id/withdraw", requireAuth, publicApiLimiter, actionRoute("withdraw"));
 
 /* POST /api/co-releases/:id/amend-split — initiator re-proposes the
    split BEFORE publish. The co-author stays pending and must still
    approve the new split. After publish: 409 split_locked, always. */
-router.post("/co-releases/:id/amend-split", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/co-releases/:id/amend-split", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"] ?? "");
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });

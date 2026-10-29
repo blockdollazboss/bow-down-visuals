@@ -52,7 +52,7 @@ const maybeAuth =
         next();
       };
 
-router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
+router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
   const parsed = chatSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
