@@ -648,13 +648,17 @@ export default function WorldPage() {
     if (!panelTarget) return;
     openedDeskRef.current = true;
     if (document.pointerLockElement) document.exitPointerLock();
-    /* One panel at a time (stack700, the owner's "way too many
-       menus in the frame"): a desk opening retires the three
-       strips — before this, a station sheet opened OVER a
-       character/screen/host strip left open beneath it, and the
-       frame carried both. Closing here, at the one choke point
-       every desk open passes through, means no opener — E, LB,
-       a prompt's Open button, a directory card — can forget it. */
+  }, [panelTarget]);
+  /* One panel at a time (stack700, the owner's "way too many
+     menus in the frame"): a desk opening retires the three
+     strips — before this, a station sheet opened OVER a strip
+     left open beneath it and the frame carried both. Its own
+     effect on the same trigger, beside the release above (whose
+     body is pinned as-is by panel-open-visibility): every desk
+     open passes through panelTarget, so no opener — E, LB, a
+     prompt's Open button, a directory card — can forget it. */
+  useEffect(() => {
+    if (!panelTarget) return;
     setCharPanelOpen(false);
     setScreenPanelOpen(false);
     setHostPanelOpen(false);
