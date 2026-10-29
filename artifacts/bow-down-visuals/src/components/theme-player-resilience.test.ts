@@ -66,6 +66,32 @@ describe("BowDownAIGuide — widget open drives recovery", () => {
   });
 });
 
+describe("BowDownAIGuide — the row renders exactly ONE state at a time", () => {
+  /* stack700: the owner's Oct 28 16:17 screenshot showed "THEME SONG
+     — coming soon" AND a "Tap to retry" card simultaneously. Cause:
+     the header's "— coming soon" suffix (added pre-Lane-T, when
+     "missing" meant 'no song chosen yet') is keyed on `missing`,
+     while Lane T's retry card is keyed on `unavailable` — and
+     missing ⊂ unavailable, so a failed probe rendered both claims.
+     Lane T redefined `missing` as 'the probe just failed, recoverable'
+     (see theme-probe.ts settle()); the row must derive everything it
+     renders from that one state decision (lib/theme-row-state.ts). */
+  it("no longer renders a 'coming soon' state for the theme row", () => {
+    expect(guide).not.toContain("— coming soon</span>");
+  });
+
+  it("derives card + suffix from the single themeRowView decision", () => {
+    expect(guide).toContain("themeRowView(");
+    expect(guide).toContain('view.card === "retry"');
+  });
+
+  it("header suffixes are not independent additive spans keyed on raw status", () => {
+    expect(guide).not.toContain("{missing && <span");
+    expect(guide).not.toContain("{failed && <span");
+    expect(guide).not.toContain("{playFailed && !playing && <span");
+  });
+});
+
 describe("play() failures surface instead of being swallowed", () => {
   it("user-initiated play goes through attemptPlay and records rejection", () => {
     expect(ctx).toContain("attemptPlay");
