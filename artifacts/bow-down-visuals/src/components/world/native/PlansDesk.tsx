@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Crown, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
@@ -58,7 +59,34 @@ import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-
    can't start. Members only — the board above already pitches
    guests. */
 
+/* The desk's own copy lives in the locale catalogs (worldPlansDesk.*)
+   — stack800 lane 3: this desk previously rendered hard-coded English
+   inside a 10-locale product. The plan names/taglines/features and the
+   server note still ride the rail's DTO verbatim (by design, see the
+   header note), and the shared money-desks-2 change lines — which
+   state charge amounts — stay English pending human translation:
+   money copy is never agent-drafted. */
+function planStatusLabelKey(status: string): string {
+  switch (status) {
+    case "canceled":
+    case "cancelled":
+      return "worldPlansDesk.statusCanceled";
+    case "past_due":
+      return "worldPlansDesk.statusPastDue";
+    case "trialing":
+      return "worldPlansDesk.statusTrialing";
+    case "incomplete":
+    case "incomplete_expired":
+      return "worldPlansDesk.statusIncomplete";
+    case "unpaid":
+      return "worldPlansDesk.statusUnpaid";
+    default:
+      return "worldPlansDesk.statusAttention";
+  }
+}
+
 export function PlansDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const [plans, setPlans] = useState<SitePlan[] | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -113,15 +141,15 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Your payment went through — we're still confirming your plan. It updates here in a moment.");
+        setError(typeof data.error === "string" ? data.error : t("worldPlansDesk.confirmPending"));
         return;
       }
       const tierName = embedded.tier;
       setEmbedded(null);
-      setOpenedNote(`You're on ${tierName === "elite" ? "Elite" : "Pro"} now — paid right here in the palace. Your plan standing refreshes below.`);
+      setOpenedNote(t("worldPlansDesk.confirmSuccess", { tier: tierName === "elite" ? "Elite" : "Pro" }));
       void load();
     } catch {
-      setError("Your payment went through — we're still confirming your plan. It updates here in a moment.");
+      setError(t("worldPlansDesk.confirmPending"));
     }
   };
 
@@ -181,7 +209,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
         if (outcome.kind === "changed") {
           /* In-place tier change answered by the intent itself —
              same note the hosted path used for { changed: true }. */
-          setOpenedNote(`${plan.name} is your plan now — the change applied in place, prorated on your existing subscription.`);
+          setOpenedNote(t("worldPlansDesk.planChanged", { name: plan.name }));
           void load();
           return;
         }
@@ -204,20 +232,20 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(planCheckoutPayload(plan.tier)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Checkout didn't start. Try again in a minute."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldPlansDesk.checkoutStartFailed")));
       if (data.changed === true) {
         /* In-place tier change (payfix upgrade-path): same
            subscription, prorated — no payment page exists. */
-        setOpenedNote(`${plan.name} is your plan now — the change applied in place, prorated on your existing subscription.`);
+        setOpenedNote(t("worldPlansDesk.planChanged", { name: plan.name }));
         void load();
         return;
       }
       const url = planHostedUrl(data);
-      if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      if (!url) throw new Error(t("worldPlansDesk.checkoutNoPage"));
       window.open(url, "_blank", "noopener,noreferrer");
-      setOpenedNote(`${plan.name} checkout opened in a new tab — finish there and your plan updates the moment it confirms.`);
+      setOpenedNote(t("worldPlansDesk.checkoutOpenedTab", { name: plan.name }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Network hiccup — try again.");
+      setError(e instanceof Error ? e.message : t("worldPlansDesk.networkHiccup"));
     } finally { setBusyTier(null); }
   };
 
@@ -259,7 +287,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       }
       const name = changePreview.toPlanName;
       setChangePreview(null);
-      setOpenedNote(`${name} is your plan now — the change applied in place, prorated on your existing subscription.`);
+      setOpenedNote(t("worldPlansDesk.planChanged", { name }));
       void load();
     } finally { setChanging(false); }
   };
@@ -276,37 +304,38 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify({ returnTo: "/world" }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "The billing portal didn't open. Try again in a minute."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldPlansDesk.portalOpenFailed")));
       const url = planHostedUrl(data);
-      if (!url) throw new Error("The billing portal didn't return a page.");
+      if (!url) throw new Error(t("worldPlansDesk.portalNoPage"));
       window.open(url, "_blank", "noopener,noreferrer");
-      setOpenedNote("Your billing portal opened in a new tab — manage or cancel there; this desk re-reads your plan when you're back.");
+      setOpenedNote(t("worldPlansDesk.portalOpened"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Network hiccup — try again.");
+      setError(e instanceof Error ? e.message : t("worldPlansDesk.networkHiccup"));
     } finally { setPortalBusy(false); }
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
 
   return (
-    <NativeCard isLight={isLight} title="Your site plan">
+    <NativeCard isLight={isLight} title={t("worldPlansDesk.title")}>
       <div data-testid="world-plans-desk" className="space-y-3">
         {loadFailed ? (
           <p className={`text-xs ${muted}`}>
-            The plan catalog wouldn&rsquo;t open — your plan is unchanged.{" "}
-            <button type="button" data-testid="world-plans-retry" onClick={() => void load()} className="font-bold text-[#d4af37]">Try again</button>
+            {t("worldPlansDesk.loadFailed")}{" "}
+            <button type="button" data-testid="world-plans-retry" onClick={() => void load()} className="font-bold text-[#d4af37]">{t("worldPlansDesk.tryAgain")}</button>
           </p>
         ) : plans === null ? (
           <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Reading the plans…
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldPlansDesk.loading")}
           </p>
         ) : (
           <>
             {me && (
               <p className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
-                You&rsquo;re on <strong className="capitalize">{me.tier}</strong>
-                {me.status !== "active" ? ` (${me.status})` : ""} — platform fee {me.feePct}% · {me.aiBoostsPerMonth} AI boosts a month
-                {me.currentPeriodEnd ? ` · current period ends ${new Date(me.currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}.
+                {t("worldPlansDesk.standingPrefix")}<strong className="capitalize">{me.tier}</strong>
+                {me.status !== "active" ? t("worldPlansDesk.standingStatus", { status: t(planStatusLabelKey(me.status)) }) : ""}
+                {t("worldPlansDesk.standingSuffix", { feePct: me.feePct, boosts: me.aiBoostsPerMonth })}
+                {me.currentPeriodEnd ? t("worldPlansDesk.standingPeriod", { date: new Date(me.currentPeriodEnd).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) }) : ""}.
               </p>
             )}
             <div className="grid gap-2 sm:grid-cols-3">
@@ -322,11 +351,11 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                     className={`flex flex-col rounded-2xl border px-3 py-3 ${isMine ? "border-[#d4af37] bg-[#d4af37]/[0.07]" : isLight ? "border-[#7A5A12]/25 bg-white/50" : "border-white/10 bg-white/5"}`}>
                     <p className={`flex items-center gap-1.5 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                       <Crown className="h-4 w-4 text-[#d4af37]" /> {plan.name}
-                      {isMine && <span className="ml-auto rounded-full bg-[#d4af37] px-2 py-0.5 text-[10px] font-black text-black">YOUR PLAN</span>}
+                      {isMine && <span className="ml-auto rounded-full bg-[#d4af37] px-2 py-0.5 text-[10px] font-black text-black">{t("worldPlansDesk.yourPlan")}</span>}
                     </p>
                     <p className="text-xl font-black text-[#d4af37]">{planPriceLabel(plan)}</p>
                     {plan.tagline && <p className={`text-[11px] ${muted}`}>{plan.tagline}</p>}
-                    <p className={`mt-1 text-[11px] ${muted}`}>Platform fee {plan.feePct}% · {plan.aiBoostsPerMonth} AI boosts/mo</p>
+                    <p className={`mt-1 text-[11px] ${muted}`}>{t("worldPlansDesk.feeLine", { feePct: plan.feePct, boosts: plan.aiBoostsPerMonth })}</p>
                     <ul className={`mt-2 flex-1 space-y-1 text-[11px] ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
                       {plan.features.slice(0, 5).map((f) => (
                         <li key={f} className="flex gap-1.5"><Check className="mt-0.5 h-3 w-3 shrink-0 text-[#d4af37]" /> {f}</li>
@@ -336,22 +365,22 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                       paid ? (
                         <button type="button" data-testid="world-plan-manage" onClick={() => void openPortal()} disabled={portalBusy}
                           className={`mt-3 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
-                          {portalBusy ? "Opening…" : "Manage / cancel"}
+                          {portalBusy ? t("worldPlansDesk.opening") : t("worldPlansDesk.manage")}
                         </button>
                       ) : (
-                        <p className={`mt-3 text-center text-[11px] font-bold ${muted}`}>Your starting plan</p>
+                        <p className={`mt-3 text-center text-[11px] font-bold ${muted}`}>{t("worldPlansDesk.startingPlan")}</p>
                       )
                     ) : !paid ? (
-                      <p className={`mt-3 text-center text-[11px] ${muted}`}>Downgrades run through Manage / cancel on your current plan.</p>
+                      <p className={`mt-3 text-center text-[11px] ${muted}`}>{t("worldPlansDesk.downgradeNote")}</p>
                     ) : !plan.purchasable ? (
                       <p className={`mt-3 text-center text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                        This plan&rsquo;s checkout isn&rsquo;t switched on yet — nothing to charge today.
+                        {t("worldPlansDesk.notPurchasable")}
                       </p>
                     ) : (
                       <button type="button" data-testid={`world-plan-buy-${plan.tier}`} onClick={() => void checkout(plan)} disabled={busyTier !== null}
                         className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
                         {busyTier === plan.tier ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                        {busyTier === plan.tier ? "Starting…" : isSwitch ? `Switch to ${plan.name} — ${planPriceLabel(plan)}` : `Go ${plan.name} — ${planPriceLabel(plan)}`}
+                        {busyTier === plan.tier ? t("worldPlansDesk.starting") : isSwitch ? t("worldPlansDesk.switchTo", { name: plan.name, price: planPriceLabel(plan) }) : t("worldPlansDesk.goPlan", { name: plan.name, price: planPriceLabel(plan) })}
                       </button>
                     )}
                   </div>
@@ -361,7 +390,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
             {embedded && (
               <div className="mx-auto w-full max-w-md" data-testid="world-plans-embedded">
                 <p className={`mb-2 text-center text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                  Finish your {embedded.tier === "elite" ? "Elite" : "Pro"} upgrade — right here in the palace:
+                  {t("worldPlansDesk.finishUpgrade", { tier: embedded.tier === "elite" ? "Elite" : "Pro" })}
                 </p>
                 <EmbeddedPaymentForm
                   clientSecret={embedded.clientSecret}
@@ -374,7 +403,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => setEmbedded(null)}
                   className={`mt-2 w-full text-center text-xs ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
                 >
-                  Cancel — no charge
+                  {t("worldPlansDesk.cancelNoCharge")}
                 </button>
               </div>
             )}
@@ -382,7 +411,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
               <div data-testid="world-plans-change-confirm"
                 className={`mx-auto w-full max-w-md rounded-2xl border px-4 py-3 ${isLight ? "border-[#7A5A12]/40 bg-white/50" : "border-[#d4af37]/40 bg-[#d4af37]/[0.07]"}`}>
                 <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                  Switch to {changePreview.toPlanName}?
+                  {t("worldPlansDesk.switchTitle", { name: changePreview.toPlanName })}
                 </p>
                 <p className={`mt-1 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
                   {planChangeChargeLine(changePreview)}
@@ -399,11 +428,11 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                   <button type="button" data-testid="world-plans-change-apply" onClick={() => void applyChange()} disabled={changing}
                     className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
                     {changing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                    {changing ? "Switching…" : `Yes, switch to ${changePreview.toPlanName}`}
+                    {changing ? t("worldPlansDesk.switching") : t("worldPlansDesk.switchYes", { name: changePreview.toPlanName })}
                   </button>
                   <button type="button" data-testid="world-plans-change-cancel" onClick={() => setChangePreview(null)} disabled={changing}
                     className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
-                    Not now
+                    {t("worldPlansDesk.notNow")}
                   </button>
                 </div>
               </div>

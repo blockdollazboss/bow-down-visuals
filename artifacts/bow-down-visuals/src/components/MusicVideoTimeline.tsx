@@ -24,6 +24,7 @@
     } from "lucide-react";
     import { Button } from "@/components/ui/button";
     import type { SceneData } from "@/lib/scene-parser";
+    import { sceneProviderLabel } from "@/lib/provider-display-labels";
     import { useAuth } from "@/contexts/AuthContext";
     import { useActiveArtist } from "@/contexts/ActiveArtistContext";
     import { useToast } from "@/hooks/use-toast";
@@ -738,9 +739,9 @@
               {status.label}
             </span>
 
-            {scene.provider && scene.generationStatus === "completed" && (
+            {sceneProviderLabel(scene.provider) && scene.generationStatus === "completed" && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 hidden sm:inline-flex items-center gap-1">
-                <Zap className="h-2.5 w-2.5" /> {scene.provider}
+                <Zap className="h-2.5 w-2.5" /> {sceneProviderLabel(scene.provider)}
               </span>
             )}
 

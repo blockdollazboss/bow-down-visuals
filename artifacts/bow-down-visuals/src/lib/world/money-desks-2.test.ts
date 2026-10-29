@@ -253,7 +253,9 @@ describe("#66 tip logic", () => {
     expect(dash.total).toBe(120);
     expect(dash.feed[0]!.fanName).toBe("Sam");
     expect(tipFeedStatusLabel("pending_payment")).toBe("Intent recorded");
-    expect(tipFeedStatusLabel("paid")).toBe("paid");
+    /* stack800 lane 3: a settled tip reads "Received" — the old
+       expectation pinned the raw "paid" token as display text. */
+    expect(tipFeedStatusLabel("paid")).toBe("Received");
   });
 });
 

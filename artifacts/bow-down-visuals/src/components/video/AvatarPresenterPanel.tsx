@@ -2,6 +2,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { User, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { avatarProviderLabel } from "@/lib/provider-display-labels";
 
 /* ─── AvatarPresenterPanel ────────────────────────────────────────────
    AI avatar / talking-head presenter option, docked inside the video
@@ -113,7 +114,7 @@ export function AvatarPresenterPanel({ value, onChange }: AvatarPresenterPanelPr
           <p className="text-xs text-white/60 leading-relaxed">
             {t("avatarPresenter.ready", {
               defaultValue: "Avatar provider connected ({{provider}}).",
-              provider: status?.provider ?? "—",
+              provider: avatarProviderLabel(status?.provider),
             })}
           </p>
         </div>

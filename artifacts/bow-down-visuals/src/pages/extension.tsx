@@ -246,7 +246,7 @@ export default function Extension() {
               <LuxReveal key={t.name} delay={i * 0.06}>
                 <div className={`h-full rounded-2xl border p-6 space-y-3 transition ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)] hover:border-[#C9A84C]/70" : "border-white/10 bg-[#0a0a0a] hover:border-[#d4a017]/40"}`}>
                   <t.icon className={`h-7 w-7 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
-                  <h3 className="font-semibold text-lg">💬 {t.name}</h3>
+                  <h3 className="font-semibold text-lg">{t.name}</h3>
                   <p className="text-white/55 text-sm leading-relaxed">{t.body}</p>
                 </div>
               </LuxReveal>

@@ -1571,14 +1571,19 @@ export default function AnalyticsHub() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      disabled
+                    {/* OAuth connect isn't built — this is a status
+                        label, not a control (QC Q7): a disabled button
+                        here read as a dead primary action. The card's
+                        real action is the manual "Update numbers" entry
+                        below; this chip just says why there's no
+                        Connect button yet. */}
+                    <span
                       title={t("analyticsHub.connectTitle")}
-                      className="flex cursor-not-allowed items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-bold text-white/30"
+                      className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-bold text-white/30"
                     >
                       <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
                       {t("analyticsHub.connectComingSoon")}
-                    </button>
+                    </span>
                   </div>
 
                   {/* stats grid */}
