@@ -604,6 +604,13 @@ export default function WorldPage() {
      holder's tools (my live stream, the video catalog). */
   const [stageScreen, setStageScreen] = useState<WorldScreenState | null>(null);
   const [screenPanelOpen, setScreenPanelOpen] = useState(false);
+  /* The Charts Radio dock starts CLOSED (stack700): it used to
+     render its full panel over the scene's bottom-left corner
+     from the first frame of every hall walk — a menu nobody
+     opened, sitting on the say log and the corner controls.
+     A chip in the same anchor opens it; nothing about the
+     station itself changes. */
+  const [radioOpen, setRadioOpen] = useState(false);
   const [myStream, setMyStream] = useState<{ id: string; title: string } | null>(null);
   const [catalog, setCatalog] = useState<{ mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } | null>(null);
   const [screenNote, setScreenNote] = useState<string | null>(null);
@@ -641,6 +648,16 @@ export default function WorldPage() {
     if (!panelTarget) return;
     openedDeskRef.current = true;
     if (document.pointerLockElement) document.exitPointerLock();
+    /* One panel at a time (stack700, the owner's "way too many
+       menus in the frame"): a desk opening retires the three
+       strips — before this, a station sheet opened OVER a
+       character/screen/host strip left open beneath it, and the
+       frame carried both. Closing here, at the one choke point
+       every desk open passes through, means no opener — E, LB,
+       a prompt's Open button, a directory card — can forget it. */
+    setCharPanelOpen(false);
+    setScreenPanelOpen(false);
+    setHostPanelOpen(false);
   }, [panelTarget]);
   /* The door-opener behind both the E key and the controller's LB:
    * a prompt must be showing and no panel may be open — one guard,
@@ -2139,8 +2156,15 @@ export default function WorldPage() {
         }
         scene.removeAllPeers();
         setScreenPanelOpen(false);
+        /* The room-entry line REPLACES the previous one (stack700):
+           walking a doorway chain used to stack "You walked into…"
+           lines four deep over the scene's corner — the log keeps
+           only the current room's announcement. Speech lines are
+           untouched; only the Palace's own entry lines dedupe. */
         setSayLog((log) => [
-          ...log.slice(-7),
+          ...log
+            .filter((e) => !(e.peerId === "hall" && e.body.startsWith("You walked into")))
+            .slice(-7),
           { peerId: "hall", displayName: "The Palace", body: `You walked into ${room.name}.` },
         ]);
         if (wasInVoice) {
@@ -2780,6 +2804,23 @@ export default function WorldPage() {
           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border-white/15 text-white/75 hover:text-white"
     }`;
+  /* One strip at a time (stack700): the footer's three panel
+   * toggles route through here — opening one retires the other
+   * two and any open desk, so the frame never stacks panels the
+   * way the owner's walk found them. Closing the open one stays
+   * a plain toggle. */
+  const toggleStripPanel = (which: "char" | "screen" | "host") => {
+    if (which === "char") {
+      if (!charPanelOpen) { setScreenPanelOpen(false); setHostPanelOpen(false); setPanelTarget(null); }
+      setCharPanelOpen((o) => !o);
+    } else if (which === "screen") {
+      if (!screenPanelOpen) { setCharPanelOpen(false); setHostPanelOpen(false); setPanelTarget(null); }
+      setScreenPanelOpen((o) => !o);
+    } else {
+      if (!hostPanelOpen) { setCharPanelOpen(false); setScreenPanelOpen(false); setPanelTarget(null); }
+      setHostPanelOpen((o) => !o);
+    }
+  };
   /* The voice connection truth for the footer (item 100): rolled up
      from the mesh's per-pair states — never assumed from "in voice".
      Item 66: through the memoizing summarizer, so a render where no
@@ -3146,8 +3187,14 @@ export default function WorldPage() {
 
       {/* Walk in as — members pick a Creative Vault character (or the
           house avatar) as who they stand in the hall as. Guests and
-          signed-out visitors never see the row. */}
-      {user ? (
+          signed-out visitors never see the row. At the DOOR only
+          (stack700): once inside, this same picker lives in the
+          in-hall character panel — rendering it above the room too
+          put a whole second menu in the frame for the entire walk
+          (the owner's "way too many menus", 2026-10-29). Nothing is
+          lost: Change character in the footer opens the identical
+          picker, same handlers, from inside. */}
+      {user && status !== "inside" ? (
         <WalkInAsPicker
           characters={vaultChars}
           loadFailed={vaultLoadFailed}
@@ -3598,8 +3645,12 @@ export default function WorldPage() {
           </div>
         )}
 
-        {/* Controls hint */}
-        {status === "inside" && !photoMode && (
+        {/* Controls hint — keyboard words for keyboard walkers.
+            A connected controller swaps the footer line to the
+            pad's own words; painting the WASD pill over the scene
+            too was frame clutter for exactly the walker who
+            cannot use it (stack700). */}
+        {status === "inside" && !photoMode && !padConnected && (
           <p className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
             WASD to walk · drag or click to look · Shift to hurry · E opens what&rsquo;s in reach
           </p>
@@ -3782,14 +3833,36 @@ export default function WorldPage() {
             always the same distance above the screen's bottom edge,
             and the dvh cap + internal scroll mean late-arriving
             content can never push it past the top of the screen. */}
-        {status === "inside" && roomId === HALL_ROOM_ID && !photoMode && (
-          <div
-            className="fixed bottom-24 left-3 z-30 max-h-[calc(100dvh-8rem)] w-[min(92vw,380px)] overflow-y-auto overscroll-contain sm:bottom-20 sm:max-h-[calc(100dvh-7rem)]"
-            data-testid="world-plaza-radio"
-          >
-            <ChartsRadioPanel compact />
-          </div>
-        )}
+        {status === "inside" && roomId === HALL_ROOM_ID && !photoMode &&
+          (radioOpen ? (
+            <div
+              className="fixed bottom-24 left-3 z-30 max-h-[calc(100dvh-8rem)] w-[min(92vw,380px)] overflow-y-auto overscroll-contain sm:bottom-20 sm:max-h-[calc(100dvh-7rem)]"
+              data-testid="world-plaza-radio"
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  data-testid="world-plaza-radio-close"
+                  onClick={() => setRadioOpen(false)}
+                  aria-label="Close Charts Radio"
+                  className={`absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:bg-[#C9A84C]/15" : "border-white/15 text-white/70 hover:bg-white/10"}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <ChartsRadioPanel compact />
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              data-testid="world-plaza-radio-open"
+              onClick={() => setRadioOpen(true)}
+              className={`fixed bottom-24 left-3 z-30 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-lg backdrop-blur-sm transition hover:scale-105 sm:bottom-20 ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#7A5A12]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"}`}
+            >
+              <Music2 className="h-4 w-4" />
+              Charts Radio
+            </button>
+          ))}
 
       {/* In-hall character panel — the same picker as the door,
           opened from inside (the pick rides the same verified
@@ -4250,9 +4323,15 @@ export default function WorldPage() {
           viewport's bottom-right, over this footer's corner — the
           reserved strip keeps the right-aligned controls (and the
           trailing headset status line) from ever running under it
-          and truncating mid-word (owner's screenshot, 2026-10-16). */}
+          and truncating mid-word (owner's screenshot, 2026-10-16).
+          pl-24 is its mirror (stack700): the guide's gold OPEN box
+          parks at the viewport's bottom-LEFT, and the owner's
+          frames showed it sitting on the action bar's first pill,
+          eating its left edge ("…en Creator Rooms"). Same
+          reservation, other corner — the footer's rows start
+          clear of both parked buttons. */}
       {!photoMode && (
-      <footer className={`relative z-20 border-t py-3 pl-4 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
+      <footer className={`relative z-20 border-t py-3 pl-24 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}
@@ -4532,7 +4611,7 @@ export default function WorldPage() {
             {!isGuest && user && status === "inside" && (
               <button
                 type="button"
-                onClick={() => setCharPanelOpen((o) => !o)}
+                onClick={() => toggleStripPanel("char")}
                 data-testid="world-change-character"
                 aria-expanded={charPanelOpen}
                 className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${charPanelOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]" : isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
@@ -4544,7 +4623,7 @@ export default function WorldPage() {
             {!isGuest && inHall && status === "inside" && (
               <button
                 type="button"
-                onClick={() => setScreenPanelOpen((o) => !o)}
+                onClick={() => toggleStripPanel("screen")}
                 data-testid="world-screen-button"
                 aria-expanded={screenPanelOpen}
                 className={panelBtnCls(screenPanelOpen)}
@@ -4557,7 +4636,7 @@ export default function WorldPage() {
             {isAdmin && status === "inside" && (
               <button
                 type="button"
-                onClick={() => setHostPanelOpen((o) => !o)}
+                onClick={() => toggleStripPanel("host")}
                 data-testid="world-host-button"
                 aria-expanded={hostPanelOpen}
                 className={panelBtnCls(hostPanelOpen)}

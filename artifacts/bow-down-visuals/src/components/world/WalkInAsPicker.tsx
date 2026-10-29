@@ -274,7 +274,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
 
   return (
     <div
-      className={`relative z-20 border-b px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}
+      className={`relative z-20 scroll-mt-32 border-b px-4 py-3 md:scroll-mt-40 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}
       data-testid="walk-in-as"
     >
       {/* The prompt in plain words — the owner walked past this row
