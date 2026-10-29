@@ -380,6 +380,16 @@ export default function WorldPage() {
   const shaperRef = useRef<CharacterVoiceShaper | null>(null);
   const localTapRef = useRef<{ getLevel: () => number; dispose: () => void } | null>(null);
   const spawnedRef = useRef(false);
+  /* The room the say log last announced as entered. onRoomChanged
+   * fires not only for doorway transfers but also for a
+   * quiet-reconnect landing in the SAME room (the client re-homes
+   * the page so the dead socket's voice mesh tears down) — the
+   * "You walked into…" line may only speak for an actual change
+   * of room, so the handler checks the room against this ref.
+   * Seeded at the first landing (the onStatus inside branch,
+   * where the header takes its room from) and advanced by the
+   * room-changed handler itself. */
+  const feedRoomRef = useRef<string | null>(null);
 
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<WorldStatus>("connecting");
@@ -1939,6 +1949,7 @@ export default function WorldPage() {
           if (client.room) {
             setRoomId(client.room.id);
             setRoomName(client.room.name);
+            feedRoomRef.current = client.room.id;
           }
           setIsGuest(client.self.guest);
           setMyName(client.self.displayName);
@@ -2015,17 +2026,30 @@ export default function WorldPage() {
            presence server-side to the room's spawn while the rig
            stays at the old room's coordinates: inside the new
            room's walls, its floor, its dark — the owner's Oct 24
-           walk. When the welcome's landing is far from the rig,
-           place the rig on it: a spawn is a placement, not a walk. */
-        if (client.self && transferNeedsReseat(scene.localPose(), client.self)) {
+           walk. When the welcome's landing is far from the rig —
+           or the rig stands on floor this room does not claim,
+           the wall-near seams distance alone used to miss (the
+           rule's membership half) — place the rig on it: a spawn
+           is a placement, not a walk. */
+        if (client.self && transferNeedsReseat(scene.localPose(), client.self, room.id)) {
           scene.setSpawn(client.self.x, client.self.z);
         }
         scene.removeAllPeers();
         setScreenPanelOpen(false);
-        setSayLog((log) => [
-          ...log.slice(-7),
-          { peerId: "hall", displayName: "The Palace", body: `You walked into ${room.name}.` },
-        ]);
+        /* The walked-into line speaks only for an actual change of
+           room. A quiet-reconnect landing re-homes this handler in
+           the room the walker never left (the voice teardown above
+           is real — the mesh died with the socket) and a refused
+           transfer never reaches this handler at all; announcing a
+           walk that didn't happen is the duplicate the flap guard
+           killed scene-side, one layer down. */
+        if (feedRoomRef.current !== room.id) {
+          feedRoomRef.current = room.id;
+          setSayLog((log) => [
+            ...log.slice(-7),
+            { peerId: "hall", displayName: "The Palace", body: `You walked into ${room.name}.` },
+          ]);
+        }
         if (wasInVoice) {
           setVoiceNote(
             `Voice stayed in the room you left — it's per-room here. Join voice to talk in ${room.name}.`,
