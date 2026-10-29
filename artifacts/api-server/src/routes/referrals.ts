@@ -6,6 +6,37 @@ import { recordCreditUsageStrict } from "../lib/payment-record";
 import { canonicalEmail } from "../lib/canonical-email";
 import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { logger } from "../lib/logger";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
+
+/* ── Referral-earned push (push wiring #12) ──────────────────────────────
+   The referrer hears about a landed share on their devices, not just
+   on /credit-history. Category money; the amount rides the body. */
+export function buildReferralEarnedEvent(referrerUserId: string, awarded: number): UserEventInput {
+  return {
+    userId: referrerUserId,
+    category: "money",
+    kind: "referral_earned",
+    title: "Referral earnings landed 👑",
+    body: `+${awarded.toLocaleString("en-US")} VB — someone you brought in just bought credits. Your cut is in your balance.`,
+    link: "/credit-history",
+  };
+}
+
+type ReferralEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _referralEventNotifier: ReferralEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setReferralEventNotifier(fn: ReferralEventNotifier | null): void {
+  _referralEventNotifier = fn ?? notifyUserEvent;
+}
+
+/** Best-effort: a ping failure never fails an award that landed. */
+export async function notifyReferralEarned(referrerUserId: string, awarded: number): Promise<void> {
+  try {
+    await _referralEventNotifier(buildReferralEarnedEvent(referrerUserId, awarded));
+  } catch (err) {
+    logger.warn({ err, referrerUserId, awarded }, "referral: earned-notification failed (non-fatal)");
+  }
+}
 
 const router = Router();
 
@@ -484,6 +515,13 @@ export async function awardReferralPayout(
       { referralId: referral.id, referrer: referral.referrer_user_id, awarded, stripeSessionId },
       "Referral revenue-share payout awarded"
     );
+    /* Push wiring #12: the grant + its ledger row landed — tell the
+       referrer. Exactly-once rides the referral_payouts claim above
+       (UNIQUE stripe_session_id): a replayed webhook dies at the
+       claim insert and returns 0 long before this line, and every
+       award path (hosted webhook, embedded PI branch, embedded
+       verify) funnels through this one function. Best-effort. */
+    await notifyReferralEarned(referral.referrer_user_id, awarded);
     return awarded;
   } catch (err: unknown) {
     logger.error({ err, refereeUserId, stripeSessionId }, "Referral payout failed");
