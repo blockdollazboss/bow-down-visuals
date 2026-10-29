@@ -532,6 +532,24 @@ async function probeVideo(filePath: string): Promise<VideoInfo> {
   }
 }
 
+/** Probe a still image's codec for the feed pre-scale identity gate
+ *  (§4.5 watermark, §4.6 overlay images): the first video stream's
+ *  codec_name ("png", "mjpeg", "webp", …), or "" when the probe
+ *  fails — callers treat "" as outside the byte-identical class and
+ *  feed the full-size original (fail-safe toward today's behavior). */
+async function probeStillImageCodec(filePath: string): Promise<string> {
+  try {
+    const probe = await execFileAsync(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "csv=p=0", filePath],
+      { timeout: 10_000 },
+    );
+    return probe.stdout.trim().split("\n")[0] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /** Normalize one clip to target resolution/fps/codec so all clips are concat-compatible.
  *  `crf` parameterizes the encode quality (default 20 = legacy behavior);
  *  the quality dialog passes deliveryCrf + 2 for a slightly cleaner intermediate. */
@@ -2025,6 +2043,18 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     const wmInputIdx    = activeWmPath ? nextIdx++ : -1;
     // One FFmpeg input per successfully-downloaded overlay image, index-aligned with overlayItems.
     const overlayImgInputIdx: number[] = overlayImagePaths.map((p) => (p ? nextIdx++ : -1));
+    // Display width the filter graph scales each overlay image to,
+    // index-aligned with overlayItems (0 = no image input for that
+    // item). Hoisted so the feed pre-scale below (§4.6) uses the exact
+    // width the graph targets — one source of truth for the display
+    // size, mirroring wmDisplayWidth for the watermark (§3b/§4.5).
+    // ov.size is a 5–90% width, matching the live preview's clamp
+    // (OverlayLayer.tsx).
+    const overlayImgWidths: number[] = overlayImagePaths.map((p, i) => {
+      if (!p) return 0;
+      const widthPct = Math.max(5, Math.min(90, overlayItems![i]!.size ?? 20));
+      return Math.round(TARGET_W * (widthPct / 100));
+    });
 
     /* ── 3b: Build video filter_complex ── */
     // Clips are already normalized to target resolution/fps/codec — no scale filter needed.
@@ -2298,9 +2328,9 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
           const imgIdx = overlayImgInputIdx[ovIdx] ?? -1;
           if (imgIdx < 0) { ovIdx++; continue; } // source missing/failed to download
           const pos     = IMG_OVERLAY_POS[ov.position ?? "bottom-right"] ?? IMG_OVERLAY_POS["bottom-right"]!;
-          // ov.size is a 5–90% width, matching the live preview's clamp (OverlayLayer.tsx).
-          const widthPct = Math.max(5, Math.min(90, ov.size ?? 20));
-          const imgW     = Math.round(TARGET_W * (widthPct / 100));
+          // Display width hoisted at §3 (overlayImgWidths) so the §4.6
+          // feed pre-scale targets the exact width this scale applies.
+          const imgW     = overlayImgWidths[ovIdx] ?? 0;
           const alpha    = (ov.opacity != null ? ov.opacity / 100 : 1.0).toFixed(2);
           const scaledLabel = `ovimg${ovIdx}`;
           filterParts.push(`[${imgIdx}:v]scale=${imgW}:-2,format=rgba,colorchannelmixer=aa=${alpha}[${scaledLabel}]`);
@@ -2420,6 +2450,9 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     // ── Watermark overlay — applied LAST so it is the topmost visual layer.
     // Nothing is composited on top of it after this point. ──
+    // Hoisted so the feed pre-scale below (§4.5) uses the exact width the
+    // graph scales to — one source of truth for the display size.
+    let wmDisplayWidth = 0;
     if (wmInputIdx >= 0 && activeWmPath) {
       const bwm = useBrandingWm ? branding!.watermark : null;
       // Size as a % of TARGET_W so the logo occupies a consistent relative footprint
@@ -2428,6 +2461,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       const wmW = bwm
         ? Math.round(TARGET_W * (wmSizeMap[bwm.size] ?? 0.15))
         : Math.round(TARGET_W * (wmSizeMap[watermarkSize] ?? 0.15));
+      wmDisplayWidth = wmW;
       // If "Logo / Watermark" is in overlayEffects with an explicit intensity, use that
       // alpha so the burned watermark matches the editor overlay panel at that opacity.
       const wmOverlayIntensityVal = overlayIntensityMap["Logo / Watermark"] ?? overlayIntensityMap["Watermark"];
@@ -2488,6 +2522,126 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
     }
 
+    /* ── 4.5: Watermark feed pre-scale (stack700 export-memory) ──────
+     * The watermark enters the render as a `-loop 1` still input, and
+     * the filter graph scales it to wmDisplayWidth — but decoded frames
+     * QUEUE ahead of that scale filter at the SOURCE's full size. The
+     * house mark is 1600×1600, so every queued RGBA frame costs
+     * ~10 MB, and the still decoder runs far ahead of the single-
+     * threaded encoder: bisecting the gate re-run #3 pass-A graph
+     * locally put the watermark leg at ~109 MB of ffmpeg's 262 MB
+     * peak (encode-only 119 MB; +effects 153 MB; +watermark 262 MB).
+     * That queue is the margin that carried Node's ~280 MB baseline +
+     * ffmpeg over the 512 MB container line and killed the container
+     * seconds after "pass A starting" — RSS reaches its plateau
+     * within the first seconds of the spawn (measured), and the
+     * memory watchdog cannot see it (it samples only this process,
+     * never children). Feeding the graph a copy already at display
+     * width makes the in-graph scale an exact identity — output is
+     * byte-identical (md5-verified locally against the full-size
+     * feed) — and drops the measured peak to ~205 MB. Best-effort:
+     * any failure here feeds the original image; the render itself
+     * is never put at risk for a memory optimisation.
+     *
+     * IDENTITY GATE (stack700 watermark-png-gate) — only PNG sources
+     * are pre-scaled, the §4.6 discipline applied to this leg. The
+     * byte-identity above was proven for PNG sources; the watermark
+     * leg also accepts lossy sources — the dark house mark itself is
+     * WebP (bdv-watermark.webp) and custom logos download as .jpg /
+     * .webp (§2b/§2d) — and for those the in-graph scaler negotiates
+     * a different intermediate format than a standalone pre-scale,
+     * so the pre-scaled render DRIFTS from today's bytes (md5-
+     * verified locally on the actual dark mark: full-size feed and
+     * pre-scaled feed produce different output; the PNG light mark
+     * is byte-identical). Lossy sources therefore keep the full-size
+     * feed EXACTLY — the pre-stack700 render path, no output change —
+     * and the skip is logged so the residual memory exposure (the
+     * dark mark's queue leg) stays visible rather than silently
+     * trading quality for headroom. */
+    let wmFeedPath: string | null = activeWmPath;
+    if (wmInputIdx >= 0 && activeWmPath && wmDisplayWidth > 0) {
+      const wmCodec = await probeStillImageCodec(activeWmPath);
+      if (wmCodec !== "png") {
+        ctx.log.info(
+          { wmCodec: wmCodec || "unknown" },
+          "[export] watermark not pre-scaled — source format outside the byte-identical class (feeding full-size)",
+        );
+      } else {
+        const scaledWmPath = path.join(tmpDir, `bdv-wm-feed-${exportId}.png`);
+        try {
+          await execFileAsync(
+            "ffmpeg",
+            ["-y", "-i", activeWmPath, "-vf", `scale=${wmDisplayWidth}:-2`, "-pix_fmt", "rgba", scaledWmPath],
+            { timeout: 30_000 },
+          );
+          tmpFiles.push(scaledWmPath);
+          wmFeedPath = scaledWmPath;
+          ctx.log.info({ wmDisplayWidth }, "[export] watermark pre-scaled to display width for the render feed");
+        } catch (e) {
+          ctx.log.warn({ err: String(e) }, "[export] watermark pre-scale failed — feeding the full-size image (render unaffected)");
+        }
+      }
+    }
+
+    /* ── 4.6: Overlay image feed pre-scale (stack700 overlay-prescale) ──
+     * The structured overlay images share the watermark's queue
+     * mechanism (§4.5): each enters the render as a `-loop 1` still
+     * input and is scaled inside the graph to its display width
+     * (overlayImgWidths, §3), but decoded frames QUEUE ahead of that
+     * scale filter at the SOURCE's full size — and overlay sources are
+     * arbitrary user uploads, not a known house asset. A 4000×4000
+     * logo queues ~64 MB per RGBA frame ahead of a scale down to a
+     * few hundred px, stacked on the same pass-A spike the restart
+     * hunt proved crosses the 512 MB container line (measured locally:
+     * one 4000×4000 PNG logo loop alone peaks ffmpeg at ~545 MB;
+     * pre-scaled, ~177 MB).
+     *
+     * IDENTITY GATE — only PNG sources are pre-scaled. Feeding a copy
+     * already at display width makes the in-graph scale an identity
+     * ONLY when the scaler sees the same working format in both
+     * paths, and that is proven (md5, local ffmpeg) for PNG sources
+     * in every encoding a logo carries (rgba, pal8, rgb24 all
+     * reproduce the full-size render byte-for-byte). For JPEG and
+     * WebP sources the in-graph scaler negotiates a different
+     * intermediate format than a standalone pre-scale does, and BOTH
+     * candidate chains (format-before-scale, format-after-scale)
+     * produce different bytes than today's full-size render — so
+     * lossy sources keep today's full-size feed EXACTLY (no output
+     * change, no regression) until a chain proves identical for them;
+     * the skip is logged so the residual exposure stays visible.
+     * Best-effort per item: a probe or pre-scale failure feeds that
+     * item's original image; the render itself is never put at risk
+     * for a memory optimisation. */
+    const overlayFeedPaths: (string | null)[] = [...overlayImagePaths];
+    for (let i = 0; i < overlayImagePaths.length; i++) {
+      const srcPath = overlayImagePaths[i];
+      const feedW = overlayImgWidths[i] ?? 0;
+      if (!srcPath || feedW <= 0) continue;
+      // Probe failure → "" → the item feeds its original below
+      // (fail-safe toward today's behavior).
+      const srcCodec = await probeStillImageCodec(srcPath);
+      if (srcCodec !== "png") {
+        ctx.log.info(
+          { idx: i, srcCodec: srcCodec || "unknown" },
+          "[export] overlay image not pre-scaled — source format outside the byte-identical class (feeding full-size)",
+        );
+        continue;
+      }
+      const scaledOvPath = path.join(tmpDir, `bdv-ovimg-feed-${exportId}-${i}.png`);
+      try {
+        await execFileAsync(
+          "ffmpeg",
+          ["-y", "-i", srcPath, "-vf", `scale=${feedW}:-2`, "-pix_fmt", "rgba", scaledOvPath],
+          { timeout: 30_000 },
+        );
+        tmpFiles.push(scaledOvPath);
+        overlayFeedPaths[i] = scaledOvPath;
+        ctx.log.info({ idx: i, feedW }, "[export] overlay image pre-scaled to display width for the render feed");
+      } catch (e) {
+        ctx.log.warn({ err: String(e), idx: i }, "[export] overlay image pre-scale failed — feeding the full-size image (render unaffected)");
+      }
+    }
+
     /* ── 5: Build FFmpeg args ── */
     // Input ordering: intro? → normalizedClips → outro? → audio? → watermark?
     const outputPath = path.join(tmpDir, `bdv-export-${exportId}.${outExt}`);
@@ -2528,13 +2682,16 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
       ffmpegArgs.push("-i", audioPath);
     }
-    // Watermark still image (looped)
-    if (wmInputIdx >= 0 && activeWmPath) {
-      ffmpegArgs.push("-loop", "1", "-i", activeWmPath);
+    // Watermark still image (looped) — the §4.5 pre-scaled feed copy
+    // when it exists, else the original image.
+    if (wmInputIdx >= 0 && wmFeedPath) {
+      ffmpegArgs.push("-loop", "1", "-i", wmFeedPath);
     }
-    // Structured overlay images (e.g. a user-uploaded logo placed via the overlay editor)
-    for (let i = 0; i < overlayImagePaths.length; i++) {
-      const imgPath = overlayImagePaths[i];
+    // Structured overlay images (e.g. a user-uploaded logo placed via the
+    // overlay editor) — the §4.6 pre-scaled feed copy when it exists,
+    // else the full-size download.
+    for (let i = 0; i < overlayFeedPaths.length; i++) {
+      const imgPath = overlayFeedPaths[i];
       if (imgPath) ffmpegArgs.push("-loop", "1", "-i", imgPath);
     }
 
@@ -2625,8 +2782,8 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         path: p,
       })),
       ...(audioPath ? [{ label: "Audio track", path: audioPath }] : []),
-      ...(wmInputIdx >= 0 && activeWmPath ? [{ label: "Watermark image", path: activeWmPath }] : []),
-      ...overlayImagePaths
+      ...(wmInputIdx >= 0 && activeWmPath ? [{ label: "Watermark image", path: wmFeedPath ?? activeWmPath }] : []),
+      ...overlayFeedPaths
         .map((p, i) => (p ? { label: `Overlay image #${i + 1}`, path: p } : null))
         .filter((x): x is { label: string; path: string } => x !== null),
       ...(captionsAssPath ? [{ label: "Caption/subtitle file", path: captionsAssPath }] : []),
